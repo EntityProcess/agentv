@@ -52,13 +52,13 @@ Expect additional subdirectories during migration:
 - [x] Initialize pnpm/Turbo workspace mirroring `subagent` & `WTG.Knowledge`
 - [x] Create `@agentevo/core` and `@agentevo/cli` packages with build/test scripts
 
-### Phase 3 – Core Domain Translation (In Progress)
-- [ ] Port data contracts (`TestCase`, `EvaluationResult`, etc.) to strict TypeScript types/interfaces
-- [ ] Implement YAML loader with identical resolution order:
+### Phase 3 – Core Domain Translation (Completed)
+- [x] Port data contracts (`TestCase`, `EvaluationResult`, etc.) to strict TypeScript types/interfaces
+- [x] Implement YAML loader with identical resolution order:
   - Search path priority: test file dir → ancestors → repo root → `cwd`
   - Distinguish guideline files (`*.instructions.md`, `/instructions/` paths, etc.)
   - Maintain `code_snippets` extraction from fenced blocks
-- [ ] Build prompt assembly helpers returning `{ request, guidelines }` payloads
+- [x] Build prompt assembly helpers returning `{ request, guidelines }` payloads
 
 ### Phase 4 – Provider Layer
 - [ ] Wrap `@ax-llm/ax` connectors:
