@@ -1,0 +1,8 @@
+node_modules/
+.pnpm-store/
+dist/
+build/
+coverage/
+.turbo/
+.cache/
+.DS_Store

@@ -1,0 +1,21 @@
+{
+  "name": "@agentevo/cli",
+  "version": "0.0.1",
+  "description": "CLI entry point for AgentEvo",
+  "type": "module",
+  "bin": {
+    "agentevo": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "test": "vitest --run --dir test"
+  },
+  "dependencies": {
+    "@agentevo/core": "workspace:*",
+    "commander": "^12.1.0"
+  }
+}
