@@ -103,6 +103,33 @@ thresholds:
   correctness_min: 0.85
 ```
 
+## Single-Case Dataset YAML
+- When you only need one or two handcrafted eval cases, reuse BbEval's low-barrier schema instead of inventing bespoke fields. `docs/vision/example/datasets/sql_generation_single.yaml` shows a single `evalcases` entry whose `messages` transcript already contains the canonical assistant reply while `expected` holds the success `outcome` text plus rubric aspects.
+- Wire the file into your panel by pointing to it with `source.type: yaml` and selecting the `bbeval_evalcases` parser (planned loader below):
+
+```yaml
+datasets:
+  - id: incident-triage
+    source:
+      type: yaml
+      path: ./datasets/sql_generation_single.yaml
+    parser:
+      type: bbeval_evalcases
+      inputMessagesField: input.messages
+      expectedMessagesField: expected.messages
+      outcomeField: expected.outcome
+      rubricField: expected.outcome.rubric.aspects
+```
+- The loader should flatten each testcase into a synthetic row so downstream tasks can bind `${dataset.input.messages}` for prompts and `${dataset.expected.messages}` / `${dataset.expected.rubric}` for scoring without special handling.
+    - Keep the `evalcases` array even when a file holds just one entry; it keeps the schema uniform and makes it trivial to append additional scenarios later without rewriting tooling.
+    - Group agent-facing turns under `input.messages` and keep gold responses under `expected.messages` so pipelines can cleanly separate prompts from ground truth.
+    - Optional per-case execution overrides such as `target` or `grader` can live under `execution.*` when panels need per-task tweaks.
+    - For backward compatibility, treat `expected.outcome` as either a bare string (description only) or an object with `description`/`rubric` children; the parser can normalize the string case to `{ description: <value> }` before evaluation.
+- The JSON Schema at `docs/vision/eval-schema.json` formalizes the structure above so authors and tools can validate cases consistently.
+    - Use `checkpoint` or `conversationId` on an evalcase when you want to group multiple scoring waypoints from the same dialogue.
+    - Message roles default to `system|user|assistant|tool`, but custom roles are allowed if they follow `[A-Za-z0-9_-]+`. Likewise, content parts support common types (`text`, `file`, `tool_call`, etc.) while staying extensible.
+- Aligning with BbEval keeps the authoring surface consistent across projects and lets us share example libraries (WTG.AI.Prompts already publishes dozens of complex scenarios in this shape).
+
 ## Optimization Loop
 1. Execute tasks (external or internal).
 2. Collect traces tagged with `artifact_version`.

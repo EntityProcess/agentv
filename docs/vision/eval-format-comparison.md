@@ -38,5 +38,7 @@ This note summarizes how three reference projects structure agent evaluation wor
 - Support multi-turn conversation patterns with instruction file references (bbeval) to inject domain-specific guidelines without polluting test cases.
 - Incorporate session-based artifact management (bbeval) to prevent race conditions in concurrent evaluation scenarios.
 - Consider both aspect-based scoring (bbeval) and LLM judge patterns for flexible evaluation strategies.
+- Permit single-case YAML datasets that literally reuse BbEval's `evalcases` structure (agent-facing turns under `input.messages`, gold replies under `expected.messages`, outcome description/rubric bundled inside `expected.outcome`, optional execution overrides for target/grader) so non-developers can drop in conversation-style scenarios without touching JSONL.
+- Publish a machine-readable schema (see `docs/vision/eval-schema.json`) so tooling can validate panels the same way Promptflow enforces DAG integrity, including multi-checkpoint grouping via `conversationId`/`checkpoint` and guarded enums for roles/content types.
 
 These insights motivate the proposed YAML structure: datasets + tasks + reusable evaluators + scoring + reporting, all validated via a TypeScript schema and able to emit structured telemetry for downstream tooling.
