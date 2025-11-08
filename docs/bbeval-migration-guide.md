@@ -61,17 +61,16 @@ Expect additional subdirectories during migration:
 - [x] Build prompt assembly helpers returning `{ request, guidelines }` payloads
 
 ### Phase 4 – Provider Layer
-- [ ] Wrap `@ax-llm/ax` connectors:
+- [x] Wrap `@ax-llm/ax` connectors:
   - Azure OpenAI (`azure-openai` provider, env vars `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_DEPLOYMENT_NAME`)
   - Anthropic (`anthropic`, `ANTHROPIC_API_KEY` etc.)
   - Mock provider for `--dry-run`
-- [ ] Reimplement VS Code Copilot shell-out:
-  - Use `code` / `code-insiders` CLI
-  - Write `.req.md`, `.res.tmp.md`, `.res.md` files under `.bbeval/vscode-copilot/{session}`
-  - Poll with timeout, raise `AgentTimeoutError`
-  - Optional focus is best-effort: log warnings when dependencies absent
+- [x] Reimplement VS Code Copilot shell-out via the `subagent` programmatic API:
+  - Write `.prompt.md` files per request and attach resolved workspace files
+  - Poll for completion, surface non-zero exit codes, and respect dry-run mode
+  - Optional focus remains best-effort: log warnings when dependencies absent
 - [ ] Provide fallback connectors via `vercel-ai-sdk` only for simple completions where Ax is unnecessary
-- [ ] Apply schema validation (`zod`) for target settings & env parsing
+- [x] Apply schema validation (`zod`) for target settings & env parsing
 
 ### Phase 5 – Evaluation Pipeline
 - [ ] Implement evaluation orchestrator mirroring `_run_test_case_grading` & `run_evaluation`
@@ -141,12 +140,12 @@ Run via Turborepo pipeline: `pnpm typecheck`, `pnpm lint`, `pnpm test`, optional
 
 ## 7. Next-Step Checklist for Subagents
 
-1. Add domain models (`packages/core/src/bbeval/types.ts`).
-2. Implement YAML parsing + tests.
-3. Integrate provider adapters (Ax + VS Code shell-out) with environment validation.
-4. Port evaluation orchestrator and grading logic.
-5. Expand CLI command to fully mirror Python flags.
-6. Backfill documentation and test coverage.
+- [x] Add domain models (`packages/core/src/bbeval/types.ts`).
+- [x] Implement YAML parsing + tests.
+- [x] Integrate provider adapters (Ax + VS Code dispatch) with environment validation.
+- [ ] Port evaluation orchestrator and grading logic.
+- [ ] Expand CLI command to fully mirror Python flags.
+- [ ] Backfill documentation and test coverage.
 
 Mark milestones via Git commits scoped per phase (e.g., `feat(core): add bbeval types and yaml parser`).
 
