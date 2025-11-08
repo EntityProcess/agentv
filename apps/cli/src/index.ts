@@ -6,10 +6,7 @@ import { registerStatusCommand } from "./commands/status.js";
 export function createProgram(): Command {
   const program = new Command();
 
-  program
-    .name("agentevo")
-    .description("AgentEvo CLI scaffolding")
-    .version("0.0.1");
+  program.name("agentevo").description("AgentEvo CLI scaffolding").version("0.0.1");
 
   registerStatusCommand(program);
 

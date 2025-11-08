@@ -108,7 +108,10 @@ export function resolveTargetDefinition(
   }
 }
 
-function resolveAzureConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>, env: EnvLookup): AzureResolvedConfig {
+function resolveAzureConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): AzureResolvedConfig {
   const settings = target.settings ?? {};
   const endpointSource = settings.endpoint ?? settings.resource ?? settings.resourceName;
   const apiKeySource = settings.api_key ?? settings.apiKey;
@@ -122,7 +125,10 @@ function resolveAzureConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>, env: Env
   const deploymentName = resolveString(deploymentSource, env, `${target.name} deployment`);
   const version = resolveOptionalString(versionSource, env, `${target.name} api version`);
   const temperature = resolveOptionalNumber(temperatureSource, `${target.name} temperature`);
-  const maxOutputTokens = resolveOptionalNumber(maxTokensSource, `${target.name} max output tokens`);
+  const maxOutputTokens = resolveOptionalNumber(
+    maxTokensSource,
+    `${target.name} max output tokens`,
+  );
 
   return {
     resourceName,
@@ -134,7 +140,10 @@ function resolveAzureConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>, env: Env
   };
 }
 
-function resolveAnthropicConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>, env: EnvLookup): AnthropicResolvedConfig {
+function resolveAnthropicConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): AnthropicResolvedConfig {
   const settings = target.settings ?? {};
   const apiKeySource = settings.api_key ?? settings.apiKey;
   const modelSource = settings.model ?? settings.deployment ?? settings.variant;

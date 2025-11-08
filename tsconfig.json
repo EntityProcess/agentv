@@ -3,15 +3,6 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": [
-    "apps",
-    "packages",
-    "packages/core/test",
-    "apps/cli/test",
-    "vitest.config.ts"
-  ],
-  "references": [
-    { "path": "./packages/core" },
-    { "path": "./apps/cli" }
-  ]
+  "include": ["apps", "packages", "packages/core/test", "apps/cli/test", "vitest.config.ts"],
+  "references": [{ "path": "./packages/core" }, { "path": "./apps/cli" }]
 }

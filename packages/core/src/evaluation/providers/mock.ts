@@ -2,7 +2,7 @@ import type { MockResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 
 const DEFAULT_MOCK_RESPONSE =
-  "{\"answer\":\"Mock provider response. Configure targets.yaml to supply a custom value.\"}";
+  '{"answer":"Mock provider response. Configure targets.yaml to supply a custom value."}';
 
 export class MockProvider implements Provider {
   readonly id: string;

@@ -4,13 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
-import type {
-  GraderKind,
-  JsonObject,
-  JsonValue,
-  TestCase,
-  TestMessage,
-} from "./types.js";
+import type { GraderKind, JsonObject, JsonValue, TestCase, TestMessage } from "./types.js";
 import { isGraderKind, isJsonObject, isTestMessage } from "./types.js";
 
 const CODE_BLOCK_PATTERN = /```[\s\S]*?```/g;

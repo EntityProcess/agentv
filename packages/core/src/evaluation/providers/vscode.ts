@@ -15,7 +15,11 @@ export class VSCodeProvider implements Provider {
 
   private readonly config: VSCodeResolvedConfig;
 
-  constructor(targetName: string, config: VSCodeResolvedConfig, kind: "vscode" | "vscode-insiders") {
+  constructor(
+    targetName: string,
+    config: VSCodeResolvedConfig,
+    kind: "vscode" | "vscode-insiders",
+  ) {
     this.id = `${kind}:${targetName}`;
     this.kind = kind;
     this.targetName = targetName;

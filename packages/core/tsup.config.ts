@@ -5,7 +5,7 @@ export default defineConfig({
   format: ["esm", "cjs"],
   sourcemap: true,
   clean: true,
-  dts: true,
+  dts: false,
   target: "node20",
-  tsconfig: "./tsconfig.build.json"
+  tsconfig: "./tsconfig.build.json",
 });

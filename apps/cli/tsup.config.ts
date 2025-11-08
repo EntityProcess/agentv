@@ -5,10 +5,10 @@ export default defineConfig({
   format: ["esm"],
   sourcemap: true,
   clean: true,
-  dts: true,
+  dts: false,
   target: "node20",
   banner: {
-    js: "#!/usr/bin/env node"
+    js: "#!/usr/bin/env node",
   },
-  tsconfig: "./tsconfig.build.json"
+  tsconfig: "./tsconfig.build.json",
 });

@@ -5,7 +5,8 @@ import type { AnthropicResolvedConfig, AzureResolvedConfig } from "./targets.js"
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 import type { JsonObject } from "../types.js";
 
-const DEFAULT_SYSTEM_PROMPT = "You are a careful assistant. Follow all provided instructions and do not fabricate results.";
+const DEFAULT_SYSTEM_PROMPT =
+  "You are a careful assistant. Follow all provided instructions and do not fabricate results.";
 
 type ChatPrompt = AxChatRequest["chatPrompt"];
 
@@ -21,12 +22,14 @@ function buildChatPrompt(request: ProviderRequest): ChatPrompt {
     systemSegments.push(`Guidelines:\n${request.guidelines.trim()}`);
   }
 
-  const metadataSystemPrompt = typeof request.metadata?.systemPrompt === "string" ? request.metadata.systemPrompt : undefined;
+  const metadataSystemPrompt =
+    typeof request.metadata?.systemPrompt === "string" ? request.metadata.systemPrompt : undefined;
   if (metadataSystemPrompt && metadataSystemPrompt.trim().length > 0) {
     systemSegments.push(metadataSystemPrompt.trim());
   }
 
-  const systemContent = systemSegments.length > 0 ? systemSegments.join("\n\n") : DEFAULT_SYSTEM_PROMPT;
+  const systemContent =
+    systemSegments.length > 0 ? systemSegments.join("\n\n") : DEFAULT_SYSTEM_PROMPT;
   const userContent = request.prompt.trim();
 
   const prompt: ChatPrompt = [
@@ -102,7 +105,10 @@ export class AzureProvider implements Provider {
   private readonly ai: AxAiInstance;
   private readonly defaults: { temperature?: number; maxOutputTokens?: number };
 
-  constructor(targetName: string, private readonly config: AzureResolvedConfig) {
+  constructor(
+    targetName: string,
+    private readonly config: AzureResolvedConfig,
+  ) {
     this.id = `azure:${targetName}`;
     this.targetName = targetName;
     this.defaults = {
@@ -142,9 +148,16 @@ export class AnthropicProvider implements Provider {
 
   readonly targetName: string;
   private readonly ai: AxAiInstance;
-  private readonly defaults: { temperature?: number; maxOutputTokens?: number; thinkingBudget?: number };
+  private readonly defaults: {
+    temperature?: number;
+    maxOutputTokens?: number;
+    thinkingBudget?: number;
+  };
 
-  constructor(targetName: string, private readonly config: AnthropicResolvedConfig) {
+  constructor(
+    targetName: string,
+    private readonly config: AnthropicResolvedConfig,
+  ) {
     this.id = `anthropic:${targetName}`;
     this.targetName = targetName;
     this.defaults = {

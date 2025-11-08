@@ -25,7 +25,7 @@ export const TEST_MESSAGE_ROLES = TEST_MESSAGE_ROLE_VALUES;
 /**
  * Role literals used by test messages.
  */
-export type TestMessageRole = typeof TEST_MESSAGE_ROLE_VALUES[number];
+export type TestMessageRole = (typeof TEST_MESSAGE_ROLE_VALUES)[number];
 
 const TEST_MESSAGE_ROLE_SET: ReadonlySet<string> = new Set(TEST_MESSAGE_ROLE_VALUES);
 
@@ -143,7 +143,7 @@ export const GRADER_KINDS = GRADER_KIND_VALUES;
 /**
  * Grader identifiers available to the pipeline.
  */
-export type GraderKind = typeof GRADER_KIND_VALUES[number];
+export type GraderKind = (typeof GRADER_KIND_VALUES)[number];
 
 const GRADER_KIND_SET: ReadonlySet<string> = new Set(GRADER_KIND_VALUES);
 
