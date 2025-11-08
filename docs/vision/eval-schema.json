@@ -174,15 +174,7 @@
         "role": {
           "type": "string",
           "description": "Sender role (system, user, assistant, tool, etc.)",
-          "anyOf": [
-            {
-              "enum": ["system", "user", "assistant", "tool"]
-            },
-            {
-              "pattern": "^[a-zA-Z0-9_-]+$"
-            }
-          ],
-          "default": "user"
+          "pattern": "^[a-zA-Z0-9_-]+$"
         },
         "name": {
           "type": "string",
@@ -199,25 +191,14 @@
             },
             {
               "type": "array",
-              "type": {
-                "type": "string",
-                "description": "Semantic type identifier (text, file, tool_call, etc.)",
-                "anyOf": [
-                  {
-                    "enum": [
-                      "text",
-                      "file",
-                      "tool_call",
-                      "tool_result",
-                      "json",
-                      "markdown"
-                    ]
-                  },
-                  {
-                    "pattern": "^[a-zA-Z0-9_-]+$"
-                  }
-                ]
-              },
+              "items": {
+                "$ref": "#/definitions/contentObject"
+              }
+            }
+          ]
+        }
+      },
+      "required": ["role", "content"]
     },
     "contentObject": {
       "type": "object",
@@ -225,16 +206,8 @@
       "properties": {
         "type": {
           "type": "string",
-          "description": "Semantic type identifier (text, file, tool_call, etc.).",
-          "enum": [
-            "text",
-            "file",
-            "tool_call",
-            "tool_result",
-            "json",
-            "markdown",
-            "custom"
-          ]
+          "description": "Semantic type identifier (text, file, tool_call, etc.)",
+          "pattern": "^[a-zA-Z0-9_-]+$"
         },
         "value": {
           "type": "string",
