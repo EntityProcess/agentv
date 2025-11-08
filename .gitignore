@@ -5,4 +5,6 @@ build/
 coverage/
 .turbo/
 .cache/
+*.tsbuildinfo
+*.tsbuildinfo.*
 .DS_Store
