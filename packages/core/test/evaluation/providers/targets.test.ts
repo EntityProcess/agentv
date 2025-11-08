@@ -87,6 +87,10 @@ describe("resolveTargetDefinition", () => {
     );
 
     expect(target.kind).toBe("vscode");
+    if (target.kind !== "vscode") {
+      throw new Error("expected vscode target");
+    }
+
     expect(target.config.command).toBe("code-insiders");
     expect(target.config.waitForResponse).toBe(false);
     expect(target.config.dryRun).toBe(true);

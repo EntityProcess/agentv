@@ -115,11 +115,6 @@ export class AzureProvider implements Provider {
       apiKey: config.apiKey,
       resourceName: config.resourceName,
       deploymentName: config.deploymentName,
-      config: {
-        model: config.deploymentName,
-        ...(config.temperature !== undefined ? { temperature: config.temperature } : {}),
-        ...(config.maxOutputTokens !== undefined ? { maxTokens: config.maxOutputTokens } : {}),
-      },
       version: config.version,
     });
   }
@@ -134,7 +129,7 @@ export class AzureProvider implements Provider {
         model: this.config.deploymentName,
         ...(modelConfig ? { modelConfig } : {}),
       },
-      request.signal ? { signal: request.signal } : undefined,
+      request.signal ? { abortSignal: request.signal } : undefined,
     );
 
     return mapResponse(ensureChatResponse(response));
@@ -161,11 +156,6 @@ export class AnthropicProvider implements Provider {
     this.ai = AxAI.create({
       name: "anthropic",
       apiKey: config.apiKey,
-      config: {
-        model: config.model,
-        ...(config.maxOutputTokens !== undefined ? { maxTokens: config.maxOutputTokens } : {}),
-        ...(config.temperature !== undefined ? { temperature: config.temperature } : {}),
-      },
     });
   }
 
@@ -179,7 +169,7 @@ export class AnthropicProvider implements Provider {
         model: this.config.model,
         ...(modelConfig ? { modelConfig } : {}),
       },
-      request.signal ? { signal: request.signal } : undefined,
+      request.signal ? { abortSignal: request.signal } : undefined,
     );
 
     return mapResponse(ensureChatResponse(response));

@@ -10,10 +10,6 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "types": ["node"],
-    "baseUrl": ".",
-    "paths": {
-      "@agentevo/core": ["packages/core/src/index.ts"],
-      "@agentevo/core/*": ["packages/core/src/*"]
-    }
+    "baseUrl": "."
   }
 }
