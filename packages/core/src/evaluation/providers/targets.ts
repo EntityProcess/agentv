@@ -19,6 +19,13 @@ export interface AnthropicResolvedConfig {
   readonly thinkingBudget?: number;
 }
 
+export interface GeminiResolvedConfig {
+  readonly apiKey: string;
+  readonly model: string;
+  readonly temperature?: number;
+  readonly maxOutputTokens?: number;
+}
+
 export interface MockResolvedConfig {
   readonly response?: string;
 }
@@ -44,6 +51,12 @@ export type ResolvedTarget =
       readonly name: string;
       readonly judgeTarget?: string;
       readonly config: AnthropicResolvedConfig;
+    }
+  | {
+      readonly kind: "gemini";
+      readonly name: string;
+      readonly judgeTarget?: string;
+      readonly config: GeminiResolvedConfig;
     }
   | {
       readonly kind: "mock";
@@ -87,6 +100,15 @@ export function resolveTargetDefinition(
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         config: resolveAnthropicConfig(parsed, env),
+      };
+    case "gemini":
+    case "google":
+    case "google-gemini":
+      return {
+        kind: "gemini",
+        name: parsed.name,
+        judgeTarget: parsed.judge_target,
+        config: resolveGeminiConfig(parsed, env),
       };
     case "mock":
       return {
@@ -160,6 +182,31 @@ function resolveAnthropicConfig(
     temperature: resolveOptionalNumber(temperatureSource, `${target.name} temperature`),
     maxOutputTokens: resolveOptionalNumber(maxTokensSource, `${target.name} max output tokens`),
     thinkingBudget: resolveOptionalNumber(thinkingBudgetSource, `${target.name} thinking budget`),
+  };
+}
+
+function resolveGeminiConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): GeminiResolvedConfig {
+  const settings = target.settings ?? {};
+  const apiKeySource = settings.api_key ?? settings.apiKey;
+  const modelSource = settings.model ?? settings.deployment ?? settings.variant;
+  const temperatureSource = settings.temperature;
+  const maxTokensSource = settings.max_output_tokens ?? settings.maxTokens;
+
+  const apiKey = resolveString(apiKeySource, env, `${target.name} Google API key`);
+  const model =
+    resolveOptionalString(modelSource, env, `${target.name} Gemini model`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }) ?? "gemini-2.5-flash";
+
+  return {
+    apiKey,
+    model,
+    temperature: resolveOptionalNumber(temperatureSource, `${target.name} temperature`),
+    maxOutputTokens: resolveOptionalNumber(maxTokensSource, `${target.name} max output tokens`),
   };
 }
 

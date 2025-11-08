@@ -95,6 +95,105 @@ describe("resolveTargetDefinition", () => {
     expect(target.config.waitForResponse).toBe(false);
     expect(target.config.dryRun).toBe(true);
   });
+
+  it("resolves gemini settings from environment with default model", () => {
+    const env = {
+      GOOGLE_API_KEY: "gemini-secret",
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: "gemini-target",
+        provider: "gemini",
+        settings: {
+          api_key: "GOOGLE_API_KEY",
+        },
+      },
+      env,
+    );
+
+    expect(target.kind).toBe("gemini");
+    if (target.kind !== "gemini") {
+      throw new Error("expected gemini target");
+    }
+
+    expect(target.config).toMatchObject({
+      apiKey: "gemini-secret",
+      model: "gemini-2.5-flash",
+    });
+  });
+
+  it("resolves gemini settings with custom model from environment", () => {
+    const env = {
+      GOOGLE_API_KEY: "gemini-secret",
+      GOOGLE_GEMINI_MODEL: "gemini-2.5-pro",
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: "gemini-pro",
+        provider: "gemini",
+        settings: {
+          api_key: "GOOGLE_API_KEY",
+          model: "GOOGLE_GEMINI_MODEL",
+        },
+      },
+      env,
+    );
+
+    expect(target.kind).toBe("gemini");
+    if (target.kind !== "gemini") {
+      throw new Error("expected gemini target");
+    }
+
+    expect(target.config).toMatchObject({
+      apiKey: "gemini-secret",
+      model: "gemini-2.5-pro",
+    });
+  });
+
+  it("resolves gemini with literal model string", () => {
+    const env = {
+      GOOGLE_API_KEY: "gemini-secret",
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: "gemini-flash",
+        provider: "google-gemini",
+        settings: {
+          api_key: "GOOGLE_API_KEY",
+          model: "gemini-1.5-flash",
+        },
+      },
+      env,
+    );
+
+    expect(target.kind).toBe("gemini");
+    if (target.kind !== "gemini") {
+      throw new Error("expected gemini target");
+    }
+
+    expect(target.config).toMatchObject({
+      apiKey: "gemini-secret",
+      model: "gemini-1.5-flash",
+    });
+  });
+
+  it("throws when google api key is missing", () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: "broken-gemini",
+          provider: "gemini",
+          settings: {
+            api_key: "GOOGLE_API_KEY",
+          },
+        },
+        {},
+      ),
+    ).toThrow(/GOOGLE_API_KEY/i);
+  });
 });
 
 describe("createProvider", () => {
@@ -128,6 +227,33 @@ describe("createProvider", () => {
 
     expect(createCalls).toHaveLength(1);
     expect(chatMock).toHaveBeenCalledTimes(1);
+    expect(response.text).toBe("ok");
+  });
+
+  it("creates a gemini provider that calls AxAI", async () => {
+    const env = {
+      GOOGLE_API_KEY: "gemini-key",
+    } satisfies Record<string, string>;
+
+    const resolved = resolveTargetDefinition(
+      {
+        name: "gemini-target",
+        provider: "gemini",
+        settings: {
+          api_key: "GOOGLE_API_KEY",
+        },
+      },
+      env,
+    );
+
+    const provider = createProvider(resolved);
+    expect(provider.kind).toBe("gemini");
+    expect(provider.targetName).toBe("gemini-target");
+
+    const response = await provider.invoke({ prompt: "Test prompt" });
+
+    expect(createCalls.length).toBeGreaterThan(0);
+    expect(chatMock).toHaveBeenCalled();
     expect(response.text).toBe("ok");
   });
 });

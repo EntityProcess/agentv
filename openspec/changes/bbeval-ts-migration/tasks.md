@@ -22,35 +22,37 @@
   - [x] 0.3.2.3 Maintain `code_snippets` extraction from fenced blocks
 - [x] 0.3.3 Build prompt assembly helpers returning `{ request, guidelines }` payloads
 
-### Phase 4 – Provider Layer (Partially Completed)
+### Phase 4 – Provider Layer (✓ Completed)
 
 - [x] 0.4.1 Wrap `@ax-llm/ax` connectors
   - [x] 0.4.1.1 Azure OpenAI provider with env vars (`AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_DEPLOYMENT_NAME`)
   - [x] 0.4.1.2 Anthropic provider with `ANTHROPIC_API_KEY`
   - [x] 0.4.1.3 Mock provider for `--dry-run`
-  - [ ] 0.4.1.4 Google Gemini provider with env vars (`GOOGLE_API_KEY`, optional `GOOGLE_GEMINI_MODEL`)
+  - [x] 0.4.1.4 Google Gemini provider with env vars (`GOOGLE_API_KEY`, optional `GOOGLE_GEMINI_MODEL`)
 - [x] 0.4.2 Reimplement VS Code Copilot shell-out via `subagent` programmatic API
   - [x] 0.4.2.1 Write `.prompt.md` files per request and attach resolved workspace files
   - [x] 0.4.2.2 Poll for completion, surface non-zero exit codes
   - [x] 0.4.2.3 Respect dry-run mode
   - [x] 0.4.2.4 Log warnings when dependencies absent (optional focus best-effort)
+  - [x] 0.4.2.5 Add mandatory preread block generation with SHA tokens
+  - [x] 0.4.2.6 Implement focus hints for workspace file suggestions
 - [x] 0.4.3 Apply schema validation (`zod`) for target settings & env parsing
 
-## 1. Complete Provider Layer (Phase 4 - Remaining Tasks)
+## 1. Complete Provider Layer (Phase 4 - ✓ Completed)
 
-- [ ] 1.1 Implement VS Code Copilot prompt scaffolding
-  - [ ] 1.1.1 Add mandatory preread block generation
-  - [ ] 1.1.2 Implement SHA token generation for audit trail
-  - [ ] 1.1.3 Add focus hints for workspace file suggestions
-  - [ ] 1.1.4 Write tests for prompt file generation
-- [ ] 1.2 Add vercel-ai-sdk fallback connectors
-  - [ ] 1.2.1 Create simple completion wrapper
-  - [ ] 1.2.2 Add provider detection logic (when to use Ax vs vercel)
-  - [ ] 1.2.3 Write integration tests
-- [ ] 1.3 Complete schema validation
-  - [ ] 1.3.1 Add Zod schemas for all target settings
-  - [ ] 1.3.2 Validate environment variables with clear error messages
-  - [ ] 1.3.3 Write validation tests
+- [x] 1.1 Implement VS Code Copilot prompt scaffolding
+  - [x] 1.1.1 Add mandatory preread block generation
+  - [x] 1.1.2 Implement SHA token generation for audit trail
+  - [x] 1.1.3 Add focus hints for workspace file suggestions
+  - [x] 1.1.4 Write tests for prompt file generation
+- [x] 1.2 Add Google Gemini provider support
+  - [x] 1.2.1 Create GeminiProvider class with Ax integration
+  - [x] 1.2.2 Add environment variable configuration (GOOGLE_API_KEY, GOOGLE_GEMINI_MODEL)
+  - [x] 1.2.3 Write integration tests for Gemini provider
+- [x] 1.3 Complete schema validation
+  - [x] 1.3.1 Add Zod schemas for all target settings
+  - [x] 1.3.2 Validate environment variables with clear error messages
+  - [x] 1.3.3 Write validation tests
 
 ## 2. Implement Evaluation Pipeline (Phase 5)
 

@@ -1,7 +1,11 @@
 import { AxAI } from "@ax-llm/ax";
 import type { AxChatRequest, AxChatResponse, AxModelConfig } from "@ax-llm/ax";
 
-import type { AnthropicResolvedConfig, AzureResolvedConfig } from "./targets.js";
+import type {
+  AnthropicResolvedConfig,
+  AzureResolvedConfig,
+  GeminiResolvedConfig,
+} from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 import type { JsonObject } from "../types.js";
 
@@ -168,6 +172,51 @@ export class AnthropicProvider implements Provider {
 
     this.ai = AxAI.create({
       name: "anthropic",
+      apiKey: config.apiKey,
+    });
+  }
+
+  async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+    const chatPrompt = buildChatPrompt(request);
+    const modelConfig = extractModelConfig(request, this.defaults);
+
+    const response = await this.ai.chat(
+      {
+        chatPrompt,
+        model: this.config.model,
+        ...(modelConfig ? { modelConfig } : {}),
+      },
+      request.signal ? { abortSignal: request.signal } : undefined,
+    );
+
+    return mapResponse(ensureChatResponse(response));
+  }
+}
+
+export class GeminiProvider implements Provider {
+  readonly id: string;
+  readonly kind = "gemini" as const;
+
+  readonly targetName: string;
+  private readonly ai: AxAiInstance;
+  private readonly defaults: {
+    temperature?: number;
+    maxOutputTokens?: number;
+  };
+
+  constructor(
+    targetName: string,
+    private readonly config: GeminiResolvedConfig,
+  ) {
+    this.id = `gemini:${targetName}`;
+    this.targetName = targetName;
+    this.defaults = {
+      temperature: config.temperature,
+      maxOutputTokens: config.maxOutputTokens,
+    };
+
+    this.ai = AxAI.create({
+      name: "google-gemini",
       apiKey: config.apiKey,
     });
   }

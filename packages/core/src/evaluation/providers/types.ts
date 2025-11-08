@@ -4,7 +4,13 @@ import type { JsonObject } from "../types.js";
 
 type ChatPrompt = AxChatRequest["chatPrompt"];
 
-export type ProviderKind = "azure" | "anthropic" | "mock" | "vscode" | "vscode-insiders";
+export type ProviderKind =
+  | "azure"
+  | "anthropic"
+  | "gemini"
+  | "mock"
+  | "vscode"
+  | "vscode-insiders";
 
 export interface ProviderRequest {
   readonly prompt: string;

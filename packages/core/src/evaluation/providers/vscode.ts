@@ -83,6 +83,13 @@ export class VSCodeProvider implements Provider {
 
 function buildPromptDocument(request: ProviderRequest): string {
   const parts: string[] = [];
+
+  // Add mandatory preread block if guidelines or attachments exist
+  const guidelineFiles = extractGuidelineFiles(request.guidelines);
+  if (guidelineFiles.length > 0 || (request.attachments && request.attachments.length > 0)) {
+    parts.push(buildMandatoryPrereadBlock(guidelineFiles, request.attachments));
+  }
+
   parts.push(`# BbEval Request`);
   if (request.testCaseId) {
     parts.push(`- Test Case: ${request.testCaseId}`);
@@ -103,6 +110,87 @@ function buildPromptDocument(request: ProviderRequest): string {
   }
 
   return parts.join("\n").trim();
+}
+
+function extractGuidelineFiles(guidelines: string | undefined): string[] {
+  if (!guidelines || guidelines.trim().length === 0) {
+    return [];
+  }
+
+  const files: string[] = [];
+  // Match paths that look like instruction files
+  // Patterns: *.instructions.md, /instructions/, @instructions/
+  const patterns = [
+    /(?:^|\s)([^\s]+\.instructions\.md)/gi,
+    /(?:^|\s)([^\s]*\/instructions\/[^\s]+)/gi,
+    /(?:^|\s)@instructions\/([^\s]+)/gi,
+  ];
+
+  for (const pattern of patterns) {
+    const matches = guidelines.matchAll(pattern);
+    for (const match of matches) {
+      files.push(match[1]);
+    }
+  }
+
+  return [...new Set(files)];
+}
+
+function buildMandatoryPrereadBlock(
+  guidelineFiles: string[],
+  attachments: readonly string[] | undefined,
+): string {
+  const allFiles = [
+    ...guidelineFiles,
+    ...(attachments?.filter((f) => f.endsWith(".instructions.md") || f.includes("/instructions/")) ??
+      []),
+  ];
+
+  if (allFiles.length === 0) {
+    return "";
+  }
+
+  const fileList: string[] = [];
+  const tokenList: string[] = [];
+
+  allFiles.forEach((filePath, index) => {
+    const fileName = path.basename(filePath);
+    const fileUri = pathToFileUri(filePath);
+    fileList.push(`[${fileName}](${fileUri})`);
+    tokenList.push(`INSTRUCTIONS_READ: \`${fileName}\` i=${index + 1} SHA256=<hex>`);
+  });
+
+  const filesText = fileList.join(", ");
+  const tokensText = tokenList.join("\n");
+
+  const instruction = [
+    `Read all instruction files: ${filesText}.`,
+    `After reading each file, compute its SHA256 hash using this PowerShell command:`,
+    "`Get-FileHash -Algorithm SHA256 -LiteralPath '<file-path>' | Select-Object -ExpandProperty Hash`.",
+    `Then include, at the top of your reply, these exact tokens on separate lines:\n`,
+    tokensText,
+    `\nReplace \`<hex>\` with the actual SHA256 hash value computed from the PowerShell command.`,
+    `If any file is missing, fail with ERROR: missing-file <filename> and stop.\n`,
+    `Then fetch all documentation required by the instructions before proceeding with your task.`,
+  ].join(" ");
+
+  return `[[ ## mandatory_pre_read ## ]]\n\n${instruction}\n\n`;
+}
+
+function pathToFileUri(filePath: string): string {
+  // Convert to absolute path if relative
+  const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
+
+  // On Windows, convert backslashes to forward slashes
+  const normalizedPath = absolutePath.replace(/\\/g, "/");
+
+  // Handle Windows drive letters (e.g., C:/ becomes file:///C:/)
+  if (/^[a-zA-Z]:\//.test(normalizedPath)) {
+    return `file:///${normalizedPath}`;
+  }
+
+  // Unix-like paths
+  return `file://${normalizedPath}`;
 }
 
 function composeUserQuery(request: ProviderRequest): string {
