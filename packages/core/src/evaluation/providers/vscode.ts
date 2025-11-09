@@ -31,14 +31,14 @@ export class VSCodeProvider implements Provider {
       throw new Error("VS Code provider request was aborted before dispatch");
     }
 
-    const promptContent = buildPromptDocument(request);
+    const attachments = normalizeAttachments(request.attachments);
+    const promptContent = buildPromptDocument(request, attachments);
     const directory = await mkdtemp(path.join(tmpdir(), PROMPT_FILE_PREFIX));
     const promptPath = path.join(directory, `${request.testCaseId ?? "request"}.prompt.md`);
 
     try {
       await writeFile(promptPath, promptContent, "utf8");
 
-      const attachments = normalizeAttachments(request.attachments);
       const session = await dispatchAgentSession({
         userQuery: composeUserQuery(request),
         promptFile: promptPath,
@@ -81,13 +81,15 @@ export class VSCodeProvider implements Provider {
   }
 }
 
-function buildPromptDocument(request: ProviderRequest): string {
+function buildPromptDocument(
+  request: ProviderRequest,
+  attachments: readonly string[] | undefined,
+): string {
   const parts: string[] = [];
 
-  // Add mandatory preread block if guidelines or attachments exist
-  const guidelineFiles = extractGuidelineFiles(request.guidelines);
-  if (guidelineFiles.length > 0 || (request.attachments && request.attachments.length > 0)) {
-    parts.push(buildMandatoryPrereadBlock(guidelineFiles, request.attachments));
+  const instructionFiles = collectInstructionFiles(attachments);
+  if (instructionFiles.length > 0) {
+    parts.push(buildMandatoryPrereadBlock(instructionFiles));
   }
 
   parts.push(`# BbEval Request`);
@@ -104,61 +106,30 @@ function buildPromptDocument(request: ProviderRequest): string {
     parts.push("\n## Guidelines\n", request.guidelines.trim());
   }
 
-  if (request.attachments && request.attachments.length > 0) {
-    const attachmentList = request.attachments.map((item) => `- ${item}`).join("\n");
+  if (attachments && attachments.length > 0) {
+    const attachmentList = attachments.map((item) => `- ${item}`).join("\n");
     parts.push("\n## Attachments\n", attachmentList);
   }
 
   return parts.join("\n").trim();
 }
 
-function extractGuidelineFiles(guidelines: string | undefined): string[] {
-  if (!guidelines || guidelines.trim().length === 0) {
-    return [];
-  }
-
-  const files: string[] = [];
-  // Match paths that look like instruction files
-  // Patterns: *.instructions.md, /instructions/, @instructions/
-  const patterns = [
-    /(?:^|\s)([^\s]+\.instructions\.md)/gi,
-    /(?:^|\s)([^\s]*\/instructions\/[^\s]+)/gi,
-    /(?:^|\s)@instructions\/([^\s]+)/gi,
-  ];
-
-  for (const pattern of patterns) {
-    const matches = guidelines.matchAll(pattern);
-    for (const match of matches) {
-      files.push(match[1]);
-    }
-  }
-
-  return [...new Set(files)];
-}
-
-function buildMandatoryPrereadBlock(
-  guidelineFiles: string[],
-  attachments: readonly string[] | undefined,
-): string {
-  const allFiles = [
-    ...guidelineFiles,
-    ...(attachments?.filter((f) => f.endsWith(".instructions.md") || f.includes("/instructions/")) ??
-      []),
-  ];
-
-  if (allFiles.length === 0) {
+function buildMandatoryPrereadBlock(instructionFiles: readonly string[]): string {
+  if (instructionFiles.length === 0) {
     return "";
   }
 
   const fileList: string[] = [];
   const tokenList: string[] = [];
+  let counter = 0;
 
-  allFiles.forEach((filePath, index) => {
-    const fileName = path.basename(filePath);
-    const fileUri = pathToFileUri(filePath);
+  for (const absolutePath of instructionFiles) {
+    counter += 1;
+    const fileName = path.basename(absolutePath);
+    const fileUri = pathToFileUri(absolutePath);
     fileList.push(`[${fileName}](${fileUri})`);
-    tokenList.push(`INSTRUCTIONS_READ: \`${fileName}\` i=${index + 1} SHA256=<hex>`);
-  });
+    tokenList.push(`INSTRUCTIONS_READ: \`${fileName}\` i=${counter} SHA256=<hex>`);
+  }
 
   const filesText = fileList.join(", ");
   const tokensText = tokenList.join("\n");
@@ -175,6 +146,30 @@ function buildMandatoryPrereadBlock(
   ].join(" ");
 
   return `[[ ## mandatory_pre_read ## ]]\n\n${instruction}\n\n`;
+}
+
+function collectInstructionFiles(attachments: readonly string[] | undefined): string[] {
+  if (!attachments || attachments.length === 0) {
+    return [];
+  }
+
+  const unique = new Map<string, string>();
+  for (const attachment of attachments) {
+    if (!isInstructionPath(attachment)) {
+      continue;
+    }
+    const absolutePath = path.resolve(attachment);
+    if (!unique.has(absolutePath)) {
+      unique.set(absolutePath, absolutePath);
+    }
+  }
+
+  return Array.from(unique.values());
+}
+
+function isInstructionPath(filePath: string): boolean {
+  const normalized = filePath.split(path.sep).join("/");
+  return normalized.endsWith(".instructions.md") || normalized.includes("/instructions/");
 }
 
 function pathToFileUri(filePath: string): string {
