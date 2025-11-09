@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { Provider, ProviderResponse } from "../../src/evaluation/providers/types.js";
-import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
-import type { TestCase } from "../../src/evaluation/types.js";
 import { HeuristicGrader, QualityGrader } from "../../src/evaluation/grading.js";
+import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
+import type { Provider, ProviderResponse } from "../../src/evaluation/providers/types.js";
+import type { TestCase } from "../../src/evaluation/types.js";
 
 class StubProvider implements Provider {
   readonly id = "stub";

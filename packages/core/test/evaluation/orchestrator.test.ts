@@ -1,15 +1,13 @@
 import { mkdtempSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Provider, ProviderResponse } from "../../src/evaluation/providers/types.js";
-import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
-import type { EvaluationCache } from "../../src/evaluation/orchestrator.js";
-import { runTestCase } from "../../src/evaluation/orchestrator.js";
-import type { TestCase } from "../../src/evaluation/types.js";
 import { HeuristicGrader } from "../../src/evaluation/grading.js";
+import { runTestCase, type EvaluationCache } from "../../src/evaluation/orchestrator.js";
+import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
+import type { Provider, ProviderResponse } from "../../src/evaluation/providers/types.js";
+import type { TestCase } from "../../src/evaluation/types.js";
 
 class SequenceProvider implements Provider {
   readonly id: string;

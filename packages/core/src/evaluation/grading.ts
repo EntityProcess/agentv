@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import type { Provider, ProviderResponse } from "./providers/types.js";
 import type { ResolvedTarget } from "./providers/targets.js";
-import type { JsonObject, TestCase } from "./types.js";
+import type { Provider, ProviderResponse } from "./providers/types.js";
 import { extractAspects, isErrorLike, scoreCandidateResponse } from "./scoring.js";
+import type { JsonObject, TestCase } from "./types.js";
 
 export interface GradeContext {
   readonly testCase: TestCase;
