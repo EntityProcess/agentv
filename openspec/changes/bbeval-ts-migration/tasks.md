@@ -111,8 +111,9 @@
 ## 4. Quality & Documentation (Phase 7)
 
 - [ ] 4.1 Verify simple example evaluation
-  - [ ] 4.1.1 Run `docs/examples/simple/evals/example.test.yaml`
-  - [ ] 4.1.2 Confirm every test case in the example passes with the migrated TypeScript pipeline
+  - [ ] 4.1.1 Run `cd docs\examples\simple; bbeval .\evals\example.test.yaml --target vscode_projectx --test-id simple-text-conversation`
+  - [ ] 4.1.2 Run same command using TypeScript migration: `cd docs\examples\simple; agentevo eval .\evals\example.test.yaml --target vscode_projectx --test-id simple-text-conversation`
+  - [ ] 4.1.3 Confirm both implementations produce consistent results
 
 ## 5. Validation & Migration
 
