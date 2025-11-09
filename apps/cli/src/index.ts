@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { pathToFileURL } from "node:url";
 
+import { registerEvalCommand } from "./commands/eval/index.js";
 import { registerStatusCommand } from "./commands/status.js";
 
 export function createProgram(): Command {
@@ -9,6 +10,7 @@ export function createProgram(): Command {
   program.name("agentevo").description("AgentEvo CLI scaffolding").version("0.0.1");
 
   registerStatusCommand(program);
+  registerEvalCommand(program);
 
   return program;
 }

@@ -1,17 +1,18 @@
-import { access, mkdir } from "node:fs/promises";
-import path from "node:path";
-import { constants } from "node:fs";
-
 import {
-  runEvaluation,
+  runEvaluation as defaultRunEvaluation,
   type EvaluationCache,
+  type EvaluationResult,
   type ProviderResponse,
 } from "@agentevo/core";
+import { constants } from "node:fs";
+import { access, mkdir } from "node:fs/promises";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { loadEnvFromHierarchy } from "./env.js";
 import { JsonlWriter } from "./jsonl-writer.js";
-import { selectTarget } from "./targets.js";
 import { calculateEvaluationSummary, formatEvaluationSummary } from "./statistics.js";
+import { selectTarget } from "./targets.js";
 
 interface RunEvalCommandInput {
   readonly testFile: string;
@@ -80,8 +81,10 @@ async function ensureFileExists(filePath: string, description: string): Promise<
 }
 
 async function findRepoRoot(start: string): Promise<string> {
-  let current = path.resolve(start);
-  while (true) {
+  const fallback = path.resolve(start);
+  let current: string | undefined = fallback;
+
+  while (current !== undefined) {
     const candidate = path.join(current, ".git");
     try {
       await access(candidate, constants.F_OK);
@@ -89,11 +92,13 @@ async function findRepoRoot(start: string): Promise<string> {
     } catch {
       const parent = path.dirname(current);
       if (parent === current) {
-        return start;
+        break;
       }
       current = parent;
     }
   }
+
+  return fallback;
 }
 
 function buildDefaultOutputPath(testFilePath: string, cwd: string): string {
@@ -176,8 +181,10 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const cache = options.cache ? createEvaluationCache() : undefined;
   const agentTimeoutMs = Math.max(0, options.agentTimeoutSeconds) * 1000;
 
+  const evaluationRunner = await resolveEvaluationRunner();
+
   try {
-    const results = await runEvaluation({
+    const results = await evaluationRunner({
       testFilePath,
       repoRoot,
       target: targetSelection.resolvedTarget,
@@ -190,7 +197,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       useCache: options.cache,
       testId: options.testId,
       verbose: options.verbose,
-      onResult: async (result) => {
+      onResult: async (result: EvaluationResult) => {
         await jsonlWriter.append(result);
       },
     });
@@ -210,4 +217,25 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     await jsonlWriter.close().catch(() => undefined);
     throw error;
   }
+}
+
+async function resolveEvaluationRunner(): Promise<typeof defaultRunEvaluation> {
+  const overridePath = process.env.AGENTEVO_CLI_EVAL_RUNNER;
+  if (!overridePath) {
+    return defaultRunEvaluation;
+  }
+
+  const resolved = path.isAbsolute(overridePath)
+    ? overridePath
+    : path.resolve(process.cwd(), overridePath);
+
+  const moduleUrl = pathToFileURL(resolved).href;
+  const mod = await import(moduleUrl);
+  const candidate = mod.runEvaluation;
+  if (typeof candidate !== "function") {
+    throw new Error(
+      `Module '${resolved}' must export a 'runEvaluation' function to override the default implementation`,
+    );
+  }
+  return candidate as typeof defaultRunEvaluation;
 }

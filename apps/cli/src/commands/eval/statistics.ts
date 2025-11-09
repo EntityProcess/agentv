@@ -2,7 +2,7 @@ import type { EvaluationResult } from "@agentevo/core";
 
 export interface HistogramBin {
   readonly range: readonly [number, number];
-  readonly count: number;
+  count: number;
 }
 
 export interface EvaluationSummary {

@@ -1,8 +1,3 @@
-import { access, readFile } from "node:fs/promises";
-import path from "node:path";
-import { constants } from "node:fs";
-import { parse } from "yaml";
-
 import {
   listTargetNames,
   readTargetDefinitions,
@@ -10,6 +5,10 @@ import {
   type ResolvedTarget,
   type TargetDefinition,
 } from "@agentevo/core";
+import { constants } from "node:fs";
+import { access, readFile } from "node:fs/promises";
+import path from "node:path";
+import { parse } from "yaml";
 
 const TARGET_FILE_CANDIDATES = [
   "targets.yaml",
@@ -47,30 +46,34 @@ export async function readTestSuiteTarget(testFilePath: string): Promise<string 
 
 function buildDirectoryChain(testFilePath: string, repoRoot: string, cwd: string): readonly string[] {
   const directories: string[] = [];
-  let current = path.resolve(path.dirname(testFilePath));
+  const seen = new Set<string>();
   const boundary = path.resolve(repoRoot);
+  let current: string | undefined = path.resolve(path.dirname(testFilePath));
 
-  while (true) {
-    if (!directories.includes(current)) {
+  while (current !== undefined) {
+    if (!seen.has(current)) {
       directories.push(current);
+      seen.add(current);
     }
     if (current === boundary) {
       break;
     }
-    const next = path.dirname(current);
-    if (next === current) {
+    const parent = path.dirname(current);
+    if (parent === current) {
       break;
     }
-    current = next;
+    current = parent;
   }
 
-  if (!directories.includes(boundary)) {
+  if (!seen.has(boundary)) {
     directories.push(boundary);
+    seen.add(boundary);
   }
 
   const resolvedCwd = path.resolve(cwd);
-  if (!directories.includes(resolvedCwd)) {
+  if (!seen.has(resolvedCwd)) {
     directories.push(resolvedCwd);
+    seen.add(resolvedCwd);
   }
 
   return directories;

@@ -1,7 +1,7 @@
+import { config as loadDotenv } from "dotenv";
+import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import path from "node:path";
-import { constants } from "node:fs";
-import { config as loadDotenv } from "dotenv";
 
 interface LoadEnvOptions {
   readonly testFilePath: string;
@@ -34,10 +34,10 @@ async function fileExists(filePath: string): Promise<boolean> {
 
 function collectAncestorDirectories(start: string, boundary: string): readonly string[] {
   const directories: string[] = [];
-  let current = path.resolve(start);
   const boundaryDir = path.resolve(boundary);
+  let current: string | undefined = path.resolve(start);
 
-  while (true) {
+  while (current !== undefined) {
     directories.push(current);
     if (current === boundaryDir) {
       break;

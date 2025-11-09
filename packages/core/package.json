@@ -4,8 +4,10 @@
   "description": "Primitive runtime components for AgentEvo",
   "type": "module",
   "main": "./dist/index.js",
+  "types": "./src/index.d.ts",
   "exports": {
     ".": {
+      "types": "./src/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     }
@@ -18,7 +20,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "files": [
-    "dist"
+    "dist",
+    "src/index.d.ts"
   ],
   "dependencies": {
     "@ax-llm/ax": "^14.0.39",

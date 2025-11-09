@@ -31,6 +31,11 @@ export default mergeConfig(
     },
     test: {
       include: ["test/**/*.test.ts"],
+      server: {
+        deps: {
+          inline: ["dotenv", "execa"],
+        },
+      },
     },
   }),
 );

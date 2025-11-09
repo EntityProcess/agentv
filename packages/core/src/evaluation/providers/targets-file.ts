@@ -1,6 +1,6 @@
+import { constants } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
-import { constants } from "node:fs";
 import { parse } from "yaml";
 
 import type { TargetDefinition } from "./types.js";

@@ -79,32 +79,32 @@
   - [x] 2.4.3 Add optional `grader_raw_request` field
   - [x] 2.4.4 Update type exports
 
-- [ ] 3.1 Extend CLI with eval command
-  - [ ] 3.1.1 Create `commands/eval/index.ts` with Commander.js setup
-  - [ ] 3.1.2 Add positional `test_file` argument
-  - [ ] 3.1.3 Implement all flags: `--target`, `--targets`, `--test-id`, `--out`, `--dry-run`, `--agent-timeout`, `--max-retries`, `--cache`, `--verbose`, `--dump-prompts`
-  - [ ] 3.1.4 Wire up to main CLI entry point
-  - [ ] 3.1.5 Write CLI integration tests using execa
-- [ ] 3.2 Implement target precedence
-  - [ ] 3.2.1 Parse CLI flags for target override
-  - [ ] 3.2.2 Parse test file for target setting
-  - [ ] 3.2.3 Apply precedence: CLI (unless 'default') → test file → 'default'
-  - [ ] 3.2.4 Write precedence tests
-- [ ] 3.3 Add environment loading
-  - [ ] 3.3.1 Implement lazy `.env` loading after CLI parsing
-  - [ ] 3.3.2 Add env validation with clear error messages
-  - [ ] 3.3.3 Write env loading tests
-- [ ] 3.4 Implement JSONL output
-  - [ ] 3.4.1 Create incremental JSONL writer
-  - [ ] 3.4.2 Ensure newline-delimited format
-  - [ ] 3.4.3 Add proper file handle management
-  - [ ] 3.4.4 Write output format tests
-- [ ] 3.5 Implement summary statistics
-  - [ ] 3.5.1 Calculate mean, median, min, max for scores
-  - [ ] 3.5.2 Calculate standard deviation
-  - [ ] 3.5.3 Generate distribution histograms
-  - [ ] 3.5.4 Format console output matching Python version
-  - [ ] 3.5.5 Write statistics tests
+- [x] 3.1 Extend CLI with eval command
+  - [x] 3.1.1 Create `commands/eval/index.ts` with Commander.js setup
+  - [x] 3.1.2 Add positional `test_file` argument
+  - [x] 3.1.3 Implement all flags: `--target`, `--targets`, `--test-id`, `--out`, `--dry-run`, `--agent-timeout`, `--max-retries`, `--cache`, `--verbose`, `--dump-prompts`
+  - [x] 3.1.4 Wire up to main CLI entry point
+  - [x] 3.1.5 Write CLI integration tests using execa
+- [x] 3.2 Implement target precedence
+  - [x] 3.2.1 Parse CLI flags for target override
+  - [x] 3.2.2 Parse test file for target setting
+  - [x] 3.2.3 Apply precedence: CLI (unless 'default') → test file → 'default'
+  - [x] 3.2.4 Write precedence tests
+- [x] 3.3 Add environment loading
+  - [x] 3.3.1 Implement lazy `.env` loading after CLI parsing
+  - [x] 3.3.2 Add env validation with clear error messages
+  - [x] 3.3.3 Write env loading tests
+- [x] 3.4 Implement JSONL output
+  - [x] 3.4.1 Create incremental JSONL writer
+  - [x] 3.4.2 Ensure newline-delimited format
+  - [x] 3.4.3 Add proper file handle management
+  - [x] 3.4.4 Write output format tests
+- [x] 3.5 Implement summary statistics
+  - [x] 3.5.1 Calculate mean, median, min, max for scores
+  - [x] 3.5.2 Calculate standard deviation
+  - [x] 3.5.3 Generate distribution histograms
+  - [x] 3.5.4 Format console output matching Python version
+  - [x] 3.5.5 Write statistics tests
 
 ## 4. Quality & Documentation (Phase 7)
 
