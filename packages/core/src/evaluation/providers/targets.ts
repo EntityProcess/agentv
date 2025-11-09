@@ -78,6 +78,22 @@ const BASE_TARGET_SCHEMA = z.object({
   judge_target: z.string().optional(),
 });
 
+const DEFAULT_AZURE_API_VERSION = "2024-10-01-preview";
+
+function normalizeAzureApiVersion(value: string | undefined): string {
+  if (!value) {
+    return DEFAULT_AZURE_API_VERSION;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return DEFAULT_AZURE_API_VERSION;
+  }
+
+  const withoutPrefix = trimmed.replace(/^api[-_]?version\s*=\s*/i, "").trim();
+  return withoutPrefix.length > 0 ? withoutPrefix : DEFAULT_AZURE_API_VERSION;
+}
+
 export function resolveTargetDefinition(
   definition: TargetDefinition,
   env: EnvLookup = process.env,
@@ -145,7 +161,9 @@ function resolveAzureConfig(
   const resourceName = resolveString(endpointSource, env, `${target.name} endpoint`);
   const apiKey = resolveString(apiKeySource, env, `${target.name} api key`);
   const deploymentName = resolveString(deploymentSource, env, `${target.name} deployment`);
-  const version = resolveOptionalString(versionSource, env, `${target.name} api version`);
+  const version = normalizeAzureApiVersion(
+    resolveOptionalString(versionSource, env, `${target.name} api version`),
+  );
   const temperature = resolveOptionalNumber(temperatureSource, `${target.name} temperature`);
   const maxOutputTokens = resolveOptionalNumber(
     maxTokensSource,

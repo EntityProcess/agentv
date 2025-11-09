@@ -48,7 +48,38 @@ describe("resolveTargetDefinition", () => {
       resourceName: "https://example.openai.azure.com",
       deploymentName: "gpt-4o",
       apiKey: "secret",
+      version: "2024-10-01-preview",
     });
+  });
+
+  it("normalizes azure api versions", () => {
+    const env = {
+      AZURE_OPENAI_ENDPOINT: "https://example.openai.azure.com",
+      AZURE_OPENAI_API_KEY: "secret",
+      AZURE_DEPLOYMENT_NAME: "gpt-4o",
+      CUSTOM_VERSION: "api-version=2024-08-01-preview",
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: "azure-version",
+        provider: "azure",
+        settings: {
+          endpoint: "AZURE_OPENAI_ENDPOINT",
+          api_key: "AZURE_OPENAI_API_KEY",
+          model: "AZURE_DEPLOYMENT_NAME",
+          version: "CUSTOM_VERSION",
+        },
+      },
+      env,
+    );
+
+    expect(target.kind).toBe("azure");
+    if (target.kind !== "azure") {
+      throw new Error("expected azure target");
+    }
+
+    expect(target.config.version).toBe("2024-08-01-preview");
   });
 
   it("throws when required azure environment variables are missing", () => {
@@ -229,7 +260,6 @@ describe("createProvider", () => {
     expect(chatMock).toHaveBeenCalledTimes(1);
     expect(response.text).toBe("ok");
   });
-
   it("creates a gemini provider that calls AxAI", async () => {
     const env = {
       GOOGLE_API_KEY: "gemini-key",

@@ -17,7 +17,8 @@
     "dev": "tsx watch src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "diagnostics:azure": "tsx src/diagnostics/azure-deployment-diag.ts"
   },
   "files": [
     "dist",
