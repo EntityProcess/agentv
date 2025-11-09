@@ -5,10 +5,6 @@ module.exports = {
     node: true,
   },
   parser: "@typescript-eslint/parser",
-  parserOptions: {
-    project: ["./tsconfig.eslint.json"],
-    tsconfigRootDir: __dirname,
-  },
   plugins: ["@typescript-eslint", "import"],
   extends: [
     "eslint:recommended",
