@@ -1,3 +1,5 @@
+When running python scripts, use command `uv run`.
+
 <!-- OPENSPEC:START -->
 # OpenSpec Instructions
 
@@ -37,6 +39,12 @@ Usage notes:
 </usage>
 
 <available_skills>
+
+<skill>
+<name>jsonl-to-yaml</name>
+<description>Convert JSONL (JSON Lines) files to human-readable YAML format with proper multiline string handling. Use this skill when users need to view or convert JSONL evaluation results, logs, or data exports into readable YAML format.</description>
+<location>project</location>
+</skill>
 
 <skill>
 <name>skill-creator</name>
