@@ -126,6 +126,9 @@ export class AzureProvider implements Provider {
       resourceName: config.resourceName,
       deploymentName: config.deploymentName,
       version: config.version,
+      config: {
+        stream: false,
+      },
     });
   }
 
