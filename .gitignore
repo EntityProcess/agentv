@@ -1,0 +1,12 @@
+node_modules/
+.pnpm-store/
+dist/
+build/
+coverage/
+.turbo/
+.cache/
+*.tsbuildinfo
+*.tsbuildinfo.*
+.DS_Store
+.bbeval/
+.env
