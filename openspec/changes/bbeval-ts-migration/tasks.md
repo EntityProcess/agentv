@@ -131,9 +131,9 @@
 
 ## 5. Validation & Migration
 
-- [ ] 5.1 Validate against Python version
-  - [ ] 5.1.1 Run same test files with both implementations
-  - [ ] 5.1.2 Compare outputs for consistency
+- [x] 5.1 Validate against Python version
+  - [x] 5.1.1 Run same test files with both implementations
+  - [x] 5.1.2 Compare outputs for consistency
   - [ ] 5.1.3 Document any intentional differences
 - [ ] 5.2 Update migration guide
   - [ ] 5.2.1 Mark completed phases
