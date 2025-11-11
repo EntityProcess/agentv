@@ -1,6 +1,5 @@
 {
   "name": "@entityprocess/agentevo-workspace",
-  "private": true,
   "version": "0.0.0",
   "description": "AgentEvo monorepo workspace",
   "packageManager": "pnpm@10.20.0",
