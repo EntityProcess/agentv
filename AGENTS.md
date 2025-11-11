@@ -1,8 +1,51 @@
-# AGENTS.md
+# Repository Guidelines
 
-When running python scripts, ALWAYS use command `uv run <script.py>`.
+This is a TypeScript monorepo for AgentEvo - an AI agent evaluation framework.
 
-When functionally testing changes to the AgentEvo CLI, use `pnpm agentevo <args>` from the repository root to run the built version.
+## Tech Stack & Tools
+- **Language:** TypeScript 5.x targeting ES2022
+- **Package Manager:** pnpm 10.20.0 (use `pnpm` for all package operations)
+- **Build System:** Turbo (monorepo task orchestration)
+- **Bundler:** tsup (TypeScript bundler)
+- **Testing:** Vitest
+- **LLM Framework:** @ax-llm/ax, Vercel AI SDK
+- **Validation:** Zod
+
+## Project Structure
+- `packages/core/` - Evaluation engine, providers, grading
+- `apps/cli/` - Command-line interface (published as `agentevo`)
+
+## Essential Commands
+- `pnpm install` - Install dependencies
+- `pnpm build` - Build all packages
+- `pnpm test` - Run tests
+- `pnpm typecheck` - Type checking
+- `pnpm lint` - Lint code
+- `pnpm format` - Format with Prettier
+
+## Functional Testing
+
+When functionally testing changes to the AgentEvo CLI, **NEVER** use `agentevo` directly as it may run the globally installed npm version. Instead:
+
+- **From repository root:** Use `pnpm agentevo <args>` to run the locally built version
+- **From apps/cli directory:** Use `pnpm dev -- <args>` to run from TypeScript source with tsx
+
+This ensures you're testing your local changes, not the published npm package.
+
+## TypeScript Guidelines
+- Target ES2022 with Node 20+
+- Prefer type inference over explicit types
+- Use `async/await` for async operations
+- Prefer named exports
+- Keep modules cohesive
+
+## Package Publishing
+- CLI package (`apps/cli`) is published as `agentevo` on npm
+- Uses tsup with `noExternal: ["@agentevo/core"]` to bundle workspace dependencies
+- Install command: `npm install -g agentevo`
+
+## Python Scripts
+When running Python scripts, always use: `uv run <script.py>`
 
 <!-- OPENSPEC:START -->
 # OpenSpec Instructions
