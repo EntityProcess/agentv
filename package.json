@@ -1,5 +1,5 @@
 {
-  "name": "@entityprocess/agentevo-workspace",
+  "name": "@agentevo/workspace",
   "version": "0.0.0",
   "private": true,
   "description": "AgentEvo monorepo workspace",

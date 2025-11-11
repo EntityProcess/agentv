@@ -1,4 +1,8 @@
+# AGENTS.md
+
 When running python scripts, ALWAYS use command `uv run <script.py>`.
+
+When functionally testing changes to the AgentEvo CLI, use `pnpm agentevo <args>` from the repository root to run the built version.
 
 <!-- OPENSPEC:START -->
 # OpenSpec Instructions
