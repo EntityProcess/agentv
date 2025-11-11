@@ -1,5 +1,5 @@
 {
-  "name": "@agentevo/cli",
+  "name": "agentevo",
   "version": "0.0.2",
   "description": "CLI entry point for AgentEvo",
   "type": "module",
@@ -7,11 +7,13 @@
     "agentevo": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsup",
+    "prepublishOnly": "node -e \"require('fs').cpSync('../../README.md', 'README.md')\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

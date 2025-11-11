@@ -22,7 +22,8 @@
   },
   "files": [
     "dist",
-    "src/index.d.ts"
+    "src/index.d.ts",
+    "README.md"
   ],
   "dependencies": {
     "@ax-llm/ax": "^14.0.39",
