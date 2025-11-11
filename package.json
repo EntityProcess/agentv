@@ -1,5 +1,5 @@
 {
-  "name": "@entityprocess/agentevo-workspace",
+  "name": "@agentevo/workspace",
   "version": "0.0.0",
   "private": true,
   "description": "AgentEvo monorepo workspace",
@@ -20,7 +20,8 @@
     "test:coverage": "turbo run test:coverage",
     "format": "prettier --cache --write .",
     "format:check": "prettier --check .",
-    "dev": "pnpm --filter @agentevo/cli dev"
+    "dev": "pnpm --filter @agentevo/cli dev",
+    "agentevo": "node apps/cli/dist/index.js"
   },
   "devDependencies": {
     "@types/node": "24.1.0",

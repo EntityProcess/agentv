@@ -8,4 +8,6 @@ export default defineConfig({
   dts: false,
   target: "node20",
   tsconfig: "./tsconfig.build.json",
+  // Bundle @agentevo/core since it's a workspace dependency
+  noExternal: ["@agentevo/core"],
 });

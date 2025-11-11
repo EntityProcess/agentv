@@ -1,3 +1,5 @@
+Always follow instructions in `@AGENTS.md`.
+
 <!-- OPENSPEC:START -->
 # OpenSpec Instructions
 
