@@ -27,6 +27,7 @@ interface NormalizedOptions {
   readonly target?: string;
   readonly targetsPath?: string;
   readonly testId?: string;
+  readonly workers?: number;
   readonly outPath?: string;
   readonly format: OutputFormat;
   readonly dryRun: boolean;
@@ -66,10 +67,13 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
   const formatStr = normalizeString(rawOptions.format) ?? "jsonl";
   const format: OutputFormat = formatStr === "yaml" ? "yaml" : "jsonl";
 
+  const workers = normalizeNumber(rawOptions.workers, 0);
+
   return {
     target: normalizeString(rawOptions.target),
     targetsPath: normalizeString(rawOptions.targets),
     testId: normalizeString(rawOptions.testId),
+    workers: workers > 0 ? workers : undefined,
     outPath: normalizeString(rawOptions.out),
     format,
     dryRun: normalizeBoolean(rawOptions.dryRun),
@@ -190,6 +194,21 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const cache = options.cache ? createEvaluationCache() : undefined;
   const agentTimeoutMs = Math.max(0, options.agentTimeoutSeconds) * 1000;
 
+  // Resolve workers: CLI flag > target setting > default (1)
+  const resolvedWorkers = options.workers ?? targetSelection.resolvedTarget.workers ?? 1;
+  if (resolvedWorkers < 1 || resolvedWorkers > 50) {
+    throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
+  }
+
+  if (options.verbose) {
+    const workersSource = options.workers
+      ? "CLI flag"
+      : targetSelection.resolvedTarget.workers
+        ? "target setting"
+        : "default";
+    console.log(`Using ${resolvedWorkers} worker(s) (source: ${workersSource})`);
+  }
+
   const evaluationRunner = await resolveEvaluationRunner();
 
   try {
@@ -206,6 +225,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       useCache: options.cache,
       testId: options.testId,
       verbose: options.verbose,
+      maxConcurrency: resolvedWorkers,
       onResult: async (result: EvaluationResult) => {
         await outputWriter.append(result);
       },

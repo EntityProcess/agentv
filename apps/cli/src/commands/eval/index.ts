@@ -18,6 +18,11 @@ export function registerEvalCommand(program: Command): Command {
     .option("--target <name>", "Override target name from targets.yaml", "default")
     .option("--targets <path>", "Path to targets.yaml (overrides discovery)")
     .option("--test-id <id>", "Run only the test case with this identifier")
+    .option(
+      "--workers <count>",
+      "Number of parallel workers (default: 1, max: 50). Can also be set per-target in targets.yaml",
+      (value) => parseInteger(value, 1),
+    )
     .option("--out <path>", "Write results to the specified path")
     .option("--format <format>", "Output format: 'jsonl' or 'yaml' (default: jsonl)", "jsonl")
     .option("--dry-run", "Use mock provider responses instead of real LLM calls", false)
