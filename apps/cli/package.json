@@ -1,0 +1,40 @@
+{
+  "name": "agentevo",
+  "version": "0.1.4",
+  "description": "CLI entry point for AgentEvo",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EntityProcess/agentevo.git"
+  },
+  "homepage": "https://github.com/EntityProcess/agentevo#readme",
+  "bugs": {
+    "url": "https://github.com/EntityProcess/agentevo/issues"
+  },
+  "bin": {
+    "agentevo": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "prepublishOnly": "node -e \"require('fs').cpSync('../../README.md', 'README.md')\"",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@agentevo/core": "workspace:*",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
+    "yaml": "^2.6.1"
+  },
+  "devDependencies": {
+    "execa": "^9.3.0"
+  }
+}

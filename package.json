@@ -1,0 +1,43 @@
+{
+  "name": "@agentevo/workspace",
+  "version": "0.0.0",
+  "private": true,
+  "description": "AgentEvo monorepo workspace",
+  "packageManager": "pnpm@10.20.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "typecheck:workspace": "tsc -b tsconfig.build.json",
+    "typecheck:watch": "turbo run typecheck -- --watch",
+    "lint": "turbo run lint",
+    "lint:workspace": "eslint . --ext .ts",
+    "lint:fix": "turbo run lint -- --fix",
+    "test": "turbo run test",
+    "test:watch": "turbo run test:watch",
+    "test:coverage": "turbo run test:coverage",
+    "format": "prettier --cache --write .",
+    "format:check": "prettier --check .",
+    "dev": "pnpm --filter @agentevo/cli dev",
+    "agentevo": "node apps/cli/dist/cli.js"
+  },
+  "devDependencies": {
+    "@types/node": "24.1.0",
+    "@typescript-eslint/eslint-plugin": "7.18.0",
+    "@typescript-eslint/parser": "7.18.0",
+    "@vitest/coverage-v8": "1.6.1",
+    "eslint": "8.57.1",
+    "eslint-config-prettier": "9.1.0",
+    "eslint-import-resolver-typescript": "3.6.1",
+    "eslint-plugin-import": "2.29.1",
+    "prettier": "3.3.3",
+    "tsup": "8.3.5",
+    "tsx": "4.20.3",
+    "turbo": "2.5.5",
+    "typescript": "5.8.3",
+    "vite-tsconfig-paths": "5.1.1",
+    "vitest": "1.6.1"
+  }
+}

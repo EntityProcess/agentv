@@ -1,0 +1,44 @@
+{
+  "name": "@agentevo/core",
+  "version": "0.1.3",
+  "description": "Primitive runtime components for AgentEvo",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EntityProcess/agentevo.git"
+  },
+  "homepage": "https://github.com/EntityProcess/agentevo#readme",
+  "bugs": {
+    "url": "https://github.com/EntityProcess/agentevo/issues"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "diagnostics:azure": "tsx src/diagnostics/azure-deployment-diag.ts"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "dependencies": {
+    "@ax-llm/ax": "^14.0.39",
+    "ai": "^5.0.50",
+    "subagent": "^0.3.6",
+    "yaml": "^2.6.0",
+    "zod": "^3.23.8"
+  }
+}
