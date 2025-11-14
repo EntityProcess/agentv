@@ -195,9 +195,17 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const agentTimeoutMs = Math.max(0, options.agentTimeoutSeconds) * 1000;
 
   // Resolve workers: CLI flag > target setting > default (1)
-  const resolvedWorkers = options.workers ?? targetSelection.resolvedTarget.workers ?? 1;
+  let resolvedWorkers = options.workers ?? targetSelection.resolvedTarget.workers ?? 1;
   if (resolvedWorkers < 1 || resolvedWorkers > 50) {
     throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
+  }
+
+  // VSCode providers require window focus, so only 1 worker is allowed
+  const isVSCodeProvider = targetSelection.resolvedTarget.kind === "vscode" || 
+                           targetSelection.resolvedTarget.kind === "vscode-insiders";
+  if (isVSCodeProvider && resolvedWorkers > 1) {
+    console.warn(`Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`);
+    resolvedWorkers = 1;
   }
 
   if (options.verbose) {
