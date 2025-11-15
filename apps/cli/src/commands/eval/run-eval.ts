@@ -201,8 +201,9 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   }
 
   // VSCode providers require window focus, so only 1 worker is allowed
-  const isVSCodeProvider = targetSelection.resolvedTarget.kind === "vscode" || 
-                           targetSelection.resolvedTarget.kind === "vscode-insiders";
+  const isVSCodeProvider = ["vscode", "vscode-insiders"].includes(
+    targetSelection.resolvedTarget.kind
+  );
   if (isVSCodeProvider && resolvedWorkers > 1) {
     console.warn(`Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`);
     resolvedWorkers = 1;

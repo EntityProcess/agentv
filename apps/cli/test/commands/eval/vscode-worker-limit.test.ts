@@ -25,9 +25,9 @@ describe("VSCode worker limit validation", () => {
 
     // Simulate the logic from run-eval.ts
     let resolvedWorkers = options.workers ?? targetSelection.resolvedTarget.workers ?? 1;
-    const isVSCodeProvider =
-      targetSelection.resolvedTarget.kind === "vscode" ||
-      targetSelection.resolvedTarget.kind === "vscode-insiders";
+    const isVSCodeProvider = ["vscode", "vscode-insiders"].includes(
+      targetSelection.resolvedTarget.kind
+    );
 
     if (isVSCodeProvider && resolvedWorkers > 1) {
       resolvedWorkers = 1;
@@ -55,9 +55,9 @@ describe("VSCode worker limit validation", () => {
     };
 
     let resolvedWorkers = options.workers ?? targetSelection.resolvedTarget.workers ?? 1;
-    const isVSCodeProvider =
-      targetSelection.resolvedTarget.kind === "vscode" ||
-      targetSelection.resolvedTarget.kind === "vscode-insiders";
+    const isVSCodeProvider = ["vscode", "vscode-insiders"].includes(
+      targetSelection.resolvedTarget.kind
+    );
 
     if (isVSCodeProvider && resolvedWorkers > 1) {
       resolvedWorkers = 1;
@@ -85,9 +85,9 @@ describe("VSCode worker limit validation", () => {
     };
 
     let resolvedWorkers = options.workers ?? targetSelection.resolvedTarget.workers ?? 1;
-    const isVSCodeProvider =
-      targetSelection.resolvedTarget.kind === "vscode" ||
-      targetSelection.resolvedTarget.kind === "vscode-insiders";
+    const isVSCodeProvider = ["vscode", "vscode-insiders"].includes(
+      targetSelection.resolvedTarget.kind
+    );
 
     if (isVSCodeProvider && resolvedWorkers > 1) {
       resolvedWorkers = 1;
@@ -115,9 +115,9 @@ describe("VSCode worker limit validation", () => {
     };
 
     let resolvedWorkers = options.workers ?? targetSelection.resolvedTarget.workers ?? 1;
-    const isVSCodeProvider =
-      targetSelection.resolvedTarget.kind === "vscode" ||
-      targetSelection.resolvedTarget.kind === "vscode-insiders";
+    const isVSCodeProvider = ["vscode", "vscode-insiders"].includes(
+      targetSelection.resolvedTarget.kind
+    );
 
     if (isVSCodeProvider && resolvedWorkers > 1) {
       resolvedWorkers = 1;
