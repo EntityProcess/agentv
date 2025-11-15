@@ -232,7 +232,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   // Auto-provision subagents for VSCode targets
   if (isVSCodeProvider && !options.dryRun) {
     await ensureVSCodeSubagents({
-      kind: targetSelection.resolvedTarget.kind,
+      kind: targetSelection.resolvedTarget.kind as "vscode" | "vscode-insiders",
       count: resolvedWorkers,
       verbose: options.verbose,
     });
