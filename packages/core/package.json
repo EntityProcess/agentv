@@ -1,6 +1,6 @@
 {
   "name": "@agentevo/core",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "description": "Primitive runtime components for AgentEvo",
   "type": "module",
   "repository": {
