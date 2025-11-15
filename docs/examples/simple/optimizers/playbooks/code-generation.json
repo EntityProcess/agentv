@@ -1,0 +1,167 @@
+{
+  "version": "1.0",
+  "created_at": "2025-11-15T10:30:00Z",
+  "last_updated": "2025-11-15T14:22:00Z",
+  "optimization_history": {
+    "epochs_completed": 3,
+    "total_reflections": 12,
+    "success_rate_progression": [0.45, 0.67, 0.83]
+  },
+  "sections": {
+    "core_requirements": {
+      "description": "Fundamental requirements for code generation",
+      "bullets": [
+        {
+          "id": "req-001",
+          "content": "Always include type hints for function parameters and return values using the typing module",
+          "tags": ["typing", "best-practices"],
+          "confidence": 0.95,
+          "added_epoch": 1
+        },
+        {
+          "id": "req-002",
+          "content": "Raise TypeError for invalid input types and ValueError for invalid values",
+          "tags": ["error-handling", "validation"],
+          "confidence": 0.92,
+          "added_epoch": 1
+        },
+        {
+          "id": "req-003",
+          "content": "Include comprehensive docstrings with Args, Returns, and Raises sections",
+          "tags": ["documentation", "best-practices"],
+          "confidence": 0.88,
+          "added_epoch": 2
+        }
+      ]
+    },
+    "edge_case_handling": {
+      "description": "Critical edge cases that must be handled",
+      "bullets": [
+        {
+          "id": "edge-001",
+          "content": "Check for empty collections before accessing elements or performing operations",
+          "tags": ["validation", "edge-cases"],
+          "confidence": 0.93,
+          "added_epoch": 1
+        },
+        {
+          "id": "edge-002",
+          "content": "Handle single-element collections that may not have enough data for the operation",
+          "tags": ["edge-cases"],
+          "confidence": 0.87,
+          "added_epoch": 2
+        },
+        {
+          "id": "edge-003",
+          "content": "For finding unique values, use set() to eliminate duplicates before processing",
+          "tags": ["algorithms", "edge-cases"],
+          "confidence": 0.91,
+          "added_epoch": 2
+        },
+        {
+          "id": "edge-004",
+          "content": "Return None or appropriate sentinel value when operation cannot be completed (e.g., finding second largest in single-element list)",
+          "tags": ["edge-cases", "return-values"],
+          "confidence": 0.89,
+          "added_epoch": 3
+        }
+      ]
+    },
+    "code_quality": {
+      "description": "Code quality and maintainability guidelines",
+      "bullets": [
+        {
+          "id": "qual-001",
+          "content": "Use isinstance() for type checking rather than type() comparison",
+          "tags": ["validation", "pythonic"],
+          "confidence": 0.94,
+          "added_epoch": 1
+        },
+        {
+          "id": "qual-002",
+          "content": "Validate all elements in a collection using generator expressions with all() or any()",
+          "tags": ["validation", "pythonic"],
+          "confidence": 0.86,
+          "added_epoch": 2
+        },
+        {
+          "id": "qual-003",
+          "content": "Prefer explicit variable names over abbreviations (e.g., 'unique_numbers' not 'uniq_nums')",
+          "tags": ["readability"],
+          "confidence": 0.82,
+          "added_epoch": 3
+        }
+      ]
+    },
+    "common_pitfalls": {
+      "description": "Mistakes to avoid based on past failures",
+      "bullets": [
+        {
+          "id": "pit-001",
+          "content": "Never assume list indices are valid without checking bounds or catching IndexError",
+          "tags": ["safety", "edge-cases"],
+          "confidence": 0.96,
+          "added_epoch": 1,
+          "reflection_summary": "Failed case involved accessing items[i] in loop with wrong boundary condition"
+        },
+        {
+          "id": "pit-002",
+          "content": "When sorting is needed, create a sorted copy using sorted() rather than mutating input with .sort()",
+          "tags": ["immutability", "best-practices"],
+          "confidence": 0.84,
+          "added_epoch": 2,
+          "reflection_summary": "User expected original list to remain unchanged"
+        },
+        {
+          "id": "pit-003",
+          "content": "For numeric operations, explicitly check for the correct numeric type (int, float) before processing",
+          "tags": ["validation", "type-checking"],
+          "confidence": 0.88,
+          "added_epoch": 3,
+          "reflection_summary": "Function failed when list contained numeric strings instead of integers"
+        }
+      ]
+    },
+    "performance_considerations": {
+      "description": "Performance optimizations learned through evaluation",
+      "bullets": [
+        {
+          "id": "perf-001",
+          "content": "Use set operations for deduplication - O(n) instead of nested loops O(n²)",
+          "tags": ["performance", "algorithms"],
+          "confidence": 0.79,
+          "added_epoch": 3
+        },
+        {
+          "id": "perf-002",
+          "content": "For finding kth largest/smallest, consider using heapq.nlargest/nsmallest for better performance on large datasets",
+          "tags": ["performance", "algorithms", "advanced"],
+          "confidence": 0.75,
+          "added_epoch": 3,
+          "note": "Applicable for lists > 100 elements"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "total_bullets": 18,
+    "sections_count": 5,
+    "avg_confidence": 0.87,
+    "tags_frequency": {
+      "edge-cases": 6,
+      "validation": 5,
+      "best-practices": 4,
+      "type-checking": 3,
+      "pythonic": 2,
+      "performance": 2,
+      "algorithms": 3,
+      "error-handling": 1,
+      "documentation": 1,
+      "readability": 1,
+      "safety": 1,
+      "immutability": 1,
+      "return-values": 1,
+      "advanced": 1
+    }
+  }
+}

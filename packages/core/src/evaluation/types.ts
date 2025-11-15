@@ -159,6 +159,7 @@ export function isGraderKind(value: unknown): value is GraderKind {
  */
 export interface TestCase {
   readonly id: string;
+  readonly conversation_id?: string;
   readonly task: string;
   readonly user_segments: readonly JsonObject[];
   readonly expected_assistant_raw: string;
@@ -173,6 +174,7 @@ export interface TestCase {
  */
 export interface EvaluationResult {
   readonly test_id: string;
+  readonly conversation_id?: string;
   readonly score: number;
   readonly hits: readonly string[];
   readonly misses: readonly string[];

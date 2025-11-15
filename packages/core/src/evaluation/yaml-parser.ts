@@ -51,15 +51,20 @@ type LoadOptions = {
 };
 
 type RawTestSuite = JsonObject & {
+  readonly version?: JsonValue;
   readonly grader?: JsonValue;
-  readonly testcases?: JsonValue;
+  readonly evalcases?: JsonValue;
+  readonly target?: JsonValue;
 };
 
 type RawTestCase = JsonObject & {
   readonly id?: JsonValue;
+  readonly conversation_id?: JsonValue;
   readonly outcome?: JsonValue;
-  readonly messages?: JsonValue;
+  readonly input_messages?: JsonValue;
+  readonly expected_messages?: JsonValue;
   readonly grader?: JsonValue;
+  readonly execution?: JsonValue;
 };
 
 /**
@@ -86,9 +91,34 @@ export async function loadTestCases(
   }
 
   const suite = parsed as RawTestSuite;
-  const rawTestcases = Array.isArray(suite.testcases) ? suite.testcases : undefined;
-  if (!rawTestcases) {
-    throw new Error(`Invalid test file format: ${testFilePath}`);
+  
+  // Check version field to determine schema format
+  const version = typeof suite.version === 'number' ? suite.version : 
+                  typeof suite.version === 'string' ? parseFloat(suite.version) : 
+                  undefined;
+  
+  // Require V2 format (version 2.0 or higher)
+  if (version === undefined) {
+    throw new Error(
+      `Missing version field in ${testFilePath}.\n` +
+      `Please add 'version: 2.0' at the top of the file.`
+    );
+  }
+  
+  if (version < 2.0) {
+    throw new Error(
+      `V1 eval format detected in ${testFilePath} (version ${version}).\n` +
+      `The eval schema has been updated to V2. Please migrate your file:\n` +
+      `  1. Update to 'version: 2.0'\n` +
+      `  2. Rename 'testcases' to 'evalcases'\n` +
+      `  3. Split 'messages' into 'input_messages' and 'expected_messages'`
+    );
+  }
+  
+  // V2 format: version 2.0 or higher
+  const rawTestcases = suite.evalcases;
+  if (!Array.isArray(rawTestcases)) {
+    throw new Error(`Invalid test file format: ${testFilePath} - missing 'evalcases' field`);
   }
 
   const globalGrader = coerceGrader(suite.grader) ?? "llm_judge";
@@ -102,22 +132,28 @@ export async function loadTestCases(
 
     const testcase = rawTestcase as RawTestCase;
     const id = asString(testcase.id);
+    const conversationId = asString(testcase.conversation_id);
     const outcome = asString(testcase.outcome);
-    const messagesValue = testcase.messages;
+    
+    const inputMessagesValue = testcase.input_messages;
+    const expectedMessagesValue = testcase.expected_messages;
 
-    if (!id || !outcome || !Array.isArray(messagesValue)) {
+    if (!id || !outcome || !Array.isArray(inputMessagesValue)) {
       logWarning(`Skipping incomplete test case: ${id ?? "unknown"}`);
       continue;
     }
-
-    const messages = messagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
-    if (messages.length === 0) {
-      logWarning(`Skipping test case with no valid messages: ${id}`);
+    
+    if (!Array.isArray(expectedMessagesValue)) {
+      logWarning(`Test case '${id}' missing expected_messages array`);
       continue;
     }
 
-    const userMessages = messages.filter((message) => message.role === "user");
-    const assistantMessages = messages.filter((message) => message.role === "assistant");
+    // V2 format: input_messages contains system/user, expected_messages contains assistant
+    const inputMessages = inputMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
+    const expectedMessages = expectedMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
+    
+    const assistantMessages = expectedMessages.filter((message) => message.role === "assistant");
+    const userMessages = inputMessages.filter((message) => message.role === "user");
 
     if (assistantMessages.length === 0) {
       logWarning(`No assistant message found for test case: ${id}`);
@@ -211,6 +247,7 @@ export async function loadTestCases(
 
     const testCase: TestCase = {
       id,
+      conversation_id: conversationId,
       task: userTextPrompt,
       user_segments: userSegments,
       expected_assistant_raw: expectedAssistantRaw,

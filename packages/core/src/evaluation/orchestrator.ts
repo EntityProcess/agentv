@@ -358,6 +358,7 @@ export async function runTestCase(options: RunTestCaseOptions): Promise<Evaluati
 
   return {
     test_id: testCase.id,
+    conversation_id: testCase.conversation_id,
     score: grade.score,
     hits: grade.hits,
     misses: grade.misses,
@@ -490,6 +491,7 @@ function buildErrorResult(
 
   return {
     test_id: testCase.id,
+    conversation_id: testCase.conversation_id,
     score: 0,
     hits: [],
     misses: [`Error: ${message}`],
