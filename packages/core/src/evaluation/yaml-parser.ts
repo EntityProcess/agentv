@@ -53,13 +53,19 @@ type LoadOptions = {
 type RawTestSuite = JsonObject & {
   readonly grader?: JsonValue;
   readonly testcases?: JsonValue;
+  readonly evalcases?: JsonValue;
+  readonly target?: JsonValue;
 };
 
 type RawTestCase = JsonObject & {
   readonly id?: JsonValue;
+  readonly conversation_id?: JsonValue;
   readonly outcome?: JsonValue;
   readonly messages?: JsonValue;
+  readonly input_messages?: JsonValue;
+  readonly expected_messages?: JsonValue;
   readonly grader?: JsonValue;
+  readonly execution?: JsonValue;
 };
 
 /**
@@ -86,9 +92,14 @@ export async function loadTestCases(
   }
 
   const suite = parsed as RawTestSuite;
-  const rawTestcases = Array.isArray(suite.testcases) ? suite.testcases : undefined;
+  // Support both V2 (evalcases) and V1 (testcases) for now
+  const rawTestcases = Array.isArray(suite.evalcases) 
+    ? suite.evalcases 
+    : Array.isArray(suite.testcases) 
+    ? suite.testcases 
+    : undefined;
   if (!rawTestcases) {
-    throw new Error(`Invalid test file format: ${testFilePath}`);
+    throw new Error(`Invalid test file format: ${testFilePath} - missing 'evalcases' or 'testcases' field`);
   }
 
   const globalGrader = coerceGrader(suite.grader) ?? "llm_judge";
@@ -102,22 +113,35 @@ export async function loadTestCases(
 
     const testcase = rawTestcase as RawTestCase;
     const id = asString(testcase.id);
+    const conversationId = asString(testcase.conversation_id);
     const outcome = asString(testcase.outcome);
-    const messagesValue = testcase.messages;
+    
+    // Support both V2 (input_messages + expected_messages) and V1 (messages)
+    const inputMessagesValue = Array.isArray(testcase.input_messages) 
+      ? testcase.input_messages 
+      : Array.isArray(testcase.messages) 
+      ? testcase.messages 
+      : undefined;
+    const expectedMessagesValue = Array.isArray(testcase.expected_messages) 
+      ? testcase.expected_messages 
+      : [];
 
-    if (!id || !outcome || !Array.isArray(messagesValue)) {
+    if (!id || !outcome || !inputMessagesValue) {
       logWarning(`Skipping incomplete test case: ${id ?? "unknown"}`);
       continue;
     }
 
-    const messages = messagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
-    if (messages.length === 0) {
-      logWarning(`Skipping test case with no valid messages: ${id}`);
-      continue;
-    }
-
-    const userMessages = messages.filter((message) => message.role === "user");
-    const assistantMessages = messages.filter((message) => message.role === "assistant");
+    // In V2 format: input_messages contains system/user, expected_messages contains assistant
+    // In V1 format: messages contains all roles including assistant
+    const inputMessages = inputMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
+    const expectedMessages = expectedMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
+    
+    // For V1 compatibility: extract assistant messages from inputMessages if no expectedMessages
+    const assistantMessages = expectedMessages.length > 0 
+      ? expectedMessages.filter((message) => message.role === "assistant")
+      : inputMessages.filter((message) => message.role === "assistant");
+    
+    const userMessages = inputMessages.filter((message) => message.role === "user");
 
     if (assistantMessages.length === 0) {
       logWarning(`No assistant message found for test case: ${id}`);
@@ -211,6 +235,7 @@ export async function loadTestCases(
 
     const testCase: TestCase = {
       id,
+      conversation_id: conversationId,
       task: userTextPrompt,
       user_segments: userSegments,
       expected_assistant_raw: expectedAssistantRaw,

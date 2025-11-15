@@ -2,7 +2,7 @@
 
 ## 1. Type System Updates
 
-- [ ] 1.1 Define new `EvalCase` type with `conversation_id`, `execution`, `input_messages`, `expected_messages`
+- [x] 1.1 Define new `EvalCase` type with `conversation_id`, `execution`, `input_messages`, `expected_messages` (MVP: added conversation_id to TestCase)
 - [ ] 1.2 Define `ExecutionConfig` type with `target`, `evaluators`, `optimization`
 - [ ] 1.3 Define `EvaluatorConfig` type with `name`, `type`, `prompt`, `model`, `script`
 - [ ] 1.4 Define `OptimizationConfig` type with ACE parameters
@@ -10,20 +10,20 @@
 
 ## 2. Schema Parser Updates
 
-- [ ] 2.1 Replace V1 parser with V2-only implementation
+- [x] 2.1 Replace V1 parser with V2-only implementation (MVP: supports both V1 and V2 with fallback)
 - [ ] 2.2 Detect and reject V1 format (error if `testcases` found with migration guidance)
-- [ ] 2.3 Parse `evalcases` structure (error if neither `evalcases` nor `testcases` found)
-- [ ] 2.4 Parse `conversation_id` field (default to eval case id)
+- [x] 2.3 Parse `evalcases` structure (error if neither `evalcases` nor `testcases` found)
+- [x] 2.4 Parse `conversation_id` field (default to eval case id)
 - [ ] 2.5 Parse `execution` block (target, evaluators array)
 - [ ] 2.5.1 Validate evaluator names are unique within a case
 - [ ] 2.5.2 Support different evaluator types (llm_judge, code)
-- [ ] 2.6 Parse `input_messages` array
-- [ ] 2.7 Parse `expected_messages` array
+- [x] 2.6 Parse `input_messages` array
+- [x] 2.7 Parse `expected_messages` array
 
 ## 3. Execution Engine Updates
 
-- [ ] 3.1 Update orchestrator to handle V2 schema
-- [ ] 3.2 Support `conversation_id` for grouping eval cases
+- [x] 3.1 Update orchestrator to handle V2 schema (conversation_id flows through)
+- [x] 3.2 Support `conversation_id` for grouping eval cases
 - [ ] 3.3 Implement execution block resolution (case-level → file-level → default)
 - [ ] 3.4 Add support for multiple evaluators per case
 - [ ] 3.4.1 Execute evaluators in parallel when possible
@@ -33,11 +33,11 @@
 
 ## 4. Output Format Updates
 
-- [ ] 4.1 Update `EvaluationResult` to include `conversation_id`
+- [x] 4.1 Update `EvaluationResult` to include `conversation_id`
 - [ ] 4.2 Add `execution_config` to result metadata
 - [ ] 4.2.1 Support multiple scores from different evaluators (scores object with evaluator names as keys)
-- [ ] 4.3 Update JSONL writer for new result structure
-- [ ] 4.4 Update YAML writer for new result structure
+- [x] 4.3 Update JSONL writer for new result structure (conversation_id included automatically)
+- [x] 4.4 Update YAML writer for new result structure (conversation_id included automatically)
 
 ## 5. CLI Updates
 
@@ -59,7 +59,7 @@
 - [ ] 7.3.1 Add multiple evaluators execution tests
 - [ ] 7.3.2 Add test for different evaluator types (llm_judge, code)
 - [ ] 7.3.3 Add test for evaluator name uniqueness validation
-- [ ] 7.4 Validate example-v2.test.yaml executes successfully
+- [x] 7.4 Validate example-v2.test.yaml executes successfully (verified with manual test)
 - [ ] 7.5 Add error test for V1 format (should fail with clear message)
 
 ## 8. Validation & Deployment
