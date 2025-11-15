@@ -3,6 +3,7 @@ import {
   type EvaluationCache,
   type EvaluationResult,
   type ProviderResponse,
+  ensureVSCodeSubagents,
 } from "@agentevo/core";
 import { constants } from "node:fs";
 import { access, mkdir } from "node:fs/promises";
@@ -226,6 +227,15 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
         ? "target setting"
         : "default";
     console.log(`Using ${resolvedWorkers} worker(s) (source: ${workersSource})`);
+  }
+
+  // Auto-provision subagents for VSCode targets
+  if (isVSCodeProvider && !options.dryRun) {
+    await ensureVSCodeSubagents({
+      kind: targetSelection.resolvedTarget.kind,
+      count: resolvedWorkers,
+      verbose: options.verbose,
+    });
   }
 
   const evaluationRunner = await resolveEvaluationRunner();
