@@ -47,10 +47,9 @@
 
 ## 6. Documentation & Examples
 
-- [ ] 6.1 Update example file to V2 format (`docs/examples/simple/evals/example-v2.test.yaml`)
-- [ ] 6.2 Update README with V2 schema documentation
-- [ ] 6.3 Create migration guide documenting: `testcases` → `evalcases`, `messages` → `input_messages` + `expected_messages`
-- [ ] 6.4 Update all internal eval files to V2 format
+- [ ] 6.1 Update README with V2 schema documentation
+- [ ] 6.2 Create migration guide documenting: `testcases` → `evalcases`, `messages` → `input_messages` + `expected_messages`
+- [ ] 6.3 Update all internal eval files to V2 format
 
 ## 7. Testing
 

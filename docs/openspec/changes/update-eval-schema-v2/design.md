@@ -24,12 +24,10 @@ The current eval schema (V1) uses a simple structure with `testcases`, flat `mes
 - Define V2 schema supporting conversation threading and execution config
 - Support template-based evaluators with configurable models
 - Support multiple evaluators per eval case
-- Provide migration guide documenting V1 to V2 changes
-- Reject V1 format with clear error message and migration guidance
 
 **Non-Goals**:
 - Backward compatibility with V1 format (clean break)
-- Automatic conversion of V1 files to V2 (user responsibility)
+- Automatic conversion of V1 files to V2 (no users to migrate)
 - ACE or other optimization framework integration (separate config files, separate change)
 - Multi-language support in templates (English only for now)
 
@@ -44,7 +42,7 @@ The current eval schema (V1) uses a simple structure with `testcases`, flat `mes
 - Use `scenarios`: Rejected - too generic, conflicts with requirement scenarios
 - Use `cases`: Rejected - ambiguous without context
 
-**Migration**: V1 format (files with `testcases` key) will be rejected with a clear error message directing users to the migration guide.
+**Migration**: V1 format (files with `testcases` key) will be rejected with a clear error message.
 
 ### Decision 2: Execution Block Structure
 
@@ -163,8 +161,8 @@ evalcases:
 **Rationale**: 
 - Simplifies implementation (no dual parser maintenance)
 - Clearer codebase without legacy support
-- AgentEvo is early-stage; limited existing eval files to migrate
-- Breaking change is acceptable at this maturity level
+- No existing users to migrate
+- Clean start with V2 schema only
 
 **Alternatives considered**:
 - Auto-detection with V1 support: Rejected - adds complexity for minimal benefit
@@ -177,16 +175,6 @@ evalcases:
 - ❌ Users must manually update existing eval files
 
 ## Risks / Trade-offs
-
-### Risk: Breaking Changes in Production Pipelines
-
-**Impact**: High - Users with automated eval pipelines will break if they upgrade without updating files
-
-**Mitigation**:
-- Document as BREAKING CHANGE in release notes
-- Provide clear migration guide with before/after examples
-- Version bump to indicate breaking change (e.g., 0.x → 1.0 or major version)
-- Consider providing conversion script to automate migration
 
 ### Risk: Template Rendering Performance
 
@@ -203,33 +191,13 @@ evalcases:
 
 **Reasoning**: AgentEvo is evolving toward production-grade eval platform. Power users need fine-grained control, and clear structure aids maintainability. Beginners can use defaults and ignore advanced features.
 
-## Migration Plan
-
-### Implementation (Current Change)
+## Implementation Plan
 
 1. Replace existing YAML parser with V2-only implementation
 2. Update type definitions to V2 schema
 3. Update all bundled examples to V2 format
-4. Document V1→V2 migration guide with field mappings
-5. Update CLI help text and error messages for V2
-
-### User Migration Steps
-
-1. Review migration guide in documentation
-2. Update eval files:
-   - `testcases` → `evalcases`
-   - `messages` → `input_messages` + `expected_messages`
-   - Add optional `conversation_id`, `execution` blocks as needed
-3. Test updated files with `agentevo eval --dry-run`
-4. Run production evals
-
-### Rollback Plan
-
-If critical issues arise:
-- Revert to previous version of agentevo (with V1 support)
-- Users can stay on old version until issues resolved
-- Fix V2 parser and re-release
-- Note: Once upgraded, users cannot downgrade without reverting their eval files to V1 format
+4. Update CLI help text and error messages for V2
+5. Add validation to reject any V1 format files with clear error
 
 ## Open Questions
 
