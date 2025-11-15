@@ -240,11 +240,9 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
 
   const evaluationRunner = await resolveEvaluationRunner();
 
-  // Initialize progress display for parallel execution
-  const progressDisplay = resolvedWorkers > 1 ? new ProgressDisplay(resolvedWorkers) : undefined;
-  if (progressDisplay) {
-    progressDisplay.start();
-  }
+  // Initialize progress display
+  const progressDisplay = new ProgressDisplay(resolvedWorkers);
+  progressDisplay.start();
   const pendingTests = new Set<number>();
 
   try {
@@ -265,28 +263,24 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       onResult: async (result: EvaluationResult) => {
         await outputWriter.append(result);
       },
-      onProgress: progressDisplay
-        ? async (event) => {
-            // Track pending events to determine total test count
-            if (event.status === "pending") {
-              pendingTests.add(event.workerId);
-              progressDisplay.setTotalTests(pendingTests.size);
-            }
-            progressDisplay.updateWorker({
-              workerId: event.workerId,
-              testId: event.testId,
-              status: event.status,
-              startedAt: event.startedAt,
-              completedAt: event.completedAt,
-              error: event.error,
-            });
-          }
-        : undefined,
+      onProgress: async (event) => {
+        // Track pending events to determine total test count
+        if (event.status === "pending") {
+          pendingTests.add(event.workerId);
+          progressDisplay.setTotalTests(pendingTests.size);
+        }
+        progressDisplay.updateWorker({
+          workerId: event.workerId,
+          testId: event.testId,
+          status: event.status,
+          startedAt: event.startedAt,
+          completedAt: event.completedAt,
+          error: event.error,
+        });
+      },
     });
 
-    if (progressDisplay) {
-      progressDisplay.finish();
-    }
+    progressDisplay.finish();
 
     await outputWriter.close();
 
