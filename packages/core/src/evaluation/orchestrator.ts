@@ -37,6 +37,15 @@ export interface RunTestCaseOptions {
   readonly judgeProvider?: Provider;
 }
 
+export interface ProgressEvent {
+  readonly workerId: number;
+  readonly testId: string;
+  readonly status: "pending" | "running" | "completed" | "failed";
+  readonly startedAt?: number;
+  readonly completedAt?: number;
+  readonly error?: string;
+}
+
 export interface RunEvaluationOptions {
   readonly testFilePath: string;
   readonly repoRoot: URL | string;
@@ -55,6 +64,7 @@ export interface RunEvaluationOptions {
   readonly verbose?: boolean;
   readonly maxConcurrency?: number;
   readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
+  readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
 }
 
 export async function runEvaluation(options: RunEvaluationOptions): Promise<readonly EvaluationResult[]> {
@@ -75,6 +85,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     testId,
     verbose,
     onResult,
+    onProgress,
   } = options;
 
   const load = loadTestCases;
@@ -136,31 +147,84 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
 
   const primaryProvider = getOrCreateProvider(target);
 
+  // Notify about total test count before starting
+  if (onProgress && filteredTestCases.length > 0) {
+    // Emit initial pending events for all tests
+    for (let i = 0; i < filteredTestCases.length; i++) {
+      await onProgress({
+        workerId: i + 1,
+        testId: filteredTestCases[i].id,
+        status: "pending",
+      });
+    }
+  }
+
   // Resolve worker count: CLI option > target setting > default (1)
   const workers = options.maxConcurrency ?? target.workers ?? 1;
   const limit = pLimit(workers);
 
+  // Track worker assignments for progress reporting
+  let nextWorkerId = 1;
+  const workerIdByTestId = new Map<string, number>();
+
   // Map test cases to limited promises for parallel execution
   const promises = filteredTestCases.map((testCase) =>
     limit(async () => {
-      const judgeProvider = await resolveJudgeProvider(target);
-      const result = await runTestCase({
-        testCase,
-        provider: primaryProvider,
-        target,
-        graders: graderRegistry,
-        maxRetries,
-        agentTimeoutMs,
-        promptDumpDir,
-        cache,
-        useCache,
-        now,
-        judgeProvider,
-      });
-      if (onResult) {
-        await onResult(result);
+      // Assign worker ID when test starts executing
+      const workerId = nextWorkerId++;
+      workerIdByTestId.set(testCase.id, workerId);
+
+      if (onProgress) {
+        await onProgress({
+          workerId,
+          testId: testCase.id,
+          status: "running",
+          startedAt: Date.now(),
+        });
       }
-      return result;
+
+      try {
+        const judgeProvider = await resolveJudgeProvider(target);
+        const result = await runTestCase({
+          testCase,
+          provider: primaryProvider,
+          target,
+          graders: graderRegistry,
+          maxRetries,
+          agentTimeoutMs,
+          promptDumpDir,
+          cache,
+          useCache,
+          now,
+          judgeProvider,
+        });
+
+        if (onProgress) {
+          await onProgress({
+            workerId,
+            testId: testCase.id,
+            status: "completed",
+            startedAt: 0, // Not used for completed status
+            completedAt: Date.now(),
+          });
+        }
+
+        if (onResult) {
+          await onResult(result);
+        }
+        return result;
+      } catch (error) {
+        if (onProgress) {
+          await onProgress({
+            workerId,
+            testId: testCase.id,
+            status: "failed",
+            completedAt: Date.now(),
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+        throw error;
+      }
     }),
   );
 
