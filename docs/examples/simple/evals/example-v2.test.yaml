@@ -42,7 +42,7 @@ evalcases:
           # File references are resolved relative to the eval file directory
           # Files ending in .instructions.md are treated as guidelines
           - type: file
-            value: ../prompts/javascript.instructions.md
+            value: ../evaluators/prompts/javascript.instructions.md
     
     # V2 Schema: Use 'expected_messages' instead of inline assistant message in V1
     expected_messages:
@@ -59,8 +59,9 @@ evalcases:
           - Add input validation for edge cases
 
   # ==========================================
-  # Example 2: Advanced features - conversation_id, multiple evaluators, ACE optimization
-  # Demonstrates: conversation threading, execution config, target override, evaluators, optimization
+  # Example 2: Advanced features - conversation_id, multiple evaluators
+  # Demonstrates: conversation threading, execution config, target override, evaluators
+  # Note: Optimization (ACE, etc.) is configured separately in opts/*.yaml files
   # ==========================================
   - id: code-gen-python-comprehensive
     
@@ -80,20 +81,11 @@ evalcases:
         - name: keyword_check
           type: code  # Code evaluators handle regex, keywords, linting, etc.
           # Note: script paths shown here are examples - implement as needed
-          script: ./scripts/check_python_keywords.py
+          script: ../evaluators/scripts/check_python_keywords.py
         - name: semantic_correctness
           type: llm_judge  # LLM-based semantic evaluation
-          prompt: ./templates/code-correctness-judge.md
+          prompt: ../evaluators/prompts/code-correctness-judge.md
           model: gpt-5-chat
-      
-      # V2 Schema: ACE (Automatic Cognitive Enhancement) optimization configuration
-      # Optional - only include when using prompt optimization
-      optimization:
-        type: ace  # Optimization framework type (currently only 'ace' supported)
-        playbook_path: ./playbooks/python-code.json  # ACE playbook configuration
-        max_epochs: 2  # Number of optimization iterations across ALL test cases
-        max_reflector_rounds: 2  # Number of analysis rounds per failed test case
-        allow_dynamic_sections: true  # Allow ACE to create new prompt sections
     
     input_messages:
       - role: system
@@ -109,7 +101,7 @@ evalcases:
               4. Raises appropriate exceptions for invalid input
           # Reference to real instruction file
           - type: file
-            value: ../prompts/python.instructions.md
+            value: ../evaluators/prompts/python.instructions.md
     
     expected_messages:
       - role: assistant

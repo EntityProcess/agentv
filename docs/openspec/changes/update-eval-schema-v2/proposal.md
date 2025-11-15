@@ -2,13 +2,13 @@
 
 ## Why
 
-The current eval schema uses legacy naming (`testcases`, `messages`) and lacks support for advanced features like conversation threading, ACE optimization, and structured execution configuration. The new V2 schema aligns with modern eval frameworks, enabling:
+The current eval schema uses legacy naming (`testcases`, `messages`) and lacks support for advanced features like conversation threading and structured execution configuration. The new V2 schema aligns with modern eval frameworks, enabling:
 
 - Conversation-based test organization via `conversation_id`
-- Explicit execution configuration with target, evaluator, and optimization settings
-- ACE (Automatic Cognitive Enhancement) integration for prompt optimization
+- Explicit execution configuration with target and evaluator settings
 - Clearer separation between input and expected output messages
 - Better alignment with industry-standard eval formats
+- Foundation for external optimization frameworks (ACE will reference evals, not be embedded in them)
 
 ## What Changes
 
@@ -23,7 +23,8 @@ The current eval schema uses legacy naming (`testcases`, `messages`) and lacks s
     - `prompt`: Prompt template path (for llm_judge)
     - `model`: Model override (for llm_judge)
     - `script`: Script path (for code evaluators)
-  - `optimization`: ACE configuration with `type`, `playbook_path`, `max_epochs`, `max_reflector_rounds`, `allow_dynamic_sections`
+
+**Note**: ACE optimization configuration will be handled in separate optimization config files (e.g., `optimizers/*.yaml`) that reference eval files, not within eval cases themselves.
 
 ## Impact
 

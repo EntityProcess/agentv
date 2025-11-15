@@ -2,13 +2,13 @@
 
 ## Context
 
-The current eval schema (V1) uses a simple structure with `testcases`, flat `messages` arrays, and implicit configuration inheritance. As AgentEvo evolves to support advanced features like ACE optimization, conversation threading, and template-based evaluation, we need a more structured schema that:
+The current eval schema (V1) uses a simple structure with `testcases`, flat `messages` arrays, and implicit configuration inheritance. As AgentEvo evolves to support advanced features like conversation threading and template-based evaluation, we need a more structured schema that:
 
 - Explicitly declares execution configuration at appropriate levels
 - Supports conversation-based organization for multi-turn scenarios
-- Enables pluggable optimization frameworks (starting with ACE)
 - Separates input messages from expected output messages
 - Aligns with modern eval framework conventions (similar to LangSmith, Braintrust, etc.)
+- Provides clean separation between eval definitions and optimization configs
 
 **Stakeholders**: AgentEvo users, ACE framework integrators, eval pipeline maintainers
 
@@ -21,18 +21,17 @@ The current eval schema (V1) uses a simple structure with `testcases`, flat `mes
 ## Goals / Non-Goals
 
 **Goals**:
-- Define V2 schema supporting conversation threading, execution config, and optimization
-- Enable ACE optimization framework integration
+- Define V2 schema supporting conversation threading and execution config
 - Support template-based evaluators with configurable models
+- Support multiple evaluators per eval case
 - Provide migration guide documenting V1 to V2 changes
 - Reject V1 format with clear error message and migration guidance
 
 **Non-Goals**:
 - Backward compatibility with V1 format (clean break)
 - Automatic conversion of V1 files to V2 (user responsibility)
-- Full ACE implementation in this change (stub the integration points only)
+- ACE or other optimization framework integration (separate config files, separate change)
 - Multi-language support in templates (English only for now)
-- Custom optimization frameworks beyond ACE (future work)
 
 ## Decisions
 
@@ -70,12 +69,19 @@ execution:
     - name: regex_validation  # Third evaluator
       type: code  # Code-based regex or keyword checking
       script: ./scripts/validate_format.py
-  optimization:
-    type: ace  # Future: genetic, bayesian, etc.
-    playbook_path: ./playbooks/triage.json
-    max_epochs: 2
-    max_reflector_rounds: 2
-    allow_dynamic_sections: true
+```
+
+**Optimization Separation**: ACE and other optimization frameworks will use separate config files (e.g., `opts/ace-code-generation.yaml`) that reference eval files:
+```yaml
+# opts/ace-code-generation.yaml
+type: ace
+eval_files:
+  - evals/code-generation.test.yaml
+  - evals/code-review.test.yaml
+playbook_path: ./playbooks/code-generation.json
+max_epochs: 5
+max_reflector_rounds: 3
+allow_dynamic_sections: true
 ```
 
 **Alternatives considered**:
@@ -179,16 +185,6 @@ evalcases:
 - Version bump to indicate breaking change (e.g., 0.x → 1.0 or major version)
 - Consider providing conversion script to automate migration
 
-### Risk: ACE Integration Complexity
-
-**Impact**: Medium - ACE framework may have different requirements than stubbed interface
-
-**Mitigation**:
-- Design optimization config as extensible dict (ACE can add custom fields)
-- Keep optimization block optional (defaults to no optimization)
-- Defer full ACE implementation to separate change
-- Coordinate with ACE team on config schema before implementation
-
 ### Risk: Template Rendering Performance
 
 **Impact**: Low - Loading/rendering templates per eval case could slow down large suites
@@ -246,6 +242,6 @@ If critical issues arise:
    - Proposal: Add `match_mode: prefix|exact|any` to evaluator config
    - Rationale: Defer to separate change on evaluator improvements
 
-4. **Should optimization config support multiple strategies in one eval?**
-   - Proposal: No - one optimization type per eval case
-   - Rationale: Simplifies implementation, unclear use case for mixing strategies
+4. **Should optimization configs (ACE, etc.) live in separate files or be part of eval schema?**
+   - Decision: Separate files in `opts/` directory that reference eval files
+   - Rationale: Clean separation of concerns - evals define test cases, optimization configs define how to improve prompts using those evals

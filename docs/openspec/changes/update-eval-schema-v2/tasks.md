@@ -14,7 +14,7 @@
 - [ ] 2.2 Detect and reject V1 format (error if `testcases` found with migration guidance)
 - [ ] 2.3 Parse `evalcases` structure (error if neither `evalcases` nor `testcases` found)
 - [ ] 2.4 Parse `conversation_id` field (default to eval case id)
-- [ ] 2.5 Parse `execution` block (target, evaluators array, optimization)
+- [ ] 2.5 Parse `execution` block (target, evaluators array)
 - [ ] 2.5.1 Validate evaluator names are unique within a case
 - [ ] 2.5.2 Support different evaluator types (llm_judge, code)
 - [ ] 2.6 Parse `input_messages` array
@@ -30,7 +30,6 @@
 - [ ] 3.4.2 Collect scores from all evaluators with their unique names
 - [ ] 3.5 Add evaluator prompt loading and rendering (llm_judge)
 - [ ] 3.6 Add code evaluator execution (script-based, supports regex/keyword scripts)
-- [ ] 3.7 Stub optimization framework integration points
 
 ## 4. Output Format Updates
 
@@ -51,8 +50,7 @@
 - [ ] 6.1 Update example file to V2 format (`docs/examples/simple/evals/example-v2.test.yaml`)
 - [ ] 6.2 Update README with V2 schema documentation
 - [ ] 6.3 Create migration guide documenting: `testcases` → `evalcases`, `messages` → `input_messages` + `expected_messages`
-- [ ] 6.4 Document ACE optimization features
-- [ ] 6.5 Update all internal eval files to V2 format
+- [ ] 6.4 Update all internal eval files to V2 format
 
 ## 7. Testing
 

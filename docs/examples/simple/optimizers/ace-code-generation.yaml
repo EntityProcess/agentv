@@ -1,0 +1,45 @@
+# ACE Optimization Configuration Example
+# Defines how to optimize prompts using the ACE (Automatic Cognitive Enhancement) framework
+
+description: ACE optimization for code generation tasks using Python and JavaScript evals
+
+# Optimization framework type
+type: ace
+
+# Eval files to use for optimization
+# ACE will run these evals to measure prompt performance and guide improvements
+eval_files:
+  - ../evals/example-v2.test.yaml
+  # - ../evals/code-generation-edge-cases.test.yaml
+  # - ../evals/code-review-security.test.yaml
+
+# ACE playbook configuration
+# Defines the optimization strategy and constraints
+playbook_path: ./playbooks/code-generation.json
+
+# Maximum optimization iterations across ALL eval cases
+max_epochs: 5
+
+# Number of analysis rounds per failed eval case
+# ACE analyzes failures and suggests prompt improvements
+max_reflector_rounds: 3
+
+# Allow ACE to create new sections in the prompt
+# When true, ACE can add new instructions/guidelines
+# When false, ACE can only modify existing content
+allow_dynamic_sections: true
+
+# Optional: Filter which eval cases to include
+# filters:
+#   conversation_ids:
+#     - python-code-generation
+#   eval_case_ids:
+#     - code-gen-python-comprehensive
+
+# Optional: Target override for optimization runs
+# target: azure_base
+
+# Optional: Stop early if success rate exceeds threshold
+# early_stopping:
+#   metric: success_rate
+#   threshold: 0.95
