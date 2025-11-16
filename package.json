@@ -22,7 +22,8 @@
     "format:check": "prettier --check .",
     "dev": "pnpm --filter @agentevo/cli dev",
     "agentevo": "node apps/cli/dist/cli.js",
-    "version:bump": "tsx scripts/bump-version.ts"
+    "version:bump": "tsx scripts/bump-version.ts",
+    "publish": "pnpm build && pnpm -r publish --access public"
   },
   "devDependencies": {
     "@types/node": "24.1.0",

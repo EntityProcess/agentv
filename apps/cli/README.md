@@ -324,5 +324,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Related Projects
 
-- [subagent](https://github.com/christso/subagent) - VS Code Copilot programmatic interface
+- [subagent](https://github.com/EntityProcess/subagent) - VS Code Copilot programmatic interface
 - [Ax](https://github.com/axflow/axflow) - TypeScript LLM framework
