@@ -27,7 +27,7 @@ export function isGuidelineFile(filePath: string): boolean {
 }
 
 /**
- * Extract fenced code blocks from BbEval user segments.
+ * Extract fenced code blocks from AgentV user segments.
  */
 export function extractCodeBlocks(segments: readonly JsonObject[]): readonly string[] {
   const codeBlocks: string[] = [];
@@ -70,7 +70,7 @@ type RawTestCase = JsonObject & {
 };
 
 /**
- * Load test cases from a BbEval YAML specification file.
+ * Load eval cases from a AgentV YAML specification file.
  */
 export async function loadTestCases(
   testFilePath: string,
