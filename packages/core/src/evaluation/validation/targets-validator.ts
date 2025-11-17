@@ -4,7 +4,7 @@ import { parse } from "yaml";
 
 import type { ValidationError, ValidationResult } from "./types.js";
 
-const SCHEMA_TARGETS_V2 = "agentevo-targets-v2";
+const SCHEMA_TARGETS_V2 = "agentv-targets-v2";
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
@@ -15,7 +15,7 @@ function isObject(value: unknown): value is JsonObject {
 }
 
 /**
- * Validate a targets file (agentevo-targets-v2 schema).
+ * Validate a targets file (agentv-targets-v2 schema).
  */
 export async function validateTargetsFile(
   filePath: string,

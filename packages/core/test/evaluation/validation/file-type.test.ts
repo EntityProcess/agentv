@@ -5,7 +5,7 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 
 describe("file-type", () => {
-  const testDir = path.join(tmpdir(), `agentevo-test-${Date.now()}`);
+  const testDir = path.join(tmpdir(), `agentv-test-${Date.now()}`);
 
   async function createTestFile(filename: string, content: string): Promise<string> {
     await mkdir(testDir, { recursive: true });
@@ -26,7 +26,7 @@ describe("file-type", () => {
     it("should detect eval file by $schema field", async () => {
       const filePath = await createTestFile(
         "test.yaml",
-        "$schema: agentevo-eval-v2\nevalcases: []",
+        "$schema: agentv-eval-v2\nevalcases: []",
       );
       const result = await detectFileType(filePath);
       expect(result).toBe("eval");
@@ -36,7 +36,7 @@ describe("file-type", () => {
     it("should detect targets file by $schema field", async () => {
       const filePath = await createTestFile(
         "targets.yaml",
-        "$schema: agentevo-targets-v2\ntargets: []",
+        "$schema: agentv-targets-v2\ntargets: []",
       );
       const result = await detectFileType(filePath);
       expect(result).toBe("targets");
@@ -74,12 +74,12 @@ describe("file-type", () => {
   });
 
   describe("isValidSchema", () => {
-    it("should return true for agentevo-eval-v2", () => {
-      expect(isValidSchema("agentevo-eval-v2")).toBe(true);
+    it("should return true for agentv-eval-v2", () => {
+      expect(isValidSchema("agentv-eval-v2")).toBe(true);
     });
 
-    it("should return true for agentevo-targets-v2", () => {
-      expect(isValidSchema("agentevo-targets-v2")).toBe(true);
+    it("should return true for agentv-targets-v2", () => {
+      expect(isValidSchema("agentv-targets-v2")).toBe(true);
     });
 
     it("should return false for unknown schema", () => {
@@ -95,11 +95,11 @@ describe("file-type", () => {
 
   describe("getExpectedSchema", () => {
     it("should return correct schema for eval", () => {
-      expect(getExpectedSchema("eval")).toBe("agentevo-eval-v2");
+      expect(getExpectedSchema("eval")).toBe("agentv-eval-v2");
     });
 
     it("should return correct schema for targets", () => {
-      expect(getExpectedSchema("targets")).toBe("agentevo-targets-v2");
+      expect(getExpectedSchema("targets")).toBe("agentv-targets-v2");
     });
 
     it("should return undefined for unknown", () => {

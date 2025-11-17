@@ -1,9 +1,9 @@
-# AgentEvo
+# AgentV
 
-AgentEvo continuously improves (or simply evaluates) AI agent prompts and context. It supports:
+AgentV continuously improves (or simply evaluates) AI agent prompts and context. It supports:
 
-- **External Mode**: AgentEvo provides a versioned prompt artifact to an external agent (e.g. Copilot, Claude Code, proprietary agent) and invokes it.
-- **Internal Mode**: AgentEvo uses its built-in lightweight multi-step executor and registered local tools.
+- **External Mode**: AgentV provides a versioned prompt artifact to an external agent (e.g. Copilot, Claude Code, proprietary agent) and invokes it.
+- **Internal Mode**: AgentV uses its built-in lightweight multi-step executor and registered local tools.
 - **Evaluation-Only**: Run scoring against a YAML panel without automatic optimization (manual human iteration supported).
 
 Both modes work locally via CLI or HTTP API.
@@ -23,35 +23,35 @@ Both modes work locally via CLI or HTTP API.
 | Mode      | Who Executes Steps & Tools             | Invocation Flag   | Typical Use                      |
 | --------- | -------------------------------------- | ----------------- | -------------------------------- |
 | External  | External agent (API/CLI/SDK)           | `--mode external` | Integrate with existing platform |
-| Internal  | AgentEvo built-in executor             | `--mode internal` | Local dev / offline evaluation   |
+| Internal  | AgentV built-in executor             | `--mode internal` | Local dev / offline evaluation   |
 | Eval-only | External or internal (no optimization) | `eval` command    | Manual iteration / benchmarking  |
 
 Invoke via:
 
-- CLI: `agentevo run --mode internal ...`
+- CLI: `agentv run --mode internal ...`
 - API: `POST /v1/run` with JSON body including `"mode":"external"`
 
 ## Quick Start
 
 ```bash
-npm i -g agentevo
-agentevo init
-agentevo run --mode internal --task "Summarize vector databases"
-agentevo optimize --artifact ./artifacts/current.json --panel ./eval/panel.yaml
-agentevo promote --candidate ./artifacts/candidate.json
+npm i -g agentv
+agentv init
+agentv run --mode internal --task "Summarize vector databases"
+agentv optimize --artifact ./artifacts/current.json --panel ./eval/panel.yaml
+agentv promote --candidate ./artifacts/candidate.json
 ```
 
 ## Evaluation-Only Examples
 
 ```bash
 # Internal execution of all panel tasks
-agentevo eval --mode internal \
+agentv eval --mode internal \
   --artifact ./artifacts/current.json \
   --panel ./eval/panel.yaml \
   --report ./reports/eval-v13.json
 
 # External agent execution
-agentevo eval --mode external \
+agentv eval --mode external \
   --agent-type claude-code \
   --agent-endpoint http://localhost:5000 \
   --artifact ./artifacts/current.json \
@@ -59,7 +59,7 @@ agentevo eval --mode external \
   --report ./reports/eval-v13-external.json
 
 # Diff two evaluation reports
-agentevo diff report ./reports/eval-v13.json ./reports/manual-edit-v13a.json
+agentv diff report ./reports/eval-v13.json ./reports/manual-edit-v13a.json
 ```
 
 ## Minimal Prompt Artifact
@@ -122,38 +122,38 @@ thresholds:
 
 ## Evaluation-Only Loop (Manual)
 
-1. `agentevo eval` baseline.
+1. `agentv eval` baseline.
 2. Manually edit `current.json`.
-3. Re-run `agentevo eval`.
-4. Compare with `agentevo diff report`.
-5. If human-approved improvement → copy / tag version, optionally `agentevo promote`.
+3. Re-run `agentv eval`.
+4. Compare with `agentv diff report`.
+5. If human-approved improvement → copy / tag version, optionally `agentv promote`.
 
 ## CLI Commands
 
 | Command                   | Purpose                                |
 | ------------------------- | -------------------------------------- |
-| `agentevo init`           | Scaffold artifact & panel              |
-| `agentevo run`            | Execute a task (internal/external)     |
-| `agentevo eval`           | Score panel tasks without optimization |
-| `agentevo optimize`       | Generate candidate artifact            |
-| `agentevo promote`        | Make candidate current                 |
-| `agentevo rollback`       | Revert to prior version                |
-| `agentevo tool add`       | Register local tool                    |
-| `agentevo panel validate` | Validate YAML panel                    |
-| `agentevo diff report`    | Compare evaluation reports             |
+| `agentv init`           | Scaffold artifact & panel              |
+| `agentv run`            | Execute a task (internal/external)     |
+| `agentv eval`           | Score panel tasks without optimization |
+| `agentv optimize`       | Generate candidate artifact            |
+| `agentv promote`        | Make candidate current                 |
+| `agentv rollback`       | Revert to prior version                |
+| `agentv tool add`       | Register local tool                    |
+| `agentv panel validate` | Validate YAML panel                    |
+| `agentv diff report`    | Compare evaluation reports             |
 
 ## Local Tools
 
 Register:
 
 ```bash
-agentevo tool add --name search --cmd "python scripts/search.py --query '{{input}}'"
+agentv tool add --name search --cmd "python scripts/search.py --query '{{input}}'"
 ```
 
 Use:
 
 ```bash
-agentevo run --mode internal --task "Find recent RAG benchmarks"
+agentv run --mode internal --task "Find recent RAG benchmarks"
 ```
 
 ## API (Local)
@@ -192,7 +192,7 @@ Blocked if:
 ## Rollback
 
 ```bash
-agentevo rollback --to v12
+agentv rollback --to v12
 ```
 
 ## Exit Codes
@@ -216,7 +216,7 @@ agentevo rollback --to v12
 
 ## FAQ
 
-- **Can I just evaluate?** Yes - use `agentevo eval`.
+- **Can I just evaluate?** Yes - use `agentv eval`.
 - **Do I need external infra?** No - Internal Mode runs locally.
 - **Can I use my existing agent?** Yes - External Mode supplies the prompt artifact.
-- **Manual tuning?** Edit artifact → `agentevo eval` → `diff report` → promote manually.
+- **Manual tuning?** Edit artifact → `agentv eval` → `diff report` → promote manually.

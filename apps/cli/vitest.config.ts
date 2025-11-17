@@ -20,11 +20,11 @@ export default mergeConfig(
     resolve: {
       alias: [
         {
-          find: "@agentevo/core",
+          find: "@agentv/core",
           replacement: resolve(coreSourceDir, "index.ts"),
         },
         {
-          find: "@agentevo/core/",
+          find: "@agentv/core/",
           replacement: `${coreSourceDir}/`,
         },
       ],

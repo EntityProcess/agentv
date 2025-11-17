@@ -1,4 +1,4 @@
-import type { EvaluationResult } from "@agentevo/core";
+import type { EvaluationResult } from "@agentv/core";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";

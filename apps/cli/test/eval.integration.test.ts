@@ -24,20 +24,20 @@ let coreBuilt = false;
 
 beforeAll(async () => {
   if (!coreBuilt) {
-    await execa("pnpm", ["--filter", "@agentevo/core", "build"], { cwd: projectRoot });
+    await execa("pnpm", ["--filter", "@agentv/core", "build"], { cwd: projectRoot });
     coreBuilt = true;
   }
 });
 
 async function createFixture(): Promise<EvalFixture> {
-  const baseDir = await mkdtemp(path.join(tmpdir(), "agentevo-cli-test-"));
+  const baseDir = await mkdtemp(path.join(tmpdir(), "agentv-cli-test-"));
   const suiteDir = path.join(baseDir, "suite");
   await mkdir(suiteDir, { recursive: true });
 
-  const agentevoDir = path.join(suiteDir, ".agentevo");
-  await mkdir(agentevoDir, { recursive: true });
+  const agentvDir = path.join(suiteDir, ".agentv");
+  await mkdir(agentvDir, { recursive: true });
 
-  const targetsPath = path.join(agentevoDir, "targets.yaml");
+  const targetsPath = path.join(agentvDir, "targets.yaml");
   const targetsContent = `- name: default\n  provider: mock\n- name: file-target\n  provider: mock\n- name: cli-target\n  provider: mock\n`;
   await writeFile(targetsPath, targetsContent, "utf8");
 
@@ -118,7 +118,7 @@ afterEach(async () => {
   }
 });
 
-describe("agentevo eval CLI", () => {
+describe("agentv eval CLI", () => {
   it("writes results, summary, and prompt dumps using default directories", async () => {
     const fixture = await createFixture();
     fixtures.push(fixture.baseDir);
@@ -136,7 +136,7 @@ describe("agentevo eval CLI", () => {
     expect(stdout).toContain("Std deviation: 0.212");
 
     const outputPath = extractOutputPath(stdout);
-    expect(outputPath).toContain(`${path.sep}.agentevo${path.sep}results${path.sep}`);
+    expect(outputPath).toContain(`${path.sep}.agentv${path.sep}results${path.sep}`);
 
     const results = await readJsonLines(outputPath);
     expect(results).toHaveLength(2);
@@ -147,7 +147,7 @@ describe("agentevo eval CLI", () => {
     const diagnostics = await readDiagnostics(fixture);
     expect(diagnostics).toMatchObject({
       target: "file-target",
-      promptDumpDir: expect.stringContaining(`${path.sep}.agentevo${path.sep}prompts`),
+      promptDumpDir: expect.stringContaining(`${path.sep}.agentv${path.sep}prompts`),
       envSample: "from-dotenv",
       resultCount: 2,
     });

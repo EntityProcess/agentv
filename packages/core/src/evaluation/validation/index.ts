@@ -1,5 +1,5 @@
 /**
- * Validation module for AgentEvo eval and targets files.
+ * Validation module for AgentV eval and targets files.
  */
 
 export { detectFileType, isValidSchema, getExpectedSchema } from "./file-type.js";

@@ -4,7 +4,7 @@ import {
   type EvaluationResult,
   type ProviderResponse,
   ensureVSCodeSubagents,
-} from "@agentevo/core";
+} from "@agentv/core";
 import { constants } from "node:fs";
 import { access, mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -128,7 +128,7 @@ function buildDefaultOutputPath(testFilePath: string, cwd: string, format: Outpu
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const baseName = withoutExtension.length > 0 ? withoutExtension : "results";
   const extension = getDefaultExtension(format);
-  return path.join(cwd, ".agentevo", "results", `${baseName}_${timestamp}${extension}`);
+  return path.join(cwd, ".agentv", "results", `${baseName}_${timestamp}${extension}`);
 }
 
 function resolvePromptDirectory(option: string | boolean | undefined, cwd: string): string | undefined {
@@ -138,7 +138,7 @@ function resolvePromptDirectory(option: string | boolean | undefined, cwd: strin
   if (typeof option === "string" && option.trim().length > 0) {
     return path.resolve(cwd, option);
   }
-  return path.join(cwd, ".agentevo", "prompts");
+  return path.join(cwd, ".agentv", "prompts");
 }
 
 function createEvaluationCache(): EvaluationCache {

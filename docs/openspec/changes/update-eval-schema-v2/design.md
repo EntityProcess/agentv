@@ -2,7 +2,7 @@
 
 ## Context
 
-The current eval schema (V1) uses a simple structure with `testcases`, flat `messages` arrays, and implicit configuration inheritance. As AgentEvo evolves to support advanced features like conversation threading and template-based evaluation, we need a more structured schema that:
+The current eval schema (V1) uses a simple structure with `testcases`, flat `messages` arrays, and implicit configuration inheritance. As AgentV evolves to support advanced features like conversation threading and template-based evaluation, we need a more structured schema that:
 
 - Explicitly declares execution configuration at appropriate levels
 - Supports conversation-based organization for multi-turn scenarios
@@ -10,7 +10,7 @@ The current eval schema (V1) uses a simple structure with `testcases`, flat `mes
 - Aligns with modern eval framework conventions (similar to LangSmith, Braintrust, etc.)
 - Provides clean separation between eval definitions and optimization configs
 
-**Stakeholders**: AgentEvo users, ACE framework integrators, eval pipeline maintainers
+**Stakeholders**: AgentV users, ACE framework integrators, eval pipeline maintainers
 
 **Constraints**:
 - V1 format will not be supported (clean break to V2)
@@ -189,7 +189,7 @@ evalcases:
 
 **Decision**: Favor flexibility with explicit structure over simplicity
 
-**Reasoning**: AgentEvo is evolving toward production-grade eval platform. Power users need fine-grained control, and clear structure aids maintainability. Beginners can use defaults and ignore advanced features.
+**Reasoning**: AgentV is evolving toward production-grade eval platform. Power users need fine-grained control, and clear structure aids maintainability. Beginners can use defaults and ignore advanced features.
 
 ## Implementation Plan
 

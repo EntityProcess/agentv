@@ -5,7 +5,7 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 
 describe("targets-validator", () => {
-  const testDir = path.join(tmpdir(), `agentevo-test-targets-${Date.now()}`);
+  const testDir = path.join(tmpdir(), `agentv-test-targets-${Date.now()}`);
 
   async function createTestFile(filename: string, content: string): Promise<string> {
     await mkdir(testDir, { recursive: true });
@@ -25,7 +25,7 @@ describe("targets-validator", () => {
   describe("validateTargetsFile", () => {
     it("should validate a correct targets file", async () => {
       const content = `
-$schema: agentevo-targets-v2
+$schema: agentv-targets-v2
 targets:
   - name: default
     provider: azure
@@ -67,7 +67,7 @@ targets:
 
     it("should reject file with wrong $schema", async () => {
       const content = `
-$schema: agentevo-eval-v2
+$schema: agentv-eval-v2
 targets: []
 `;
       const filePath = await createTestFile("wrong-schema.yaml", content);
@@ -89,7 +89,7 @@ targets: []
 
     it("should reject target without name", async () => {
       const content = `
-$schema: agentevo-targets-v2
+$schema: agentv-targets-v2
 targets:
   - provider: azure
 `;
@@ -111,7 +111,7 @@ targets:
 
     it("should reject target without provider", async () => {
       const content = `
-$schema: agentevo-targets-v2
+$schema: agentv-targets-v2
 targets:
   - name: test
 `;
@@ -133,7 +133,7 @@ targets:
 
     it("should warn for unknown provider", async () => {
       const content = `
-$schema: agentevo-targets-v2
+$schema: agentv-targets-v2
 targets:
   - name: test
     provider: unknown-provider
@@ -157,7 +157,7 @@ targets:
 
     it("should validate optional fields", async () => {
       const content = `
-$schema: agentevo-targets-v2
+$schema: agentv-targets-v2
 targets:
   - name: test
     provider: azure

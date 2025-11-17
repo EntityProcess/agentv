@@ -72,7 +72,7 @@ The system SHALL provide a command-line interface matching Python bbeval's UX **
 
 #### Scenario: Positional test file argument
 
-- **WHEN** the user runs `agentevo eval <test-file>`
+- **WHEN** the user runs `agentv eval <test-file>`
 - **THEN** the system loads and executes eval cases from the specified V2 format file
 - **AND** reports an error if the file uses V1 format
 
@@ -200,6 +200,6 @@ The system SHALL NO LONGER support the V1 eval schema format (files with `testca
 #### Rationale
 
 - Clean break enables simpler codebase without dual parser maintenance
-- AgentEvo is early-stage with limited existing eval files to migrate
+- AgentV is early-stage with limited existing eval files to migrate
 - Clear migration path with documentation minimizes user impact
 - Breaking change is acceptable at this maturity level

@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-This is a TypeScript monorepo for AgentEvo - an AI agent evaluation framework.
+This is a TypeScript monorepo for AgentV - an AI agent evaluation framework.
 
 ## Tech Stack & Tools
 - **Language:** TypeScript 5.x targeting ES2022
@@ -13,7 +13,7 @@ This is a TypeScript monorepo for AgentEvo - an AI agent evaluation framework.
 
 ## Project Structure
 - `packages/core/` - Evaluation engine, providers, grading
-- `apps/cli/` - Command-line interface (published as `agentevo`)
+- `apps/cli/` - Command-line interface (published as `agentv`)
 
 ## Essential Commands
 - `pnpm install` - Install dependencies
@@ -25,9 +25,9 @@ This is a TypeScript monorepo for AgentEvo - an AI agent evaluation framework.
 
 ## Functional Testing
 
-When functionally testing changes to the AgentEvo CLI, **NEVER** use `agentevo` directly as it may run the globally installed npm version. Instead:
+When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` directly as it may run the globally installed npm version. Instead:
 
-- **From repository root:** Use `pnpm agentevo <args>` to run the locally built version
+- **From repository root:** Use `pnpm agentv <args>` to run the locally built version
 - **From apps/cli directory:** Use `pnpm dev -- <args>` to run from TypeScript source with tsx
 
 This ensures you're testing your local changes, not the published npm package.
@@ -40,9 +40,9 @@ This ensures you're testing your local changes, not the published npm package.
 - Keep modules cohesive
 
 ## Package Publishing
-- CLI package (`apps/cli`) is published as `agentevo` on npm
-- Uses tsup with `noExternal: ["@agentevo/core"]` to bundle workspace dependencies
-- Install command: `npm install -g agentevo`
+- CLI package (`apps/cli`) is published as `agentv` on npm
+- Uses tsup with `noExternal: ["@agentv/core"]` to bundle workspace dependencies
+- Install command: `npm install -g agentv`
 
 ## Python Scripts
 When running Python scripts, always use: `uv run <script.py>`

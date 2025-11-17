@@ -11,7 +11,7 @@ import { isGraderKind, isJsonObject, isTestMessage } from "./types.js";
 const CODE_BLOCK_PATTERN = /```[\s\S]*?```/g;
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";
-const SCHEMA_EVAL_V2 = "agentevo-eval-v2";
+const SCHEMA_EVAL_V2 = "agentv-eval-v2";
 
 /**
  * Determine whether a path references guideline content (instructions or prompts).
@@ -104,7 +104,7 @@ export async function loadTestCases(
     throw new Error(message);
   }
   
-  // V2 format: $schema is agentevo-eval-v2
+  // V2 format: $schema is agentv-eval-v2
   const rawTestcases = suite.evalcases;
   if (!Array.isArray(rawTestcases)) {
     throw new Error(`Invalid test file format: ${testFilePath} - missing 'evalcases' field`);

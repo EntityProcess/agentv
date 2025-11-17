@@ -108,7 +108,7 @@ The system SHALL provide a command-line option to configure worker pool concurre
 
 #### Scenario: Workers flag help text
 
-- **WHEN** the user runs `agentevo eval --help`
+- **WHEN** the user runs `agentv eval --help`
 - **THEN** the help output includes the `--workers <count>` option
 - **AND** describes the default value (1)
 - **AND** explains the effect on execution (parallel vs sequential)

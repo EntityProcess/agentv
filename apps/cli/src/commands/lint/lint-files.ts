@@ -9,10 +9,10 @@ import {
   validateFileReferences,
   type ValidationResult,
   type ValidationSummary,
-} from "@agentevo/core/evaluation/validation";
+} from "@agentv/core/evaluation/validation";
 
 /**
- * Lint YAML files for AgentEvo schema compliance.
+ * Lint YAML files for AgentV schema compliance.
  */
 export async function lintFiles(
   paths: readonly string[],
@@ -54,7 +54,7 @@ async function lintSingleFile(
           severity: "error",
           filePath: absolutePath,
           message:
-            "Missing or invalid $schema field. File must declare schema: 'agentevo-eval-v2' or 'agentevo-targets-v2'",
+            "Missing or invalid $schema field. File must declare schema: 'agentv-eval-v2' or 'agentv-targets-v2'",
         },
       ],
     };

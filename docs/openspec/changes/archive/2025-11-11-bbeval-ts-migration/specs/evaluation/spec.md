@@ -160,7 +160,7 @@ The system SHALL optionally save request prompts to disk for debugging.
 #### Scenario: Dump prompts enabled
 
 - **WHEN** the `--dump-prompts` flag is provided
-- **THEN** the system creates a `.agentevo/prompts/` directory
+- **THEN** the system creates a `.agentv/prompts/` directory
 - **AND** writes each request prompt as a separate file with test ID in the filename
 - **AND** includes the full request, guidelines, and provider settings
 
@@ -231,7 +231,7 @@ The system SHALL provide a command-line interface matching Python bbeval's UX.
 
 #### Scenario: Positional test file argument
 
-- **WHEN** the user runs `agentevo eval <test-file>`
+- **WHEN** the user runs `agentv eval <test-file>`
 - **THEN** the system loads and executes test cases from the specified file
 - **THEN** the system loads and executes test cases from the specified file
 

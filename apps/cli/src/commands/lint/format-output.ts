@@ -1,4 +1,4 @@
-import type { ValidationSummary, ValidationResult, ValidationError } from "@agentevo/core/evaluation/validation";
+import type { ValidationSummary, ValidationResult, ValidationError } from "@agentv/core/evaluation/validation";
 
 const ANSI_RED = "\u001b[31m";
 const ANSI_YELLOW = "\u001b[33m";

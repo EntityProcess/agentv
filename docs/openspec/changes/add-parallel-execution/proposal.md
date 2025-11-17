@@ -2,7 +2,7 @@
 
 ## Why
 
-AgentEvo currently executes test cases sequentially, which becomes inefficient for large test suites. Users need to wait for N test cases to complete one-by-one, even though most test cases are independent and could run concurrently. This is especially problematic when running evaluations against slow providers (e.g., VS Code Copilot with 120-second timeouts) or large test suites with dozens of test cases.
+AgentV currently executes test cases sequentially, which becomes inefficient for large test suites. Users need to wait for N test cases to complete one-by-one, even though most test cases are independent and could run concurrently. This is especially problematic when running evaluations against slow providers (e.g., VS Code Copilot with 120-second timeouts) or large test suites with dozens of test cases.
 
 Parallel execution would dramatically reduce total evaluation time (potentially by a factor of N for N workers) while maintaining backward compatibility and safe file writing.
 

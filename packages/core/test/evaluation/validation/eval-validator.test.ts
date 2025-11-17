@@ -5,7 +5,7 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 
 describe("eval-validator", () => {
-  const testDir = path.join(tmpdir(), `agentevo-test-eval-${Date.now()}`);
+  const testDir = path.join(tmpdir(), `agentv-test-eval-${Date.now()}`);
 
   async function createTestFile(filename: string, content: string): Promise<string> {
     await mkdir(testDir, { recursive: true });
@@ -25,7 +25,7 @@ describe("eval-validator", () => {
   describe("validateEvalFile", () => {
     it("should validate a correct eval file", async () => {
       const content = `
-$schema: agentevo-eval-v2
+$schema: agentv-eval-v2
 evalcases:
   - id: test-1
     outcome: pass
@@ -95,7 +95,7 @@ evalcases: []
 
     it("should reject file without evalcases array", async () => {
       const content = `
-$schema: agentevo-eval-v2
+$schema: agentv-eval-v2
 `;
       const filePath = await createTestFile("no-evalcases.yaml", content);
       const result = await validateEvalFile(filePath);
@@ -116,7 +116,7 @@ $schema: agentevo-eval-v2
 
     it("should reject eval case without required fields", async () => {
       const content = `
-$schema: agentevo-eval-v2
+$schema: agentv-eval-v2
 evalcases:
   - id: test-1
 `;
@@ -139,7 +139,7 @@ evalcases:
 
     it("should validate message roles", async () => {
       const content = `
-$schema: agentevo-eval-v2
+$schema: agentv-eval-v2
 evalcases:
   - id: test-1
     outcome: pass
@@ -168,7 +168,7 @@ evalcases:
 
     it("should validate array content structure", async () => {
       const content = `
-$schema: agentevo-eval-v2
+$schema: agentv-eval-v2
 evalcases:
   - id: test-1
     outcome: pass

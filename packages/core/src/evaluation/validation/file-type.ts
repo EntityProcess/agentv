@@ -3,8 +3,8 @@ import { parse } from "yaml";
 
 import type { FileType } from "./types.js";
 
-const SCHEMA_EVAL_V2 = "agentevo-eval-v2";
-const SCHEMA_TARGETS_V2 = "agentevo-targets-v2";
+const SCHEMA_EVAL_V2 = "agentv-eval-v2";
+const SCHEMA_TARGETS_V2 = "agentv-targets-v2";
 
 /**
  * Detect file type by reading $schema field from YAML file.
@@ -40,7 +40,7 @@ export async function detectFileType(filePath: string): Promise<FileType> {
 }
 
 /**
- * Check if a schema value is a valid AgentEvo schema identifier.
+ * Check if a schema value is a valid AgentV schema identifier.
  */
 export function isValidSchema(schema: unknown): boolean {
   return schema === SCHEMA_EVAL_V2 || schema === SCHEMA_TARGETS_V2;

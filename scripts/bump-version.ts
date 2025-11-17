@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Version bump script for AgentEvo packages
+ * Version bump script for AgentV packages
  * 
  * Usage:
  *   pnpm tsx scripts/bump-version.ts <version>

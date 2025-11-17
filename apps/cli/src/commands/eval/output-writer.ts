@@ -1,4 +1,4 @@
-import type { EvaluationResult } from "@agentevo/core";
+import type { EvaluationResult } from "@agentv/core";
 
 import { JsonlWriter } from "./jsonl-writer.js";
 import { YamlWriter } from "./yaml-writer.js";
