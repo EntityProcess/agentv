@@ -8,7 +8,7 @@ interface LintCommandOptions {
 
 async function runLintCommand(paths: readonly string[], options: LintCommandOptions): Promise<void> {
   if (paths.length === 0) {
-    console.error("Error: No paths specified. Usage: agentevo lint <paths...>");
+    console.error("Error: No paths specified. Usage: agentv lint <paths...>");
     process.exit(1);
   }
 
@@ -27,7 +27,7 @@ async function runLintCommand(paths: readonly string[], options: LintCommandOpti
 export function registerLintCommand(program: Command): Command {
   program
     .command("lint")
-    .description("Validate AgentEvo eval and targets YAML files")
+    .description("Validate AgentV eval and targets YAML files")
     .argument("<paths...>", "Files or directories to lint")
     .action(async (paths: string[], options: LintCommandOptions) => {
       try {

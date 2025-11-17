@@ -10,8 +10,8 @@ export default defineConfig({
   dts: false,
   target: "node20",
   tsconfig: "./tsconfig.build.json",
-  // Bundle @agentevo/core since it's a workspace dependency
-  noExternal: ["@agentevo/core"],
+  // Bundle @agentv/core since it's a workspace dependency
+  noExternal: ["@agentv/core"],
   // Copy template files after build
   onSuccess: async () => {
     const templatesDir = path.join("dist", "templates");

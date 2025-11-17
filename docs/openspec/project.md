@@ -2,7 +2,7 @@
 
 ## Purpose
 
-AgentEvo is an evaluation framework for AI agents and prompts, currently focused on:
+AgentV is an evaluation framework for AI agents and prompts, currently focused on:
 
 - **YAML evaluation panels**: Define tasks with expected outputs and metric targets
 - **Multi-objective scoring**: Measure correctness, latency, cost, tool efficiency, robustness, safety

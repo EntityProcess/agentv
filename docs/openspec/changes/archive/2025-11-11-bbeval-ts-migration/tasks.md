@@ -11,7 +11,7 @@
 ### Phase 2 – TypeScript Scaffolding (✓ Completed)
 
 - [x] 0.2.1 Initialize pnpm/Turbo workspace
-- [x] 0.2.2 Create `@agentevo/core` and `@agentevo/cli` packages with build/test scripts
+- [x] 0.2.2 Create `@agentv/core` and `@agentv/cli` packages with build/test scripts
 
 ### Phase 3 – Core Domain Translation (✓ Completed)
 
@@ -61,7 +61,7 @@
   - [x] 2.1.2 Implement `runEvaluation` function matching `run_evaluation`
   - [x] 2.1.3 Add retry loop for timeout errors only
   - [x] 2.1.4 Integrate caching toggle (default disabled)
-  - [x] 2.1.5 Implement prompt dumping to `.agentevo/prompts/` directory
+  - [x] 2.1.5 Implement prompt dumping to `.agentv/prompts/` directory
   - [x] 2.1.6 Write orchestrator tests (happy path, retries, errors)
 - [x] 2.2 Port heuristic scoring
   - [x] 2.2.1 Implement `calculateHits` function from `grading.py`
@@ -125,9 +125,9 @@
   - [x] 4.1.5 Validate YAML output is well-formed and parseable
 - [x] 4.2 Verify simple example evaluation
   - [x] 4.2.1 Run `cd docs\examples\simple; bbeval .\evals\example.test.yaml --target vscode_projectx --test-id simple-text-conversation`
-  - [x] 4.2.2 Run same command using TypeScript migration: `cd docs\examples\simple; agentevo eval .\evals\example.test.yaml --target vscode_projectx --test-id simple-text-conversation`
+  - [x] 4.2.2 Run same command using TypeScript migration: `cd docs\examples\simple; agentv eval .\evals\example.test.yaml --target vscode_projectx --test-id simple-text-conversation`
   - [x] 4.2.3 Confirm both implementations produce consistent results
-  - [x] 4.2.4 Test YAML output format: `agentevo eval .\evals\example.test.yaml --format yaml`
+  - [x] 4.2.4 Test YAML output format: `agentv eval .\evals\example.test.yaml --format yaml`
 
 ## 5. Validation & Migration
 

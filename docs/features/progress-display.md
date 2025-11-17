@@ -1,15 +1,15 @@
 # Worker Progress Display
 
-When running evaluations with parallel workers, AgentEvo displays real-time progress similar to Docker Compose or pnpm's parallel package installations.
+When running evaluations with parallel workers, AgentV displays real-time progress similar to Docker Compose or pnpm's parallel package installations.
 
 ## Quick Start
 
 ```bash
 # Run with 4 parallel workers - shows progress display
-pnpm agentevo eval tests/example.test.yaml --workers 4
+pnpm agentv eval tests/example.test.yaml --workers 4
 
 # Sequential execution - no progress display
-pnpm agentevo eval tests/example.test.yaml --workers 1
+pnpm agentv eval tests/example.test.yaml --workers 1
 ```
 
 ## Display Modes
@@ -70,13 +70,13 @@ Progress display is **automatically disabled** when:
 
 ```bash
 # Run evaluation with 4 workers - shows live progress
-pnpm agentevo eval docs/examples/simple/evals/example.test.yaml --workers 4
+pnpm agentv eval docs/examples/simple/evals/example.test.yaml --workers 4
 ```
 
 Output:
 ```
 Using target: azure_base [provider=azure-openai]
-Output path: .agentevo/results/example_2025-11-15T10-30-45.jsonl
+Output path: .agentv/results/example_2025-11-15T10-30-45.jsonl
 
 [████████████████████] 100% 3/3 tests
 
@@ -91,20 +91,20 @@ Evaluation Summary:
   Success Rate:   100.0%
   Avg Score:      95.3%
 
-Results written to: .agentevo/results/example_2025-11-15T10-30-45.jsonl
+Results written to: .agentv/results/example_2025-11-15T10-30-45.jsonl
 ```
 
 ### Sequential Execution (No Progress Display)
 
 ```bash
 # Run evaluation sequentially - no progress display needed
-pnpm agentevo eval docs/examples/simple/evals/example.test.yaml --workers 1
+pnpm agentv eval docs/examples/simple/evals/example.test.yaml --workers 1
 ```
 
 Output:
 ```
 Using target: azure_base [provider=azure-openai]
-Output path: .agentevo/results/example_2025-11-15T10-30-45.jsonl
+Output path: .agentv/results/example_2025-11-15T10-30-45.jsonl
 
 Evaluation Summary:
   Total Tests:    3
@@ -113,20 +113,20 @@ Evaluation Summary:
   Success Rate:   100.0%
   Avg Score:      95.3%
 
-Results written to: .agentevo/results/example_2025-11-15T10-30-45.jsonl
+Results written to: .agentv/results/example_2025-11-15T10-30-45.jsonl
 ```
 
 ### CI Environment (Non-Interactive)
 
 ```bash
 # In CI, you get simple line-by-line output even with parallel workers
-CI=true pnpm agentevo eval docs/examples/simple/evals/example.test.yaml --workers 4
+CI=true pnpm agentv eval docs/examples/simple/evals/example.test.yaml --workers 4
 ```
 
 Output:
 ```
 Using target: azure_base [provider=azure-openai]
-Output path: .agentevo/results/example_2025-11-15T10-30-45.jsonl
+Output path: .agentv/results/example_2025-11-15T10-30-45.jsonl
 ✓ Test simple-text-conversation completed
 ✓ Test multi-turn-debugging-conversation completed
 ✓ Test code-generation-with-constraints completed
@@ -138,7 +138,7 @@ Evaluation Summary:
   Success Rate:   100.0%
   Avg Score:      95.3%
 
-Results written to: .agentevo/results/example_2025-11-15T10-30-45.jsonl
+Results written to: .agentv/results/example_2025-11-15T10-30-45.jsonl
 ```
 
 ## Technical Details
@@ -182,7 +182,7 @@ Currently, the progress display automatically adapts to your environment. Future
 **Cause:** Terminal doesn't support ANSI escape codes or has limited capabilities.
 
 **Solution:**
-- Set `CI=true` to force non-interactive mode: `CI=true pnpm agentevo eval ...`
+- Set `CI=true` to force non-interactive mode: `CI=true pnpm agentv eval ...`
 - Use sequential execution: `--workers 1`
 
 ### Want to see output in CI

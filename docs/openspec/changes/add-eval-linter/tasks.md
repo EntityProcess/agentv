@@ -12,15 +12,15 @@
 
 ## 2. File Type Detection
 
-- [x] 2.1 Implement `$schema` field detection for `agentevo-eval-v2`
-- [x] 2.2 Implement `$schema` field detection for `agentevo-targets-v2`
+- [x] 2.1 Implement `$schema` field detection for `agentv-eval-v2`
+- [x] 2.2 Implement `$schema` field detection for `agentv-targets-v2`
 - [x] 2.3 Implement error for missing `$schema` field
 - [x] 2.4 Add error handling for unknown schema values
 - [x] 2.5 Write unit tests for file type detection (test/evaluation/validation/file-type.test.ts)
 
 ## 3. Eval File Validator
 
-- [x] 3.1 Implement `$schema` field validation (require `agentevo-eval-v2`)
+- [x] 3.1 Implement `$schema` field validation (require `agentv-eval-v2`)
 - [x] 3.2 Implement evalcases array validation
 - [x] 3.3 Implement eval case structure validation (id, outcome, input_messages, expected_messages)
 - [x] 3.4 Implement message role validation
@@ -31,7 +31,7 @@
 ## 4. Targets File Validator
 
 - [x] 4.1 Reuse existing validation from `targets-file.ts` where possible
-- [x] 4.2 Implement `$schema` field validation (require `agentevo-targets-v2`)
+- [x] 4.2 Implement `$schema` field validation (require `agentv-targets-v2`)
 - [x] 4.3 Implement targets array validation
 - [x] 4.4 Implement target definition validation (name, provider required)
 - [x] 4.5 Add warning for unknown providers (non-fatal)
@@ -79,7 +79,7 @@
 - [x] 10.2 Add examples of common linting scenarios
 - [x] 10.3 Document exit codes and their meanings
 - [ ] ~~10.4 Document strict mode checks~~ (removed - strict mode removed)
-- [ ] 10.5 Add example CI workflow using `agentevo lint` (deferred - users can add to their own CI)
+- [ ] 10.5 Add example CI workflow using `agentv lint` (deferred - users can add to their own CI)
 
 ## 11. Integration Testing
 
@@ -92,8 +92,8 @@
 
 ## 12. Migration Support
 
-- [ ] 12.1 Add `$schema: agentevo-eval-v2` to existing eval files (users will do this)
-- [ ] 12.2 Add `$schema: agentevo-targets-v2` to targets.yaml files (users will do this)
+- [ ] 12.1 Add `$schema: agentv-eval-v2` to existing eval files (users will do this)
+- [ ] 12.2 Add `$schema: agentv-targets-v2` to targets.yaml files (users will do this)
 - [x] 12.3 Update documentation to show `$schema` field in examples
 - [ ] 12.4 Create migration script to auto-add `$schema` to existing files (deferred - can be added later if needed)
 - [x] 12.5 Document that files without `$schema` will fail linting

@@ -1,18 +1,18 @@
 {
-  "name": "agentevo",
+  "name": "agentv",
   "version": "0.2.2",
-  "description": "CLI entry point for AgentEvo",
+  "description": "CLI entry point for AgentV",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/EntityProcess/agentevo.git"
+    "url": "https://github.com/EntityProcess/agentv.git"
   },
-  "homepage": "https://github.com/EntityProcess/agentevo#readme",
+  "homepage": "https://github.com/EntityProcess/agentv#readme",
   "bugs": {
-    "url": "https://github.com/EntityProcess/agentevo/issues"
+    "url": "https://github.com/EntityProcess/agentv/issues"
   },
   "bin": {
-    "agentevo": "./dist/cli.js"
+    "agentv": "./dist/cli.js"
   },
   "files": [
     "dist",
@@ -29,7 +29,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@agentevo/core": "workspace:*",
+    "@agentv/core": "workspace:*",
     "commander": "^12.1.0",
     "dotenv": "^16.4.5",
     "log-update": "^7.0.1",

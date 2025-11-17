@@ -4,7 +4,7 @@
 
 The bbeval evaluation framework was originally implemented in Python. We are migrating it to TypeScript to:
 
-- Enable better integration with the agentevo ecosystem (which is TypeScript-based)
+- Enable better integration with the agentv ecosystem (which is TypeScript-based)
 - Leverage type safety for configuration and results
 - Simplify deployment and dependency management in the monorepo
 - Support future extensibility with the Ax LLM framework
@@ -174,7 +174,7 @@ const geminiProvider = {
 
 ### 5. CLI Design
 
-**Decision**: Single `agentevo eval` command with all Python flags
+**Decision**: Single `agentv eval` command with all Python flags
 
 **Rationale**:
 
@@ -185,7 +185,7 @@ const geminiProvider = {
 **Command structure**:
 
 ```bash
-agentevo eval <test-file> [options]
+agentv eval <test-file> [options]
 
 Options:
   --target <name>          Override target provider
@@ -197,7 +197,7 @@ Options:
   --max-retries <n>        Retry limit for timeouts
   --cache                  Enable LLM response caching
   --verbose                Detailed logging
-  --dump-prompts           Save prompts to .agentevo/
+  --dump-prompts           Save prompts to .agentv/
 ```
 
 **Alternatives considered**:
@@ -314,7 +314,7 @@ If critical issues arise:
 
 ## Open Questions
 
-1. **Package distribution**: Should we publish `@agentevo/cli` to npm, or keep it monorepo-only?
+1. **Package distribution**: Should we publish `@agentv/cli` to npm, or keep it monorepo-only?
 
    - **Proposed answer**: Start monorepo-only; add npm publishing if external demand emerges
 

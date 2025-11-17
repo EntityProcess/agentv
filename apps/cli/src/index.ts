@@ -11,7 +11,7 @@ const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.me
 export function createProgram(): Command {
   const program = new Command();
 
-  program.name("agentevo").description("AgentEvo CLI scaffolding").version(packageJson.version);
+  program.name("agentv").description("AgentV CLI scaffolding").version(packageJson.version);
 
   registerStatusCommand(program);
   registerEvalCommand(program);
@@ -20,7 +20,7 @@ export function createProgram(): Command {
   // Init command
   program
     .command("init [path]")
-    .description("Initialize AgentEvo in your project (installs prompt templates and schema to .github)")
+    .description("Initialize AgentV in your project (installs prompt templates and schema to .github)")
     .action(async (targetPath?: string) => {
       try {
         await initCommand({ targetPath });

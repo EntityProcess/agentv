@@ -1,4 +1,4 @@
-# AgentEvo Developer Notes
+# AgentV Developer Notes
 
 ## 1. Overview
 
@@ -268,7 +268,7 @@ Compute metric deltas, changed bullets, planner line diffs (Levenshtein / positi
 
 ## 17. Caching
 
-- Cache `(artifactHash, taskId, mode)` results in `.agentevo/cache/`.
+- Cache `(artifactHash, taskId, mode)` results in `.agentv/cache/`.
 - `--no-cache` bypasses.
 - Semantic / judge results cached separately.
 

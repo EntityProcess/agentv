@@ -1,4 +1,4 @@
-import type { EvaluationResult } from "@agentevo/core";
+import type { EvaluationResult } from "@agentv/core";
 
 export interface HistogramBin {
   readonly range: readonly [number, number];

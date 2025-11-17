@@ -1,4 +1,4 @@
-# AgentEvo
+# AgentV
 
 A TypeScript-based AI agent evaluation and optimization framework using YAML specifications to score task completion. Built for modern development workflows with first-class support for VS Code Copilot, Azure OpenAI, Anthropic, and Google Gemini.
 
@@ -6,33 +6,33 @@ A TypeScript-based AI agent evaluation and optimization framework using YAML spe
 
 ### Installation for End Users
 
-This is the recommended method for users who want to use `agentevo` as a command-line tool.
+This is the recommended method for users who want to use `agentv` as a command-line tool.
 
 1. Install via npm:
 
 ```bash
 # Install globally
-npm install -g agentevo
+npm install -g agentv
 
 # Or use npx to run without installing
-npx agentevo --help
+npx agentv --help
 ```
 
 2. Verify the installation:
 
 ```bash
-agentevo --help
+agentv --help
 ```
 
 ### Local Development Setup
 
-Follow these steps if you want to contribute to the `agentevo` project itself. This workflow uses pnpm workspaces and an editable install for immediate feedback.
+Follow these steps if you want to contribute to the `agentv` project itself. This workflow uses pnpm workspaces and an editable install for immediate feedback.
 
 1. Clone the repository and navigate into it:
 
 ```bash
-git clone https://github.com/EntityProcess/agentevo.git
-cd agentevo
+git clone https://github.com/EntityProcess/agentv.git
+cd agentv
 ```
 
 2. Install dependencies:
@@ -69,7 +69,7 @@ You are now ready to start development. The monorepo contains:
    - Fill in your API keys, endpoints, and other configuration values
 
 2. Set up targets:
-   - Copy [targets.yaml](docs/examples/simple/.agentevo/targets.yaml) to `.agentevo/targets.yaml`
+   - Copy [targets.yaml](docs/examples/simple/.agentv/targets.yaml) to `.agentv/targets.yaml`
    - Update the environment variable names in targets.yaml to match those defined in your `.env` file
 
 ## Quick Start
@@ -80,19 +80,19 @@ Validate your eval and targets files before running them:
 
 ```bash
 # Lint a single file
-agentevo lint evals/my-test.yaml
+agentv lint evals/my-test.yaml
 
 # Lint multiple files
-agentevo lint evals/test1.yaml evals/test2.yaml
+agentv lint evals/test1.yaml evals/test2.yaml
 
 # Lint entire directory (recursively finds all YAML files)
-agentevo lint evals/
+agentv lint evals/
 
 # Enable strict mode for additional checks
-agentevo lint --strict evals/
+agentv lint --strict evals/
 
 # Output results in JSON format
-agentevo lint --json evals/
+agentv lint --json evals/
 ```
 
 **Linter features:**
@@ -106,17 +106,17 @@ agentevo lint --json evals/
 
 **File type detection:**
 
-All AgentEvo files must include a `$schema` field:
+All AgentV files must include a `$schema` field:
 
 ```yaml
 # Eval files
-$schema: agentevo-eval-v2
+$schema: agentv-eval-v2
 evalcases:
   - id: test-1
     # ...
 
 # Targets files
-$schema: agentevo-targets-v2
+$schema: agentv-targets-v2
 targets:
   - name: default
     # ...
@@ -130,23 +130,23 @@ Run eval (target auto-selected from test file or CLI override):
 
 ```bash
 # If your test.yaml contains "target: azure_base", it will be used automatically
-agentevo eval "path/to/test.yaml"
+agentv eval "path/to/test.yaml"
 
 # Override the test file's target with CLI flag
-agentevo eval --target vscode_projectx "path/to/test.yaml"
+agentv eval --target vscode_projectx "path/to/test.yaml"
 ```
 
 Run a specific test case with custom targets path:
 
 ```bash
-agentevo eval --target vscode_projectx --targets "path/to/targets.yaml" --test-id "my-test-case" "path/to/test.yaml"
+agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --test-id "my-test-case" "path/to/test.yaml"
 ```
 
 ### Command Line Options
 
 - `test_file`: Path to test YAML file (required, positional argument)
 - `--target TARGET`: Execution target name from targets.yaml (overrides target specified in test file)
-- `--targets TARGETS`: Path to targets.yaml file (default: ./.agentevo/targets.yaml)
+- `--targets TARGETS`: Path to targets.yaml file (default: ./.agentv/targets.yaml)
 - `--test-id TEST_ID`: Run only the test case with this specific ID
 - `--out OUTPUT_FILE`: Output file path (default: results/{testname}_{timestamp}.jsonl)
 - `--format FORMAT`: Output format: 'jsonl' or 'yaml' (default: jsonl)
@@ -154,7 +154,7 @@ agentevo eval --target vscode_projectx --targets "path/to/targets.yaml" --test-i
 - `--agent-timeout SECONDS`: Timeout in seconds for agent response polling (default: 120)
 - `--max-retries COUNT`: Maximum number of retries for timeout cases (default: 2)
 - `--cache`: Enable caching of LLM responses (default: disabled)
-- `--dump-prompts`: Save all prompts to `.agentevo/prompts/` directory
+- `--dump-prompts`: Save all prompts to `.agentv/prompts/` directory
 - `--verbose`: Verbose output
 
 ### Target Selection Priority
@@ -167,7 +167,7 @@ The CLI determines which execution target to use with the following precedence:
 
 This allows test files to specify their preferred target while still allowing command-line overrides for flexibility, and maintains backward compatibility with existing workflows.
 
-Output goes to `.agentevo/results/{testname}_{timestamp}.jsonl` (or `.yaml`) unless `--out` is provided.
+Output goes to `.agentv/results/{testname}_{timestamp}.jsonl` (or `.yaml`) unless `--out` is provided.
 
 ### Tips for VS Code Copilot Evals
 
@@ -189,7 +189,7 @@ Environment keys (configured via targets.yaml):
 
 ## Targets and Environment Variables
 
-Execution targets in `.agentevo/targets.yaml` decouple tests from providers/settings and provide flexible environment variable mapping.
+Execution targets in `.agentv/targets.yaml` decouple tests from providers/settings and provide flexible environment variable mapping.
 
 ### Target Configuration Structure
 
@@ -258,7 +258,7 @@ When using VS Code or other AI agents that may experience timeouts, the evaluato
 Example with custom timeout settings:
 
 ```bash
-agentevo eval evals/projectx/example.yaml --target vscode_projectx --agent-timeout 180 --max-retries 3
+agentv eval evals/projectx/example.yaml --target vscode_projectx --agent-timeout 180 --max-retries 3
 ```
 
 ## How the Evals Work
@@ -284,7 +284,7 @@ Run with `--verbose` to print detailed information and stack traces on errors.
 
 ### Scoring Methodology
 
-AgentEvo uses an AI-powered quality grader that:
+AgentV uses an AI-powered quality grader that:
 
 - Extracts key aspects from the expected answer
 - Compares model output against those aspects
@@ -306,7 +306,7 @@ AgentEvo uses an AI-powered quality grader that:
 
 ### Summary Statistics
 
-After running all test cases, AgentEvo displays:
+After running all test cases, AgentV displays:
 
 - Mean, median, min, max scores
 - Standard deviation
@@ -315,7 +315,7 @@ After running all test cases, AgentEvo displays:
 
 ## Architecture
 
-AgentEvo is built as a TypeScript monorepo using:
+AgentV is built as a TypeScript monorepo using:
 
 - **pnpm workspaces:** Efficient dependency management
 - **Turbo:** Build system and task orchestration
@@ -327,8 +327,8 @@ AgentEvo is built as a TypeScript monorepo using:
 
 ### Package Structure
 
-- `@agentevo/core` - Core evaluation engine, providers, grading logic
-- `agentevo` - Main package that bundles CLI functionality
+- `@agentv/core` - Core evaluation engine, providers, grading logic
+- `agentv` - Main package that bundles CLI functionality
 
 ## Troubleshooting
 
@@ -341,11 +341,11 @@ AgentEvo is built as a TypeScript monorepo using:
 ```bash
 # Clear npm cache and reinstall
 npm cache clean --force
-npm uninstall -g agentevo
-npm install -g agentevo
+npm uninstall -g agentv
+npm install -g agentv
 
 # Or use npx without installing
-npx agentevo@latest --help
+npx agentv@latest --help
 ```
 
 ### VS Code Integration Issues

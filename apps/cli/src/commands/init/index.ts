@@ -33,7 +33,7 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     console.log(`Created ${path.relative(targetPath, targetFilePath)}`);
   }
 
-  console.log("\nAgentEvo initialized successfully!");
+  console.log("\nAgentV initialized successfully!");
   console.log(`\nFiles installed to ${path.relative(targetPath, githubDir)}:`);
   templates.forEach((t) => console.log(`  - ${t.path}`));
   console.log("\nYou can now create eval files using the schema and prompt templates.");

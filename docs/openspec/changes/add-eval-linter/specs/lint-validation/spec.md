@@ -4,26 +4,26 @@
 
 ### Requirement: Lint Command
 
-The system SHALL provide a `lint` command that validates AgentEvo YAML configuration files.
+The system SHALL provide a `lint` command that validates AgentV YAML configuration files.
 
 #### Scenario: Lint single eval file
 
-- **WHEN** user runs `agentevo lint path/to/test.yaml`
+- **WHEN** user runs `agentv lint path/to/test.yaml`
 - **THEN** the file is validated against eval schema and all errors are reported
 
 #### Scenario: Lint targets file
 
-- **WHEN** user runs `agentevo lint .agentevo/targets.yaml`
+- **WHEN** user runs `agentv lint .agentv/targets.yaml`
 - **THEN** the file is validated against targets schema and all errors are reported
 
 #### Scenario: Lint entire directory
 
-- **WHEN** user runs `agentevo lint ./evals`
+- **WHEN** user runs `agentv lint ./evals`
 - **THEN** all YAML files in the directory (recursive) are validated based on their `$schema` field and results aggregated
 
 #### Scenario: Multiple paths
 
-- **WHEN** user runs `agentevo lint file1.yaml file2.yaml targets.yaml`
+- **WHEN** user runs `agentv lint file1.yaml file2.yaml targets.yaml`
 - **THEN** each file is validated in order and all errors are collected
 
 #### Scenario: Exit code on failure
@@ -42,12 +42,12 @@ The system SHALL detect file types using the `$schema` field.
 
 #### Scenario: Eval file detection via schema field
 
-- **WHEN** file contains `$schema: agentevo-eval-v2`
+- **WHEN** file contains `$schema: agentv-eval-v2`
 - **THEN** it is validated as an eval file using eval schema
 
 #### Scenario: Targets file detection via schema field
 
-- **WHEN** file contains `$schema: agentevo-targets-v2`
+- **WHEN** file contains `$schema: agentv-targets-v2`
 - **THEN** it is validated as a targets configuration file
 
 #### Scenario: Missing schema field
@@ -61,7 +61,7 @@ The system SHALL validate eval files against the v2 schema.
 
 #### Scenario: Schema field required
 
-- **WHEN** eval file has `$schema: agentevo-eval-v2`
+- **WHEN** eval file has `$schema: agentv-eval-v2`
 - **THEN** validation proceeds with eval schema rules
 
 #### Scenario: Evalcases field required
@@ -90,7 +90,7 @@ The system SHALL validate targets files against the v2 schema.
 
 #### Scenario: Schema field required
 
-- **WHEN** targets file has `$schema: agentevo-targets-v2`
+- **WHEN** targets file has `$schema: agentv-targets-v2`
 - **THEN** validation proceeds with targets schema rules
 
 #### Scenario: Targets array required

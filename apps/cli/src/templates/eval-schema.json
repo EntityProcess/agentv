@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "AgentEvo Eval Schema",
+  "title": "AgentV Eval Schema",
   "description": "Schema for YAML evaluation files with conversation flows, multiple evaluators, and execution configuration",
   "type": "object",
   "properties": {

@@ -62,7 +62,7 @@ importers:
 
   apps/cli:
     dependencies:
-      '@agentevo/core':
+      '@agentv/core':
         specifier: workspace:*
         version: link:../../packages/core
       commander:

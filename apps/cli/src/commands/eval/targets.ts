@@ -4,7 +4,7 @@ import {
   resolveTargetDefinition,
   type ResolvedTarget,
   type TargetDefinition,
-} from "@agentevo/core";
+} from "@agentv/core";
 import { constants } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -13,8 +13,8 @@ import { parse } from "yaml";
 const TARGET_FILE_CANDIDATES = [
   "targets.yaml",
   "targets.yml",
-  path.join(".agentevo", "targets.yaml"),
-  path.join(".agentevo", "targets.yml"),
+  path.join(".agentv", "targets.yaml"),
+  path.join(".agentv", "targets.yml"),
   path.join(".bbeval", "targets.yaml"),
   path.join(".bbeval", "targets.yml"),
 ];

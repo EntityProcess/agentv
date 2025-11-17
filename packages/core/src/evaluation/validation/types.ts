@@ -1,5 +1,5 @@
 /**
- * Validation result types for AgentEvo file validation.
+ * Validation result types for AgentV file validation.
  */
 
 export type FileType = "eval" | "targets" | "unknown";

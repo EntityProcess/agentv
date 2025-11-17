@@ -1,8 +1,8 @@
 {
-  "name": "@agentevo/workspace",
+  "name": "@agentv/workspace",
   "version": "0.0.0",
   "private": true,
-  "description": "AgentEvo monorepo workspace",
+  "description": "AgentV monorepo workspace",
   "packageManager": "pnpm@10.20.0",
   "engines": {
     "node": ">=20.0.0"
@@ -20,8 +20,8 @@
     "test:coverage": "turbo run test:coverage",
     "format": "prettier --cache --write .",
     "format:check": "prettier --check .",
-    "dev": "pnpm --filter @agentevo/cli dev",
-    "agentevo": "node apps/cli/dist/cli.js",
+    "dev": "pnpm --filter @agentv/cli dev",
+    "agentv": "node apps/cli/dist/cli.js",
     "version:bump": "tsx scripts/bump-version.ts",
     "publish": "pnpm build && pnpm -r publish --access public"
   },

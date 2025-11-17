@@ -5,7 +5,7 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 
 describe("file-reference-validator", () => {
-  const testDir = path.join(tmpdir(), `agentevo-test-fileref-${Date.now()}`);
+  const testDir = path.join(tmpdir(), `agentv-test-fileref-${Date.now()}`);
 
   async function createTestFile(filename: string, content: string): Promise<string> {
     await mkdir(testDir, { recursive: true });
@@ -28,7 +28,7 @@ describe("file-reference-validator", () => {
       await createTestFile("referenced.md", "# Test content");
 
       const evalContent = `
-$schema: agentevo-eval-v2
+$schema: agentv-eval-v2
 evalcases:
   - id: test-1
     outcome: pass
@@ -51,7 +51,7 @@ evalcases:
 
     it("should error when referenced file does not exist", async () => {
       const evalContent = `
-$schema: agentevo-eval-v2
+$schema: agentv-eval-v2
 evalcases:
   - id: test-1
     outcome: pass
@@ -85,7 +85,7 @@ evalcases:
       await createTestFile("empty.md", "");
 
       const evalContent = `
-$schema: agentevo-eval-v2
+$schema: agentv-eval-v2
 evalcases:
   - id: test-1
     outcome: pass
@@ -118,7 +118,7 @@ evalcases:
       await createTestFile("file2.md", "Content 2");
 
       const evalContent = `
-$schema: agentevo-eval-v2
+$schema: agentv-eval-v2
 evalcases:
   - id: test-1
     outcome: pass
@@ -145,7 +145,7 @@ evalcases:
       await createTestFile("exists.md", "Content");
 
       const evalContent = `
-$schema: agentevo-eval-v2
+$schema: agentv-eval-v2
 evalcases:
   - id: test-1
     outcome: pass

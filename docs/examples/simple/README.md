@@ -1,6 +1,6 @@
-# Simple Example - AgentEvo V2 Schema
+# Simple Example - AgentV V2 Schema
 
-This directory demonstrates AgentEvo's V2 eval schema with complete, working examples.
+This directory demonstrates AgentV's V2 eval schema with complete, working examples.
 
 ## Directory Structure
 
@@ -21,7 +21,7 @@ simple/
 │   └── playbooks/                  # ACE learned knowledge (generated)
 │       └── code-generation.json    # Structured optimization insights
 ├── prompts/                        # Shared instruction files
-└── .agentevo/                      # AgentEvo workspace files
+└── .agentv/                      # AgentV workspace files
     └── targets.yaml                # Target/provider configuration
 ```
 
@@ -68,20 +68,20 @@ simple/
 
 ```bash
 # Run all evals in this directory
-agentevo eval evals/
+agentv eval evals/
 
 # Run specific eval file
-agentevo eval evals/example-eval.yaml
+agentv eval evals/example-eval.yaml
 
 # Run with specific target
-agentevo eval evals/example-eval.yaml --target azure_base
+agentv eval evals/example-eval.yaml --target azure_base
 ```
 
 ### With Optimization (Future)
 
 ```bash
 # Run ACE optimization using optimizer config
-agentevo optimize optimizers/ace-code-generation.yaml
+agentv optimize optimizers/ace-code-generation.yaml
 ```
 
 ## V2 Schema Features
@@ -263,6 +263,6 @@ Key changes when updating existing eval files:
 
 ## Resources
 
-- [AgentEvo Documentation](../../../README.md)
+- [AgentV Documentation](../../../README.md)
 - [V2 Schema Specification](../../openspec/changes/update-eval-schema-v2/)
 - [Ax ACE Documentation](https://github.com/ax-llm/ax/blob/main/docs/ACE.md)

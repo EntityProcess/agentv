@@ -49,7 +49,7 @@ describe("init command", () => {
 
     const content = readFileSync(schemaFile, "utf-8");
     const schema = JSON.parse(content);
-    expect(schema.title).toBe("AgentEvo V2 Eval Schema");
+    expect(schema.title).toBe("AgentV V2 Eval Schema");
     expect(schema.type).toBe("object");
     expect(schema.properties.evalcases).toBeDefined();
     expect(schema.properties.version).toBeDefined();

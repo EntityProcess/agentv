@@ -1,6 +1,6 @@
-# @agentevo/core
+# @agentv/core
 
-Core evaluation engine and runtime primitives for AgentEvo - a TypeScript-based AI agent evaluation and optimization framework.
+Core evaluation engine and runtime primitives for AgentV - a TypeScript-based AI agent evaluation and optimization framework.
 
 ## Overview
 
@@ -14,21 +14,21 @@ This package provides the foundational components for building and evaluating AI
 ## Installation
 
 ```bash
-npm install @agentevo/core
+npm install @agentv/core
 ```
 
 ## Usage
 
-This is a low-level package primarily used by the [agentevo](https://www.npmjs.com/package/agentevo) CLI. Most users should install the CLI package instead:
+This is a low-level package primarily used by the [agentv](https://www.npmjs.com/package/agentv) CLI. Most users should install the CLI package instead:
 
 ```bash
-npm install -g agentevo
+npm install -g agentv
 ```
 
 For programmatic usage or custom integrations, you can import core components:
 
 ```typescript
-import { createProvider, runEvaluation } from '@agentevo/core';
+import { createProvider, runEvaluation } from '@agentv/core';
 ```
 
 ## Features
@@ -67,11 +67,11 @@ Built on modern TypeScript tooling:
 
 ## Documentation
 
-For complete documentation, examples, and CLI usage, see the [agentevo](https://www.npmjs.com/package/agentevo) package.
+For complete documentation, examples, and CLI usage, see the [agentv](https://www.npmjs.com/package/agentv) package.
 
 ## Repository
 
-[https://github.com/EntityProcess/agentevo](https://github.com/EntityProcess/agentevo)
+[https://github.com/EntityProcess/agentv](https://github.com/EntityProcess/agentv)
 
 ## License
 
