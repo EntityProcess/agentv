@@ -87,22 +87,7 @@ agentv lint evals/test1.yaml evals/test2.yaml
 
 # Lint entire directory (recursively finds all YAML files)
 agentv lint evals/
-
-# Enable strict mode for additional checks
-agentv lint --strict evals/
-
-# Output results in JSON format
-agentv lint --json evals/
 ```
-
-**Linter features:**
-
-- Validates `$schema` field is present and correct
-- Checks required fields and structure for eval and targets files
-- Validates file references exist and are accessible
-- Provides clear error messages with file path and location context
-- Exits with non-zero code on validation failures (CI-friendly)
-- Supports strict mode for additional checks (e.g., non-empty file content)
 
 **File type detection:**
 
