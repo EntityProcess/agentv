@@ -74,6 +74,40 @@ You are now ready to start development. The monorepo contains:
 
 ## Quick Start
 
+### Configuring Guideline Patterns
+
+AgentV automatically detects guideline files (instructions, prompts) and treats them differently from regular file content. You can customize which files are considered guidelines using an optional `.agentv/config.yaml` configuration file.
+
+**Default patterns** (used when `.agentv/config.yaml` is absent):
+
+```yaml
+guideline_patterns:
+  - "**/*.instructions.md"
+  - "**/instructions/**"
+  - "**/*.prompt.md"
+  - "**/prompts/**"
+```
+
+**Custom patterns** (create `.agentv/config.yaml` in same directory as your eval file):
+
+```yaml
+# .agentv/config.yaml
+guideline_patterns:
+  - "**/*.guide.md"           # Match all .guide.md files
+  - "**/guidelines/**"        # Match all files in /guidelines/ dirs
+  - "docs/AGENTS.md"          # Match specific files
+  - "**/*.rules.md"           # Match by naming convention
+```
+
+**How it works:**
+
+- Files matching guideline patterns are loaded as separate guideline context
+- Files NOT matching are treated as regular file content in user messages
+- Patterns use standard glob syntax (via [micromatch](https://github.com/micromatch/micromatch))
+- Paths are normalized to forward slashes for cross-platform compatibility
+
+See [config.yaml example](docs/examples/simple/.agentv/config.yaml) for more pattern examples.
+
 ### Linting Eval Files
 
 Validate your eval and targets files before running them:

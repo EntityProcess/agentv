@@ -2,6 +2,7 @@ import { constants } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import micromatch from "micromatch";
 import { parse } from "yaml";
 
 import { buildSearchRoots, resolveFileReference } from "./file-utils.js";
@@ -13,17 +14,65 @@ const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";
 const SCHEMA_EVAL_V2 = "agentv-eval-v2";
 
+const DEFAULT_GUIDELINE_PATTERNS = [
+  "**/*.instructions.md",
+  "**/instructions/**",
+  "**/*.prompt.md",
+  "**/prompts/**",
+];
+
+type AgentVConfig = {
+  readonly guideline_patterns?: readonly string[];
+};
+
+/**
+ * Load optional .agentv/config.yaml configuration file from eval file directory.
+ */
+async function loadConfig(evalFilePath: string): Promise<AgentVConfig | null> {
+  const evalDir = path.dirname(evalFilePath);
+  const configPath = path.join(evalDir, ".agentv", "config.yaml");
+  
+  if (!(await fileExists(configPath))) {
+    return null;
+  }
+  
+  try {
+    const rawConfig = await readFile(configPath, "utf8");
+    const parsed = parse(rawConfig) as unknown;
+    
+    if (!isJsonObject(parsed)) {
+      logWarning(`Invalid .agentv/config.yaml format at ${configPath}`);
+      return null;
+    }
+    
+    const guidelinePatterns = parsed.guideline_patterns;
+    if (guidelinePatterns !== undefined && !Array.isArray(guidelinePatterns)) {
+      logWarning(`Invalid guideline_patterns in ${configPath}, expected array`);
+      return null;
+    }
+    
+    if (Array.isArray(guidelinePatterns) && !guidelinePatterns.every((p) => typeof p === "string")) {
+      logWarning(`Invalid guideline_patterns in ${configPath}, all entries must be strings`);
+      return null;
+    }
+    
+    return {
+      guideline_patterns: guidelinePatterns as readonly string[] | undefined,
+    };
+  } catch (error) {
+    logWarning(`Could not read .agentv/config.yaml at ${configPath}: ${(error as Error).message}`);
+    return null;
+  }
+}
+
 /**
  * Determine whether a path references guideline content (instructions or prompts).
  */
-export function isGuidelineFile(filePath: string): boolean {
+export function isGuidelineFile(filePath: string, patterns?: readonly string[]): boolean {
   const normalized = filePath.split("\\").join("/");
-  return (
-    normalized.endsWith(".instructions.md") ||
-    normalized.includes("/instructions/") ||
-    normalized.endsWith(".prompt.md") ||
-    normalized.includes("/prompts/")
-  );
+  const patternsToUse = patterns ?? DEFAULT_GUIDELINE_PATTERNS;
+  
+  return micromatch.isMatch(normalized, patternsToUse as string[]);
 }
 
 /**
@@ -85,6 +134,10 @@ export async function loadTestCases(
 
   const repoRootPath = resolveToAbsolutePath(repoRoot);
   const searchRoots = buildSearchRoots(absoluteTestPath, repoRootPath);
+
+  // Load configuration
+  const config = await loadConfig(absoluteTestPath);
+  const guidelinePatterns = config?.guideline_patterns;
 
   const rawFile = await readFile(absoluteTestPath, "utf8");
   const parsed = parse(rawFile) as unknown;
@@ -192,7 +245,7 @@ export async function loadTestCases(
 
           try {
             const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n");
-            if (isGuidelineFile(displayPath)) {
+            if (isGuidelineFile(displayPath, guidelinePatterns)) {
               guidelinePaths.push(path.resolve(resolvedPath));
               if (verbose) {
                 console.log(`  [Guideline] Found: ${displayPath}`);

@@ -9,9 +9,11 @@ export default defineConfig({
   clean: true,
   dts: false,
   target: "node20",
+  platform: "node",
   tsconfig: "./tsconfig.build.json",
-  // Bundle @agentv/core since it's a workspace dependency
-  noExternal: ["@agentv/core"],
+  // Bundle @agentv/core but keep micromatch external (it has dynamic requires)
+  noExternal: [/^@agentv\//],
+  external: ["micromatch"],
   // Copy template files after build
   onSuccess: async () => {
     const templatesDir = path.join("dist", "templates");
