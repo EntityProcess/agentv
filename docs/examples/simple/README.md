@@ -6,23 +6,25 @@ This directory demonstrates AgentV's eval schema with complete, working examples
 
 ```
 simple/
+├── .env.template                   # Environment configuration template
+├── .gitignore                      # Git ignore rules
+├── README.md                       # This file
 ├── evals/                          # Evaluation test cases
-│   ├── example-eval.yaml        # Main schema example
-│   └── *.yaml                 # Additional eval files
+│   ├── example-eval.yaml           # Main schema example
+│   └── snippets/                   # Code snippets for evals
+│       └── python-second-largest.md
 ├── evaluators/                     # Evaluator components
 │   ├── prompts/                    # LLM judge prompt templates
-│   │   ├── code-correctness-judge.md    # Semantic code evaluation
-│   │   ├── javascript.instructions.md   # JavaScript guidelines
-│   │   └── python.instructions.md       # Python guidelines
+│   │   └── code-correctness-judge.md    # Semantic code evaluation
 │   └── scripts/                    # Code-based evaluators
 │       └── check_python_keywords.py     # Python validator script
 ├── optimizers/                     # Optimizer configurations
 │   ├── ace-code-generation.yaml    # ACE optimization config
 │   └── playbooks/                  # ACE learned knowledge (generated)
 │       └── code-generation.json    # Structured optimization insights
-├── prompts/                        # Shared instruction files
-└── .agentv/                      # AgentV workspace files
-    └── targets.yaml                # Target/provider configuration
+└── prompts/                        # Shared instruction files
+    ├── javascript.instructions.md  # JavaScript guidelines
+    └── python.instructions.md      # Python guidelines
 ```
 
 ## Key Files
@@ -56,11 +58,16 @@ simple/
   - Output: JSON with score, passed flag, and reasoning
   - Example: `check_python_keywords.py` validates Python code quality
 
-- **`prompts/`**: LLM judge prompt templates and instruction files (Markdown)
+- **`prompts/`**: LLM judge prompt templates (Markdown)
   - Define how an LLM should evaluate outputs
   - Include scoring guidelines and output format
   - Example: `code-correctness-judge.md` for semantic code review
-  - Also includes instruction files like `python.instructions.md` and `javascript.instructions.md`
+
+### Shared Instruction Files (`prompts/`)
+
+- **`python.instructions.md`**: Python coding guidelines
+- **`javascript.instructions.md`**: JavaScript coding guidelines
+- These instruction files can be referenced in eval files to provide context
 
 ## Running Examples
 
@@ -136,7 +143,7 @@ input_messages:
       - type: text
         value: "Main request text"
       - type: file
-        value: ../evaluators/prompts/python.instructions.md
+        value: ../prompts/python.instructions.md
 ```
 
 Keeps eval files clean while supporting rich context.
