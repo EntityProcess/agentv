@@ -22,18 +22,23 @@ function buildChatPrompt(request: ProviderRequest): ChatPrompt {
   }
 
   const systemSegments: string[] = [];
-  if (request.guidelines && request.guidelines.trim().length > 0) {
-    systemSegments.push(`Guidelines:\n${request.guidelines.trim()}`);
-  }
-
+  
+  // Add metadata system prompt first (general instructions)
   const metadataSystemPrompt =
     typeof request.metadata?.systemPrompt === "string" ? request.metadata.systemPrompt : undefined;
   if (metadataSystemPrompt && metadataSystemPrompt.trim().length > 0) {
     systemSegments.push(metadataSystemPrompt.trim());
+  } else {
+    // Use default if no custom system prompt provided
+    systemSegments.push(DEFAULT_SYSTEM_PROMPT);
+  }
+  
+  // Add guidelines after system prompt (specific constraints for this eval)
+  if (request.guidelines && request.guidelines.trim().length > 0) {
+    systemSegments.push(`[[ ## Guidelines ## ]]\n\n${request.guidelines.trim()}`);
   }
 
-  const systemContent =
-    systemSegments.length > 0 ? systemSegments.join("\n\n") : DEFAULT_SYSTEM_PROMPT;
+  const systemContent = systemSegments.join("\n\n");
   const userContent = request.prompt.trim();
 
   const prompt: ChatPrompt = [

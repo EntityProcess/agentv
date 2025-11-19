@@ -99,15 +99,15 @@ function buildPromptDocument(
     parts.push(`- Test Case: ${request.evalCaseId}`);
   }
 
-  parts.push("\n## Task\n", request.prompt.trim());
+  parts.push("\n[[ ## Task ## ]]\n\n", request.prompt.trim());
 
   if (request.guidelines && request.guidelines.trim().length > 0) {
-    parts.push("\n## Guidelines\n", request.guidelines.trim());
+    parts.push("\n\n[[ ## Guidelines ## ]]\n\n", request.guidelines.trim());
   }
 
   if (attachments && attachments.length > 0) {
     const attachmentList = attachments.map((item) => `- ${item}`).join("\n");
-    parts.push("\n## Attachments\n", attachmentList);
+    parts.push("\n\n[[ ## Attachments ## ]]\n\n", attachmentList);
   }
 
   return parts.join("\n").trim();
