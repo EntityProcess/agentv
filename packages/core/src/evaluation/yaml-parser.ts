@@ -1,8 +1,8 @@
+import micromatch from "micromatch";
 import { constants } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import micromatch from "micromatch";
 import { parse } from "yaml";
 
 import { buildDirectoryChain, buildSearchRoots, resolveFileReference } from "./file-utils.js";
@@ -442,34 +442,6 @@ function cloneJsonValue(value: JsonValue): JsonValue {
     return value.map((item) => cloneJsonValue(item)) as readonly JsonValue[];
   }
   return cloneJsonObject(value as JsonObject);
-}
-
-function normalizeAssistantContent(content: TestMessage["content"] | undefined): string {
-  if (typeof content === "string") {
-    return content;
-  }
-  if (!content) {
-    return "";
-  }
-  const parts: string[] = [];
-  for (const entry of content) {
-    if (typeof entry === "string") {
-      parts.push(entry);
-      continue;
-    }
-    const textValue = asString(entry["text"]);
-    if (typeof textValue === "string") {
-      parts.push(textValue);
-      continue;
-    }
-    const valueValue = asString(entry["value"]);
-    if (typeof valueValue === "string") {
-      parts.push(valueValue);
-      continue;
-    }
-    parts.push(JSON.stringify(entry));
-  }
-  return parts.join(" ");
 }
 
 /**

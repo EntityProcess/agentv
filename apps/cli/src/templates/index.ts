@@ -1,6 +1,6 @@
-import { readFileSync, existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 export interface Template {
   path: string;

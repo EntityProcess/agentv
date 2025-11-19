@@ -1,6 +1,6 @@
-import { defineConfig } from "tsup";
 import { copyFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
+import { defineConfig } from "tsup";
 
 export default defineConfig({
   entry: ["src/index.ts", "src/cli.ts"],
