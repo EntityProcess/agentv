@@ -13,15 +13,10 @@ const CODE_BLOCK_PATTERN = /```[\s\S]*?```/g;
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";
 const SCHEMA_EVAL_V2 = "agentv-eval-v2";
-
-const DEFAULT_GUIDELINE_PATTERNS = [
-  "**/*.instructions.md",
-  "**/instructions/**",
-  "**/*.prompt.md",
-  "**/prompts/**",
-];
+const SCHEMA_CONFIG_V2 = "agentv-config-v2";
 
 type AgentVConfig = {
+  readonly $schema?: JsonValue;
   readonly guideline_patterns?: readonly string[];
 };
 
@@ -48,7 +43,20 @@ async function loadConfig(evalFilePath: string, repoRoot: string): Promise<Agent
         continue;
       }
       
-      const guidelinePatterns = parsed.guideline_patterns;
+      const config = parsed as AgentVConfig;
+      
+      // Check $schema field to ensure V2 format
+      const schema = config.$schema;
+      
+      if (schema !== SCHEMA_CONFIG_V2) {
+        const message = typeof schema === 'string' 
+          ? `Invalid $schema value '${schema}' in ${configPath}. Expected '${SCHEMA_CONFIG_V2}'`
+          : `Missing required field '$schema' in ${configPath}.\nPlease add '$schema: ${SCHEMA_CONFIG_V2}' at the top of the file.`;
+        logWarning(message);
+        continue;
+      }
+      
+      const guidelinePatterns = config.guideline_patterns;
       if (guidelinePatterns !== undefined && !Array.isArray(guidelinePatterns)) {
         logWarning(`Invalid guideline_patterns in ${configPath}, expected array`);
         continue;
@@ -76,7 +84,7 @@ async function loadConfig(evalFilePath: string, repoRoot: string): Promise<Agent
  */
 export function isGuidelineFile(filePath: string, patterns?: readonly string[]): boolean {
   const normalized = filePath.split("\\").join("/");
-  const patternsToUse = patterns ?? DEFAULT_GUIDELINE_PATTERNS;
+  const patternsToUse = patterns ?? [];
   
   return micromatch.isMatch(normalized, patternsToUse as string[]);
 }
@@ -251,7 +259,11 @@ export async function loadEvalCases(
 
           try {
             const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n");
-            if (isGuidelineFile(displayPath, guidelinePatterns)) {
+            
+            // Calculate path relative to repo root for matching to handle ".." in displayPath
+            const relativeToRepo = path.relative(repoRootPath, resolvedPath);
+
+            if (isGuidelineFile(relativeToRepo, guidelinePatterns)) {
               guidelinePaths.push(path.resolve(resolvedPath));
               if (verbose) {
                 console.log(`  [Guideline] Found: ${displayPath}`);

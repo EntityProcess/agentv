@@ -24,7 +24,8 @@ export default defineConfig({
     // Copy template files
     const templates = [
       "eval-build.prompt.md",
-      "eval-schema.json"
+      "eval-schema.json",
+      "config-schema.json"
     ];
     
     for (const file of templates) {

@@ -6,37 +6,51 @@ import { tmpdir } from "node:os";
 import { isGuidelineFile, loadEvalCases } from "../../src/evaluation/yaml-parser.js";
 
 describe("isGuidelineFile", () => {
-  describe("with default patterns", () => {
+  describe("with explicit patterns", () => {
+    const defaultPatterns = [
+      "**/*.instructions.md",
+      "**/instructions/**",
+      "**/*.prompt.md",
+      "**/prompts/**",
+    ];
+
     it("matches .instructions.md files", () => {
-      expect(isGuidelineFile("docs/coding.instructions.md")).toBe(true);
-      expect(isGuidelineFile("path/to/api.instructions.md")).toBe(true);
+      expect(isGuidelineFile("docs/coding.instructions.md", defaultPatterns)).toBe(true);
+      expect(isGuidelineFile("path/to/api.instructions.md", defaultPatterns)).toBe(true);
     });
 
     it("matches files in /instructions/ directories", () => {
-      expect(isGuidelineFile("docs/instructions/coding.md")).toBe(true);
-      expect(isGuidelineFile("instructions/api-guide.md")).toBe(true);
+      expect(isGuidelineFile("docs/instructions/coding.md", defaultPatterns)).toBe(true);
+      expect(isGuidelineFile("instructions/api-guide.md", defaultPatterns)).toBe(true);
     });
 
     it("matches .prompt.md files", () => {
-      expect(isGuidelineFile("prompts/task.prompt.md")).toBe(true);
-      expect(isGuidelineFile("src/prompts/guide.prompt.md")).toBe(true);
+      expect(isGuidelineFile("prompts/task.prompt.md", defaultPatterns)).toBe(true);
+      expect(isGuidelineFile("src/prompts/guide.prompt.md", defaultPatterns)).toBe(true);
     });
 
     it("matches files in /prompts/ directories", () => {
-      expect(isGuidelineFile("prompts/task.md")).toBe(true);
-      expect(isGuidelineFile("src/prompts/guide.md")).toBe(true);
+      expect(isGuidelineFile("prompts/task.md", defaultPatterns)).toBe(true);
+      expect(isGuidelineFile("src/prompts/guide.md", defaultPatterns)).toBe(true);
     });
 
     it("does not match regular files", () => {
-      expect(isGuidelineFile("README.md")).toBe(false);
-      expect(isGuidelineFile("src/utils/helper.ts")).toBe(false);
-      expect(isGuidelineFile("docs/guide.md")).toBe(false);
+      expect(isGuidelineFile("README.md", defaultPatterns)).toBe(false);
+      expect(isGuidelineFile("src/utils/helper.ts", defaultPatterns)).toBe(false);
+      expect(isGuidelineFile("docs/guide.md", defaultPatterns)).toBe(false);
     });
 
     it("normalizes Windows paths to forward slashes", () => {
-      expect(isGuidelineFile("docs\\instructions\\guide.md")).toBe(true);
-      expect(isGuidelineFile("src\\prompts\\task.prompt.md")).toBe(true);
-      expect(isGuidelineFile("docs\\guide.md")).toBe(false);
+      expect(isGuidelineFile("docs\\instructions\\guide.md", defaultPatterns)).toBe(true);
+      expect(isGuidelineFile("src\\prompts\\task.prompt.md", defaultPatterns)).toBe(true);
+      expect(isGuidelineFile("docs\\guide.md", defaultPatterns)).toBe(false);
+    });
+  });
+
+  describe("without patterns", () => {
+    it("returns false by default", () => {
+      expect(isGuidelineFile("docs/coding.instructions.md")).toBe(false);
+      expect(isGuidelineFile("prompts/task.prompt.md")).toBe(false);
     });
   });
 
@@ -82,7 +96,8 @@ describe("loadTestCases with .agentv/config.yaml", () => {
     // Create .agentv directory and config file
     const agentvDir = path.join(testDir, ".agentv");
     await mkdir(agentvDir, { recursive: true });
-    const configContent = `guideline_patterns:
+    const configContent = `$schema: agentv-config-v2
+guideline_patterns:
   - "**/*.guide.md"
   - "**/rules/**"
 `;
@@ -136,7 +151,7 @@ evalcases:
     expect(fileSegment).toBeDefined();
   });
 
-  it("uses default patterns when .agentv/config.yaml is absent", async () => {
+  it("uses no patterns when .agentv/config.yaml is absent", async () => {
     // Create standard instruction file
     const instructionContent = "# Standard Instruction\nDefault pattern.";
     await writeFile(path.join(testDir, "coding.instructions.md"), instructionContent, "utf8");
@@ -167,16 +182,23 @@ evalcases:
     expect(testCases).toHaveLength(1);
     const testCase = testCases[0];
 
-    // coding.instructions.md should be treated as guideline (matches default pattern)
-    expect(testCase.guideline_paths).toHaveLength(1);
-    expect(testCase.guideline_paths[0]).toContain("coding.instructions.md");
+    // coding.instructions.md should NOT be treated as guideline (no default patterns)
+    expect(testCase.guideline_paths).toHaveLength(0);
+    
+    // It should be treated as a regular file
+    expect(testCase.user_segments).toHaveLength(2); // file + text
+    const fileSegment = testCase.user_segments.find(
+      (seg) => seg.type === "file" && typeof seg.path === "string" && seg.path.includes("coding.instructions.md")
+    );
+    expect(fileSegment).toBeDefined();
   });
 
   it("walks up directory tree to find config at repo root", async () => {
     // Create config at repo root
     const agentvDir = path.join(testDir, ".agentv");
     await mkdir(agentvDir, { recursive: true });
-    const configContent = `guideline_patterns:
+    const configContent = `$schema: agentv-config-v2
+guideline_patterns:
   - "**/*.guide.md"
 `;
     await writeFile(path.join(agentvDir, "config.yaml"), configContent, "utf8");
@@ -237,7 +259,8 @@ evalcases:
     // Create .agentv directory and config with patterns
     const agentvDir = path.join(testDir, ".agentv");
     await mkdir(agentvDir, { recursive: true });
-    const configContent = `guideline_patterns:
+    const configContent = `$schema: agentv-config-v2
+guideline_patterns:
   - "**/guidelines/**/*.md"
 `;
     await writeFile(path.join(agentvDir, "config.yaml"), configContent, "utf8");
