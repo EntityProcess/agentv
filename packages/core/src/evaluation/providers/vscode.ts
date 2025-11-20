@@ -34,53 +34,42 @@ export class VSCodeProvider implements Provider {
 
     const attachments = normalizeAttachments(request.attachments);
     const promptContent = buildPromptDocument(request, attachments, request.guideline_patterns);
-    const directory = await mkdtemp(path.join(tmpdir(), PROMPT_FILE_PREFIX));
-    const promptPath = path.join(directory, `${request.evalCaseId ?? "request"}.prompt.md`);
 
-    try {
-      await writeFile(promptPath, promptContent, "utf8");
+    const session = await dispatchAgentSession({
+      userQuery: promptContent,  // Use full prompt content instead of just request.prompt
+      extraAttachments: attachments,
+      wait: this.config.waitForResponse,
+      dryRun: this.config.dryRun,
+      vscodeCmd: this.config.command,
+      subagentRoot: this.config.subagentRoot,
+      workspaceTemplate: this.config.workspaceTemplate,
+      silent: true,
+    });
 
-      const session = await dispatchAgentSession({
-        userQuery: promptContent,  // Use full prompt content instead of just request.prompt
-        promptFile: promptPath,
-        extraAttachments: attachments,
-        wait: this.config.waitForResponse,
-        dryRun: this.config.dryRun,
-        vscodeCmd: this.config.command,
-        subagentRoot: this.config.subagentRoot,
-        workspaceTemplate: this.config.workspaceTemplate,
-        silent: true,
-      });
+    if (session.exitCode !== 0 || !session.responseFile) {
+      const failure = session.error ?? "VS Code subagent did not produce a response";
+      throw new Error(failure);
+    }
 
-      if (session.exitCode !== 0 || !session.responseFile) {
-        const failure = session.error ?? "VS Code subagent did not produce a response";
-        throw new Error(failure);
-      }
-
-      if (this.config.dryRun) {
-        return {
-          text: "",
-          raw: {
-            session,
-            promptFile: promptPath,
-            attachments,
-          },
-        };
-      }
-
-      const responseText = await readFile(session.responseFile, "utf8");
-
+    if (this.config.dryRun) {
       return {
-        text: responseText,
+        text: "",
         raw: {
           session,
-          promptFile: promptPath,
           attachments,
         },
       };
-    } finally {
-      await rm(directory, { recursive: true, force: true });
     }
+
+    const responseText = await readFile(session.responseFile, "utf8");
+
+    return {
+      text: responseText,
+      raw: {
+        session,
+        attachments,
+      },
+    };
   }
 }
 
