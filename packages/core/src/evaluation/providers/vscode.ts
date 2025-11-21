@@ -83,9 +83,16 @@ export class VSCodeProvider implements Provider {
       return [];
     }
 
-    const combinedAttachments = mergeAttachments(requests.map((req) => req.attachments));
-    const userQueries = requests.map((req) =>
-      buildPromptDocument(req, combinedAttachments, req.guideline_patterns),
+    const normalizedRequests = requests.map((req) => ({
+      request: req,
+      attachments: normalizeAttachments(req.attachments),
+    }));
+
+    const combinedAttachments = mergeAttachments(
+      normalizedRequests.map(({ attachments }) => attachments),
+    );
+    const userQueries = normalizedRequests.map(({ request, attachments }) =>
+      buildPromptDocument(request, attachments, request.guideline_patterns),
     );
 
     const session = await dispatchBatchAgent({
@@ -105,11 +112,12 @@ export class VSCodeProvider implements Provider {
     }
 
     if (this.config.dryRun) {
-      return requests.map(() => ({
+      return normalizedRequests.map(({ attachments }) => ({
         text: "",
         raw: {
           session,
-          attachments: combinedAttachments,
+          attachments,
+          allAttachments: combinedAttachments,
         },
       }));
     }
@@ -121,13 +129,14 @@ export class VSCodeProvider implements Provider {
     }
 
     const responses: ProviderResponse[] = [];
-    for (const responseFile of session.responseFiles) {
+    for (const [index, responseFile] of session.responseFiles.entries()) {
       const responseText = await readFile(responseFile, "utf8");
       responses.push({
         text: responseText,
         raw: {
           session,
-          attachments: combinedAttachments,
+          attachments: normalizedRequests[index]?.attachments,
+          allAttachments: combinedAttachments,
           responseFile,
         },
       });
