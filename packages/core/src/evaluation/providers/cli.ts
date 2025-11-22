@@ -216,7 +216,6 @@ function buildTemplateValues(
     GUIDELINES: shellEscape(request.guidelines ?? ""),
     EVAL_ID: shellEscape(request.evalCaseId ?? ""),
     ATTEMPT: shellEscape(String(request.attempt ?? 0)),
-    ATTACHMENTS: formatFileList(attachments, config.attachmentsFormat),
     FILES: formatFileList(attachments, config.filesFormat),
   };
 }
