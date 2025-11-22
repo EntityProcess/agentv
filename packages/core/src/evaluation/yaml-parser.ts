@@ -6,8 +6,15 @@ import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
 import { buildDirectoryChain, buildSearchRoots, resolveFileReference } from "./file-utils.js";
-import type { GraderKind, JsonObject, JsonValue, EvalCase, TestMessage } from "./types.js";
-import { isGraderKind, isJsonObject, isTestMessage } from "./types.js";
+import type {
+  EvaluatorConfig,
+  GraderKind,
+  JsonObject,
+  JsonValue,
+  EvalCase,
+  TestMessage,
+} from "./types.js";
+import { isEvaluatorKind, isGraderKind, isJsonObject, isTestMessage } from "./types.js";
 
 const CODE_BLOCK_PATTERN = /```[\s\S]*?```/g;
 const ANSI_YELLOW = "\u001b[33m";
@@ -130,6 +137,7 @@ type RawEvalCase = JsonObject & {
   readonly expected_messages?: JsonValue;
   readonly grader?: JsonValue;
   readonly execution?: JsonValue;
+  readonly evaluators?: JsonValue;
 };
 
 /**
@@ -333,6 +341,7 @@ export async function loadEvalCases(
       .join(" ");
 
     const testCaseGrader = coerceGrader(evalcase.grader) ?? globalGrader;
+    const evaluators = await parseEvaluators(evalcase, searchRoots, id ?? "unknown");
 
     // Extract file paths from user_segments (non-guideline files)
     const userFilePaths: string[] = [];
@@ -361,6 +370,7 @@ export async function loadEvalCases(
       code_snippets: codeSnippets,
       outcome,
       grader: testCaseGrader,
+      evaluators,
     };
 
     if (verbose) {
@@ -568,6 +578,99 @@ async function resolveAssistantContent(
     parts.push(JSON.stringify(entry));
   }
   return parts.join(" ");
+}
+
+async function parseEvaluators(
+  rawEvalCase: RawEvalCase,
+  searchRoots: readonly string[],
+  evalId: string,
+): Promise<readonly EvaluatorConfig[] | undefined> {
+  const execution = rawEvalCase.execution;
+  const candidateEvaluators = isJsonObject(execution) ? execution.evaluators ?? rawEvalCase.evaluators : rawEvalCase.evaluators;
+  if (candidateEvaluators === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(candidateEvaluators)) {
+    logWarning(`Skipping evaluators for '${evalId}': expected array`);
+    return undefined;
+  }
+
+  const evaluators: EvaluatorConfig[] = [];
+
+  for (const rawEvaluator of candidateEvaluators) {
+    if (!isJsonObject(rawEvaluator)) {
+      logWarning(`Skipping invalid evaluator entry for '${evalId}' (expected object)`);
+      continue;
+    }
+
+    const name = asString(rawEvaluator.name);
+    const typeValue = rawEvaluator.type;
+
+    if (!name || !isEvaluatorKind(typeValue)) {
+      logWarning(`Skipping evaluator with invalid name/type in '${evalId}'`);
+      continue;
+    }
+
+    if (typeValue === "code") {
+      const script = asString(rawEvaluator.script);
+      if (!script) {
+        logWarning(`Skipping code evaluator '${name}' in '${evalId}': missing script`);
+        continue;
+      }
+
+      const cwd = asString(rawEvaluator.cwd);
+      let resolvedCwd: string | undefined;
+
+      // Resolve cwd if provided (relative to eval file)
+      if (cwd) {
+        const resolved = await resolveFileReference(cwd, searchRoots);
+        if (resolved.resolvedPath) {
+          resolvedCwd = path.resolve(resolved.resolvedPath);
+        } else {
+          logWarning(
+            `Code evaluator '${name}' in '${evalId}': cwd not found (${resolved.displayPath})`,
+            resolved.attempted.length > 0 ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`) : undefined,
+          );
+        }
+      }
+
+      evaluators.push({
+        name,
+        type: "code",
+        script,
+        cwd,
+        resolvedCwd,
+      });
+      continue;
+    }
+
+    const prompt = asString(rawEvaluator.prompt);
+    let promptPath: string | undefined;
+    if (prompt) {
+      const resolved = await resolveFileReference(prompt, searchRoots);
+      if (resolved.resolvedPath) {
+        promptPath = path.resolve(resolved.resolvedPath);
+      } else {
+        logWarning(
+          `Inline prompt used for evaluator '${name}' in '${evalId}' (file not found: ${resolved.displayPath})`,
+          resolved.attempted.length > 0 ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`) : undefined,
+        );
+      }
+    }
+
+    const model = asString(rawEvaluator.model);
+
+    evaluators.push({
+      name,
+      type: "llm_judge",
+      prompt,
+      promptPath,
+      model,
+    });
+  }
+
+  return evaluators.length > 0 ? evaluators : undefined;
 }
 
 function coerceGrader(candidate: JsonValue | undefined): GraderKind | undefined {
