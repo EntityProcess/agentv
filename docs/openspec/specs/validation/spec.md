@@ -1,7 +1,8 @@
 # Validation Specification
 
 ## Purpose
-TBD - created by archiving change add-eval-linter. Update Purpose after archive.
+
+Validates AgentV YAML files (eval and targets) independently from execution for fast feedback. Validates schema compliance (`$schema` field detection), file structure, and referenced file existence. Supports CI integration via exit codes.
 
 ## Requirements
 
