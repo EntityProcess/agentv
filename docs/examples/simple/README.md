@@ -111,7 +111,7 @@ The sample `codex_cli` target demonstrates how to drive the standalone Codex CLI
 agentv eval evals/example-eval.yaml --target codex_cli
 ```
 
-AgentV mirrors guideline and attachment files into the Codex workspace and passes the combined prompt to `codex --quiet --json`, so preread links behave the same way as the VS Code provider.
+AgentV mirrors guideline and attachment files into the Codex workspace and passes the combined prompt to `codex exec --json`, so preread links behave the same way as the VS Code provider.
 
 ### With Optimization (Future)
 

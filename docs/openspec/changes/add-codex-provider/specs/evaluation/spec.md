@@ -35,9 +35,9 @@ The system SHALL support multiple LLM providers with environment-based configura
 - **WHEN** a test case uses the "codex" provider
 - **THEN** the system locates the Codex CLI executable (default `codex`, overrideable via the target)
 - **AND** it mirrors guideline and attachment files into a scratch workspace, emitting the same preread block links used by the VS Code provider so Codex opens every referenced file before answering
-- **AND** it renders the eval prompt into a single string and launches Codex with `--quiet --json` plus any configured profile, model, approval preset, and working-directory overrides defined on the target
-- **AND** it fails fast with a clear error when required credentials (`OPENAI_API_KEY`/`CODEX_API_KEY`) or Codex configuration (`~/.codex/config` profile, sandbox flags) are missing
-- **AND** it parses the emitted JSON result to capture the final assistant message as the provider response, attaching stdout/stderr when the CLI exits non-zero or returns malformed JSON
+- **AND** it renders the eval prompt into a single string and launches `codex exec --json` plus any configured profile, model, approval preset, and working-directory overrides defined on the target
+- **AND** it verifies the Codex executable is available while delegating profile/config resolution to the CLI itself
+- **AND** it parses the emitted JSONL event stream to capture the final assistant message as the provider response, attaching stdout/stderr when the CLI exits non-zero or returns malformed JSON
 
 #### Scenario: Mock provider for dry-run
 

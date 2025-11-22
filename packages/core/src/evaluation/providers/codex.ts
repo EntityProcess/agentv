@@ -1,7 +1,7 @@
 import { exec as execCallback, spawn } from "node:child_process";
 import { constants } from "node:fs";
 import { access, copyFile, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -13,6 +13,7 @@ const execAsync = promisify(execCallback);
 const WORKSPACE_PREFIX = "agentv-codex-";
 const PROMPT_FILENAME = "prompt.md";
 const FILES_DIR = "files";
+const JSONL_TYPE_ITEM_COMPLETED = "item.completed";
 
 interface CodexRunOptions {
   readonly executable: string;
@@ -125,19 +126,6 @@ export class CodexProvider implements Provider {
   }
 
   private async validateEnvironment(): Promise<void> {
-    const env = process.env;
-    const hasOpenAi = Boolean(env.OPENAI_API_KEY && env.OPENAI_API_KEY.trim().length > 0);
-    const hasCodex = Boolean(env.CODEX_API_KEY && env.CODEX_API_KEY.trim().length > 0);
-
-    if (!hasOpenAi && !hasCodex) {
-      throw new Error(
-        "Codex provider requires OPENAI_API_KEY or CODEX_API_KEY to be set before running evals",
-      );
-    }
-
-    const configPath = resolveCodexConfigPath(env.CODEX_CONFIG_PATH);
-    await ensureFileExists(configPath, "Codex configuration (~/.codex/config) was not found");
-
     this.resolvedExecutable = await locateExecutable(this.config.executable);
   }
 
@@ -149,7 +137,7 @@ export class CodexProvider implements Provider {
   }
 
   private buildCodexArgs(): string[] {
-    const args = ["--quiet", "--json"];
+    const args = ["exec", "--json", "--color", "never", "--skip-git-repo-check"];
     if (this.config.profile) {
       args.push("--profile", this.config.profile);
     }
@@ -157,8 +145,9 @@ export class CodexProvider implements Provider {
       args.push("--model", this.config.model);
     }
     if (this.config.approvalPreset) {
-      args.push("--approval-preset", this.config.approvalPreset);
+      args.push("--ask-for-approval", this.config.approvalPreset);
     }
+    args.push("-");
     return args;
   }
 
@@ -245,44 +234,88 @@ export class CodexProvider implements Provider {
   }
 }
 
-async function ensureFileExists(filePath: string, message: string): Promise<void> {
-  try {
-    await access(filePath, constants.F_OK);
-  } catch {
-    throw new Error(`${message}: ${filePath}`);
-  }
-}
-
-function resolveCodexConfigPath(override: string | undefined): string {
-  if (override && override.trim().length > 0) {
-    return path.resolve(override.trim());
-  }
-  return path.join(homedir(), ".codex", "config");
-}
-
 async function locateExecutable(candidate: string): Promise<string> {
   const includesPathSeparator = candidate.includes("/") || candidate.includes("\\");
   if (includesPathSeparator) {
     const resolved = path.isAbsolute(candidate) ? candidate : path.resolve(candidate);
-    await access(resolved, constants.F_OK);
-    return resolved;
+    const executablePath = await ensureWindowsExecutableVariant(resolved);
+    await access(executablePath, constants.F_OK);
+    return executablePath;
   }
 
   const locator = process.platform === "win32" ? "where" : "which";
   try {
     const { stdout } = await execAsync(`${locator} ${candidate}`);
-    const firstLine = stdout
+    const lines = stdout
       .split(/\r?\n/)
       .map((line) => line.trim())
-      .find((line) => line.length > 0);
-    if (firstLine) {
-      return firstLine;
+      .filter((line) => line.length > 0);
+    const preferred = selectExecutableCandidate(lines);
+    if (preferred) {
+      const executablePath = await ensureWindowsExecutableVariant(preferred);
+      await access(executablePath, constants.F_OK);
+      return executablePath;
     }
   } catch {
     // ignore and fall back to error below
   }
 
   throw new Error(`Codex executable '${candidate}' was not found on PATH`);
+}
+
+function selectExecutableCandidate(candidates: readonly string[]): string | undefined {
+  if (candidates.length === 0) {
+    return undefined;
+  }
+  if (process.platform !== "win32") {
+    return candidates[0];
+  }
+  const extensions = getWindowsExecutableExtensions();
+  for (const ext of extensions) {
+    const match = candidates.find((candidate) => candidate.toLowerCase().endsWith(ext));
+    if (match) {
+      return match;
+    }
+  }
+  return candidates[0];
+}
+
+async function ensureWindowsExecutableVariant(candidate: string): Promise<string> {
+  if (process.platform !== "win32") {
+    return candidate;
+  }
+  if (hasExecutableExtension(candidate)) {
+    return candidate;
+  }
+
+  const extensions = getWindowsExecutableExtensions();
+  for (const ext of extensions) {
+    const withExtension = `${candidate}${ext}`;
+    try {
+      await access(withExtension, constants.F_OK);
+      return withExtension;
+    } catch {
+      // keep searching
+    }
+  }
+  return candidate;
+}
+
+function hasExecutableExtension(candidate: string): boolean {
+  const lower = candidate.toLowerCase();
+  return getWindowsExecutableExtensions().some((ext) => lower.endsWith(ext));
+}
+
+const DEFAULT_WINDOWS_EXTENSIONS = [".com", ".exe", ".bat", ".cmd", ".ps1"] as const;
+
+function getWindowsExecutableExtensions(): readonly string[] {
+  if (process.platform !== "win32") {
+    return [];
+  }
+  const fromEnv = process.env.PATHEXT?.split(";")
+    .map((ext) => ext.trim().toLowerCase())
+    .filter((ext) => ext.length > 0);
+  return fromEnv && fromEnv.length > 0 ? fromEnv : DEFAULT_WINDOWS_EXTENSIONS;
 }
 
 function parseCodexJson(output: string): unknown {
@@ -293,6 +326,10 @@ function parseCodexJson(output: string): unknown {
   try {
     return JSON.parse(trimmed);
   } catch {
+    const lineObjects = parseJsonLines(trimmed);
+    if (lineObjects) {
+      return lineObjects;
+    }
     const lastBrace = trimmed.lastIndexOf("{");
     if (lastBrace >= 0) {
       const candidate = trimmed.slice(lastBrace);
@@ -308,11 +345,23 @@ function parseCodexJson(output: string): unknown {
 }
 
 function extractAssistantText(parsed: unknown): string {
+  if (Array.isArray(parsed)) {
+    const text = extractFromEventStream(parsed);
+    if (text) {
+      return text;
+    }
+  }
+
   if (!parsed || typeof parsed !== "object") {
     throw new Error("Codex CLI JSON response did not include an assistant message");
   }
 
   const record = parsed as Record<string, unknown>;
+  const eventText = extractFromEvent(record);
+  if (eventText) {
+    return eventText;
+  }
+
   const messages = Array.isArray(record.messages) ? record.messages : undefined;
   if (messages) {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -350,6 +399,53 @@ function extractAssistantText(parsed: unknown): string {
   throw new Error("Codex CLI JSON response did not include an assistant message");
 }
 
+function extractFromEventStream(events: readonly unknown[]): string | undefined {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const candidate = events[index];
+    const text = extractFromEvent(candidate);
+    if (text) {
+      return text;
+    }
+  }
+  return undefined;
+}
+
+function extractFromEvent(event: unknown): string | undefined {
+  if (!event || typeof event !== "object") {
+    return undefined;
+  }
+  const record = event as Record<string, unknown>;
+  const type = typeof record.type === "string" ? record.type : undefined;
+  if (type === JSONL_TYPE_ITEM_COMPLETED) {
+    const item = record.item;
+    const text = extractFromItem(item);
+    if (text) {
+      return text;
+    }
+  }
+  const output = record.output ?? record.content;
+  const flattened = flattenContent(output);
+  if (flattened) {
+    return flattened;
+  }
+  return undefined;
+}
+
+function extractFromItem(item: unknown): string | undefined {
+  if (!item || typeof item !== "object") {
+    return undefined;
+  }
+  const record = item as Record<string, unknown>;
+  const itemType = typeof record.type === "string" ? record.type : undefined;
+  if (itemType === "agent_message" || itemType === "response" || itemType === "output") {
+    const text = flattenContent(record.text ?? record.content ?? record.output);
+    if (text) {
+      return text;
+    }
+  }
+  return undefined;
+}
+
 function flattenContent(value: unknown): string | undefined {
   if (typeof value === "string") {
     return value;
@@ -376,6 +472,25 @@ function flattenContent(value: unknown): string | undefined {
   return undefined;
 }
 
+function parseJsonLines(output: string): unknown[] | undefined {
+  const lines = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (lines.length <= 1) {
+    return undefined;
+  }
+  const parsed: unknown[] = [];
+  for (const line of lines) {
+    try {
+      parsed.push(JSON.parse(line));
+    } catch {
+      return undefined;
+    }
+  }
+  return parsed;
+}
+
 function pickDetail(stderr: string, stdout: string): string | undefined {
   const errorText = stderr.trim();
   if (errorText.length > 0) {
@@ -399,6 +514,7 @@ async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunRes
       cwd: options.cwd,
       env: options.env,
       stdio: ["pipe", "pipe", "pipe"],
+      shell: shouldShellExecute(options.executable),
     });
 
     let stdout = "";
@@ -462,4 +578,12 @@ async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunRes
       });
     });
   });
+}
+
+function shouldShellExecute(executable: string): boolean {
+  if (process.platform !== "win32") {
+    return false;
+  }
+  const lower = executable.toLowerCase();
+  return lower.endsWith(".cmd") || lower.endsWith(".bat") || lower.endsWith(".ps1");
 }

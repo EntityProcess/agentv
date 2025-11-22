@@ -601,11 +601,14 @@ function resolveOptionalString(
   }
   const allowLiteral = options?.allowLiteral ?? false;
   const optionalEnv = options?.optionalEnv ?? false;
-  if (!allowLiteral && isLikelyEnvReference(trimmed)) {
+  const looksLikeEnv = isLikelyEnvReference(trimmed);
+  if (looksLikeEnv) {
     if (optionalEnv) {
       return undefined;
     }
-    throw new Error(`Environment variable '${trimmed}' required for ${description} is not set`);
+    if (!allowLiteral) {
+      throw new Error(`Environment variable '${trimmed}' required for ${description} is not set`);
+    }
   }
   return trimmed;
 }

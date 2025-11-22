@@ -195,7 +195,7 @@ Environment keys (configured via targets.yaml):
 - **Google Gemini:** Set environment variables specified in your target's `settings.api_key` and optional `settings.model`
 - **VS Code:** Set environment variable specified in your target's `settings.workspace_env` → `.code-workspace` path
 - **CLI provider:** Configure `command_template` plus optional `cwd`, `env`, `timeout_seconds`, and `healthcheck` fields in targets.yaml; CLI `settings.env` entries are merged into the process environment
-- **Codex CLI:** Install the `codex` CLI, run `codex configure` to create `~/.codex/config`, and export either `OPENAI_API_KEY` or `CODEX_API_KEY`. Optional `CODEX_CONFIG_PATH` lets you point to a different config file.
+- **Codex CLI:** Install the `codex` CLI and run `codex configure` so credentials live in `~/.codex/config` (or a custom path). Export `OPENAI_API_KEY`/`CODEX_API_KEY` only if your CLI profile does not already provide credentials from its configured profile.
 
 ## Targets and Environment Variables
 
@@ -290,8 +290,8 @@ CLI troubleshooting: unsupported placeholders fail validation, so stick to the t
     cwd: CODEX_WORKSPACE_DIR
 ```
 
-Codex targets require the standalone `codex` CLI plus either `OPENAI_API_KEY` or `CODEX_API_KEY`. Run `codex configure` once so the CLI creates `~/.codex/config`, then point AgentV at the same profile via `settings.profile`. AgentV mirrors all guideline and attachment files into a fresh scratch workspace, so the `file://` preread links remain valid even when the CLI runs outside your repo tree.
-Confirm the CLI works by running `codex --quiet --json --profile <name> "ping"` (or any supported dry run) before starting an eval.
+Codex targets require the standalone `codex` CLI and a configured profile (via `codex configure`) so credentials are stored in `~/.codex/config` (or whatever path the CLI already uses). You only need to export `OPENAI_API_KEY`/`CODEX_API_KEY` if you prefer to supply credentials via environment variables instead of the Codex config. AgentV mirrors all guideline and attachment files into a fresh scratch workspace, so the `file://` preread links remain valid even when the CLI runs outside your repo tree.
+Confirm the CLI works by running `codex exec --json --profile <name> "ping"` (or any supported dry run) before starting an eval. This prints JSONL events; seeing `item.completed` messages indicates the CLI is healthy.
 
 ## Timeout Handling and Retries
 

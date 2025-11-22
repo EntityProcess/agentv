@@ -12,21 +12,12 @@ async function createTempDir(prefix: string): Promise<string> {
 
 describe("CodexProvider", () => {
   let fixturesRoot: string;
-  let codexConfigPath: string;
 
   beforeEach(async () => {
     fixturesRoot = await createTempDir("codex-provider-");
-    codexConfigPath = path.join(fixturesRoot, "config");
-    await writeFile(codexConfigPath, "profile: default\n", "utf8");
-    process.env.CODEX_CONFIG_PATH = codexConfigPath;
-    process.env.OPENAI_API_KEY = "test-key";
-    delete process.env.CODEX_API_KEY;
   });
 
   afterEach(async () => {
-    delete process.env.CODEX_CONFIG_PATH;
-    delete process.env.OPENAI_API_KEY;
-    delete process.env.CODEX_API_KEY;
     await rm(fixturesRoot, { recursive: true, force: true });
   });
 
@@ -70,9 +61,16 @@ describe("CodexProvider", () => {
       prompt: string;
       args: string[];
     };
-    expect(invocation.args).toContain("--quiet");
-    expect(invocation.args).toContain("--json");
+    expect(invocation.args.slice(0, 5)).toEqual([
+      "exec",
+      "--json",
+      "--color",
+      "never",
+      "--skip-git-repo-check",
+    ]);
     expect(invocation.args).toContain("--profile");
+    expect(invocation.args).toContain("--ask-for-approval");
+    expect(invocation.args[invocation.args.length - 1]).toBe("-");
     expect(invocation.prompt).toContain("python.instructions.md");
     expect(invocation.prompt).toContain("main.py");
     expect(invocation.prompt).toContain("[[ ## user_query ## ]]");
@@ -107,11 +105,21 @@ describe("CodexProvider", () => {
     await expect(provider.invoke(request)).rejects.toThrow(/invalid JSON|assistant message/i);
   });
 
-  it("fails fast when credentials are missing", async () => {
-    delete process.env.OPENAI_API_KEY;
-    delete process.env.CODEX_API_KEY;
+  it("parses JSONL output from codex exec", async () => {
+    const jsonl = [
+      { type: "thread.started" },
+      { type: "item.completed", item: { type: "reasoning", text: "thinking" } },
+      { type: "item.completed", item: { type: "agent_message", text: "final answer" } },
+      { type: "turn.completed" },
+    ]
+      .map((event) => JSON.stringify(event))
+      .join("\n");
+    const runner = vi.fn(async () => ({
+      stdout: jsonl,
+      stderr: "",
+      exitCode: 0,
+    }));
 
-    const runner = vi.fn();
     const provider = new CodexProvider(
       "codex-target",
       {
@@ -121,10 +129,10 @@ describe("CodexProvider", () => {
     );
 
     const request: ProviderRequest = {
-      prompt: "Hello",
+      prompt: "Use JSONL",
     };
 
-    await expect(provider.invoke(request)).rejects.toThrow(/OPENAI_API_KEY/i);
-    expect(runner).not.toHaveBeenCalled();
+    const response = await provider.invoke(request);
+    expect(response.text).toBe("final answer");
   });
 });

@@ -339,6 +339,26 @@ describe("resolveTargetDefinition", () => {
     expect(target.config.profile).toBeUndefined();
   });
 
+  it("falls back to default codex executable when env reference is unset", () => {
+    const target = resolveTargetDefinition(
+      {
+        name: "codex-env",
+        provider: "codex",
+        settings: {
+          executable: "CODEX_CLI_PATH",
+        },
+      },
+      {},
+    );
+
+    expect(target.kind).toBe("codex");
+    if (target.kind !== "codex") {
+      throw new Error("expected codex target");
+    }
+
+    expect(target.config.executable).toBe("codex");
+  });
+
   it("throws for unknown cli placeholders", () => {
     expect(() =>
       resolveTargetDefinition(
