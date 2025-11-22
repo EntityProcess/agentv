@@ -619,23 +619,28 @@ async function parseEvaluators(
         continue;
       }
 
-      const resolved = await resolveFileReference(script, searchRoots);
-      if (!resolved.resolvedPath) {
-        const attempts = resolved.attempted.length
-          ? ["  Tried:", ...resolved.attempted.map((attempt) => `    ${attempt}`)]
-          : undefined;
-        logWarning(
-          `Skipping code evaluator '${name}' in '${evalId}': script not found (${resolved.displayPath})`,
-          attempts,
-        );
-        continue;
+      const cwd = asString(rawEvaluator.cwd);
+      let resolvedCwd: string | undefined;
+
+      // Resolve cwd if provided (relative to eval file)
+      if (cwd) {
+        const resolved = await resolveFileReference(cwd, searchRoots);
+        if (resolved.resolvedPath) {
+          resolvedCwd = path.resolve(resolved.resolvedPath);
+        } else {
+          logWarning(
+            `Code evaluator '${name}' in '${evalId}': cwd not found (${resolved.displayPath})`,
+            resolved.attempted.length > 0 ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`) : undefined,
+          );
+        }
       }
 
       evaluators.push({
         name,
         type: "code",
         script,
-        resolvedScriptPath: path.resolve(resolved.resolvedPath),
+        cwd,
+        resolvedCwd,
       });
       continue;
     }

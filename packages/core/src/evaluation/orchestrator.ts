@@ -784,7 +784,8 @@ async function runCodeEvaluator(options: {
   readonly agentTimeoutMs?: number;
 }): Promise<GradeResult> {
   const { config, evalCase, candidate, promptInputs, agentTimeoutMs } = options;
-  const scriptPath = config.resolvedScriptPath ?? config.script;
+  const scriptCommand = config.script;
+  const cwd = config.resolvedCwd ?? config.cwd;
 
   const inputPayload = JSON.stringify(
     {
@@ -802,7 +803,7 @@ async function runCodeEvaluator(options: {
   );
 
   try {
-    const stdout = await executeScript(scriptPath, inputPayload, agentTimeoutMs);
+    const stdout = await executeScript(scriptCommand, inputPayload, agentTimeoutMs, cwd);
     const parsed = parseJsonSafe(stdout);
     const score = clampScore(typeof parsed?.score === "number" ? parsed.score : 0);
     const hits = Array.isArray(parsed?.hits) ? parsed.hits.filter(isNonEmptyString) : [];
@@ -816,7 +817,8 @@ async function runCodeEvaluator(options: {
       expectedAspectCount: hits.length + misses.length || 1,
       reasoning,
       graderRawRequest: {
-        script: scriptPath,
+        script: scriptCommand,
+        ...(cwd ? { cwd } : {}),
       },
     };
   } catch (error) {
@@ -828,7 +830,8 @@ async function runCodeEvaluator(options: {
       expectedAspectCount: 1,
       reasoning: message,
       graderRawRequest: {
-        script: scriptPath,
+        script: scriptCommand,
+        ...(cwd ? { cwd } : {}),
         error: message,
       },
     };
@@ -847,9 +850,17 @@ async function resolveCustomPrompt(config: { readonly prompt?: string; readonly 
   return config.prompt;
 }
 
-async function executeScript(scriptPath: string, input: string, agentTimeoutMs?: number): Promise<string> {
+async function executeScript(
+  scriptPath: string,
+  input: string,
+  agentTimeoutMs?: number,
+  cwd?: string,
+): Promise<string> {
   return await new Promise<string>((resolve, reject) => {
-    const child = spawn(scriptPath, { shell: true });
+    const child = spawn(scriptPath, {
+      shell: true,
+      cwd,
+    });
 
     let stdout = "";
     let stderr = "";

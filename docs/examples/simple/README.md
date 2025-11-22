@@ -164,6 +164,41 @@ Keeps eval files clean while supporting rich context.
 
 ## Writing Custom Evaluators
 
+### Code Evaluator I/O Contract
+
+Code evaluators receive input via stdin and write output to stdout as JSON.
+
+**Input Format (via stdin):**
+```json
+{
+  "task": "string describing the task",
+  "outcome": "expected outcome description",
+  "expected": "expected output string",
+  "output": "generated code/text from the agent",
+  "system_message": "system message if any",
+  "guideline_paths": ["path1", "path2"],
+  "attachments": ["file1", "file2"],
+  "user_segments": [{"type": "text", "value": "..."}]
+}
+```
+
+**Output Format (to stdout):**
+```json
+{
+  "score": 0.85,
+  "hits": ["list of successful checks"],
+  "misses": ["list of failed checks"],
+  "reasoning": "explanation of the score"
+}
+```
+
+**Key Points:**
+- Evaluators receive **full context** but should select only relevant fields
+- Most evaluators only need `output` field - ignore the rest to avoid false positives
+- Complex evaluators can use `task`, `expected`, or `guideline_paths` for context-aware validation
+- Score range: `0.0` to `1.0` (float)
+- `hits` and `misses` are optional but recommended for debugging
+
 ### Code Evaluator Script Template
 
 ```python
@@ -172,18 +207,36 @@ import json
 import sys
 
 def evaluate(input_data):
+    # Extract only the fields you need
     output = input_data.get("output", "")
-    # Your validation logic here
-    score = 0.0 to 1.0
-    passed = score >= threshold
-    reasoning = "Explanation"
     
-    return {"score": score, "passed": passed, "reasoning": reasoning}
+    # Your validation logic here
+    score = 0.0  # to 1.0
+    hits = ["successful check 1", "successful check 2"]
+    misses = ["failed check 1"]
+    reasoning = "Explanation of score"
+    
+    return {
+        "score": score,
+        "hits": hits,
+        "misses": misses,
+        "reasoning": reasoning
+    }
 
 if __name__ == "__main__":
-    input_data = json.loads(sys.stdin.read())
-    result = evaluate(input_data)
-    print(json.dumps(result, indent=2))
+    try:
+        input_data = json.loads(sys.stdin.read())
+        result = evaluate(input_data)
+        print(json.dumps(result, indent=2))
+    except Exception as e:
+        error_result = {
+            "score": 0.0,
+            "hits": [],
+            "misses": [f"Evaluator error: {str(e)}"],
+            "reasoning": f"Evaluator error: {str(e)}"
+        }
+        print(json.dumps(error_result, indent=2))
+        sys.exit(1)
 ```
 
 ### LLM Judge Template Structure

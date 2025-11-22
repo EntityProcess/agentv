@@ -56,7 +56,14 @@ Provide your evaluation in this JSON format:
 ```json
 {
   "score": 0.85,
-  "passed": true,
+  "hits": [
+    "Correctly implements the core algorithm",
+    "Includes proper error handling",
+    "Has comprehensive type hints"
+  ],
+  "misses": [
+    "Missing validation for negative numbers"
+  ],
   "reasoning": "Brief explanation of the score focusing on correctness, quality, and completeness"
 }
 ```
@@ -66,5 +73,6 @@ Provide your evaluation in this JSON format:
 - Be objective and consistent in your scoring
 - Focus on whether the code meets the stated requirements
 - Consider both correctness and quality
-- A score of 0.7 or higher indicates "passed"
+- List specific achievements in "hits" (max 4 items)
+- List specific failures or omissions in "misses" (max 4 items, empty array if none)
 - Provide clear, actionable reasoning for your score

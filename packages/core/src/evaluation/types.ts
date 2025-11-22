@@ -169,6 +169,8 @@ export type CodeEvaluatorConfig = {
   readonly type: "code";
   readonly script: string;
   readonly resolvedScriptPath?: string;
+  readonly cwd?: string;
+  readonly resolvedCwd?: string;
 };
 
 export type LlmJudgeEvaluatorConfig = {

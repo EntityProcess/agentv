@@ -79,12 +79,12 @@ evalcases:
       evaluators:
         - name: keyword_check
           type: code  # Code evaluators handle regex, keywords, linting, etc.
-          # Note: script paths shown here are examples - implement as needed
-          script: ../evaluators/scripts/check_python_keywords.py
+          script: uv run check_python_keywords.py
+          cwd: ../../evaluators/scripts  # Working directory for script execution
         - name: semantic_correctness
           type: llm_judge  # LLM-based semantic evaluation
-          prompt: ../evaluators/prompts/code-correctness-judge.md
-          model: gpt-5-chat
+          prompt: ../../evaluators/prompts/code-correctness-judge.md
+          model: gpt-4
     
     input_messages:
       - role: system

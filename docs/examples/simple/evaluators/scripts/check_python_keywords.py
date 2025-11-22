@@ -2,27 +2,31 @@
 """
 Code evaluator script: Check for required Python keywords in generated code.
 
-This script is referenced in example-v2.test.yaml as a code-based evaluator.
-It demonstrates how to write custom validation logic for eval cases.
-
-Expected input (JSON via stdin):
-{
-  "input_messages": [...],
-  "output": "generated code string",
-  "expected_messages": [...]
-}
-
-Expected output (JSON to stdout):
-{
-  "score": 0.0 to 1.0,
-  "passed": true/false,
-  "reasoning": "explanation of the score"
-}
+This script demonstrates how to write custom validation logic for eval cases.
+See ../../README.md for the complete I/O contract specification.
 """
 
 import json
 import sys
 import re
+
+
+def extract_code_from_markdown(text: str) -> str:
+    """
+    Extract code from markdown code blocks.
+    Looks for ```python or ``` code blocks and returns the code content.
+    """
+    # Pattern to match code blocks with optional language specifier
+    pattern = r'```(?:python)?\s*\n(.*?)```'
+    matches = re.findall(pattern, text, re.DOTALL)
+    
+    if matches:
+        # Return the first code block found
+        return matches[0].strip()
+    
+    # If no code blocks found, return the original text
+    # (might be plain code without markdown formatting)
+    return text.strip()
 
 
 def check_python_keywords(code: str) -> dict:
@@ -37,40 +41,44 @@ def check_python_keywords(code: str) -> dict:
     """
     
     score = 0.0
-    reasons = []
+    hits = []
+    misses = []
     
     # Check for type hints
     if re.search(r'from typing import|import typing', code):
         score += 0.25
-        reasons.append("✓ Uses typing module")
+        hits.append("Uses typing module")
     else:
-        reasons.append("✗ Missing typing imports")
+        misses.append("Missing typing imports")
     
     # Check for error handling
     if 'raise' in code and ('Error' in code or 'Exception' in code):
         score += 0.25
-        reasons.append("✓ Raises exceptions")
+        hits.append("Raises exceptions")
     else:
-        reasons.append("✗ Missing exception raising")
+        misses.append("Missing exception raising")
     
     # Check for docstrings
     if '"""' in code or "'''" in code:
         score += 0.25
-        reasons.append("✓ Contains docstrings")
+        hits.append("Contains docstrings")
     else:
-        reasons.append("✗ Missing docstrings")
+        misses.append("Missing docstrings")
     
     # Check for type validation
     if 'isinstance' in code:
         score += 0.25
-        reasons.append("✓ Validates types with isinstance")
+        hits.append("Validates types with isinstance")
     else:
-        reasons.append("✗ Missing type validation")
+        misses.append("Missing type validation")
+    
+    reasoning = f"Passed {len(hits)}/4 checks. Score: {score:.2f}"
     
     return {
         "score": score,
-        "passed": score >= 0.75,  # Require at least 3 out of 4 checks
-        "reasoning": "\n".join(reasons)
+        "hits": hits,
+        "misses": misses,
+        "reasoning": reasoning
     }
 
 
@@ -79,11 +87,14 @@ def main():
         # Read input from stdin
         input_data = json.loads(sys.stdin.read())
         
-        # Extract the generated code from output
+        # Extract the generated output
         output = input_data.get("output", "")
         
-        # Run checks
-        result = check_python_keywords(output)
+        # Extract code from markdown if present
+        code = extract_code_from_markdown(output)
+        
+        # Run checks on the extracted code
+        result = check_python_keywords(code)
         
         # Output result as JSON
         print(json.dumps(result, indent=2))
@@ -92,7 +103,8 @@ def main():
         # Return error result
         error_result = {
             "score": 0.0,
-            "passed": False,
+            "hits": [],
+            "misses": [f"Evaluator error: {str(e)}"],
             "reasoning": f"Evaluator error: {str(e)}"
         }
         print(json.dumps(error_result, indent=2))
