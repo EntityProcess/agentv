@@ -238,10 +238,6 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     });
   }
 
-  if (options.verbose) {
-    process.env.AGENTV_VERBOSE = "1";
-  }
-
   const evaluationRunner = await resolveEvaluationRunner();
 
   // Initialize progress display
