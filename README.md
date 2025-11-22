@@ -183,20 +183,6 @@ Output goes to `.agentv/results/{evalname}_{timestamp}.jsonl` (or `.yaml`) unles
 
 **Recommended Models:** Use Claude Sonnet 4.5 or Grok Code Fast 1 for best results, as these models are more consistent in following instruction chains.
 
-## Requirements
-
-- Node.js 20.0.0 or higher
-- Environment variables for your chosen providers (configured via targets.yaml)
-
-Environment keys (configured via targets.yaml):
-
-- **Azure OpenAI:** Set environment variables specified in your target's `settings.endpoint`, `settings.api_key`, and `settings.model`
-- **Anthropic Claude:** Set environment variables specified in your target's `settings.api_key` and `settings.model`
-- **Google Gemini:** Set environment variables specified in your target's `settings.api_key` and optional `settings.model`
-- **VS Code:** Set environment variable specified in your target's `settings.workspace_env` → `.code-workspace` path
-- **CLI provider:** Configure `command_template` plus optional `cwd`, `env`, `timeout_seconds`, and `healthcheck` fields in targets.yaml; CLI `settings.env` entries are merged into the process environment
-- **Codex CLI:** Install the `codex` CLI and run `codex configure` so credentials live in `~/.codex/config` (or a custom path). Export `OPENAI_API_KEY`/`CODEX_API_KEY` only if your CLI profile does not already provide credentials from its configured profile.
-
 ## Targets and Environment Variables
 
 Execution targets in `.agentv/targets.yaml` decouple evals from providers/settings and provide flexible environment variable mapping.
@@ -290,7 +276,7 @@ CLI troubleshooting: unsupported placeholders fail validation, so stick to the t
     cwd: CODEX_WORKSPACE_DIR
 ```
 
-Codex targets require the standalone `codex` CLI and a configured profile (via `codex configure`) so credentials are stored in `~/.codex/config` (or whatever path the CLI already uses). You only need to export `OPENAI_API_KEY`/`CODEX_API_KEY` if you prefer to supply credentials via environment variables instead of the Codex config. AgentV mirrors all guideline and attachment files into a fresh scratch workspace, so the `file://` preread links remain valid even when the CLI runs outside your repo tree.
+Codex targets require the standalone `codex` CLI and a configured profile (via `codex configure`) so credentials are stored in `~/.codex/config` (or whatever path the CLI already uses). AgentV mirrors all guideline and attachment files into a fresh scratch workspace, so the `file://` preread links remain valid even when the CLI runs outside your repo tree.
 Confirm the CLI works by running `codex exec --json --profile <name> "ping"` (or any supported dry run) before starting an eval. This prints JSONL events; seeing `item.completed` messages indicates the CLI is healthy.
 
 ## Timeout Handling and Retries
