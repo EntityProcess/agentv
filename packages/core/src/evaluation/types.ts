@@ -179,8 +179,6 @@ export interface EvalCase {
   readonly file_paths: readonly string[];
   readonly code_snippets: readonly string[];
   readonly outcome: string;
-  /** @deprecated Use `evaluator` instead. Kept for backward compatibility. */
-  readonly grader?: EvaluatorKind;
   readonly evaluator?: EvaluatorKind;
   readonly evaluators?: readonly EvaluatorConfig[];
 }
@@ -201,8 +199,6 @@ export interface EvaluationResult {
   readonly reasoning?: string;
   readonly raw_aspects?: readonly string[];
   readonly raw_request?: JsonObject;
-  /** @deprecated Use `evaluator_raw_request` instead. Kept for backward compatibility. */
-  readonly grader_raw_request?: JsonObject;
   readonly evaluator_raw_request?: JsonObject;
   readonly evaluator_results?: readonly EvaluatorResult[];
 }
@@ -215,8 +211,6 @@ export interface EvaluatorResult {
   readonly misses: readonly string[];
   readonly reasoning?: string;
   readonly raw_request?: JsonObject;
-  /** @deprecated Use `evaluator_raw_request` instead. Kept for backward compatibility. */
-  readonly grader_raw_request?: JsonObject;
   readonly evaluator_raw_request?: JsonObject;
 }
 

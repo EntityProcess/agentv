@@ -124,7 +124,6 @@ type LoadOptions = {
 
 type RawTestSuite = JsonObject & {
   readonly $schema?: JsonValue;
-  readonly grader?: JsonValue;
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
 };
@@ -135,7 +134,6 @@ type RawEvalCase = JsonObject & {
   readonly outcome?: JsonValue;
   readonly input_messages?: JsonValue;
   readonly expected_messages?: JsonValue;
-  readonly grader?: JsonValue;
   readonly execution?: JsonValue;
   readonly evaluators?: JsonValue;
 };
@@ -185,11 +183,7 @@ export async function loadEvalCases(
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'evalcases' field`);
   }
 
-  // Support both 'evaluator' (new) and 'grader' (deprecated) fields
-  if (suite.grader && !suite.evaluator) {
-    logWarning("The 'grader' field is deprecated. Please use 'evaluator' instead.");
-  }
-  const globalEvaluator = coerceEvaluator(suite.evaluator ?? suite.grader, "global") ?? "llm_judge";
+  const globalEvaluator = coerceEvaluator(suite.evaluator, "global") ?? "llm_judge";
   const results: EvalCase[] = [];
 
   for (const rawEvalcase of rawTestcases) {
@@ -344,11 +338,7 @@ export async function loadEvalCases(
       .filter((part) => part.length > 0)
       .join(" ");
 
-    // Support both 'evaluator' (new) and 'grader' (deprecated) fields at test case level
-    if (evalcase.grader && !evalcase.evaluator) {
-      logWarning(`Test case '${id}': The 'grader' field is deprecated. Please use 'evaluator' instead.`);
-    }
-    const testCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator ?? evalcase.grader, id) ?? globalEvaluator;
+    const testCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator, id) ?? globalEvaluator;
     const evaluators = await parseEvaluators(evalcase, searchRoots, id ?? "unknown");
 
     // Extract file paths from user_segments (non-guideline files)
@@ -377,7 +367,6 @@ export async function loadEvalCases(
       file_paths: allFilePaths,
       code_snippets: codeSnippets,
       outcome,
-      grader: testCaseEvaluatorKind, // deprecated but kept for backward compat
       evaluator: testCaseEvaluatorKind,
       evaluators,
     };

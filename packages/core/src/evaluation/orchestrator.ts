@@ -566,7 +566,6 @@ async function evaluateCandidate(options: {
     reasoning: score.reasoning,
     raw_aspects: score.rawAspects,
     raw_request: rawRequest,
-    grader_raw_request: evaluatorResults ? undefined : score.evaluatorRawRequest,
     evaluator_raw_request: evaluatorResults ? undefined : score.evaluatorRawRequest,
     evaluator_results: evaluatorResults,
   };
@@ -603,8 +602,7 @@ async function runEvaluatorsForCase(options: {
     });
   }
 
-  // Legacy fallback: support both 'evaluator' (new) and 'grader' (deprecated) fields
-  const evaluatorKind = evalCase.evaluator ?? evalCase.grader ?? "llm_judge";
+  const evaluatorKind = evalCase.evaluator ?? "llm_judge";
   const activeEvaluator = evaluators[evaluatorKind] ?? evaluators.llm_judge;
   if (!activeEvaluator) {
     throw new Error(`No evaluator registered for kind '${evaluatorKind}'`);
@@ -677,7 +675,6 @@ async function runEvaluatorList(options: {
           hits: score.hits,
           misses: score.misses,
           reasoning: score.reasoning,
-          grader_raw_request: score.evaluatorRawRequest,
           evaluator_raw_request: score.evaluatorRawRequest,
         });
         continue;
@@ -706,7 +703,6 @@ async function runEvaluatorList(options: {
           hits: score.hits,
           misses: score.misses,
           reasoning: score.reasoning,
-          grader_raw_request: score.evaluatorRawRequest,
           evaluator_raw_request: score.evaluatorRawRequest,
         });
         continue;

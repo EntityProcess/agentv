@@ -266,7 +266,7 @@
 
 ## Notes
 
-- **Backward Compatibility**: During transition, support both old and new field names with deprecation warnings
+- ✅ **Breaking Change**: Removed all backward compatibility - `grader` field no longer supported
 - **Testing**: Run full test suite after each phase
 - **Commits**: Make atomic commits for each phase to enable easy rollback
 - **Review**: Each phase should be reviewed before proceeding to next
