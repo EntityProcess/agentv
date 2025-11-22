@@ -36,6 +36,7 @@ async function defaultCommandRunner(
     timeout: options.timeoutMs,
     signal: options.signal,
     maxBuffer: DEFAULT_MAX_BUFFER,
+    shell: process.platform === "win32" ? "powershell.exe" : undefined,
   };
 
   try {
