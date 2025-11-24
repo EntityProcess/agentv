@@ -74,29 +74,6 @@ You are now ready to start development. The monorepo contains:
 
 ## Quick Start
 
-### Configuring Guideline Patterns
-
-AgentV automatically detects guideline files and treats them differently from regular file content. You can customize which files are considered guidelines using an optional `.agentv/config.yaml` configuration file.
-
-**Config file discovery:**
-- AgentV searches for `.agentv/config.yaml` starting from the eval file's directory
-- Walks up the directory tree to the repository root
-- Uses the first config file found (similar to how `targets.yaml` is discovered)
-- This allows you to place one config file at the project root for all evals
-
-**Custom patterns** (create `.agentv/config.yaml` in same directory as your eval file):
-
-```yaml
-# .agentv/config.yaml
-guideline_patterns:
-  - "**/*.guide.md"           # Match all .guide.md files
-  - "**/guidelines/**"        # Match all files in /guidelines/ dirs
-  - "docs/AGENTS.md"          # Match specific files
-  - "**/*.rules.md"           # Match by naming convention
-```
-
-See [config.yaml example](docs/examples/simple/.agentv/config.yaml) for more pattern examples.
-
 ### Validating Eval Files
 
 Validate your eval and targets files before running them:
@@ -256,21 +233,6 @@ Each target specifies:
 Codex targets require the standalone `codex` CLI and a configured profile (via `codex configure`) so credentials are stored in `~/.codex/config` (or whatever path the CLI already uses). AgentV mirrors all guideline and attachment files into a fresh scratch workspace, so the `file://` preread links remain valid even when the CLI runs outside your repo tree.
 Confirm the CLI works by running `codex exec --json --profile <name> "ping"` (or any supported dry run) before starting an eval. This prints JSONL events; seeing `item.completed` messages indicates the CLI is healthy.
 
-## Timeout Handling and Retries
-
-When using VS Code or other AI agents that may experience timeouts, the evaluator includes automatic retry functionality:
-
-- **Timeout detection:** Automatically detects when agents timeout
-- **Automatic retries:** When a timeout occurs, the same eval case is retried up to `--max-retries` times (default: 2)
-- **Retry behavior:** Only timeouts trigger retries; other errors proceed to the next eval case
-- **Timeout configuration:** Use `--agent-timeout` to adjust how long to wait for agent responses
-
-Example with custom timeout settings:
-
-```bash
-agentv eval evals/projectx/example.yaml --target vscode_projectx --agent-timeout 180 --max-retries 3
-```
-
 ## Writing Custom Evaluators
 
 ### Code Evaluator I/O Contract
@@ -370,109 +332,16 @@ Evaluation criteria and guidelines...
 
 ## Next Steps
 
-- Review `docs/examples/simple/evals/example-eval.yaml` to understand the schema
-- Create your own eval cases following the schema
-- Write custom evaluator scripts for domain-specific validation
-- Create LLM judge templates for semantic evaluation
+- Review [docs/examples/simple/evals/example-eval.yaml](docs/examples/simple/evals/example-eval.yaml) to understand the schema
+- Create your own eval dataset following the schema
+- Write custom evaluator scripts for deterministic evaluation
+- Create LLM judge prompts for semantic evaluation
 - Set up optimizer configs when ready to improve prompts
 
 ## Resources
 
 - [Simple Example README](docs/examples/simple/README.md)
-- [Schema Specification](docs/openspec/changes/update-eval-schema-v2/)
 - [Ax ACE Documentation](https://github.com/ax-llm/ax/blob/main/docs/ACE.md)
-
-## Scoring and Outputs
-
-Run with `--verbose` to print detailed information and stack traces on errors.
-
-### Scoring Methodology
-
-AgentV uses an AI-powered quality grader that:
-
-- Extracts key aspects from the expected answer
-- Compares model output against those aspects
-- Provides detailed hit/miss analysis with reasoning
-- Returns a normalized score (0.0 to 1.0)
-
-### Output Formats
-
-**JSONL format (default):**
-
-- One JSON object per line (newline-delimited)
-- Fields: `eval_id`, `score`, `hits`, `misses`, `model_answer`, `expected_aspect_count`, `target`, `timestamp`, `reasoning`, `raw_request`, `grader_raw_request`
-
-**YAML format (with `--format yaml`):**
-
-- Human-readable YAML documents
-- Same fields as JSONL, properly formatted for readability
-- Multi-line strings use literal block style
-
-### Summary Statistics
-
-After running all eval cases, AgentV displays:
-
-- Mean, median, min, max scores
-- Standard deviation
-- Distribution histogram
-- Total eval count and execution time
-
-## Architecture
-
-AgentV is built as a TypeScript monorepo using:
-
-- **pnpm workspaces:** Efficient dependency management
-- **Turbo:** Build system and task orchestration
-- **@ax-llm/ax:** Unified LLM provider abstraction
-- **Vercel AI SDK:** Streaming and tool use capabilities
-- **Zod:** Runtime type validation
-- **Commander.js:** CLI argument parsing
-- **Vitest:** Testing framework
-
-### Package Structure
-
-- `@agentv/core` - Core evaluation engine, providers, grading logic
-- `agentv` - Main package that bundles CLI functionality
-
-## Troubleshooting
-
-### Installation Issues
-
-**Problem:** Package installation fails or command not found.
-
-**Solution:**
-
-```bash
-# Clear npm cache and reinstall
-npm cache clean --force
-npm uninstall -g agentv
-npm install -g agentv
-
-# Or use npx without installing
-npx agentv@latest --help
-```
-
-### VS Code Integration Issues
-
-**Problem:** VS Code workspace doesn't open or prompts aren't injected.
-
-**Solution:**
-
-- Ensure the `subagent` package is installed (should be automatic)
-- Verify your workspace path in `.env` is correct and points to a `.code-workspace` file
-- Close any other VS Code instances before running evals
-- Use `--verbose` flag to see detailed workspace switching logs
-
-### Provider Configuration Issues
-
-**Problem:** API authentication errors or missing credentials.
-
-**Solution:**
-
-- Double-check environment variables in your `.env` file
-- Verify the variable names in `targets.yaml` match your `.env` file
-- Use `--dry-run` first to test without making API calls
-- Check provider-specific documentation for required environment variables
 
 ## License
 
