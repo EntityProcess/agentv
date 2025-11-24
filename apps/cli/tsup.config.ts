@@ -25,7 +25,10 @@ export default defineConfig({
     const templates = [
       "eval-build.prompt.md",
       "eval-schema.json",
-      "config-schema.json"
+      "config-schema.json",
+      "targets.yaml",
+      "config.yaml",
+      ".env.template"
     ];
     
     for (const file of templates) {

@@ -36,6 +36,18 @@ export class TemplateManager {
       path.join(templatesDir, "config-schema.json"),
       "utf-8"
     );
+    const targetsYaml = readFileSync(
+      path.join(templatesDir, "targets.yaml"),
+      "utf-8"
+    );
+    const configYaml = readFileSync(
+      path.join(templatesDir, "config.yaml"),
+      "utf-8"
+    );
+    const envTemplate = readFileSync(
+      path.join(templatesDir, ".env.template"),
+      "utf-8"
+    );
 
     return [
       {
@@ -49,6 +61,46 @@ export class TemplateManager {
       {
         path: "contexts/config-schema.json",
         content: configSchema,
+      },
+    ];
+  }
+
+  static getAgentvTemplates(): Template[] {
+    // Get templates for .agentv directory
+    const currentDir = path.dirname(fileURLToPath(import.meta.url));
+    
+    let templatesDir: string;
+    if (currentDir.includes(path.sep + "dist")) {
+      templatesDir = path.join(currentDir, "templates");
+    } else {
+      templatesDir = currentDir;
+    }
+    
+    const targetsYaml = readFileSync(
+      path.join(templatesDir, "targets.yaml"),
+      "utf-8"
+    );
+    const configYaml = readFileSync(
+      path.join(templatesDir, "config.yaml"),
+      "utf-8"
+    );
+    const envTemplate = readFileSync(
+      path.join(templatesDir, ".env.template"),
+      "utf-8"
+    );
+
+    return [
+      {
+        path: "targets.yaml",
+        content: targetsYaml,
+      },
+      {
+        path: "config.yaml",
+        content: configYaml,
+      },
+      {
+        path: ".env",
+        content: envTemplate,
       },
     ];
   }
