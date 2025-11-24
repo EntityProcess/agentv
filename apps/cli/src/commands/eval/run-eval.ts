@@ -153,6 +153,7 @@ function createEvaluationCache(): EvaluationCache {
 }
 
 type ProgressReporter = {
+  readonly isInteractive: boolean;
   start(): void;
   setTotal(total: number): void;
   update(workerId: number, progress: WorkerProgress): void;
@@ -162,6 +163,7 @@ type ProgressReporter = {
 function createProgressReporter(maxWorkers: number): ProgressReporter {
   const display = new ProgressDisplay(maxWorkers);
   return {
+    isInteractive: display.isInteractiveMode(),
     start: () => display.start(),
     setTotal: (total: number) => display.setTotalTests(total),
     update: (workerId: number, progress: WorkerProgress) =>
@@ -278,10 +280,13 @@ async function runSingleEvalFile(params: {
   });
 
   const providerLabel = options.dryRun ? `${targetSelection.resolvedTarget.kind} (dry-run)` : targetSelection.resolvedTarget.kind;
+  const inlineTargetLabel = `${targetSelection.targetName} [provider=${providerLabel}]`;
   const targetMessage = options.verbose
     ? `Using target (${targetSelection.targetSource}): ${targetSelection.targetName} [provider=${providerLabel}] via ${targetSelection.targetsFilePath}`
-    : `Using target: ${targetSelection.targetName} [provider=${providerLabel}]`;
-  console.log(targetMessage);
+    : `Using target: ${inlineTargetLabel}`;
+  if (!progressReporter.isInteractive || options.verbose) {
+    console.log(targetMessage);
+  }
 
   const promptDumpDir = resolvePromptDirectory(options.dumpPrompts, cwd);
   if (promptDumpDir) {
@@ -369,13 +374,15 @@ async function runSingleEvalFile(params: {
           }
           pendingTests.add(key);
         }
-        progressReporter.update(translateWorkerId(event.workerId), {
-          workerId: translateWorkerId(event.workerId),
+        const workerId = translateWorkerId(event.workerId);
+        progressReporter.update(workerId, {
+          workerId,
           evalId: event.evalId,
           status: event.status,
           startedAt: event.startedAt,
           completedAt: event.completedAt,
           error: event.error,
+          targetLabel: inlineTargetLabel,
         });
       },
     });

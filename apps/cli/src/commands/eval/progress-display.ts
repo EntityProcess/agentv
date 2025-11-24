@@ -7,6 +7,7 @@ export interface WorkerProgress {
   startedAt?: number;
   completedAt?: number;
   error?: string;
+  targetLabel?: string;
 }
 
 export class ProgressDisplay {
@@ -20,6 +21,10 @@ export class ProgressDisplay {
   constructor(maxWorkers: number) {
     this.maxWorkers = maxWorkers;
     this.isInteractive = process.stderr.isTTY && !process.env.CI;
+  }
+
+  isInteractiveMode(): boolean {
+    return this.isInteractive;
   }
 
   start(): void {
@@ -44,10 +49,11 @@ export class ProgressDisplay {
       this.scheduleRender();
     } else {
       // In non-interactive mode, just print completion events
+      const targetSuffix = progress.targetLabel ? ` | ${progress.targetLabel}` : "";
       if (progress.status === "completed") {
-        console.log(`✓ Test ${progress.evalId} completed`);
+        console.log(`✓ Eval ${progress.evalId}${targetSuffix} completed`);
       } else if (progress.status === "failed") {
-        console.log(`✗ Test ${progress.evalId} failed${progress.error ? `: ${progress.error}` : ""}`);
+        console.log(`✗ Eval ${progress.evalId}${targetSuffix} failed${progress.error ? `: ${progress.error}` : ""}`);
       }
     }
   }
@@ -74,7 +80,7 @@ export class ProgressDisplay {
     
     // Header with overall progress
     const progressBar = this.buildProgressBar(this.completedTests, this.totalTests);
-    lines.push(`${progressBar} ${this.completedTests}/${this.totalTests} tests`);
+    lines.push(`${progressBar} ${this.completedTests}/${this.totalTests} evals`);
     
     // Empty line between progress and workers
     lines.push("");
@@ -91,17 +97,23 @@ export class ProgressDisplay {
   }
 
   private formatWorkerLine(worker: WorkerProgress): string {
-    const workerLabel = `Worker ${worker.workerId}`.padEnd(10);
+    const workerLabel = `${worker.workerId}.`.padEnd(4);
     const statusIcon = this.getStatusIcon(worker.status);
     const elapsed = worker.startedAt ? this.formatElapsed(Date.now() - worker.startedAt) : "";
     const timeLabel = elapsed ? ` (${elapsed})` : "";
+    const targetLabel = worker.targetLabel ? `  | ${worker.targetLabel}` : "";
+
+    const maxLineLength = 90;
+    const reservedLength =
+      workerLabel.length + statusIcon.length + timeLabel.length + targetLabel.length + 4; // spaces and separators
+    const availableLabelLength = Math.max(15, maxLineLength - reservedLength);
 
     let testLabel = worker.evalId;
-    if (testLabel.length > 50) {
-      testLabel = testLabel.substring(0, 47) + "...";
+    if (testLabel.length > availableLabelLength) {
+      testLabel = `${testLabel.substring(0, Math.max(0, availableLabelLength - 3))}...`;
     }
 
-    return `${workerLabel} ${statusIcon} ${testLabel}${timeLabel}`;
+    return `${workerLabel} ${statusIcon} ${testLabel}${timeLabel}${targetLabel}`;
   }
 
   private getStatusIcon(status: WorkerProgress["status"]): string {
