@@ -31,8 +31,8 @@ export class YamlWriter {
       const yamlDoc = stringifyYaml(record, {
         indent: 2,
         lineWidth: 0, // Disable line wrapping
-        defaultStringType: "PLAIN",
-        defaultKeyType: "PLAIN",
+        // Let YAML library choose appropriate string style based on content
+        // (will use block literal for multiline strings with actual newlines)
       });
 
       // Add YAML document separator (---) between records
