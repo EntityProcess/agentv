@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,48 +8,52 @@ export interface Template {
 }
 
 export class TemplateManager {
-  static getTemplates(): Template[] {
-    // Resolve templates directory:
-    // - In production (dist): templates are at dist/templates/
-    // - In development (src): templates are at src/templates/
+  static getGithubTemplates(): Template[] {
+    return this.getTemplatesFromDir("github");
+  }
+
+  static getAgentvTemplates(): Template[] {
+    return this.getTemplatesFromDir("agentv");
+  }
+
+  private static getTemplatesFromDir(subdir: string): Template[] {
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
     
     // Check if we're running from dist or src
     let templatesDir: string;
     if (currentDir.includes(path.sep + "dist")) {
       // Production: templates are at dist/templates/
-      templatesDir = path.join(currentDir, "templates");
+      templatesDir = path.join(currentDir, "templates", subdir);
     } else {
       // Development: templates are at src/templates/ (same directory as this file)
-      templatesDir = currentDir;
+      templatesDir = path.join(currentDir, subdir);
     }
-    
-    const evalBuildPrompt = readFileSync(
-      path.join(templatesDir, "eval-build.prompt.md"),
-      "utf-8"
-    );
-    const evalSchema = readFileSync(
-      path.join(templatesDir, "eval-schema.json"),
-      "utf-8"
-    );
-    const configSchema = readFileSync(
-      path.join(templatesDir, "config-schema.json"),
-      "utf-8"
-    );
 
-    return [
-      {
-        path: "prompts/eval-build.prompt.md",
-        content: evalBuildPrompt,
-      },
-      {
-        path: "contexts/eval-schema.json",
-        content: evalSchema,
-      },
-      {
-        path: "contexts/config-schema.json",
-        content: configSchema,
-      },
-    ];
+    return this.readTemplatesRecursively(templatesDir, "");
+  }
+
+  private static readTemplatesRecursively(dir: string, relativePath: string): Template[] {
+    const templates: Template[] = [];
+    const entries = readdirSync(dir);
+
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry);
+      const stat = statSync(fullPath);
+      const entryRelativePath = relativePath ? path.join(relativePath, entry) : entry;
+
+      if (stat.isDirectory()) {
+        // Recursively read subdirectories
+        templates.push(...this.readTemplatesRecursively(fullPath, entryRelativePath));
+      } else {
+        // Read file content
+        const content = readFileSync(fullPath, "utf-8");
+        templates.push({
+          path: entryRelativePath.split(path.sep).join("/"), // Normalize to forward slashes
+          content,
+        });
+      }
+    }
+
+    return templates;
   }
 }

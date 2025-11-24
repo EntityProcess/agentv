@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, existsSync } from "node:fs";
+import { cpSync, existsSync } from "node:fs";
 import path from "node:path";
 import { defineConfig } from "tsup";
 
@@ -16,24 +16,17 @@ export default defineConfig({
   external: ["micromatch"],
   // Copy template files after build
   onSuccess: async () => {
-    const templatesDir = path.join("dist", "templates");
-    if (!existsSync(templatesDir)) {
-      mkdirSync(templatesDir, { recursive: true });
-    }
+    const srcTemplatesDir = path.join("src", "templates");
+    const distTemplatesDir = path.join("dist", "templates");
     
-    // Copy template files
-    const templates = [
-      "eval-build.prompt.md",
-      "eval-schema.json",
-      "config-schema.json"
-    ];
-    
-    for (const file of templates) {
-      copyFileSync(
-        path.join("src", "templates", file),
-        path.join(templatesDir, file)
-      );
-    }
+    // Copy entire templates directory structure recursively
+    cpSync(srcTemplatesDir, distTemplatesDir, { 
+      recursive: true,
+      filter: (src) => {
+        // Skip index.ts and any TypeScript files
+        return !src.endsWith(".ts");
+      }
+    });
     
     console.log("✓ Template files copied to dist/templates");
   },

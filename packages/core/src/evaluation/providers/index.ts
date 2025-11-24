@@ -1,5 +1,6 @@
 import { AnthropicProvider, AzureProvider, GeminiProvider } from "./ax.js";
 import { CliProvider } from "./cli.js";
+import { CodexProvider } from "./codex.js";
 import { MockProvider } from "./mock.js";
 import type { ResolvedTarget } from "./targets.js";
 import { resolveTargetDefinition } from "./targets.js";
@@ -15,13 +16,9 @@ export type {
   TargetDefinition,
 } from "./types.js";
 
-import { CodexProvider } from "./codex.js";
-import type { CodexResolvedConfig } from "./targets.js";
-
 export type {
   AnthropicResolvedConfig,
   AzureResolvedConfig,
-  CodexResolvedConfig,
   CliResolvedConfig,
   GeminiResolvedConfig,
   MockResolvedConfig,

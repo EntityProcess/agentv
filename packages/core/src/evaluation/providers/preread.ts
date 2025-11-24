@@ -1,7 +1,7 @@
 import path from "node:path";
 
-import { isGuidelineFile } from "../yaml-parser.js";
 import type { ProviderRequest } from "./types.js";
+import { isGuidelineFile } from "../yaml-parser.js";
 
 export interface PromptDocumentOptions {
   readonly guidelinePatterns?: readonly string[];
