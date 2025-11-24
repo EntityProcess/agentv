@@ -15,8 +15,9 @@ import {
   createOutputWriter,
   getDefaultExtension,
   type OutputFormat,
+  type OutputWriter,
 } from "./output-writer.js";
-import { ProgressDisplay } from "./progress-display.js";
+import { ProgressDisplay, type WorkerProgress } from "./progress-display.js";
 import { calculateEvaluationSummary, formatEvaluationSummary } from "./statistics.js";
 import { selectTarget } from "./targets.js";
 
@@ -151,6 +152,240 @@ function createEvaluationCache(): EvaluationCache {
   } satisfies EvaluationCache;
 }
 
+type ProgressReporter = {
+  start(): void;
+  setTotal(total: number): void;
+  update(workerId: number, progress: WorkerProgress): void;
+  finish(): void;
+};
+
+function createProgressReporter(maxWorkers: number): ProgressReporter {
+  const display = new ProgressDisplay(maxWorkers);
+  return {
+    start: () => display.start(),
+    setTotal: (total: number) => display.setTotalTests(total),
+    update: (workerId: number, progress: WorkerProgress) =>
+      display.updateWorker({ ...progress, workerId }),
+    finish: () => display.finish(),
+  };
+}
+
+type WorkerPool = {
+  allocate(count: number): number[];
+  release(workerIds: readonly number[]): void;
+};
+
+function createWorkerPool(initialSize: number): WorkerPool {
+  const available: number[] = Array.from({ length: Math.max(1, initialSize) }, (_, i) => i + 1);
+  const inUse = new Set<number>();
+
+  const allocate = (count: number): number[] => {
+    const needed = Math.max(1, count);
+    while (available.length < needed) {
+      available.push(available.length + 1);
+    }
+
+    const allocated: number[] = [];
+    for (let i = 0; i < needed; i++) {
+      const next = available.shift();
+      if (next === undefined) {
+        break;
+      }
+      inUse.add(next);
+      allocated.push(next);
+    }
+    return allocated;
+  };
+
+  const release = (workerIds: readonly number[]): void => {
+    for (const id of workerIds) {
+      if (inUse.delete(id)) {
+        available.push(id);
+      }
+    }
+    available.sort((a, b) => a - b);
+  };
+
+  return { allocate, release };
+}
+
+async function runWithLimit<T>(
+  items: readonly T[],
+  limit: number,
+  task: (item: T) => Promise<void>,
+): Promise<void> {
+  const safeLimit = Math.max(1, limit);
+  let index = 0;
+
+  const workers = Array.from({ length: safeLimit }, async () => {
+    while (index < items.length) {
+      const current = items[index];
+      index += 1;
+      await task(current);
+    }
+  });
+
+  await Promise.all(workers);
+}
+
+async function runSingleEvalFile(params: {
+  readonly testFilePath: string;
+  readonly cwd: string;
+  readonly repoRoot: string;
+  readonly options: NormalizedOptions;
+  readonly outputWriter: OutputWriter;
+  readonly cache?: EvaluationCache;
+  readonly evaluationRunner: typeof defaultRunEvaluation;
+  readonly workersOverride?: number;
+  readonly workerPool: WorkerPool;
+  readonly progressReporter: ProgressReporter;
+  readonly seenEvalCases: Set<string>;
+}): Promise<{ results: EvaluationResult[]; promptDumpDir?: string }> {
+  const {
+    testFilePath,
+    cwd,
+    repoRoot,
+    options,
+    outputWriter,
+    cache,
+    evaluationRunner,
+    workersOverride,
+    workerPool,
+    progressReporter,
+    seenEvalCases,
+  } =
+    params;
+
+  await ensureFileExists(testFilePath, "Test file");
+
+  await loadEnvFromHierarchy({
+    testFilePath,
+    repoRoot,
+    verbose: options.verbose,
+  });
+
+  const targetSelection = await selectTarget({
+    testFilePath,
+    repoRoot,
+    cwd,
+    explicitTargetsPath: options.targetsPath,
+    cliTargetName: options.target,
+    dryRun: options.dryRun,
+    dryRunDelay: options.dryRunDelay,
+    dryRunDelayMin: options.dryRunDelayMin,
+    dryRunDelayMax: options.dryRunDelayMax,
+    env: process.env,
+  });
+
+  const providerLabel = options.dryRun ? `${targetSelection.resolvedTarget.kind} (dry-run)` : targetSelection.resolvedTarget.kind;
+  const targetMessage = options.verbose
+    ? `Using target (${targetSelection.targetSource}): ${targetSelection.targetName} [provider=${providerLabel}] via ${targetSelection.targetsFilePath}`
+    : `Using target: ${targetSelection.targetName} [provider=${providerLabel}]`;
+  console.log(targetMessage);
+
+  const promptDumpDir = resolvePromptDirectory(options.dumpPrompts, cwd);
+  if (promptDumpDir) {
+    await mkdir(promptDumpDir, { recursive: true });
+    if (options.verbose) {
+      console.log(`Prompt dumps enabled at: ${promptDumpDir}`);
+    }
+  }
+
+  const agentTimeoutMs = Math.max(0, options.agentTimeoutSeconds) * 1000;
+
+  // Resolve workers: CLI flag (adjusted per-file) > target setting > default (1)
+  const workerPreference = workersOverride ?? options.workers;
+  let resolvedWorkers = workerPreference ?? targetSelection.resolvedTarget.workers ?? 1;
+  if (resolvedWorkers < 1 || resolvedWorkers > 50) {
+    throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
+  }
+
+  // VSCode providers require window focus, so only 1 worker is allowed
+  const isVSCodeProvider = ["vscode", "vscode-insiders"].includes(
+    targetSelection.resolvedTarget.kind
+  );
+  if (isVSCodeProvider && resolvedWorkers > 1) {
+    console.warn(`Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`);
+    resolvedWorkers = 1;
+  }
+
+  if (options.verbose) {
+    const workersSource = workerPreference
+      ? "CLI flag (balanced across files)"
+      : targetSelection.resolvedTarget.workers
+        ? "target setting"
+        : "default";
+    console.log(`Using ${resolvedWorkers} worker(s) (source: ${workersSource})`);
+  }
+
+  // Auto-provision subagents for VSCode targets
+  if (isVSCodeProvider && !options.dryRun) {
+    await ensureVSCodeSubagents({
+      kind: targetSelection.resolvedTarget.kind as "vscode" | "vscode-insiders",
+      count: resolvedWorkers,
+      verbose: options.verbose,
+    });
+  }
+
+  const workerAssignments = new Map<number, number>();
+  const allocatedWorkers: number[] = [];
+  const translateWorkerId = (localId: number): number => {
+    const existing = workerAssignments.get(localId);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const [assigned] = workerPool.allocate(1);
+    workerAssignments.set(localId, assigned);
+    allocatedWorkers.push(assigned);
+    return assigned;
+  };
+  const pendingTests = new Set<string>();
+
+  try {
+    const results = await evaluationRunner({
+      testFilePath,
+      repoRoot,
+      target: targetSelection.resolvedTarget,
+      targets: targetSelection.definitions,
+      env: process.env,
+      maxRetries: Math.max(0, options.maxRetries),
+      agentTimeoutMs,
+      promptDumpDir,
+      cache,
+      useCache: options.cache,
+      evalId: options.evalId,
+      verbose: options.verbose,
+      maxConcurrency: resolvedWorkers,
+      onResult: async (result: EvaluationResult) => {
+        await outputWriter.append(result);
+      },
+      onProgress: async (event) => {
+        // Track pending events to determine total test count
+        if (event.status === "pending") {
+          const key = `${testFilePath}::${event.evalId}`;
+          if (!seenEvalCases.has(key)) {
+            seenEvalCases.add(key);
+            progressReporter.setTotal(seenEvalCases.size);
+          }
+          pendingTests.add(key);
+        }
+        progressReporter.update(translateWorkerId(event.workerId), {
+          workerId: translateWorkerId(event.workerId),
+          evalId: event.evalId,
+          status: event.status,
+          startedAt: event.startedAt,
+          completedAt: event.completedAt,
+          error: event.error,
+        });
+      },
+    });
+
+    return { results: [...results], promptDumpDir };
+  } finally {
+    workerPool.release(allocatedWorkers);
+  }
+}
+
 export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> {
   const options = normalizeOptions(input.rawOptions);
   const cwd = process.cwd();
@@ -168,123 +403,41 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const evaluationRunner = await resolveEvaluationRunner();
   const allResults: EvaluationResult[] = [];
   let lastPromptDumpDir: string | undefined;
+  const seenEvalCases = new Set<string>();
+
+  // Derive file-level concurrency from worker count (global) when provided
+  const totalWorkers = options.workers ?? 1;
+  const fileConcurrency = Math.min(Math.max(1, totalWorkers), Math.max(1, input.testFiles.length));
+  const perFileWorkers = options.workers
+    ? Math.max(1, Math.floor(totalWorkers / fileConcurrency))
+    : undefined;
+  const workerPool = createWorkerPool(totalWorkers);
+  const progressReporter = createProgressReporter(totalWorkers);
+  progressReporter.start();
 
   try {
-    for (const testFile of input.testFiles) {
-      const testFilePath = path.resolve(testFile);
-      await ensureFileExists(testFilePath, "Test file");
-
-      await loadEnvFromHierarchy({
-        testFilePath,
-        repoRoot,
-        verbose: options.verbose,
-      });
-
-      const targetSelection = await selectTarget({
-        testFilePath,
-        repoRoot,
+    await runWithLimit(input.testFiles, fileConcurrency, async (testFilePath) => {
+      const result = await runSingleEvalFile({
+        testFilePath: path.resolve(testFilePath),
         cwd,
-        explicitTargetsPath: options.targetsPath,
-        cliTargetName: options.target,
-        dryRun: options.dryRun,
-        dryRunDelay: options.dryRunDelay,
-        dryRunDelayMin: options.dryRunDelayMin,
-        dryRunDelayMax: options.dryRunDelayMax,
-        env: process.env,
-      });
-
-      const providerLabel = options.dryRun ? `${targetSelection.resolvedTarget.kind} (dry-run)` : targetSelection.resolvedTarget.kind;
-      const targetMessage = options.verbose
-        ? `Using target (${targetSelection.targetSource}): ${targetSelection.targetName} [provider=${providerLabel}] via ${targetSelection.targetsFilePath}`
-        : `Using target: ${targetSelection.targetName} [provider=${providerLabel}]`;
-      console.log(targetMessage);
-
-      const promptDumpDir = resolvePromptDirectory(options.dumpPrompts, cwd);
-      if (promptDumpDir) {
-        await mkdir(promptDumpDir, { recursive: true });
-        if (options.verbose) {
-          console.log(`Prompt dumps enabled at: ${promptDumpDir}`);
-        }
-        lastPromptDumpDir = promptDumpDir;
-      }
-
-      const agentTimeoutMs = Math.max(0, options.agentTimeoutSeconds) * 1000;
-
-      // Resolve workers: CLI flag > target setting > default (1)
-      let resolvedWorkers = options.workers ?? targetSelection.resolvedTarget.workers ?? 1;
-      if (resolvedWorkers < 1 || resolvedWorkers > 50) {
-        throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
-      }
-
-      // VSCode providers require window focus, so only 1 worker is allowed
-      const isVSCodeProvider = ["vscode", "vscode-insiders"].includes(
-        targetSelection.resolvedTarget.kind
-      );
-      if (isVSCodeProvider && resolvedWorkers > 1) {
-        console.warn(`Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`);
-        resolvedWorkers = 1;
-      }
-
-      if (options.verbose) {
-        const workersSource = options.workers
-          ? "CLI flag"
-          : targetSelection.resolvedTarget.workers
-            ? "target setting"
-            : "default";
-        console.log(`Using ${resolvedWorkers} worker(s) (source: ${workersSource})`);
-      }
-
-      // Auto-provision subagents for VSCode targets
-      if (isVSCodeProvider && !options.dryRun) {
-        await ensureVSCodeSubagents({
-          kind: targetSelection.resolvedTarget.kind as "vscode" | "vscode-insiders",
-          count: resolvedWorkers,
-          verbose: options.verbose,
-        });
-      }
-
-      // Initialize progress display per file
-      const progressDisplay = new ProgressDisplay(resolvedWorkers);
-      progressDisplay.start();
-      const pendingTests = new Set<number>();
-
-      const results = await evaluationRunner({
-        testFilePath,
         repoRoot,
-        target: targetSelection.resolvedTarget,
-        targets: targetSelection.definitions,
-        env: process.env,
-        maxRetries: Math.max(0, options.maxRetries),
-        agentTimeoutMs,
-        promptDumpDir,
+        options,
+        outputWriter,
         cache,
-        useCache: options.cache,
-        evalId: options.evalId,
-        verbose: options.verbose,
-        maxConcurrency: resolvedWorkers,
-        onResult: async (result: EvaluationResult) => {
-          await outputWriter.append(result);
-        },
-        onProgress: async (event) => {
-          // Track pending events to determine total test count
-          if (event.status === "pending") {
-            pendingTests.add(event.workerId);
-            progressDisplay.setTotalTests(pendingTests.size);
-          }
-          progressDisplay.updateWorker({
-            workerId: event.workerId,
-            evalId: event.evalId,
-            status: event.status,
-            startedAt: event.startedAt,
-            completedAt: event.completedAt,
-            error: event.error,
-          });
-        },
+        evaluationRunner,
+        workersOverride: perFileWorkers,
+        workerPool,
+        progressReporter,
+        seenEvalCases,
       });
 
-      progressDisplay.finish();
-      allResults.push(...results);
-    }
+      allResults.push(...result.results);
+      if (result.promptDumpDir) {
+        lastPromptDumpDir = result.promptDumpDir;
+      }
+    });
+
+    progressReporter.finish();
 
     const summary = calculateEvaluationSummary(allResults);
     console.log(formatEvaluationSummary(summary));
