@@ -85,10 +85,10 @@ describe("init command", () => {
     expect(content).toContain("guideline_patterns:");
   });
 
-  it("should create .env file", async () => {
+  it("should create .env.template file", async () => {
     await initCommand({ targetPath: TEST_DIR });
 
-    const envFile = path.join(TEST_DIR, ".agentv", ".env");
+    const envFile = path.join(TEST_DIR, ".agentv", ".env.template");
     expect(existsSync(envFile)).toBe(true);
 
     const content = readFileSync(envFile, "utf-8");
@@ -118,7 +118,7 @@ describe("init command", () => {
 
     const targetsFile = path.join(agentvDir, "targets.yaml");
     const configFile = path.join(agentvDir, "config.yaml");
-    const envFile = path.join(agentvDir, ".env");
+    const envFile = path.join(agentvDir, ".env.template");
 
     expect(existsSync(targetsFile)).toBe(true);
     expect(existsSync(configFile)).toBe(true);

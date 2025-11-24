@@ -33,6 +33,8 @@ export interface CodexResolvedConfig {
   readonly args?: readonly string[];
   readonly cwd?: string;
   readonly timeoutMs?: number;
+  readonly logDir?: string;
+  readonly logFormat?: "summary" | "json";
 }
 
 export interface MockResolvedConfig {
@@ -329,6 +331,13 @@ function resolveCodexConfig(
   const argsSource = settings.args ?? settings.arguments;
   const cwdSource = settings.cwd;
   const timeoutSource = settings.timeout_seconds ?? settings.timeoutSeconds;
+  const logDirSource = settings.log_dir ?? settings.logDir ?? settings.log_directory ?? settings.logDirectory;
+  const logFormatSource =
+    settings.log_format ??
+    settings.logFormat ??
+    settings.log_output_format ??
+    settings.logOutputFormat ??
+    env.AGENTV_CODEX_LOG_FORMAT;
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} codex executable`, {
@@ -343,13 +352,34 @@ function resolveCodexConfig(
     optionalEnv: true,
   });
   const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} codex timeout`);
+  const logDir = resolveOptionalString(logDirSource, env, `${target.name} codex log directory`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const logFormat = normalizeCodexLogFormat(logFormatSource);
 
   return {
     executable,
     args,
     cwd,
     timeoutMs,
+    logDir,
+    logFormat,
   };
+}
+
+function normalizeCodexLogFormat(value: unknown): "summary" | "json" | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== "string") {
+    throw new Error("codex log format must be 'summary' or 'json'");
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "json" || normalized === "summary") {
+    return normalized;
+  }
+  throw new Error("codex log format must be 'summary' or 'json'");
 }
 
 function resolveMockConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): MockResolvedConfig {

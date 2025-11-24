@@ -70,3 +70,4 @@ targets:
       #   - CODEX_APPROVAL_PRESET
       timeout_seconds: 180
       cwd: CODEX_WORKSPACE_DIR            # Where scratch workspaces are created
+      log_format: json

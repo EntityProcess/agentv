@@ -135,7 +135,7 @@ agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --eval-id 
 - `--targets TARGETS`: Path to targets.yaml file (default: ./.agentv/targets.yaml)
 - `--eval-id EVAL_ID`: Run only the eval case with this specific ID
 - `--out OUTPUT_FILE`: Output file path (default: results/{evalname}_{timestamp}.jsonl)
-- `--format FORMAT`: Output format: 'jsonl' or 'yaml' (default: jsonl)
+- `--output-format FORMAT`: Output format: 'jsonl' or 'yaml' (default: jsonl)
 - `--dry-run`: Run with mock model for testing
 - `--agent-timeout SECONDS`: Timeout in seconds for agent response polling (default: 120)
 - `--max-retries COUNT`: Maximum number of retries for timeout cases (default: 2)

@@ -95,7 +95,7 @@ The system SHALL provide a command-line interface matching Python bbeval's UX **
 
 #### Scenario: Output format flag
 
-- **WHEN** the user provides `--format <format>`
+- **WHEN** the user provides `--output-format <format>`
 - **THEN** the system writes results in the specified format (jsonl or yaml)
 - **AND** includes V2 fields (conversation_id, execution_config) in output
 - **AND** defaults to jsonl when the flag is not provided
@@ -144,14 +144,14 @@ The system SHALL support multiple output formats with JSONL as the default.
 
 #### Scenario: JSONL output format (default)
 
-- **WHEN** the user does not specify the `--format` flag
+- **WHEN** the user does not specify the `--output-format` flag
 - **THEN** the system writes results in JSONL format (newline-delimited JSON)
 - **AND** each result is appended immediately after eval case completion
 - **AND** includes V2 fields: `conversation_id`, `execution_config`
 
 #### Scenario: YAML output format
 
-- **WHEN** the user specifies `--format yaml`
+- **WHEN** the user specifies `--output-format yaml`
 - **THEN** the system writes results in YAML format
 - **AND** the output contains a well-formed YAML document with all results
 - **AND** results are written incrementally as a YAML sequence

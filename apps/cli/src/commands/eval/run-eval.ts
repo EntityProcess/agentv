@@ -69,7 +69,7 @@ function normalizeNumber(value: unknown, fallback: number): number {
 }
 
 function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOptions {
-  const formatStr = normalizeString(rawOptions.format) ?? "jsonl";
+  const formatStr = normalizeString(rawOptions.outputFormat) ?? "jsonl";
   const format: OutputFormat = formatStr === "yaml" ? "yaml" : "jsonl";
 
   const workers = normalizeNumber(rawOptions.workers, 0);

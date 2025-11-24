@@ -1,4 +1,4 @@
-import { cpSync, existsSync } from "node:fs";
+import { cpSync } from "node:fs";
 import path from "node:path";
 import { defineConfig } from "tsup";
 
