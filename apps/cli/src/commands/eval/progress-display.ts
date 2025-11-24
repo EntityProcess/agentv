@@ -7,6 +7,7 @@ export interface WorkerProgress {
   startedAt?: number;
   completedAt?: number;
   error?: string;
+  targetLabel?: string;
 }
 
 export class ProgressDisplay {
@@ -16,10 +17,17 @@ export class ProgressDisplay {
   private completedTests = 0;
   private renderTimer?: NodeJS.Timeout;
   private isInteractive: boolean;
+  private readonly logPaths: string[] = [];
+  private readonly logPathSet = new Set<string>();
+  private hasPrintedLogHeader = false;
 
   constructor(maxWorkers: number) {
     this.maxWorkers = maxWorkers;
     this.isInteractive = process.stderr.isTTY && !process.env.CI;
+  }
+
+  isInteractiveMode(): boolean {
+    return this.isInteractive;
   }
 
   start(): void {
@@ -44,12 +52,46 @@ export class ProgressDisplay {
       this.scheduleRender();
     } else {
       // In non-interactive mode, just print completion events
+      const targetSuffix = progress.targetLabel ? ` | ${progress.targetLabel}` : "";
       if (progress.status === "completed") {
-        console.log(`✓ Test ${progress.evalId} completed`);
+        console.log(`✓ Eval ${progress.evalId}${targetSuffix} completed`);
       } else if (progress.status === "failed") {
-        console.log(`✗ Test ${progress.evalId} failed${progress.error ? `: ${progress.error}` : ""}`);
+        console.log(`✗ Eval ${progress.evalId}${targetSuffix} failed${progress.error ? `: ${progress.error}` : ""}`);
       }
     }
+  }
+
+  addLogPaths(paths: readonly string[]): void {
+    const newPaths: string[] = [];
+    for (const path of paths) {
+      if (this.logPathSet.has(path)) {
+        continue;
+      }
+      this.logPathSet.add(path);
+      newPaths.push(path);
+    }
+
+    if (newPaths.length === 0) {
+      return;
+    }
+
+    this.logPaths.push(...newPaths);
+
+    if (this.isInteractive) {
+      this.scheduleRender();
+      return;
+    }
+
+    if (!this.hasPrintedLogHeader) {
+      console.log("");
+      console.log("Codex CLI logs:");
+      this.hasPrintedLogHeader = true;
+    }
+
+    const startIndex = this.logPaths.length - newPaths.length;
+    newPaths.forEach((path, offset) => {
+      console.log(`${startIndex + offset + 1}. ${path}`);
+    });
   }
 
   private scheduleRender(): void {
@@ -74,7 +116,7 @@ export class ProgressDisplay {
     
     // Header with overall progress
     const progressBar = this.buildProgressBar(this.completedTests, this.totalTests);
-    lines.push(`${progressBar} ${this.completedTests}/${this.totalTests} tests`);
+    lines.push(`${progressBar} ${this.completedTests}/${this.totalTests} evals`);
     
     // Empty line between progress and workers
     lines.push("");
@@ -86,22 +128,36 @@ export class ProgressDisplay {
       lines.push(line);
     }
 
+    if (this.logPaths.length > 0) {
+      lines.push("");
+      lines.push("Codex CLI logs:");
+      this.logPaths.forEach((path, index) => {
+        lines.push(`${index + 1}. ${path}`);
+      });
+    }
+
     // Use log-update to handle all cursor positioning
     logUpdate(lines.join("\n"));
   }
 
   private formatWorkerLine(worker: WorkerProgress): string {
-    const workerLabel = `Worker ${worker.workerId}`.padEnd(10);
+    const workerLabel = `${worker.workerId}.`.padEnd(4);
     const statusIcon = this.getStatusIcon(worker.status);
     const elapsed = worker.startedAt ? this.formatElapsed(Date.now() - worker.startedAt) : "";
     const timeLabel = elapsed ? ` (${elapsed})` : "";
+    const targetLabel = worker.targetLabel ? `  | ${worker.targetLabel}` : "";
+
+    const maxLineLength = 90;
+    const reservedLength =
+      workerLabel.length + statusIcon.length + timeLabel.length + targetLabel.length + 4; // spaces and separators
+    const availableLabelLength = Math.max(15, maxLineLength - reservedLength);
 
     let testLabel = worker.evalId;
-    if (testLabel.length > 50) {
-      testLabel = testLabel.substring(0, 47) + "...";
+    if (testLabel.length > availableLabelLength) {
+      testLabel = `${testLabel.substring(0, Math.max(0, availableLabelLength - 3))}...`;
     }
 
-    return `${workerLabel} ${statusIcon} ${testLabel}${timeLabel}`;
+    return `${workerLabel} ${statusIcon} ${testLabel}${timeLabel}${targetLabel}`;
   }
 
   private getStatusIcon(status: WorkerProgress["status"]): string {

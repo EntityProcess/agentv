@@ -71,6 +71,9 @@ importers:
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
       log-update:
         specifier: ^7.0.1
         version: 7.0.1

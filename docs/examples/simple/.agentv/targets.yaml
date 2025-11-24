@@ -5,6 +5,34 @@ $schema: agentv-targets-v2
 # Actual values for paths/keys are stored in the local .env file.
 
 targets:
+  - name: default
+    provider: azure
+    settings:
+      endpoint: AZURE_OPENAI_ENDPOINT
+      api_key: AZURE_OPENAI_API_KEY
+      model: AZURE_DEPLOYMENT_NAME
+
+  - name: vscode
+    provider: vscode
+    judge_target: azure_base
+
+  - name: codex
+    provider: codex
+    judge_target: azure_base
+    settings:
+      # Uses the Codex CLI (defaults to `codex` on PATH)
+      # executable: CODEX_CLI_PATH        # Optional: override executable path
+      # args:                             # Optional additional CLI arguments
+      #   - --profile
+      #   - CODEX_PROFILE
+      #   - --model
+      #   - CODEX_MODEL
+      #   - --ask-for-approval
+      #   - CODEX_APPROVAL_PRESET
+      timeout_seconds: 180
+      cwd: CODEX_WORKSPACE_DIR            # Where scratch workspaces are created
+      log_format: json
+
   - name: vscode_projectx
     provider: vscode
     settings:
@@ -19,18 +47,7 @@ targets:
       provider_batching: false
     judge_target: azure_base
 
-  - name: vscode
-    provider: vscode
-    judge_target: azure_base
-
   - name: azure_base
-    provider: azure
-    settings:
-      endpoint: AZURE_OPENAI_ENDPOINT
-      api_key: AZURE_OPENAI_API_KEY
-      model: AZURE_DEPLOYMENT_NAME
-
-  - name: default
     provider: azure
     settings:
       endpoint: AZURE_OPENAI_ENDPOINT
@@ -54,20 +71,3 @@ targets:
       healthcheck:
         type: command
         command_template: uv run ./mock_cli.py --healthcheck
-
-  - name: codex_cli
-    provider: codex
-    judge_target: azure_base
-    settings:
-      # Uses the Codex CLI (defaults to `codex` on PATH)
-      # executable: CODEX_CLI_PATH        # Optional: override executable path
-      # args:                             # Optional additional CLI arguments
-      #   - --profile
-      #   - CODEX_PROFILE
-      #   - --model
-      #   - CODEX_MODEL
-      #   - --ask-for-approval
-      #   - CODEX_APPROVAL_PRESET
-      timeout_seconds: 180
-      cwd: CODEX_WORKSPACE_DIR            # Where scratch workspaces are created
-      log_format: json

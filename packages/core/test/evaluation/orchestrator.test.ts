@@ -59,6 +59,7 @@ class CapturingJudgeProvider implements Provider {
 
 const baseTestCase: EvalCase = {
   id: "case-1",
+  dataset: "test-dataset",
   task: "Explain logging improvements",
   user_segments: [{ type: "text", value: "Explain logging improvements" }],
   expected_assistant_raw: "- add structured logging\n- avoid global state",

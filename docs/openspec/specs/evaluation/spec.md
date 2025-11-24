@@ -212,9 +212,15 @@ The system SHALL provide a command-line interface matching Python bbeval's UX.
 
 #### Scenario: Positional test file argument
 
-- **WHEN** the user runs `agentv eval <test-file>`
-- **THEN** the system loads and executes test cases from the specified file
-- **THEN** the system loads and executes test cases from the specified file
+- **WHEN** the user runs `agentv eval <eval-paths...>`
+- **THEN** the system expands each provided path or glob into matching YAML files
+- **AND** loads and executes test cases from each matched file in deterministic order
+
+#### Scenario: Globbed eval inputs
+
+- **WHEN** the user provides glob patterns (e.g., `evals/**/*.yaml`)
+- **THEN** the system resolves all matching YAML files (deduplicated, sorted)
+- **AND** fails with an error when no files match any provided pattern
 
 #### Scenario: Target override flag
 

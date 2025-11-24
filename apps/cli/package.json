@@ -1,6 +1,6 @@
 {
   "name": "agentv",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "description": "CLI entry point for AgentV",
   "type": "module",
   "repository": {
@@ -32,6 +32,7 @@
   "dependencies": {
     "@agentv/core": "workspace:*",
     "commander": "^12.1.0",
+    "fast-glob": "^3.3.3",
     "dotenv": "^16.4.5",
     "log-update": "^7.0.1",
     "micromatch": "^4.0.8",

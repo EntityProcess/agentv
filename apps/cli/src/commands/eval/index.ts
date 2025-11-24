@@ -1,4 +1,7 @@
+import fg from "fast-glob";
 import type { Command } from "commander";
+import { stat } from "node:fs/promises";
+import path from "node:path";
 
 import { runEvalCommand } from "./run-eval.js";
 
@@ -14,7 +17,7 @@ export function registerEvalCommand(program: Command): Command {
   program
     .command("eval")
     .description("Run eval suites and report results")
-    .argument("<eval-file>", "Path to the evaluation .yaml file")
+    .argument("<eval-paths...>", "Path(s) or glob(s) to evaluation .yaml file(s)")
     .option("--target <name>", "Override target name from targets.yaml", "default")
     .option("--targets <path>", "Path to targets.yaml (overrides discovery)")
     .option("--eval-id <id>", "Run only the eval case with this identifier")
@@ -66,9 +69,66 @@ export function registerEvalCommand(program: Command): Command {
       "--dump-prompts [dir]",
       "Persist prompt payloads for debugging (optional custom directory)",
     )
-    .action(async (testFile: string, rawOptions: Record<string, unknown>) => {
-      await runEvalCommand({ testFile, rawOptions });
+    .action(async (evalPaths: string[], rawOptions: Record<string, unknown>) => {
+      const resolvedPaths = await resolveEvalPaths(evalPaths, process.cwd());
+      await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
     });
 
   return program;
+}
+
+async function resolveEvalPaths(evalPaths: string[], cwd: string): Promise<string[]> {
+  const normalizedInputs = evalPaths.map((value) => value?.trim()).filter((value) => value);
+  if (normalizedInputs.length === 0) {
+    throw new Error("No eval paths provided.");
+  }
+
+  const unmatched: string[] = [];
+  const results = new Set<string>();
+
+  for (const pattern of normalizedInputs) {
+    // If the pattern points to an existing file, short-circuit globbing
+    const candidatePath = path.isAbsolute(pattern)
+      ? path.normalize(pattern)
+      : path.resolve(cwd, pattern);
+    try {
+      const stats = await stat(candidatePath);
+      if (stats.isFile() && /\.ya?ml$/i.test(candidatePath)) {
+        results.add(candidatePath);
+        continue;
+      }
+    } catch {
+      // fall through to glob matching
+    }
+
+    const globPattern = pattern.includes("\\") ? pattern.replace(/\\/g, "/") : pattern;
+    const matches = await fg(globPattern, {
+      cwd,
+      absolute: true,
+      onlyFiles: true,
+      unique: true,
+      dot: true,
+      followSymbolicLinks: true,
+    });
+
+    const yamlMatches = matches.filter((filePath) => /\.ya?ml$/i.test(filePath));
+    if (yamlMatches.length === 0) {
+      unmatched.push(pattern);
+      continue;
+    }
+
+    yamlMatches.forEach((filePath) => results.add(path.normalize(filePath)));
+  }
+
+  if (unmatched.length > 0) {
+    throw new Error(
+      `No eval files matched: ${unmatched.join(
+        ", ",
+      )}. Provide YAML paths or globs (e.g., "evals/**/*.yaml").`,
+    );
+  }
+
+  const sorted = Array.from(results);
+  sorted.sort();
+  return sorted;
 }

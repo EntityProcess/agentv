@@ -55,6 +55,7 @@ const target: ResolvedTarget = {
 const evalCases: EvalCase[] = [
   {
     id: "one",
+    dataset: "batch-dataset",
     task: "t1",
     user_segments: [],
     expected_assistant_raw: "",
@@ -66,6 +67,7 @@ const evalCases: EvalCase[] = [
   },
   {
     id: "two",
+    dataset: "batch-dataset",
     task: "t2",
     user_segments: [],
     expected_assistant_raw: "",

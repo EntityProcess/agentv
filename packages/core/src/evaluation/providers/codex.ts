@@ -8,6 +8,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 import { buildPromptDocument, collectGuidelineFiles, normalizeInputFiles } from "./preread.js";
+import { recordCodexLogEntry } from "./codex-log-tracker.js";
 import type { CodexResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 
@@ -272,7 +273,12 @@ export class CodexProvider implements Provider {
         attempt: request.attempt,
         format: this.config.logFormat ?? "summary",
       });
-      console.log(`Streaming Codex CLI output to ${filePath}`);
+      recordCodexLogEntry({
+        filePath,
+        targetName: this.targetName,
+        evalCaseId: request.evalCaseId,
+        attempt: request.attempt,
+      });
       return logger;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

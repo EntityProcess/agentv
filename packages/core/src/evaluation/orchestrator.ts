@@ -556,6 +556,7 @@ async function evaluateCandidate(options: {
 
   return {
     eval_id: evalCase.id,
+    dataset: evalCase.dataset,
     conversation_id: evalCase.conversation_id,
     score: score.score,
     hits: score.hits,
@@ -916,6 +917,7 @@ function buildErrorResult(
 
   return {
     eval_id: evalCase.id,
+    dataset: evalCase.dataset,
     conversation_id: evalCase.conversation_id,
     score: 0,
     hits: [],

@@ -4,6 +4,8 @@ import {
   type EvaluationResult,
   type ProviderResponse,
   ensureVSCodeSubagents,
+  loadEvalCases,
+  subscribeToCodexLogEntries,
 } from "@agentv/core";
 import { constants } from "node:fs";
 import { access, mkdir } from "node:fs/promises";
@@ -15,13 +17,16 @@ import {
   createOutputWriter,
   getDefaultExtension,
   type OutputFormat,
+  type OutputWriter,
 } from "./output-writer.js";
-import { ProgressDisplay } from "./progress-display.js";
+import { ProgressDisplay, type WorkerProgress } from "./progress-display.js";
 import { calculateEvaluationSummary, formatEvaluationSummary } from "./statistics.js";
-import { selectTarget } from "./targets.js";
+import { selectTarget, type TargetSelection } from "./targets.js";
+
+const DEFAULT_WORKERS = 3;
 
 interface RunEvalCommandInput {
-  readonly testFile: string;
+  readonly testFiles: readonly string[];
   readonly rawOptions: Record<string, unknown>;
 }
 
@@ -122,11 +127,9 @@ async function findRepoRoot(start: string): Promise<string> {
   return fallback;
 }
 
-function buildDefaultOutputPath(testFilePath: string, cwd: string, format: OutputFormat): string {
-  const testFileName = path.basename(testFilePath);
-  const withoutExtension = testFileName.replace(/\.test\.ya?ml$/i, "").replace(/\.ya?ml$/i, "");
+function buildDefaultOutputPath(cwd: string, format: OutputFormat): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const baseName = withoutExtension.length > 0 ? withoutExtension : "results";
+  const baseName = "eval";
   const extension = getDefaultExtension(format);
   return path.join(cwd, ".agentv", "results", `${baseName}_${timestamp}${extension}`);
 }
@@ -153,26 +156,68 @@ function createEvaluationCache(): EvaluationCache {
   } satisfies EvaluationCache;
 }
 
-export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> {
-  const options = normalizeOptions(input.rawOptions);
-  const cwd = process.cwd();
-  const testFilePath = path.resolve(input.testFile);
+type ProgressReporter = {
+  readonly isInteractive: boolean;
+  start(): void;
+  setTotal(total: number): void;
+  update(workerId: number, progress: WorkerProgress): void;
+  finish(): void;
+  addLogPaths(paths: readonly string[]): void;
+};
+
+function createProgressReporter(maxWorkers: number): ProgressReporter {
+  const display = new ProgressDisplay(maxWorkers);
+  return {
+    isInteractive: display.isInteractiveMode(),
+    start: () => display.start(),
+    setTotal: (total: number) => display.setTotalTests(total),
+    update: (workerId: number, progress: WorkerProgress) =>
+      display.updateWorker({ ...progress, workerId }),
+    finish: () => display.finish(),
+    addLogPaths: (paths: readonly string[]) => display.addLogPaths(paths),
+  };
+}
+
+function makeEvalKey(testFilePath: string, evalId: string): string {
+  return `${path.resolve(testFilePath)}::${evalId}`;
+}
+
+function createDisplayIdTracker(): { getOrAssign(evalKey: string): number } {
+  const map = new Map<string, number>();
+  let nextId = 1;
+  return {
+    getOrAssign(evalKey: string): number {
+      const existing = map.get(evalKey);
+      if (existing !== undefined) {
+        return existing;
+      }
+      const assigned = nextId++;
+      map.set(evalKey, assigned);
+      return assigned;
+    },
+  };
+}
+
+async function prepareFileMetadata(params: {
+  readonly testFilePath: string;
+  readonly repoRoot: string;
+  readonly cwd: string;
+  readonly options: NormalizedOptions;
+}): Promise<{
+  readonly evalIds: readonly string[];
+  readonly selection: TargetSelection;
+  readonly inlineTargetLabel: string;
+}> {
+  const { testFilePath, repoRoot, cwd, options } = params;
 
   await ensureFileExists(testFilePath, "Test file");
-
-  const repoRoot = await findRepoRoot(cwd);
-
-  if (options.verbose) {
-    console.log(`Repository root: ${repoRoot}`);
-  }
-
   await loadEnvFromHierarchy({
     testFilePath,
     repoRoot,
     verbose: options.verbose,
   });
 
-  const targetSelection = await selectTarget({
+  const selection = await selectTarget({
     testFilePath,
     repoRoot,
     cwd,
@@ -185,13 +230,82 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     env: process.env,
   });
 
-  const providerLabel = options.dryRun ? `${targetSelection.resolvedTarget.kind} (dry-run)` : targetSelection.resolvedTarget.kind;
+  const providerLabel = options.dryRun
+    ? `${selection.resolvedTarget.kind} (dry-run)`
+    : selection.resolvedTarget.kind;
+  const inlineTargetLabel = `${selection.targetName} [provider=${providerLabel}]`;
+
+  const evalCases = await loadEvalCases(testFilePath, repoRoot, { verbose: options.verbose });
+  const filteredIds = options.evalId
+    ? evalCases.filter((value) => value.id === options.evalId).map((value) => value.id)
+    : evalCases.map((value) => value.id);
+
+  return { evalIds: filteredIds, selection, inlineTargetLabel };
+}
+
+async function runWithLimit<T>(
+  items: readonly T[],
+  limit: number,
+  task: (item: T) => Promise<void>,
+): Promise<void> {
+  const safeLimit = Math.max(1, limit);
+  let index = 0;
+
+  const workers = Array.from({ length: safeLimit }, async () => {
+    while (index < items.length) {
+      const current = items[index];
+      index += 1;
+      await task(current);
+    }
+  });
+
+  await Promise.all(workers);
+}
+
+async function runSingleEvalFile(params: {
+  readonly testFilePath: string;
+  readonly cwd: string;
+  readonly repoRoot: string;
+  readonly options: NormalizedOptions;
+  readonly outputWriter: OutputWriter;
+  readonly cache?: EvaluationCache;
+  readonly evaluationRunner: typeof defaultRunEvaluation;
+  readonly workersOverride?: number;
+  readonly progressReporter: ProgressReporter;
+  readonly seenEvalCases: Set<string>;
+  readonly displayIdTracker: { getOrAssign(evalKey: string): number };
+  readonly selection: TargetSelection;
+  readonly inlineTargetLabel: string;
+}): Promise<{ results: EvaluationResult[]; promptDumpDir?: string }> {
+  const {
+    testFilePath,
+    cwd,
+    repoRoot,
+    options,
+    outputWriter,
+    cache,
+    evaluationRunner,
+    workersOverride,
+    progressReporter,
+    seenEvalCases,
+    displayIdTracker,
+    selection,
+    inlineTargetLabel,
+  } =
+    params;
+
+  await ensureFileExists(testFilePath, "Test file");
+
+  const resolvedTargetSelection = selection;
+  const providerLabel = options.dryRun
+    ? `${resolvedTargetSelection.resolvedTarget.kind} (dry-run)`
+    : resolvedTargetSelection.resolvedTarget.kind;
   const targetMessage = options.verbose
-    ? `Using target (${targetSelection.targetSource}): ${targetSelection.targetName} [provider=${providerLabel}] via ${targetSelection.targetsFilePath}`
-    : `Using target: ${targetSelection.targetName} [provider=${providerLabel}]`;
-  console.log(targetMessage);
-  const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(testFilePath, cwd, options.format);
-  console.log(`Output path: ${outputPath}`);
+    ? `Using target (${resolvedTargetSelection.targetSource}): ${resolvedTargetSelection.targetName} [provider=${providerLabel}] via ${resolvedTargetSelection.targetsFilePath}`
+    : `Using target: ${inlineTargetLabel}`;
+  if (!progressReporter.isInteractive || options.verbose) {
+    console.log(targetMessage);
+  }
 
   const promptDumpDir = resolvePromptDirectory(options.dumpPrompts, cwd);
   if (promptDumpDir) {
@@ -201,19 +315,18 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     }
   }
 
-  const outputWriter = await createOutputWriter(outputPath, options.format);
-  const cache = options.cache ? createEvaluationCache() : undefined;
   const agentTimeoutMs = Math.max(0, options.agentTimeoutSeconds) * 1000;
 
-  // Resolve workers: CLI flag > target setting > default (1)
-  let resolvedWorkers = options.workers ?? targetSelection.resolvedTarget.workers ?? 1;
+  // Resolve workers: CLI flag (adjusted per-file) > target setting > default (1)
+  const workerPreference = workersOverride ?? options.workers;
+  let resolvedWorkers = workerPreference ?? resolvedTargetSelection.resolvedTarget.workers ?? DEFAULT_WORKERS;
   if (resolvedWorkers < 1 || resolvedWorkers > 50) {
     throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
   }
 
   // VSCode providers require window focus, so only 1 worker is allowed
   const isVSCodeProvider = ["vscode", "vscode-insiders"].includes(
-    targetSelection.resolvedTarget.kind
+    resolvedTargetSelection.resolvedTarget.kind
   );
   if (isVSCodeProvider && resolvedWorkers > 1) {
     console.warn(`Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`);
@@ -221,9 +334,9 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   }
 
   if (options.verbose) {
-    const workersSource = options.workers
-      ? "CLI flag"
-      : targetSelection.resolvedTarget.workers
+    const workersSource = workerPreference
+      ? "CLI flag (balanced across files)"
+      : resolvedTargetSelection.resolvedTarget.workers
         ? "target setting"
         : "default";
     console.log(`Using ${resolvedWorkers} worker(s) (source: ${workersSource})`);
@@ -232,70 +345,166 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   // Auto-provision subagents for VSCode targets
   if (isVSCodeProvider && !options.dryRun) {
     await ensureVSCodeSubagents({
-      kind: targetSelection.resolvedTarget.kind as "vscode" | "vscode-insiders",
+      kind: resolvedTargetSelection.resolvedTarget.kind as "vscode" | "vscode-insiders",
       count: resolvedWorkers,
       verbose: options.verbose,
     });
   }
 
+  const results = await evaluationRunner({
+    testFilePath,
+    repoRoot,
+    target: resolvedTargetSelection.resolvedTarget,
+    targets: resolvedTargetSelection.definitions,
+    env: process.env,
+    maxRetries: Math.max(0, options.maxRetries),
+    agentTimeoutMs,
+    promptDumpDir,
+    cache,
+    useCache: options.cache,
+    evalId: options.evalId,
+    verbose: options.verbose,
+    maxConcurrency: resolvedWorkers,
+    onResult: async (result: EvaluationResult) => {
+      await outputWriter.append(result);
+    },
+    onProgress: async (event) => {
+      const evalKey = makeEvalKey(testFilePath, event.evalId);
+      if (event.status === "pending" && !seenEvalCases.has(evalKey)) {
+        seenEvalCases.add(evalKey);
+        progressReporter.setTotal(seenEvalCases.size);
+      }
+      const displayId = displayIdTracker.getOrAssign(evalKey);
+
+      progressReporter.update(displayId, {
+        workerId: displayId,
+        evalId: event.evalId,
+        status: event.status,
+        startedAt: event.startedAt,
+        completedAt: event.completedAt,
+        error: event.error,
+        targetLabel: inlineTargetLabel,
+      });
+    },
+  });
+
+  return { results: [...results], promptDumpDir };
+}
+
+export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> {
+  const options = normalizeOptions(input.rawOptions);
+  const cwd = process.cwd();
+  const repoRoot = await findRepoRoot(cwd);
+
+  if (options.verbose) {
+    console.log(`Repository root: ${repoRoot}`);
+  }
+
+  const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(cwd, options.format);
+  console.log(`Output path: ${outputPath}`);
+
+  const outputWriter = await createOutputWriter(outputPath, options.format);
+  const cache = options.cache ? createEvaluationCache() : undefined;
   const evaluationRunner = await resolveEvaluationRunner();
+  const allResults: EvaluationResult[] = [];
+  let lastPromptDumpDir: string | undefined;
+  const seenEvalCases = new Set<string>();
+  const resolvedTestFiles = input.testFiles.map((file) => path.resolve(file));
+  const displayIdTracker = createDisplayIdTracker();
 
-  // Initialize progress display
-  const progressDisplay = new ProgressDisplay(resolvedWorkers);
-  progressDisplay.start();
-  const pendingTests = new Set<number>();
-
-  try {
-    const results = await evaluationRunner({
+  // Derive file-level concurrency from worker count (global) when provided
+  const totalWorkers = options.workers ?? DEFAULT_WORKERS;
+  const fileConcurrency = Math.min(Math.max(1, totalWorkers), Math.max(1, resolvedTestFiles.length));
+  const perFileWorkers = options.workers
+    ? Math.max(1, Math.floor(totalWorkers / fileConcurrency))
+    : undefined;
+  const fileMetadata = new Map<
+    string,
+    { readonly evalIds: readonly string[]; readonly selection: TargetSelection; readonly inlineTargetLabel: string }
+  >();
+  for (const testFilePath of resolvedTestFiles) {
+    const meta = await prepareFileMetadata({
       testFilePath,
       repoRoot,
-      target: targetSelection.resolvedTarget,
-      targets: targetSelection.definitions,
-      env: process.env,
-      maxRetries: Math.max(0, options.maxRetries),
-      agentTimeoutMs,
-      promptDumpDir,
-      cache,
-      useCache: options.cache,
-      evalId: options.evalId,
-      verbose: options.verbose,
-      maxConcurrency: resolvedWorkers,
-      onResult: async (result: EvaluationResult) => {
-        await outputWriter.append(result);
-      },
-      onProgress: async (event) => {
-        // Track pending events to determine total test count
-        if (event.status === "pending") {
-          pendingTests.add(event.workerId);
-          progressDisplay.setTotalTests(pendingTests.size);
-        }
-        progressDisplay.updateWorker({
-          workerId: event.workerId,
-          evalId: event.evalId,
-          status: event.status,
-          startedAt: event.startedAt,
-          completedAt: event.completedAt,
-          error: event.error,
-        });
-      },
+      cwd,
+      options,
+    });
+    fileMetadata.set(testFilePath, meta);
+  }
+  const totalEvalCount = Array.from(fileMetadata.values()).reduce(
+    (sum, meta) => sum + meta.evalIds.length,
+    0,
+  );
+  if (totalEvalCount === 0) {
+    throw new Error("No eval cases matched the provided filters.");
+  }
+  const progressReporter = createProgressReporter(totalWorkers);
+  progressReporter.start();
+  progressReporter.setTotal(totalEvalCount);
+  const seenCodexLogPaths = new Set<string>();
+  const unsubscribeCodexLogs = subscribeToCodexLogEntries((entry) => {
+    if (!entry.filePath || seenCodexLogPaths.has(entry.filePath)) {
+      return;
+    }
+    seenCodexLogPaths.add(entry.filePath);
+    progressReporter.addLogPaths([entry.filePath]);
+  });
+  for (const [testFilePath, meta] of fileMetadata.entries()) {
+    for (const evalId of meta.evalIds) {
+      const evalKey = makeEvalKey(testFilePath, evalId);
+      seenEvalCases.add(evalKey);
+      const displayId = displayIdTracker.getOrAssign(evalKey);
+      progressReporter.update(displayId, {
+        workerId: displayId,
+        evalId,
+        status: "pending",
+        targetLabel: meta.inlineTargetLabel,
+      });
+    }
+  }
+
+  try {
+    await runWithLimit(resolvedTestFiles, fileConcurrency, async (testFilePath) => {
+      const targetPrep = fileMetadata.get(testFilePath);
+      if (!targetPrep) {
+        throw new Error(`Missing metadata for ${testFilePath}`);
+      }
+      const result = await runSingleEvalFile({
+        testFilePath,
+        cwd,
+        repoRoot,
+        options,
+        outputWriter,
+        cache,
+        evaluationRunner,
+        workersOverride: perFileWorkers,
+        progressReporter,
+        seenEvalCases,
+        displayIdTracker,
+        selection: targetPrep.selection,
+        inlineTargetLabel: targetPrep.inlineTargetLabel,
+      });
+
+      allResults.push(...result.results);
+      if (result.promptDumpDir) {
+        lastPromptDumpDir = result.promptDumpDir;
+      }
     });
 
-    progressDisplay.finish();
+    progressReporter.finish();
 
-    await outputWriter.close();
-
-    const summary = calculateEvaluationSummary(results);
+    const summary = calculateEvaluationSummary(allResults);
     console.log(formatEvaluationSummary(summary));
 
-    if (results.length > 0) {
+    if (allResults.length > 0) {
       console.log(`\nResults written to: ${outputPath}`);
     }
-    if (promptDumpDir && results.length > 0) {
-      console.log(`Prompt payloads saved to: ${promptDumpDir}`);
+    if (lastPromptDumpDir && allResults.length > 0) {
+      console.log(`Prompt payloads saved to: ${lastPromptDumpDir}`);
     }
-  } catch (error) {
+  } finally {
+    unsubscribeCodexLogs();
     await outputWriter.close().catch(() => undefined);
-    throw error;
   }
 }
 

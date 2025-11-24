@@ -120,6 +120,9 @@ agentv eval "path/to/eval.yaml"
 
 # Override the eval file's target with CLI flag
 agentv eval --target vscode_projectx "path/to/eval.yaml"
+
+# Run multiple evals via glob
+agentv eval "path/to/evals/**/*.yaml"
 ```
 
 Run a specific eval case with custom targets path:
@@ -130,17 +133,18 @@ agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --eval-id 
 
 ### Command Line Options
 
-- `eval_file`: Path to eval YAML file (required, positional argument)
+- `eval_paths...`: Path(s) or glob(s) to eval YAML files (required; e.g., `evals/**/*.yaml`)
 - `--target TARGET`: Execution target name from targets.yaml (overrides target specified in eval file)
 - `--targets TARGETS`: Path to targets.yaml file (default: ./.agentv/targets.yaml)
 - `--eval-id EVAL_ID`: Run only the eval case with this specific ID
-- `--out OUTPUT_FILE`: Output file path (default: results/{evalname}_{timestamp}.jsonl)
+- `--out OUTPUT_FILE`: Output file path (default: .agentv/results/eval_<timestamp>.jsonl)
 - `--output-format FORMAT`: Output format: 'jsonl' or 'yaml' (default: jsonl)
 - `--dry-run`: Run with mock model for testing
 - `--agent-timeout SECONDS`: Timeout in seconds for agent response polling (default: 120)
 - `--max-retries COUNT`: Maximum number of retries for timeout cases (default: 2)
 - `--cache`: Enable caching of LLM responses (default: disabled)
 - `--dump-prompts`: Save all prompts to `.agentv/prompts/` directory
+- `--workers COUNT`: Parallel workers for eval cases (default: 3; target `workers` setting used when provided)
 - `--verbose`: Verbose output
 
 ### Target Selection Priority
@@ -153,7 +157,7 @@ The CLI determines which execution target to use with the following precedence:
 
 This allows eval files to specify their preferred target while still allowing command-line overrides for flexibility, and maintains backward compatibility with existing workflows.
 
-Output goes to `.agentv/results/{evalname}_{timestamp}.jsonl` (or `.yaml`) unless `--out` is provided.
+Output goes to `.agentv/results/eval_<timestamp>.jsonl` (or `.yaml`) unless `--out` is provided.
 
 ### Tips for VS Code Copilot Evals
 

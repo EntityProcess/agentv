@@ -169,6 +169,7 @@ export type EvaluatorConfig = CodeEvaluatorConfig | LlmJudgeEvaluatorConfig;
  */
 export interface EvalCase {
   readonly id: string;
+  readonly dataset: string;
   readonly conversation_id?: string;
   readonly task: string;
   readonly user_segments: readonly JsonObject[];
@@ -188,6 +189,7 @@ export interface EvalCase {
  */
 export interface EvaluationResult {
   readonly eval_id: string;
+  readonly dataset: string;
   readonly conversation_id?: string;
   readonly score: number;
   readonly hits: readonly string[];

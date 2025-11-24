@@ -19,6 +19,7 @@ class StubProvider implements Provider {
 
 const baseTestCase: EvalCase = {
   id: "case-1",
+  dataset: "test-dataset",
   task: "Improve the logging implementation",
   user_segments: [{ type: "text", value: "Please add logging" }],
   expected_assistant_raw: "- add structured logging\n- avoid global state",
