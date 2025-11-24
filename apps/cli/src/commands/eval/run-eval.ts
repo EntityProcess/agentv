@@ -4,6 +4,7 @@ import {
   type EvaluationResult,
   type ProviderResponse,
   ensureVSCodeSubagents,
+  loadEvalCases,
 } from "@agentv/core";
 import { constants } from "node:fs";
 import { access, mkdir } from "node:fs/promises";
@@ -19,7 +20,7 @@ import {
 } from "./output-writer.js";
 import { ProgressDisplay, type WorkerProgress } from "./progress-display.js";
 import { calculateEvaluationSummary, formatEvaluationSummary } from "./statistics.js";
-import { selectTarget } from "./targets.js";
+import { selectTarget, type TargetSelection } from "./targets.js";
 
 const DEFAULT_WORKERS = 3;
 
@@ -174,19 +175,33 @@ function createProgressReporter(maxWorkers: number): ProgressReporter {
   };
 }
 
+type EvalAssignment = {
+  readonly evalKey: string;
+  readonly evalId: string;
+  readonly workerId: number;
+  readonly testFilePath: string;
+};
+
+function makeEvalKey(testFilePath: string, evalId: string): string {
+  return `${path.resolve(testFilePath)}::${evalId}`;
+}
+
 type WorkerPool = {
   allocate(count: number): number[];
   release(workerIds: readonly number[]): void;
 };
 
 function createWorkerPool(initialSize: number): WorkerPool {
-  const available: number[] = Array.from({ length: Math.max(1, initialSize) }, (_, i) => i + 1);
+  const seedSize = Math.max(1, initialSize);
+  const available: number[] = Array.from({ length: seedSize }, (_, i) => i + 1);
   const inUse = new Set<number>();
+  let nextId = seedSize + 1;
 
   const allocate = (count: number): number[] => {
     const needed = Math.max(1, count);
     while (available.length < needed) {
-      available.push(available.length + 1);
+      // Mint new unique display IDs so we keep a line per eval case even if workers are limited
+      available.push(nextId++);
     }
 
     const allocated: number[] = [];
@@ -203,14 +218,90 @@ function createWorkerPool(initialSize: number): WorkerPool {
 
   const release = (workerIds: readonly number[]): void => {
     for (const id of workerIds) {
-      if (inUse.delete(id)) {
-        available.push(id);
-      }
+      inUse.delete(id);
     }
-    available.sort((a, b) => a - b);
   };
 
   return { allocate, release };
+}
+
+async function planEvalAssignments(
+  testFiles: readonly string[],
+  repoRoot: string,
+  evalId?: string,
+): Promise<{
+  readonly map: Map<string, EvalAssignment>;
+  readonly ordered: EvalAssignment[];
+  readonly byFile: Map<string, EvalAssignment[]>;
+}> {
+  const assignments = new Map<string, EvalAssignment>();
+  const ordered: EvalAssignment[] = [];
+  const byFile = new Map<string, EvalAssignment[]>();
+  let nextWorkerId = 1;
+
+  for (const testFile of testFiles) {
+    const resolvedPath = path.resolve(testFile);
+    const evalCases = await loadEvalCases(resolvedPath, repoRoot);
+
+    for (const evalCase of evalCases) {
+      if (evalId && evalCase.id !== evalId) {
+        continue;
+      }
+      const evalKey = makeEvalKey(resolvedPath, evalCase.id);
+      if (assignments.has(evalKey)) {
+        continue;
+      }
+      const assignment: EvalAssignment = {
+        evalKey,
+        evalId: evalCase.id,
+        workerId: nextWorkerId++,
+        testFilePath: resolvedPath,
+      };
+      assignments.set(evalKey, assignment);
+      ordered.push(assignment);
+      const bucket = byFile.get(resolvedPath) ?? [];
+      bucket.push(assignment);
+      byFile.set(resolvedPath, bucket);
+    }
+  }
+
+  return { map: assignments, ordered, byFile };
+}
+
+async function prepareTargetSelections(
+  testFiles: readonly string[],
+  repoRoot: string,
+  cwd: string,
+  options: NormalizedOptions,
+): Promise<Map<string, { readonly selection: TargetSelection; readonly inlineTargetLabel: string }>> {
+  const result = new Map<string, { readonly selection: TargetSelection; readonly inlineTargetLabel: string }>();
+  for (const testFilePath of testFiles) {
+    await loadEnvFromHierarchy({
+      testFilePath,
+      repoRoot,
+      verbose: options.verbose,
+    });
+
+    const selection = await selectTarget({
+      testFilePath,
+      repoRoot,
+      cwd,
+      explicitTargetsPath: options.targetsPath,
+      cliTargetName: options.target,
+      dryRun: options.dryRun,
+      dryRunDelay: options.dryRunDelay,
+      dryRunDelayMin: options.dryRunDelayMin,
+      dryRunDelayMax: options.dryRunDelayMax,
+      env: process.env,
+    });
+
+    const providerLabel = options.dryRun
+      ? `${selection.resolvedTarget.kind} (dry-run)`
+      : selection.resolvedTarget.kind;
+    const inlineTargetLabel = `${selection.targetName} [provider=${providerLabel}]`;
+    result.set(testFilePath, { selection, inlineTargetLabel });
+  }
+  return result;
 }
 
 async function runWithLimit<T>(
@@ -244,6 +335,10 @@ async function runSingleEvalFile(params: {
   readonly workerPool: WorkerPool;
   readonly progressReporter: ProgressReporter;
   readonly seenEvalCases: Set<string>;
+  readonly evalAssignments: Map<string, EvalAssignment>;
+  readonly fileAssignments: readonly EvalAssignment[];
+  readonly preselectedTarget?: TargetSelection;
+  readonly preselectedInlineTargetLabel?: string;
 }): Promise<{ results: EvaluationResult[]; promptDumpDir?: string }> {
   const {
     testFilePath,
@@ -257,6 +352,10 @@ async function runSingleEvalFile(params: {
     workerPool,
     progressReporter,
     seenEvalCases,
+    evalAssignments,
+    fileAssignments,
+    preselectedTarget,
+    preselectedInlineTargetLabel,
   } =
     params;
 
@@ -268,26 +367,42 @@ async function runSingleEvalFile(params: {
     verbose: options.verbose,
   });
 
-  const targetSelection = await selectTarget({
-    testFilePath,
-    repoRoot,
-    cwd,
-    explicitTargetsPath: options.targetsPath,
-    cliTargetName: options.target,
-    dryRun: options.dryRun,
-    dryRunDelay: options.dryRunDelay,
-    dryRunDelayMin: options.dryRunDelayMin,
-    dryRunDelayMax: options.dryRunDelayMax,
-    env: process.env,
-  });
+  let targetSelection: TargetSelection | undefined = preselectedTarget;
+  if (!targetSelection) {
+    targetSelection = await selectTarget({
+      testFilePath,
+      repoRoot,
+      cwd,
+      explicitTargetsPath: options.targetsPath,
+      cliTargetName: options.target,
+      dryRun: options.dryRun,
+      dryRunDelay: options.dryRunDelay,
+      dryRunDelayMin: options.dryRunDelayMin,
+      dryRunDelayMax: options.dryRunDelayMax,
+      env: process.env,
+    });
+  }
 
-  const providerLabel = options.dryRun ? `${targetSelection.resolvedTarget.kind} (dry-run)` : targetSelection.resolvedTarget.kind;
-  const inlineTargetLabel = `${targetSelection.targetName} [provider=${providerLabel}]`;
+  const resolvedTargetSelection = targetSelection;
+  const providerLabel = options.dryRun
+    ? `${resolvedTargetSelection.resolvedTarget.kind} (dry-run)`
+    : resolvedTargetSelection.resolvedTarget.kind;
+  const inlineTargetLabel =
+    preselectedInlineTargetLabel ?? `${resolvedTargetSelection.targetName} [provider=${providerLabel}]`;
   const targetMessage = options.verbose
-    ? `Using target (${targetSelection.targetSource}): ${targetSelection.targetName} [provider=${providerLabel}] via ${targetSelection.targetsFilePath}`
+    ? `Using target (${resolvedTargetSelection.targetSource}): ${resolvedTargetSelection.targetName} [provider=${providerLabel}] via ${resolvedTargetSelection.targetsFilePath}`
     : `Using target: ${inlineTargetLabel}`;
   if (!progressReporter.isInteractive || options.verbose) {
     console.log(targetMessage);
+  }
+
+  for (const assignment of fileAssignments) {
+    progressReporter.update(assignment.workerId, {
+      workerId: assignment.workerId,
+      evalId: assignment.evalId,
+      status: "pending",
+      targetLabel: inlineTargetLabel,
+    });
   }
 
   const promptDumpDir = resolvePromptDirectory(options.dumpPrompts, cwd);
@@ -302,14 +417,14 @@ async function runSingleEvalFile(params: {
 
   // Resolve workers: CLI flag (adjusted per-file) > target setting > default (1)
   const workerPreference = workersOverride ?? options.workers;
-  let resolvedWorkers = workerPreference ?? targetSelection.resolvedTarget.workers ?? DEFAULT_WORKERS;
+  let resolvedWorkers = workerPreference ?? resolvedTargetSelection.resolvedTarget.workers ?? DEFAULT_WORKERS;
   if (resolvedWorkers < 1 || resolvedWorkers > 50) {
     throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
   }
 
   // VSCode providers require window focus, so only 1 worker is allowed
   const isVSCodeProvider = ["vscode", "vscode-insiders"].includes(
-    targetSelection.resolvedTarget.kind
+    resolvedTargetSelection.resolvedTarget.kind
   );
   if (isVSCodeProvider && resolvedWorkers > 1) {
     console.warn(`Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`);
@@ -319,7 +434,7 @@ async function runSingleEvalFile(params: {
   if (options.verbose) {
     const workersSource = workerPreference
       ? "CLI flag (balanced across files)"
-      : targetSelection.resolvedTarget.workers
+      : resolvedTargetSelection.resolvedTarget.workers
         ? "target setting"
         : "default";
     console.log(`Using ${resolvedWorkers} worker(s) (source: ${workersSource})`);
@@ -328,7 +443,7 @@ async function runSingleEvalFile(params: {
   // Auto-provision subagents for VSCode targets
   if (isVSCodeProvider && !options.dryRun) {
     await ensureVSCodeSubagents({
-      kind: targetSelection.resolvedTarget.kind as "vscode" | "vscode-insiders",
+      kind: resolvedTargetSelection.resolvedTarget.kind as "vscode" | "vscode-insiders",
       count: resolvedWorkers,
       verbose: options.verbose,
     });
@@ -346,14 +461,12 @@ async function runSingleEvalFile(params: {
     allocatedWorkers.push(assigned);
     return assigned;
   };
-  const pendingTests = new Set<string>();
-
   try {
     const results = await evaluationRunner({
       testFilePath,
       repoRoot,
-      target: targetSelection.resolvedTarget,
-      targets: targetSelection.definitions,
+      target: resolvedTargetSelection.resolvedTarget,
+      targets: resolvedTargetSelection.definitions,
       env: process.env,
       maxRetries: Math.max(0, options.maxRetries),
       agentTimeoutMs,
@@ -367,16 +480,16 @@ async function runSingleEvalFile(params: {
         await outputWriter.append(result);
       },
       onProgress: async (event) => {
-        // Track pending events to determine total test count
-        if (event.status === "pending") {
-          const key = `${testFilePath}::${event.evalId}`;
-          if (!seenEvalCases.has(key)) {
-            seenEvalCases.add(key);
-            progressReporter.setTotal(seenEvalCases.size);
-          }
-          pendingTests.add(key);
+        const evalKey = makeEvalKey(testFilePath, event.evalId);
+        const preassigned = evalAssignments.get(evalKey);
+        const workerId = preassigned?.workerId ?? translateWorkerId(event.workerId);
+
+        // Track pending events to determine total test count when not precomputed
+        if (event.status === "pending" && !seenEvalCases.has(evalKey)) {
+          seenEvalCases.add(evalKey);
+          progressReporter.setTotal(seenEvalCases.size);
         }
-        const workerId = translateWorkerId(event.workerId);
+
         progressReporter.update(workerId, {
           workerId,
           evalId: event.evalId,
@@ -413,21 +526,36 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const allResults: EvaluationResult[] = [];
   let lastPromptDumpDir: string | undefined;
   const seenEvalCases = new Set<string>();
+  const resolvedTestFiles = input.testFiles.map((file) => path.resolve(file));
 
   // Derive file-level concurrency from worker count (global) when provided
   const totalWorkers = options.workers ?? DEFAULT_WORKERS;
-  const fileConcurrency = Math.min(Math.max(1, totalWorkers), Math.max(1, input.testFiles.length));
+  const fileConcurrency = Math.min(Math.max(1, totalWorkers), Math.max(1, resolvedTestFiles.length));
   const perFileWorkers = options.workers
     ? Math.max(1, Math.floor(totalWorkers / fileConcurrency))
     : undefined;
+  const evalAssignments = await planEvalAssignments(resolvedTestFiles, repoRoot, options.evalId);
+  const targetSelections = await prepareTargetSelections(resolvedTestFiles, repoRoot, cwd, options);
   const workerPool = createWorkerPool(totalWorkers);
   const progressReporter = createProgressReporter(totalWorkers);
   progressReporter.start();
+  progressReporter.setTotal(evalAssignments.ordered.length);
+  for (const assignment of evalAssignments.ordered) {
+    seenEvalCases.add(assignment.evalKey);
+    const targetLabel = targetSelections.get(assignment.testFilePath)?.inlineTargetLabel;
+    progressReporter.update(assignment.workerId, {
+      workerId: assignment.workerId,
+      evalId: assignment.evalId,
+      status: "pending",
+      targetLabel,
+    });
+  }
 
   try {
-    await runWithLimit(input.testFiles, fileConcurrency, async (testFilePath) => {
+    await runWithLimit(resolvedTestFiles, fileConcurrency, async (testFilePath) => {
+      const targetPrep = targetSelections.get(testFilePath);
       const result = await runSingleEvalFile({
-        testFilePath: path.resolve(testFilePath),
+        testFilePath,
         cwd,
         repoRoot,
         options,
@@ -438,6 +566,10 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
         workerPool,
         progressReporter,
         seenEvalCases,
+        evalAssignments: evalAssignments.map,
+        fileAssignments: evalAssignments.byFile.get(testFilePath) ?? [],
+        preselectedTarget: targetPrep?.selection,
+        preselectedInlineTargetLabel: targetPrep?.inlineTargetLabel,
       });
 
       allResults.push(...result.results);
