@@ -64,13 +64,14 @@ You are now ready to start development. The monorepo contains:
 
 ### Environment Setup
 
-1. Configure environment variables:
-   - Copy [.env.template](docs/examples/simple/.env.template) to `.env` in your project root
-   - Fill in your API keys, endpoints, and other configuration values
+1. Initialize your workspace:
+   - Run `agentv init` at the root of your repository
+   - This command automatically sets up the `.agentv/` directory structure and configuration files
 
-2. Set up targets:
-   - Copy [targets.yaml](docs/examples/simple/.agentv/targets.yaml) to `.agentv/targets.yaml`
-   - Update the environment variable names in targets.yaml to match those defined in your `.env` file
+2. Configure environment variables:
+   - The init command creates a `.env.template` file in your project root
+   - Copy `.env.template` to `.env` and fill in your API keys, endpoints, and other configuration values
+   - Update the environment variable names in `.agentv/targets.yaml` to match those defined in your `.env` file
 
 ## Quick Start
 
