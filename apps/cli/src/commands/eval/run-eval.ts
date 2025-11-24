@@ -175,133 +175,69 @@ function createProgressReporter(maxWorkers: number): ProgressReporter {
   };
 }
 
-type EvalAssignment = {
-  readonly evalKey: string;
-  readonly evalId: string;
-  readonly workerId: number;
-  readonly testFilePath: string;
-};
-
 function makeEvalKey(testFilePath: string, evalId: string): string {
   return `${path.resolve(testFilePath)}::${evalId}`;
 }
 
-type WorkerPool = {
-  allocate(count: number): number[];
-  release(workerIds: readonly number[]): void;
-};
-
-function createWorkerPool(initialSize: number): WorkerPool {
-  const seedSize = Math.max(1, initialSize);
-  const available: number[] = Array.from({ length: seedSize }, (_, i) => i + 1);
-  const inUse = new Set<number>();
-  let nextId = seedSize + 1;
-
-  const allocate = (count: number): number[] => {
-    const needed = Math.max(1, count);
-    while (available.length < needed) {
-      // Mint new unique display IDs so we keep a line per eval case even if workers are limited
-      available.push(nextId++);
-    }
-
-    const allocated: number[] = [];
-    for (let i = 0; i < needed; i++) {
-      const next = available.shift();
-      if (next === undefined) {
-        break;
+function createDisplayIdTracker(): { getOrAssign(evalKey: string): number } {
+  const map = new Map<string, number>();
+  let nextId = 1;
+  return {
+    getOrAssign(evalKey: string): number {
+      const existing = map.get(evalKey);
+      if (existing !== undefined) {
+        return existing;
       }
-      inUse.add(next);
-      allocated.push(next);
-    }
-    return allocated;
+      const assigned = nextId++;
+      map.set(evalKey, assigned);
+      return assigned;
+    },
   };
-
-  const release = (workerIds: readonly number[]): void => {
-    for (const id of workerIds) {
-      inUse.delete(id);
-    }
-  };
-
-  return { allocate, release };
 }
 
-async function planEvalAssignments(
-  testFiles: readonly string[],
-  repoRoot: string,
-  evalId?: string,
-): Promise<{
-  readonly map: Map<string, EvalAssignment>;
-  readonly ordered: EvalAssignment[];
-  readonly byFile: Map<string, EvalAssignment[]>;
+async function prepareFileMetadata(params: {
+  readonly testFilePath: string;
+  readonly repoRoot: string;
+  readonly cwd: string;
+  readonly options: NormalizedOptions;
+}): Promise<{
+  readonly evalIds: readonly string[];
+  readonly selection: TargetSelection;
+  readonly inlineTargetLabel: string;
 }> {
-  const assignments = new Map<string, EvalAssignment>();
-  const ordered: EvalAssignment[] = [];
-  const byFile = new Map<string, EvalAssignment[]>();
-  let nextWorkerId = 1;
+  const { testFilePath, repoRoot, cwd, options } = params;
 
-  for (const testFile of testFiles) {
-    const resolvedPath = path.resolve(testFile);
-    const evalCases = await loadEvalCases(resolvedPath, repoRoot);
+  await ensureFileExists(testFilePath, "Test file");
+  await loadEnvFromHierarchy({
+    testFilePath,
+    repoRoot,
+    verbose: options.verbose,
+  });
 
-    for (const evalCase of evalCases) {
-      if (evalId && evalCase.id !== evalId) {
-        continue;
-      }
-      const evalKey = makeEvalKey(resolvedPath, evalCase.id);
-      if (assignments.has(evalKey)) {
-        continue;
-      }
-      const assignment: EvalAssignment = {
-        evalKey,
-        evalId: evalCase.id,
-        workerId: nextWorkerId++,
-        testFilePath: resolvedPath,
-      };
-      assignments.set(evalKey, assignment);
-      ordered.push(assignment);
-      const bucket = byFile.get(resolvedPath) ?? [];
-      bucket.push(assignment);
-      byFile.set(resolvedPath, bucket);
-    }
-  }
+  const selection = await selectTarget({
+    testFilePath,
+    repoRoot,
+    cwd,
+    explicitTargetsPath: options.targetsPath,
+    cliTargetName: options.target,
+    dryRun: options.dryRun,
+    dryRunDelay: options.dryRunDelay,
+    dryRunDelayMin: options.dryRunDelayMin,
+    dryRunDelayMax: options.dryRunDelayMax,
+    env: process.env,
+  });
 
-  return { map: assignments, ordered, byFile };
-}
+  const providerLabel = options.dryRun
+    ? `${selection.resolvedTarget.kind} (dry-run)`
+    : selection.resolvedTarget.kind;
+  const inlineTargetLabel = `${selection.targetName} [provider=${providerLabel}]`;
 
-async function prepareTargetSelections(
-  testFiles: readonly string[],
-  repoRoot: string,
-  cwd: string,
-  options: NormalizedOptions,
-): Promise<Map<string, { readonly selection: TargetSelection; readonly inlineTargetLabel: string }>> {
-  const result = new Map<string, { readonly selection: TargetSelection; readonly inlineTargetLabel: string }>();
-  for (const testFilePath of testFiles) {
-    await loadEnvFromHierarchy({
-      testFilePath,
-      repoRoot,
-      verbose: options.verbose,
-    });
+  const evalCases = await loadEvalCases(testFilePath, repoRoot, { verbose: options.verbose });
+  const filteredIds = options.evalId
+    ? evalCases.filter((value) => value.id === options.evalId).map((value) => value.id)
+    : evalCases.map((value) => value.id);
 
-    const selection = await selectTarget({
-      testFilePath,
-      repoRoot,
-      cwd,
-      explicitTargetsPath: options.targetsPath,
-      cliTargetName: options.target,
-      dryRun: options.dryRun,
-      dryRunDelay: options.dryRunDelay,
-      dryRunDelayMin: options.dryRunDelayMin,
-      dryRunDelayMax: options.dryRunDelayMax,
-      env: process.env,
-    });
-
-    const providerLabel = options.dryRun
-      ? `${selection.resolvedTarget.kind} (dry-run)`
-      : selection.resolvedTarget.kind;
-    const inlineTargetLabel = `${selection.targetName} [provider=${providerLabel}]`;
-    result.set(testFilePath, { selection, inlineTargetLabel });
-  }
-  return result;
+  return { evalIds: filteredIds, selection, inlineTargetLabel };
 }
 
 async function runWithLimit<T>(
@@ -332,13 +268,11 @@ async function runSingleEvalFile(params: {
   readonly cache?: EvaluationCache;
   readonly evaluationRunner: typeof defaultRunEvaluation;
   readonly workersOverride?: number;
-  readonly workerPool: WorkerPool;
   readonly progressReporter: ProgressReporter;
   readonly seenEvalCases: Set<string>;
-  readonly evalAssignments: Map<string, EvalAssignment>;
-  readonly fileAssignments: readonly EvalAssignment[];
-  readonly preselectedTarget?: TargetSelection;
-  readonly preselectedInlineTargetLabel?: string;
+  readonly displayIdTracker: { getOrAssign(evalKey: string): number };
+  readonly selection: TargetSelection;
+  readonly inlineTargetLabel: string;
 }): Promise<{ results: EvaluationResult[]; promptDumpDir?: string }> {
   const {
     testFilePath,
@@ -349,60 +283,25 @@ async function runSingleEvalFile(params: {
     cache,
     evaluationRunner,
     workersOverride,
-    workerPool,
     progressReporter,
     seenEvalCases,
-    evalAssignments,
-    fileAssignments,
-    preselectedTarget,
-    preselectedInlineTargetLabel,
+    displayIdTracker,
+    selection,
+    inlineTargetLabel,
   } =
     params;
 
   await ensureFileExists(testFilePath, "Test file");
 
-  await loadEnvFromHierarchy({
-    testFilePath,
-    repoRoot,
-    verbose: options.verbose,
-  });
-
-  let targetSelection: TargetSelection | undefined = preselectedTarget;
-  if (!targetSelection) {
-    targetSelection = await selectTarget({
-      testFilePath,
-      repoRoot,
-      cwd,
-      explicitTargetsPath: options.targetsPath,
-      cliTargetName: options.target,
-      dryRun: options.dryRun,
-      dryRunDelay: options.dryRunDelay,
-      dryRunDelayMin: options.dryRunDelayMin,
-      dryRunDelayMax: options.dryRunDelayMax,
-      env: process.env,
-    });
-  }
-
-  const resolvedTargetSelection = targetSelection;
+  const resolvedTargetSelection = selection;
   const providerLabel = options.dryRun
     ? `${resolvedTargetSelection.resolvedTarget.kind} (dry-run)`
     : resolvedTargetSelection.resolvedTarget.kind;
-  const inlineTargetLabel =
-    preselectedInlineTargetLabel ?? `${resolvedTargetSelection.targetName} [provider=${providerLabel}]`;
   const targetMessage = options.verbose
     ? `Using target (${resolvedTargetSelection.targetSource}): ${resolvedTargetSelection.targetName} [provider=${providerLabel}] via ${resolvedTargetSelection.targetsFilePath}`
     : `Using target: ${inlineTargetLabel}`;
   if (!progressReporter.isInteractive || options.verbose) {
     console.log(targetMessage);
-  }
-
-  for (const assignment of fileAssignments) {
-    progressReporter.update(assignment.workerId, {
-      workerId: assignment.workerId,
-      evalId: assignment.evalId,
-      status: "pending",
-      targetLabel: inlineTargetLabel,
-    });
   }
 
   const promptDumpDir = resolvePromptDirectory(options.dumpPrompts, cwd);
@@ -449,63 +348,44 @@ async function runSingleEvalFile(params: {
     });
   }
 
-  const workerAssignments = new Map<number, number>();
-  const allocatedWorkers: number[] = [];
-  const translateWorkerId = (localId: number): number => {
-    const existing = workerAssignments.get(localId);
-    if (existing !== undefined) {
-      return existing;
-    }
-    const [assigned] = workerPool.allocate(1);
-    workerAssignments.set(localId, assigned);
-    allocatedWorkers.push(assigned);
-    return assigned;
-  };
-  try {
-    const results = await evaluationRunner({
-      testFilePath,
-      repoRoot,
-      target: resolvedTargetSelection.resolvedTarget,
-      targets: resolvedTargetSelection.definitions,
-      env: process.env,
-      maxRetries: Math.max(0, options.maxRetries),
-      agentTimeoutMs,
-      promptDumpDir,
-      cache,
-      useCache: options.cache,
-      evalId: options.evalId,
-      verbose: options.verbose,
-      maxConcurrency: resolvedWorkers,
-      onResult: async (result: EvaluationResult) => {
-        await outputWriter.append(result);
-      },
-      onProgress: async (event) => {
-        const evalKey = makeEvalKey(testFilePath, event.evalId);
-        const preassigned = evalAssignments.get(evalKey);
-        const workerId = preassigned?.workerId ?? translateWorkerId(event.workerId);
+  const results = await evaluationRunner({
+    testFilePath,
+    repoRoot,
+    target: resolvedTargetSelection.resolvedTarget,
+    targets: resolvedTargetSelection.definitions,
+    env: process.env,
+    maxRetries: Math.max(0, options.maxRetries),
+    agentTimeoutMs,
+    promptDumpDir,
+    cache,
+    useCache: options.cache,
+    evalId: options.evalId,
+    verbose: options.verbose,
+    maxConcurrency: resolvedWorkers,
+    onResult: async (result: EvaluationResult) => {
+      await outputWriter.append(result);
+    },
+    onProgress: async (event) => {
+      const evalKey = makeEvalKey(testFilePath, event.evalId);
+      if (event.status === "pending" && !seenEvalCases.has(evalKey)) {
+        seenEvalCases.add(evalKey);
+        progressReporter.setTotal(seenEvalCases.size);
+      }
+      const displayId = displayIdTracker.getOrAssign(evalKey);
 
-        // Track pending events to determine total test count when not precomputed
-        if (event.status === "pending" && !seenEvalCases.has(evalKey)) {
-          seenEvalCases.add(evalKey);
-          progressReporter.setTotal(seenEvalCases.size);
-        }
+      progressReporter.update(displayId, {
+        workerId: displayId,
+        evalId: event.evalId,
+        status: event.status,
+        startedAt: event.startedAt,
+        completedAt: event.completedAt,
+        error: event.error,
+        targetLabel: inlineTargetLabel,
+      });
+    },
+  });
 
-        progressReporter.update(workerId, {
-          workerId,
-          evalId: event.evalId,
-          status: event.status,
-          startedAt: event.startedAt,
-          completedAt: event.completedAt,
-          error: event.error,
-          targetLabel: inlineTargetLabel,
-        });
-      },
-    });
-
-    return { results: [...results], promptDumpDir };
-  } finally {
-    workerPool.release(allocatedWorkers);
-  }
+  return { results: [...results], promptDumpDir };
 }
 
 export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> {
@@ -527,6 +407,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   let lastPromptDumpDir: string | undefined;
   const seenEvalCases = new Set<string>();
   const resolvedTestFiles = input.testFiles.map((file) => path.resolve(file));
+  const displayIdTracker = createDisplayIdTracker();
 
   // Derive file-level concurrency from worker count (global) when provided
   const totalWorkers = options.workers ?? DEFAULT_WORKERS;
@@ -534,26 +415,49 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const perFileWorkers = options.workers
     ? Math.max(1, Math.floor(totalWorkers / fileConcurrency))
     : undefined;
-  const evalAssignments = await planEvalAssignments(resolvedTestFiles, repoRoot, options.evalId);
-  const targetSelections = await prepareTargetSelections(resolvedTestFiles, repoRoot, cwd, options);
-  const workerPool = createWorkerPool(totalWorkers);
+  const fileMetadata = new Map<
+    string,
+    { readonly evalIds: readonly string[]; readonly selection: TargetSelection; readonly inlineTargetLabel: string }
+  >();
+  for (const testFilePath of resolvedTestFiles) {
+    const meta = await prepareFileMetadata({
+      testFilePath,
+      repoRoot,
+      cwd,
+      options,
+    });
+    fileMetadata.set(testFilePath, meta);
+  }
+  const totalEvalCount = Array.from(fileMetadata.values()).reduce(
+    (sum, meta) => sum + meta.evalIds.length,
+    0,
+  );
+  if (totalEvalCount === 0) {
+    throw new Error("No eval cases matched the provided filters.");
+  }
   const progressReporter = createProgressReporter(totalWorkers);
   progressReporter.start();
-  progressReporter.setTotal(evalAssignments.ordered.length);
-  for (const assignment of evalAssignments.ordered) {
-    seenEvalCases.add(assignment.evalKey);
-    const targetLabel = targetSelections.get(assignment.testFilePath)?.inlineTargetLabel;
-    progressReporter.update(assignment.workerId, {
-      workerId: assignment.workerId,
-      evalId: assignment.evalId,
-      status: "pending",
-      targetLabel,
-    });
+  progressReporter.setTotal(totalEvalCount);
+  for (const [testFilePath, meta] of fileMetadata.entries()) {
+    for (const evalId of meta.evalIds) {
+      const evalKey = makeEvalKey(testFilePath, evalId);
+      seenEvalCases.add(evalKey);
+      const displayId = displayIdTracker.getOrAssign(evalKey);
+      progressReporter.update(displayId, {
+        workerId: displayId,
+        evalId,
+        status: "pending",
+        targetLabel: meta.inlineTargetLabel,
+      });
+    }
   }
 
   try {
     await runWithLimit(resolvedTestFiles, fileConcurrency, async (testFilePath) => {
-      const targetPrep = targetSelections.get(testFilePath);
+      const targetPrep = fileMetadata.get(testFilePath);
+      if (!targetPrep) {
+        throw new Error(`Missing metadata for ${testFilePath}`);
+      }
       const result = await runSingleEvalFile({
         testFilePath,
         cwd,
@@ -563,13 +467,11 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
         cache,
         evaluationRunner,
         workersOverride: perFileWorkers,
-        workerPool,
         progressReporter,
         seenEvalCases,
-        evalAssignments: evalAssignments.map,
-        fileAssignments: evalAssignments.byFile.get(testFilePath) ?? [],
-        preselectedTarget: targetPrep?.selection,
-        preselectedInlineTargetLabel: targetPrep?.inlineTargetLabel,
+        displayIdTracker,
+        selection: targetPrep.selection,
+        inlineTargetLabel: targetPrep.inlineTargetLabel,
       });
 
       allResults.push(...result.results);
