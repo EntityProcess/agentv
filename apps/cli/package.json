@@ -20,8 +20,9 @@
   ],
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsup",
-    "prepublishOnly": "node -e \"require('fs').cpSync('../../README.md', 'README.md')\"",
+    "build": "tsup && pnpm run copy-readme",
+    "copy-readme": "node -e \"require('fs').cpSync('../../README.md', 'README.md')\"",
+    "prepublishOnly": "pnpm run copy-readme",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts",
     "test": "vitest run",
