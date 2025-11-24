@@ -5,10 +5,9 @@ $schema: agentv-config-v2
 # Custom guideline patterns:
 guideline_patterns:
   - "**/*.instructions.md"
-  - "**/instructions/**"
   - "**/*.prompt.md"
-  - "**/prompts/**"
-
+  - "**/SKILL.md"
+  
 # Notes:
 # - Patterns use standard glob syntax (via micromatch library)
 # - Paths are normalized to forward slashes for cross-platform compatibility
