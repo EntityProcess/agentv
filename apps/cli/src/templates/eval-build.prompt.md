@@ -13,6 +13,7 @@ description: 'Apply when writing evals in YAML format'
 - Message fields: `role` (required), `content` (required)
 - Message roles: `system`, `user`, `assistant`, `tool`
 - Content types: `text` (inline), `file` (relative or absolute path)
+- Attachments (type: `file`) should default to the `user` role
 - File paths must start with "/" for absolute paths (e.g., "/prompts/file.md")
 
 ## Example
