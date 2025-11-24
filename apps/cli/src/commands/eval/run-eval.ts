@@ -21,7 +21,7 @@ import { calculateEvaluationSummary, formatEvaluationSummary } from "./statistic
 import { selectTarget } from "./targets.js";
 
 interface RunEvalCommandInput {
-  readonly testFile: string;
+  readonly testFiles: readonly string[];
   readonly rawOptions: Record<string, unknown>;
 }
 
@@ -122,11 +122,9 @@ async function findRepoRoot(start: string): Promise<string> {
   return fallback;
 }
 
-function buildDefaultOutputPath(testFilePath: string, cwd: string, format: OutputFormat): string {
-  const testFileName = path.basename(testFilePath);
-  const withoutExtension = testFileName.replace(/\.test\.ya?ml$/i, "").replace(/\.ya?ml$/i, "");
+function buildDefaultOutputPath(cwd: string, format: OutputFormat): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const baseName = withoutExtension.length > 0 ? withoutExtension : "results";
+  const baseName = "eval";
   const extension = getDefaultExtension(format);
   return path.join(cwd, ".agentv", "results", `${baseName}_${timestamp}${extension}`);
 }
@@ -156,146 +154,149 @@ function createEvaluationCache(): EvaluationCache {
 export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> {
   const options = normalizeOptions(input.rawOptions);
   const cwd = process.cwd();
-  const testFilePath = path.resolve(input.testFile);
-
-  await ensureFileExists(testFilePath, "Test file");
-
   const repoRoot = await findRepoRoot(cwd);
 
   if (options.verbose) {
     console.log(`Repository root: ${repoRoot}`);
   }
 
-  await loadEnvFromHierarchy({
-    testFilePath,
-    repoRoot,
-    verbose: options.verbose,
-  });
-
-  const targetSelection = await selectTarget({
-    testFilePath,
-    repoRoot,
-    cwd,
-    explicitTargetsPath: options.targetsPath,
-    cliTargetName: options.target,
-    dryRun: options.dryRun,
-    dryRunDelay: options.dryRunDelay,
-    dryRunDelayMin: options.dryRunDelayMin,
-    dryRunDelayMax: options.dryRunDelayMax,
-    env: process.env,
-  });
-
-  const providerLabel = options.dryRun ? `${targetSelection.resolvedTarget.kind} (dry-run)` : targetSelection.resolvedTarget.kind;
-  const targetMessage = options.verbose
-    ? `Using target (${targetSelection.targetSource}): ${targetSelection.targetName} [provider=${providerLabel}] via ${targetSelection.targetsFilePath}`
-    : `Using target: ${targetSelection.targetName} [provider=${providerLabel}]`;
-  console.log(targetMessage);
-  const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(testFilePath, cwd, options.format);
+  const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(cwd, options.format);
   console.log(`Output path: ${outputPath}`);
-
-  const promptDumpDir = resolvePromptDirectory(options.dumpPrompts, cwd);
-  if (promptDumpDir) {
-    await mkdir(promptDumpDir, { recursive: true });
-    if (options.verbose) {
-      console.log(`Prompt dumps enabled at: ${promptDumpDir}`);
-    }
-  }
 
   const outputWriter = await createOutputWriter(outputPath, options.format);
   const cache = options.cache ? createEvaluationCache() : undefined;
-  const agentTimeoutMs = Math.max(0, options.agentTimeoutSeconds) * 1000;
-
-  // Resolve workers: CLI flag > target setting > default (1)
-  let resolvedWorkers = options.workers ?? targetSelection.resolvedTarget.workers ?? 1;
-  if (resolvedWorkers < 1 || resolvedWorkers > 50) {
-    throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
-  }
-
-  // VSCode providers require window focus, so only 1 worker is allowed
-  const isVSCodeProvider = ["vscode", "vscode-insiders"].includes(
-    targetSelection.resolvedTarget.kind
-  );
-  if (isVSCodeProvider && resolvedWorkers > 1) {
-    console.warn(`Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`);
-    resolvedWorkers = 1;
-  }
-
-  if (options.verbose) {
-    const workersSource = options.workers
-      ? "CLI flag"
-      : targetSelection.resolvedTarget.workers
-        ? "target setting"
-        : "default";
-    console.log(`Using ${resolvedWorkers} worker(s) (source: ${workersSource})`);
-  }
-
-  // Auto-provision subagents for VSCode targets
-  if (isVSCodeProvider && !options.dryRun) {
-    await ensureVSCodeSubagents({
-      kind: targetSelection.resolvedTarget.kind as "vscode" | "vscode-insiders",
-      count: resolvedWorkers,
-      verbose: options.verbose,
-    });
-  }
-
   const evaluationRunner = await resolveEvaluationRunner();
-
-  // Initialize progress display
-  const progressDisplay = new ProgressDisplay(resolvedWorkers);
-  progressDisplay.start();
-  const pendingTests = new Set<number>();
+  const allResults: EvaluationResult[] = [];
+  let lastPromptDumpDir: string | undefined;
 
   try {
-    const results = await evaluationRunner({
-      testFilePath,
-      repoRoot,
-      target: targetSelection.resolvedTarget,
-      targets: targetSelection.definitions,
-      env: process.env,
-      maxRetries: Math.max(0, options.maxRetries),
-      agentTimeoutMs,
-      promptDumpDir,
-      cache,
-      useCache: options.cache,
-      evalId: options.evalId,
-      verbose: options.verbose,
-      maxConcurrency: resolvedWorkers,
-      onResult: async (result: EvaluationResult) => {
-        await outputWriter.append(result);
-      },
-      onProgress: async (event) => {
-        // Track pending events to determine total test count
-        if (event.status === "pending") {
-          pendingTests.add(event.workerId);
-          progressDisplay.setTotalTests(pendingTests.size);
+    for (const testFile of input.testFiles) {
+      const testFilePath = path.resolve(testFile);
+      await ensureFileExists(testFilePath, "Test file");
+
+      await loadEnvFromHierarchy({
+        testFilePath,
+        repoRoot,
+        verbose: options.verbose,
+      });
+
+      const targetSelection = await selectTarget({
+        testFilePath,
+        repoRoot,
+        cwd,
+        explicitTargetsPath: options.targetsPath,
+        cliTargetName: options.target,
+        dryRun: options.dryRun,
+        dryRunDelay: options.dryRunDelay,
+        dryRunDelayMin: options.dryRunDelayMin,
+        dryRunDelayMax: options.dryRunDelayMax,
+        env: process.env,
+      });
+
+      const providerLabel = options.dryRun ? `${targetSelection.resolvedTarget.kind} (dry-run)` : targetSelection.resolvedTarget.kind;
+      const targetMessage = options.verbose
+        ? `Using target (${targetSelection.targetSource}): ${targetSelection.targetName} [provider=${providerLabel}] via ${targetSelection.targetsFilePath}`
+        : `Using target: ${targetSelection.targetName} [provider=${providerLabel}]`;
+      console.log(targetMessage);
+
+      const promptDumpDir = resolvePromptDirectory(options.dumpPrompts, cwd);
+      if (promptDumpDir) {
+        await mkdir(promptDumpDir, { recursive: true });
+        if (options.verbose) {
+          console.log(`Prompt dumps enabled at: ${promptDumpDir}`);
         }
-        progressDisplay.updateWorker({
-          workerId: event.workerId,
-          evalId: event.evalId,
-          status: event.status,
-          startedAt: event.startedAt,
-          completedAt: event.completedAt,
-          error: event.error,
+        lastPromptDumpDir = promptDumpDir;
+      }
+
+      const agentTimeoutMs = Math.max(0, options.agentTimeoutSeconds) * 1000;
+
+      // Resolve workers: CLI flag > target setting > default (1)
+      let resolvedWorkers = options.workers ?? targetSelection.resolvedTarget.workers ?? 1;
+      if (resolvedWorkers < 1 || resolvedWorkers > 50) {
+        throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
+      }
+
+      // VSCode providers require window focus, so only 1 worker is allowed
+      const isVSCodeProvider = ["vscode", "vscode-insiders"].includes(
+        targetSelection.resolvedTarget.kind
+      );
+      if (isVSCodeProvider && resolvedWorkers > 1) {
+        console.warn(`Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`);
+        resolvedWorkers = 1;
+      }
+
+      if (options.verbose) {
+        const workersSource = options.workers
+          ? "CLI flag"
+          : targetSelection.resolvedTarget.workers
+            ? "target setting"
+            : "default";
+        console.log(`Using ${resolvedWorkers} worker(s) (source: ${workersSource})`);
+      }
+
+      // Auto-provision subagents for VSCode targets
+      if (isVSCodeProvider && !options.dryRun) {
+        await ensureVSCodeSubagents({
+          kind: targetSelection.resolvedTarget.kind as "vscode" | "vscode-insiders",
+          count: resolvedWorkers,
+          verbose: options.verbose,
         });
-      },
-    });
+      }
 
-    progressDisplay.finish();
+      // Initialize progress display per file
+      const progressDisplay = new ProgressDisplay(resolvedWorkers);
+      progressDisplay.start();
+      const pendingTests = new Set<number>();
 
-    await outputWriter.close();
+      const results = await evaluationRunner({
+        testFilePath,
+        repoRoot,
+        target: targetSelection.resolvedTarget,
+        targets: targetSelection.definitions,
+        env: process.env,
+        maxRetries: Math.max(0, options.maxRetries),
+        agentTimeoutMs,
+        promptDumpDir,
+        cache,
+        useCache: options.cache,
+        evalId: options.evalId,
+        verbose: options.verbose,
+        maxConcurrency: resolvedWorkers,
+        onResult: async (result: EvaluationResult) => {
+          await outputWriter.append(result);
+        },
+        onProgress: async (event) => {
+          // Track pending events to determine total test count
+          if (event.status === "pending") {
+            pendingTests.add(event.workerId);
+            progressDisplay.setTotalTests(pendingTests.size);
+          }
+          progressDisplay.updateWorker({
+            workerId: event.workerId,
+            evalId: event.evalId,
+            status: event.status,
+            startedAt: event.startedAt,
+            completedAt: event.completedAt,
+            error: event.error,
+          });
+        },
+      });
 
-    const summary = calculateEvaluationSummary(results);
+      progressDisplay.finish();
+      allResults.push(...results);
+    }
+
+    const summary = calculateEvaluationSummary(allResults);
     console.log(formatEvaluationSummary(summary));
 
-    if (results.length > 0) {
+    if (allResults.length > 0) {
       console.log(`\nResults written to: ${outputPath}`);
     }
-    if (promptDumpDir && results.length > 0) {
-      console.log(`Prompt payloads saved to: ${promptDumpDir}`);
+    if (lastPromptDumpDir && allResults.length > 0) {
+      console.log(`Prompt payloads saved to: ${lastPromptDumpDir}`);
     }
-  } catch (error) {
+  } finally {
     await outputWriter.close().catch(() => undefined);
-    throw error;
   }
 }
 

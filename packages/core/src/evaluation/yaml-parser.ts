@@ -126,6 +126,7 @@ type RawTestSuite = JsonObject & {
   readonly $schema?: JsonValue;
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
+  readonly dataset?: JsonValue;
 };
 
 type RawEvalCase = JsonObject & {
@@ -166,6 +167,10 @@ export async function loadEvalCases(
   }
 
   const suite = parsed as RawTestSuite;
+  const datasetNameFromSuite = asString(suite.dataset)?.trim();
+  const fallbackDataset = path.basename(absoluteTestPath).replace(/\.ya?ml$/i, "") || "eval";
+  const datasetName =
+    datasetNameFromSuite && datasetNameFromSuite.length > 0 ? datasetNameFromSuite : fallbackDataset;
   
   // Check $schema field to ensure V2 format
   const schema = suite.$schema;
@@ -357,6 +362,7 @@ export async function loadEvalCases(
 
     const testCase: EvalCase = {
       id,
+      dataset: datasetName,
       conversation_id: conversationId,
       task: userTextPrompt,
       user_segments: userSegments,

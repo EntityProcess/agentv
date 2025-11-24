@@ -71,9 +71,7 @@ export function registerEvalCommand(program: Command): Command {
     )
     .action(async (evalPaths: string[], rawOptions: Record<string, unknown>) => {
       const resolvedPaths = await resolveEvalPaths(evalPaths, process.cwd());
-      for (const testFile of resolvedPaths) {
-        await runEvalCommand({ testFile, rawOptions });
-      }
+      await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
     });
 
   return program;

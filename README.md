@@ -137,7 +137,7 @@ agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --eval-id 
 - `--target TARGET`: Execution target name from targets.yaml (overrides target specified in eval file)
 - `--targets TARGETS`: Path to targets.yaml file (default: ./.agentv/targets.yaml)
 - `--eval-id EVAL_ID`: Run only the eval case with this specific ID
-- `--out OUTPUT_FILE`: Output file path (default: results/{evalname}_{timestamp}.jsonl)
+- `--out OUTPUT_FILE`: Output file path (default: .agentv/results/eval_<timestamp>.jsonl)
 - `--output-format FORMAT`: Output format: 'jsonl' or 'yaml' (default: jsonl)
 - `--dry-run`: Run with mock model for testing
 - `--agent-timeout SECONDS`: Timeout in seconds for agent response polling (default: 120)
@@ -156,7 +156,7 @@ The CLI determines which execution target to use with the following precedence:
 
 This allows eval files to specify their preferred target while still allowing command-line overrides for flexibility, and maintains backward compatibility with existing workflows.
 
-Output goes to `.agentv/results/{evalname}_{timestamp}.jsonl` (or `.yaml`) unless `--out` is provided.
+Output goes to `.agentv/results/eval_<timestamp>.jsonl` (or `.yaml`) unless `--out` is provided.
 
 ### Tips for VS Code Copilot Evals
 
