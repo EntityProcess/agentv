@@ -4,6 +4,11 @@ import path from "node:path";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 
 import { CodexProvider } from "../../../src/evaluation/providers/codex.js";
+import {
+  consumeCodexLogEntries,
+  subscribeToCodexLogEntries,
+  type CodexLogEntry,
+} from "../../../src/evaluation/providers/codex-log-tracker.js";
 import type { ProviderRequest } from "../../../src/evaluation/providers/types.js";
 
 async function createTempDir(prefix: string): Promise<string> {
@@ -15,6 +20,7 @@ describe("CodexProvider", () => {
 
   beforeEach(async () => {
     fixturesRoot = await createTempDir("codex-provider-");
+    consumeCodexLogEntries();
   });
 
   afterEach(async () => {
@@ -163,13 +169,26 @@ describe("CodexProvider", () => {
       runner,
     );
 
-    const response = await provider.invoke({ prompt: "log it", evalCaseId: "case-123" });
-    const raw = response.raw as Record<string, unknown>;
-    expect(typeof raw.logFile).toBe("string");
-    const logFile = raw.logFile as string;
-    const logContent = await readFile(logFile, "utf8");
-    expect(logContent).toContain("item.completed: thinking hard");
-    expect(logContent).toContain("item.completed: done");
+    const observedEntries: CodexLogEntry[] = [];
+    const unsubscribe = subscribeToCodexLogEntries((entry) => {
+      observedEntries.push(entry);
+    });
+
+    try {
+      const response = await provider.invoke({ prompt: "log it", evalCaseId: "case-123" });
+      const raw = response.raw as Record<string, unknown>;
+      expect(typeof raw.logFile).toBe("string");
+      const logFile = raw.logFile as string;
+      const logContent = await readFile(logFile, "utf8");
+      expect(logContent).toContain("item.completed: thinking hard");
+      expect(logContent).toContain("item.completed: done");
+
+      const tracked = consumeCodexLogEntries();
+      expect(tracked.some((entry) => entry.filePath === logFile)).toBe(true);
+      expect(observedEntries.some((entry) => entry.filePath === logFile)).toBe(true);
+    } finally {
+      unsubscribe();
+    }
   });
 
   it("supports JSON log format for detailed inspection", async () => {

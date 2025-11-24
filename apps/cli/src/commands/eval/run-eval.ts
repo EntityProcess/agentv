@@ -5,6 +5,7 @@ import {
   type ProviderResponse,
   ensureVSCodeSubagents,
   loadEvalCases,
+  subscribeToCodexLogEntries,
 } from "@agentv/core";
 import { constants } from "node:fs";
 import { access, mkdir } from "node:fs/promises";
@@ -161,6 +162,7 @@ type ProgressReporter = {
   setTotal(total: number): void;
   update(workerId: number, progress: WorkerProgress): void;
   finish(): void;
+  addLogPaths(paths: readonly string[]): void;
 };
 
 function createProgressReporter(maxWorkers: number): ProgressReporter {
@@ -172,6 +174,7 @@ function createProgressReporter(maxWorkers: number): ProgressReporter {
     update: (workerId: number, progress: WorkerProgress) =>
       display.updateWorker({ ...progress, workerId }),
     finish: () => display.finish(),
+    addLogPaths: (paths: readonly string[]) => display.addLogPaths(paths),
   };
 }
 
@@ -438,6 +441,14 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const progressReporter = createProgressReporter(totalWorkers);
   progressReporter.start();
   progressReporter.setTotal(totalEvalCount);
+  const seenCodexLogPaths = new Set<string>();
+  const unsubscribeCodexLogs = subscribeToCodexLogEntries((entry) => {
+    if (!entry.filePath || seenCodexLogPaths.has(entry.filePath)) {
+      return;
+    }
+    seenCodexLogPaths.add(entry.filePath);
+    progressReporter.addLogPaths([entry.filePath]);
+  });
   for (const [testFilePath, meta] of fileMetadata.entries()) {
     for (const evalId of meta.evalIds) {
       const evalKey = makeEvalKey(testFilePath, evalId);
@@ -492,6 +503,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       console.log(`Prompt payloads saved to: ${lastPromptDumpDir}`);
     }
   } finally {
+    unsubscribeCodexLogs();
     await outputWriter.close().catch(() => undefined);
   }
 }

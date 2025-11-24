@@ -17,6 +17,9 @@ export class ProgressDisplay {
   private completedTests = 0;
   private renderTimer?: NodeJS.Timeout;
   private isInteractive: boolean;
+  private readonly logPaths: string[] = [];
+  private readonly logPathSet = new Set<string>();
+  private hasPrintedLogHeader = false;
 
   constructor(maxWorkers: number) {
     this.maxWorkers = maxWorkers;
@@ -58,6 +61,39 @@ export class ProgressDisplay {
     }
   }
 
+  addLogPaths(paths: readonly string[]): void {
+    const newPaths: string[] = [];
+    for (const path of paths) {
+      if (this.logPathSet.has(path)) {
+        continue;
+      }
+      this.logPathSet.add(path);
+      newPaths.push(path);
+    }
+
+    if (newPaths.length === 0) {
+      return;
+    }
+
+    this.logPaths.push(...newPaths);
+
+    if (this.isInteractive) {
+      this.scheduleRender();
+      return;
+    }
+
+    if (!this.hasPrintedLogHeader) {
+      console.log("");
+      console.log("Codex CLI logs:");
+      this.hasPrintedLogHeader = true;
+    }
+
+    const startIndex = this.logPaths.length - newPaths.length;
+    newPaths.forEach((path, offset) => {
+      console.log(`${startIndex + offset + 1}. ${path}`);
+    });
+  }
+
   private scheduleRender(): void {
     if (this.renderTimer) {
       return;
@@ -90,6 +126,14 @@ export class ProgressDisplay {
     for (const worker of sortedWorkers) {
       const line = this.formatWorkerLine(worker);
       lines.push(line);
+    }
+
+    if (this.logPaths.length > 0) {
+      lines.push("");
+      lines.push("Codex CLI logs:");
+      this.logPaths.forEach((path, index) => {
+        lines.push(`${index + 1}. ${path}`);
+      });
     }
 
     // Use log-update to handle all cursor positioning
