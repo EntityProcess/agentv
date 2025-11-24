@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 
 export async function fileExists(filePath: string): Promise<boolean> {
@@ -9,6 +9,15 @@ export async function fileExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Read a text file and normalize line endings to LF (\n).
+ * This ensures consistent behavior across Windows (CRLF) and Unix (LF) systems.
+ */
+export async function readTextFile(filePath: string): Promise<string> {
+  const content = await readFile(filePath, "utf8");
+  return content.replace(/\r\n/g, "\n");
 }
 
 /**

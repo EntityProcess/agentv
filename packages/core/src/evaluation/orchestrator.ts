@@ -4,6 +4,7 @@ import path from "node:path";
 import pLimit from "p-limit";
 
 import { LlmJudgeEvaluator, CodeEvaluator, type EvaluationScore, type Evaluator } from "./evaluators.js";
+import { readTextFile } from "./file-utils.js";
 import { createProvider } from "./providers/index.js";
 import { resolveTargetDefinition, type ResolvedTarget } from "./providers/targets.js";
 import type {
@@ -785,7 +786,7 @@ async function runLlmJudgeEvaluator(options: {
 async function resolveCustomPrompt(config: { readonly prompt?: string; readonly promptPath?: string }): Promise<string | undefined> {
   if (config.promptPath) {
     try {
-      return await readFile(config.promptPath, "utf8");
+      return await readTextFile(config.promptPath);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`Could not read custom prompt at ${config.promptPath}: ${message}`);
