@@ -91,8 +91,8 @@ importers:
   packages/core:
     dependencies:
       '@ax-llm/ax':
-        specifier: ^14.0.39
-        version: 14.0.39
+        specifier: ^15.0.2
+        version: 15.0.2
       ai:
         specifier: ^5.0.50
         version: 5.0.89(zod@3.25.76)
@@ -135,8 +135,8 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@ax-llm/ax@14.0.39':
-    resolution: {integrity: sha512-9pM32i5DLeJC9gc9oYX0m0FhRoQslXLmIKW5lSGAUQAInfl+cHwFpdYyqWoc6g6ofB3lEky1LP3M1fZlkzpLDA==}
+  '@ax-llm/ax@15.0.2':
+    resolution: {integrity: sha512-9ENcQDM0AY3OPgXxQtz/X6exSKIG5viN4ujj9IUwjBYHHkCYU/NvwMO6YQ4JnMi4eX0FpDG5Mxht5n8i9Y1aaQ==}
 
   '@babel/helper-string-parser@7.27.1':
     resolution: {integrity: sha512-qMlSxKbpRlAridDExk92nSobyDdpPijUq2DW6oDnUqd0iOGxmQjyqhMIihI9+zv4LPyZdRje2cavWPbCbWm3eA==}
@@ -2610,7 +2610,7 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.31
 
-  '@ax-llm/ax@14.0.39':
+  '@ax-llm/ax@15.0.2':
     dependencies:
       '@opentelemetry/api': 1.9.0
       dayjs: 1.11.19

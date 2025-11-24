@@ -1,4 +1,4 @@
-import type { AxChatRequest } from "@ax-llm/ax";
+import type { AxChatRequest, AxAI } from "@ax-llm/ax";
 
 import type { JsonObject } from "../types.js";
 
@@ -83,6 +83,11 @@ export interface Provider {
    * the orchestrator may send multiple requests in a single provider session.
    */
   invokeBatch?(requests: readonly ProviderRequest[]): Promise<readonly ProviderResponse[]>;
+  /**
+   * Optional access to the underlying AxAI instance.
+   * This enables using advanced Ax features like structured output signatures.
+   */
+  getAxAI?(): AxAI;
 }
 
 export type EnvLookup = Readonly<Record<string, string | undefined>>;

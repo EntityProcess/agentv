@@ -152,6 +152,10 @@ export class AzureProvider implements Provider {
 
     return mapResponse(ensureChatResponse(response));
   }
+
+  getAxAI(): AxAiInstance {
+    return this.ai;
+  }
 }
 
 export class AnthropicProvider implements Provider {
@@ -199,6 +203,10 @@ export class AnthropicProvider implements Provider {
 
     return mapResponse(ensureChatResponse(response));
   }
+
+  getAxAI(): AxAiInstance {
+    return this.ai;
+  }
 }
 
 export class GeminiProvider implements Provider {
@@ -243,5 +251,9 @@ export class GeminiProvider implements Provider {
     );
 
     return mapResponse(ensureChatResponse(response));
+  }
+
+  getAxAI(): AxAiInstance {
+    return this.ai;
   }
 }

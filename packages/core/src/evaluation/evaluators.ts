@@ -1,3 +1,4 @@
+import { ax, f } from "@ax-llm/ax";
 import { randomUUID } from "node:crypto";
 
 import type { ResolvedTarget } from "./providers/targets.js";
@@ -39,12 +40,51 @@ export interface Evaluator {
 
 type JudgeProviderResolver = (context: EvaluationContext) => Promise<Provider | undefined>;
 
+type JudgeModelConfigOverrides = Readonly<{
+  maxTokens?: number;
+  temperature?: number;
+}>;
+
+type JudgeForwardOptions = Readonly<{
+  model?: string;
+  modelConfig?: JudgeModelConfigOverrides;
+}>;
+
 export interface LlmJudgeEvaluatorOptions {
   readonly resolveJudgeProvider: JudgeProviderResolver;
   readonly maxOutputTokens?: number;
   readonly temperature?: number;
   readonly customPrompt?: string;
 }
+
+const LLM_JUDGE_SIGNATURE = f()
+  .input(
+    "evaluationContext",
+    f.object(
+      {
+        expectedOutcome: f.string("The expected outcome for the original task"),
+        request: f.string("The original task request"),
+        referenceAnswer: f.string("The gold standard reference answer"),
+        generatedAnswer: f.string("The answer to evaluate"),
+        guidelines: f
+          .string("Additional evaluation guidelines or instructions")
+          .optional(),
+      },
+      "Complete evaluation context for the judge",
+    ),
+  )
+  .output(
+    "evaluation",
+    f.object({
+      score: f.number("Score between 0.0 and 1.0").min(0).max(1),
+      hits: f.string("Brief specific achievement").array(),
+      misses: f.string("Brief specific failure or omission").array(),
+      reasoning: f.string("Concise explanation for the score").max(500),
+    }),
+  )
+  .build();
+
+const LLM_JUDGE = ax(LLM_JUDGE_SIGNATURE);
 
 export class LlmJudgeEvaluator implements Evaluator {
   readonly kind = "llm_judge";
@@ -67,6 +107,55 @@ export class LlmJudgeEvaluator implements Evaluator {
       throw new Error("No judge provider available for LLM grading");
     }
 
+    if (providerSupportsAx(judgeProvider)) {
+      return this.evaluateWithAx(context, judgeProvider);
+    }
+
+    return this.evaluateWithPrompt(context, judgeProvider);
+  }
+
+  private async evaluateWithAx(
+    context: EvaluationContext,
+    judgeProvider: Provider & Required<Pick<Provider, "getAxAI">>,
+  ): Promise<EvaluationScore> {
+    const ai = judgeProvider.getAxAI();
+    const guidelines = context.promptInputs.guidelines?.trim();
+    const evaluationContext = {
+      expectedOutcome: context.evalCase.outcome.trim(),
+      request: context.evalCase.task.trim(),
+      referenceAnswer: context.evalCase.expected_assistant_raw.trim(),
+      generatedAnswer: context.candidate.trim(),
+      ...(guidelines ? { guidelines } : {}),
+    };
+
+    const options = this.buildJudgeForwardOptions(context);
+    const result = await LLM_JUDGE.forward(ai, { evaluationContext }, options);
+    const evaluation = result.evaluation;
+    const expectedAspectCount = Math.max(
+      evaluation.hits.length + evaluation.misses.length,
+      1,
+    );
+
+    return {
+      score: evaluation.score,
+      hits: evaluation.hits,
+      misses: evaluation.misses,
+      expectedAspectCount,
+      reasoning: evaluation.reasoning,
+      evaluatorRawRequest: {
+        id: randomUUID(),
+        provider: judgeProvider.id,
+        target: context.target.name,
+        method: "ax-structured-output",
+        signature: LLM_JUDGE_SIGNATURE.toString(),
+      },
+    };
+  }
+
+  private async evaluateWithPrompt(
+    context: EvaluationContext,
+    judgeProvider: Provider,
+  ): Promise<EvaluationScore> {
     const prompt = buildQualityPrompt(context.evalCase, context.candidate);
     const systemPrompt = context.systemPrompt ?? this.customPrompt ?? QUALITY_SYSTEM_PROMPT;
     const metadata: JsonObject = {
@@ -91,8 +180,8 @@ export class LlmJudgeEvaluator implements Evaluator {
     const misses = Array.isArray(parsed.misses)
       ? parsed.misses.filter(isNonEmptyString).slice(0, 4)
       : [];
-
     const reasoning = parsed.reasoning ?? response.reasoning;
+    const expectedAspectCount = Math.max(hits.length + misses.length, 1);
 
     const evaluatorRawRequest: JsonObject = {
       id: randomUUID(),
@@ -107,11 +196,42 @@ export class LlmJudgeEvaluator implements Evaluator {
       score,
       hits,
       misses,
-      expectedAspectCount: hits.length + misses.length || 1,
+      expectedAspectCount,
       reasoning,
       evaluatorRawRequest,
     };
   }
+
+  private buildJudgeForwardOptions(
+    context: EvaluationContext,
+  ): JudgeForwardOptions | undefined {
+    const modelConfig = this.buildJudgeModelConfig();
+    if (modelConfig === undefined && context.judgeModel === undefined) {
+      return undefined;
+    }
+
+    return {
+      ...(context.judgeModel ? { model: context.judgeModel } : {}),
+      ...(modelConfig ? { modelConfig } : {}),
+    };
+  }
+
+  private buildJudgeModelConfig(): JudgeModelConfigOverrides | undefined {
+    if (this.maxOutputTokens === undefined && this.temperature === undefined) {
+      return undefined;
+    }
+
+    return {
+      ...(this.maxOutputTokens !== undefined ? { maxTokens: this.maxOutputTokens } : {}),
+      ...(this.temperature !== undefined ? { temperature: this.temperature } : {}),
+    };
+  }
+}
+
+function providerSupportsAx(
+  provider: Provider,
+): provider is Provider & Required<Pick<Provider, "getAxAI">> {
+  return typeof provider.getAxAI === "function";
 }
 
 const QUALITY_SYSTEM_PROMPT = [
