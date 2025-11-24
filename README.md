@@ -120,6 +120,9 @@ agentv eval "path/to/eval.yaml"
 
 # Override the eval file's target with CLI flag
 agentv eval --target vscode_projectx "path/to/eval.yaml"
+
+# Run multiple evals via glob
+agentv eval "path/to/evals/**/*.yaml"
 ```
 
 Run a specific eval case with custom targets path:
@@ -130,7 +133,7 @@ agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --eval-id 
 
 ### Command Line Options
 
-- `eval_file`: Path to eval YAML file (required, positional argument)
+- `eval_paths...`: Path(s) or glob(s) to eval YAML files (required; e.g., `evals/**/*.yaml`)
 - `--target TARGET`: Execution target name from targets.yaml (overrides target specified in eval file)
 - `--targets TARGETS`: Path to targets.yaml file (default: ./.agentv/targets.yaml)
 - `--eval-id EVAL_ID`: Run only the eval case with this specific ID
