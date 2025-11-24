@@ -171,4 +171,36 @@ describe("CodexProvider", () => {
     expect(logContent).toContain("item.completed: thinking hard");
     expect(logContent).toContain("item.completed: done");
   });
+
+  it("supports JSON log format for detailed inspection", async () => {
+    const runner = vi.fn(async (options: { readonly onStdoutChunk?: (chunk: string) => void }) => {
+      const event = JSON.stringify({
+        type: "item.completed",
+        item: { type: "tool_call", tool: "search", args: { q: "hello" } },
+      });
+      options.onStdoutChunk?.(event);
+      return {
+        stdout: JSON.stringify({ messages: [{ role: "assistant", content: "ok" }] }),
+        stderr: "",
+        exitCode: 0,
+      };
+    });
+
+    const provider = new CodexProvider(
+      "codex-target",
+      {
+        executable: process.execPath,
+        logDir: fixturesRoot,
+        logFormat: "json",
+      },
+      runner,
+    );
+
+    const response = await provider.invoke({ prompt: "log it json", evalCaseId: "case-json" });
+    const raw = response.raw as Record<string, unknown>;
+    const logFile = raw.logFile as string;
+    const logContent = await readFile(logFile, "utf8");
+    expect(logContent).toContain('"tool": "search"');
+    expect(logContent).toContain('"q": "hello"');
+  });
 });

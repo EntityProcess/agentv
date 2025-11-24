@@ -71,3 +71,4 @@ targets:
       timeout_seconds: 180
       cwd: CODEX_WORKSPACE_DIR            # Where scratch workspaces are created
       log_dir: CODEX_LOG_DIR              # Optional: where Codex CLI stream logs are stored (defaults to ./.agentv/logs/codex)
+      log_format: json                    # Optional: 'summary' (default) or 'json' for raw event logs

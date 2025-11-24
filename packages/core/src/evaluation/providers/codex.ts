@@ -270,6 +270,7 @@ export class CodexProvider implements Provider {
         targetName: this.targetName,
         evalCaseId: request.evalCaseId,
         attempt: request.attempt,
+        format: this.config.logFormat ?? "summary",
       });
       console.log(`Streaming Codex CLI output to ${filePath}`);
       return logger;
@@ -287,9 +288,11 @@ class CodexStreamLogger {
   private readonly startedAt = Date.now();
   private stdoutBuffer = "";
   private stderrBuffer = "";
+  private readonly format: "summary" | "json";
 
-  private constructor(filePath: string) {
+  private constructor(filePath: string, format: "summary" | "json") {
     this.filePath = filePath;
+    this.format = format;
     this.stream = createWriteStream(filePath, { flags: "a" });
   }
 
@@ -298,8 +301,9 @@ class CodexStreamLogger {
     readonly targetName: string;
     readonly evalCaseId?: string;
     readonly attempt?: number;
+    readonly format: "summary" | "json";
   }): Promise<CodexStreamLogger> {
-    const logger = new CodexStreamLogger(options.filePath);
+    const logger = new CodexStreamLogger(options.filePath, options.format);
     const header = [
       "# Codex CLI stream log",
       `# target: ${options.targetName}`,
@@ -361,7 +365,10 @@ class CodexStreamLogger {
     if (trimmed.length === 0) {
       return undefined;
     }
-    const message = formatCodexLogMessage(trimmed, source);
+    const message =
+      this.format === "json"
+        ? formatCodexJsonLog(trimmed)
+        : formatCodexLogMessage(trimmed, source);
     return `[+${formatElapsed(this.startedAt)}] [${source}] ${message}`;
   }
 
@@ -434,6 +441,18 @@ function formatCodexLogMessage(rawLine: string, source: "stdout" | "stderr"): st
   return rawLine;
 }
 
+function formatCodexJsonLog(rawLine: string): string {
+  const parsed = tryParseJsonValue(rawLine);
+  if (!parsed) {
+    return rawLine;
+  }
+  try {
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return rawLine;
+  }
+}
+
 function summarizeCodexEvent(event: unknown): string | undefined {
   if (!event || typeof event !== "object") {
     return undefined;
@@ -452,6 +471,18 @@ function summarizeCodexEvent(event: unknown): string | undefined {
       if (candidate) {
         message = candidate;
       }
+    }
+  }
+  if (!message) {
+    const itemType =
+      typeof (record.item as Record<string, unknown> | undefined)?.type === "string"
+        ? (record.item as Record<string, unknown>).type
+        : undefined;
+    if (type && itemType) {
+      return `${type}:${itemType}`;
+    }
+    if (type) {
+      return type;
     }
   }
   if (type && message) {
