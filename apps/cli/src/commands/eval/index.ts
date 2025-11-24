@@ -24,7 +24,11 @@ export function registerEvalCommand(program: Command): Command {
       (value) => parseInteger(value, 1),
     )
     .option("--out <path>", "Write results to the specified path")
-    .option("--format <format>", "Output format: 'jsonl' or 'yaml' (default: jsonl)", "jsonl")
+    .option(
+      "--output-format <format>",
+      "Output format: 'jsonl' or 'yaml' (default: jsonl)",
+      "jsonl",
+    )
     .option("--dry-run", "Use mock provider responses instead of real LLM calls", false)
     .option(
       "--dry-run-delay <ms>",

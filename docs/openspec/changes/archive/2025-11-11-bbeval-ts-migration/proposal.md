@@ -39,7 +39,7 @@ However, the critical evaluation pipeline, grading logic, complete CLI implement
   - Recreate summary statistics output
 
 - **Quality & Documentation (Phase 7)**
-  - Add YAML output format support as an alternative to JSONL (via `--format` flag)
+  - Add YAML output format support as an alternative to JSONL (via `--output-format` flag)
   - Execute the simple evaluation example at `docs/examples/simple/evals/example.test.yaml`
   - Confirm the TypeScript pipeline handles all test cases in that file
   - Validate both JSONL and YAML output formats work correctly
