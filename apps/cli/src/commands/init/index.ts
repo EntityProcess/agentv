@@ -28,7 +28,7 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   const agentvDir = path.join(targetPath, ".agentv");
 
   // Get templates
-  const githubTemplates = TemplateManager.getTemplates();
+  const githubTemplates = TemplateManager.getGithubTemplates();
   const agentvTemplates = TemplateManager.getAgentvTemplates();
 
   // Check if any files already exist
