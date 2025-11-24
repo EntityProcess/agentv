@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
@@ -33,6 +33,7 @@ describe("CodexProvider", () => {
         executable: process.execPath,
         args: ["--profile", "default", "--model", "test"],
         timeoutMs: 1000,
+        logDir: fixturesRoot,
       },
       runner,
     );
@@ -96,6 +97,7 @@ describe("CodexProvider", () => {
       "codex-target",
       {
         executable: process.execPath,
+        logDir: fixturesRoot,
       },
       runner,
     );
@@ -126,6 +128,7 @@ describe("CodexProvider", () => {
       "codex-target",
       {
         executable: process.execPath,
+        logDir: fixturesRoot,
       },
       runner,
     );
@@ -136,5 +139,36 @@ describe("CodexProvider", () => {
 
     const response = await provider.invoke(request);
     expect(response.text).toBe("final answer");
+  });
+
+  it("streams codex output to a readable log file", async () => {
+    const runner = vi.fn(async (options: { readonly onStdoutChunk?: (chunk: string) => void }) => {
+      const reasoning = JSON.stringify({ type: "item.completed", item: { type: "reasoning", text: "thinking hard" } });
+      const final = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: "done" } });
+      options.onStdoutChunk?.(`${reasoning}\n`);
+      options.onStdoutChunk?.(final);
+      return {
+        stdout: JSON.stringify({ messages: [{ role: "assistant", content: "done" }] }),
+        stderr: "",
+        exitCode: 0,
+      };
+    });
+
+    const provider = new CodexProvider(
+      "codex-target",
+      {
+        executable: process.execPath,
+        logDir: fixturesRoot,
+      },
+      runner,
+    );
+
+    const response = await provider.invoke({ prompt: "log it", evalCaseId: "case-123" });
+    const raw = response.raw as Record<string, unknown>;
+    expect(typeof raw.logFile).toBe("string");
+    const logFile = raw.logFile as string;
+    const logContent = await readFile(logFile, "utf8");
+    expect(logContent).toContain("item.completed: thinking hard");
+    expect(logContent).toContain("item.completed: done");
   });
 });

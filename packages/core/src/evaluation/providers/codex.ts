@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { exec as execCallback, spawn } from "node:child_process";
-import { constants } from "node:fs";
+import { constants, createWriteStream } from "node:fs";
+import type { WriteStream } from "node:fs";
 import { access, copyFile, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -23,6 +25,8 @@ interface CodexRunOptions {
   readonly timeoutMs?: number;
   readonly env: NodeJS.ProcessEnv;
   readonly signal?: AbortSignal;
+  readonly onStdoutChunk?: (chunk: string) => void;
+  readonly onStderrChunk?: (chunk: string) => void;
 }
 
 interface CodexRunResult {
@@ -65,6 +69,7 @@ export class CodexProvider implements Provider {
     );
 
     const workspaceRoot = await this.createWorkspace();
+    const logger = await this.createStreamLogger(request).catch(() => undefined);
     try {
       const { mirroredInputFiles, guidelineMirrors } = await this.mirrorInputFiles(
         inputFiles,
@@ -82,7 +87,7 @@ export class CodexProvider implements Provider {
       const args = this.buildCodexArgs();
       const cwd = this.resolveCwd(workspaceRoot);
 
-      const result = await this.executeCodex(args, cwd, promptContent, request.signal);
+      const result = await this.executeCodex(args, cwd, promptContent, request.signal, logger);
 
       if (result.timedOut) {
         throw new Error(
@@ -111,9 +116,11 @@ export class CodexProvider implements Provider {
           promptFile,
           workspace: workspaceRoot,
           inputFiles: mirroredInputFiles,
+          logFile: logger?.filePath,
         },
       };
     } finally {
+      await logger?.close();
       await this.cleanupWorkspace(workspaceRoot);
     }
   }
@@ -151,6 +158,7 @@ export class CodexProvider implements Provider {
     cwd: string,
     promptContent: string,
     signal: AbortSignal | undefined,
+    logger: CodexStreamLogger | undefined,
   ): Promise<CodexRunResult> {
     try {
       return await this.runCodex({
@@ -161,6 +169,8 @@ export class CodexProvider implements Provider {
         timeoutMs: this.config.timeoutMs,
         env: process.env,
         signal,
+        onStdoutChunk: logger ? (chunk) => logger.handleStdoutChunk(chunk) : undefined,
+        onStderrChunk: logger ? (chunk) => logger.handleStderrChunk(chunk) : undefined,
       });
     } catch (error) {
       const err = error as NodeJS.ErrnoException;
@@ -226,6 +236,238 @@ export class CodexProvider implements Provider {
     } catch {
       // Best-effort cleanup
     }
+  }
+
+  private resolveLogDirectory(): string | undefined {
+    const disabled = isCodexLogStreamingDisabled();
+    if (disabled) {
+      return undefined;
+    }
+    if (this.config.logDir) {
+      return path.resolve(this.config.logDir);
+    }
+    return path.join(process.cwd(), ".agentv", "logs", "codex");
+  }
+
+  private async createStreamLogger(request: ProviderRequest): Promise<CodexStreamLogger | undefined> {
+    const logDir = this.resolveLogDirectory();
+    if (!logDir) {
+      return undefined;
+    }
+    try {
+      await mkdir(logDir, { recursive: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Skipping Codex stream logging (could not create ${logDir}): ${message}`);
+      return undefined;
+    }
+
+    const filePath = path.join(logDir, buildLogFilename(request, this.targetName));
+
+    try {
+      const logger = await CodexStreamLogger.create({
+        filePath,
+        targetName: this.targetName,
+        evalCaseId: request.evalCaseId,
+        attempt: request.attempt,
+      });
+      console.log(`Streaming Codex CLI output to ${filePath}`);
+      return logger;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Skipping Codex stream logging for ${filePath}: ${message}`);
+      return undefined;
+    }
+  }
+}
+
+class CodexStreamLogger {
+  readonly filePath: string;
+  private readonly stream: WriteStream;
+  private readonly startedAt = Date.now();
+  private stdoutBuffer = "";
+  private stderrBuffer = "";
+
+  private constructor(filePath: string) {
+    this.filePath = filePath;
+    this.stream = createWriteStream(filePath, { flags: "a" });
+  }
+
+  static async create(options: {
+    readonly filePath: string;
+    readonly targetName: string;
+    readonly evalCaseId?: string;
+    readonly attempt?: number;
+  }): Promise<CodexStreamLogger> {
+    const logger = new CodexStreamLogger(options.filePath);
+    const header = [
+      "# Codex CLI stream log",
+      `# target: ${options.targetName}`,
+      options.evalCaseId ? `# eval: ${options.evalCaseId}` : undefined,
+      options.attempt !== undefined ? `# attempt: ${options.attempt + 1}` : undefined,
+      `# started: ${new Date().toISOString()}`,
+      "",
+    ].filter((line): line is string => Boolean(line));
+    logger.writeLines(header);
+    return logger;
+  }
+
+  handleStdoutChunk(chunk: string): void {
+    this.stdoutBuffer += chunk;
+    this.flushBuffer("stdout");
+  }
+
+  handleStderrChunk(chunk: string): void {
+    this.stderrBuffer += chunk;
+    this.flushBuffer("stderr");
+  }
+
+  async close(): Promise<void> {
+    this.flushBuffer("stdout");
+    this.flushBuffer("stderr");
+    this.flushRemainder();
+    await new Promise<void>((resolve, reject) => {
+      this.stream.once("error", reject);
+      this.stream.end(() => resolve());
+    });
+  }
+
+  private writeLines(lines: readonly string[]): void {
+    for (const line of lines) {
+      this.stream.write(`${line}\n`);
+    }
+  }
+
+  private flushBuffer(source: "stdout" | "stderr"): void {
+    const buffer = source === "stdout" ? this.stdoutBuffer : this.stderrBuffer;
+    const lines = buffer.split(/\r?\n/);
+    const remainder = lines.pop() ?? "";
+    if (source === "stdout") {
+      this.stdoutBuffer = remainder;
+    } else {
+      this.stderrBuffer = remainder;
+    }
+    for (const line of lines) {
+      const formatted = this.formatLine(line, source);
+      if (formatted) {
+        this.stream.write(formatted);
+        this.stream.write("\n");
+      }
+    }
+  }
+
+  private formatLine(rawLine: string, source: "stdout" | "stderr"): string | undefined {
+    const trimmed = rawLine.trim();
+    if (trimmed.length === 0) {
+      return undefined;
+    }
+    const message = formatCodexLogMessage(trimmed, source);
+    return `[+${formatElapsed(this.startedAt)}] [${source}] ${message}`;
+  }
+
+  private flushRemainder(): void {
+    const stdoutRemainder = this.stdoutBuffer.trim();
+    if (stdoutRemainder.length > 0) {
+      const formatted = this.formatLine(stdoutRemainder, "stdout");
+      if (formatted) {
+        this.stream.write(formatted);
+        this.stream.write("\n");
+      }
+    }
+    const stderrRemainder = this.stderrBuffer.trim();
+    if (stderrRemainder.length > 0) {
+      const formatted = this.formatLine(stderrRemainder, "stderr");
+      if (formatted) {
+        this.stream.write(formatted);
+        this.stream.write("\n");
+      }
+    }
+    this.stdoutBuffer = "";
+    this.stderrBuffer = "";
+  }
+}
+
+function isCodexLogStreamingDisabled(): boolean {
+  const envValue = process.env.AGENTV_CODEX_STREAM_LOGS;
+  if (!envValue) {
+    return false;
+  }
+  const normalized = envValue.trim().toLowerCase();
+  return normalized === "false" || normalized === "0" || normalized === "off";
+}
+
+function buildLogFilename(request: ProviderRequest, targetName: string): string {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const evalId = sanitizeForFilename(request.evalCaseId ?? "codex");
+  const attemptSuffix = request.attempt !== undefined ? `_attempt-${request.attempt + 1}` : "";
+  const target = sanitizeForFilename(targetName);
+  return `${timestamp}_${target}_${evalId}${attemptSuffix}_${randomUUID().slice(0, 8)}.log`;
+}
+
+function sanitizeForFilename(value: string): string {
+  const sanitized = value.replace(/[^A-Za-z0-9._-]+/g, "_");
+  return sanitized.length > 0 ? sanitized : "codex";
+}
+
+function formatElapsed(startedAt: number): string {
+  const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
+  const hours = Math.floor(elapsedSeconds / 3600);
+  const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+  const seconds = elapsedSeconds % 60;
+  if (hours > 0) {
+    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  }
+  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function formatCodexLogMessage(rawLine: string, source: "stdout" | "stderr"): string {
+  const parsed = tryParseJsonValue(rawLine);
+  if (parsed) {
+    const summary = summarizeCodexEvent(parsed);
+    if (summary) {
+      return summary;
+    }
+  }
+  if (source === "stderr") {
+    return `stderr: ${rawLine}`;
+  }
+  return rawLine;
+}
+
+function summarizeCodexEvent(event: unknown): string | undefined {
+  if (!event || typeof event !== "object") {
+    return undefined;
+  }
+  const record = event as Record<string, unknown>;
+  const type = typeof record.type === "string" ? record.type : undefined;
+  let message = extractFromEvent(event) ?? extractFromItem(record.item) ?? flattenContent(record.output ?? record.content);
+  if (!message && type === JSONL_TYPE_ITEM_COMPLETED) {
+    const item = record.item;
+    if (item && typeof item === "object") {
+      const candidate = flattenContent(
+        (item as Record<string, unknown>).text ??
+          (item as Record<string, unknown>).content ??
+          (item as Record<string, unknown>).output,
+      );
+      if (candidate) {
+        message = candidate;
+      }
+    }
+  }
+  if (type && message) {
+    return `${type}: ${message}`;
+  }
+  if (message) {
+    return message;
+  }
+  return type;
+}
+
+function tryParseJsonValue(rawLine: string): unknown | undefined {
+  try {
+    return JSON.parse(rawLine);
+  } catch {
+    return undefined;
   }
 }
 
@@ -540,11 +782,13 @@ async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunRes
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
       stdout += chunk;
+      options.onStdoutChunk?.(chunk);
     });
 
     child.stderr.setEncoding("utf8");
     child.stderr.on("data", (chunk) => {
       stderr += chunk;
+      options.onStderrChunk?.(chunk);
     });
 
     child.stdin.end(options.prompt);

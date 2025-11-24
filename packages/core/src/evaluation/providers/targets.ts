@@ -33,6 +33,7 @@ export interface CodexResolvedConfig {
   readonly args?: readonly string[];
   readonly cwd?: string;
   readonly timeoutMs?: number;
+  readonly logDir?: string;
 }
 
 export interface MockResolvedConfig {
@@ -329,6 +330,7 @@ function resolveCodexConfig(
   const argsSource = settings.args ?? settings.arguments;
   const cwdSource = settings.cwd;
   const timeoutSource = settings.timeout_seconds ?? settings.timeoutSeconds;
+  const logDirSource = settings.log_dir ?? settings.logDir ?? settings.log_directory ?? settings.logDirectory;
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} codex executable`, {
@@ -343,12 +345,17 @@ function resolveCodexConfig(
     optionalEnv: true,
   });
   const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} codex timeout`);
+  const logDir = resolveOptionalString(logDirSource, env, `${target.name} codex log directory`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
 
   return {
     executable,
     args,
     cwd,
     timeoutMs,
+    logDir,
   };
 }
 
