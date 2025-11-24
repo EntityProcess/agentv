@@ -21,6 +21,8 @@ import { ProgressDisplay, type WorkerProgress } from "./progress-display.js";
 import { calculateEvaluationSummary, formatEvaluationSummary } from "./statistics.js";
 import { selectTarget } from "./targets.js";
 
+const DEFAULT_WORKERS = 3;
+
 interface RunEvalCommandInput {
   readonly testFiles: readonly string[];
   readonly rawOptions: Record<string, unknown>;
@@ -300,7 +302,7 @@ async function runSingleEvalFile(params: {
 
   // Resolve workers: CLI flag (adjusted per-file) > target setting > default (1)
   const workerPreference = workersOverride ?? options.workers;
-  let resolvedWorkers = workerPreference ?? targetSelection.resolvedTarget.workers ?? 1;
+  let resolvedWorkers = workerPreference ?? targetSelection.resolvedTarget.workers ?? DEFAULT_WORKERS;
   if (resolvedWorkers < 1 || resolvedWorkers > 50) {
     throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
   }
@@ -413,7 +415,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const seenEvalCases = new Set<string>();
 
   // Derive file-level concurrency from worker count (global) when provided
-  const totalWorkers = options.workers ?? 1;
+  const totalWorkers = options.workers ?? DEFAULT_WORKERS;
   const fileConcurrency = Math.min(Math.max(1, totalWorkers), Math.max(1, input.testFiles.length));
   const perFileWorkers = options.workers
     ? Math.max(1, Math.floor(totalWorkers / fileConcurrency))
