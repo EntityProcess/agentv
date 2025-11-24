@@ -1,3 +1,4 @@
+import { ax, f } from "@ax-llm/ax";
 import { randomUUID } from "node:crypto";
 
 import type { ResolvedTarget } from "./providers/targets.js";
@@ -39,6 +40,16 @@ export interface Evaluator {
 
 type JudgeProviderResolver = (context: EvaluationContext) => Promise<Provider | undefined>;
 
+interface JudgeModelConfigOverrides {
+  maxTokens?: number;
+  temperature?: number;
+}
+
+interface JudgeForwardOptions {
+  model?: string;
+  modelConfig?: JudgeModelConfigOverrides;
+}
+
 export interface LlmJudgeEvaluatorOptions {
   readonly resolveJudgeProvider: JudgeProviderResolver;
   readonly maxOutputTokens?: number;
@@ -65,6 +76,87 @@ export class LlmJudgeEvaluator implements Evaluator {
     const judgeProvider = await this.resolveJudgeProvider(context);
     if (!judgeProvider) {
       throw new Error("No judge provider available for LLM grading");
+    }
+
+    if (judgeProvider.getAxAI) {
+      const ai = judgeProvider.getAxAI();
+      const guidelines = context.promptInputs.guidelines?.trim();
+      
+      const judgeSignature = f()
+        .input(
+          "evaluationContext",
+          f.object(
+            {
+              expectedOutcome: f.string("The expected outcome for the original task"),
+              request: f.string("The original task request"),
+              referenceAnswer: f.string("The gold standard reference answer"),
+              generatedAnswer: f.string("The answer to evaluate"),
+              guidelines: f
+                .string("Additional evaluation guidelines or instructions")
+                .optional(),
+            },
+            "Complete evaluation context for the judge",
+          ),
+        )
+        .output("evaluation", f.object({
+          score: f.number("Score between 0.0 and 1.0").min(0).max(1),
+          hits: f.string("Brief specific achievement").array(),
+          misses: f.string("Brief specific failure or omission").array(),
+          reasoning: f.string("Concise explanation for the score").max(500)
+        }))
+        .build();
+
+      const judge = ax(judgeSignature);
+      
+      const modelConfig: JudgeModelConfigOverrides = {};
+      let hasModelConfig = false;
+      if (this.maxOutputTokens !== undefined) {
+        modelConfig.maxTokens = this.maxOutputTokens;
+        hasModelConfig = true;
+      }
+      if (this.temperature !== undefined) {
+        modelConfig.temperature = this.temperature;
+        hasModelConfig = true;
+      }
+
+      const options: JudgeForwardOptions = {};
+      if (hasModelConfig) {
+        options.modelConfig = modelConfig;
+      }
+      if (context.judgeModel) {
+        options.model = context.judgeModel;
+      }
+
+      const evaluationContext = {
+        expectedOutcome: context.evalCase.outcome.trim(),
+        request: context.evalCase.task.trim(),
+        referenceAnswer: context.evalCase.expected_assistant_raw.trim(),
+        generatedAnswer: context.candidate.trim(),
+        ...(guidelines ? { guidelines } : {}),
+      };
+
+      const result = await judge.forward(
+        ai,
+        { evaluationContext },
+        options,
+      );
+
+      const evaluation = result.evaluation;
+      
+      return {
+        score: evaluation.score,
+        hits: evaluation.hits,
+        misses: evaluation.misses,
+        expectedAspectCount: evaluation.hits.length + evaluation.misses.length || 1,
+        reasoning: evaluation.reasoning,
+        evaluatorRawRequest: {
+           id: randomUUID(),
+           provider: judgeProvider.id,
+           target: context.target.name,
+           method: "ax-structured-output",
+           signature: judgeSignature.toString()
+        }
+      };
     }
 
     const prompt = buildQualityPrompt(context.evalCase, context.candidate);
