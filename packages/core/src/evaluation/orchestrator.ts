@@ -72,7 +72,7 @@ export interface RunEvaluationOptions {
 
 export async function runEvaluation(options: RunEvaluationOptions): Promise<readonly EvaluationResult[]> {
   const {
-    testFilePath,
+    testFilePath: evalFilePath,
     repoRoot,
     target,
     targets,
@@ -92,12 +92,12 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
   } = options;
 
   const load = loadEvalCases;
-  const evalCases = await load(testFilePath, repoRoot, { verbose, evalId });
+  const evalCases = await load(evalFilePath, repoRoot, { verbose, evalId });
 
   const filteredEvalCases = filterEvalCases(evalCases, evalId);
   if (filteredEvalCases.length === 0) {
     if (evalId) {
-      throw new Error(`Test case with id '${evalId}' not found in ${testFilePath}`);
+      throw new Error(`Eval case with id '${evalId}' not found in ${evalFilePath}`);
     }
     return [];
   }

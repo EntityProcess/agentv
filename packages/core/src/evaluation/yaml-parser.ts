@@ -305,7 +305,7 @@ export async function loadEvalCases(
 
   for (const rawEvalcase of rawTestcases) {
     if (!isJsonObject(rawEvalcase)) {
-      logWarning("Skipping invalid test case entry (expected object)");
+      logWarning("Skipping invalid eval case entry (expected object)");
       continue;
     }
 
@@ -324,12 +324,12 @@ export async function loadEvalCases(
     const expectedMessagesValue = evalcase.expected_messages;
 
     if (!id || !outcome || !Array.isArray(inputMessagesValue)) {
-      logWarning(`Skipping incomplete test case: ${id ?? "unknown"}`);
+      logWarning(`Skipping incomplete eval case: ${id ?? "unknown"}`);
       continue;
     }
     
     if (!Array.isArray(expectedMessagesValue)) {
-      logWarning(`Test case '${id}' missing expected_messages array`);
+      logWarning(`Eval case '${id}' missing expected_messages array`);
       continue;
     }
 
@@ -338,12 +338,12 @@ export async function loadEvalCases(
     const expectedMessages = expectedMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
     
     if (expectedMessages.length === 0) {
-      logWarning(`No expected message found for test case: ${id}`);
+      logWarning(`No expected message found for eval case: ${id}`);
       continue;
     }
 
     if (expectedMessages.length > 1) {
-      logWarning(`Multiple expected messages found for test case: ${id}, using first`);
+      logWarning(`Multiple expected messages found for eval case: ${id}, using first`);
     }
 
     const guidelinePaths: string[] = [];
@@ -379,7 +379,7 @@ export async function loadEvalCases(
       .filter((part) => part.length > 0)
       .join(" ");
 
-    const testCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator, id) ?? globalEvaluator;
+    const evalCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator, id) ?? globalEvaluator;
     const evaluators = await parseEvaluators(evalcase, searchRoots, id ?? "unknown");
 
     // Extract file paths from all input segments (non-guideline files)
@@ -409,12 +409,12 @@ export async function loadEvalCases(
       file_paths: allFilePaths,
       code_snippets: codeSnippets,
       expected_outcome: outcome,
-      evaluator: testCaseEvaluatorKind,
+      evaluator: evalCaseEvaluatorKind,
       evaluators,
     };
 
     if (verbose) {
-      console.log(`\n[Test Case: ${id}]`);
+      console.log(`\n[Eval Case: ${id}]`);
       if (testCase.guideline_paths.length > 0) {
         console.log(`  Guidelines used: ${testCase.guideline_paths.length}`);
         for (const guidelinePath of testCase.guideline_paths) {
