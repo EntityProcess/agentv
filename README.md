@@ -102,7 +102,7 @@ evalcases:
     # ...
 
 # Targets files
-$schema: agentv-targets-v2
+$schema: agentv-targets-v2.1
 targets:
   - name: default
     # ...

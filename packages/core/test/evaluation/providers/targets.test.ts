@@ -23,7 +23,30 @@ describe("resolveTargetDefinition", () => {
     chatMock.mockClear();
   });
 
-  it("resolves azure settings from environment", () => {
+  it("throws when settings don't use ${{ }} syntax", () => {
+    const env = {
+      AZURE_OPENAI_ENDPOINT: "https://example.openai.azure.com",
+      AZURE_OPENAI_API_KEY: "secret",
+      AZURE_DEPLOYMENT_NAME: "gpt-4o",
+    } satisfies Record<string, string>;
+
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: "default",
+          provider: "azure",
+          settings: {
+            endpoint: "AZURE_OPENAI_ENDPOINT",
+            api_key: "AZURE_OPENAI_API_KEY",
+            model: "AZURE_DEPLOYMENT_NAME",
+          },
+        },
+        env,
+      ),
+    ).toThrow(/must use.*VARIABLE_NAME.*syntax/i);
+  });
+
+  it("resolves azure settings using ${{ variable }} syntax", () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: "https://example.openai.azure.com",
       AZURE_OPENAI_API_KEY: "secret",
@@ -35,9 +58,9 @@ describe("resolveTargetDefinition", () => {
         name: "default",
         provider: "azure",
         settings: {
-          endpoint: "AZURE_OPENAI_ENDPOINT",
-          api_key: "AZURE_OPENAI_API_KEY",
-          model: "AZURE_DEPLOYMENT_NAME",
+          endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
+          api_key: "${{ AZURE_OPENAI_API_KEY }}",
+          model: "${{ AZURE_DEPLOYMENT_NAME }}",
         },
       },
       env,
@@ -50,6 +73,80 @@ describe("resolveTargetDefinition", () => {
       apiKey: "secret",
       version: "2024-10-01-preview",
     });
+  });
+
+  it("resolves with ${{ }} syntax with extra whitespace", () => {
+    const env = {
+      MY_VAR: "test-value",
+      MY_API_KEY: "literal-key",
+      MY_MODEL: "literal-model",
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: "test",
+        provider: "azure",
+        settings: {
+          endpoint: "${{  MY_VAR  }}",
+          api_key: "${{ MY_API_KEY }}",
+          model: "${{ MY_MODEL }}",
+        },
+      },
+      env,
+    );
+
+    expect(target.kind).toBe("azure");
+    if (target.kind !== "azure") {
+      throw new Error("expected azure target");
+    }
+    expect(target.config.resourceName).toBe("test-value");
+  });
+
+  it("resolves with ${{ }} syntax without spaces", () => {
+    const env = {
+      MY_ENDPOINT: "https://no-spaces.example.com",
+      MY_KEY: "key123",
+      MY_MODEL: "literal-model",
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: "no-spaces",
+        provider: "azure",
+        settings: {
+          endpoint: "${{MY_ENDPOINT}}",
+          api_key: "${{MY_KEY}}",
+          model: "${{MY_MODEL}}",
+        },
+      },
+      env,
+    );
+
+    expect(target.kind).toBe("azure");
+    if (target.kind !== "azure") {
+      throw new Error("expected azure target");
+    }
+    expect(target.config.resourceName).toBe("https://no-spaces.example.com");
+    expect(target.config.apiKey).toBe("key123");
+  });
+
+  it("throws when ${{ variable }} reference is missing from env", () => {
+    const env = {} satisfies Record<string, string>;
+
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: "broken",
+          provider: "azure",
+          settings: {
+            endpoint: "${{ MISSING_VAR }}",
+            api_key: "key",
+            model: "model",
+          },
+        },
+        env,
+      ),
+    ).toThrow(/MISSING_VAR.*is not set/i);
   });
 
   it("normalizes azure api versions", () => {
@@ -65,10 +162,10 @@ describe("resolveTargetDefinition", () => {
         name: "azure-version",
         provider: "azure",
         settings: {
-          endpoint: "AZURE_OPENAI_ENDPOINT",
-          api_key: "AZURE_OPENAI_API_KEY",
-          model: "AZURE_DEPLOYMENT_NAME",
-          version: "CUSTOM_VERSION",
+          endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
+          api_key: "${{ AZURE_OPENAI_API_KEY }}",
+          model: "${{ AZURE_DEPLOYMENT_NAME }}",
+          version: "${{ CUSTOM_VERSION }}",
         },
       },
       env,
@@ -93,9 +190,9 @@ describe("resolveTargetDefinition", () => {
           name: "broken",
           provider: "azure",
           settings: {
-            endpoint: "AZURE_OPENAI_ENDPOINT",
-            api_key: "AZURE_OPENAI_API_KEY",
-            model: "AZURE_DEPLOYMENT_NAME",
+            endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
+            api_key: "${{ AZURE_OPENAI_API_KEY }}",
+            model: "${{ AZURE_DEPLOYMENT_NAME }}",
           },
         },
         env,
@@ -116,7 +213,7 @@ describe("resolveTargetDefinition", () => {
           vscode_cmd: "code-insiders",
           wait: false,
           dry_run: true,
-          workspace_template: "WORKSPACE_TEMPLATE_PATH",
+          workspace_template: "${{ WORKSPACE_TEMPLATE_PATH }}",
         },
       },
       env,
@@ -143,7 +240,7 @@ describe("resolveTargetDefinition", () => {
         name: "gemini-target",
         provider: "gemini",
         settings: {
-          api_key: "GOOGLE_API_KEY",
+          api_key: "${{ GOOGLE_API_KEY }}",
         },
       },
       env,
@@ -171,8 +268,8 @@ describe("resolveTargetDefinition", () => {
         name: "gemini-pro",
         provider: "gemini",
         settings: {
-          api_key: "GOOGLE_API_KEY",
-          model: "GOOGLE_GEMINI_MODEL",
+          api_key: "${{ GOOGLE_API_KEY }}",
+          model: "${{ GOOGLE_GEMINI_MODEL }}",
         },
       },
       env,
@@ -199,7 +296,7 @@ describe("resolveTargetDefinition", () => {
         name: "gemini-flash",
         provider: "google-gemini",
         settings: {
-          api_key: "GOOGLE_API_KEY",
+          api_key: "${{ GOOGLE_API_KEY }}",
           model: "gemini-1.5-flash",
         },
       },
@@ -224,7 +321,7 @@ describe("resolveTargetDefinition", () => {
           name: "broken-gemini",
           provider: "gemini",
           settings: {
-            api_key: "GOOGLE_API_KEY",
+            api_key: "${{ GOOGLE_API_KEY }}",
           },
         },
         {},
@@ -260,9 +357,9 @@ describe("resolveTargetDefinition", () => {
         provider: "cli",
         settings: {
           command_template: "code chat {PROMPT} {FILES}",
-          cwd: "WORKDIR",
+          cwd: "${{ WORKDIR }}",
           env: {
-            API_TOKEN: "CLI_TOKEN",
+            API_TOKEN: "${{ CLI_TOKEN }}",
           },
           timeout_seconds: 3,
           files_format: "--file {path}",
@@ -297,6 +394,31 @@ describe("resolveTargetDefinition", () => {
       ),
     ).toThrow(/unsupported placeholder/i);
   });
+
+  it("resolves codex args using ${{ }} syntax", () => {
+    const env = {
+      CODEX_PROFILE: "default",
+      CODEX_MODEL: "gpt-4",
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: "codex",
+        provider: "codex",
+        settings: {
+          args: ["--profile", "${{ CODEX_PROFILE }}", "--model", "${{ CODEX_MODEL }}"],
+        },
+      },
+      env,
+    );
+
+    expect(target.kind).toBe("codex");
+    if (target.kind !== "codex") {
+      throw new Error("expected codex target");
+    }
+
+    expect(target.config.args).toEqual(["--profile", "default", "--model", "gpt-4"]);
+  });
 });
 
 describe("createProvider", () => {
@@ -317,9 +439,9 @@ describe("createProvider", () => {
         name: "azure-target",
         provider: "azure",
         settings: {
-          endpoint: "AZURE_OPENAI_ENDPOINT",
-          api_key: "AZURE_OPENAI_API_KEY",
-          model: "AZURE_DEPLOYMENT_NAME",
+          endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
+          api_key: "${{ AZURE_OPENAI_API_KEY }}",
+          model: "${{ AZURE_DEPLOYMENT_NAME }}",
         },
       },
       env,
@@ -342,7 +464,7 @@ describe("createProvider", () => {
         name: "gemini-target",
         provider: "gemini",
         settings: {
-          api_key: "GOOGLE_API_KEY",
+          api_key: "${{ GOOGLE_API_KEY }}",
         },
       },
       env,

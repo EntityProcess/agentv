@@ -4,7 +4,7 @@ import { parse } from "yaml";
 import type { FileType } from "./types.js";
 
 const SCHEMA_EVAL_V2 = "agentv-eval-v2";
-const SCHEMA_TARGETS_V2 = "agentv-targets-v2";
+const SCHEMA_TARGETS_V2 = "agentv-targets-v2.1";
 const SCHEMA_CONFIG_V2 = "agentv-config-v2";
 
 /**

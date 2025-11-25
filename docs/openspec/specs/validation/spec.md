@@ -51,7 +51,7 @@ The system SHALL detect file types using the `$schema` field.
 
 #### Scenario: Targets file detection via schema field
 
-- **WHEN** file contains `$schema: agentv-targets-v2`
+- **WHEN** file contains `$schema: agentv-targets-v2.1`
 - **THEN** it is validated as a targets configuration file
 
 #### Scenario: Missing schema field
@@ -94,7 +94,7 @@ The system SHALL validate targets files against the v2 schema.
 
 #### Scenario: Schema field required
 
-- **WHEN** targets file has `$schema: agentv-targets-v2`
+- **WHEN** targets file has `$schema: agentv-targets-v2.1`
 - **THEN** validation proceeds with targets schema rules
 
 #### Scenario: Targets array required

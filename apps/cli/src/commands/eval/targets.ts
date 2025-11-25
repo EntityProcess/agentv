@@ -6,6 +6,7 @@ import {
   type ResolvedTarget,
   type TargetDefinition,
 } from "@agentv/core";
+import { validateTargetsFile } from "@agentv/core/evaluation/validation";
 import { constants } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -17,6 +18,14 @@ const TARGET_FILE_CANDIDATES = [
   path.join(".agentv", "targets.yaml"),
   path.join(".agentv", "targets.yml"),
 ];
+
+const ANSI_YELLOW = "\u001b[33m";
+const ANSI_RED = "\u001b[31m";
+const ANSI_RESET = "\u001b[0m";
+
+function isTTY(): boolean {
+  return process.stdout.isTTY ?? false;
+}
 
 async function fileExists(filePath: string): Promise<boolean> {
   try {
@@ -133,6 +142,35 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
     repoRoot,
     cwd,
   });
+
+  // Validate the targets file and show warnings
+  const validationResult = await validateTargetsFile(targetsFilePath);
+  const warnings = validationResult.errors.filter((e) => e.severity === "warning");
+  const useColors = isTTY();
+  
+  if (warnings.length > 0) {
+    console.warn(`\nWarnings in ${targetsFilePath}:`);
+    for (const warning of warnings) {
+      const location = warning.location ? ` [${warning.location}]` : "";
+      const prefix = useColors ? `${ANSI_YELLOW}  ⚠${ANSI_RESET}` : "  ⚠";
+      const message = useColors ? `${ANSI_YELLOW}${warning.message}${ANSI_RESET}` : warning.message;
+      console.warn(`${prefix}${location} ${message}`);
+    }
+    console.warn("");
+  }
+  
+  // Check for errors (should fail if invalid)
+  const errors = validationResult.errors.filter((e) => e.severity === "error");
+  if (errors.length > 0) {
+    console.error(`\nErrors in ${targetsFilePath}:`);
+    for (const error of errors) {
+      const location = error.location ? ` [${error.location}]` : "";
+      const prefix = useColors ? `${ANSI_RED}  ✗${ANSI_RESET}` : "  ✗";
+      const message = useColors ? `${ANSI_RED}${error.message}${ANSI_RESET}` : error.message;
+      console.error(`${prefix}${location} ${message}`);
+    }
+    throw new Error(`Targets file validation failed with ${errors.length} error(s)`);
+  }
 
   const definitions = await readTargetDefinitions(targetsFilePath);
   const fileTargetName = await readTestSuiteTarget(testFilePath);

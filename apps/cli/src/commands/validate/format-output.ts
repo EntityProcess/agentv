@@ -73,6 +73,11 @@ function formatStats(summary: ValidationSummary, useColors: boolean): string {
   const totalText = `Total files: ${summary.totalFiles}`;
   const validText = `Valid: ${summary.validFiles}`;
   const invalidText = `Invalid: ${summary.invalidFiles}`;
+  
+  // Count files with warnings
+  const filesWithWarnings = summary.results.filter(r => 
+    r.errors.some(e => e.severity === "warning")
+  ).length;
 
   if (useColors) {
     lines.push(`${ANSI_BOLD}${totalText}${ANSI_RESET}`);
@@ -82,10 +87,16 @@ function formatStats(summary: ValidationSummary, useColors: boolean): string {
     } else {
       lines.push(invalidText);
     }
+    if (filesWithWarnings > 0) {
+      lines.push(`${ANSI_YELLOW}Files with warnings: ${filesWithWarnings}${ANSI_RESET}`);
+    }
   } else {
     lines.push(totalText);
     lines.push(validText);
     lines.push(invalidText);
+    if (filesWithWarnings > 0) {
+      lines.push(`Files with warnings: ${filesWithWarnings}`);
+    }
   }
 
   return lines.join("\n");

@@ -13,7 +13,7 @@
 ## 2. File Type Detection
 
 - [x] 2.1 Implement `$schema` field detection for `agentv-eval-v2`
-- [x] 2.2 Implement `$schema` field detection for `agentv-targets-v2`
+- [x] 2.2 Implement `$schema` field detection for `agentv-targets-v2.1`
 - [x] 2.3 Implement error for missing `$schema` field
 - [x] 2.4 Add error handling for unknown schema values
 - [x] 2.5 Write unit tests for file type detection (test/evaluation/validation/file-type.test.ts)
