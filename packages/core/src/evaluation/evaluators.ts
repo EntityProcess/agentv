@@ -315,7 +315,6 @@ export class CodeEvaluator implements Evaluator {
         expected_outcome: context.evalCase.expected_outcome,
         reference_answer: context.evalCase.reference_answer,
         candidate_answer: context.candidate,
-        system_message: context.promptInputs.systemMessage ?? "",
         guideline_paths: context.evalCase.guideline_paths,
         input_files: context.evalCase.file_paths,
         input_segments: context.evalCase.input_segments,

@@ -39,9 +39,9 @@ describe("Azure provider request diagnostics", () => {
         name: "azure",
         provider: "azure",
         settings: {
-          endpoint: "AZURE_OPENAI_ENDPOINT",
-          api_key: "AZURE_OPENAI_API_KEY",
-          model: "AZURE_DEPLOYMENT_NAME",
+          endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
+          api_key: "${{ AZURE_OPENAI_API_KEY }}",
+          model: "${{ AZURE_DEPLOYMENT_NAME }}",
         },
       },
       env,

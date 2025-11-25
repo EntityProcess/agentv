@@ -558,7 +558,6 @@ async function evaluateCandidate(options: {
     question: promptInputs.question,
     ...(isAgentProvider(provider) ? {} : { guidelines: promptInputs.guidelines }),
     guideline_paths: evalCase.guideline_paths,
-    system_message: promptInputs.systemMessage ?? "",
   } as JsonObject;
 
   return {
@@ -919,7 +918,6 @@ function buildErrorResult(
     question: promptInputs.question,
     ...(isAgentProvider(provider) ? {} : { guidelines: promptInputs.guidelines }),
     guideline_paths: evalCase.guideline_paths,
-    system_message: promptInputs.systemMessage ?? "",
     error: message,
   } as JsonObject;
 
