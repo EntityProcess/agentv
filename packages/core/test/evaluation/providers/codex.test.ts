@@ -28,7 +28,10 @@ describe("CodexProvider", () => {
   });
 
   it("mirrors input files and composes preread block", async () => {
-    const runner = vi.fn(async () => ({
+    const runner = vi.fn<
+      [{ prompt: string; args: readonly string[]; onStdoutChunk?: (chunk: string) => void }],
+      Promise<{ stdout: string; stderr: string; exitCode: number }>
+    >(async () => ({
       stdout: JSON.stringify({ messages: [{ role: "assistant", content: "done" }] }),
       stderr: "",
       exitCode: 0,
@@ -62,10 +65,7 @@ describe("CodexProvider", () => {
 
     expect(response.text).toBe("done");
     expect(runner).toHaveBeenCalledTimes(1);
-    const invocation = runner.mock.calls[0]?.[0] as {
-      prompt: string;
-      args: string[];
-    };
+    const invocation = runner.mock.calls[0][0];
     expect(invocation.args.slice(0, 7)).toEqual([
       "--ask-for-approval",
       "never",
