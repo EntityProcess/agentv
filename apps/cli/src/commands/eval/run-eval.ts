@@ -235,7 +235,7 @@ async function prepareFileMetadata(params: {
     : selection.resolvedTarget.kind;
   const inlineTargetLabel = `${selection.targetName} [provider=${providerLabel}]`;
 
-  const evalCases = await loadEvalCases(testFilePath, repoRoot, { verbose: options.verbose });
+  const evalCases = await loadEvalCases(testFilePath, repoRoot, { verbose: options.verbose, evalId: options.evalId });
   const filteredIds = options.evalId
     ? evalCases.filter((value) => value.id === options.evalId).map((value) => value.id)
     : evalCases.map((value) => value.id);
