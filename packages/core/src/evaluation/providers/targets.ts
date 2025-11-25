@@ -600,23 +600,29 @@ function resolveOptionalString(
   if (trimmed.length === 0) {
     return undefined;
   }
-  const envValue = env[trimmed];
-  if (envValue !== undefined) {
-    if (envValue.trim().length === 0) {
-      throw new Error(`Environment variable '${trimmed}' for ${description} is empty`);
+
+  // Check for ${{ variable }} syntax
+  const envVarMatch = trimmed.match(/^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i);
+  if (envVarMatch) {
+    const varName = envVarMatch[1];
+    const envValue = env[varName];
+    if (envValue !== undefined) {
+      if (envValue.trim().length === 0) {
+        throw new Error(`Environment variable '${varName}' for ${description} is empty`);
+      }
+      return envValue;
     }
-    return envValue;
-  }
-  const allowLiteral = options?.allowLiteral ?? false;
-  const optionalEnv = options?.optionalEnv ?? false;
-  const looksLikeEnv = isLikelyEnvReference(trimmed);
-  if (looksLikeEnv) {
+    const optionalEnv = options?.optionalEnv ?? false;
     if (optionalEnv) {
       return undefined;
     }
-    if (!allowLiteral) {
-      throw new Error(`Environment variable '${trimmed}' required for ${description} is not set`);
-    }
+    throw new Error(`Environment variable '${varName}' required for ${description} is not set`);
+  }
+
+  // Return as literal value
+  const allowLiteral = options?.allowLiteral ?? false;
+  if (!allowLiteral) {
+    throw new Error(`${description} must use \${{ VARIABLE_NAME }} syntax for environment variables or be marked as allowing literals`);
   }
   return trimmed;
 }
@@ -667,10 +673,6 @@ function resolveOptionalBoolean(source: unknown): boolean | undefined {
   throw new Error("expected boolean value");
 }
 
-function isLikelyEnvReference(value: string): boolean {
-  return /^[A-Z0-9_]+$/.test(value);
-}
-
 function resolveOptionalStringArray(
   source: unknown,
   env: EnvLookup,
@@ -695,15 +697,24 @@ function resolveOptionalStringArray(
     if (trimmed.length === 0) {
       throw new Error(`${description}[${i}] cannot be empty`);
     }
-    const envValue = env[trimmed];
-    if (envValue !== undefined) {
-      if (envValue.trim().length === 0) {
-        throw new Error(`Environment variable '${trimmed}' for ${description}[${i}] is empty`);
+
+    // Check for ${{ variable }} syntax
+    const envVarMatch = trimmed.match(/^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i);
+    if (envVarMatch) {
+      const varName = envVarMatch[1];
+      const envValue = env[varName];
+      if (envValue !== undefined) {
+        if (envValue.trim().length === 0) {
+          throw new Error(`Environment variable '${varName}' for ${description}[${i}] is empty`);
+        }
+        resolved.push(envValue);
+        continue;
       }
-      resolved.push(envValue);
-    } else {
-      resolved.push(trimmed);
+      throw new Error(`Environment variable '${varName}' for ${description}[${i}] is not set`);
     }
+
+    // Treat as literal value
+    resolved.push(trimmed);
   }
   return resolved.length > 0 ? resolved : undefined;
 }
