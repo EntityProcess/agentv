@@ -84,7 +84,6 @@ evalcases:
         - name: code_correctness
           type: llm_judge  # LLM-based evaluation
           prompt: ../../evaluators/prompts/code-correctness-judge.md
-          model: gpt-4
     
     input_messages:
       - role: system
