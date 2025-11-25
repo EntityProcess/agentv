@@ -92,7 +92,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
   } = options;
 
   const load = loadEvalCases;
-  const evalCases = await load(testFilePath, repoRoot, { verbose });
+  const evalCases = await load(testFilePath, repoRoot, { verbose, evalId });
 
   const filteredEvalCases = filterEvalCases(evalCases, evalId);
   if (filteredEvalCases.length === 0) {

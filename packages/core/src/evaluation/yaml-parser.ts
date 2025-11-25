@@ -120,6 +120,7 @@ export function extractCodeBlocks(segments: readonly JsonObject[]): readonly str
 
 type LoadOptions = {
   readonly verbose?: boolean;
+  readonly evalId?: string;
 };
 
 type RawTestSuite = JsonObject & {
@@ -258,6 +259,7 @@ export async function loadEvalCases(
   options?: LoadOptions,
 ): Promise<readonly EvalCase[]> {
   const verbose = options?.verbose ?? false;
+  const evalIdFilter = options?.evalId;
   const absoluteTestPath = path.resolve(evalFilePath);
   if (!(await fileExists(absoluteTestPath))) {
     throw new Error(`Test file not found: ${evalFilePath}`);
@@ -309,6 +311,12 @@ export async function loadEvalCases(
 
     const evalcase = rawEvalcase as RawEvalCase;
     const id = asString(evalcase.id);
+    
+    // Skip eval cases that don't match the filter
+    if (evalIdFilter && id !== evalIdFilter) {
+      continue;
+    }
+    
     const conversationId = asString(evalcase.conversation_id);
     const outcome = asString(evalcase.outcome);
     
