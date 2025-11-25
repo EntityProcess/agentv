@@ -140,6 +140,116 @@ type RawEvalCase = JsonObject & {
 };
 
 /**
+ * Process message content into structured segments with file resolution.
+ */
+async function processMessages(options: {
+  readonly messages: readonly TestMessage[];
+  readonly searchRoots: readonly string[];
+  readonly repoRootPath: string;
+  readonly guidelinePatterns?: readonly string[];
+  readonly guidelinePaths?: string[];
+  readonly textParts?: string[];
+  readonly messageType: "input" | "output";
+  readonly verbose: boolean;
+}): Promise<JsonObject[]> {
+  const {
+    messages,
+    searchRoots,
+    repoRootPath,
+    guidelinePatterns,
+    guidelinePaths,
+    textParts,
+    messageType,
+    verbose,
+  } = options;
+
+  const segments: JsonObject[] = [];
+
+  for (const message of messages) {
+    const content = message.content;
+    if (typeof content === "string") {
+      segments.push({ type: "text", value: content });
+      if (textParts) {
+        textParts.push(content);
+      }
+      continue;
+    }
+
+    for (const rawSegment of content) {
+      if (!isJsonObject(rawSegment)) {
+        continue;
+      }
+
+      const segmentType = asString(rawSegment.type);
+      if (segmentType === "file") {
+        const rawValue = asString(rawSegment.value);
+        if (!rawValue) {
+          continue;
+        }
+
+        const { displayPath, resolvedPath, attempted } = await resolveFileReference(
+          rawValue,
+          searchRoots,
+        );
+
+        if (!resolvedPath) {
+          const attempts = attempted.length
+            ? ["  Tried:", ...attempted.map((candidate) => `    ${candidate}`)]
+            : undefined;
+          const context = messageType === "input" ? "" : " in expected_messages";
+          logWarning(`File not found${context}: ${displayPath}`, attempts);
+          continue;
+        }
+
+        try {
+          const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n");
+
+          // Only check for guidelines in input messages
+          if (messageType === "input" && guidelinePatterns && guidelinePaths) {
+            const relativeToRepo = path.relative(repoRootPath, resolvedPath);
+
+            if (isGuidelineFile(relativeToRepo, guidelinePatterns)) {
+              guidelinePaths.push(path.resolve(resolvedPath));
+              if (verbose) {
+                console.log(`  [Guideline] Found: ${displayPath}`);
+                console.log(`    Resolved to: ${resolvedPath}`);
+              }
+              continue;
+            }
+          }
+
+          segments.push({
+            type: "file",
+            path: displayPath,
+            text: fileContent,
+            resolvedPath: path.resolve(resolvedPath),
+          });
+
+          if (verbose) {
+            const label = messageType === "input" ? "[File]" : "[Expected Output File]";
+            console.log(`  ${label} Found: ${displayPath}`);
+            console.log(`    Resolved to: ${resolvedPath}`);
+          }
+        } catch (error) {
+          const context = messageType === "input" ? "" : " expected output";
+          logWarning(`Could not read${context} file ${resolvedPath}: ${(error as Error).message}`);
+        }
+        continue;
+      }
+
+      const clonedSegment = cloneJsonObject(rawSegment);
+      segments.push(clonedSegment);
+      const inlineValue = clonedSegment.value;
+      if (typeof inlineValue === "string" && textParts) {
+        textParts.push(inlineValue);
+      }
+    }
+  }
+
+  return segments;
+}
+
+/**
  * Load eval cases from a AgentV YAML specification file.
  */
 export async function loadEvalCases(
@@ -259,86 +369,35 @@ export async function loadEvalCases(
       }
     }
 
-    const userSegments: JsonObject[] = [];
     const guidelinePaths: string[] = [];
-    const userTextParts: string[] = [];
+    const inputTextParts: string[] = [];
 
-    for (const userMessage of userMessages) {
-      const content = userMessage.content;
-      if (typeof content === "string") {
-        userSegments.push({ type: "text", value: content });
-        userTextParts.push(content);
-        continue;
-      }
+    // Process input_messages (user messages) into segments
+    const inputSegments = await processMessages({
+      messages: userMessages,
+      searchRoots,
+      repoRootPath,
+      guidelinePatterns,
+      guidelinePaths,
+      textParts: inputTextParts,
+      messageType: "input",
+      verbose,
+    });
 
-      for (const rawSegment of content) {
-        if (!isJsonObject(rawSegment)) {
-          continue;
-        }
+    // Process expected_messages (assistant messages) into segments
+    const outputSegments = await processMessages({
+      messages: assistantMessages,
+      searchRoots,
+      repoRootPath,
+      guidelinePatterns,
+      messageType: "output",
+      verbose,
+    });
 
-        const segmentType = asString(rawSegment.type);
-        if (segmentType === "file") {
-          const rawValue = asString(rawSegment.value);
-          if (!rawValue) {
-            continue;
-          }
-
-          const { displayPath, resolvedPath, attempted } = await resolveFileReference(
-            rawValue,
-            searchRoots,
-          );
-
-          if (!resolvedPath) {
-            const attempts = attempted.length
-              ? ["  Tried:", ...attempted.map((candidate) => `    ${candidate}`)]
-              : undefined;
-            logWarning(`File not found: ${displayPath}`, attempts);
-            continue;
-          }
-
-          try {
-            const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n");
-            
-            // Calculate path relative to repo root for matching to handle ".." in displayPath
-            const relativeToRepo = path.relative(repoRootPath, resolvedPath);
-
-            if (isGuidelineFile(relativeToRepo, guidelinePatterns)) {
-              guidelinePaths.push(path.resolve(resolvedPath));
-              if (verbose) {
-                console.log(`  [Guideline] Found: ${displayPath}`);
-                console.log(`    Resolved to: ${resolvedPath}`);
-              }
-            } else {
-              userSegments.push({
-                type: "file",
-                path: displayPath,
-                text: fileContent,
-                resolvedPath: path.resolve(resolvedPath),
-              });
-              if (verbose) {
-                console.log(`  [File] Found: ${displayPath}`);
-                console.log(`    Resolved to: ${resolvedPath}`);
-              }
-            }
-          } catch (error) {
-            logWarning(`Could not read file ${resolvedPath}: ${(error as Error).message}`);
-          }
-          continue;
-        }
-
-        const clonedSegment = cloneJsonObject(rawSegment);
-        userSegments.push(clonedSegment);
-        const inlineValue = clonedSegment.value;
-        if (typeof inlineValue === "string") {
-          userTextParts.push(inlineValue);
-        }
-      }
-    }
-
-    const codeSnippets = extractCodeBlocks(userSegments);
+    const codeSnippets = extractCodeBlocks(inputSegments);
     const assistantContent = assistantMessages[0]?.content;
-    const expectedAssistantRaw = await resolveAssistantContent(assistantContent, searchRoots, verbose);
-    const userTextPrompt = userTextParts
+    const referenceAnswer = await resolveAssistantContent(assistantContent, searchRoots, verbose);
+    const question = inputTextParts
       .map((part) => part.trim())
       .filter((part) => part.length > 0)
       .join(" ");
@@ -348,7 +407,7 @@ export async function loadEvalCases(
 
     // Extract file paths from user_segments (non-guideline files)
     const userFilePaths: string[] = [];
-    for (const segment of userSegments) {
+    for (const segment of inputSegments) {
       if (segment.type === "file" && typeof segment.resolvedPath === "string") {
         userFilePaths.push(segment.resolvedPath);
       }
@@ -364,15 +423,16 @@ export async function loadEvalCases(
       id,
       dataset: datasetName,
       conversation_id: conversationId,
-      task: userTextPrompt,
-      user_segments: userSegments,
+      question: question,
+      input_segments: inputSegments,
+      output_segments: outputSegments,
       system_message: systemMessageContent,
-      expected_assistant_raw: expectedAssistantRaw,
+      reference_answer: referenceAnswer,
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
       guideline_patterns: guidelinePatterns,
       file_paths: allFilePaths,
       code_snippets: codeSnippets,
-      outcome,
+      expected_outcome: outcome,
       evaluator: testCaseEvaluatorKind,
       evaluators,
     };
@@ -400,7 +460,7 @@ export async function loadEvalCases(
  */
 export async function buildPromptInputs(
   testCase: EvalCase,
-): Promise<{ request: string; guidelines: string; systemMessage?: string }> {
+): Promise<{ question: string; guidelines: string; systemMessage?: string }> {
   const guidelineContents: string[] = [];
   for (const rawPath of testCase.guideline_paths) {
     const absolutePath = path.resolve(rawPath);
@@ -417,37 +477,37 @@ export async function buildPromptInputs(
     }
   }
 
-  const requestParts: string[] = [];
-  for (const segment of testCase.user_segments) {
+  const questionParts: string[] = [];
+  for (const segment of testCase.input_segments) {
     const typeValue = segment.type;
     if (typeof typeValue === "string" && typeValue === "file") {
       const pathValue = segment.path;
       const textValue = segment.text;
       const label = typeof pathValue === "string" ? pathValue : "file";
       const body = typeof textValue === "string" ? textValue : "";
-      requestParts.push(`=== ${label} ===\n${body}`);
+      questionParts.push(`=== ${label} ===\n${body}`);
       continue;
     }
 
     if (typeof typeValue === "string" && typeValue === "text") {
       const value = segment.value;
       if (typeof value === "string") {
-        requestParts.push(value);
+        questionParts.push(value);
       }
       continue;
     }
 
     const genericValue = segment.value;
     if (typeof genericValue === "string") {
-      requestParts.push(genericValue);
+      questionParts.push(genericValue);
     }
   }
 
   if (testCase.code_snippets.length > 0) {
-    requestParts.push(testCase.code_snippets.join("\n"));
+    questionParts.push(testCase.code_snippets.join("\n"));
   }
 
-  const request = requestParts
+  const question = questionParts
     .map((part) => part.trim())
     .filter((part) => part.length > 0)
     .join("\n\n");
@@ -457,7 +517,7 @@ export async function buildPromptInputs(
     .filter((part) => part.length > 0)
     .join("\n\n");
 
-  return { request, guidelines, systemMessage: testCase.system_message };
+  return { question, guidelines, systemMessage: testCase.system_message };
 }
 
 async function fileExists(absolutePath: string): Promise<boolean> {

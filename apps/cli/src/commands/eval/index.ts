@@ -1,5 +1,5 @@
-import fg from "fast-glob";
 import type { Command } from "commander";
+import fg from "fast-glob";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 

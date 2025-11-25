@@ -11,7 +11,7 @@ const baseConfig: CliResolvedConfig = {
 };
 
 const baseRequest: ProviderRequest = {
-  prompt: "Hello world",
+  question: "Hello world",
   guidelines: "guideline text",
   inputFiles: ["./fixtures/spec.md"],
   evalCaseId: "case-1",

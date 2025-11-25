@@ -1,78 +1,38 @@
 # Code Correctness Judge
 
-You are an expert code reviewer evaluating the correctness and quality of generated code.
+## Task
 
-## Your Task
+Evaluate the generated code against the requirements. Score from 0.0 to 1.0 based on Functional Correctness (0.4), Code Quality (0.3), and Completeness (0.3).
 
-Evaluate the generated code against the requirements and expected output. Provide a score from 0.0 to 1.0 based on:
+## Context
 
-1. **Functional Correctness** (0.4): Does the code solve the stated problem correctly?
-2. **Code Quality** (0.3): Is the code well-structured, readable, and following best practices?
-3. **Completeness** (0.3): Does it handle all specified requirements and edge cases?
+### Original Question
+${question}
 
-## Input
+### Expected Outcome
+${expected_outcome}
 
-You will receive:
-- **Input Messages**: The original request with requirements
-- **Generated Output**: The code produced by the AI
-- **Expected Output** (optional): Reference implementation or expected behavior
+### Reference Answer
+${reference_answer}
 
-## Scoring Guidelines
+### Candidate Answer
+${candidate_answer}
 
-### 0.9 - 1.0: Excellent
-- Solves the problem correctly and efficiently
-- Excellent code quality with proper error handling
-- Handles all edge cases mentioned in requirements
-- Follows language best practices and conventions
-
-### 0.7 - 0.8: Good
-- Solves the problem correctly
-- Good code quality with minor improvements possible
-- Handles most edge cases
-- Generally follows best practices
-
-### 0.5 - 0.6: Acceptable
-- Solves the core problem with some issues
-- Adequate code quality but needs improvement
-- Missing some edge case handling
-- Some deviation from best practices
-
-### 0.3 - 0.4: Poor
-- Partially solves the problem with significant issues
-- Poor code quality or major bugs
-- Missing important edge cases
-- Significant deviations from best practices
-
-### 0.0 - 0.2: Unacceptable
-- Does not solve the problem
-- Critical bugs or errors
-- No error handling
-- Violates fundamental best practices
+## Constraints
+- **0.9-1.0**: Excellent (Correct, efficient, best practices)
+- **0.7-0.8**: Good (Correct, minor issues)
+- **0.5-0.6**: Acceptable (Core solved, some issues)
+- **0.3-0.4**: Poor (Partial solution, major bugs)
+- **0.0-0.2**: Unacceptable (Incorrect, critical bugs)
+- Be objective and consistent.
+- List specific hits and misses (max 4 each).
 
 ## Output Format
-
-Provide your evaluation in this JSON format:
-
 ```json
 {
   "score": 0.85,
-  "hits": [
-    "Correctly implements the core algorithm",
-    "Includes proper error handling",
-    "Has comprehensive type hints"
-  ],
-  "misses": [
-    "Missing validation for negative numbers"
-  ],
-  "reasoning": "Brief explanation of the score focusing on correctness, quality, and completeness"
+  "hits": ["Correct algorithm", "Good error handling"],
+  "misses": ["Missing validation"],
+  "reasoning": "Brief explanation..."
 }
 ```
-
-## Important Notes
-
-- Be objective and consistent in your scoring
-- Focus on whether the code meets the stated requirements
-- Consider both correctness and quality
-- List specific achievements in "hits" (max 4 items)
-- List specific failures or omissions in "misses" (max 4 items, empty array if none)
-- Provide clear, actionable reasoning for your score

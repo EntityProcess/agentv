@@ -326,7 +326,7 @@ describe("createProvider", () => {
     );
 
     const provider = createProvider(resolved);
-    const response = await provider.invoke({ prompt: "Hello" });
+    const response = await provider.invoke({ question: "Hello" });
 
     expect(createCalls).toHaveLength(1);
     expect(chatMock).toHaveBeenCalledTimes(1);
@@ -352,7 +352,7 @@ describe("createProvider", () => {
     expect(provider.kind).toBe("gemini");
     expect(provider.targetName).toBe("gemini-target");
 
-    const response = await provider.invoke({ prompt: "Test prompt" });
+    const response = await provider.invoke({ question: "Test prompt" });
 
     expect(createCalls.length).toBeGreaterThan(0);
     expect(chatMock).toHaveBeenCalled();

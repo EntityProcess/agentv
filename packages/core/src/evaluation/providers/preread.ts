@@ -31,7 +31,7 @@ export function buildPromptDocument(
     parts.push("\n", prereadBlock);
   }
 
-  parts.push("\n[[ ## user_query ## ]]\n", request.prompt.trim());
+  parts.push("\n[[ ## user_query ## ]]\n", request.question.trim());
 
   return parts.join("\n").trim();
 }

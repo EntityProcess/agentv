@@ -1,4 +1,3 @@
-import { ax, f } from "@ax-llm/ax";
 import { randomUUID } from "node:crypto";
 
 import type { ResolvedTarget } from "./providers/targets.js";
@@ -12,7 +11,7 @@ export interface EvaluationContext {
   readonly provider: Provider;
   readonly attempt: number;
   readonly promptInputs: {
-    readonly request: string;
+    readonly question: string;
     readonly guidelines: string;
     readonly systemMessage?: string;
   };
@@ -40,51 +39,12 @@ export interface Evaluator {
 
 type JudgeProviderResolver = (context: EvaluationContext) => Promise<Provider | undefined>;
 
-type JudgeModelConfigOverrides = Readonly<{
-  maxTokens?: number;
-  temperature?: number;
-}>;
-
-type JudgeForwardOptions = Readonly<{
-  model?: string;
-  modelConfig?: JudgeModelConfigOverrides;
-}>;
-
 export interface LlmJudgeEvaluatorOptions {
   readonly resolveJudgeProvider: JudgeProviderResolver;
   readonly maxOutputTokens?: number;
   readonly temperature?: number;
   readonly customPrompt?: string;
 }
-
-const LLM_JUDGE_SIGNATURE = f()
-  .input(
-    "evaluationContext",
-    f.object(
-      {
-        expectedOutcome: f.string("The expected outcome for the original task"),
-        request: f.string("The original task request"),
-        referenceAnswer: f.string("The gold standard reference answer"),
-        generatedAnswer: f.string("The answer to evaluate"),
-        guidelines: f
-          .string("Additional evaluation guidelines or instructions")
-          .optional(),
-      },
-      "Complete evaluation context for the judge",
-    ),
-  )
-  .output(
-    "evaluation",
-    f.object({
-      score: f.number("Score between 0.0 and 1.0").min(0).max(1),
-      hits: f.string("Brief specific achievement").array(),
-      misses: f.string("Brief specific failure or omission").array(),
-      reasoning: f.string("Concise explanation for the score").max(500),
-    }),
-  )
-  .build();
-
-const LLM_JUDGE = ax(LLM_JUDGE_SIGNATURE);
 
 export class LlmJudgeEvaluator implements Evaluator {
   readonly kind = "llm_judge";
@@ -107,64 +67,36 @@ export class LlmJudgeEvaluator implements Evaluator {
       throw new Error("No judge provider available for LLM grading");
     }
 
-    if (providerSupportsAx(judgeProvider)) {
-      return this.evaluateWithAx(context, judgeProvider);
-    }
-
     return this.evaluateWithPrompt(context, judgeProvider);
-  }
-
-  private async evaluateWithAx(
-    context: EvaluationContext,
-    judgeProvider: Provider & Required<Pick<Provider, "getAxAI">>,
-  ): Promise<EvaluationScore> {
-    const ai = judgeProvider.getAxAI();
-    const guidelines = context.promptInputs.guidelines?.trim();
-    const evaluationContext = {
-      expectedOutcome: context.evalCase.outcome.trim(),
-      request: context.evalCase.task.trim(),
-      referenceAnswer: context.evalCase.expected_assistant_raw.trim(),
-      generatedAnswer: context.candidate.trim(),
-      ...(guidelines ? { guidelines } : {}),
-    };
-
-    const options = this.buildJudgeForwardOptions(context);
-    const result = await LLM_JUDGE.forward(ai, { evaluationContext }, options);
-    const evaluation = result.evaluation;
-    const expectedAspectCount = Math.max(
-      evaluation.hits.length + evaluation.misses.length,
-      1,
-    );
-
-    return {
-      score: evaluation.score,
-      hits: evaluation.hits,
-      misses: evaluation.misses,
-      expectedAspectCount,
-      reasoning: evaluation.reasoning,
-      evaluatorRawRequest: {
-        id: randomUUID(),
-        provider: judgeProvider.id,
-        target: context.target.name,
-        method: "ax-structured-output",
-        signature: LLM_JUDGE_SIGNATURE.toString(),
-      },
-    };
   }
 
   private async evaluateWithPrompt(
     context: EvaluationContext,
     judgeProvider: Provider,
   ): Promise<EvaluationScore> {
-    const prompt = buildQualityPrompt(context.evalCase, context.candidate);
-    const systemPrompt = context.systemPrompt ?? this.customPrompt ?? QUALITY_SYSTEM_PROMPT;
+    let prompt = buildQualityPrompt(context.evalCase, context.candidate);
+    let systemPrompt = context.systemPrompt ?? this.customPrompt ?? QUALITY_SYSTEM_PROMPT;
+
+    if (systemPrompt && hasTemplateVariables(systemPrompt)) {
+      const variables = {
+        input_messages: JSON.stringify(context.evalCase.input_segments, null, 2),
+        output_messages: JSON.stringify(context.evalCase.output_segments, null, 2),
+        candidate_answer: context.candidate,
+        reference_answer: context.evalCase.reference_answer,
+        expected_outcome: context.evalCase.expected_outcome,
+        question: context.evalCase.question,
+      };
+      prompt = substituteVariables(systemPrompt, variables);
+      systemPrompt = QUALITY_SYSTEM_PROMPT;
+    }
+
     const metadata: JsonObject = {
       ...(systemPrompt !== undefined ? { systemPrompt } : {}),
       ...(context.judgeModel !== undefined ? { model: context.judgeModel } : {}),
     };
 
     const response = await judgeProvider.invoke({
-      prompt,
+      question: prompt,
       metadata,
       evalCaseId: context.evalCase.id,
       attempt: context.attempt,
@@ -201,43 +133,12 @@ export class LlmJudgeEvaluator implements Evaluator {
       evaluatorRawRequest,
     };
   }
-
-  private buildJudgeForwardOptions(
-    context: EvaluationContext,
-  ): JudgeForwardOptions | undefined {
-    const modelConfig = this.buildJudgeModelConfig();
-    if (modelConfig === undefined && context.judgeModel === undefined) {
-      return undefined;
-    }
-
-    return {
-      ...(context.judgeModel ? { model: context.judgeModel } : {}),
-      ...(modelConfig ? { modelConfig } : {}),
-    };
-  }
-
-  private buildJudgeModelConfig(): JudgeModelConfigOverrides | undefined {
-    if (this.maxOutputTokens === undefined && this.temperature === undefined) {
-      return undefined;
-    }
-
-    return {
-      ...(this.maxOutputTokens !== undefined ? { maxTokens: this.maxOutputTokens } : {}),
-      ...(this.temperature !== undefined ? { temperature: this.temperature } : {}),
-    };
-  }
-}
-
-function providerSupportsAx(
-  provider: Provider,
-): provider is Provider & Required<Pick<Provider, "getAxAI">> {
-  return typeof provider.getAxAI === "function";
 }
 
 const QUALITY_SYSTEM_PROMPT = [
-  "You are an expert evaluator. Your goal is to grade the generated_answer based on how well it achieves the expected_outcome for the original task.",
+  "You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.",
   "",
-  "Use the reference_answer as a gold standard for a high-quality response. The generated_answer does not need to match it verbatim, but it should capture the key points and follow the same spirit.",
+  "Use the reference_answer as a gold standard for a high-quality response. The candidate_answer does not need to match it verbatim, but it should capture the key points and follow the same spirit.",
   "",
   "Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.",
   "",
@@ -251,18 +152,18 @@ const QUALITY_SYSTEM_PROMPT = [
   "}",
 ].join("\n");
 
-function buildQualityPrompt(testCase: EvalCase, candidate: string): string {
+function buildQualityPrompt(evalCase: EvalCase, candidate: string): string {
   const parts = [
     "[[ ## expected_outcome ## ]]",
-    testCase.outcome.trim(),
+    evalCase.expected_outcome.trim(),
     "",
-    "[[ ## request ## ]]",
-    testCase.task.trim(),
+    "[[ ## question ## ]]",
+    evalCase.question.trim(),
     "",
     "[[ ## reference_answer ## ]]",
-    testCase.expected_assistant_raw.trim(),
+    evalCase.reference_answer.trim(),
     "",
-    "[[ ## generated_answer ## ]]",
+    "[[ ## candidate_answer ## ]]",
     candidate.trim(),
     "",
     "Respond with a single JSON object matching the schema described in the system prompt.",
@@ -410,14 +311,14 @@ export class CodeEvaluator implements Evaluator {
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
     const inputPayload = JSON.stringify(
       {
-        task: context.evalCase.task,
-        outcome: context.evalCase.outcome,
-        expected: context.evalCase.expected_assistant_raw,
-        output: context.candidate,
+        question: context.evalCase.question,
+        expected_outcome: context.evalCase.expected_outcome,
+        reference_answer: context.evalCase.reference_answer,
+        candidate_answer: context.candidate,
         system_message: context.promptInputs.systemMessage ?? "",
         guideline_paths: context.evalCase.guideline_paths,
-        attachments: context.evalCase.file_paths,
-        user_segments: context.evalCase.user_segments,
+        input_files: context.evalCase.file_paths,
+        input_segments: context.evalCase.input_segments,
       },
       null,
       2,
@@ -520,4 +421,14 @@ function parseJsonSafe(payload: string): Record<string, unknown> | undefined {
   } catch {
     return undefined;
   }
+}
+
+function hasTemplateVariables(text: string): boolean {
+  return /\$\{[a-zA-Z0-9_]+\}/.test(text);
+}
+
+function substituteVariables(template: string, variables: Record<string, string>): string {
+  return template.replace(/\$\{([a-zA-Z0-9_]+)\}/g, (match, varName) => {
+    return variables[varName] ?? match;
+  });
 }

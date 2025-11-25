@@ -36,7 +36,7 @@ describe("YamlWriter", () => {
       score: 0.85,
       hits: ["aspect1", "aspect2"],
       misses: ["aspect3"],
-      model_answer: "This is a test answer",
+      candidate_answer: "This is a test answer",
       expected_aspect_count: 3,
       target: "azure",
       timestamp: "2024-01-01T00:00:00.000Z",
@@ -73,7 +73,7 @@ describe("YamlWriter", () => {
         score: 0.85,
         hits: ["aspect1"],
         misses: [],
-        model_answer: "Answer 1",
+        candidate_answer: "Answer 1",
         expected_aspect_count: 1,
         target: "azure",
         timestamp: "2024-01-01T00:00:00.000Z",
@@ -83,7 +83,7 @@ describe("YamlWriter", () => {
         score: 0.95,
         hits: ["aspect1", "aspect2"],
         misses: [],
-        model_answer: "Answer 2",
+        candidate_answer: "Answer 2",
         expected_aspect_count: 2,
         target: "anthropic",
         timestamp: "2024-01-01T00:01:00.000Z",
@@ -119,7 +119,7 @@ describe("YamlWriter", () => {
       score: 0.75,
       hits: [],
       misses: [],
-      model_answer: "This is a long answer\nthat spans multiple lines\nand includes special characters: @#$%",
+      candidate_answer: "This is a long answer\nthat spans multiple lines\nand includes special characters: @#$%",
       expected_aspect_count: 0,
       target: "mock",
       timestamp: "2024-01-01T00:00:00.000Z",
@@ -134,7 +134,7 @@ describe("YamlWriter", () => {
 
     // Verify it's valid YAML and preserves newlines
     const parsed = parseYaml(content) as EvaluationResult;
-    expect(parsed.model_answer).toBe(result.model_answer);
+    expect(parsed.candidate_answer).toBe(result.candidate_answer);
     expect(parsed.reasoning).toBe(result.reasoning);
   });
 
@@ -147,7 +147,7 @@ describe("YamlWriter", () => {
       score: 0.5,
       hits: [],
       misses: [],
-      model_answer: "Answer",
+      candidate_answer: "Answer",
       expected_aspect_count: 0,
       target: "mock",
       timestamp: "2024-01-01T00:00:00.000Z",
@@ -170,7 +170,7 @@ describe("YamlWriter", () => {
       score: 0.0,
       hits: [],
       misses: [],
-      model_answer: "Answer",
+      candidate_answer: "Answer",
       expected_aspect_count: 0,
       target: "mock",
       timestamp: "2024-01-01T00:00:00.000Z",

@@ -319,7 +319,11 @@ async function runBatchEvaluation(options: {
   } = options;
 
   // Prepare prompt inputs up front so we can reuse them for grading.
-  const promptInputsList: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string }[] =
+  const promptInputsList: {
+    readonly question: string;
+    readonly guidelines: string;
+    readonly systemMessage?: string;
+  }[] =
     [];
   for (const evalCase of evalCases) {
     const promptInputs = await buildPromptInputs(evalCase);
@@ -332,7 +336,7 @@ async function runBatchEvaluation(options: {
   const batchRequests: ProviderRequest[] = evalCases.map((evalCase, index) => {
     const promptInputs = promptInputsList[index];
     return {
-      prompt: promptInputs.request,
+      question: promptInputs.question,
       guidelines: promptInputs.guidelines,
       guideline_patterns: evalCase.guideline_patterns,
       inputFiles: evalCase.file_paths,
@@ -513,7 +517,7 @@ async function evaluateCandidate(options: {
   readonly target: ResolvedTarget;
   readonly provider: Provider;
   readonly evaluators: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
-  readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
+  readonly promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string };
   readonly nowFn: () => Date;
   readonly attempt: number;
   readonly judgeProvider?: Provider;
@@ -548,7 +552,7 @@ async function evaluateCandidate(options: {
 
   const completedAt = nowFn();
   const rawRequest: JsonObject = {
-    request: promptInputs.request,
+    question: promptInputs.question,
     guidelines: promptInputs.guidelines,
     guideline_paths: evalCase.guideline_paths,
     system_message: promptInputs.systemMessage ?? "",
@@ -561,7 +565,7 @@ async function evaluateCandidate(options: {
     score: score.score,
     hits: score.hits,
     misses: score.misses,
-    model_answer: candidate,
+    candidate_answer: candidate,
     expected_aspect_count: score.expectedAspectCount,
     target: target.name,
     timestamp: completedAt.toISOString(),
@@ -580,7 +584,7 @@ async function runEvaluatorsForCase(options: {
   readonly provider: Provider;
   readonly evaluators: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
   readonly attempt: number;
-  readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
+  readonly promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string };
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
@@ -632,7 +636,7 @@ async function runEvaluatorList(options: {
   readonly provider: Provider;
   readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
   readonly attempt: number;
-  readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
+  readonly promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string };
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
@@ -761,7 +765,7 @@ async function runLlmJudgeEvaluator(options: {
   readonly provider: Provider;
   readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
   readonly attempt: number;
-  readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
+  readonly promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string };
   readonly now: Date;
   readonly judgeProvider?: Provider;
 }): Promise<EvaluationScore> {
@@ -831,7 +835,7 @@ function buildEvaluatorRegistry(
 async function dumpPrompt(
   directory: string,
   evalCase: EvalCase,
-  promptInputs: { readonly request: string; readonly guidelines: string },
+  promptInputs: { readonly question: string; readonly guidelines: string },
 ): Promise<void> {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `${timestamp}_${sanitizeFilename(evalCase.id)}.json`;
@@ -840,7 +844,7 @@ async function dumpPrompt(
   await mkdir(path.dirname(filePath), { recursive: true });
   const payload = {
     eval_id: evalCase.id,
-    request: promptInputs.request,
+    question: promptInputs.question,
     guidelines: promptInputs.guidelines,
     guideline_paths: evalCase.guideline_paths,
   } satisfies Record<string, unknown>;
@@ -861,7 +865,7 @@ async function invokeProvider(
   options: {
     readonly evalCase: EvalCase;
     readonly target: ResolvedTarget;
-    readonly promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string };
+    readonly promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string };
     readonly attempt: number;
     readonly agentTimeoutMs?: number;
     readonly signal?: AbortSignal;
@@ -880,7 +884,7 @@ async function invokeProvider(
 
   try {
     return await provider.invoke({
-      prompt: promptInputs.request,
+      question: promptInputs.question,
       guidelines: promptInputs.guidelines,
       guideline_patterns: evalCase.guideline_patterns,
       inputFiles: evalCase.file_paths,
@@ -903,12 +907,12 @@ function buildErrorResult(
   targetName: string,
   timestamp: Date,
   error: unknown,
-  promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string },
+  promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string },
 ): EvaluationResult {
   const message = error instanceof Error ? error.message : String(error);
 
   const rawRequest: JsonObject = {
-    request: promptInputs.request,
+    question: promptInputs.question,
     guidelines: promptInputs.guidelines,
     guideline_paths: evalCase.guideline_paths,
     system_message: promptInputs.systemMessage ?? "",
@@ -922,7 +926,7 @@ function buildErrorResult(
     score: 0,
     hits: [],
     misses: [`Error: ${message}`],
-    model_answer: `Error occurred: ${message}`,
+    candidate_answer: `Error occurred: ${message}`,
     expected_aspect_count: 0,
     target: targetName,
     timestamp: timestamp.toISOString(),
@@ -935,13 +939,13 @@ function createCacheKey(
   provider: Provider,
   target: ResolvedTarget,
   evalCase: EvalCase,
-  promptInputs: { readonly request: string; readonly guidelines: string; readonly systemMessage?: string },
+  promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string },
 ): string {
   const hash = createHash("sha256");
   hash.update(provider.id);
   hash.update(target.name);
   hash.update(evalCase.id);
-  hash.update(promptInputs.request);
+  hash.update(promptInputs.question);
   hash.update(promptInputs.guidelines);
   hash.update(promptInputs.systemMessage ?? "");
   return hash.digest("hex");

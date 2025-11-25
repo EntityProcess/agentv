@@ -3,12 +3,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 
-import { CodexProvider } from "../../../src/evaluation/providers/codex.js";
 import {
   consumeCodexLogEntries,
   subscribeToCodexLogEntries,
   type CodexLogEntry,
 } from "../../../src/evaluation/providers/codex-log-tracker.js";
+import { CodexProvider } from "../../../src/evaluation/providers/codex.js";
 import type { ProviderRequest } from "../../../src/evaluation/providers/types.js";
 
 async function createTempDir(prefix: string): Promise<string> {
@@ -28,7 +28,10 @@ describe("CodexProvider", () => {
   });
 
   it("mirrors input files and composes preread block", async () => {
-    const runner = vi.fn(async () => ({
+    const runner = vi.fn<
+      [{ prompt: string; args: readonly string[]; onStdoutChunk?: (chunk: string) => void }],
+      Promise<{ stdout: string; stderr: string; exitCode: number }>
+    >(async () => ({
       stdout: JSON.stringify({ messages: [{ role: "assistant", content: "done" }] }),
       stderr: "",
       exitCode: 0,
@@ -53,7 +56,7 @@ describe("CodexProvider", () => {
     await writeFile(attachmentFile, "print('hi')", "utf8");
 
     const request: ProviderRequest = {
-      prompt: "Implement feature",
+      question: "Implement feature",
       inputFiles: [guidelineFile, attachmentFile],
       guideline_patterns: ["**/*.instructions.md"],
     };
@@ -62,10 +65,7 @@ describe("CodexProvider", () => {
 
     expect(response.text).toBe("done");
     expect(runner).toHaveBeenCalledTimes(1);
-    const invocation = runner.mock.calls[0]?.[0] as {
-      prompt: string;
-      args: string[];
-    };
+    const invocation = runner.mock.calls[0][0];
     expect(invocation.args.slice(0, 7)).toEqual([
       "--ask-for-approval",
       "never",
@@ -109,7 +109,7 @@ describe("CodexProvider", () => {
     );
 
     const request: ProviderRequest = {
-      prompt: "Hello",
+      question: "Hello",
     };
 
     await expect(provider.invoke(request)).rejects.toThrow(/invalid JSON|assistant message/i);
@@ -140,7 +140,7 @@ describe("CodexProvider", () => {
     );
 
     const request: ProviderRequest = {
-      prompt: "Use JSONL",
+      question: "Use JSONL",
     };
 
     const response = await provider.invoke(request);
@@ -175,7 +175,7 @@ describe("CodexProvider", () => {
     });
 
     try {
-      const response = await provider.invoke({ prompt: "log it", evalCaseId: "case-123" });
+      const response = await provider.invoke({ question: "log it", evalCaseId: "case-123" });
       const raw = response.raw as Record<string, unknown>;
       expect(typeof raw.logFile).toBe("string");
       const logFile = raw.logFile as string;
@@ -215,7 +215,7 @@ describe("CodexProvider", () => {
       runner,
     );
 
-    const response = await provider.invoke({ prompt: "log it json", evalCaseId: "case-json" });
+    const response = await provider.invoke({ question: "log it json", evalCaseId: "case-json" });
     const raw = response.raw as Record<string, unknown>;
     const logFile = raw.logFile as string;
     const logContent = await readFile(logFile, "utf8");
