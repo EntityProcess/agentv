@@ -140,6 +140,116 @@ type RawEvalCase = JsonObject & {
 };
 
 /**
+ * Process message content into structured segments with file resolution.
+ */
+async function processMessages(options: {
+  readonly messages: readonly TestMessage[];
+  readonly searchRoots: readonly string[];
+  readonly repoRootPath: string;
+  readonly guidelinePatterns?: readonly string[];
+  readonly guidelinePaths?: string[];
+  readonly textParts?: string[];
+  readonly messageType: "input" | "output";
+  readonly verbose: boolean;
+}): Promise<JsonObject[]> {
+  const {
+    messages,
+    searchRoots,
+    repoRootPath,
+    guidelinePatterns,
+    guidelinePaths,
+    textParts,
+    messageType,
+    verbose,
+  } = options;
+
+  const segments: JsonObject[] = [];
+
+  for (const message of messages) {
+    const content = message.content;
+    if (typeof content === "string") {
+      segments.push({ type: "text", value: content });
+      if (textParts) {
+        textParts.push(content);
+      }
+      continue;
+    }
+
+    for (const rawSegment of content) {
+      if (!isJsonObject(rawSegment)) {
+        continue;
+      }
+
+      const segmentType = asString(rawSegment.type);
+      if (segmentType === "file") {
+        const rawValue = asString(rawSegment.value);
+        if (!rawValue) {
+          continue;
+        }
+
+        const { displayPath, resolvedPath, attempted } = await resolveFileReference(
+          rawValue,
+          searchRoots,
+        );
+
+        if (!resolvedPath) {
+          const attempts = attempted.length
+            ? ["  Tried:", ...attempted.map((candidate) => `    ${candidate}`)]
+            : undefined;
+          const context = messageType === "input" ? "" : " in expected_messages";
+          logWarning(`File not found${context}: ${displayPath}`, attempts);
+          continue;
+        }
+
+        try {
+          const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n");
+
+          // Only check for guidelines in input messages
+          if (messageType === "input" && guidelinePatterns && guidelinePaths) {
+            const relativeToRepo = path.relative(repoRootPath, resolvedPath);
+
+            if (isGuidelineFile(relativeToRepo, guidelinePatterns)) {
+              guidelinePaths.push(path.resolve(resolvedPath));
+              if (verbose) {
+                console.log(`  [Guideline] Found: ${displayPath}`);
+                console.log(`    Resolved to: ${resolvedPath}`);
+              }
+              continue;
+            }
+          }
+
+          segments.push({
+            type: "file",
+            path: displayPath,
+            text: fileContent,
+            resolvedPath: path.resolve(resolvedPath),
+          });
+
+          if (verbose) {
+            const label = messageType === "input" ? "[File]" : "[Expected Output File]";
+            console.log(`  ${label} Found: ${displayPath}`);
+            console.log(`    Resolved to: ${resolvedPath}`);
+          }
+        } catch (error) {
+          const context = messageType === "input" ? "" : " expected output";
+          logWarning(`Could not read${context} file ${resolvedPath}: ${(error as Error).message}`);
+        }
+        continue;
+      }
+
+      const clonedSegment = cloneJsonObject(rawSegment);
+      segments.push(clonedSegment);
+      const inlineValue = clonedSegment.value;
+      if (typeof inlineValue === "string" && textParts) {
+        textParts.push(inlineValue);
+      }
+    }
+  }
+
+  return segments;
+}
+
+/**
  * Load eval cases from a AgentV YAML specification file.
  */
 export async function loadEvalCases(
@@ -259,81 +369,30 @@ export async function loadEvalCases(
       }
     }
 
-    const inputSegments: JsonObject[] = [];
     const guidelinePaths: string[] = [];
     const inputTextParts: string[] = [];
 
-    for (const userMessage of userMessages) {
-      const content = userMessage.content;
-      if (typeof content === "string") {
-        inputSegments.push({ type: "text", value: content });
-        inputTextParts.push(content);
-        continue;
-      }
+    // Process input_messages (user messages) into segments
+    const inputSegments = await processMessages({
+      messages: userMessages,
+      searchRoots,
+      repoRootPath,
+      guidelinePatterns,
+      guidelinePaths,
+      textParts: inputTextParts,
+      messageType: "input",
+      verbose,
+    });
 
-      for (const rawSegment of content) {
-        if (!isJsonObject(rawSegment)) {
-          continue;
-        }
-
-        const segmentType = asString(rawSegment.type);
-        if (segmentType === "file") {
-          const rawValue = asString(rawSegment.value);
-          if (!rawValue) {
-            continue;
-          }
-
-          const { displayPath, resolvedPath, attempted } = await resolveFileReference(
-            rawValue,
-            searchRoots,
-          );
-
-          if (!resolvedPath) {
-            const attempts = attempted.length
-              ? ["  Tried:", ...attempted.map((candidate) => `    ${candidate}`)]
-              : undefined;
-            logWarning(`File not found: ${displayPath}`, attempts);
-            continue;
-          }
-
-          try {
-            const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n");
-            
-            // Calculate path relative to repo root for matching to handle ".." in displayPath
-            const relativeToRepo = path.relative(repoRootPath, resolvedPath);
-
-            if (isGuidelineFile(relativeToRepo, guidelinePatterns)) {
-              guidelinePaths.push(path.resolve(resolvedPath));
-              if (verbose) {
-                console.log(`  [Guideline] Found: ${displayPath}`);
-                console.log(`    Resolved to: ${resolvedPath}`);
-              }
-            } else {
-              inputSegments.push({
-                type: "file",
-                path: displayPath,
-                text: fileContent,
-                resolvedPath: path.resolve(resolvedPath),
-              });
-              if (verbose) {
-                console.log(`  [File] Found: ${displayPath}`);
-                console.log(`    Resolved to: ${resolvedPath}`);
-              }
-            }
-          } catch (error) {
-            logWarning(`Could not read file ${resolvedPath}: ${(error as Error).message}`);
-          }
-          continue;
-        }
-
-        const clonedSegment = cloneJsonObject(rawSegment);
-        inputSegments.push(clonedSegment);
-        const inlineValue = clonedSegment.value;
-        if (typeof inlineValue === "string") {
-          inputTextParts.push(inlineValue);
-        }
-      }
-    }
+    // Process expected_messages (assistant messages) into segments
+    const outputSegments = await processMessages({
+      messages: assistantMessages,
+      searchRoots,
+      repoRootPath,
+      guidelinePatterns,
+      messageType: "output",
+      verbose,
+    });
 
     const codeSnippets = extractCodeBlocks(inputSegments);
     const assistantContent = assistantMessages[0]?.content;
@@ -366,6 +425,7 @@ export async function loadEvalCases(
       conversation_id: conversationId,
       question: question,
       input_segments: inputSegments,
+      output_segments: outputSegments,
       system_message: systemMessageContent,
       reference_answer: referenceAnswer,
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),

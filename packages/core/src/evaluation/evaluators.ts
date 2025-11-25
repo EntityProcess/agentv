@@ -80,7 +80,7 @@ export class LlmJudgeEvaluator implements Evaluator {
     if (systemPrompt && hasTemplateVariables(systemPrompt)) {
       const variables = {
         input_messages: JSON.stringify(context.evalCase.input_segments, null, 2),
-        output_messages: context.candidate,
+        output_messages: JSON.stringify(context.evalCase.output_segments, null, 2),
         candidate_answer: context.candidate,
         reference_answer: context.evalCase.reference_answer,
         expected_outcome: context.evalCase.expected_outcome,

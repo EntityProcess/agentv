@@ -24,6 +24,7 @@ const baseTestCase: EvalCase = {
   dataset: "test-dataset",
   question: "Original Question Text",
   input_segments: [{ type: "text", value: "User Input Message" }],
+  output_segments: [{ type: "text", value: "Expected Output Message" }],
   reference_answer: "Reference Answer Text",
   guideline_paths: [],
   file_paths: [],
@@ -42,9 +43,9 @@ describe("LlmJudgeEvaluator Variable Substitution", () => {
   it("substitutes template variables in custom prompt", async () => {
     const customPrompt = `
 Question: \${question}
-Outcome: \${outcome}
-Reference: \${referenceAnswer}
-Candidate: \${candidateAnswer}
+Outcome: \${expected_outcome}
+Reference: \${reference_answer}
+Candidate: \${candidate_answer}
 Input Messages: \${input_messages}
 Output Messages: \${output_messages}
 `;
@@ -88,8 +89,9 @@ Output Messages: \${output_messages}
     expect(request?.question).toContain('Input Messages: [');
     expect(request?.question).toContain('"value": "User Input Message"');
 
-    // Verify output_messages (same as candidateAnswer for now)
-    expect(request?.question).toContain("Output Messages: Candidate Answer Text");
+    // Verify output_messages JSON stringification
+    expect(request?.question).toContain('Output Messages: [');
+    expect(request?.question).toContain('"value": "Expected Output Message"');
 
     // Verify system prompt is reset to default when variables are used
     // The implementation sets systemPrompt = QUALITY_SYSTEM_PROMPT when variables are substituted
