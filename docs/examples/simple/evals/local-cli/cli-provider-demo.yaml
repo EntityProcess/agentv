@@ -11,13 +11,15 @@ evalcases:
     outcome: CLI echoes the prompt and mentions all attachment names
 
     input_messages:
+      - role: system
+        content:
+          - type: file
+            value: ../../prompts/python.instructions.md
       - role: user
         content:
           - type: text
             value: |-
               Please echo this request in one short sentence and mention all attached files by name.
-          - type: file
-            value: ../../prompts/python.instructions.md
           - type: file
             value: ./attachments/example.txt
 

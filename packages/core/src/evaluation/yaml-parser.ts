@@ -305,7 +305,7 @@ export async function loadEvalCases(
 
   for (const rawEvalcase of rawTestcases) {
     if (!isJsonObject(rawEvalcase)) {
-      logWarning("Skipping invalid test case entry (expected object)");
+      logWarning("Skipping invalid eval case entry (expected object)");
       continue;
     }
 
@@ -324,65 +324,34 @@ export async function loadEvalCases(
     const expectedMessagesValue = evalcase.expected_messages;
 
     if (!id || !outcome || !Array.isArray(inputMessagesValue)) {
-      logWarning(`Skipping incomplete test case: ${id ?? "unknown"}`);
+      logWarning(`Skipping incomplete eval case: ${id ?? "unknown"}`);
       continue;
     }
     
     if (!Array.isArray(expectedMessagesValue)) {
-      logWarning(`Test case '${id}' missing expected_messages array`);
+      logWarning(`Eval case '${id}' missing expected_messages array`);
       continue;
     }
 
-    // V2 format: input_messages contains system/user, expected_messages contains assistant
+    // V2 format: input_messages vs expected_messages
     const inputMessages = inputMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
     const expectedMessages = expectedMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
     
-    const assistantMessages = expectedMessages.filter((message) => message.role === "assistant");
-    const userMessages = inputMessages.filter((message) => message.role === "user");
-    const systemMessages = inputMessages.filter((message) => message.role === "system");
-
-    if (assistantMessages.length === 0) {
-      logWarning(`No assistant message found for test case: ${id}`);
+    if (expectedMessages.length === 0) {
+      logWarning(`No expected message found for eval case: ${id}`);
       continue;
     }
 
-    if (assistantMessages.length > 1) {
-      logWarning(`Multiple assistant messages found for test case: ${id}, using first`);
-    }
-
-    if (systemMessages.length > 1) {
-      logWarning(`Multiple system messages found for test case: ${id}, using first`);
-    }
-
-    // Extract system message content if present
-    let systemMessageContent: string | undefined;
-    if (systemMessages.length > 0) {
-      const content = systemMessages[0]?.content;
-      if (typeof content === "string") {
-        systemMessageContent = content;
-      } else if (Array.isArray(content)) {
-        // For array content, extract text values
-        const textParts: string[] = [];
-        for (const segment of content) {
-          if (isJsonObject(segment)) {
-            const value = segment.value;
-            if (typeof value === "string") {
-              textParts.push(value);
-            }
-          }
-        }
-        if (textParts.length > 0) {
-          systemMessageContent = textParts.join("\n\n");
-        }
-      }
+    if (expectedMessages.length > 1) {
+      logWarning(`Multiple expected messages found for eval case: ${id}, using first`);
     }
 
     const guidelinePaths: string[] = [];
     const inputTextParts: string[] = [];
 
-    // Process input_messages (user messages) into segments
+    // Process all input messages to extract files and guidelines
     const inputSegments = await processMessages({
-      messages: userMessages,
+      messages: inputMessages,
       searchRoots,
       repoRootPath,
       guidelinePatterns,
@@ -392,9 +361,9 @@ export async function loadEvalCases(
       verbose,
     });
 
-    // Process expected_messages (assistant messages) into segments
+    // Process expected_messages into segments
     const outputSegments = await processMessages({
-      messages: assistantMessages,
+      messages: expectedMessages,
       searchRoots,
       repoRootPath,
       guidelinePatterns,
@@ -403,17 +372,17 @@ export async function loadEvalCases(
     });
 
     const codeSnippets = extractCodeBlocks(inputSegments);
-    const assistantContent = assistantMessages[0]?.content;
-    const referenceAnswer = await resolveAssistantContent(assistantContent, searchRoots, verbose);
+    const expectedContent = expectedMessages[0]?.content;
+    const referenceAnswer = await resolveAssistantContent(expectedContent, searchRoots, verbose);
     const question = inputTextParts
       .map((part) => part.trim())
       .filter((part) => part.length > 0)
       .join(" ");
 
-    const testCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator, id) ?? globalEvaluator;
+    const evalCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator, id) ?? globalEvaluator;
     const evaluators = await parseEvaluators(evalcase, searchRoots, id ?? "unknown");
 
-    // Extract file paths from user_segments (non-guideline files)
+    // Extract file paths from all input segments (non-guideline files)
     const userFilePaths: string[] = [];
     for (const segment of inputSegments) {
       if (segment.type === "file" && typeof segment.resolvedPath === "string") {
@@ -434,19 +403,18 @@ export async function loadEvalCases(
       question: question,
       input_segments: inputSegments,
       output_segments: outputSegments,
-      system_message: systemMessageContent,
       reference_answer: referenceAnswer,
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
       guideline_patterns: guidelinePatterns,
       file_paths: allFilePaths,
       code_snippets: codeSnippets,
       expected_outcome: outcome,
-      evaluator: testCaseEvaluatorKind,
+      evaluator: evalCaseEvaluatorKind,
       evaluators,
     };
 
     if (verbose) {
-      console.log(`\n[Test Case: ${id}]`);
+      console.log(`\n[Eval Case: ${id}]`);
       if (testCase.guideline_paths.length > 0) {
         console.log(`  Guidelines used: ${testCase.guideline_paths.length}`);
         for (const guidelinePath of testCase.guideline_paths) {
@@ -525,7 +493,7 @@ export async function buildPromptInputs(
     .filter((part) => part.length > 0)
     .join("\n\n");
 
-  return { question, guidelines, systemMessage: testCase.system_message };
+  return { question, guidelines };
 }
 
 async function fileExists(absolutePath: string): Promise<boolean> {

@@ -165,7 +165,7 @@ export type LlmJudgeEvaluatorConfig = {
 export type EvaluatorConfig = CodeEvaluatorConfig | LlmJudgeEvaluatorConfig;
 
 /**
- * Test case definition sourced from AgentV specs.
+ * Eval case definition sourced from AgentV specs.
  */
 export interface EvalCase {
   readonly id: string;
@@ -174,7 +174,6 @@ export interface EvalCase {
   readonly question: string;
   readonly input_segments: readonly JsonObject[];
   readonly output_segments: readonly JsonObject[];
-  readonly system_message?: string;
   readonly reference_answer: string;
   readonly guideline_paths: readonly string[];
   readonly guideline_patterns?: readonly string[];
@@ -186,7 +185,7 @@ export interface EvalCase {
 }
 
 /**
- * Evaluator scorecard for a single test case run.
+ * Evaluator scorecard for a single eval case run.
  */
 export interface EvaluationResult {
   readonly eval_id: string;

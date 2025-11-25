@@ -85,12 +85,12 @@ describe("CodexProvider", () => {
     expect(invocation.prompt).toContain("[[ ## user_query ## ]]");
 
     const raw = response.raw as Record<string, unknown>;
-    const mirroredInputFiles = raw.inputFiles as readonly string[];
-    expect(Array.isArray(mirroredInputFiles)).toBe(true);
-    expect(mirroredInputFiles?.length).toBe(2);
-    mirroredInputFiles?.forEach((filePath) => {
-      expect(filePath).toMatch(/agentv-codex-/);
-    });
+    const inputFilePaths = raw.inputFiles as readonly string[];
+    expect(Array.isArray(inputFilePaths)).toBe(true);
+    expect(inputFilePaths?.length).toBe(2);
+    // Verify the input files are the original file paths (no longer mirrored)
+    expect(inputFilePaths).toContain(guidelineFile);
+    expect(inputFilePaths).toContain(attachmentFile);
   });
 
   it("fails when Codex CLI emits invalid JSON", async () => {
