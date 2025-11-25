@@ -144,8 +144,8 @@ evalcases:
     expect(testCase.guideline_paths[0]).toContain("api.guide.md");
 
     // coding.instructions.md should be treated as regular file (doesn't match custom pattern)
-    expect(testCase.user_segments).toHaveLength(2); // file + text
-    const fileSegment = testCase.user_segments.find(
+    expect(testCase.input_segments).toHaveLength(2); // file + text
+    const fileSegment = testCase.input_segments.find(
       (seg) => seg.type === "file" && typeof seg.path === "string" && seg.path.includes("coding.instructions.md")
     );
     expect(fileSegment).toBeDefined();
@@ -186,8 +186,8 @@ evalcases:
     expect(testCase.guideline_paths).toHaveLength(0);
     
     // It should be treated as a regular file
-    expect(testCase.user_segments).toHaveLength(2); // file + text
-    const fileSegment = testCase.user_segments.find(
+    expect(testCase.input_segments).toHaveLength(2); // file + text
+    const fileSegment = testCase.input_segments.find(
       (seg) => seg.type === "file" && typeof seg.path === "string" && seg.path.includes("coding.instructions.md")
     );
     expect(fileSegment).toBeDefined();
@@ -248,8 +248,8 @@ evalcases:
     expect(testCase.guideline_paths[0]).toContain("api.guide.md");
 
     // coding.instructions.md should be treated as regular file (doesn't match root config pattern)
-    expect(testCase.user_segments).toHaveLength(2); // file + text
-    const fileSegment = testCase.user_segments.find(
+    expect(testCase.input_segments).toHaveLength(2); // file + text
+    const fileSegment = testCase.input_segments.find(
       (seg) => seg.type === "file" && typeof seg.path === "string" && seg.path.includes("coding.instructions.md")
     );
     expect(fileSegment).toBeDefined();

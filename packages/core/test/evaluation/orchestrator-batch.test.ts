@@ -56,25 +56,25 @@ const evalCases: EvalCase[] = [
   {
     id: "one",
     dataset: "batch-dataset",
-    task: "t1",
-    user_segments: [],
-    expected_assistant_raw: "",
+    question: "t1",
+    input_segments: [],
+    reference_answer: "",
     guideline_paths: [],
     file_paths: [],
     code_snippets: [],
-    outcome: "",
+    expected_outcome: "",
     evaluator: "llm_judge",
   },
   {
     id: "two",
     dataset: "batch-dataset",
-    task: "t2",
-    user_segments: [],
-    expected_assistant_raw: "",
+    question: "t2",
+    input_segments: [],
+    reference_answer: "",
     guideline_paths: [],
     file_paths: [],
     code_snippets: [],
-    outcome: "",
+    expected_outcome: "",
     evaluator: "llm_judge",
   },
 ];
@@ -109,7 +109,7 @@ describe("runEvaluation provider batching", () => {
 
     expect(provider.invokeBatchCalls).toBe(1);
     expect(provider.invokeCalls).toBe(0);
-    expect(results.map((r) => r.model_answer)).toEqual(["batch-one", "batch-two"]);
+    expect(results.map((r) => r.candidate_answer)).toEqual(["batch-one", "batch-two"]);
   });
 
   it("falls back to per-case dispatch when batch fails", async () => {
@@ -128,6 +128,6 @@ describe("runEvaluation provider batching", () => {
 
     expect(provider.invokeBatchCalls).toBe(1);
     expect(provider.invokeCalls).toBe(evalCases.length);
-    expect(results.map((r) => r.model_answer)).toEqual(["single-one", "single-two"]);
+    expect(results.map((r) => r.candidate_answer)).toEqual(["single-one", "single-two"]);
   });
 });

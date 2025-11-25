@@ -60,13 +60,13 @@ class CapturingJudgeProvider implements Provider {
 const baseTestCase: EvalCase = {
   id: "case-1",
   dataset: "test-dataset",
-  task: "Explain logging improvements",
-  user_segments: [{ type: "text", value: "Explain logging improvements" }],
-  expected_assistant_raw: "- add structured logging\n- avoid global state",
+  question: "Explain logging improvements",
+  input_segments: [{ type: "text", value: "Explain logging improvements" }],
+  reference_answer: "- add structured logging\n- avoid global state",
   guideline_paths: [],
   file_paths: [],
   code_snippets: [],
-  outcome: "Logging improved",
+  expected_outcome: "Logging improved",
   grader: "llm_judge",
 };
 
@@ -138,7 +138,7 @@ describe("runTestCase", () => {
       useCache: true,
     });
 
-    expect(first.model_answer).toContain("structured logging");
+    expect(first.candidate_answer).toContain("structured logging");
 
     const second = await runEvalCase({
       evalCase: baseTestCase,
@@ -149,7 +149,7 @@ describe("runTestCase", () => {
       useCache: true,
     });
 
-    expect(second.model_answer).toContain("structured logging");
+    expect(second.candidate_answer).toContain("structured logging");
     expect(provider["callIndex"]).toBe(1);
   });
 

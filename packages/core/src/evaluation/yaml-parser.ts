@@ -259,15 +259,15 @@ export async function loadEvalCases(
       }
     }
 
-    const userSegments: JsonObject[] = [];
+    const inputSegments: JsonObject[] = [];
     const guidelinePaths: string[] = [];
-    const userTextParts: string[] = [];
+    const inputTextParts: string[] = [];
 
     for (const userMessage of userMessages) {
       const content = userMessage.content;
       if (typeof content === "string") {
-        userSegments.push({ type: "text", value: content });
-        userTextParts.push(content);
+        inputSegments.push({ type: "text", value: content });
+        inputTextParts.push(content);
         continue;
       }
 
@@ -309,7 +309,7 @@ export async function loadEvalCases(
                 console.log(`    Resolved to: ${resolvedPath}`);
               }
             } else {
-              userSegments.push({
+              inputSegments.push({
                 type: "file",
                 path: displayPath,
                 text: fileContent,
@@ -327,18 +327,18 @@ export async function loadEvalCases(
         }
 
         const clonedSegment = cloneJsonObject(rawSegment);
-        userSegments.push(clonedSegment);
+        inputSegments.push(clonedSegment);
         const inlineValue = clonedSegment.value;
         if (typeof inlineValue === "string") {
-          userTextParts.push(inlineValue);
+          inputTextParts.push(inlineValue);
         }
       }
     }
 
-    const codeSnippets = extractCodeBlocks(userSegments);
+    const codeSnippets = extractCodeBlocks(inputSegments);
     const assistantContent = assistantMessages[0]?.content;
-    const expectedAssistantRaw = await resolveAssistantContent(assistantContent, searchRoots, verbose);
-    const userTextPrompt = userTextParts
+    const referenceAnswer = await resolveAssistantContent(assistantContent, searchRoots, verbose);
+    const question = inputTextParts
       .map((part) => part.trim())
       .filter((part) => part.length > 0)
       .join(" ");
@@ -348,7 +348,7 @@ export async function loadEvalCases(
 
     // Extract file paths from user_segments (non-guideline files)
     const userFilePaths: string[] = [];
-    for (const segment of userSegments) {
+    for (const segment of inputSegments) {
       if (segment.type === "file" && typeof segment.resolvedPath === "string") {
         userFilePaths.push(segment.resolvedPath);
       }
@@ -364,15 +364,15 @@ export async function loadEvalCases(
       id,
       dataset: datasetName,
       conversation_id: conversationId,
-      task: userTextPrompt,
-      user_segments: userSegments,
+      question: question,
+      input_segments: inputSegments,
       system_message: systemMessageContent,
-      expected_assistant_raw: expectedAssistantRaw,
+      reference_answer: referenceAnswer,
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
       guideline_patterns: guidelinePatterns,
       file_paths: allFilePaths,
       code_snippets: codeSnippets,
-      outcome,
+      expected_outcome: outcome,
       evaluator: testCaseEvaluatorKind,
       evaluators,
     };
@@ -418,7 +418,7 @@ export async function buildPromptInputs(
   }
 
   const questionParts: string[] = [];
-  for (const segment of testCase.user_segments) {
+  for (const segment of testCase.input_segments) {
     const typeValue = segment.type;
     if (typeof typeValue === "string" && typeValue === "file") {
       const pathValue = segment.path;

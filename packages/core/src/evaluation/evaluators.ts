@@ -79,12 +79,12 @@ export class LlmJudgeEvaluator implements Evaluator {
 
     if (systemPrompt && hasTemplateVariables(systemPrompt)) {
       const variables = {
-        input_messages: JSON.stringify(context.evalCase.user_segments, null, 2),
+        input_messages: JSON.stringify(context.evalCase.input_segments, null, 2),
         output_messages: context.candidate,
-        candidateAnswer: context.candidate,
-        referenceAnswer: context.evalCase.expected_assistant_raw,
-        outcome: context.evalCase.outcome,
-        question: context.evalCase.task,
+        candidate_answer: context.candidate,
+        reference_answer: context.evalCase.reference_answer,
+        expected_outcome: context.evalCase.expected_outcome,
+        question: context.evalCase.question,
       };
       prompt = substituteVariables(systemPrompt, variables);
       systemPrompt = QUALITY_SYSTEM_PROMPT;
@@ -152,16 +152,16 @@ const QUALITY_SYSTEM_PROMPT = [
   "}",
 ].join("\n");
 
-function buildQualityPrompt(testCase: EvalCase, candidate: string): string {
+function buildQualityPrompt(evalCase: EvalCase, candidate: string): string {
   const parts = [
     "[[ ## expected_outcome ## ]]",
-    testCase.outcome.trim(),
+    evalCase.expected_outcome.trim(),
     "",
-    "[[ ## request ## ]]",
-    testCase.task.trim(),
+    "[[ ## question ## ]]",
+    evalCase.question.trim(),
     "",
     "[[ ## reference_answer ## ]]",
-    testCase.expected_assistant_raw.trim(),
+    evalCase.reference_answer.trim(),
     "",
     "[[ ## candidate_answer ## ]]",
     candidate.trim(),
@@ -311,14 +311,14 @@ export class CodeEvaluator implements Evaluator {
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
     const inputPayload = JSON.stringify(
       {
-        task: context.evalCase.task,
-        outcome: context.evalCase.outcome,
-        expected: context.evalCase.expected_assistant_raw,
-        output: context.candidate,
+        question: context.evalCase.question,
+        expected_outcome: context.evalCase.expected_outcome,
+        reference_answer: context.evalCase.reference_answer,
+        candidate_answer: context.candidate,
         system_message: context.promptInputs.systemMessage ?? "",
         guideline_paths: context.evalCase.guideline_paths,
-        attachments: context.evalCase.file_paths,
-        user_segments: context.evalCase.user_segments,
+        input_files: context.evalCase.file_paths,
+        input_segments: context.evalCase.input_segments,
       },
       null,
       2,

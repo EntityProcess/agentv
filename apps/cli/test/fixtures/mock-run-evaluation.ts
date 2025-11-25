@@ -24,7 +24,7 @@ interface EvaluationResultLike {
   readonly score: number;
   readonly hits: readonly string[];
   readonly misses: readonly string[];
-  readonly model_answer: string;
+  readonly candidate_answer: string;
   readonly expected_aspect_count: number;
   readonly target: string;
   readonly timestamp: string;
@@ -40,7 +40,7 @@ function buildResults(targetName: string): EvaluationResultLike[] {
       score: 0.6,
       hits: ["alpha"],
       misses: [],
-      model_answer: "Alpha answer",
+      candidate_answer: "Alpha answer",
       expected_aspect_count: 1,
       target: targetName,
       timestamp: baseTime.toISOString(),
@@ -52,7 +52,7 @@ function buildResults(targetName: string): EvaluationResultLike[] {
       score: 0.9,
       hits: ["beta", "gamma"],
       misses: ["delta"],
-      model_answer: "Beta answer",
+      candidate_answer: "Beta answer",
       expected_aspect_count: 3,
       target: targetName,
       timestamp: new Date(baseTime.getTime() + 60_000).toISOString(),

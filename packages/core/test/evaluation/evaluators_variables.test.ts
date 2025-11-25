@@ -22,13 +22,13 @@ class CapturingProvider implements Provider {
 const baseTestCase: EvalCase = {
   id: "case-1",
   dataset: "test-dataset",
-  task: "Original Question Text",
-  user_segments: [{ type: "text", value: "User Input Message" }],
-  expected_assistant_raw: "Reference Answer Text",
+  question: "Original Question Text",
+  input_segments: [{ type: "text", value: "User Input Message" }],
+  reference_answer: "Reference Answer Text",
   guideline_paths: [],
   file_paths: [],
   code_snippets: [],
-  outcome: "Expected Outcome Text",
+  expected_outcome: "Expected Outcome Text",
   evaluator: "llm_judge",
 };
 

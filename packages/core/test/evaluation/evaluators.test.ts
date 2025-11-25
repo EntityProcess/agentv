@@ -20,13 +20,13 @@ class StubProvider implements Provider {
 const baseTestCase: EvalCase = {
   id: "case-1",
   dataset: "test-dataset",
-  task: "Improve the logging implementation",
-  user_segments: [{ type: "text", value: "Please add logging" }],
-  expected_assistant_raw: "- add structured logging\n- avoid global state",
+  question: "Improve the logging implementation",
+  input_segments: [{ type: "text", value: "Please add logging" }],
+  reference_answer: "- add structured logging\n- avoid global state",
   guideline_paths: [],
   file_paths: [],
   code_snippets: [],
-  outcome: "Logging improvements applied",
+  expected_outcome: "Logging improvements applied",
   evaluator: "llm_judge",
 };
 

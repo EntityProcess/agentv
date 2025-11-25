@@ -169,17 +169,17 @@ export type EvaluatorConfig = CodeEvaluatorConfig | LlmJudgeEvaluatorConfig;
  */
 export interface EvalCase {
   readonly id: string;
-  readonly dataset: string;
+  readonly dataset?: string;
   readonly conversation_id?: string;
-  readonly task: string;
-  readonly user_segments: readonly JsonObject[];
+  readonly question: string;
+  readonly input_segments: readonly JsonObject[];
   readonly system_message?: string;
-  readonly expected_assistant_raw: string;
+  readonly reference_answer: string;
   readonly guideline_paths: readonly string[];
   readonly guideline_patterns?: readonly string[];
   readonly file_paths: readonly string[];
   readonly code_snippets: readonly string[];
-  readonly outcome: string;
+  readonly expected_outcome: string;
   readonly evaluator?: EvaluatorKind;
   readonly evaluators?: readonly EvaluatorConfig[];
 }
@@ -189,12 +189,12 @@ export interface EvalCase {
  */
 export interface EvaluationResult {
   readonly eval_id: string;
-  readonly dataset: string;
+  readonly dataset?: string;
   readonly conversation_id?: string;
   readonly score: number;
   readonly hits: readonly string[];
   readonly misses: readonly string[];
-  readonly model_answer: string;
+  readonly candidate_answer: string;
   readonly expected_aspect_count: number;
   readonly target: string;
   readonly timestamp: string;
