@@ -244,5 +244,60 @@ targets:
 
       await cleanup();
     });
+
+    it("warns about unknown settings properties", async () => {
+      const content = `
+$schema: agentv-targets-v2
+targets:
+  - name: vscode-target
+    provider: vscode
+    settings:
+      workspace_env_var: SOME_VALUE
+      workspace_template: WORKSPACE_PATH
+`;
+      const filePath = await createTestFile("unknown-setting.yaml", content);
+      const result = await validateTargetsFile(filePath);
+
+      expect(result.valid).toBe(true); // Still valid, but has warnings
+      expect(result.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            severity: "warning",
+            location: "targets[0].settings.workspace_env_var",
+            message: expect.stringContaining("Unknown setting 'workspace_env_var'"),
+          }),
+        ]),
+      );
+
+      await cleanup();
+    });
+
+    it("warns about typos in common settings like provider_batching", async () => {
+      const content = `
+$schema: agentv-targets-v2
+targets:
+  - name: azure-target
+    provider: azure
+    settings:
+      endpoint: AZURE_ENDPOINT
+      api_key: AZURE_KEY
+      model: gpt-4
+      provider_batching_enabled: true
+`;
+      const filePath = await createTestFile("typo-in-setting.yaml", content);
+      const result = await validateTargetsFile(filePath);
+
+      expect(result.valid).toBe(true); // Still valid, but has warnings
+      expect(result.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            severity: "warning",
+            message: expect.stringContaining("Unknown setting 'provider_batching_enabled'"),
+          }),
+        ]),
+      );
+
+      await cleanup();
+    });
   });
 });

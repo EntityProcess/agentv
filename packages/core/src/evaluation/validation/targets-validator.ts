@@ -15,6 +15,163 @@ function isObject(value: unknown): value is JsonObject {
 
 const CLI_PLACEHOLDERS = new Set(["PROMPT", "GUIDELINES", "EVAL_ID", "ATTEMPT", "FILES"]);
 
+// Known settings properties for each provider type
+const COMMON_SETTINGS = new Set([
+  "provider_batching",
+  "providerBatching",
+]);
+
+const AZURE_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  "endpoint",
+  "resource",
+  "resourceName",
+  "api_key",
+  "apiKey",
+  "deployment",
+  "deploymentName",
+  "model",
+  "version",
+  "api_version",
+  "temperature",
+  "max_output_tokens",
+  "maxTokens",
+]);
+
+const ANTHROPIC_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  "api_key",
+  "apiKey",
+  "model",
+  "deployment",
+  "variant",
+  "temperature",
+  "max_output_tokens",
+  "maxTokens",
+  "thinking_budget",
+  "thinkingBudget",
+]);
+
+const GEMINI_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  "api_key",
+  "apiKey",
+  "model",
+  "deployment",
+  "variant",
+  "temperature",
+  "max_output_tokens",
+  "maxTokens",
+]);
+
+const CODEX_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  "executable",
+  "command",
+  "binary",
+  "args",
+  "arguments",
+  "cwd",
+  "timeout_seconds",
+  "timeoutSeconds",
+  "log_dir",
+  "logDir",
+  "log_directory",
+  "logDirectory",
+  "log_format",
+  "logFormat",
+  "log_output_format",
+  "logOutputFormat",
+]);
+
+const VSCODE_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  "workspace_template",
+  "workspaceTemplate",
+  "vscode_cmd",
+  "command",
+  "wait",
+  "dry_run",
+  "dryRun",
+  "subagent_root",
+  "subagentRoot",
+]);
+
+const MOCK_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  "response",
+  "delayMs",
+  "delayMinMs",
+  "delayMaxMs",
+]);
+
+const CLI_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  "command_template",
+  "commandTemplate",
+  "files_format",
+  "filesFormat",
+  "attachments_format",
+  "attachmentsFormat",
+  "cwd",
+  "env",
+  "timeout_seconds",
+  "timeoutSeconds",
+  "healthcheck",
+]);
+
+function getKnownSettings(provider: string): Set<string> | null {
+  const normalizedProvider = provider.toLowerCase();
+  switch (normalizedProvider) {
+    case "azure":
+    case "azure-openai":
+      return AZURE_SETTINGS;
+    case "anthropic":
+      return ANTHROPIC_SETTINGS;
+    case "gemini":
+    case "google":
+    case "google-gemini":
+      return GEMINI_SETTINGS;
+    case "codex":
+    case "codex-cli":
+      return CODEX_SETTINGS;
+    case "vscode":
+    case "vscode-insiders":
+      return VSCODE_SETTINGS;
+    case "mock":
+      return MOCK_SETTINGS;
+    case "cli":
+      return CLI_SETTINGS;
+    default:
+      return null; // Unknown provider, can't validate settings
+  }
+}
+
+function validateUnknownSettings(
+  settings: JsonObject,
+  provider: string,
+  absolutePath: string,
+  location: string,
+  errors: ValidationError[],
+): void {
+  const knownSettings = getKnownSettings(provider);
+  if (!knownSettings) {
+    // Unknown provider, skip settings validation
+    return;
+  }
+
+  for (const key of Object.keys(settings)) {
+    if (!knownSettings.has(key)) {
+      errors.push({
+        severity: "warning",
+        filePath: absolutePath,
+        location: `${location}.${key}`,
+        message: `Unknown setting '${key}' for ${provider} provider. This property will be ignored.`,
+      });
+    }
+  }
+}
+
 /**
  * Validate a targets file (agentv-targets-v2 schema).
  */
@@ -356,6 +513,11 @@ function extractPlaceholders(template: string): string[] {
 
     if (providerValue === "cli") {
       validateCliSettings(settings, absolutePath, `${location}.settings`, errors);
+    }
+
+    // Check for unknown settings properties
+    if (settings !== undefined && isObject(settings) && typeof provider === "string") {
+      validateUnknownSettings(settings, provider, absolutePath, `${location}.settings`, errors);
     }
 
     // Optional field: judge_target (must be string if present)
