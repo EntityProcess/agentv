@@ -173,7 +173,7 @@ function validateUnknownSettings(
 }
 
 /**
- * Validate a targets file (agentv-targets-v2 schema).
+ * Validate a targets file (agentv-targets-v2.1 schema).
  */
 export async function validateTargetsFile(
   filePath: string,

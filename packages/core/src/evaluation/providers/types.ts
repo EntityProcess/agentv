@@ -46,7 +46,7 @@ export const PROVIDER_ALIASES: readonly string[] = [
 /**
  * Schema identifier for targets.yaml files (version 2).
  */
-export const TARGETS_SCHEMA_V2 = "agentv-targets-v2";
+export const TARGETS_SCHEMA_V2 = "agentv-targets-v2.1";
 
 export interface ProviderRequest {
   readonly question: string;

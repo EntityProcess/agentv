@@ -1,4 +1,4 @@
-$schema: agentv-targets-v2
+$schema: agentv-targets-v2.1
 
 # A list of all supported evaluation targets for the project.
 # Each target defines a provider and its specific configuration.
