@@ -15,6 +15,16 @@ export type ProviderKind =
   | "vscode-insiders";
 
 /**
+ * Agent providers that have filesystem access and don't need unwrapped guidelines.
+ * These providers read files directly from the filesystem using file:// URIs.
+ */
+export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
+  "codex",
+  "vscode",
+  "vscode-insiders",
+] as const;
+
+/**
  * List of all supported provider kinds.
  * This is the source of truth for provider validation.
  */
@@ -67,6 +77,14 @@ export interface ProviderResponse {
   readonly reasoning?: string;
   readonly raw?: unknown;
   readonly usage?: JsonObject;
+}
+
+/**
+ * Type guard to check if a provider is an agent provider with filesystem access.
+ * Agent providers read files directly and don't need unwrapped guideline content.
+ */
+export function isAgentProvider(provider: Provider | undefined): boolean {
+  return provider ? AGENT_PROVIDER_KINDS.includes(provider.kind) : false;
 }
 
 export interface Provider {

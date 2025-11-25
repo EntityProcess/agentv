@@ -1,9 +1,9 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { dispatchAgentSession, dispatchBatchAgent, getSubagentRoot, provisionSubagents } from "subagent";
 
 import type { VSCodeResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
+import { readTextFile } from "../file-utils.js";
 import { isGuidelineFile } from "../yaml-parser.js";
 
 export class VSCodeProvider implements Provider {
@@ -59,7 +59,7 @@ export class VSCodeProvider implements Provider {
       };
     }
 
-    const responseText = await readFile(session.responseFile, "utf8");
+    const responseText = await readTextFile(session.responseFile);
 
     return {
       text: responseText,
@@ -122,7 +122,7 @@ export class VSCodeProvider implements Provider {
 
     const responses: ProviderResponse[] = [];
     for (const [index, responseFile] of session.responseFiles.entries()) {
-      const responseText = await readFile(responseFile, "utf8");
+      const responseText = await readTextFile(responseFile);
       responses.push({
         text: responseText,
         raw: {

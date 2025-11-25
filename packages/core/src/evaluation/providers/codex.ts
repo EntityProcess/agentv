@@ -2,20 +2,19 @@ import { exec as execCallback, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants, createWriteStream } from "node:fs";
 import type { WriteStream } from "node:fs";
-import { access, copyFile, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
 import { recordCodexLogEntry } from "./codex-log-tracker.js";
-import { buildPromptDocument, collectGuidelineFiles, normalizeInputFiles } from "./preread.js";
+import { buildPromptDocument, normalizeInputFiles } from "./preread.js";
 import type { CodexResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 
 const execAsync = promisify(execCallback);
 const WORKSPACE_PREFIX = "agentv-codex-";
 const PROMPT_FILENAME = "prompt.md";
-const FILES_DIR = "files";
 const JSONL_TYPE_ITEM_COMPLETED = "item.completed";
 
 interface CodexRunOptions {
@@ -65,23 +64,11 @@ export class CodexProvider implements Provider {
     await this.ensureEnvironmentReady();
 
     const inputFiles = normalizeInputFiles(request.inputFiles);
-    const originalGuidelines = new Set(
-      collectGuidelineFiles(inputFiles, request.guideline_patterns).map((file) => path.resolve(file)),
-    );
 
     const workspaceRoot = await this.createWorkspace();
     const logger = await this.createStreamLogger(request).catch(() => undefined);
     try {
-      const { mirroredInputFiles, guidelineMirrors } = await this.mirrorInputFiles(
-        inputFiles,
-        workspaceRoot,
-        originalGuidelines,
-      );
-
-      const promptContent = buildPromptDocument(request, mirroredInputFiles, {
-        guidelinePatterns: request.guideline_patterns,
-        guidelineOverrides: guidelineMirrors,
-      });
+      const promptContent = buildPromptDocument(request, inputFiles);
       const promptFile = path.join(workspaceRoot, PROMPT_FILENAME);
       await writeFile(promptFile, promptContent, "utf8");
 
@@ -116,7 +103,7 @@ export class CodexProvider implements Provider {
           executable: this.resolvedExecutable ?? this.config.executable,
           promptFile,
           workspace: workspaceRoot,
-          inputFiles: mirroredInputFiles,
+          inputFiles,
           logFile: logger?.filePath,
         },
       };
@@ -182,49 +169,6 @@ export class CodexProvider implements Provider {
       }
       throw error;
     }
-  }
-
-  private async mirrorInputFiles(
-    inputFiles: readonly string[] | undefined,
-    workspaceRoot: string,
-    guidelineOriginals: ReadonlySet<string>,
-  ): Promise<{
-    readonly mirroredInputFiles: readonly string[] | undefined;
-    readonly guidelineMirrors: ReadonlySet<string>;
-  }> {
-    if (!inputFiles || inputFiles.length === 0) {
-      return {
-        mirroredInputFiles: undefined,
-        guidelineMirrors: new Set<string>(),
-      };
-    }
-
-    const filesRoot = path.join(workspaceRoot, FILES_DIR);
-    await mkdir(filesRoot, { recursive: true });
-
-    const mirrored: string[] = [];
-    const guidelineMirrors = new Set<string>();
-    const nameCounts = new Map<string, number>();
-
-    for (const inputFile of inputFiles) {
-      const absoluteSource = path.resolve(inputFile);
-      const baseName = path.basename(absoluteSource);
-      const count = nameCounts.get(baseName) ?? 0;
-      nameCounts.set(baseName, count + 1);
-      const finalName = count === 0 ? baseName : `${baseName}.${count}`;
-      const destination = path.join(filesRoot, finalName);
-      await copyFile(absoluteSource, destination);
-      const resolvedDestination = path.resolve(destination);
-      mirrored.push(resolvedDestination);
-      if (guidelineOriginals.has(absoluteSource)) {
-        guidelineMirrors.add(resolvedDestination);
-      }
-    }
-
-    return {
-      mirroredInputFiles: mirrored,
-      guidelineMirrors,
-    };
   }
 
   private async createWorkspace(): Promise<string> {

@@ -14,6 +14,7 @@ import type {
   ProviderResponse,
   TargetDefinition,
 } from "./providers/types.js";
+import { isAgentProvider } from "./providers/types.js";
 import type { EvalCase, EvaluationResult, EvaluatorConfig, EvaluatorResult, JsonObject } from "./types.js";
 import { buildPromptInputs, loadEvalCases } from "./yaml-parser.js";
 
@@ -281,6 +282,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
         (now ?? (() => new Date()))(),
         outcome.reason,
         promptInputs,
+        primaryProvider,
       );
       results.push(errorResult);
       if (onResult) {
@@ -389,7 +391,7 @@ async function runBatchEvaluation(options: {
         agentTimeoutMs,
       });
     } catch (error) {
-      const errorResult = buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs);
+      const errorResult = buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs, provider);
       results.push(errorResult);
       if (onResult) {
         await onResult(errorResult);
@@ -475,7 +477,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         attempt += 1;
         continue;
       }
-      return buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs);
+      return buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs, provider);
     }
   }
 
@@ -486,6 +488,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       nowFn(),
       lastError ?? new Error("Provider did not return a response"),
       promptInputs,
+      provider,
     );
   }
 
@@ -507,7 +510,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       agentTimeoutMs,
     });
   } catch (error) {
-    return buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs);
+    return buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs, provider);
   }
 }
 
@@ -553,7 +556,7 @@ async function evaluateCandidate(options: {
   const completedAt = nowFn();
   const rawRequest: JsonObject = {
     question: promptInputs.question,
-    guidelines: promptInputs.guidelines,
+    ...(isAgentProvider(provider) ? {} : { guidelines: promptInputs.guidelines }),
     guideline_paths: evalCase.guideline_paths,
     system_message: promptInputs.systemMessage ?? "",
   } as JsonObject;
@@ -908,12 +911,13 @@ function buildErrorResult(
   timestamp: Date,
   error: unknown,
   promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string },
+  provider?: Provider,
 ): EvaluationResult {
   const message = error instanceof Error ? error.message : String(error);
 
   const rawRequest: JsonObject = {
     question: promptInputs.question,
-    guidelines: promptInputs.guidelines,
+    ...(isAgentProvider(provider) ? {} : { guidelines: promptInputs.guidelines }),
     guideline_paths: evalCase.guideline_paths,
     system_message: promptInputs.systemMessage ?? "",
     error: message,
