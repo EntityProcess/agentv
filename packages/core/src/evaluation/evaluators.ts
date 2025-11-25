@@ -60,18 +60,15 @@ export interface LlmJudgeEvaluatorOptions {
 const LLM_JUDGE_SIGNATURE = f()
   .input(
     "evaluationContext",
-    f.object(
-      {
-        expectedOutcome: f.string("The expected outcome for the original task"),
-        question: f.string("The original task request"),
-        referenceAnswer: f.string("The gold standard reference answer"),
-        candidateAnswer: f.string("The answer to evaluate"),
-        guidelines: f
-          .string("Additional evaluation guidelines or instructions")
-          .optional(),
-      },
-      "Complete evaluation context for the judge",
-    ),
+    f.object({
+      expectedOutcome: f.string("The expected outcome for the original task"),
+      question: f.string("The original task request"),
+      referenceAnswer: f.string("The gold standard reference answer"),
+      candidateAnswer: f.string("The answer to evaluate"),
+      guidelines: f
+        .string("Additional evaluation guidelines or instructions")
+        .optional(),
+    }),
   )
   .output(
     "evaluation",
@@ -128,28 +125,35 @@ export class LlmJudgeEvaluator implements Evaluator {
       ...(guidelines ? { guidelines } : {}),
     };
 
-    const options = this.buildJudgeForwardOptions(context);
-    const result = await LLM_JUDGE.forward(ai, { evaluationContext }, options);
-    const evaluation = result.evaluation;
-    const expectedAspectCount = Math.max(
-      evaluation.hits.length + evaluation.misses.length,
-      1,
-    );
+    try {
+      const options = this.buildJudgeForwardOptions(context);
+      const result = await LLM_JUDGE.forward(ai, { evaluationContext }, options);
+      const evaluation = result.evaluation;
+      const expectedAspectCount = Math.max(
+        evaluation.hits.length + evaluation.misses.length,
+        1,
+      );
 
-    return {
-      score: evaluation.score,
-      hits: evaluation.hits,
-      misses: evaluation.misses,
-      expectedAspectCount,
-      reasoning: evaluation.reasoning,
-      evaluatorRawRequest: {
-        id: randomUUID(),
-        provider: judgeProvider.id,
-        target: context.target.name,
-        method: "ax-structured-output",
-        signature: LLM_JUDGE_SIGNATURE.toString(),
-      },
-    };
+      return {
+        score: evaluation.score,
+        hits: evaluation.hits,
+        misses: evaluation.misses,
+        expectedAspectCount,
+        reasoning: evaluation.reasoning,
+        evaluatorRawRequest: {
+          id: randomUUID(),
+          provider: judgeProvider.id,
+          target: context.target.name,
+          method: "ax-structured-output",
+          signature: LLM_JUDGE_SIGNATURE.toString(),
+        },
+      };
+    } catch (error) {
+      // Fall back to prompt-based evaluation if Ax structured output fails
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Ax evaluation failed (${errorMessage}), falling back to prompt-based evaluation`);
+      return this.evaluateWithPrompt(context, judgeProvider);
+    }
   }
 
   private async evaluateWithPrompt(
