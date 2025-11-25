@@ -45,8 +45,8 @@ describe("VSCodeProvider batching", () => {
     );
 
     const requests: ProviderRequest[] = [
-      { prompt: "first", inputFiles: ["a.txt"], evalCaseId: "one" },
-      { prompt: "second", inputFiles: ["b.txt"], evalCaseId: "two" },
+      { question: "first", inputFiles: ["a.txt"], evalCaseId: "one" },
+      { question: "second", inputFiles: ["b.txt"], evalCaseId: "two" },
     ];
 
     const responses = await provider.invokeBatch?.(requests);
@@ -81,7 +81,7 @@ describe("VSCodeProvider batching", () => {
     );
 
     const responses = await provider.invokeBatch?.([
-      { prompt: "only", inputFiles: [], evalCaseId: "one" },
+      { question: "only", inputFiles: [], evalCaseId: "one" },
     ]);
 
     expect(responses).toBeDefined();

@@ -204,10 +204,10 @@ describe("runTestCase", () => {
     expect(files.length).toBeGreaterThan(0);
 
     const payload = JSON.parse(readFileSync(path.join(directory, files[0]), "utf8")) as {
-      request: string;
+      question: string;
       guideline_paths: unknown;
     };
-    expect(payload.request).toContain("Explain logging improvements");
+    expect(payload.question).toContain("Explain logging improvements");
     expect(Array.isArray(payload.guideline_paths)).toBe(true);
   });
 

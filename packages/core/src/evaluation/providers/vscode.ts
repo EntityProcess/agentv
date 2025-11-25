@@ -157,7 +157,7 @@ function buildPromptDocument(
     parts.push("\n", prereadBlock);
   }
 
-  parts.push("\n[[ ## user_query ## ]]\n", request.prompt.trim());
+  parts.push("\n[[ ## user_query ## ]]\n", request.question.trim());
 
   return parts.join("\n").trim();
 }
@@ -252,7 +252,7 @@ function pathToFileUri(filePath: string): string {
 function _composeUserQuery(request: ProviderRequest): string {
   // For VS Code, guidelines are handled via file attachments
   // Do NOT include guideline content in the user query
-  return request.prompt.trim();
+  return request.question.trim();
 }
 
 function normalizeAttachments(attachments: readonly string[] | undefined): string[] | undefined {

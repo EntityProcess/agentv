@@ -53,7 +53,7 @@ describe("CodexProvider", () => {
     await writeFile(attachmentFile, "print('hi')", "utf8");
 
     const request: ProviderRequest = {
-      prompt: "Implement feature",
+      question: "Implement feature",
       inputFiles: [guidelineFile, attachmentFile],
       guideline_patterns: ["**/*.instructions.md"],
     };
@@ -109,7 +109,7 @@ describe("CodexProvider", () => {
     );
 
     const request: ProviderRequest = {
-      prompt: "Hello",
+      question: "Hello",
     };
 
     await expect(provider.invoke(request)).rejects.toThrow(/invalid JSON|assistant message/i);
@@ -140,7 +140,7 @@ describe("CodexProvider", () => {
     );
 
     const request: ProviderRequest = {
-      prompt: "Use JSONL",
+      question: "Use JSONL",
     };
 
     const response = await provider.invoke(request);
@@ -175,7 +175,7 @@ describe("CodexProvider", () => {
     });
 
     try {
-      const response = await provider.invoke({ prompt: "log it", evalCaseId: "case-123" });
+      const response = await provider.invoke({ question: "log it", evalCaseId: "case-123" });
       const raw = response.raw as Record<string, unknown>;
       expect(typeof raw.logFile).toBe("string");
       const logFile = raw.logFile as string;
@@ -215,7 +215,7 @@ describe("CodexProvider", () => {
       runner,
     );
 
-    const response = await provider.invoke({ prompt: "log it json", evalCaseId: "case-json" });
+    const response = await provider.invoke({ question: "log it json", evalCaseId: "case-json" });
     const raw = response.raw as Record<string, unknown>;
     const logFile = raw.logFile as string;
     const logContent = await readFile(logFile, "utf8");

@@ -400,7 +400,7 @@ export async function loadEvalCases(
  */
 export async function buildPromptInputs(
   testCase: EvalCase,
-): Promise<{ request: string; guidelines: string; systemMessage?: string }> {
+): Promise<{ question: string; guidelines: string; systemMessage?: string }> {
   const guidelineContents: string[] = [];
   for (const rawPath of testCase.guideline_paths) {
     const absolutePath = path.resolve(rawPath);
@@ -417,7 +417,7 @@ export async function buildPromptInputs(
     }
   }
 
-  const requestParts: string[] = [];
+  const questionParts: string[] = [];
   for (const segment of testCase.user_segments) {
     const typeValue = segment.type;
     if (typeof typeValue === "string" && typeValue === "file") {
@@ -425,29 +425,29 @@ export async function buildPromptInputs(
       const textValue = segment.text;
       const label = typeof pathValue === "string" ? pathValue : "file";
       const body = typeof textValue === "string" ? textValue : "";
-      requestParts.push(`=== ${label} ===\n${body}`);
+      questionParts.push(`=== ${label} ===\n${body}`);
       continue;
     }
 
     if (typeof typeValue === "string" && typeValue === "text") {
       const value = segment.value;
       if (typeof value === "string") {
-        requestParts.push(value);
+        questionParts.push(value);
       }
       continue;
     }
 
     const genericValue = segment.value;
     if (typeof genericValue === "string") {
-      requestParts.push(genericValue);
+      questionParts.push(genericValue);
     }
   }
 
   if (testCase.code_snippets.length > 0) {
-    requestParts.push(testCase.code_snippets.join("\n"));
+    questionParts.push(testCase.code_snippets.join("\n"));
   }
 
-  const request = requestParts
+  const question = questionParts
     .map((part) => part.trim())
     .filter((part) => part.length > 0)
     .join("\n\n");
@@ -457,7 +457,7 @@ export async function buildPromptInputs(
     .filter((part) => part.length > 0)
     .join("\n\n");
 
-  return { request, guidelines, systemMessage: testCase.system_message };
+  return { question, guidelines, systemMessage: testCase.system_message };
 }
 
 async function fileExists(absolutePath: string): Promise<boolean> {

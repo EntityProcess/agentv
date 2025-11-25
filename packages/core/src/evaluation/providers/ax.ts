@@ -39,7 +39,7 @@ function buildChatPrompt(request: ProviderRequest): ChatPrompt {
   }
 
   const systemContent = systemSegments.join("\n\n");
-  const userContent = request.prompt.trim();
+  const userContent = request.question.trim();
 
   const prompt: ChatPrompt = [
     {

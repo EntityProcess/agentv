@@ -86,7 +86,7 @@ afterEach(() => {
 function mockParsers(): void {
   vi.spyOn(yamlParser, "loadEvalCases").mockResolvedValue(evalCases);
   vi.spyOn(yamlParser, "buildPromptInputs").mockImplementation(async (testCase) => ({
-    request: `req-${testCase.id}`,
+    question: `req-${testCase.id}`,
     guidelines: "",
     systemMessage: undefined,
   }));

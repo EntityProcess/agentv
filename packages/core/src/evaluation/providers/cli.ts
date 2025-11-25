@@ -174,7 +174,7 @@ export class CliProvider implements Provider {
       healthcheck.commandTemplate,
       buildTemplateValues(
         {
-          prompt: "",
+          question: "",
           guidelines: "",
           inputFiles: [],
           evalCaseId: "",
@@ -206,13 +206,13 @@ export class CliProvider implements Provider {
 function buildTemplateValues(
   request: Pick<
     ProviderRequest,
-    "prompt" | "guidelines" | "inputFiles" | "evalCaseId" | "attempt"
+    "question" | "guidelines" | "inputFiles" | "evalCaseId" | "attempt"
   >,
   config: CliResolvedConfig,
 ): Record<string, string> {
   const inputFiles = normalizeInputFiles(request.inputFiles);
   return {
-    PROMPT: shellEscape(request.prompt ?? ""),
+    PROMPT: shellEscape(request.question ?? ""),
     GUIDELINES: shellEscape(request.guidelines ?? ""),
     EVAL_ID: shellEscape(request.evalCaseId ?? ""),
     ATTEMPT: shellEscape(String(request.attempt ?? 0)),

@@ -12,7 +12,7 @@ export interface EvaluationContext {
   readonly provider: Provider;
   readonly attempt: number;
   readonly promptInputs: {
-    readonly request: string;
+    readonly question: string;
     readonly guidelines: string;
     readonly systemMessage?: string;
   };
@@ -63,9 +63,9 @@ const LLM_JUDGE_SIGNATURE = f()
     f.object(
       {
         expectedOutcome: f.string("The expected outcome for the original task"),
-        request: f.string("The original task request"),
+        question: f.string("The original task request"),
         referenceAnswer: f.string("The gold standard reference answer"),
-        generatedAnswer: f.string("The answer to evaluate"),
+        candidateAnswer: f.string("The answer to evaluate"),
         guidelines: f
           .string("Additional evaluation guidelines or instructions")
           .optional(),
@@ -122,9 +122,9 @@ export class LlmJudgeEvaluator implements Evaluator {
     const guidelines = context.promptInputs.guidelines?.trim();
     const evaluationContext = {
       expectedOutcome: context.evalCase.outcome.trim(),
-      request: context.evalCase.task.trim(),
+      question: context.evalCase.task.trim(),
       referenceAnswer: context.evalCase.expected_assistant_raw.trim(),
-      generatedAnswer: context.candidate.trim(),
+      candidateAnswer: context.candidate.trim(),
       ...(guidelines ? { guidelines } : {}),
     };
 
@@ -156,15 +156,29 @@ export class LlmJudgeEvaluator implements Evaluator {
     context: EvaluationContext,
     judgeProvider: Provider,
   ): Promise<EvaluationScore> {
-    const prompt = buildQualityPrompt(context.evalCase, context.candidate);
-    const systemPrompt = context.systemPrompt ?? this.customPrompt ?? QUALITY_SYSTEM_PROMPT;
+    let prompt = buildQualityPrompt(context.evalCase, context.candidate);
+    let systemPrompt = context.systemPrompt ?? this.customPrompt ?? QUALITY_SYSTEM_PROMPT;
+
+    if (systemPrompt && hasTemplateVariables(systemPrompt)) {
+      const variables = {
+        input_messages: JSON.stringify(context.evalCase.user_segments, null, 2),
+        output_messages: context.candidate,
+        candidateAnswer: context.candidate,
+        referenceAnswer: context.evalCase.expected_assistant_raw,
+        outcome: context.evalCase.outcome,
+        question: context.evalCase.task,
+      };
+      prompt = substituteVariables(systemPrompt, variables);
+      systemPrompt = QUALITY_SYSTEM_PROMPT;
+    }
+
     const metadata: JsonObject = {
       ...(systemPrompt !== undefined ? { systemPrompt } : {}),
       ...(context.judgeModel !== undefined ? { model: context.judgeModel } : {}),
     };
 
     const response = await judgeProvider.invoke({
-      prompt,
+      question: prompt,
       metadata,
       evalCaseId: context.evalCase.id,
       attempt: context.attempt,
@@ -235,9 +249,9 @@ function providerSupportsAx(
 }
 
 const QUALITY_SYSTEM_PROMPT = [
-  "You are an expert evaluator. Your goal is to grade the generated_answer based on how well it achieves the expected_outcome for the original task.",
+  "You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.",
   "",
-  "Use the reference_answer as a gold standard for a high-quality response. The generated_answer does not need to match it verbatim, but it should capture the key points and follow the same spirit.",
+  "Use the reference_answer as a gold standard for a high-quality response. The candidate_answer does not need to match it verbatim, but it should capture the key points and follow the same spirit.",
   "",
   "Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.",
   "",
@@ -262,7 +276,7 @@ function buildQualityPrompt(testCase: EvalCase, candidate: string): string {
     "[[ ## reference_answer ## ]]",
     testCase.expected_assistant_raw.trim(),
     "",
-    "[[ ## generated_answer ## ]]",
+    "[[ ## candidate_answer ## ]]",
     candidate.trim(),
     "",
     "Respond with a single JSON object matching the schema described in the system prompt.",
@@ -520,4 +534,14 @@ function parseJsonSafe(payload: string): Record<string, unknown> | undefined {
   } catch {
     return undefined;
   }
+}
+
+function hasTemplateVariables(text: string): boolean {
+  return /\$\{[a-zA-Z0-9_]+\}/.test(text);
+}
+
+function substituteVariables(template: string, variables: Record<string, string>): string {
+  return template.replace(/\$\{([a-zA-Z0-9_]+)\}/g, (match, varName) => {
+    return variables[varName] ?? match;
+  });
 }

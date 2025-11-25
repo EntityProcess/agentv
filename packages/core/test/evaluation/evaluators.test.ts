@@ -57,7 +57,7 @@ describe("LlmJudgeEvaluator", () => {
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { request: "", guidelines: "" },
+      promptInputs: { question: "", guidelines: "" },
       now: new Date(),
     });
 
@@ -88,7 +88,7 @@ describe("LlmJudgeEvaluator", () => {
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { request: "", guidelines: "" },
+      promptInputs: { question: "", guidelines: "" },
       now: new Date(),
     });
 
@@ -117,7 +117,7 @@ describe("LlmJudgeEvaluator", () => {
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { request: "", guidelines: "" },
+      promptInputs: { question: "", guidelines: "" },
       now: new Date(),
     });
 
@@ -147,7 +147,7 @@ describe("LlmJudgeEvaluator", () => {
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { request: "", guidelines: "" },
+      promptInputs: { question: "", guidelines: "" },
       now: new Date(),
     });
 
@@ -192,7 +192,7 @@ describe("LlmJudgeEvaluator", () => {
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { request: "", guidelines: "" },
+      promptInputs: { question: "", guidelines: "" },
       now: new Date(),
     });
 
@@ -221,7 +221,7 @@ describe("LlmJudgeEvaluator", () => {
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { request: "", guidelines: "" },
+      promptInputs: { question: "", guidelines: "" },
       now: new Date(),
     });
 
@@ -243,7 +243,7 @@ describe("LlmJudgeEvaluator", () => {
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { request: "", guidelines: "" },
+      promptInputs: { question: "", guidelines: "" },
       now: new Date(),
     });
 

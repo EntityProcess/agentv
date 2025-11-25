@@ -32,7 +32,7 @@ export class MockProvider implements Provider {
     return {
       text: this.cannedResponse,
       raw: {
-        prompt: request.prompt,
+        question: request.question,
         guidelines: request.guidelines,
       },
     };
