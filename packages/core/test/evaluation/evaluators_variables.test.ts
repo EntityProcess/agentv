@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { LlmJudgeEvaluator } from "../../src/evaluation/evaluators.js";
 import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "../../src/evaluation/providers/types.js";
-import type { EvalCase, JsonObject } from "../../src/evaluation/types.js";
+import type { EvalCase } from "../../src/evaluation/types.js";
 
 class CapturingProvider implements Provider {
   readonly id = "capturing";

@@ -7,8 +7,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { buildPromptDocument, collectGuidelineFiles, normalizeInputFiles } from "./preread.js";
 import { recordCodexLogEntry } from "./codex-log-tracker.js";
+import { buildPromptDocument, collectGuidelineFiles, normalizeInputFiles } from "./preread.js";
 import type { CodexResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 

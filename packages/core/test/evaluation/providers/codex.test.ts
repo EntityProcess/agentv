@@ -3,12 +3,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 
-import { CodexProvider } from "../../../src/evaluation/providers/codex.js";
 import {
   consumeCodexLogEntries,
   subscribeToCodexLogEntries,
   type CodexLogEntry,
 } from "../../../src/evaluation/providers/codex-log-tracker.js";
+import { CodexProvider } from "../../../src/evaluation/providers/codex.js";
 import type { ProviderRequest } from "../../../src/evaluation/providers/types.js";
 
 async function createTempDir(prefix: string): Promise<string> {
