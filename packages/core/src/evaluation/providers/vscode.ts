@@ -60,9 +60,10 @@ export class VSCodeProvider implements Provider {
     }
 
     const responseText = await readFile(session.responseFile, "utf8");
+    const normalizedText = responseText.replace(/\r\n/g, "\n");
 
     return {
-      text: responseText,
+      text: normalizedText,
       raw: {
         session,
         inputFiles,
@@ -123,8 +124,9 @@ export class VSCodeProvider implements Provider {
     const responses: ProviderResponse[] = [];
     for (const [index, responseFile] of session.responseFiles.entries()) {
       const responseText = await readFile(responseFile, "utf8");
+      const normalizedText = responseText.replace(/\r\n/g, "\n");
       responses.push({
-        text: responseText,
+        text: normalizedText,
         raw: {
           session,
           inputFiles: normalizedRequests[index]?.inputFiles,
