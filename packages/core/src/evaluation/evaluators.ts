@@ -58,27 +58,18 @@ export interface LlmJudgeEvaluatorOptions {
 }
 
 const LLM_JUDGE_SIGNATURE = f()
+  .input("expectedOutcome", f.string("The expected outcome for the original task"))
+  .input("question", f.string("The original task request"))
+  .input("referenceAnswer", f.string("The gold standard reference answer"))
+  .input("candidateAnswer", f.string("The answer to evaluate"))
   .input(
-    "evaluationContext",
-    f.object({
-      expectedOutcome: f.string("The expected outcome for the original task"),
-      question: f.string("The original task request"),
-      referenceAnswer: f.string("The gold standard reference answer"),
-      candidateAnswer: f.string("The answer to evaluate"),
-      guidelines: f
-        .string("Additional evaluation guidelines or instructions")
-        .optional(),
-    }),
+    "guidelines",
+    f.string("Additional evaluation guidelines or instructions").optional(),
   )
-  .output(
-    "evaluation",
-    f.object({
-      score: f.number("Score between 0.0 and 1.0").min(0).max(1),
-      hits: f.string("Brief specific achievement").array(),
-      misses: f.string("Brief specific failure or omission").array(),
-      reasoning: f.string("Concise explanation for the score").max(500),
-    }),
-  )
+  .output("score", f.number("Score between 0.0 and 1.0").min(0).max(1))
+  .output("hits", f.string("Brief specific achievement").array())
+  .output("misses", f.string("Brief specific failure or omission").array())
+  .output("reasoning", f.string("Concise explanation for the score").max(500))
   .build();
 
 const LLM_JUDGE = ax(LLM_JUDGE_SIGNATURE);
@@ -117,29 +108,29 @@ export class LlmJudgeEvaluator implements Evaluator {
   ): Promise<EvaluationScore> {
     const ai = judgeProvider.getAxAI();
     const guidelines = context.promptInputs.guidelines?.trim();
-    const evaluationContext = {
-      expectedOutcome: context.evalCase.outcome.trim(),
-      question: context.evalCase.task.trim(),
-      referenceAnswer: context.evalCase.expected_assistant_raw.trim(),
-      candidateAnswer: context.candidate.trim(),
-      ...(guidelines ? { guidelines } : {}),
-    };
 
     try {
       const options = this.buildJudgeForwardOptions(context);
-      const result = await LLM_JUDGE.forward(ai, { evaluationContext }, options);
-      const evaluation = result.evaluation;
+      const inputs = {
+        expectedOutcome: context.evalCase.outcome.trim(),
+        question: context.evalCase.task.trim(),
+        referenceAnswer: context.evalCase.expected_assistant_raw.trim(),
+        candidateAnswer: context.candidate.trim(),
+        ...(guidelines ? { guidelines } : {}),
+      };
+
+      const result = await LLM_JUDGE.forward(ai, inputs, options);
       const expectedAspectCount = Math.max(
-        evaluation.hits.length + evaluation.misses.length,
+        result.hits.length + result.misses.length,
         1,
       );
 
       return {
-        score: evaluation.score,
-        hits: evaluation.hits,
-        misses: evaluation.misses,
+        score: result.score,
+        hits: result.hits,
+        misses: result.misses,
         expectedAspectCount,
-        reasoning: evaluation.reasoning,
+        reasoning: result.reasoning,
         evaluatorRawRequest: {
           id: randomUUID(),
           provider: judgeProvider.id,
