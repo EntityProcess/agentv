@@ -101,7 +101,8 @@ evalcases:
   - id: eval-1
     # ...
 
-# Targets filesst$schema: agentv-targets-v2.1
+# Targets files
+$schema: agentv-targets-v2.1
 targets:
   - name: default
     # ...
