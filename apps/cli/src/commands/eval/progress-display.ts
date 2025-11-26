@@ -1,4 +1,4 @@
-import logUpdate from "log-update";
+import { stripVTControlCharacters } from "node:util";
 
 export interface WorkerProgress {
   workerId: number;
@@ -10,20 +10,31 @@ export interface WorkerProgress {
   targetLabel?: string;
 }
 
+// ANSI escape sequences
+const ESC = "\x1B[";
+const CLEAR_LINE = `${ESC}K`;
+const MOVE_CURSOR_UP = `${ESC}1A`;
+const SYNC_START = `${ESC}?2026h`; // BSU (Begin Synchronized Update)
+const SYNC_END = `${ESC}?2026l`; // ESU (End Synchronized Update)
+
 export class ProgressDisplay {
   private readonly workers: Map<number, WorkerProgress> = new Map();
   private readonly maxWorkers: number;
   private totalTests = 0;
   private completedTests = 0;
   private renderTimer?: NodeJS.Timeout;
+  private renderScheduled = false;
   private isInteractive: boolean;
   private readonly logPaths: string[] = [];
   private readonly logPathSet = new Set<string>();
   private hasPrintedLogHeader = false;
+  private windowHeight = 0;
+  private started = false;
+  private finished = false;
 
   constructor(maxWorkers: number) {
     this.maxWorkers = maxWorkers;
-    this.isInteractive = process.stderr.isTTY && !process.env.CI;
+    this.isInteractive = process.stdout.isTTY && !process.env.CI;
   }
 
   isInteractiveMode(): boolean {
@@ -31,9 +42,20 @@ export class ProgressDisplay {
   }
 
   start(): void {
+    this.started = true;
+    this.finished = false;
+    
     if (this.isInteractive) {
       // Print initial empty line for visual separation
-      console.log("");
+      this.write("\n");
+      
+      // Start periodic rendering (similar to Vitest's approach)
+      this.renderTimer = setInterval(() => {
+        this.scheduleRender();
+      }, 1000); // Update once per second
+      
+      // @ts-expect-error - unref exists on Timeout
+      this.renderTimer.unref?.();
     }
   }
 
@@ -95,32 +117,58 @@ export class ProgressDisplay {
   }
 
   private scheduleRender(): void {
-    if (this.renderTimer) {
+    if (this.renderScheduled || this.finished) {
       return;
     }
-    this.renderTimer = setTimeout(() => {
-      this.renderTimer = undefined;
+    
+    this.renderScheduled = true;
+    
+    // Debounce renders to 100ms to prevent rapid re-renders
+    setTimeout(() => {
+      this.renderScheduled = false;
       this.render();
-    }, 100); // Debounce renders to 100ms
+    }, 100);
+  }
+
+  private write(content: string): void {
+    process.stdout.write(content);
+  }
+
+  private clearWindow(): void {
+    if (this.windowHeight === 0) {
+      return;
+    }
+
+    // Move cursor to start of line and clear it
+    this.write(`\r${CLEAR_LINE}`);
+    
+    // Move up and clear each line
+    for (let i = 1; i < this.windowHeight; i++) {
+      this.write(`${MOVE_CURSOR_UP}\r${CLEAR_LINE}`);
+    }
+    
+    this.windowHeight = 0;
+  }
+
+  private getRenderedRowCount(rows: string[]): number {
+    const columns = process.stdout.columns || 80;
+    let count = 0;
+    
+    for (const row of rows) {
+      const text = stripVTControlCharacters(row);
+      count += Math.max(1, Math.ceil(text.length / columns));
+    }
+    
+    return count;
   }
 
   private render(): void {
-    if (!this.isInteractive) {
+    if (!this.isInteractive || !this.started) {
       return;
     }
 
     const lines: string[] = [];
     
-    // Empty line above progress display
-    //lines.push("");
-    
-    // Header with overall progress
-    const progressBar = this.buildProgressBar(this.completedTests, this.totalTests);
-    lines.push(`${progressBar} ${this.completedTests}/${this.totalTests} evals`);
-    
-    // Empty line between progress and workers
-    lines.push("");
-
     // Worker status lines
     const sortedWorkers = Array.from(this.workers.values()).sort((a, b) => a.workerId - b.workerId);
     for (const worker of sortedWorkers) {
@@ -136,20 +184,33 @@ export class ProgressDisplay {
       });
     }
 
-    // Use log-update to handle all cursor positioning
-    logUpdate(lines.join("\n"));
+    // Calculate row count for accurate clearing
+    const rowCount = this.getRenderedRowCount(lines);
+    
+    // Use synchronized updates to prevent flickering
+    this.write(SYNC_START);
+    this.clearWindow();
+    
+    if (lines.length > 0) {
+      this.write(lines.join("\n"));
+    }
+    
+    this.write(SYNC_END);
+    
+    this.windowHeight = rowCount;
   }
 
   private formatWorkerLine(worker: WorkerProgress): string {
     const workerLabel = `${worker.workerId}.`.padEnd(4);
     const statusIcon = this.getStatusIcon(worker.status);
-    const elapsed = worker.startedAt ? this.formatElapsed(Date.now() - worker.startedAt) : "";
-    const timeLabel = elapsed ? ` (${elapsed})` : "";
     const targetLabel = worker.targetLabel ? `  | ${worker.targetLabel}` : "";
 
-    const maxLineLength = 90;
+    const columns = process.stdout.columns || 80;
+    // Leave a small buffer to prevent accidental wrapping at the edge
+    const maxLineLength = Math.max(40, columns - 4);
+    
     const reservedLength =
-      workerLabel.length + statusIcon.length + timeLabel.length + targetLabel.length + 4; // spaces and separators
+      workerLabel.length + statusIcon.length + targetLabel.length + 4; // spaces and separators
     const availableLabelLength = Math.max(15, maxLineLength - reservedLength);
 
     let testLabel = worker.evalId;
@@ -157,7 +218,7 @@ export class ProgressDisplay {
       testLabel = `${testLabel.substring(0, Math.max(0, availableLabelLength - 3))}...`;
     }
 
-    return `${workerLabel} ${statusIcon} ${testLabel}${timeLabel}${targetLabel}`;
+    return `${workerLabel} ${statusIcon} ${testLabel}${targetLabel}`;
   }
 
   private getStatusIcon(status: WorkerProgress["status"]): string {
@@ -175,45 +236,28 @@ export class ProgressDisplay {
     }
   }
 
-  private formatElapsed(ms: number): string {
-    const seconds = Math.floor(ms / 1000);
-    if (seconds < 60) {
-      return `${seconds}s`;
-    }
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}m ${remainingSeconds}s`;
-  }
-
-  private buildProgressBar(current: number, total: number): string {
-    if (total === 0) {
-      return "[          ]";
-    }
-
-    const width = 20;
-    const filled = Math.floor((current / total) * width);
-    const empty = width - filled;
-    const bar = "█".repeat(filled) + "░".repeat(empty);
-    const percentage = Math.floor((current / total) * 100);
-    
-    return `[${bar}] ${percentage}%`;
-  }
-
   finish(): void {
     if (this.renderTimer) {
       clearTimeout(this.renderTimer);
       this.renderTimer = undefined;
     }
 
-    if (this.isInteractive) {
+    if (this.isInteractive && this.started) {
+      // Final render to show complete state briefly
       this.render();
-      logUpdate.done(); // Persist the final output
+      
+      // Small delay to let user see the final state, then clear
+      setTimeout(() => {
+        this.clearWindow();
+      }, 200);
     }
+    
+    this.finished = true;
   }
 
   clear(): void {
     if (this.isInteractive) {
-      logUpdate.clear();
+      this.clearWindow();
     }
   }
 }
