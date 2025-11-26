@@ -203,6 +203,7 @@ export interface EvaluationResult {
   readonly raw_request?: JsonObject;
   readonly evaluator_raw_request?: JsonObject;
   readonly evaluator_results?: readonly EvaluatorResult[];
+  readonly error?: string;
 }
 
 export interface EvaluatorResult {

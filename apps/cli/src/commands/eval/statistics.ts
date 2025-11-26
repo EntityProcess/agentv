@@ -15,6 +15,8 @@ export interface EvaluationSummary {
   readonly histogram: readonly HistogramBin[];
   readonly topResults: readonly EvaluationResult[];
   readonly bottomResults: readonly EvaluationResult[];
+  readonly errorCount: number;
+  readonly errors: readonly { readonly evalId: string; readonly error: string }[];
 }
 
 const HISTOGRAM_BREAKPOINTS = [0, 0.2, 0.4, 0.6, 0.8, 1];
@@ -75,6 +77,12 @@ function buildHistogram(values: readonly number[]): readonly HistogramBin[] {
 export function calculateEvaluationSummary(results: readonly EvaluationResult[]): EvaluationSummary {
   const scores = results.map((result) => result.score);
   const total = results.length;
+  
+  // Track errors
+  const errors = results
+    .filter((result) => result.error !== undefined)
+    .map((result) => ({ evalId: result.eval_id, error: result.error! }));
+  const errorCount = errors.length;
 
   if (total === 0) {
     return {
@@ -87,6 +95,8 @@ export function calculateEvaluationSummary(results: readonly EvaluationResult[])
       histogram: buildHistogram([]),
       topResults: [],
       bottomResults: [],
+      errorCount: 0,
+      errors: [],
     };
   }
 
@@ -111,6 +121,8 @@ export function calculateEvaluationSummary(results: readonly EvaluationResult[])
     histogram,
     topResults,
     bottomResults,
+    errorCount,
+    errors,
   };
 }
 
@@ -124,10 +136,29 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
   }
 
   const lines: string[] = [];
+  
+  // Display errors first if any exist
+  if (summary.errorCount > 0) {
+    lines.push("\n==================================================");
+    lines.push("ERRORS");
+    lines.push("==================================================");
+    summary.errors.forEach((error) => {
+      lines.push(`\n❌ ${error.evalId}`);
+      lines.push(`   ${error.error}`);
+    });
+    lines.push("");
+  }
+  
   lines.push("\n==================================================");
   lines.push("EVALUATION SUMMARY");
   lines.push("==================================================");
   lines.push(`Total eval cases: ${summary.total}`);
+  
+  if (summary.errorCount > 0) {
+    lines.push(`Failed: ${summary.errorCount}`);
+    lines.push(`Passed: ${summary.total - summary.errorCount}`);
+  }
+  
   lines.push(`Mean score: ${formatScore(summary.mean)}`);
   lines.push(`Median score: ${formatScore(summary.median)}`);
   lines.push(`Min score: ${formatScore(summary.min)}`);

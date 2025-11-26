@@ -54,7 +54,6 @@ export class ProgressDisplay {
         this.scheduleRender();
       }, 1000); // Update once per second
       
-      // @ts-expect-error - unref exists on Timeout
       this.renderTimer.unref?.();
     }
   }
