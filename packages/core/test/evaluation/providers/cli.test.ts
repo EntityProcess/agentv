@@ -1,11 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { writeFile, unlink } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 import { CliProvider, type CommandRunResult } from "../../../src/evaluation/providers/cli.js";
 import type { CliResolvedConfig } from "../../../src/evaluation/providers/targets.js";
 import type { ProviderRequest } from "../../../src/evaluation/providers/types.js";
 
 const baseConfig: CliResolvedConfig = {
-  commandTemplate: "agent-cli run {PROMPT} {FILES}",
+  commandTemplate: "agent-cli run {PROMPT} {FILES} {OUTPUT_FILE}",
   filesFormat: "--file {path}",
   timeoutMs: 2000,
 };
@@ -19,21 +22,42 @@ const baseRequest: ProviderRequest = {
 };
 
 describe("CliProvider", () => {
-  it("renders placeholders and returns stdout on success", async () => {
-    const runner = vi.fn(async (command: string, _options): Promise<CommandRunResult> => ({
-      stdout: command,
-      stderr: "",
-      exitCode: 0,
-      failed: false,
-    }));
+  const createdFiles: string[] = [];
+
+  afterEach(async () => {
+    // Clean up any files created during tests
+    await Promise.all(createdFiles.map((file) => unlink(file).catch(() => {/* ignore */})));
+    createdFiles.length = 0;
+  });
+
+  it("renders placeholders and returns response from output file", async () => {
+    const runner = vi.fn(async (command: string): Promise<CommandRunResult> => {
+      // Extract the output file path from the command
+      // The command template includes {OUTPUT_FILE} which gets replaced with the temp file path
+      const match = command.match(/agentv-case-1-\d+-\w+\.json/);
+      if (match) {
+        const outputFilePath = path.join(os.tmpdir(), match[0]);
+        await writeFile(outputFilePath, "Test response from CLI", "utf-8");
+        createdFiles.push(outputFilePath);
+      }
+
+      return {
+        stdout: command,
+        stderr: "",
+        exitCode: 0,
+        failed: false,
+      };
+    });
 
     const provider = new CliProvider("cli-target", baseConfig, runner);
     const response = await provider.invoke(baseRequest);
 
     expect(runner).toHaveBeenCalledTimes(1);
-    expect(response.text).toContain("Hello world");
+    expect(response.text).toContain("Test response from CLI");
     expect(response.raw && (response.raw as Record<string, unknown>).command).toBeDefined();
-    expect((runner.mock.calls[0]?.[0] as string) ?? "").toContain("--file");
+    const command = runner.mock.calls[0]?.[0] as string;
+    expect(command).toContain("--file");
+    expect(command).toContain("Hello world");
   });
 
   it("throws on non-zero exit codes with stderr context", async () => {

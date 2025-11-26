@@ -38,7 +38,7 @@ async function createFixture(): Promise<EvalFixture> {
   await mkdir(agentvDir, { recursive: true });
 
   const targetsPath = path.join(agentvDir, "targets.yaml");
-  const targetsContent = `$schema: agentv-targets-v2
+  const targetsContent = `$schema: agentv-targets-v2.1
 targets:
   - name: default
     provider: mock
@@ -88,6 +88,7 @@ async function runCli(
       cwd: fixture.suiteDir,
       env: {
         ...baseEnv,
+        CI: "true", // Disable interactive progress display for tests
         AGENTEVO_CLI_EVAL_RUNNER: MOCK_RUNNER,
         AGENTEVO_CLI_EVAL_RUNNER_OUTPUT: fixture.diagnosticsPath,
         ...extraEnv,
