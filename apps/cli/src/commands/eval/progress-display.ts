@@ -163,7 +163,7 @@ export class ProgressDisplay {
   }
 
   private render(): void {
-    if (!this.isInteractive || !this.started) {
+    if (!this.isInteractive || !this.started || this.finished) {
       return;
     }
 
@@ -187,15 +187,12 @@ export class ProgressDisplay {
     // Calculate row count for accurate clearing
     const rowCount = this.getRenderedRowCount(lines);
     
-    // Use synchronized updates to prevent flickering
-    this.write(SYNC_START);
+    // Clear and redraw without synchronized updates (to avoid Windows Terminal issues)
     this.clearWindow();
     
     if (lines.length > 0) {
       this.write(lines.join("\n"));
     }
-    
-    this.write(SYNC_END);
     
     this.windowHeight = rowCount;
   }
@@ -238,21 +235,27 @@ export class ProgressDisplay {
 
   finish(): void {
     if (this.renderTimer) {
-      clearTimeout(this.renderTimer);
+      clearInterval(this.renderTimer);
       this.renderTimer = undefined;
-    }
-
-    if (this.isInteractive && this.started) {
-      // Final render to show complete state briefly
-      this.render();
-      
-      // Small delay to let user see the final state, then clear
-      setTimeout(() => {
-        this.clearWindow();
-      }, 200);
     }
     
     this.finished = true;
+
+    if (this.isInteractive && this.started) {
+      // Clear the dynamic window completely
+      this.clearWindow();
+      
+      // Write final state as permanent output (not a window)
+      const sortedWorkers = Array.from(this.workers.values()).sort(
+        (a, b) => a.workerId - b.workerId
+      );
+      for (const worker of sortedWorkers) {
+        this.write(this.formatWorkerLine(worker) + "\n");
+      }
+      
+      // Add blank line to separate from summary
+      this.write("\n");
+    }
   }
 
   clear(): void {
