@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
+import { readTextFile } from "../file-utils.js";
 import type { CliResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 
@@ -43,8 +44,7 @@ async function defaultCommandRunner(
 
   try {
     const { stdout, stderr } = await execAsync(command, execOptions);
-    console.error(`[CLI DEBUG] SUCCESS - stdout: ${stdout.length} bytes, stderr: ${stderr.length} bytes`);
-    
+
     return {
       stdout,
       stderr,
@@ -60,9 +60,6 @@ async function defaultCommandRunner(
       timedOut?: boolean;
       killed?: boolean;
     };
-
-    console.error(`[CLI DEBUG] ERROR - code: ${execError.code}, message: ${execError.message}`);
-    console.error(`[CLI DEBUG] stdout: ${execError.stdout?.length ?? 0} bytes, stderr: ${execError.stderr?.length ?? 0} bytes`);
 
     return {
       stdout: execError.stdout ?? "",
@@ -143,7 +140,7 @@ export class CliProvider implements Provider {
 
   private async readAndCleanupOutputFile(filePath: string): Promise<string> {
     try {
-      const content = await fs.readFile(filePath, "utf-8");
+      const content = await readTextFile(filePath);
       return content;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

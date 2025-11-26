@@ -12,12 +12,20 @@ export async function fileExists(filePath: string): Promise<boolean> {
 }
 
 /**
+ * Normalize line endings to LF (\n).
+ * This ensures consistent behavior across Windows (CRLF) and Unix (LF) systems.
+ */
+export function normalizeLineEndings(content: string): string {
+  return content.replace(/\r\n/g, "\n");
+}
+
+/**
  * Read a text file and normalize line endings to LF (\n).
  * This ensures consistent behavior across Windows (CRLF) and Unix (LF) systems.
  */
 export async function readTextFile(filePath: string): Promise<string> {
   const content = await readFile(filePath, "utf8");
-  return content.replace(/\r\n/g, "\n");
+  return normalizeLineEndings(content);
 }
 
 /**

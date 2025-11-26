@@ -1,3 +1,4 @@
+import { normalizeLineEndings } from "@agentv/core";
 import { Mutex } from "async-mutex";
 import { createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
@@ -35,11 +36,14 @@ export class YamlWriter {
         // (will use block literal for multiline strings with actual newlines)
       });
 
+      // Normalize line endings to LF (\n) for consistent output across platforms
+      const normalizedYaml = normalizeLineEndings(yamlDoc);
+
       // Add YAML document separator (---) between records
       const separator = this.isFirst ? "---\n" : "\n---\n";
       this.isFirst = false;
 
-      const content = `${separator}${yamlDoc}`;
+      const content = `${separator}${normalizedYaml}`;
 
       if (!this.stream.write(content)) {
         await new Promise<void>((resolve, reject) => {
