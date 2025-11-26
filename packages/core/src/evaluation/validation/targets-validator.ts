@@ -4,6 +4,7 @@ import { parse } from "yaml";
 
 import type { ValidationError, ValidationResult } from "./types.js";
 import { KNOWN_PROVIDERS, PROVIDER_ALIASES, TARGETS_SCHEMA_V2 } from "../providers/types.js";
+import { CLI_PLACEHOLDERS } from "../providers/targets.js";
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
@@ -12,8 +13,6 @@ type JsonArray = readonly JsonValue[];
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-
-const CLI_PLACEHOLDERS = new Set(["PROMPT", "GUIDELINES", "EVAL_ID", "ATTEMPT", "FILES"]);
 
 // Known settings properties for each provider type
 const COMMON_SETTINGS = new Set([
