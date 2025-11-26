@@ -1,4 +1,6 @@
 import { exec as execWithCallback, type ExecException, type ExecOptions } from "node:child_process";
+import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -41,6 +43,8 @@ async function defaultCommandRunner(
 
   try {
     const { stdout, stderr } = await execAsync(command, execOptions);
+    console.error(`[CLI DEBUG] SUCCESS - stdout: ${stdout.length} bytes, stderr: ${stderr.length} bytes`);
+    
     return {
       stdout,
       stderr,
@@ -56,6 +60,9 @@ async function defaultCommandRunner(
       timedOut?: boolean;
       killed?: boolean;
     };
+
+    console.error(`[CLI DEBUG] ERROR - code: ${execError.code}, message: ${execError.message}`);
+    console.error(`[CLI DEBUG] stdout: ${execError.stdout?.length ?? 0} bytes, stderr: ${execError.stderr?.length ?? 0} bytes`);
 
     return {
       stdout: execError.stdout ?? "",
@@ -92,7 +99,8 @@ export class CliProvider implements Provider {
 
     await this.ensureHealthy(request.signal);
 
-    const templateValues = buildTemplateValues(request, this.config);
+    const outputFilePath = generateOutputFilePath(request.evalCaseId);
+    const templateValues = buildTemplateValues(request, this.config, outputFilePath);
     const renderedCommand = renderTemplate(this.config.commandTemplate, templateValues);
 
     const env = this.config.env ? { ...process.env, ...this.config.env } : process.env;
@@ -118,15 +126,32 @@ export class CliProvider implements Provider {
       throw new Error(message);
     }
 
+    // Read from output file
+    const responseText = await this.readAndCleanupOutputFile(outputFilePath);
+
     return {
-      text: result.stdout,
+      text: responseText,
       raw: {
         command: renderedCommand,
         stderr: result.stderr,
         exitCode: result.exitCode ?? 0,
         cwd: this.config.cwd,
+        outputFile: outputFilePath,
       },
     };
+  }
+
+  private async readAndCleanupOutputFile(filePath: string): Promise<string> {
+    try {
+      const content = await fs.readFile(filePath, "utf-8");
+      return content;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to read output file '${filePath}': ${errorMsg}`);
+    } finally {
+      // Clean up temp file - ignore errors as the file might not exist on read failure
+      await fs.unlink(filePath).catch(() => {/* ignore cleanup errors */});
+    }
   }
 
   private async ensureHealthy(signal?: AbortSignal): Promise<void> {
@@ -177,10 +202,11 @@ export class CliProvider implements Provider {
           question: "",
           guidelines: "",
           inputFiles: [],
-          evalCaseId: "",
+          evalCaseId: "healthcheck",
           attempt: 0,
         },
         this.config,
+        generateOutputFilePath("healthcheck"),
       ),
     );
 
@@ -209,6 +235,7 @@ function buildTemplateValues(
     "question" | "guidelines" | "inputFiles" | "evalCaseId" | "attempt"
   >,
   config: CliResolvedConfig,
+  outputFilePath: string,
 ): Record<string, string> {
   const inputFiles = normalizeInputFiles(request.inputFiles);
   return {
@@ -217,6 +244,7 @@ function buildTemplateValues(
     EVAL_ID: shellEscape(request.evalCaseId ?? ""),
     ATTEMPT: shellEscape(String(request.attempt ?? 0)),
     FILES: formatFileList(inputFiles, config.filesFormat),
+    OUTPUT_FILE: shellEscape(outputFilePath),
   };
 }
 
@@ -269,11 +297,21 @@ function shellEscape(value: string): string {
   }
 
   if (process.platform === "win32") {
-    const escaped = value.replace(/"/g, '\\"');
-    return `"${escaped}"`;
+    // PowerShell uses backtick (`) for escaping, not backslash
+    // Double quotes inside the string need to be escaped with backtick
+    // Single quotes can be used instead for simpler escaping
+    const escaped = value.replace(/'/g, "''");
+    return `'${escaped}'`;
   }
 
   return `'${value.replace(/'/g, "'\"'\"'")}'`;
+}
+
+function generateOutputFilePath(evalCaseId?: string): string {
+  const safeEvalId = evalCaseId || "unknown";
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 9);
+  return path.join(os.tmpdir(), `agentv-${safeEvalId}-${timestamp}-${random}.json`);
 }
 
 function formatTimeoutSuffix(timeoutMs: number | undefined): string {
