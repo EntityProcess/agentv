@@ -5,6 +5,7 @@ import type {
   AnthropicResolvedConfig,
   AzureResolvedConfig,
   GeminiResolvedConfig,
+  RetryConfig,
 } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 import type { JsonObject } from "../types.js";
@@ -106,6 +107,98 @@ function ensureChatResponse(result: unknown): AxChatResponse {
   return result as AxChatResponse;
 }
 
+function isRetryableError(error: unknown, retryableStatusCodes: readonly number[]): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  // Check for status code in various error formats
+  if ("status" in error && typeof error.status === "number") {
+    return retryableStatusCodes.includes(error.status);
+  }
+
+  // Check for HTTP status in error message
+  if ("message" in error && typeof error.message === "string") {
+    const match = error.message.match(/HTTP (\d{3})/);
+    if (match) {
+      const status = Number.parseInt(match[1], 10);
+      return retryableStatusCodes.includes(status);
+    }
+  }
+
+  // Network errors are retryable
+  if ("name" in error && error.name === "AxAIServiceNetworkError") {
+    return true;
+  }
+
+  return false;
+}
+
+function calculateRetryDelay(attempt: number, config: Required<RetryConfig>): number {
+  const delay = Math.min(
+    config.maxDelayMs,
+    config.initialDelayMs * config.backoffFactor ** attempt,
+  );
+  // Add jitter (0.75-1.25x of calculated delay)
+  return delay * (0.75 + Math.random() * 0.5);
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retryConfig?: RetryConfig,
+  signal?: AbortSignal,
+): Promise<T> {
+  // Use default retry config if not provided
+  const config: Required<RetryConfig> = {
+    maxRetries: retryConfig?.maxRetries ?? 3,
+    initialDelayMs: retryConfig?.initialDelayMs ?? 1000,
+    maxDelayMs: retryConfig?.maxDelayMs ?? 60000,
+    backoffFactor: retryConfig?.backoffFactor ?? 2,
+    retryableStatusCodes: retryConfig?.retryableStatusCodes ?? [500, 408, 429, 502, 503, 504],
+  };
+
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+    // Check if aborted before attempting
+    if (signal?.aborted) {
+      throw new Error(`Request aborted: ${signal.reason ?? "Unknown reason"}`);
+    }
+
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+
+      // Don't retry if this is the last attempt
+      if (attempt >= config.maxRetries) {
+        break;
+      }
+
+      // Check if error is retryable
+      if (!isRetryableError(error, config.retryableStatusCodes)) {
+        throw error;
+      }
+
+      // Calculate delay and wait
+      const delay = calculateRetryDelay(attempt, config);
+      await sleep(delay);
+
+      // Check if aborted during sleep
+      if (signal?.aborted) {
+        throw new Error(`Request aborted: ${signal.reason ?? "Unknown reason"}`);
+      }
+    }
+  }
+
+  // All retries exhausted
+  throw lastError;
+}
+
 export class AzureProvider implements Provider {
   readonly id: string;
   readonly kind = "azure" as const;
@@ -113,6 +206,7 @@ export class AzureProvider implements Provider {
 
   private readonly ai: AxAiInstance;
   private readonly defaults: { temperature?: number; maxOutputTokens?: number };
+  private readonly retryConfig?: RetryConfig;
 
   constructor(
     targetName: string,
@@ -124,6 +218,7 @@ export class AzureProvider implements Provider {
       temperature: config.temperature,
       maxOutputTokens: config.maxOutputTokens,
     };
+    this.retryConfig = config.retry;
 
     this.ai = AxAI.create({
       name: "azure-openai",
@@ -141,13 +236,18 @@ export class AzureProvider implements Provider {
     const chatPrompt = buildChatPrompt(request);
     const modelConfig = extractModelConfig(request, this.defaults);
 
-    const response = await this.ai.chat(
-      {
-        chatPrompt,
-        model: this.config.deploymentName,
-        ...(modelConfig ? { modelConfig } : {}),
-      },
-      request.signal ? { abortSignal: request.signal } : undefined,
+    const response = await withRetry(
+      async () =>
+        await this.ai.chat(
+          {
+            chatPrompt,
+            model: this.config.deploymentName,
+            ...(modelConfig ? { modelConfig } : {}),
+          },
+          request.signal ? { abortSignal: request.signal } : undefined,
+        ),
+      this.retryConfig,
+      request.signal,
     );
 
     return mapResponse(ensureChatResponse(response));
@@ -169,6 +269,7 @@ export class AnthropicProvider implements Provider {
     maxOutputTokens?: number;
     thinkingBudget?: number;
   };
+  private readonly retryConfig?: RetryConfig;
 
   constructor(
     targetName: string,
@@ -181,6 +282,7 @@ export class AnthropicProvider implements Provider {
       maxOutputTokens: config.maxOutputTokens,
       thinkingBudget: config.thinkingBudget,
     };
+    this.retryConfig = config.retry;
 
     this.ai = AxAI.create({
       name: "anthropic",
@@ -192,13 +294,18 @@ export class AnthropicProvider implements Provider {
     const chatPrompt = buildChatPrompt(request);
     const modelConfig = extractModelConfig(request, this.defaults);
 
-    const response = await this.ai.chat(
-      {
-        chatPrompt,
-        model: this.config.model,
-        ...(modelConfig ? { modelConfig } : {}),
-      },
-      request.signal ? { abortSignal: request.signal } : undefined,
+    const response = await withRetry(
+      async () =>
+        await this.ai.chat(
+          {
+            chatPrompt,
+            model: this.config.model,
+            ...(modelConfig ? { modelConfig } : {}),
+          },
+          request.signal ? { abortSignal: request.signal } : undefined,
+        ),
+      this.retryConfig,
+      request.signal,
     );
 
     return mapResponse(ensureChatResponse(response));
@@ -219,6 +326,7 @@ export class GeminiProvider implements Provider {
     temperature?: number;
     maxOutputTokens?: number;
   };
+  private readonly retryConfig?: RetryConfig;
 
   constructor(
     targetName: string,
@@ -230,6 +338,7 @@ export class GeminiProvider implements Provider {
       temperature: config.temperature,
       maxOutputTokens: config.maxOutputTokens,
     };
+    this.retryConfig = config.retry;
 
     this.ai = AxAI.create({
       name: "google-gemini",
@@ -241,13 +350,18 @@ export class GeminiProvider implements Provider {
     const chatPrompt = buildChatPrompt(request);
     const modelConfig = extractModelConfig(request, this.defaults);
 
-    const response = await this.ai.chat(
-      {
-        chatPrompt,
-        model: this.config.model,
-        ...(modelConfig ? { modelConfig } : {}),
-      },
-      request.signal ? { abortSignal: request.signal } : undefined,
+    const response = await withRetry(
+      async () =>
+        await this.ai.chat(
+          {
+            chatPrompt,
+            model: this.config.model,
+            ...(modelConfig ? { modelConfig } : {}),
+          },
+          request.signal ? { abortSignal: request.signal } : undefined,
+        ),
+      this.retryConfig,
+      request.signal,
     );
 
     return mapResponse(ensureChatResponse(response));
