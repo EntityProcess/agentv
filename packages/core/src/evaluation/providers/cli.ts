@@ -100,10 +100,9 @@ export class CliProvider implements Provider {
     const templateValues = buildTemplateValues(request, this.config, outputFilePath);
     const renderedCommand = renderTemplate(this.config.commandTemplate, templateValues);
 
-    const env = this.config.env ? { ...process.env, ...this.config.env } : process.env;
     const result = await this.runCommand(renderedCommand, {
       cwd: this.config.cwd,
-      env,
+      env: process.env,
       timeoutMs: this.config.timeoutMs,
       signal: request.signal,
     });
@@ -207,10 +206,9 @@ export class CliProvider implements Provider {
       ),
     );
 
-    const env = this.config.env ? { ...process.env, ...this.config.env } : process.env;
     const result = await this.runCommand(renderedCommand, {
       cwd: healthcheck.cwd ?? this.config.cwd,
-      env,
+      env: process.env,
       timeoutMs,
       signal,
     });

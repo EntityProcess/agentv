@@ -56,7 +56,7 @@ export const PROVIDER_ALIASES: readonly string[] = [
 /**
  * Schema identifier for targets.yaml files (version 2).
  */
-export const TARGETS_SCHEMA_V2 = "agentv-targets-v2.1";
+export const TARGETS_SCHEMA_V2 = "agentv-targets-v2.2";
 
 export interface ProviderRequest {
   readonly question: string;
@@ -113,7 +113,68 @@ export type EnvLookup = Readonly<Record<string, string | undefined>>;
 export interface TargetDefinition {
   readonly name: string;
   readonly provider: ProviderKind | string;
-  readonly settings?: Record<string, unknown> | undefined;
   readonly judge_target?: string | undefined;
   readonly workers?: number | undefined;
+  // Provider batching
+  readonly provider_batching?: boolean | undefined;
+  readonly providerBatching?: boolean | undefined;
+  // Azure fields
+  readonly endpoint?: string | unknown | undefined;
+  readonly resource?: string | unknown | undefined;
+  readonly resourceName?: string | unknown | undefined;
+  readonly api_key?: string | unknown | undefined;
+  readonly apiKey?: string | unknown | undefined;
+  readonly deployment?: string | unknown | undefined;
+  readonly deploymentName?: string | unknown | undefined;
+  readonly model?: string | unknown | undefined;
+  readonly version?: string | unknown | undefined;
+  readonly api_version?: string | unknown | undefined;
+  // Anthropic fields
+  readonly variant?: string | unknown | undefined;
+  readonly thinking_budget?: number | unknown | undefined;
+  readonly thinkingBudget?: number | unknown | undefined;
+  // Common fields
+  readonly temperature?: number | unknown | undefined;
+  readonly max_output_tokens?: number | unknown | undefined;
+  readonly maxTokens?: number | unknown | undefined;
+  // Codex fields
+  readonly executable?: string | unknown | undefined;
+  readonly command?: string | unknown | undefined;
+  readonly binary?: string | unknown | undefined;
+  readonly args?: unknown | undefined;
+  readonly arguments?: unknown | undefined;
+  readonly cwd?: string | unknown | undefined;
+  readonly timeout_seconds?: number | unknown | undefined;
+  readonly timeoutSeconds?: number | unknown | undefined;
+  readonly log_dir?: string | unknown | undefined;
+  readonly logDir?: string | unknown | undefined;
+  readonly log_directory?: string | unknown | undefined;
+  readonly logDirectory?: string | unknown | undefined;
+  readonly log_format?: string | unknown | undefined;
+  readonly logFormat?: string | unknown | undefined;
+  readonly log_output_format?: string | unknown | undefined;
+  readonly logOutputFormat?: string | unknown | undefined;
+  // Mock fields
+  readonly response?: string | unknown | undefined;
+  readonly delayMs?: number | unknown | undefined;
+  readonly delayMinMs?: number | unknown | undefined;
+  readonly delayMaxMs?: number | unknown | undefined;
+  // VSCode fields
+  readonly vscode_cmd?: string | unknown | undefined;
+  readonly wait?: boolean | unknown | undefined;
+  readonly dry_run?: boolean | unknown | undefined;
+  readonly dryRun?: boolean | unknown | undefined;
+  readonly subagent_root?: string | unknown | undefined;
+  readonly subagentRoot?: string | unknown | undefined;
+  readonly workspace_template?: string | unknown | undefined;
+  readonly workspaceTemplate?: string | unknown | undefined;
+  // CLI fields
+  readonly command_template?: string | unknown | undefined;
+  readonly commandTemplate?: string | unknown | undefined;
+  readonly files_format?: string | unknown | undefined;
+  readonly filesFormat?: string | unknown | undefined;
+  readonly attachments_format?: string | unknown | undefined;
+  readonly attachmentsFormat?: string | unknown | undefined;
+  readonly env?: unknown | undefined;
+  readonly healthcheck?: unknown | undefined;
 }

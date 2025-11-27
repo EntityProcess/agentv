@@ -35,11 +35,9 @@ describe("resolveTargetDefinition", () => {
         {
           name: "default",
           provider: "azure",
-          settings: {
-            endpoint: "AZURE_OPENAI_ENDPOINT",
-            api_key: "AZURE_OPENAI_API_KEY",
-            model: "AZURE_DEPLOYMENT_NAME",
-          },
+          endpoint: "AZURE_OPENAI_ENDPOINT",
+          api_key: "AZURE_OPENAI_API_KEY",
+          model: "AZURE_DEPLOYMENT_NAME",
         },
         env,
       ),
@@ -57,11 +55,9 @@ describe("resolveTargetDefinition", () => {
       {
         name: "default",
         provider: "azure",
-        settings: {
-          endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
-          api_key: "${{ AZURE_OPENAI_API_KEY }}",
-          model: "${{ AZURE_DEPLOYMENT_NAME }}",
-        },
+        endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
+        api_key: "${{ AZURE_OPENAI_API_KEY }}",
+        model: "${{ AZURE_DEPLOYMENT_NAME }}",
       },
       env,
     );
@@ -86,11 +82,9 @@ describe("resolveTargetDefinition", () => {
       {
         name: "test",
         provider: "azure",
-        settings: {
-          endpoint: "${{  MY_VAR  }}",
-          api_key: "${{ MY_API_KEY }}",
-          model: "${{ MY_MODEL }}",
-        },
+        endpoint: "${{  MY_VAR  }}",
+        api_key: "${{ MY_API_KEY }}",
+        model: "${{ MY_MODEL }}",
       },
       env,
     );
@@ -113,11 +107,9 @@ describe("resolveTargetDefinition", () => {
       {
         name: "no-spaces",
         provider: "azure",
-        settings: {
-          endpoint: "${{MY_ENDPOINT}}",
-          api_key: "${{MY_KEY}}",
-          model: "${{MY_MODEL}}",
-        },
+        endpoint: "${{MY_ENDPOINT}}",
+        api_key: "${{MY_KEY}}",
+        model: "${{MY_MODEL}}",
       },
       env,
     );
@@ -138,11 +130,9 @@ describe("resolveTargetDefinition", () => {
         {
           name: "broken",
           provider: "azure",
-          settings: {
-            endpoint: "${{ MISSING_VAR }}",
-            api_key: "key",
-            model: "model",
-          },
+          endpoint: "${{ MISSING_VAR }}",
+          api_key: "key",
+          model: "model",
         },
         env,
       ),
@@ -161,12 +151,10 @@ describe("resolveTargetDefinition", () => {
       {
         name: "azure-version",
         provider: "azure",
-        settings: {
-          endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
-          api_key: "${{ AZURE_OPENAI_API_KEY }}",
-          model: "${{ AZURE_DEPLOYMENT_NAME }}",
-          version: "${{ CUSTOM_VERSION }}",
-        },
+        endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
+        api_key: "${{ AZURE_OPENAI_API_KEY }}",
+        model: "${{ AZURE_DEPLOYMENT_NAME }}",
+        version: "${{ CUSTOM_VERSION }}",
       },
       env,
     );
@@ -189,11 +177,9 @@ describe("resolveTargetDefinition", () => {
         {
           name: "broken",
           provider: "azure",
-          settings: {
-            endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
-            api_key: "${{ AZURE_OPENAI_API_KEY }}",
-            model: "${{ AZURE_DEPLOYMENT_NAME }}",
-          },
+          endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
+          api_key: "${{ AZURE_OPENAI_API_KEY }}",
+          model: "${{ AZURE_DEPLOYMENT_NAME }}",
         },
         env,
       ),
@@ -209,12 +195,10 @@ describe("resolveTargetDefinition", () => {
       {
         name: "editor",
         provider: "vscode",
-        settings: {
-          vscode_cmd: "code-insiders",
-          wait: false,
-          dry_run: true,
-          workspace_template: "${{ WORKSPACE_TEMPLATE_PATH }}",
-        },
+        vscode_cmd: "code-insiders",
+        wait: false,
+        dry_run: true,
+        workspace_template: "${{ WORKSPACE_TEMPLATE_PATH }}",
       },
       env,
     );
@@ -239,9 +223,7 @@ describe("resolveTargetDefinition", () => {
       {
         name: "gemini-target",
         provider: "gemini",
-        settings: {
-          api_key: "${{ GOOGLE_API_KEY }}",
-        },
+        api_key: "${{ GOOGLE_API_KEY }}",
       },
       env,
     );
@@ -267,10 +249,8 @@ describe("resolveTargetDefinition", () => {
       {
         name: "gemini-pro",
         provider: "gemini",
-        settings: {
-          api_key: "${{ GOOGLE_API_KEY }}",
-          model: "${{ GOOGLE_GEMINI_MODEL }}",
-        },
+        api_key: "${{ GOOGLE_API_KEY }}",
+        model: "${{ GOOGLE_GEMINI_MODEL }}",
       },
       env,
     );
@@ -295,10 +275,8 @@ describe("resolveTargetDefinition", () => {
       {
         name: "gemini-flash",
         provider: "google-gemini",
-        settings: {
-          api_key: "${{ GOOGLE_API_KEY }}",
-          model: "gemini-1.5-flash",
-        },
+        api_key: "${{ GOOGLE_API_KEY }}",
+        model: "gemini-1.5-flash",
       },
       env,
     );
@@ -320,9 +298,7 @@ describe("resolveTargetDefinition", () => {
         {
           name: "broken-gemini",
           provider: "gemini",
-          settings: {
-            api_key: "${{ GOOGLE_API_KEY }}",
-          },
+          api_key: "${{ GOOGLE_API_KEY }}",
         },
         {},
       ),
@@ -334,9 +310,7 @@ describe("resolveTargetDefinition", () => {
       {
         name: "batched",
         provider: "mock",
-        settings: {
-          provider_batching: true,
-        },
+        provider_batching: true,
       },
       {},
     );
@@ -345,7 +319,7 @@ describe("resolveTargetDefinition", () => {
     expect(target.providerBatching).toBe(true);
   });
 
-  it("resolves cli settings including env, cwd, and timeout", () => {
+  it("resolves cli settings including cwd and timeout", () => {
     const env = {
       WORKDIR: "/tmp/project",
       CLI_TOKEN: "secret-token",
@@ -355,15 +329,10 @@ describe("resolveTargetDefinition", () => {
       {
         name: "shell-cli",
         provider: "cli",
-        settings: {
-          command_template: "code chat {PROMPT} {FILES}",
-          cwd: "${{ WORKDIR }}",
-          env: {
-            API_TOKEN: "${{ CLI_TOKEN }}",
-          },
-          timeout_seconds: 3,
-          files_format: "--file {path}",
-        },
+        command_template: "code chat {PROMPT} {FILES}",
+        cwd: "${{ WORKDIR }}",
+        timeout_seconds: 3,
+        files_format: "--file {path}",
       },
       env,
     );
@@ -375,7 +344,6 @@ describe("resolveTargetDefinition", () => {
 
     expect(target.config.commandTemplate).toContain("{PROMPT}");
     expect(target.config.cwd).toBe("/tmp/project");
-    expect(target.config.env?.API_TOKEN).toBe("secret-token");
     expect(target.config.timeoutMs).toBe(3000);
     expect(target.config.filesFormat).toBe("--file {path}");
   });
@@ -386,9 +354,7 @@ describe("resolveTargetDefinition", () => {
         {
           name: "bad-cli",
           provider: "cli",
-          settings: {
-            command_template: "run-task {UNKNOWN}",
-          },
+          command_template: "run-task {UNKNOWN}",
         },
         {},
       ),
@@ -405,9 +371,7 @@ describe("resolveTargetDefinition", () => {
       {
         name: "codex",
         provider: "codex",
-        settings: {
-          args: ["--profile", "${{ CODEX_PROFILE }}", "--model", "${{ CODEX_MODEL }}"],
-        },
+        args: ["--profile", "${{ CODEX_PROFILE }}", "--model", "${{ CODEX_MODEL }}"],
       },
       env,
     );
@@ -438,11 +402,9 @@ describe("createProvider", () => {
       {
         name: "azure-target",
         provider: "azure",
-        settings: {
-          endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
-          api_key: "${{ AZURE_OPENAI_API_KEY }}",
-          model: "${{ AZURE_DEPLOYMENT_NAME }}",
-        },
+        endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
+        api_key: "${{ AZURE_OPENAI_API_KEY }}",
+        model: "${{ AZURE_DEPLOYMENT_NAME }}",
       },
       env,
     );
@@ -463,9 +425,7 @@ describe("createProvider", () => {
       {
         name: "gemini-target",
         provider: "gemini",
-        settings: {
-          api_key: "${{ GOOGLE_API_KEY }}",
-        },
+        api_key: "${{ GOOGLE_API_KEY }}",
       },
       env,
     );

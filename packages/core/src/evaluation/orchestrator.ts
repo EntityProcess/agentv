@@ -238,9 +238,10 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
           await onProgress({
             workerId,
             evalId: evalCase.id,
-            status: "completed",
+            status: result.error ? "failed" : "completed",
             startedAt: 0, // Not used for completed status
             completedAt: Date.now(),
+            error: result.error,
           });
         }
 
@@ -934,6 +935,7 @@ function buildErrorResult(
     timestamp: timestamp.toISOString(),
     raw_aspects: [],
     raw_request: rawRequest,
+    error: message,
   } satisfies EvaluationResult;
 }
 

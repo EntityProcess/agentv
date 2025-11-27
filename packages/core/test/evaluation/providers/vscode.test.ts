@@ -9,9 +9,7 @@ describe("VSCode Provider Prompt Scaffolding", () => {
       {
         name: "vscode-test",
         provider: "vscode",
-        settings: {
-          dry_run: true,
-        },
+        dry_run: true,
       },
       env,
     );
