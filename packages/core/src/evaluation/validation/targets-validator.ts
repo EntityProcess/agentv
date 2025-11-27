@@ -20,8 +20,22 @@ const COMMON_SETTINGS = new Set([
   "providerBatching",
 ]);
 
+const RETRY_SETTINGS = new Set([
+  "max_retries",
+  "maxRetries",
+  "retry_initial_delay_ms",
+  "retryInitialDelayMs",
+  "retry_max_delay_ms",
+  "retryMaxDelayMs",
+  "retry_backoff_factor",
+  "retryBackoffFactor",
+  "retry_status_codes",
+  "retryStatusCodes",
+]);
+
 const AZURE_SETTINGS = new Set([
   ...COMMON_SETTINGS,
+  ...RETRY_SETTINGS,
   "endpoint",
   "resource",
   "resourceName",
@@ -39,6 +53,7 @@ const AZURE_SETTINGS = new Set([
 
 const ANTHROPIC_SETTINGS = new Set([
   ...COMMON_SETTINGS,
+  ...RETRY_SETTINGS,
   "api_key",
   "apiKey",
   "model",
@@ -53,6 +68,7 @@ const ANTHROPIC_SETTINGS = new Set([
 
 const GEMINI_SETTINGS = new Set([
   ...COMMON_SETTINGS,
+  ...RETRY_SETTINGS,
   "api_key",
   "apiKey",
   "model",

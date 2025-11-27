@@ -177,4 +177,15 @@ export interface TargetDefinition {
   readonly attachmentsFormat?: string | unknown | undefined;
   readonly env?: unknown | undefined;
   readonly healthcheck?: unknown | undefined;
+  // Retry configuration fields
+  readonly max_retries?: number | unknown | undefined;
+  readonly maxRetries?: number | unknown | undefined;
+  readonly retry_initial_delay_ms?: number | unknown | undefined;
+  readonly retryInitialDelayMs?: number | unknown | undefined;
+  readonly retry_max_delay_ms?: number | unknown | undefined;
+  readonly retryMaxDelayMs?: number | unknown | undefined;
+  readonly retry_backoff_factor?: number | unknown | undefined;
+  readonly retryBackoffFactor?: number | unknown | undefined;
+  readonly retry_status_codes?: unknown | undefined;
+  readonly retryStatusCodes?: unknown | undefined;
 }

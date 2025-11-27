@@ -4,6 +4,14 @@ import type { EnvLookup, TargetDefinition } from "./types.js";
 
 export const CLI_PLACEHOLDERS = new Set(["PROMPT", "GUIDELINES", "EVAL_ID", "ATTEMPT", "FILES", "OUTPUT_FILE"]);
 
+export interface RetryConfig {
+  readonly maxRetries?: number;
+  readonly initialDelayMs?: number;
+  readonly maxDelayMs?: number;
+  readonly backoffFactor?: number;
+  readonly retryableStatusCodes?: readonly number[];
+}
+
 export interface AzureResolvedConfig {
   readonly resourceName: string;
   readonly deploymentName: string;
@@ -11,6 +19,7 @@ export interface AzureResolvedConfig {
   readonly version?: string;
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
+  readonly retry?: RetryConfig;
 }
 
 export interface AnthropicResolvedConfig {
@@ -19,6 +28,7 @@ export interface AnthropicResolvedConfig {
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
   readonly thinkingBudget?: number;
+  readonly retry?: RetryConfig;
 }
 
 export interface GeminiResolvedConfig {
@@ -26,6 +36,7 @@ export interface GeminiResolvedConfig {
   readonly model: string;
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
+  readonly retry?: RetryConfig;
 }
 
 export interface CodexResolvedConfig {
@@ -154,6 +165,48 @@ function normalizeAzureApiVersion(value: string | undefined): string {
   return withoutPrefix.length > 0 ? withoutPrefix : DEFAULT_AZURE_API_VERSION;
 }
 
+function resolveRetryConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): RetryConfig | undefined {
+  const maxRetries = resolveOptionalNumber(
+    target.max_retries ?? target.maxRetries,
+    `${target.name} max retries`,
+  );
+  const initialDelayMs = resolveOptionalNumber(
+    target.retry_initial_delay_ms ?? target.retryInitialDelayMs,
+    `${target.name} retry initial delay`,
+  );
+  const maxDelayMs = resolveOptionalNumber(
+    target.retry_max_delay_ms ?? target.retryMaxDelayMs,
+    `${target.name} retry max delay`,
+  );
+  const backoffFactor = resolveOptionalNumber(
+    target.retry_backoff_factor ?? target.retryBackoffFactor,
+    `${target.name} retry backoff factor`,
+  );
+  const retryableStatusCodes = resolveOptionalNumberArray(
+    target.retry_status_codes ?? target.retryStatusCodes,
+    `${target.name} retry status codes`,
+  );
+
+  // Only return retry config if at least one field is set
+  if (
+    maxRetries === undefined &&
+    initialDelayMs === undefined &&
+    maxDelayMs === undefined &&
+    backoffFactor === undefined &&
+    retryableStatusCodes === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    maxRetries,
+    initialDelayMs,
+    maxDelayMs,
+    backoffFactor,
+    retryableStatusCodes,
+  };
+}
+
 export function resolveTargetDefinition(
   definition: TargetDefinition,
   env: EnvLookup = process.env,
@@ -260,6 +313,7 @@ function resolveAzureConfig(
     maxTokensSource,
     `${target.name} max output tokens`,
   );
+  const retry = resolveRetryConfig(target);
 
   return {
     resourceName,
@@ -268,6 +322,7 @@ function resolveAzureConfig(
     version,
     temperature,
     maxOutputTokens,
+    retry,
   };
 }
 
@@ -283,6 +338,7 @@ function resolveAnthropicConfig(
 
   const apiKey = resolveString(apiKeySource, env, `${target.name} Anthropic api key`);
   const model = resolveString(modelSource, env, `${target.name} Anthropic model`);
+  const retry = resolveRetryConfig(target);
 
   return {
     apiKey,
@@ -290,6 +346,7 @@ function resolveAnthropicConfig(
     temperature: resolveOptionalNumber(temperatureSource, `${target.name} temperature`),
     maxOutputTokens: resolveOptionalNumber(maxTokensSource, `${target.name} max output tokens`),
     thinkingBudget: resolveOptionalNumber(thinkingBudgetSource, `${target.name} thinking budget`),
+    retry,
   };
 }
 
@@ -308,12 +365,14 @@ function resolveGeminiConfig(
       allowLiteral: true,
       optionalEnv: true,
     }) ?? "gemini-2.5-flash";
+  const retry = resolveRetryConfig(target);
 
   return {
     apiKey,
     model,
     temperature: resolveOptionalNumber(temperatureSource, `${target.name} temperature`),
     maxOutputTokens: resolveOptionalNumber(maxTokensSource, `${target.name} max output tokens`),
+    retry,
   };
 }
 
@@ -680,6 +739,30 @@ function resolveOptionalStringArray(
 
     // Treat as literal value
     resolved.push(trimmed);
+  }
+  return resolved.length > 0 ? resolved : undefined;
+}
+
+function resolveOptionalNumberArray(
+  source: unknown,
+  description: string,
+): readonly number[] | undefined {
+  if (source === undefined || source === null) {
+    return undefined;
+  }
+  if (!Array.isArray(source)) {
+    throw new Error(`${description} must be an array of numbers`);
+  }
+  if (source.length === 0) {
+    return undefined;
+  }
+  const resolved: number[] = [];
+  for (let i = 0; i < source.length; i++) {
+    const item = source[i];
+    if (typeof item !== "number" || !Number.isFinite(item)) {
+      throw new Error(`${description}[${i}] must be a number`);
+    }
+    resolved.push(item);
   }
   return resolved.length > 0 ? resolved : undefined;
 }

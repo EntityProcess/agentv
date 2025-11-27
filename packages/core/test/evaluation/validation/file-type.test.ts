@@ -37,7 +37,7 @@ describe("file-type", () => {
     it("should detect targets file by $schema field", async () => {
       const filePath = await createTestFile(
         "targets.yaml",
-        "$schema: agentv-targets-v2.1\ntargets: []",
+        "$schema: agentv-targets-v2.2\ntargets: []",
       );
       const result = await detectFileType(filePath);
       expect(result).toBe("targets");
@@ -79,8 +79,8 @@ describe("file-type", () => {
       expect(isValidSchema("agentv-eval-v2")).toBe(true);
     });
 
-    it("should return true for agentv-targets-v2.1", () => {
-      expect(isValidSchema("agentv-targets-v2.1")).toBe(true);
+    it("should return true for agentv-targets-v2.2", () => {
+      expect(isValidSchema("agentv-targets-v2.2")).toBe(true);
     });
 
     it("should return false for unknown schema", () => {
@@ -100,7 +100,7 @@ describe("file-type", () => {
     });
 
     it("should return correct schema for targets", () => {
-      expect(getExpectedSchema("targets")).toBe("agentv-targets-v2.1");
+      expect(getExpectedSchema("targets")).toBe("agentv-targets-v2.2");
     });
 
     it("should return undefined for unknown", () => {

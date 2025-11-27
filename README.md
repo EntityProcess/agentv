@@ -348,24 +348,56 @@ Evaluation criteria and guidelines...
 }
 ```
 
-## Next Steps
+## Advanced Configuration
 
-- Review [docs/examples/simple/evals/example-eval.yaml](docs/examples/simple/evals/example-eval.yaml) to understand the schema
-- Create your own eval dataset following the schema
-- Write custom evaluator scripts for deterministic evaluation
-- Create LLM judge prompts for semantic evaluation
-- Set up optimizer configs when ready to improve prompts
+### Retry Configuration
+
+AgentV supports automatic retry with exponential backoff for handling rate limiting (HTTP 429) and transient errors. All retry configuration fields are optional and work with Azure, Anthropic, and Gemini providers.
+
+**Available retry fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `max_retries` | number | 3 | Maximum number of retry attempts |
+| `retry_initial_delay_ms` | number | 1000 | Initial delay in milliseconds before first retry |
+| `retry_max_delay_ms` | number | 60000 | Maximum delay cap in milliseconds |
+| `retry_backoff_factor` | number | 2 | Exponential backoff multiplier |
+| `retry_status_codes` | number[] | [500, 408, 429, 502, 503, 504] | HTTP status codes to retry |
+
+**Example configuration:**
+
+```yaml
+$schema: agentv-targets-v2.2
+
+targets:
+  - name: azure_base
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: gpt-4
+    max_retries: 5                                          # Maximum retry attempts
+    retry_initial_delay_ms: 2000                            # Initial delay before first retry
+    retry_max_delay_ms: 120000                              # Maximum delay cap
+    retry_backoff_factor: 2                                 # Exponential backoff multiplier
+    retry_status_codes: [500, 408, 429, 502, 503, 504]     # HTTP status codes to retry
+```
+
+**Retry behavior:**
+- Exponential backoff with jitter (0.75-1.25x) to avoid thundering herd
+- Automatically retries on HTTP 429 (rate limiting), 5xx errors, and network failures
+- Respects abort signals for cancellation
+- If no retry config is specified, uses sensible defaults
 
 ## Resources
 
 - [Simple Example README](docs/examples/simple/README.md)
 - [Ax ACE Documentation](https://github.com/ax-llm/ax/blob/main/docs/ACE.md)
 
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
 ## Related Projects
 
 - [subagent](https://github.com/EntityProcess/subagent) - VS Code Copilot programmatic interface
 - [Ax](https://github.com/axflow/axflow) - TypeScript LLM framework
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
