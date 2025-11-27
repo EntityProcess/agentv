@@ -26,12 +26,11 @@ describe("targets-validator", () => {
   describe("validateTargetsFile", () => {
     it("should validate a correct targets file", async () => {
       const content = `
-$schema: agentv-targets-v2.1
+$schema: agentv-targets-v2.2
 targets:
   - name: default
     provider: azure
-    settings:
-      model: gpt-4
+    model: gpt-4
 `;
       const filePath = await createTestFile("valid-targets.yaml", content);
       const result = await validateTargetsFile(filePath);
@@ -134,7 +133,7 @@ targets:
 
     it("should warn for unknown provider", async () => {
       const content = `
-$schema: agentv-targets-v2.1
+$schema: agentv-targets-v2.2
 targets:
   - name: test
     provider: unknown-provider
@@ -158,12 +157,11 @@ targets:
 
     it("should validate optional fields", async () => {
       const content = `
-$schema: agentv-targets-v2.1
+$schema: agentv-targets-v2.2
 targets:
   - name: test
     provider: azure
-    settings:
-      model: gpt-4
+    model: gpt-4
     judge_target: judge
 `;
       const filePath = await createTestFile("with-optionals.yaml", content);
@@ -177,16 +175,15 @@ targets:
 
     it("validates cli provider settings with command template", async () => {
       const content = `
-$schema: agentv-targets-v2.1
+$schema: agentv-targets-v2.2
 targets:
   - name: cli-target
     provider: cli
-    settings:
-      commandTemplate: "code chat {PROMPT} {FILES}"
-      filesFormat: "--file {path}"
-      timeoutSeconds: 5
-      env:
-        API_TOKEN: "TOKEN_ENV"
+    commandTemplate: "code chat {PROMPT} {FILES}"
+    filesFormat: "--file {path}"
+    timeoutSeconds: 5
+    env:
+      API_TOKEN: "TOKEN_ENV"
 `;
       const filePath = await createTestFile("cli-valid.yaml", content);
       const result = await validateTargetsFile(filePath);
@@ -199,12 +196,11 @@ targets:
 
     it("rejects cli provider missing command template", async () => {
       const content = `
-$schema: agentv-targets-v2.1
+$schema: agentv-targets-v2.2
 targets:
   - name: cli-target
     provider: cli
-    settings:
-      timeoutSeconds: 5
+    timeoutSeconds: 5
 `;
       const filePath = await createTestFile("cli-missing-command.yaml", content);
       const result = await validateTargetsFile(filePath);
@@ -223,12 +219,11 @@ targets:
 
     it("rejects cli provider with unknown placeholders", async () => {
       const content = `
-$schema: agentv-targets-v2.1
+$schema: agentv-targets-v2.2
 targets:
   - name: cli-target
     provider: cli
-    settings:
-      commandTemplate: "run-task {UNKNOWN_PLACEHOLDER}"
+    commandTemplate: "run-task {UNKNOWN_PLACEHOLDER}"
 `;
       const filePath = await createTestFile("cli-bad-placeholder.yaml", content);
       const result = await validateTargetsFile(filePath);
@@ -247,13 +242,12 @@ targets:
 
     it("warns about unknown settings properties", async () => {
       const content = `
-$schema: agentv-targets-v2.1
+$schema: agentv-targets-v2.2
 targets:
   - name: vscode-target
     provider: vscode
-    settings:
-      workspace_env_var: SOME_VALUE
-      workspace_template: WORKSPACE_PATH
+    workspace_env_var: SOME_VALUE
+    workspace_template: WORKSPACE_PATH
 `;
       const filePath = await createTestFile("unknown-setting.yaml", content);
       const result = await validateTargetsFile(filePath);
@@ -263,7 +257,7 @@ targets:
         expect.arrayContaining([
           expect.objectContaining({
             severity: "warning",
-            location: "targets[0].settings.workspace_env_var",
+            location: "targets[0].workspace_env_var",
             message: expect.stringContaining("Unknown setting 'workspace_env_var'"),
           }),
         ]),
@@ -274,15 +268,14 @@ targets:
 
     it("warns about typos in common settings like provider_batching", async () => {
       const content = `
-$schema: agentv-targets-v2.1
+$schema: agentv-targets-v2.2
 targets:
   - name: azure-target
     provider: azure
-    settings:
-      endpoint: AZURE_ENDPOINT
-      api_key: AZURE_KEY
-      model: gpt-4
-      provider_batching_enabled: true
+    endpoint: AZURE_ENDPOINT
+    api_key: AZURE_KEY
+    model: gpt-4
+    provider_batching_enabled: true
 `;
       const filePath = await createTestFile("typo-in-setting.yaml", content);
       const result = await validateTargetsFile(filePath);

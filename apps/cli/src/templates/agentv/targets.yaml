@@ -1,4 +1,4 @@
-$schema: agentv-targets-v2
+$schema: agentv-targets-v2.2
 
 # A list of all supported evaluation targets for the project.
 # Each target defines a provider and its specific configuration.
@@ -7,10 +7,9 @@ $schema: agentv-targets-v2
 targets:
   - name: default
     provider: azure
-    settings:
-      endpoint: AZURE_OPENAI_ENDPOINT
-      api_key: AZURE_OPENAI_API_KEY
-      model: AZURE_DEPLOYMENT_NAME
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
 
   - name: vscode
     provider: vscode
@@ -19,56 +18,51 @@ targets:
   - name: codex
     provider: codex
     judge_target: azure_base
-    settings:
-      # Uses the Codex CLI (defaults to `codex` on PATH)
-      # executable: CODEX_CLI_PATH        # Optional: override executable path
-      # args:                             # Optional additional CLI arguments
-      #   - --profile
-      #   - CODEX_PROFILE
-      #   - --model
-      #   - CODEX_MODEL
-      #   - --ask-for-approval
-      #   - CODEX_APPROVAL_PRESET
-      timeout_seconds: 180
-      cwd: CODEX_WORKSPACE_DIR            # Where scratch workspaces are created
-      log_dir: CODEX_LOG_DIR              # Optional: where Codex CLI stream logs are stored (defaults to ./.agentv/logs/codex)
-      log_format: json                    # Optional: 'summary' (default) or 'json' for raw event logs
+    # Uses the Codex CLI (defaults to `codex` on PATH)
+    # executable: ${{ CODEX_CLI_PATH }}        # Optional: override executable path
+    # args:                             # Optional additional CLI arguments
+    #   - --profile
+    #   - ${{ CODEX_PROFILE }}
+    #   - --model
+    #   - ${{ CODEX_MODEL }}
+    #   - --ask-for-approval
+    #   - ${{ CODEX_APPROVAL_PRESET }}
+    timeout_seconds: 180
+    cwd: ${{ CODEX_WORKSPACE_DIR }}            # Where scratch workspaces are created
+    log_dir: ${{ CODEX_LOG_DIR }}              # Optional: where Codex CLI stream logs are stored (defaults to ./.agentv/logs/codex)
+    log_format: json                    # Optional: 'summary' (default) or 'json' for raw event logs
 
   - name: vscode_projectx
     provider: vscode
-    settings:
-      workspace_template: PROJECTX_WORKSPACE_PATH
-      provider_batching: false
+    workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
+    provider_batching: false
     judge_target: azure_base
 
   - name: vscode_insiders_projectx
     provider: vscode-insiders
-    settings:
-      workspace_template: PROJECTX_WORKSPACE_PATH
-      provider_batching: false
+    workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
+    provider_batching: false
     judge_target: azure_base
 
   - name: azure_base
     provider: azure
-    settings:
-      endpoint: AZURE_OPENAI_ENDPOINT
-      api_key: AZURE_OPENAI_API_KEY
-      model: AZURE_DEPLOYMENT_NAME
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
 
   - name: local_cli
     provider: cli
     judge_target: azure_base
-    settings:
-      # Passes the fully rendered prompt and any attached files to a local Python script
-      # NOTE: Do not add quotes around {PROMPT} or {FILES} - they are already shell-escaped
-      command_template: uv run ./mock_cli.py --prompt {PROMPT} {FILES}
-      # Format for each file in {FILES}. {path} and {basename} are automatically shell-escaped, so no quotes needed
-      files_format: --file {path}
-      # Optional working directory and env overrides resolved from .env
-      cwd: CLI_EVALS_DIR
-      env:
-        API_TOKEN: LOCAL_AGENT_TOKEN
-      timeout_seconds: 30
-      healthcheck:
-        type: command
-        command_template: uv run ./mock_cli.py --healthcheck
+    # Passes the fully rendered prompt and any attached files to a local Python script
+    # NOTE: Do not add quotes around {PROMPT} or {FILES} - they are already shell-escaped
+    command_template: uv run ./mock_cli.py --prompt {PROMPT} {FILES}
+    # Format for each file in {FILES}. {path} and {basename} are automatically shell-escaped, so no quotes needed
+    files_format: --file {path}
+    # Optional working directory and env overrides resolved from .env
+    cwd: ${{ CLI_EVALS_DIR }}
+    env:
+      API_TOKEN: ${{ LOCAL_AGENT_TOKEN }}
+    timeout_seconds: 30
+    healthcheck:
+      type: command
+      command_template: uv run ./mock_cli.py --healthcheck

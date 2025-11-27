@@ -135,10 +135,9 @@ export type ResolvedTarget =
 const BASE_TARGET_SCHEMA = z.object({
   name: z.string().min(1, "target name is required"),
   provider: z.string().min(1, "provider is required"),
-  settings: z.record(z.unknown()).optional(),
   judge_target: z.string().optional(),
   workers: z.number().int().min(1).optional(),
-});
+}).passthrough();
 
 const DEFAULT_AZURE_API_VERSION = "2024-10-01-preview";
 
@@ -163,7 +162,7 @@ export function resolveTargetDefinition(
   const parsed = BASE_TARGET_SCHEMA.parse(definition);
   const provider = parsed.provider.toLowerCase();
   const providerBatching = resolveOptionalBoolean(
-    parsed.settings?.provider_batching ?? parsed.settings?.providerBatching,
+    parsed.provider_batching ?? parsed.providerBatching,
   );
 
   switch (provider) {
@@ -244,13 +243,12 @@ function resolveAzureConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): AzureResolvedConfig {
-  const settings = target.settings ?? {};
-  const endpointSource = settings.endpoint ?? settings.resource ?? settings.resourceName;
-  const apiKeySource = settings.api_key ?? settings.apiKey;
-  const deploymentSource = settings.deployment ?? settings.deploymentName ?? settings.model;
-  const versionSource = settings.version ?? settings.api_version;
-  const temperatureSource = settings.temperature;
-  const maxTokensSource = settings.max_output_tokens ?? settings.maxTokens;
+  const endpointSource = target.endpoint ?? target.resource ?? target.resourceName;
+  const apiKeySource = target.api_key ?? target.apiKey;
+  const deploymentSource = target.deployment ?? target.deploymentName ?? target.model;
+  const versionSource = target.version ?? target.api_version;
+  const temperatureSource = target.temperature;
+  const maxTokensSource = target.max_output_tokens ?? target.maxTokens;
 
   const resourceName = resolveString(endpointSource, env, `${target.name} endpoint`);
   const apiKey = resolveString(apiKeySource, env, `${target.name} api key`);
@@ -278,12 +276,11 @@ function resolveAnthropicConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): AnthropicResolvedConfig {
-  const settings = target.settings ?? {};
-  const apiKeySource = settings.api_key ?? settings.apiKey;
-  const modelSource = settings.model ?? settings.deployment ?? settings.variant;
-  const temperatureSource = settings.temperature;
-  const maxTokensSource = settings.max_output_tokens ?? settings.maxTokens;
-  const thinkingBudgetSource = settings.thinking_budget ?? settings.thinkingBudget;
+  const apiKeySource = target.api_key ?? target.apiKey;
+  const modelSource = target.model ?? target.deployment ?? target.variant;
+  const temperatureSource = target.temperature;
+  const maxTokensSource = target.max_output_tokens ?? target.maxTokens;
+  const thinkingBudgetSource = target.thinking_budget ?? target.thinkingBudget;
 
   const apiKey = resolveString(apiKeySource, env, `${target.name} Anthropic api key`);
   const model = resolveString(modelSource, env, `${target.name} Anthropic model`);
@@ -301,11 +298,10 @@ function resolveGeminiConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): GeminiResolvedConfig {
-  const settings = target.settings ?? {};
-  const apiKeySource = settings.api_key ?? settings.apiKey;
-  const modelSource = settings.model ?? settings.deployment ?? settings.variant;
-  const temperatureSource = settings.temperature;
-  const maxTokensSource = settings.max_output_tokens ?? settings.maxTokens;
+  const apiKeySource = target.api_key ?? target.apiKey;
+  const modelSource = target.model ?? target.deployment ?? target.variant;
+  const temperatureSource = target.temperature;
+  const maxTokensSource = target.max_output_tokens ?? target.maxTokens;
 
   const apiKey = resolveString(apiKeySource, env, `${target.name} Google API key`);
   const model =
@@ -326,17 +322,16 @@ function resolveCodexConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): CodexResolvedConfig {
-  const settings = target.settings ?? {};
-  const executableSource = settings.executable ?? settings.command ?? settings.binary;
-  const argsSource = settings.args ?? settings.arguments;
-  const cwdSource = settings.cwd;
-  const timeoutSource = settings.timeout_seconds ?? settings.timeoutSeconds;
-  const logDirSource = settings.log_dir ?? settings.logDir ?? settings.log_directory ?? settings.logDirectory;
+  const executableSource = target.executable ?? target.command ?? target.binary;
+  const argsSource = target.args ?? target.arguments;
+  const cwdSource = target.cwd;
+  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
+  const logDirSource = target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
   const logFormatSource =
-    settings.log_format ??
-    settings.logFormat ??
-    settings.log_output_format ??
-    settings.logOutputFormat ??
+    target.log_format ??
+    target.logFormat ??
+    target.log_output_format ??
+    target.logOutputFormat ??
     env.AGENTV_CODEX_LOG_FORMAT;
 
   const executable =
@@ -383,8 +378,7 @@ function normalizeCodexLogFormat(value: unknown): "summary" | "json" | undefined
 }
 
 function resolveMockConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): MockResolvedConfig {
-  const settings = target.settings ?? {};
-  const response = typeof settings.response === "string" ? settings.response : undefined;
+  const response = typeof target.response === "string" ? target.response : undefined;
   return { response };
 }
 
@@ -393,8 +387,7 @@ function resolveVSCodeConfig(
   env: EnvLookup,
   insiders: boolean,
 ): VSCodeResolvedConfig {
-  const settings = target.settings ?? {};
-  const workspaceTemplateEnvVar = resolveOptionalLiteralString(settings.workspace_template ?? settings.workspaceTemplate);
+  const workspaceTemplateEnvVar = resolveOptionalLiteralString(target.workspace_template ?? target.workspaceTemplate);
   const workspaceTemplate = workspaceTemplateEnvVar
     ? resolveOptionalString(workspaceTemplateEnvVar, env, `${target.name} workspace template path`, {
         allowLiteral: false,
@@ -402,10 +395,10 @@ function resolveVSCodeConfig(
       })
     : undefined;
 
-  const commandSource = settings.vscode_cmd ?? settings.command;
-  const waitSource = settings.wait;
-  const dryRunSource = settings.dry_run ?? settings.dryRun;
-  const subagentRootSource = settings.subagent_root ?? settings.subagentRoot;
+  const commandSource = target.vscode_cmd ?? target.command;
+  const waitSource = target.wait;
+  const dryRunSource = target.dry_run ?? target.dryRun;
+  const subagentRootSource = target.subagent_root ?? target.subagentRoot;
 
   const defaultCommand = insiders ? "code-insiders" : "code";
   const command = resolveOptionalLiteralString(commandSource) ?? defaultCommand;
@@ -426,21 +419,20 @@ function resolveCliConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
 ): CliResolvedConfig {
-  const settings = target.settings ?? {};
-  const commandTemplateSource = settings.command_template ?? settings.commandTemplate;
+  const commandTemplateSource = target.command_template ?? target.commandTemplate;
   const filesFormat = resolveOptionalLiteralString(
-    settings.files_format ??
-      settings.filesFormat ??
-      settings.attachments_format ??
-      settings.attachmentsFormat,
+    target.files_format ??
+      target.filesFormat ??
+      target.attachments_format ??
+      target.attachmentsFormat,
   );
-  const cwd = resolveOptionalString(settings.cwd, env, `${target.name} working directory`, {
+  const cwd = resolveOptionalString(target.cwd, env, `${target.name} working directory`, {
     allowLiteral: true,
     optionalEnv: true,
   });
-  const envOverrides = resolveEnvOverrides(settings.env, env, target.name);
-  const timeoutMs = resolveTimeoutMs(settings.timeout_seconds ?? settings.timeoutSeconds, `${target.name} timeout`);
-  const healthcheck = resolveCliHealthcheck(settings.healthcheck, env, target.name);
+  const envOverrides = resolveEnvOverrides(target.env, env, target.name);
+  const timeoutMs = resolveTimeoutMs(target.timeout_seconds ?? target.timeoutSeconds, `${target.name} timeout`);
+  const healthcheck = resolveCliHealthcheck(target.healthcheck, env, target.name);
 
   const commandTemplate = resolveString(
     commandTemplateSource,

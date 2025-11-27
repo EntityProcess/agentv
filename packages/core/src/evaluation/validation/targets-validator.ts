@@ -147,7 +147,7 @@ function getKnownSettings(provider: string): Set<string> | null {
 }
 
 function validateUnknownSettings(
-  settings: JsonObject,
+  target: JsonObject,
   provider: string,
   absolutePath: string,
   location: string,
@@ -159,8 +159,11 @@ function validateUnknownSettings(
     return;
   }
 
-  for (const key of Object.keys(settings)) {
-    if (!knownSettings.has(key)) {
+  // Known base target fields that aren't settings
+  const baseFields = new Set(["name", "provider", "judge_target", "workers", "$schema", "targets"]);
+
+  for (const key of Object.keys(target)) {
+    if (!baseFields.has(key) && !knownSettings.has(key)) {
       errors.push({
         severity: "warning",
         filePath: absolutePath,
@@ -199,22 +202,12 @@ export async function validateTargetsFile(
 }
 
 function validateCliSettings(
-  settings: unknown,
+  target: JsonObject,
   absolutePath: string,
   location: string,
   errors: ValidationError[],
 ): void {
-  if (!isObject(settings)) {
-    errors.push({
-      severity: "error",
-      filePath: absolutePath,
-      location,
-      message: "CLI provider requires a 'settings' object",
-    });
-    return;
-  }
-
-  const commandTemplate = settings["command_template"] ?? settings["commandTemplate"];
+  const commandTemplate = target["command_template"] ?? target["commandTemplate"];
   if (typeof commandTemplate !== "string" || commandTemplate.trim().length === 0) {
     errors.push({
       severity: "error",
@@ -226,7 +219,7 @@ function validateCliSettings(
     recordUnknownPlaceholders(commandTemplate, absolutePath, `${location}.commandTemplate`, errors);
   }
 
-  const attachmentsFormat = settings["attachments_format"] ?? settings["attachmentsFormat"];
+  const attachmentsFormat = target["attachments_format"] ?? target["attachmentsFormat"];
   if (attachmentsFormat !== undefined && typeof attachmentsFormat !== "string") {
     errors.push({
       severity: "error",
@@ -236,7 +229,7 @@ function validateCliSettings(
     });
   }
 
-  const filesFormat = settings["files_format"] ?? settings["filesFormat"];
+  const filesFormat = target["files_format"] ?? target["filesFormat"];
   if (filesFormat !== undefined && typeof filesFormat !== "string") {
     errors.push({
       severity: "error",
@@ -246,7 +239,7 @@ function validateCliSettings(
     });
   }
 
-  const cwd = settings["cwd"];
+  const cwd = target["cwd"];
   if (cwd !== undefined && typeof cwd !== "string") {
     errors.push({
       severity: "error",
@@ -256,7 +249,7 @@ function validateCliSettings(
     });
   }
 
-  const timeoutSeconds = settings["timeout_seconds"] ?? settings["timeoutSeconds"];
+  const timeoutSeconds = target["timeout_seconds"] ?? target["timeoutSeconds"];
   if (timeoutSeconds !== undefined) {
     const numericTimeout = Number(timeoutSeconds);
     if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
@@ -269,7 +262,7 @@ function validateCliSettings(
     }
   }
 
-  const envOverrides = settings["env"];
+  const envOverrides = target["env"];
   if (envOverrides !== undefined) {
     if (!isObject(envOverrides)) {
       errors.push({
@@ -292,7 +285,7 @@ function validateCliSettings(
     }
   }
 
-  const healthcheck = settings["healthcheck"];
+  const healthcheck = target["healthcheck"];
   if (healthcheck !== undefined) {
     validateCliHealthcheck(healthcheck, absolutePath, `${location}.healthcheck`, errors);
   }
@@ -499,24 +492,14 @@ function extractPlaceholders(template: string): string[] {
       });
     }
 
-    // Optional field: settings (must be object if present)
-    const settings = target["settings"];
-    if (providerValue !== "cli" && settings !== undefined && !isObject(settings)) {
-      errors.push({
-        severity: "error",
-        filePath: absolutePath,
-        location: `${location}.settings`,
-        message: "Invalid 'settings' field (must be an object)",
-      });
-    }
-
+    // Validate CLI provider fields
     if (providerValue === "cli") {
-      validateCliSettings(settings, absolutePath, `${location}.settings`, errors);
+      validateCliSettings(target, absolutePath, location, errors);
     }
 
-    // Check for unknown settings properties
-    if (settings !== undefined && isObject(settings) && typeof provider === "string") {
-      validateUnknownSettings(settings, provider, absolutePath, `${location}.settings`, errors);
+    // Check for unknown settings properties on target object
+    if (typeof provider === "string") {
+      validateUnknownSettings(target, provider, absolutePath, location, errors);
     }
 
     // Optional field: judge_target (must be string if present)

@@ -38,7 +38,7 @@ async function createFixture(): Promise<EvalFixture> {
   await mkdir(agentvDir, { recursive: true });
 
   const targetsPath = path.join(agentvDir, "targets.yaml");
-  const targetsContent = `$schema: agentv-targets-v2.1
+  const targetsContent = `$schema: agentv-targets-v2.2
 targets:
   - name: default
     provider: mock

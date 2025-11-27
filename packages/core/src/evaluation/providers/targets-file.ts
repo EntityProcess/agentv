@@ -50,8 +50,6 @@ function assertTargetDefinition(value: unknown, index: number, filePath: string)
 
   const name = value.name;
   const provider = value.provider;
-  const settings = value.settings;
-  const judgeTarget = value.judge_target;
 
   if (typeof name !== "string" || name.trim().length === 0) {
     throw new Error(`targets.yaml entry at index ${index} in ${filePath} is missing a valid 'name'`);
@@ -61,12 +59,9 @@ function assertTargetDefinition(value: unknown, index: number, filePath: string)
     throw new Error(`targets.yaml entry '${name}' in ${filePath} is missing a valid 'provider'`);
   }
 
-  return {
-    name,
-    provider,
-    settings: isRecord(settings) ? settings : undefined,
-    judge_target: typeof judgeTarget === "string" ? judgeTarget : undefined,
-  } satisfies TargetDefinition;
+  // Pass through all properties from the YAML to support the flattened schema
+  // This includes all provider-specific settings at the top level
+  return value as unknown as TargetDefinition;
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
