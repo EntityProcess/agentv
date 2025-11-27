@@ -69,7 +69,6 @@ export interface CliResolvedConfig {
   readonly commandTemplate: string;
   readonly filesFormat?: string;
   readonly cwd?: string;
-  readonly env?: Record<string, string>;
   readonly timeoutMs?: number;
   readonly healthcheck?: CliHealthcheck;
 }
@@ -430,7 +429,6 @@ function resolveCliConfig(
     allowLiteral: true,
     optionalEnv: true,
   });
-  const envOverrides = resolveEnvOverrides(target.env, env, target.name);
   const timeoutMs = resolveTimeoutMs(target.timeout_seconds ?? target.timeoutSeconds, `${target.name} timeout`);
   const healthcheck = resolveCliHealthcheck(target.healthcheck, env, target.name);
 
@@ -446,34 +444,9 @@ function resolveCliConfig(
     commandTemplate,
     filesFormat,
     cwd,
-    env: envOverrides,
     timeoutMs,
     healthcheck,
   };
-}
-
-function resolveEnvOverrides(
-  source: unknown,
-  env: EnvLookup,
-  targetName: string,
-): Record<string, string> | undefined {
-  if (source === undefined || source === null) {
-    return undefined;
-  }
-  if (typeof source !== "object" || Array.isArray(source)) {
-    throw new Error(`${targetName} env overrides must be an object map of strings`);
-  }
-
-  const entries = Object.entries(source as Record<string, unknown>);
-  const resolved: Record<string, string> = {};
-  for (const [key, value] of entries) {
-    if (typeof value !== "string") {
-      throw new Error(`${targetName} env override '${key}' must be a string`);
-    }
-    const resolvedValue = resolveString(value, env, `${targetName} env override '${key}'`);
-    resolved[key] = resolvedValue;
-  }
-  return Object.keys(resolved).length > 0 ? resolved : undefined;
 }
 
 function resolveTimeoutMs(source: unknown, description: string): number | undefined {

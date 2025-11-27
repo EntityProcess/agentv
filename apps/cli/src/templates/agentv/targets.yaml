@@ -58,10 +58,8 @@ targets:
     command_template: uv run ./mock_cli.py --prompt {PROMPT} {FILES}
     # Format for each file in {FILES}. {path} and {basename} are automatically shell-escaped, so no quotes needed
     files_format: --file {path}
-    # Optional working directory and env overrides resolved from .env
+    # Optional working directory resolved from .env
     cwd: ${{ CLI_EVALS_DIR }}
-    env:
-      API_TOKEN: ${{ LOCAL_AGENT_TOKEN }}
     timeout_seconds: 30
     healthcheck:
       type: command

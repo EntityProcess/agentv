@@ -319,7 +319,7 @@ describe("resolveTargetDefinition", () => {
     expect(target.providerBatching).toBe(true);
   });
 
-  it("resolves cli settings including env, cwd, and timeout", () => {
+  it("resolves cli settings including cwd and timeout", () => {
     const env = {
       WORKDIR: "/tmp/project",
       CLI_TOKEN: "secret-token",
@@ -331,9 +331,6 @@ describe("resolveTargetDefinition", () => {
         provider: "cli",
         command_template: "code chat {PROMPT} {FILES}",
         cwd: "${{ WORKDIR }}",
-        env: {
-          API_TOKEN: "${{ CLI_TOKEN }}",
-        },
         timeout_seconds: 3,
         files_format: "--file {path}",
       },
@@ -347,7 +344,6 @@ describe("resolveTargetDefinition", () => {
 
     expect(target.config.commandTemplate).toContain("{PROMPT}");
     expect(target.config.cwd).toBe("/tmp/project");
-    expect(target.config.env?.API_TOKEN).toBe("secret-token");
     expect(target.config.timeoutMs).toBe(3000);
     expect(target.config.filesFormat).toBe("--file {path}");
   });

@@ -262,29 +262,6 @@ function validateCliSettings(
     }
   }
 
-  const envOverrides = target["env"];
-  if (envOverrides !== undefined) {
-    if (!isObject(envOverrides)) {
-      errors.push({
-        severity: "error",
-        filePath: absolutePath,
-        location: `${location}.env`,
-        message: "'env' must be an object with string values",
-      });
-    } else {
-      for (const [key, value] of Object.entries(envOverrides)) {
-        if (typeof value !== "string" || value.trim().length === 0) {
-          errors.push({
-            severity: "error",
-            filePath: absolutePath,
-            location: `${location}.env.${key}`,
-            message: `Environment override '${key}' must be a non-empty string`,
-          });
-        }
-      }
-    }
-  }
-
   const healthcheck = target["healthcheck"];
   if (healthcheck !== undefined) {
     validateCliHealthcheck(healthcheck, absolutePath, `${location}.healthcheck`, errors);

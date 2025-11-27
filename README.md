@@ -217,8 +217,6 @@ Note: Environment variables are referenced using `${{ VARIABLE_NAME }}` syntax. 
   command_template: 'uv run ./my_agent.py --prompt {PROMPT} {FILES}'
   files_format: '--file {path}'
   cwd: ${{ CLI_EVALS_DIR }}       # optional working directory
-  env:                            # merged into process.env
-    API_TOKEN: ${{ LOCAL_AGENT_TOKEN }}
   timeout_seconds: 30             # optional per-command timeout
   healthcheck:
     type: command                 # or http

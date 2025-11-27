@@ -102,7 +102,7 @@ evalcases:
     # ...
 
 # Targets files
-$schema: agentv-targets-v2.1
+$schema: agentv-targets-v2.2
 targets:
   - name: default
     # ...
@@ -175,7 +175,8 @@ Each target specifies:
 
 - `name`: Unique identifier for the target
 - `provider`: The model provider (`azure`, `anthropic`, `gemini`, `codex`, `vscode`, `vscode-insiders`, `cli`, or `mock`)
-- `settings`: Environment variable names to use for this target
+- Provider-specific configuration fields at the top level (no `settings` wrapper needed)
+- Optional fields: `judge_target`, `workers`, `provider_batching`
 
 ### Examples
 
@@ -184,24 +185,27 @@ Each target specifies:
 ```yaml
 - name: azure_base
   provider: azure
-  settings:
-    endpoint: "AZURE_OPENAI_ENDPOINT"
-    api_key: "AZURE_OPENAI_API_KEY"
-    model: "AZURE_DEPLOYMENT_NAME"
+  endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+  api_key: ${{ AZURE_OPENAI_API_KEY }}
+  model: ${{ AZURE_DEPLOYMENT_NAME }}
 ```
+
+Note: Environment variables are referenced using `${{ VARIABLE_NAME }}` syntax. The actual values are resolved from your `.env` file at runtime.
 
 **VS Code targets:**
 
 ```yaml
 - name: vscode_projectx
   provider: vscode
-  settings:
-    workspace_env: "EVAL_PROJECTX_WORKSPACE_PATH"
+  workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
+  provider_batching: false
+  judge_target: azure_base
 
 - name: vscode_insiders_projectx
   provider: vscode-insiders
-  settings:
-    workspace_env: "EVAL_PROJECTX_WORKSPACE_PATH"
+  workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
+  provider_batching: false
+  judge_target: azure_base
 ```
 
 **CLI targets (template-based):**
@@ -209,30 +213,39 @@ Each target specifies:
 ```yaml
 - name: local_cli
   provider: cli
-  settings:
-    command_template: 'somecommand {PROMPT} {FILES}'
-    files_format: '--file {path}'
-    cwd: PROJECT_ROOT               # optional working directory
-    env:                            # merged into process.env
-      API_TOKEN: LOCAL_AGENT_TOKEN
-    timeout_seconds: 30             # optional per-command timeout
-    healthcheck:
-      type: command                 # or http
-      command_template: code --version
+  judge_target: azure_base
+  command_template: 'uv run ./my_agent.py --prompt {PROMPT} {FILES}'
+  files_format: '--file {path}'
+  cwd: ${{ CLI_EVALS_DIR }}       # optional working directory
+  timeout_seconds: 30             # optional per-command timeout
+  healthcheck:
+    type: command                 # or http
+    command_template: uv run ./my_agent.py --healthcheck
 ```
+
+**Supported placeholders in CLI commands:**
+- `{PROMPT}` - The rendered prompt text (shell-escaped)
+- `{FILES}` - Expands to multiple file arguments using `files_format` template
+- `{GUIDELINES}` - Guidelines content
+- `{EVAL_ID}` - Current eval case ID
+- `{ATTEMPT}` - Retry attempt number
+- `{OUTPUT_FILE}` - Path to output file (for agents that write responses to disk)
 
 **Codex CLI targets:**
 
 ```yaml
 - name: codex_cli
   provider: codex
-  settings:
-    executable: "CODEX_CLI_PATH"     # defaults to `codex` if omitted
-    profile: "CODEX_PROFILE"         # matches the profile in ~/.codex/config
-    model: "CODEX_MODEL"             # optional, falls back to profile default
-    approval_preset: "CODEX_APPROVAL_PRESET"
-    timeout_seconds: 180
-    cwd: CODEX_WORKSPACE_DIR
+  judge_target: azure_base
+  executable: ${{ CODEX_CLI_PATH }}     # defaults to `codex` if omitted
+  args:                                 # optional CLI arguments
+    - --profile
+    - ${{ CODEX_PROFILE }}
+    - --model
+    - ${{ CODEX_MODEL }}
+  timeout_seconds: 180
+  cwd: ${{ CODEX_WORKSPACE_DIR }}
+  log_format: json                      # 'summary' or 'json'
 ```
 
 Codex targets require the standalone `codex` CLI and a configured profile (via `codex configure`) so credentials are stored in `~/.codex/config` (or whatever path the CLI already uses). AgentV mirrors all guideline and attachment files into a fresh scratch workspace, so the `file://` preread links remain valid even when the CLI runs outside your repo tree.
