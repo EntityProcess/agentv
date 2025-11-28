@@ -74,20 +74,22 @@ export class LlmJudgeEvaluator implements Evaluator {
     context: EvaluationContext,
     judgeProvider: Provider,
   ): Promise<EvaluationScore> {
+    const hasReferenceAnswer = hasNonEmptyReferenceAnswer(context.evalCase);
+
     let prompt = buildQualityPrompt(context.evalCase, context.candidate);
-    let systemPrompt = context.systemPrompt ?? this.customPrompt ?? QUALITY_SYSTEM_PROMPT;
+    let systemPrompt = context.systemPrompt ?? this.customPrompt ?? buildSystemPrompt(hasReferenceAnswer);
 
     if (systemPrompt && hasTemplateVariables(systemPrompt)) {
       const variables = {
         input_messages: JSON.stringify(context.evalCase.input_segments, null, 2),
         output_messages: JSON.stringify(context.evalCase.output_segments, null, 2),
         candidate_answer: context.candidate,
-        reference_answer: context.evalCase.reference_answer,
+        reference_answer: context.evalCase.reference_answer ?? "",
         expected_outcome: context.evalCase.expected_outcome,
         question: context.evalCase.question,
       };
       prompt = substituteVariables(systemPrompt, variables);
-      systemPrompt = QUALITY_SYSTEM_PROMPT;
+      systemPrompt = buildSystemPrompt(hasReferenceAnswer);
     }
 
     const metadata: JsonObject = {
@@ -135,22 +137,34 @@ export class LlmJudgeEvaluator implements Evaluator {
   }
 }
 
-const QUALITY_SYSTEM_PROMPT = [
-  "You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.",
-  "",
-  "Use the reference_answer as a gold standard for a high-quality response. The candidate_answer does not need to match it verbatim, but it should capture the key points and follow the same spirit.",
-  "",
-  "Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.",
-  "",
-  "You must respond with a single JSON object matching this schema:",
-  "",
-  "{",
-  '  "score": <number between 0.0 and 1.0>,',
-  '  "hits": [<array of strings, max 4 items, brief specific achievements>],',
-  '  "misses": [<array of strings, max 4 items, brief specific failures or omissions, empty if none>],',
-  '  "reasoning": "<string, concise explanation for the score, 1-2 sentences max>"',
-  "}",
-].join("\n");
+function buildSystemPrompt(hasReferenceAnswer: boolean): string {
+  const basePrompt = [
+    "You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.",
+    "",
+  ];
+
+  if (hasReferenceAnswer) {
+    basePrompt.push(
+      "Use the reference_answer as a gold standard for a high-quality response. The candidate_answer does not need to match it verbatim, but should capture the key points and follow the same spirit.",
+      "",
+    );
+  }
+
+  basePrompt.push(
+    "Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.",
+    "",
+    "You must respond with a single JSON object matching this schema:",
+    "",
+    "{",
+    '  "score": <number between 0.0 and 1.0>,',
+    '  "hits": [<array of strings, max 4 items, brief specific achievements>],',
+    '  "misses": [<array of strings, max 4 items, brief specific failures or omissions, empty if none>],',
+    '  "reasoning": "<string, concise explanation for the score, 1-2 sentences max>"',
+    "}",
+  );
+
+  return basePrompt.join("\n");
+}
 
 function buildQualityPrompt(evalCase: EvalCase, candidate: string): string {
   const parts = [
@@ -160,14 +174,22 @@ function buildQualityPrompt(evalCase: EvalCase, candidate: string): string {
     "[[ ## question ## ]]",
     evalCase.question.trim(),
     "",
-    "[[ ## reference_answer ## ]]",
-    evalCase.reference_answer.trim(),
-    "",
+  ];
+  
+  // Only include reference_answer if provided
+  if (hasNonEmptyReferenceAnswer(evalCase)) {
+    parts.push(
+      "[[ ## reference_answer ## ]]",
+      evalCase.reference_answer!.trim(),
+      "",
+    );
+  }
+  
+  parts.push(
     "[[ ## candidate_answer ## ]]",
     candidate.trim(),
-    "",
-    "Respond with a single JSON object matching the schema described in the system prompt.",
-  ];
+  );
+  
   return parts.join("\n");
 }
 
@@ -285,6 +307,13 @@ function extractJsonBlob(text: string): string | undefined {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function hasNonEmptyReferenceAnswer(evalCase: EvalCase): boolean {
+  return (
+    evalCase.reference_answer !== undefined &&
+    evalCase.reference_answer.trim().length > 0
+  );
 }
 
 // Code Evaluator

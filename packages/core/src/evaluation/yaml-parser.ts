@@ -328,17 +328,17 @@ export async function loadEvalCases(
       continue;
     }
     
-    if (!Array.isArray(expectedMessagesValue)) {
-      logWarning(`Eval case '${id}' missing expected_messages array`);
-      continue;
-    }
+    // expected_messages is optional - for outcome-only evaluation
+    const hasExpectedMessages = Array.isArray(expectedMessagesValue) && expectedMessagesValue.length > 0;
 
     // V2 format: input_messages vs expected_messages
     const inputMessages = inputMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
-    const expectedMessages = expectedMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
+    const expectedMessages = hasExpectedMessages 
+      ? expectedMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg))
+      : [];
     
-    if (expectedMessages.length === 0) {
-      logWarning(`No expected message found for eval case: ${id}`);
+    if (hasExpectedMessages && expectedMessages.length === 0) {
+      logWarning(`No valid expected message found for eval case: ${id}`);
       continue;
     }
 
@@ -361,19 +361,23 @@ export async function loadEvalCases(
       verbose,
     });
 
-    // Process expected_messages into segments
-    const outputSegments = await processMessages({
-      messages: expectedMessages,
-      searchRoots,
-      repoRootPath,
-      guidelinePatterns,
-      messageType: "output",
-      verbose,
-    });
+    // Process expected_messages into segments (only if provided)
+    const outputSegments = hasExpectedMessages
+      ? await processMessages({
+          messages: expectedMessages,
+          searchRoots,
+          repoRootPath,
+          guidelinePatterns,
+          messageType: "output",
+          verbose,
+        })
+      : [];
 
     const codeSnippets = extractCodeBlocks(inputSegments);
     const expectedContent = expectedMessages[0]?.content;
-    const referenceAnswer = await resolveAssistantContent(expectedContent, searchRoots, verbose);
+    const referenceAnswer = expectedContent 
+      ? await resolveAssistantContent(expectedContent, searchRoots, verbose)
+      : "";
     const question = inputTextParts
       .map((part) => part.trim())
       .filter((part) => part.length > 0)
