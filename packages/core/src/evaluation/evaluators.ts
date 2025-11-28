@@ -188,8 +188,6 @@ function buildQualityPrompt(evalCase: EvalCase, candidate: string): string {
   parts.push(
     "[[ ## candidate_answer ## ]]",
     candidate.trim(),
-    "",
-    "Respond with a single JSON object matching the schema described in the system prompt.",
   );
   
   return parts.join("\n");
