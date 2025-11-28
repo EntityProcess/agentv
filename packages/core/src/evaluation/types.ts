@@ -174,7 +174,7 @@ export interface EvalCase {
   readonly question: string;
   readonly input_segments: readonly JsonObject[];
   readonly output_segments: readonly JsonObject[];
-  readonly reference_answer: string;
+  readonly reference_answer?: string;
   readonly guideline_paths: readonly string[];
   readonly guideline_patterns?: readonly string[];
   readonly file_paths: readonly string[];

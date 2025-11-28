@@ -135,15 +135,16 @@ export async function validateEvalFile(
       validateMessages(inputMessages, `${location}.input_messages`, absolutePath, errors);
     }
 
+    // expected_messages is optional - for outcome-only evaluation
     const expectedMessages = evalCase["expected_messages"];
-    if (!Array.isArray(expectedMessages)) {
+    if (expectedMessages !== undefined && !Array.isArray(expectedMessages)) {
       errors.push({
         severity: "error",
         filePath: absolutePath,
         location: `${location}.expected_messages`,
-        message: "Missing or invalid 'expected_messages' field (must be an array)",
+        message: "Invalid 'expected_messages' field (must be an array if provided)",
       });
-    } else {
+    } else if (Array.isArray(expectedMessages)) {
       validateMessages(expectedMessages, `${location}.expected_messages`, absolutePath, errors);
     }
   }

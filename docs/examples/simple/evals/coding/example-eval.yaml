@@ -106,3 +106,33 @@ evalcases:
         content:
           - type: file
             value: ./snippets/python-second-largest.md
+
+  # ==========================================
+  # Example 3: Outcome-only evaluation (no reference answer)
+  # Demonstrates: Evaluating based on criteria alone, useful for creative/open-ended tasks
+  # Use case: When there's no single "correct" answer, only quality criteria to meet
+  # ==========================================
+  - id: feature-proposal-brainstorm
+    
+    # Outcome describes what makes a good response without providing a reference answer
+    # The LLM judge evaluates whether the response meets these criteria
+    outcome: |-
+      Assistant generates 3-5 creative feature ideas for a mobile fitness app. Each idea should:
+      1. Address a specific user pain point
+      2. Be technically feasible with current mobile technology
+      3. Include a brief value proposition (1-2 sentences)
+      4. Be distinct from the others (no duplicate concepts)
+      Ideas should be innovative but practical, avoiding generic suggestions like "add social sharing."
+    
+    input_messages:
+      - role: system
+        content: You are a product strategist specializing in mobile health and fitness applications.
+      - role: user
+        content: |-
+          We're developing a mobile fitness app and need fresh feature ideas that would differentiate us from competitors.
+          Our target users are busy professionals aged 25-45 who struggle to maintain consistent workout routines.
+          
+          Please brainstorm 3-5 innovative features we should consider building.
+    
+    # Note: No expected_messages - evaluation is purely based on whether outcome criteria are met
+    # The LLM judge will assess: creativity, technical feasibility, value propositions, and distinctiveness
