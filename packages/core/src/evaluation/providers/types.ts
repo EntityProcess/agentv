@@ -2,7 +2,7 @@ import type { AxChatRequest, AxAI } from "@ax-llm/ax";
 
 import type { JsonObject } from "../types.js";
 
-type ChatPrompt = AxChatRequest["chatPrompt"];
+export type ChatPrompt = AxChatRequest["chatPrompt"];
 
 export type ProviderKind =
   | "azure"

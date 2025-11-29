@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+
 import { resolveTargetDefinition } from "../src/evaluation/providers/targets.js";
 import type { TargetDefinition } from "../src/evaluation/providers/types.js";
 

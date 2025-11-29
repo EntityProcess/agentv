@@ -1,7 +1,7 @@
 import { writeFile, unlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 
 import { CliProvider, type CommandRunResult } from "../../../src/evaluation/providers/cli.js";
 import type { CliResolvedConfig } from "../../../src/evaluation/providers/targets.js";

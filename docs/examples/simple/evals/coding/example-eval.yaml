@@ -136,3 +136,58 @@ evalcases:
     
     # Note: No expected_messages - evaluation is purely based on whether outcome criteria are met
     # The LLM judge will assess: creativity, technical feasibility, value propositions, and distinctiveness
+
+  # ==========================================
+  # Example 4: Multi-turn conversation
+  # Demonstrates: multi-turn input_messages and threaded reasoning
+  # ==========================================
+  - id: coding-multiturn-debug-session
+
+    outcome: |-
+      Assistant conducts a multi-turn debugging session, asking clarification
+      questions when needed, correctly diagnosing the bug, and proposing a clear
+      fix with rationale.
+
+    input_messages:
+      - role: system
+        content: You are an expert debugging assistant who reasons step by step, asks clarifying questions, and explains fixes clearly.
+      - role: user
+        content: |-
+          I'm getting an off-by-one error in this function, but I can't see why:
+
+          ```python
+          def get_items(items):
+              result = []
+              for i in range(len(items) - 1):
+                  result.append(items[i])
+              return result
+          ```
+
+          Sometimes the last element is missing. Can you help debug this?
+      - role: assistant
+        content: |-
+          I can help debug this. Before I propose a fix, could you tell me:
+          - What output you expect for an example input list
+          - What output you actually get
+      - role: user
+        content: |-
+          For `[1, 2, 3, 4]` I expect `[1, 2, 3, 4]`, but I get `[1, 2, 3]`.
+
+    expected_messages:
+      - role: assistant
+        content: |-
+          You have an off-by-one error in your loop bounds.
+          You're iterating with `range(len(items) - 1)`, which stops before the last index.
+          To include all items, you can either:
+          - Use `range(len(items))`, or
+          - Iterate directly over the list: `for item in items:`
+          
+          Here's a corrected version:
+
+          ```python
+          def get_items(items):
+              result = []
+              for item in items:
+                  result.append(item)
+              return result
+          ```
