@@ -33,7 +33,7 @@ evalcases:
           Classify the severity of this incident:
           
           Ticket: Global search results delayed during planned reindex
-          Impact: Catalog searchable but updates appear 20 minutes late
+          Impact: Catalog searchable but updates appear 20 mingit utes late
           Scope: global
           Signals: Maintenance ticket CAB-512 approved, no customer complaints
     

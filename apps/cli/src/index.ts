@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { registerEvalCommand } from "./commands/eval/index.js";
 import { initCommand } from "./commands/init/index.js";
+import { registerOptimizeCommand } from "./commands/optimize/index.js";
 import { registerStatusCommand } from "./commands/status.js";
 import { registerValidateCommand } from "./commands/validate/index.js";
 
@@ -15,6 +16,7 @@ export function createProgram(): Command {
 
   registerStatusCommand(program);
   registerEvalCommand(program);
+  registerOptimizeCommand(program);
   registerValidateCommand(program);
 
   // Init command
