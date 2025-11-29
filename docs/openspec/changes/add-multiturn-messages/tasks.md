@@ -5,6 +5,7 @@
   - [x] Count messages with text content (after extracting .instructions.md to guidelines)
   - [x] Determine if role markers are needed based on these conditions
   - [x] **SIMPLIFIED**: Removed complex role-specific counting, now counts all messages uniformly
+  - [x] **REFACTORED**: Process-first architecture - segments are generated before deciding role markers
 - [x] 1.2 Implement message formatting function with role markers (`[System]:`, `[User]:`, `[Assistant]:`, `[Tool]:`)
 - [x] 1.3 Update request builder to use multi-turn formatting when applicable, flat format otherwise
 - [x] 1.4 Ensure `.instructions.md` files are extracted to guidelines field (existing behavior)

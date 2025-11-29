@@ -441,80 +441,70 @@ export async function loadEvalCases(
  * 
  * Role markers ([System]:, [User]:, etc.) are added when:
  * 1. There are assistant/tool messages (true multi-turn conversation), OR
- * 2. There are multiple messages with content that will appear in the formatted output
- *    (text or non-guideline files - guideline files are extracted separately)
+ * 2. There are multiple messages that will produce visible content in the formatted output
  */
 function needsRoleMarkers(
   messages: readonly TestMessage[],
-  guidelinePatterns?: readonly string[],
+  processedSegmentsByMessage: readonly (readonly JsonObject[])[],
 ): boolean {
-  if (hasMultiTurnConversation(messages)) {
+  // Check for multi-turn conversation (assistant/tool messages)
+  if (messages.some((msg) => msg.role === "assistant" || msg.role === "tool")) {
     return true;
   }
   
-  const messagesWithContent = countMessagesWithContent(messages, guidelinePatterns);
+  // Count how many messages have actual content after processing
+  let messagesWithContent = 0;
+  
+  for (const segments of processedSegmentsByMessage) {
+    if (hasVisibleContent(segments)) {
+      messagesWithContent++;
+    }
+  }
+  
   return messagesWithContent > 1;
 }
 
-function hasMultiTurnConversation(messages: readonly TestMessage[]): boolean {
-  return messages.some((msg) => msg.role === "assistant" || msg.role === "tool");
-}
-
-function countMessagesWithContent(
-  messages: readonly TestMessage[],
-  guidelinePatterns?: readonly string[],
-): number {
-  let count = 0;
-  
-  for (const msg of messages) {
-    if (hasContent(msg.content, guidelinePatterns)) {
-      count++;
-    }
-  }
-  
-  return count;
-}
-
-function hasContent(
-  content: TestMessage["content"],
-  guidelinePatterns?: readonly string[],
-): boolean {
-  if (typeof content === "string") {
-    return content.trim().length > 0;
-  }
-  
-  if (!Array.isArray(content)) {
-    return false;
-  }
-  
-  return content.some((segment) => hasSegmentContent(segment, guidelinePatterns));
-}
-
-function hasSegmentContent(
-  segment: string | JsonObject,
-  guidelinePatterns?: readonly string[],
-): boolean {
-  if (typeof segment === "string") {
-    return true;
-  }
-  
-  if (!isJsonObject(segment)) {
-    return false;
-  }
-  
-  const type = asString(segment.type);
-  
-  if (type === "file") {
-    const filePath = asString(segment.value);
-    if (!filePath) {
-      return false;
+/**
+ * Check if processed segments contain visible content (text or file attachments).
+ */
+function hasVisibleContent(segments: readonly JsonObject[]): boolean {
+  return segments.some((segment) => {
+    const type = asString(segment.type);
+    
+    if (type === "text") {
+      const value = asString(segment.value);
+      return value !== undefined && value.trim().length > 0;
     }
     
-    // Guideline files count as content - they'll be shown as reference markers
-    return true;
+    if (type === "file") {
+      const text = asString(segment.text);
+      return text !== undefined && text.trim().length > 0;
+    }
+    
+    return false;
+  });
+}
+
+/**
+ * Format a segment into its display string.
+ * Text segments return their value; file segments return formatted file content with header.
+ */
+function formatSegment(segment: JsonObject): string | undefined {
+  const type = asString(segment.type);
+  
+  if (type === "text") {
+    return asString(segment.value);
   }
   
-  return type === "text";
+  if (type === "file") {
+    const text = asString(segment.text);
+    const filePath = asString(segment.path);
+    if (text && filePath) {
+      return `=== ${filePath} ===\n${text}`;
+    }
+  }
+  
+  return undefined;
 }
 
 /**
@@ -544,59 +534,81 @@ export async function buildPromptInputs(
     .filter((part) => part.length > 0)
     .join("\n\n");
 
-  // Determine if we need role markers based on conversational structure
-  const useRoleMarkers = needsRoleMarkers(testCase.input_messages, testCase.guideline_patterns);
+  // Build segments per message to determine if role markers are needed
+  const segmentsByMessage: JsonObject[][] = [];
+  
+  for (const message of testCase.input_messages) {
+    const messageSegments: JsonObject[] = [];
+    
+    if (typeof message.content === "string") {
+      if (message.content.trim().length > 0) {
+        messageSegments.push({ type: "text", value: message.content });
+      }
+    } else if (Array.isArray(message.content)) {
+      for (const segment of message.content) {
+        if (typeof segment === "string") {
+          if (segment.trim().length > 0) {
+            messageSegments.push({ type: "text", value: segment });
+          }
+        } else if (isJsonObject(segment)) {
+          const type = asString(segment.type);
+          
+          if (type === "file") {
+            const value = asString(segment.value);
+            if (!value) continue;
+            
+            // Check if this is a guideline file (extracted separately)
+            if (testCase.guideline_patterns && isGuidelineFile(value, testCase.guideline_patterns)) {
+              // Reference marker only - actual content is in guidelines field
+              messageSegments.push({ type: "text", value: `<Attached: ${value}>` });
+              continue;
+            }
+            
+            // Find the file content from input_segments
+            const fileSegment = testCase.input_segments.find(
+              (seg) => seg.type === "file" && seg.path === value
+            );
+            
+            if (fileSegment && typeof fileSegment.text === "string") {
+              messageSegments.push({ type: "file", text: fileSegment.text, path: value });
+            }
+          } else if (type === "text") {
+            const textValue = asString(segment.value);
+            if (textValue && textValue.trim().length > 0) {
+              messageSegments.push({ type: "text", value: textValue });
+            }
+          }
+        }
+      }
+    }
+    
+    segmentsByMessage.push(messageSegments);
+  }
+
+  // Determine if we need role markers based on actual processed content
+  const useRoleMarkers = needsRoleMarkers(testCase.input_messages, segmentsByMessage);
 
   let question: string;
   
   if (useRoleMarkers) {
-    // Multi-turn format with role markers
+    // Multi-turn format with role markers using pre-computed segments
     const messageParts: string[] = [];
     
-    for (const message of testCase.input_messages) {
+    for (let i = 0; i < testCase.input_messages.length; i++) {
+      const message = testCase.input_messages[i];
+      const segments = segmentsByMessage[i];
+      
+      if (!hasVisibleContent(segments)) {
+        continue;
+      }
+      
       const roleLabel = message.role.charAt(0).toUpperCase() + message.role.slice(1);
       const contentParts: string[] = [];
       
-      if (typeof message.content === "string") {
-        contentParts.push(message.content);
-      } else if (Array.isArray(message.content)) {
-        for (const segment of message.content) {
-          if (typeof segment === "string") {
-            contentParts.push(segment);
-          } else if (isJsonObject(segment)) {
-            const type = asString(segment.type);
-            
-            if (type === "file") {
-              const value = asString(segment.value);
-              if (!value) continue;
-              
-              // Check if this is a guideline file
-              if (testCase.guideline_patterns && isGuidelineFile(value, testCase.guideline_patterns)) {
-                // Show reference marker for guideline files (content is in guidelines field)
-                contentParts.push(`<Attached: ${value}>`);
-                continue;
-              }
-              
-              // Find the file content from input_segments
-              const fileSegment = testCase.input_segments.find(
-                (seg) => seg.type === "file" && seg.path === value
-              );
-              
-              if (fileSegment && typeof fileSegment.text === "string") {
-                contentParts.push(`=== ${value} ===\n${fileSegment.text}`);
-              }
-            } else if (type === "text") {
-              const textValue = asString(segment.value);
-              if (textValue) {
-                contentParts.push(textValue);
-              }
-            } else {
-              const genericValue = asString(segment.value);
-              if (genericValue) {
-                contentParts.push(genericValue);
-              }
-            }
-          }
+      for (const segment of segments) {
+        const formattedContent = formatSegment(segment);
+        if (formattedContent) {
+          contentParts.push(formattedContent);
         }
       }
       
@@ -608,30 +620,12 @@ export async function buildPromptInputs(
     
     question = messageParts.join("\n\n");
   } else {
-    // Single-turn flat format (existing behavior)
+    // Single-turn flat format
     const questionParts: string[] = [];
     for (const segment of testCase.input_segments) {
-      const typeValue = segment.type;
-      if (typeof typeValue === "string" && typeValue === "file") {
-        const pathValue = segment.path;
-        const textValue = segment.text;
-        const label = typeof pathValue === "string" ? pathValue : "file";
-        const body = typeof textValue === "string" ? textValue : "";
-        questionParts.push(`=== ${label} ===\n${body}`);
-        continue;
-      }
-
-      if (typeof typeValue === "string" && typeValue === "text") {
-        const value = segment.value;
-        if (typeof value === "string") {
-          questionParts.push(value);
-        }
-        continue;
-      }
-
-      const genericValue = segment.value;
-      if (typeof genericValue === "string") {
-        questionParts.push(genericValue);
+      const formattedContent = formatSegment(segment);
+      if (formattedContent) {
+        questionParts.push(formattedContent);
       }
     }
 
