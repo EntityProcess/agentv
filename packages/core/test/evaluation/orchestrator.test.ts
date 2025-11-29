@@ -80,12 +80,13 @@ const baseTestCase: EvalCase = {
   question: "Explain logging improvements",
   input_messages: [{ role: "user", content: "Explain logging improvements" }],
   input_segments: [{ type: "text", value: "Explain logging improvements" }],
+  output_segments: [],
   reference_answer: "- add structured logging\n- avoid global state",
   guideline_paths: [],
   file_paths: [],
   code_snippets: [],
   expected_outcome: "Logging improved",
-  grader: "llm_judge",
+  evaluator: "llm_judge",
 };
 
 const baseTarget: ResolvedTarget = {
@@ -300,8 +301,9 @@ describe("runTestCase", () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(provider.lastRequest?.chatPrompt).toBeDefined();
-    const chatPrompt = provider.lastRequest?.chatPrompt!;
+    const chatPrompt = provider.lastRequest?.chatPrompt;
+    expect(chatPrompt).toBeDefined();
+    if (!chatPrompt) throw new Error("chatPrompt is undefined");
     expect(chatPrompt[0].role).toBe("system");
     expect(chatPrompt[1]).toEqual({ role: "user", content: "=== snippet.txt ===\ncode()\nReview" });
     expect(chatPrompt[2]).toEqual({ role: "assistant", content: "Ack" });

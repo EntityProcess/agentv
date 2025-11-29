@@ -14,8 +14,6 @@ export interface WorkerProgress {
 const ESC = "\x1B[";
 const CLEAR_LINE = `${ESC}K`;
 const MOVE_CURSOR_UP = `${ESC}1A`;
-const SYNC_START = `${ESC}?2026h`; // BSU (Begin Synchronized Update)
-const SYNC_END = `${ESC}?2026l`; // ESU (End Synchronized Update)
 
 export class ProgressDisplay {
   private readonly workers: Map<number, WorkerProgress> = new Map();

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
 import { buildDirectoryChain, buildSearchRoots, resolveFileReference } from "./file-utils.js";
+import type { ChatPrompt } from "./providers/types.js";
 import type {
   EvaluatorConfig,
   EvaluatorKind,
@@ -14,7 +15,6 @@ import type {
   EvalCase,
   TestMessage,
 } from "./types.js";
-import type { ChatPrompt } from "./providers/types.js";
 import { isEvaluatorKind, isJsonObject, isTestMessage } from "./types.js";
 
 const CODE_BLOCK_PATTERN = /```[\s\S]*?```/g;
@@ -726,7 +726,7 @@ function buildChatPromptFromSegments(options: {
     const segments = segmentsByMessage[i];
     const contentParts: string[] = [];
 
-    let role = message.role;
+    let role: string = message.role;
     let name: string | undefined;
 
     if (role === "system") {
@@ -734,7 +734,7 @@ function buildChatPromptFromSegments(options: {
       contentParts.push("@[System]:");
     } else if (role === "tool") {
       // Map 'tool' to 'function' for Ax compatibility
-      role = "function" as any;
+      role = "function";
       name = "tool";
     }
 
@@ -763,10 +763,10 @@ function buildChatPromptFromSegments(options: {
     }
 
     chatPrompt.push({
-      role: role as any,
+      role: role,
       content: contentParts.join("\n"),
       ...(name ? { name } : {}),
-    });
+    } as unknown as ChatPrompt[number]);
   }
 
   return chatPrompt.length > 0 ? chatPrompt : undefined;

@@ -3,8 +3,8 @@ import path from "node:path";
 import { parse } from "yaml";
 
 import type { ValidationError, ValidationResult } from "./types.js";
-import { KNOWN_PROVIDERS, PROVIDER_ALIASES, TARGETS_SCHEMA_V2 } from "../providers/types.js";
 import { CLI_PLACEHOLDERS } from "../providers/targets.js";
+import { KNOWN_PROVIDERS, PROVIDER_ALIASES, TARGETS_SCHEMA_V2 } from "../providers/types.js";
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };

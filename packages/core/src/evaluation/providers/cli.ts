@@ -4,9 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { readTextFile } from "../file-utils.js";
 import type { CliResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
+import { readTextFile } from "../file-utils.js";
 
 const execAsync = promisify(execWithCallback);
 const DEFAULT_MAX_BUFFER = 10 * 1024 * 1024; // 10 MB to accommodate verbose CLI output

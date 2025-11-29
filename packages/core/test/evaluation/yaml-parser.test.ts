@@ -3,8 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { isGuidelineFile, loadEvalCases } from "../../src/evaluation/yaml-parser.js";
-import { buildPromptInputs } from "../../src/evaluation/yaml-parser.js";
+import { buildPromptInputs, isGuidelineFile, loadEvalCases } from "../../src/evaluation/yaml-parser.js";
 
 describe("isGuidelineFile", () => {
   describe("with explicit patterns", () => {
@@ -119,10 +118,11 @@ describe("buildPromptInputs chatPrompt", () => {
     expect(promptInputs.chatPrompt).toBeDefined();
     const chatPrompt = promptInputs.chatPrompt!;
 
-    expect(chatPrompt[0].role).toBe("system");
-    expect(String(chatPrompt[0].content)).toContain("Base system");
-    expect(String(chatPrompt[0].content)).toContain("Guidelines");
-    expect(String(chatPrompt[0].content)).toContain("rules.instructions.md");
+    const msg0 = chatPrompt[0];
+    if (msg0.role !== "system") throw new Error("Expected system message");
+    expect(msg0.content).toContain("Base system");
+    expect(msg0.content).toContain("Guidelines");
+    expect(msg0.content).toContain("rules.instructions.md");
 
     expect(chatPrompt[1]).toEqual({
       role: "user",
@@ -193,8 +193,9 @@ describe("buildPromptInputs chatPrompt", () => {
     const chatPrompt = promptInputs.chatPrompt!;
     // guideline-only user message should be removed after extraction
     expect(chatPrompt).toHaveLength(2);
-    expect(chatPrompt[0].role).toBe("system");
-    expect(chatPrompt[0].content).toContain("Follow rules");
+    const msg0 = chatPrompt[0];
+    if (msg0.role !== "system") throw new Error("Expected system message");
+    expect(msg0.content).toContain("Follow rules");
     expect(chatPrompt[1]).toEqual({ role: "user", content: "Real content" });
   });
 
