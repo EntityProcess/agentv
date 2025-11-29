@@ -68,3 +68,16 @@ simple/
 - **`python.instructions.md`**: Python coding guidelines
 - **`javascript.instructions.md`**: JavaScript coding guidelines
 - These instruction files can be referenced in eval files to provide context
+
+## Next Steps
+
+1. **Try running the examples**: Use `agentv eval evals/coding/example-eval.yaml`
+2. **Modify eval cases**: Experiment with your own test scenarios
+3. **Explore advanced examples**: See [../advanced/](../advanced/) for production patterns
+4. **Create your own evals**: Use these as templates for your domain
+
+## Related Documentation
+
+- [Advanced Examples](../advanced/README.md) - Production-ready scenarios and optimization
+- [AgentV Schema V2](../../features/schema-v2.md) - Full schema reference
+- [Local CLI Provider Guide](../../features/local-cli-provider.md) - Custom CLI integration
