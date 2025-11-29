@@ -172,6 +172,7 @@ export interface EvalCase {
   readonly dataset?: string;
   readonly conversation_id?: string;
   readonly question: string;
+  readonly input_messages: readonly TestMessage[];
   readonly input_segments: readonly JsonObject[];
   readonly output_segments: readonly JsonObject[];
   readonly reference_answer?: string;

@@ -23,6 +23,7 @@ const baseTestCase: EvalCase = {
   id: "case-1",
   dataset: "test-dataset",
   question: "Original Question Text",
+  input_messages: [{ role: "user", content: "User Input Message" }],
   input_segments: [{ type: "text", value: "User Input Message" }],
   output_segments: [{ type: "text", value: "Expected Output Message" }],
   reference_answer: "Reference Answer Text",

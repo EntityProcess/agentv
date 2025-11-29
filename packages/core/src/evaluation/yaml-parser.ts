@@ -405,6 +405,7 @@ export async function loadEvalCases(
       dataset: datasetName,
       conversation_id: conversationId,
       question: question,
+      input_messages: inputMessages,
       input_segments: inputSegments,
       output_segments: outputSegments,
       reference_answer: referenceAnswer,
@@ -436,6 +437,87 @@ export async function loadEvalCases(
 }
 
 /**
+ * Detect if role markers are needed based on conversational structure.
+ * 
+ * Role markers ([System]:, [User]:, etc.) are added when:
+ * 1. There are assistant/tool messages (true multi-turn conversation), OR
+ * 2. There are multiple messages with content that will appear in the formatted output
+ *    (text or non-guideline files - guideline files are extracted separately)
+ */
+function needsRoleMarkers(
+  messages: readonly TestMessage[],
+  guidelinePatterns?: readonly string[],
+): boolean {
+  if (hasMultiTurnConversation(messages)) {
+    return true;
+  }
+  
+  const messagesWithContent = countMessagesWithContent(messages, guidelinePatterns);
+  return messagesWithContent > 1;
+}
+
+function hasMultiTurnConversation(messages: readonly TestMessage[]): boolean {
+  return messages.some((msg) => msg.role === "assistant" || msg.role === "tool");
+}
+
+function countMessagesWithContent(
+  messages: readonly TestMessage[],
+  guidelinePatterns?: readonly string[],
+): number {
+  let count = 0;
+  
+  for (const msg of messages) {
+    if (hasContent(msg.content, guidelinePatterns)) {
+      count++;
+    }
+  }
+  
+  return count;
+}
+
+function hasContent(
+  content: TestMessage["content"],
+  guidelinePatterns?: readonly string[],
+): boolean {
+  if (typeof content === "string") {
+    return content.trim().length > 0;
+  }
+  
+  if (!Array.isArray(content)) {
+    return false;
+  }
+  
+  return content.some((segment) => hasSegmentContent(segment, guidelinePatterns));
+}
+
+function hasSegmentContent(
+  segment: string | JsonObject,
+  guidelinePatterns?: readonly string[],
+): boolean {
+  if (typeof segment === "string") {
+    return true;
+  }
+  
+  if (!isJsonObject(segment)) {
+    return false;
+  }
+  
+  const type = asString(segment.type);
+  
+  if (type === "file") {
+    const filePath = asString(segment.value);
+    if (!filePath) {
+      return false;
+    }
+    
+    // Guideline files count as content - they'll be shown as reference markers
+    return true;
+  }
+  
+  return type === "text";
+}
+
+/**
  * Build prompt inputs by consolidating user request context and guideline content.
  */
 export async function buildPromptInputs(
@@ -457,45 +539,111 @@ export async function buildPromptInputs(
     }
   }
 
-  const questionParts: string[] = [];
-  for (const segment of testCase.input_segments) {
-    const typeValue = segment.type;
-    if (typeof typeValue === "string" && typeValue === "file") {
-      const pathValue = segment.path;
-      const textValue = segment.text;
-      const label = typeof pathValue === "string" ? pathValue : "file";
-      const body = typeof textValue === "string" ? textValue : "";
-      questionParts.push(`=== ${label} ===\n${body}`);
-      continue;
-    }
-
-    if (typeof typeValue === "string" && typeValue === "text") {
-      const value = segment.value;
-      if (typeof value === "string") {
-        questionParts.push(value);
-      }
-      continue;
-    }
-
-    const genericValue = segment.value;
-    if (typeof genericValue === "string") {
-      questionParts.push(genericValue);
-    }
-  }
-
-  if (testCase.code_snippets.length > 0) {
-    questionParts.push(testCase.code_snippets.join("\n"));
-  }
-
-  const question = questionParts
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0)
-    .join("\n\n");
-
   const guidelines = guidelineContents
     .map((part) => part.trim())
     .filter((part) => part.length > 0)
     .join("\n\n");
+
+  // Determine if we need role markers based on conversational structure
+  const useRoleMarkers = needsRoleMarkers(testCase.input_messages, testCase.guideline_patterns);
+
+  let question: string;
+  
+  if (useRoleMarkers) {
+    // Multi-turn format with role markers
+    const messageParts: string[] = [];
+    
+    for (const message of testCase.input_messages) {
+      const roleLabel = message.role.charAt(0).toUpperCase() + message.role.slice(1);
+      const contentParts: string[] = [];
+      
+      if (typeof message.content === "string") {
+        contentParts.push(message.content);
+      } else if (Array.isArray(message.content)) {
+        for (const segment of message.content) {
+          if (typeof segment === "string") {
+            contentParts.push(segment);
+          } else if (isJsonObject(segment)) {
+            const type = asString(segment.type);
+            
+            if (type === "file") {
+              const value = asString(segment.value);
+              if (!value) continue;
+              
+              // Check if this is a guideline file
+              if (testCase.guideline_patterns && isGuidelineFile(value, testCase.guideline_patterns)) {
+                // Show reference marker for guideline files (content is in guidelines field)
+                contentParts.push(`<Attached: ${value}>`);
+                continue;
+              }
+              
+              // Find the file content from input_segments
+              const fileSegment = testCase.input_segments.find(
+                (seg) => seg.type === "file" && seg.path === value
+              );
+              
+              if (fileSegment && typeof fileSegment.text === "string") {
+                contentParts.push(`=== ${value} ===\n${fileSegment.text}`);
+              }
+            } else if (type === "text") {
+              const textValue = asString(segment.value);
+              if (textValue) {
+                contentParts.push(textValue);
+              }
+            } else {
+              const genericValue = asString(segment.value);
+              if (genericValue) {
+                contentParts.push(genericValue);
+              }
+            }
+          }
+        }
+      }
+      
+      if (contentParts.length > 0) {
+        const messageContent = contentParts.join("\n");
+        messageParts.push(`[${roleLabel}]:\n${messageContent}`);
+      }
+    }
+    
+    question = messageParts.join("\n\n");
+  } else {
+    // Single-turn flat format (existing behavior)
+    const questionParts: string[] = [];
+    for (const segment of testCase.input_segments) {
+      const typeValue = segment.type;
+      if (typeof typeValue === "string" && typeValue === "file") {
+        const pathValue = segment.path;
+        const textValue = segment.text;
+        const label = typeof pathValue === "string" ? pathValue : "file";
+        const body = typeof textValue === "string" ? textValue : "";
+        questionParts.push(`=== ${label} ===\n${body}`);
+        continue;
+      }
+
+      if (typeof typeValue === "string" && typeValue === "text") {
+        const value = segment.value;
+        if (typeof value === "string") {
+          questionParts.push(value);
+        }
+        continue;
+      }
+
+      const genericValue = segment.value;
+      if (typeof genericValue === "string") {
+        questionParts.push(genericValue);
+      }
+    }
+
+    if (testCase.code_snippets.length > 0) {
+      questionParts.push(testCase.code_snippets.join("\n"));
+    }
+
+    question = questionParts
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0)
+      .join("\n\n");
+  }
 
   return { question, guidelines };
 }

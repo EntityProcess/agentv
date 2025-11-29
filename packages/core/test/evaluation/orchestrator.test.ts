@@ -61,6 +61,7 @@ const baseTestCase: EvalCase = {
   id: "case-1",
   dataset: "test-dataset",
   question: "Explain logging improvements",
+  input_messages: [{ role: "user", content: "Explain logging improvements" }],
   input_segments: [{ type: "text", value: "Explain logging improvements" }],
   reference_answer: "- add structured logging\n- avoid global state",
   guideline_paths: [],

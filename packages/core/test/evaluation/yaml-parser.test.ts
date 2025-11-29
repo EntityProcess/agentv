@@ -303,3 +303,191 @@ evalcases:
     expect(testCase.guideline_paths[0]).toContain("style.md");
   });
 });
+
+describe("buildPromptInputs - Multi-turn formatting", () => {
+  let testDir: string;
+  let repoRoot: string;
+
+  beforeEach(async () => {
+    testDir = path.join(tmpdir(), `agentv-multiturn-test-${Date.now()}`);
+    repoRoot = testDir;
+    await mkdir(testDir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    await rm(testDir, { recursive: true, force: true });
+  });
+
+  it("uses role markers for multi-turn conversations with assistant messages", async () => {
+    const evalContent = `$schema: agentv-eval-v2
+evalcases:
+  - id: multi-turn-test
+    outcome: Success
+    input_messages:
+      - role: system
+        content: You are a helpful assistant.
+      - role: user
+        content: What is 2+2?
+      - role: assistant
+        content: Could you clarify what you mean?
+      - role: user
+        content: I mean the sum.
+    expected_messages:
+      - role: assistant
+        content: The answer is 4.
+`;
+    const evalPath = path.join(testDir, "test.eval.yaml");
+    await writeFile(evalPath, evalContent, "utf8");
+
+    const { buildPromptInputs } = await import("../../src/evaluation/yaml-parser.js");
+    const testCases = await loadEvalCases(evalPath, repoRoot);
+    const result = await buildPromptInputs(testCases[0]);
+
+    // Should include role markers
+    expect(result.question).toContain("[System]:");
+    expect(result.question).toContain("[User]:");
+    expect(result.question).toContain("[Assistant]:");
+    expect(result.question).toMatch(/\[System\]:\s*You are a helpful assistant\./);
+    expect(result.question).toMatch(/\[User\]:\s*What is 2\+2\?/);
+    expect(result.question).toMatch(/\[Assistant\]:\s*Could you clarify/);
+  });
+
+  it("uses role markers for system + user pattern with text content", async () => {
+    const evalContent = `$schema: agentv-eval-v2
+evalcases:
+  - id: single-turn-test
+    outcome: Success
+    input_messages:
+      - role: system
+        content: You are a helpful assistant.
+      - role: user
+        content: What is 2+2?
+    expected_messages:
+      - role: assistant
+        content: The answer is 4.
+`;
+    const evalPath = path.join(testDir, "test.eval.yaml");
+    await writeFile(evalPath, evalContent, "utf8");
+
+    const { buildPromptInputs } = await import("../../src/evaluation/yaml-parser.js");
+    const testCases = await loadEvalCases(evalPath, repoRoot);
+    const result = await buildPromptInputs(testCases[0]);
+
+    // Should include role markers for multiple messages with content
+    expect(result.question).toContain("[System]:");
+    expect(result.question).toContain("[User]:");
+    expect(result.question).toMatch(/\[System\]:\s*You are a helpful assistant\./);
+    expect(result.question).toMatch(/\[User\]:\s*What is 2\+2\?/);
+  });
+
+  it("uses role markers for multiple user messages", async () => {
+    const evalContent = `$schema: agentv-eval-v2
+evalcases:
+  - id: multi-user-test
+    outcome: Success
+    input_messages:
+      - role: user
+        content: First question
+      - role: user
+        content: Second question
+    expected_messages:
+      - role: assistant
+        content: Answer
+`;
+    const evalPath = path.join(testDir, "test.eval.yaml");
+    await writeFile(evalPath, evalContent, "utf8");
+
+    const { buildPromptInputs } = await import("../../src/evaluation/yaml-parser.js");
+    const testCases = await loadEvalCases(evalPath, repoRoot);
+    const result = await buildPromptInputs(testCases[0]);
+
+    // Should include role markers for multiple user messages
+    expect(result.question).toContain("[User]:");
+    expect(result.question).toMatch(/\[User\]:\s*First question/);
+    expect(result.question).toMatch(/\[User\]:\s*Second question/);
+  });
+
+  it("shows guideline file references with role markers", async () => {
+    // Create a guidelines file
+    const guidelinesDir = path.join(testDir, ".agentv");
+    await mkdir(guidelinesDir, { recursive: true });
+    await writeFile(path.join(guidelinesDir, "config.yaml"), `$schema: agentv-config-v2
+guideline_patterns:
+  - "**/*.instructions.md"
+`, "utf8");
+
+    const instructionContent = "# Instructions\nBe helpful.";
+    await writeFile(path.join(testDir, "guide.instructions.md"), instructionContent, "utf8");
+
+    const evalContent = `$schema: agentv-eval-v2
+evalcases:
+  - id: system-file-test
+    outcome: Success
+    input_messages:
+      - role: system
+        content:
+          - type: file
+            value: guide.instructions.md
+      - role: user
+        content: Help me with this task
+    expected_messages:
+      - role: assistant
+        content: Sure
+`;
+    const evalPath = path.join(testDir, "test.eval.yaml");
+    await writeFile(evalPath, evalContent, "utf8");
+
+    const { buildPromptInputs } = await import("../../src/evaluation/yaml-parser.js");
+    const testCases = await loadEvalCases(evalPath, repoRoot);
+    const result = await buildPromptInputs(testCases[0]);
+
+    // Should use role markers (2 messages with content)
+    expect(result.question).toContain("[System]:");
+    expect(result.question).toContain("[User]:");
+    
+    // Guideline file should show as reference marker (content is in guidelines field)
+    expect(result.question).toContain("<Attached: guide.instructions.md>");
+    expect(result.question).toContain("Help me with this task");
+    
+    // Full content should still be in guidelines field
+    expect(result.guidelines).toContain("Be helpful");
+  });
+
+  it("shows regular file attachments with role markers", async () => {
+    // Create a regular (non-guideline) file
+    const codeContent = "function hello() { return 'world'; }";
+    await writeFile(path.join(testDir, "code.ts"), codeContent, "utf8");
+
+    const evalContent = `$schema: agentv-eval-v2
+evalcases:
+  - id: file-attachment-test
+    outcome: Success
+    input_messages:
+      - role: system
+        content: You are a code reviewer.
+      - role: user
+        content:
+          - type: text
+            value: Please review this code
+          - type: file
+            value: code.ts
+    expected_messages:
+      - role: assistant
+        content: Looks good
+`;
+    const evalPath = path.join(testDir, "test.eval.yaml");
+    await writeFile(evalPath, evalContent, "utf8");
+
+    const { buildPromptInputs } = await import("../../src/evaluation/yaml-parser.js");
+    const testCases = await loadEvalCases(evalPath, repoRoot);
+    const result = await buildPromptInputs(testCases[0]);
+
+    // Should use role markers (2 messages with content)
+    expect(result.question).toContain("[System]:");
+    expect(result.question).toContain("[User]:");
+    
+    // Regular files should be embedded inline with their content
+    expect(result.question).toContain("=== code.ts ===");
+    expect(result.question).toContain("function hello()");
+  });
+});
