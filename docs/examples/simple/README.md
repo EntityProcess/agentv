@@ -72,7 +72,7 @@ simple/
 ## Prompt Formatting (debug view)
 
 - `input_messages` are flattened into a `question` string for logging and prompt dumps.
-- Role markers (`[System]:`, `[User]:`, `[Assistant]:`, `[Tool]:`) appear only when a conversation has multiple contentful turns or non-user roles.
+- Role markers (`@[System]:`, `@[User]:`, `@[Assistant]:`, `@[Tool]:`) appear only when a conversation has multiple contentful turns or non-user roles.
 - `.instructions.md` files are extracted into the `guidelines` field; other files are embedded inline within their originating turn.
 
 **Single-turn (flat):**
@@ -82,16 +82,16 @@ Improve the logging implementation
 
 **Multi-turn (role markers preserved):**
 ```text
-[System]:
+@[System]:
 You are a debugging expert.
 
-[User]:
+@[User]:
 The tests are failing on CI.
 
-[Assistant]:
+@[Assistant]:
 Please share the stack trace.
 
-[User]:
+@[User]:
 Here it is: === logs/ci.txt ===
 Timeout after 60s
 ```
