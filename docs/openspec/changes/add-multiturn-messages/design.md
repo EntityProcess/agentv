@@ -60,6 +60,21 @@ Multi-turn conversations require proper formatting to maintain context and turn 
 - Turn count only: Doesn't handle the system-file-only case elegantly
 - New field for multi-turn: Adds complexity without clear benefit
 
+### Decision: Preserve role markers in evaluator prompts
+
+**What:** When building evaluator prompts, use the same formatted `question` (with or without role markers) that was sent to the candidate LLM.
+
+**Why:**
+- Evaluator needs to understand the conversational context to judge appropriateness of responses
+- Multi-turn conversations appear as confusing blobs without role markers
+- Ensures evaluator sees exactly what the candidate LLM received
+- Maintains consistency between candidate and evaluator contexts
+
+**Alternatives considered:**
+- Strip role markers for evaluator: Would lose critical context about conversation flow
+- Separate formatting for evaluator: Adds complexity and could cause evaluation mismatches
+- Flatten all conversations for evaluator: Breaks evaluation of multi-turn behavior
+
 ## Formatting Examples
 
 ### Single-turn (existing behavior, unchanged)

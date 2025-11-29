@@ -10,6 +10,10 @@
 - [x] 1.3 Update request builder to use multi-turn formatting when applicable, flat format otherwise
 - [x] 1.4 Ensure `.instructions.md` files are extracted to guidelines field (existing behavior)
 - [x] 1.5 Embed non-instruction file attachments inline within their respective turns
+- [ ] 1.6 Preserve role markers in evaluator prompts:
+  - [ ] Ensure `buildQualityPrompt` uses the formatted `question` with role markers when applicable
+  - [ ] Verify evaluator receives same conversational structure as the candidate LLM
+  - [ ] Add tests confirming evaluator prompt contains role markers for multi-turn conversations
 
 ## 2. Testing
 
@@ -19,6 +23,10 @@
 - [x] 2.4 Add unit tests for conversational structure detection logic
 - [x] 2.5 Add unit tests for turn formatting (single-turn, multi-turn, file handling, mixed scenarios)
 - [x] 2.6 Test with multiple providers (Azure, default) to ensure compatibility
+- [ ] 2.7 Verify evaluator prompts preserve role markers:
+  - [ ] Confirm `evaluator_raw_request.prompt` contains role markers for multi-turn conversations
+  - [ ] Verify single-turn evaluations produce flat format without role markers
+  - [ ] Test that evaluator sees same conversation structure as candidate LLM
 
 ## 3. Documentation
 

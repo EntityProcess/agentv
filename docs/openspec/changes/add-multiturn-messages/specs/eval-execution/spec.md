@@ -49,3 +49,27 @@ The system SHALL determine whether to use role markers based on conversational s
 - **WHEN** `input_messages` contains messages in a specific order
 - **THEN** the formatted `question` field preserves that exact order
 - **AND** the final message role (typically user) appears last before the expected assistant response
+
+### Requirement: Evaluator Prompt Formatting
+
+The system SHALL preserve conversation structure when building evaluator prompts.
+
+#### Scenario: Multi-turn conversation evaluation
+
+- **WHEN** the evaluator judges a candidate answer from a multi-turn conversation
+- **THEN** the `evaluator_raw_request.prompt` under `[[ ## question ## ]]` contains the formatted conversation with role markers
+- **AND** the role markers match the format used in `raw_request.question` (e.g., `[System]:`, `[User]:`, `[Assistant]:`)
+- **AND** the evaluator can distinguish between different conversation turns
+
+#### Scenario: Single-turn conversation evaluation
+
+- **WHEN** the evaluator judges a candidate answer from a single-turn interaction
+- **THEN** the `evaluator_raw_request.prompt` under `[[ ## question ## ]]` contains the flat-formatted question without role markers
+- **AND** maintains backward compatibility with existing evaluations
+
+#### Scenario: Evaluator receives same context as candidate
+
+- **WHEN** building the evaluator prompt
+- **THEN** the question content sent to the evaluator is identical to the question content sent to the candidate LLM
+- **AND** the evaluator sees the same conversational structure
+- **AND** this enables accurate evaluation of responses in multi-turn context
