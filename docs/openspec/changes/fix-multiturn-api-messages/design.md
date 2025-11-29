@@ -80,12 +80,14 @@ User messages and subsequent turns should contain:
 
 ### 6. Multiple System Messages
 - **Issue**: `input_messages` may contain explicit `role: "system"` messages anywhere in the conversation.
-- **Decision**: Allow them anywhere, but extract and merge them to the start.
-- **Rationale**: We must scan all messages to extract guideline files (implicit system messages) anyway. Treating explicit system messages the same way ensures consistency and allows users to chronologically document "mid-conversation instructions" in their test cases.
-- **Scope**: This merging logic applies **only** to `chatPrompt` generation (used by LLM APIs like Azure/Anthropic).
-- **Agent Providers**: Providers like VS Code and Codex continue to use the `question` field (flat text), which **preserves** system messages in their original chronological positions as `[System]: ...` markers. This ensures that "transcript-style" system events (e.g., agent status updates) remain correctly ordered for agent evaluations.
-- **Alternative Considered**: Converting subsequent system messages to `user` role with a `[System]:` prefix.
-- **Why Rejected**: This re-introduces the "plain text marker" problem we are fixing, creates semantic inconsistency (some system messages are real, some are fake), and misaligns with APIs like Anthropic that enforce System messages as global context.
+- **Decision**: 
+  - **Initial System Messages**: Merge all system messages appearing at the *start* of the conversation (before the first user/assistant message) into the global system message.
+  - **Subsequent System Messages**: Convert any system messages appearing *after* the start to `role: "assistant"` with a `[System]:` prefix.
+- **Rationale**: 
+  - Merging initial messages ensures global instructions (guidelines, metadata) are correctly set as context.
+  - Preserving subsequent messages in-place (but re-roled) maintains the chronological order of events (e.g., errors, status updates) which is critical for multi-turn logic.
+  - Using `assistant` role prevents the model from interpreting these events as user requests/inputs.
+- **Scope**: This logic applies to `chatPrompt` generation for LLM APIs.
 
 ### 7. Segment Lookup Efficiency
 - **Issue**: Searching `input_segments` for every file reference is inefficient and potentially ambiguous.
@@ -116,19 +118,18 @@ function convertToChatPrompt(
     systemSegments.push(`[[ ## Guidelines ## ]]\n\n${guidelineContent}`);
   }
   
-  // 1c. User-defined system messages from input_messages
-  for (let i = 0; i < messages.length; i++) {
-    if (messages[i].role === "system") {
-      const segments = segmentsByMessage[i];
-      // Extract text content from system message segments
-      const textParts = segments
-        .filter(s => s.type === "text" || s.type === "file")
-        .map(s => s.type === "file" ? (s.text as string) : (s.value as string));
-      
-      if (textParts.length > 0) {
-        systemSegments.push(textParts.join("\n"));
-      }
+  // 1c. Initial system messages from input_messages
+  let startIndex = 0;
+  while (startIndex < messages.length && messages[startIndex].role === "system") {
+    const segments = segmentsByMessage[startIndex];
+    const textParts = segments
+      .filter(s => s.type === "text" || s.type === "file")
+      .map(s => s.type === "file" ? (s.text as string) : (s.value as string));
+    
+    if (textParts.length > 0) {
+      systemSegments.push(textParts.join("\n"));
     }
+    startIndex++;
   }
   
   // Add single consolidated system message if content exists
@@ -139,13 +140,18 @@ function convertToChatPrompt(
     });
   }
   
-  // 2. Convert non-system messages
-  for (let i = 0; i < messages.length; i++) {
+  // 2. Convert remaining messages
+  for (let i = startIndex; i < messages.length; i++) {
     const message = messages[i];
-    if (message.role === "system") continue; // Already handled
-    
     const segments = segmentsByMessage[i];
     const contentParts: string[] = [];
+    
+    // Handle subsequent system messages by converting to assistant with marker
+    let role = message.role;
+    if (role === "system") {
+      role = "assistant";
+      contentParts.push("[System]:");
+    }
     
     for (const segment of segments) {
       if (segment.type === "text") {
@@ -162,12 +168,11 @@ function convertToChatPrompt(
           contentParts.push(`=== ${filePath} ===\n${fileContent}`);
         }
       }
-      // Note: Future support for 'image' or other types would go here
     }
     
     if (contentParts.length > 0) {
       result.push({
-        role: message.role,
+        role: role,
         content: contentParts.join("\n"),
       });
     }

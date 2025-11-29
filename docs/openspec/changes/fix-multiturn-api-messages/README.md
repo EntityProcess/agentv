@@ -135,9 +135,9 @@ chatPrompt: [
 - **Trade-off**: Provider divergence vs. simplicity
 
 ### 4. System Message Merging
-- **Decision**: Merge explicit system messages with constructed ones
-- **Rationale**: Allow eval authors to override default system prompts
-- **Trade-off**: More flexible vs. more complex
+- **Decision**: Merge initial system messages; convert subsequent ones to assistant role.
+- **Rationale**: Ensures global context is set correctly while preserving chronological order of mid-conversation events.
+- **Trade-off**: More complex logic vs. correctness.
 
 ### 5. Empty Message Filtering
 - **Decision**: Remove messages with no content after guideline extraction

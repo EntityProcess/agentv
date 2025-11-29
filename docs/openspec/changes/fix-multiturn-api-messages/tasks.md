@@ -3,7 +3,8 @@
 - [ ] 1.1 Update `buildPromptInputs` in `yaml-parser.ts`
   - [ ] Update return type to include `chatPrompt?: ChatPrompt`
   - [ ] Implement message conversion logic using `input_messages` and `segmentsByMessage`
-  - [ ] Build consolidated system message (metadata + guidelines + user-defined system messages)
+  - [ ] Build consolidated system message (metadata + guidelines + initial system messages)
+  - [ ] Convert subsequent system messages to assistant role with `[System]:` prefix
   - [ ] Convert each message, embedding non-guideline files inline (using `segmentsByMessage`)
   - [ ] Add reference markers for guideline files
   - [ ] Handle empty messages and edge cases
