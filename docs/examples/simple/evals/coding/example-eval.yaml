@@ -2,7 +2,7 @@
 # Demonstrates schema features with real file references and minimal redundancy
 
 $schema: agentv-eval-v2
-description: Example showing basic features, conversation threading, multiple evaluators, and ACE optimization
+description: Example showing basic features, conversation threading, multiple evaluators
 
 # File-level default target (optional)
 # Can be overridden per eval case via execution.target

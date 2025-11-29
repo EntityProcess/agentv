@@ -1,0 +1,236 @@
+{
+  "version": "1.0",
+  "created_at": "2025-11-29T08:00:00Z",
+  "last_updated": "2025-11-29T08:00:00Z",
+  "optimization_history": {
+    "epochs_completed": 0,
+    "total_reflections": 0,
+    "success_rate_progression": []
+  },
+  "sections": {
+    "severity_classification_principles": {
+      "description": "Core principles for incident severity assessment",
+      "bullets": [
+        {
+          "id": "sev-001",
+          "content": "Always think step-by-step and explain reasoning before providing severity classification",
+          "tags": ["reasoning", "process"],
+          "confidence": 1.0,
+          "added_epoch": 0
+        },
+        {
+          "id": "sev-002",
+          "content": "Justify severity assessment based on scope, business impact, and customer exposure",
+          "tags": ["assessment", "business-impact"],
+          "confidence": 1.0,
+          "added_epoch": 0
+        },
+        {
+          "id": "sev-003",
+          "content": "Distinguish between unplanned outages and planned maintenance windows when assessing severity",
+          "tags": ["planned-vs-unplanned", "context"],
+          "confidence": 0.95,
+          "added_epoch": 0
+        }
+      ]
+    },
+    "scope_analysis": {
+      "description": "How to analyze incident scope and its impact on severity",
+      "bullets": [
+        {
+          "id": "scope-001",
+          "content": "Internal-only scope with no customer exposure typically reduces severity to low, even when functionality is down",
+          "tags": ["scope", "internal"],
+          "confidence": 0.92,
+          "added_epoch": 0
+        },
+        {
+          "id": "scope-002",
+          "content": "Global scope typically indicates high severity, but planned maintenance or acceptable degradation can reduce it to medium",
+          "tags": ["scope", "global", "context"],
+          "confidence": 0.90,
+          "added_epoch": 0
+        },
+        {
+          "id": "scope-003",
+          "content": "Regulatory and compliance issues create exceptions to standard severity rubrics - override normal scope considerations",
+          "tags": ["compliance", "regulatory", "exception"],
+          "confidence": 0.93,
+          "added_epoch": 0
+        }
+      ]
+    },
+    "contextual_factors": {
+      "description": "Critical contextual factors that modify severity assessment",
+      "bullets": [
+        {
+          "id": "ctx-001",
+          "content": "Business timing context (Black Friday, peak hours) can elevate identical technical issues from medium to critical",
+          "tags": ["timing", "business-context", "revenue"],
+          "confidence": 0.94,
+          "added_epoch": 0
+        },
+        {
+          "id": "ctx-002",
+          "content": "Deployment correlation (error spike within minutes of deployment) indicates high-confidence rollback path and justifies higher severity",
+          "tags": ["deployment", "correlation", "root-cause"],
+          "confidence": 0.91,
+          "added_epoch": 0
+        },
+        {
+          "id": "ctx-003",
+          "content": "Gradual degradation requires projecting future state based on trend - act before crisis even if current metrics look healthy",
+          "tags": ["trends", "prediction", "proactive"],
+          "confidence": 0.88,
+          "added_epoch": 0
+        },
+        {
+          "id": "ctx-004",
+          "content": "Recovery window (time until business impact) reduces urgency - weekend batch job failures with Monday deadline are low severity",
+          "tags": ["timing", "recovery-window"],
+          "confidence": 0.85,
+          "added_epoch": 0
+        }
+      ]
+    },
+    "signal_filtering": {
+      "description": "How to separate signal from noise in incident reports",
+      "bullets": [
+        {
+          "id": "sig-001",
+          "content": "Filter user perception ('broken') from technical reality (slow but functional) - distinguish degradation from outage",
+          "tags": ["noise-filtering", "perception-vs-reality"],
+          "confidence": 0.89,
+          "added_epoch": 0
+        },
+        {
+          "id": "sig-002",
+          "content": "Identify red herrings - unrelated alerts or symptoms that don't share root cause with primary incident",
+          "tags": ["noise-filtering", "causality"],
+          "confidence": 0.87,
+          "added_epoch": 0
+        },
+        {
+          "id": "sig-003",
+          "content": "Link symptoms to active maintenance windows or change requests - expected degradation is not an emergency",
+          "tags": ["maintenance", "planned-change"],
+          "confidence": 0.90,
+          "added_epoch": 0
+        },
+        {
+          "id": "sig-004",
+          "content": "Green availability dashboards can hide critical data integrity failures - prioritize data correctness over uptime metrics",
+          "tags": ["data-integrity", "hidden-failures"],
+          "confidence": 0.92,
+          "added_epoch": 0
+        }
+      ]
+    },
+    "domain_specific_patterns": {
+      "description": "Domain-specific severity escalation patterns",
+      "bullets": [
+        {
+          "id": "dom-001",
+          "content": "Payment failures are permanent (no retry, no fallback) - even low error rates (8%) are critical due to revenue hemorrhage",
+          "tags": ["payments", "revenue", "permanence"],
+          "confidence": 0.95,
+          "added_epoch": 0
+        },
+        {
+          "id": "dom-002",
+          "content": "Data integrity violations are worse than downtime - silent corruption returning wrong data is more dangerous than honest errors",
+          "tags": ["data-integrity", "corruption"],
+          "confidence": 0.96,
+          "added_epoch": 0
+        },
+        {
+          "id": "dom-003",
+          "content": "Planned API deprecation with adequate notice (90 days) is medium severity despite customer complaints - partner responsibility issue",
+          "tags": ["deprecation", "sunset", "partner-responsibility"],
+          "confidence": 0.84,
+          "added_epoch": 0
+        }
+      ]
+    },
+    "common_pitfalls": {
+      "description": "Mistakes to avoid in severity assessment",
+      "bullets": [
+        {
+          "id": "pit-001",
+          "content": "Don't let alarming language in user reports ('broken', 'down') override technical analysis of actual functionality",
+          "tags": ["perception", "analysis"],
+          "confidence": 0.88,
+          "added_epoch": 0
+        },
+        {
+          "id": "pit-002",
+          "content": "Don't assume low percentages (8% error rate) are acceptable without domain context - in payments, this is catastrophic",
+          "tags": ["percentages", "domain-context"],
+          "confidence": 0.90,
+          "added_epoch": 0
+        },
+        {
+          "id": "pit-003",
+          "content": "Don't ignore climbing error trends (2% → 8%) - trajectory matters as much as current state",
+          "tags": ["trends", "trajectory"],
+          "confidence": 0.87,
+          "added_epoch": 0
+        },
+        {
+          "id": "pit-004",
+          "content": "Don't confuse single-user scope with low severity when regulatory/compliance issues are involved",
+          "tags": ["compliance", "scope-exception"],
+          "confidence": 0.91,
+          "added_epoch": 0
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "total_bullets": 24,
+    "sections_count": 6,
+    "avg_confidence": 0.91,
+    "tags_frequency": {
+      "scope": 3,
+      "context": 3,
+      "timing": 2,
+      "business-context": 1,
+      "revenue": 2,
+      "compliance": 2,
+      "regulatory": 1,
+      "deployment": 1,
+      "correlation": 1,
+      "root-cause": 1,
+      "trends": 2,
+      "prediction": 1,
+      "proactive": 1,
+      "recovery-window": 1,
+      "noise-filtering": 3,
+      "perception-vs-reality": 1,
+      "causality": 1,
+      "maintenance": 1,
+      "planned-change": 1,
+      "data-integrity": 2,
+      "hidden-failures": 1,
+      "payments": 1,
+      "permanence": 1,
+      "corruption": 1,
+      "deprecation": 1,
+      "sunset": 1,
+      "partner-responsibility": 1,
+      "perception": 1,
+      "analysis": 1,
+      "domain-context": 1,
+      "trajectory": 1,
+      "scope-exception": 1,
+      "reasoning": 1,
+      "process": 1,
+      "assessment": 1,
+      "business-impact": 1,
+      "planned-vs-unplanned": 1,
+      "internal": 1,
+      "global": 1,
+      "exception": 1
+    }
+  }
+}
