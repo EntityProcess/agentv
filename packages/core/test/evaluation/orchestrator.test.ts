@@ -307,7 +307,7 @@ describe("runTestCase", () => {
     expect(chatPrompt[0].role).toBe("system");
     expect(chatPrompt[1]).toEqual({ role: "user", content: "=== snippet.txt ===\ncode()\nReview" });
     expect(chatPrompt[2]).toEqual({ role: "assistant", content: "Ack" });
-    expect(result.raw_request?.question).toContain("@[Assistant]:");
+    expect(result.lm_provider_request?.chat_prompt).toBeDefined();
   });
 
   it("omits chatPrompt for single-turn evals", async () => {
@@ -335,5 +335,31 @@ describe("runTestCase", () => {
 
     expect(provider.lastRequest?.chatPrompt).toBeUndefined();
     expect(provider.lastRequest?.question.trim()).toBe("Hello");
+  });
+
+  it("populates agent_provider_request for agent providers", async () => {
+    class AgentProvider implements Provider {
+      readonly id = "agent";
+      readonly kind = "codex"; // Agent provider kind
+      readonly targetName = "agent";
+      async invoke() { return { text: "ok" }; }
+    }
+    
+    const provider = new AgentProvider();
+    
+    const result = await runEvalCase({
+      evalCase: baseTestCase,
+      provider,
+      target: { 
+        ...baseTarget, 
+        kind: "codex",
+        config: { executable: "echo" }
+      },
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.agent_provider_request).toBeDefined();
+    expect(result.lm_provider_request).toBeUndefined();
+    expect(result.agent_provider_request?.question).toBe("Explain logging improvements");
   });
 });

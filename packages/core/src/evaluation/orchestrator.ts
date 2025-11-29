@@ -15,7 +15,7 @@ import type {
   TargetDefinition,
 } from "./providers/types.js";
 import { isAgentProvider } from "./providers/types.js";
-import type { EvalCase, EvaluationResult, EvaluatorConfig, EvaluatorResult, JsonObject } from "./types.js";
+import type { EvalCase, EvaluationResult, EvaluatorConfig, EvaluatorResult, JsonObject, JsonValue } from "./types.js";
 import { buildPromptInputs, loadEvalCases, type PromptInputs } from "./yaml-parser.js";
 
 type MaybePromise<T> = T | Promise<T>;
@@ -550,12 +550,29 @@ async function evaluateCandidate(options: {
   });
 
   const completedAt = nowFn();
-  const rawRequest: JsonObject = {
-    question: promptInputs.question,
-    ...(isAgentProvider(provider) ? {} : { guidelines: promptInputs.guidelines }),
-    guideline_paths: evalCase.guideline_paths,
-    ...(promptInputs.chatPrompt ? { chat_prompt: promptInputs.chatPrompt } : {}),
-  } as JsonObject;
+  
+  let agentProviderRequest: JsonObject | undefined;
+  let lmProviderRequest: JsonObject | undefined;
+
+  if (isAgentProvider(provider)) {
+    agentProviderRequest = {
+      question: promptInputs.question,
+      guideline_paths: evalCase.guideline_paths,
+    } as JsonObject;
+  } else {
+    if (promptInputs.chatPrompt) {
+      lmProviderRequest = {
+        chat_prompt: promptInputs.chatPrompt as unknown as JsonValue,
+        guideline_paths: evalCase.guideline_paths,
+      } as JsonObject;
+    } else {
+      lmProviderRequest = {
+        question: promptInputs.question,
+        guidelines: promptInputs.guidelines,
+        guideline_paths: evalCase.guideline_paths,
+      } as JsonObject;
+    }
+  }
 
   return {
     eval_id: evalCase.id,
@@ -570,7 +587,8 @@ async function evaluateCandidate(options: {
     timestamp: completedAt.toISOString(),
     reasoning: score.reasoning,
     raw_aspects: score.rawAspects,
-    raw_request: rawRequest,
+    agent_provider_request: agentProviderRequest,
+    lm_provider_request: lmProviderRequest,
     evaluator_raw_request: evaluatorResults ? undefined : score.evaluatorRawRequest,
     evaluator_results: evaluatorResults,
   };
@@ -912,13 +930,31 @@ function buildErrorResult(
 ): EvaluationResult {
   const message = error instanceof Error ? error.message : String(error);
 
-  const rawRequest: JsonObject = {
-    question: promptInputs.question,
-    ...(isAgentProvider(provider) ? {} : { guidelines: promptInputs.guidelines }),
-    guideline_paths: evalCase.guideline_paths,
-    ...(promptInputs.chatPrompt ? { chat_prompt: promptInputs.chatPrompt } : {}),
-    error: message,
-  } as JsonObject;
+  let agentProviderRequest: JsonObject | undefined;
+  let lmProviderRequest: JsonObject | undefined;
+
+  if (isAgentProvider(provider)) {
+    agentProviderRequest = {
+      question: promptInputs.question,
+      guideline_paths: evalCase.guideline_paths,
+      error: message,
+    } as JsonObject;
+  } else {
+    if (promptInputs.chatPrompt) {
+      lmProviderRequest = {
+        chat_prompt: promptInputs.chatPrompt as unknown as JsonValue,
+        guideline_paths: evalCase.guideline_paths,
+        error: message,
+      } as JsonObject;
+    } else {
+      lmProviderRequest = {
+        question: promptInputs.question,
+        guidelines: promptInputs.guidelines,
+        guideline_paths: evalCase.guideline_paths,
+        error: message,
+      } as JsonObject;
+    }
+  }
 
   return {
     eval_id: evalCase.id,
@@ -932,7 +968,8 @@ function buildErrorResult(
     target: targetName,
     timestamp: timestamp.toISOString(),
     raw_aspects: [],
-    raw_request: rawRequest,
+    agent_provider_request: agentProviderRequest,
+    lm_provider_request: lmProviderRequest,
     error: message,
   } satisfies EvaluationResult;
 }
