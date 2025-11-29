@@ -32,6 +32,17 @@ Multi-turn conversations require proper formatting to maintain context and turn 
 - Structured message array: Would require changes to all providers and break existing code
 - JSON-encoded messages: Less readable, harder to debug
 - XML-style tags: More verbose, no real benefit over brackets
+- TOON format (https://github.com/toon-format/toon): Token-efficient format designed for LLM input/output
+  - **Format example:**
+    ```yaml
+    - system: You are a debugging expert.
+    - user: I have a bug in my code.
+    - assistant: Can you share the code?
+    ```
+  - **What TOON is for:** Encoding data for LLM consumption (reducing token costs in prompts)
+  - **Why not use TOON here:** The `question` field is a string for logging/debugging, not LLM input optimization
+  - **Future consideration:** TOON could be valuable for encoding eval **result files** when feeding conversation logs back to LLMs for analysis, but not for the runtime `question` string
+  - **Verdict:** `[Role]:` markers are more natural for string-based logging; TOON solves a different problem
 
 ### Decision: Extract `.instructions.md` files to guidelines, embed others inline
 
@@ -172,3 +183,56 @@ Here it is: [code snippet]
   - **Recommendation:** Start with `[Role]:` format, add customization only if needed
 - Should system messages have a marker or be unmarked?
   - **Recommendation:** Use `[System]:` for consistency when multiple turns exist, keep unmarked for single-turn backward compatibility
+
+## Future Enhancements
+
+### TOON Format for Eval Results (Deferred)
+
+The TOON (Turn-Oriented Object Notation) format (https://github.com/toon-format/toon) could be useful for **eval result files** when conversation logs need to be fed back to LLMs for analysis or review.
+
+**TOON's Purpose:**
+- Token-efficient encoding of structured data **for LLM consumption**
+- Reduces token costs when feeding data into LLM prompts
+- Human-readable format that LLMs can parse reliably
+
+**Where TOON Could Help in AgentV:**
+
+```yaml
+# Current eval results format
+raw_request:
+  question: |-
+    [System]:
+    You are a debugging expert.
+    
+    [User]:
+    I have a bug in my code.
+    
+    [Assistant]:
+    Can you share the code?
+
+# Potential TOON format for results (more compact for LLM analysis)
+raw_request:
+  question_toon: |-
+    - system: You are a debugging expert.
+    - user: I have a bug in my code.
+    - assistant: Can you share the code?
+```
+
+**Use Case:**
+When using LLMs to analyze evaluation results (meta-evaluation, pattern detection, result summarization), encoding conversations in TOON would:
+- Reduce token costs significantly
+- Maintain full conversation structure
+- Be easier for analysis LLMs to parse than `[Role]:` text format
+
+**Why NOT use TOON for runtime `question` field:**
+- Runtime `question` is for logging/debugging (human consumption)
+- `[Role]:` markers are more natural in plain text strings
+- TOON is optimized for LLM input, not human-readable logs
+
+**Migration Path (when needed):**
+1. Add optional TOON encoder for conversation logs in result files
+2. Keep `[Role]:` format as default for backward compatibility
+3. Allow opt-in TOON output via config flag for users doing LLM-based result analysis
+4. Document token savings benefits for meta-evaluation workflows
+
+**Decision:** Defer TOON integration. The `[Role]:` marker format serves current logging needs well. Consider TOON only if/when users need to feed large volumes of eval results back into LLMs for analysis.
