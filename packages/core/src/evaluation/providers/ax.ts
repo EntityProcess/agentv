@@ -19,27 +19,16 @@ type AxAiInstance = ReturnType<typeof AxAI.create>;
 
 function buildChatPrompt(request: ProviderRequest): ChatPrompt {
   if (request.chatPrompt) {
-    return request.chatPrompt;
+    const hasSystemMessage = request.chatPrompt.some((message) => message.role === "system");
+    if (hasSystemMessage) {
+      return request.chatPrompt;
+    }
+
+    const systemContent = resolveSystemContent(request);
+    return [{ role: "system", content: systemContent }, ...request.chatPrompt];
   }
 
-  const systemSegments: string[] = [];
-  
-  // Add metadata system prompt first (general instructions)
-  const metadataSystemPrompt =
-    typeof request.metadata?.systemPrompt === "string" ? request.metadata.systemPrompt : undefined;
-  if (metadataSystemPrompt && metadataSystemPrompt.trim().length > 0) {
-    systemSegments.push(metadataSystemPrompt.trim());
-  } else {
-    // Use default if no custom system prompt provided
-    systemSegments.push(DEFAULT_SYSTEM_PROMPT);
-  }
-  
-  // Add guidelines after system prompt (specific constraints for this eval)
-  if (request.guidelines && request.guidelines.trim().length > 0) {
-    systemSegments.push(`[[ ## Guidelines ## ]]\n\n${request.guidelines.trim()}`);
-  }
-
-  const systemContent = systemSegments.join("\n\n");
+  const systemContent = resolveSystemContent(request);
   const userContent = request.question.trim();
 
   const prompt: ChatPrompt = [
@@ -54,6 +43,24 @@ function buildChatPrompt(request: ProviderRequest): ChatPrompt {
   ];
 
   return prompt;
+}
+
+function resolveSystemContent(request: ProviderRequest): string {
+  const systemSegments: string[] = [];
+
+  const metadataSystemPrompt =
+    typeof request.metadata?.systemPrompt === "string" ? request.metadata.systemPrompt : undefined;
+  if (metadataSystemPrompt && metadataSystemPrompt.trim().length > 0) {
+    systemSegments.push(metadataSystemPrompt.trim());
+  } else {
+    systemSegments.push(DEFAULT_SYSTEM_PROMPT);
+  }
+
+  if (request.guidelines && request.guidelines.trim().length > 0) {
+    systemSegments.push(`[[ ## Guidelines ## ]]\n\n${request.guidelines.trim()}`);
+  }
+
+  return systemSegments.join("\n\n");
 }
 
 function extractModelConfig(

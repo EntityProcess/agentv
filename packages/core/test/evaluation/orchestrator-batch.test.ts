@@ -89,6 +89,7 @@ function mockParsers(): void {
     question: `req-${testCase.id}`,
     guidelines: "",
     systemMessage: undefined,
+    chatPrompt: undefined,
   }));
 }
 

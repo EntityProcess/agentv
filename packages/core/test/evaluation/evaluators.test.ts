@@ -276,7 +276,7 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     const multiTurnQuestion =
-      "[System]:\nFollow the coding guidelines.\n\n[User]:\nDebug the failing test.\n\n[Assistant]:\nPlease share the stack trace.";
+      "@[System]:\nFollow the coding guidelines.\n\n@[User]:\nDebug the failing test.\n\n@[Assistant]:\nPlease share the stack trace.";
 
     const result = await evaluator.evaluate({
       evalCase: { ...baseTestCase, evaluator: "llm_judge" },
@@ -289,8 +289,8 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     expect(judgeProvider.lastRequest?.question).toContain(multiTurnQuestion);
-    expect(result.evaluatorRawRequest?.prompt).toContain("[Assistant]:");
-    expect(result.evaluatorRawRequest?.prompt).toContain("[System]:");
+    expect(result.evaluatorRawRequest?.prompt).toContain("@[Assistant]:");
+    expect(result.evaluatorRawRequest?.prompt).toContain("@[System]:");
   });
 
   it("keeps single-turn prompts flat when no markers are needed", async () => {
@@ -314,8 +314,8 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     expect(judgeProvider.lastRequest?.question).toContain(flatQuestion);
-    expect(judgeProvider.lastRequest?.question).not.toContain("[User]:");
+    expect(judgeProvider.lastRequest?.question).not.toContain("@[User]:");
     expect(result.evaluatorRawRequest?.prompt).toContain(flatQuestion);
-    expect(result.evaluatorRawRequest?.prompt).not.toContain("[User]:");
+    expect(result.evaluatorRawRequest?.prompt).not.toContain("@[User]:");
   });
 });

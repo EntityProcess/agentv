@@ -16,7 +16,7 @@ import type {
 } from "./providers/types.js";
 import { isAgentProvider } from "./providers/types.js";
 import type { EvalCase, EvaluationResult, EvaluatorConfig, EvaluatorResult, JsonObject } from "./types.js";
-import { buildPromptInputs, loadEvalCases } from "./yaml-parser.js";
+import { buildPromptInputs, loadEvalCases, type PromptInputs } from "./yaml-parser.js";
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -322,12 +322,7 @@ async function runBatchEvaluation(options: {
   } = options;
 
   // Prepare prompt inputs up front so we can reuse them for grading.
-  const promptInputsList: {
-    readonly question: string;
-    readonly guidelines: string;
-    readonly systemMessage?: string;
-  }[] =
-    [];
+  const promptInputsList: PromptInputs[] = [];
   for (const evalCase of evalCases) {
     const promptInputs = await buildPromptInputs(evalCase);
     if (promptDumpDir) {
@@ -521,7 +516,7 @@ async function evaluateCandidate(options: {
   readonly target: ResolvedTarget;
   readonly provider: Provider;
   readonly evaluators: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
-  readonly promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string };
+  readonly promptInputs: PromptInputs;
   readonly nowFn: () => Date;
   readonly attempt: number;
   readonly judgeProvider?: Provider;
@@ -559,6 +554,7 @@ async function evaluateCandidate(options: {
     question: promptInputs.question,
     ...(isAgentProvider(provider) ? {} : { guidelines: promptInputs.guidelines }),
     guideline_paths: evalCase.guideline_paths,
+    ...(promptInputs.chatPrompt ? { chat_prompt: promptInputs.chatPrompt } : {}),
   } as JsonObject;
 
   return {
@@ -587,7 +583,7 @@ async function runEvaluatorsForCase(options: {
   readonly provider: Provider;
   readonly evaluators: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
   readonly attempt: number;
-  readonly promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string };
+  readonly promptInputs: PromptInputs;
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
@@ -639,7 +635,7 @@ async function runEvaluatorList(options: {
   readonly provider: Provider;
   readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
   readonly attempt: number;
-  readonly promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string };
+  readonly promptInputs: PromptInputs;
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
@@ -768,7 +764,7 @@ async function runLlmJudgeEvaluator(options: {
   readonly provider: Provider;
   readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
   readonly attempt: number;
-  readonly promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string };
+  readonly promptInputs: PromptInputs;
   readonly now: Date;
   readonly judgeProvider?: Provider;
 }): Promise<EvaluationScore> {
@@ -838,7 +834,7 @@ function buildEvaluatorRegistry(
 async function dumpPrompt(
   directory: string,
   evalCase: EvalCase,
-  promptInputs: { readonly question: string; readonly guidelines: string },
+  promptInputs: PromptInputs,
 ): Promise<void> {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `${timestamp}_${sanitizeFilename(evalCase.id)}.json`;
@@ -868,7 +864,7 @@ async function invokeProvider(
   options: {
     readonly evalCase: EvalCase;
     readonly target: ResolvedTarget;
-    readonly promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string };
+    readonly promptInputs: PromptInputs;
     readonly attempt: number;
     readonly agentTimeoutMs?: number;
     readonly signal?: AbortSignal;
@@ -890,6 +886,7 @@ async function invokeProvider(
       question: promptInputs.question,
       guidelines: promptInputs.guidelines,
       guideline_patterns: evalCase.guideline_patterns,
+      chatPrompt: promptInputs.chatPrompt,
       inputFiles: evalCase.file_paths,
       evalCaseId: evalCase.id,
       attempt,
@@ -910,7 +907,7 @@ function buildErrorResult(
   targetName: string,
   timestamp: Date,
   error: unknown,
-  promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string },
+  promptInputs: PromptInputs,
   provider?: Provider,
 ): EvaluationResult {
   const message = error instanceof Error ? error.message : String(error);
@@ -919,6 +916,7 @@ function buildErrorResult(
     question: promptInputs.question,
     ...(isAgentProvider(provider) ? {} : { guidelines: promptInputs.guidelines }),
     guideline_paths: evalCase.guideline_paths,
+    ...(promptInputs.chatPrompt ? { chat_prompt: promptInputs.chatPrompt } : {}),
     error: message,
   } as JsonObject;
 
@@ -943,7 +941,7 @@ function createCacheKey(
   provider: Provider,
   target: ResolvedTarget,
   evalCase: EvalCase,
-  promptInputs: { readonly question: string; readonly guidelines: string; readonly systemMessage?: string },
+  promptInputs: PromptInputs,
 ): string {
   const hash = createHash("sha256");
   hash.update(provider.id);
@@ -952,6 +950,9 @@ function createCacheKey(
   hash.update(promptInputs.question);
   hash.update(promptInputs.guidelines);
   hash.update(promptInputs.systemMessage ?? "");
+  if (promptInputs.chatPrompt) {
+    hash.update(JSON.stringify(promptInputs.chatPrompt));
+  }
   return hash.digest("hex");
 }
 

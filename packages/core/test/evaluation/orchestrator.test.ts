@@ -57,6 +57,23 @@ class CapturingJudgeProvider implements Provider {
   }
 }
 
+class CapturingProvider implements Provider {
+  readonly id: string;
+  readonly kind = "mock" as const;
+  readonly targetName: string;
+  lastRequest?: ProviderRequest;
+
+  constructor(targetName: string, private readonly response: ProviderResponse) {
+    this.id = `cap:${targetName}`;
+    this.targetName = targetName;
+  }
+
+  async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+    this.lastRequest = request;
+    return this.response;
+  }
+}
+
 const baseTestCase: EvalCase = {
   id: "case-1",
   dataset: "test-dataset",
@@ -249,5 +266,72 @@ describe("runTestCase", () => {
 
     expect(judgeProvider.lastRequest?.metadata?.systemPrompt).toContain("CUSTOM PROMPT CONTENT");
     expect(result.evaluator_results?.[0]?.evaluator_raw_request?.systemPrompt).toContain("CUSTOM PROMPT CONTENT");
+  });
+
+  it("passes chatPrompt for multi-turn evals", async () => {
+    const provider = new CapturingProvider("mock", { text: "Candidate" });
+
+    const result = await runEvalCase({
+      evalCase: {
+        id: "multi",
+        dataset: "ds",
+        question: "",
+        input_messages: [
+          { role: "system", content: "Guide" },
+          { role: "user", content: [{ type: "file", value: "snippet.txt" }, { type: "text", value: "Review" }] },
+          { role: "assistant", content: "Ack" },
+        ],
+        input_segments: [
+          { type: "text", value: "Guide" },
+          { type: "file", path: "snippet.txt", text: "code()" },
+          { type: "text", value: "Review" },
+          { type: "text", value: "Ack" },
+        ],
+        output_segments: [],
+        reference_answer: "",
+        guideline_paths: [],
+        file_paths: [],
+        code_snippets: [],
+        expected_outcome: "",
+        evaluator: "llm_judge",
+      },
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(provider.lastRequest?.chatPrompt).toBeDefined();
+    const chatPrompt = provider.lastRequest?.chatPrompt!;
+    expect(chatPrompt[0].role).toBe("system");
+    expect(chatPrompt[1]).toEqual({ role: "user", content: "=== snippet.txt ===\ncode()\nReview" });
+    expect(chatPrompt[2]).toEqual({ role: "assistant", content: "Ack" });
+    expect(result.raw_request?.question).toContain("@[Assistant]:");
+  });
+
+  it("omits chatPrompt for single-turn evals", async () => {
+    const provider = new CapturingProvider("mock", { text: "Candidate" });
+
+    await runEvalCase({
+      evalCase: {
+        id: "single",
+        dataset: "ds",
+        question: "",
+        input_messages: [{ role: "user", content: "Hello" }],
+        input_segments: [{ type: "text", value: "Hello" }],
+        output_segments: [],
+        reference_answer: "",
+        guideline_paths: [],
+        file_paths: [],
+        code_snippets: [],
+        expected_outcome: "",
+        evaluator: "llm_judge",
+      },
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(provider.lastRequest?.chatPrompt).toBeUndefined();
+    expect(provider.lastRequest?.question.trim()).toBe("Hello");
   });
 });

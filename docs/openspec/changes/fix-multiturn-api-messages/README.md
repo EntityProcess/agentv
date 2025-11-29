@@ -152,47 +152,21 @@ chatPrompt: [
 5. ✅ All existing tests pass
 6. ✅ New tests cover multi-turn scenarios
 
-## Next Steps
+## Provider Usage (chatPrompt vs question)
+- `ProviderRequest.chatPrompt` is populated for conversations with multiple visible turns or non-user roles; single user-only prompts keep `chatPrompt` undefined and rely on `question` + `guidelines`.
+- Ax providers (Azure/Anthropic/Gemini) use `chatPrompt` first and only fall back to `question` when it is absent; VS Code remains unchanged and uses `question` for workspace injection.
+- When `chatPrompt` lacks a system role, providers prepend one using `metadata.systemPrompt` and `guidelines`; otherwise they send the array as-is.
 
-### ⚠️ DO NOT START IMPLEMENTATION YET
+## Message Conversion Notes
+- `buildPromptInputs` converts `input_messages` into `chatPrompt`, embedding non-guideline files inline with headers (`=== file ===`) and skipping messages that contain only guideline files.
+- Guideline files matching `guideline_patterns` are extracted into the system message via `guidelines`; they are omitted from per-turn `chatPrompt` entries to avoid duplication.
+- When only a single user turn is present, `chatPrompt` is omitted to preserve legacy behavior while keeping `question` unchanged for logging.
 
-Per OpenSpec Stage 2 guidelines:
-> **Approval gate** - Do not start implementation until the proposal is reviewed and approved.
+## Architecture / Backward Compatibility
+- Dual-path delivery: `question` remains for logging/debugging and VS Code; `chatPrompt` is the structured API payload for Ax providers.
+- Raw requests now include `chat_prompt` alongside `question/guidelines` for visibility in results and caching.
+- The system message is consolidated (metadata + guidelines + initial system turns); later system turns are re-tagged as assistant messages with `[System]:` prefix to preserve chronology.
 
-### Required Actions Before Implementation
-1. **Review**: Have stakeholders review the proposal documents
-2. **Approve**: Get formal approval to proceed
-3. **Schedule**: Plan implementation timeline
-4. **Assign**: Determine who will implement which tasks
-
-### When Approved, Start With:
-1. Read `tasks.md` for implementation checklist
-2. Begin with Phase 1 (Message Conversion)
-3. Follow TDD: Write tests first, then implementation
-4. Update `design.md` if implementation reveals new insights
-
-## File Locations
-```
-docs/openspec/changes/fix-multiturn-api-messages/
-├── proposal.md          # Problem statement and solution
-├── design.md            # Architecture and technical decisions
-├── tasks.md             # Implementation checklist
-└── specs/
-    ├── message-conversion/
-    │   └── spec.md      # Message conversion requirements
-    └── provider-integration/
-        └── spec.md      # Provider integration requirements
-```
-
-## Validation Command
-```bash
-cd docs/
-openspec validate fix-multiturn-api-messages --strict
-```
-
-## Related Code
-- `packages/core/src/evaluation/yaml-parser.ts` - Message processing
-- `packages/core/src/evaluation/orchestrator.ts` - ProviderRequest creation
-- `packages/core/src/evaluation/providers/ax.ts` - LLM API calls
-- `packages/core/src/evaluation/providers/types.ts` - ProviderRequest interface
-- `packages/core/src/evaluation/providers/vscode.ts` - VS Code integration
+## Notes
+- Implementation completed; proposal text retained for context.
+- Validation command for future edits: `cd docs && openspec validate fix-multiturn-api-messages --strict`

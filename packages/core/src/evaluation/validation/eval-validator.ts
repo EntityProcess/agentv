@@ -192,7 +192,7 @@ function validateMessages(
     // Validate content field (can be string or array)
     const content = message["content"];
     if (typeof content === "string") {
-      // String content is valid
+      validateContentForRoleMarkers(content, `${msgLocation}.content`, filePath, errors);
     } else if (Array.isArray(content)) {
       // Array content - validate each element
       for (let j = 0; j < content.length; j++) {
@@ -200,7 +200,7 @@ function validateMessages(
         const contentLocation = `${msgLocation}.content[${j}]`;
 
         if (typeof contentItem === "string") {
-          // String in array is valid
+          validateContentForRoleMarkers(contentItem, contentLocation, filePath, errors);
         } else if (isObject(contentItem)) {
           const type = contentItem["type"];
           if (typeof type !== "string") {
@@ -223,6 +223,8 @@ function validateMessages(
                 location: `${contentLocation}.value`,
                 message: "Content with type 'text' must have a 'value' field",
               });
+            } else {
+              validateContentForRoleMarkers(value, `${contentLocation}.value`, filePath, errors);
             }
           }
         } else {
@@ -240,6 +242,26 @@ function validateMessages(
         filePath,
         location: `${msgLocation}.content`,
         message: "Missing or invalid 'content' field (must be a string or array)",
+      });
+    }
+  }
+}
+
+function validateContentForRoleMarkers(
+  content: string,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  // Check for standard role markers that might confuse agentic providers
+  const markers = ["@[System]:", "@[User]:", "@[Assistant]:", "@[Tool]:"];
+  for (const marker of markers) {
+    if (content.toLowerCase().includes(marker.toLowerCase())) {
+      errors.push({
+        severity: "warning",
+        filePath,
+        location,
+        message: `Content contains potential role marker '${marker}'. This may confuse agentic providers or cause prompt injection.`,
       });
     }
   }

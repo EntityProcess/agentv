@@ -14,6 +14,7 @@ import type {
   EvalCase,
   TestMessage,
 } from "./types.js";
+import type { ChatPrompt } from "./providers/types.js";
 import { isEvaluatorKind, isJsonObject, isTestMessage } from "./types.js";
 
 const CODE_BLOCK_PATTERN = /```[\s\S]*?```/g;
@@ -475,6 +476,10 @@ function hasVisibleContent(segments: readonly JsonObject[]): boolean {
       const value = asString(segment.value);
       return value !== undefined && value.trim().length > 0;
     }
+
+    if (type === "guideline_ref") {
+      return false;
+    }
     
     if (type === "file") {
       const text = asString(segment.text);
@@ -495,6 +500,11 @@ function formatSegment(segment: JsonObject): string | undefined {
   if (type === "text") {
     return asString(segment.value);
   }
+
+  if (type === "guideline_ref") {
+    const refPath = asString(segment.path);
+    return refPath ? `<Attached: ${refPath}>` : undefined;
+  }
   
   if (type === "file") {
     const text = asString(segment.text);
@@ -510,9 +520,14 @@ function formatSegment(segment: JsonObject): string | undefined {
 /**
  * Build prompt inputs by consolidating user request context and guideline content.
  */
-export async function buildPromptInputs(
-  testCase: EvalCase,
-): Promise<{ question: string; guidelines: string; systemMessage?: string }> {
+export interface PromptInputs {
+  readonly question: string;
+  readonly guidelines: string;
+  readonly chatPrompt?: ChatPrompt;
+  readonly systemMessage?: string;
+}
+
+export async function buildPromptInputs(testCase: EvalCase): Promise<PromptInputs> {
   const guidelineContents: string[] = [];
   for (const rawPath of testCase.guideline_paths) {
     const absolutePath = path.resolve(rawPath);
@@ -536,6 +551,12 @@ export async function buildPromptInputs(
 
   // Build segments per message to determine if role markers are needed
   const segmentsByMessage: JsonObject[][] = [];
+  const fileContentsByPath = new Map<string, string>();
+  for (const segment of testCase.input_segments) {
+    if (segment.type === "file" && typeof segment.path === "string" && typeof segment.text === "string") {
+      fileContentsByPath.set(segment.path, segment.text);
+    }
+  }
   
   for (const message of testCase.input_messages) {
     const messageSegments: JsonObject[] = [];
@@ -560,17 +581,15 @@ export async function buildPromptInputs(
             // Check if this is a guideline file (extracted separately)
             if (testCase.guideline_patterns && isGuidelineFile(value, testCase.guideline_patterns)) {
               // Reference marker only - actual content is in guidelines field
-              messageSegments.push({ type: "text", value: `<Attached: ${value}>` });
+              messageSegments.push({ type: "guideline_ref", path: value });
               continue;
             }
             
             // Find the file content from input_segments
-            const fileSegment = testCase.input_segments.find(
-              (seg) => seg.type === "file" && seg.path === value
-            );
+            const fileText = fileContentsByPath.get(value);
             
-            if (fileSegment && typeof fileSegment.text === "string") {
-              messageSegments.push({ type: "file", text: fileSegment.text, path: value });
+            if (fileText !== undefined) {
+              messageSegments.push({ type: "file", text: fileText, path: value });
             }
           } else if (type === "text") {
             const textValue = asString(segment.value);
@@ -614,7 +633,7 @@ export async function buildPromptInputs(
       
       if (contentParts.length > 0) {
         const messageContent = contentParts.join("\n");
-        messageParts.push(`[${roleLabel}]:\n${messageContent}`);
+        messageParts.push(`@[${roleLabel}]:\n${messageContent}`);
       }
     }
     
@@ -639,7 +658,118 @@ export async function buildPromptInputs(
       .join("\n\n");
   }
 
-  return { question, guidelines };
+  const chatPrompt = useRoleMarkers
+    ? buildChatPromptFromSegments({
+        messages: testCase.input_messages,
+        segmentsByMessage,
+        guidelinePatterns: testCase.guideline_patterns,
+        guidelineContent: guidelines,
+      })
+    : undefined;
+
+  return { question, guidelines, chatPrompt };
+}
+
+function buildChatPromptFromSegments(options: {
+  readonly messages: readonly TestMessage[];
+  readonly segmentsByMessage: readonly JsonObject[][];
+  readonly guidelinePatterns?: readonly string[];
+  readonly guidelineContent?: string;
+  readonly systemPrompt?: string;
+}): ChatPrompt | undefined {
+  const { messages, segmentsByMessage, guidelinePatterns, guidelineContent, systemPrompt } = options;
+
+  if (messages.length === 0) {
+    return undefined;
+  }
+
+  const systemSegments: string[] = [];
+
+  if (systemPrompt && systemPrompt.trim().length > 0) {
+    systemSegments.push(systemPrompt.trim());
+  }
+
+  if (guidelineContent && guidelineContent.trim().length > 0) {
+    systemSegments.push(`[[ ## Guidelines ## ]]\n\n${guidelineContent.trim()}`);
+  }
+
+  let startIndex = 0;
+  while (startIndex < messages.length && messages[startIndex].role === "system") {
+    const segments = segmentsByMessage[startIndex];
+    const contentParts: string[] = [];
+
+    for (const segment of segments) {
+      const formatted = formatSegment(segment);
+      if (formatted) {
+        contentParts.push(formatted);
+      }
+    }
+
+    if (contentParts.length > 0) {
+      systemSegments.push(contentParts.join("\n"));
+    }
+
+    startIndex += 1;
+  }
+
+  const chatPrompt: ChatPrompt = [];
+
+  if (systemSegments.length > 0) {
+    chatPrompt.push({
+      role: "system",
+      content: systemSegments.join("\n\n"),
+    });
+  }
+
+  for (let i = startIndex; i < messages.length; i++) {
+    const message = messages[i];
+    const segments = segmentsByMessage[i];
+    const contentParts: string[] = [];
+
+    let role = message.role;
+    let name: string | undefined;
+
+    if (role === "system") {
+      role = "assistant";
+      contentParts.push("@[System]:");
+    } else if (role === "tool") {
+      // Map 'tool' to 'function' for Ax compatibility
+      role = "function" as any;
+      name = "tool";
+    }
+
+    for (const segment of segments) {
+      if (segment.type === "guideline_ref") {
+        continue;
+      }
+      const formatted = formatSegment(segment);
+      if (formatted) {
+        const isGuidelineRef =
+          segment.type === "file" &&
+          typeof segment.path === "string" &&
+          guidelinePatterns &&
+          isGuidelineFile(segment.path, guidelinePatterns);
+
+        if (isGuidelineRef) {
+          continue;
+        }
+
+        contentParts.push(formatted);
+      }
+    }
+
+    if (contentParts.length === 0) {
+      continue;
+    }
+
+    chatPrompt.push({
+      role: role as any,
+      content: contentParts.join("\n"),
+      ...(name ? { name } : {}),
+    });
+  }
+
+  return chatPrompt.length > 0 ? chatPrompt : undefined;
 }
 
 async function fileExists(absolutePath: string): Promise<boolean> {

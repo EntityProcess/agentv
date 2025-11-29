@@ -42,7 +42,7 @@ const baseTarget: ResolvedTarget = {
 
 describe("LlmJudgeEvaluator Variable Substitution", () => {
   it("substitutes template variables in custom prompt", async () => {
-    const formattedQuestion = `[User]: What is the status?\n\n[Assistant]: Requesting more info.`;
+    const formattedQuestion = `@[User]: What is the status?\n\n@[Assistant]: Requesting more info.`;
     const customPrompt = `
 Question: \${question}
 Outcome: \${expected_outcome}

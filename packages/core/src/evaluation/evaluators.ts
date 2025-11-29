@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { ResolvedTarget } from "./providers/targets.js";
-import type { Provider, ProviderResponse } from "./providers/types.js";
+import type { Provider, ProviderResponse, ChatPrompt } from "./providers/types.js";
 import type { EvaluatorConfig, JsonObject, EvalCase } from "./types.js";
 
 export interface EvaluationContext {
@@ -14,6 +14,7 @@ export interface EvaluationContext {
     readonly question: string;
     readonly guidelines: string;
     readonly systemMessage?: string;
+    readonly chatPrompt?: ChatPrompt;
   };
   readonly now: Date;
   readonly judgeProvider?: Provider;

@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { isGuidelineFile, loadEvalCases } from "../../src/evaluation/yaml-parser.js";
+import { buildPromptInputs } from "../../src/evaluation/yaml-parser.js";
 
 describe("isGuidelineFile", () => {
   describe("with explicit patterns", () => {
@@ -73,6 +74,160 @@ describe("isGuidelineFile", () => {
       expect(isGuidelineFile("src/typescript.rules.md", patterns)).toBe(true);
       expect(isGuidelineFile("docs/README.md", patterns)).toBe(false);
     });
+  });
+});
+
+describe("buildPromptInputs chatPrompt", () => {
+  it("builds chatPrompt with merged system and embedded files", async () => {
+    const tempDir = path.join(tmpdir(), `agentv-prompt-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+
+    const guidelinePath = path.join(tempDir, "rules.instructions.md");
+    await writeFile(guidelinePath, "Be concise.", "utf8");
+
+    const promptInputs = await buildPromptInputs({
+      id: "multi",
+      dataset: "ds",
+      question: "placeholder",
+      input_messages: [
+        { role: "system", content: "Base system" },
+        {
+          role: "user",
+          content: [
+            { type: "file", value: "code.js" },
+            { type: "text", value: "Review it" },
+          ],
+        },
+        { role: "assistant", content: "Sure" },
+      ],
+      input_segments: [
+        { type: "text", value: "Base system" },
+        { type: "file", path: "code.js", text: "console.log('hi');" },
+        { type: "text", value: "Review it" },
+        { type: "text", value: "Sure" },
+      ],
+      output_segments: [],
+      reference_answer: "",
+      guideline_paths: [guidelinePath],
+      guideline_patterns: ["**/*.instructions.md"],
+      file_paths: [],
+      code_snippets: [],
+      expected_outcome: "ok",
+      evaluator: "llm_judge",
+    });
+
+    expect(promptInputs.chatPrompt).toBeDefined();
+    const chatPrompt = promptInputs.chatPrompt!;
+
+    expect(chatPrompt[0].role).toBe("system");
+    expect(String(chatPrompt[0].content)).toContain("Base system");
+    expect(String(chatPrompt[0].content)).toContain("Guidelines");
+    expect(String(chatPrompt[0].content)).toContain("rules.instructions.md");
+
+    expect(chatPrompt[1]).toEqual({
+      role: "user",
+      content: "=== code.js ===\nconsole.log('hi');\nReview it",
+    });
+    expect(chatPrompt[2]).toEqual({
+      role: "assistant",
+      content: "Sure",
+    });
+
+    expect(promptInputs.question).toContain("@[Assistant]:");
+  });
+
+  it("omits chatPrompt for single user message", async () => {
+    const promptInputs = await buildPromptInputs({
+      id: "single",
+      dataset: "ds",
+      question: "placeholder",
+      input_messages: [{ role: "user", content: "Only user" }],
+      input_segments: [{ type: "text", value: "Only user" }],
+      output_segments: [],
+      reference_answer: "",
+      guideline_paths: [],
+      file_paths: [],
+      code_snippets: [],
+      expected_outcome: "ok",
+      evaluator: "llm_judge",
+    });
+
+    expect(promptInputs.chatPrompt).toBeUndefined();
+    expect(promptInputs.question.trim()).toBe("Only user");
+  });
+
+  it("filters guideline-only messages from chatPrompt", async () => {
+    const tempDir = path.join(tmpdir(), `agentv-guides-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+    const guidelinePath = path.join(tempDir, "guide.instructions.md");
+    await writeFile(guidelinePath, "Follow rules", "utf8");
+
+    const promptInputs = await buildPromptInputs({
+      id: "guideline-only",
+      dataset: "ds",
+      question: "placeholder",
+      input_messages: [
+        { role: "system", content: "Base" },
+        {
+          role: "user",
+          content: [{ type: "file", value: "guide.instructions.md" }],
+        },
+        { role: "user", content: "Real content" },
+      ],
+      input_segments: [
+        { type: "text", value: "Base" },
+        { type: "text", value: "<Attached: guide.instructions.md>" },
+        { type: "text", value: "Real content" },
+      ],
+      output_segments: [],
+      reference_answer: "",
+      guideline_paths: [guidelinePath],
+      guideline_patterns: ["**/*.instructions.md"],
+      file_paths: [],
+      code_snippets: [],
+      expected_outcome: "ok",
+      evaluator: "llm_judge",
+    });
+
+    expect(promptInputs.chatPrompt).toBeDefined();
+    const chatPrompt = promptInputs.chatPrompt!;
+    // guideline-only user message should be removed after extraction
+    expect(chatPrompt).toHaveLength(2);
+    expect(chatPrompt[0].role).toBe("system");
+    expect(chatPrompt[0].content).toContain("Follow rules");
+    expect(chatPrompt[1]).toEqual({ role: "user", content: "Real content" });
+  });
+
+  it("does not elevate bracketed markers inside user text", async () => {
+    const promptInputs = await buildPromptInputs({
+      id: "marker-text",
+      dataset: "ds",
+      question: "placeholder",
+      input_messages: [
+        { role: "user", content: "@[superman]: hello" },
+        { role: "assistant", content: "ack" },
+      ],
+      input_segments: [
+        { type: "text", value: "@[superman]: hello" },
+        { type: "text", value: "ack" },
+      ],
+      output_segments: [],
+      reference_answer: "",
+      guideline_paths: [],
+      file_paths: [],
+      code_snippets: [],
+      expected_outcome: "ok",
+      evaluator: "llm_judge",
+    });
+
+    expect(promptInputs.chatPrompt).toEqual([
+      { role: "user", content: "@[superman]: hello" },
+      { role: "assistant", content: "ack" },
+    ]);
+    // Logging question still uses role markers for readability only
+    expect(promptInputs.question).toContain("@[User]:");
+    expect(promptInputs.question).toContain("@[Assistant]:");
+    expect(promptInputs.question).toContain("@[superman]: hello");
   });
 });
 
@@ -344,12 +499,12 @@ evalcases:
     const result = await buildPromptInputs(testCases[0]);
 
     // Should include role markers
-    expect(result.question).toContain("[System]:");
-    expect(result.question).toContain("[User]:");
-    expect(result.question).toContain("[Assistant]:");
-    expect(result.question).toMatch(/\[System\]:\s*You are a helpful assistant\./);
-    expect(result.question).toMatch(/\[User\]:\s*What is 2\+2\?/);
-    expect(result.question).toMatch(/\[Assistant\]:\s*Could you clarify/);
+    expect(result.question).toContain("@[System]:");
+    expect(result.question).toContain("@[User]:");
+    expect(result.question).toContain("@[Assistant]:");
+    expect(result.question).toMatch(/@\[System\]:\s*You are a helpful assistant\./);
+    expect(result.question).toMatch(/@\[User\]:\s*What is 2\+2\?/);
+    expect(result.question).toMatch(/@\[Assistant\]:\s*Could you clarify/);
   });
 
   it("uses role markers for system + user pattern with text content", async () => {
@@ -374,10 +529,10 @@ evalcases:
     const result = await buildPromptInputs(testCases[0]);
 
     // Should include role markers for multiple messages with content
-    expect(result.question).toContain("[System]:");
-    expect(result.question).toContain("[User]:");
-    expect(result.question).toMatch(/\[System\]:\s*You are a helpful assistant\./);
-    expect(result.question).toMatch(/\[User\]:\s*What is 2\+2\?/);
+    expect(result.question).toContain("@[System]:");
+    expect(result.question).toContain("@[User]:");
+    expect(result.question).toMatch(/@\[System\]:\s*You are a helpful assistant\./);
+    expect(result.question).toMatch(/@\[User\]:\s*What is 2\+2\?/);
   });
 
   it("uses role markers for multiple user messages", async () => {
@@ -402,9 +557,9 @@ evalcases:
     const result = await buildPromptInputs(testCases[0]);
 
     // Should include role markers for multiple user messages
-    expect(result.question).toContain("[User]:");
-    expect(result.question).toMatch(/\[User\]:\s*First question/);
-    expect(result.question).toMatch(/\[User\]:\s*Second question/);
+    expect(result.question).toContain("@[User]:");
+    expect(result.question).toMatch(/@\[User\]:\s*First question/);
+    expect(result.question).toMatch(/@\[User\]:\s*Second question/);
   });
 
   it("shows guideline file references with role markers", async () => {
@@ -441,15 +596,12 @@ evalcases:
     const testCases = await loadEvalCases(evalPath, repoRoot);
     const result = await buildPromptInputs(testCases[0]);
 
-    // Should use role markers (2 messages with content)
-    expect(result.question).toContain("[System]:");
-    expect(result.question).toContain("[User]:");
+    // System guideline-only message is extracted; question remains flat
+    expect(result.question).not.toContain("@[System]:");
+    expect(result.question).not.toContain("@[User]:");
+    expect(result.question.trim()).toBe("Help me with this task");
     
-    // Guideline file should show as reference marker (content is in guidelines field)
-    expect(result.question).toContain("<Attached: guide.instructions.md>");
-    expect(result.question).toContain("Help me with this task");
-    
-    // Full content should still be in guidelines field
+    // Full guideline content should be in guidelines field
     expect(result.guidelines).toContain("Be helpful");
   });
 
@@ -483,8 +635,8 @@ evalcases:
     const result = await buildPromptInputs(testCases[0]);
 
     // Should use role markers (2 messages with content)
-    expect(result.question).toContain("[System]:");
-    expect(result.question).toContain("[User]:");
+    expect(result.question).toContain("@[System]:");
+    expect(result.question).toContain("@[User]:");
     
     // Regular files should be embedded inline with their content
     expect(result.question).toContain("=== code.ts ===");
