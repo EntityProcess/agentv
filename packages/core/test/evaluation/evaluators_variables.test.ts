@@ -42,6 +42,7 @@ const baseTarget: ResolvedTarget = {
 
 describe("LlmJudgeEvaluator Variable Substitution", () => {
   it("substitutes template variables in custom prompt", async () => {
+    const formattedQuestion = `[User]: What is the status?\n\n[Assistant]: Requesting more info.`;
     const customPrompt = `
 Question: \${question}
 Outcome: \${expected_outcome}
@@ -73,7 +74,7 @@ Output Messages: \${output_messages}
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { question: "", guidelines: "" },
+      promptInputs: { question: formattedQuestion, guidelines: "" },
       now: new Date(),
     });
 
@@ -81,7 +82,8 @@ Output Messages: \${output_messages}
     expect(request).toBeDefined();
 
     // Verify substitutions
-    expect(request?.question).toContain("Question: Original Question Text");
+    expect(request?.question).toContain(`Question: ${formattedQuestion}`);
+    expect(request?.question).not.toContain("Original Question Text");
     expect(request?.question).toContain("Outcome: Expected Outcome Text");
     expect(request?.question).toContain("Reference: Reference Answer Text");
     expect(request?.question).toContain("Candidate: Candidate Answer Text");
@@ -102,6 +104,7 @@ Output Messages: \${output_messages}
 
   it("does not substitute if no variables are present", async () => {
     const customPrompt = "Fixed prompt without variables";
+    const promptQuestion = "Summarize the latest logs without markers.";
 
     const judgeProvider = new CapturingProvider({
       text: JSON.stringify({ score: 0.5, hits: [], misses: [] }),
@@ -118,7 +121,7 @@ Output Messages: \${output_messages}
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { question: "", guidelines: "" },
+      promptInputs: { question: promptQuestion, guidelines: "" },
       now: new Date(),
     });
 
@@ -137,6 +140,7 @@ Output Messages: \${output_messages}
     // systemPrompt is the customPrompt
     
     expect(request?.question).toContain("[[ ## expected_outcome ## ]]");
+    expect(request?.question).toContain(promptQuestion);
     expect(request?.metadata?.systemPrompt).toBe(customPrompt);
   });
 });

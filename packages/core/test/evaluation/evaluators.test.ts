@@ -17,6 +17,20 @@ class StubProvider implements Provider {
   }
 }
 
+class CapturingProvider implements Provider {
+  readonly id = "capturing";
+  readonly kind = "mock" as const;
+  readonly targetName = "capturing";
+  lastRequest?: ProviderRequest;
+
+  constructor(private readonly response: ProviderResponse) {}
+
+  async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+    this.lastRequest = request;
+    return this.response;
+  }
+}
+
 const baseTestCase: EvalCase = {
   id: "case-1",
   dataset: "test-dataset",
@@ -251,5 +265,57 @@ describe("LlmJudgeEvaluator", () => {
     expect(result.score).toBe(0);
     expect(result.hits).toHaveLength(0);
     expect(result.misses).toHaveLength(0);
+  });
+
+  it("passes multi-turn role markers through to evaluator prompts", async () => {
+    const judgeProvider = new CapturingProvider({
+      text: JSON.stringify({ score: 0.65, hits: [], misses: [] }),
+    });
+    const evaluator = new LlmJudgeEvaluator({
+      resolveJudgeProvider: async () => judgeProvider,
+    });
+
+    const multiTurnQuestion =
+      "[System]:\nFollow the coding guidelines.\n\n[User]:\nDebug the failing test.\n\n[Assistant]:\nPlease share the stack trace.";
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
+      candidate: "Candidate answer",
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: multiTurnQuestion, guidelines: "" },
+      now: new Date(),
+    });
+
+    expect(judgeProvider.lastRequest?.question).toContain(multiTurnQuestion);
+    expect(result.evaluatorRawRequest?.prompt).toContain("[Assistant]:");
+    expect(result.evaluatorRawRequest?.prompt).toContain("[System]:");
+  });
+
+  it("keeps single-turn prompts flat when no markers are needed", async () => {
+    const judgeProvider = new CapturingProvider({
+      text: JSON.stringify({ score: 0.8, hits: [], misses: [] }),
+    });
+    const evaluator = new LlmJudgeEvaluator({
+      resolveJudgeProvider: async () => judgeProvider,
+    });
+
+    const flatQuestion = "Summarize the architecture in two sentences.";
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
+      candidate: "Candidate answer",
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: flatQuestion, guidelines: "" },
+      now: new Date(),
+    });
+
+    expect(judgeProvider.lastRequest?.question).toContain(flatQuestion);
+    expect(judgeProvider.lastRequest?.question).not.toContain("[User]:");
+    expect(result.evaluatorRawRequest?.prompt).toContain(flatQuestion);
+    expect(result.evaluatorRawRequest?.prompt).not.toContain("[User]:");
   });
 });

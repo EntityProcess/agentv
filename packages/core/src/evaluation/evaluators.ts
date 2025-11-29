@@ -76,7 +76,12 @@ export class LlmJudgeEvaluator implements Evaluator {
   ): Promise<EvaluationScore> {
     const hasReferenceAnswer = hasNonEmptyReferenceAnswer(context.evalCase);
 
-    let prompt = buildQualityPrompt(context.evalCase, context.candidate);
+    const formattedQuestion =
+      context.promptInputs.question && context.promptInputs.question.trim().length > 0
+        ? context.promptInputs.question
+        : context.evalCase.question;
+
+    let prompt = buildQualityPrompt(context.evalCase, context.candidate, formattedQuestion);
     let systemPrompt = context.systemPrompt ?? this.customPrompt ?? buildSystemPrompt(hasReferenceAnswer);
 
     if (systemPrompt && hasTemplateVariables(systemPrompt)) {
@@ -86,7 +91,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         candidate_answer: context.candidate,
         reference_answer: context.evalCase.reference_answer ?? "",
         expected_outcome: context.evalCase.expected_outcome,
-        question: context.evalCase.question,
+        question: formattedQuestion,
       };
       prompt = substituteVariables(systemPrompt, variables);
       systemPrompt = buildSystemPrompt(hasReferenceAnswer);
@@ -166,13 +171,13 @@ function buildSystemPrompt(hasReferenceAnswer: boolean): string {
   return basePrompt.join("\n");
 }
 
-function buildQualityPrompt(evalCase: EvalCase, candidate: string): string {
+function buildQualityPrompt(evalCase: EvalCase, candidate: string, question: string): string {
   const parts = [
     "[[ ## expected_outcome ## ]]",
     evalCase.expected_outcome.trim(),
     "",
     "[[ ## question ## ]]",
-    evalCase.question.trim(),
+    question.trim(),
     "",
   ];
   
