@@ -18,10 +18,6 @@ simple/
 │   │   └── code-correctness-judge.md    # Semantic code evaluation
 │   └── scripts/                    # Code-based evaluators
 │       └── check_python_keywords.py     # Python validator script
-├── optimizers/                     # Optimizer configurations
-│   ├── ace-code-generation.yaml    # ACE optimization config
-│   └── playbooks/                  # ACE learned knowledge (generated)
-│       └── code-generation.json    # Structured optimization insights
 └── prompts/                        # Shared instruction files
     ├── javascript.instructions.md  # JavaScript guidelines
     └── python.instructions.md      # Python guidelines
@@ -37,19 +33,6 @@ simple/
   - Conversation threading with `conversation_id`
   - Multiple evaluators (code + LLM judge)
   - Target overrides per eval case
-
-### Optimizer Configurations (`optimizers/`)
-
-- **`ace-code-generation.yaml`**: ACE optimization config that references eval files
-  - Demonstrates separation between evals (what to test) and optimization (how to improve)
-  - Shows ACE-specific settings: playbook path, epochs, reflection rounds
-  
-- **`playbooks/`**: ACE-generated playbooks (structured learning artifacts)
-  - Contains learned optimization insights organized into sections
-  - **Important**: Entire playbook is sent in LLM context (no RAG/retrieval)
-  - Token-limited by model context window (~5-10k tokens practical limit)
-  - Requires periodic consolidation to manage growth
-  - Example: `code-generation.json` shows realistic playbook structure
 
 ### Evaluator Components (`evaluators/`)
 
@@ -69,29 +52,3 @@ simple/
 - **`javascript.instructions.md`**: JavaScript coding guidelines
 - These instruction files can be referenced in eval files to provide context
 
-## Prompt Formatting (debug view)
-
-- `input_messages` are flattened into a `question` string for logging and prompt dumps.
-- Role markers (`@[System]:`, `@[User]:`, `@[Assistant]:`, `@[Tool]:`) appear only when a conversation has multiple contentful turns or non-user roles.
-- `.instructions.md` files are extracted into the `guidelines` field; other files are embedded inline within their originating turn.
-
-**Single-turn (flat):**
-```text
-Improve the logging implementation
-```
-
-**Multi-turn (role markers preserved):**
-```text
-@[System]:
-You are a debugging expert.
-
-@[User]:
-The tests are failing on CI.
-
-@[Assistant]:
-Please share the stack trace.
-
-@[User]:
-Here it is: === logs/ci.txt ===
-Timeout after 60s
-```

@@ -9,9 +9,10 @@ Currently, AgentV provides evaluation capabilities, allowing users to score thei
 ## Solution
 Integrate the Ax library's ACE optimization algorithm into AgentV.
 - Introduce a new `optimize` command in the CLI.
-- Define a YAML configuration schema for optimizers.
+- Define a YAML configuration schema for optimizers (minimal viable set: type, eval_files, playbook_path, max_epochs, allow_dynamic_sections).
 - Implement an optimization engine in `@agentv/core` that bridges AgentV's evaluation system with Ax's optimization loop.
-- Support the generation and updating of "playbooks" (learned optimization insights) that can be used to enhance prompts.
+- Support the generation and updating of "playbooks" (lightweight JSON files containing structured optimization insights as tagged bullets organized into sections).
+- Initial version supports a single numeric objective (0-1 range), which can be a weighted combination of existing eval metrics.
 
 ## Risks
 - **Dependency Complexity**: Integrating `@ax-llm/ax` might introduce complex dependencies or version conflicts.
