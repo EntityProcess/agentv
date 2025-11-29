@@ -70,7 +70,7 @@ chatPrompt: [
   - Validation & Cleanup (3 validation steps)
 - **Total Tasks**: ~45 items
 
-### 4. specs/message-conversion/spec.md
+### 4. specs/multiturn-messages-lm-provider/spec.md
 - **Purpose**: Requirements for converting TestMessage[] to ChatPrompt
 - **Requirements**:
   - Convert Input Messages to Chat Prompt (5 scenarios)
@@ -79,7 +79,7 @@ chatPrompt: [
   - System Message Merging (1 scenario)
 - **Total Scenarios**: 9
 
-### 5. specs/provider-integration/spec.md
+### 5. (merged into specs/multiturn-messages-lm-provider/spec.md)
 - **Purpose**: Requirements for provider chatPrompt handling
 - **ADDED Requirements**:
   - ChatPrompt Field Handling (2 scenarios)

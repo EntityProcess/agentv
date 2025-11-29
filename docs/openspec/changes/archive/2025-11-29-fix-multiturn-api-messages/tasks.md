@@ -47,18 +47,18 @@
   - [x] Test Azure provider multi-turn message delivery
   - [x] Verify VS Code provider unchanged (uses file attachments)
 
-- [ ] 2.4 End-to-end tests
+- [x] 2.4 End-to-end tests
   - [x] Run `coding-multiturn-debug-session` eval
   - [x] Verify API request has proper message array (multiple role entries)
   - [x] Confirm assistant messages appear with `role: "assistant"`
   - [x] Verify guideline content in system message
   - [x] Check role markers still appear in `raw_request.question` for logging
 
-- [ ] 2.5 Regression tests
-  - [ ] Run existing single-turn evals
-  - [ ] Confirm unchanged behavior (no chatPrompt, uses question field)
+- [x] 2.5 Regression tests
+  - [x] Run existing single-turn evals
+  - [x] Confirm unchanged behavior (no chatPrompt, uses question field)
   - [x] Verify all existing tests pass
-  - [ ] Check example evals from `docs/examples/simple/evals/`
+  - [x] Check example evals from `docs/examples/simple/evals/`
 
 ## 3. Documentation
 

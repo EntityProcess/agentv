@@ -1,5 +1,15 @@
 # Fix Multi-Turn Message API Delivery
 
+## Why
+
+Multi-turn inputs were flattened into a single user message, so LLM APIs lost conversational structure and treated assistant turns as user text, breaking context for both candidate and evaluator flows.
+
+## What Changes
+
+- Add structured `chatPrompt` to provider requests and prioritize it over flattened `question`.
+- Build chat prompts directly from `input_messages`, preserving roles and embedding files and guidelines correctly.
+- Keep role-marked `question` strings only for logging/back-compat while APIs receive structured messages.
+
 ## Problem Statement
 
 Currently, multi-turn conversations with role markers (`[System]:`, `[User]:`, `[Assistant]:`) are formatted for human readability but sent to LLM APIs as flat text in a single user message. This breaks the conversational context that LLMs need to understand multi-turn interactions.
@@ -22,7 +32,7 @@ Currently, multi-turn conversations with role markers (`[System]:`, `[User]:`, `
 - Multi-turn conversations (debugging sessions, iterative refinement) lose their conversational structure
 - LLMs cannot access their own previous responses in the conversation history
 - The `[Assistant]:` content from `input_messages` is treated as user-provided text rather than the model's own response
-- This defeats the purpose of multi-turn support added in `add-multiturn-messages`
+- This defeats the purpose of multi-turn support added in `fix-multiturn-agent-messages`
 
 ### Root Cause
 
@@ -68,5 +78,5 @@ Pass the original structured `input_messages` from `EvalCase` through to provide
 
 ## Related Changes
 
-- Depends on: `add-multiturn-messages` (provides the multi-turn message infrastructure)
+- Depends on: `fix-multiturn-agent-messages` (provides the multi-turn message infrastructure)
 - Enables: Proper LLM multi-turn conversation support for debugging, iterative refinement, and context-aware tasks

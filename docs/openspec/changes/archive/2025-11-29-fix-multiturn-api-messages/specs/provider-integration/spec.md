@@ -142,37 +142,9 @@ const request: ProviderRequest = {
 
 VS Code provider behavior unchanged.
 
-## MODIFIED Requirements
+### Requirement: ProviderRequest Interface With ChatPrompt
 
-### Requirement: ProviderRequest Interface
-
-The `ProviderRequest` interface SHALL support structured message delivery via the `chatPrompt` field while maintaining backward compatibility.
-
-**Before:**
-```typescript
-interface ProviderRequest {
-  question: string;
-  guidelines: string[];
-  chatPrompt?: ChatPrompt; // Optional, never populated
-  inputFiles?: InputFile[];
-}
-```
-
-**After:**
-```typescript
-interface ProviderRequest {
-  question: string; // Deprecated: for logging and legacy fallback
-  guidelines: string[]; // Deprecated: merged into chatPrompt
-  chatPrompt?: ChatPrompt; // Primary field for LLM API delivery
-  inputFiles?: InputFile[]; // File paths for provider-specific handling
-}
-```
-
-**Impact:**
-- `question` field remains for backward compatibility (logging, VS Code)
-- `guidelines` field remains for backward compatibility (legacy providers)
-- `chatPrompt` field now populated by orchestrator from `input_messages`
-- No breaking changes to existing provider implementations
+The `ProviderRequest` interface SHALL support structured message delivery via the `chatPrompt` field while maintaining backward compatibility for logging.
 
 #### Scenario: Orchestrator populates chatPrompt
 
@@ -196,7 +168,7 @@ const request: ProviderRequest = {
 };
 ```
 
-Provider uses `chatPrompt` for API call, `question` available for debugging.
+Provider uses `chatPrompt` for API call, `question` remains available for debugging.
 
 ## REMOVED Requirements
 
