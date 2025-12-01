@@ -25,8 +25,6 @@ export interface EvaluationCache {
   set(key: string, value: ProviderResponse): MaybePromise<void>;
 }
 
-type PromptInputs = { readonly question: string; readonly guidelines: string; readonly systemMessage?: string };
-
 function mergeExpectationsIntoPrompt(
   promptInputs: PromptInputs,
   evalCase: EvalCase,
