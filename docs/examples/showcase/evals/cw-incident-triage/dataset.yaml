@@ -24,7 +24,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -53,7 +53,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -88,7 +88,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -117,7 +117,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -146,7 +146,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -175,7 +175,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -204,7 +204,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -233,7 +233,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
