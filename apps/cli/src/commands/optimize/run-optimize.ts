@@ -5,10 +5,12 @@ import {
   type ResolvedOptimizerConfig,
 } from "@agentv/core";
 import { constants } from "node:fs";
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { parse } from "yaml";
 
+import { JsonlWriter } from "../eval/jsonl-writer.js";
 import { loadEnvFromHierarchy } from "../eval/env.js";
 import { selectTarget } from "../eval/targets.js";
 
@@ -40,12 +42,48 @@ function normalizeOptions(raw: Record<string, unknown>): NormalizedOptions {
   };
 }
 
+const DEFAULT_SHORTCUT_MAX_EPOCHS = 1;
+
+function looksLikeEvalFile(parsed: unknown): parsed is { readonly description?: string } {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return false;
+  }
+  const candidate = parsed as Record<string, unknown>;
+  const schema = typeof candidate.$schema === "string" ? candidate.$schema : "";
+  if (schema.includes("agentv-eval")) {
+    return true;
+  }
+  return Array.isArray(candidate.evalcases);
+}
+
+type ZodIssueLike = { readonly message: string; readonly path: readonly unknown[] };
+
+function isZodError(error: unknown): error is { readonly issues: readonly ZodIssueLike[] } {
+  return Boolean(error && typeof error === "object" && Array.isArray((error as { issues?: unknown }).issues));
+}
+
+function formatZodIssues(error: { readonly issues: readonly ZodIssueLike[] }, sourcePath: string): string {
+  return [
+    `Invalid optimizer config: ${sourcePath}`,
+    ...error.issues.map((issue) => {
+      const pathText = issue.path.length > 0 ? ` [${issue.path.join(".")}]` : "";
+      return `- ${issue.message}${pathText}`;
+    }),
+  ].join("\n");
+}
+
 async function ensureFileExists(filePath: string, label: string): Promise<void> {
   try {
     await access(filePath, constants.F_OK);
   } catch {
     throw new Error(`${label} not found: ${filePath}`);
   }
+}
+
+function buildResultsPath(cwd: string, configPath: string): string {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const baseName = path.basename(configPath, path.extname(configPath));
+  return path.join(cwd, ".agentv", "results", `optimize_${baseName}_${timestamp}.jsonl`);
 }
 
 async function findRepoRoot(start: string): Promise<string> {
@@ -90,12 +128,51 @@ async function resolveEvaluationRunner(): Promise<typeof defaultRunEvaluation> {
   return candidate as typeof defaultRunEvaluation;
 }
 
-async function prepareConfig(configPath: string): Promise<ResolvedOptimizerConfig> {
+async function prepareConfig(
+  configPath: string,
+  cwd: string,
+): Promise<{ config: ResolvedOptimizerConfig; usedShortcut: boolean }> {
   const resolvedPath = path.isAbsolute(configPath)
     ? path.normalize(configPath)
     : path.resolve(process.cwd(), configPath);
   await ensureFileExists(resolvedPath, "Optimizer config");
-  return loadOptimizerConfig(resolvedPath);
+
+  const raw = await readFile(resolvedPath, "utf8");
+  const parsed = parse(raw) as unknown;
+
+  try {
+    const config = await loadOptimizerConfig(resolvedPath);
+    return { config, usedShortcut: false };
+  } catch (error) {
+    if (looksLikeEvalFile(parsed)) {
+      const playbookPath = path.resolve(
+        cwd,
+        ".agentv",
+        "playbooks",
+        `${path.basename(resolvedPath, path.extname(resolvedPath))}-playbook.json`,
+      );
+      const description =
+        parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? (parsed as { description?: unknown }).description
+          : undefined;
+      return {
+        usedShortcut: true,
+        config: {
+          type: "ace",
+          description: typeof description === "string" ? description : undefined,
+          evalFiles: [resolvedPath],
+          playbookPath,
+          maxEpochs: DEFAULT_SHORTCUT_MAX_EPOCHS,
+          allowDynamicSections: true,
+        },
+      };
+    }
+
+    if (isZodError(error)) {
+      throw new Error(formatZodIssues(error, resolvedPath));
+    }
+    throw error;
+  }
 }
 
 export async function runOptimizeCommand(
@@ -103,47 +180,64 @@ export async function runOptimizeCommand(
   rawOptions: Record<string, unknown>,
 ): Promise<void> {
   const options = normalizeOptions(rawOptions);
-  const config = await prepareConfig(configPath);
+  const { config, usedShortcut } = await prepareConfig(configPath, process.cwd());
   const repoRoot = await findRepoRoot(process.cwd());
+  const resultsPath = buildResultsPath(process.cwd(), configPath);
+  const writer = await JsonlWriter.open(resultsPath);
 
-  for (const evalFile of config.evalFiles) {
-    await ensureFileExists(evalFile, "Eval file");
-    await loadEnvFromHierarchy({
-      testFilePath: evalFile,
+  try {
+    for (const evalFile of config.evalFiles) {
+      await ensureFileExists(evalFile, "Eval file");
+      await loadEnvFromHierarchy({
+        testFilePath: evalFile,
+        repoRoot,
+        verbose: options.verbose,
+      });
+    }
+
+    const evaluationRunner = await resolveEvaluationRunner();
+    const selection = await selectTarget({
+      testFilePath: config.evalFiles[0],
       repoRoot,
-      verbose: options.verbose,
+      cwd: process.cwd(),
+      explicitTargetsPath: options.targetsPath,
+      cliTargetName: options.target,
+      dryRun: options.dryRun,
+      dryRunDelay: 0,
+      dryRunDelayMin: 0,
+      dryRunDelayMax: 0,
+      env: process.env,
     });
-  }
 
-  const evaluationRunner = await resolveEvaluationRunner();
-  const selection = await selectTarget({
-    testFilePath: config.evalFiles[0],
-    repoRoot,
-    cwd: process.cwd(),
-    explicitTargetsPath: options.targetsPath,
-    cliTargetName: options.target,
-    dryRun: options.dryRun,
-    dryRunDelay: 0,
-    dryRunDelayMin: 0,
-    dryRunDelayMax: 0,
-    env: process.env,
-  });
+    const optimizer = new AceOptimizer({
+      config,
+      repoRoot,
+      target: selection.resolvedTarget,
+      targets: selection.definitions,
+      env: process.env,
+      evaluationRunner,
+      logger: (message: string) => console.log(message),
+      verbose: options.verbose,
+      onEvaluationResult: async ({ epoch, result }) => {
+        await writer.append({ epoch: epoch + 1, ...result });
+      },
+    });
 
-  const optimizer = new AceOptimizer({
-    config,
-    repoRoot,
-    target: selection.resolvedTarget,
-    targets: selection.definitions,
-    env: process.env,
-    evaluationRunner,
-    logger: (message: string) => console.log(message),
-    verbose: options.verbose,
-  });
+    if (usedShortcut) {
+      console.warn(
+        `Detected eval file; running ACE with default settings (max_epochs=${config.maxEpochs}). ` +
+          `For custom settings, create an optimizer config with type: ace.`,
+      );
+    }
 
-  console.log(`Starting ACE optimization with ${config.maxEpochs} epoch(s)...`);
-  const result = await optimizer.optimize();
-  console.log(`Optimization complete. Playbook updated at: ${result.playbookPath}`);
-  if (result.scores.length > 0) {
-    console.log(`Epoch scores: ${result.scores.map((score) => score.toFixed(3)).join(", ")}`);
+    console.log(`Starting ACE optimization with ${config.maxEpochs} epoch(s)...`);
+    const result = await optimizer.optimize();
+    console.log(`Optimization complete. Playbook updated at: ${result.playbookPath}`);
+    if (result.scores.length > 0) {
+      console.log(`Epoch scores: ${result.scores.map((score) => score.toFixed(3)).join(", ")}`);
+    }
+    console.log(`Results written to: ${resultsPath}`);
+  } finally {
+    await writer.close().catch(() => undefined);
   }
 }

@@ -1,0 +1,401 @@
+{
+  "version": 1,
+  "sections": {
+    "Optimization Insights": [
+      {
+        "id": "optimiza-f3fa4046",
+        "section": "Optimization Insights",
+        "content": "Average score 0.042 across 6 evals. Lowest cases: basic-traditional-mother=0.00, basic-returning-mother=0.00, adv-somatic-mask-worker=0.00. Focus misses: Did not explicitly label resentment or despair, Process did not mention testing the relationship, Output not in valid JSON format with required keys, Does not explicitly identify financial exploitation framed as family values, Fails to mention gaslighting or guilt-tripping in process. Sample reasoning: json_format_validator: Output is not valid JSON. Parse error: Expecting value: line 1 column 1 (char 0) | content_evaluator: The output is not in the required JSON format and lacks explicit labeling of 'Resentment' or 'Despair' and 'Testing the relationship'. It correctly recognizes silent withdrawal and the imbalance of labor but misses key emotion and process identifiers.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T09:50:04.779Z",
+        "updatedAt": "2025-11-29T09:50:04.779Z",
+        "tags": [
+          "epoch-1",
+          "ace",
+          "needs-work"
+        ],
+        "metadata": {
+          "aggregateScore": 0.041666666666666664,
+          "epoch": 0,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-aff14b0e",
+        "section": "Optimization Insights",
+        "content": "Average score 0.183 across 6 evals. Lowest cases: basic-returning-mother=0.00, adv-somatic-mask-worker=0.00, adv-sandwich-husband=0.00. Focus misses: Process does not explicitly mention testing the relationship, Not in required JSON format with keys 'content','emotion','process', Does not explicitly name 'financial exploitation' framed as 'family values', Does not explicitly identify 'Gaslighting' or 'Guilt-tripping', Fails to mention violation of daughter's boundaries in process. Sample reasoning: json_format_validator: Output is not valid JSON. Parse error: Expecting value: line 1 column 1 (char 0) | content_evaluator: The answer correctly uses valid JSON keys and identifies resentment, silent withdrawal, and imbalance of labor. However, it doesn't explicitly recognize 'testing the relationship', which slightly reduces alignment with the expected outcome.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T09:51:05.336Z",
+        "updatedAt": "2025-11-29T09:51:05.336Z",
+        "tags": [
+          "epoch-2",
+          "ace",
+          "needs-work"
+        ],
+        "metadata": {
+          "aggregateScore": 0.18333333333333335,
+          "epoch": 1,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-7b333f8e",
+        "section": "Optimization Insights",
+        "content": "Average score 0.158 across 6 evals. Lowest cases: basic-traditional-mother=0.00, basic-returning-mother=0.00, adv-somatic-mask-worker=0.00. Focus misses: Process does not explicitly mention Testing the relationship, Not in valid JSON format with required keys, Does not explicitly identify 'financial exploitation' framed as 'family values' in content, Does not mention 'Gaslighting' or 'Guilt-tripping' in process, Does not note violation of daughter's boundaries in process. Sample reasoning: json_format_validator: Output is not valid JSON. Parse error: Expecting value: line 1 column 1 (char 0) | content_evaluator: The answer is valid JSON and correctly identifies resentment, silent withdrawal, and imbalance of labor. However, it omits an explicit mention of 'Testing the relationship', which prevents a perfect score.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T09:52:06.453Z",
+        "updatedAt": "2025-11-29T09:52:06.453Z",
+        "tags": [
+          "epoch-3",
+          "ace",
+          "needs-work"
+        ],
+        "metadata": {
+          "aggregateScore": 0.15833333333333333,
+          "epoch": 2,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-6275b061",
+        "section": "Optimization Insights",
+        "content": "Average score 0.167 across 6 evals. Lowest cases: basic-returning-mother=0.00, adv-somatic-mask-worker=0.00, adv-face-saving-resistance=0.00. Focus misses: Emotion 'Despair' is implied but not explicitly named, Does not explicitly name financial exploitation, Does not explicitly identify gaslighting or guilt-tripping in process, Not valid JSON with keys 'content', 'emotion', 'process', Did not explicitly identify 'Motherhood to Workforce' in content. Sample reasoning: json_format_validator: Output is not valid JSON. Parse error: Expecting value: line 1 column 1 (char 0) | content_evaluator: The answer provides valid JSON with all required keys and covers imbalance of labor, silent withdrawal, and testing the relationship. Resentment is explicit, but despair is only implied through exhaustion/resignation, so it just falls short of perfect alignment.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T09:53:07.548Z",
+        "updatedAt": "2025-11-29T09:53:07.548Z",
+        "tags": [
+          "epoch-4",
+          "ace",
+          "needs-work"
+        ],
+        "metadata": {
+          "aggregateScore": 0.16666666666666666,
+          "epoch": 3,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-6c58aa60",
+        "section": "Optimization Insights",
+        "content": "Average score 0.100 across 6 evals. Lowest cases: basic-overwhelmed-wife=0.00, basic-traditional-mother=0.00, basic-returning-mother=0.00. Focus misses: Output not in required JSON format, Emotion does not explicitly identify 'Resentment' or 'Despair', Process does not explicitly identify 'Testing the relationship' or 'Silent withdrawal', Content does not explicitly identify 'Imbalance of labor', Not formatted as valid JSON with only 'content', 'emotion', 'process' keys. Sample reasoning: json_format_validator: Output is not valid JSON. Parse error: Expecting value: line 1 column 1 (char 0) | content_evaluator: The candidate answer is not in the required JSON format and fails to explicitly include the required emotion, process, and content elements, resulting in a zero score per the rubric.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T09:54:02.891Z",
+        "updatedAt": "2025-11-29T09:54:02.891Z",
+        "tags": [
+          "epoch-5",
+          "ace",
+          "needs-work"
+        ],
+        "metadata": {
+          "aggregateScore": 0.09999999999999999,
+          "epoch": 4,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-c9923e5b",
+        "section": "Optimization Insights",
+        "content": "Average score 0.083 across 6 evals. Lowest cases: basic-traditional-mother=0.00, basic-returning-mother=0.00, adv-somatic-mask-worker=0.00. Focus misses: Does not explicitly label emotion as 'Resentment' or 'Despair', Does not explicitly identify process as 'Testing the relationship', Output not in required JSON with keys 'content', 'emotion', 'process', Did not explicitly identify financial exploitation framed as family values in content, Did not identify gaslighting or guilt-tripping in process. Sample reasoning: json_format_validator: Output is not valid JSON. Parse error: Expecting value: line 1 column 1 (char 0) | content_evaluator: The answer is not in the required JSON format with 'content', 'emotion', 'process' keys, which alone would merit zero. However, the substance contains elements of the required points, including silent withdrawal, resentment-like feelings, and imbalance of chores. It fails to explicitly name 'Resentment' or 'Despair' and omits 'Testing the relationship'.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T22:11:07.415Z",
+        "updatedAt": "2025-11-29T22:11:07.415Z",
+        "tags": [
+          "epoch-1",
+          "ace",
+          "needs-work"
+        ],
+        "metadata": {
+          "aggregateScore": 0.08333333333333333,
+          "epoch": 0,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-8f72978a",
+        "section": "Optimization Insights",
+        "content": "Average score 0.117 across 6 evals. Lowest cases: basic-traditional-mother=0.00, basic-returning-mother=0.00, adv-somatic-mask-worker=0.00. Focus misses: Does not explicitly name resentment or despair in emotion, Output not in strict JSON with only required keys, Output not in required JSON format with keys 'content', 'emotion', 'process', Does not explicitly identify 'financial exploitation' framed as 'family values' in content, Does not identify 'Gaslighting' or 'Guilt-tripping' in process. Sample reasoning: json_format_validator: Output is not valid JSON. Parse error: Expecting value: line 1 column 1 (char 0) | content_evaluator: The answer correctly notes silent withdrawal and testing the relationship, and reflects the imbalance of labor in the content layer. However, it fails to explicitly name 'Resentment' or 'Despair' in the emotion layer and doesn't present the analysis as valid JSON with only the required keys, lowering the score.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T22:11:55.364Z",
+        "updatedAt": "2025-11-29T22:11:55.364Z",
+        "tags": [
+          "epoch-2",
+          "ace",
+          "needs-work"
+        ],
+        "metadata": {
+          "aggregateScore": 0.11666666666666665,
+          "epoch": 1,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-70aeb983",
+        "section": "Optimization Insights",
+        "content": "Average score 0.167 across 6 evals. Lowest cases: basic-traditional-mother=0.00, basic-returning-mother=0.00, adv-somatic-mask-worker=0.15. Focus misses: Does not explicitly name despair in emotion, Does not clearly state 'testing the relationship' in process, Output not in required JSON format, Did not identify financial exploitation framed as family values, Did not identify gaslighting or guilt-tripping in process. Sample reasoning: json_format_validator: Output is not valid JSON. Parse error: Expecting value: line 1 column 1 (char 0) | content_evaluator: The answer is valid JSON with the required keys, correctly notes resentment and imbalance of labor, and identifies silent withdrawal. However, it omits explicit mention of despair and does not clearly frame the process as 'testing the relationship,' which are required for full credit.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T22:12:42.296Z",
+        "updatedAt": "2025-11-29T22:12:42.296Z",
+        "tags": [
+          "epoch-3",
+          "ace",
+          "needs-work"
+        ],
+        "metadata": {
+          "aggregateScore": 0.16666666666666666,
+          "epoch": 2,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-a5c98cbe",
+        "section": "Optimization Insights",
+        "content": "Average score 0.083 across 6 evals. Lowest cases: basic-returning-mother=0.00, adv-somatic-mask-worker=0.00, adv-sandwich-husband=0.00. Focus misses: Not provided in required valid JSON format, Does not explicitly list 'Testing the relationship' in process, Does not explicitly identify 'financial exploitation' in content framing, Fails to explicitly state gaslighting or guilt-tripping in process, Does not note daughter's boundaries being violated in process. Sample reasoning: json_format_validator: Output is not valid JSON. Parse error: Expecting value: line 1 column 1 (char 0) | content_evaluator: The response captures key elements like resentment, silent withdrawal, and imbalance of labor, but fails formatting requirements by not outputting in the mandated JSON structure and omits explicit mention of 'Testing the relationship' in the process.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T22:13:32.273Z",
+        "updatedAt": "2025-11-29T22:13:32.273Z",
+        "tags": [
+          "epoch-4",
+          "ace",
+          "needs-work"
+        ],
+        "metadata": {
+          "aggregateScore": 0.08333333333333333,
+          "epoch": 3,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-05dc602c",
+        "section": "Optimization Insights",
+        "content": "Average score 0.267 across 6 evals. Lowest cases: basic-traditional-mother=0.20, basic-returning-mother=0.25, adv-somatic-mask-worker=0.25. Focus misses: Process label missing exact terms 'Testing the relationship' or 'Silent withdrawal', Does not explicitly name 'Silent withdrawal' or directly align with expected process phrasing, Does not explicitly identify 'financial exploitation' framed as 'family values' in content, Omits explicit mention of gaslighting or guilt-tripping in process, Fails to mention daughter's boundaries being violated in process. Sample reasoning: json_format_validator: Output is not valid JSON. Parse error: Expecting value: line 1 column 1 (char 0) | content_evaluator: The answer provides a thorough 3-layer analysis that captures resentment/possible despair, imbalance of labor, and hints at testing the relationship by mentioning cutting the internet. However, the process field does not explicitly use required phrases like 'Testing the relationship' or 'Silent withdrawal', lowering the score.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T22:14:21.131Z",
+        "updatedAt": "2025-11-29T22:14:21.131Z",
+        "tags": [
+          "epoch-5",
+          "ace",
+          "needs-work"
+        ],
+        "metadata": {
+          "aggregateScore": 0.26666666666666666,
+          "epoch": 4,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-d499f36d",
+        "section": "Optimization Insights",
+        "content": "Average score 0.833 across 6 evals. Lowest cases: basic-returning-mother=0.50, adv-sandwich-husband=0.50, basic-overwhelmed-wife=1.00. Sample reasoning: json_format_validator: Valid JSON with all required keys: content, emotion, process | content_evaluator: The answer meets all specified requirements: it is valid JSON, correctly identifies the emotional state, process, and content in alignment with the expected outcome.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T22:16:05.971Z",
+        "updatedAt": "2025-11-29T22:16:05.971Z",
+        "tags": [
+          "epoch-1",
+          "ace",
+          "high-score"
+        ],
+        "metadata": {
+          "aggregateScore": 0.8333333333333334,
+          "epoch": 0,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-77003111",
+        "section": "Optimization Insights",
+        "content": "Average score 0.667 across 6 evals. Lowest cases: basic-overwhelmed-wife=0.50, basic-traditional-mother=0.50, basic-returning-mother=0.50. Sample reasoning: json_format_validator: Output is not valid JSON. Parse error: Expecting value: line 1 column 1 (char 0) | content_evaluator: The candidate answer meets all required conditions: it is valid JSON, correctly labels emotions, process, and content in line with the expected outcome, and captures the key elements from the client statement.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T22:16:23.332Z",
+        "updatedAt": "2025-11-29T22:16:23.332Z",
+        "tags": [
+          "epoch-2",
+          "ace"
+        ],
+        "metadata": {
+          "aggregateScore": 0.6666666666666666,
+          "epoch": 1,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-5b6c3434",
+        "section": "Optimization Insights",
+        "content": "Average score 0.667 across 6 evals. Lowest cases: basic-traditional-mother=0.50, basic-returning-mother=0.50, adv-sandwich-husband=0.50. Sample reasoning: json_format_validator: Valid JSON with all required keys: content, emotion, process | content_evaluator: The answer meets all required criteria: correct JSON structure, accurate identification of emotion, process, and content aligned with the expected outcome.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T22:16:41.182Z",
+        "updatedAt": "2025-11-29T22:16:41.182Z",
+        "tags": [
+          "epoch-3",
+          "ace"
+        ],
+        "metadata": {
+          "aggregateScore": 0.6666666666666666,
+          "epoch": 2,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-7f0053c0",
+        "section": "Optimization Insights",
+        "content": "Average score 0.583 across 6 evals. Lowest cases: basic-traditional-mother=0.50, basic-returning-mother=0.50, adv-somatic-mask-worker=0.50. Sample reasoning: json_format_validator: Valid JSON with all required keys: content, emotion, process | content_evaluator: The answer fully meets the expected criteria: correct JSON format, includes the required emotion labels, process elements, and explicit mention of the imbalance of labor in content.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T22:16:58.196Z",
+        "updatedAt": "2025-11-29T22:16:58.196Z",
+        "tags": [
+          "epoch-4",
+          "ace"
+        ],
+        "metadata": {
+          "aggregateScore": 0.5833333333333334,
+          "epoch": 3,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      },
+      {
+        "id": "optimiza-edad037b",
+        "section": "Optimization Insights",
+        "content": "Average score 0.500 across 6 evals. Lowest cases: basic-overwhelmed-wife=0.50, basic-traditional-mother=0.50, basic-returning-mother=0.50. Sample reasoning: json_format_validator: Output is not valid JSON. Parse error: Expecting value: line 1 column 1 (char 0) | content_evaluator: The candidate answer meets all specified criteria: it is valid JSON, includes the required emotion terms, process elements, and accurately identifies the imbalance of labor in the content.",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "createdAt": "2025-11-29T22:17:14.949Z",
+        "updatedAt": "2025-11-29T22:17:14.949Z",
+        "tags": [
+          "epoch-5",
+          "ace"
+        ],
+        "metadata": {
+          "aggregateScore": 0.5,
+          "epoch": 4,
+          "evalIds": [
+            "basic-overwhelmed-wife",
+            "basic-traditional-mother",
+            "basic-returning-mother",
+            "adv-somatic-mask-worker",
+            "adv-sandwich-husband",
+            "adv-face-saving-resistance"
+          ]
+        }
+      }
+    ]
+  },
+  "stats": {
+    "bulletCount": 15,
+    "helpfulCount": 0,
+    "harmfulCount": 0,
+    "tokenEstimate": 2781
+  },
+  "updatedAt": "2025-11-29T22:17:14.949Z",
+  "description": "ACE optimization for the three-layer listening psychology eval suite"
+}

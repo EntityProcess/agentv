@@ -13,6 +13,7 @@ interface OptimizeFixture {
   readonly evalFile: string;
   readonly configPath: string;
   readonly playbookPath: string;
+  readonly shortcutPlaybookPath: string;
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -83,6 +84,12 @@ evalcases:
 
   const configPath = path.join(baseDir, "optimizer.yaml");
   const playbookPath = path.join(baseDir, "playbooks", "ace-playbook.json");
+  const shortcutPlaybookPath = path.join(
+    suiteDir,
+    ".agentv",
+    "playbooks",
+    `${path.basename(evalFile, path.extname(evalFile))}-playbook.json`,
+  );
   await writeFile(
     configPath,
     `type: ace
@@ -96,14 +103,17 @@ allow_dynamic_sections: true
     "utf8",
   );
 
-  return { baseDir, suiteDir, evalFile, configPath, playbookPath };
+  return { baseDir, suiteDir, evalFile, configPath, playbookPath, shortcutPlaybookPath };
 }
 
-async function runCli(fixture: OptimizeFixture): Promise<{ stdout: string; stderr: string }> {
+async function runCli(
+  fixture: OptimizeFixture,
+  targetPath: string,
+): Promise<{ stdout: string; stderr: string }> {
   const baseEnv: Record<string, string> = { ...process.env } as Record<string, string>;
   delete baseEnv.CLI_ENV_SAMPLE;
 
-  const result = await execaNode(CLI_ENTRY, ["optimize", fixture.configPath], {
+  const result = await execaNode(CLI_ENTRY, ["optimize", targetPath], {
     cwd: fixture.suiteDir,
     env: {
       ...baseEnv,
@@ -120,7 +130,7 @@ async function runCli(fixture: OptimizeFixture): Promise<{ stdout: string; stder
 describe("optimize command", () => {
   it("runs ACE optimization and writes playbook output", async () => {
     const fixture = await createFixture();
-    const { stdout, stderr } = await runCli(fixture);
+    const { stdout, stderr } = await runCli(fixture, fixture.configPath);
 
     expect(stderr).toBe("");
     expect(stdout).toContain("Optimization complete");
@@ -139,5 +149,24 @@ describe("optimize command", () => {
     expect(bulletTotal).toBe(2);
     expect(playbook.stats?.bulletCount).toBe(bulletTotal);
     expect(typeof playbook.updatedAt).toBe("string");
+  });
+
+  it("accepts eval files directly via shortcut config", async () => {
+    const fixture = await createFixture();
+    const { stdout, stderr } = await runCli(fixture, fixture.evalFile);
+
+    expect(stderr).toContain("Detected eval file");
+    expect(stdout).toContain("Optimization complete");
+
+    const playbook = JSON.parse(await readFile(fixture.shortcutPlaybookPath, "utf8")) as {
+      sections: Record<string, unknown[]>;
+      stats?: { bulletCount?: number };
+    };
+    const bulletTotal = Object.values(playbook.sections ?? {}).reduce(
+      (sum, bullets) => sum + bullets.length,
+      0,
+    );
+    expect(bulletTotal).toBe(1);
+    expect(playbook.stats?.bulletCount).toBe(bulletTotal);
   });
 });

@@ -1,0 +1,24 @@
+# ACE Optimization Configuration for Three-Layer Listening
+# Mirrors the structure of incident-triage-ace.yaml with paths adapted to the psychology eval.
+
+description: ACE optimization for the three-layer listening psychology eval suite
+
+type: ace
+
+eval_files:
+  - ../evals/psychology/three-layer-listening.yaml
+
+playbook_path: ./playbooks/three-layer-listening.json
+
+max_epochs: 5
+
+allow_dynamic_sections: true
+
+# Optional overrides (kept commented to match the example style)
+# target: default
+# filters:
+#   eval_case_ids:
+#     - basic-overwhelmed-wife
+# early_stopping:
+#   metric: success_rate
+#   threshold: 0.9

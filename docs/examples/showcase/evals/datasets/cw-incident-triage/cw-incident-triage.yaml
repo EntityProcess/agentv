@@ -1,0 +1,252 @@
+# CargoWise Criticality Rating Classification Eval
+# This eval file is designed for prompt optimization, e.g., ACE or similar frameworks.
+# Key features:
+# 1. System prompts elicit step-by-step reasoning in JSON output (with 'criticalityRating' and 'reasoning').
+# 2. Clear expected outcomes for analysis.
+# 3. Diverse examples covering edge cases, including ambiguities between defects and feature requests.
+
+$schema: agentv-eval-v2
+description: CargoWise criticality rating (CR1-CR9) classification eval for support ticket triage in logistics software.
+target: default
+
+evalcases:
+  # ==========================================
+  # Basic criticality rating classification with explicit reasoning
+  # ==========================================
+  - id: cr-global-outage
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant correctly classifies as 'CR1' for complete system inaccessibility.
+      Reasoning should emphasize 'any user on any workstation' and lack of access to the entire suite.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            path: ../../../prompts/cw-criticality-rating.prompt.md
+          - type: text
+            text: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Entire system down, no users can log in from any device
+              Impact: All operations halted
+              Scope: Global
+              Signals: Error: "Server unreachable", no recent changes reported
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR1",
+            "reasoning": "Step 1: Issue prevents access to the entire application suite. Step 2: Affects any user on any workstation. Step 3: Matches CR1 definition exactly—no partial access or workarounds mentioned."
+          }
+
+  - id: cr-module-inaccessible
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant correctly classifies as 'CR2' for module-wide inaccessibility.
+      Reasoning should distinguish from CR1 by noting it's limited to one module.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            path: ../../../prompts/cw-criticality-rating.prompt.md
+          - type: text
+            text: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Customs module inaccessible for all users
+              Impact: Customs declarations blocked
+              Scope: Module-wide
+              Signals: "Module not found" error, other modules working
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR2",
+            "reasoning": "Step 1: Issue affects an entire module (Customs). Step 2: No access for any user/workstation. Step 3: Does not impact the full suite, so CR2 over CR1."
+          }
+
+  # ==========================================
+  # Advanced Cases: Ambiguous Signals & Nuanced Judgment
+  # These cases showcase optimization potential for patterns like defect vs. feature request
+  # ==========================================
+  
+  - id: cr-job-costing-substantial-change
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant classifies as 'CR6' despite history of prior defect fix.
+      Most LLMs might misclassify as CR3 (ongoing defect), but expected is CR6 as it requires substantial new changes beyond fixing documented behavior.
+      Reasoning must reference prior fix and distinguish from 'changed from previously correct behaviour'.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            path: ../../../prompts/cw-criticality-rating.prompt.md
+          - type: text
+            text: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Job costing calculation still not meeting our needs after previous fix
+              Impact: Costs underreported by 15-20% in complex multi-leg shipments
+              Scope: Single function (job costing)
+              Signals: Previous ticket (DEF-1234) classified as defect and fixed per documentation; now requesting substantial changes to formula (e.g., add dynamic weighting for legs, integrate external FX rates); original fix restored documented behavior but didn't resolve business problem; no workaround available
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR6",
+            "reasoning": "Step 1: Prior issue (DEF-1234) was a defect (CR3) and fixed to match documentation. Step 2: Current request seeks substantial new changes (e.g., dynamic weighting, FX integration) beyond documented behavior. Step 3: This is not a bug in existing function but a request for enhancements—matches CR6 for roadmap consideration."
+          }
+
+  - id: cr-function-bug-no-workaround
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant classifies as 'CR3' for function not matching documentation.
+      Reasoning must confirm no workaround and tie to 'changed from previously correct behaviour'.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            path: ../../../prompts/cw-criticality-rating.prompt.md
+          - type: text
+            text: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Invoice generation producing incorrect totals
+              Impact: Invoices off by 5-10%
+              Scope: Single function
+              Signals: Worked correctly last month; now deviates from doc specs; no manual calc alternative feasible for volume
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR3",
+            "reasoning": "Step 1: Function (invoice generation) not working as documented. Step 2: Changed from prior correct behavior. Step 3: No viable workaround—matches CR3."
+          }
+
+  - id: cr-feature-quote
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant classifies as 'CR7' for accelerated development quote.
+      Reasoning distinguishes from CR6 by noting request for quote/pricing.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            path: ../../../prompts/cw-criticality-rating.prompt.md
+          - type: text
+            text: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Need custom API for bulk tariff updates—how much to fast-track?
+              Impact: Manual updates too slow
+              Scope: New feature
+              Signals: Not in current product; requesting pricing for quick dev
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR7",
+            "reasoning": "Step 1: Requests new feature (bulk API). Step 2: Specifically asks for quote on accelerated development. Step 3: Matches CR7 over CR6 due to pricing/acceleration focus."
+          }
+
+  - id: cr-compliance-data-update
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant classifies as 'CR8' for master data/compliance issue.
+      Reasoning prioritizes data accuracy over potential bug claims.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            path: ../../../prompts/cw-criticality-rating.prompt.md
+          - type: text
+            text: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Outdated HS codes in compliance database
+              Impact: Risk of customs penalties
+              Scope: Master data
+              Signals: Codes changed per recent regulation; need update in system reference
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR8",
+            "reasoning": "Step 1: Involves compliance/reference data (HS codes). Step 2: Not a function bug but data update need. Step 3: Matches CR8 for master data handling."
+          }
+
+  - id: cr-multi-part-blend
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant classifies as 'CR3' prioritizing the bug over secondary training request.
+      Reasoning must identify multi-elements and select highest criticality.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            path: ../../../prompts/cw-criticality-rating.prompt.md
+          - type: text
+            text: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Shipment tracking erroring out; also need training on new UI
+              Impact: Tracking unavailable; team confused
+              Scope: Function + training
+              Signals: Tracking deviated from docs; no workaround; training secondary
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR3",
+            "reasoning": "Step 1: Multi-part: Function bug (tracking error) + training request. Step 2: Bug matches CR3 (not as documented, no workaround). Step 3: Prioritize highest criticality (CR3 over CR5)."
+          }
+
+  - id: cr-workaround-exists
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant classifies as 'CR4' due to viable workaround.
+      Reasoning distinguishes from CR3 by noting alternative.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            path: ../../../prompts/cw-criticality-rating.prompt.md
+          - type: text
+            text: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Report export failing in UI
+              Impact: Can't export directly
+              Scope: Single function
+              Signals: Can export via API as manual alternative
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR4",
+            "reasoning": "Step 1: Function (report export) not working. Step 2: Viable workaround (API export) exists. Step 3: Matches CR4 over CR3."
+          }

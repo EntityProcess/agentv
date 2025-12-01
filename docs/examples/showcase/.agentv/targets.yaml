@@ -1,0 +1,26 @@
+$schema: agentv-targets-v2.2
+
+targets:
+  - name: default
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+
+  - name: vscode
+    provider: vscode
+    judge_target: default
+
+  - name: codex
+    provider: codex
+    timeout_seconds: 180
+    cwd: ${{ CODEX_WORKSPACE_DIR }}
+    log_dir: ${{ CODEX_LOG_DIR }}
+    log_format: json
+    judge_target: default
+
+  - name: vscode_projectx
+    provider: vscode
+    workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
+    provider_batching: false
+    judge_target: default

@@ -27,6 +27,7 @@ interface AceOptimizerOptions {
   readonly now?: () => Date;
   readonly logger?: (message: string) => void;
   readonly verbose?: boolean;
+  readonly onEvaluationResult?: (options: { readonly epoch: number; readonly result: EvaluationResult }) => void;
 }
 
 const DEFAULT_SECTION_NAME = "Core Principles";
@@ -51,7 +52,7 @@ export class AceOptimizer implements Optimizer {
       this.logger(
         `ACE epoch ${epoch + 1}/${config.maxEpochs}: running ${config.evalFiles.length} eval file(s)...`,
       );
-      const results = await this.runEpoch(config.evalFiles);
+      const results = await this.runEpoch(config.evalFiles, epoch);
       const aggregateScore = this.computeAggregateScore(results);
       scores.push(aggregateScore);
 
@@ -79,7 +80,7 @@ export class AceOptimizer implements Optimizer {
     };
   }
 
-  private async runEpoch(evalFiles: readonly string[]): Promise<EvaluationResult[]> {
+  private async runEpoch(evalFiles: readonly string[], epoch: number): Promise<EvaluationResult[]> {
     const results: EvaluationResult[] = [];
     for (const evalFile of evalFiles) {
       const runOptions: RunEvaluationOptions = {
@@ -89,6 +90,14 @@ export class AceOptimizer implements Optimizer {
         targets: this.options.targets,
         env: this.options.env,
         verbose: this.options.verbose,
+        includeExpectationsInPrompt: true,
+        onResult: (result) => {
+          this.logger(
+            `  [${result.eval_id}] score=${result.score.toFixed(3)} ` +
+              `${result.error ? `error=${result.error}` : ""}`.trim(),
+          );
+          this.options.onEvaluationResult?.({ epoch, result });
+        },
       };
       const evalResults = await this.runEval(runOptions);
       results.push(...evalResults);
