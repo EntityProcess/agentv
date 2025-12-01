@@ -1,7 +1,7 @@
 # ACE Optimization Configuration Example
 # Defines how to optimize prompts using the ACE (Automatic Cognitive Enhancement) framework
 
-description: ACE optimization for code generation tasks using Python and JavaScript evals
+description: ACE optimization
 
 # Optimization framework type
 type: ace

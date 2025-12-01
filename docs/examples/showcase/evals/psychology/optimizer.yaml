@@ -1,24 +1,40 @@
-# ACE Optimization Configuration for Three-Layer Listening
-# Mirrors the structure of incident-triage-ace.yaml with paths adapted to the psychology eval.
+# ACE Optimization Configuration Example
+# Defines how to optimize prompts using the ACE (Automatic Cognitive Enhancement) framework
 
-description: ACE optimization for the three-layer listening psychology eval suite
+description: ACE optimization
 
+# Optimization framework type
 type: ace
 
+# Eval files to use for optimization
+# ACE will run these evals to measure prompt performance and guide improvements
+# Use eval files designed with explicit reasoning prompts for best ACE results
 eval_files:
-  - ../evals/psychology/three-layer-listening.yaml
+  - dataset.yaml
 
-playbook_path: ./playbooks/three-layer-listening.json
+# ACE playbook configuration
+# Defines the optimization strategy and constraints
+playbook_path: playbook.json
 
+# Maximum optimization iterations across ALL eval cases
 max_epochs: 5
 
+# Allow ACE to create new sections in the prompt
+# When true, ACE can add new instructions/guidelines
+# When false, ACE can only modify existing content
 allow_dynamic_sections: true
 
-# Optional overrides (kept commented to match the example style)
-# target: default
+# Optional: Filter which eval cases to include
 # filters:
+#   conversation_ids:
+#     - python-code-generation
 #   eval_case_ids:
-#     - basic-overwhelmed-wife
+#     - code-gen-python-comprehensive
+
+# Optional: Target override for optimization runs
+# target: azure_base
+
+# Optional: Stop early if success rate exceeds threshold
 # early_stopping:
 #   metric: success_rate
-#   threshold: 0.9
+#   threshold: 0.95
