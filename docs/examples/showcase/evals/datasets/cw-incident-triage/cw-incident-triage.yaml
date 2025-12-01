@@ -24,9 +24,9 @@ evalcases:
       - role: user
         content:
           - type: file
-            path: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../../prompts/cw-criticality-rating.prompt.md
           - type: text
-            text: |
+            value: |
               Classify this CargoWise ticket:
               
               Ticket: Entire system down, no users can log in from any device
@@ -53,9 +53,9 @@ evalcases:
       - role: user
         content:
           - type: file
-            path: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../../prompts/cw-criticality-rating.prompt.md
           - type: text
-            text: |
+            value: |
               Classify this CargoWise ticket:
               
               Ticket: Customs module inaccessible for all users
@@ -88,9 +88,9 @@ evalcases:
       - role: user
         content:
           - type: file
-            path: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../../prompts/cw-criticality-rating.prompt.md
           - type: text
-            text: |
+            value: |
               Classify this CargoWise ticket:
               
               Ticket: Job costing calculation still not meeting our needs after previous fix
@@ -117,9 +117,9 @@ evalcases:
       - role: user
         content:
           - type: file
-            path: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../../prompts/cw-criticality-rating.prompt.md
           - type: text
-            text: |
+            value: |
               Classify this CargoWise ticket:
               
               Ticket: Invoice generation producing incorrect totals
@@ -146,9 +146,9 @@ evalcases:
       - role: user
         content:
           - type: file
-            path: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../../prompts/cw-criticality-rating.prompt.md
           - type: text
-            text: |
+            value: |
               Classify this CargoWise ticket:
               
               Ticket: Need custom API for bulk tariff updates—how much to fast-track?
@@ -175,9 +175,9 @@ evalcases:
       - role: user
         content:
           - type: file
-            path: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../../prompts/cw-criticality-rating.prompt.md
           - type: text
-            text: |
+            value: |
               Classify this CargoWise ticket:
               
               Ticket: Outdated HS codes in compliance database
@@ -204,9 +204,9 @@ evalcases:
       - role: user
         content:
           - type: file
-            path: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../../prompts/cw-criticality-rating.prompt.md
           - type: text
-            text: |
+            value: |
               Classify this CargoWise ticket:
               
               Ticket: Shipment tracking erroring out; also need training on new UI
@@ -233,9 +233,9 @@ evalcases:
       - role: user
         content:
           - type: file
-            path: ../../../prompts/cw-criticality-rating.prompt.md
+            value: ../../../prompts/cw-criticality-rating.prompt.md
           - type: text
-            text: |
+            value: |
               Classify this CargoWise ticket:
               
               Ticket: Report export failing in UI
