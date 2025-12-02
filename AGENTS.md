@@ -95,6 +95,12 @@ Usage notes:
 </skill>
 
 <skill>
+<name>prompt-optimizer</name>
+<description>Iteratively optimize a prompt file against an AgentV evaluation suite by analyzing failures and refining instructions. Use this skill to improve prompt performance on specific test cases without overfitting.</description>
+<location>project</location>
+</skill>
+
+<skill>
 <name>skill-creator</name>
 <description>Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Claude's capabilities with specialized knowledge, workflows, or tool integrations.</description>
 <location>project</location>
