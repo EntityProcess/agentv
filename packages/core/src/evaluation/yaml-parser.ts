@@ -29,6 +29,48 @@ type AgentVConfig = {
 };
 
 /**
+ * Read metadata from a test suite file (like target name).
+ * This is a convenience function for CLI tools that need metadata without loading all eval cases.
+ */
+export async function readTestSuiteMetadata(testFilePath: string): Promise<{ target?: string }> {
+  try {
+    const absolutePath = path.resolve(testFilePath);
+    const content = await readFile(absolutePath, "utf8");
+    const parsed = parse(content) as unknown;
+    
+    if (!isJsonObject(parsed)) {
+      return {};
+    }
+    
+    return { target: extractTargetFromSuite(parsed) };
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Extract target name from parsed eval suite (checks execution.target then falls back to root-level target).
+ */
+function extractTargetFromSuite(suite: JsonObject): string | undefined {
+  // Check execution.target first (new location), fallback to root-level target (legacy)
+  const execution = suite.execution;
+  if (execution && typeof execution === "object" && !Array.isArray(execution)) {
+    const executionTarget = (execution as Record<string, unknown>).target;
+    if (typeof executionTarget === "string" && executionTarget.trim().length > 0) {
+      return executionTarget.trim();
+    }
+  }
+  
+  // Fallback to legacy root-level target
+  const targetValue = suite.target;
+  if (typeof targetValue === "string" && targetValue.trim().length > 0) {
+    return targetValue.trim();
+  }
+  
+  return undefined;
+}
+
+/**
  * Load optional .agentv/config.yaml configuration file.
  * Searches from eval file directory up to repo root.
  */
@@ -128,6 +170,7 @@ type RawTestSuite = JsonObject & {
   readonly $schema?: JsonValue;
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
+  readonly execution?: JsonValue;
   readonly dataset?: JsonValue;
 };
 
@@ -302,6 +345,11 @@ export async function loadEvalCases(
   }
 
   const globalEvaluator = coerceEvaluator(suite.evaluator, "global") ?? "llm_judge";
+  
+  // Extract global target from execution.target (or legacy root-level target)
+  const globalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
+  const globalTarget = asString(globalExecution?.target) ?? asString(suite.target);
+  
   const results: EvalCase[] = [];
 
   for (const rawEvalcase of rawTestcases) {
@@ -385,7 +433,7 @@ export async function loadEvalCases(
       .join(" ");
 
     const evalCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator, id) ?? globalEvaluator;
-    const evaluators = await parseEvaluators(evalcase, searchRoots, id ?? "unknown");
+    const evaluators = await parseEvaluators(evalcase, globalExecution, searchRoots, id ?? "unknown");
 
     // Extract file paths from all input segments (non-guideline files)
     const userFilePaths: string[] = [];
@@ -898,11 +946,15 @@ async function resolveAssistantContent(
 
 async function parseEvaluators(
   rawEvalCase: RawEvalCase,
+  globalExecution: JsonObject | undefined,
   searchRoots: readonly string[],
   evalId: string,
 ): Promise<readonly EvaluatorConfig[] | undefined> {
   const execution = rawEvalCase.execution;
-  const candidateEvaluators = isJsonObject(execution) ? execution.evaluators ?? rawEvalCase.evaluators : rawEvalCase.evaluators;
+  // Priority: case-level execution.evaluators > case-level evaluators > global execution.evaluators
+  const candidateEvaluators = isJsonObject(execution) 
+    ? execution.evaluators ?? rawEvalCase.evaluators 
+    : rawEvalCase.evaluators ?? globalExecution?.evaluators;
   if (candidateEvaluators === undefined) {
     return undefined;
   }
@@ -938,7 +990,7 @@ async function parseEvaluators(
       const cwd = asString(rawEvaluator.cwd);
       let resolvedCwd: string | undefined;
 
-      // Resolve cwd if provided (relative to eval file)
+      // Resolve cwd if provided (relative to eval file), otherwise default to eval file directory
       if (cwd) {
         const resolved = await resolveFileReference(cwd, searchRoots);
         if (resolved.resolvedPath) {
@@ -949,6 +1001,9 @@ async function parseEvaluators(
             resolved.attempted.length > 0 ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`) : undefined,
           );
         }
+      } else {
+        // Default to the directory containing the eval file (first search root)
+        resolvedCwd = searchRoots[0];
       }
 
       evaluators.push({
@@ -981,8 +1036,7 @@ async function parseEvaluators(
       name,
       type: "llm_judge",
       prompt,
-      promptPath,
-      model,
+      promptPath
     });
   }
 

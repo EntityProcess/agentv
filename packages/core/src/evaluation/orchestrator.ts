@@ -801,7 +801,6 @@ async function runLlmJudgeEvaluator(options: {
     judgeProvider,
     systemPrompt: customPrompt,
     evaluator: config,
-    judgeModel: config.model,
   });
 }
 

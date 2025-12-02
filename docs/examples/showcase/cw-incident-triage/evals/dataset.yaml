@@ -1,0 +1,263 @@
+# CargoWise Criticality Rating Classification Eval
+# This eval file is designed for prompt optimization, e.g., ACE or similar frameworks.
+# Key features:
+# 1. System prompts elicit step-by-step reasoning in JSON output (with 'criticalityRating' and 'reasoning').
+# 2. Clear expected outcomes for analysis.
+# 3. Diverse examples covering edge cases, including ambiguities between defects and feature requests.
+
+$schema: agentv-eval-v2
+description: CargoWise criticality rating (CR1-CR9) classification eval for support ticket triage in logistics software.
+execution:
+  target: default
+  evaluators:
+    - name: json_schema_validator
+      type: code
+      script: uv run validate_output.py
+    - name: content_evaluator
+      type: llm_judge
+
+evalcases:
+  # ==========================================
+  # Basic criticality rating classification with explicit reasoning
+  # ==========================================
+  - id: cr-global-outage
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant correctly classifies as 'CR1' for complete system inaccessibility.
+      Reasoning should emphasize 'any user on any workstation' and lack of access to the entire suite.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/cw-criticality-rating.md
+          - type: text
+            value: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Entire system down, no users can log in from any device
+              Impact: All operations halted
+              Scope: Global
+              Signals: Error: "Server unreachable", no recent changes reported
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR1",
+            "reasoning": "Step 1: Issue prevents access to the entire application suite. Step 2: Affects any user on any workstation. Step 3: Matches CR1 definition exactly—no partial access or workarounds mentioned."
+          }
+
+  - id: cr-module-inaccessible
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant correctly classifies as 'CR2' for module-wide inaccessibility.
+      Reasoning should distinguish from CR1 by noting it's limited to one module.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/cw-criticality-rating.md
+          - type: text
+            value: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Customs module inaccessible for all users
+              Impact: Customs declarations blocked
+              Scope: Module-wide
+              Signals: "Module not found" error, other modules working
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR2",
+            "reasoning": "Step 1: Issue affects an entire module (Customs). Step 2: No access for any user/workstation. Step 3: Does not impact the full suite, so CR2 over CR1."
+          }
+
+  # ==========================================
+  # Advanced Cases: Ambiguous Signals & Nuanced Judgment
+  # These cases showcase optimization potential for patterns like defect vs. feature request
+  # ==========================================
+  
+  - id: cr-missing-validation-disguised-as-defect
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant classifies as 'CR6' (Enhancement) despite user claiming "Critical Bug" and citing a prior defect.
+      Most LLMs might misclassify as CR3 (Defect) due to the user's label, financial impact, and claim of a "failed fix".
+      Expected is CR6 because the prior fix (DEF-555) addressed format length (as per docs), whereas this request is for a new uniqueness constraint not in the specs.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/cw-criticality-rating.md
+          - type: text
+            value: |
+              Classify this CargoWise ticket:
+              
+              Ticket: REOPENED DEF-555: Critical Production Bug - Container Validation Failed
+              Impact: Customs filings rejected. Fines incurring.
+              Scope: Consolidation/Booking
+              Signals: 
+              - User Comment: "Re-opening because the fix didn't work! We can still save duplicate containers on the BL. You said this was fixed in the last patch. This is a critical defect causing data corruption."
+              - DEF-555 History: Original Report: "Container validation missing." Resolution: "Added 11-char length validation." Status: Closed/Deployed.
+              - Documentation: "Container Number: Enter the 11-character ISO code." (No mention of uniqueness check).
+              - System Behavior: Accepts 11-char duplicates without error.
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR6",
+            "reasoning": "Step 1: System functions as documented (accepts alphanumeric input, enforces length per DEF-555). Step 2: User claims failed fix, but DEF-555 addressed length, not uniqueness. Step 3: Request is to add a new validation rule (uniqueness) that does not currently exist in specs. Step 4: Despite 'Critical Bug' label and prior ticket reference, this is a request for new capability (Enhancement), not a deviation from documentation (Defect). Matches CR6."
+          }
+
+  - id: cr-function-bug-no-workaround
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant classifies as 'CR3' for function not matching documentation.
+      Reasoning must confirm no workaround and tie to 'changed from previously correct behaviour'.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/cw-criticality-rating.md
+          - type: text
+            value: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Invoice generation producing incorrect totals
+              Impact: Invoices off by 5-10%
+              Scope: Single function
+              Signals: Worked correctly last month; now deviates from doc specs; no manual calc alternative feasible for volume
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR3",
+            "reasoning": "Step 1: Function (invoice generation) not working as documented. Step 2: Changed from prior correct behavior. Step 3: No viable workaround—matches CR3."
+          }
+
+  - id: cr-feature-quote
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant classifies as 'CR7' for accelerated development quote.
+      Reasoning distinguishes from CR6 by noting request for quote/pricing.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/cw-criticality-rating.md
+          - type: text
+            value: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Need custom API for bulk tariff updates—how much to fast-track?
+              Impact: Manual updates too slow
+              Scope: New feature
+              Signals: Not in current product; requesting pricing for quick dev
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR7",
+            "reasoning": "Step 1: Requests new feature (bulk API). Step 2: Specifically asks for quote on accelerated development. Step 3: Matches CR7 over CR6 due to pricing/acceleration focus."
+          }
+
+  - id: cr-compliance-data-update
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant classifies as 'CR8' for master data/compliance issue.
+      Reasoning prioritizes data accuracy over potential bug claims.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/cw-criticality-rating.md
+          - type: text
+            value: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Outdated HS codes in compliance database
+              Impact: Risk of customs penalties
+              Scope: Master data
+              Signals: Codes changed per recent regulation; need update in system reference
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR8",
+            "reasoning": "Step 1: Involves compliance/reference data (HS codes). Step 2: Not a function bug but data update need. Step 3: Matches CR8 for master data handling."
+          }
+
+  - id: cr-multi-part-blend
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant classifies as 'CR3' prioritizing the bug over secondary training request.
+      Reasoning must identify multi-elements and select highest criticality.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/cw-criticality-rating.md
+          - type: text
+            value: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Shipment tracking erroring out; also need training on new UI
+              Impact: Tracking unavailable; team confused
+              Scope: Function + training
+              Signals: Tracking deviated from docs; no workaround; training secondary
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR3",
+            "reasoning": "Step 1: Multi-part: Function bug (tracking error) + training request. Step 2: Bug matches CR3 (not as documented, no workaround). Step 3: Prioritize highest criticality (CR3 over CR5)."
+          }
+
+  - id: cr-workaround-exists
+    conversation_id: cargowise-triage
+    
+    outcome: |
+      Assistant classifies as 'CR4' due to viable workaround.
+      Reasoning distinguishes from CR3 by noting alternative.
+    
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/cw-criticality-rating.md
+          - type: text
+            value: |
+              Classify this CargoWise ticket:
+              
+              Ticket: Report export failing in UI
+              Impact: Can't export directly
+              Scope: Single function
+              Signals: Can export via API as manual alternative
+    
+    expected_messages:
+      - role: assistant
+        content: |
+          {
+            "criticalityRating": "CR4",
+            "reasoning": "Step 1: Function (report export) not working. Step 2: Viable workaround (API export) exists. Step 3: Matches CR4 over CR3."
+          }

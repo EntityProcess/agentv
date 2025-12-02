@@ -20,7 +20,6 @@ export interface EvaluationContext {
   readonly judgeProvider?: Provider;
   readonly systemPrompt?: string;
   readonly evaluator?: EvaluatorConfig;
-  readonly judgeModel?: string;
 }
 
 export interface EvaluationScore {
@@ -98,10 +97,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       systemPrompt = buildSystemPrompt(hasReferenceAnswer);
     }
 
-    const metadata: JsonObject = {
-      ...(systemPrompt !== undefined ? { systemPrompt } : {}),
-      ...(context.judgeModel !== undefined ? { model: context.judgeModel } : {}),
-    };
+    const metadata: JsonObject = systemPrompt !== undefined ? { systemPrompt } : {};
 
     const response = await judgeProvider.invoke({
       question: prompt,
@@ -128,8 +124,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       provider: judgeProvider.id,
       prompt,
       target: context.target.name,
-      ...(systemPrompt !== undefined ? { systemPrompt } : {}),
-      ...(context.judgeModel !== undefined ? { model: context.judgeModel } : {}),
+      ...(systemPrompt !== undefined && { systemPrompt }),
     };
 
     return {

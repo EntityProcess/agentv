@@ -159,7 +159,6 @@ export type LlmJudgeEvaluatorConfig = {
   readonly type: "llm_judge";
   readonly prompt?: string;
   readonly promptPath?: string;
-  readonly model?: string;
 };
 
 export type EvaluatorConfig = CodeEvaluatorConfig | LlmJudgeEvaluatorConfig;
