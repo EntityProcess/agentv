@@ -1,5 +1,7 @@
 # Implement ACE Optimizer
 
+**Status: Rejected** - Replaced by `prompt-optimizer` skill.
+
 ## Summary
 Implement automatic prompt optimization in AgentV using the Ax library's ACE (Automatic Cognitive Enhancement) algorithm. This allows users to automatically improve their prompts based on evaluation results defined in AgentV eval files.
 
