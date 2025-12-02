@@ -1,8 +1,8 @@
 import path from "node:path";
 
 import { resolveFileReference } from "./file-resolver.js";
-import type { EvaluatorConfig, EvaluatorKind, JsonObject, JsonValue } from "./types.js";
-import { isEvaluatorKind } from "./types.js";
+import type { EvaluatorConfig, EvaluatorKind, JsonObject, JsonValue } from "../types.js";
+import { isEvaluatorKind } from "../types.js";
 
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";

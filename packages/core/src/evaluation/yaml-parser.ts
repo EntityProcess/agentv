@@ -2,11 +2,11 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 
-import { extractTargetFromSuite, loadConfig } from "./config-loader.js";
-import { coerceEvaluator, parseEvaluators } from "./evaluator-parser.js";
-import { buildSearchRoots, resolveToAbsolutePath } from "./file-resolver.js";
-import { processMessages, resolveAssistantContent } from "./message-processor.js";
-import { extractCodeBlocks } from "./segment-formatter.js";
+import { extractTargetFromSuite, loadConfig } from "./loaders/config-loader.js";
+import { coerceEvaluator, parseEvaluators } from "./loaders/evaluator-parser.js";
+import { buildSearchRoots, resolveToAbsolutePath } from "./loaders/file-resolver.js";
+import { processMessages, resolveAssistantContent } from "./loaders/message-processor.js";
+import { extractCodeBlocks } from "./formatting/segment-formatter.js";
 import type {
   EvalCase,
   JsonObject,
@@ -16,9 +16,9 @@ import type {
 import { isJsonObject, isTestMessage } from "./types.js";
 
 // Re-export public APIs from modules
-export { buildPromptInputs, type PromptInputs } from "./prompt-builder.js";
-export { extractCodeBlocks } from "./segment-formatter.js";
-export { isGuidelineFile } from "./config-loader.js";
+export { buildPromptInputs, type PromptInputs } from "./formatting/prompt-builder.js";
+export { extractCodeBlocks } from "./formatting/segment-formatter.js";
+export { isGuidelineFile } from "./loaders/config-loader.js";
 
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";

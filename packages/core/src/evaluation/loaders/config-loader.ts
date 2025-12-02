@@ -4,8 +4,8 @@ import path from "node:path";
 import { parse } from "yaml";
 
 import { buildDirectoryChain, fileExists } from "./file-resolver.js";
-import type { JsonObject, JsonValue } from "./types.js";
-import { isJsonObject } from "./types.js";
+import type { JsonObject, JsonValue } from "../types.js";
+import { isJsonObject } from "../types.js";
 
 const SCHEMA_CONFIG_V2 = "agentv-config-v2";
 const ANSI_YELLOW = "\u001b[33m";

@@ -1,12 +1,12 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { isGuidelineFile } from "./config-loader.js";
-import { fileExists } from "./file-resolver.js";
-import type { ChatPrompt } from "./providers/types.js";
+import { isGuidelineFile } from "../loaders/config-loader.js";
+import { fileExists } from "../loaders/file-resolver.js";
+import type { ChatPrompt } from "../providers/types.js";
 import { formatFileContents, formatSegment, hasVisibleContent } from "./segment-formatter.js";
-import type { EvalCase, JsonObject, TestMessage } from "./types.js";
-import { isJsonObject } from "./types.js";
+import type { EvalCase, JsonObject, TestMessage } from "../types.js";
+import { isJsonObject } from "../types.js";
 
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";

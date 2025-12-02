@@ -3,9 +3,9 @@ import path from "node:path";
 
 import { isGuidelineFile } from "./config-loader.js";
 import { resolveFileReference } from "./file-resolver.js";
-import { formatFileContents } from "./segment-formatter.js";
-import type { JsonObject, TestMessage } from "./types.js";
-import { isJsonObject } from "./types.js";
+import { formatFileContents } from "../formatting/segment-formatter.js";
+import type { JsonObject, TestMessage } from "../types.js";
+import { isJsonObject } from "../types.js";
 
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";
