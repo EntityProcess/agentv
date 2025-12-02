@@ -20,31 +20,43 @@ Iteratively optimize a prompt file against an AgentV evaluation suite.
     - **Analyze (The Reflector)**:
         - Locate the results file path from the console output (e.g., `.agentv/results/eval_...jsonl`).
         - Read the results file. Calculate pass rate.
-        - **Root Cause Analysis**: For each failure, determine WHY it failed (e.g., Ambiguity, Format Violation, Hallucination, or Conflict).
+        - **Root Cause Analysis**: For each failure, perform a deep dive:
+            - **Error Identification**: What exactly went wrong? (e.g., "Predicted 'High' but expected 'Low'")
+            - **Root Cause**: Why did it happen? (e.g., "Ambiguous definition of 'High' severity", "Hallucinated a constraint", "Incorrect test expectation")
+            - **Correct Approach**: What *should* the model have done?
+            - **Key Insight**: What general rule or pattern can we learn from this?
+            - **Regression Check**: Did this change break previously passing tests? If so, mark the previous change as "Harmful".
     - **Decide**:
         - If **100% pass**: STOP and report success.
         - If **Score decreased**: Revert last change, try different approach.
         - If **No improvement** (2x): STOP and report stagnation.
+    - **Log Result**:
+        - Append the result of this iteration to `<prompt-filename>.playbook.md` (create if missing).
+        - **Format**:
+          ```markdown
+          ### Iteration [N]
+          - **Change**: [Description of edit]
+          - **Rationale**: [Root Cause / Why this fix was chosen]
+          - **Outcome**: [Success / Failure / Harmful] (Score: X% -> Y%)
+          - **Insight**: [Key learning or pattern identified]
+          ```
     - **Refine (The Curator)**:
         - Modify `<prompt-file>` to address failures.
         - **Strategy**: Treat the prompt as a structured "Playbook".
             - **Clarify**: If ambiguous, make the existing instruction more specific.
             - **Add Rule**: If a constraint was missed, add a specific bullet point to the relevant section.
             - **Negative Constraint**: If hallucinating, explicitly state what NOT to do.
+            - **Consolidate**: Check for redundant or overlapping instructions and merge them.
+            - **Safety Check**: Ensure new rules don't contradict existing ones (unless intended).
         - **Constraint**: Avoid rewriting large sections. Make surgical, additive changes to preserve existing behavior.
         - **Apply**: Use `replace_string_in_file`.
 
 3.  **Completion**
     - Report final score.
     - Summarize key changes made to the prompt.
-    - **Update Playbook**: Append a brief note to `<prompt-filename>.playbook.md` (create if missing) recording what worked and what didn't.
-      ```markdown
-      ## [Date] Optimization Session
-      - [Success] Added reasoning step -> +15% score
-      - [Failure] Removed examples -> -10% score (Reverted)
-      ```
 
 ## Guidelines
-- **Token Efficiency**: Keep prompt changes concise. Remove redundant instructions.
+- **Simplicity ("Less is More")**: Avoid adding specific rules for rare edge cases ("hotfixes"). Focus on universally applicable instructions.
 - **Structure**: Maintain existing Markdown headers/sections.
-- **Reasoning**: Prefer adding "Chain of Thought" or "Step-by-Step" instructions over rigid rules for complex logic.
+- **Progressive Disclosure**: If the prompt grows too large (>200 lines), consider moving specialized logic into a separate file or skill.
+- **Quality Criteria**: Ensure the prompt defines a clear persona, specific task, and measurable success criteria.
