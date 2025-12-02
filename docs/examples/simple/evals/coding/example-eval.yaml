@@ -106,6 +106,8 @@ evalcases:
         content:
           - type: file
             value: ./snippets/python-second-largest.md
+          - type: file
+            value: ./snippets/python-second-largest-comments.md
 
   # ==========================================
   # Example 3: Outcome-only evaluation (no reference answer)
