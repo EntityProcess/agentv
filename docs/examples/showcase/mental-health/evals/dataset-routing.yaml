@@ -7,7 +7,7 @@ execution:
   evaluators:
     - name: json_schema_validator
       type: code
-      script: uv run debug_validator.py
+      script: uv run validate_output.py
     - name: content_evaluator
       type: llm_judge
 
