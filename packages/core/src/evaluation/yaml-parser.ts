@@ -558,7 +558,8 @@ function formatSegment(segment: JsonObject): string | undefined {
     const text = asString(segment.text);
     const filePath = asString(segment.path);
     if (text && filePath) {
-      return `=== ${filePath} ===\n${text}`;
+      // Use formatFileContents for consistent XML formatting
+      return formatFileContents([{ content: text.trim(), isFile: true, displayPath: filePath }]);
     }
   }
   
@@ -576,7 +577,7 @@ export interface PromptInputs {
 }
 
 export async function buildPromptInputs(testCase: EvalCase): Promise<PromptInputs> {
-  const guidelineContents: string[] = [];
+  const guidelineParts: Array<{ content: string; isFile: boolean; displayPath?: string }> = [];
   for (const rawPath of testCase.guideline_paths) {
     const absolutePath = path.resolve(rawPath);
     if (!(await fileExists(absolutePath))) {
@@ -585,17 +586,18 @@ export async function buildPromptInputs(testCase: EvalCase): Promise<PromptInput
     }
 
     try {
-      const content = (await readFile(absolutePath, "utf8")).replace(/\r\n/g, "\n");
-      guidelineContents.push(`=== ${path.basename(absolutePath)} ===\n${content}`);
+      const content = (await readFile(absolutePath, "utf8")).replace(/\r\n/g, "\n").trim();
+      guidelineParts.push({
+        content,
+        isFile: true,
+        displayPath: path.basename(absolutePath)
+      });
     } catch (error) {
       logWarning(`Could not read guideline file ${absolutePath}: ${(error as Error).message}`);
     }
   }
 
-  const guidelines = guidelineContents
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0)
-    .join("\n\n");
+  const guidelines = formatFileContents(guidelineParts);
 
   // Build segments per message to determine if role markers are needed
   const segmentsByMessage: JsonObject[][] = [];
@@ -865,6 +867,30 @@ function cloneJsonValue(value: JsonValue): JsonValue {
 }
 
 /**
+ * Format file contents with XML tags for all files
+ */
+function formatFileContents(
+  parts: Array<{ content: string; isFile: boolean; displayPath?: string }>
+): string {
+  const fileCount = parts.filter(p => p.isFile).length;
+  
+  // Use XML tags if any files are present
+  if (fileCount > 0) {
+    return parts
+      .map(part => {
+        if (part.isFile && part.displayPath) {
+          return `<file path="${part.displayPath}">\n${part.content}\n</file>`;
+        }
+        return part.content;
+      })
+      .join("\n\n");
+  }
+  
+  // Otherwise, join normally
+  return parts.map(p => p.content).join(" ");
+}
+
+/**
  * Resolve assistant content including file references.
  * Similar to input message processing, but for expected assistant responses.
  */
@@ -880,10 +906,12 @@ async function resolveAssistantContent(
     return "";
   }
   
-  const parts: string[] = [];
+  // Track parts with metadata about whether they came from files
+  const parts: Array<{ content: string; isFile: boolean; displayPath?: string }> = [];
+  
   for (const entry of content) {
     if (typeof entry === "string") {
-      parts.push(entry);
+      parts.push({ content: entry, isFile: false });
       continue;
     }
     
@@ -914,8 +942,8 @@ async function resolveAssistantContent(
       }
       
       try {
-        const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n");
-        parts.push(fileContent);
+        const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n").trim();
+        parts.push({ content: fileContent, isFile: true, displayPath });
         if (verbose) {
           console.log(`  [Expected Assistant File] Found: ${displayPath}`);
           console.log(`    Resolved to: ${resolvedPath}`);
@@ -929,19 +957,20 @@ async function resolveAssistantContent(
     // Handle text segments
     const textValue = asString(entry.text);
     if (typeof textValue === "string") {
-      parts.push(textValue);
+      parts.push({ content: textValue, isFile: false });
       continue;
     }
     
     const valueValue = asString(entry.value);
     if (typeof valueValue === "string") {
-      parts.push(valueValue);
+      parts.push({ content: valueValue, isFile: false });
       continue;
     }
     
-    parts.push(JSON.stringify(entry));
+    parts.push({ content: JSON.stringify(entry), isFile: false });
   }
-  return parts.join(" ");
+  
+  return formatFileContents(parts);
 }
 
 async function parseEvaluators(
