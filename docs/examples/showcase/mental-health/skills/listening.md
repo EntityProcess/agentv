@@ -33,7 +33,6 @@ Return valid JSON:
 
 ```json
 {
-  "framework": "three_levels_listening",
   "analysis": {
     "level_1_content": "Client reports [Specific Facts/Events].",
     "level_2_emotion": "Primary: [Emotion]. Complex/Hidden: [Deeper Emotion].",

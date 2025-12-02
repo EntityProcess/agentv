@@ -23,6 +23,10 @@ evalcases:
       Must identify 'level_2_emotion' as Resentment/Despair (not just anger).
       Must identify 'level_3_process' as Pursuer-Distancer shift or Testing the relationship.
     input_messages:
+      - role: system
+        content:
+          - type: file
+            value: ../skills/listening.md
       - role: user
         content: |-
           Analyze the following client statement using the Three Levels of Listening framework.
@@ -33,7 +37,6 @@ evalcases:
       - role: assistant
         content: |-
           {
-            "framework": "three_levels_listening",
             "analysis": {
               "level_1_content": "Client stopped verbally fighting about chores/neglect; observed husband's continued disengagement; considering passive-aggressive action (cutting internet).",
               "level_2_emotion": "Resentment, Despair, Numbness/Detachment, Cold Anger.",
@@ -50,6 +53,10 @@ evalcases:
     outcome: |-
       Must identify Patriarchal values (Financial exploitation framed as help) and Gaslighting/Enmeshment in 'level_3_process'.
     input_messages:
+      - role: system
+        content:
+          - type: file
+            value: ../skills/listening.md
       - role: user
         content: |-
           Analyze the following client statement using the Three Levels of Listening framework.
@@ -60,7 +67,6 @@ evalcases:
       - role: assistant
         content: |-
           {
-            "framework": "three_levels_listening",
             "analysis": {
               "level_1_content": "Mother asked successful daughter to pay for struggling son's down payment; Daughter cut contact; Mother frames this as 'family help' and daughter as 'cold'.",
               "level_2_emotion": "Confusion (feigned or genuine), Self-righteousness, Victimhood, Indignation.",
@@ -77,6 +83,10 @@ evalcases:
     outcome: |-
       Must identify Internalizing rejection as worthlessness in 'level_3_process'.
     input_messages:
+      - role: system
+        content:
+          - type: file
+            value: ../skills/listening.md
       - role: user
         content: |-
           Analyze the following client statement using the Three Levels of Listening framework.
@@ -87,7 +97,6 @@ evalcases:
       - role: assistant
         content: |-
           {
-            "framework": "three_levels_listening",
             "analysis": {
               "level_1_content": "Transitioning from full-time Motherhood to Workforce; loss of previous role clarity; repeated rejection.",
               "level_2_emotion": "Pain, Unhappiness, Self-doubt, Anxiety, Confusion.",
@@ -108,6 +117,10 @@ evalcases:
     outcome: |-
       Must identify Alexithymia and Somatic Displacement (Stress -> Throat) in 'level_3_process'.
     input_messages:
+      - role: system
+        content:
+          - type: file
+            value: ../skills/listening.md
       - role: user
         content: |-
           Analyze the following client statement using the Three Levels of Listening framework.
@@ -118,7 +131,6 @@ evalcases:
       - role: assistant
         content: |-
           {
-            "framework": "three_levels_listening",
             "analysis": {
               "level_1_content": "Reports 'perfect life' and career success; Denies anxiety/stress explicitly; Seeks medical fix for 'throat lump' (Globus sensation).",
               "level_2_emotion": "Disconnected/Numb (Alexithymia), Defensive pride. Implicit: Panic (displaced).",
@@ -136,6 +148,10 @@ evalcases:
       Must identify Gatekeeping/Triangulation in 'level_3_process'.
       Must identify the distinction between 'Helping' vs 'Blocking Intimacy'.
     input_messages:
+      - role: system
+        content:
+          - type: file
+            value: ../skills/listening.md
       - role: user
         content: |-
           Analyze the following client statement using the Three Levels of Listening framework.
@@ -146,7 +162,6 @@ evalcases:
       - role: assistant
         content: |-
           {
-            "framework": "three_levels_listening",
             "analysis": {
               "level_1_content": "Client actively 'translates' (distorts) critical messages between wife and mother to prevent conflict; Reports exhaustion.",
               "level_2_emotion": "Exhaustion, Anxiety, Fear of conflict, False pride in being the 'bridge'.",
@@ -163,6 +178,10 @@ evalcases:
     outcome: |-
       Must identify Intellectualization as a defense mechanism in 'level_3_process'.
     input_messages:
+      - role: system
+        content:
+          - type: file
+            value: ../skills/listening.md
       - role: user
         content: |-
           Analyze the following client statement using the Three Levels of Listening framework. (Context: Therapist suggested expressing anger to a parent).
@@ -173,7 +192,6 @@ evalcases:
       - role: assistant
         content: |-
           {
-            "framework": "three_levels_listening",
             "analysis": {
               "level_1_content": "Client discusses the theory/mechanism of the technique ('cortisol', 'Gestalt', 'efficacy rates') instead of doing it.",
               "level_2_emotion": "Detachment, Superiority (intellectual), Fear of vulnerability/loss of control.",

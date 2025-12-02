@@ -32,7 +32,6 @@ Return valid JSON:
 
 ```json
 {
-  "framework": "resource_focused_encouragement",
   "analysis": {
     "validation_point": "It is normal/understandable to feel [Emotion] when [Context].",
     "resource_identified": "Despite [Difficulty], the client demonstrated [Strength/Quality] by [Action/Restraint].",
