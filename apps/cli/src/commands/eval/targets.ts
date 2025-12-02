@@ -2,15 +2,15 @@ import {
   buildDirectoryChain,
   listTargetNames,
   readTargetDefinitions,
+  readTestSuiteMetadata,
   resolveTargetDefinition,
   type ResolvedTarget,
   type TargetDefinition,
 } from "@agentv/core";
 import { validateTargetsFile } from "@agentv/core/evaluation/validation";
 import { constants } from "node:fs";
-import { access, readFile } from "node:fs/promises";
+import { access } from "node:fs/promises";
 import path from "node:path";
-import { parse } from "yaml";
 
 const TARGET_FILE_CANDIDATES = [
   "targets.yaml",
@@ -37,19 +37,8 @@ async function fileExists(filePath: string): Promise<boolean> {
 }
 
 export async function readTestSuiteTarget(testFilePath: string): Promise<string | undefined> {
-  try {
-    const raw = await readFile(path.resolve(testFilePath), "utf8");
-    const parsed = parse(raw) as unknown;
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      const targetValue = (parsed as Record<string, unknown>).target;
-      if (typeof targetValue === "string" && targetValue.trim().length > 0) {
-        return targetValue.trim();
-      }
-    }
-  } catch {
-    // Ignore parsing errors when probing for metadata; CLI will surface errors later.
-  }
-  return undefined;
+  const metadata = await readTestSuiteMetadata(testFilePath);
+  return metadata.target;
 }
 
 async function discoverTargetsFile(options: {

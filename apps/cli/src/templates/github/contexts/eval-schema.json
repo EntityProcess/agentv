@@ -15,7 +15,50 @@
     },
     "target": {
       "type": "string",
-      "description": "Default target configuration name (e.g., default, azure_base, vscode_projectx). Can be overridden per eval case."
+      "description": "(Deprecated: use execution.target instead) Default target configuration name. Can be overridden per eval case."
+    },
+    "execution": {
+      "type": "object",
+      "description": "Default execution configuration for all eval cases (can be overridden per case)",
+      "properties": {
+        "target": {
+          "type": "string",
+          "description": "Default target configuration name (e.g., default, azure_base, vscode_projectx). Can be overridden per eval case."
+        },
+        "evaluators": {
+          "type": "array",
+          "description": "Default evaluators for all eval cases (code-based and LLM judges)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Evaluator name/identifier"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["code", "llm_judge"],
+                "description": "Evaluator type: 'code' for scripts/regex/keywords, 'llm_judge' for LLM-based evaluation"
+              },
+              "script": {
+                "type": "string",
+                "description": "Path to evaluator script (for type: code)"
+              },
+              "prompt": {
+                "type": "string",
+                "description": "Path to judge prompt file (for type: llm_judge)"
+              },
+              "model": {
+                "type": "string",
+                "description": "Model to use for LLM judge (for type: llm_judge)"
+              }
+            },
+            "required": ["name", "type"],
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
     },
     "evalcases": {
       "type": "array",
