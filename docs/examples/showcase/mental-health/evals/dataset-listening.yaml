@@ -3,8 +3,8 @@ description: |-
   Comprehensive Evaluation Suite for 'Three Levels of Listening'.
   TIER 1: Basic capability (Explicit Content & Emotion).
   TIER 2: Advanced capability (Implicit Process, Somatization, & Resistance).
-target: default
 execution:
+  target: default
   evaluators:
     - name: json_schema_validator
       type: code
@@ -20,7 +20,6 @@ evalcases:
   # Case 1: The Overwhelmed Wife (Passive Resignation)
   - id: listening-basic-overwhelmed-wife
     outcome: |-
-      ZERO SCORE if invalid JSON or wrong schema keys.
       Must identify 'level_2_emotion' as Resentment/Despair (not just anger).
       Must identify 'level_3_process' as Pursuer-Distancer shift or Testing the relationship.
     input_messages:
@@ -49,7 +48,6 @@ evalcases:
   # Case 2: The Traditional Mother (Guilt & Reframing)
   - id: listening-basic-traditional-mother
     outcome: |-
-      ZERO SCORE if invalid JSON.
       Must identify Patriarchal values (Financial exploitation framed as help) and Gaslighting/Enmeshment in 'level_3_process'.
     input_messages:
       - role: user
@@ -77,7 +75,6 @@ evalcases:
   # Case 3: The Returning Mother (Explicit Distress)
   - id: listening-basic-returning-mother
     outcome: |-
-      ZERO SCORE if invalid JSON.
       Must identify Internalizing rejection as worthlessness in 'level_3_process'.
     input_messages:
       - role: user
@@ -109,7 +106,6 @@ evalcases:
   # Case 4: The Alexithymic Executive (Denial of Distress)
   - id: listening-adv-somatic-mask
     outcome: |-
-      ZERO SCORE if invalid JSON.
       Must identify Alexithymia and Somatic Displacement (Stress -> Throat) in 'level_3_process'.
     input_messages:
       - role: user
@@ -137,7 +133,6 @@ evalcases:
   # Case 5: The Benevolent Gatekeeper (Dysfunctional Helping)
   - id: listening-adv-gatekeeper
     outcome: |-
-      ZERO SCORE if invalid JSON.
       Must identify Gatekeeping/Triangulation in 'level_3_process'.
       Must identify the distinction between 'Helping' vs 'Blocking Intimacy'.
     input_messages:
@@ -166,7 +161,6 @@ evalcases:
   # Case 6: The Intellectualizer (Resistance)
   - id: listening-adv-intellectualizer
     outcome: |-
-      ZERO SCORE if invalid JSON.
       Must identify Intellectualization as a defense mechanism in 'level_3_process'.
     input_messages:
       - role: user

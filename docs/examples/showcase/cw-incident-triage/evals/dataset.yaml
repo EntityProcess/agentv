@@ -7,7 +7,14 @@
 
 $schema: agentv-eval-v2
 description: CargoWise criticality rating (CR1-CR9) classification eval for support ticket triage in logistics software.
-target: default
+execution:
+  target: default
+  evaluators:
+    - name: json_schema_validator
+      type: code
+      script: uv run validate_output.py
+    - name: content_evaluator
+      type: llm_judge
 
 evalcases:
   # ==========================================
@@ -20,20 +27,11 @@ evalcases:
       Assistant correctly classifies as 'CR1' for complete system inaccessibility.
       Reasoning should emphasize 'any user on any workstation' and lack of access to the entire suite.
     
-    execution:
-      evaluators:
-        - name: json_format_validator
-          type: code
-          script: uv run validate_output.py
-          cwd: .
-        - name: content_evaluator
-          type: llm_judge
-    
     input_messages:
       - role: user
         content:
           - type: file
-            value: ../prompts/cw-criticality-rating.prompt.md
+            value: ../skills/cw-criticality-rating.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -62,7 +60,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../prompts/cw-criticality-rating.prompt.md
+            value: ../skills/cw-criticality-rating.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -97,7 +95,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../prompts/cw-criticality-rating.prompt.md
+            value: ../skills/cw-criticality-rating.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -130,7 +128,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../prompts/cw-criticality-rating.prompt.md
+            value: ../skills/cw-criticality-rating.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -159,7 +157,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../prompts/cw-criticality-rating.prompt.md
+            value: ../skills/cw-criticality-rating.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -188,7 +186,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../prompts/cw-criticality-rating.prompt.md
+            value: ../skills/cw-criticality-rating.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -217,7 +215,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../prompts/cw-criticality-rating.prompt.md
+            value: ../skills/cw-criticality-rating.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -246,7 +244,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../prompts/cw-criticality-rating.prompt.md
+            value: ../skills/cw-criticality-rating.md
           - type: text
             value: |
               Classify this CargoWise ticket:

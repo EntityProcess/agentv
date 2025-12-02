@@ -1,5 +1,6 @@
 ---
-description: 'Classify CargoWise support tickets using criticality ratings CR1-CR9'
+name: cw-criticality-rating
+description: Classify CargoWise support tickets using criticality ratings CR1-CR9
 ---
 
 # Task

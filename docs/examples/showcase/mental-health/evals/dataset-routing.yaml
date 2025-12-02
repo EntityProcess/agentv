@@ -2,8 +2,8 @@ $schema: agentv-eval-v2
 description: |-
   Evaluation suite for 'Psychology Router'.
   Verifies correct selection of therapeutic framework based on client needs.
-target: default
 execution:
+  target: default
   evaluators:
     - name: json_schema_validator
       type: code
@@ -16,7 +16,6 @@ evalcases:
   # Rationale: Client is venting grievance and describing a complex dynamic. Needs understanding first.
   - id: route-to-listening
     outcome: |-
-      ZERO SCORE if invalid JSON.
       Must select 'three_levels_listening'.
       Rationale should mention "complex grievance", "venting", or "need for understanding".
     input_messages:
@@ -38,7 +37,6 @@ evalcases:
   # Rationale: Client is expressing hopelessness ("raised son for nothing") but hides a resource (Restraint). Needs Reframing.
   - id: route-to-encouragement-father
     outcome: |-
-      ZERO SCORE if invalid JSON.
       Must select 'resource_focused_encouragement'.
       Rationale should mention "finding the resource", "reframing self-blame", or "validating restraint".
     input_messages:
@@ -60,7 +58,6 @@ evalcases:
   # Rationale: Client expresses "I am useless/broken". Needs Normalization and Empowerment.
   - id: route-to-encouragement-job
     outcome: |-
-      ZERO SCORE if invalid JSON.
       Must select 'resource_focused_encouragement'.
       Rationale should mention "low self-efficacy", "empowerment", or "normalization of failure".
     input_messages:
@@ -82,7 +79,6 @@ evalcases:
   # Rationale: Client presents a distorted reality ("I am doing good") that hides dysfunction. Needs Process Analysis, not Encouragement (which would enable the dysfunction).
   - id: route-to-listening-gatekeeper
     outcome: |-
-      ZERO SCORE if invalid JSON.
       Must select 'three_levels_listening'.
       Rationale should mention "dysfunctional dynamic", "lack of insight", or "need to analyze the process". Encouragement here would likely reinforce the triangulation.
     input_messages:
