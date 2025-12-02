@@ -47,10 +47,6 @@
               "prompt": {
                 "type": "string",
                 "description": "Path to judge prompt file (for type: llm_judge)"
-              },
-              "model": {
-                "type": "string",
-                "description": "Model to use for LLM judge (for type: llm_judge)"
               }
             },
             "required": ["name", "type"],
@@ -201,10 +197,6 @@
                     "prompt": {
                       "type": "string",
                       "description": "Path to judge prompt file (for type: llm_judge)"
-                    },
-                    "model": {
-                      "type": "string",
-                      "description": "Model to use for LLM judge (for type: llm_judge)"
                     }
                   },
                   "required": ["name", "type"],

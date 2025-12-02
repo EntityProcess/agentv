@@ -20,7 +20,6 @@ export interface EvaluationContext {
   readonly judgeProvider?: Provider;
   readonly systemPrompt?: string;
   readonly evaluator?: EvaluatorConfig;
-  readonly judgeModel?: string;
 }
 
 export interface EvaluationScore {
@@ -129,7 +128,6 @@ export class LlmJudgeEvaluator implements Evaluator {
       prompt,
       target: context.target.name,
       ...(systemPrompt !== undefined ? { systemPrompt } : {}),
-      ...(context.judgeModel !== undefined ? { model: context.judgeModel } : {}),
     };
 
     return {
