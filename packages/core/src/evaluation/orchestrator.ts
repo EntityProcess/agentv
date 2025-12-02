@@ -25,37 +25,6 @@ export interface EvaluationCache {
   set(key: string, value: ProviderResponse): MaybePromise<void>;
 }
 
-function mergeExpectationsIntoPrompt(
-  promptInputs: PromptInputs,
-  evalCase: EvalCase,
-  includeExpectations: boolean | undefined,
-): PromptInputs {
-  if (!includeExpectations) {
-    return promptInputs;
-  }
-
-  const expectationParts: string[] = [];
-  const outcome = evalCase.expected_outcome?.trim();
-  if (outcome) {
-    expectationParts.push(`EXPECTED OUTCOME:\n${outcome}`);
-  }
-  const reference = evalCase.reference_answer?.trim();
-  if (reference) {
-    expectationParts.push(`REFERENCE RESPONSE (structure/style hint):\n${reference}`);
-  }
-
-  if (expectationParts.length === 0) {
-    return promptInputs;
-  }
-
-  const mergedGuidelines = [promptInputs.guidelines, expectationParts.join("\n\n")]
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0)
-    .join("\n\n");
-
-  return { ...promptInputs, guidelines: mergedGuidelines };
-}
-
 export interface RunEvalCaseOptions {
   readonly evalCase: EvalCase;
   readonly provider: Provider;
@@ -69,7 +38,6 @@ export interface RunEvalCaseOptions {
   readonly useCache?: boolean;
   readonly signal?: AbortSignal;
   readonly judgeProvider?: Provider;
-  readonly includeExpectationsInPrompt?: boolean;
 }
 
 export interface ProgressEvent {
@@ -100,12 +68,6 @@ export interface RunEvaluationOptions {
   readonly maxConcurrency?: number;
   readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
   readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
-  /**
-   * When true, the orchestrator will inject expected outcome/reference output guidance
-   * into the prompt sent to the model. Useful for optimization loops where the eval
-   * file already contains the desired structure.
-   */
-  readonly includeExpectationsInPrompt?: boolean;
 }
 
 export async function runEvaluation(options: RunEvaluationOptions): Promise<readonly EvaluationResult[]> {
@@ -127,7 +89,6 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     verbose,
     onResult,
     onProgress,
-    includeExpectationsInPrompt,
   } = options;
 
   const load = loadEvalCases;
@@ -224,7 +185,6 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
         verbose,
         resolveJudgeProvider,
         agentTimeoutMs,
-        includeExpectationsInPrompt,
       });
     } catch (error) {
       if (verbose) {
@@ -272,7 +232,6 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
           useCache,
           now,
           judgeProvider,
-          includeExpectationsInPrompt,
         });
 
         if (onProgress) {
@@ -317,11 +276,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     } else {
       // Build error result for rejected promise
       const evalCase = filteredEvalCases[i];
-      const promptInputs = mergeExpectationsIntoPrompt(
-        await buildPromptInputs(evalCase),
-        evalCase,
-        includeExpectationsInPrompt,
-      );
+      const promptInputs = await buildPromptInputs(evalCase);
       const errorResult = buildErrorResult(
         evalCase,
         target.name,
@@ -352,7 +307,6 @@ async function runBatchEvaluation(options: {
   readonly verbose?: boolean;
   readonly resolveJudgeProvider: (target: ResolvedTarget) => Promise<Provider | undefined>;
   readonly agentTimeoutMs?: number;
-  readonly includeExpectationsInPrompt?: boolean;
 }): Promise<readonly EvaluationResult[]> {
   const {
     evalCases,
@@ -365,17 +319,12 @@ async function runBatchEvaluation(options: {
     onResult,
     resolveJudgeProvider,
     agentTimeoutMs,
-    includeExpectationsInPrompt,
   } = options;
 
   // Prepare prompt inputs up front so we can reuse them for grading.
   const promptInputsList: PromptInputs[] = [];
   for (const evalCase of evalCases) {
-    const promptInputs = mergeExpectationsIntoPrompt(
-      await buildPromptInputs(evalCase),
-      evalCase,
-      includeExpectationsInPrompt,
-    );
+    const promptInputs = await buildPromptInputs(evalCase);
     if (promptDumpDir) {
       await dumpPrompt(promptDumpDir, evalCase, promptInputs);
     }
@@ -488,14 +437,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     useCache,
     signal,
     judgeProvider,
-    includeExpectationsInPrompt,
   } = options;
 
-  const promptInputs = mergeExpectationsIntoPrompt(
-    await buildPromptInputs(evalCase),
-    evalCase,
-    includeExpectationsInPrompt,
-  );
+  const promptInputs = await buildPromptInputs(evalCase);
   if (promptDumpDir) {
     await dumpPrompt(promptDumpDir, evalCase, promptInputs);
   }
