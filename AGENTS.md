@@ -89,14 +89,14 @@ Usage notes:
 <available_skills>
 
 <skill>
-<name>jsonl-to-yaml</name>
-<description>Convert JSONL (JSON Lines) files to human-readable YAML format with proper multiline string handling. Use this skill when users need to view or convert JSONL evaluation results, logs, or data exports into readable YAML format.</description>
+<name>agentv-prompt-optimizer</name>
+<description>Iteratively optimize a prompt file against an AgentV evaluation suite by analyzing failures and refining instructions.</description>
 <location>project</location>
 </skill>
 
 <skill>
-<name>prompt-optimizer</name>
-<description>Iteratively optimize a prompt file against an AgentV evaluation suite by analyzing failures and refining instructions. Use this skill to improve prompt performance on specific test cases without overfitting.</description>
+<name>jsonl-to-yaml</name>
+<description>Convert JSONL (JSON Lines) files to human-readable YAML format with proper multiline string handling. Use this skill when users need to view or convert JSONL evaluation results, logs, or data exports into readable YAML format.</description>
 <location>project</location>
 </skill>
 
