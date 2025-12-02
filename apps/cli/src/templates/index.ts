@@ -9,11 +9,15 @@ export interface Template {
 
 export class TemplateManager {
   static getGithubTemplates(): Template[] {
-    return this.getTemplatesFromDir("github");
+    return this.getTemplatesFromDir(".github");
   }
 
   static getAgentvTemplates(): Template[] {
-    return this.getTemplatesFromDir("agentv");
+    return this.getTemplatesFromDir(".agentv");
+  }
+
+  static getClaudeTemplates(): Template[] {
+    return this.getTemplatesFromDir(".claude");
   }
 
   private static getTemplatesFromDir(subdir: string): Template[] {

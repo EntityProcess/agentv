@@ -26,10 +26,12 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   const targetPath = path.resolve(options.targetPath ?? ".");
   const githubDir = path.join(targetPath, ".github");
   const agentvDir = path.join(targetPath, ".agentv");
+  const claudeDir = path.join(targetPath, ".claude");
 
   // Get templates
   const githubTemplates = TemplateManager.getGithubTemplates();
   const agentvTemplates = TemplateManager.getAgentvTemplates();
+  const claudeTemplates = TemplateManager.getClaudeTemplates();
 
   // Check if any files already exist
   const existingFiles: string[] = [];
@@ -44,6 +46,14 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   if (existsSync(agentvDir)) {
     for (const template of agentvTemplates) {
       const targetFilePath = path.join(agentvDir, template.path);
+      if (existsSync(targetFilePath)) {
+        existingFiles.push(path.relative(targetPath, targetFilePath));
+      }
+    }
+  }
+  if (existsSync(claudeDir)) {
+    for (const template of claudeTemplates) {
+      const targetFilePath = path.join(claudeDir, template.path);
       if (existsSync(targetFilePath)) {
         existingFiles.push(path.relative(targetPath, targetFilePath));
       }
@@ -72,6 +82,11 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   // Create .agentv directory if it doesn't exist
   if (!existsSync(agentvDir)) {
     mkdirSync(agentvDir, { recursive: true });
+  }
+
+  // Create .claude directory if it doesn't exist
+  if (!existsSync(claudeDir)) {
+    mkdirSync(claudeDir, { recursive: true });
   }
 
   // Copy each .github template
@@ -104,11 +119,28 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     console.log(`Created ${path.relative(targetPath, targetFilePath)}`);
   }
 
+  // Copy each .claude template
+  for (const template of claudeTemplates) {
+    const targetFilePath = path.join(claudeDir, template.path);
+    const targetDirPath = path.dirname(targetFilePath);
+
+    // Create directory if needed
+    if (!existsSync(targetDirPath)) {
+      mkdirSync(targetDirPath, { recursive: true });
+    }
+
+    // Write file
+    writeFileSync(targetFilePath, template.content, "utf-8");
+    console.log(`Created ${path.relative(targetPath, targetFilePath)}`);
+  }
+
   console.log("\nAgentV initialized successfully!");
   console.log(`\nFiles installed to ${path.relative(targetPath, githubDir)}:`);
   githubTemplates.forEach((t) => console.log(`  - ${t.path}`));
   console.log(`\nFiles installed to ${path.relative(targetPath, agentvDir)}:`);
   agentvTemplates.forEach((t) => console.log(`  - ${t.path}`));
+  console.log(`\nFiles installed to ${path.relative(targetPath, claudeDir)}:`);
+  claudeTemplates.forEach((t) => console.log(`  - ${t.path}`));
   console.log("\nYou can now:");
   console.log("  1. Edit .agentv/.env with your API credentials");
   console.log("  2. Configure targets in .agentv/targets.yaml");

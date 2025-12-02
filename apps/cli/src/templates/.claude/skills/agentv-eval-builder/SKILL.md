@@ -1,10 +1,14 @@
 ---
-description: 'Apply when writing evals in YAML format'
+name: eval-builder
+description: Create and maintain AgentV YAML evaluation files for testing AI agent performance. Use this skill when creating new eval files, adding eval cases, or configuring custom evaluators (code validators or LLM judges) for agent testing workflows.
 ---
 
+# Eval Builder
+
 ## Schema Reference
-- Schema: `@../contexts/eval-schema.json` (JSON Schema for validation and tooling)
+- Schema: `references/eval-schema.json` (JSON Schema for validation and tooling)
 - Format: YAML with structured content arrays
+- Examples: `references/example-evals.md`
 
 ## Structure Requirements
 - Root level: `$schema` (required: "agentv-eval-v2"), `description` (optional), `target` (optional), `evalcases` (required)
@@ -14,7 +18,54 @@ description: 'Apply when writing evals in YAML format'
 - Message roles: `system`, `user`, `assistant`, `tool`
 - Content types: `text` (inline), `file` (relative or absolute path)
 - Attachments (type: `file`) should default to the `user` role
-- File paths must start with "/" for absolute paths (e.g., "/prompts/file.md")
+- File paths: Relative (from eval file dir) or absolute with "/" prefix (from repo root)
+
+## Custom Evaluators
+
+Configure multiple evaluators per eval case via `execution.evaluators` array.
+
+### Code Evaluators
+Scripts that validate output programmatically:
+
+```yaml
+execution:
+  evaluators:
+    - name: json_format_validator
+      type: code
+      script: uv run validate_output.py
+      cwd: ../../evaluators/scripts
+```
+
+**Contract:**
+- Input (stdin): JSON with `task`, `outcome`, `expected`, `output`, `system_message`, etc.
+- Output (stdout): JSON with `score` (0.0-1.0), `hits`, `misses`, `reasoning`
+
+**Template:** See `references/custom-evaluators.md` for Python code evaluator template
+
+### LLM Judges
+Language models evaluate response quality:
+
+```yaml
+execution:
+  evaluators:
+    - name: content_evaluator
+      type: llm_judge
+      prompt: /evaluators/prompts/correctness.md
+      model: gpt-5-chat
+```
+
+### Evaluator Chaining
+Evaluators run sequentially:
+
+```yaml
+execution:
+  evaluators:
+    - name: format_check      # Runs first
+      type: code
+      script: uv run validate_json.py
+    - name: content_check     # Runs second
+      type: llm_judge
+```
 
 ## Example
 ```yaml
@@ -40,7 +91,6 @@ evalcases:
               def add(a, b):
                   return a + b
               ```
-          # File paths can be relative or absolute
           - type: file
             value: /prompts/python.instructions.md
     
@@ -62,7 +112,8 @@ evalcases:
       evaluators:
         - name: keyword_check
           type: code
-          script: /evaluators/scripts/check_keywords.py
+          script: uv run check_keywords.py
+          cwd: /evaluators/scripts
         - name: semantic_judge
           type: llm_judge
           prompt: /evaluators/prompts/correctness.md
