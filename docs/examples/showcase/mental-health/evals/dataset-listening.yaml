@@ -1,0 +1,192 @@
+$schema: agentv-eval-v2
+description: |-
+  Comprehensive Evaluation Suite for 'Three Levels of Listening'.
+  TIER 1: Basic capability (Explicit Content & Emotion).
+  TIER 2: Advanced capability (Implicit Process, Somatization, & Resistance).
+target: default
+execution:
+  evaluators:
+    - name: json_schema_validator
+      type: code
+      script: uv run validate_output.py
+    - name: content_evaluator
+      type: llm_judge
+
+evalcases:
+  # ==============================================================================
+  # TIER 1: BASIC BENCHMARKS (Explicit Text)
+  # ==============================================================================
+
+  # Case 1: The Overwhelmed Wife (Passive Resignation)
+  - id: listening-basic-overwhelmed-wife
+    outcome: |-
+      ZERO SCORE if invalid JSON or wrong schema keys.
+      Must identify 'level_2_emotion' as Resentment/Despair (not just anger).
+      Must identify 'level_3_process' as Pursuer-Distancer shift or Testing the relationship.
+    input_messages:
+      - role: user
+        content: |-
+          Analyze the following client statement using the Three Levels of Listening framework.
+
+          Client Statement:
+          "I used to fight with him about the chores. I used to scream when he played games while I cooked. Yesterday, I walked right past him. He was on his phone. The trash was overflowing. I didn't say a word. I just cooked dinner, ate with the kids, and went to bed. He didn't even look up. I wonder... if I stopped paying the internet bill, would he notice me then?"
+    expected_messages:
+      - role: assistant
+        content: |-
+          {
+            "framework": "three_levels_listening",
+            "analysis": {
+              "level_1_content": "Client stopped verbally fighting about chores/neglect; observed husband's continued disengagement; considering passive-aggressive action (cutting internet).",
+              "level_2_emotion": "Resentment, Despair, Numbness/Detachment, Cold Anger.",
+              "level_3_process": "Shift from 'Pursuer' (screaming) to 'Distancer' (silence). Testing the relationship's viability. Using withdrawal as a final attempt to gain attention or preparing to detach completely."
+            },
+            "suggested_response": {
+              "focus": "Validation of the shift",
+              "draft_response": "It seems you have moved past the point of screaming and are now sitting with a heavy silence, wondering if he can see you at all."
+            }
+          }
+
+  # Case 2: The Traditional Mother (Guilt & Reframing)
+  - id: listening-basic-traditional-mother
+    outcome: |-
+      ZERO SCORE if invalid JSON.
+      Must identify Patriarchal values (Financial exploitation framed as help) and Gaslighting/Enmeshment in 'level_3_process'.
+    input_messages:
+      - role: user
+        content: |-
+          Analyze the following client statement using the Three Levels of Listening framework.
+
+          Client Statement:
+          "My daughter is doing so well, she saves so much money. Her brother is just starting out, he's struggling. As a family, we help each other, right? I simply suggested she help him with the down payment. It's an investment for the family's future. But she stopped talking to me! I don't understand. Isn't family about sharing? Why is she being so calculated and cold with her own flesh and blood?"
+    expected_messages:
+      - role: assistant
+        content: |-
+          {
+            "framework": "three_levels_listening",
+            "analysis": {
+              "level_1_content": "Mother asked successful daughter to pay for struggling son's down payment; Daughter cut contact; Mother frames this as 'family help' and daughter as 'cold'.",
+              "level_2_emotion": "Confusion (feigned or genuine), Self-righteousness, Victimhood, Indignation.",
+              "level_3_process": "Manipulative Reframing: Defines 'financial exploitation' as 'family values'. Gaslighting: Labels daughter's boundary setting as 'being cold'. Enmeshment: Fails to see daughter as a separate entity with rights."
+            },
+            "suggested_response": {
+              "focus": "Reflection of value conflict",
+              "draft_response": "You feel deeply confused because, for you, family means sharing everything, and her boundary feels like a rejection of the family itself."
+            }
+          }
+
+  # Case 3: The Returning Mother (Explicit Distress)
+  - id: listening-basic-returning-mother
+    outcome: |-
+      ZERO SCORE if invalid JSON.
+      Must identify Internalizing rejection as worthlessness in 'level_3_process'.
+    input_messages:
+      - role: user
+        content: |-
+          Analyze the following client statement using the Three Levels of Listening framework.
+
+          Client Statement:
+          "I have a 3-year-old daughter who started kindergarten. I used to watch the child at home and felt useless, so I wanted to find a job. My husband supports me, but I sent many resumes with no response. I finally got an interview but didn't pass. I can't find a suitable job. I doubt myself—am I unable to do anything? I am in pain, unhappy every day, and don't know what to do."
+    expected_messages:
+      - role: assistant
+        content: |-
+          {
+            "framework": "three_levels_listening",
+            "analysis": {
+              "level_1_content": "Transitioning from full-time Motherhood to Workforce; loss of previous role clarity; repeated rejection.",
+              "level_2_emotion": "Pain, Unhappiness, Self-doubt, Anxiety, Confusion.",
+              "level_3_process": "Overgeneralization and Internalization: Views job rejection as proof of total personal incompetence ('unable to do anything'). Loss of identity (not just a job)."
+            },
+            "suggested_response": {
+              "focus": "Validation of Identity Crisis",
+              "draft_response": "It sounds like the rejection makes you question your entire worth, not just your skills."
+            }
+          }
+
+  # ==============================================================================
+  # TIER 2: ADVANCED BENCHMARKS (Implicit/Process)
+  # ==============================================================================
+
+  # Case 4: The Alexithymic Executive (Denial of Distress)
+  - id: listening-adv-somatic-mask
+    outcome: |-
+      ZERO SCORE if invalid JSON.
+      Must identify Alexithymia and Somatic Displacement (Stress -> Throat) in 'level_3_process'.
+    input_messages:
+      - role: user
+        content: |-
+          Analyze the following client statement using the Three Levels of Listening framework.
+
+          Client Statement:
+          "My life is perfect. Work is booming, just got a promotion. I'm thriving on the pressure. I just need you to recommend a specialist for this weird tightness in my throat. It's like a lump that won't go away. My wife keeps asking if I'm 'anxious', which is ridiculous. I don't do anxiety. I just have a throat issue."
+    expected_messages:
+      - role: assistant
+        content: |-
+          {
+            "framework": "three_levels_listening",
+            "analysis": {
+              "level_1_content": "Reports 'perfect life' and career success; Denies anxiety/stress explicitly; Seeks medical fix for 'throat lump' (Globus sensation).",
+              "level_2_emotion": "Disconnected/Numb (Alexithymia), Defensive pride. Implicit: Panic (displaced).",
+              "level_3_process": "Alexithymia: Inability to identify/verbalize feelings. Somatic Displacement: Stress is converted into physical symptoms (throat tightness) because emotional expression is viewed as weakness."
+            },
+            "suggested_response": {
+              "focus": "Connecting Body and Mind safely",
+              "draft_response": "It sounds like your mind is handling the pressure perfectly, but your throat seems to be carrying a tension that doesn't fit the 'perfect' picture."
+            }
+          }
+
+  # Case 5: The Benevolent Gatekeeper (Dysfunctional Helping)
+  - id: listening-adv-gatekeeper
+    outcome: |-
+      ZERO SCORE if invalid JSON.
+      Must identify Gatekeeping/Triangulation in 'level_3_process'.
+      Must identify the distinction between 'Helping' vs 'Blocking Intimacy'.
+    input_messages:
+      - role: user
+        content: |-
+          Analyze the following client statement using the Three Levels of Listening framework.
+
+          Client Statement:
+          "I'm the bridge in this family. When Mom says my wife's cooking is 'bland', I tell my wife that Mom is just worried about her salt intake. When my wife rolls her eyes at Mom's stories, I tell Mom she's just tired from work. I work so hard to translate for them so they don't get hurt. Why do I feel so exhausted if I'm doing such a good thing?"
+    expected_messages:
+      - role: assistant
+        content: |-
+          {
+            "framework": "three_levels_listening",
+            "analysis": {
+              "level_1_content": "Client actively 'translates' (distorts) critical messages between wife and mother to prevent conflict; Reports exhaustion.",
+              "level_2_emotion": "Exhaustion, Anxiety, Fear of conflict, False pride in being the 'bridge'.",
+              "level_3_process": "Gatekeeping/Triangulation: By 'translating', the client prevents direct contact and authentic relationship (even conflict) between the women. He maintains the dysfunction by absorbing the tension."
+            },
+            "suggested_response": {
+              "focus": "Highlighting the Cost of the Role",
+              "draft_response": "You are working incredibly hard to protect them from each other, but it sounds like you are the one absorbing all the impact."
+            }
+          }
+
+  # Case 6: The Intellectualizer (Resistance)
+  - id: listening-adv-intellectualizer
+    outcome: |-
+      ZERO SCORE if invalid JSON.
+      Must identify Intellectualization as a defense mechanism in 'level_3_process'.
+    input_messages:
+      - role: user
+        content: |-
+          Analyze the following client statement using the Three Levels of Listening framework. (Context: Therapist suggested expressing anger to a parent).
+
+          Client Statement:
+          "I've read about this. It's the 'Empty Chair' technique, right? Gestalt therapy. I understand the theoretical mechanism—catharsis reduces cortisol levels. It's fascinating how the brain processes repressed anger. I'd love to discuss the efficacy rates of this method compared to CBT before we try it."
+    expected_messages:
+      - role: assistant
+        content: |-
+          {
+            "framework": "three_levels_listening",
+            "analysis": {
+              "level_1_content": "Client discusses the theory/mechanism of the technique ('cortisol', 'Gestalt', 'efficacy rates') instead of doing it.",
+              "level_2_emotion": "Detachment, Superiority (intellectual), Fear of vulnerability/loss of control.",
+              "level_3_process": "Intellectualization: Moving the conversation to the 'head' (theory/data) to avoid the 'heart' (experiencing the anger). Using analysis as a shield against the therapeutic intervention."
+            },
+            "suggested_response": {
+              "focus": "Bypassing the Intellect",
+              "draft_response": "Your understanding of the theory is spot on. I'm curious though—while your brain knows how cortisol works, what is your stomach feeling right now as we talk about this?"
+            }
+          }

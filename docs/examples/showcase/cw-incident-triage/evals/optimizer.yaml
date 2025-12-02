@@ -24,17 +24,10 @@ max_epochs: 5
 # When false, ACE can only modify existing content
 allow_dynamic_sections: true
 
-# Optional: Filter which eval cases to include
-# filters:
-#   conversation_ids:
-#     - python-code-generation
-#   eval_case_ids:
-#     - code-gen-python-comprehensive
-
 # Optional: Target override for optimization runs
 # target: azure_base
 
 # Optional: Stop early if success rate exceeds threshold
 # early_stopping:
 #   metric: success_rate
-#   threshold: 0.95
+#   threshold: 0.9

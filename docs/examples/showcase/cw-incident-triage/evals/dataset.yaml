@@ -33,7 +33,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
+            value: ../prompts/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -62,7 +62,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
+            value: ../prompts/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -85,34 +85,38 @@ evalcases:
   # These cases showcase optimization potential for patterns like defect vs. feature request
   # ==========================================
   
-  - id: cr-job-costing-substantial-change
+  - id: cr-missing-validation-disguised-as-defect
     conversation_id: cargowise-triage
     
     outcome: |
-      Assistant classifies as 'CR6' despite history of prior defect fix.
-      Most LLMs might misclassify as CR3 (ongoing defect), but expected is CR6 as it requires substantial new changes beyond fixing documented behavior.
-      Reasoning must reference prior fix and distinguish from 'changed from previously correct behaviour'.
+      Assistant classifies as 'CR6' (Enhancement) despite user claiming "Critical Bug" and citing a prior defect.
+      Most LLMs might misclassify as CR3 (Defect) due to the user's label, financial impact, and claim of a "failed fix".
+      Expected is CR6 because the prior fix (DEF-555) addressed format length (as per docs), whereas this request is for a new uniqueness constraint not in the specs.
     
     input_messages:
       - role: user
         content:
           - type: file
-            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
+            value: ../prompts/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
               
-              Ticket: Job costing calculation still not meeting our needs after previous fix
-              Impact: Costs underreported by 15-20% in complex multi-leg shipments
-              Scope: Single function (job costing)
-              Signals: Previous ticket (DEF-1234) classified as defect and fixed per documentation; now requesting substantial changes to formula (e.g., add dynamic weighting for legs, integrate external FX rates); original fix restored documented behavior but didn't resolve business problem; no workaround available
+              Ticket: REOPENED DEF-555: Critical Production Bug - Container Validation Failed
+              Impact: Customs filings rejected. Fines incurring.
+              Scope: Consolidation/Booking
+              Signals: 
+              - User Comment: "Re-opening because the fix didn't work! We can still save duplicate containers on the BL. You said this was fixed in the last patch. This is a critical defect causing data corruption."
+              - DEF-555 History: Original Report: "Container validation missing." Resolution: "Added 11-char length validation." Status: Closed/Deployed.
+              - Documentation: "Container Number: Enter the 11-character ISO code." (No mention of uniqueness check).
+              - System Behavior: Accepts 11-char duplicates without error.
     
     expected_messages:
       - role: assistant
         content: |
           {
             "criticalityRating": "CR6",
-            "reasoning": "Step 1: Prior issue (DEF-1234) was a defect (CR3) and fixed to match documentation. Step 2: Current request seeks substantial new changes (e.g., dynamic weighting, FX integration) beyond documented behavior. Step 3: This is not a bug in existing function but a request for enhancements—matches CR6 for roadmap consideration."
+            "reasoning": "Step 1: System functions as documented (accepts alphanumeric input, enforces length per DEF-555). Step 2: User claims failed fix, but DEF-555 addressed length, not uniqueness. Step 3: Request is to add a new validation rule (uniqueness) that does not currently exist in specs. Step 4: Despite 'Critical Bug' label and prior ticket reference, this is a request for new capability (Enhancement), not a deviation from documentation (Defect). Matches CR6."
           }
 
   - id: cr-function-bug-no-workaround
@@ -126,7 +130,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
+            value: ../prompts/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -155,7 +159,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
+            value: ../prompts/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -184,7 +188,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
+            value: ../prompts/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -213,7 +217,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
+            value: ../prompts/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:
@@ -242,7 +246,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ../../prompts/cw-incident-triage/cw-criticality-rating.prompt.md
+            value: ../prompts/cw-criticality-rating.prompt.md
           - type: text
             value: |
               Classify this CargoWise ticket:

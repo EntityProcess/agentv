@@ -1,0 +1,101 @@
+$schema: agentv-eval-v2
+description: |-
+  Evaluation suite for 'Psychology Router'.
+  Verifies correct selection of therapeutic framework based on client needs.
+target: default
+execution:
+  evaluators:
+    - name: json_schema_validator
+      type: code
+      script: uv run validate_output.py
+    - name: content_evaluator
+      type: llm_judge
+
+evalcases:
+  # Case 1: Routing to Listening (Ah Yang)
+  # Rationale: Client is venting grievance and describing a complex dynamic. Needs understanding first.
+  - id: route-to-listening
+    outcome: |-
+      ZERO SCORE if invalid JSON.
+      Must select 'three_levels_listening'.
+      Rationale should mention "complex grievance", "venting", or "need for understanding".
+    input_messages:
+      - role: user
+        content: |-
+          Route the following client statement to the best framework (Listening vs. Encouragement).
+
+          Client Statement:
+          "I have to go to work every day, take care of the kids, do the housework, and cook. What about my husband? He only knows how to hold his phone and play games. Sometimes when I ask him to help get something, he moves so slowly. It really makes me angry."
+    expected_messages:
+      - role: assistant
+        content: |-
+          {
+            "rationale": "The client is expressing deep grievance, anger, and confusion about a relationship dynamic. They need to feel heard and have the dynamic ('Pursuer-Distancer') analyzed before moving to solutions.",
+            "selected_framework": "three_levels_listening"
+          }
+
+  # Case 2: Routing to Encouragement (Restrained Father)
+  # Rationale: Client is expressing hopelessness ("raised son for nothing") but hides a resource (Restraint). Needs Reframing.
+  - id: route-to-encouragement-father
+    outcome: |-
+      ZERO SCORE if invalid JSON.
+      Must select 'resource_focused_encouragement'.
+      Rationale should mention "finding the resource", "reframing self-blame", or "validating restraint".
+    input_messages:
+      - role: user
+        content: |-
+          Route the following client statement to the best framework.
+
+          Client Statement:
+          "I was going to explode, I really wanted to hit him! But... in the end, I didn't raise my hand. I feel like I raised this son for nothing."
+    expected_messages:
+      - role: assistant
+        content: |-
+          {
+            "rationale": "The client is expressing hopelessness and self-blame ('raised for nothing'), but the narrative contains a hidden positive resource (self-control). The most effective intervention is to reframe this restraint as a success.",
+            "selected_framework": "resource_focused_encouragement"
+          }
+
+  # Case 3: Routing to Encouragement (Job Seeker)
+  # Rationale: Client expresses "I am useless/broken". Needs Normalization and Empowerment.
+  - id: route-to-encouragement-job
+    outcome: |-
+      ZERO SCORE if invalid JSON.
+      Must select 'resource_focused_encouragement'.
+      Rationale should mention "low self-efficacy", "empowerment", or "normalization of failure".
+    input_messages:
+      - role: user
+        content: |-
+          Route the following client statement to the best framework.
+
+          Client Statement:
+          "I sent many resumes with no response. I doubt myself—am I unable to do anything? I am in pain, unhappy every day, and don't know what to do."
+    expected_messages:
+      - role: assistant
+        content: |-
+          {
+            "rationale": "The client is in a state of low self-worth and despair ('unable to do anything'). They require Normalization (job market is tough) and Resource identification (persistence) to rebuild self-efficacy.",
+            "selected_framework": "resource_focused_encouragement"
+          }
+
+  # Case 4: Routing to Listening (Gatekeeper)
+  # Rationale: Client presents a distorted reality ("I am doing good") that hides dysfunction. Needs Process Analysis, not Encouragement (which would enable the dysfunction).
+  - id: route-to-listening-gatekeeper
+    outcome: |-
+      ZERO SCORE if invalid JSON.
+      Must select 'three_levels_listening'.
+      Rationale should mention "dysfunctional dynamic", "lack of insight", or "need to analyze the process". Encouragement here would likely reinforce the triangulation.
+    input_messages:
+      - role: user
+        content: |-
+          Route the following client statement to the best framework.
+
+          Client Statement:
+          "I translate for my wife and mom so they don't get hurt. I tell my wife Mom is just worried, and I tell Mom my wife is just tired. Why do I feel so exhausted if I'm doing such a good thing?"
+    expected_messages:
+      - role: assistant
+        content: |-
+          {
+            "rationale": "The client is engaging in 'Triangulation' (blocking direct communication) but frames it as 'doing a good thing'. Encouraging this would reinforce the pathology. Listening/Process analysis is needed to help him see the cost of his gatekeeping role.",
+            "selected_framework": "three_levels_listening"
+          }
