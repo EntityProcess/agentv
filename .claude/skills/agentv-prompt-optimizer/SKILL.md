@@ -7,13 +7,20 @@ description: Iteratively optimize a prompt file against an AgentV evaluation sui
 Iteratively optimize a prompt file against an AgentV evaluation suite.
 
 ## Usage
-`prompt-optimizer <prompt-file> <eval-path>`
+`prompt-optimizer <eval-path> [playbook-path]`
 
 ## Workflow
 
 1.  **Initialize**
-    - Read content of `<prompt-file>`.
-    - Verify `<eval-path>` (file or glob) targets the correct prompt or system.
+    - Verify `<eval-path>` (file or glob) targets the correct system.
+    - **Identify Prompt Files**:
+        - Infer prompt files from the eval file content (look for `file:` references in `input_messages` that match these patterns).
+        - Recursively check referenced prompt files for *other* prompt references (dependencies).
+        - If multiple prompts are found, consider ALL of them as candidates for optimization.
+    - **Identify Playbook**:
+        - If `<playbook-path>` is provided, use it.
+        - If not, create a new one in the parent directory of the eval files: `playbook-[timestamp].md`.
+    - Read content of the identified prompt file.
 
 2.  **Optimization Loop** (Max 5 iterations)
     - **Execute (The Generator)**: Run `pnpm agentv eval <eval-path>`.
@@ -31,7 +38,7 @@ Iteratively optimize a prompt file against an AgentV evaluation suite.
         - If **Score decreased**: Revert last change, try different approach.
         - If **No improvement** (2x): STOP and report stagnation.
     - **Log Result**:
-        - Append the result of this iteration to `<prompt-filename>.playbook.md` (create if missing).
+        - Append the result of this iteration to the identified playbook file.
         - **Format**:
           ```markdown
           ### Iteration [N]
@@ -41,7 +48,7 @@ Iteratively optimize a prompt file against an AgentV evaluation suite.
           - **Insight**: [Key learning or pattern identified]
           ```
     - **Refine (The Curator)**:
-        - Modify `<prompt-file>` to address failures.
+        - Modify the relevant `<prompt-file>` (pick the one most likely to be the root cause) to address failures.
         - **Strategy**: Treat the prompt as a structured "Playbook".
             - **Clarify**: If ambiguous, make the existing instruction more specific.
             - **Add Rule**: If a constraint was missed, add a specific bullet point to the relevant section.
@@ -54,6 +61,7 @@ Iteratively optimize a prompt file against an AgentV evaluation suite.
 3.  **Completion**
     - Report final score.
     - Summarize key changes made to the prompt.
+    - **Finalize Playbook**: Add a summary header to the playbook file indicating the session completion and final score.
 
 ## Guidelines
 - **Simplicity ("Less is More")**: Avoid adding specific rules for rare edge cases ("hotfixes"). Focus on universally applicable instructions.
