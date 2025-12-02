@@ -305,7 +305,7 @@ describe("runTestCase", () => {
     expect(chatPrompt).toBeDefined();
     if (!chatPrompt) throw new Error("chatPrompt is undefined");
     expect(chatPrompt[0].role).toBe("system");
-    expect(chatPrompt[1]).toEqual({ role: "user", content: "=== snippet.txt ===\ncode()\nReview" });
+    expect(chatPrompt[1]).toEqual({ role: "user", content: "<file path=\"snippet.txt\">\ncode()\n</file>\nReview" });
     expect(chatPrompt[2]).toEqual({ role: "assistant", content: "Ack" });
     expect(result.lm_provider_request?.chat_prompt).toBeDefined();
   });
