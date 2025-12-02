@@ -126,7 +126,7 @@ describe("buildPromptInputs chatPrompt", () => {
 
     expect(chatPrompt[1]).toEqual({
       role: "user",
-      content: "=== code.js ===\nconsole.log('hi');\nReview it",
+      content: "<file path=\"code.js\">\nconsole.log('hi');\n</file>\nReview it",
     });
     expect(chatPrompt[2]).toEqual({
       role: "assistant",
@@ -640,7 +640,8 @@ evalcases:
     expect(result.question).toContain("@[User]:");
     
     // Regular files should be embedded inline with their content
-    expect(result.question).toContain("=== code.ts ===");
+    expect(result.question).toContain("<file path=\"code.ts\">");
     expect(result.question).toContain("function hello()");
+    expect(result.question).toContain("</file>");
   });
 });
