@@ -990,7 +990,7 @@ async function parseEvaluators(
       const cwd = asString(rawEvaluator.cwd);
       let resolvedCwd: string | undefined;
 
-      // Resolve cwd if provided (relative to eval file)
+      // Resolve cwd if provided (relative to eval file), otherwise default to eval file directory
       if (cwd) {
         const resolved = await resolveFileReference(cwd, searchRoots);
         if (resolved.resolvedPath) {
@@ -1001,6 +1001,9 @@ async function parseEvaluators(
             resolved.attempted.length > 0 ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`) : undefined,
           );
         }
+      } else {
+        // Default to the directory containing the eval file (first search root)
+        resolvedCwd = searchRoots[0];
       }
 
       evaluators.push({
@@ -1033,8 +1036,7 @@ async function parseEvaluators(
       name,
       type: "llm_judge",
       prompt,
-      promptPath,
-      model,
+      promptPath
     });
   }
 
