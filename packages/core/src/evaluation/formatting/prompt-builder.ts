@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { formatFileContents, formatSegment, hasVisibleContent } from "./segment-formatter.js";
 import { isGuidelineFile } from "../loaders/config-loader.js";
 import { fileExists } from "../loaders/file-resolver.js";
 import type { ChatPrompt } from "../providers/types.js";
-import { formatFileContents, formatSegment, hasVisibleContent } from "./segment-formatter.js";
 import type { EvalCase, JsonObject, TestMessage } from "../types.js";
 import { isJsonObject } from "../types.js";
 

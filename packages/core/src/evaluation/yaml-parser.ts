@@ -2,11 +2,11 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 
+import { extractCodeBlocks } from "./formatting/segment-formatter.js";
 import { extractTargetFromSuite, loadConfig } from "./loaders/config-loader.js";
 import { coerceEvaluator, parseEvaluators } from "./loaders/evaluator-parser.js";
 import { buildSearchRoots, resolveToAbsolutePath } from "./loaders/file-resolver.js";
 import { processMessages, resolveAssistantContent } from "./loaders/message-processor.js";
-import { extractCodeBlocks } from "./formatting/segment-formatter.js";
 import type {
   EvalCase,
   JsonObject,
@@ -118,7 +118,7 @@ export async function loadEvalCases(
   
   // Extract global target from execution.target (or legacy root-level target)
   const globalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
-  const globalTarget = asString(globalExecution?.target) ?? asString(suite.target);
+  const _globalTarget = asString(globalExecution?.target) ?? asString(suite.target);
   
   const results: EvalCase[] = [];
 

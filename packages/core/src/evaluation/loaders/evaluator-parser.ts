@@ -99,7 +99,7 @@ export async function parseEvaluators(
       }
     }
 
-    const model = asString(rawEvaluator.model);
+    const _model = asString(rawEvaluator.model);
 
     evaluators.push({
       name,
