@@ -8,13 +8,14 @@
 
 ## 2. Provider Abstraction and Types
 
-- [ ] 2.1 Introduce a Vercel AI chat adapter that translates `ProviderRequest` into
-      SDK-compatible request objects and maps responses back into `ProviderResponse`.
-- [ ] 2.2 Update `ProviderKind`, `Provider`, and related types in
-      `packages/core/src/evaluation/providers/types.ts` to remove `AxAI` references
-      and the `getAxAI()` escape hatch while keeping the rest of the surface stable.
+- [ ] 2.1 Keep `ProviderRequest`, `ProviderResponse`, and the `Provider` interface in
+      `packages/core/src/evaluation/providers/types.ts` as the only abstraction seam,
+      with no additional adapter or factory layer for Vercel AI.
+- [ ] 2.2 Update `ProviderKind`, `Provider`, and related types to remove all Ax-specific
+      references (including `AxAI` imports and the `getAxAI()` escape hatch) while
+      keeping the rest of the surface stable for existing callers.
 - [ ] 2.3 Ensure `ChatPrompt` is defined in a provider-agnostic way (no Ax types) and
-      reused across all Vercel AI–backed providers.
+      reused across all Vercel AI–backed providers via a shared chat-prompt builder.
 
 ## 3. Azure OpenAI, Anthropic, and Gemini Providers
 

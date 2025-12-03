@@ -8,16 +8,18 @@ the ecosystem-standard Vercel AI SDK already used in related projects.
 
 ## What Changes
 
-- Replace Ax-based cloud LLM providers in `@agentv/core` with direct integrations using the
-  Vercel AI SDK (Azure OpenAI, Anthropic, and Gemini).
+- Replace Ax-based cloud LLM providers in `@agentv/core` with direct, per-provider
+  integrations using the Vercel AI SDK (Azure OpenAI, Anthropic, and Gemini).
 - Preserve existing `targets.yaml` schema, environment variable contracts, retry semantics,
   and the `multiturn-messages-lm-provider` behavior for `chatPrompt` handling.
-- Remove the `@ax-llm/ax` runtime dependency from `@agentv/core` and any Ax-specific
-  provider plumbing (types, helpers, diagnostics).
-- Introduce a thin Vercel AI adapter that maps `ProviderRequest`/`ProviderResponse` to the
-  SDK’s chat API, including non-streaming responses and usage metadata.
-- Keep the provider surface area (`Provider`, `ProviderKind`, targets resolution) stable to
-  avoid breaking existing eval panels and targets files.
+- Remove the `@ax-llm/ax` runtime dependency from `@agentv/core` and all Ax-specific
+  plumbing (types, helpers, diagnostics, `getAxAI` escape hatches).
+- Keep a single, minimal abstraction seam: `ProviderRequest`/`ProviderResponse` and the
+  `Provider` interface in `providers/types.ts`, with each concrete provider calling the
+  Vercel AI SDK directly.
+- Avoid introducing any new generic Vercel adapter layer or factory; adding a new
+  cloud provider in future should be "copy an existing provider class and tweak
+  configuration", not an architectural change.
 
 ## Impact
 
