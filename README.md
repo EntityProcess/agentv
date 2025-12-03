@@ -75,6 +75,10 @@ You are now ready to start development. The monorepo contains:
 
 ## Quick Start
 
+You can use the following examples as a starting point.
+- [Simple Example](docs/examples/simple/README.md): A minimal working example to help you get started fast.
+- [Showcase](docs/examples/showcase/README.md): A collection of advanced use cases and real-world agent evaluation scenarios.
+
 ### Validating Eval Files
 
 Validate your eval and targets files before running them:
@@ -388,15 +392,11 @@ targets:
 - Respects abort signals for cancellation
 - If no retry config is specified, uses sensible defaults
 
-## Resources
-
-- [Simple Example README](docs/examples/simple/README.md)
-- [Ax ACE Documentation](https://github.com/ax-llm/ax/blob/main/docs/ACE.md)
-
 ## Related Projects
 
 - [subagent](https://github.com/EntityProcess/subagent) - VS Code Copilot programmatic interface
-- [Ax](https://github.com/axflow/axflow) - TypeScript LLM framework
+- [ai-sdk](https://github.com/vercel/ai) - Vercel AI SDK
+- [Agentic Context Engineering (ACE)](https://github.com/ax-llm/ax/blob/main/docs/ACE.md)
 
 ## License
 
