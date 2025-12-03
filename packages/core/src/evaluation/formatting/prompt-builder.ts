@@ -4,7 +4,7 @@ import path from "node:path";
 import { formatFileContents, formatSegment, hasVisibleContent } from "./segment-formatter.js";
 import { isGuidelineFile } from "../loaders/config-loader.js";
 import { fileExists } from "../loaders/file-resolver.js";
-import type { ChatPrompt } from "../providers/types.js";
+import type { ChatMessageRole, ChatPrompt } from "../providers/types.js";
 import type { EvalCase, JsonObject, TestMessage } from "../types.js";
 import { isJsonObject } from "../types.js";
 
@@ -235,7 +235,7 @@ function buildChatPromptFromSegments(options: {
     startIndex += 1;
   }
 
-  const chatPrompt: ChatPrompt = [];
+  const chatPrompt: Array<ChatPrompt[number]> = [];
 
   if (systemSegments.length > 0) {
     chatPrompt.push({
@@ -249,16 +249,14 @@ function buildChatPromptFromSegments(options: {
     const segments = segmentsByMessage[i];
     const contentParts: string[] = [];
 
-    let role: string = message.role;
-    let name: string | undefined;
+    let role: ChatMessageRole = message.role as ChatMessageRole;
 
     if (role === "system") {
       role = "assistant";
       contentParts.push("@[System]:");
     } else if (role === "tool") {
-      // Map 'tool' to 'function' for Ax compatibility
-      role = "function";
-      name = "tool";
+      role = "assistant";
+      contentParts.push("@[Tool]:");
     }
 
     for (const segment of segments) {
@@ -285,14 +283,15 @@ function buildChatPromptFromSegments(options: {
       continue;
     }
 
+    const content = contentParts.join("\n");
+
     chatPrompt.push({
-      role: role,
-      content: contentParts.join("\n"),
-      ...(name ? { name } : {}),
-    } as unknown as ChatPrompt[number]);
+      role,
+      content,
+    });
   }
 
-  return chatPrompt.length > 0 ? chatPrompt : undefined;
+  return chatPrompt.length > 0 ? (chatPrompt as ChatPrompt) : undefined;
 }
 
 function asString(value: unknown): string | undefined {

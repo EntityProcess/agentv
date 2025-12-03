@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import type { ResolvedTarget } from "./providers/targets.js";
 import type { Provider, ProviderResponse, ChatPrompt } from "./providers/types.js";
 import type { EvaluatorConfig, JsonObject, EvalCase } from "./types.js";

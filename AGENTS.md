@@ -8,7 +8,7 @@ This is a TypeScript monorepo for AgentV - an AI agent evaluation framework.
 - **Build System:** Turbo (monorepo task orchestration)
 - **Bundler:** tsup (TypeScript bundler)
 - **Testing:** Vitest
-- **LLM Framework:** @ax-llm/ax, Vercel AI SDK
+- **LLM Framework:** Vercel AI SDK
 - **Validation:** Zod
 
 ## Project Structure

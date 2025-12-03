@@ -3,9 +3,7 @@ import type { Command } from "commander";
 import { formatSummary, isTTY } from "./format-output.js";
 import { validateFiles } from "./validate-files.js";
 
-interface ValidateCommandOptions {
-  // No options currently
-}
+type ValidateCommandOptions = Record<string, never>;
 
 async function runValidateCommand(paths: readonly string[], _options: ValidateCommandOptions): Promise<void> {
   if (paths.length === 0) {

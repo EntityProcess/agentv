@@ -107,10 +107,10 @@ targets:
 - Both snake_case and camelCase field names supported
 - Retry config stored in provider instances
 - Unit tests for configuration extraction
+- Retry policies applied to Azure, Anthropic, and Gemini via the Vercel AI SDK with HTTP and network error classification
 
 ### ⏳ Pending
-- **Ax library integration**: The underlying @ax-llm/ax library currently does not expose retry configuration at the provider initialization level. The retry configuration is stored in providers but not yet applied to actual API calls.
-- When ax library adds support for provider-level retry configuration, the stored config will be passed through to enable automatic retries.
+- None currently
 
 ## Affected Providers
 
@@ -118,7 +118,7 @@ targets:
 - **anthropic** (Anthropic Claude)
 - **gemini** (Google Gemini)
 
-Other providers (codex, mock, vscode, cli) do not currently support retry configuration as they don't use the ax library's HTTP retry mechanism.
+Other providers (codex, mock, vscode, cli) do not currently support retry configuration because they do not use the shared HTTP retry helper.
 
 ## Testing
 

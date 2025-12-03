@@ -1,8 +1,14 @@
-import type { AxChatRequest, AxAI } from "@ax-llm/ax";
-
 import type { JsonObject } from "../types.js";
 
-export type ChatPrompt = AxChatRequest["chatPrompt"];
+export type ChatMessageRole = "system" | "user" | "assistant" | "tool" | "function";
+
+export interface ChatMessage {
+  readonly role: ChatMessageRole;
+  readonly content: string;
+  readonly name?: string;
+}
+
+export type ChatPrompt = readonly ChatMessage[];
 
 export type ProviderKind =
   | "azure"
@@ -102,11 +108,6 @@ export interface Provider {
    * the orchestrator may send multiple requests in a single provider session.
    */
   invokeBatch?(requests: readonly ProviderRequest[]): Promise<readonly ProviderResponse[]>;
-  /**
-   * Optional access to the underlying AxAI instance.
-   * This enables using advanced Ax features like structured output signatures.
-   */
-  getAxAI?(): AxAI;
 }
 
 export type EnvLookup = Readonly<Record<string, string | undefined>>;

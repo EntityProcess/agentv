@@ -1,4 +1,4 @@
-import { AnthropicProvider, AzureProvider, GeminiProvider } from "./ax.js";
+import { AnthropicProvider, AzureProvider, GeminiProvider } from "./ai-sdk.js";
 import { CliProvider } from "./cli.js";
 import { CodexProvider } from "./codex.js";
 import { MockProvider } from "./mock.js";
