@@ -87,7 +87,7 @@ describe("init command", () => {
   it("should create .env.template file", async () => {
     await initCommand({ targetPath: TEST_DIR });
 
-    const envFile = path.join(TEST_DIR, ".agentv", ".env.template");
+    const envFile = path.join(TEST_DIR, ".env.template");
     expect(existsSync(envFile)).toBe(true);
 
     const content = readFileSync(envFile, "utf-8");
@@ -118,7 +118,7 @@ describe("init command", () => {
 
     const targetsFile = path.join(agentvDir, "targets.yaml");
     const configFile = path.join(agentvDir, "config.yaml");
-    const envFile = path.join(agentvDir, ".env.template");
+    const envFile = path.join(TEST_DIR, ".env.template");
 
     expect(existsSync(targetsFile)).toBe(true);
     expect(existsSync(configFile)).toBe(true);

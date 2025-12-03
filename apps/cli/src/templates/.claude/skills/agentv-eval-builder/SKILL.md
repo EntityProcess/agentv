@@ -1,9 +1,9 @@
 ---
-name: eval-builder
+name: agentv-eval-builder
 description: Create and maintain AgentV YAML evaluation files for testing AI agent performance. Use this skill when creating new eval files, adding eval cases, or configuring custom evaluators (code validators or LLM judges) for agent testing workflows.
 ---
 
-# Eval Builder
+# AgentV Eval Builder
 
 ## Schema Reference
 - Schema: `references/eval-schema.json` (JSON Schema for validation and tooling)
