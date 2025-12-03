@@ -583,13 +583,12 @@ async function evaluateCandidate(options: {
     hits: score.hits,
     misses: score.misses,
     candidate_answer: candidate,
-    expected_aspect_count: score.expectedAspectCount,
     target: target.name,
     reasoning: score.reasoning,
     raw_aspects: score.rawAspects,
     agent_provider_request: agentProviderRequest,
     lm_provider_request: lmProviderRequest,
-    evaluator_raw_request: evaluatorResults ? undefined : score.evaluatorRawRequest,
+    evaluator_provider_request: evaluatorResults ? undefined : score.evaluatorRawRequest,
     evaluator_results: evaluatorResults,
   };
 }
@@ -698,7 +697,7 @@ async function runEvaluatorList(options: {
           hits: score.hits,
           misses: score.misses,
           reasoning: score.reasoning,
-          evaluator_raw_request: score.evaluatorRawRequest,
+          evaluator_provider_request: score.evaluatorRawRequest,
         });
         continue;
       }
@@ -726,7 +725,7 @@ async function runEvaluatorList(options: {
           hits: score.hits,
           misses: score.misses,
           reasoning: score.reasoning,
-          evaluator_raw_request: score.evaluatorRawRequest,
+          evaluator_provider_request: score.evaluatorRawRequest,
         });
         continue;
       }
@@ -964,7 +963,6 @@ function buildErrorResult(
     hits: [],
     misses: [`Error: ${message}`],
     candidate_answer: `Error occurred: ${message}`,
-    expected_aspect_count: 0,
     target: targetName,
     raw_aspects: [],
     agent_provider_request: agentProviderRequest,

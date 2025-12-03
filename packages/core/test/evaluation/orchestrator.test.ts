@@ -270,9 +270,9 @@ describe("runTestCase", () => {
     expect(judgeProvider.lastRequest?.systemPrompt).toContain("You must respond with a single JSON object");
     expect(judgeProvider.lastRequest?.systemPrompt).not.toContain("CUSTOM PROMPT CONTENT");
     
-    expect(result.evaluator_results?.[0]?.evaluator_raw_request?.userPrompt).toContain("CUSTOM PROMPT CONTENT");
-    expect(result.evaluator_results?.[0]?.evaluator_raw_request?.systemPrompt).toContain("You must respond with a single JSON object");
-    expect(result.evaluator_results?.[0]?.evaluator_raw_request?.systemPrompt).not.toContain("CUSTOM PROMPT CONTENT");
+    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.userPrompt).toContain("CUSTOM PROMPT CONTENT");
+    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.systemPrompt).not.toContain("CUSTOM PROMPT CONTENT");
   });
 
   it("passes chatPrompt for multi-turn evals", async () => {
