@@ -81,24 +81,26 @@ Output Messages: \${output_messages}
     const request = judgeProvider.lastRequest;
     expect(request).toBeDefined();
 
-    // Verify substitutions
-    expect(request?.question).toContain(`Question: ${formattedQuestion}`);
-    expect(request?.question).not.toContain("Original Question Text");
-    expect(request?.question).toContain("Outcome: Expected Outcome Text");
-    expect(request?.question).toContain("Reference: Reference Answer Text");
-    expect(request?.question).toContain("Candidate: Candidate Answer Text");
+    // User prompt always uses the standard format (custom prompt goes in system prompt)
+    expect(request?.question).toContain("[[ ## expected_outcome ## ]]");
+    expect(request?.question).toContain(formattedQuestion);
+    
+    // System prompt contains the custom prompt with variables substituted + default instructions
+    expect(request?.metadata?.systemPrompt).toContain(`Question: ${formattedQuestion}`);
+    expect(request?.metadata?.systemPrompt).not.toContain("Original Question Text");
+    expect(request?.metadata?.systemPrompt).toContain("Outcome: Expected Outcome Text");
+    expect(request?.metadata?.systemPrompt).toContain("Reference: Reference Answer Text");
+    expect(request?.metadata?.systemPrompt).toContain("Candidate: Candidate Answer Text");
     
     // Verify input_messages JSON stringification
-    expect(request?.question).toContain('Input Messages: [');
-    expect(request?.question).toContain('"value": "User Input Message"');
+    expect(request?.metadata?.systemPrompt).toContain('Input Messages: [');
+    expect(request?.metadata?.systemPrompt).toContain('"value": "User Input Message"');
 
     // Verify output_messages JSON stringification
-    expect(request?.question).toContain('Output Messages: [');
-    expect(request?.question).toContain('"value": "Expected Output Message"');
+    expect(request?.metadata?.systemPrompt).toContain('Output Messages: [');
+    expect(request?.metadata?.systemPrompt).toContain('"value": "Expected Output Message"');
 
-    // Verify system prompt is reset to default when variables are used
-    // The implementation sets systemPrompt = QUALITY_SYSTEM_PROMPT when variables are substituted
-    // and passes it in metadata
+    // Verify system prompt includes default instructions
     expect(request?.metadata?.systemPrompt).toContain("You are an expert evaluator");
   });
 
@@ -127,20 +129,13 @@ Output Messages: \${output_messages}
 
     const request = judgeProvider.lastRequest;
     
-    // Should use the standard buildQualityPrompt logic which appends context
-    // But wait, if customPrompt is provided, it overrides the systemPrompt in the implementation?
-    // Let's check the implementation logic again.
-    // evaluateWithPrompt:
-    // let prompt = buildQualityPrompt(...)
-    // let systemPrompt = context.systemPrompt ?? this.customPrompt ?? QUALITY_SYSTEM_PROMPT
-    // if (systemPrompt && hasTemplateVariables(systemPrompt)) { ... }
-    
-    // If NO variables:
-    // prompt is the standard built prompt (with [[ ## expected_outcome ## ]] etc)
-    // systemPrompt is the customPrompt
-    
+    // User prompt always uses the standard format
     expect(request?.question).toContain("[[ ## expected_outcome ## ]]");
     expect(request?.question).toContain(promptQuestion);
-    expect(request?.metadata?.systemPrompt).toBe(customPrompt);
+    
+    // System prompt is custom prompt + default instructions
+    expect(request?.metadata?.systemPrompt).toContain(customPrompt);
+    expect(request?.metadata?.systemPrompt).toContain("You are an expert evaluator");
+    expect(request?.metadata?.systemPrompt).toContain("You must respond with a single JSON object");
   });
 });

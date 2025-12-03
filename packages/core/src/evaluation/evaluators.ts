@@ -81,10 +81,14 @@ export class LlmJudgeEvaluator implements Evaluator {
         ? context.promptInputs.question
         : context.evalCase.question;
 
-    let prompt = buildQualityPrompt(context.evalCase, context.candidate, formattedQuestion);
-    let systemPrompt = context.systemPrompt ?? this.customPrompt ?? buildSystemPrompt(hasReferenceAnswer);
-
-    if (systemPrompt && hasTemplateVariables(systemPrompt)) {
+    const customPrompt = context.systemPrompt ?? this.customPrompt;
+    
+    // User prompt always uses the standard format with all context
+    const prompt = buildQualityPrompt(context.evalCase, context.candidate, formattedQuestion);
+    
+    // System prompt: custom prompt (with variable substitution) + default instructions
+    let systemPrompt: string;
+    if (customPrompt) {
       const variables = {
         input_messages: JSON.stringify(context.evalCase.input_segments, null, 2),
         output_messages: JSON.stringify(context.evalCase.output_segments, null, 2),
@@ -93,7 +97,9 @@ export class LlmJudgeEvaluator implements Evaluator {
         expected_outcome: context.evalCase.expected_outcome,
         question: formattedQuestion,
       };
-      prompt = substituteVariables(systemPrompt, variables);
+      const expandedCustomPrompt = substituteVariables(customPrompt, variables);
+      systemPrompt = expandedCustomPrompt + "\n\n" + buildSystemPrompt(hasReferenceAnswer);
+    } else {
       systemPrompt = buildSystemPrompt(hasReferenceAnswer);
     }
 
@@ -450,10 +456,6 @@ function parseJsonSafe(payload: string): Record<string, unknown> | undefined {
   } catch {
     return undefined;
   }
-}
-
-function hasTemplateVariables(text: string): boolean {
-  return /\$\{[a-zA-Z0-9_]+\}/.test(text);
 }
 
 function substituteVariables(template: string, variables: Record<string, string>): string {

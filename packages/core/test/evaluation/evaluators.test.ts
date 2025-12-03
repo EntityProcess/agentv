@@ -212,8 +212,15 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     expect(result.score).toBeCloseTo(0.7);
-    expect(judgeProvider.metadata?.systemPrompt).toBe(customPrompt);
-    expect(result.evaluatorRawRequest?.systemPrompt).toBe(customPrompt);
+    
+    // System prompt includes custom prompt + default instructions
+    expect(judgeProvider.metadata?.systemPrompt).toContain(customPrompt);
+    expect(judgeProvider.metadata?.systemPrompt).toContain("You are an expert evaluator");
+    expect(judgeProvider.metadata?.systemPrompt).toContain("You must respond with a single JSON object");
+    
+    expect(result.evaluatorRawRequest?.systemPrompt).toContain(customPrompt);
+    expect(result.evaluatorRawRequest?.systemPrompt).toContain("You are an expert evaluator");
+    expect(result.evaluatorRawRequest?.systemPrompt).toContain("You must respond with a single JSON object");
   });
 
   it("rejects JSON with invalid hits/misses types", async () => {

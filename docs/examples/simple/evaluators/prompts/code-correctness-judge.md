@@ -5,18 +5,7 @@
 Evaluate the generated code against the requirements. Score from 0.0 to 1.0 based on Functional Correctness (0.4), Code Quality (0.3), and Completeness (0.3).
 
 ## Context
-
-### Original Question
-${question}
-
-### Expected Outcome
-${expected_outcome}
-
-### Reference Answer
-${reference_answer}
-
-### Candidate Answer
-${candidate_answer}
+HELLO
 
 ## Constraints
 - **0.9-1.0**: Excellent (Correct, efficient, best practices)
