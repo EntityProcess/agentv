@@ -188,6 +188,7 @@ export interface EvalCase {
  * Evaluator scorecard for a single eval case run.
  */
 export interface EvaluationResult {
+  readonly timestamp: string;
   readonly eval_id: string;
   readonly dataset?: string;
   readonly conversation_id?: string;
@@ -197,7 +198,6 @@ export interface EvaluationResult {
   readonly candidate_answer: string;
   readonly expected_aspect_count: number;
   readonly target: string;
-  readonly timestamp: string;
   readonly reasoning?: string;
   readonly raw_aspects?: readonly string[];
   readonly agent_provider_request?: JsonObject;

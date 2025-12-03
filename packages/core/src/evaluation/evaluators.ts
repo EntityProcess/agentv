@@ -139,11 +139,9 @@ export class LlmJudgeEvaluator implements Evaluator {
     const expectedAspectCount = Math.max(hits.length + misses.length, 1);
 
     const evaluatorRawRequest: JsonObject = {
-      id: randomUUID(),
-      provider: judgeProvider.id,
       userPrompt,
       systemPrompt,
-      target: context.target.name,
+      target: judgeProvider.targetName,
     };
 
     return {

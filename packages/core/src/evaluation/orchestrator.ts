@@ -575,6 +575,7 @@ async function evaluateCandidate(options: {
   }
 
   return {
+    timestamp: completedAt.toISOString(),
     eval_id: evalCase.id,
     dataset: evalCase.dataset,
     conversation_id: evalCase.conversation_id,
@@ -584,7 +585,6 @@ async function evaluateCandidate(options: {
     candidate_answer: candidate,
     expected_aspect_count: score.expectedAspectCount,
     target: target.name,
-    timestamp: completedAt.toISOString(),
     reasoning: score.reasoning,
     raw_aspects: score.rawAspects,
     agent_provider_request: agentProviderRequest,
@@ -956,6 +956,7 @@ function buildErrorResult(
   }
 
   return {
+    timestamp: timestamp.toISOString(),
     eval_id: evalCase.id,
     dataset: evalCase.dataset,
     conversation_id: evalCase.conversation_id,
@@ -965,7 +966,6 @@ function buildErrorResult(
     candidate_answer: `Error occurred: ${message}`,
     expected_aspect_count: 0,
     target: targetName,
-    timestamp: timestamp.toISOString(),
     raw_aspects: [],
     agent_provider_request: agentProviderRequest,
     lm_provider_request: lmProviderRequest,
