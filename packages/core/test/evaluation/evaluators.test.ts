@@ -37,6 +37,7 @@ const baseTestCase: EvalCase = {
   question: "Improve the logging implementation",
   input_messages: [{ role: "user", content: "Please add logging" }],
   input_segments: [{ type: "text", value: "Please add logging" }],
+  output_segments: [],
   reference_answer: "- add structured logging\n- avoid global state",
   guideline_paths: [],
   file_paths: [],
