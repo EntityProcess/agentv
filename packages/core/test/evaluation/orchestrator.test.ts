@@ -265,8 +265,14 @@ describe("runTestCase", () => {
       now: () => new Date("2024-01-01T00:00:00Z"),
     });
 
-    expect(judgeProvider.lastRequest?.metadata?.systemPrompt).toContain("CUSTOM PROMPT CONTENT");
-    expect(result.evaluator_results?.[0]?.evaluator_raw_request?.systemPrompt).toContain("CUSTOM PROMPT CONTENT");
+    // Custom template goes in user prompt, system prompt only has output schema
+    expect(judgeProvider.lastRequest?.question).toContain("CUSTOM PROMPT CONTENT");
+    expect(judgeProvider.lastRequest?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(judgeProvider.lastRequest?.systemPrompt).not.toContain("CUSTOM PROMPT CONTENT");
+    
+    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.userPrompt).toContain("CUSTOM PROMPT CONTENT");
+    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.systemPrompt).not.toContain("CUSTOM PROMPT CONTENT");
   });
 
   it("passes chatPrompt for multi-turn evals", async () => {

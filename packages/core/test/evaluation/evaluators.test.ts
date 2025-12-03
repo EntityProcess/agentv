@@ -37,6 +37,7 @@ const baseTestCase: EvalCase = {
   question: "Improve the logging implementation",
   input_messages: [{ role: "user", content: "Please add logging" }],
   input_segments: [{ type: "text", value: "Please add logging" }],
+  output_segments: [],
   reference_answer: "- add structured logging\n- avoid global state",
   guideline_paths: [],
   file_paths: [],
@@ -178,12 +179,12 @@ describe("LlmJudgeEvaluator", () => {
       readonly id = "capturing";
       readonly kind = "mock" as const;
       readonly targetName = "capturing";
-      metadata?: JsonObject;
+      lastRequest?: ProviderRequest;
 
       constructor(private readonly response: ProviderResponse) {}
 
       async invoke(request: ProviderRequest): Promise<ProviderResponse> {
-        this.metadata = request.metadata;
+        this.lastRequest = request;
         return this.response;
       }
     }
@@ -198,7 +199,7 @@ describe("LlmJudgeEvaluator", () => {
 
     const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
-      customPrompt,
+      evaluatorTemplate: customPrompt,
     });
 
     const result = await evaluator.evaluate({
@@ -212,8 +213,15 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     expect(result.score).toBeCloseTo(0.7);
-    expect(judgeProvider.metadata?.systemPrompt).toBe(customPrompt);
-    expect(result.evaluatorRawRequest?.systemPrompt).toBe(customPrompt);
+    
+    // Custom template goes in user prompt (question), system prompt only has output schema
+    expect(judgeProvider.lastRequest?.question).toContain(customPrompt);
+    expect(judgeProvider.lastRequest?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(judgeProvider.lastRequest?.systemPrompt).not.toContain(customPrompt);
+    
+    expect(result.evaluatorRawRequest?.userPrompt).toContain(customPrompt);
+    expect(result.evaluatorRawRequest?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(result.evaluatorRawRequest?.systemPrompt).not.toContain(customPrompt);
   });
 
   it("rejects JSON with invalid hits/misses types", async () => {
@@ -289,8 +297,8 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     expect(judgeProvider.lastRequest?.question).toContain(multiTurnQuestion);
-    expect(result.evaluatorRawRequest?.prompt).toContain("@[Assistant]:");
-    expect(result.evaluatorRawRequest?.prompt).toContain("@[System]:");
+    expect(result.evaluatorRawRequest?.userPrompt).toContain("@[Assistant]:");
+    expect(result.evaluatorRawRequest?.userPrompt).toContain("@[System]:");
   });
 
   it("keeps single-turn prompts flat when no markers are needed", async () => {
@@ -315,7 +323,7 @@ describe("LlmJudgeEvaluator", () => {
 
     expect(judgeProvider.lastRequest?.question).toContain(flatQuestion);
     expect(judgeProvider.lastRequest?.question).not.toContain("@[User]:");
-    expect(result.evaluatorRawRequest?.prompt).toContain(flatQuestion);
-    expect(result.evaluatorRawRequest?.prompt).not.toContain("@[User]:");
+    expect(result.evaluatorRawRequest?.userPrompt).toContain(flatQuestion);
+    expect(result.evaluatorRawRequest?.userPrompt).not.toContain("@[User]:");
   });
 });

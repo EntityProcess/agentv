@@ -60,6 +60,7 @@ export const TARGETS_SCHEMA_V2 = "agentv-targets-v2.2";
 
 export interface ProviderRequest {
   readonly question: string;
+  readonly systemPrompt?: string;
   readonly guidelines?: string;
   readonly guideline_patterns?: readonly string[];
   readonly chatPrompt?: ChatPrompt;

@@ -4,6 +4,28 @@ import type { ResolvedTarget } from "./providers/targets.js";
 import type { Provider, ProviderResponse, ChatPrompt } from "./providers/types.js";
 import type { EvaluatorConfig, JsonObject, EvalCase } from "./types.js";
 
+/**
+ * Default evaluator template for the user prompt (variables will be substituted).
+ * Custom evaluators can override this via evaluatorTemplate option.
+ */
+const DEFAULT_EVALUATOR_TEMPLATE = `You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.
+
+Use the reference_answer as a gold standard for a high-quality response (if provided). The candidate_answer does not need to match it verbatim, but should capture the key points and follow the same spirit.
+
+Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.
+
+[[ ## expected_outcome ## ]]
+\${expected_outcome}
+
+[[ ## question ## ]]
+\${question}
+
+[[ ## reference_answer ## ]]
+\${reference_answer}
+
+[[ ## candidate_answer ## ]]
+\${candidate_answer}`;
+
 export interface EvaluationContext {
   readonly evalCase: EvalCase;
   readonly candidate: string;
@@ -18,7 +40,7 @@ export interface EvaluationContext {
   };
   readonly now: Date;
   readonly judgeProvider?: Provider;
-  readonly systemPrompt?: string;
+  readonly evaluatorTemplateOverride?: string;
   readonly evaluator?: EvaluatorConfig;
 }
 
@@ -43,7 +65,7 @@ export interface LlmJudgeEvaluatorOptions {
   readonly resolveJudgeProvider: JudgeProviderResolver;
   readonly maxOutputTokens?: number;
   readonly temperature?: number;
-  readonly customPrompt?: string;
+  readonly evaluatorTemplate?: string;
 }
 
 export class LlmJudgeEvaluator implements Evaluator {
@@ -52,13 +74,13 @@ export class LlmJudgeEvaluator implements Evaluator {
   private readonly resolveJudgeProvider: JudgeProviderResolver;
   private readonly maxOutputTokens?: number;
   private readonly temperature?: number;
-  private readonly customPrompt?: string;
+  private readonly evaluatorTemplate?: string;
 
   constructor(options: LlmJudgeEvaluatorOptions) {
     this.resolveJudgeProvider = options.resolveJudgeProvider;
     this.maxOutputTokens = options.maxOutputTokens;
     this.temperature = options.temperature;
-    this.customPrompt = options.customPrompt;
+    this.evaluatorTemplate = options.evaluatorTemplate;
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
@@ -74,34 +96,31 @@ export class LlmJudgeEvaluator implements Evaluator {
     context: EvaluationContext,
     judgeProvider: Provider,
   ): Promise<EvaluationScore> {
-    const hasReferenceAnswer = hasNonEmptyReferenceAnswer(context.evalCase);
-
     const formattedQuestion =
       context.promptInputs.question && context.promptInputs.question.trim().length > 0
         ? context.promptInputs.question
         : context.evalCase.question;
 
-    let prompt = buildQualityPrompt(context.evalCase, context.candidate, formattedQuestion);
-    let systemPrompt = context.systemPrompt ?? this.customPrompt ?? buildSystemPrompt(hasReferenceAnswer);
-
-    if (systemPrompt && hasTemplateVariables(systemPrompt)) {
-      const variables = {
-        input_messages: JSON.stringify(context.evalCase.input_segments, null, 2),
-        output_messages: JSON.stringify(context.evalCase.output_segments, null, 2),
-        candidate_answer: context.candidate,
-        reference_answer: context.evalCase.reference_answer ?? "",
-        expected_outcome: context.evalCase.expected_outcome,
-        question: formattedQuestion,
-      };
-      prompt = substituteVariables(systemPrompt, variables);
-      systemPrompt = buildSystemPrompt(hasReferenceAnswer);
-    }
-
-    const metadata: JsonObject = systemPrompt !== undefined ? { systemPrompt } : {};
+    // Prepare template variables for substitution
+    const variables = {
+      input_messages: JSON.stringify(context.evalCase.input_segments, null, 2),
+      output_messages: JSON.stringify(context.evalCase.output_segments, null, 2),
+      candidate_answer: context.candidate.trim(),
+      reference_answer: (context.evalCase.reference_answer ?? "").trim(),
+      expected_outcome: context.evalCase.expected_outcome.trim(),
+      question: formattedQuestion.trim(),
+    };
+    
+    // Build system prompt (only the mandatory output schema)
+    const systemPrompt = buildOutputSchema();
+    
+    // Build user prompt based on custom template or default template
+    const evaluatorTemplate = context.evaluatorTemplateOverride ?? this.evaluatorTemplate ?? DEFAULT_EVALUATOR_TEMPLATE;
+    const userPrompt = substituteVariables(evaluatorTemplate, variables);
 
     const response = await judgeProvider.invoke({
-      question: prompt,
-      metadata,
+      question: userPrompt,
+      systemPrompt,
       evalCaseId: context.evalCase.id,
       attempt: context.attempt,
       maxOutputTokens: this.maxOutputTokens,
@@ -120,11 +139,9 @@ export class LlmJudgeEvaluator implements Evaluator {
     const expectedAspectCount = Math.max(hits.length + misses.length, 1);
 
     const evaluatorRawRequest: JsonObject = {
-      id: randomUUID(),
-      provider: judgeProvider.id,
-      prompt,
-      target: context.target.name,
-      ...(systemPrompt !== undefined && { systemPrompt }),
+      userPrompt,
+      systemPrompt,
+      target: judgeProvider.targetName,
     };
 
     return {
@@ -138,22 +155,12 @@ export class LlmJudgeEvaluator implements Evaluator {
   }
 }
 
-function buildSystemPrompt(hasReferenceAnswer: boolean): string {
-  const basePrompt = [
-    "You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.",
-    "",
-  ];
-
-  if (hasReferenceAnswer) {
-    basePrompt.push(
-      "Use the reference_answer as a gold standard for a high-quality response. The candidate_answer does not need to match it verbatim, but should capture the key points and follow the same spirit.",
-      "",
-    );
-  }
-
-  basePrompt.push(
-    "Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.",
-    "",
+/**
+ * Build the mandatory output schema that all evaluators must follow.
+ * This schema is always appended to the evaluator template.
+ */
+function buildOutputSchema(): string {
+  return [
     "You must respond with a single JSON object matching this schema:",
     "",
     "{",
@@ -162,37 +169,10 @@ function buildSystemPrompt(hasReferenceAnswer: boolean): string {
     '  "misses": [<array of strings, max 4 items, brief specific failures or omissions, empty if none>],',
     '  "reasoning": "<string, concise explanation for the score, 1-2 sentences max>"',
     "}",
-  );
-
-  return basePrompt.join("\n");
+  ].join("\n");
 }
 
-function buildQualityPrompt(evalCase: EvalCase, candidate: string, question: string): string {
-  const parts = [
-    "[[ ## expected_outcome ## ]]",
-    evalCase.expected_outcome.trim(),
-    "",
-    "[[ ## question ## ]]",
-    question.trim(),
-    "",
-  ];
-  
-  // Only include reference_answer if provided
-  if (hasNonEmptyReferenceAnswer(evalCase)) {
-    parts.push(
-      "[[ ## reference_answer ## ]]",
-      evalCase.reference_answer!.trim(),
-      "",
-    );
-  }
-  
-  parts.push(
-    "[[ ## candidate_answer ## ]]",
-    candidate.trim(),
-  );
-  
-  return parts.join("\n");
-}
+
 
 function clampScore(value: number): number {
   if (Number.isNaN(value) || !Number.isFinite(value)) {
@@ -308,13 +288,6 @@ function extractJsonBlob(text: string): string | undefined {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
-}
-
-function hasNonEmptyReferenceAnswer(evalCase: EvalCase): boolean {
-  return (
-    evalCase.reference_answer !== undefined &&
-    evalCase.reference_answer.trim().length > 0
-  );
 }
 
 // Code Evaluator
@@ -450,10 +423,6 @@ function parseJsonSafe(payload: string): Record<string, unknown> | undefined {
   } catch {
     return undefined;
   }
-}
-
-function hasTemplateVariables(text: string): boolean {
-  return /\$\{[a-zA-Z0-9_]+\}/.test(text);
 }
 
 function substituteVariables(template: string, variables: Record<string, string>): string {

@@ -63,7 +63,7 @@ Output Messages: \${output_messages}
 
     const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
-      customPrompt,
+      evaluatorTemplate: customPrompt,
     });
 
     const candidateAnswer = "Candidate Answer Text";
@@ -81,7 +81,8 @@ Output Messages: \${output_messages}
     const request = judgeProvider.lastRequest;
     expect(request).toBeDefined();
 
-    // Verify substitutions
+    // When custom evaluatorTemplate is provided, it goes in the user prompt (question)
+    // System prompt only contains the output schema
     expect(request?.question).toContain(`Question: ${formattedQuestion}`);
     expect(request?.question).not.toContain("Original Question Text");
     expect(request?.question).toContain("Outcome: Expected Outcome Text");
@@ -95,11 +96,10 @@ Output Messages: \${output_messages}
     // Verify output_messages JSON stringification
     expect(request?.question).toContain('Output Messages: [');
     expect(request?.question).toContain('"value": "Expected Output Message"');
-
-    // Verify system prompt is reset to default when variables are used
-    // The implementation sets systemPrompt = QUALITY_SYSTEM_PROMPT when variables are substituted
-    // and passes it in metadata
-    expect(request?.metadata?.systemPrompt).toContain("You are an expert evaluator");
+    
+    // System prompt only has output schema, not custom template
+    expect(request?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(request?.systemPrompt).not.toContain(`Question: ${formattedQuestion}`);
   });
 
   it("does not substitute if no variables are present", async () => {
@@ -112,7 +112,7 @@ Output Messages: \${output_messages}
 
     const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
-      customPrompt,
+      evaluatorTemplate: customPrompt,
     });
 
     await evaluator.evaluate({
@@ -127,20 +127,11 @@ Output Messages: \${output_messages}
 
     const request = judgeProvider.lastRequest;
     
-    // Should use the standard buildQualityPrompt logic which appends context
-    // But wait, if customPrompt is provided, it overrides the systemPrompt in the implementation?
-    // Let's check the implementation logic again.
-    // evaluateWithPrompt:
-    // let prompt = buildQualityPrompt(...)
-    // let systemPrompt = context.systemPrompt ?? this.customPrompt ?? QUALITY_SYSTEM_PROMPT
-    // if (systemPrompt && hasTemplateVariables(systemPrompt)) { ... }
+    // When custom evaluatorTemplate is provided, it goes in user prompt (question)
+    expect(request?.question).toContain("Fixed prompt without variables");
     
-    // If NO variables:
-    // prompt is the standard built prompt (with [[ ## expected_outcome ## ]] etc)
-    // systemPrompt is the customPrompt
-    
-    expect(request?.question).toContain("[[ ## expected_outcome ## ]]");
-    expect(request?.question).toContain(promptQuestion);
-    expect(request?.metadata?.systemPrompt).toBe(customPrompt);
+    // System prompt only contains output schema, not custom template
+    expect(request?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(request?.systemPrompt).not.toContain(customPrompt);
   });
 });

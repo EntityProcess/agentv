@@ -188,6 +188,7 @@ export interface EvalCase {
  * Evaluator scorecard for a single eval case run.
  */
 export interface EvaluationResult {
+  readonly timestamp: string;
   readonly eval_id: string;
   readonly dataset?: string;
   readonly conversation_id?: string;
@@ -195,14 +196,12 @@ export interface EvaluationResult {
   readonly hits: readonly string[];
   readonly misses: readonly string[];
   readonly candidate_answer: string;
-  readonly expected_aspect_count: number;
   readonly target: string;
-  readonly timestamp: string;
   readonly reasoning?: string;
   readonly raw_aspects?: readonly string[];
   readonly agent_provider_request?: JsonObject;
   readonly lm_provider_request?: JsonObject;
-  readonly evaluator_raw_request?: JsonObject;
+  readonly evaluator_provider_request?: JsonObject;
   readonly evaluator_results?: readonly EvaluatorResult[];
   readonly error?: string;
 }
@@ -215,7 +214,7 @@ export interface EvaluatorResult {
   readonly misses: readonly string[];
   readonly reasoning?: string;
   readonly raw_request?: JsonObject;
-  readonly evaluator_raw_request?: JsonObject;
+  readonly evaluator_provider_request?: JsonObject;
 }
 
 /**

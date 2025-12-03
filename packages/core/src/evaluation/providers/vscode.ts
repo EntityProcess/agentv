@@ -145,6 +145,11 @@ function buildPromptDocument(
 ): string {
   const parts: string[] = [];
 
+  // Agent providers incorporate systemPrompt into the question
+  if (request.systemPrompt && request.systemPrompt.trim().length > 0) {
+    parts.push(request.systemPrompt.trim());
+  }
+
   const guidelineFiles = collectGuidelineFiles(attachments, guidelinePatterns);
   const attachmentFiles = collectAttachmentFiles(attachments);
 

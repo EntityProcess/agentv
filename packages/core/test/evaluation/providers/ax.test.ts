@@ -29,7 +29,7 @@ function buildRequest(partial: Partial<ProviderRequest>): ProviderRequest {
   return {
     question: "Q",
     guidelines: "",
-    metadata: { systemPrompt: "SYS" },
+    systemPrompt: "SYS",
     ...partial,
   };
 }
@@ -58,6 +58,7 @@ describe("Ax providers buildChatPrompt", () => {
   it("prepends system content when chatPrompt lacks system", async () => {
     const provider = new AzureProvider("t", baseConfig);
     const request = buildRequest({
+      systemPrompt: "SYS",
       guidelines: "Guides",
       chatPrompt: [
         { role: "user", content: "First" },
