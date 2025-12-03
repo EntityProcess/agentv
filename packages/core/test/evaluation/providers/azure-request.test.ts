@@ -25,7 +25,7 @@ const generateTextMock = vi.fn(async () => ({
 }));
 
 vi.mock("@ai-sdk/azure", () => ({
-  createAzure: (options: any) => createAzureMock(options),
+  createAzure: (options: unknown) => createAzureMock(options),
 }));
 
 vi.mock("ai", () => ({

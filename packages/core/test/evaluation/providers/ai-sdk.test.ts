@@ -25,7 +25,7 @@ const anthropicFactory = vi.fn(() => (model: string) => ({ provider: "anthropic"
 const geminiFactory = vi.fn(() => (model: string) => ({ provider: "gemini", model }));
 
 vi.mock("ai", () => ({
-  generateText: (options: any) => generateTextMock(options),
+  generateText: (options: { messages: unknown }) => generateTextMock(options),
 }));
 
 vi.mock("@ai-sdk/azure", () => ({

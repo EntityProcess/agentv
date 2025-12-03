@@ -91,6 +91,7 @@ export interface CliResolvedConfig {
   readonly cwd?: string;
   readonly timeoutMs?: number;
   readonly healthcheck?: CliHealthcheck;
+  readonly verbose?: boolean;
 }
 
 export type ResolvedTarget =

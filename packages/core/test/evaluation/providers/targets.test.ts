@@ -28,7 +28,7 @@ vi.mock("ai", () => ({
 }));
 
 vi.mock("@ai-sdk/azure", () => ({
-  createAzure: (options: any) => createAzureMock(options),
+  createAzure: (options: unknown) => createAzureMock(options),
 }));
 
 vi.mock("@ai-sdk/anthropic", () => ({
