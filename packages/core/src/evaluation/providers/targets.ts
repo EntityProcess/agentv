@@ -12,6 +12,9 @@ export interface RetryConfig {
   readonly retryableStatusCodes?: readonly number[];
 }
 
+/**
+ * Azure OpenAI settings used by the Vercel AI SDK.
+ */
 export interface AzureResolvedConfig {
   readonly resourceName: string;
   readonly deploymentName: string;
@@ -22,6 +25,9 @@ export interface AzureResolvedConfig {
   readonly retry?: RetryConfig;
 }
 
+/**
+ * Anthropic Claude settings used by the Vercel AI SDK.
+ */
 export interface AnthropicResolvedConfig {
   readonly apiKey: string;
   readonly model: string;
@@ -31,6 +37,9 @@ export interface AnthropicResolvedConfig {
   readonly retry?: RetryConfig;
 }
 
+/**
+ * Google Gemini settings used by the Vercel AI SDK.
+ */
 export interface GeminiResolvedConfig {
   readonly apiKey: string;
   readonly model: string;

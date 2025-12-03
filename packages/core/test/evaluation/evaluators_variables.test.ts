@@ -44,12 +44,12 @@ describe("LlmJudgeEvaluator Variable Substitution", () => {
   it("substitutes template variables in custom prompt", async () => {
     const formattedQuestion = `@[User]: What is the status?\n\n@[Assistant]: Requesting more info.`;
     const customPrompt = `
-Question: \${question}
-Outcome: \${expected_outcome}
-Reference: \${reference_answer}
-Candidate: \${candidate_answer}
-Input Messages: \${input_messages}
-Output Messages: \${output_messages}
+Question: {{question}}
+Outcome: {{expected_outcome}}
+Reference: {{reference_answer}}
+Candidate: {{candidate_answer}}
+Input Messages: {{input_messages}}
+Output Messages: {{output_messages}}
 `;
 
     const judgeProvider = new CapturingProvider({

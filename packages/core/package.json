@@ -40,7 +40,10 @@
     "README.md"
   ],
   "dependencies": {
-    "@ax-llm/ax": "^15.0.2",
+    "@ai-sdk/anthropic": "^2.0.53",
+    "@ai-sdk/azure": "^2.0.78",
+    "@ai-sdk/google": "^2.0.44",
+    "ai": "^5.0.106",
     "micromatch": "^4.0.8",
     "subagent": "^0.4.7",
     "yaml": "^2.6.0",

@@ -1,17 +1,42 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+const generateTextMock = vi.fn(async () => ({
+  text: "ok",
+  reasoningText: undefined,
+  usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+  totalUsage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+  content: [],
+  reasoning: [],
+  files: [],
+  sources: [],
+  toolCalls: [],
+  staticToolCalls: [],
+  dynamicToolCalls: [],
+  toolResults: [],
+  staticToolResults: [],
+  dynamicToolResults: [],
+  finishReason: "stop",
+  warnings: undefined,
+  providerMetadata: undefined,
+}));
 
-const createCalls: unknown[] = [];
-const chatMock = vi.fn(async () => ({ results: [{ content: "ok" }] }));
+const createAzureMock = vi.fn((options: unknown) => () => ({ provider: "azure", options }));
+const createAnthropicMock = vi.fn(() => () => ({ provider: "anthropic" }));
+const createGeminiMock = vi.fn(() => () => ({ provider: "gemini" }));
 
-vi.mock("@ax-llm/ax", () => ({
-  AxAI: {
-    create: (options: unknown) => {
-      createCalls.push(options);
-      return {
-        chat: chatMock,
-      };
-    },
-  },
+vi.mock("ai", () => ({
+  generateText: (...args: unknown[]) => generateTextMock(...args),
+}));
+
+vi.mock("@ai-sdk/azure", () => ({
+  createAzure: (...args: unknown[]) => createAzureMock(...args),
+}));
+
+vi.mock("@ai-sdk/anthropic", () => ({
+  createAnthropic: (...args: unknown[]) => createAnthropicMock(...args),
+}));
+
+vi.mock("@ai-sdk/google", () => ({
+  createGoogleGenerativeAI: (...args: unknown[]) => createGeminiMock(...args),
 }));
 
 const providerModule = await import("../../../src/evaluation/providers/index.js");
@@ -19,8 +44,7 @@ const { resolveTargetDefinition, createProvider } = providerModule;
 
 describe("resolveTargetDefinition", () => {
   beforeEach(() => {
-    createCalls.length = 0;
-    chatMock.mockClear();
+    generateTextMock.mockClear();
   });
 
   it("throws when settings don't use ${{ }} syntax", () => {
@@ -387,11 +411,13 @@ describe("resolveTargetDefinition", () => {
 
 describe("createProvider", () => {
   beforeEach(() => {
-    createCalls.length = 0;
-    chatMock.mockClear();
+    generateTextMock.mockClear();
+    createAzureMock.mockClear();
+    createAnthropicMock.mockClear();
+    createGeminiMock.mockClear();
   });
 
-  it("creates an azure provider that calls AxAI", async () => {
+  it("creates an azure provider that calls the Vercel AI SDK", async () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: "https://example.openai.azure.com",
       AZURE_OPENAI_API_KEY: "key",
@@ -412,11 +438,11 @@ describe("createProvider", () => {
     const provider = createProvider(resolved);
     const response = await provider.invoke({ question: "Hello" });
 
-    expect(createCalls).toHaveLength(1);
-    expect(chatMock).toHaveBeenCalledTimes(1);
+    expect(createAzureMock).toHaveBeenCalledTimes(1);
+    expect(generateTextMock).toHaveBeenCalledTimes(1);
     expect(response.text).toBe("ok");
   });
-  it("creates a gemini provider that calls AxAI", async () => {
+  it("creates a gemini provider that calls the Vercel AI SDK", async () => {
     const env = {
       GOOGLE_API_KEY: "gemini-key",
     } satisfies Record<string, string>;
@@ -436,8 +462,8 @@ describe("createProvider", () => {
 
     const response = await provider.invoke({ question: "Test prompt" });
 
-    expect(createCalls.length).toBeGreaterThan(0);
-    expect(chatMock).toHaveBeenCalled();
+    expect(createGeminiMock).toHaveBeenCalled();
+    expect(generateTextMock).toHaveBeenCalled();
     expect(response.text).toBe("ok");
   });
 });

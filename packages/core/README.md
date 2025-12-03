@@ -60,8 +60,7 @@ import { createProvider, runEvaluation } from '@agentv/core';
 
 Built on modern TypeScript tooling:
 
-- **@ax-llm/ax**: LLM provider abstraction
-- **Vercel AI SDK**: Streaming and tool use
+- **Vercel AI SDK**: Direct Azure OpenAI, Anthropic, and Google Gemini integrations
 - **Zod**: Runtime type validation
 - **YAML**: Configuration and test specifications
 
