@@ -24,19 +24,19 @@ const createAnthropicMock = vi.fn(() => () => ({ provider: "anthropic" }));
 const createGeminiMock = vi.fn(() => () => ({ provider: "gemini" }));
 
 vi.mock("ai", () => ({
-  generateText: (...args: unknown[]) => generateTextMock(...args),
+  generateText: () => generateTextMock(),
 }));
 
 vi.mock("@ai-sdk/azure", () => ({
-  createAzure: (...args: unknown[]) => createAzureMock(...args),
+  createAzure: (options: any) => createAzureMock(options),
 }));
 
 vi.mock("@ai-sdk/anthropic", () => ({
-  createAnthropic: (...args: unknown[]) => createAnthropicMock(...args),
+  createAnthropic: () => createAnthropicMock(),
 }));
 
 vi.mock("@ai-sdk/google", () => ({
-  createGoogleGenerativeAI: (...args: unknown[]) => createGeminiMock(...args),
+  createGoogleGenerativeAI: () => createGeminiMock(),
 }));
 
 const providerModule = await import("../../../src/evaluation/providers/index.js");

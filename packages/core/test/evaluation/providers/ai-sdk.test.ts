@@ -25,19 +25,19 @@ const anthropicFactory = vi.fn(() => (model: string) => ({ provider: "anthropic"
 const geminiFactory = vi.fn(() => (model: string) => ({ provider: "gemini", model }));
 
 vi.mock("ai", () => ({
-  generateText: (...args: unknown[]) => generateTextMock(...args),
+  generateText: (options: any) => generateTextMock(options),
 }));
 
 vi.mock("@ai-sdk/azure", () => ({
-  createAzure: (...args: unknown[]) => azureFactory(...args),
+  createAzure: () => azureFactory(),
 }));
 
 vi.mock("@ai-sdk/anthropic", () => ({
-  createAnthropic: (...args: unknown[]) => anthropicFactory(...args),
+  createAnthropic: () => anthropicFactory(),
 }));
 
 vi.mock("@ai-sdk/google", () => ({
-  createGoogleGenerativeAI: (...args: unknown[]) => geminiFactory(...args),
+  createGoogleGenerativeAI: () => geminiFactory(),
 }));
 
 import { AnthropicProvider, AzureProvider, GeminiProvider } from "../../../src/evaluation/providers/ai-sdk.js";

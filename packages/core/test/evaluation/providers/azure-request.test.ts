@@ -25,11 +25,11 @@ const generateTextMock = vi.fn(async () => ({
 }));
 
 vi.mock("@ai-sdk/azure", () => ({
-  createAzure: (...args: unknown[]) => createAzureMock(...args),
+  createAzure: (options: any) => createAzureMock(options),
 }));
 
 vi.mock("ai", () => ({
-  generateText: (...args: unknown[]) => generateTextMock(...args),
+  generateText: () => generateTextMock(),
 }));
 
 const providerModule = await import("../../../src/evaluation/providers/index.js");
