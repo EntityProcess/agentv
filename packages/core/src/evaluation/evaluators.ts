@@ -15,16 +15,16 @@ Use the reference_answer as a gold standard for a high-quality response (if prov
 Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.
 
 [[ ## expected_outcome ## ]]
-\${expected_outcome}
+{{expected_outcome}}
 
 [[ ## question ## ]]
-\${question}
+{{question}}
 
 [[ ## reference_answer ## ]]
-\${reference_answer}
+{{reference_answer}}
 
 [[ ## candidate_answer ## ]]
-\${candidate_answer}`;
+{{candidate_answer}}`;
 
 export interface EvaluationContext {
   readonly evalCase: EvalCase;
@@ -426,7 +426,7 @@ function parseJsonSafe(payload: string): Record<string, unknown> | undefined {
 }
 
 function substituteVariables(template: string, variables: Record<string, string>): string {
-  return template.replace(/\$\{([a-zA-Z0-9_]+)\}/g, (match, varName) => {
+  return template.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (match, varName) => {
     return variables[varName] ?? match;
   });
 }
