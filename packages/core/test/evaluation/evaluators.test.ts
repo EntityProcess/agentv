@@ -179,12 +179,12 @@ describe("LlmJudgeEvaluator", () => {
       readonly id = "capturing";
       readonly kind = "mock" as const;
       readonly targetName = "capturing";
-      metadata?: JsonObject;
+      lastRequest?: ProviderRequest;
 
       constructor(private readonly response: ProviderResponse) {}
 
       async invoke(request: ProviderRequest): Promise<ProviderResponse> {
-        this.metadata = request.metadata;
+        this.lastRequest = request;
         return this.response;
       }
     }
@@ -199,7 +199,7 @@ describe("LlmJudgeEvaluator", () => {
 
     const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
-      customPrompt,
+      evaluatorTemplate: customPrompt,
     });
 
     const result = await evaluator.evaluate({
@@ -214,13 +214,11 @@ describe("LlmJudgeEvaluator", () => {
 
     expect(result.score).toBeCloseTo(0.7);
     
-    // System prompt includes custom prompt + default instructions
-    expect(judgeProvider.metadata?.systemPrompt).toContain(customPrompt);
-    expect(judgeProvider.metadata?.systemPrompt).toContain("You are an expert evaluator");
-    expect(judgeProvider.metadata?.systemPrompt).toContain("You must respond with a single JSON object");
+    // System prompt includes custom prompt + output schema
+    expect(judgeProvider.lastRequest?.systemPrompt).toContain(customPrompt);
+    expect(judgeProvider.lastRequest?.systemPrompt).toContain("You must respond with a single JSON object");
     
     expect(result.evaluatorRawRequest?.systemPrompt).toContain(customPrompt);
-    expect(result.evaluatorRawRequest?.systemPrompt).toContain("You are an expert evaluator");
     expect(result.evaluatorRawRequest?.systemPrompt).toContain("You must respond with a single JSON object");
   });
 
@@ -297,8 +295,8 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     expect(judgeProvider.lastRequest?.question).toContain(multiTurnQuestion);
-    expect(result.evaluatorRawRequest?.prompt).toContain("@[Assistant]:");
-    expect(result.evaluatorRawRequest?.prompt).toContain("@[System]:");
+    expect(result.evaluatorRawRequest?.userPrompt).toContain("@[Assistant]:");
+    expect(result.evaluatorRawRequest?.userPrompt).toContain("@[System]:");
   });
 
   it("keeps single-turn prompts flat when no markers are needed", async () => {
@@ -323,7 +321,7 @@ describe("LlmJudgeEvaluator", () => {
 
     expect(judgeProvider.lastRequest?.question).toContain(flatQuestion);
     expect(judgeProvider.lastRequest?.question).not.toContain("@[User]:");
-    expect(result.evaluatorRawRequest?.prompt).toContain(flatQuestion);
-    expect(result.evaluatorRawRequest?.prompt).not.toContain("@[User]:");
+    expect(result.evaluatorRawRequest?.userPrompt).toContain(flatQuestion);
+    expect(result.evaluatorRawRequest?.userPrompt).not.toContain("@[User]:");
   });
 });

@@ -265,12 +265,10 @@ describe("runTestCase", () => {
       now: () => new Date("2024-01-01T00:00:00Z"),
     });
 
-    expect(judgeProvider.lastRequest?.metadata?.systemPrompt).toContain("CUSTOM PROMPT CONTENT");
-    expect(judgeProvider.lastRequest?.metadata?.systemPrompt).toContain("You are an expert evaluator");
-    expect(judgeProvider.lastRequest?.metadata?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(judgeProvider.lastRequest?.systemPrompt).toContain("CUSTOM PROMPT CONTENT");
+    expect(judgeProvider.lastRequest?.systemPrompt).toContain("You must respond with a single JSON object");
     
     expect(result.evaluator_results?.[0]?.evaluator_raw_request?.systemPrompt).toContain("CUSTOM PROMPT CONTENT");
-    expect(result.evaluator_results?.[0]?.evaluator_raw_request?.systemPrompt).toContain("You are an expert evaluator");
     expect(result.evaluator_results?.[0]?.evaluator_raw_request?.systemPrompt).toContain("You must respond with a single JSON object");
   });
 

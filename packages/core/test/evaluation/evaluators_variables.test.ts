@@ -63,7 +63,7 @@ Output Messages: \${output_messages}
 
     const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
-      customPrompt,
+      evaluatorTemplate: customPrompt,
     });
 
     const candidateAnswer = "Candidate Answer Text";
@@ -81,27 +81,25 @@ Output Messages: \${output_messages}
     const request = judgeProvider.lastRequest;
     expect(request).toBeDefined();
 
-    // User prompt always uses the standard format (custom prompt goes in system prompt)
-    expect(request?.question).toContain("[[ ## expected_outcome ## ]]");
-    expect(request?.question).toContain(formattedQuestion);
+    // When custom evaluatorTemplate is provided, it's used for BOTH system and user prompts
+    // (custom template replaces the default data template)
+    expect(request?.question).toContain(`Question: ${formattedQuestion}`);
+    expect(request?.question).toContain("Outcome: Expected Outcome Text");
     
-    // System prompt contains the custom prompt with variables substituted + default instructions
-    expect(request?.metadata?.systemPrompt).toContain(`Question: ${formattedQuestion}`);
-    expect(request?.metadata?.systemPrompt).not.toContain("Original Question Text");
-    expect(request?.metadata?.systemPrompt).toContain("Outcome: Expected Outcome Text");
-    expect(request?.metadata?.systemPrompt).toContain("Reference: Reference Answer Text");
-    expect(request?.metadata?.systemPrompt).toContain("Candidate: Candidate Answer Text");
+    // System prompt contains the custom prompt with variables substituted + output schema
+    expect(request?.systemPrompt).toContain(`Question: ${formattedQuestion}`);
+    expect(request?.systemPrompt).not.toContain("Original Question Text");
+    expect(request?.systemPrompt).toContain("Outcome: Expected Outcome Text");
+    expect(request?.systemPrompt).toContain("Reference: Reference Answer Text");
+    expect(request?.systemPrompt).toContain("Candidate: Candidate Answer Text");
     
     // Verify input_messages JSON stringification
-    expect(request?.metadata?.systemPrompt).toContain('Input Messages: [');
-    expect(request?.metadata?.systemPrompt).toContain('"value": "User Input Message"');
+    expect(request?.systemPrompt).toContain('Input Messages: [');
+    expect(request?.systemPrompt).toContain('"value": "User Input Message"');
 
     // Verify output_messages JSON stringification
-    expect(request?.metadata?.systemPrompt).toContain('Output Messages: [');
-    expect(request?.metadata?.systemPrompt).toContain('"value": "Expected Output Message"');
-
-    // Verify system prompt includes default instructions
-    expect(request?.metadata?.systemPrompt).toContain("You are an expert evaluator");
+    expect(request?.systemPrompt).toContain('Output Messages: [');
+    expect(request?.systemPrompt).toContain('"value": "Expected Output Message"');
   });
 
   it("does not substitute if no variables are present", async () => {
@@ -114,7 +112,7 @@ Output Messages: \${output_messages}
 
     const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
-      customPrompt,
+      evaluatorTemplate: customPrompt,
     });
 
     await evaluator.evaluate({
@@ -129,13 +127,11 @@ Output Messages: \${output_messages}
 
     const request = judgeProvider.lastRequest;
     
-    // User prompt always uses the standard format
-    expect(request?.question).toContain("[[ ## expected_outcome ## ]]");
-    expect(request?.question).toContain(promptQuestion);
+    // When custom evaluatorTemplate is provided, it's used for both system and user prompts
+    expect(request?.question).toContain("Fixed prompt without variables");
     
-    // System prompt is custom prompt + default instructions
-    expect(request?.metadata?.systemPrompt).toContain(customPrompt);
-    expect(request?.metadata?.systemPrompt).toContain("You are an expert evaluator");
-    expect(request?.metadata?.systemPrompt).toContain("You must respond with a single JSON object");
+    // System prompt contains custom prompt + output schema
+    expect(request?.systemPrompt).toContain(customPrompt);
+    expect(request?.systemPrompt).toContain("You must respond with a single JSON object");
   });
 });

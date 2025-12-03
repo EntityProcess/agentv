@@ -123,7 +123,8 @@ export class LlmJudgeEvaluator implements Evaluator {
     };
     
     // Build system prompt (evaluator instructions + mandatory output schema)
-    const systemPrompt = evaluatorInstructions + "\n\n" + buildOutputSchema();
+    // Substitute variables in evaluator instructions if custom template is used
+    const systemPrompt = substituteVariables(evaluatorInstructions, variables) + "\n\n" + buildOutputSchema();
     
     // Build user prompt (data sections with variables substituted)
     const userPrompt = substituteVariables(dataTemplate, variables);
