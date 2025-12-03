@@ -80,6 +80,7 @@ export class CliProvider implements Provider {
 
   private readonly config: CliResolvedConfig;
   private readonly runCommand: CommandRunner;
+  private readonly verbose: boolean;
   private healthcheckPromise?: Promise<void>;
 
   constructor(targetName: string, config: CliResolvedConfig, runner: CommandRunner = defaultCommandRunner) {
@@ -87,6 +88,7 @@ export class CliProvider implements Provider {
     this.id = `cli:${targetName}`;
     this.config = config;
     this.runCommand = runner;
+    this.verbose = config.verbose ?? false;
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
@@ -205,6 +207,11 @@ export class CliProvider implements Provider {
         generateOutputFilePath("healthcheck"),
       ),
     );
+    if (this.verbose) {
+      console.log(
+        `[cli-provider:${this.targetName}] (healthcheck) CLI_EVALS_DIR=${process.env.CLI_EVALS_DIR ?? ""} cwd=${healthcheck.cwd ?? this.config.cwd ?? ""} command=${renderedCommand}`,
+      );
+    }
 
     const result = await this.runCommand(renderedCommand, {
       cwd: healthcheck.cwd ?? this.config.cwd,

@@ -7,6 +7,7 @@ Healthcheck:
   uv run mock_cli.py --healthcheck
 """
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -15,6 +16,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Mock CLI for AgentV demo")
     parser.add_argument("--prompt", dest="prompt", required=False, help="User prompt")
     parser.add_argument("--file", dest="files", action="append", default=[], help="Attachment path")
+    parser.add_argument("--output", dest="output_path", required=False, help="Write response to this file")
     parser.add_argument("--healthcheck", action="store_true", help="Run health check")
     parser.add_argument("extra", nargs="*", help=argparse.SUPPRESS)
     return parser.parse_args()
@@ -22,6 +24,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    # Helpful debug to verify which script is running and arguments passed
+    print(f"[mock_cli] running from: {Path(__file__).resolve()}", file=sys.stderr)
+    print(f"[mock_cli] argv: {sys.argv}", file=sys.stderr)
+    cli_evals_dir = os.environ.get("CLI_EVALS_DIR", "")
+    print(f"[mock_cli] CLI_EVALS_DIR: {cli_evals_dir}", file=sys.stderr)
 
     if args.healthcheck:
         print("cli-provider demo: healthy")
@@ -51,10 +58,22 @@ def main() -> int:
     print(f"Prompt: {prompt}", file=sys.stderr)
     print(f"Attachments: {names_str}", file=sys.stderr)
 
+    response: str
     if not names:
-        print("No attachments received.")
+        response = "No attachments received."
     else:
-        print(f"Attachments detected ({len(names)}): {names_str}.")
+        response = f"Attachments detected ({len(names)}): {names_str}."
+
+    if args.output_path:
+        output_path = Path(args.output_path)
+        try:
+            print(f"[mock_cli] writing output to: {output_path}", file=sys.stderr)
+            output_path.write_text(response, encoding="utf-8")
+        except OSError as exc:  # surface a clear failure for AgentV to pick up
+            print(f"Failed to write output file: {exc}", file=sys.stderr)
+            return 1
+    else:
+        print(response)
 
     return 0
 
