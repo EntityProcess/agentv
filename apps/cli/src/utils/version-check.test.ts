@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { parseVersion, isNewer } from './version-check.js';
 
 describe('parseVersion', () => {

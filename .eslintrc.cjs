@@ -55,5 +55,6 @@ module.exports = {
     "**/*.d.ts",
     "logs",
     "*.log",
+    "**/.tmp-*",
   ],
 };

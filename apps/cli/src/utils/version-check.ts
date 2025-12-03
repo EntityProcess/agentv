@@ -1,6 +1,6 @@
-import { readFileSync, existsSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
+import { join } from "node:path";
 
 interface VersionInfo {
   latest_version: string;
@@ -85,7 +85,7 @@ export async function checkForUpdates(currentVersion: string): Promise<void> {
       
       const configDir = join(versionFile, '..');
       if (!existsSync(configDir)) {
-        require('fs').mkdirSync(configDir, { recursive: true });
+        mkdirSync(configDir, { recursive: true });
       }
       writeFileSync(versionFile, JSON.stringify(newInfo) + '\n');
     } catch {
