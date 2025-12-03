@@ -799,7 +799,7 @@ async function runLlmJudgeEvaluator(options: {
     promptInputs,
     now,
     judgeProvider,
-    systemPrompt: customPrompt,
+    evaluatorTemplateOverride: customPrompt,
     evaluator: config,
   });
 }

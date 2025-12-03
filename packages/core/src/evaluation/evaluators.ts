@@ -18,7 +18,7 @@ export interface EvaluationContext {
   };
   readonly now: Date;
   readonly judgeProvider?: Provider;
-  readonly systemPrompt?: string;
+  readonly evaluatorTemplateOverride?: string;
   readonly evaluator?: EvaluatorConfig;
 }
 
@@ -43,7 +43,7 @@ export interface LlmJudgeEvaluatorOptions {
   readonly resolveJudgeProvider: JudgeProviderResolver;
   readonly maxOutputTokens?: number;
   readonly temperature?: number;
-  readonly customPrompt?: string;
+  readonly evaluatorTemplate?: string;
 }
 
 export class LlmJudgeEvaluator implements Evaluator {
@@ -52,13 +52,13 @@ export class LlmJudgeEvaluator implements Evaluator {
   private readonly resolveJudgeProvider: JudgeProviderResolver;
   private readonly maxOutputTokens?: number;
   private readonly temperature?: number;
-  private readonly customPrompt?: string;
+  private readonly evaluatorTemplate?: string;
 
   constructor(options: LlmJudgeEvaluatorOptions) {
     this.resolveJudgeProvider = options.resolveJudgeProvider;
     this.maxOutputTokens = options.maxOutputTokens;
     this.temperature = options.temperature;
-    this.customPrompt = options.customPrompt;
+    this.evaluatorTemplate = options.evaluatorTemplate;
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
@@ -81,14 +81,15 @@ export class LlmJudgeEvaluator implements Evaluator {
         ? context.promptInputs.question
         : context.evalCase.question;
 
-    const customPrompt = context.systemPrompt ?? this.customPrompt;
+    const activeEvaluatorTemplate =
+      context.evaluatorTemplateOverride ?? this.evaluatorTemplate;
     
     // User prompt always uses the standard format with all context
     const prompt = buildQualityPrompt(context.evalCase, context.candidate, formattedQuestion);
     
-    // System prompt: custom prompt (with variable substitution) + default instructions
+    // System prompt: evaluator template (with variable substitution) + default instructions
     let systemPrompt: string;
-    if (customPrompt) {
+    if (activeEvaluatorTemplate) {
       const variables = {
         input_messages: JSON.stringify(context.evalCase.input_segments, null, 2),
         output_messages: JSON.stringify(context.evalCase.output_segments, null, 2),
@@ -97,8 +98,8 @@ export class LlmJudgeEvaluator implements Evaluator {
         expected_outcome: context.evalCase.expected_outcome,
         question: formattedQuestion,
       };
-      const expandedCustomPrompt = substituteVariables(customPrompt, variables);
-      systemPrompt = expandedCustomPrompt + "\n\n" + buildSystemPrompt(hasReferenceAnswer);
+      const expandedEvaluatorTemplate = substituteVariables(activeEvaluatorTemplate, variables);
+      systemPrompt = expandedEvaluatorTemplate + "\n\n" + buildSystemPrompt(hasReferenceAnswer);
     } else {
       systemPrompt = buildSystemPrompt(hasReferenceAnswer);
     }
