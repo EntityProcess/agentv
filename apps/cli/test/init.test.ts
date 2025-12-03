@@ -39,19 +39,18 @@ describe("init command", () => {
   it("should create prompt template file", async () => {
     await initCommand({ targetPath: TEST_DIR });
 
-    const promptFile = path.join(TEST_DIR, ".github", "prompts", "eval-build.prompt.md");
+    const promptFile = path.join(TEST_DIR, ".github", "prompts", "agentv-eval-build.prompt.md");
     expect(existsSync(promptFile)).toBe(true);
 
     const content = readFileSync(promptFile, "utf-8");
-    expect(content).toContain("Schema Reference");
-    expect(content).toContain("Structure Requirements");
-    expect(content).toContain("evalcases");
+    expect(content).toContain("#file:");
+    expect(content).toContain("agentv-eval-builder");
   });
 
   it("should create schema file", async () => {
     await initCommand({ targetPath: TEST_DIR });
 
-    const schemaFile = path.join(TEST_DIR, ".github", "contexts", "eval-schema.json");
+    const schemaFile = path.join(TEST_DIR, ".claude", "skills", "agentv-eval-builder", "references", "eval-schema.json");
     expect(existsSync(schemaFile)).toBe(true);
 
     const content = readFileSync(schemaFile, "utf-8");
@@ -103,8 +102,9 @@ describe("init command", () => {
 
     await initCommand({ targetPath: TEST_DIR });
 
-    const promptFile = path.join(githubDir, "prompts", "eval-build.prompt.md");
-    const schemaFile = path.join(githubDir, "contexts", "eval-schema.json");
+    const promptFile = path.join(githubDir, "prompts", "agentv-eval-build.prompt.md");
+    const claudeDir = path.join(TEST_DIR, ".claude");
+    const schemaFile = path.join(claudeDir, "skills", "agentv-eval-builder", "references", "eval-schema.json");
 
     expect(existsSync(promptFile)).toBe(true);
     expect(existsSync(schemaFile)).toBe(true);
