@@ -15,9 +15,9 @@ evalcases:
   # ==========================================
   - id: code-review-javascript
     
-    outcome: |
+    outcome: |-
       Assistant provides helpful code analysis and mentions SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT
-    
+
     input_messages:
       - role: system
         content: You are an expert software developer who provides clear, concise code reviews.

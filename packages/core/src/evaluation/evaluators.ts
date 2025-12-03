@@ -4,6 +4,31 @@ import type { ResolvedTarget } from "./providers/targets.js";
 import type { Provider, ProviderResponse, ChatPrompt } from "./providers/types.js";
 import type { EvaluatorConfig, JsonObject, EvalCase } from "./types.js";
 
+/**
+ * Default evaluator instructions (goes in system message).
+ * Custom evaluators can override this via evaluatorTemplate option.
+ */
+const DEFAULT_EVALUATOR_INSTRUCTIONS = `You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.
+
+Use the reference_answer as a gold standard for a high-quality response (if provided). The candidate_answer does not need to match it verbatim, but should capture the key points and follow the same spirit.
+
+Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.`;
+
+/**
+ * Default data template for user message (variables will be substituted).
+ */
+const DEFAULT_EVALUATOR_DATA_TEMPLATE = `[[ ## expected_outcome ## ]]
+\${expected_outcome}
+
+[[ ## question ## ]]
+\${question}
+
+[[ ## reference_answer ## ]]
+\${reference_answer}
+
+[[ ## candidate_answer ## ]]
+\${candidate_answer}`;
+
 export interface EvaluationContext {
   readonly evalCase: EvalCase;
   readonly candidate: string;
@@ -74,41 +99,38 @@ export class LlmJudgeEvaluator implements Evaluator {
     context: EvaluationContext,
     judgeProvider: Provider,
   ): Promise<EvaluationScore> {
-    const hasReferenceAnswer = hasNonEmptyReferenceAnswer(context.evalCase);
-
     const formattedQuestion =
       context.promptInputs.question && context.promptInputs.question.trim().length > 0
         ? context.promptInputs.question
         : context.evalCase.question;
 
-    const activeEvaluatorTemplate =
-      context.evaluatorTemplateOverride ?? this.evaluatorTemplate;
+    // Evaluator template: custom override > instance template > default instructions
+    const evaluatorInstructions =
+      context.evaluatorTemplateOverride ?? this.evaluatorTemplate ?? DEFAULT_EVALUATOR_INSTRUCTIONS;
     
-    // User prompt always uses the standard format with all context
-    const prompt = buildQualityPrompt(context.evalCase, context.candidate, formattedQuestion);
+    // Data template: custom evaluators include data in their template, default uses separate data template
+    const dataTemplate =
+      context.evaluatorTemplateOverride ?? this.evaluatorTemplate ?? DEFAULT_EVALUATOR_DATA_TEMPLATE;
     
-    // System prompt: evaluator template (with variable substitution) + default instructions
-    let systemPrompt: string;
-    if (activeEvaluatorTemplate) {
-      const variables = {
-        input_messages: JSON.stringify(context.evalCase.input_segments, null, 2),
-        output_messages: JSON.stringify(context.evalCase.output_segments, null, 2),
-        candidate_answer: context.candidate,
-        reference_answer: context.evalCase.reference_answer ?? "",
-        expected_outcome: context.evalCase.expected_outcome,
-        question: formattedQuestion,
-      };
-      const expandedEvaluatorTemplate = substituteVariables(activeEvaluatorTemplate, variables);
-      systemPrompt = expandedEvaluatorTemplate + "\n\n" + buildSystemPrompt(hasReferenceAnswer);
-    } else {
-      systemPrompt = buildSystemPrompt(hasReferenceAnswer);
-    }
-
-    const metadata: JsonObject = systemPrompt !== undefined ? { systemPrompt } : {};
+    // Prepare template variables for substitution
+    const variables = {
+      input_messages: JSON.stringify(context.evalCase.input_segments, null, 2),
+      output_messages: JSON.stringify(context.evalCase.output_segments, null, 2),
+      candidate_answer: context.candidate.trim(),
+      reference_answer: (context.evalCase.reference_answer ?? "").trim(),
+      expected_outcome: context.evalCase.expected_outcome.trim(),
+      question: formattedQuestion.trim(),
+    };
+    
+    // Build system prompt (evaluator instructions + mandatory output schema)
+    const systemPrompt = evaluatorInstructions + "\n\n" + buildOutputSchema();
+    
+    // Build user prompt (data sections with variables substituted)
+    const userPrompt = substituteVariables(dataTemplate, variables);
 
     const response = await judgeProvider.invoke({
-      question: prompt,
-      metadata,
+      question: userPrompt,
+      systemPrompt,
       evalCaseId: context.evalCase.id,
       attempt: context.attempt,
       maxOutputTokens: this.maxOutputTokens,
@@ -129,9 +151,9 @@ export class LlmJudgeEvaluator implements Evaluator {
     const evaluatorRawRequest: JsonObject = {
       id: randomUUID(),
       provider: judgeProvider.id,
-      prompt,
+      userPrompt,
+      systemPrompt,
       target: context.target.name,
-      ...(systemPrompt !== undefined && { systemPrompt }),
     };
 
     return {
@@ -145,22 +167,12 @@ export class LlmJudgeEvaluator implements Evaluator {
   }
 }
 
-function buildSystemPrompt(hasReferenceAnswer: boolean): string {
-  const basePrompt = [
-    "You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.",
-    "",
-  ];
-
-  if (hasReferenceAnswer) {
-    basePrompt.push(
-      "Use the reference_answer as a gold standard for a high-quality response. The candidate_answer does not need to match it verbatim, but should capture the key points and follow the same spirit.",
-      "",
-    );
-  }
-
-  basePrompt.push(
-    "Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.",
-    "",
+/**
+ * Build the mandatory output schema that all evaluators must follow.
+ * This schema is always appended to the evaluator template.
+ */
+function buildOutputSchema(): string {
+  return [
     "You must respond with a single JSON object matching this schema:",
     "",
     "{",
@@ -169,37 +181,10 @@ function buildSystemPrompt(hasReferenceAnswer: boolean): string {
     '  "misses": [<array of strings, max 4 items, brief specific failures or omissions, empty if none>],',
     '  "reasoning": "<string, concise explanation for the score, 1-2 sentences max>"',
     "}",
-  );
-
-  return basePrompt.join("\n");
+  ].join("\n");
 }
 
-function buildQualityPrompt(evalCase: EvalCase, candidate: string, question: string): string {
-  const parts = [
-    "[[ ## expected_outcome ## ]]",
-    evalCase.expected_outcome.trim(),
-    "",
-    "[[ ## question ## ]]",
-    question.trim(),
-    "",
-  ];
-  
-  // Only include reference_answer if provided
-  if (hasNonEmptyReferenceAnswer(evalCase)) {
-    parts.push(
-      "[[ ## reference_answer ## ]]",
-      evalCase.reference_answer!.trim(),
-      "",
-    );
-  }
-  
-  parts.push(
-    "[[ ## candidate_answer ## ]]",
-    candidate.trim(),
-  );
-  
-  return parts.join("\n");
-}
+
 
 function clampScore(value: number): number {
   if (Number.isNaN(value) || !Number.isFinite(value)) {
@@ -315,13 +300,6 @@ function extractJsonBlob(text: string): string | undefined {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
-}
-
-function hasNonEmptyReferenceAnswer(evalCase: EvalCase): boolean {
-  return (
-    evalCase.reference_answer !== undefined &&
-    evalCase.reference_answer.trim().length > 0
-  );
 }
 
 // Code Evaluator

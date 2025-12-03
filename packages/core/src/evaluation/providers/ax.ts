@@ -48,10 +48,8 @@ function buildChatPrompt(request: ProviderRequest): ChatPrompt {
 function resolveSystemContent(request: ProviderRequest): string {
   const systemSegments: string[] = [];
 
-  const metadataSystemPrompt =
-    typeof request.metadata?.systemPrompt === "string" ? request.metadata.systemPrompt : undefined;
-  if (metadataSystemPrompt && metadataSystemPrompt.trim().length > 0) {
-    systemSegments.push(metadataSystemPrompt.trim());
+  if (request.systemPrompt && request.systemPrompt.trim().length > 0) {
+    systemSegments.push(request.systemPrompt.trim());
   } else {
     systemSegments.push(DEFAULT_SYSTEM_PROMPT);
   }
