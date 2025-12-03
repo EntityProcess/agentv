@@ -81,25 +81,25 @@ Output Messages: \${output_messages}
     const request = judgeProvider.lastRequest;
     expect(request).toBeDefined();
 
-    // When custom evaluatorTemplate is provided, it's used for BOTH system and user prompts
-    // (custom template replaces the default data template)
+    // When custom evaluatorTemplate is provided, it goes in the user prompt (question)
+    // System prompt only contains the output schema
     expect(request?.question).toContain(`Question: ${formattedQuestion}`);
+    expect(request?.question).not.toContain("Original Question Text");
     expect(request?.question).toContain("Outcome: Expected Outcome Text");
-    
-    // System prompt contains the custom prompt with variables substituted + output schema
-    expect(request?.systemPrompt).toContain(`Question: ${formattedQuestion}`);
-    expect(request?.systemPrompt).not.toContain("Original Question Text");
-    expect(request?.systemPrompt).toContain("Outcome: Expected Outcome Text");
-    expect(request?.systemPrompt).toContain("Reference: Reference Answer Text");
-    expect(request?.systemPrompt).toContain("Candidate: Candidate Answer Text");
+    expect(request?.question).toContain("Reference: Reference Answer Text");
+    expect(request?.question).toContain("Candidate: Candidate Answer Text");
     
     // Verify input_messages JSON stringification
-    expect(request?.systemPrompt).toContain('Input Messages: [');
-    expect(request?.systemPrompt).toContain('"value": "User Input Message"');
+    expect(request?.question).toContain('Input Messages: [');
+    expect(request?.question).toContain('"value": "User Input Message"');
 
     // Verify output_messages JSON stringification
-    expect(request?.systemPrompt).toContain('Output Messages: [');
-    expect(request?.systemPrompt).toContain('"value": "Expected Output Message"');
+    expect(request?.question).toContain('Output Messages: [');
+    expect(request?.question).toContain('"value": "Expected Output Message"');
+    
+    // System prompt only has output schema, not custom template
+    expect(request?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(request?.systemPrompt).not.toContain(`Question: ${formattedQuestion}`);
   });
 
   it("does not substitute if no variables are present", async () => {
@@ -127,11 +127,11 @@ Output Messages: \${output_messages}
 
     const request = judgeProvider.lastRequest;
     
-    // When custom evaluatorTemplate is provided, it's used for both system and user prompts
+    // When custom evaluatorTemplate is provided, it goes in user prompt (question)
     expect(request?.question).toContain("Fixed prompt without variables");
     
-    // System prompt contains custom prompt + output schema
-    expect(request?.systemPrompt).toContain(customPrompt);
+    // System prompt only contains output schema, not custom template
     expect(request?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(request?.systemPrompt).not.toContain(customPrompt);
   });
 });

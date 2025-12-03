@@ -5,19 +5,16 @@ import type { Provider, ProviderResponse, ChatPrompt } from "./providers/types.j
 import type { EvaluatorConfig, JsonObject, EvalCase } from "./types.js";
 
 /**
- * Default evaluator instructions (goes in system message).
+ * Default evaluator template for the user prompt (variables will be substituted).
  * Custom evaluators can override this via evaluatorTemplate option.
  */
-const DEFAULT_EVALUATOR_INSTRUCTIONS = `You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.
+const DEFAULT_EVALUATOR_TEMPLATE = `You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.
 
 Use the reference_answer as a gold standard for a high-quality response (if provided). The candidate_answer does not need to match it verbatim, but should capture the key points and follow the same spirit.
 
-Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.`;
+Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.
 
-/**
- * Default data template for user message (variables will be substituted).
- */
-const DEFAULT_EVALUATOR_DATA_TEMPLATE = `[[ ## expected_outcome ## ]]
+[[ ## expected_outcome ## ]]
 \${expected_outcome}
 
 [[ ## question ## ]]
@@ -104,14 +101,6 @@ export class LlmJudgeEvaluator implements Evaluator {
         ? context.promptInputs.question
         : context.evalCase.question;
 
-    // Evaluator template: custom override > instance template > default instructions
-    const evaluatorInstructions =
-      context.evaluatorTemplateOverride ?? this.evaluatorTemplate ?? DEFAULT_EVALUATOR_INSTRUCTIONS;
-    
-    // Data template: custom evaluators include data in their template, default uses separate data template
-    const dataTemplate =
-      context.evaluatorTemplateOverride ?? this.evaluatorTemplate ?? DEFAULT_EVALUATOR_DATA_TEMPLATE;
-    
     // Prepare template variables for substitution
     const variables = {
       input_messages: JSON.stringify(context.evalCase.input_segments, null, 2),
@@ -122,12 +111,12 @@ export class LlmJudgeEvaluator implements Evaluator {
       question: formattedQuestion.trim(),
     };
     
-    // Build system prompt (evaluator instructions + mandatory output schema)
-    // Substitute variables in evaluator instructions if custom template is used
-    const systemPrompt = substituteVariables(evaluatorInstructions, variables) + "\n\n" + buildOutputSchema();
+    // Build system prompt (only the mandatory output schema)
+    const systemPrompt = buildOutputSchema();
     
-    // Build user prompt (data sections with variables substituted)
-    const userPrompt = substituteVariables(dataTemplate, variables);
+    // Build user prompt based on custom template or default template
+    const evaluatorTemplate = context.evaluatorTemplateOverride ?? this.evaluatorTemplate ?? DEFAULT_EVALUATOR_TEMPLATE;
+    const userPrompt = substituteVariables(evaluatorTemplate, variables);
 
     const response = await judgeProvider.invoke({
       question: userPrompt,

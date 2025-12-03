@@ -214,12 +214,14 @@ describe("LlmJudgeEvaluator", () => {
 
     expect(result.score).toBeCloseTo(0.7);
     
-    // System prompt includes custom prompt + output schema
-    expect(judgeProvider.lastRequest?.systemPrompt).toContain(customPrompt);
+    // Custom template goes in user prompt (question), system prompt only has output schema
+    expect(judgeProvider.lastRequest?.question).toContain(customPrompt);
     expect(judgeProvider.lastRequest?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(judgeProvider.lastRequest?.systemPrompt).not.toContain(customPrompt);
     
-    expect(result.evaluatorRawRequest?.systemPrompt).toContain(customPrompt);
+    expect(result.evaluatorRawRequest?.userPrompt).toContain(customPrompt);
     expect(result.evaluatorRawRequest?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(result.evaluatorRawRequest?.systemPrompt).not.toContain(customPrompt);
   });
 
   it("rejects JSON with invalid hits/misses types", async () => {
