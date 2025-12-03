@@ -5,6 +5,7 @@ import { registerEvalCommand } from "./commands/eval/index.js";
 import { initCommand } from "./commands/init/index.js";
 import { registerStatusCommand } from "./commands/status.js";
 import { registerValidateCommand } from "./commands/validate/index.js";
+import { checkForUpdates } from "./utils/version-check.js";
 
 const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
@@ -34,6 +35,9 @@ export function createProgram(): Command {
 }
 
 export async function runCli(argv: string[] = process.argv): Promise<Command> {
+  if (!argv.includes('--version') && !argv.includes('-V')) {
+    await checkForUpdates(packageJson.version);
+  }
   const program = createProgram();
   await program.parseAsync(argv);
   return program;
