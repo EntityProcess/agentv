@@ -11,7 +11,7 @@ description: Create and maintain AgentV YAML evaluation files for testing AI age
 - Examples: `references/example-evals.md`
 
 ## Structure Requirements
-- Root level: `$schema` (required: "agentv-eval-v2"), `description` (optional), `target` (optional), `evalcases` (required)
+- Root level: `$schema` (required: "agentv-eval-v2"), `description` (optional), `execution` (optional), `evalcases` (required)
 - Eval case fields: `id` (required), `outcome` (required), `input_messages` (required), `expected_messages` (required)
 - Optional fields: `conversation_id`, `note`, `execution`
 - Message fields: `role` (required), `content` (required)
@@ -71,7 +71,8 @@ execution:
 ```yaml
 $schema: agentv-eval-v2
 description: Example showing basic features and conversation threading
-target: default
+execution:
+  target: default
 
 evalcases:
   # Basic eval case with file references

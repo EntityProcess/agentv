@@ -1,13 +1,12 @@
 ---
-description: Iteratively optimize a prompt file against an AgentV evaluation suite by analyzing failures and refining instructions.
+description: Iteratively optimize prompt files against AgentV evaluation datasets by analyzing failures and refining instructions.
 ---
 
 # AgentV Prompt Optimizer
 
-Iteratively optimize a prompt file against an AgentV evaluation suite.
-
-## Usage
-`prompt-optimizer <eval-path> [optimization-log-path]`
+## Input Variables
+- `eval-path`: Path or glob pattern to the AgentV evaluation file(s) to optimize against
+- `optimization-log-path` (optional): Path where optimization progress should be logged
 
 ## Workflow
 
