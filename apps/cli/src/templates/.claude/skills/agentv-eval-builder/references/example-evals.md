@@ -102,198 +102,63 @@ evalcases:
           }
 ```
 
-## Conversation Threading
+## Multi-Turn Conversation (Single Eval Case)
 
 ```yaml
 $schema: agentv-eval-v2
-description: Multi-turn conversation for iterative code development
+description: Multi-turn debugging session with clarifying questions
 target: default
 
 evalcases:
-  - id: create-class
-    conversation_id: python-dev-session
-    outcome: Creates a basic User class
+  - id: debug-with-clarification
+    outcome: |-
+      Assistant conducts a multi-turn debugging session, asking clarification
+      questions when needed, correctly diagnosing the bug, and proposing a clear
+      fix with rationale.
     
     input_messages:
+      - role: system
+        content: You are an expert debugging assistant who reasons step by step, asks clarifying questions, and explains fixes clearly.
       - role: user
-        content: Create a Python User class with name and email attributes
-    
-    expected_messages:
-      - role: assistant
         content: |-
+          I'm getting an off-by-one error in this function, but I can't see why:
+
           ```python
-          class User:
-              def __init__(self, name, email):
-                  self.name = name
-                  self.email = email
+          def get_items(items):
+              result = []
+              for i in range(len(items) - 1):
+                  result.append(items[i])
+              return result
           ```
-  
-  - id: add-validation
-    conversation_id: python-dev-session
-    outcome: Adds email validation to the existing class
-    
-    input_messages:
+
+          Sometimes the last element is missing. Can you help debug this?
+      - role: assistant
+        content: |-
+          I can help debug this. Before I propose a fix, could you tell me:
+          - What output you expect for an example input list
+          - What output you actually get
       - role: user
-        content: Add email validation to the User class
+        content: |-
+          For `[1, 2, 3, 4]` I expect `[1, 2, 3, 4]`, but I get `[1, 2, 3]`.
     
     expected_messages:
       - role: assistant
         content: |-
-          ```python
-          import re
+          You have an off-by-one error in your loop bounds.
+          You're iterating with `range(len(items) - 1)`, which stops before the last index.
+          To include all items, you can either:
+          - Use `range(len(items))`, or
+          - Iterate directly over the list: `for item in items:`
           
-          class User:
-              def __init__(self, name, email):
-                  self.name = name
-                  self.email = self._validate_email(email)
-              
-              def _validate_email(self, email):
-                  pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-                  if not re.match(pattern, email):
-                      raise ValueError(f"Invalid email: {email}")
-                  return email
-          ```
-  
-  - id: add-repr
-    conversation_id: python-dev-session
-    outcome: Adds __repr__ method for better debugging
-    
-    input_messages:
-      - role: user
-        content: Add a __repr__ method to the class
-    
-    expected_messages:
-      - role: assistant
-        content: |-
+          Here's a corrected version:
+
           ```python
-          def __repr__(self):
-              return f"User(name='{self.name}', email='{self.email}')"
+          def get_items(items):
+              result = []
+              for item in items:
+                  result.append(item)
+              return result
           ```
-```
-
-## Advanced: Per-Case Target Override
-
-```yaml
-$schema: agentv-eval-v2
-description: Cross-platform testing with different targets
-target: azure_base
-
-evalcases:
-  - id: azure-test
-    outcome: Tests with Azure OpenAI (uses file-level default target)
-    
-    input_messages:
-      - role: user
-        content: Explain async/await in Python
-    
-    expected_messages:
-      - role: assistant
-        content: "async/await is Python's syntax for asynchronous programming..."
-  
-  - id: vscode-test
-    outcome: Tests with VS Code Copilot
-    
-    execution:
-      target: vscode_projectx
-    
-    input_messages:
-      - role: user
-        content:
-          - type: text
-            value: Refactor this code to use async/await
-          - type: file
-            value: /code-samples/sync_code.py
-    
-    expected_messages:
-      - role: assistant
-        content: "async def fetch_data():\n    await ..."
-```
-
-## Complex Real-World Example: CargoWise Triage
-
-```yaml
-$schema: agentv-eval-v2
-description: CargoWise criticality rating (CR1-CR9) classification eval
-target: default
-
-evalcases:
-  - id: cr-global-outage
-    conversation_id: cargowise-triage
-    
-    outcome: |
-      Assistant correctly classifies as 'CR1' for complete system inaccessibility.
-      Reasoning should emphasize 'any user on any workstation' and lack of access.
-    
-    execution:
-      evaluators:
-        - name: json_format_validator
-          type: code
-          script: uv run validate_output.py
-        - name: content_evaluator
-          type: llm_judge
-    
-    input_messages:
-      - role: user
-        content:
-          - type: file
-            value: ../../prompts/cw-criticality-rating.prompt.md
-          - type: text
-            value: |-
-              Classify this CargoWise ticket:
-              
-              Ticket: Entire system down, no users can log in from any device
-              Impact: All operations halted
-              Scope: Global
-              Signals: Error: "Server unreachable", no recent changes reported
-    
-    expected_messages:
-      - role: assistant
-        content: |-
-          {
-            "criticalityRating": "CR1",
-            "reasoning": "Step 1: Issue prevents access to the entire application suite. 
-            Step 2: Affects any user on any workstation. Step 3: Matches CR1 definition 
-            exactly—no partial access or workarounds mentioned."
-          }
-  
-  - id: cr-module-inaccessible
-    conversation_id: cargowise-triage
-    
-    outcome: |
-      Assistant correctly classifies as 'CR2' for module-wide inaccessibility.
-      Reasoning should distinguish from CR1 by noting it's limited to one module.
-    
-    execution:
-      evaluators:
-        - name: json_format_validator
-          type: code
-          script: uv run validate_output.py
-        - name: content_evaluator
-          type: llm_judge
-    
-    input_messages:
-      - role: user
-        content:
-          - type: file
-            value: ../../prompts/cw-criticality-rating.prompt.md
-          - type: text
-            value: |-
-              Classify this CargoWise ticket:
-              
-              Ticket: Customs module inaccessible for all users
-              Impact: Customs declarations blocked
-              Scope: Module-wide
-              Signals: "Module not found" error, other modules working
-    
-    expected_messages:
-      - role: assistant
-        content: |-
-          {
-            "criticalityRating": "CR2",
-            "reasoning": "Step 1: Issue affects an entire module (Customs). 
-            Step 2: No access for any user/workstation. Step 3: Does not impact 
-            the full suite, so CR2 over CR1."
-          }
 ```
 
 ## Notes on Examples
