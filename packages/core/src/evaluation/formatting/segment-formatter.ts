@@ -1,6 +1,13 @@
 import type { JsonObject } from "../types.js";
 
 /**
+ * Formatting mode for segment content.
+ * - 'agent': File references only (for providers with filesystem access)
+ * - 'lm': Embedded file content with XML tags (for language model providers)
+ */
+export type FormattingMode = 'agent' | 'lm';
+
+/**
  * Extract fenced code blocks from AgentV user segments.
  */
 export function extractCodeBlocks(segments: readonly JsonObject[]): readonly string[] {
@@ -50,8 +57,11 @@ export function formatFileContents(
 /**
  * Format a segment into its display string.
  * Text segments return their value; file segments return formatted file content with header.
+ * 
+ * @param segment - The segment to format
+ * @param mode - Formatting mode: 'agent' for file references, 'lm' for embedded content
  */
-export function formatSegment(segment: JsonObject): string | undefined {
+export function formatSegment(segment: JsonObject, mode: FormattingMode = 'lm'): string | undefined {
   const type = asString(segment.type);
   
   if (type === "text") {
@@ -64,8 +74,18 @@ export function formatSegment(segment: JsonObject): string | undefined {
   }
   
   if (type === "file") {
-    const text = asString(segment.text);
     const filePath = asString(segment.path);
+    if (!filePath) {
+      return undefined;
+    }
+    
+    // Agent mode: return file reference only
+    if (mode === 'agent') {
+      return `<file: path="${filePath}">`;
+    }
+    
+    // LM mode: return embedded content with XML tags
+    const text = asString(segment.text);
     if (text && filePath) {
       // Use formatFileContents for consistent XML formatting
       return formatFileContents([{ content: text.trim(), isFile: true, displayPath: filePath }]);

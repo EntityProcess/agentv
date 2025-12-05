@@ -323,8 +323,10 @@ async function runBatchEvaluation(options: {
 
   // Prepare prompt inputs up front so we can reuse them for grading.
   const promptInputsList: PromptInputs[] = [];
+  const formattingMode = isAgentProvider(provider) ? 'agent' : 'lm';
+  
   for (const evalCase of evalCases) {
-    const promptInputs = await buildPromptInputs(evalCase);
+    const promptInputs = await buildPromptInputs(evalCase, formattingMode);
     if (promptDumpDir) {
       await dumpPrompt(promptDumpDir, evalCase, promptInputs);
     }
@@ -439,7 +441,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     judgeProvider,
   } = options;
 
-  const promptInputs = await buildPromptInputs(evalCase);
+  const formattingMode = isAgentProvider(provider) ? 'agent' : 'lm';
+  const promptInputs = await buildPromptInputs(evalCase, formattingMode);
   if (promptDumpDir) {
     await dumpPrompt(promptDumpDir, evalCase, promptInputs);
   }

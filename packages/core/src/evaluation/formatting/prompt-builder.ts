@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { formatFileContents, formatSegment, hasVisibleContent } from "./segment-formatter.js";
+import { formatFileContents, formatSegment, hasVisibleContent, type FormattingMode } from "./segment-formatter.js";
 import { isGuidelineFile } from "../loaders/config-loader.js";
 import { fileExists } from "../loaders/file-resolver.js";
 import type { ChatMessageRole, ChatPrompt } from "../providers/types.js";
@@ -21,7 +21,13 @@ export interface PromptInputs {
   readonly systemMessage?: string;
 }
 
-export async function buildPromptInputs(testCase: EvalCase): Promise<PromptInputs> {
+/**
+ * Build prompt inputs by consolidating user request context and guideline content.
+ * 
+ * @param testCase - The evaluation test case
+ * @param mode - Formatting mode: 'agent' for file references, 'lm' for embedded content (default: 'lm')
+ */
+export async function buildPromptInputs(testCase: EvalCase, mode: FormattingMode = 'lm'): Promise<PromptInputs> {
   const guidelineParts: Array<{ content: string; isFile: boolean; displayPath?: string }> = [];
   for (const rawPath of testCase.guideline_paths) {
     const absolutePath = path.resolve(rawPath);
@@ -120,7 +126,7 @@ export async function buildPromptInputs(testCase: EvalCase): Promise<PromptInput
       const contentParts: string[] = [];
       
       for (const segment of segments) {
-        const formattedContent = formatSegment(segment);
+        const formattedContent = formatSegment(segment, mode);
         if (formattedContent) {
           contentParts.push(formattedContent);
         }
@@ -137,7 +143,17 @@ export async function buildPromptInputs(testCase: EvalCase): Promise<PromptInput
     // Single-turn flat format
     const questionParts: string[] = [];
     for (const segment of testCase.input_segments) {
-      const formattedContent = formatSegment(segment);
+      // Skip guideline files - they're in the guidelines field
+      if (segment.type === "file" && 
+          typeof segment.path === "string" && 
+          testCase.guideline_patterns && 
+          isGuidelineFile(segment.path, testCase.guideline_patterns)) {
+        // Add reference marker for guideline files
+        questionParts.push(`<Attached: ${segment.path}>`);
+        continue;
+      }
+      
+      const formattedContent = formatSegment(segment, mode);
       if (formattedContent) {
         questionParts.push(formattedContent);
       }
@@ -159,6 +175,7 @@ export async function buildPromptInputs(testCase: EvalCase): Promise<PromptInput
         segmentsByMessage,
         guidelinePatterns: testCase.guideline_patterns,
         guidelineContent: guidelines,
+        mode,
       })
     : undefined;
 
@@ -199,8 +216,9 @@ function buildChatPromptFromSegments(options: {
   readonly guidelinePatterns?: readonly string[];
   readonly guidelineContent?: string;
   readonly systemPrompt?: string;
+  readonly mode?: FormattingMode;
 }): ChatPrompt | undefined {
-  const { messages, segmentsByMessage, guidelinePatterns, guidelineContent, systemPrompt } = options;
+  const { messages, segmentsByMessage, guidelinePatterns, guidelineContent, systemPrompt, mode = 'lm' } = options;
 
   if (messages.length === 0) {
     return undefined;
@@ -222,7 +240,7 @@ function buildChatPromptFromSegments(options: {
     const contentParts: string[] = [];
 
     for (const segment of segments) {
-      const formatted = formatSegment(segment);
+      const formatted = formatSegment(segment, mode);
       if (formatted) {
         contentParts.push(formatted);
       }
@@ -263,7 +281,7 @@ function buildChatPromptFromSegments(options: {
       if (segment.type === "guideline_ref") {
         continue;
       }
-      const formatted = formatSegment(segment);
+      const formatted = formatSegment(segment, mode);
       if (formatted) {
         const isGuidelineRef =
           segment.type === "file" &&
