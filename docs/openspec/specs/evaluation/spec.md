@@ -51,39 +51,38 @@ The system SHALL instruct LLM judge evaluators to emit a single JSON object and 
 #### Scenario: LLM judge evaluation failure
 
 - **WHEN** an LLM judge evaluator fails to parse a valid score
-- **THEN** the system logs a warning
-- **AND** returns a score of 0 with the raw response for debugging
+- **THEN** the system returns a score of 0
 
 ### Requirement: Provider Integration
 
-The system SHALL support multiple LLM providers with environment-based configuration and optional retry settings.
+The system SHALL support multiple LLM providers with configuration resolved from target definitions (typically referencing environment variables) and optional retry settings.
 
 #### Scenario: Azure OpenAI provider
 
 - **WHEN** a test case uses the "azure-openai" provider
-- **THEN** the system reads `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `AZURE_DEPLOYMENT_NAME` from environment
+- **THEN** the system resolves `endpoint`, `api_key`, and `deployment` from the target configuration
 - **AND** invokes Azure OpenAI with the configured settings
 - **AND** applies any retry configuration specified in the target definition
 
 #### Scenario: Anthropic provider
 
 - **WHEN** a test case uses the "anthropic" provider
-- **THEN** the system reads `ANTHROPIC_API_KEY` from environment
+- **THEN** the system resolves `api_key` from the target configuration
 - **AND** invokes Anthropic Claude with the configured settings
 - **AND** applies any retry configuration specified in the target definition
 
 #### Scenario: Google Gemini provider
 
 - **WHEN** a test case uses the "gemini" provider
-- **THEN** the system reads `GOOGLE_API_KEY` from environment
-- **AND** optionally reads `GOOGLE_GEMINI_MODEL` to override the default model
+- **THEN** the system resolves `api_key` from the target configuration
+- **AND** optionally resolves `model` to override the default model
 - **AND** invokes Google Gemini with the configured settings
 - **AND** applies any retry configuration specified in the target definition
 
 #### Scenario: VS Code Copilot provider
 
 - **WHEN** a test case uses the "vscode-copilot" provider
-- **THEN** the system generates a structured prompt file with preread block and SHA tokens
+- **THEN** the system generates a structured prompt file with preread block
 - **AND** invokes the subagent library to execute the prompt
 - **AND** captures the Copilot response
 
@@ -91,7 +90,7 @@ The system SHALL support multiple LLM providers with environment-based configura
 
 - **WHEN** a test case uses the "codex" provider
 - **THEN** the system locates the Codex CLI executable (default `codex`, overrideable via the target)
-- **AND** it mirrors guideline and attachment files into a scratch workspace, emitting the same preread block links used by the VS Code provider so Codex opens every referenced file before answering
+- **AND** it generates a prompt file with references to the original guideline and attachment files, emitting the same preread block links used by the VS Code provider so Codex opens every referenced file before answering
 - **AND** it renders the eval prompt into a single string and launches `codex exec --json` plus any configured profile, model, approval preset, and working-directory overrides defined on the target
 - **AND** it verifies the Codex executable is available while delegating profile/config resolution to the CLI itself
 - **AND** it parses the emitted JSONL event stream to capture the final assistant message as the provider response, attaching stdout/stderr when the CLI exits non-zero or returns malformed JSON

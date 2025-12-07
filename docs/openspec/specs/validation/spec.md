@@ -51,8 +51,13 @@ The system SHALL detect file types using the `$schema` field.
 
 #### Scenario: Targets file detection via schema field
 
-- **WHEN** file contains `$schema: agentv-targets-v2.1`
+- **WHEN** file contains `$schema: agentv-targets-v2.2`
 - **THEN** it is validated as a targets configuration file
+
+#### Scenario: Config file detection via schema field
+
+- **WHEN** file contains `$schema: agentv-config-v2`
+- **THEN** it is validated as a config file
 
 #### Scenario: Missing schema field
 
@@ -94,7 +99,7 @@ The system SHALL validate targets files against the v2 schema.
 
 #### Scenario: Schema field required
 
-- **WHEN** targets file has `$schema: agentv-targets-v2.1`
+- **WHEN** targets file has `$schema: agentv-targets-v2.2`
 - **THEN** validation proceeds with targets schema rules
 
 #### Scenario: Targets array required
@@ -111,6 +116,20 @@ The system SHALL validate targets files against the v2 schema.
 
 - **WHEN** target has unknown provider
 - **THEN** warning issued about unknown provider (non-fatal)
+
+### Requirement: Config File Schema Validation
+
+The system SHALL validate config files against the v2 schema.
+
+#### Scenario: Schema field required
+
+- **WHEN** config file has `$schema: agentv-config-v2`
+- **THEN** validation proceeds with config schema rules
+
+#### Scenario: Guideline patterns validation
+
+- **WHEN** config file has `guideline_patterns`
+- **THEN** it validates that it is an array of strings
 
 ### Requirement: File Reference Validation
 
@@ -182,11 +201,6 @@ The system SHALL format validation output for developer readability.
 ### Requirement: Performance
 
 The system SHALL validate files efficiently for large codebases.
-
-#### Scenario: Parallel validation
-
-- **WHEN** validating directory with many files
-- **THEN** files are validated in parallel up to CPU core count
 
 #### Scenario: Early exit on critical error
 

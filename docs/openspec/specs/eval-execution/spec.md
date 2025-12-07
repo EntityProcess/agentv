@@ -7,11 +7,11 @@ Define how eval execution formats `input_messages` into `raw_request` for candid
 
 The system SHALL format `input_messages` to preserve conversation turn boundaries when there is actual conversational structure requiring role disambiguation.
 
-#### Scenario: Single system and user message (backward compatibility)
+#### Scenario: Single system and user message
 
 - **WHEN** an eval case has one system message with text content and one user message in `input_messages`
-- **THEN** the `raw_request.question` field contains the system text followed by the user message content, flattened without role markers
-- **AND** maintains current backward-compatible behavior
+- **THEN** the `raw_request.question` field contains the system text and user message formatted with role markers
+- **AND** the role markers are `@[System]:` and `@[User]:`
 
 #### Scenario: System file attachment with user message (no role markers needed)
 
@@ -24,7 +24,7 @@ The system SHALL format `input_messages` to preserve conversation turn boundarie
 
 - **WHEN** an eval case has `input_messages` including one or more non-user messages (assistant, tool, etc.)
 - **THEN** the `raw_request.question` field contains all messages formatted with clear turn boundaries
-- **AND** each turn is prefixed with its role (`[System]:`, `[User]:`, `[Assistant]:`, `[Tool]:`) on its own line
+- **AND** each turn is prefixed with its role (`@[System]:`, `@[User]:`, `@[Assistant]:`, `@[Tool]:`) on its own line
 - **AND** file attachments in content blocks are embedded inline within their respective turn
 - **AND** blank lines separate consecutive turns for readability
 
@@ -60,14 +60,14 @@ The system SHALL preserve conversation structure when building evaluator prompts
 #### Scenario: Multi-turn conversation evaluation
 
 - **WHEN** the evaluator judges a candidate answer from a multi-turn conversation
-- **THEN** the `evaluator_raw_request.prompt` under `[[ ## question ## ]]` contains the formatted conversation with role markers
-- **AND** the role markers match the format used in `raw_request.question` (e.g., `[System]:`, `[User]:`, `[Assistant]:`)
+- **THEN** the `evaluator_provider_request.prompt` under `[[ ## question ## ]]` contains the formatted conversation with role markers
+- **AND** the role markers match the format used in `raw_request.question` (e.g., `@[System]:`, `@[User]:`, `@[Assistant]:`)
 - **AND** the evaluator can distinguish between different conversation turns
 
 #### Scenario: Single-turn conversation evaluation
 
 - **WHEN** the evaluator judges a candidate answer from a single-turn interaction
-- **THEN** the `evaluator_raw_request.prompt` under `[[ ## question ## ]]` contains the flat-formatted question without role markers
+- **THEN** the `evaluator_provider_request.prompt` under `[[ ## question ## ]]` contains the flat-formatted question without role markers
 - **AND** maintains backward compatibility with existing evaluations
 
 #### Scenario: Evaluator receives same context as candidate
