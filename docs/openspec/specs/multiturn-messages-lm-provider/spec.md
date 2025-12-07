@@ -41,6 +41,7 @@ input_messages:
 Converts to:
 ```typescript
 [
+  { role: "system", content: "You are a careful assistant. Follow all provided instructions and do not fabricate results." },
   { role: "user", content: "Debug this code" },
   { role: "assistant", content: "I can help with that" },
   { role: "user", content: "Thanks, here's the code" }
@@ -66,7 +67,7 @@ Converts to:
 [
   {
     role: "system",
-    content: "You are a careful assistant.\n\n[[ ## Guidelines ## ]]\n\nAlways be concise"
+    content: "You are a careful assistant. Follow all provided instructions and do not fabricate results.\n\n[[ ## Guidelines ## ]]\n\nAlways be concise"
   },
   { role: "user", content: "Review this code\n<Attached: ./guidelines.instructions.md>" }
 ]
@@ -89,9 +90,10 @@ With file content "console.log('test')":
 Converts to:
 ```typescript
 [
+  { role: "system", content: "You are a careful assistant. Follow all provided instructions and do not fabricate results." },
   {
     role: "user",
-    content: "Review this:\n=== ./code.js ===\nconsole.log('test')"
+    content: "Review this:\n<file path=\"./code.js\">\nconsole.log('test')\n</file>"
   }
 ]
 ```
@@ -117,7 +119,7 @@ With `guideline_patterns: ["**/*.instructions.md"]`:
 System message includes guideline content, user message has reference marker:
 ```typescript
 [
-  { role: "system", content: "[[ ## Guidelines ## ]]\n\n<guideline content>" },
+  { role: "system", content: "You are a careful assistant. Follow all provided instructions and do not fabricate results.\n\n[[ ## Guidelines ## ]]\n\n<guideline content>" },
   { role: "user", content: "<Attached: python.instructions.md>\nWrite a function" }
 ]
 ```
@@ -139,7 +141,7 @@ Both extracted to system message:
 [
   {
     role: "system",
-    content: "[[ ## Guidelines ## ]]\n\n=== python.instructions.md ===\n<content1>\n\n=== security.instructions.md ===\n<content2>"
+    content: "You are a careful assistant. Follow all provided instructions and do not fabricate results.\n\n[[ ## Guidelines ## ]]\n\n<file path=\"python.instructions.md\">\n<content1>\n</file>\n\n<file path=\"security.instructions.md\">\n<content2>\n</file>"
   },
   {
     role: "user",
@@ -164,11 +166,12 @@ input_messages:
         value: guidelines.instructions.md
 ```
 
-If guideline file is the only content, that user message is empty after extraction:
+If guideline file is the only content, that user message is empty after extraction. However, since only one message has visible content (the system message), this falls back to single-turn processing where the system message becomes part of the user prompt:
+
 ```typescript
 [
-  { role: "system", content: "System context\n\n[[ ## Guidelines ## ]]\n\n<guideline content>" }
-  // User message omitted - had no non-guideline content
+  { role: "system", content: "You are a careful assistant. Follow all provided instructions and do not fabricate results.\n\n[[ ## Guidelines ## ]]\n\n<guideline content>" },
+  { role: "user", content: "System context\n<Attached: guidelines.instructions.md>" }
 ]
 ```
 
@@ -270,7 +273,7 @@ const request: ProviderRequest = {
 Provider prepends default system message:
 ```typescript
 [
-  { role: "system", content: "You are a careful assistant." },
+  { role: "system", content: "You are a careful assistant. Follow all provided instructions and do not fabricate results." },
   { role: "user", content: "Hello" },
   { role: "assistant", content: "Hi" },
   { role: "user", content: "Help me" }
