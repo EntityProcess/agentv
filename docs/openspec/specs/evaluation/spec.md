@@ -1,607 +1,221 @@
 # Spec: Evaluation Capability
 
 ## Purpose
-Provides comprehensive AI agent evaluation capabilities including test case execution, multi-provider LLM integration, custom evaluator framework for scoring, configurable output formats, and statistical analysis of evaluation results.
+Defines the core evaluation runtime: loading eval cases, formatting prompts, invoking providers (including batch-capable and agent-style providers), running evaluators, and handling retries and guideline resolution.
 ## Requirements
 ### Requirement: Test Case Execution
 
-The system SHALL execute evaluation test cases with configurable providers, retry logic, and optional parallel execution.
+The system SHALL execute eval cases using the resolved provider with retries and optional concurrency.
 
 #### Scenario: Successful test execution
 
 - **WHEN** a test case is executed with a valid provider configuration
-- **THEN** the provider is invoked with the test request and guidelines
-- **AND** the response is captured and returned
-- **AND** execution may occur in parallel with other test cases if workers > 1
+- **THEN** the provider receives the formatted `question` plus `guidelines` (and a `chatPrompt` for multi-turn LM providers) along with attachment file paths
+- **AND** the provider response text is captured and returned for scoring
+- **AND** execution uses the configured concurrency (`maxConcurrency` override, else target `workers`, else 1)
 
 #### Scenario: Timeout with retry
 
-- **WHEN** a test case execution times out
-- **AND** retry limit has not been reached
-- **THEN** the system retries the execution
-- **AND** increments the retry counter
-- **AND** the retry may execute in parallel with other test cases
+- **WHEN** a provider invocation times out
+- **AND** retry budget remains
+- **THEN** the system retries the invocation
+- **AND** increments the attempt counter
 
 #### Scenario: Maximum retries exceeded
 
-- **WHEN** a test case execution fails after maximum retries
-- **THEN** the system records a failure result with error details
-- **AND** continues with the next test case or batch
-- **AND** does not block other parallel workers
+- **WHEN** a provider invocation exhausts retries or never yields a response
+- **THEN** the system returns an error result for that eval case with the captured error message
+- **AND** continues executing other eval cases without blocking
 
 ### Requirement: LLM Judge Evaluator JSON Contract
 
-The system SHALL instruct LLM judge evaluators to emit a single JSON object and validate responses against that contract.
+The system SHALL instruct LLM judge evaluators to emit a single JSON object and normalize the response.
 
 #### Scenario: Enforce JSON prompt contract
 
-- **WHEN** an LLM judge evaluator builds the system prompt
-- **THEN** it enumerates the required input fields (`expected_outcome`, `request`, `reference_answer`, `generated_answer`)
-- **AND** specifies the JSON schema `{ "score": float, "hits": string[], "misses": string[], "reasoning": string }`
-- **AND** instructs the model to return only that JSON object with `score` constrained to `[0.0, 1.0]` and at most four entries in `hits` and `misses`
+- **WHEN** an LLM judge evaluator builds its prompts
+- **THEN** it renders a user prompt that includes `expected_outcome`, `question`, `reference_answer`, and `candidate_answer`
+- **AND** it adds a system prompt that mandates a single JSON object with `score`, `hits`, `misses`, and `reasoning` (hits/misses capped at four items)
 
 #### Scenario: Parse JSON evaluator response
 
-- **WHEN** a judge provider returns a response for an LLM judge evaluator
-- **THEN** the system parses the first JSON object from the response body
-- **AND** clamps the numeric score to the inclusive range `[0, 1]`
-- **AND** filters `hits` and `misses` to non-empty trimmed strings, defaulting to empty arrays when parsing fails
-- **AND** falls back to a score of `0` with empty feedback if no valid JSON object is present
+- **WHEN** a judge provider returns a response
+- **THEN** the evaluator extracts the first valid JSON object (directly or from surrounding text)
+- **AND** clamps `score` to `[0, 1]` and trims `hits`/`misses` to non-empty strings with a maximum of four entries each
+- **AND** falls back to `score: 0`, empty hits/misses, and optional `reasoning` when no valid JSON is present
 
-#### Scenario: LLM judge evaluation failure
+#### Scenario: Record evaluator request metadata
 
-- **WHEN** an LLM judge evaluator fails to parse a valid score
-- **THEN** the system logs a warning
-- **AND** returns a score of 0 with the raw response for debugging
+- **WHEN** an LLM judge evaluation completes
+- **THEN** the evaluator stores the rendered `userPrompt` and `systemPrompt` in `evaluator_provider_request`
+- **AND** no warning is emitted on parse failure; the failure is reflected in the zeroed score
 
 ### Requirement: Provider Integration
 
-The system SHALL support multiple LLM providers with environment-based configuration and optional retry settings.
+The system SHALL integrate with supported providers using target configuration and optional retry settings.
 
 #### Scenario: Azure OpenAI provider
 
-- **WHEN** a test case uses the "azure-openai" provider
-- **THEN** the system reads `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `AZURE_DEPLOYMENT_NAME` from environment
-- **AND** invokes Azure OpenAI with the configured settings
-- **AND** applies any retry configuration specified in the target definition
+- **WHEN** a target is configured with `provider: azure` (or `azure-openai`)
+- **THEN** the system resolves `resourceName` (endpoint or hostname), `deploymentName`, and `apiKey` from `targets.yaml` (supporting `${{ VAR }}` environment references)
+- **AND** uses API version `2024-10-01-preview` by default with optional temperature/maxOutputTokens and retry configuration
 
 #### Scenario: Anthropic provider
 
-- **WHEN** a test case uses the "anthropic" provider
-- **THEN** the system reads `ANTHROPIC_API_KEY` from environment
-- **AND** invokes Anthropic Claude with the configured settings
-- **AND** applies any retry configuration specified in the target definition
+- **WHEN** a target uses `provider: anthropic`
+- **THEN** the system resolves `apiKey` and `model` from target values (supporting `${{ VAR }}`), plus optional `temperature`, `maxOutputTokens`, and `thinkingBudget`
+- **AND** invokes Anthropic via the Vercel AI SDK with the resolved retry settings
 
 #### Scenario: Google Gemini provider
 
-- **WHEN** a test case uses the "gemini" provider
-- **THEN** the system reads `GOOGLE_API_KEY` from environment
-- **AND** optionally reads `GOOGLE_GEMINI_MODEL` to override the default model
-- **AND** invokes Google Gemini with the configured settings
-- **AND** applies any retry configuration specified in the target definition
+- **WHEN** a target uses `provider: gemini`/`google`
+- **THEN** the system resolves `apiKey` from target values (supporting `${{ VAR }}`) and defaults `model` to `gemini-2.5-flash` when not provided
+- **AND** applies optional `temperature`, `maxOutputTokens`, and retry configuration before invoking Gemini
 
-#### Scenario: VS Code Copilot provider
+#### Scenario: VS Code provider
 
-- **WHEN** a test case uses the "vscode-copilot" provider
-- **THEN** the system generates a structured prompt file with preread block and SHA tokens
-- **AND** invokes the subagent library to execute the prompt
-- **AND** captures the Copilot response
+- **WHEN** a target uses `provider: vscode` (or `vscode-insiders`)
+- **THEN** the provider builds a prompt document with a mandatory preread block linking guideline and attachment files via `file://` URLs and the user query
+- **AND** dispatches the request through the subagent library (batching when requested) and reads the assistant response from the subagent response file
+- **AND** returns dry-run metadata without text when `dryRun` is enabled
 
 #### Scenario: Codex CLI provider
 
-- **WHEN** a test case uses the "codex" provider
-- **THEN** the system locates the Codex CLI executable (default `codex`, overrideable via the target)
-- **AND** it mirrors guideline and attachment files into a scratch workspace, emitting the same preread block links used by the VS Code provider so Codex opens every referenced file before answering
-- **AND** it renders the eval prompt into a single string and launches `codex exec --json` plus any configured profile, model, approval preset, and working-directory overrides defined on the target
-- **AND** it verifies the Codex executable is available while delegating profile/config resolution to the CLI itself
-- **AND** it parses the emitted JSONL event stream to capture the final assistant message as the provider response, attaching stdout/stderr when the CLI exits non-zero or returns malformed JSON
+- **WHEN** a target uses `provider: codex`
+- **THEN** the system ensures the Codex executable is discoverable (respecting `settings.executable`), creates a temporary workspace, and writes the preread prompt to `prompt.md`
+- **AND** runs `codex --ask-for-approval never exec --json --color never --skip-git-repo-check -` (plus any configured args), streaming logs when enabled
+- **AND** parses the JSON/JSONL output to extract the final assistant message, attaching stdout/stderr and log paths on failures
 
 #### Scenario: Mock provider for dry-run
 
-- **WHEN** a test case uses the "mock" provider or dry-run is enabled
-- **THEN** the system returns a predefined mock response
-- **AND** does not make external API calls
-
-### Requirement: Target Resolution
-
-The system SHALL resolve target providers using precedence: CLI override → test file → default.
-
-#### Scenario: CLI target override
-
-- **WHEN** a user specifies `--target <name>` on the CLI
-- **AND** the target name is not "default"
-- **THEN** the system uses the specified target for all test cases
-
-#### Scenario: Test file target
-
-- **WHEN** no CLI target override is provided (or override is "default")
-- **AND** a test file specifies a target in its metadata
-- **THEN** the system uses the test file's target
-
-#### Scenario: Default target fallback
-
-- **WHEN** no CLI target override is provided
-- **AND** no test file target is specified
-- **THEN** the system uses the "default" target from targets.yaml
-
-#### Scenario: Targets file loading
-
-- **WHEN** the system needs to load targets configuration
-- **THEN** it searches in order: `--targets` flag path → test file directory → ancestors → repo root → cwd
-- **AND** loads the first `targets.yaml` found
-
-### Requirement: Prompt Dumping
-
-The system SHALL optionally save request prompts to disk for debugging.
-
-#### Scenario: Dump prompts enabled
-
-- **WHEN** the `--dump-prompts` flag is provided
-- **THEN** the system creates a `.agentv/prompts/` directory
-- **AND** writes each request prompt as a separate file with test ID in the filename
-- **AND** includes the full request, guidelines, and provider settings
-
-#### Scenario: Dump prompts disabled
-
-- **WHEN** the `--dump-prompts` flag is not provided
-- **THEN** the system does not write prompt files
-
-### Requirement: JSONL Output
-
-The system SHALL write evaluation results incrementally to a newline-delimited JSON file.
-
-#### Scenario: Incremental JSONL writing
-
-- **WHEN** an evaluation completes a test case
-- **THEN** the system immediately appends the result as a JSON line to the output file
-- **AND** flushes the write to disk
-
-#### Scenario: JSONL format validation
-
-- **WHEN** the system writes a result to the JSONL file
-- **THEN** each line contains a complete JSON object
-- **AND** each line is terminated with a newline character
-- **AND** no trailing commas or array brackets are used
-
-### Requirement: Output Format Selection
-
-The system SHALL support multiple output formats with JSONL as the default.
-
-#### Scenario: JSONL output format (default)
-
-- **WHEN** the user does not specify the `--output-format` flag
-- **THEN** the system writes results in JSONL format (newline-delimited JSON)
-- **AND** each result is appended immediately after test case completion
-
-#### Scenario: YAML output format
-
-- **WHEN** the user specifies `--output-format yaml`
-- **THEN** the system writes results in YAML format
-- **AND** the output contains a well-formed YAML document with all results
-- **AND** results are written incrementally as a YAML sequence
-
-#### Scenario: Invalid format specification
-
-- **WHEN** the user specifies an unsupported format value
-- **THEN** the system reports an error listing valid format options (jsonl, yaml)
-- **AND** exits without running the evaluation
-
-### Requirement: Summary Statistics
-
-The system SHALL calculate and display summary statistics for evaluation results.
-
-#### Scenario: Statistical metrics
-
-- **WHEN** all test cases complete
-- **THEN** the system calculates mean, median, min, max, and standard deviation of scores
-- **AND** displays the statistics in the console output
-
-#### Scenario: Score distribution
-
-- **WHEN** all test cases complete
-- **THEN** the system generates a distribution histogram of scores
-- **AND** includes the histogram in the console output
-
-### Requirement: CLI Interface
-
-The system SHALL provide a command-line interface matching Python bbeval's UX.
-
-#### Scenario: Positional test file argument
-
-- **WHEN** the user runs `agentv eval <eval-paths...>`
-- **THEN** the system expands each provided path or glob into matching YAML files
-- **AND** loads and executes test cases from each matched file in deterministic order
-
-#### Scenario: Globbed eval inputs
-
-- **WHEN** the user provides glob patterns (e.g., `evals/**/*.yaml`)
-- **THEN** the system resolves all matching YAML files (deduplicated, sorted)
-- **AND** fails with an error when no files match any provided pattern
-
-#### Scenario: Target override flag
-
-- **WHEN** the user provides `--target <name>`
-- **THEN** the system uses the specified target for execution
-
-#### Scenario: Test ID filter
-
-- **WHEN** the user provides `--eval-id <id>`
-- **THEN** the system executes only the test case with the matching ID
-
-#### Scenario: Output file specification
-
-- **WHEN** the user provides `--out <path>`
-- **THEN** the system writes results to the specified path in the selected format
-
-#### Scenario: Output format flag
-
-- **WHEN** the user provides `--output-format <format>`
-- **THEN** the system writes results in the specified format (jsonl or yaml)
-- **AND** defaults to jsonl when the flag is not provided
-
-#### Scenario: Dry-run mode
-
-- **WHEN** the user provides `--dry-run`
-- **THEN** the system executes tests with the mock provider
-- **AND** does not make external API calls
-
-#### Scenario: Verbose logging
-
-- **WHEN** the user provides `--verbose`
-- **THEN** the system outputs detailed logging including provider calls and intermediate results
-
-#### Scenario: Caching control
-
-- **WHEN** the user provides `--cache`
-- **THEN** the system enables LLM response caching
-- **WHEN** the user does not provide `--cache`
-- **THEN** caching is disabled by default
-
-### Requirement: Environment Variable Loading
-
-The system SHALL lazily load environment variables from `.env` files after CLI parsing.
-
-#### Scenario: Lazy .env loading
-
-- **WHEN** the CLI finishes parsing arguments
-- **THEN** the system searches for a `.env` file in the test directory and ancestors
-- **AND** loads environment variables from the first `.env` found
-
-#### Scenario: Missing .env file
-
-- **WHEN** no `.env` file is found
-- **THEN** the system continues with environment variables from the process environment
-- **AND** does not fail unless required provider credentials are missing
-
-### Requirement: Configuration Validation
-
-The system SHALL validate all configuration inputs with clear error messages.
-
-#### Scenario: Schema validation for targets
-
-- **WHEN** the system loads a targets.yaml file
-- **THEN** it validates the file against the target configuration schema
-- **AND** reports specific validation errors with line numbers if invalid
-
-#### Scenario: Environment variable validation
-
-- **WHEN** the system initializes a provider
-- **THEN** it validates that all required environment variables are present and non-empty
-- **AND** provides a helpful error message listing missing variables if validation fails
-
-### Requirement: Example Eval Validation
-
-The system SHALL successfully execute the bundled example evaluation file to validate end-to-end functionality.
-
-#### Scenario: Execute example.test.yaml
-
-- **WHEN** the system runs the example evaluation file at `docs/examples/simple/evals/example.test.yaml`
-- **THEN** all test cases execute successfully
-- **AND** the output includes evaluation results for each test case
-- **AND** the results demonstrate correct behavior of text content, file references, and multi-turn conversations
-
-#### Scenario: Validate file reference resolution
-
-- **WHEN** the example eval references instruction files (e.g., `javascript.instructions.md`, `python.instructions.md`)
-- **THEN** the system resolves the file paths relative to the test file directory
-- **AND** includes the file contents in the request payload
-- **AND** the AI response demonstrates awareness of the instruction content
-
-#### Scenario: Multi-turn conversation handling
-
-- **WHEN** the example eval includes multi-turn test cases
-- **THEN** the system preserves conversation context across turns
-- **AND** evaluates the final assistant response against the expected outcome
-- **AND** demonstrates proper conversation flow in the results
+- **WHEN** a target uses `provider: mock`
+- **THEN** the provider returns the configured canned response (optionally delayed) without external calls
 
 ### Requirement: Parallel Test Execution
 
-The system SHALL support parallel execution of test cases using a configurable worker pool.
+The system SHALL support concurrent eval case execution while isolating failures.
 
-#### Scenario: Sequential execution (default)
+#### Scenario: Configurable concurrency
 
-- **WHEN** the user runs evaluation without specifying `--workers`
-- **THEN** the system executes test cases sequentially (one at a time)
-- **AND** results are written in execution order
-- **AND** behavior matches the pre-parallel implementation
-
-#### Scenario: Parallel execution with worker pool
-
-- **WHEN** the user specifies `--workers <count>` with a value greater than 1
-- **THEN** the system executes up to `<count>` test cases concurrently
-- **AND** processes test cases using `p-limit` for optimal concurrency control
-- **AND** results are written as workers complete (potentially out of order)
-
-#### Scenario: Immediate work scheduling
-
-- **WHEN** the system processes test cases with `--workers 4` and there are 10 test cases
-- **THEN** the system maintains up to 4 concurrent workers at all times
-- **AND** immediately starts a new test case when any worker completes
-- **AND** continues until all test cases are processed
-- **AND** does not wait for batch completion before scheduling new work
+- **WHEN** running eval cases with `maxConcurrency` provided
+- **THEN** the system executes up to that many eval cases in parallel using a worker pool
+- **AND** falls back to the target `workers` setting or 1 when no override is provided
 
 #### Scenario: Error isolation in parallel mode
 
-- **WHEN** one test case fails during parallel execution
-- **THEN** the system captures the error for that test case
-- **AND** continues executing other test cases in the batch
-- **AND** includes the failed result in the final output
+- **WHEN** a worker fails while others are still running
+- **THEN** the failure is captured for that eval case and does not block other workers
+- **AND** overall execution continues until all eval cases settle
 
-#### Scenario: Partial batch completion
+### Requirement: Provider-level batching flag
 
-- **WHEN** executing a batch where some workers succeed and others fail
-- **THEN** the system waits for all workers in the batch to settle
-- **AND** collects both successful results and errors
-- **AND** proceeds to the next batch regardless of failures
+The system SHALL allow targets to request provider-level batching via `provider_batching: true`, using batch APIs when supported.
 
-### Requirement: Thread-Safe Output Writing
+#### Scenario: Enabled for batching-capable provider
 
-The system SHALL ensure file writes are synchronized when running parallel workers.
+- **WHEN** a target sets `provider_batching: true`
+- **AND** the provider advertises `supportsBatch` with `invokeBatch`
+- **THEN** the system dispatches all eval cases through a single batch call and maps responses back to their eval IDs
+- **AND** falls back to per-case dispatch if batch execution throws an error
 
-#### Scenario: Mutex-protected JSONL writes
+#### Scenario: Fallback when provider cannot batch
 
-- **WHEN** multiple workers complete concurrently
-- **AND** attempt to write results to the JSONL output file
-- **THEN** the system acquires a mutex before each write operation
-- **AND** ensures only one worker writes at a time
-- **AND** releases the mutex after the write completes
+- **WHEN** `provider_batching: true` is set but the provider lacks batch support
+- **THEN** the system logs a verbose warning (when enabled) and executes per case without failing schema validation
 
-#### Scenario: Write ordering with parallel execution
+### Requirement: Custom Evaluators
 
-- **WHEN** test cases complete in parallel
-- **THEN** results may be written to the output file in completion order (not test case order)
-- **AND** each result includes its `eval_id` for identification
-- **AND** the JSONL format remains valid with no corruption
+The system SHALL execute configured evaluators per eval case and aggregate scores when multiple evaluators are present.
 
-#### Scenario: Mutex error handling
+#### Scenario: Aggregating multiple evaluators
 
-- **WHEN** a write operation fails while holding the mutex
-- **THEN** the system releases the mutex in a finally block
-- **AND** allows other workers to continue writing
-- **AND** reports the error for the failed write
+- **WHEN** an eval case declares an `evaluators` array with multiple entries
+- **THEN** each evaluator runs in order, producing per-evaluator results
+- **AND** the overall score is the mean of individual evaluator scores with hits/misses concatenated and reasoning combined per evaluator
 
-### Requirement: Parallel Execution CLI
+#### Scenario: Custom prompt for LLM judge
 
-The system SHALL provide a command-line option to configure worker pool concurrency with priority over target settings.
+- **WHEN** an `llm_judge` evaluator includes `prompt` or `promptPath`
+- **THEN** the evaluator loads that prompt override and uses it instead of the default template when calling the judge provider
 
-#### Scenario: Workers flag specification
+#### Scenario: Code evaluator execution
 
-- **WHEN** the user provides `--workers <count>`
-- **THEN** the system parses the count as a positive integer
-- **AND** validates the count is at least 1
-- **AND** uses the specified concurrency level for test execution
-- **AND** overrides any workers setting in targets.yaml
+- **WHEN** an eval case includes a `code` evaluator
+- **THEN** the evaluator resolves the script path (respecting custom `cwd`), pipes the eval context as JSON to stdin, and parses JSON output for score, hits, misses, and reasoning
+- **AND** returns `score: 0` with an error miss entry if the script errors or times out
 
-#### Scenario: Workers from target configuration
+### Requirement: CLI Template Execution
 
-- **WHEN** the user does not provide `--workers` flag
-- **AND** the selected target in targets.yaml specifies `workers: <count>`
-- **THEN** the system uses the target's workers value
-- **AND** validates the count is at least 1
+The system SHALL support a `cli` provider that renders a command template per eval case and captures stdout as the answer.
 
-#### Scenario: Workers priority resolution
+#### Scenario: Render and execute template
 
-- **WHEN** resolving the workers value
-- **THEN** the system uses CLI flag if provided
-- **ELSE** uses target's workers setting if defined
-- **ELSE** defaults to 1 (sequential execution)
+- **WHEN** a target uses `provider: cli`
+- **THEN** the provider renders the template with placeholders `{PROMPT}`, `{GUIDELINES}`, `{EVAL_ID}`, `{ATTEMPT}`, `{FILES}`, and `{OUTPUT_FILE}`
+- **AND** executes the command with optional `cwd`/timeout and reads the provider response from the rendered `{OUTPUT_FILE}` path (cleaning it up afterward)
+- **AND** errors include stderr/exit code context when the command fails
 
-#### Scenario: Workers flag validation
+#### Scenario: Optional health check
 
-- **WHEN** the user provides `--workers` with a non-numeric value
-- **THEN** the system reports an error
-- **AND** exits without running the evaluation
+- **WHEN** a CLI target defines a healthcheck of type `http` or `command`
+- **THEN** the provider runs the probe once before the first request (respecting timeout/cwd) and aborts execution if the probe fails
 
-#### Scenario: Workers flag with invalid range
+### Requirement: CLI Template Configuration
 
-- **WHEN** the user provides `--workers 0` or a negative value
-- **THEN** the system reports an error indicating minimum value is 1
-- **AND** exits without running the evaluation
+The system SHALL validate CLI template targets for required fields and supported placeholders.
 
-#### Scenario: Workers flag help text
+#### Scenario: Required template fields
 
-- **WHEN** the user runs `agentv eval --help`
-- **THEN** the help output includes the `--workers <count>` option
-- **AND** describes the default value (1)
-- **AND** explains the effect on execution (parallel vs sequential)
+- **WHEN** parsing a `cli` target
+- **THEN** validation enforces a non-empty `commandTemplate` and accepts optional `filesFormat`, `cwd`, `timeoutSeconds`, `healthcheck`, and `verbose`
+- **AND** rejects unsupported or missing fields with actionable errors
 
-### Requirement: Statistics After Parallel Completion
+#### Scenario: Placeholder substitution rules
 
-The system SHALL calculate statistics only after all parallel workers complete.
+- **WHEN** rendering a template
+- **THEN** the provider substitutes supported placeholders only, shell-escapes values, and rejects templates containing unsupported placeholders
 
-#### Scenario: Wait for all workers
+#### Scenario: Health check schema
 
-- **WHEN** running evaluation with parallel workers
-- **THEN** the system waits for all batches to complete
-- **AND** collects all results before calculating statistics
-- **AND** displays summary statistics with mean, median, min, max, and standard deviation
+- **WHEN** validating `healthcheck`
+- **THEN** only `{ type: "http", url, timeoutSeconds? }` or `{ type: "command", commandTemplate, cwd?, timeoutSeconds? }` are accepted
+- **AND** unsupported types fail validation
 
-#### Scenario: Statistics match sequential execution
+### Requirement: Provider Retry Configuration
 
-- **WHEN** the same test suite runs with `--workers 1` and `--workers 4`
-- **THEN** the final statistics (mean, median, std dev) are identical
-- **AND** only the execution time differs
+The system SHALL honor optional retry configuration for Azure, Anthropic, and Gemini providers.
+
+#### Scenario: Configure retry in targets.yaml
+
+- **WHEN** a target defines retry fields (snake_case or camelCase)
+- **THEN** the system resolves `maxRetries`, `initialDelayMs`, `maxDelayMs`, `backoffFactor`, and `retryableStatusCodes`
+- **AND** passes them to the provider invocation helper
+
+#### Scenario: Default exponential backoff
+
+- **WHEN** retry settings are omitted
+- **THEN** the provider retries network or retryable HTTP errors up to 3 times with exponential backoff starting at 1000ms and jitter, capped at 60000ms
+
+#### Scenario: Non-retryable errors
+
+- **WHEN** a request fails with HTTP 401/403 or a non-retryable status
+- **THEN** the system does not retry and returns the error immediately
 
 ### Requirement: Guideline Pattern Configuration
 
-The system SHALL support an optional `.agentv.yaml` configuration file in the eval file directory for customizing guideline detection using glob patterns.
+The system SHALL support custom guideline detection via `.agentv.yaml`.
 
 #### Scenario: Load custom guideline patterns
 
-- **WHEN** a `.agentv.yaml` file exists in the same directory as the eval file
-- **AND** it contains a `guideline_patterns` array with glob patterns
-- **THEN** the system uses those patterns to identify guideline files
-- **AND** treats files matching any pattern as guidelines (excluded from user segments)
+- **WHEN** a `.agentv.yaml` in the eval directory defines `guideline_patterns`
+- **THEN** the loader treats files matching those globs as guidelines and excludes them from user segments
 
 #### Scenario: Use defaults when config absent
 
-- **WHEN** no `.agentv.yaml` file exists in the eval file directory
-- **THEN** the system uses default patterns: `**/*.instructions.md`, `**/instructions/**`, `**/*.prompt.md`, `**/prompts/**`
-- **AND** continues evaluation normally
+- **WHEN** no `.agentv.yaml` is present
+- **THEN** default patterns `**/*.instructions.md`, `**/instructions/**`, `**/*.prompt.md`, `**/prompts/**` are applied
 
 #### Scenario: Match files with glob patterns
 
 - **WHEN** evaluating whether a file is a guideline
-- **THEN** the system matches the normalized file path against each glob pattern
-- **AND** supports `**` (recursive), `*` (wildcard), and literal path segments
-- **AND** normalizes path separators to forward slashes for cross-platform compatibility
-
-### Requirement: Provider-level batching flag
-
-The system SHALL allow targets to request provider-level batching via `settings.provider_batching: true`, sending all eval queries through a single provider session when the provider supports batching, and otherwise falling back to normal per-case dispatch without failing schema validation.
-
-#### Scenario: Enabled for batching-capable provider
-
-- **WHEN** a target specifies `settings.provider_batching: true`
-- **AND** the selected provider supports batching and exposes `invokeBatch` (e.g., VS Code multi-`-q`)
-- **THEN** AgentV batches all eval case prompts into a single provider session
-- **AND** keeps per-eval results mapped back to their original IDs
-- **AND** emits verbose diagnostics indicating batch mode is being used
-
-#### Scenario: Fallback when provider cannot batch
-
-- **WHEN** a target specifies `settings.provider_batching: true`
-- **AND** the provider does not support batching or a batch attempt fails
-- **THEN** AgentV executes the eval cases using standard per-case dispatch
-- **AND** the run does not fail schema validation because of the flag
-- **AND** in verbose mode, AgentV logs that batch was requested but not applied
-
-### Requirement: CLI Template Execution
-
-The system SHALL support a `cli` provider that renders a command template defined in targets, executes the resulting command for each eval case, and treats captured stdout as the model answer.
-
-#### Scenario: Render and execute template
-- **WHEN** a test case resolves to a target with `provider: cli`
-- **THEN** the runner interpolates supported placeholders (e.g., `{PROMPT}`, `{EVAL_ID}`, `{ATTACHMENTS}`) into the target's `commandTemplate`
-- **AND** executes the rendered command in the optional working directory with the configured environment variables
-- **AND** collects `stdout` as the response body while forwarding `stderr` to verbose or diagnostic logs
-
-#### Scenario: Timeout and retries
-- **WHEN** the executed CLI command exceeds its timeout or exits with a non-zero code
-- **THEN** the system terminates the process (graceful signal followed by forced kill if needed)
-- **AND** records the failure with captured stderr/exit code
-- **AND** applies the existing retry policy before giving up on the test case
-
-#### Scenario: Optional health check
-- **WHEN** a target defines a CLI health check (HTTP GET or probe command)
-- **THEN** the system executes the probe before the first test case
-- **AND** aborts the run with a descriptive error if the probe fails
-- **AND** skips duplicate probes for subsequent cases unless the provider is reinitialized
-
-### Requirement: CLI Template Configuration
-
-The system SHALL validate CLI template targets so authors must specify the command string and optional placeholder formatters inside `.agentv/targets.yaml`.
-
-#### Scenario: Required template fields
-- **WHEN** `provider: cli` is parsed from targets
-- **THEN** schema validation enforces `commandTemplate` as a non-empty string and optional fields such as `attachmentsFormat`, `filesFormat`, `cwd`, `env`, `timeoutSeconds`, and `healthcheck`
-- **AND** validation errors list missing or invalid fields with actionable messages
-
-#### Scenario: Placeholder substitution rules
-- **WHEN** the template uses placeholders
-- **THEN** the provider replaces `{PROMPT}` with the fully rendered eval prompt, `{EVAL_ID}` with the case identifier, and expands lists (attachments/files) using their formatter before command execution
-- **AND** ensures values are shell-escaped so user-provided paths do not break the command line
-
-#### Scenario: Health check schema
-- **WHEN** a CLI target includes `healthcheck`
-- **THEN** validation accepts `{ type: "http", url, timeoutSeconds? }` or `{ type: "command", commandTemplate }`
-- **AND** rejects unsupported types or missing properties with specific errors
-
-### Requirement: Custom Evaluators
-
-The system SHALL support defining multiple evaluators in the `evaluators` array, including custom LLM judges and code-based evaluators, providing a modern alternative to the legacy `grader` field.
-
-#### Scenario: User defines multiple evaluators in YAML
-
-- **WHEN** an eval file includes an `evaluators` list containing multiple evaluator configurations
-- **AND** the list includes both "code" and "llm_judge" evaluator types
-- **THEN** the system executes all evaluators for each test case
-- **AND** aggregates the scores in the `evaluator_results` field of the evaluation result
-- **AND** the overall `score` reflects the combined evaluation
-
-#### Scenario: User provides custom prompt for LLM judge evaluator
-
-- **WHEN** an eval file includes an `llm_judge` evaluator with a `prompt` or `promptPath` field
-- **THEN** the system loads the custom prompt content
-- **AND** uses it instead of the default `QUALITY_SYSTEM_PROMPT` when invoking the judge provider
-
-#### Scenario: Code evaluator execution
-
-- **WHEN** an eval file includes a `code` evaluator with a `script` path
-- **THEN** the system resolves the script path relative to the eval file
-- **AND** executes the script with the test case context
-- **AND** captures the script's JSON output containing score, hits, misses, and optional reasoning
-- **AND** includes the result in the `evaluator_results` array
-
-### Requirement: Provider Retry Configuration
-
-The system SHALL support optional retry configuration for Azure, Anthropic, and Gemini providers to handle transient errors and rate limiting.
-
-#### Scenario: Configure retry in targets.yaml
-
-- **WHEN** a target definition includes retry configuration fields
-- **THEN** the system extracts retry parameters from the target
-- **AND** passes the retry configuration to the underlying AxAI provider
-- **AND** the provider retries failed requests according to the configuration
-
-#### Scenario: Exponential backoff with default config
-
-- **WHEN** a provider request returns HTTP 429 (Too Many Requests)
-- **AND** max_retries is not configured (defaults to 3)
-- **THEN** the system retries with exponential backoff starting at 1000ms
-- **AND** delays are randomized between 75-125% to prevent thundering herd
-- **AND** maximum delay is capped at 60000ms (1 minute)
-
-#### Scenario: Custom retry configuration
-
-- **WHEN** target specifies max_retries: 5, retry_initial_delay_ms: 2000, retry_max_delay_ms: 120000
-- **AND** a request returns HTTP 429
-- **THEN** the system retries up to 5 times
-- **AND** starts with 2000ms delay, doubling each retry up to 120000ms maximum
-
-#### Scenario: Custom retryable status codes
-
-- **WHEN** target specifies retry_status_codes: [429, 503]
-- **AND** a request returns HTTP 500
-- **THEN** the system does not retry the request
-- **AND** returns the error immediately
-
-#### Scenario: Disable retries
-
-- **WHEN** target specifies max_retries: 0
-- **AND** a request returns HTTP 429
-- **THEN** the system does not retry
-- **AND** returns the error immediately
-
-#### Scenario: Non-retryable errors
-
-- **WHEN** a request returns HTTP 401 or 403 (authentication/authorization errors)
-- **THEN** the system does not retry regardless of retry configuration
-- **AND** returns the error immediately
-
-#### Scenario: Both snake_case and camelCase field names
-
-- **WHEN** target uses snake_case field names (max_retries, retry_initial_delay_ms)
-- **OR** target uses camelCase field names (maxRetries, retryInitialDelayMs)
-- **THEN** the system correctly extracts and applies the retry configuration
-
+- **THEN** the path is normalized to forward slashes and matched against the configured globs supporting `**` and `*`
