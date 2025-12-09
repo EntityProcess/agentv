@@ -4,6 +4,9 @@ import path from "node:path";
 import pLimit from "p-limit";
 
 import { LlmJudgeEvaluator, CodeEvaluator, type EvaluationScore, type Evaluator } from "./evaluators.js";
+
+const ANSI_YELLOW = "\u001b[33m";
+const ANSI_RESET = "\u001b[0m";
 import { readTextFile } from "./file-utils.js";
 import { createProvider } from "./providers/index.js";
 import { resolveTargetDefinition, type ResolvedTarget } from "./providers/targets.js";
@@ -809,13 +812,48 @@ async function runLlmJudgeEvaluator(options: {
 async function resolveCustomPrompt(config: { readonly prompt?: string; readonly promptPath?: string }): Promise<string | undefined> {
   if (config.promptPath) {
     try {
-      return await readTextFile(config.promptPath);
+      const content = await readTextFile(config.promptPath);
+      validateCustomPromptContent(content, config.promptPath);
+      return content;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`Could not read custom prompt at ${config.promptPath}: ${message}`);
     }
+  } else if (config.prompt) {
+    validateCustomPromptContent(config.prompt, "inline prompt");
   }
   return config.prompt;
+}
+
+function validateCustomPromptContent(content: string, source: string): void {
+  // Strip out template variables to see what's left
+  const withoutVariables = content.replace(/\{\{[a-zA-Z0-9_]+\}\}/g, "").trim();
+
+  // Check if template is suspiciously minimal (< 100 chars after removing variables)
+  if (withoutVariables.length < 100) {
+    console.warn(
+      `${ANSI_YELLOW}Warning: Custom evaluator template at ${source} appears incomplete.\n` +
+        `It contains minimal evaluation guidance (${withoutVariables.length} chars excluding variables).\n` +
+        `Consider adding:\n` +
+        `  - Evaluation criteria or scoring rubric\n` +
+        `  - Specific instructions for the LLM judge\n` +
+        `  - Guidelines for what constitutes hits vs misses${ANSI_RESET}`,
+    );
+    return;
+  }
+
+  // Check for evaluation-related keywords
+  const lowerContent = withoutVariables.toLowerCase();
+  const hasEvaluationKeywords =
+    /\b(evaluate|grade|score|assess|judge|check|criteria|rubric|constraint)\b/.test(lowerContent);
+
+  if (!hasEvaluationKeywords) {
+    console.warn(
+      `${ANSI_YELLOW}Warning: Custom evaluator template at ${source} may be missing evaluation criteria.\n` +
+        `Template does not contain common evaluation keywords (evaluate, grade, score, etc.).\n` +
+        `This may result in inconsistent or poor quality evaluations.${ANSI_RESET}`,
+    );
+  }
 }
 
 function isNonEmptyString(value: unknown): value is string {
