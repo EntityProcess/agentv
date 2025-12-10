@@ -21,6 +21,7 @@ export { extractCodeBlocks } from "./formatting/segment-formatter.js";
 export { isGuidelineFile } from "./loaders/config-loader.js";
 
 const ANSI_YELLOW = "\u001b[33m";
+const ANSI_RED = "\u001b[31m";
 const ANSI_RESET = "\u001b[0m";
 const SCHEMA_EVAL_V2 = "agentv-eval-v2";
 
@@ -143,7 +144,7 @@ export async function loadEvalCases(
     const expectedMessagesValue = evalcase.expected_messages;
 
     if (!id || !outcome || !Array.isArray(inputMessagesValue)) {
-      logWarning(`Skipping incomplete eval case: ${id ?? "unknown"}`);
+      logError(`Skipping incomplete eval case: ${id ?? "unknown"}. Missing required fields: id, outcome, and/or input_messages`);
       continue;
     }
     
@@ -157,7 +158,7 @@ export async function loadEvalCases(
       : [];
     
     if (hasExpectedMessages && expectedMessages.length === 0) {
-      logWarning(`No valid expected message found for eval case: ${id}`);
+      logError(`No valid expected message found for eval case: ${id}`);
       continue;
     }
 
@@ -203,7 +204,15 @@ export async function loadEvalCases(
       .join(" ");
 
     const evalCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator, id) ?? globalEvaluator;
-    const evaluators = await parseEvaluators(evalcase, globalExecution, searchRoots, id ?? "unknown");
+    let evaluators: Awaited<ReturnType<typeof parseEvaluators>>;
+    try {
+      evaluators = await parseEvaluators(evalcase, globalExecution, searchRoots, id ?? "unknown");
+    } catch (error) {
+      // Skip entire eval case if evaluator validation fails
+      const message = error instanceof Error ? error.message : String(error);
+      logError(`Skipping eval case '${id}': ${message}`);
+      continue;
+    }
 
     // Extract file paths from all input segments (non-guideline files)
     const userFilePaths: string[] = [];
@@ -226,7 +235,7 @@ export async function loadEvalCases(
       question: question,
       input_messages: inputMessages,
       input_segments: inputSegments,
-      output_segments: outputSegments,
+      expected_segments: outputSegments,
       reference_answer: referenceAnswer,
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
       guideline_patterns: guidelinePatterns,
@@ -265,5 +274,14 @@ function logWarning(message: string, details?: readonly string[]): void {
     console.warn(`${ANSI_YELLOW}Warning: ${message}\n${detailBlock}${ANSI_RESET}`);
   } else {
     console.warn(`${ANSI_YELLOW}Warning: ${message}${ANSI_RESET}`);
+  }
+}
+
+function logError(message: string, details?: readonly string[]): void {
+  if (details && details.length > 0) {
+    const detailBlock = details.join("\n");
+    console.error(`${ANSI_RED}Error: ${message}\n${detailBlock}${ANSI_RESET}`);
+  } else {
+    console.error(`${ANSI_RED}Error: ${message}${ANSI_RESET}`);
   }
 }

@@ -66,6 +66,7 @@ export interface RunEvaluationOptions {
   readonly evalId?: string;
   readonly verbose?: boolean;
   readonly maxConcurrency?: number;
+  readonly evalCases?: readonly EvalCase[];
   readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
   readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
 }
@@ -87,12 +88,13 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     now,
     evalId,
     verbose,
+    evalCases: preloadedEvalCases,
     onResult,
     onProgress,
   } = options;
 
-  const load = loadEvalCases;
-  const evalCases = await load(evalFilePath, repoRoot, { verbose, evalId });
+  // Use pre-loaded eval cases if provided, otherwise load them
+  const evalCases = preloadedEvalCases ?? await loadEvalCases(evalFilePath, repoRoot, { verbose, evalId });
 
   const filteredEvalCases = filterEvalCases(evalCases, evalId);
   if (filteredEvalCases.length === 0) {
@@ -809,7 +811,8 @@ async function runLlmJudgeEvaluator(options: {
 async function resolveCustomPrompt(config: { readonly prompt?: string; readonly promptPath?: string }): Promise<string | undefined> {
   if (config.promptPath) {
     try {
-      return await readTextFile(config.promptPath);
+      const content = await readTextFile(config.promptPath);
+      return content;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`Could not read custom prompt at ${config.promptPath}: ${message}`);
@@ -817,6 +820,8 @@ async function resolveCustomPrompt(config: { readonly prompt?: string; readonly 
   }
   return config.prompt;
 }
+
+
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;

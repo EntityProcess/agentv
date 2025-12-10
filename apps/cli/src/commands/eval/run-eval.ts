@@ -2,6 +2,7 @@ import {
   runEvaluation as defaultRunEvaluation,
   type EvaluationCache,
   type EvaluationResult,
+  type EvalCase,
   type ProviderResponse,
   ensureVSCodeSubagents,
   loadEvalCases,
@@ -205,6 +206,7 @@ async function prepareFileMetadata(params: {
   readonly options: NormalizedOptions;
 }): Promise<{
   readonly evalIds: readonly string[];
+  readonly evalCases: readonly EvalCase[];
   readonly selection: TargetSelection;
   readonly inlineTargetLabel: string;
 }> {
@@ -240,7 +242,7 @@ async function prepareFileMetadata(params: {
     ? evalCases.filter((value) => value.id === options.evalId).map((value) => value.id)
     : evalCases.map((value) => value.id);
 
-  return { evalIds: filteredIds, selection, inlineTargetLabel };
+  return { evalIds: filteredIds, evalCases, selection, inlineTargetLabel };
 }
 
 async function runWithLimit<T>(
@@ -276,6 +278,7 @@ async function runSingleEvalFile(params: {
   readonly displayIdTracker: { getOrAssign(evalKey: string): number };
   readonly selection: TargetSelection;
   readonly inlineTargetLabel: string;
+  readonly evalCases: readonly EvalCase[];
 }): Promise<{ results: EvaluationResult[]; promptDumpDir?: string }> {
   const {
     testFilePath,
@@ -291,6 +294,7 @@ async function runSingleEvalFile(params: {
     displayIdTracker,
     selection,
     inlineTargetLabel,
+    evalCases,
   } =
     params;
 
@@ -363,6 +367,7 @@ async function runSingleEvalFile(params: {
     cache,
     useCache: options.cache,
     evalId: options.evalId,
+    evalCases,
     verbose: options.verbose,
     maxConcurrency: resolvedWorkers,
     onResult: async (result: EvaluationResult) => {
@@ -420,7 +425,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     : undefined;
   const fileMetadata = new Map<
     string,
-    { readonly evalIds: readonly string[]; readonly selection: TargetSelection; readonly inlineTargetLabel: string }
+    { readonly evalIds: readonly string[]; readonly evalCases: readonly EvalCase[]; readonly selection: TargetSelection; readonly inlineTargetLabel: string }
   >();
   for (const testFilePath of resolvedTestFiles) {
     const meta = await prepareFileMetadata({
@@ -483,6 +488,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
         displayIdTracker,
         selection: targetPrep.selection,
         inlineTargetLabel: targetPrep.inlineTargetLabel,
+        evalCases: targetPrep.evalCases,
       });
 
       allResults.push(...result.results);

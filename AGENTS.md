@@ -15,13 +15,16 @@ This is a TypeScript monorepo for AgentV - an AI agent evaluation framework.
 - `packages/core/` - Evaluation engine, providers, grading
 - `apps/cli/` - Command-line interface (published as `agentv`)
 
-## Essential Commands
-- `pnpm install` - Install dependencies
-- `pnpm build` - Build all packages
-- `pnpm test` - Run tests
-- `pnpm typecheck` - Type checking
-- `pnpm lint` - Lint code
-- `pnpm format` - Format with Prettier
+## Quality Assurance Workflow
+
+After making any significant changes (refactoring, new features, bug fixes), always run the following verification steps in order:
+
+1. `pnpm build` - Ensure code compiles without errors
+2. `pnpm typecheck` - Verify TypeScript type safety across the monorepo
+3. `pnpm lint` - Check code style and catch potential issues
+4. `pnpm test` - Run all tests to verify functionality
+
+Only consider the work complete when all four steps pass successfully. This ensures code quality, prevents regressions, and maintains the integrity of the codebase.
 
 ## Functional Testing
 

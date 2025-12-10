@@ -15,6 +15,8 @@ interface RunEvaluationOptionsLike {
   readonly cache?: unknown;
   readonly useCache?: boolean;
   readonly testId?: string;
+  readonly evalId?: string;
+  readonly evalCases?: ReadonlyArray<unknown>;
   readonly verbose?: boolean;
   readonly onResult?: (result: EvaluationResultLike) => Promise<void> | void;
 }

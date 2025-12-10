@@ -1,8 +1,9 @@
 import path from "node:path";
 
-import { resolveFileReference } from "./file-resolver.js";
 import type { EvaluatorConfig, EvaluatorKind, JsonObject, JsonValue } from "../types.js";
 import { isEvaluatorKind } from "../types.js";
+import { resolveFileReference } from "./file-resolver.js";
+import { validateCustomPromptContent } from "../validation/prompt-validator.js";
 
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";
@@ -91,6 +92,14 @@ export async function parseEvaluators(
       const resolved = await resolveFileReference(prompt, searchRoots);
       if (resolved.resolvedPath) {
         promptPath = path.resolve(resolved.resolvedPath);
+        // Validate custom prompt content upfront - throws error if validation fails
+        try {
+          await validateCustomPromptContent(promptPath);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          // Add context and re-throw for the caller to handle
+          throw new Error(`Evaluator '${name}' template (${promptPath}): ${message}`);
+        }
       } else {
         logWarning(
           `Inline prompt used for evaluator '${name}' in '${evalId}' (file not found: ${resolved.displayPath})`,
