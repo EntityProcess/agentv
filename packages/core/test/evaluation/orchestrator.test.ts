@@ -233,7 +233,7 @@ describe("runTestCase", () => {
   it("uses a custom evaluator prompt when provided", async () => {
     const directory = mkdtempSync(path.join(tmpdir(), "agentv-custom-judge-"));
     const promptPath = path.join(directory, "judge.md");
-    writeFileSync(promptPath, "CUSTOM PROMPT CONTENT", "utf8");
+    writeFileSync(promptPath, "CUSTOM PROMPT CONTENT with {{ candidate_answer }}", "utf8");
 
     const provider = new SequenceProvider("mock", {
       responses: [{ text: "Answer text" }],
@@ -367,5 +367,134 @@ describe("runTestCase", () => {
     expect(result.agent_provider_request).toBeDefined();
     expect(result.lm_provider_request).toBeUndefined();
     expect(result.agent_provider_request?.question).toBe("Explain logging improvements");
+  });
+
+  describe("custom prompt validation", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let consoleWarnSpy: any;
+
+    afterEach(() => {
+      consoleWarnSpy?.mockRestore();
+    });
+
+    it("warns when custom prompt file is missing required fields", async () => {
+      consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const directory = mkdtempSync(path.join(tmpdir(), "agentv-validation-"));
+      const promptPath = path.join(directory, "minimal.md");
+      writeFileSync(promptPath, "{{ question }}", "utf8");
+
+      const provider = new SequenceProvider("mock", {
+        responses: [{ text: "Answer" }],
+      });
+
+      const judgeProvider = new CapturingJudgeProvider("judge", {
+        text: JSON.stringify({ score: 0.5, hits: [], misses: [] }),
+      });
+
+      const evaluatorRegistry = {
+        llm_judge: new LlmJudgeEvaluator({
+          resolveJudgeProvider: async () => judgeProvider,
+        }),
+      };
+
+      await runEvalCase({
+        evalCase: {
+          ...baseTestCase,
+          evaluators: [{ name: "minimal", type: "llm_judge", promptPath }],
+        },
+        provider,
+        target: baseTarget,
+        evaluators: evaluatorRegistry,
+      });
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Custom evaluator template at"),
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("missing required fields"),
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("candidate_answer"),
+      );
+    });
+
+    it("does not warn when candidate_answer is present", async () => {
+      consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const directory = mkdtempSync(path.join(tmpdir(), "agentv-validation-"));
+      const promptPath = path.join(directory, "has-candidate.md");
+      writeFileSync(
+        promptPath,
+        "This template has {{ question }} and {{ candidate_answer }} to evaluate.",
+        "utf8",
+      );
+
+      const provider = new SequenceProvider("mock", {
+        responses: [{ text: "Answer" }],
+      });
+
+      const judgeProvider = new CapturingJudgeProvider("judge", {
+        text: JSON.stringify({ score: 0.5, hits: [], misses: [] }),
+      });
+
+      const evaluatorRegistry = {
+        llm_judge: new LlmJudgeEvaluator({
+          resolveJudgeProvider: async () => judgeProvider,
+        }),
+      };
+
+      await runEvalCase({
+        evalCase: {
+          ...baseTestCase,
+          evaluators: [{ name: "has-candidate", type: "llm_judge", promptPath }],
+        },
+        provider,
+        target: baseTarget,
+        evaluators: evaluatorRegistry,
+      });
+
+      // Should not have validation warnings
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not warn when expected_messages is present", async () => {
+      consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const directory = mkdtempSync(path.join(tmpdir(), "agentv-validation-"));
+      const promptPath = path.join(directory, "has-expected.md");
+      writeFileSync(
+        promptPath,
+        "Compare {{ question }} with {{ expected_messages }} for validation.",
+        "utf8",
+      );
+
+      const provider = new SequenceProvider("mock", {
+        responses: [{ text: "Answer" }],
+      });
+
+      const judgeProvider = new CapturingJudgeProvider("judge", {
+        text: JSON.stringify({ score: 0.9, hits: [], misses: [] }),
+      });
+
+      const evaluatorRegistry = {
+        llm_judge: new LlmJudgeEvaluator({
+          resolveJudgeProvider: async () => judgeProvider,
+        }),
+      };
+
+      await runEvalCase({
+        evalCase: {
+          ...baseTestCase,
+          evaluators: [{ name: "has-expected", type: "llm_judge", promptPath }],
+        },
+        provider,
+        target: baseTarget,
+        evaluators: evaluatorRegistry,
+      });
+
+      // Should not have validation warnings
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
   });
 });
