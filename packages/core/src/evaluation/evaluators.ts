@@ -425,7 +425,7 @@ function parseJsonSafe(payload: string): Record<string, unknown> | undefined {
 }
 
 function substituteVariables(template: string, variables: Record<string, string>): string {
-  return template.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (match, varName) => {
+  return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, varName) => {
     return variables[varName] ?? match;
   });
 }
