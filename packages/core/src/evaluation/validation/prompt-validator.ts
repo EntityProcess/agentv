@@ -5,9 +5,6 @@ import { VALID_TEMPLATE_VARIABLES, TEMPLATE_VARIABLES } from "../template-variab
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";
 
-// Track warnings already shown to avoid duplicates
-const shownWarnings = new Set<string>();
-
 /**
  * Validate custom prompt template content from a file.
  * Reads the file and checks for valid template variables.
@@ -20,8 +17,10 @@ export async function validateCustomPromptContent(promptPath: string): Promise<v
 
 /**
  * Validate template variables in a custom prompt template string.
+ * Exported for testing purposes.
+ * @throws Error if required template variables are missing
  */
-function validateTemplateVariables(content: string, source: string): void {
+export function validateTemplateVariables(content: string, source: string): void {
   // Extract all template variables from content
   const variablePattern = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
   const foundVariables = new Set<string>();
@@ -52,15 +51,10 @@ function validateTemplateVariables(content: string, source: string): void {
 
   // WARNING: Invalid variables - show warning but continue
   if (invalidVariables.length > 0) {
-    const warningKey = `validation:${source}:invalid-vars`;
-    if (!shownWarnings.has(warningKey)) {
-      const warningMessage = 
-        `${ANSI_YELLOW}Warning: Custom evaluator template at ${source}\n` +
-        `  Contains invalid variables: ${invalidVariables.map(v => `{{ ${v} }}`).join(', ')}\n` +
-        `  Valid variables: ${Array.from(VALID_TEMPLATE_VARIABLES).map(v => `{{ ${v} }}`).join(', ')}${ANSI_RESET}`;
-      
-      console.warn(warningMessage);
-      shownWarnings.add(warningKey);
-    }
+    const warningMessage = `${ANSI_YELLOW}Warning: Custom evaluator template at ${source}
+  Contains invalid variables: ${invalidVariables.map(v => `{{ ${v} }}`).join(', ')}
+  Valid variables: ${Array.from(VALID_TEMPLATE_VARIABLES).map(v => `{{ ${v} }}`).join(', ')}${ANSI_RESET}`;
+    
+    console.warn(warningMessage);
   }
 }

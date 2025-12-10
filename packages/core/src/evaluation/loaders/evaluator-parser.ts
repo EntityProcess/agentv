@@ -6,11 +6,7 @@ import { resolveFileReference } from "./file-resolver.js";
 import { validateCustomPromptContent } from "../validation/prompt-validator.js";
 
 const ANSI_YELLOW = "\u001b[33m";
-const ANSI_RED = "\u001b[31m";
 const ANSI_RESET = "\u001b[0m";
-
-// Track errors already shown to avoid duplicates across multiple loadEvalCases calls
-const shownErrors = new Set<string>();
 
 /**
  * Parse evaluators from eval case configuration.
@@ -154,20 +150,4 @@ function logWarning(message: string, details?: readonly string[]): void {
   } else {
     console.warn(`${ANSI_YELLOW}Warning: ${message}${ANSI_RESET}`);
   }
-}
-
-function logError(message: string, details?: readonly string[]): void {
-  const errorKey = `error:${message}:${details?.join("|") ?? ""}`;
-  if (shownErrors.has(errorKey)) {
-    return;
-  }
-  
-  if (details && details.length > 0) {
-    const detailBlock = details.join("\n");
-    console.error(`${ANSI_RED}Error: ${message}\n${detailBlock}${ANSI_RESET}`);
-  } else {
-    console.error(`${ANSI_RED}Error: ${message}${ANSI_RESET}`);
-  }
-  
-  shownErrors.add(errorKey);
 }

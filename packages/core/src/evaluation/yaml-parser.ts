@@ -25,9 +25,6 @@ const ANSI_RED = "\u001b[31m";
 const ANSI_RESET = "\u001b[0m";
 const SCHEMA_EVAL_V2 = "agentv-eval-v2";
 
-// Track errors/warnings already shown to avoid duplicates across multiple loadEvalCases calls
-const shownMessages = new Set<string>();
-
 type LoadOptions = {
   readonly verbose?: boolean;
   readonly evalId?: string;
@@ -272,33 +269,19 @@ function asString(value: unknown): string | undefined {
 }
 
 function logWarning(message: string, details?: readonly string[]): void {
-  const warningKey = `warning:${message}:${details?.join("|") ?? ""}`;
-  if (shownMessages.has(warningKey)) {
-    return;
-  }
-  
   if (details && details.length > 0) {
     const detailBlock = details.join("\n");
     console.warn(`${ANSI_YELLOW}Warning: ${message}\n${detailBlock}${ANSI_RESET}`);
   } else {
     console.warn(`${ANSI_YELLOW}Warning: ${message}${ANSI_RESET}`);
   }
-  
-  shownMessages.add(warningKey);
 }
 
 function logError(message: string, details?: readonly string[]): void {
-  const errorKey = `error:${message}:${details?.join("|") ?? ""}`;
-  if (shownMessages.has(errorKey)) {
-    return;
-  }
-  
   if (details && details.length > 0) {
     const detailBlock = details.join("\n");
     console.error(`${ANSI_RED}Error: ${message}\n${detailBlock}${ANSI_RESET}`);
   } else {
     console.error(`${ANSI_RED}Error: ${message}${ANSI_RESET}`);
   }
-  
-  shownMessages.add(errorKey);
 }
