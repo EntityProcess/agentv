@@ -24,8 +24,8 @@ const baseTestCase: EvalCase = {
   dataset: "test-dataset",
   question: "Original Question Text",
   input_messages: [{ role: "user", content: "User Input Message" }],
-  input_segments: [{ type: "text", value: "User Input Message" }],
-  output_segments: [{ type: "text", value: "Expected Output Message" }],
+  input_segments: [{ type: "text", value: "Input Message" }],
+  expected_segments: [{ type: "text", value: "Expected Output Message" }],
   reference_answer: "Reference Answer Text",
   guideline_paths: [],
   file_paths: [],
@@ -49,7 +49,7 @@ Outcome: {{expected_outcome}}
 Reference: {{reference_answer}}
 Candidate: {{candidate_answer}}
 Input Messages: {{input_messages}}
-Output Messages: {{output_messages}}
+Expected Messages: {{expected_messages}}
 `;
 
     const judgeProvider = new CapturingProvider({
@@ -91,10 +91,10 @@ Output Messages: {{output_messages}}
     
     // Verify input_messages JSON stringification
     expect(request?.question).toContain('Input Messages: [');
-    expect(request?.question).toContain('"value": "User Input Message"');
+    expect(request?.question).toContain('"value": "Input Message"');
 
-    // Verify output_messages JSON stringification
-    expect(request?.question).toContain('Output Messages: [');
+    // Verify expected_messages JSON stringification
+    expect(request?.question).toContain('Expected Messages: [');
     expect(request?.question).toContain('"value": "Expected Output Message"');
     
     // System prompt only has output schema, not custom template

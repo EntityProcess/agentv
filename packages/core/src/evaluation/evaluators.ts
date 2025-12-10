@@ -1,5 +1,6 @@
 import type { ResolvedTarget } from "./providers/targets.js";
 import type { Provider, ProviderResponse, ChatPrompt } from "./providers/types.js";
+import { TEMPLATE_VARIABLES } from "./template-variables.js";
 import type { EvaluatorConfig, JsonObject, EvalCase } from "./types.js";
 
 /**
@@ -13,16 +14,16 @@ Use the reference_answer as a gold standard for a high-quality response (if prov
 Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.
 
 [[ ## expected_outcome ## ]]
-{{expected_outcome}}
+{{${TEMPLATE_VARIABLES.EXPECTED_OUTCOME}}}
 
 [[ ## question ## ]]
-{{question}}
+{{${TEMPLATE_VARIABLES.QUESTION}}}
 
 [[ ## reference_answer ## ]]
-{{reference_answer}}
+{{${TEMPLATE_VARIABLES.REFERENCE_ANSWER}}}
 
 [[ ## candidate_answer ## ]]
-{{candidate_answer}}`;
+{{${TEMPLATE_VARIABLES.CANDIDATE_ANSWER}}}`;
 
 export interface EvaluationContext {
   readonly evalCase: EvalCase;
@@ -101,12 +102,12 @@ export class LlmJudgeEvaluator implements Evaluator {
 
     // Prepare template variables for substitution
     const variables = {
-      input_messages: JSON.stringify(context.evalCase.input_segments, null, 2),
-      output_messages: JSON.stringify(context.evalCase.output_segments, null, 2),
-      candidate_answer: context.candidate.trim(),
-      reference_answer: (context.evalCase.reference_answer ?? "").trim(),
-      expected_outcome: context.evalCase.expected_outcome.trim(),
-      question: formattedQuestion.trim(),
+      [TEMPLATE_VARIABLES.INPUT_MESSAGES]: JSON.stringify(context.evalCase.input_segments, null, 2),
+      [TEMPLATE_VARIABLES.EXPECTED_MESSAGES]: JSON.stringify(context.evalCase.expected_segments, null, 2),
+      [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: context.candidate.trim(),
+      [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? "").trim(),
+      [TEMPLATE_VARIABLES.EXPECTED_OUTCOME]: context.evalCase.expected_outcome.trim(),
+      [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
     };
     
     // Build system prompt (only the mandatory output schema)

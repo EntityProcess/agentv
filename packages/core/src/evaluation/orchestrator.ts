@@ -15,6 +15,7 @@ import type {
   TargetDefinition,
 } from "./providers/types.js";
 import { isAgentProvider } from "./providers/types.js";
+import { VALID_TEMPLATE_VARIABLES, TEMPLATE_VARIABLES } from "./template-variables.js";
 import type { EvalCase, EvaluationResult, EvaluatorConfig, EvaluatorResult, JsonObject, JsonValue } from "./types.js";
 import { buildPromptInputs, loadEvalCases, type PromptInputs } from "./yaml-parser.js";
 
@@ -826,17 +827,6 @@ async function resolveCustomPrompt(config: { readonly prompt?: string; readonly 
 }
 
 function validateCustomPromptContent(content: string, source: string): void {
-  // Valid template variables
-  const validVariables = new Set([
-    'candidate_answer',
-    'expected_messages',
-    'output_messages', // legacy, will be removed
-    'question',
-    'expected_outcome',
-    'reference_answer',
-    'input_messages',
-  ]);
-
   // Extract all template variables from content
   const variablePattern = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
   const foundVariables = new Set<string>();
@@ -846,7 +836,7 @@ function validateCustomPromptContent(content: string, source: string): void {
   while ((match = variablePattern.exec(content)) !== null) {
     const varName = match[1];
     foundVariables.add(varName);
-    if (!validVariables.has(varName)) {
+    if (!VALID_TEMPLATE_VARIABLES.has(varName)) {
       invalidVariables.push(varName);
     }
   }
@@ -856,20 +846,20 @@ function validateCustomPromptContent(content: string, source: string): void {
     console.warn(
       `${ANSI_YELLOW}Warning: Custom evaluator template at ${source} contains invalid variables:\n` +
         `  ${invalidVariables.map(v => `{{ ${v} }}`).join(', ')}\n` +
-        `Valid variables are: ${Array.from(validVariables).map(v => `{{ ${v} }}`).join(', ')}${ANSI_RESET}`,
+        `Valid variables are: ${Array.from(VALID_TEMPLATE_VARIABLES).map(v => `{{ ${v} }}`).join(', ')}${ANSI_RESET}`,
     );
   }
 
   // Check if template contains required variables for evaluation
-  const hasCandidateAnswer = foundVariables.has('candidate_answer');
-  const hasExpectedMessages = foundVariables.has('expected_messages');
+  const hasCandidateAnswer = foundVariables.has(TEMPLATE_VARIABLES.CANDIDATE_ANSWER);
+  const hasExpectedMessages = foundVariables.has(TEMPLATE_VARIABLES.EXPECTED_MESSAGES);
 
   if (!hasCandidateAnswer && !hasExpectedMessages) {
     console.warn(
       `${ANSI_YELLOW}Warning: Custom evaluator template at ${source} is missing required fields.\n` +
         `The template must include at least one of:\n` +
-        `  - {{ candidate_answer }} - to evaluate the agent's response\n` +
-        `  - {{ expected_messages }} - to compare against expected output\n` +
+        `  - {{ ${TEMPLATE_VARIABLES.CANDIDATE_ANSWER} }} - to evaluate the agent's response\n` +
+        `  - {{ ${TEMPLATE_VARIABLES.EXPECTED_MESSAGES} }} - to compare against expected output\n` +
         `Without these, there is nothing to evaluate against.${ANSI_RESET}`,
     );
   }
