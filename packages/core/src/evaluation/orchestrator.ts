@@ -15,12 +15,8 @@ import type {
   TargetDefinition,
 } from "./providers/types.js";
 import { isAgentProvider } from "./providers/types.js";
-import { VALID_TEMPLATE_VARIABLES, TEMPLATE_VARIABLES } from "./template-variables.js";
 import type { EvalCase, EvaluationResult, EvaluatorConfig, EvaluatorResult, JsonObject, JsonValue } from "./types.js";
 import { buildPromptInputs, loadEvalCases, type PromptInputs } from "./yaml-parser.js";
-
-const ANSI_YELLOW = "\u001b[33m";
-const ANSI_RESET = "\u001b[0m";
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -814,56 +810,16 @@ async function resolveCustomPrompt(config: { readonly prompt?: string; readonly 
   if (config.promptPath) {
     try {
       const content = await readTextFile(config.promptPath);
-      validateCustomPromptContent(content, config.promptPath);
       return content;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`Could not read custom prompt at ${config.promptPath}: ${message}`);
     }
-  } else if (config.prompt) {
-    validateCustomPromptContent(config.prompt, "inline prompt");
   }
   return config.prompt;
 }
 
-function validateCustomPromptContent(content: string, source: string): void {
-  // Extract all template variables from content
-  const variablePattern = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
-  const foundVariables = new Set<string>();
-  const invalidVariables: string[] = [];
-  
-  let match;
-  while ((match = variablePattern.exec(content)) !== null) {
-    const varName = match[1];
-    foundVariables.add(varName);
-    if (!VALID_TEMPLATE_VARIABLES.has(varName)) {
-      invalidVariables.push(varName);
-    }
-  }
 
-  // Warn about invalid variables
-  if (invalidVariables.length > 0) {
-    console.warn(
-      `${ANSI_YELLOW}Warning: Custom evaluator template at ${source} contains invalid variables:\n` +
-        `  ${invalidVariables.map(v => `{{ ${v} }}`).join(', ')}\n` +
-        `Valid variables are: ${Array.from(VALID_TEMPLATE_VARIABLES).map(v => `{{ ${v} }}`).join(', ')}${ANSI_RESET}`,
-    );
-  }
-
-  // Check if template contains required variables for evaluation
-  const hasCandidateAnswer = foundVariables.has(TEMPLATE_VARIABLES.CANDIDATE_ANSWER);
-  const hasExpectedMessages = foundVariables.has(TEMPLATE_VARIABLES.EXPECTED_MESSAGES);
-
-  if (!hasCandidateAnswer && !hasExpectedMessages) {
-    console.warn(
-      `${ANSI_YELLOW}Warning: Custom evaluator template at ${source} is missing required fields.\n` +
-        `The template must include at least one of:\n` +
-        `  - {{ ${TEMPLATE_VARIABLES.CANDIDATE_ANSWER} }} - to evaluate the agent's response\n` +
-        `  - {{ ${TEMPLATE_VARIABLES.EXPECTED_MESSAGES} }} - to compare against expected output\n` +
-        `Without these, there is nothing to evaluate against.${ANSI_RESET}`,
-    );
-  }
-}
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
