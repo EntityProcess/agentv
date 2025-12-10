@@ -496,5 +496,54 @@ describe("runTestCase", () => {
       // Should not have validation warnings
       expect(consoleWarnSpy).not.toHaveBeenCalled();
     });
+
+    it("warns when template contains invalid variables", async () => {
+      consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const directory = mkdtempSync(path.join(tmpdir(), "agentv-validation-"));
+      const promptPath = path.join(directory, "invalid-vars.md");
+      writeFileSync(
+        promptPath,
+        "Evaluate {{ candiate_answer }} for {{ questoin }} with {{ invalid_var }}",
+        "utf8",
+      );
+
+      const provider = new SequenceProvider("mock", {
+        responses: [{ text: "Answer" }],
+      });
+
+      const judgeProvider = new CapturingJudgeProvider("judge", {
+        text: JSON.stringify({ score: 0.5, hits: [], misses: [] }),
+      });
+
+      const evaluatorRegistry = {
+        llm_judge: new LlmJudgeEvaluator({
+          resolveJudgeProvider: async () => judgeProvider,
+        }),
+      };
+
+      await runEvalCase({
+        evalCase: {
+          ...baseTestCase,
+          evaluators: [{ name: "invalid-vars", type: "llm_judge", promptPath }],
+        },
+        provider,
+        target: baseTarget,
+        evaluators: evaluatorRegistry,
+      });
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("contains invalid variables"),
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("candiate_answer"),
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("questoin"),
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("invalid_var"),
+      );
+    });
   });
 });

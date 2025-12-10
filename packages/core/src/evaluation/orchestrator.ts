@@ -826,9 +826,43 @@ async function resolveCustomPrompt(config: { readonly prompt?: string; readonly 
 }
 
 function validateCustomPromptContent(content: string, source: string): void {
+  // Valid template variables
+  const validVariables = new Set([
+    'candidate_answer',
+    'expected_messages',
+    'output_messages', // legacy, will be removed
+    'question',
+    'expected_outcome',
+    'reference_answer',
+    'input_messages',
+  ]);
+
+  // Extract all template variables from content
+  const variablePattern = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+  const foundVariables = new Set<string>();
+  const invalidVariables: string[] = [];
+  
+  let match;
+  while ((match = variablePattern.exec(content)) !== null) {
+    const varName = match[1];
+    foundVariables.add(varName);
+    if (!validVariables.has(varName)) {
+      invalidVariables.push(varName);
+    }
+  }
+
+  // Warn about invalid variables
+  if (invalidVariables.length > 0) {
+    console.warn(
+      `${ANSI_YELLOW}Warning: Custom evaluator template at ${source} contains invalid variables:\n` +
+        `  ${invalidVariables.map(v => `{{ ${v} }}`).join(', ')}\n` +
+        `Valid variables are: ${Array.from(validVariables).map(v => `{{ ${v} }}`).join(', ')}${ANSI_RESET}`,
+    );
+  }
+
   // Check if template contains required variables for evaluation
-  const hasCandidateAnswer = /\{\{\s*candidate_answer\s*\}\}/.test(content);
-  const hasExpectedMessages = /\{\{\s*expected_messages\s*\}\}/.test(content);
+  const hasCandidateAnswer = foundVariables.has('candidate_answer');
+  const hasExpectedMessages = foundVariables.has('expected_messages');
 
   if (!hasCandidateAnswer && !hasExpectedMessages) {
     console.warn(
