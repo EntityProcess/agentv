@@ -133,7 +133,7 @@ LLM judges use markdown prompts to guide evaluation. AgentV automatically handle
 - `{{candidate_answer}}` - The actual output to evaluate
 - `{{reference_answer}}` - Gold standard answer (optional, may be empty)
 - `{{input_messages}}` - JSON stringified input message segments
-- `{{output_messages}}` - JSON stringified expected output segments
+- `{{expected_messages}}` - JSON stringified expected output segments
 
 **Default Evaluator Template:**
 

@@ -3,9 +3,7 @@
 ## Purpose
 
 Validates AgentV YAML files (eval and targets) independently from execution for fast feedback. Validates schema compliance (`$schema` field detection), file structure, and referenced file existence. Supports CI integration via exit codes.
-
 ## Requirements
-
 ### Requirement: Validate Command
 
 The system SHALL provide a `validate` command that validates AgentV YAML configuration files.
@@ -197,4 +195,50 @@ The system SHALL validate files efficiently for large codebases.
 
 - **WHEN** validating 100 eval files
 - **THEN** validation completes in under 5 seconds on modern hardware
+
+### Requirement: Custom Evaluator Template Validation
+
+The system SHALL validate custom LLM judge evaluator templates to ensure they contain fields necessary for evaluation.
+
+#### Scenario: Template missing both required fields shows warning
+
+**Given** a custom evaluator template with content `"{{ question }}"`
+**When** the template is loaded
+**Then** a warning is displayed containing:
+- Message: "Custom evaluator template at [source] is missing required fields"
+- List of required fields: `{{ candidate_answer }}` and `{{ expected_messages }}`
+- Explanation: "Without these, there is nothing to evaluate against"
+
+#### Scenario: Template with candidate_answer does not warn
+
+**Given** a custom evaluator template containing `"{{ candidate_answer }}"`
+**When** the template is loaded
+**Then** no validation warning is displayed
+
+#### Scenario: Template with expected_messages does not warn
+
+**Given** a custom evaluator template containing `"{{ expected_messages }}"`
+**When** the template is loaded
+**Then** no validation warning is displayed
+
+#### Scenario: Validation applies to file-based prompts
+
+**Given** an evaluator configured with `promptPath: "./my-eval.md"`
+**And** the file contains only `"{{ question }}"`
+**When** the custom prompt is resolved
+**Then** a warning is displayed referencing the file path
+
+#### Scenario: Invalid template variables are detected
+
+**Given** a custom evaluator template containing `"{{ candiate_answer }} for {{ invalid_var }}"`
+**When** validation runs
+**Then** a warning is displayed listing the invalid variables
+**And** the warning lists all valid template variables
+
+#### Scenario: Validation is permissive
+
+**Given** a custom evaluator template missing required fields
+**When** validation runs
+**Then** a warning is displayed
+**But** evaluation continues without blocking
 
