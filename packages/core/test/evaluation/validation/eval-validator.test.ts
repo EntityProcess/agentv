@@ -26,7 +26,6 @@ describe("eval-validator", () => {
   describe("validateEvalFile", () => {
     it("should validate a correct eval file", async () => {
       const content = `
-$schema: agentv-eval-v2
 evalcases:
   - id: test-1
     outcome: pass
@@ -47,56 +46,9 @@ evalcases:
       await cleanup();
     });
 
-    it("should reject file without $schema", async () => {
-      const content = `
-evalcases:
-  - id: test-1
-    outcome: pass
-    input_messages: []
-    expected_messages: []
-`;
-      const filePath = await createTestFile("no-schema.yaml", content);
-      const result = await validateEvalFile(filePath);
-      
-      expect(result.valid).toBe(false);
-      expect(result.errors).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            severity: "error",
-            location: "$schema",
-            message: expect.stringContaining("Missing required field '$schema'"),
-          }),
-        ]),
-      );
-      
-      await cleanup();
-    });
-
-    it("should reject file with wrong $schema", async () => {
-      const content = `
-$schema: wrong-schema
-evalcases: []
-`;
-      const filePath = await createTestFile("wrong-schema.yaml", content);
-      const result = await validateEvalFile(filePath);
-      
-      expect(result.valid).toBe(false);
-      expect(result.errors).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            severity: "error",
-            location: "$schema",
-            message: expect.stringContaining("Invalid $schema value"),
-          }),
-        ]),
-      );
-      
-      await cleanup();
-    });
-
     it("should reject file without evalcases array", async () => {
       const content = `
-$schema: agentv-eval-v2
+description: Test file
 `;
       const filePath = await createTestFile("no-evalcases.yaml", content);
       const result = await validateEvalFile(filePath);
@@ -117,7 +69,6 @@ $schema: agentv-eval-v2
 
     it("should reject eval case without required fields", async () => {
       const content = `
-$schema: agentv-eval-v2
 evalcases:
   - id: test-1
 `;
@@ -140,7 +91,6 @@ evalcases:
 
     it("should validate message roles", async () => {
       const content = `
-$schema: agentv-eval-v2
 evalcases:
   - id: test-1
     outcome: pass
@@ -169,7 +119,6 @@ evalcases:
 
     it("should validate array content structure", async () => {
       const content = `
-$schema: agentv-eval-v2
 evalcases:
   - id: test-1
     outcome: pass

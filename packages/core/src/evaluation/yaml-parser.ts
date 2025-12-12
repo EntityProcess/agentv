@@ -23,7 +23,6 @@ export { isGuidelineFile } from "./loaders/config-loader.js";
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RED = "\u001b[31m";
 const ANSI_RESET = "\u001b[0m";
-const SCHEMA_EVAL_V2 = "agentv-eval-v2";
 
 type LoadOptions = {
   readonly verbose?: boolean;
@@ -31,7 +30,6 @@ type LoadOptions = {
 };
 
 type RawTestSuite = JsonObject & {
-  readonly $schema?: JsonValue;
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
   readonly execution?: JsonValue;
@@ -99,17 +97,6 @@ export async function loadEvalCases(
   const datasetName =
     datasetNameFromSuite && datasetNameFromSuite.length > 0 ? datasetNameFromSuite : fallbackDataset;
   
-  // Check $schema field to ensure V2 format
-  const schema = suite.$schema;
-  
-  if (schema !== SCHEMA_EVAL_V2) {
-    const message = typeof schema === 'string' 
-      ? `Invalid $schema value '${schema}' in ${evalFilePath}. Expected '${SCHEMA_EVAL_V2}'`
-      : `Missing required field '$schema' in ${evalFilePath}.\nPlease add '$schema: ${SCHEMA_EVAL_V2}' at the top of the file.`;
-    throw new Error(message);
-  }
-  
-  // V2 format: $schema is agentv-eval-v2
   const rawTestcases = suite.evalcases;
   if (!Array.isArray(rawTestcases)) {
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'evalcases' field`);

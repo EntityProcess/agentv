@@ -4,8 +4,6 @@ import { parse } from "yaml";
 
 import type { ValidationError, ValidationResult } from "./types.js";
 
-const SCHEMA_EVAL_V2 = "agentv-eval-v2";
-
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
 type JsonArray = readonly JsonValue[];
@@ -53,21 +51,6 @@ export async function validateEvalFile(
       fileType: "eval",
       errors,
     };
-  }
-
-  // Validate $schema field
-  const schema = parsed["$schema"];
-  if (schema !== SCHEMA_EVAL_V2) {
-    const message =
-      typeof schema === "string"
-        ? `Invalid $schema value '${schema}'. Expected '${SCHEMA_EVAL_V2}'`
-        : `Missing required field '$schema'. Expected '${SCHEMA_EVAL_V2}'`;
-    errors.push({
-      severity: "error",
-      filePath: absolutePath,
-      location: "$schema",
-      message,
-    });
   }
 
   // Validate evalcases array
