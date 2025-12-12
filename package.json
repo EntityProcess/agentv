@@ -21,7 +21,7 @@
     "version:bump": "bun scripts/bump-version.ts",
     "subagent:link": "bun scripts/link-subagent.ts",
     "subagent:unlink": "bun scripts/unlink-subagent.ts",
-    "publish": "bun run build && bun -r publish --access public"
+    "publish": "bun run build && cd packages/core && bun publish --access public && cd ../../apps/cli && bun publish --access public"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
