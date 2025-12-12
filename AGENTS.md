@@ -5,7 +5,7 @@ This is a TypeScript monorepo for AgentV - an AI agent evaluation framework.
 ## Tech Stack & Tools
 - **Language:** TypeScript 5.x targeting ES2022
 - **Runtime:** Bun (use `bun` for all package and script operations)
-- **Build System:** Turbo (monorepo task orchestration)
+- **Monorepo:** Bun workspaces
 - **Bundler:** tsup (TypeScript bundler)
 - **Linter/Formatter:** Biome
 - **Testing:** Vitest

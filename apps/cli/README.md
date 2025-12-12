@@ -26,7 +26,7 @@ agentv --help
 
 ### Local Development Setup
 
-Follow these steps if you want to contribute to the `agentv` project itself. This workflow uses pnpm workspaces and an editable install for immediate feedback.
+Follow these steps if you want to contribute to the `agentv` project itself. This workflow uses Bun workspaces for fast, efficient dependency management.
 
 1. Clone the repository and navigate into it:
 
@@ -38,23 +38,25 @@ cd agentv
 2. Install dependencies:
 
 ```bash
-# Install pnpm if you don't have it
-npm install -g pnpm
+# Install Bun if you don't have it
+curl -fsSL https://bun.sh/install | bash  # macOS/Linux
+# or
+powershell -c "irm bun.sh/install.ps1 | iex"  # Windows
 
 # Install all workspace dependencies
-pnpm install
+bun install
 ```
 
 3. Build the project:
 
 ```bash
-pnpm build
+bun run build
 ```
 
 4. Run tests:
 
 ```bash
-pnpm test
+bun test
 ```
 
 You are now ready to start development. The monorepo contains:

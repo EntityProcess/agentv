@@ -175,12 +175,12 @@ describe("agentv eval CLI", () => {
       envSample: "from-dotenv",
       resultCount: 2,
     });
-    
+
     expect(diagnostics.promptDumpDir).toBeDefined();
     expect(typeof diagnostics.promptDumpDir).toBe("string");
     const promptsDir = diagnostics.promptDumpDir as string;
     expect(promptsDir).toContain(`${path.sep}.agentv${path.sep}prompts`);
-    
+
     const promptFiles = await readdir(promptsDir);
     expect(new Set(promptFiles)).toEqual(new Set(["case-alpha.json", "case-beta.json"]));
   });
