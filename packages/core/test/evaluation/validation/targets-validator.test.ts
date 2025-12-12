@@ -26,7 +26,6 @@ describe("targets-validator", () => {
   describe("validateTargetsFile", () => {
     it("should validate a correct targets file", async () => {
       const content = `
-$schema: agentv-targets-v2.2
 targets:
   - name: default
     provider: azure
@@ -42,54 +41,8 @@ targets:
       await cleanup();
     });
 
-    it("should reject file without $schema", async () => {
-      const content = `
-targets:
-  - name: default
-    provider: azure
-`;
-      const filePath = await createTestFile("no-schema.yaml", content);
-      const result = await validateTargetsFile(filePath);
-      
-      expect(result.valid).toBe(false);
-      expect(result.errors).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            severity: "error",
-            location: "$schema",
-            message: expect.stringContaining("Missing required field '$schema'"),
-          }),
-        ]),
-      );
-      
-      await cleanup();
-    });
-
-    it("should reject file with wrong $schema", async () => {
-      const content = `
-$schema: agentv-eval-v2
-targets: []
-`;
-      const filePath = await createTestFile("wrong-schema.yaml", content);
-      const result = await validateTargetsFile(filePath);
-      
-      expect(result.valid).toBe(false);
-      expect(result.errors).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            severity: "error",
-            location: "$schema",
-            message: expect.stringContaining("Invalid $schema value"),
-          }),
-        ]),
-      );
-      
-      await cleanup();
-    });
-
     it("should reject target without name", async () => {
       const content = `
-$schema: agentv-targets-v2.1
 targets:
   - provider: azure
 `;
@@ -111,7 +64,6 @@ targets:
 
     it("should reject target without provider", async () => {
       const content = `
-$schema: agentv-targets-v2.1
 targets:
   - name: test
 `;
@@ -133,7 +85,6 @@ targets:
 
     it("should warn for unknown provider", async () => {
       const content = `
-$schema: agentv-targets-v2.2
 targets:
   - name: test
     provider: unknown-provider
@@ -157,7 +108,6 @@ targets:
 
     it("should validate optional fields", async () => {
       const content = `
-$schema: agentv-targets-v2.2
 targets:
   - name: test
     provider: azure
@@ -175,7 +125,6 @@ targets:
 
     it("validates cli provider settings with command template", async () => {
       const content = `
-$schema: agentv-targets-v2.2
 targets:
   - name: cli-target
     provider: cli
@@ -196,7 +145,6 @@ targets:
 
     it("rejects cli provider missing command template", async () => {
       const content = `
-$schema: agentv-targets-v2.2
 targets:
   - name: cli-target
     provider: cli
@@ -219,7 +167,6 @@ targets:
 
     it("rejects cli provider with unknown placeholders", async () => {
       const content = `
-$schema: agentv-targets-v2.2
 targets:
   - name: cli-target
     provider: cli
@@ -242,7 +189,6 @@ targets:
 
     it("warns about unknown settings properties", async () => {
       const content = `
-$schema: agentv-targets-v2.2
 targets:
   - name: vscode-target
     provider: vscode
@@ -268,7 +214,6 @@ targets:
 
     it("warns about typos in common settings like provider_batching", async () => {
       const content = `
-$schema: agentv-targets-v2.2
 targets:
   - name: azure-target
     provider: azure

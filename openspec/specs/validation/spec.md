@@ -38,25 +38,6 @@ The system SHALL provide a `validate` command that validates AgentV YAML configu
 - **WHEN** all validated files pass validation
 - **THEN** it exits with zero exit code
 
-### Requirement: File Type Detection
-
-The system SHALL detect file types using the `$schema` field.
-
-#### Scenario: Eval file detection via schema field
-
-- **WHEN** file contains `$schema: agentv-eval-v2`
-- **THEN** it is validated as an eval file using eval schema
-
-#### Scenario: Targets file detection via schema field
-
-- **WHEN** file contains `$schema: agentv-targets-v2.1`
-- **THEN** it is validated as a targets configuration file
-
-#### Scenario: Missing schema field
-
-- **WHEN** file missing `$schema` field
-- **THEN** error reports that `$schema` field is required
-
 ### Requirement: Eval File Schema Validation
 
 The system SHALL validate eval files against the v2 schema.
@@ -87,13 +68,6 @@ The system SHALL validate eval files against the v2 schema.
 - **THEN** error reports invalid content format
 
 ### Requirement: Targets File Schema Validation
-
-The system SHALL validate targets files against the v2 schema.
-
-#### Scenario: Schema field required
-
-- **WHEN** targets file has `$schema: agentv-targets-v2.1`
-- **THEN** validation proceeds with targets schema rules
 
 #### Scenario: Targets array required
 

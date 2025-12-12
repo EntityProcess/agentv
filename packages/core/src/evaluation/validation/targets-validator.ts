@@ -405,21 +405,6 @@ function extractPlaceholders(template: string): string[] {
     };
   }
 
-  // Validate $schema field
-  const schema = parsed["$schema"];
-  if (schema !== TARGETS_SCHEMA_V2) {
-    const message =
-      typeof schema === "string"
-        ? `Invalid $schema value '${schema}'. Expected '${TARGETS_SCHEMA_V2}'`
-        : `Missing required field '$schema'. Expected '${TARGETS_SCHEMA_V2}'`;
-    errors.push({
-      severity: "error",
-      filePath: absolutePath,
-      location: "$schema",
-      message,
-    });
-  }
-
   // Validate targets array
   const targets = parsed["targets"];
   if (!Array.isArray(targets)) {
