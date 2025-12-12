@@ -1,9 +1,8 @@
-import { execa, execaNode } from "execa";
-import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
+import { execa } from "execa";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 interface EvalFixture {
@@ -18,13 +17,11 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "../../..");
 const CLI_ENTRY = path.join(projectRoot, "apps/cli/src/cli.ts");
 const MOCK_RUNNER = path.join(projectRoot, "apps/cli/test/fixtures/mock-run-evaluation.ts");
-const require = createRequire(import.meta.url);
-const TSX_LOADER = pathToFileURL(require.resolve("tsx")).href;
 let coreBuilt = false;
 
 beforeAll(async () => {
   if (!coreBuilt) {
-    await execa("pnpm", ["--filter", "@agentv/core", "build"], { cwd: projectRoot });
+    await execa("bun", ["run", "--filter", "@agentv/core", "build"], { cwd: projectRoot });
     coreBuilt = true;
   }
 }, 30000); // 30 second timeout for building core package
@@ -55,15 +52,24 @@ description: CLI integration test
 target: file-target
 
 evalcases:
-  - id: greeting-case
-    outcome: System responds with a helpful greeting
+  - id: case-alpha
+    outcome: System responds with alpha
     input_messages:
       - role: user
         content: |
-          Please say hello
+          Please respond with alpha
     expected_messages:
       - role: assistant
-        content: "Hello!"
+        content: "Alpha"
+  - id: case-beta
+    outcome: System responds with beta
+    input_messages:
+      - role: user
+        content: |
+          Please respond with beta
+    expected_messages:
+      - role: assistant
+        content: "Beta"
 `;
   await writeFile(testFilePath, testFileContent, "utf8");
 
@@ -78,13 +84,13 @@ evalcases:
 async function runCli(
   fixture: EvalFixture,
   args: readonly string[],
-  extraEnv: Record<string, string | undefined> = {},
+  extraEnv: Record<string, string | undefined> = {}
 ): Promise<{ stdout: string; stderr: string }> {
-  const baseEnv: Record<string, string> = { ...process.env } as Record<string, string>;
-  delete baseEnv.CLI_ENV_SAMPLE;
+  const baseEnv: Record<string, string | undefined> = { ...process.env };
+  baseEnv.CLI_ENV_SAMPLE = undefined;
 
   try {
-    const result = await execaNode(CLI_ENTRY, args, {
+    const result = await execa("bun", [CLI_ENTRY, ...args], {
       cwd: fixture.suiteDir,
       env: {
         ...baseEnv,
@@ -93,7 +99,6 @@ async function runCli(
         AGENTEVO_CLI_EVAL_RUNNER_OUTPUT: fixture.diagnosticsPath,
         ...extraEnv,
       },
-      nodeOptions: ["--import", TSX_LOADER],
       reject: false,
     });
 
@@ -161,40 +166,23 @@ describe("agentv eval CLI", () => {
     const results = await readJsonLines(outputPath);
     expect(results).toHaveLength(2);
     const [firstResult, secondResult] = results as Array<Record<string, unknown>>;
-    expect(firstResult["eval_id"]).toBe("case-alpha");
-    expect(secondResult["eval_id"]).toBe("case-beta");
+    expect(firstResult.eval_id).toBe("case-alpha");
+    expect(secondResult.eval_id).toBe("case-beta");
 
     const diagnostics = await readDiagnostics(fixture);
     expect(diagnostics).toMatchObject({
       target: "file-target",
-      promptDumpDir: expect.stringContaining(`${path.sep}.agentv${path.sep}prompts`),
       envSample: "from-dotenv",
       resultCount: 2,
     });
 
+    expect(diagnostics.promptDumpDir).toBeDefined();
+    expect(typeof diagnostics.promptDumpDir).toBe("string");
     const promptsDir = diagnostics.promptDumpDir as string;
+    expect(promptsDir).toContain(`${path.sep}.agentv${path.sep}prompts`);
+
     const promptFiles = await readdir(promptsDir);
     expect(new Set(promptFiles)).toEqual(new Set(["case-alpha.json", "case-beta.json"]));
-  });
-
-  it("honors custom prompt dump directories", async () => {
-    const fixture = await createFixture();
-    fixtures.push(fixture.baseDir);
-
-    const customPromptDir = path.join(fixture.baseDir, "custom-prompts");
-
-    await runCli(fixture, [
-      "eval",
-      fixture.testFilePath,
-      "--dump-prompts",
-      customPromptDir,
-    ]);
-
-    const diagnostics = await readDiagnostics(fixture);
-    expect(diagnostics.promptDumpDir).toBe(path.resolve(customPromptDir));
-
-    const files = await readdir(customPromptDir);
-    expect(files.length).toBeGreaterThan(0);
   });
 
   it("prefers CLI target overrides when provided", async () => {

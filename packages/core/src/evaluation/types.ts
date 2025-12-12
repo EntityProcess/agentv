@@ -133,8 +133,6 @@ export function isTestMessage(value: unknown): value is TestMessage {
   return candidate.content.every(isJsonObject);
 }
 
-
-
 const EVALUATOR_KIND_VALUES = ["code", "llm_judge"] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];

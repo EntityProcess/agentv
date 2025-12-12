@@ -1,16 +1,16 @@
+import { constants } from "node:fs";
+import { access } from "node:fs/promises";
+import path from "node:path";
 import {
+  type ResolvedTarget,
+  type TargetDefinition,
   buildDirectoryChain,
   listTargetNames,
   readTargetDefinitions,
   readTestSuiteMetadata,
   resolveTargetDefinition,
-  type ResolvedTarget,
-  type TargetDefinition,
 } from "@agentv/core";
 import { validateTargetsFile } from "@agentv/core/evaluation/validation";
-import { constants } from "node:fs";
-import { access } from "node:fs/promises";
-import path from "node:path";
 
 const TARGET_FILE_CANDIDATES = [
   "targets.yaml",
@@ -66,7 +66,7 @@ async function discoverTargetsFile(options: {
   }
 
   const directories = [...buildDirectoryChain(testFilePath, repoRoot)];
-  
+
   // Also check cwd if not already in chain
   const resolvedCwd = path.resolve(cwd);
   if (!directories.includes(resolvedCwd)) {
@@ -123,7 +123,18 @@ function pickTargetName(options: {
 }
 
 export async function selectTarget(options: TargetSelectionOptions): Promise<TargetSelection> {
-  const { testFilePath, repoRoot, cwd, explicitTargetsPath, cliTargetName, dryRun, dryRunDelay, dryRunDelayMin, dryRunDelayMax, env } = options;
+  const {
+    testFilePath,
+    repoRoot,
+    cwd,
+    explicitTargetsPath,
+    cliTargetName,
+    dryRun,
+    dryRunDelay,
+    dryRunDelayMin,
+    dryRunDelayMax,
+    env,
+  } = options;
 
   const targetsFilePath = await discoverTargetsFile({
     explicitPath: explicitTargetsPath,
@@ -136,7 +147,7 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
   const validationResult = await validateTargetsFile(targetsFilePath);
   const warnings = validationResult.errors.filter((e) => e.severity === "warning");
   const useColors = isTTY();
-  
+
   if (warnings.length > 0) {
     console.warn(`\nWarnings in ${targetsFilePath}:`);
     for (const warning of warnings) {
@@ -147,7 +158,7 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
     }
     console.warn("");
   }
-  
+
   // Check for errors (should fail if invalid)
   const errors = validationResult.errors.filter((e) => e.severity === "error");
   if (errors.length > 0) {
@@ -165,11 +176,13 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
   const fileTargetName = await readTestSuiteTarget(testFilePath);
   const targetChoice = pickTargetName({ cliTargetName, fileTargetName });
 
-  const targetDefinition = definitions.find((definition: TargetDefinition) => definition.name === targetChoice.name);
+  const targetDefinition = definitions.find(
+    (definition: TargetDefinition) => definition.name === targetChoice.name
+  );
   if (!targetDefinition) {
     const available = listTargetNames(definitions).join(", ");
     throw new Error(
-      `Target '${targetChoice.name}' not found in ${targetsFilePath}. Available targets: ${available}`,
+      `Target '${targetChoice.name}' not found in ${targetsFilePath}. Available targets: ${available}`
     );
   }
 
@@ -178,8 +191,8 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
       kind: "mock",
       name: `${targetDefinition.name}-dry-run`,
       judgeTarget: undefined,
-      config: { 
-        response: "{\"answer\":\"Mock dry-run response\"}",
+      config: {
+        response: '{"answer":"Mock dry-run response"}',
         delayMs: dryRunDelay,
         delayMinMs: dryRunDelayMin,
         delayMaxMs: dryRunDelayMax,

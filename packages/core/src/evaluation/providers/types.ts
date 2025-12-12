@@ -50,13 +50,13 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
  * These map to the canonical ProviderKind values.
  */
 export const PROVIDER_ALIASES: readonly string[] = [
-  "azure-openai",    // alias for "azure"
-  "google",          // alias for "gemini"
-  "google-gemini",   // alias for "gemini"
-  "codex-cli",       // alias for "codex"
-  "openai",          // legacy/future support
-  "bedrock",         // legacy/future support
-  "vertex",          // legacy/future support
+  "azure-openai", // alias for "azure"
+  "google", // alias for "gemini"
+  "google-gemini", // alias for "gemini"
+  "codex-cli", // alias for "codex"
+  "openai", // legacy/future support
+  "bedrock", // legacy/future support
+  "vertex", // legacy/future support
 ] as const;
 
 /**

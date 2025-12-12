@@ -1,7 +1,7 @@
 import path from "node:path";
 
-import type { ProviderRequest } from "./types.js";
 import { isGuidelineFile } from "../yaml-parser.js";
+import type { ProviderRequest } from "./types.js";
 
 export interface PromptDocumentOptions {
   readonly guidelinePatterns?: readonly string[];
@@ -11,20 +11,18 @@ export interface PromptDocumentOptions {
 export function buildPromptDocument(
   request: ProviderRequest,
   inputFiles: readonly string[] | undefined,
-  options?: PromptDocumentOptions,
+  options?: PromptDocumentOptions
 ): string {
   const parts: string[] = [];
 
   const guidelineFiles = collectGuidelineFiles(
     inputFiles,
     options?.guidelinePatterns ?? request.guideline_patterns,
-    options?.guidelineOverrides,
+    options?.guidelineOverrides
   );
   const inputFilesList = collectInputFiles(inputFiles);
 
-  const nonGuidelineInputFiles = inputFilesList.filter(
-    (file) => !guidelineFiles.includes(file),
-  );
+  const nonGuidelineInputFiles = inputFilesList.filter((file) => !guidelineFiles.includes(file));
 
   const prereadBlock = buildMandatoryPrereadBlock(guidelineFiles, nonGuidelineInputFiles);
   if (prereadBlock.length > 0) {
@@ -36,7 +34,9 @@ export function buildPromptDocument(
   return parts.join("\n").trim();
 }
 
-export function normalizeInputFiles(inputFiles: readonly string[] | undefined): string[] | undefined {
+export function normalizeInputFiles(
+  inputFiles: readonly string[] | undefined
+): string[] | undefined {
   if (!inputFiles || inputFiles.length === 0) {
     return undefined;
   }
@@ -53,7 +53,7 @@ export function normalizeInputFiles(inputFiles: readonly string[] | undefined): 
 export function collectGuidelineFiles(
   inputFiles: readonly string[] | undefined,
   guidelinePatterns: readonly string[] | undefined,
-  overrides?: ReadonlySet<string>,
+  overrides?: ReadonlySet<string>
 ): string[] {
   if (!inputFiles || inputFiles.length === 0) {
     return [];
@@ -96,7 +96,7 @@ function collectInputFiles(inputFiles: readonly string[] | undefined): string[] 
 
 function buildMandatoryPrereadBlock(
   guidelineFiles: readonly string[],
-  inputFiles: readonly string[],
+  inputFiles: readonly string[]
 ): string {
   if (guidelineFiles.length === 0 && inputFiles.length === 0) {
     return "";
@@ -120,7 +120,7 @@ function buildMandatoryPrereadBlock(
 
   sections.push(
     "If any file is missing, fail with ERROR: missing-file <filename> and stop.",
-    "Then apply system_instructions on the user query below.",
+    "Then apply system_instructions on the user query below."
   );
 
   return sections.join("\n");

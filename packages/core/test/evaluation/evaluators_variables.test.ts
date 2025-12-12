@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { LlmJudgeEvaluator } from "../../src/evaluation/evaluators.js";
 import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
-import type { Provider, ProviderRequest, ProviderResponse } from "../../src/evaluation/providers/types.js";
+import type {
+  Provider,
+  ProviderRequest,
+  ProviderResponse,
+} from "../../src/evaluation/providers/types.js";
 import type { EvalCase } from "../../src/evaluation/types.js";
 
 class CapturingProvider implements Provider {
@@ -42,7 +46,7 @@ const baseTarget: ResolvedTarget = {
 
 describe("LlmJudgeEvaluator Variable Substitution", () => {
   it("substitutes template variables in custom prompt", async () => {
-    const formattedQuestion = `@[User]: What is the status?\n\n@[Assistant]: Requesting more info.`;
+    const formattedQuestion = "@[User]: What is the status?\n\n@[Assistant]: Requesting more info.";
     const customPrompt = `
 Question: {{question}}
 Outcome: {{expected_outcome}}
@@ -88,15 +92,15 @@ Expected Messages: {{expected_messages}}
     expect(request?.question).toContain("Outcome: Expected Outcome Text");
     expect(request?.question).toContain("Reference: Reference Answer Text");
     expect(request?.question).toContain("Candidate: Candidate Answer Text");
-    
+
     // Verify input_messages JSON stringification
-    expect(request?.question).toContain('Input Messages: [');
+    expect(request?.question).toContain("Input Messages: [");
     expect(request?.question).toContain('"value": "Input Message"');
 
     // Verify expected_messages JSON stringification
-    expect(request?.question).toContain('Expected Messages: [');
+    expect(request?.question).toContain("Expected Messages: [");
     expect(request?.question).toContain('"value": "Expected Output Message"');
-    
+
     // System prompt only has output schema, not custom template
     expect(request?.systemPrompt).toContain("You must respond with a single JSON object");
     expect(request?.systemPrompt).not.toContain(`Question: ${formattedQuestion}`);
@@ -126,17 +130,17 @@ Expected Messages: {{expected_messages}}
     });
 
     const request = judgeProvider.lastRequest;
-    
+
     // When custom evaluatorTemplate is provided, it goes in user prompt (question)
     expect(request?.question).toContain("Fixed prompt without variables");
-    
+
     // System prompt only contains output schema, not custom template
     expect(request?.systemPrompt).toContain("You must respond with a single JSON object");
     expect(request?.systemPrompt).not.toContain(customPrompt);
   });
 
   it("substitutes template variables with whitespace inside braces", async () => {
-    const formattedQuestion = `What is the status?`;
+    const formattedQuestion = "What is the status?";
     const customPrompt = `
 Question: {{ question }}
 Outcome: {{ expected_outcome }}
@@ -180,13 +184,13 @@ Expected Messages: {{ expected_messages }}
     expect(request?.question).toContain("Outcome: Expected Outcome Text");
     expect(request?.question).toContain("Reference: Reference Answer Text");
     expect(request?.question).toContain("Candidate: Candidate Answer Text");
-    
+
     // Verify JSON stringified variables were also substituted
-    expect(request?.question).toContain('Input Messages: [');
+    expect(request?.question).toContain("Input Messages: [");
     expect(request?.question).toContain('"value": "Input Message"');
-    expect(request?.question).toContain('Expected Messages: [');
+    expect(request?.question).toContain("Expected Messages: [");
     expect(request?.question).toContain('"value": "Expected Output Message"');
-    
+
     // Verify no unreplaced template markers remain
     expect(request?.question).not.toMatch(/\{\{\s*\w+\s*\}\}/);
   });

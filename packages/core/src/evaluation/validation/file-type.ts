@@ -21,7 +21,7 @@ export async function detectFileType(filePath: string): Promise<FileType> {
     }
 
     const record = parsed as Record<string, unknown>;
-    const schema = record["$schema"];
+    const schema = record.$schema;
 
     if (typeof schema !== "string") {
       return "unknown";

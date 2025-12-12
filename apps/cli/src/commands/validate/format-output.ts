@@ -1,4 +1,8 @@
-import type { ValidationSummary, ValidationResult, ValidationError } from "@agentv/core/evaluation/validation";
+import type {
+  ValidationError,
+  ValidationResult,
+  ValidationSummary,
+} from "@agentv/core/evaluation/validation";
 
 const ANSI_RED = "\u001b[31m";
 const ANSI_YELLOW = "\u001b[33m";
@@ -40,7 +44,7 @@ function formatHeader(text: string, useColors: boolean): string {
 
 function formatFileResult(result: ValidationResult, useColors: boolean): string {
   const lines: string[] = [];
-  
+
   const status = result.valid ? "✓" : "✗";
   const statusColor = result.valid ? ANSI_GREEN : ANSI_RED;
   const statusText = useColors ? `${statusColor}${status}${ANSI_RESET}` : status;
@@ -69,14 +73,14 @@ function formatError(error: ValidationError, useColors: boolean): string {
 
 function formatStats(summary: ValidationSummary, useColors: boolean): string {
   const lines: string[] = [];
-  
+
   const totalText = `Total files: ${summary.totalFiles}`;
   const validText = `Valid: ${summary.validFiles}`;
   const invalidText = `Invalid: ${summary.invalidFiles}`;
-  
+
   // Count files with warnings
-  const filesWithWarnings = summary.results.filter(r => 
-    r.errors.some(e => e.severity === "warning")
+  const filesWithWarnings = summary.results.filter((r) =>
+    r.errors.some((e) => e.severity === "warning")
   ).length;
 
   if (useColors) {

@@ -1,7 +1,7 @@
-import { writeFile, unlink } from "node:fs/promises";
+import { unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CliProvider, type CommandRunResult } from "../../../src/evaluation/providers/cli.js";
 import type { CliResolvedConfig } from "../../../src/evaluation/providers/targets.js";
@@ -26,7 +26,13 @@ describe("CliProvider", () => {
 
   afterEach(async () => {
     // Clean up any files created during tests
-    await Promise.all(createdFiles.map((file) => unlink(file).catch(() => {/* ignore */})));
+    await Promise.all(
+      createdFiles.map((file) =>
+        unlink(file).catch(() => {
+          /* ignore */
+        })
+      )
+    );
     createdFiles.length = 0;
   });
 
@@ -61,12 +67,14 @@ describe("CliProvider", () => {
   });
 
   it("throws on non-zero exit codes with stderr context", async () => {
-    const runner = vi.fn(async (_command, _options): Promise<CommandRunResult> => ({
-      stdout: "",
-      stderr: "Something went wrong",
-      exitCode: 2,
-      failed: true,
-    }));
+    const runner = vi.fn(
+      async (_command, _options): Promise<CommandRunResult> => ({
+        stdout: "",
+        stderr: "Something went wrong",
+        exitCode: 2,
+        failed: true,
+      })
+    );
 
     const provider = new CliProvider("cli-target", baseConfig, runner);
 
@@ -74,13 +82,15 @@ describe("CliProvider", () => {
   });
 
   it("treats timed out commands as failures", async () => {
-    const runner = vi.fn(async (_command, _options): Promise<CommandRunResult> => ({
-      stdout: "",
-      stderr: "",
-      exitCode: null,
-      failed: true,
-      timedOut: true,
-    }));
+    const runner = vi.fn(
+      async (_command, _options): Promise<CommandRunResult> => ({
+        stdout: "",
+        stderr: "",
+        exitCode: null,
+        failed: true,
+        timedOut: true,
+      })
+    );
 
     const provider = new CliProvider("cli-target", baseConfig, runner);
 

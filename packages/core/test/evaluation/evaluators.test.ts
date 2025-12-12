@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { LlmJudgeEvaluator } from "../../src/evaluation/evaluators.js";
 import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
-import type { Provider, ProviderRequest, ProviderResponse } from "../../src/evaluation/providers/types.js";
+import type {
+  Provider,
+  ProviderRequest,
+  ProviderResponse,
+} from "../../src/evaluation/providers/types.js";
 import type { EvalCase } from "../../src/evaluation/types.js";
 
 class StubProvider implements Provider {
@@ -213,14 +217,18 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     expect(result.score).toBeCloseTo(0.7);
-    
+
     // Custom template goes in user prompt (question), system prompt only has output schema
     expect(judgeProvider.lastRequest?.question).toContain(customPrompt);
-    expect(judgeProvider.lastRequest?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(judgeProvider.lastRequest?.systemPrompt).toContain(
+      "You must respond with a single JSON object"
+    );
     expect(judgeProvider.lastRequest?.systemPrompt).not.toContain(customPrompt);
-    
+
     expect(result.evaluatorRawRequest?.userPrompt).toContain(customPrompt);
-    expect(result.evaluatorRawRequest?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(result.evaluatorRawRequest?.systemPrompt).toContain(
+      "You must respond with a single JSON object"
+    );
     expect(result.evaluatorRawRequest?.systemPrompt).not.toContain(customPrompt);
   });
 

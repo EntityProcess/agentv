@@ -42,16 +42,16 @@ export class ProgressDisplay {
   start(): void {
     this.started = true;
     this.finished = false;
-    
+
     if (this.isInteractive) {
       // Print initial empty line for visual separation
       this.write("\n");
-      
+
       // Start periodic rendering (similar to Vitest's approach)
       this.renderTimer = setInterval(() => {
         this.scheduleRender();
       }, 1000); // Update once per second
-      
+
       this.renderTimer.unref?.();
     }
   }
@@ -62,7 +62,7 @@ export class ProgressDisplay {
 
   updateWorker(progress: WorkerProgress): void {
     this.workers.set(progress.workerId, progress);
-    
+
     if (progress.status === "completed" || progress.status === "failed") {
       this.completedTests++;
     }
@@ -75,7 +75,9 @@ export class ProgressDisplay {
       if (progress.status === "completed") {
         console.log(`✓ Eval ${progress.evalId}${targetSuffix} completed`);
       } else if (progress.status === "failed") {
-        console.log(`✗ Eval ${progress.evalId}${targetSuffix} failed${progress.error ? `: ${progress.error}` : ""}`);
+        console.log(
+          `✗ Eval ${progress.evalId}${targetSuffix} failed${progress.error ? `: ${progress.error}` : ""}`
+        );
       }
     }
   }
@@ -117,9 +119,9 @@ export class ProgressDisplay {
     if (this.renderScheduled || this.finished) {
       return;
     }
-    
+
     this.renderScheduled = true;
-    
+
     // Debounce renders to 100ms to prevent rapid re-renders
     setTimeout(() => {
       this.renderScheduled = false;
@@ -138,24 +140,24 @@ export class ProgressDisplay {
 
     // Move cursor to start of line and clear it
     this.write(`\r${CLEAR_LINE}`);
-    
+
     // Move up and clear each line
     for (let i = 1; i < this.windowHeight; i++) {
       this.write(`${MOVE_CURSOR_UP}\r${CLEAR_LINE}`);
     }
-    
+
     this.windowHeight = 0;
   }
 
   private getRenderedRowCount(rows: string[]): number {
     const columns = process.stdout.columns || 80;
     let count = 0;
-    
+
     for (const row of rows) {
       const text = stripVTControlCharacters(row);
       count += Math.max(1, Math.ceil(text.length / columns));
     }
-    
+
     return count;
   }
 
@@ -165,7 +167,7 @@ export class ProgressDisplay {
     }
 
     const lines: string[] = [];
-    
+
     // Worker status lines
     const sortedWorkers = Array.from(this.workers.values()).sort((a, b) => a.workerId - b.workerId);
     for (const worker of sortedWorkers) {
@@ -183,14 +185,14 @@ export class ProgressDisplay {
 
     // Calculate row count for accurate clearing
     const rowCount = this.getRenderedRowCount(lines);
-    
+
     // Clear and redraw without synchronized updates (to avoid Windows Terminal issues)
     this.clearWindow();
-    
+
     if (lines.length > 0) {
       this.write(lines.join("\n"));
     }
-    
+
     this.windowHeight = rowCount;
   }
 
@@ -202,9 +204,8 @@ export class ProgressDisplay {
     const columns = process.stdout.columns || 80;
     // Leave a small buffer to prevent accidental wrapping at the edge
     const maxLineLength = Math.max(40, columns - 4);
-    
-    const reservedLength =
-      workerLabel.length + statusIcon.length + targetLabel.length + 4; // spaces and separators
+
+    const reservedLength = workerLabel.length + statusIcon.length + targetLabel.length + 4; // spaces and separators
     const availableLabelLength = Math.max(15, maxLineLength - reservedLength);
 
     let testLabel = worker.evalId;
@@ -235,21 +236,21 @@ export class ProgressDisplay {
       clearInterval(this.renderTimer);
       this.renderTimer = undefined;
     }
-    
+
     this.finished = true;
 
     if (this.isInteractive && this.started) {
       // Clear the dynamic window completely
       this.clearWindow();
-      
+
       // Write final state as permanent output (not a window)
       const sortedWorkers = Array.from(this.workers.values()).sort(
         (a, b) => a.workerId - b.workerId
       );
       for (const worker of sortedWorkers) {
-        this.write(this.formatWorkerLine(worker) + "\n");
+        this.write(`${this.formatWorkerLine(worker)}\n`);
       }
-      
+
       // Add blank line to separate from summary
       this.write("\n");
     }

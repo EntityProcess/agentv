@@ -12,7 +12,7 @@ export interface OutputWriter {
 
 export async function createOutputWriter(
   filePath: string,
-  format: OutputFormat,
+  format: OutputFormat
 ): Promise<OutputWriter> {
   switch (format) {
     case "jsonl":

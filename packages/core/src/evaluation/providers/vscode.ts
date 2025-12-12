@@ -1,10 +1,15 @@
 import path from "node:path";
-import { dispatchAgentSession, dispatchBatchAgent, getSubagentRoot, provisionSubagents } from "subagent";
+import {
+  dispatchAgentSession,
+  dispatchBatchAgent,
+  getSubagentRoot,
+  provisionSubagents,
+} from "subagent";
 
-import type { VSCodeResolvedConfig } from "./targets.js";
-import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 import { readTextFile } from "../file-utils.js";
 import { isGuidelineFile } from "../yaml-parser.js";
+import type { VSCodeResolvedConfig } from "./targets.js";
+import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
 
 export class VSCodeProvider implements Provider {
   readonly id: string;
@@ -17,7 +22,7 @@ export class VSCodeProvider implements Provider {
   constructor(
     targetName: string,
     config: VSCodeResolvedConfig,
-    kind: "vscode" | "vscode-insiders",
+    kind: "vscode" | "vscode-insiders"
   ) {
     this.id = `${kind}:${targetName}`;
     this.kind = kind;
@@ -81,10 +86,10 @@ export class VSCodeProvider implements Provider {
     }));
 
     const combinedInputFiles = mergeAttachments(
-      normalizedRequests.map(({ inputFiles }) => inputFiles),
+      normalizedRequests.map(({ inputFiles }) => inputFiles)
     );
     const userQueries = normalizedRequests.map(({ request, inputFiles }) =>
-      buildPromptDocument(request, inputFiles, request.guideline_patterns),
+      buildPromptDocument(request, inputFiles, request.guideline_patterns)
     );
 
     const session = await dispatchBatchAgent({
@@ -116,7 +121,7 @@ export class VSCodeProvider implements Provider {
 
     if (session.responseFiles.length !== requests.length) {
       throw new Error(
-        `VS Code batch returned ${session.responseFiles.length} responses for ${requests.length} requests`,
+        `VS Code batch returned ${session.responseFiles.length} responses for ${requests.length} requests`
       );
     }
 
@@ -141,7 +146,7 @@ export class VSCodeProvider implements Provider {
 function buildPromptDocument(
   request: ProviderRequest,
   attachments: readonly string[] | undefined,
-  guidelinePatterns: readonly string[] | undefined,
+  guidelinePatterns: readonly string[] | undefined
 ): string {
   const parts: string[] = [];
 
@@ -153,9 +158,7 @@ function buildPromptDocument(
   const guidelineFiles = collectGuidelineFiles(attachments, guidelinePatterns);
   const attachmentFiles = collectAttachmentFiles(attachments);
 
-  const nonGuidelineAttachments = attachmentFiles.filter(
-    (file) => !guidelineFiles.includes(file),
-  );
+  const nonGuidelineAttachments = attachmentFiles.filter((file) => !guidelineFiles.includes(file));
 
   const prereadBlock = buildMandatoryPrereadBlock(guidelineFiles, nonGuidelineAttachments);
   if (prereadBlock.length > 0) {
@@ -169,7 +172,7 @@ function buildPromptDocument(
 
 function buildMandatoryPrereadBlock(
   guidelineFiles: readonly string[],
-  attachmentFiles: readonly string[],
+  attachmentFiles: readonly string[]
 ): string {
   if (guidelineFiles.length === 0 && attachmentFiles.length === 0) {
     return "";
@@ -193,7 +196,7 @@ function buildMandatoryPrereadBlock(
 
   sections.push(
     "If any file is missing, fail with ERROR: missing-file <filename> and stop.",
-    "Then apply system_instructions on the user query below.",
+    "Then apply system_instructions on the user query below."
   );
 
   return sections.join("\n");
@@ -201,7 +204,7 @@ function buildMandatoryPrereadBlock(
 
 function collectGuidelineFiles(
   attachments: readonly string[] | undefined,
-  guidelinePatterns: readonly string[] | undefined,
+  guidelinePatterns: readonly string[] | undefined
 ): string[] {
   if (!attachments || attachments.length === 0) {
     return [];
@@ -211,7 +214,7 @@ function collectGuidelineFiles(
   for (const attachment of attachments) {
     const absolutePath = path.resolve(attachment);
     const normalized = absolutePath.split(path.sep).join("/");
-    
+
     if (isGuidelineFile(normalized, guidelinePatterns)) {
       if (!unique.has(absolutePath)) {
         unique.set(absolutePath, absolutePath);
@@ -222,9 +225,7 @@ function collectGuidelineFiles(
   return Array.from(unique.values());
 }
 
-function collectAttachmentFiles(
-  attachments: readonly string[] | undefined,
-): string[] {
+function collectAttachmentFiles(attachments: readonly string[] | undefined): string[] {
   if (!attachments || attachments.length === 0) {
     return [];
   }
@@ -296,28 +297,28 @@ export interface EnsureSubagentsResult {
 /**
  * Ensures the required number of VSCode subagents are provisioned using the subagent package.
  * This guarantees version compatibility by using the same subagent package version.
- * 
+ *
  * @param options - Configuration for subagent provisioning
  * @returns Information about the provisioning result
  */
 export async function ensureVSCodeSubagents(
-  options: EnsureSubagentsOptions,
+  options: EnsureSubagentsOptions
 ): Promise<EnsureSubagentsResult> {
   const { kind, count, verbose = false } = options;
   const vscodeCmd = kind === "vscode-insiders" ? "code-insiders" : "code";
   const subagentRoot = getSubagentRoot(vscodeCmd);
-  
+
   try {
     if (verbose) {
       console.log(`Provisioning ${count} subagent(s) via: subagent ${vscodeCmd} provision`);
     }
-    
+
     const result = await provisionSubagents({
       targetRoot: subagentRoot,
       subagents: count,
       dryRun: false,
     });
-    
+
     if (verbose) {
       if (result.created.length > 0) {
         console.log(`Created ${result.created.length} new subagent(s)`);
@@ -325,25 +326,26 @@ export async function ensureVSCodeSubagents(
       if (result.skippedExisting.length > 0) {
         console.log(`Reusing ${result.skippedExisting.length} existing unlocked subagent(s)`);
       }
-      console.log(`\ntotal unlocked subagents available: ${result.created.length + result.skippedExisting.length}`);
+      console.log(
+        `\ntotal unlocked subagents available: ${result.created.length + result.skippedExisting.length}`
+      );
     }
-    
+
     return {
       provisioned: true,
       message: `Provisioned ${count} subagent(s): ${result.created.length} created, ${result.skippedExisting.length} reused`,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
+
     // Don't fail if provisioning fails - agents might already exist
     if (verbose) {
       console.warn(`Provisioning failed (continuing anyway): ${errorMessage}`);
     }
-    
+
     return {
       provisioned: false,
       message: `Provisioning failed: ${errorMessage}`,
     };
   }
-
 }

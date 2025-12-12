@@ -10,31 +10,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function checkSchema(parsed: Record<string, unknown>, absolutePath: string): void {
-  const schema = parsed.$schema;
-
-  if (schema === undefined) {
-    throw new Error(
-      `Missing $schema field in targets.yaml at ${absolutePath}.\n` +
-      `Please add '$schema: ${TARGETS_SCHEMA_V2}' at the top of the file.`
-    );
-  }
-
-  if (typeof schema !== 'string') {
-    throw new Error(
-      `Invalid $schema field in targets.yaml at ${absolutePath}.\n` +
-      `Expected a string value '${TARGETS_SCHEMA_V2}'.`
-    );
-  }
-
-  if (schema !== TARGETS_SCHEMA_V2) {
-    throw new Error(
-      `Invalid $schema '${schema}' in targets.yaml at ${absolutePath}.\n` +
-      `Expected '${TARGETS_SCHEMA_V2}'.`
-    );
-  }
-}
-
 function extractTargetsArray(parsed: Record<string, unknown>, absolutePath: string): unknown[] {
   const targets = parsed.targets;
   if (!Array.isArray(targets)) {
@@ -52,7 +27,9 @@ function assertTargetDefinition(value: unknown, index: number, filePath: string)
   const provider = value.provider;
 
   if (typeof name !== "string" || name.trim().length === 0) {
-    throw new Error(`targets.yaml entry at index ${index} in ${filePath} is missing a valid 'name'`);
+    throw new Error(
+      `targets.yaml entry at index ${index} in ${filePath} is missing a valid 'name'`
+    );
   }
 
   if (typeof provider !== "string" || provider.trim().length === 0) {
@@ -73,7 +50,9 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
-export async function readTargetDefinitions(filePath: string): Promise<readonly TargetDefinition[]> {
+export async function readTargetDefinitions(
+  filePath: string
+): Promise<readonly TargetDefinition[]> {
   const absolutePath = path.resolve(filePath);
   if (!(await fileExists(absolutePath))) {
     throw new Error(`targets.yaml not found at ${absolutePath}`);
@@ -83,13 +62,13 @@ export async function readTargetDefinitions(filePath: string): Promise<readonly 
   const parsed = parse(raw) as unknown;
 
   if (!isRecord(parsed)) {
-    throw new Error(`targets.yaml at ${absolutePath} must be a YAML object with '$schema' and 'targets' fields`);
+    throw new Error(`targets.yaml at ${absolutePath} must be a YAML object with a 'targets' field`);
   }
 
-  checkSchema(parsed, absolutePath);
-
   const targets = extractTargetsArray(parsed, absolutePath);
-  const definitions = targets.map((entry, index) => assertTargetDefinition(entry, index, absolutePath));
+  const definitions = targets.map((entry, index) =>
+    assertTargetDefinition(entry, index, absolutePath)
+  );
   return definitions;
 }
 

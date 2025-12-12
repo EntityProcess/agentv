@@ -7,12 +7,7 @@ import { extractTargetFromSuite, loadConfig } from "./loaders/config-loader.js";
 import { coerceEvaluator, parseEvaluators } from "./loaders/evaluator-parser.js";
 import { buildSearchRoots, resolveToAbsolutePath } from "./loaders/file-resolver.js";
 import { processMessages, resolveAssistantContent } from "./loaders/message-processor.js";
-import type {
-  EvalCase,
-  JsonObject,
-  JsonValue,
-  TestMessage,
-} from "./types.js";
+import type { EvalCase, JsonObject, JsonValue, TestMessage } from "./types.js";
 import { isJsonObject, isTestMessage } from "./types.js";
 
 // Re-export public APIs from modules
@@ -23,7 +18,6 @@ export { isGuidelineFile } from "./loaders/config-loader.js";
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RED = "\u001b[31m";
 const ANSI_RESET = "\u001b[0m";
-const SCHEMA_EVAL_V2 = "agentv-eval-v2";
 
 type LoadOptions = {
   readonly verbose?: boolean;
@@ -31,7 +25,6 @@ type LoadOptions = {
 };
 
 type RawTestSuite = JsonObject & {
-  readonly $schema?: JsonValue;
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
   readonly execution?: JsonValue;
@@ -57,11 +50,11 @@ export async function readTestSuiteMetadata(testFilePath: string): Promise<{ tar
     const absolutePath = path.resolve(testFilePath);
     const content = await readFile(absolutePath, "utf8");
     const parsed = parse(content) as unknown;
-    
+
     if (!isJsonObject(parsed)) {
       return {};
     }
-    
+
     return { target: extractTargetFromSuite(parsed) };
   } catch {
     return {};
@@ -74,7 +67,7 @@ export async function readTestSuiteMetadata(testFilePath: string): Promise<{ tar
 export async function loadEvalCases(
   evalFilePath: string,
   repoRoot: URL | string,
-  options?: LoadOptions,
+  options?: LoadOptions
 ): Promise<readonly EvalCase[]> {
   const verbose = options?.verbose ?? false;
   const evalIdFilter = options?.evalId;
@@ -97,30 +90,21 @@ export async function loadEvalCases(
   const datasetNameFromSuite = asString(suite.dataset)?.trim();
   const fallbackDataset = path.basename(absoluteTestPath).replace(/\.ya?ml$/i, "") || "eval";
   const datasetName =
-    datasetNameFromSuite && datasetNameFromSuite.length > 0 ? datasetNameFromSuite : fallbackDataset;
-  
-  // Check $schema field to ensure V2 format
-  const schema = suite.$schema;
-  
-  if (schema !== SCHEMA_EVAL_V2) {
-    const message = typeof schema === 'string' 
-      ? `Invalid $schema value '${schema}' in ${evalFilePath}. Expected '${SCHEMA_EVAL_V2}'`
-      : `Missing required field '$schema' in ${evalFilePath}.\nPlease add '$schema: ${SCHEMA_EVAL_V2}' at the top of the file.`;
-    throw new Error(message);
-  }
-  
-  // V2 format: $schema is agentv-eval-v2
+    datasetNameFromSuite && datasetNameFromSuite.length > 0
+      ? datasetNameFromSuite
+      : fallbackDataset;
+
   const rawTestcases = suite.evalcases;
   if (!Array.isArray(rawTestcases)) {
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'evalcases' field`);
   }
 
   const globalEvaluator = coerceEvaluator(suite.evaluator, "global") ?? "llm_judge";
-  
+
   // Extract global target from execution.target (or legacy root-level target)
   const globalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
   const _globalTarget = asString(globalExecution?.target) ?? asString(suite.target);
-  
+
   const results: EvalCase[] = [];
 
   for (const rawEvalcase of rawTestcases) {
@@ -131,32 +115,37 @@ export async function loadEvalCases(
 
     const evalcase = rawEvalcase as RawEvalCase;
     const id = asString(evalcase.id);
-    
+
     // Skip eval cases that don't match the filter
     if (evalIdFilter && id !== evalIdFilter) {
       continue;
     }
-    
+
     const conversationId = asString(evalcase.conversation_id);
     const outcome = asString(evalcase.outcome);
-    
+
     const inputMessagesValue = evalcase.input_messages;
     const expectedMessagesValue = evalcase.expected_messages;
 
     if (!id || !outcome || !Array.isArray(inputMessagesValue)) {
-      logError(`Skipping incomplete eval case: ${id ?? "unknown"}. Missing required fields: id, outcome, and/or input_messages`);
+      logError(
+        `Skipping incomplete eval case: ${id ?? "unknown"}. Missing required fields: id, outcome, and/or input_messages`
+      );
       continue;
     }
-    
+
     // expected_messages is optional - for outcome-only evaluation
-    const hasExpectedMessages = Array.isArray(expectedMessagesValue) && expectedMessagesValue.length > 0;
+    const hasExpectedMessages =
+      Array.isArray(expectedMessagesValue) && expectedMessagesValue.length > 0;
 
     // V2 format: input_messages vs expected_messages
-    const inputMessages = inputMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg));
-    const expectedMessages = hasExpectedMessages 
+    const inputMessages = inputMessagesValue.filter((msg): msg is TestMessage =>
+      isTestMessage(msg)
+    );
+    const expectedMessages = hasExpectedMessages
       ? expectedMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg))
       : [];
-    
+
     if (hasExpectedMessages && expectedMessages.length === 0) {
       logError(`No valid expected message found for eval case: ${id}`);
       continue;
@@ -195,7 +184,7 @@ export async function loadEvalCases(
 
     const codeSnippets = extractCodeBlocks(inputSegments);
     const expectedContent = expectedMessages[0]?.content;
-    const referenceAnswer = expectedContent 
+    const referenceAnswer = expectedContent
       ? await resolveAssistantContent(expectedContent, searchRoots, verbose)
       : "";
     const question = inputTextParts

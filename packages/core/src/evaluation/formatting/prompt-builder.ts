@@ -1,12 +1,17 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { formatFileContents, formatSegment, hasVisibleContent, type FormattingMode } from "./segment-formatter.js";
 import { isGuidelineFile } from "../loaders/config-loader.js";
 import { fileExists } from "../loaders/file-resolver.js";
 import type { ChatMessageRole, ChatPrompt } from "../providers/types.js";
 import type { EvalCase, JsonObject, TestMessage } from "../types.js";
 import { isJsonObject } from "../types.js";
+import {
+  type FormattingMode,
+  formatFileContents,
+  formatSegment,
+  hasVisibleContent,
+} from "./segment-formatter.js";
 
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";
@@ -23,11 +28,14 @@ export interface PromptInputs {
 
 /**
  * Build prompt inputs by consolidating user request context and guideline content.
- * 
+ *
  * @param testCase - The evaluation test case
  * @param mode - Formatting mode: 'agent' for file references, 'lm' for embedded content (default: 'lm')
  */
-export async function buildPromptInputs(testCase: EvalCase, mode: FormattingMode = 'lm'): Promise<PromptInputs> {
+export async function buildPromptInputs(
+  testCase: EvalCase,
+  mode: FormattingMode = "lm"
+): Promise<PromptInputs> {
   const guidelineParts: Array<{ content: string; isFile: boolean; displayPath?: string }> = [];
   for (const rawPath of testCase.guideline_paths) {
     const absolutePath = path.resolve(rawPath);
@@ -41,7 +49,7 @@ export async function buildPromptInputs(testCase: EvalCase, mode: FormattingMode
       guidelineParts.push({
         content,
         isFile: true,
-        displayPath: path.basename(absolutePath)
+        displayPath: path.basename(absolutePath),
       });
     } catch (error) {
       logWarning(`Could not read guideline file ${absolutePath}: ${(error as Error).message}`);
@@ -54,14 +62,18 @@ export async function buildPromptInputs(testCase: EvalCase, mode: FormattingMode
   const segmentsByMessage: JsonObject[][] = [];
   const fileContentsByPath = new Map<string, string>();
   for (const segment of testCase.input_segments) {
-    if (segment.type === "file" && typeof segment.path === "string" && typeof segment.text === "string") {
+    if (
+      segment.type === "file" &&
+      typeof segment.path === "string" &&
+      typeof segment.text === "string"
+    ) {
       fileContentsByPath.set(segment.path, segment.text);
     }
   }
-  
+
   for (const message of testCase.input_messages) {
     const messageSegments: JsonObject[] = [];
-    
+
     if (typeof message.content === "string") {
       if (message.content.trim().length > 0) {
         messageSegments.push({ type: "text", value: message.content });
@@ -74,21 +86,24 @@ export async function buildPromptInputs(testCase: EvalCase, mode: FormattingMode
           }
         } else if (isJsonObject(segment)) {
           const type = asString(segment.type);
-          
+
           if (type === "file") {
             const value = asString(segment.value);
             if (!value) continue;
-            
+
             // Check if this is a guideline file (extracted separately)
-            if (testCase.guideline_patterns && isGuidelineFile(value, testCase.guideline_patterns)) {
+            if (
+              testCase.guideline_patterns &&
+              isGuidelineFile(value, testCase.guideline_patterns)
+            ) {
               // Reference marker only - actual content is in guidelines field
               messageSegments.push({ type: "guideline_ref", path: value });
               continue;
             }
-            
+
             // Find the file content from input_segments
             const fileText = fileContentsByPath.get(value);
-            
+
             if (fileText !== undefined) {
               messageSegments.push({ type: "file", text: fileText, path: value });
             }
@@ -101,7 +116,7 @@ export async function buildPromptInputs(testCase: EvalCase, mode: FormattingMode
         }
       }
     }
-    
+
     segmentsByMessage.push(messageSegments);
   }
 
@@ -109,50 +124,52 @@ export async function buildPromptInputs(testCase: EvalCase, mode: FormattingMode
   const useRoleMarkers = needsRoleMarkers(testCase.input_messages, segmentsByMessage);
 
   let question: string;
-  
+
   if (useRoleMarkers) {
     // Multi-turn format with role markers using pre-computed segments
     const messageParts: string[] = [];
-    
+
     for (let i = 0; i < testCase.input_messages.length; i++) {
       const message = testCase.input_messages[i];
       const segments = segmentsByMessage[i];
-      
+
       if (!hasVisibleContent(segments)) {
         continue;
       }
-      
+
       const roleLabel = message.role.charAt(0).toUpperCase() + message.role.slice(1);
       const contentParts: string[] = [];
-      
+
       for (const segment of segments) {
         const formattedContent = formatSegment(segment, mode);
         if (formattedContent) {
           contentParts.push(formattedContent);
         }
       }
-      
+
       if (contentParts.length > 0) {
         const messageContent = contentParts.join("\n");
         messageParts.push(`@[${roleLabel}]:\n${messageContent}`);
       }
     }
-    
+
     question = messageParts.join("\n\n");
   } else {
     // Single-turn flat format
     const questionParts: string[] = [];
     for (const segment of testCase.input_segments) {
       // Skip guideline files - they're in the guidelines field
-      if (segment.type === "file" && 
-          typeof segment.path === "string" && 
-          testCase.guideline_patterns && 
-          isGuidelineFile(segment.path, testCase.guideline_patterns)) {
+      if (
+        segment.type === "file" &&
+        typeof segment.path === "string" &&
+        testCase.guideline_patterns &&
+        isGuidelineFile(segment.path, testCase.guideline_patterns)
+      ) {
         // Add reference marker for guideline files
         questionParts.push(`<Attached: ${segment.path}>`);
         continue;
       }
-      
+
       const formattedContent = formatSegment(segment, mode);
       if (formattedContent) {
         questionParts.push(formattedContent);
@@ -184,29 +201,29 @@ export async function buildPromptInputs(testCase: EvalCase, mode: FormattingMode
 
 /**
  * Detect if role markers are needed based on conversational structure.
- * 
+ *
  * Role markers ([System]:, [User]:, etc.) are added when:
  * 1. There are assistant/tool messages (true multi-turn conversation), OR
  * 2. There are multiple messages that will produce visible content in the formatted output
  */
 function needsRoleMarkers(
   messages: readonly TestMessage[],
-  processedSegmentsByMessage: readonly (readonly JsonObject[])[],
+  processedSegmentsByMessage: readonly (readonly JsonObject[])[]
 ): boolean {
   // Check for multi-turn conversation (assistant/tool messages)
   if (messages.some((msg) => msg.role === "assistant" || msg.role === "tool")) {
     return true;
   }
-  
+
   // Count how many messages have actual content after processing
   let messagesWithContent = 0;
-  
+
   for (const segments of processedSegmentsByMessage) {
     if (hasVisibleContent(segments)) {
       messagesWithContent++;
     }
   }
-  
+
   return messagesWithContent > 1;
 }
 
@@ -218,7 +235,14 @@ function buildChatPromptFromSegments(options: {
   readonly systemPrompt?: string;
   readonly mode?: FormattingMode;
 }): ChatPrompt | undefined {
-  const { messages, segmentsByMessage, guidelinePatterns, guidelineContent, systemPrompt, mode = 'lm' } = options;
+  const {
+    messages,
+    segmentsByMessage,
+    guidelinePatterns,
+    guidelineContent,
+    systemPrompt,
+    mode = "lm",
+  } = options;
 
   if (messages.length === 0) {
     return undefined;

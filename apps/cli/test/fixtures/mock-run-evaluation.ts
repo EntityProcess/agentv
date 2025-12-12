@@ -66,7 +66,7 @@ function buildResults(targetName: string): EvaluationResultLike[] {
 
 async function maybeWriteDiagnostics(
   options: RunEvaluationOptionsLike,
-  results: readonly EvaluationResultLike[],
+  results: readonly EvaluationResultLike[]
 ): Promise<void> {
   const diagnosticsPath = process.env.AGENTEVO_CLI_EVAL_RUNNER_OUTPUT;
   if (!diagnosticsPath) {
@@ -86,7 +86,10 @@ async function maybeWriteDiagnostics(
   await writeFile(diagnosticsPath, JSON.stringify(payload, null, 2), "utf8");
 }
 
-async function maybeWritePromptDump(promptDumpDir: string | undefined, testIds: readonly string[]): Promise<void> {
+async function maybeWritePromptDump(
+  promptDumpDir: string | undefined,
+  testIds: readonly string[]
+): Promise<void> {
   if (!promptDumpDir) {
     return;
   }
@@ -99,12 +102,15 @@ async function maybeWritePromptDump(promptDumpDir: string | undefined, testIds: 
 }
 
 export async function runEvaluation(
-  options: RunEvaluationOptionsLike,
+  options: RunEvaluationOptionsLike
 ): Promise<readonly EvaluationResultLike[]> {
   const results = buildResults(options.target?.name ?? "unknown-target");
 
   await maybeWriteDiagnostics(options, results);
-  await maybeWritePromptDump(options.promptDumpDir, results.map((result) => result.eval_id));
+  await maybeWritePromptDump(
+    options.promptDumpDir,
+    results.map((result) => result.eval_id)
+  );
 
   for (const result of results) {
     if (options.onResult) {

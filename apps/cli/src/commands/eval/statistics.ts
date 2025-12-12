@@ -46,7 +46,8 @@ function computeStandardDeviation(values: readonly number[]): number | undefined
     return undefined;
   }
   const mean = computeMean(values);
-  const variance = values.reduce((acc, value) => acc + (value - mean) ** 2, 0) / (values.length - 1);
+  const variance =
+    values.reduce((acc, value) => acc + (value - mean) ** 2, 0) / (values.length - 1);
   return Math.sqrt(variance);
 }
 
@@ -63,7 +64,9 @@ function buildHistogram(values: readonly number[]): readonly HistogramBin[] {
     for (const bin of bins) {
       const [start, end] = bin.range;
       const isLastBin = end === HISTOGRAM_BREAKPOINTS[HISTOGRAM_BREAKPOINTS.length - 1];
-      const withinRange = isLastBin ? value >= start && value <= end : value >= start && value < end + 1e-9;
+      const withinRange = isLastBin
+        ? value >= start && value <= end
+        : value >= start && value < end + 1e-9;
       if (withinRange) {
         bin.count += 1;
         break;
@@ -74,14 +77,16 @@ function buildHistogram(values: readonly number[]): readonly HistogramBin[] {
   return bins;
 }
 
-export function calculateEvaluationSummary(results: readonly EvaluationResult[]): EvaluationSummary {
+export function calculateEvaluationSummary(
+  results: readonly EvaluationResult[]
+): EvaluationSummary {
   const scores = results.map((result) => result.score);
   const total = results.length;
-  
+
   // Track errors
   const errors = results
     .filter((result) => result.error !== undefined)
-    .map((result) => ({ evalId: result.eval_id, error: result.error! }));
+    .map((result) => ({ evalId: result.eval_id, error: result.error as string }));
   const errorCount = errors.length;
 
   if (total === 0) {
@@ -136,29 +141,29 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
   }
 
   const lines: string[] = [];
-  
+
   // Display errors first if any exist
   if (summary.errorCount > 0) {
     lines.push("\n==================================================");
     lines.push("ERRORS");
     lines.push("==================================================");
-    summary.errors.forEach((error) => {
+    for (const error of summary.errors) {
       lines.push(`\n❌ ${error.evalId}`);
       lines.push(`   ${error.error}`);
-    });
+    }
     lines.push("");
   }
-  
+
   lines.push("\n==================================================");
   lines.push("EVALUATION SUMMARY");
   lines.push("==================================================");
   lines.push(`Total eval cases: ${summary.total}`);
-  
+
   if (summary.errorCount > 0) {
     lines.push(`Failed: ${summary.errorCount}`);
     lines.push(`Passed: ${summary.total - summary.errorCount}`);
   }
-  
+
   lines.push(`Mean score: ${formatScore(summary.mean)}`);
   lines.push(`Median score: ${formatScore(summary.median)}`);
   lines.push(`Min score: ${formatScore(summary.min)}`);

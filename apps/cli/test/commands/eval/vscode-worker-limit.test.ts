@@ -5,7 +5,7 @@ describe("VSCode worker limit validation", () => {
     // This test verifies that when using vscode or vscode-insiders providers,
     // the workers count is automatically limited to 1 to prevent race conditions
     // caused by window focus requirements.
-    
+
     const targetSelection = {
       resolvedTarget: {
         kind: "vscode" as const,

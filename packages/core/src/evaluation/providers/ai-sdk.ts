@@ -1,8 +1,9 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { createAzure, type AzureOpenAIProviderSettings } from "@ai-sdk/azure";
+import { type AzureOpenAIProviderSettings, createAzure } from "@ai-sdk/azure";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateText, type LanguageModel, type ModelMessage } from "ai";
+import { type LanguageModel, type ModelMessage, generateText } from "ai";
 
+import type { JsonObject } from "../types.js";
 import type {
   AnthropicResolvedConfig,
   AzureResolvedConfig,
@@ -10,7 +11,6 @@ import type {
   RetryConfig,
 } from "./targets.js";
 import type { ChatPrompt, Provider, ProviderRequest, ProviderResponse } from "./types.js";
-import type { JsonObject } from "../types.js";
 
 const DEFAULT_SYSTEM_PROMPT =
   "You are a careful assistant. Follow all provided instructions and do not fabricate results.";
@@ -35,7 +35,7 @@ export class AzureProvider implements Provider {
 
   constructor(
     targetName: string,
-    private readonly config: AzureResolvedConfig,
+    private readonly config: AzureResolvedConfig
   ) {
     this.id = `azure:${targetName}`;
     this.targetName = targetName;
@@ -70,7 +70,7 @@ export class AnthropicProvider implements Provider {
 
   constructor(
     targetName: string,
-    private readonly config: AnthropicResolvedConfig,
+    private readonly config: AnthropicResolvedConfig
   ) {
     this.id = `anthropic:${targetName}`;
     this.targetName = targetName;
@@ -111,7 +111,7 @@ export class GeminiProvider implements Provider {
 
   constructor(
     targetName: string,
-    private readonly config: GeminiResolvedConfig,
+    private readonly config: GeminiResolvedConfig
   ) {
     this.id = `gemini:${targetName}`;
     this.targetName = targetName;
@@ -161,14 +161,12 @@ function normalizeAzureBaseUrl(resourceName: string): string | undefined {
   }
 
   const withoutSlash = trimmed.replace(/\/+$/, "");
-  const normalized = withoutSlash.endsWith("/openai")
-    ? withoutSlash
-    : `${withoutSlash}/openai`;
+  const normalized = withoutSlash.endsWith("/openai") ? withoutSlash : `${withoutSlash}/openai`;
   return normalized;
 }
 
 function buildAnthropicProviderOptions(
-  defaults: ProviderDefaults,
+  defaults: ProviderDefaults
 ): GenerateTextOptions["providerOptions"] | undefined {
   if (defaults.thinkingBudget === undefined) {
     return undefined;
@@ -249,7 +247,7 @@ function toModelMessages(chatPrompt: ChatPrompt): ModelMessage[] {
 
 function resolveModelSettings(
   request: ProviderRequest,
-  defaults: ProviderDefaults,
+  defaults: ProviderDefaults
 ): { temperature?: number; maxOutputTokens?: number } {
   const temperature = request.temperature ?? defaults.temperature;
   const maxOutputTokens = request.maxOutputTokens ?? defaults.maxOutputTokens;
@@ -282,7 +280,7 @@ async function invokeModel(options: {
         ...(providerOptions ? { providerOptions } : {}),
       }),
     retryConfig,
-    request.signal,
+    request.signal
   );
 
   return mapResponse(result);
@@ -320,9 +318,10 @@ function extractStatus(error: unknown): number | undefined {
     return directStatus;
   }
 
-  const responseStatus = typeof candidate.response === "object" && candidate.response
-    ? (candidate.response as { status?: unknown }).status
-    : undefined;
+  const responseStatus =
+    typeof candidate.response === "object" && candidate.response
+      ? (candidate.response as { status?: unknown }).status
+      : undefined;
   if (typeof responseStatus === "number" && Number.isFinite(responseStatus)) {
     return responseStatus;
   }
@@ -357,7 +356,10 @@ function isNetworkError(error: unknown): boolean {
   }
 
   const message = typeof candidate.message === "string" ? candidate.message : undefined;
-  if (message && /(network|fetch failed|ECONNRESET|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNREFUSED)/i.test(message)) {
+  if (
+    message &&
+    /(network|fetch failed|ECONNRESET|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNREFUSED)/i.test(message)
+  ) {
     return true;
   }
 
@@ -379,7 +381,7 @@ function isRetryableError(error: unknown, retryableStatusCodes: readonly number[
 function calculateRetryDelay(attempt: number, config: Required<RetryConfig>): number {
   const delay = Math.min(
     config.maxDelayMs,
-    config.initialDelayMs * config.backoffFactor ** attempt,
+    config.initialDelayMs * config.backoffFactor ** attempt
   );
   return delay * (0.75 + Math.random() * 0.5);
 }
@@ -391,7 +393,7 @@ async function sleep(ms: number): Promise<void> {
 async function withRetry<T>(
   fn: () => Promise<T>,
   retryConfig?: RetryConfig,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<T> {
   const config: Required<RetryConfig> = {
     maxRetries: retryConfig?.maxRetries ?? 3,

@@ -1,8 +1,8 @@
-import { Mutex } from "async-mutex";
 import { createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { finished } from "node:stream/promises";
+import { Mutex } from "async-mutex";
 
 export class JsonlWriter {
   private readonly stream: ReturnType<typeof createWriteStream>;

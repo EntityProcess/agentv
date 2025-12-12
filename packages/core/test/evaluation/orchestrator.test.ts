@@ -4,9 +4,13 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LlmJudgeEvaluator } from "../../src/evaluation/evaluators.js";
-import { runEvalCase, type EvaluationCache } from "../../src/evaluation/orchestrator.js";
+import { type EvaluationCache, runEvalCase } from "../../src/evaluation/orchestrator.js";
 import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
-import type { Provider, ProviderRequest, ProviderResponse } from "../../src/evaluation/providers/types.js";
+import type {
+  Provider,
+  ProviderRequest,
+  ProviderResponse,
+} from "../../src/evaluation/providers/types.js";
 import type { EvalCase } from "../../src/evaluation/types.js";
 
 class SequenceProvider implements Provider {
@@ -46,7 +50,10 @@ class CapturingJudgeProvider implements Provider {
   readonly targetName: string;
   lastRequest?: ProviderRequest;
 
-  constructor(targetName: string, private readonly response: ProviderResponse) {
+  constructor(
+    targetName: string,
+    private readonly response: ProviderResponse
+  ) {
     this.id = `judge:${targetName}`;
     this.targetName = targetName;
   }
@@ -63,7 +70,10 @@ class CapturingProvider implements Provider {
   readonly targetName: string;
   lastRequest?: ProviderRequest;
 
-  constructor(targetName: string, private readonly response: ProviderResponse) {
+  constructor(
+    targetName: string,
+    private readonly response: ProviderResponse
+  ) {
     this.id = `cap:${targetName}`;
     this.targetName = targetName;
   }
@@ -169,7 +179,7 @@ describe("runTestCase", () => {
     });
 
     expect(second.candidate_answer).toContain("structured logging");
-    expect(provider["callIndex"]).toBe(1);
+    expect(provider.callIndex).toBe(1);
   });
 
   it("retries timeout errors up to maxRetries", async () => {
@@ -267,12 +277,20 @@ describe("runTestCase", () => {
 
     // Custom template goes in user prompt, system prompt only has output schema
     expect(judgeProvider.lastRequest?.question).toContain("CUSTOM PROMPT CONTENT");
-    expect(judgeProvider.lastRequest?.systemPrompt).toContain("You must respond with a single JSON object");
+    expect(judgeProvider.lastRequest?.systemPrompt).toContain(
+      "You must respond with a single JSON object"
+    );
     expect(judgeProvider.lastRequest?.systemPrompt).not.toContain("CUSTOM PROMPT CONTENT");
-    
-    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.userPrompt).toContain("CUSTOM PROMPT CONTENT");
-    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.systemPrompt).toContain("You must respond with a single JSON object");
-    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.systemPrompt).not.toContain("CUSTOM PROMPT CONTENT");
+
+    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.userPrompt).toContain(
+      "CUSTOM PROMPT CONTENT"
+    );
+    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.systemPrompt).toContain(
+      "You must respond with a single JSON object"
+    );
+    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.systemPrompt).not.toContain(
+      "CUSTOM PROMPT CONTENT"
+    );
   });
 
   it("passes chatPrompt for multi-turn evals", async () => {
@@ -285,7 +303,13 @@ describe("runTestCase", () => {
         question: "",
         input_messages: [
           { role: "system", content: "Guide" },
-          { role: "user", content: [{ type: "file", value: "snippet.txt" }, { type: "text", value: "Review" }] },
+          {
+            role: "user",
+            content: [
+              { type: "file", value: "snippet.txt" },
+              { type: "text", value: "Review" },
+            ],
+          },
           { role: "assistant", content: "Ack" },
         ],
         input_segments: [
@@ -311,7 +335,10 @@ describe("runTestCase", () => {
     expect(chatPrompt).toBeDefined();
     if (!chatPrompt) throw new Error("chatPrompt is undefined");
     expect(chatPrompt[0].role).toBe("system");
-    expect(chatPrompt[1]).toEqual({ role: "user", content: "<file path=\"snippet.txt\">\ncode()\n</file>\nReview" });
+    expect(chatPrompt[1]).toEqual({
+      role: "user",
+      content: '<file path="snippet.txt">\ncode()\n</file>\nReview',
+    });
     expect(chatPrompt[2]).toEqual({ role: "assistant", content: "Ack" });
     expect(result.lm_provider_request?.chat_prompt).toBeDefined();
   });
@@ -348,18 +375,20 @@ describe("runTestCase", () => {
       readonly id = "agent";
       readonly kind = "codex"; // Agent provider kind
       readonly targetName = "agent";
-      async invoke() { return { text: "ok" }; }
+      async invoke() {
+        return { text: "ok" };
+      }
     }
-    
+
     const provider = new AgentProvider();
-    
+
     const result = await runEvalCase({
       evalCase: baseTestCase,
       provider,
-      target: { 
-        ...baseTarget, 
+      target: {
+        ...baseTarget,
         kind: "codex",
-        config: { executable: "echo" }
+        config: { executable: "echo" },
       },
       evaluators: evaluatorRegistry,
     });

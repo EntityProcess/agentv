@@ -1,6 +1,6 @@
 {
   "name": "agentv",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "CLI entry point for AgentV",
   "type": "module",
   "repository": {
@@ -14,17 +14,16 @@
   "bin": {
     "agentv": "./dist/cli.js"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsup && pnpm run copy-readme",
-    "copy-readme": "node -e \"require('fs').cpSync('../../README.md', 'README.md')\"",
-    "prepublishOnly": "pnpm run copy-readme",
+    "dev": "bun --watch src/index.ts",
+    "build": "tsup && bun run copy-readme",
+    "copy-readme": "bun -e \"import { cpSync } from 'fs'; cpSync('../../README.md', 'README.md')\"",
+    "prepublishOnly": "bun run copy-readme",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --ext .ts",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "fix": "biome check --write .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

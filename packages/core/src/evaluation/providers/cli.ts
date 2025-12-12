@@ -1,12 +1,12 @@
-import { exec as execWithCallback, type ExecException, type ExecOptions } from "node:child_process";
+import { type ExecException, type ExecOptions, exec as execWithCallback } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
+import { readTextFile } from "../file-utils.js";
 import type { CliResolvedConfig } from "./targets.js";
 import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
-import { readTextFile } from "../file-utils.js";
 
 const execAsync = promisify(execWithCallback);
 const DEFAULT_MAX_BUFFER = 10 * 1024 * 1024; // 10 MB to accommodate verbose CLI output
@@ -27,11 +27,14 @@ export interface CommandRunResult {
   readonly signal?: NodeJS.Signals | null;
 }
 
-export type CommandRunner = (command: string, options: CommandRunOptions) => Promise<CommandRunResult>;
+export type CommandRunner = (
+  command: string,
+  options: CommandRunOptions
+) => Promise<CommandRunResult>;
 
 async function defaultCommandRunner(
   command: string,
-  options: CommandRunOptions,
+  options: CommandRunOptions
 ): Promise<CommandRunResult> {
   const execOptions: ExecOptions = {
     cwd: options.cwd,
@@ -83,7 +86,11 @@ export class CliProvider implements Provider {
   private readonly verbose: boolean;
   private healthcheckPromise?: Promise<void>;
 
-  constructor(targetName: string, config: CliResolvedConfig, runner: CommandRunner = defaultCommandRunner) {
+  constructor(
+    targetName: string,
+    config: CliResolvedConfig,
+    runner: CommandRunner = defaultCommandRunner
+  ) {
     this.targetName = targetName;
     this.id = `cli:${targetName}`;
     this.config = config;
@@ -115,12 +122,14 @@ export class CliProvider implements Provider {
       }
       if (result.timedOut) {
         throw new Error(
-          `CLI provider timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
+          `CLI provider timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`
         );
       }
       const codeText = result.exitCode !== null ? result.exitCode : "unknown";
       const detail = result.stderr.trim() || result.stdout.trim();
-      const message = detail ? `${detail} (exit code ${codeText})` : `CLI exited with code ${codeText}`;
+      const message = detail
+        ? `${detail} (exit code ${codeText})`
+        : `CLI exited with code ${codeText}`;
       throw new Error(message);
     }
 
@@ -148,7 +157,9 @@ export class CliProvider implements Provider {
       throw new Error(`Failed to read output file '${filePath}': ${errorMsg}`);
     } finally {
       // Clean up temp file - ignore errors as the file might not exist on read failure
-      await fs.unlink(filePath).catch(() => {/* ignore cleanup errors */});
+      await fs.unlink(filePath).catch(() => {
+        /* ignore cleanup errors */
+      });
     }
   }
 
@@ -164,7 +175,7 @@ export class CliProvider implements Provider {
 
   private async runHealthcheck(
     healthcheck: CliResolvedConfig["healthcheck"],
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<void> {
     if (!healthcheck) {
       return;
@@ -204,12 +215,12 @@ export class CliProvider implements Provider {
           attempt: 0,
         },
         this.config,
-        generateOutputFilePath("healthcheck"),
-      ),
+        generateOutputFilePath("healthcheck")
+      )
     );
     if (this.verbose) {
       console.log(
-        `[cli-provider:${this.targetName}] (healthcheck) CLI_EVALS_DIR=${process.env.CLI_EVALS_DIR ?? ""} cwd=${healthcheck.cwd ?? this.config.cwd ?? ""} command=${renderedCommand}`,
+        `[cli-provider:${this.targetName}] (healthcheck) CLI_EVALS_DIR=${process.env.CLI_EVALS_DIR ?? ""} cwd=${healthcheck.cwd ?? this.config.cwd ?? ""} command=${renderedCommand}`
       );
     }
 
@@ -237,7 +248,7 @@ function buildTemplateValues(
     "question" | "guidelines" | "inputFiles" | "evalCaseId" | "attempt"
   >,
   config: CliResolvedConfig,
-  outputFilePath: string,
+  outputFilePath: string
 ): Record<string, string> {
   const inputFiles = normalizeInputFiles(request.inputFiles);
   return {
@@ -251,7 +262,7 @@ function buildTemplateValues(
 }
 
 function normalizeInputFiles(
-  inputFiles: readonly string[] | undefined,
+  inputFiles: readonly string[] | undefined
 ): readonly string[] | undefined {
   if (!inputFiles || inputFiles.length === 0) {
     return undefined;
@@ -270,7 +281,7 @@ function normalizeInputFiles(
 
 function formatFileList(
   files: readonly string[] | undefined,
-  template: string | undefined,
+  template: string | undefined
 ): string {
   if (!files || files.length === 0) {
     return "";

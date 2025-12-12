@@ -18,16 +18,16 @@ export default defineConfig({
   onSuccess: async () => {
     const srcTemplatesDir = path.join("src", "templates");
     const distTemplatesDir = path.join("dist", "templates");
-    
+
     // Copy entire templates directory structure recursively
-    cpSync(srcTemplatesDir, distTemplatesDir, { 
+    cpSync(srcTemplatesDir, distTemplatesDir, {
       recursive: true,
       filter: (src) => {
         // Skip index.ts and any TypeScript files
         return !src.endsWith(".ts");
-      }
+      },
     });
-    
+
     console.log("✓ Template files copied to dist/templates");
   },
 });
