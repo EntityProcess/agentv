@@ -2,8 +2,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 
-import type { ValidationError } from "./types.js";
 import { buildSearchRoots, findGitRoot, resolveFileReference } from "../file-utils.js";
+import type { ValidationError } from "./types.js";
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
@@ -19,7 +19,7 @@ function isObject(value: unknown): value is JsonObject {
  * Also checks that referenced files are not empty.
  */
 export async function validateFileReferences(
-  evalFilePath: string,
+  evalFilePath: string
 ): Promise<readonly ValidationError[]> {
   const errors: ValidationError[] = [];
   const absolutePath = path.resolve(evalFilePath);
@@ -50,7 +50,7 @@ export async function validateFileReferences(
     return errors;
   }
 
-  const evalcases = parsed["evalcases"];
+  const evalcases = parsed.evalcases;
   if (!Array.isArray(evalcases)) {
     return errors;
   }
@@ -62,15 +62,27 @@ export async function validateFileReferences(
     }
 
     // Check input_messages
-    const inputMessages = evalCase["input_messages"];
+    const inputMessages = evalCase.input_messages;
     if (Array.isArray(inputMessages)) {
-      await validateMessagesFileRefs(inputMessages, `evalcases[${i}].input_messages`, searchRoots, absolutePath, errors);
+      await validateMessagesFileRefs(
+        inputMessages,
+        `evalcases[${i}].input_messages`,
+        searchRoots,
+        absolutePath,
+        errors
+      );
     }
 
     // Check expected_messages
-    const expectedMessages = evalCase["expected_messages"];
+    const expectedMessages = evalCase.expected_messages;
     if (Array.isArray(expectedMessages)) {
-      await validateMessagesFileRefs(expectedMessages, `evalcases[${i}].expected_messages`, searchRoots, absolutePath, errors);
+      await validateMessagesFileRefs(
+        expectedMessages,
+        `evalcases[${i}].expected_messages`,
+        searchRoots,
+        absolutePath,
+        errors
+      );
     }
   }
 
@@ -82,7 +94,7 @@ async function validateMessagesFileRefs(
   location: string,
   searchRoots: readonly string[],
   filePath: string,
-  errors: ValidationError[],
+  errors: ValidationError[]
 ): Promise<void> {
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
@@ -90,7 +102,7 @@ async function validateMessagesFileRefs(
       continue;
     }
 
-    const content = message["content"];
+    const content = message.content;
     if (typeof content === "string") {
       continue;
     }
@@ -105,12 +117,12 @@ async function validateMessagesFileRefs(
         continue;
       }
 
-      const type = contentItem["type"];
+      const type = contentItem.type;
       if (type !== "file") {
         continue;
       }
 
-      const value = contentItem["value"];
+      const value = contentItem.value;
       if (typeof value !== "string") {
         errors.push({
           severity: "error",

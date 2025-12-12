@@ -1,23 +1,20 @@
-import {
-  detectFileType,
-  validateEvalFile,
-  validateTargetsFile,
-  validateConfigFile,
-  validateFileReferences,
-  type ValidationResult,
-  type ValidationSummary,
-} from "@agentv/core/evaluation/validation";
 import { constants } from "node:fs";
 import { access, readdir, stat } from "node:fs/promises";
 import path from "node:path";
-
+import {
+  type ValidationResult,
+  type ValidationSummary,
+  detectFileType,
+  validateConfigFile,
+  validateEvalFile,
+  validateFileReferences,
+  validateTargetsFile,
+} from "@agentv/core/evaluation/validation";
 
 /**
  * Validate YAML files for AgentV schema compliance.
  */
-export async function validateFiles(
-  paths: readonly string[],
-): Promise<ValidationSummary> {
+export async function validateFiles(paths: readonly string[]): Promise<ValidationSummary> {
   const filePaths = await expandPaths(paths);
   const results: ValidationResult[] = [];
 
@@ -37,9 +34,7 @@ export async function validateFiles(
   };
 }
 
-async function validateSingleFile(
-  filePath: string,
-): Promise<ValidationResult> {
+async function validateSingleFile(filePath: string): Promise<ValidationResult> {
   const absolutePath = path.resolve(filePath);
 
   // Detect file type
@@ -63,10 +58,10 @@ async function validateSingleFile(
 
   // Validate based on file type
   let result: ValidationResult;
-  
+
   if (fileType === "eval") {
     result = await validateEvalFile(absolutePath);
-    
+
     // Also validate file references for eval files
     if (result.valid || result.errors.filter((e) => e.severity === "error").length === 0) {
       const fileRefErrors = await validateFileReferences(absolutePath);
@@ -92,7 +87,7 @@ async function expandPaths(paths: readonly string[]): Promise<readonly string[]>
 
   for (const inputPath of paths) {
     const absolutePath = path.resolve(inputPath);
-    
+
     // Check if path exists
     try {
       await access(absolutePath, constants.F_OK);
@@ -120,7 +115,7 @@ async function expandPaths(paths: readonly string[]): Promise<readonly string[]>
 
 async function findYamlFiles(dirPath: string): Promise<readonly string[]> {
   const results: string[] = [];
-  
+
   try {
     const entries = await readdir(dirPath, { withFileTypes: true });
 

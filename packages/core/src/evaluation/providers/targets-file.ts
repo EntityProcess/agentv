@@ -27,7 +27,9 @@ function assertTargetDefinition(value: unknown, index: number, filePath: string)
   const provider = value.provider;
 
   if (typeof name !== "string" || name.trim().length === 0) {
-    throw new Error(`targets.yaml entry at index ${index} in ${filePath} is missing a valid 'name'`);
+    throw new Error(
+      `targets.yaml entry at index ${index} in ${filePath} is missing a valid 'name'`
+    );
   }
 
   if (typeof provider !== "string" || provider.trim().length === 0) {
@@ -48,7 +50,9 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
-export async function readTargetDefinitions(filePath: string): Promise<readonly TargetDefinition[]> {
+export async function readTargetDefinitions(
+  filePath: string
+): Promise<readonly TargetDefinition[]> {
   const absolutePath = path.resolve(filePath);
   if (!(await fileExists(absolutePath))) {
     throw new Error(`targets.yaml not found at ${absolutePath}`);
@@ -62,7 +66,9 @@ export async function readTargetDefinitions(filePath: string): Promise<readonly 
   }
 
   const targets = extractTargetsArray(parsed, absolutePath);
-  const definitions = targets.map((entry, index) => assertTargetDefinition(entry, index, absolutePath));
+  const definitions = targets.map((entry, index) =>
+    assertTargetDefinition(entry, index, absolutePath)
+  );
   return definitions;
 }
 

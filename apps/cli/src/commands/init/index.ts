@@ -2,7 +2,11 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import * as readline from "node:readline/promises";
 
-import { TemplateManager } from "../../templates/index.js";
+import {
+  getAgentvTemplates,
+  getClaudeTemplates,
+  getGithubTemplates,
+} from "../../templates/index.js";
 
 export interface InitCommandOptions {
   targetPath?: string;
@@ -29,9 +33,9 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   const claudeDir = path.join(targetPath, ".claude");
 
   // Get templates
-  const githubTemplates = TemplateManager.getGithubTemplates();
-  const agentvTemplates = TemplateManager.getAgentvTemplates();
-  const claudeTemplates = TemplateManager.getClaudeTemplates();
+  const githubTemplates = getGithubTemplates();
+  const agentvTemplates = getAgentvTemplates();
+  const claudeTemplates = getClaudeTemplates();
 
   // Separate .env.template from other .agentv templates
   const envTemplate = agentvTemplates.find((t) => t.path === ".env.template");
@@ -39,7 +43,7 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
 
   // Check if any files already exist
   const existingFiles: string[] = [];
-  
+
   // Check for .env.template in root
   if (envTemplate) {
     const envFilePath = path.join(targetPath, ".env.template");
@@ -47,7 +51,7 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
       existingFiles.push(".env.template");
     }
   }
-  
+
   if (existsSync(githubDir)) {
     for (const template of githubTemplates) {
       const targetFilePath = path.join(githubDir, template.path);
@@ -76,7 +80,9 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   // If files exist, prompt user
   if (existingFiles.length > 0) {
     console.log("We detected an existing setup:");
-    existingFiles.forEach((file) => console.log(`  - ${file}`));
+    for (const file of existingFiles) {
+      console.log(`  - ${file}`);
+    }
     console.log();
 
     const shouldReplace = await promptYesNo("Do you want to replace these files?");
@@ -155,16 +161,22 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   }
 
   console.log("\nAgentV initialized successfully!");
-  console.log(`\nFiles installed to root:`);
+  console.log("\nFiles installed to root:");
   if (envTemplate) {
-    console.log(`  - .env.template`);
+    console.log("  - .env.template");
   }
   console.log(`\nFiles installed to ${path.relative(targetPath, githubDir)}:`);
-  githubTemplates.forEach((t) => console.log(`  - ${t.path}`));
+  for (const t of githubTemplates) {
+    console.log(`  - ${t.path}`);
+  }
   console.log(`\nFiles installed to ${path.relative(targetPath, agentvDir)}:`);
-  otherAgentvTemplates.forEach((t) => console.log(`  - ${t.path}`));
+  for (const t of otherAgentvTemplates) {
+    console.log(`  - ${t.path}`);
+  }
   console.log(`\nFiles installed to ${path.relative(targetPath, claudeDir)}:`);
-  claudeTemplates.forEach((t) => console.log(`  - ${t.path}`));
+  for (const t of claudeTemplates) {
+    console.log(`  - ${t.path}`);
+  }
   console.log("\nYou can now:");
   console.log("  1. Copy .env.template to .env and add your API credentials");
   console.log("  2. Configure targets in .agentv/targets.yaml");

@@ -2,7 +2,7 @@ import { exec as execCallback, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants, createWriteStream } from "node:fs";
 import type { WriteStream } from "node:fs";
-import { access, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -49,7 +49,11 @@ export class CodexProvider implements Provider {
   private environmentCheck?: Promise<void>;
   private resolvedExecutable?: string;
 
-  constructor(targetName: string, config: CodexResolvedConfig, runner: CodexRunner = defaultCodexRunner) {
+  constructor(
+    targetName: string,
+    config: CodexResolvedConfig,
+    runner: CodexRunner = defaultCodexRunner
+  ) {
     this.id = `codex:${targetName}`;
     this.targetName = targetName;
     this.config = config;
@@ -79,7 +83,7 @@ export class CodexProvider implements Provider {
 
       if (result.timedOut) {
         throw new Error(
-          `Codex CLI timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
+          `Codex CLI timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`
         );
       }
 
@@ -133,7 +137,15 @@ export class CodexProvider implements Provider {
 
   private buildCodexArgs(): string[] {
     // Global flags must come before 'exec' subcommand
-    const args = ["--ask-for-approval", "never", "exec", "--json", "--color", "never", "--skip-git-repo-check"];
+    const args = [
+      "--ask-for-approval",
+      "never",
+      "exec",
+      "--json",
+      "--color",
+      "never",
+      "--skip-git-repo-check",
+    ];
     if (this.config.args && this.config.args.length > 0) {
       args.push(...this.config.args);
     }
@@ -146,7 +158,7 @@ export class CodexProvider implements Provider {
     cwd: string,
     promptContent: string,
     signal: AbortSignal | undefined,
-    logger: CodexStreamLogger | undefined,
+    logger: CodexStreamLogger | undefined
   ): Promise<CodexRunResult> {
     try {
       return await this.runCodex({
@@ -164,7 +176,7 @@ export class CodexProvider implements Provider {
       const err = error as NodeJS.ErrnoException;
       if (err.code === "ENOENT") {
         throw new Error(
-          `Codex executable '${this.config.executable}' was not found. Update the target settings.executable or add it to PATH.`,
+          `Codex executable '${this.config.executable}' was not found. Update the target settings.executable or add it to PATH.`
         );
       }
       throw error;
@@ -194,7 +206,9 @@ export class CodexProvider implements Provider {
     return path.join(process.cwd(), ".agentv", "logs", "codex");
   }
 
-  private async createStreamLogger(request: ProviderRequest): Promise<CodexStreamLogger | undefined> {
+  private async createStreamLogger(
+    request: ProviderRequest
+  ): Promise<CodexStreamLogger | undefined> {
     const logDir = this.resolveLogDirectory();
     if (!logDir) {
       return undefined;
@@ -316,9 +330,7 @@ class CodexStreamLogger {
       return undefined;
     }
     const message =
-      this.format === "json"
-        ? formatCodexJsonLog(trimmed)
-        : formatCodexLogMessage(trimmed, source);
+      this.format === "json" ? formatCodexJsonLog(trimmed) : formatCodexLogMessage(trimmed, source);
     return `[+${formatElapsed(this.startedAt)}] [${source}] ${message}`;
   }
 
@@ -409,14 +421,17 @@ function summarizeCodexEvent(event: unknown): string | undefined {
   }
   const record = event as Record<string, unknown>;
   const type = typeof record.type === "string" ? record.type : undefined;
-  let message = extractFromEvent(event) ?? extractFromItem(record.item) ?? flattenContent(record.output ?? record.content);
+  let message =
+    extractFromEvent(event) ??
+    extractFromItem(record.item) ??
+    flattenContent(record.output ?? record.content);
   if (!message && type === JSONL_TYPE_ITEM_COMPLETED) {
     const item = record.item;
     if (item && typeof item === "object") {
       const candidate = flattenContent(
         (item as Record<string, unknown>).text ??
           (item as Record<string, unknown>).content ??
-          (item as Record<string, unknown>).output,
+          (item as Record<string, unknown>).output
       );
       if (candidate) {
         message = candidate;

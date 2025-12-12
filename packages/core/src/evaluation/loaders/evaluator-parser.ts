@@ -2,8 +2,8 @@ import path from "node:path";
 
 import type { EvaluatorConfig, EvaluatorKind, JsonObject, JsonValue } from "../types.js";
 import { isEvaluatorKind } from "../types.js";
-import { resolveFileReference } from "./file-resolver.js";
 import { validateCustomPromptContent } from "../validation/prompt-validator.js";
+import { resolveFileReference } from "./file-resolver.js";
 
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";
@@ -18,13 +18,13 @@ export async function parseEvaluators(
   },
   globalExecution: JsonObject | undefined,
   searchRoots: readonly string[],
-  evalId: string,
+  evalId: string
 ): Promise<readonly EvaluatorConfig[] | undefined> {
   const execution = rawEvalCase.execution;
   // Priority: case-level execution.evaluators > case-level evaluators > global execution.evaluators
-  const candidateEvaluators = isJsonObject(execution) 
-    ? execution.evaluators ?? rawEvalCase.evaluators 
-    : rawEvalCase.evaluators ?? globalExecution?.evaluators;
+  const candidateEvaluators = isJsonObject(execution)
+    ? (execution.evaluators ?? rawEvalCase.evaluators)
+    : (rawEvalCase.evaluators ?? globalExecution?.evaluators);
   if (candidateEvaluators === undefined) {
     return undefined;
   }
@@ -68,7 +68,9 @@ export async function parseEvaluators(
         } else {
           logWarning(
             `Code evaluator '${name}' in '${evalId}': cwd not found (${resolved.displayPath})`,
-            resolved.attempted.length > 0 ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`) : undefined,
+            resolved.attempted.length > 0
+              ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`)
+              : undefined
           );
         }
       } else {
@@ -103,7 +105,9 @@ export async function parseEvaluators(
       } else {
         logWarning(
           `Inline prompt used for evaluator '${name}' in '${evalId}' (file not found: ${resolved.displayPath})`,
-          resolved.attempted.length > 0 ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`) : undefined,
+          resolved.attempted.length > 0
+            ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`)
+            : undefined
         );
       }
     }
@@ -114,7 +118,7 @@ export async function parseEvaluators(
       name,
       type: "llm_judge",
       prompt,
-      promptPath
+      promptPath,
     });
   }
 
@@ -124,7 +128,10 @@ export async function parseEvaluators(
 /**
  * Coerce evaluator value to valid EvaluatorKind.
  */
-export function coerceEvaluator(candidate: JsonValue | undefined, contextId: string): EvaluatorKind | undefined {
+export function coerceEvaluator(
+  candidate: JsonValue | undefined,
+  contextId: string
+): EvaluatorKind | undefined {
   if (typeof candidate !== "string") {
     return undefined;
   }

@@ -19,5 +19,5 @@ export default mergeConfig(
     test: {
       include: ["test/**/*.test.ts"],
     },
-  }),
+  })
 );

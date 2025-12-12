@@ -7,57 +7,55 @@ export interface Template {
   content: string;
 }
 
-export class TemplateManager {
-  static getGithubTemplates(): Template[] {
-    return this.getTemplatesFromDir(".github");
+export function getGithubTemplates(): Template[] {
+  return getTemplatesFromDir(".github");
+}
+
+export function getAgentvTemplates(): Template[] {
+  return getTemplatesFromDir(".agentv");
+}
+
+export function getClaudeTemplates(): Template[] {
+  return getTemplatesFromDir(".claude");
+}
+
+function getTemplatesFromDir(subdir: string): Template[] {
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+
+  // Check if we're running from dist or src
+  let templatesDir: string;
+  if (currentDir.includes(`${path.sep}dist`)) {
+    // Production: templates are at dist/templates/
+    templatesDir = path.join(currentDir, "templates", subdir);
+  } else {
+    // Development: templates are at src/templates/ (same directory as this file)
+    templatesDir = path.join(currentDir, subdir);
   }
 
-  static getAgentvTemplates(): Template[] {
-    return this.getTemplatesFromDir(".agentv");
-  }
+  return readTemplatesRecursively(templatesDir, "");
+}
 
-  static getClaudeTemplates(): Template[] {
-    return this.getTemplatesFromDir(".claude");
-  }
+function readTemplatesRecursively(dir: string, relativePath: string): Template[] {
+  const templates: Template[] = [];
+  const entries = readdirSync(dir);
 
-  private static getTemplatesFromDir(subdir: string): Template[] {
-    const currentDir = path.dirname(fileURLToPath(import.meta.url));
-    
-    // Check if we're running from dist or src
-    let templatesDir: string;
-    if (currentDir.includes(path.sep + "dist")) {
-      // Production: templates are at dist/templates/
-      templatesDir = path.join(currentDir, "templates", subdir);
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry);
+    const stat = statSync(fullPath);
+    const entryRelativePath = relativePath ? path.join(relativePath, entry) : entry;
+
+    if (stat.isDirectory()) {
+      // Recursively read subdirectories
+      templates.push(...readTemplatesRecursively(fullPath, entryRelativePath));
     } else {
-      // Development: templates are at src/templates/ (same directory as this file)
-      templatesDir = path.join(currentDir, subdir);
+      // Read file content
+      const content = readFileSync(fullPath, "utf-8");
+      templates.push({
+        path: entryRelativePath.split(path.sep).join("/"), // Normalize to forward slashes
+        content,
+      });
     }
-
-    return this.readTemplatesRecursively(templatesDir, "");
   }
 
-  private static readTemplatesRecursively(dir: string, relativePath: string): Template[] {
-    const templates: Template[] = [];
-    const entries = readdirSync(dir);
-
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry);
-      const stat = statSync(fullPath);
-      const entryRelativePath = relativePath ? path.join(relativePath, entry) : entry;
-
-      if (stat.isDirectory()) {
-        // Recursively read subdirectories
-        templates.push(...this.readTemplatesRecursively(fullPath, entryRelativePath));
-      } else {
-        // Read file content
-        const content = readFileSync(fullPath, "utf-8");
-        templates.push({
-          path: entryRelativePath.split(path.sep).join("/"), // Normalize to forward slashes
-          content,
-        });
-      }
-    }
-
-    return templates;
-  }
+  return templates;
 }

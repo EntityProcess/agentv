@@ -105,7 +105,7 @@ function trimLeadingSeparators(value: string): string {
  */
 export async function resolveFileReference(
   rawValue: string,
-  searchRoots: readonly string[],
+  searchRoots: readonly string[]
 ): Promise<{
   readonly displayPath: string;
   readonly resolvedPath?: string;

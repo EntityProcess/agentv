@@ -1,12 +1,12 @@
-import { mkdir, mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  type CodexLogEntry,
   consumeCodexLogEntries,
   subscribeToCodexLogEntries,
-  type CodexLogEntry,
 } from "../../../src/evaluation/providers/codex-log-tracker.js";
 import { CodexProvider } from "../../../src/evaluation/providers/codex.js";
 import type { ProviderRequest } from "../../../src/evaluation/providers/types.js";
@@ -44,7 +44,7 @@ describe("CodexProvider", () => {
         timeoutMs: 1000,
         logDir: fixturesRoot,
       },
-      runner,
+      runner
     );
 
     const guidelineFile = path.join(fixturesRoot, "prompts", "python.instructions.md");
@@ -105,7 +105,7 @@ describe("CodexProvider", () => {
         executable: process.execPath,
         logDir: fixturesRoot,
       },
-      runner,
+      runner
     );
 
     const request: ProviderRequest = {
@@ -136,7 +136,7 @@ describe("CodexProvider", () => {
         executable: process.execPath,
         logDir: fixturesRoot,
       },
-      runner,
+      runner
     );
 
     const request: ProviderRequest = {
@@ -149,8 +149,14 @@ describe("CodexProvider", () => {
 
   it("streams codex output to a readable log file", async () => {
     const runner = vi.fn(async (options: { readonly onStdoutChunk?: (chunk: string) => void }) => {
-      const reasoning = JSON.stringify({ type: "item.completed", item: { type: "reasoning", text: "thinking hard" } });
-      const final = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: "done" } });
+      const reasoning = JSON.stringify({
+        type: "item.completed",
+        item: { type: "reasoning", text: "thinking hard" },
+      });
+      const final = JSON.stringify({
+        type: "item.completed",
+        item: { type: "agent_message", text: "done" },
+      });
       options.onStdoutChunk?.(`${reasoning}\n`);
       options.onStdoutChunk?.(final);
       return {
@@ -166,7 +172,7 @@ describe("CodexProvider", () => {
         executable: process.execPath,
         logDir: fixturesRoot,
       },
-      runner,
+      runner
     );
 
     const observedEntries: CodexLogEntry[] = [];
@@ -212,7 +218,7 @@ describe("CodexProvider", () => {
         logDir: fixturesRoot,
         logFormat: "json",
       },
-      runner,
+      runner
     );
 
     const response = await provider.invoke({ question: "log it json", evalCaseId: "case-json" });

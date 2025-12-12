@@ -81,7 +81,10 @@ async function probeChatCompletions(): Promise<void> {
         }),
       });
 
-      logProbeResult(`POST chat/completions (deployment=${deployment}, api-version=${version})`, result);
+      logProbeResult(
+        `POST chat/completions (deployment=${deployment}, api-version=${version})`,
+        result
+      );
 
       if (result.ok) {
         return;
@@ -126,9 +129,12 @@ function logProbeResult(action: string, result: ProbeResult): void {
 }
 
 function buildHeaders(): Record<string, string> {
+  if (!apiKey) {
+    throw new Error("API key is required");
+  }
   return {
     "Content-Type": "application/json",
-    "api-key": apiKey!,
+    "api-key": apiKey,
   };
 }
 
@@ -144,14 +150,7 @@ function normalizeEndpoint(value: string | undefined): string | undefined {
 }
 
 function buildDeploymentCandidates(primary?: string): string[] {
-  const defaults = [
-    "gpt-4o",
-    "gpt-4.1",
-    "gpt-4.1-mini",
-    "gpt-4o-mini",
-    "gpt-5-chat",
-    "gpt-5-mini",
-  ];
+  const defaults = ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4o-mini", "gpt-5-chat", "gpt-5-mini"];
   const unique = new Set<string>();
   if (primary && primary.trim().length > 0) {
     unique.add(primary.trim());

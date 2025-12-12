@@ -1,7 +1,7 @@
 import type { ResolvedTarget } from "./providers/targets.js";
-import type { Provider, ProviderResponse, ChatPrompt } from "./providers/types.js";
+import type { ChatPrompt, Provider, ProviderResponse } from "./providers/types.js";
 import { TEMPLATE_VARIABLES } from "./template-variables.js";
-import type { EvaluatorConfig, JsonObject, EvalCase } from "./types.js";
+import type { EvalCase, EvaluatorConfig, JsonObject } from "./types.js";
 
 /**
  * Default evaluator template for the user prompt (variables will be substituted).
@@ -93,7 +93,7 @@ export class LlmJudgeEvaluator implements Evaluator {
 
   private async evaluateWithPrompt(
     context: EvaluationContext,
-    judgeProvider: Provider,
+    judgeProvider: Provider
   ): Promise<EvaluationScore> {
     const formattedQuestion =
       context.promptInputs.question && context.promptInputs.question.trim().length > 0
@@ -103,18 +103,23 @@ export class LlmJudgeEvaluator implements Evaluator {
     // Prepare template variables for substitution
     const variables = {
       [TEMPLATE_VARIABLES.INPUT_MESSAGES]: JSON.stringify(context.evalCase.input_segments, null, 2),
-      [TEMPLATE_VARIABLES.EXPECTED_MESSAGES]: JSON.stringify(context.evalCase.expected_segments, null, 2),
+      [TEMPLATE_VARIABLES.EXPECTED_MESSAGES]: JSON.stringify(
+        context.evalCase.expected_segments,
+        null,
+        2
+      ),
       [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: context.candidate.trim(),
       [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? "").trim(),
       [TEMPLATE_VARIABLES.EXPECTED_OUTCOME]: context.evalCase.expected_outcome.trim(),
       [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
     };
-    
+
     // Build system prompt (only the mandatory output schema)
     const systemPrompt = buildOutputSchema();
-    
+
     // Build user prompt based on custom template or default template
-    const evaluatorTemplate = context.evaluatorTemplateOverride ?? this.evaluatorTemplate ?? DEFAULT_EVALUATOR_TEMPLATE;
+    const evaluatorTemplate =
+      context.evaluatorTemplateOverride ?? this.evaluatorTemplate ?? DEFAULT_EVALUATOR_TEMPLATE;
     const userPrompt = substituteVariables(evaluatorTemplate, variables);
 
     const response = await judgeProvider.invoke({
@@ -128,9 +133,7 @@ export class LlmJudgeEvaluator implements Evaluator {
 
     const parsed = parseQualityResponse(response);
     const score = clampScore(parsed.score ?? 0);
-    const hits = Array.isArray(parsed.hits)
-      ? parsed.hits.filter(isNonEmptyString).slice(0, 4)
-      : [];
+    const hits = Array.isArray(parsed.hits) ? parsed.hits.filter(isNonEmptyString).slice(0, 4) : [];
     const misses = Array.isArray(parsed.misses)
       ? parsed.misses.filter(isNonEmptyString).slice(0, 4)
       : [];
@@ -170,8 +173,6 @@ function buildOutputSchema(): string {
     "}",
   ].join("\n");
 }
-
-
 
 function clampScore(value: number): number {
   if (Number.isNaN(value) || !Number.isFinite(value)) {
@@ -322,7 +323,7 @@ export class CodeEvaluator implements Evaluator {
         input_segments: context.evalCase.input_segments,
       },
       null,
-      2,
+      2
     );
 
     try {
@@ -368,10 +369,10 @@ async function executeScript(
   scriptPath: string,
   input: string,
   agentTimeoutMs?: number,
-  cwd?: string,
+  cwd?: string
 ): Promise<string> {
   const { spawn } = await import("node:child_process");
-  
+
   return await new Promise<string>((resolve, reject) => {
     const child = spawn(scriptPath, {
       shell: true,

@@ -5,7 +5,10 @@ import { validateFiles } from "./validate-files.js";
 
 type ValidateCommandOptions = Record<string, never>;
 
-async function runValidateCommand(paths: readonly string[], _options: ValidateCommandOptions): Promise<void> {
+async function runValidateCommand(
+  paths: readonly string[],
+  _options: ValidateCommandOptions
+): Promise<void> {
   if (paths.length === 0) {
     console.error("Error: No paths specified. Usage: agentv validate <paths...>");
     process.exit(1);

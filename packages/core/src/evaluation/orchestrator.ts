@@ -3,10 +3,15 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import pLimit from "p-limit";
 
-import { LlmJudgeEvaluator, CodeEvaluator, type EvaluationScore, type Evaluator } from "./evaluators.js";
+import {
+  CodeEvaluator,
+  type EvaluationScore,
+  type Evaluator,
+  LlmJudgeEvaluator,
+} from "./evaluators.js";
 import { readTextFile } from "./file-utils.js";
 import { createProvider } from "./providers/index.js";
-import { resolveTargetDefinition, type ResolvedTarget } from "./providers/targets.js";
+import { type ResolvedTarget, resolveTargetDefinition } from "./providers/targets.js";
 import type {
   EnvLookup,
   Provider,
@@ -15,8 +20,15 @@ import type {
   TargetDefinition,
 } from "./providers/types.js";
 import { isAgentProvider } from "./providers/types.js";
-import type { EvalCase, EvaluationResult, EvaluatorConfig, EvaluatorResult, JsonObject, JsonValue } from "./types.js";
-import { buildPromptInputs, loadEvalCases, type PromptInputs } from "./yaml-parser.js";
+import type {
+  EvalCase,
+  EvaluationResult,
+  EvaluatorConfig,
+  EvaluatorResult,
+  JsonObject,
+  JsonValue,
+} from "./types.js";
+import { type PromptInputs, buildPromptInputs, loadEvalCases } from "./yaml-parser.js";
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -71,7 +83,9 @@ export interface RunEvaluationOptions {
   readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
 }
 
-export async function runEvaluation(options: RunEvaluationOptions): Promise<readonly EvaluationResult[]> {
+export async function runEvaluation(
+  options: RunEvaluationOptions
+): Promise<readonly EvaluationResult[]> {
   const {
     testFilePath: evalFilePath,
     repoRoot,
@@ -94,7 +108,8 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
   } = options;
 
   // Use pre-loaded eval cases if provided, otherwise load them
-  const evalCases = preloadedEvalCases ?? await loadEvalCases(evalFilePath, repoRoot, { verbose, evalId });
+  const evalCases =
+    preloadedEvalCases ?? (await loadEvalCases(evalFilePath, repoRoot, { verbose, evalId }));
 
   const filteredEvalCases = filterEvalCases(evalCases, evalId);
   if (filteredEvalCases.length === 0) {
@@ -139,7 +154,9 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     return resolved;
   };
 
-  const resolveJudgeProvider = async (targetContext: ResolvedTarget): Promise<Provider | undefined> => {
+  const resolveJudgeProvider = async (
+    targetContext: ResolvedTarget
+  ): Promise<Provider | undefined> => {
     const judgeName = targetContext.judgeTarget ?? targetContext.name;
     const resolvedJudge = resolveTargetByName(judgeName);
     if (!resolvedJudge) {
@@ -157,7 +174,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     typeof primaryProvider.invokeBatch === "function";
   if (target.providerBatching && !providerSupportsBatch && verbose) {
     console.warn(
-      `Provider batching requested for target '${target.name}', but provider does not advertise batch support. Using per-case dispatch.`,
+      `Provider batching requested for target '${target.name}', but provider does not advertise batch support. Using per-case dispatch.`
     );
   }
 
@@ -191,7 +208,9 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
     } catch (error) {
       if (verbose) {
         const message = error instanceof Error ? error.message : String(error);
-        console.warn(`Provider batch execution failed, falling back to per-case dispatch: ${message}`);
+        console.warn(
+          `Provider batch execution failed, falling back to per-case dispatch: ${message}`
+        );
       }
     }
   }
@@ -263,7 +282,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
         }
         throw error;
       }
-    }),
+    })
   );
 
   // Wait for all workers to complete
@@ -285,7 +304,7 @@ export async function runEvaluation(options: RunEvaluationOptions): Promise<read
         (now ?? (() => new Date()))(),
         outcome.reason,
         promptInputs,
-        primaryProvider,
+        primaryProvider
       );
       results.push(errorResult);
       if (onResult) {
@@ -301,7 +320,9 @@ async function runBatchEvaluation(options: {
   readonly evalCases: readonly EvalCase[];
   readonly provider: Provider;
   readonly target: ResolvedTarget;
-  readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
+  readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
+    readonly llm_judge: Evaluator;
+  };
   readonly promptDumpDir?: string;
   readonly nowFn: () => Date;
   readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
@@ -325,8 +346,8 @@ async function runBatchEvaluation(options: {
 
   // Prepare prompt inputs up front so we can reuse them for grading.
   const promptInputsList: PromptInputs[] = [];
-  const formattingMode = isAgentProvider(provider) ? 'agent' : 'lm';
-  
+  const formattingMode = isAgentProvider(provider) ? "agent" : "lm";
+
   for (const evalCase of evalCases) {
     const promptInputs = await buildPromptInputs(evalCase, formattingMode);
     if (promptDumpDir) {
@@ -355,7 +376,7 @@ async function runBatchEvaluation(options: {
   }
   if (batchResponse.length !== evalCases.length) {
     throw new Error(
-      `Provider batching failed: expected ${evalCases.length} responses, received ${batchResponse.length}`,
+      `Provider batching failed: expected ${evalCases.length} responses, received ${batchResponse.length}`
     );
   }
 
@@ -391,7 +412,14 @@ async function runBatchEvaluation(options: {
         agentTimeoutMs,
       });
     } catch (error) {
-      const errorResult = buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs, provider);
+      const errorResult = buildErrorResult(
+        evalCase,
+        target.name,
+        nowFn(),
+        error,
+        promptInputs,
+        provider
+      );
       results.push(errorResult);
       if (onResult) {
         await onResult(errorResult);
@@ -429,7 +457,7 @@ async function runBatchEvaluation(options: {
 
 export async function runEvalCase(options: RunEvalCaseOptions): Promise<EvaluationResult> {
   const {
-    evalCase: evalCase,
+    evalCase,
     provider,
     target,
     evaluators,
@@ -443,7 +471,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     judgeProvider,
   } = options;
 
-  const formattingMode = isAgentProvider(provider) ? 'agent' : 'lm';
+  const formattingMode = isAgentProvider(provider) ? "agent" : "lm";
   const promptInputs = await buildPromptInputs(evalCase, formattingMode);
   if (promptDumpDir) {
     await dumpPrompt(promptDumpDir, evalCase, promptInputs);
@@ -489,7 +517,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       nowFn(),
       lastError ?? new Error("Provider did not return a response"),
       promptInputs,
-      provider,
+      provider
     );
   }
 
@@ -555,7 +583,7 @@ async function evaluateCandidate(options: {
   });
 
   const completedAt = nowFn();
-  
+
   let agentProviderRequest: JsonObject | undefined;
   let lmProviderRequest: JsonObject | undefined;
 
@@ -610,8 +638,18 @@ async function runEvaluatorsForCase(options: {
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
 }): Promise<{ score: EvaluationScore; evaluatorResults?: EvaluatorResult[] }> {
-  const { evalCase, candidate, target, provider, evaluators, attempt, promptInputs, now, judgeProvider, agentTimeoutMs } =
-    options;
+  const {
+    evalCase,
+    candidate,
+    target,
+    provider,
+    evaluators,
+    attempt,
+    promptInputs,
+    now,
+    judgeProvider,
+    agentTimeoutMs,
+  } = options;
 
   if (evalCase.evaluators && evalCase.evaluators.length > 0) {
     return runEvaluatorList({
@@ -655,7 +693,9 @@ async function runEvaluatorList(options: {
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
-  readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
+  readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
+    readonly llm_judge: Evaluator;
+  };
   readonly attempt: number;
   readonly promptInputs: PromptInputs;
   readonly now: Date;
@@ -676,7 +716,11 @@ async function runEvaluatorList(options: {
     agentTimeoutMs,
   } = options;
 
-  const scored: Array<{ readonly score: EvaluationScore; readonly name: string; readonly type: string }> = [];
+  const scored: Array<{
+    readonly score: EvaluationScore;
+    readonly name: string;
+    readonly type: string;
+  }> = [];
   const evaluatorResults: EvaluatorResult[] = [];
 
   for (const evaluator of evaluators ?? []) {
@@ -732,7 +776,6 @@ async function runEvaluatorList(options: {
           reasoning: score.reasoning,
           evaluator_provider_request: score.evaluatorRawRequest,
         });
-        continue;
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -743,7 +786,11 @@ async function runEvaluatorList(options: {
         expectedAspectCount: 1,
         reasoning: message,
       };
-      scored.push({ score: fallbackScore, name: evaluator.name ?? "unknown", type: evaluator.type ?? "unknown" });
+      scored.push({
+        score: fallbackScore,
+        name: evaluator.name ?? "unknown",
+        type: evaluator.type ?? "unknown",
+      });
       evaluatorResults.push({
         name: evaluator.name ?? "unknown",
         type: evaluator.type ?? "unknown",
@@ -756,10 +803,15 @@ async function runEvaluatorList(options: {
   }
 
   const aggregateScore =
-    scored.length > 0 ? scored.reduce((total, entry) => total + entry.score.score, 0) / scored.length : 0;
+    scored.length > 0
+      ? scored.reduce((total, entry) => total + entry.score.score, 0) / scored.length
+      : 0;
   const hits = scored.flatMap((entry) => entry.score.hits);
   const misses = scored.flatMap((entry) => entry.score.misses);
-  const expectedAspectCount = scored.reduce((total, entry) => total + (entry.score.expectedAspectCount ?? 0), 0);
+  const expectedAspectCount = scored.reduce(
+    (total, entry) => total + (entry.score.expectedAspectCount ?? 0),
+    0
+  );
   const rawAspects = scored.flatMap((entry) => entry.score.rawAspects ?? []);
   const reasoningParts = scored
     .map((entry) => (entry.score.reasoning ? `${entry.name}: ${entry.score.reasoning}` : undefined))
@@ -784,14 +836,26 @@ async function runLlmJudgeEvaluator(options: {
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
-  readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
+  readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
+    readonly llm_judge: Evaluator;
+  };
   readonly attempt: number;
   readonly promptInputs: PromptInputs;
   readonly now: Date;
   readonly judgeProvider?: Provider;
 }): Promise<EvaluationScore> {
-  const { config, evalCase, candidate, target, provider, evaluatorRegistry, attempt, promptInputs, now, judgeProvider } =
-    options;
+  const {
+    config,
+    evalCase,
+    candidate,
+    target,
+    provider,
+    evaluatorRegistry,
+    attempt,
+    promptInputs,
+    now,
+    judgeProvider,
+  } = options;
   const customPrompt = await resolveCustomPrompt(config);
 
   return evaluatorRegistry.llm_judge.evaluate({
@@ -808,7 +872,10 @@ async function runLlmJudgeEvaluator(options: {
   });
 }
 
-async function resolveCustomPrompt(config: { readonly prompt?: string; readonly promptPath?: string }): Promise<string | undefined> {
+async function resolveCustomPrompt(config: {
+  readonly prompt?: string;
+  readonly promptPath?: string;
+}): Promise<string | undefined> {
   if (config.promptPath) {
     try {
       const content = await readTextFile(config.promptPath);
@@ -820,8 +887,6 @@ async function resolveCustomPrompt(config: { readonly prompt?: string; readonly 
   }
   return config.prompt;
 }
-
-
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -836,7 +901,7 @@ function filterEvalCases(evalCases: readonly EvalCase[], evalId?: string): reado
 
 function buildEvaluatorRegistry(
   overrides: Partial<Record<string, Evaluator>> | undefined,
-  resolveJudgeProvider: (target: ResolvedTarget) => Promise<Provider | undefined>,
+  resolveJudgeProvider: (target: ResolvedTarget) => Promise<Provider | undefined>
 ): Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator } {
   const llmJudge =
     overrides?.llm_judge ??
@@ -858,7 +923,7 @@ function buildEvaluatorRegistry(
 async function dumpPrompt(
   directory: string,
   evalCase: EvalCase,
-  promptInputs: PromptInputs,
+  promptInputs: PromptInputs
 ): Promise<void> {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `${timestamp}_${sanitizeFilename(evalCase.id)}.json`;
@@ -892,14 +957,12 @@ async function invokeProvider(
     readonly attempt: number;
     readonly agentTimeoutMs?: number;
     readonly signal?: AbortSignal;
-  },
+  }
 ): Promise<ProviderResponse> {
   const { evalCase, promptInputs, attempt, agentTimeoutMs, signal } = options;
 
   const controller = new AbortController();
-  const timeout = agentTimeoutMs
-    ? setTimeout(() => controller.abort(), agentTimeoutMs)
-    : undefined;
+  const timeout = agentTimeoutMs ? setTimeout(() => controller.abort(), agentTimeoutMs) : undefined;
 
   if (signal) {
     signal.addEventListener("abort", () => controller.abort(), { once: true });
@@ -932,7 +995,7 @@ function buildErrorResult(
   timestamp: Date,
   error: unknown,
   promptInputs: PromptInputs,
-  provider?: Provider,
+  provider?: Provider
 ): EvaluationResult {
   const message = error instanceof Error ? error.message : String(error);
 
@@ -983,7 +1046,7 @@ function createCacheKey(
   provider: Provider,
   target: ResolvedTarget,
   evalCase: EvalCase,
-  promptInputs: PromptInputs,
+  promptInputs: PromptInputs
 ): string {
   const hash = createHash("sha256");
   hash.update(provider.id);
@@ -1002,7 +1065,11 @@ function isTimeoutLike(error: unknown): boolean {
   if (!error) {
     return false;
   }
-  if (typeof DOMException !== "undefined" && error instanceof DOMException && error.name === "AbortError") {
+  if (
+    typeof DOMException !== "undefined" &&
+    error instanceof DOMException &&
+    error.name === "AbortError"
+  ) {
     return true;
   }
   if (error instanceof Error) {

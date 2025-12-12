@@ -1,7 +1,7 @@
-import { config as loadDotenv } from "dotenv";
 import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import path from "node:path";
+import { config as loadDotenv } from "dotenv";
 
 interface LoadEnvOptions {
   readonly testFilePath: string;
@@ -57,11 +57,7 @@ export async function loadEnvFromHierarchy(options: LoadEnvOptions): Promise<str
   const testDir = path.dirname(path.resolve(testFilePath));
   const cwd = process.cwd();
 
-  const searchDirs = uniqueDirs([
-    ...collectAncestorDirectories(testDir, repoRoot),
-    repoRoot,
-    cwd,
-  ]);
+  const searchDirs = uniqueDirs([...collectAncestorDirectories(testDir, repoRoot), repoRoot, cwd]);
 
   for (const dir of searchDirs) {
     const candidate = path.join(dir, ".env");

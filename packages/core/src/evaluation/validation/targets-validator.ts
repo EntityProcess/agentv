@@ -2,9 +2,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 
-import type { ValidationError, ValidationResult } from "./types.js";
 import { CLI_PLACEHOLDERS } from "../providers/targets.js";
 import { KNOWN_PROVIDERS, PROVIDER_ALIASES, TARGETS_SCHEMA_V2 } from "../providers/types.js";
+import type { ValidationError, ValidationResult } from "./types.js";
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
@@ -15,10 +15,7 @@ function isObject(value: unknown): value is JsonObject {
 }
 
 // Known settings properties for each provider type
-const COMMON_SETTINGS = new Set([
-  "provider_batching",
-  "providerBatching",
-]);
+const COMMON_SETTINGS = new Set(["provider_batching", "providerBatching"]);
 
 const RETRY_SETTINGS = new Set([
   "max_retries",
@@ -167,7 +164,7 @@ function validateUnknownSettings(
   provider: string,
   absolutePath: string,
   location: string,
-  errors: ValidationError[],
+  errors: ValidationError[]
 ): void {
   const knownSettings = getKnownSettings(provider);
   if (!knownSettings) {
@@ -193,9 +190,7 @@ function validateUnknownSettings(
 /**
  * Validate a targets file (agentv-targets-v2.1 schema).
  */
-export async function validateTargetsFile(
-  filePath: string,
-): Promise<ValidationResult> {
+export async function validateTargetsFile(filePath: string): Promise<ValidationResult> {
   const errors: ValidationError[] = [];
   const absolutePath = path.resolve(filePath);
 
@@ -212,184 +207,194 @@ export async function validateTargetsFile(
     return {
       valid: false,
       filePath: absolutePath,
-  fileType: "targets",
-  errors,
-};
-}
-
-function validateCliSettings(
-  target: JsonObject,
-  absolutePath: string,
-  location: string,
-  errors: ValidationError[],
-): void {
-  const commandTemplate = target["command_template"] ?? target["commandTemplate"];
-  if (typeof commandTemplate !== "string" || commandTemplate.trim().length === 0) {
-    errors.push({
-      severity: "error",
-      filePath: absolutePath,
-      location: `${location}.commandTemplate`,
-      message: "CLI provider requires 'commandTemplate' as a non-empty string",
-    });
-  } else {
-    recordUnknownPlaceholders(commandTemplate, absolutePath, `${location}.commandTemplate`, errors);
+      fileType: "targets",
+      errors,
+    };
   }
 
-  const attachmentsFormat = target["attachments_format"] ?? target["attachmentsFormat"];
-  if (attachmentsFormat !== undefined && typeof attachmentsFormat !== "string") {
-    errors.push({
-      severity: "error",
-      filePath: absolutePath,
-      location: `${location}.attachmentsFormat`,
-      message: "'attachmentsFormat' must be a string when provided",
-    });
-  }
-
-  const filesFormat = target["files_format"] ?? target["filesFormat"];
-  if (filesFormat !== undefined && typeof filesFormat !== "string") {
-    errors.push({
-      severity: "error",
-      filePath: absolutePath,
-      location: `${location}.filesFormat`,
-      message: "'filesFormat' must be a string when provided",
-    });
-  }
-
-  const cwd = target["cwd"];
-  if (cwd !== undefined && typeof cwd !== "string") {
-    errors.push({
-      severity: "error",
-      filePath: absolutePath,
-      location: `${location}.cwd`,
-      message: "'cwd' must be a string when provided",
-    });
-  }
-
-  const timeoutSeconds = target["timeout_seconds"] ?? target["timeoutSeconds"];
-  if (timeoutSeconds !== undefined) {
-    const numericTimeout = Number(timeoutSeconds);
-    if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
+  function validateCliSettings(
+    target: JsonObject,
+    absolutePath: string,
+    location: string,
+    errors: ValidationError[]
+  ): void {
+    const commandTemplate = target.command_template ?? target.commandTemplate;
+    if (typeof commandTemplate !== "string" || commandTemplate.trim().length === 0) {
       errors.push({
         severity: "error",
         filePath: absolutePath,
-        location: `${location}.timeoutSeconds`,
-        message: "'timeoutSeconds' must be a positive number when provided",
+        location: `${location}.commandTemplate`,
+        message: "CLI provider requires 'commandTemplate' as a non-empty string",
       });
+    } else {
+      recordUnknownPlaceholders(
+        commandTemplate,
+        absolutePath,
+        `${location}.commandTemplate`,
+        errors
+      );
     }
-  }
 
-  const healthcheck = target["healthcheck"];
-  if (healthcheck !== undefined) {
-    validateCliHealthcheck(healthcheck, absolutePath, `${location}.healthcheck`, errors);
-  }
-}
-
-function validateCliHealthcheck(
-  healthcheck: unknown,
-  absolutePath: string,
-  location: string,
-  errors: ValidationError[],
-): void {
-  if (!isObject(healthcheck)) {
-    errors.push({
-      severity: "error",
-      filePath: absolutePath,
-      location,
-      message: "'healthcheck' must be an object when provided",
-    });
-    return;
-  }
-
-  const type = healthcheck["type"];
-  if (type !== "http" && type !== "command") {
-    errors.push({
-      severity: "error",
-      filePath: absolutePath,
-      location: `${location}.type`,
-      message: "healthcheck.type must be either 'http' or 'command'",
-    });
-    return;
-  }
-
-  const timeoutSeconds = healthcheck["timeout_seconds"] ?? healthcheck["timeoutSeconds"];
-  if (timeoutSeconds !== undefined) {
-    const numericTimeout = Number(timeoutSeconds);
-    if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
+    const attachmentsFormat = target.attachments_format ?? target.attachmentsFormat;
+    if (attachmentsFormat !== undefined && typeof attachmentsFormat !== "string") {
       errors.push({
         severity: "error",
         filePath: absolutePath,
-        location: `${location}.timeoutSeconds`,
-        message: "healthcheck.timeoutSeconds must be a positive number when provided",
+        location: `${location}.attachmentsFormat`,
+        message: "'attachmentsFormat' must be a string when provided",
       });
     }
-  }
 
-  if (type === "http") {
-    const url = healthcheck["url"];
-    if (typeof url !== "string" || url.trim().length === 0) {
+    const filesFormat = target.files_format ?? target.filesFormat;
+    if (filesFormat !== undefined && typeof filesFormat !== "string") {
       errors.push({
         severity: "error",
         filePath: absolutePath,
-        location: `${location}.url`,
-        message: "healthcheck.url must be a non-empty string for http checks",
+        location: `${location}.filesFormat`,
+        message: "'filesFormat' must be a string when provided",
       });
     }
-    return;
+
+    const cwd = target.cwd;
+    if (cwd !== undefined && typeof cwd !== "string") {
+      errors.push({
+        severity: "error",
+        filePath: absolutePath,
+        location: `${location}.cwd`,
+        message: "'cwd' must be a string when provided",
+      });
+    }
+
+    const timeoutSeconds = target.timeout_seconds ?? target.timeoutSeconds;
+    if (timeoutSeconds !== undefined) {
+      const numericTimeout = Number(timeoutSeconds);
+      if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
+        errors.push({
+          severity: "error",
+          filePath: absolutePath,
+          location: `${location}.timeoutSeconds`,
+          message: "'timeoutSeconds' must be a positive number when provided",
+        });
+      }
+    }
+
+    const healthcheck = target.healthcheck;
+    if (healthcheck !== undefined) {
+      validateCliHealthcheck(healthcheck, absolutePath, `${location}.healthcheck`, errors);
+    }
   }
 
-  const commandTemplate = healthcheck["command_template"] ?? healthcheck["commandTemplate"];
-  if (typeof commandTemplate !== "string" || commandTemplate.trim().length === 0) {
-    errors.push({
-      severity: "error",
-      filePath: absolutePath,
-      location: `${location}.commandTemplate`,
-      message: "healthcheck.commandTemplate must be a non-empty string for command checks",
-    });
-  } else {
-    recordUnknownPlaceholders(commandTemplate, absolutePath, `${location}.commandTemplate`, errors);
-  }
-
-  const cwd = healthcheck["cwd"];
-  if (cwd !== undefined && typeof cwd !== "string") {
-    errors.push({
-      severity: "error",
-      filePath: absolutePath,
-      location: `${location}.cwd`,
-      message: "healthcheck.cwd must be a string when provided",
-    });
-  }
-}
-
-function recordUnknownPlaceholders(
-  template: string,
-  absolutePath: string,
-  location: string,
-  errors: ValidationError[],
-): void {
-  const placeholders = extractPlaceholders(template);
-  for (const placeholder of placeholders) {
-    if (!CLI_PLACEHOLDERS.has(placeholder)) {
+  function validateCliHealthcheck(
+    healthcheck: unknown,
+    absolutePath: string,
+    location: string,
+    errors: ValidationError[]
+  ): void {
+    if (!isObject(healthcheck)) {
       errors.push({
         severity: "error",
         filePath: absolutePath,
         location,
-        message: `Unknown CLI placeholder '{${placeholder}}'. Supported placeholders: ${Array.from(CLI_PLACEHOLDERS).join(", ")}`,
+        message: "'healthcheck' must be an object when provided",
+      });
+      return;
+    }
+
+    const type = healthcheck.type;
+    if (type !== "http" && type !== "command") {
+      errors.push({
+        severity: "error",
+        filePath: absolutePath,
+        location: `${location}.type`,
+        message: "healthcheck.type must be either 'http' or 'command'",
+      });
+      return;
+    }
+
+    const timeoutSeconds = healthcheck.timeout_seconds ?? healthcheck.timeoutSeconds;
+    if (timeoutSeconds !== undefined) {
+      const numericTimeout = Number(timeoutSeconds);
+      if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
+        errors.push({
+          severity: "error",
+          filePath: absolutePath,
+          location: `${location}.timeoutSeconds`,
+          message: "healthcheck.timeoutSeconds must be a positive number when provided",
+        });
+      }
+    }
+
+    if (type === "http") {
+      const url = healthcheck.url;
+      if (typeof url !== "string" || url.trim().length === 0) {
+        errors.push({
+          severity: "error",
+          filePath: absolutePath,
+          location: `${location}.url`,
+          message: "healthcheck.url must be a non-empty string for http checks",
+        });
+      }
+      return;
+    }
+
+    const commandTemplate = healthcheck.command_template ?? healthcheck.commandTemplate;
+    if (typeof commandTemplate !== "string" || commandTemplate.trim().length === 0) {
+      errors.push({
+        severity: "error",
+        filePath: absolutePath,
+        location: `${location}.commandTemplate`,
+        message: "healthcheck.commandTemplate must be a non-empty string for command checks",
+      });
+    } else {
+      recordUnknownPlaceholders(
+        commandTemplate,
+        absolutePath,
+        `${location}.commandTemplate`,
+        errors
+      );
+    }
+
+    const cwd = healthcheck.cwd;
+    if (cwd !== undefined && typeof cwd !== "string") {
+      errors.push({
+        severity: "error",
+        filePath: absolutePath,
+        location: `${location}.cwd`,
+        message: "healthcheck.cwd must be a string when provided",
       });
     }
   }
-}
 
-function extractPlaceholders(template: string): string[] {
-  const matches = template.matchAll(/\{([A-Z_]+)\}/g);
-  const result: string[] = [];
-  for (const match of matches) {
-    const placeholder = match[1];
-    if (placeholder) {
-      result.push(placeholder);
+  function recordUnknownPlaceholders(
+    template: string,
+    absolutePath: string,
+    location: string,
+    errors: ValidationError[]
+  ): void {
+    const placeholders = extractPlaceholders(template);
+    for (const placeholder of placeholders) {
+      if (!CLI_PLACEHOLDERS.has(placeholder)) {
+        errors.push({
+          severity: "error",
+          filePath: absolutePath,
+          location,
+          message: `Unknown CLI placeholder '{${placeholder}}'. Supported placeholders: ${Array.from(CLI_PLACEHOLDERS).join(", ")}`,
+        });
+      }
     }
   }
-  return result;
-}
+
+  function extractPlaceholders(template: string): string[] {
+    const matches = template.matchAll(/\{([A-Z_]+)\}/g);
+    const result: string[] = [];
+    for (const match of matches) {
+      const placeholder = match[1];
+      if (placeholder) {
+        result.push(placeholder);
+      }
+    }
+    return result;
+  }
 
   if (!isObject(parsed)) {
     errors.push({
@@ -406,7 +411,7 @@ function extractPlaceholders(template: string): string[] {
   }
 
   // Validate targets array
-  const targets = parsed["targets"];
+  const targets = parsed.targets;
   if (!Array.isArray(targets)) {
     errors.push({
       severity: "error",
@@ -424,7 +429,7 @@ function extractPlaceholders(template: string): string[] {
 
   // Validate each target definition
   const knownProviders = [...KNOWN_PROVIDERS, ...PROVIDER_ALIASES];
-  
+
   for (let i = 0; i < targets.length; i++) {
     const target = targets[i];
     const location = `targets[${i}]`;
@@ -440,7 +445,7 @@ function extractPlaceholders(template: string): string[] {
     }
 
     // Required field: name
-    const name = target["name"];
+    const name = target.name;
     if (typeof name !== "string" || name.trim().length === 0) {
       errors.push({
         severity: "error",
@@ -451,7 +456,7 @@ function extractPlaceholders(template: string): string[] {
     }
 
     // Required field: provider
-    const provider = target["provider"];
+    const provider = target.provider;
     const providerValue = typeof provider === "string" ? provider.trim().toLowerCase() : undefined;
     if (typeof provider !== "string" || provider.trim().length === 0) {
       errors.push({
@@ -481,7 +486,7 @@ function extractPlaceholders(template: string): string[] {
     }
 
     // Optional field: judge_target (must be string if present)
-    const judgeTarget = target["judge_target"];
+    const judgeTarget = target.judge_target;
     if (judgeTarget !== undefined && typeof judgeTarget !== "string") {
       errors.push({
         severity: "error",

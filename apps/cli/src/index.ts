@@ -1,5 +1,5 @@
-import { Command } from "commander";
 import { readFileSync } from "node:fs";
+import { Command } from "commander";
 
 import { registerEvalCommand } from "./commands/eval/index.js";
 import { initCommand } from "./commands/init/index.js";
@@ -20,7 +20,9 @@ export function createProgram(): Command {
   // Init command
   program
     .command("init [path]")
-    .description("Initialize AgentV in your project (installs prompt templates and schema to .github)")
+    .description(
+      "Initialize AgentV in your project (installs prompt templates and schema to .github)"
+    )
     .action(async (targetPath?: string) => {
       try {
         await initCommand({ targetPath });
@@ -38,5 +40,3 @@ export async function runCli(argv: string[] = process.argv): Promise<Command> {
   await program.parseAsync(argv);
   return program;
 }
-
-

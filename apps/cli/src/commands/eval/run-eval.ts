@@ -1,28 +1,28 @@
-import {
-  runEvaluation as defaultRunEvaluation,
-  type EvaluationCache,
-  type EvaluationResult,
-  type EvalCase,
-  type ProviderResponse,
-  ensureVSCodeSubagents,
-  loadEvalCases,
-  subscribeToCodexLogEntries,
-} from "@agentv/core";
 import { constants } from "node:fs";
 import { access, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+  type EvalCase,
+  type EvaluationCache,
+  type EvaluationResult,
+  type ProviderResponse,
+  runEvaluation as defaultRunEvaluation,
+  ensureVSCodeSubagents,
+  loadEvalCases,
+  subscribeToCodexLogEntries,
+} from "@agentv/core";
 
 import { loadEnvFromHierarchy } from "./env.js";
 import {
-  createOutputWriter,
-  getDefaultExtension,
   type OutputFormat,
   type OutputWriter,
+  createOutputWriter,
+  getDefaultExtension,
 } from "./output-writer.js";
 import { ProgressDisplay, type WorkerProgress } from "./progress-display.js";
 import { calculateEvaluationSummary, formatEvaluationSummary } from "./statistics.js";
-import { selectTarget, type TargetSelection } from "./targets.js";
+import { type TargetSelection, selectTarget } from "./targets.js";
 
 const DEFAULT_WORKERS = 3;
 
@@ -135,7 +135,10 @@ function buildDefaultOutputPath(cwd: string, format: OutputFormat): string {
   return path.join(cwd, ".agentv", "results", `${baseName}_${timestamp}${extension}`);
 }
 
-function resolvePromptDirectory(option: string | boolean | undefined, cwd: string): string | undefined {
+function resolvePromptDirectory(
+  option: string | boolean | undefined,
+  cwd: string
+): string | undefined {
   if (option === undefined) {
     return undefined;
   }
@@ -237,7 +240,10 @@ async function prepareFileMetadata(params: {
     : selection.resolvedTarget.kind;
   const inlineTargetLabel = `${selection.targetName} [provider=${providerLabel}]`;
 
-  const evalCases = await loadEvalCases(testFilePath, repoRoot, { verbose: options.verbose, evalId: options.evalId });
+  const evalCases = await loadEvalCases(testFilePath, repoRoot, {
+    verbose: options.verbose,
+    evalId: options.evalId,
+  });
   const filteredIds = options.evalId
     ? evalCases.filter((value) => value.id === options.evalId).map((value) => value.id)
     : evalCases.map((value) => value.id);
@@ -248,7 +254,7 @@ async function prepareFileMetadata(params: {
 async function runWithLimit<T>(
   items: readonly T[],
   limit: number,
-  task: (item: T) => Promise<void>,
+  task: (item: T) => Promise<void>
 ): Promise<void> {
   const safeLimit = Math.max(1, limit);
   let index = 0;
@@ -295,8 +301,7 @@ async function runSingleEvalFile(params: {
     selection,
     inlineTargetLabel,
     evalCases,
-  } =
-    params;
+  } = params;
 
   await ensureFileExists(testFilePath, "Test file");
 
@@ -323,7 +328,8 @@ async function runSingleEvalFile(params: {
 
   // Resolve workers: CLI flag (adjusted per-file) > target setting > default (1)
   const workerPreference = workersOverride ?? options.workers;
-  let resolvedWorkers = workerPreference ?? resolvedTargetSelection.resolvedTarget.workers ?? DEFAULT_WORKERS;
+  let resolvedWorkers =
+    workerPreference ?? resolvedTargetSelection.resolvedTarget.workers ?? DEFAULT_WORKERS;
   if (resolvedWorkers < 1 || resolvedWorkers > 50) {
     throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
   }
@@ -333,7 +339,9 @@ async function runSingleEvalFile(params: {
     resolvedTargetSelection.resolvedTarget.kind
   );
   if (isVSCodeProvider && resolvedWorkers > 1) {
-    console.warn(`Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`);
+    console.warn(
+      `Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`
+    );
     resolvedWorkers = 1;
   }
 
@@ -405,7 +413,9 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     console.log(`Repository root: ${repoRoot}`);
   }
 
-  const outputPath = options.outPath ? path.resolve(options.outPath) : buildDefaultOutputPath(cwd, options.format);
+  const outputPath = options.outPath
+    ? path.resolve(options.outPath)
+    : buildDefaultOutputPath(cwd, options.format);
   console.log(`Output path: ${outputPath}`);
 
   const outputWriter = await createOutputWriter(outputPath, options.format);
@@ -419,13 +429,21 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
 
   // Derive file-level concurrency from worker count (global) when provided
   const totalWorkers = options.workers ?? DEFAULT_WORKERS;
-  const fileConcurrency = Math.min(Math.max(1, totalWorkers), Math.max(1, resolvedTestFiles.length));
+  const fileConcurrency = Math.min(
+    Math.max(1, totalWorkers),
+    Math.max(1, resolvedTestFiles.length)
+  );
   const perFileWorkers = options.workers
     ? Math.max(1, Math.floor(totalWorkers / fileConcurrency))
     : undefined;
   const fileMetadata = new Map<
     string,
-    { readonly evalIds: readonly string[]; readonly evalCases: readonly EvalCase[]; readonly selection: TargetSelection; readonly inlineTargetLabel: string }
+    {
+      readonly evalIds: readonly string[];
+      readonly evalCases: readonly EvalCase[];
+      readonly selection: TargetSelection;
+      readonly inlineTargetLabel: string;
+    }
   >();
   for (const testFilePath of resolvedTestFiles) {
     const meta = await prepareFileMetadata({
@@ -438,7 +456,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   }
   const totalEvalCount = Array.from(fileMetadata.values()).reduce(
     (sum, meta) => sum + meta.evalIds.length,
-    0,
+    0
   );
   if (totalEvalCount === 0) {
     throw new Error("No eval cases matched the provided filters.");
@@ -529,7 +547,7 @@ async function resolveEvaluationRunner(): Promise<typeof defaultRunEvaluation> {
   const candidate = mod.runEvaluation;
   if (typeof candidate !== "function") {
     throw new Error(
-      `Module '${resolved}' must export a 'runEvaluation' function to override the default implementation`,
+      `Module '${resolved}' must export a 'runEvaluation' function to override the default implementation`
     );
   }
   return candidate as typeof defaultRunEvaluation;

@@ -4,9 +4,10 @@ This is a TypeScript monorepo for AgentV - an AI agent evaluation framework.
 
 ## Tech Stack & Tools
 - **Language:** TypeScript 5.x targeting ES2022
-- **Package Manager:** pnpm 10.20.0 (use `pnpm` for all package operations)
+- **Runtime:** Bun (use `bun` for all package and script operations)
 - **Build System:** Turbo (monorepo task orchestration)
 - **Bundler:** tsup (TypeScript bundler)
+- **Linter/Formatter:** Biome
 - **Testing:** Vitest
 - **LLM Framework:** Vercel AI SDK
 - **Validation:** Zod
@@ -19,10 +20,10 @@ This is a TypeScript monorepo for AgentV - an AI agent evaluation framework.
 
 After making any significant changes (refactoring, new features, bug fixes), always run the following verification steps in order:
 
-1. `pnpm build` - Ensure code compiles without errors
-2. `pnpm typecheck` - Verify TypeScript type safety across the monorepo
-3. `pnpm lint` - Check code style and catch potential issues
-4. `pnpm test` - Run all tests to verify functionality
+1. `bun run build` - Ensure code compiles without errors
+2. `bun run typecheck` - Verify TypeScript type safety across the monorepo
+3. `bun run lint` - Check code style and catch potential issues with Biome
+4. `bun test` - Run all tests to verify functionality
 
 Only consider the work complete when all four steps pass successfully. This ensures code quality, prevents regressions, and maintains the integrity of the codebase.
 
@@ -30,8 +31,8 @@ Only consider the work complete when all four steps pass successfully. This ensu
 
 When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` directly as it may run the globally installed npm version. Instead:
 
-- **From repository root:** Use `pnpm agentv <args>` to run the locally built version
-- **From apps/cli directory:** Use `pnpm dev -- <args>` to run from TypeScript source with tsx
+- **From repository root:** Use `bun agentv <args>` to run the locally built version
+- **From apps/cli directory:** Use `bun dev -- <args>` to run from TypeScript source
 
 This ensures you're testing your local changes, not the published npm package.
 

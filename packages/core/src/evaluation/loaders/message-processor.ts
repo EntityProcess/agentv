@@ -1,11 +1,11 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { isGuidelineFile } from "./config-loader.js";
-import { resolveFileReference } from "./file-resolver.js";
 import { formatFileContents } from "../formatting/segment-formatter.js";
 import type { JsonObject, TestMessage } from "../types.js";
 import { isJsonObject } from "../types.js";
+import { isGuidelineFile } from "./config-loader.js";
+import { resolveFileReference } from "./file-resolver.js";
 
 const ANSI_YELLOW = "\u001b[33m";
 const ANSI_RESET = "\u001b[0m";
@@ -62,7 +62,7 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
 
         const { displayPath, resolvedPath, attempted } = await resolveFileReference(
           rawValue,
-          searchRoots,
+          searchRoots
         );
 
         if (!resolvedPath) {
@@ -129,7 +129,7 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
 export async function resolveAssistantContent(
   content: TestMessage["content"] | undefined,
   searchRoots: readonly string[],
-  verbose: boolean,
+  verbose: boolean
 ): Promise<string> {
   if (typeof content === "string") {
     return content;
@@ -137,34 +137,34 @@ export async function resolveAssistantContent(
   if (!content) {
     return "";
   }
-  
+
   // Track parts with metadata about whether they came from files
   const parts: Array<{ content: string; isFile: boolean; displayPath?: string }> = [];
-  
+
   for (const entry of content) {
     if (typeof entry === "string") {
       parts.push({ content: entry, isFile: false });
       continue;
     }
-    
+
     if (!isJsonObject(entry)) {
       continue;
     }
-    
+
     const segmentType = asString(entry.type);
-    
+
     // Handle file references
     if (segmentType === "file") {
       const rawValue = asString(entry.value);
       if (!rawValue) {
         continue;
       }
-      
+
       const { displayPath, resolvedPath, attempted } = await resolveFileReference(
         rawValue,
-        searchRoots,
+        searchRoots
       );
-      
+
       if (!resolvedPath) {
         const attempts = attempted.length
           ? ["  Tried:", ...attempted.map((candidate) => `    ${candidate}`)]
@@ -172,7 +172,7 @@ export async function resolveAssistantContent(
         logWarning(`File not found in expected_messages: ${displayPath}`, attempts);
         continue;
       }
-      
+
       try {
         const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n").trim();
         parts.push({ content: fileContent, isFile: true, displayPath });
@@ -185,23 +185,23 @@ export async function resolveAssistantContent(
       }
       continue;
     }
-    
+
     // Handle text segments
     const textValue = asString(entry.text);
     if (typeof textValue === "string") {
       parts.push({ content: textValue, isFile: false });
       continue;
     }
-    
+
     const valueValue = asString(entry.value);
     if (typeof valueValue === "string") {
       parts.push({ content: valueValue, isFile: false });
       continue;
     }
-    
+
     parts.push({ content: JSON.stringify(entry), isFile: false });
   }
-  
+
   return formatFileContents(parts);
 }
 

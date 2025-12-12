@@ -15,7 +15,10 @@
     "lint": {
       "outputs": []
     },
-    "lint:workspace": {
+    "format": {
+      "outputs": []
+    },
+    "fix": {
       "outputs": []
     },
     "test": {

@@ -63,8 +63,8 @@ describe("resolveTargetDefinition", () => {
           api_key: "AZURE_OPENAI_API_KEY",
           model: "AZURE_DEPLOYMENT_NAME",
         },
-        env,
-      ),
+        env
+      )
     ).toThrow(/must use.*VARIABLE_NAME.*syntax/i);
   });
 
@@ -83,7 +83,7 @@ describe("resolveTargetDefinition", () => {
         api_key: "${{ AZURE_OPENAI_API_KEY }}",
         model: "${{ AZURE_DEPLOYMENT_NAME }}",
       },
-      env,
+      env
     );
 
     expect(target.kind).toBe("azure");
@@ -110,7 +110,7 @@ describe("resolveTargetDefinition", () => {
         api_key: "${{ MY_API_KEY }}",
         model: "${{ MY_MODEL }}",
       },
-      env,
+      env
     );
 
     expect(target.kind).toBe("azure");
@@ -135,7 +135,7 @@ describe("resolveTargetDefinition", () => {
         api_key: "${{MY_KEY}}",
         model: "${{MY_MODEL}}",
       },
-      env,
+      env
     );
 
     expect(target.kind).toBe("azure");
@@ -158,8 +158,8 @@ describe("resolveTargetDefinition", () => {
           api_key: "key",
           model: "model",
         },
-        env,
-      ),
+        env
+      )
     ).toThrow(/MISSING_VAR.*is not set/i);
   });
 
@@ -180,7 +180,7 @@ describe("resolveTargetDefinition", () => {
         model: "${{ AZURE_DEPLOYMENT_NAME }}",
         version: "${{ CUSTOM_VERSION }}",
       },
-      env,
+      env
     );
 
     expect(target.kind).toBe("azure");
@@ -205,8 +205,8 @@ describe("resolveTargetDefinition", () => {
           api_key: "${{ AZURE_OPENAI_API_KEY }}",
           model: "${{ AZURE_DEPLOYMENT_NAME }}",
         },
-        env,
-      ),
+        env
+      )
     ).toThrow(/AZURE_OPENAI_API_KEY/i);
   });
 
@@ -224,7 +224,7 @@ describe("resolveTargetDefinition", () => {
         dry_run: true,
         workspace_template: "${{ WORKSPACE_TEMPLATE_PATH }}",
       },
-      env,
+      env
     );
 
     expect(target.kind).toBe("vscode");
@@ -249,7 +249,7 @@ describe("resolveTargetDefinition", () => {
         provider: "gemini",
         api_key: "${{ GOOGLE_API_KEY }}",
       },
-      env,
+      env
     );
 
     expect(target.kind).toBe("gemini");
@@ -276,7 +276,7 @@ describe("resolveTargetDefinition", () => {
         api_key: "${{ GOOGLE_API_KEY }}",
         model: "${{ GOOGLE_GEMINI_MODEL }}",
       },
-      env,
+      env
     );
 
     expect(target.kind).toBe("gemini");
@@ -302,7 +302,7 @@ describe("resolveTargetDefinition", () => {
         api_key: "${{ GOOGLE_API_KEY }}",
         model: "gemini-1.5-flash",
       },
-      env,
+      env
     );
 
     expect(target.kind).toBe("gemini");
@@ -324,8 +324,8 @@ describe("resolveTargetDefinition", () => {
           provider: "gemini",
           api_key: "${{ GOOGLE_API_KEY }}",
         },
-        {},
-      ),
+        {}
+      )
     ).toThrow(/GOOGLE_API_KEY/i);
   });
 
@@ -336,7 +336,7 @@ describe("resolveTargetDefinition", () => {
         provider: "mock",
         provider_batching: true,
       },
-      {},
+      {}
     );
 
     expect(target.kind).toBe("mock");
@@ -358,7 +358,7 @@ describe("resolveTargetDefinition", () => {
         timeout_seconds: 3,
         files_format: "--file {path}",
       },
-      env,
+      env
     );
 
     expect(target.kind).toBe("cli");
@@ -380,8 +380,8 @@ describe("resolveTargetDefinition", () => {
           provider: "cli",
           command_template: "run-task {UNKNOWN}",
         },
-        {},
-      ),
+        {}
+      )
     ).toThrow(/unsupported placeholder/i);
   });
 
@@ -397,7 +397,7 @@ describe("resolveTargetDefinition", () => {
         provider: "codex",
         args: ["--profile", "${{ CODEX_PROFILE }}", "--model", "${{ CODEX_MODEL }}"],
       },
-      env,
+      env
     );
 
     expect(target.kind).toBe("codex");
@@ -432,7 +432,7 @@ describe("createProvider", () => {
         api_key: "${{ AZURE_OPENAI_API_KEY }}",
         model: "${{ AZURE_DEPLOYMENT_NAME }}",
       },
-      env,
+      env
     );
 
     const provider = createProvider(resolved);
@@ -453,7 +453,7 @@ describe("createProvider", () => {
         provider: "gemini",
         api_key: "${{ GOOGLE_API_KEY }}",
       },
-      env,
+      env
     );
 
     const provider = createProvider(resolved);

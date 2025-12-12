@@ -28,7 +28,11 @@ export type {
 
 export { resolveTargetDefinition };
 export { readTargetDefinitions, listTargetNames } from "./targets-file.js";
-export { ensureVSCodeSubagents, type EnsureSubagentsOptions, type EnsureSubagentsResult } from "./vscode.js";
+export {
+  ensureVSCodeSubagents,
+  type EnsureSubagentsOptions,
+  type EnsureSubagentsResult,
+} from "./vscode.js";
 export { consumeCodexLogEntries, subscribeToCodexLogEntries } from "./codex-log-tracker.js";
 
 export function createProvider(target: ResolvedTarget): Provider {
@@ -58,7 +62,7 @@ export function createProvider(target: ResolvedTarget): Provider {
 
 export function resolveAndCreateProvider(
   definition: TargetDefinition,
-  env: EnvLookup = process.env,
+  env: EnvLookup = process.env
 ): Provider {
   const resolved = resolveTargetDefinition(definition, env);
   return createProvider(resolved);

@@ -28,7 +28,7 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
     const config = parsed as Record<string, unknown>;
 
     // Validate $schema field
-    const schema = config["$schema"];
+    const schema = config.$schema;
     if (schema !== SCHEMA_CONFIG_V2) {
       const message =
         typeof schema === "string"
@@ -43,7 +43,7 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
     }
 
     // Validate guideline_patterns if present
-    const guidelinePatterns = config["guideline_patterns"];
+    const guidelinePatterns = config.guideline_patterns;
     if (guidelinePatterns !== undefined) {
       if (!Array.isArray(guidelinePatterns)) {
         errors.push({
@@ -72,7 +72,7 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
     // Check for unexpected fields
     const allowedFields = new Set(["$schema", "guideline_patterns"]);
     const unexpectedFields = Object.keys(config).filter((key) => !allowedFields.has(key));
-    
+
     if (unexpectedFields.length > 0) {
       errors.push({
         severity: "warning",

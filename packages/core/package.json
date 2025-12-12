@@ -27,18 +27,17 @@
   },
   "scripts": {
     "build": "tsup",
-    "dev": "tsx watch src/index.ts",
+    "dev": "bun --watch src/index.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --ext .ts",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "fix": "biome check --write .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "diagnostics:azure": "tsx src/diagnostics/azure-deployment-diag.ts"
+    "diagnostics:azure": "bun src/diagnostics/azure-deployment-diag.ts"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.53",
     "@ai-sdk/azure": "^2.0.78",
