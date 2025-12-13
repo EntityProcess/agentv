@@ -30,27 +30,28 @@ description: Iteratively optimize prompt files against AgentV evaluation dataset
             - **Output**: Return a structured analysis including:
                 - **Score**: Current pass rate.
                 - **Root Cause**: Why failures occurred (e.g., "Ambiguous definition", "Hallucination").
-                - **Strategy**: Specific plan to fix the prompt (e.g., "Clarify section X", "Add negative constraint").
-                - **Log Entry**: Markdown formatted log entry for this iteration.
-                  ```markdown
-                  ### Iteration [N]
-                  - **Change**: [Description of edit]
-                  - **Rationale**: [Root Cause / Why this fix was chosen]
-                  - **Outcome**: [Success / Failure / Harmful] (Score: X% -> Y%)
-                  - **Insight**: [Key learning or pattern identified]
-                  ```
+                - **Insight**: Key learning or pattern identified from the failures.
+                - **Strategy**: High-level plan to fix the prompt (e.g., "Clarify section X", "Add negative constraint").
     - **Decide**:
         - If **100% pass**: STOP and report success.
         - If **Score decreased**: Revert last change, try different approach.
         - If **No improvement** (2x): STOP and report stagnation.
-    - **Log Result**:
-        - Append the **Log Entry** from the Reflector to the optimization log file.
     - **Refine (The Curator)**:
         - **Orchestrate Subagent**: Use `runSubagent` to apply the fix.
-            - **Task**: Read the relevant prompt file(s) and apply the **Strategy** identified by the Reflector.
+            - **Task**: Read the relevant prompt file(s), apply the **Strategy** from the Reflector, and generate the log entry.
+            - **Output**: The **Log Entry** describing the specific operation performed.
+                  ```markdown
+                  ### Iteration [N]
+                  - **Operation**: [ADD / UPDATE / DELETE]
+                  - **Target**: [Section Name]
+                  - **Change**: [Specific text added/modified]
+                  - **Trigger**: [Specific failing test case or error pattern]
+                  - **Rationale**: [From Reflector: Root Cause]
+                  - **Score**: [From Reflector: Current Pass Rate]
+                  - **Insight**: [From Reflector: Key Learning]
+                  ```
         - **Strategy**: Treat the prompt as a structured set of rules. Execute atomic operations:
             - **ADD**: Insert a new rule if a constraint was missed.
-                - *Tip*: Add comments `<!-- [Iter N] Reason -->` for traceability.
             - **UPDATE**: Refine an existing rule to be clearer or more general.
                 - *Clarify*: Make ambiguous instructions specific.
                 - *Generalize*: Refactor specific fixes into high-level principles (First Principles).
@@ -59,6 +60,8 @@ description: Iteratively optimize prompt files against AgentV evaluation dataset
             - **Negative Constraint**: If hallucinating, explicitly state what NOT to do. Prefer generalized prohibitions over specific forbidden tokens where possible.
             - **Safety Check**: Ensure new rules don't contradict existing ones (unless intended).
         - **Constraint**: Avoid rewriting large sections. Make surgical, additive changes to preserve existing behavior.
+    - **Log Result**:
+        - Append the **Log Entry** returned by the Curator to the optimization log file.
 
 3.  **Completion**
     - Report final score.
