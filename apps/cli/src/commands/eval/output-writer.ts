@@ -1,9 +1,9 @@
-import type { EvaluationResult } from "@agentv/core";
+import type { EvaluationResult } from '@agentv/core';
 
-import { JsonlWriter } from "./jsonl-writer.js";
-import { YamlWriter } from "./yaml-writer.js";
+import { JsonlWriter } from './jsonl-writer.js';
+import { YamlWriter } from './yaml-writer.js';
 
-export type OutputFormat = "jsonl" | "yaml";
+export type OutputFormat = 'jsonl' | 'yaml';
 
 export interface OutputWriter {
   append(result: EvaluationResult): Promise<void>;
@@ -12,12 +12,12 @@ export interface OutputWriter {
 
 export async function createOutputWriter(
   filePath: string,
-  format: OutputFormat
+  format: OutputFormat,
 ): Promise<OutputWriter> {
   switch (format) {
-    case "jsonl":
+    case 'jsonl':
       return JsonlWriter.open(filePath);
-    case "yaml":
+    case 'yaml':
       return YamlWriter.open(filePath);
     default: {
       const exhaustiveCheck: never = format;
@@ -28,10 +28,10 @@ export async function createOutputWriter(
 
 export function getDefaultExtension(format: OutputFormat): string {
   switch (format) {
-    case "jsonl":
-      return ".jsonl";
-    case "yaml":
-      return ".yaml";
+    case 'jsonl':
+      return '.jsonl';
+    case 'yaml':
+      return '.yaml';
     default: {
       const exhaustiveCheck: never = format;
       throw new Error(`Unsupported output format: ${exhaustiveCheck}`);

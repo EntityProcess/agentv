@@ -1,7 +1,7 @@
-import type { ResolvedTarget } from "./providers/targets.js";
-import type { ChatPrompt, Provider, ProviderResponse } from "./providers/types.js";
-import { TEMPLATE_VARIABLES } from "./template-variables.js";
-import type { EvalCase, EvaluatorConfig, JsonObject } from "./types.js";
+import type { ResolvedTarget } from './providers/targets.js';
+import type { ChatPrompt, Provider, ProviderResponse } from './providers/types.js';
+import { TEMPLATE_VARIABLES } from './template-variables.js';
+import type { EvalCase, EvaluatorConfig, JsonObject } from './types.js';
 
 /**
  * Default evaluator template for the user prompt (variables will be substituted).
@@ -68,7 +68,7 @@ export interface LlmJudgeEvaluatorOptions {
 }
 
 export class LlmJudgeEvaluator implements Evaluator {
-  readonly kind = "llm_judge";
+  readonly kind = 'llm_judge';
 
   private readonly resolveJudgeProvider: JudgeProviderResolver;
   private readonly maxOutputTokens?: number;
@@ -85,7 +85,7 @@ export class LlmJudgeEvaluator implements Evaluator {
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
     const judgeProvider = await this.resolveJudgeProvider(context);
     if (!judgeProvider) {
-      throw new Error("No judge provider available for LLM grading");
+      throw new Error('No judge provider available for LLM grading');
     }
 
     return this.evaluateWithPrompt(context, judgeProvider);
@@ -93,7 +93,7 @@ export class LlmJudgeEvaluator implements Evaluator {
 
   private async evaluateWithPrompt(
     context: EvaluationContext,
-    judgeProvider: Provider
+    judgeProvider: Provider,
   ): Promise<EvaluationScore> {
     const formattedQuestion =
       context.promptInputs.question && context.promptInputs.question.trim().length > 0
@@ -106,10 +106,10 @@ export class LlmJudgeEvaluator implements Evaluator {
       [TEMPLATE_VARIABLES.EXPECTED_MESSAGES]: JSON.stringify(
         context.evalCase.expected_segments,
         null,
-        2
+        2,
       ),
       [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: context.candidate.trim(),
-      [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? "").trim(),
+      [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.EXPECTED_OUTCOME]: context.evalCase.expected_outcome.trim(),
       [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
     };
@@ -163,15 +163,15 @@ export class LlmJudgeEvaluator implements Evaluator {
  */
 function buildOutputSchema(): string {
   return [
-    "You must respond with a single JSON object matching this schema:",
-    "",
-    "{",
+    'You must respond with a single JSON object matching this schema:',
+    '',
+    '{',
     '  "score": <number between 0.0 and 1.0>,',
     '  "hits": [<array of strings, max 4 items, brief specific achievements>],',
     '  "misses": [<array of strings, max 4 items, brief specific failures or omissions, empty if none>],',
     '  "reasoning": "<string, concise explanation for the score, 1-2 sentences max>"',
-    "}",
-  ].join("\n");
+    '}',
+  ].join('\n');
 }
 
 function clampScore(value: number): number {
@@ -193,7 +193,7 @@ function parseQualityResponse(response: ProviderResponse): {
   readonly misses?: unknown;
   readonly reasoning?: string;
 } {
-  const text = typeof response.text === "string" ? response.text.trim() : "";
+  const text = typeof response.text === 'string' ? response.text.trim() : '';
   if (text.length === 0) {
     return {};
   }
@@ -226,10 +226,10 @@ function attemptParseJson(text: string):
   | undefined {
   try {
     const parsed = JSON.parse(text) as Record<string, unknown>;
-    const score = typeof parsed.score === "number" ? parsed.score : undefined;
+    const score = typeof parsed.score === 'number' ? parsed.score : undefined;
     const hits = parsed.hits;
     const misses = parsed.misses;
-    const reasoning = typeof parsed.reasoning === "string" ? parsed.reasoning : undefined;
+    const reasoning = typeof parsed.reasoning === 'string' ? parsed.reasoning : undefined;
     return { score, hits, misses, reasoning };
   } catch {
     return undefined;
@@ -243,7 +243,7 @@ function validateQualityJson(parsed: {
   readonly reasoning?: string;
 }): boolean {
   // Validate score is present and in valid range [0.0, 1.0]
-  if (typeof parsed.score !== "number") {
+  if (typeof parsed.score !== 'number') {
     return false;
   }
   if (Number.isNaN(parsed.score) || !Number.isFinite(parsed.score)) {
@@ -258,7 +258,7 @@ function validateQualityJson(parsed: {
     if (!Array.isArray(parsed.hits)) {
       return false;
     }
-    if (!parsed.hits.every((item) => typeof item === "string")) {
+    if (!parsed.hits.every((item) => typeof item === 'string')) {
       return false;
     }
   }
@@ -268,13 +268,13 @@ function validateQualityJson(parsed: {
     if (!Array.isArray(parsed.misses)) {
       return false;
     }
-    if (!parsed.misses.every((item) => typeof item === "string")) {
+    if (!parsed.misses.every((item) => typeof item === 'string')) {
       return false;
     }
   }
 
   // Validate reasoning is a string if present
-  if (parsed.reasoning !== undefined && typeof parsed.reasoning !== "string") {
+  if (parsed.reasoning !== undefined && typeof parsed.reasoning !== 'string') {
     return false;
   }
 
@@ -287,7 +287,7 @@ function extractJsonBlob(text: string): string | undefined {
 }
 
 function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 // Code Evaluator
@@ -299,7 +299,7 @@ export interface CodeEvaluatorOptions {
 }
 
 export class CodeEvaluator implements Evaluator {
-  readonly kind = "code";
+  readonly kind = 'code';
 
   private readonly script: string;
   private readonly cwd?: string;
@@ -323,16 +323,16 @@ export class CodeEvaluator implements Evaluator {
         input_segments: context.evalCase.input_segments,
       },
       null,
-      2
+      2,
     );
 
     try {
       const stdout = await executeScript(this.script, inputPayload, this.agentTimeoutMs, this.cwd);
       const parsed = parseJsonSafe(stdout);
-      const score = clampScore(typeof parsed?.score === "number" ? parsed.score : 0);
+      const score = clampScore(typeof parsed?.score === 'number' ? parsed.score : 0);
       const hits = Array.isArray(parsed?.hits) ? parsed.hits.filter(isNonEmptyString) : [];
       const misses = Array.isArray(parsed?.misses) ? parsed.misses.filter(isNonEmptyString) : [];
-      const reasoning = typeof parsed?.reasoning === "string" ? parsed.reasoning : undefined;
+      const reasoning = typeof parsed?.reasoning === 'string' ? parsed.reasoning : undefined;
 
       return {
         score,
@@ -369,9 +369,9 @@ async function executeScript(
   scriptPath: string,
   input: string,
   agentTimeoutMs?: number,
-  cwd?: string
+  cwd?: string,
 ): Promise<string> {
-  const { spawn } = await import("node:child_process");
+  const { spawn } = await import('node:child_process');
 
   return await new Promise<string>((resolve, reject) => {
     const child = spawn(scriptPath, {
@@ -379,8 +379,8 @@ async function executeScript(
       cwd,
     });
 
-    let stdout = "";
-    let stderr = "";
+    let stdout = '';
+    let stderr = '';
 
     const timeout = agentTimeoutMs
       ? setTimeout(() => {
@@ -389,19 +389,19 @@ async function executeScript(
         }, agentTimeoutMs)
       : undefined;
 
-    child.stdout?.on("data", (data) => {
+    child.stdout?.on('data', (data) => {
       stdout += data.toString();
     });
-    child.stderr?.on("data", (data) => {
+    child.stderr?.on('data', (data) => {
       stderr += data.toString();
     });
-    child.on("error", (error) => {
+    child.on('error', (error) => {
       if (timeout !== undefined) {
         clearTimeout(timeout);
       }
       reject(error);
     });
-    child.on("exit", (code) => {
+    child.on('exit', (code) => {
       if (timeout !== undefined) {
         clearTimeout(timeout);
       }

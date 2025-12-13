@@ -1,12 +1,12 @@
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import tsconfigPaths from "vite-tsconfig-paths";
-import { defineConfig, mergeConfig } from "vitest/config";
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import tsconfigPaths from 'vite-tsconfig-paths';
+import { defineConfig, mergeConfig } from 'vitest/config';
 
-import baseConfig from "../../vitest.config.js";
+import baseConfig from '../../vitest.config.js';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
-const tsconfigProject = resolve(packageDir, "tsconfig.test.json");
+const tsconfigProject = resolve(packageDir, 'tsconfig.test.json');
 
 export default mergeConfig(
   baseConfig,
@@ -17,7 +17,7 @@ export default mergeConfig(
       }),
     ],
     test: {
-      include: ["test/**/*.test.ts"],
+      include: ['test/**/*.test.ts'],
     },
-  })
+  }),
 );

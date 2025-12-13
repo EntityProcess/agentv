@@ -17,8 +17,8 @@
   },
   "javascript": {
     "formatter": {
-      "quoteStyle": "double",
-      "trailingCommas": "es5",
+      "quoteStyle": "single",
+      "trailingCommas": "all",
       "semicolons": "always"
     }
   },

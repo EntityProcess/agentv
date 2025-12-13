@@ -1,5 +1,5 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 interface ResolvedTargetLike {
   readonly name: string;
@@ -35,38 +35,38 @@ interface EvaluationResultLike {
 }
 
 function buildResults(targetName: string): EvaluationResultLike[] {
-  const baseTime = new Date("2024-01-01T00:00:00.000Z");
+  const baseTime = new Date('2024-01-01T00:00:00.000Z');
   return [
     {
-      eval_id: "case-alpha",
+      eval_id: 'case-alpha',
       score: 0.6,
-      hits: ["alpha"],
+      hits: ['alpha'],
       misses: [],
-      candidate_answer: "Alpha answer",
+      candidate_answer: 'Alpha answer',
       expected_aspect_count: 1,
       target: targetName,
       timestamp: baseTime.toISOString(),
-      reasoning: "Alpha reasoning",
-      raw_aspects: ["alpha"],
+      reasoning: 'Alpha reasoning',
+      raw_aspects: ['alpha'],
     },
     {
-      eval_id: "case-beta",
+      eval_id: 'case-beta',
       score: 0.9,
-      hits: ["beta", "gamma"],
-      misses: ["delta"],
-      candidate_answer: "Beta answer",
+      hits: ['beta', 'gamma'],
+      misses: ['delta'],
+      candidate_answer: 'Beta answer',
       expected_aspect_count: 3,
       target: targetName,
       timestamp: new Date(baseTime.getTime() + 60_000).toISOString(),
-      reasoning: "Beta reasoning",
-      raw_aspects: ["beta", "gamma", "delta"],
+      reasoning: 'Beta reasoning',
+      raw_aspects: ['beta', 'gamma', 'delta'],
     },
   ];
 }
 
 async function maybeWriteDiagnostics(
   options: RunEvaluationOptionsLike,
-  results: readonly EvaluationResultLike[]
+  results: readonly EvaluationResultLike[],
 ): Promise<void> {
   const diagnosticsPath = process.env.AGENTEVO_CLI_EVAL_RUNNER_OUTPUT;
   if (!diagnosticsPath) {
@@ -83,33 +83,33 @@ async function maybeWriteDiagnostics(
     resultCount: results.length,
   } satisfies Record<string, unknown>;
 
-  await writeFile(diagnosticsPath, JSON.stringify(payload, null, 2), "utf8");
+  await writeFile(diagnosticsPath, JSON.stringify(payload, null, 2), 'utf8');
 }
 
 async function maybeWritePromptDump(
   promptDumpDir: string | undefined,
-  testIds: readonly string[]
+  testIds: readonly string[],
 ): Promise<void> {
   if (!promptDumpDir) {
     return;
   }
   await mkdir(promptDumpDir, { recursive: true });
-  const payload = { source: "mock-run-evaluation" } satisfies Record<string, unknown>;
+  const payload = { source: 'mock-run-evaluation' } satisfies Record<string, unknown>;
   for (const testId of testIds) {
     const filePath = path.join(promptDumpDir, `${testId}.json`);
-    await writeFile(filePath, JSON.stringify(payload, null, 2), "utf8");
+    await writeFile(filePath, JSON.stringify(payload, null, 2), 'utf8');
   }
 }
 
 export async function runEvaluation(
-  options: RunEvaluationOptionsLike
+  options: RunEvaluationOptionsLike,
 ): Promise<readonly EvaluationResultLike[]> {
-  const results = buildResults(options.target?.name ?? "unknown-target");
+  const results = buildResults(options.target?.name ?? 'unknown-target');
 
   await maybeWriteDiagnostics(options, results);
   await maybeWritePromptDump(
     options.promptDumpDir,
-    results.map((result) => result.eval_id)
+    results.map((result) => result.eval_id),
   );
 
   for (const result of results) {

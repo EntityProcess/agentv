@@ -1,7 +1,7 @@
-import path from "node:path";
+import path from 'node:path';
 
-import { isGuidelineFile } from "../yaml-parser.js";
-import type { ProviderRequest } from "./types.js";
+import { isGuidelineFile } from '../yaml-parser.js';
+import type { ProviderRequest } from './types.js';
 
 export interface PromptDocumentOptions {
   readonly guidelinePatterns?: readonly string[];
@@ -11,14 +11,14 @@ export interface PromptDocumentOptions {
 export function buildPromptDocument(
   request: ProviderRequest,
   inputFiles: readonly string[] | undefined,
-  options?: PromptDocumentOptions
+  options?: PromptDocumentOptions,
 ): string {
   const parts: string[] = [];
 
   const guidelineFiles = collectGuidelineFiles(
     inputFiles,
     options?.guidelinePatterns ?? request.guideline_patterns,
-    options?.guidelineOverrides
+    options?.guidelineOverrides,
   );
   const inputFilesList = collectInputFiles(inputFiles);
 
@@ -26,16 +26,16 @@ export function buildPromptDocument(
 
   const prereadBlock = buildMandatoryPrereadBlock(guidelineFiles, nonGuidelineInputFiles);
   if (prereadBlock.length > 0) {
-    parts.push("\n", prereadBlock);
+    parts.push('\n', prereadBlock);
   }
 
-  parts.push("\n[[ ## user_query ## ]]\n", request.question.trim());
+  parts.push('\n[[ ## user_query ## ]]\n', request.question.trim());
 
-  return parts.join("\n").trim();
+  return parts.join('\n').trim();
 }
 
 export function normalizeInputFiles(
-  inputFiles: readonly string[] | undefined
+  inputFiles: readonly string[] | undefined,
 ): string[] | undefined {
   if (!inputFiles || inputFiles.length === 0) {
     return undefined;
@@ -53,7 +53,7 @@ export function normalizeInputFiles(
 export function collectGuidelineFiles(
   inputFiles: readonly string[] | undefined,
   guidelinePatterns: readonly string[] | undefined,
-  overrides?: ReadonlySet<string>
+  overrides?: ReadonlySet<string>,
 ): string[] {
   if (!inputFiles || inputFiles.length === 0) {
     return [];
@@ -69,7 +69,7 @@ export function collectGuidelineFiles(
       continue;
     }
 
-    const normalized = absolutePath.split(path.sep).join("/");
+    const normalized = absolutePath.split(path.sep).join('/');
     if (isGuidelineFile(normalized, guidelinePatterns)) {
       if (!unique.has(absolutePath)) {
         unique.set(absolutePath, absolutePath);
@@ -96,10 +96,10 @@ function collectInputFiles(inputFiles: readonly string[] | undefined): string[] 
 
 function buildMandatoryPrereadBlock(
   guidelineFiles: readonly string[],
-  inputFiles: readonly string[]
+  inputFiles: readonly string[],
 ): string {
   if (guidelineFiles.length === 0 && inputFiles.length === 0) {
-    return "";
+    return '';
   }
 
   const buildList = (files: readonly string[]): string[] =>
@@ -111,24 +111,24 @@ function buildMandatoryPrereadBlock(
 
   const sections: string[] = [];
   if (guidelineFiles.length > 0) {
-    sections.push(`Read all guideline files:\n${buildList(guidelineFiles).join("\n")}.`);
+    sections.push(`Read all guideline files:\n${buildList(guidelineFiles).join('\n')}.`);
   }
 
   if (inputFiles.length > 0) {
-    sections.push(`Read all input files:\n${buildList(inputFiles).join("\n")}.`);
+    sections.push(`Read all input files:\n${buildList(inputFiles).join('\n')}.`);
   }
 
   sections.push(
-    "If any file is missing, fail with ERROR: missing-file <filename> and stop.",
-    "Then apply system_instructions on the user query below."
+    'If any file is missing, fail with ERROR: missing-file <filename> and stop.',
+    'Then apply system_instructions on the user query below.',
   );
 
-  return sections.join("\n");
+  return sections.join('\n');
 }
 
 function pathToFileUri(filePath: string): string {
   const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
-  const normalizedPath = absolutePath.replace(/\\/g, "/");
+  const normalizedPath = absolutePath.replace(/\\/g, '/');
   if (/^[a-zA-Z]:\//.test(normalizedPath)) {
     return `file:///${normalizedPath}`;
   }

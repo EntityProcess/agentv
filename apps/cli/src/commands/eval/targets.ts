@@ -1,6 +1,6 @@
-import { constants } from "node:fs";
-import { access } from "node:fs/promises";
-import path from "node:path";
+import { constants } from 'node:fs';
+import { access } from 'node:fs/promises';
+import path from 'node:path';
 import {
   type ResolvedTarget,
   type TargetDefinition,
@@ -9,19 +9,19 @@ import {
   readTargetDefinitions,
   readTestSuiteMetadata,
   resolveTargetDefinition,
-} from "@agentv/core";
-import { validateTargetsFile } from "@agentv/core/evaluation/validation";
+} from '@agentv/core';
+import { validateTargetsFile } from '@agentv/core/evaluation/validation';
 
 const TARGET_FILE_CANDIDATES = [
-  "targets.yaml",
-  "targets.yml",
-  path.join(".agentv", "targets.yaml"),
-  path.join(".agentv", "targets.yml"),
+  'targets.yaml',
+  'targets.yml',
+  path.join('.agentv', 'targets.yaml'),
+  path.join('.agentv', 'targets.yml'),
 ];
 
-const ANSI_YELLOW = "\u001b[33m";
-const ANSI_RED = "\u001b[31m";
-const ANSI_RESET = "\u001b[0m";
+const ANSI_YELLOW = '\u001b[33m';
+const ANSI_RED = '\u001b[31m';
+const ANSI_RESET = '\u001b[0m';
 
 function isTTY(): boolean {
   return process.stdout.isTTY ?? false;
@@ -81,14 +81,14 @@ async function discoverTargetsFile(options: {
     }
   }
 
-  throw new Error("Unable to locate targets.yaml. Use --targets to specify the file explicitly.");
+  throw new Error('Unable to locate targets.yaml. Use --targets to specify the file explicitly.');
 }
 
 export interface TargetSelection {
   readonly definitions: readonly TargetDefinition[];
   readonly resolvedTarget: ResolvedTarget;
   readonly targetName: string;
-  readonly targetSource: "cli" | "test-file" | "default";
+  readonly targetSource: 'cli' | 'test-file' | 'default';
   readonly targetsFilePath: string;
 }
 
@@ -108,18 +108,18 @@ export interface TargetSelectionOptions {
 function pickTargetName(options: {
   readonly cliTargetName?: string;
   readonly fileTargetName?: string;
-}): { readonly name: string; readonly source: "cli" | "test-file" | "default" } {
+}): { readonly name: string; readonly source: 'cli' | 'test-file' | 'default' } {
   const cliName = options.cliTargetName?.trim();
-  if (cliName && cliName !== "default") {
-    return { name: cliName, source: "cli" };
+  if (cliName && cliName !== 'default') {
+    return { name: cliName, source: 'cli' };
   }
 
   const fileName = options.fileTargetName?.trim();
   if (fileName && fileName.length > 0) {
-    return { name: fileName, source: "test-file" };
+    return { name: fileName, source: 'test-file' };
   }
 
-  return { name: "default", source: "default" };
+  return { name: 'default', source: 'default' };
 }
 
 export async function selectTarget(options: TargetSelectionOptions): Promise<TargetSelection> {
@@ -145,27 +145,27 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
 
   // Validate the targets file and show warnings
   const validationResult = await validateTargetsFile(targetsFilePath);
-  const warnings = validationResult.errors.filter((e) => e.severity === "warning");
+  const warnings = validationResult.errors.filter((e) => e.severity === 'warning');
   const useColors = isTTY();
 
   if (warnings.length > 0) {
     console.warn(`\nWarnings in ${targetsFilePath}:`);
     for (const warning of warnings) {
-      const location = warning.location ? ` [${warning.location}]` : "";
-      const prefix = useColors ? `${ANSI_YELLOW}  ⚠${ANSI_RESET}` : "  ⚠";
+      const location = warning.location ? ` [${warning.location}]` : '';
+      const prefix = useColors ? `${ANSI_YELLOW}  ⚠${ANSI_RESET}` : '  ⚠';
       const message = useColors ? `${ANSI_YELLOW}${warning.message}${ANSI_RESET}` : warning.message;
       console.warn(`${prefix}${location} ${message}`);
     }
-    console.warn("");
+    console.warn('');
   }
 
   // Check for errors (should fail if invalid)
-  const errors = validationResult.errors.filter((e) => e.severity === "error");
+  const errors = validationResult.errors.filter((e) => e.severity === 'error');
   if (errors.length > 0) {
     console.error(`\nErrors in ${targetsFilePath}:`);
     for (const error of errors) {
-      const location = error.location ? ` [${error.location}]` : "";
-      const prefix = useColors ? `${ANSI_RED}  ✗${ANSI_RESET}` : "  ✗";
+      const location = error.location ? ` [${error.location}]` : '';
+      const prefix = useColors ? `${ANSI_RED}  ✗${ANSI_RESET}` : '  ✗';
       const message = useColors ? `${ANSI_RED}${error.message}${ANSI_RESET}` : error.message;
       console.error(`${prefix}${location} ${message}`);
     }
@@ -177,18 +177,18 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
   const targetChoice = pickTargetName({ cliTargetName, fileTargetName });
 
   const targetDefinition = definitions.find(
-    (definition: TargetDefinition) => definition.name === targetChoice.name
+    (definition: TargetDefinition) => definition.name === targetChoice.name,
   );
   if (!targetDefinition) {
-    const available = listTargetNames(definitions).join(", ");
+    const available = listTargetNames(definitions).join(', ');
     throw new Error(
-      `Target '${targetChoice.name}' not found in ${targetsFilePath}. Available targets: ${available}`
+      `Target '${targetChoice.name}' not found in ${targetsFilePath}. Available targets: ${available}`,
     );
   }
 
   if (dryRun) {
     const mockTarget: ResolvedTarget = {
-      kind: "mock",
+      kind: 'mock',
       name: `${targetDefinition.name}-dry-run`,
       judgeTarget: undefined,
       config: {

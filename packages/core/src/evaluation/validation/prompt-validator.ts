@@ -1,9 +1,9 @@
-import { readFile } from "node:fs/promises";
+import { readFile } from 'node:fs/promises';
 
-import { TEMPLATE_VARIABLES, VALID_TEMPLATE_VARIABLES } from "../template-variables.js";
+import { TEMPLATE_VARIABLES, VALID_TEMPLATE_VARIABLES } from '../template-variables.js';
 
-const ANSI_YELLOW = "\u001b[33m";
-const ANSI_RESET = "\u001b[0m";
+const ANSI_YELLOW = '\u001b[33m';
+const ANSI_RESET = '\u001b[0m';
 
 /**
  * Validate custom prompt template content from a file.
@@ -11,7 +11,7 @@ const ANSI_RESET = "\u001b[0m";
  * Throws an error if required template variables are missing.
  */
 export async function validateCustomPromptContent(promptPath: string): Promise<void> {
-  const content = await readFile(promptPath, "utf8");
+  const content = await readFile(promptPath, 'utf8');
   validateTemplateVariables(content, promptPath);
 }
 
@@ -44,17 +44,17 @@ export function validateTemplateVariables(content: string, source: string): void
   // ERROR: Missing required fields - throw error to skip this evaluator/eval case
   if (!hasRequiredFields) {
     throw new Error(
-      `Missing required fields. Must include at least one of:\n  - {{ ${TEMPLATE_VARIABLES.CANDIDATE_ANSWER} }}\n  - {{ ${TEMPLATE_VARIABLES.EXPECTED_MESSAGES} }}`
+      `Missing required fields. Must include at least one of:\n  - {{ ${TEMPLATE_VARIABLES.CANDIDATE_ANSWER} }}\n  - {{ ${TEMPLATE_VARIABLES.EXPECTED_MESSAGES} }}`,
     );
   }
 
   // WARNING: Invalid variables - show warning but continue
   if (invalidVariables.length > 0) {
     const warningMessage = `${ANSI_YELLOW}Warning: Custom evaluator template at ${source}
-  Contains invalid variables: ${invalidVariables.map((v) => `{{ ${v} }}`).join(", ")}
+  Contains invalid variables: ${invalidVariables.map((v) => `{{ ${v} }}`).join(', ')}
   Valid variables: ${Array.from(VALID_TEMPLATE_VARIABLES)
     .map((v) => `{{ ${v} }}`)
-    .join(", ")}${ANSI_RESET}`;
+    .join(', ')}${ANSI_RESET}`;
 
     console.warn(warningMessage);
   }

@@ -1,6 +1,6 @@
-import { constants } from "node:fs";
-import { access } from "node:fs/promises";
-import path from "node:path";
+import { constants } from 'node:fs';
+import { access } from 'node:fs/promises';
+import path from 'node:path';
 
 /**
  * Check if a file exists on disk.
@@ -21,13 +21,13 @@ export function resolveToAbsolutePath(candidate: URL | string): string {
   if (candidate instanceof URL) {
     return new URL(candidate).pathname;
   }
-  if (typeof candidate === "string") {
-    if (candidate.startsWith("file://")) {
+  if (typeof candidate === 'string') {
+    if (candidate.startsWith('file://')) {
       return new URL(candidate).pathname;
     }
     return path.resolve(candidate);
   }
-  throw new TypeError("Unsupported repoRoot value. Expected string or URL.");
+  throw new TypeError('Unsupported repoRoot value. Expected string or URL.');
 }
 
 /**
@@ -96,7 +96,7 @@ export function buildSearchRoots(evalPath: string, repoRoot: string): readonly s
  * Trim leading path separators for display.
  */
 function trimLeadingSeparators(value: string): string {
-  const trimmed = value.replace(/^[/\\]+/, "");
+  const trimmed = value.replace(/^[/\\]+/, '');
   return trimmed.length > 0 ? trimmed : value;
 }
 
@@ -105,7 +105,7 @@ function trimLeadingSeparators(value: string): string {
  */
 export async function resolveFileReference(
   rawValue: string,
-  searchRoots: readonly string[]
+  searchRoots: readonly string[],
 ): Promise<{
   readonly displayPath: string;
   readonly resolvedPath?: string;

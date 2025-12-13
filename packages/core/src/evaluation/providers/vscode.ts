@@ -1,19 +1,19 @@
-import path from "node:path";
+import path from 'node:path';
 import {
   dispatchAgentSession,
   dispatchBatchAgent,
   getSubagentRoot,
   provisionSubagents,
-} from "subagent";
+} from 'subagent';
 
-import { readTextFile } from "../file-utils.js";
-import { isGuidelineFile } from "../yaml-parser.js";
-import type { VSCodeResolvedConfig } from "./targets.js";
-import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
+import { readTextFile } from '../file-utils.js';
+import { isGuidelineFile } from '../yaml-parser.js';
+import type { VSCodeResolvedConfig } from './targets.js';
+import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 
 export class VSCodeProvider implements Provider {
   readonly id: string;
-  readonly kind: "vscode" | "vscode-insiders";
+  readonly kind: 'vscode' | 'vscode-insiders';
   readonly targetName: string;
   readonly supportsBatch = true;
 
@@ -22,7 +22,7 @@ export class VSCodeProvider implements Provider {
   constructor(
     targetName: string,
     config: VSCodeResolvedConfig,
-    kind: "vscode" | "vscode-insiders"
+    kind: 'vscode' | 'vscode-insiders',
   ) {
     this.id = `${kind}:${targetName}`;
     this.kind = kind;
@@ -32,7 +32,7 @@ export class VSCodeProvider implements Provider {
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
     if (request.signal?.aborted) {
-      throw new Error("VS Code provider request was aborted before dispatch");
+      throw new Error('VS Code provider request was aborted before dispatch');
     }
 
     const inputFiles = normalizeAttachments(request.inputFiles);
@@ -50,13 +50,13 @@ export class VSCodeProvider implements Provider {
     });
 
     if (session.exitCode !== 0 || !session.responseFile) {
-      const failure = session.error ?? "VS Code subagent did not produce a response";
+      const failure = session.error ?? 'VS Code subagent did not produce a response';
       throw new Error(failure);
     }
 
     if (this.config.dryRun) {
       return {
-        text: "",
+        text: '',
         raw: {
           session,
           inputFiles,
@@ -86,10 +86,10 @@ export class VSCodeProvider implements Provider {
     }));
 
     const combinedInputFiles = mergeAttachments(
-      normalizedRequests.map(({ inputFiles }) => inputFiles)
+      normalizedRequests.map(({ inputFiles }) => inputFiles),
     );
     const userQueries = normalizedRequests.map(({ request, inputFiles }) =>
-      buildPromptDocument(request, inputFiles, request.guideline_patterns)
+      buildPromptDocument(request, inputFiles, request.guideline_patterns),
     );
 
     const session = await dispatchBatchAgent({
@@ -104,13 +104,13 @@ export class VSCodeProvider implements Provider {
     });
 
     if (session.exitCode !== 0 || !session.responseFiles) {
-      const failure = session.error ?? "VS Code subagent did not produce batch responses";
+      const failure = session.error ?? 'VS Code subagent did not produce batch responses';
       throw new Error(failure);
     }
 
     if (this.config.dryRun) {
       return normalizedRequests.map(({ inputFiles }) => ({
-        text: "",
+        text: '',
         raw: {
           session,
           inputFiles,
@@ -121,7 +121,7 @@ export class VSCodeProvider implements Provider {
 
     if (session.responseFiles.length !== requests.length) {
       throw new Error(
-        `VS Code batch returned ${session.responseFiles.length} responses for ${requests.length} requests`
+        `VS Code batch returned ${session.responseFiles.length} responses for ${requests.length} requests`,
       );
     }
 
@@ -146,7 +146,7 @@ export class VSCodeProvider implements Provider {
 function buildPromptDocument(
   request: ProviderRequest,
   attachments: readonly string[] | undefined,
-  guidelinePatterns: readonly string[] | undefined
+  guidelinePatterns: readonly string[] | undefined,
 ): string {
   const parts: string[] = [];
 
@@ -162,20 +162,20 @@ function buildPromptDocument(
 
   const prereadBlock = buildMandatoryPrereadBlock(guidelineFiles, nonGuidelineAttachments);
   if (prereadBlock.length > 0) {
-    parts.push("\n", prereadBlock);
+    parts.push('\n', prereadBlock);
   }
 
-  parts.push("\n[[ ## user_query ## ]]\n", request.question.trim());
+  parts.push('\n[[ ## user_query ## ]]\n', request.question.trim());
 
-  return parts.join("\n").trim();
+  return parts.join('\n').trim();
 }
 
 function buildMandatoryPrereadBlock(
   guidelineFiles: readonly string[],
-  attachmentFiles: readonly string[]
+  attachmentFiles: readonly string[],
 ): string {
   if (guidelineFiles.length === 0 && attachmentFiles.length === 0) {
-    return "";
+    return '';
   }
 
   const buildList = (files: readonly string[]): string[] =>
@@ -187,24 +187,24 @@ function buildMandatoryPrereadBlock(
 
   const sections: string[] = [];
   if (guidelineFiles.length > 0) {
-    sections.push(`Read all guideline files:\n${buildList(guidelineFiles).join("\n")}.`);
+    sections.push(`Read all guideline files:\n${buildList(guidelineFiles).join('\n')}.`);
   }
 
   if (attachmentFiles.length > 0) {
-    sections.push(`Read all attachment files:\n${buildList(attachmentFiles).join("\n")}.`);
+    sections.push(`Read all attachment files:\n${buildList(attachmentFiles).join('\n')}.`);
   }
 
   sections.push(
-    "If any file is missing, fail with ERROR: missing-file <filename> and stop.",
-    "Then apply system_instructions on the user query below."
+    'If any file is missing, fail with ERROR: missing-file <filename> and stop.',
+    'Then apply system_instructions on the user query below.',
   );
 
-  return sections.join("\n");
+  return sections.join('\n');
 }
 
 function collectGuidelineFiles(
   attachments: readonly string[] | undefined,
-  guidelinePatterns: readonly string[] | undefined
+  guidelinePatterns: readonly string[] | undefined,
 ): string[] {
   if (!attachments || attachments.length === 0) {
     return [];
@@ -213,7 +213,7 @@ function collectGuidelineFiles(
   const unique = new Map<string, string>();
   for (const attachment of attachments) {
     const absolutePath = path.resolve(attachment);
-    const normalized = absolutePath.split(path.sep).join("/");
+    const normalized = absolutePath.split(path.sep).join('/');
 
     if (isGuidelineFile(normalized, guidelinePatterns)) {
       if (!unique.has(absolutePath)) {
@@ -244,7 +244,7 @@ function pathToFileUri(filePath: string): string {
   const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
 
   // On Windows, convert backslashes to forward slashes
-  const normalizedPath = absolutePath.replace(/\\/g, "/");
+  const normalizedPath = absolutePath.replace(/\\/g, '/');
 
   // Handle Windows drive letters (e.g., C:/ becomes file:///C:/)
   if (/^[a-zA-Z]:\//.test(normalizedPath)) {
@@ -284,7 +284,7 @@ function mergeAttachments(all: readonly (readonly string[] | undefined)[]): stri
 }
 
 export interface EnsureSubagentsOptions {
-  readonly kind: "vscode" | "vscode-insiders";
+  readonly kind: 'vscode' | 'vscode-insiders';
   readonly count: number;
   readonly verbose?: boolean;
 }
@@ -302,10 +302,10 @@ export interface EnsureSubagentsResult {
  * @returns Information about the provisioning result
  */
 export async function ensureVSCodeSubagents(
-  options: EnsureSubagentsOptions
+  options: EnsureSubagentsOptions,
 ): Promise<EnsureSubagentsResult> {
   const { kind, count, verbose = false } = options;
-  const vscodeCmd = kind === "vscode-insiders" ? "code-insiders" : "code";
+  const vscodeCmd = kind === 'vscode-insiders' ? 'code-insiders' : 'code';
   const subagentRoot = getSubagentRoot(vscodeCmd);
 
   try {
@@ -327,7 +327,7 @@ export async function ensureVSCodeSubagents(
         console.log(`Reusing ${result.skippedExisting.length} existing unlocked subagent(s)`);
       }
       console.log(
-        `\ntotal unlocked subagents available: ${result.created.length + result.skippedExisting.length}`
+        `\ntotal unlocked subagents available: ${result.created.length + result.skippedExisting.length}`,
       );
     }
 

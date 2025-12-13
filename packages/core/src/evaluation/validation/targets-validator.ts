@@ -1,158 +1,158 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { parse } from "yaml";
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { parse } from 'yaml';
 
-import { CLI_PLACEHOLDERS } from "../providers/targets.js";
-import { KNOWN_PROVIDERS, PROVIDER_ALIASES, TARGETS_SCHEMA_V2 } from "../providers/types.js";
-import type { ValidationError, ValidationResult } from "./types.js";
+import { CLI_PLACEHOLDERS } from '../providers/targets.js';
+import { KNOWN_PROVIDERS, PROVIDER_ALIASES, TARGETS_SCHEMA_V2 } from '../providers/types.js';
+import type { ValidationError, ValidationResult } from './types.js';
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
 type JsonArray = readonly JsonValue[];
 
 function isObject(value: unknown): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 // Known settings properties for each provider type
-const COMMON_SETTINGS = new Set(["provider_batching", "providerBatching"]);
+const COMMON_SETTINGS = new Set(['provider_batching', 'providerBatching']);
 
 const RETRY_SETTINGS = new Set([
-  "max_retries",
-  "maxRetries",
-  "retry_initial_delay_ms",
-  "retryInitialDelayMs",
-  "retry_max_delay_ms",
-  "retryMaxDelayMs",
-  "retry_backoff_factor",
-  "retryBackoffFactor",
-  "retry_status_codes",
-  "retryStatusCodes",
+  'max_retries',
+  'maxRetries',
+  'retry_initial_delay_ms',
+  'retryInitialDelayMs',
+  'retry_max_delay_ms',
+  'retryMaxDelayMs',
+  'retry_backoff_factor',
+  'retryBackoffFactor',
+  'retry_status_codes',
+  'retryStatusCodes',
 ]);
 
 const AZURE_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   ...RETRY_SETTINGS,
-  "endpoint",
-  "resource",
-  "resourceName",
-  "api_key",
-  "apiKey",
-  "deployment",
-  "deploymentName",
-  "model",
-  "version",
-  "api_version",
-  "temperature",
-  "max_output_tokens",
-  "maxTokens",
+  'endpoint',
+  'resource',
+  'resourceName',
+  'api_key',
+  'apiKey',
+  'deployment',
+  'deploymentName',
+  'model',
+  'version',
+  'api_version',
+  'temperature',
+  'max_output_tokens',
+  'maxTokens',
 ]);
 
 const ANTHROPIC_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   ...RETRY_SETTINGS,
-  "api_key",
-  "apiKey",
-  "model",
-  "deployment",
-  "variant",
-  "temperature",
-  "max_output_tokens",
-  "maxTokens",
-  "thinking_budget",
-  "thinkingBudget",
+  'api_key',
+  'apiKey',
+  'model',
+  'deployment',
+  'variant',
+  'temperature',
+  'max_output_tokens',
+  'maxTokens',
+  'thinking_budget',
+  'thinkingBudget',
 ]);
 
 const GEMINI_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   ...RETRY_SETTINGS,
-  "api_key",
-  "apiKey",
-  "model",
-  "deployment",
-  "variant",
-  "temperature",
-  "max_output_tokens",
-  "maxTokens",
+  'api_key',
+  'apiKey',
+  'model',
+  'deployment',
+  'variant',
+  'temperature',
+  'max_output_tokens',
+  'maxTokens',
 ]);
 
 const CODEX_SETTINGS = new Set([
   ...COMMON_SETTINGS,
-  "executable",
-  "command",
-  "binary",
-  "args",
-  "arguments",
-  "cwd",
-  "timeout_seconds",
-  "timeoutSeconds",
-  "log_dir",
-  "logDir",
-  "log_directory",
-  "logDirectory",
-  "log_format",
-  "logFormat",
-  "log_output_format",
-  "logOutputFormat",
+  'executable',
+  'command',
+  'binary',
+  'args',
+  'arguments',
+  'cwd',
+  'timeout_seconds',
+  'timeoutSeconds',
+  'log_dir',
+  'logDir',
+  'log_directory',
+  'logDirectory',
+  'log_format',
+  'logFormat',
+  'log_output_format',
+  'logOutputFormat',
 ]);
 
 const VSCODE_SETTINGS = new Set([
   ...COMMON_SETTINGS,
-  "workspace_template",
-  "workspaceTemplate",
-  "vscode_cmd",
-  "command",
-  "wait",
-  "dry_run",
-  "dryRun",
-  "subagent_root",
-  "subagentRoot",
+  'workspace_template',
+  'workspaceTemplate',
+  'vscode_cmd',
+  'command',
+  'wait',
+  'dry_run',
+  'dryRun',
+  'subagent_root',
+  'subagentRoot',
 ]);
 
 const MOCK_SETTINGS = new Set([
   ...COMMON_SETTINGS,
-  "response",
-  "delayMs",
-  "delayMinMs",
-  "delayMaxMs",
+  'response',
+  'delayMs',
+  'delayMinMs',
+  'delayMaxMs',
 ]);
 
 const CLI_SETTINGS = new Set([
   ...COMMON_SETTINGS,
-  "command_template",
-  "commandTemplate",
-  "files_format",
-  "filesFormat",
-  "attachments_format",
-  "attachmentsFormat",
-  "cwd",
-  "env",
-  "timeout_seconds",
-  "timeoutSeconds",
-  "healthcheck",
+  'command_template',
+  'commandTemplate',
+  'files_format',
+  'filesFormat',
+  'attachments_format',
+  'attachmentsFormat',
+  'cwd',
+  'env',
+  'timeout_seconds',
+  'timeoutSeconds',
+  'healthcheck',
 ]);
 
 function getKnownSettings(provider: string): Set<string> | null {
   const normalizedProvider = provider.toLowerCase();
   switch (normalizedProvider) {
-    case "azure":
-    case "azure-openai":
+    case 'azure':
+    case 'azure-openai':
       return AZURE_SETTINGS;
-    case "anthropic":
+    case 'anthropic':
       return ANTHROPIC_SETTINGS;
-    case "gemini":
-    case "google":
-    case "google-gemini":
+    case 'gemini':
+    case 'google':
+    case 'google-gemini':
       return GEMINI_SETTINGS;
-    case "codex":
-    case "codex-cli":
+    case 'codex':
+    case 'codex-cli':
       return CODEX_SETTINGS;
-    case "vscode":
-    case "vscode-insiders":
+    case 'vscode':
+    case 'vscode-insiders':
       return VSCODE_SETTINGS;
-    case "mock":
+    case 'mock':
       return MOCK_SETTINGS;
-    case "cli":
+    case 'cli':
       return CLI_SETTINGS;
     default:
       return null; // Unknown provider, can't validate settings
@@ -164,7 +164,7 @@ function validateUnknownSettings(
   provider: string,
   absolutePath: string,
   location: string,
-  errors: ValidationError[]
+  errors: ValidationError[],
 ): void {
   const knownSettings = getKnownSettings(provider);
   if (!knownSettings) {
@@ -173,12 +173,12 @@ function validateUnknownSettings(
   }
 
   // Known base target fields that aren't settings
-  const baseFields = new Set(["name", "provider", "judge_target", "workers", "$schema", "targets"]);
+  const baseFields = new Set(['name', 'provider', 'judge_target', 'workers', '$schema', 'targets']);
 
   for (const key of Object.keys(target)) {
     if (!baseFields.has(key) && !knownSettings.has(key)) {
       errors.push({
-        severity: "warning",
+        severity: 'warning',
         filePath: absolutePath,
         location: `${location}.${key}`,
         message: `Unknown setting '${key}' for ${provider} provider. This property will be ignored.`,
@@ -196,18 +196,18 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
 
   let parsed: unknown;
   try {
-    const content = await readFile(absolutePath, "utf8");
+    const content = await readFile(absolutePath, 'utf8');
     parsed = parse(content);
   } catch (error) {
     errors.push({
-      severity: "error",
+      severity: 'error',
       filePath: absolutePath,
       message: `Failed to parse YAML: ${(error as Error).message}`,
     });
     return {
       valid: false,
       filePath: absolutePath,
-      fileType: "targets",
+      fileType: 'targets',
       errors,
     };
   }
@@ -216,12 +216,12 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     target: JsonObject,
     absolutePath: string,
     location: string,
-    errors: ValidationError[]
+    errors: ValidationError[],
   ): void {
     const commandTemplate = target.command_template ?? target.commandTemplate;
-    if (typeof commandTemplate !== "string" || commandTemplate.trim().length === 0) {
+    if (typeof commandTemplate !== 'string' || commandTemplate.trim().length === 0) {
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath: absolutePath,
         location: `${location}.commandTemplate`,
         message: "CLI provider requires 'commandTemplate' as a non-empty string",
@@ -231,14 +231,14 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
         commandTemplate,
         absolutePath,
         `${location}.commandTemplate`,
-        errors
+        errors,
       );
     }
 
     const attachmentsFormat = target.attachments_format ?? target.attachmentsFormat;
-    if (attachmentsFormat !== undefined && typeof attachmentsFormat !== "string") {
+    if (attachmentsFormat !== undefined && typeof attachmentsFormat !== 'string') {
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath: absolutePath,
         location: `${location}.attachmentsFormat`,
         message: "'attachmentsFormat' must be a string when provided",
@@ -246,9 +246,9 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     }
 
     const filesFormat = target.files_format ?? target.filesFormat;
-    if (filesFormat !== undefined && typeof filesFormat !== "string") {
+    if (filesFormat !== undefined && typeof filesFormat !== 'string') {
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath: absolutePath,
         location: `${location}.filesFormat`,
         message: "'filesFormat' must be a string when provided",
@@ -256,9 +256,9 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     }
 
     const cwd = target.cwd;
-    if (cwd !== undefined && typeof cwd !== "string") {
+    if (cwd !== undefined && typeof cwd !== 'string') {
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath: absolutePath,
         location: `${location}.cwd`,
         message: "'cwd' must be a string when provided",
@@ -270,7 +270,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       const numericTimeout = Number(timeoutSeconds);
       if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
         errors.push({
-          severity: "error",
+          severity: 'error',
           filePath: absolutePath,
           location: `${location}.timeoutSeconds`,
           message: "'timeoutSeconds' must be a positive number when provided",
@@ -288,11 +288,11 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     healthcheck: unknown,
     absolutePath: string,
     location: string,
-    errors: ValidationError[]
+    errors: ValidationError[],
   ): void {
     if (!isObject(healthcheck)) {
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath: absolutePath,
         location,
         message: "'healthcheck' must be an object when provided",
@@ -301,9 +301,9 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     }
 
     const type = healthcheck.type;
-    if (type !== "http" && type !== "command") {
+    if (type !== 'http' && type !== 'command') {
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath: absolutePath,
         location: `${location}.type`,
         message: "healthcheck.type must be either 'http' or 'command'",
@@ -316,51 +316,51 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       const numericTimeout = Number(timeoutSeconds);
       if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
         errors.push({
-          severity: "error",
+          severity: 'error',
           filePath: absolutePath,
           location: `${location}.timeoutSeconds`,
-          message: "healthcheck.timeoutSeconds must be a positive number when provided",
+          message: 'healthcheck.timeoutSeconds must be a positive number when provided',
         });
       }
     }
 
-    if (type === "http") {
+    if (type === 'http') {
       const url = healthcheck.url;
-      if (typeof url !== "string" || url.trim().length === 0) {
+      if (typeof url !== 'string' || url.trim().length === 0) {
         errors.push({
-          severity: "error",
+          severity: 'error',
           filePath: absolutePath,
           location: `${location}.url`,
-          message: "healthcheck.url must be a non-empty string for http checks",
+          message: 'healthcheck.url must be a non-empty string for http checks',
         });
       }
       return;
     }
 
     const commandTemplate = healthcheck.command_template ?? healthcheck.commandTemplate;
-    if (typeof commandTemplate !== "string" || commandTemplate.trim().length === 0) {
+    if (typeof commandTemplate !== 'string' || commandTemplate.trim().length === 0) {
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath: absolutePath,
         location: `${location}.commandTemplate`,
-        message: "healthcheck.commandTemplate must be a non-empty string for command checks",
+        message: 'healthcheck.commandTemplate must be a non-empty string for command checks',
       });
     } else {
       recordUnknownPlaceholders(
         commandTemplate,
         absolutePath,
         `${location}.commandTemplate`,
-        errors
+        errors,
       );
     }
 
     const cwd = healthcheck.cwd;
-    if (cwd !== undefined && typeof cwd !== "string") {
+    if (cwd !== undefined && typeof cwd !== 'string') {
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath: absolutePath,
         location: `${location}.cwd`,
-        message: "healthcheck.cwd must be a string when provided",
+        message: 'healthcheck.cwd must be a string when provided',
       });
     }
   }
@@ -369,16 +369,16 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     template: string,
     absolutePath: string,
     location: string,
-    errors: ValidationError[]
+    errors: ValidationError[],
   ): void {
     const placeholders = extractPlaceholders(template);
     for (const placeholder of placeholders) {
       if (!CLI_PLACEHOLDERS.has(placeholder)) {
         errors.push({
-          severity: "error",
+          severity: 'error',
           filePath: absolutePath,
           location,
-          message: `Unknown CLI placeholder '{${placeholder}}'. Supported placeholders: ${Array.from(CLI_PLACEHOLDERS).join(", ")}`,
+          message: `Unknown CLI placeholder '{${placeholder}}'. Supported placeholders: ${Array.from(CLI_PLACEHOLDERS).join(', ')}`,
         });
       }
     }
@@ -398,14 +398,14 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
 
   if (!isObject(parsed)) {
     errors.push({
-      severity: "error",
+      severity: 'error',
       filePath: absolutePath,
-      message: "File must contain a YAML object",
+      message: 'File must contain a YAML object',
     });
     return {
       valid: false,
       filePath: absolutePath,
-      fileType: "targets",
+      fileType: 'targets',
       errors,
     };
   }
@@ -414,15 +414,15 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
   const targets = parsed.targets;
   if (!Array.isArray(targets)) {
     errors.push({
-      severity: "error",
+      severity: 'error',
       filePath: absolutePath,
-      location: "targets",
+      location: 'targets',
       message: "Missing or invalid 'targets' field (must be an array)",
     });
     return {
       valid: errors.length === 0,
       filePath: absolutePath,
-      fileType: "targets",
+      fileType: 'targets',
       errors,
     };
   }
@@ -436,19 +436,19 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
 
     if (!isObject(target)) {
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath: absolutePath,
         location,
-        message: "Target must be an object",
+        message: 'Target must be an object',
       });
       continue;
     }
 
     // Required field: name
     const name = target.name;
-    if (typeof name !== "string" || name.trim().length === 0) {
+    if (typeof name !== 'string' || name.trim().length === 0) {
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath: absolutePath,
         location: `${location}.name`,
         message: "Missing or invalid 'name' field (must be a non-empty string)",
@@ -457,10 +457,10 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
 
     // Required field: provider
     const provider = target.provider;
-    const providerValue = typeof provider === "string" ? provider.trim().toLowerCase() : undefined;
-    if (typeof provider !== "string" || provider.trim().length === 0) {
+    const providerValue = typeof provider === 'string' ? provider.trim().toLowerCase() : undefined;
+    if (typeof provider !== 'string' || provider.trim().length === 0) {
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath: absolutePath,
         location: `${location}.provider`,
         message: "Missing or invalid 'provider' field (must be a non-empty string)",
@@ -468,28 +468,28 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     } else if (!knownProviders.includes(provider)) {
       // Warning for unknown providers (non-fatal)
       errors.push({
-        severity: "warning",
+        severity: 'warning',
         filePath: absolutePath,
         location: `${location}.provider`,
-        message: `Unknown provider '${provider}'. Known providers: ${knownProviders.join(", ")}`,
+        message: `Unknown provider '${provider}'. Known providers: ${knownProviders.join(', ')}`,
       });
     }
 
     // Validate CLI provider fields
-    if (providerValue === "cli") {
+    if (providerValue === 'cli') {
       validateCliSettings(target, absolutePath, location, errors);
     }
 
     // Check for unknown settings properties on target object
-    if (typeof provider === "string") {
+    if (typeof provider === 'string') {
       validateUnknownSettings(target, provider, absolutePath, location, errors);
     }
 
     // Optional field: judge_target (must be string if present)
     const judgeTarget = target.judge_target;
-    if (judgeTarget !== undefined && typeof judgeTarget !== "string") {
+    if (judgeTarget !== undefined && typeof judgeTarget !== 'string') {
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath: absolutePath,
         location: `${location}.judge_target`,
         message: "Invalid 'judge_target' field (must be a string)",
@@ -498,9 +498,9 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
   }
 
   return {
-    valid: errors.filter((e) => e.severity === "error").length === 0,
+    valid: errors.filter((e) => e.severity === 'error').length === 0,
     filePath: absolutePath,
-    fileType: "targets",
+    fileType: 'targets',
     errors,
   };
 }

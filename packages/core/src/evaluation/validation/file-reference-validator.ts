@@ -1,16 +1,16 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { parse } from "yaml";
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { parse } from 'yaml';
 
-import { buildSearchRoots, findGitRoot, resolveFileReference } from "../file-utils.js";
-import type { ValidationError } from "./types.js";
+import { buildSearchRoots, findGitRoot, resolveFileReference } from '../file-utils.js';
+import type { ValidationError } from './types.js';
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
 type JsonArray = readonly JsonValue[];
 
 function isObject(value: unknown): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -19,7 +19,7 @@ function isObject(value: unknown): value is JsonObject {
  * Also checks that referenced files are not empty.
  */
 export async function validateFileReferences(
-  evalFilePath: string
+  evalFilePath: string,
 ): Promise<readonly ValidationError[]> {
   const errors: ValidationError[] = [];
   const absolutePath = path.resolve(evalFilePath);
@@ -28,9 +28,9 @@ export async function validateFileReferences(
   const gitRoot = await findGitRoot(absolutePath);
   if (!gitRoot) {
     errors.push({
-      severity: "error",
+      severity: 'error',
       filePath: absolutePath,
-      message: "Cannot validate file references: git repository root not found",
+      message: 'Cannot validate file references: git repository root not found',
     });
     return errors;
   }
@@ -39,7 +39,7 @@ export async function validateFileReferences(
 
   let parsed: unknown;
   try {
-    const content = await readFile(absolutePath, "utf8");
+    const content = await readFile(absolutePath, 'utf8');
     parsed = parse(content);
   } catch {
     // Parse errors are already caught by eval-validator
@@ -69,7 +69,7 @@ export async function validateFileReferences(
         `evalcases[${i}].input_messages`,
         searchRoots,
         absolutePath,
-        errors
+        errors,
       );
     }
 
@@ -81,7 +81,7 @@ export async function validateFileReferences(
         `evalcases[${i}].expected_messages`,
         searchRoots,
         absolutePath,
-        errors
+        errors,
       );
     }
   }
@@ -94,7 +94,7 @@ async function validateMessagesFileRefs(
   location: string,
   searchRoots: readonly string[],
   filePath: string,
-  errors: ValidationError[]
+  errors: ValidationError[],
 ): Promise<void> {
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
@@ -103,7 +103,7 @@ async function validateMessagesFileRefs(
     }
 
     const content = message.content;
-    if (typeof content === "string") {
+    if (typeof content === 'string') {
       continue;
     }
 
@@ -118,14 +118,14 @@ async function validateMessagesFileRefs(
       }
 
       const type = contentItem.type;
-      if (type !== "file") {
+      if (type !== 'file') {
         continue;
       }
 
       const value = contentItem.value;
-      if (typeof value !== "string") {
+      if (typeof value !== 'string') {
         errors.push({
-          severity: "error",
+          severity: 'error',
           filePath,
           location: `${location}[${i}].content[${j}].value`,
           message: "File reference must have a 'value' field with the file path",
@@ -138,7 +138,7 @@ async function validateMessagesFileRefs(
 
       if (!resolvedPath) {
         errors.push({
-          severity: "error",
+          severity: 'error',
           filePath,
           location: `${location}[${i}].content[${j}]`,
           message: `Referenced file not found: ${value}`,
@@ -146,10 +146,10 @@ async function validateMessagesFileRefs(
       } else {
         // Check that file is not empty
         try {
-          const fileContent = await readFile(resolvedPath, "utf8");
+          const fileContent = await readFile(resolvedPath, 'utf8');
           if (fileContent.trim().length === 0) {
             errors.push({
-              severity: "warning",
+              severity: 'warning',
               filePath,
               location: `${location}[${i}].content[${j}]`,
               message: `Referenced file is empty: ${value}`,
@@ -157,7 +157,7 @@ async function validateMessagesFileRefs(
           }
         } catch (error) {
           errors.push({
-            severity: "error",
+            severity: 'error',
             filePath,
             location: `${location}[${i}].content[${j}]`,
             message: `Cannot read referenced file: ${value} (${(error as Error).message})`,

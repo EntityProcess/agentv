@@ -1,12 +1,12 @@
-import path from "node:path";
+import path from 'node:path';
 
-import type { EvaluatorConfig, EvaluatorKind, JsonObject, JsonValue } from "../types.js";
-import { isEvaluatorKind } from "../types.js";
-import { validateCustomPromptContent } from "../validation/prompt-validator.js";
-import { resolveFileReference } from "./file-resolver.js";
+import type { EvaluatorConfig, EvaluatorKind, JsonObject, JsonValue } from '../types.js';
+import { isEvaluatorKind } from '../types.js';
+import { validateCustomPromptContent } from '../validation/prompt-validator.js';
+import { resolveFileReference } from './file-resolver.js';
 
-const ANSI_YELLOW = "\u001b[33m";
-const ANSI_RESET = "\u001b[0m";
+const ANSI_YELLOW = '\u001b[33m';
+const ANSI_RESET = '\u001b[0m';
 
 /**
  * Parse evaluators from eval case configuration.
@@ -18,7 +18,7 @@ export async function parseEvaluators(
   },
   globalExecution: JsonObject | undefined,
   searchRoots: readonly string[],
-  evalId: string
+  evalId: string,
 ): Promise<readonly EvaluatorConfig[] | undefined> {
   const execution = rawEvalCase.execution;
   // Priority: case-level execution.evaluators > case-level evaluators > global execution.evaluators
@@ -50,7 +50,7 @@ export async function parseEvaluators(
       continue;
     }
 
-    if (typeValue === "code") {
+    if (typeValue === 'code') {
       const script = asString(rawEvaluator.script);
       if (!script) {
         logWarning(`Skipping code evaluator '${name}' in '${evalId}': missing script`);
@@ -70,7 +70,7 @@ export async function parseEvaluators(
             `Code evaluator '${name}' in '${evalId}': cwd not found (${resolved.displayPath})`,
             resolved.attempted.length > 0
               ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`)
-              : undefined
+              : undefined,
           );
         }
       } else {
@@ -80,7 +80,7 @@ export async function parseEvaluators(
 
       evaluators.push({
         name,
-        type: "code",
+        type: 'code',
         script,
         cwd,
         resolvedCwd,
@@ -107,7 +107,7 @@ export async function parseEvaluators(
           `Inline prompt used for evaluator '${name}' in '${evalId}' (file not found: ${resolved.displayPath})`,
           resolved.attempted.length > 0
             ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`)
-            : undefined
+            : undefined,
         );
       }
     }
@@ -116,7 +116,7 @@ export async function parseEvaluators(
 
     evaluators.push({
       name,
-      type: "llm_judge",
+      type: 'llm_judge',
       prompt,
       promptPath,
     });
@@ -130,9 +130,9 @@ export async function parseEvaluators(
  */
 export function coerceEvaluator(
   candidate: JsonValue | undefined,
-  contextId: string
+  contextId: string,
 ): EvaluatorKind | undefined {
-  if (typeof candidate !== "string") {
+  if (typeof candidate !== 'string') {
     return undefined;
   }
   if (isEvaluatorKind(candidate)) {
@@ -143,16 +143,16 @@ export function coerceEvaluator(
 }
 
 function asString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
+  return typeof value === 'string' ? value : undefined;
 }
 
 function isJsonObject(value: unknown): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function logWarning(message: string, details?: readonly string[]): void {
   if (details && details.length > 0) {
-    const detailBlock = details.join("\n");
+    const detailBlock = details.join('\n');
     console.warn(`${ANSI_YELLOW}Warning: ${message}\n${detailBlock}${ANSI_RESET}`);
   } else {
     console.warn(`${ANSI_YELLOW}Warning: ${message}${ANSI_RESET}`);

@@ -1,14 +1,14 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-import type { EnvLookup, TargetDefinition } from "./types.js";
+import type { EnvLookup, TargetDefinition } from './types.js';
 
 export const CLI_PLACEHOLDERS = new Set([
-  "PROMPT",
-  "GUIDELINES",
-  "EVAL_ID",
-  "ATTEMPT",
-  "FILES",
-  "OUTPUT_FILE",
+  'PROMPT',
+  'GUIDELINES',
+  'EVAL_ID',
+  'ATTEMPT',
+  'FILES',
+  'OUTPUT_FILE',
 ]);
 
 export interface RetryConfig {
@@ -61,7 +61,7 @@ export interface CodexResolvedConfig {
   readonly cwd?: string;
   readonly timeoutMs?: number;
   readonly logDir?: string;
-  readonly logFormat?: "summary" | "json";
+  readonly logFormat?: 'summary' | 'json';
 }
 
 export interface MockResolvedConfig {
@@ -81,12 +81,12 @@ export interface VSCodeResolvedConfig {
 
 export type CliHealthcheck =
   | {
-      readonly type: "http";
+      readonly type: 'http';
       readonly url: string;
       readonly timeoutMs?: number;
     }
   | {
-      readonly type: "command";
+      readonly type: 'command';
       readonly commandTemplate: string;
       readonly timeoutMs?: number;
       readonly cwd?: string;
@@ -103,7 +103,7 @@ export interface CliResolvedConfig {
 
 export type ResolvedTarget =
   | {
-      readonly kind: "azure";
+      readonly kind: 'azure';
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
@@ -111,7 +111,7 @@ export type ResolvedTarget =
       readonly config: AzureResolvedConfig;
     }
   | {
-      readonly kind: "anthropic";
+      readonly kind: 'anthropic';
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
@@ -119,7 +119,7 @@ export type ResolvedTarget =
       readonly config: AnthropicResolvedConfig;
     }
   | {
-      readonly kind: "gemini";
+      readonly kind: 'gemini';
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
@@ -127,7 +127,7 @@ export type ResolvedTarget =
       readonly config: GeminiResolvedConfig;
     }
   | {
-      readonly kind: "codex";
+      readonly kind: 'codex';
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
@@ -135,7 +135,7 @@ export type ResolvedTarget =
       readonly config: CodexResolvedConfig;
     }
   | {
-      readonly kind: "mock";
+      readonly kind: 'mock';
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
@@ -143,7 +143,7 @@ export type ResolvedTarget =
       readonly config: MockResolvedConfig;
     }
   | {
-      readonly kind: "vscode" | "vscode-insiders";
+      readonly kind: 'vscode' | 'vscode-insiders';
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
@@ -151,7 +151,7 @@ export type ResolvedTarget =
       readonly config: VSCodeResolvedConfig;
     }
   | {
-      readonly kind: "cli";
+      readonly kind: 'cli';
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
@@ -161,14 +161,14 @@ export type ResolvedTarget =
 
 const BASE_TARGET_SCHEMA = z
   .object({
-    name: z.string().min(1, "target name is required"),
-    provider: z.string().min(1, "provider is required"),
+    name: z.string().min(1, 'target name is required'),
+    provider: z.string().min(1, 'provider is required'),
     judge_target: z.string().optional(),
     workers: z.number().int().min(1).optional(),
   })
   .passthrough();
 
-const DEFAULT_AZURE_API_VERSION = "2024-10-01-preview";
+const DEFAULT_AZURE_API_VERSION = '2024-10-01-preview';
 
 function normalizeAzureApiVersion(value: string | undefined): string {
   if (!value) {
@@ -180,30 +180,30 @@ function normalizeAzureApiVersion(value: string | undefined): string {
     return DEFAULT_AZURE_API_VERSION;
   }
 
-  const withoutPrefix = trimmed.replace(/^api[-_]?version\s*=\s*/i, "").trim();
+  const withoutPrefix = trimmed.replace(/^api[-_]?version\s*=\s*/i, '').trim();
   return withoutPrefix.length > 0 ? withoutPrefix : DEFAULT_AZURE_API_VERSION;
 }
 
 function resolveRetryConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): RetryConfig | undefined {
   const maxRetries = resolveOptionalNumber(
     target.max_retries ?? target.maxRetries,
-    `${target.name} max retries`
+    `${target.name} max retries`,
   );
   const initialDelayMs = resolveOptionalNumber(
     target.retry_initial_delay_ms ?? target.retryInitialDelayMs,
-    `${target.name} retry initial delay`
+    `${target.name} retry initial delay`,
   );
   const maxDelayMs = resolveOptionalNumber(
     target.retry_max_delay_ms ?? target.retryMaxDelayMs,
-    `${target.name} retry max delay`
+    `${target.name} retry max delay`,
   );
   const backoffFactor = resolveOptionalNumber(
     target.retry_backoff_factor ?? target.retryBackoffFactor,
-    `${target.name} retry backoff factor`
+    `${target.name} retry backoff factor`,
   );
   const retryableStatusCodes = resolveOptionalNumberArray(
     target.retry_status_codes ?? target.retryStatusCodes,
-    `${target.name} retry status codes`
+    `${target.name} retry status codes`,
   );
 
   // Only return retry config if at least one field is set
@@ -228,77 +228,77 @@ function resolveRetryConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): RetryCo
 
 export function resolveTargetDefinition(
   definition: TargetDefinition,
-  env: EnvLookup = process.env
+  env: EnvLookup = process.env,
 ): ResolvedTarget {
   const parsed = BASE_TARGET_SCHEMA.parse(definition);
   const provider = parsed.provider.toLowerCase();
   const providerBatching = resolveOptionalBoolean(
-    parsed.provider_batching ?? parsed.providerBatching
+    parsed.provider_batching ?? parsed.providerBatching,
   );
 
   switch (provider) {
-    case "azure":
-    case "azure-openai":
+    case 'azure':
+    case 'azure-openai':
       return {
-        kind: "azure",
+        kind: 'azure',
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveAzureConfig(parsed, env),
       };
-    case "anthropic":
+    case 'anthropic':
       return {
-        kind: "anthropic",
+        kind: 'anthropic',
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveAnthropicConfig(parsed, env),
       };
-    case "gemini":
-    case "google":
-    case "google-gemini":
+    case 'gemini':
+    case 'google':
+    case 'google-gemini':
       return {
-        kind: "gemini",
+        kind: 'gemini',
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveGeminiConfig(parsed, env),
       };
-    case "codex":
-    case "codex-cli":
+    case 'codex':
+    case 'codex-cli':
       return {
-        kind: "codex",
+        kind: 'codex',
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveCodexConfig(parsed, env),
       };
-    case "mock":
+    case 'mock':
       return {
-        kind: "mock",
+        kind: 'mock',
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveMockConfig(parsed),
       };
-    case "vscode":
-    case "vscode-insiders":
+    case 'vscode':
+    case 'vscode-insiders':
       return {
-        kind: provider as "vscode" | "vscode-insiders",
+        kind: provider as 'vscode' | 'vscode-insiders',
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
-        config: resolveVSCodeConfig(parsed, env, provider === "vscode-insiders"),
+        config: resolveVSCodeConfig(parsed, env, provider === 'vscode-insiders'),
       };
-    case "cli":
+    case 'cli':
       return {
-        kind: "cli",
+        kind: 'cli',
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
@@ -312,7 +312,7 @@ export function resolveTargetDefinition(
 
 function resolveAzureConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
-  env: EnvLookup
+  env: EnvLookup,
 ): AzureResolvedConfig {
   const endpointSource = target.endpoint ?? target.resource ?? target.resourceName;
   const apiKeySource = target.api_key ?? target.apiKey;
@@ -325,12 +325,12 @@ function resolveAzureConfig(
   const apiKey = resolveString(apiKeySource, env, `${target.name} api key`);
   const deploymentName = resolveString(deploymentSource, env, `${target.name} deployment`);
   const version = normalizeAzureApiVersion(
-    resolveOptionalString(versionSource, env, `${target.name} api version`)
+    resolveOptionalString(versionSource, env, `${target.name} api version`),
   );
   const temperature = resolveOptionalNumber(temperatureSource, `${target.name} temperature`);
   const maxOutputTokens = resolveOptionalNumber(
     maxTokensSource,
-    `${target.name} max output tokens`
+    `${target.name} max output tokens`,
   );
   const retry = resolveRetryConfig(target);
 
@@ -347,7 +347,7 @@ function resolveAzureConfig(
 
 function resolveAnthropicConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
-  env: EnvLookup
+  env: EnvLookup,
 ): AnthropicResolvedConfig {
   const apiKeySource = target.api_key ?? target.apiKey;
   const modelSource = target.model ?? target.deployment ?? target.variant;
@@ -371,7 +371,7 @@ function resolveAnthropicConfig(
 
 function resolveGeminiConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
-  env: EnvLookup
+  env: EnvLookup,
 ): GeminiResolvedConfig {
   const apiKeySource = target.api_key ?? target.apiKey;
   const modelSource = target.model ?? target.deployment ?? target.variant;
@@ -383,7 +383,7 @@ function resolveGeminiConfig(
     resolveOptionalString(modelSource, env, `${target.name} Gemini model`, {
       allowLiteral: true,
       optionalEnv: true,
-    }) ?? "gemini-2.5-flash";
+    }) ?? 'gemini-2.5-flash';
   const retry = resolveRetryConfig(target);
 
   return {
@@ -397,7 +397,7 @@ function resolveGeminiConfig(
 
 function resolveCodexConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
-  env: EnvLookup
+  env: EnvLookup,
 ): CodexResolvedConfig {
   const executableSource = target.executable ?? target.command ?? target.binary;
   const argsSource = target.args ?? target.arguments;
@@ -416,7 +416,7 @@ function resolveCodexConfig(
     resolveOptionalString(executableSource, env, `${target.name} codex executable`, {
       allowLiteral: true,
       optionalEnv: true,
-    }) ?? "codex";
+    }) ?? 'codex';
 
   const args = resolveOptionalStringArray(argsSource, env, `${target.name} codex args`);
 
@@ -441,32 +441,32 @@ function resolveCodexConfig(
   };
 }
 
-function normalizeCodexLogFormat(value: unknown): "summary" | "json" | undefined {
+function normalizeCodexLogFormat(value: unknown): 'summary' | 'json' | undefined {
   if (value === undefined || value === null) {
     return undefined;
   }
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     throw new Error("codex log format must be 'summary' or 'json'");
   }
   const normalized = value.trim().toLowerCase();
-  if (normalized === "json" || normalized === "summary") {
+  if (normalized === 'json' || normalized === 'summary') {
     return normalized;
   }
   throw new Error("codex log format must be 'summary' or 'json'");
 }
 
 function resolveMockConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): MockResolvedConfig {
-  const response = typeof target.response === "string" ? target.response : undefined;
+  const response = typeof target.response === 'string' ? target.response : undefined;
   return { response };
 }
 
 function resolveVSCodeConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
-  insiders: boolean
+  insiders: boolean,
 ): VSCodeResolvedConfig {
   const workspaceTemplateEnvVar = resolveOptionalLiteralString(
-    target.workspace_template ?? target.workspaceTemplate
+    target.workspace_template ?? target.workspaceTemplate,
   );
   const workspaceTemplate = workspaceTemplateEnvVar
     ? resolveOptionalString(
@@ -476,7 +476,7 @@ function resolveVSCodeConfig(
         {
           allowLiteral: false,
           optionalEnv: true,
-        }
+        },
       )
     : undefined;
 
@@ -485,7 +485,7 @@ function resolveVSCodeConfig(
   const dryRunSource = target.dry_run ?? target.dryRun;
   const subagentRootSource = target.subagent_root ?? target.subagentRoot;
 
-  const defaultCommand = insiders ? "code-insiders" : "code";
+  const defaultCommand = insiders ? 'code-insiders' : 'code';
   const command = resolveOptionalLiteralString(commandSource) ?? defaultCommand;
 
   return {
@@ -502,14 +502,14 @@ function resolveVSCodeConfig(
 
 function resolveCliConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
-  env: EnvLookup
+  env: EnvLookup,
 ): CliResolvedConfig {
   const commandTemplateSource = target.command_template ?? target.commandTemplate;
   const filesFormat = resolveOptionalLiteralString(
     target.files_format ??
       target.filesFormat ??
       target.attachments_format ??
-      target.attachmentsFormat
+      target.attachmentsFormat,
   );
   const cwd = resolveOptionalString(target.cwd, env, `${target.name} working directory`, {
     allowLiteral: true,
@@ -517,7 +517,7 @@ function resolveCliConfig(
   });
   const timeoutMs = resolveTimeoutMs(
     target.timeout_seconds ?? target.timeoutSeconds,
-    `${target.name} timeout`
+    `${target.name} timeout`,
   );
   const healthcheck = resolveCliHealthcheck(target.healthcheck, env, target.name);
 
@@ -525,7 +525,7 @@ function resolveCliConfig(
     commandTemplateSource,
     env,
     `${target.name} CLI command template`,
-    true
+    true,
   );
   assertSupportedCliPlaceholders(commandTemplate, `${target.name} CLI command template`);
 
@@ -552,12 +552,12 @@ function resolveTimeoutMs(source: unknown, description: string): number | undefi
 function resolveCliHealthcheck(
   source: unknown,
   env: EnvLookup,
-  targetName: string
+  targetName: string,
 ): CliHealthcheck | undefined {
   if (source === undefined || source === null) {
     return undefined;
   }
-  if (typeof source !== "object" || Array.isArray(source)) {
+  if (typeof source !== 'object' || Array.isArray(source)) {
     throw new Error(`${targetName} healthcheck must be an object`);
   }
 
@@ -565,24 +565,24 @@ function resolveCliHealthcheck(
   const type = candidate.type;
   const timeoutMs = resolveTimeoutMs(
     candidate.timeout_seconds ?? candidate.timeoutSeconds,
-    `${targetName} healthcheck timeout`
+    `${targetName} healthcheck timeout`,
   );
 
-  if (type === "http") {
+  if (type === 'http') {
     const url = resolveString(candidate.url, env, `${targetName} healthcheck URL`);
     return {
-      type: "http",
+      type: 'http',
       url,
       timeoutMs,
     };
   }
 
-  if (type === "command") {
+  if (type === 'command') {
     const commandTemplate = resolveString(
       candidate.command_template ?? candidate.commandTemplate,
       env,
       `${targetName} healthcheck command template`,
-      true
+      true,
     );
     assertSupportedCliPlaceholders(commandTemplate, `${targetName} healthcheck command template`);
     const cwd = resolveOptionalString(candidate.cwd, env, `${targetName} healthcheck cwd`, {
@@ -590,7 +590,7 @@ function resolveCliHealthcheck(
       optionalEnv: true,
     });
     return {
-      type: "command",
+      type: 'command',
       commandTemplate,
       timeoutMs,
       cwd,
@@ -605,7 +605,7 @@ function assertSupportedCliPlaceholders(template: string, description: string): 
   for (const placeholder of placeholders) {
     if (!CLI_PLACEHOLDERS.has(placeholder)) {
       throw new Error(
-        `${description} includes unsupported placeholder '{${placeholder}}'. Supported placeholders: ${Array.from(CLI_PLACEHOLDERS).join(", ")}`
+        `${description} includes unsupported placeholder '{${placeholder}}'. Supported placeholders: ${Array.from(CLI_PLACEHOLDERS).join(', ')}`,
       );
     }
   }
@@ -626,7 +626,7 @@ function resolveString(
   source: unknown,
   env: EnvLookup,
   description: string,
-  allowLiteral = false
+  allowLiteral = false,
 ): string {
   const value = resolveOptionalString(source, env, description, {
     allowLiteral,
@@ -642,12 +642,12 @@ function resolveOptionalString(
   source: unknown,
   env: EnvLookup,
   description: string,
-  options?: { allowLiteral?: boolean; optionalEnv?: boolean }
+  options?: { allowLiteral?: boolean; optionalEnv?: boolean },
 ): string | undefined {
   if (source === undefined || source === null) {
     return undefined;
   }
-  if (typeof source !== "string") {
+  if (typeof source !== 'string') {
     throw new Error(`${description} must be a string`);
   }
   const trimmed = source.trim();
@@ -677,7 +677,7 @@ function resolveOptionalString(
   const allowLiteral = options?.allowLiteral ?? false;
   if (!allowLiteral) {
     throw new Error(
-      `${description} must use \${{ VARIABLE_NAME }} syntax for environment variables or be marked as allowing literals`
+      `${description} must use \${{ VARIABLE_NAME }} syntax for environment variables or be marked as allowing literals`,
     );
   }
   return trimmed;
@@ -687,21 +687,21 @@ function resolveOptionalLiteralString(source: unknown): string | undefined {
   if (source === undefined || source === null) {
     return undefined;
   }
-  if (typeof source !== "string") {
-    throw new Error("expected string value");
+  if (typeof source !== 'string') {
+    throw new Error('expected string value');
   }
   const trimmed = source.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function resolveOptionalNumber(source: unknown, description: string): number | undefined {
-  if (source === undefined || source === null || source === "") {
+  if (source === undefined || source === null || source === '') {
     return undefined;
   }
-  if (typeof source === "number") {
+  if (typeof source === 'number') {
     return Number.isFinite(source) ? source : undefined;
   }
-  if (typeof source === "string") {
+  if (typeof source === 'string') {
     const numeric = Number(source);
     if (Number.isFinite(numeric)) {
       return numeric;
@@ -711,28 +711,28 @@ function resolveOptionalNumber(source: unknown, description: string): number | u
 }
 
 function resolveOptionalBoolean(source: unknown): boolean | undefined {
-  if (source === undefined || source === null || source === "") {
+  if (source === undefined || source === null || source === '') {
     return undefined;
   }
-  if (typeof source === "boolean") {
+  if (typeof source === 'boolean') {
     return source;
   }
-  if (typeof source === "string") {
+  if (typeof source === 'string') {
     const lowered = source.trim().toLowerCase();
-    if (lowered === "true" || lowered === "1") {
+    if (lowered === 'true' || lowered === '1') {
       return true;
     }
-    if (lowered === "false" || lowered === "0") {
+    if (lowered === 'false' || lowered === '0') {
       return false;
     }
   }
-  throw new Error("expected boolean value");
+  throw new Error('expected boolean value');
 }
 
 function resolveOptionalStringArray(
   source: unknown,
   env: EnvLookup,
-  description: string
+  description: string,
 ): readonly string[] | undefined {
   if (source === undefined || source === null) {
     return undefined;
@@ -746,7 +746,7 @@ function resolveOptionalStringArray(
   const resolved: string[] = [];
   for (let i = 0; i < source.length; i++) {
     const item = source[i];
-    if (typeof item !== "string") {
+    if (typeof item !== 'string') {
       throw new Error(`${description}[${i}] must be a string`);
     }
     const trimmed = item.trim();
@@ -777,7 +777,7 @@ function resolveOptionalStringArray(
 
 function resolveOptionalNumberArray(
   source: unknown,
-  description: string
+  description: string,
 ): readonly number[] | undefined {
   if (source === undefined || source === null) {
     return undefined;
@@ -791,7 +791,7 @@ function resolveOptionalNumberArray(
   const resolved: number[] = [];
   for (let i = 0; i < source.length; i++) {
     const item = source[i];
-    if (typeof item !== "number" || !Number.isFinite(item)) {
+    if (typeof item !== 'number' || !Number.isFinite(item)) {
       throw new Error(`${description}[${i}] must be a number`);
     }
     resolved.push(item);

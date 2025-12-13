@@ -1,6 +1,6 @@
-import { constants } from "node:fs";
-import { access, readFile } from "node:fs/promises";
-import path from "node:path";
+import { constants } from 'node:fs';
+import { access, readFile } from 'node:fs/promises';
+import path from 'node:path';
 
 export async function fileExists(filePath: string): Promise<boolean> {
   try {
@@ -16,7 +16,7 @@ export async function fileExists(filePath: string): Promise<boolean> {
  * This ensures consistent behavior across Windows (CRLF) and Unix (LF) systems.
  */
 export function normalizeLineEndings(content: string): string {
-  return content.replace(/\r\n/g, "\n");
+  return content.replace(/\r\n/g, '\n');
 }
 
 /**
@@ -24,7 +24,7 @@ export function normalizeLineEndings(content: string): string {
  * This ensures consistent behavior across Windows (CRLF) and Unix (LF) systems.
  */
 export async function readTextFile(filePath: string): Promise<string> {
-  const content = await readFile(filePath, "utf8");
+  const content = await readFile(filePath, 'utf8');
   return normalizeLineEndings(content);
 }
 
@@ -36,7 +36,7 @@ export async function findGitRoot(startPath: string): Promise<string | null> {
   const root = path.parse(currentDir).root;
 
   while (currentDir !== root) {
-    const gitPath = path.join(currentDir, ".git");
+    const gitPath = path.join(currentDir, '.git');
     if (await fileExists(gitPath)) {
       return currentDir;
     }
@@ -117,7 +117,7 @@ export function buildSearchRoots(evalPath: string, repoRoot: string): readonly s
  * Trim leading path separators for display.
  */
 function trimLeadingSeparators(value: string): string {
-  const trimmed = value.replace(/^[/\\]+/, "");
+  const trimmed = value.replace(/^[/\\]+/, '');
   return trimmed.length > 0 ? trimmed : value;
 }
 
@@ -126,7 +126,7 @@ function trimLeadingSeparators(value: string): string {
  */
 export async function resolveFileReference(
   rawValue: string,
-  searchRoots: readonly string[]
+  searchRoots: readonly string[],
 ): Promise<{
   readonly displayPath: string;
   readonly resolvedPath?: string;

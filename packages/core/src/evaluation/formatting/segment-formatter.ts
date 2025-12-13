@@ -1,11 +1,11 @@
-import type { JsonObject } from "../types.js";
+import type { JsonObject } from '../types.js';
 
 /**
  * Formatting mode for segment content.
  * - 'agent': File references only (for providers with filesystem access)
  * - 'lm': Embedded file content with XML tags (for language model providers)
  */
-export type FormattingMode = "agent" | "lm";
+export type FormattingMode = 'agent' | 'lm';
 
 /**
  * Extract fenced code blocks from AgentV user segments.
@@ -15,11 +15,11 @@ export function extractCodeBlocks(segments: readonly JsonObject[]): readonly str
   const codeBlocks: string[] = [];
   for (const segment of segments) {
     const typeValue = segment.type;
-    if (typeof typeValue !== "string" || typeValue !== "text") {
+    if (typeof typeValue !== 'string' || typeValue !== 'text') {
       continue;
     }
     const textValue = segment.value;
-    if (typeof textValue !== "string") {
+    if (typeof textValue !== 'string') {
       continue;
     }
     const matches = textValue.match(CODE_BLOCK_PATTERN);
@@ -34,7 +34,7 @@ export function extractCodeBlocks(segments: readonly JsonObject[]): readonly str
  * Format file contents with XML tags for all files.
  */
 export function formatFileContents(
-  parts: Array<{ content: string; isFile: boolean; displayPath?: string }>
+  parts: Array<{ content: string; isFile: boolean; displayPath?: string }>,
 ): string {
   const fileCount = parts.filter((p) => p.isFile).length;
 
@@ -47,11 +47,11 @@ export function formatFileContents(
         }
         return part.content;
       })
-      .join("\n\n");
+      .join('\n\n');
   }
 
   // Otherwise, join normally
-  return parts.map((p) => p.content).join(" ");
+  return parts.map((p) => p.content).join(' ');
 }
 
 /**
@@ -63,27 +63,27 @@ export function formatFileContents(
  */
 export function formatSegment(
   segment: JsonObject,
-  mode: FormattingMode = "lm"
+  mode: FormattingMode = 'lm',
 ): string | undefined {
   const type = asString(segment.type);
 
-  if (type === "text") {
+  if (type === 'text') {
     return asString(segment.value);
   }
 
-  if (type === "guideline_ref") {
+  if (type === 'guideline_ref') {
     const refPath = asString(segment.path);
     return refPath ? `<Attached: ${refPath}>` : undefined;
   }
 
-  if (type === "file") {
+  if (type === 'file') {
     const filePath = asString(segment.path);
     if (!filePath) {
       return undefined;
     }
 
     // Agent mode: return file reference only
-    if (mode === "agent") {
+    if (mode === 'agent') {
       return `<file: path="${filePath}">`;
     }
 
@@ -105,16 +105,16 @@ export function hasVisibleContent(segments: readonly JsonObject[]): boolean {
   return segments.some((segment) => {
     const type = asString(segment.type);
 
-    if (type === "text") {
+    if (type === 'text') {
       const value = asString(segment.value);
       return value !== undefined && value.trim().length > 0;
     }
 
-    if (type === "guideline_ref") {
+    if (type === 'guideline_ref') {
       return false;
     }
 
-    if (type === "file") {
+    if (type === 'file') {
       const text = asString(segment.text);
       return text !== undefined && text.trim().length > 0;
     }
@@ -124,5 +124,5 @@ export function hasVisibleContent(segments: readonly JsonObject[]): boolean {
 }
 
 function asString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
+  return typeof value === 'string' ? value : undefined;
 }

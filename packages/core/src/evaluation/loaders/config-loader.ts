@@ -1,15 +1,15 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import micromatch from "micromatch";
-import { parse } from "yaml";
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import micromatch from 'micromatch';
+import { parse } from 'yaml';
 
-import type { JsonObject, JsonValue } from "../types.js";
-import { isJsonObject } from "../types.js";
-import { buildDirectoryChain, fileExists } from "./file-resolver.js";
+import type { JsonObject, JsonValue } from '../types.js';
+import { isJsonObject } from '../types.js';
+import { buildDirectoryChain, fileExists } from './file-resolver.js';
 
-const SCHEMA_CONFIG_V2 = "agentv-config-v2";
-const ANSI_YELLOW = "\u001b[33m";
-const ANSI_RESET = "\u001b[0m";
+const SCHEMA_CONFIG_V2 = 'agentv-config-v2';
+const ANSI_YELLOW = '\u001b[33m';
+const ANSI_RESET = '\u001b[0m';
 
 export type AgentVConfig = {
   readonly $schema?: JsonValue;
@@ -22,19 +22,19 @@ export type AgentVConfig = {
  */
 export async function loadConfig(
   evalFilePath: string,
-  repoRoot: string
+  repoRoot: string,
 ): Promise<AgentVConfig | null> {
   const directories = buildDirectoryChain(evalFilePath, repoRoot);
 
   for (const directory of directories) {
-    const configPath = path.join(directory, ".agentv", "config.yaml");
+    const configPath = path.join(directory, '.agentv', 'config.yaml');
 
     if (!(await fileExists(configPath))) {
       continue;
     }
 
     try {
-      const rawConfig = await readFile(configPath, "utf8");
+      const rawConfig = await readFile(configPath, 'utf8');
       const parsed = parse(rawConfig) as unknown;
 
       if (!isJsonObject(parsed)) {
@@ -49,7 +49,7 @@ export async function loadConfig(
 
       if (schema !== SCHEMA_CONFIG_V2) {
         const message =
-          typeof schema === "string"
+          typeof schema === 'string'
             ? `Invalid $schema value '${schema}' in ${configPath}. Expected '${SCHEMA_CONFIG_V2}'`
             : `Missing required field '$schema' in ${configPath}.\nPlease add '$schema: ${SCHEMA_CONFIG_V2}' at the top of the file.`;
         logWarning(message);
@@ -64,7 +64,7 @@ export async function loadConfig(
 
       if (
         Array.isArray(guidelinePatterns) &&
-        !guidelinePatterns.every((p) => typeof p === "string")
+        !guidelinePatterns.every((p) => typeof p === 'string')
       ) {
         logWarning(`Invalid guideline_patterns in ${configPath}, all entries must be strings`);
         continue;
@@ -75,7 +75,7 @@ export async function loadConfig(
       };
     } catch (error) {
       logWarning(
-        `Could not read .agentv/config.yaml at ${configPath}: ${(error as Error).message}`
+        `Could not read .agentv/config.yaml at ${configPath}: ${(error as Error).message}`,
       );
     }
   }
@@ -87,7 +87,7 @@ export async function loadConfig(
  * Determine whether a path references guideline content (instructions or prompts).
  */
 export function isGuidelineFile(filePath: string, patterns?: readonly string[]): boolean {
-  const normalized = filePath.split("\\").join("/");
+  const normalized = filePath.split('\\').join('/');
   const patternsToUse = patterns ?? [];
 
   return micromatch.isMatch(normalized, patternsToUse as string[]);
@@ -99,16 +99,16 @@ export function isGuidelineFile(filePath: string, patterns?: readonly string[]):
 export function extractTargetFromSuite(suite: JsonObject): string | undefined {
   // Check execution.target first (new location), fallback to root-level target (legacy)
   const execution = suite.execution;
-  if (execution && typeof execution === "object" && !Array.isArray(execution)) {
+  if (execution && typeof execution === 'object' && !Array.isArray(execution)) {
     const executionTarget = (execution as Record<string, unknown>).target;
-    if (typeof executionTarget === "string" && executionTarget.trim().length > 0) {
+    if (typeof executionTarget === 'string' && executionTarget.trim().length > 0) {
       return executionTarget.trim();
     }
   }
 
   // Fallback to legacy root-level target
   const targetValue = suite.target;
-  if (typeof targetValue === "string" && targetValue.trim().length > 0) {
+  if (typeof targetValue === 'string' && targetValue.trim().length > 0) {
     return targetValue.trim();
   }
 

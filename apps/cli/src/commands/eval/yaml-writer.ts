@@ -1,10 +1,10 @@
-import { createWriteStream } from "node:fs";
-import { mkdir } from "node:fs/promises";
-import path from "node:path";
-import { finished } from "node:stream/promises";
-import { normalizeLineEndings } from "@agentv/core";
-import { Mutex } from "async-mutex";
-import { stringify as stringifyYaml } from "yaml";
+import { createWriteStream } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
+import { finished } from 'node:stream/promises';
+import { normalizeLineEndings } from '@agentv/core';
+import { Mutex } from 'async-mutex';
+import { stringify as stringifyYaml } from 'yaml';
 
 export class YamlWriter {
   private readonly stream: ReturnType<typeof createWriteStream>;
@@ -18,14 +18,14 @@ export class YamlWriter {
 
   static async open(filePath: string): Promise<YamlWriter> {
     await mkdir(path.dirname(filePath), { recursive: true });
-    const stream = createWriteStream(filePath, { flags: "w", encoding: "utf8" });
+    const stream = createWriteStream(filePath, { flags: 'w', encoding: 'utf8' });
     return new YamlWriter(stream);
   }
 
   async append(record: unknown): Promise<void> {
     await this.mutex.runExclusive(async () => {
       if (this.closed) {
-        throw new Error("Cannot write to closed YAML writer");
+        throw new Error('Cannot write to closed YAML writer');
       }
 
       // Convert to YAML with proper multi-line string handling
@@ -40,15 +40,15 @@ export class YamlWriter {
       const normalizedYaml = normalizeLineEndings(yamlDoc);
 
       // Add YAML document separator (---) between records
-      const separator = this.isFirst ? "---\n" : "\n---\n";
+      const separator = this.isFirst ? '---\n' : '\n---\n';
       this.isFirst = false;
 
       const content = `${separator}${normalizedYaml}`;
 
       if (!this.stream.write(content)) {
         await new Promise<void>((resolve, reject) => {
-          this.stream.once("drain", resolve);
-          this.stream.once("error", reject);
+          this.stream.once('drain', resolve);
+          this.stream.once('error', reject);
         });
       }
     });

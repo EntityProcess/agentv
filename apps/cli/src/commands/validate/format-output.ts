@@ -2,14 +2,14 @@ import type {
   ValidationError,
   ValidationResult,
   ValidationSummary,
-} from "@agentv/core/evaluation/validation";
+} from '@agentv/core/evaluation/validation';
 
-const ANSI_RED = "\u001b[31m";
-const ANSI_YELLOW = "\u001b[33m";
-const ANSI_GREEN = "\u001b[32m";
-const ANSI_CYAN = "\u001b[36m";
-const ANSI_BOLD = "\u001b[1m";
-const ANSI_RESET = "\u001b[0m";
+const ANSI_RED = '\u001b[31m';
+const ANSI_YELLOW = '\u001b[33m';
+const ANSI_GREEN = '\u001b[32m';
+const ANSI_CYAN = '\u001b[36m';
+const ANSI_BOLD = '\u001b[1m';
+const ANSI_RESET = '\u001b[0m';
 
 /**
  * Format validation summary for console output.
@@ -18,9 +18,9 @@ export function formatSummary(summary: ValidationSummary, useColors: boolean): s
   const lines: string[] = [];
 
   // Header
-  lines.push("");
-  lines.push(formatHeader("Validation Summary", useColors));
-  lines.push("");
+  lines.push('');
+  lines.push(formatHeader('Validation Summary', useColors));
+  lines.push('');
 
   // Results for each file
   for (const result of summary.results) {
@@ -28,11 +28,11 @@ export function formatSummary(summary: ValidationSummary, useColors: boolean): s
   }
 
   // Summary statistics
-  lines.push("");
+  lines.push('');
   lines.push(formatStats(summary, useColors));
-  lines.push("");
+  lines.push('');
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 function formatHeader(text: string, useColors: boolean): string {
@@ -45,7 +45,7 @@ function formatHeader(text: string, useColors: boolean): string {
 function formatFileResult(result: ValidationResult, useColors: boolean): string {
   const lines: string[] = [];
 
-  const status = result.valid ? "✓" : "✗";
+  const status = result.valid ? '✓' : '✗';
   const statusColor = result.valid ? ANSI_GREEN : ANSI_RED;
   const statusText = useColors ? `${statusColor}${status}${ANSI_RESET}` : status;
 
@@ -59,15 +59,15 @@ function formatFileResult(result: ValidationResult, useColors: boolean): string 
     }
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 function formatError(error: ValidationError, useColors: boolean): string {
-  const prefix = error.severity === "error" ? "  ✗" : "  ⚠";
-  const color = error.severity === "error" ? ANSI_RED : ANSI_YELLOW;
+  const prefix = error.severity === 'error' ? '  ✗' : '  ⚠';
+  const color = error.severity === 'error' ? ANSI_RED : ANSI_YELLOW;
   const coloredPrefix = useColors ? `${color}${prefix}${ANSI_RESET}` : prefix;
 
-  const location = error.location ? ` [${error.location}]` : "";
+  const location = error.location ? ` [${error.location}]` : '';
   return `${coloredPrefix}${location} ${error.message}`;
 }
 
@@ -80,7 +80,7 @@ function formatStats(summary: ValidationSummary, useColors: boolean): string {
 
   // Count files with warnings
   const filesWithWarnings = summary.results.filter((r) =>
-    r.errors.some((e) => e.severity === "warning")
+    r.errors.some((e) => e.severity === 'warning'),
   ).length;
 
   if (useColors) {
@@ -103,7 +103,7 @@ function formatStats(summary: ValidationSummary, useColors: boolean): string {
     }
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 /**

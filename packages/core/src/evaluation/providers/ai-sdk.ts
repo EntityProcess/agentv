@@ -1,19 +1,19 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { type AzureOpenAIProviderSettings, createAzure } from "@ai-sdk/azure";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { type LanguageModel, type ModelMessage, generateText } from "ai";
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { type AzureOpenAIProviderSettings, createAzure } from '@ai-sdk/azure';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { type LanguageModel, type ModelMessage, generateText } from 'ai';
 
-import type { JsonObject } from "../types.js";
+import type { JsonObject } from '../types.js';
 import type {
   AnthropicResolvedConfig,
   AzureResolvedConfig,
   GeminiResolvedConfig,
   RetryConfig,
-} from "./targets.js";
-import type { ChatPrompt, Provider, ProviderRequest, ProviderResponse } from "./types.js";
+} from './targets.js';
+import type { ChatPrompt, Provider, ProviderRequest, ProviderResponse } from './types.js';
 
 const DEFAULT_SYSTEM_PROMPT =
-  "You are a careful assistant. Follow all provided instructions and do not fabricate results.";
+  'You are a careful assistant. Follow all provided instructions and do not fabricate results.';
 
 type TextResult = Awaited<ReturnType<typeof generateText>>;
 type GenerateTextOptions = Parameters<typeof generateText>[0];
@@ -26,7 +26,7 @@ interface ProviderDefaults {
 
 export class AzureProvider implements Provider {
   readonly id: string;
-  readonly kind = "azure" as const;
+  readonly kind = 'azure' as const;
   readonly targetName: string;
 
   private readonly model: LanguageModel;
@@ -35,7 +35,7 @@ export class AzureProvider implements Provider {
 
   constructor(
     targetName: string,
-    private readonly config: AzureResolvedConfig
+    private readonly config: AzureResolvedConfig,
   ) {
     this.id = `azure:${targetName}`;
     this.targetName = targetName;
@@ -61,7 +61,7 @@ export class AzureProvider implements Provider {
 
 export class AnthropicProvider implements Provider {
   readonly id: string;
-  readonly kind = "anthropic" as const;
+  readonly kind = 'anthropic' as const;
   readonly targetName: string;
 
   private readonly model: LanguageModel;
@@ -70,7 +70,7 @@ export class AnthropicProvider implements Provider {
 
   constructor(
     targetName: string,
-    private readonly config: AnthropicResolvedConfig
+    private readonly config: AnthropicResolvedConfig,
   ) {
     this.id = `anthropic:${targetName}`;
     this.targetName = targetName;
@@ -102,7 +102,7 @@ export class AnthropicProvider implements Provider {
 
 export class GeminiProvider implements Provider {
   readonly id: string;
-  readonly kind = "gemini" as const;
+  readonly kind = 'gemini' as const;
   readonly targetName: string;
 
   private readonly model: LanguageModel;
@@ -111,7 +111,7 @@ export class GeminiProvider implements Provider {
 
   constructor(
     targetName: string,
-    private readonly config: GeminiResolvedConfig
+    private readonly config: GeminiResolvedConfig,
   ) {
     this.id = `gemini:${targetName}`;
     this.targetName = targetName;
@@ -160,14 +160,14 @@ function normalizeAzureBaseUrl(resourceName: string): string | undefined {
     return undefined;
   }
 
-  const withoutSlash = trimmed.replace(/\/+$/, "");
-  const normalized = withoutSlash.endsWith("/openai") ? withoutSlash : `${withoutSlash}/openai`;
+  const withoutSlash = trimmed.replace(/\/+$/, '');
+  const normalized = withoutSlash.endsWith('/openai') ? withoutSlash : `${withoutSlash}/openai`;
   return normalized;
 }
 
 function buildAnthropicProviderOptions(
-  defaults: ProviderDefaults
-): GenerateTextOptions["providerOptions"] | undefined {
+  defaults: ProviderDefaults,
+): GenerateTextOptions['providerOptions'] | undefined {
   if (defaults.thinkingBudget === undefined) {
     return undefined;
   }
@@ -175,7 +175,7 @@ function buildAnthropicProviderOptions(
   return {
     anthropic: {
       thinking: {
-        type: "enabled",
+        type: 'enabled',
         budgetTokens: defaults.thinkingBudget,
       },
     },
@@ -185,21 +185,21 @@ function buildAnthropicProviderOptions(
 function buildChatPrompt(request: ProviderRequest): ChatPrompt {
   const provided = request.chatPrompt?.length ? request.chatPrompt : undefined;
   if (provided) {
-    const hasSystemMessage = provided.some((message) => message.role === "system");
+    const hasSystemMessage = provided.some((message) => message.role === 'system');
     if (hasSystemMessage) {
       return provided;
     }
 
     const systemContent = resolveSystemContent(request, false);
-    return [{ role: "system", content: systemContent }, ...provided];
+    return [{ role: 'system', content: systemContent }, ...provided];
   }
 
   const systemContent = resolveSystemContent(request, true);
   const userContent = request.question.trim();
 
   const prompt: ChatPrompt = [
-    { role: "system", content: systemContent },
-    { role: "user", content: userContent },
+    { role: 'system', content: systemContent },
+    { role: 'user', content: userContent },
   ];
 
   return prompt;
@@ -218,20 +218,20 @@ function resolveSystemContent(request: ProviderRequest, includeGuidelines: boole
     systemSegments.push(`[[ ## Guidelines ## ]]\n\n${request.guidelines.trim()}`);
   }
 
-  return systemSegments.join("\n\n");
+  return systemSegments.join('\n\n');
 }
 
 function toModelMessages(chatPrompt: ChatPrompt): ModelMessage[] {
   return chatPrompt.map((message) => {
-    if (message.role === "tool" || message.role === "function") {
-      const prefix = message.name ? `@[${message.name}]: ` : "@[Tool]: ";
+    if (message.role === 'tool' || message.role === 'function') {
+      const prefix = message.name ? `@[${message.name}]: ` : '@[Tool]: ';
       return {
-        role: "assistant",
+        role: 'assistant',
         content: `${prefix}${message.content}`,
       } satisfies ModelMessage;
     }
 
-    if (message.role === "assistant" || message.role === "system" || message.role === "user") {
+    if (message.role === 'assistant' || message.role === 'system' || message.role === 'user') {
       return {
         role: message.role,
         content: message.content,
@@ -239,7 +239,7 @@ function toModelMessages(chatPrompt: ChatPrompt): ModelMessage[] {
     }
 
     return {
-      role: "user",
+      role: 'user',
       content: message.content,
     } satisfies ModelMessage;
   });
@@ -247,7 +247,7 @@ function toModelMessages(chatPrompt: ChatPrompt): ModelMessage[] {
 
 function resolveModelSettings(
   request: ProviderRequest,
-  defaults: ProviderDefaults
+  defaults: ProviderDefaults,
 ): { temperature?: number; maxOutputTokens?: number } {
   const temperature = request.temperature ?? defaults.temperature;
   const maxOutputTokens = request.maxOutputTokens ?? defaults.maxOutputTokens;
@@ -262,7 +262,7 @@ async function invokeModel(options: {
   readonly request: ProviderRequest;
   readonly defaults: ProviderDefaults;
   readonly retryConfig?: RetryConfig;
-  readonly providerOptions?: GenerateTextOptions["providerOptions"];
+  readonly providerOptions?: GenerateTextOptions['providerOptions'];
 }): Promise<ProviderResponse> {
   const { model, request, defaults, retryConfig, providerOptions } = options;
   const chatPrompt = buildChatPrompt(request);
@@ -280,7 +280,7 @@ async function invokeModel(options: {
         ...(providerOptions ? { providerOptions } : {}),
       }),
     retryConfig,
-    request.signal
+    request.signal,
   );
 
   return mapResponse(result);
@@ -288,7 +288,7 @@ async function invokeModel(options: {
 
 function mapResponse(result: TextResult): ProviderResponse {
   return {
-    text: result.text ?? "",
+    text: result.text ?? '',
     reasoning: result.reasoningText ?? undefined,
     raw: result,
     usage: toJsonObject(result.totalUsage ?? result.usage),
@@ -296,7 +296,7 @@ function mapResponse(result: TextResult): ProviderResponse {
 }
 
 function toJsonObject(value: unknown): JsonObject | undefined {
-  if (!value || typeof value !== "object") {
+  if (!value || typeof value !== 'object') {
     return undefined;
   }
 
@@ -308,25 +308,25 @@ function toJsonObject(value: unknown): JsonObject | undefined {
 }
 
 function extractStatus(error: unknown): number | undefined {
-  if (!error || typeof error !== "object") {
+  if (!error || typeof error !== 'object') {
     return undefined;
   }
 
   const candidate = error as Record<string, unknown>;
   const directStatus = candidate.status ?? candidate.statusCode;
-  if (typeof directStatus === "number" && Number.isFinite(directStatus)) {
+  if (typeof directStatus === 'number' && Number.isFinite(directStatus)) {
     return directStatus;
   }
 
   const responseStatus =
-    typeof candidate.response === "object" && candidate.response
+    typeof candidate.response === 'object' && candidate.response
       ? (candidate.response as { status?: unknown }).status
       : undefined;
-  if (typeof responseStatus === "number" && Number.isFinite(responseStatus)) {
+  if (typeof responseStatus === 'number' && Number.isFinite(responseStatus)) {
     return responseStatus;
   }
 
-  const message = typeof candidate.message === "string" ? candidate.message : undefined;
+  const message = typeof candidate.message === 'string' ? candidate.message : undefined;
   if (message) {
     const match = message.match(/HTTP\s+(\d{3})/i);
     if (match) {
@@ -341,21 +341,21 @@ function extractStatus(error: unknown): number | undefined {
 }
 
 function isNetworkError(error: unknown): boolean {
-  if (!error || typeof error !== "object") {
+  if (!error || typeof error !== 'object') {
     return false;
   }
 
   const candidate = error as Record<string, unknown>;
-  if (candidate.name === "AbortError") {
+  if (candidate.name === 'AbortError') {
     return false;
   }
 
   const code = candidate.code;
-  if (typeof code === "string" && /^E(AI|CONN|HOST|NET|PIPE|TIME|REFUSED|RESET)/i.test(code)) {
+  if (typeof code === 'string' && /^E(AI|CONN|HOST|NET|PIPE|TIME|REFUSED|RESET)/i.test(code)) {
     return true;
   }
 
-  const message = typeof candidate.message === "string" ? candidate.message : undefined;
+  const message = typeof candidate.message === 'string' ? candidate.message : undefined;
   if (
     message &&
     /(network|fetch failed|ECONNRESET|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNREFUSED)/i.test(message)
@@ -371,7 +371,7 @@ function isRetryableError(error: unknown, retryableStatusCodes: readonly number[
   if (status === 401 || status === 403) {
     return false;
   }
-  if (typeof status === "number") {
+  if (typeof status === 'number') {
     return retryableStatusCodes.includes(status);
   }
 
@@ -381,7 +381,7 @@ function isRetryableError(error: unknown, retryableStatusCodes: readonly number[
 function calculateRetryDelay(attempt: number, config: Required<RetryConfig>): number {
   const delay = Math.min(
     config.maxDelayMs,
-    config.initialDelayMs * config.backoffFactor ** attempt
+    config.initialDelayMs * config.backoffFactor ** attempt,
   );
   return delay * (0.75 + Math.random() * 0.5);
 }
@@ -393,7 +393,7 @@ async function sleep(ms: number): Promise<void> {
 async function withRetry<T>(
   fn: () => Promise<T>,
   retryConfig?: RetryConfig,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<T> {
   const config: Required<RetryConfig> = {
     maxRetries: retryConfig?.maxRetries ?? 3,
@@ -407,7 +407,7 @@ async function withRetry<T>(
 
   for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
     if (signal?.aborted) {
-      throw new Error(`Request aborted: ${signal.reason ?? "Unknown reason"}`);
+      throw new Error(`Request aborted: ${signal.reason ?? 'Unknown reason'}`);
     }
 
     try {

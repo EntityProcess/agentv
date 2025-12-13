@@ -1,11 +1,11 @@
-import { AnthropicProvider, AzureProvider, GeminiProvider } from "./ai-sdk.js";
-import { CliProvider } from "./cli.js";
-import { CodexProvider } from "./codex.js";
-import { MockProvider } from "./mock.js";
-import type { ResolvedTarget } from "./targets.js";
-import { resolveTargetDefinition } from "./targets.js";
-import type { EnvLookup, Provider, TargetDefinition } from "./types.js";
-import { VSCodeProvider } from "./vscode.js";
+import { AnthropicProvider, AzureProvider, GeminiProvider } from './ai-sdk.js';
+import { CliProvider } from './cli.js';
+import { CodexProvider } from './codex.js';
+import { MockProvider } from './mock.js';
+import type { ResolvedTarget } from './targets.js';
+import { resolveTargetDefinition } from './targets.js';
+import type { EnvLookup, Provider, TargetDefinition } from './types.js';
+import { VSCodeProvider } from './vscode.js';
 
 export type {
   EnvLookup,
@@ -14,7 +14,7 @@ export type {
   ProviderRequest,
   ProviderResponse,
   TargetDefinition,
-} from "./types.js";
+} from './types.js';
 
 export type {
   AnthropicResolvedConfig,
@@ -24,33 +24,33 @@ export type {
   MockResolvedConfig,
   ResolvedTarget,
   VSCodeResolvedConfig,
-} from "./targets.js";
+} from './targets.js';
 
 export { resolveTargetDefinition };
-export { readTargetDefinitions, listTargetNames } from "./targets-file.js";
+export { readTargetDefinitions, listTargetNames } from './targets-file.js';
 export {
   ensureVSCodeSubagents,
   type EnsureSubagentsOptions,
   type EnsureSubagentsResult,
-} from "./vscode.js";
-export { consumeCodexLogEntries, subscribeToCodexLogEntries } from "./codex-log-tracker.js";
+} from './vscode.js';
+export { consumeCodexLogEntries, subscribeToCodexLogEntries } from './codex-log-tracker.js';
 
 export function createProvider(target: ResolvedTarget): Provider {
   switch (target.kind) {
-    case "azure":
+    case 'azure':
       return new AzureProvider(target.name, target.config);
-    case "anthropic":
+    case 'anthropic':
       return new AnthropicProvider(target.name, target.config);
-    case "gemini":
+    case 'gemini':
       return new GeminiProvider(target.name, target.config);
-    case "cli":
+    case 'cli':
       return new CliProvider(target.name, target.config);
-    case "codex":
+    case 'codex':
       return new CodexProvider(target.name, target.config);
-    case "mock":
+    case 'mock':
       return new MockProvider(target.name, target.config);
-    case "vscode":
-    case "vscode-insiders":
+    case 'vscode':
+    case 'vscode-insiders':
       return new VSCodeProvider(target.name, target.config, target.kind);
     default: {
       // Exhaustive check
@@ -62,7 +62,7 @@ export function createProvider(target: ResolvedTarget): Provider {
 
 export function resolveAndCreateProvider(
   definition: TargetDefinition,
-  env: EnvLookup = process.env
+  env: EnvLookup = process.env,
 ): Provider {
   const resolved = resolveTargetDefinition(definition, env);
   return createProvider(resolved);

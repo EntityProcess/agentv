@@ -1,11 +1,11 @@
-import { readFile } from "node:fs/promises";
-import { parse } from "yaml";
+import { readFile } from 'node:fs/promises';
+import { parse } from 'yaml';
 
-import type { FileType } from "./types.js";
+import type { FileType } from './types.js';
 
-const SCHEMA_EVAL_V2 = "agentv-eval-v2";
-const SCHEMA_TARGETS_V2 = "agentv-targets-v2.2";
-const SCHEMA_CONFIG_V2 = "agentv-config-v2";
+const SCHEMA_EVAL_V2 = 'agentv-eval-v2';
+const SCHEMA_TARGETS_V2 = 'agentv-targets-v2.2';
+const SCHEMA_CONFIG_V2 = 'agentv-config-v2';
 
 /**
  * Detect file type by reading $schema field from YAML file.
@@ -13,32 +13,32 @@ const SCHEMA_CONFIG_V2 = "agentv-config-v2";
  */
 export async function detectFileType(filePath: string): Promise<FileType> {
   try {
-    const content = await readFile(filePath, "utf8");
+    const content = await readFile(filePath, 'utf8');
     const parsed = parse(content) as unknown;
 
-    if (typeof parsed !== "object" || parsed === null) {
-      return "unknown";
+    if (typeof parsed !== 'object' || parsed === null) {
+      return 'unknown';
     }
 
     const record = parsed as Record<string, unknown>;
     const schema = record.$schema;
 
-    if (typeof schema !== "string") {
-      return "unknown";
+    if (typeof schema !== 'string') {
+      return 'unknown';
     }
 
     switch (schema) {
       case SCHEMA_EVAL_V2:
-        return "eval";
+        return 'eval';
       case SCHEMA_TARGETS_V2:
-        return "targets";
+        return 'targets';
       case SCHEMA_CONFIG_V2:
-        return "config";
+        return 'config';
       default:
-        return "unknown";
+        return 'unknown';
     }
   } catch {
-    return "unknown";
+    return 'unknown';
   }
 }
 
@@ -54,11 +54,11 @@ export function isValidSchema(schema: unknown): boolean {
  */
 export function getExpectedSchema(fileType: FileType): string | undefined {
   switch (fileType) {
-    case "eval":
+    case 'eval':
       return SCHEMA_EVAL_V2;
-    case "targets":
+    case 'targets':
       return SCHEMA_TARGETS_V2;
-    case "config":
+    case 'config':
       return SCHEMA_CONFIG_V2;
     default:
       return undefined;

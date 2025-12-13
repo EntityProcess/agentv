@@ -1,14 +1,14 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
-import { formatFileContents } from "../formatting/segment-formatter.js";
-import type { JsonObject, TestMessage } from "../types.js";
-import { isJsonObject } from "../types.js";
-import { isGuidelineFile } from "./config-loader.js";
-import { resolveFileReference } from "./file-resolver.js";
+import { formatFileContents } from '../formatting/segment-formatter.js';
+import type { JsonObject, TestMessage } from '../types.js';
+import { isJsonObject } from '../types.js';
+import { isGuidelineFile } from './config-loader.js';
+import { resolveFileReference } from './file-resolver.js';
 
-const ANSI_YELLOW = "\u001b[33m";
-const ANSI_RESET = "\u001b[0m";
+const ANSI_YELLOW = '\u001b[33m';
+const ANSI_RESET = '\u001b[0m';
 
 type ProcessMessagesOptions = {
   readonly messages: readonly TestMessage[];
@@ -17,7 +17,7 @@ type ProcessMessagesOptions = {
   readonly guidelinePatterns?: readonly string[];
   readonly guidelinePaths?: string[];
   readonly textParts?: string[];
-  readonly messageType: "input" | "output";
+  readonly messageType: 'input' | 'output';
   readonly verbose: boolean;
 };
 
@@ -40,8 +40,8 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
 
   for (const message of messages) {
     const content = message.content;
-    if (typeof content === "string") {
-      segments.push({ type: "text", value: content });
+    if (typeof content === 'string') {
+      segments.push({ type: 'text', value: content });
       if (textParts) {
         textParts.push(content);
       }
@@ -54,7 +54,7 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
       }
 
       const segmentType = asString(rawSegment.type);
-      if (segmentType === "file") {
+      if (segmentType === 'file') {
         const rawValue = asString(rawSegment.value);
         if (!rawValue) {
           continue;
@@ -62,23 +62,23 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
 
         const { displayPath, resolvedPath, attempted } = await resolveFileReference(
           rawValue,
-          searchRoots
+          searchRoots,
         );
 
         if (!resolvedPath) {
           const attempts = attempted.length
-            ? ["  Tried:", ...attempted.map((candidate) => `    ${candidate}`)]
+            ? ['  Tried:', ...attempted.map((candidate) => `    ${candidate}`)]
             : undefined;
-          const context = messageType === "input" ? "" : " in expected_messages";
+          const context = messageType === 'input' ? '' : ' in expected_messages';
           logWarning(`File not found${context}: ${displayPath}`, attempts);
           continue;
         }
 
         try {
-          const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n");
+          const fileContent = (await readFile(resolvedPath, 'utf8')).replace(/\r\n/g, '\n');
 
           // Only check for guidelines in input messages
-          if (messageType === "input" && guidelinePatterns && guidelinePaths) {
+          if (messageType === 'input' && guidelinePatterns && guidelinePaths) {
             const relativeToRepo = path.relative(repoRootPath, resolvedPath);
 
             if (isGuidelineFile(relativeToRepo, guidelinePatterns)) {
@@ -92,19 +92,19 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
           }
 
           segments.push({
-            type: "file",
+            type: 'file',
             path: displayPath,
             text: fileContent,
             resolvedPath: path.resolve(resolvedPath),
           });
 
           if (verbose) {
-            const label = messageType === "input" ? "[File]" : "[Expected Output File]";
+            const label = messageType === 'input' ? '[File]' : '[Expected Output File]';
             console.log(`  ${label} Found: ${displayPath}`);
             console.log(`    Resolved to: ${resolvedPath}`);
           }
         } catch (error) {
-          const context = messageType === "input" ? "" : " expected output";
+          const context = messageType === 'input' ? '' : ' expected output';
           logWarning(`Could not read${context} file ${resolvedPath}: ${(error as Error).message}`);
         }
         continue;
@@ -113,7 +113,7 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
       const clonedSegment = cloneJsonObject(rawSegment);
       segments.push(clonedSegment);
       const inlineValue = clonedSegment.value;
-      if (typeof inlineValue === "string" && textParts) {
+      if (typeof inlineValue === 'string' && textParts) {
         textParts.push(inlineValue);
       }
     }
@@ -127,22 +127,22 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
  * Similar to input message processing, but for expected assistant responses.
  */
 export async function resolveAssistantContent(
-  content: TestMessage["content"] | undefined,
+  content: TestMessage['content'] | undefined,
   searchRoots: readonly string[],
-  verbose: boolean
+  verbose: boolean,
 ): Promise<string> {
-  if (typeof content === "string") {
+  if (typeof content === 'string') {
     return content;
   }
   if (!content) {
-    return "";
+    return '';
   }
 
   // Track parts with metadata about whether they came from files
   const parts: Array<{ content: string; isFile: boolean; displayPath?: string }> = [];
 
   for (const entry of content) {
-    if (typeof entry === "string") {
+    if (typeof entry === 'string') {
       parts.push({ content: entry, isFile: false });
       continue;
     }
@@ -154,7 +154,7 @@ export async function resolveAssistantContent(
     const segmentType = asString(entry.type);
 
     // Handle file references
-    if (segmentType === "file") {
+    if (segmentType === 'file') {
       const rawValue = asString(entry.value);
       if (!rawValue) {
         continue;
@@ -162,19 +162,19 @@ export async function resolveAssistantContent(
 
       const { displayPath, resolvedPath, attempted } = await resolveFileReference(
         rawValue,
-        searchRoots
+        searchRoots,
       );
 
       if (!resolvedPath) {
         const attempts = attempted.length
-          ? ["  Tried:", ...attempted.map((candidate) => `    ${candidate}`)]
+          ? ['  Tried:', ...attempted.map((candidate) => `    ${candidate}`)]
           : undefined;
         logWarning(`File not found in expected_messages: ${displayPath}`, attempts);
         continue;
       }
 
       try {
-        const fileContent = (await readFile(resolvedPath, "utf8")).replace(/\r\n/g, "\n").trim();
+        const fileContent = (await readFile(resolvedPath, 'utf8')).replace(/\r\n/g, '\n').trim();
         parts.push({ content: fileContent, isFile: true, displayPath });
         if (verbose) {
           console.log(`  [Expected Assistant File] Found: ${displayPath}`);
@@ -188,13 +188,13 @@ export async function resolveAssistantContent(
 
     // Handle text segments
     const textValue = asString(entry.text);
-    if (typeof textValue === "string") {
+    if (typeof textValue === 'string') {
       parts.push({ content: textValue, isFile: false });
       continue;
     }
 
     const valueValue = asString(entry.value);
-    if (typeof valueValue === "string") {
+    if (typeof valueValue === 'string') {
       parts.push({ content: valueValue, isFile: false });
       continue;
     }
@@ -206,7 +206,7 @@ export async function resolveAssistantContent(
 }
 
 function asString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
+  return typeof value === 'string' ? value : undefined;
 }
 
 function cloneJsonObject(source: JsonObject): JsonObject {
@@ -218,13 +218,13 @@ function cloneJsonValue(value: unknown): unknown {
   if (value === null) {
     return null;
   }
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return value;
   }
   if (Array.isArray(value)) {
     return value.map((item) => cloneJsonValue(item));
   }
-  if (typeof value === "object") {
+  if (typeof value === 'object') {
     return cloneJsonObject(value as JsonObject);
   }
   return value;
@@ -232,7 +232,7 @@ function cloneJsonValue(value: unknown): unknown {
 
 function logWarning(message: string, details?: readonly string[]): void {
   if (details && details.length > 0) {
-    const detailBlock = details.join("\n");
+    const detailBlock = details.join('\n');
     console.warn(`${ANSI_YELLOW}Warning: ${message}\n${detailBlock}${ANSI_RESET}`);
   } else {
     console.warn(`${ANSI_YELLOW}Warning: ${message}${ANSI_RESET}`);

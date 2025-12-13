@@ -1,18 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 
-import { LlmJudgeEvaluator } from "../../src/evaluation/evaluators.js";
-import type { ResolvedTarget } from "../../src/evaluation/providers/targets.js";
+import { LlmJudgeEvaluator } from '../../src/evaluation/evaluators.js';
+import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type {
   Provider,
   ProviderRequest,
   ProviderResponse,
-} from "../../src/evaluation/providers/types.js";
-import type { EvalCase } from "../../src/evaluation/types.js";
+} from '../../src/evaluation/providers/types.js';
+import type { EvalCase } from '../../src/evaluation/types.js';
 
 class StubProvider implements Provider {
-  readonly id = "stub";
-  readonly kind = "mock" as const;
-  readonly targetName = "stub";
+  readonly id = 'stub';
+  readonly kind = 'mock' as const;
+  readonly targetName = 'stub';
 
   constructor(private readonly response: ProviderResponse) {}
 
@@ -22,9 +22,9 @@ class StubProvider implements Provider {
 }
 
 class CapturingProvider implements Provider {
-  readonly id = "capturing";
-  readonly kind = "mock" as const;
-  readonly targetName = "capturing";
+  readonly id = 'capturing';
+  readonly kind = 'mock' as const;
+  readonly targetName = 'capturing';
   lastRequest?: ProviderRequest;
 
   constructor(private readonly response: ProviderResponse) {}
@@ -36,34 +36,34 @@ class CapturingProvider implements Provider {
 }
 
 const baseTestCase: EvalCase = {
-  id: "case-1",
-  dataset: "test-dataset",
-  question: "Improve the logging implementation",
-  input_messages: [{ role: "user", content: "Please add logging" }],
-  input_segments: [{ type: "text", value: "Please add logging" }],
+  id: 'case-1',
+  dataset: 'test-dataset',
+  question: 'Improve the logging implementation',
+  input_messages: [{ role: 'user', content: 'Please add logging' }],
+  input_segments: [{ type: 'text', value: 'Please add logging' }],
   expected_segments: [],
-  reference_answer: "- add structured logging\n- avoid global state",
+  reference_answer: '- add structured logging\n- avoid global state',
   guideline_paths: [],
   file_paths: [],
   code_snippets: [],
-  expected_outcome: "Logging improvements applied",
-  evaluator: "llm_judge",
+  expected_outcome: 'Logging improvements applied',
+  evaluator: 'llm_judge',
 };
 
 const baseTarget: ResolvedTarget = {
-  kind: "mock",
-  name: "mock",
-  config: { response: "{}" },
+  kind: 'mock',
+  name: 'mock',
+  config: { response: '{}' },
 };
 
-describe("LlmJudgeEvaluator", () => {
-  it("parses JSON response and returns evaluation score", async () => {
+describe('LlmJudgeEvaluator', () => {
+  it('parses JSON response and returns evaluation score', async () => {
     const judgeProvider = new StubProvider({
       text: JSON.stringify({
         score: 0.8,
-        hits: ["Captured logging requirement"],
-        misses: ["Did not mention tests"],
-        reasoning: "Solid coverage with minor omissions",
+        hits: ['Captured logging requirement'],
+        misses: ['Did not mention tests'],
+        reasoning: 'Solid coverage with minor omissions',
       }),
     });
 
@@ -72,29 +72,29 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
-      candidate: "Answer",
+      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { question: "", guidelines: "" },
+      promptInputs: { question: '', guidelines: '' },
       now: new Date(),
     });
 
     expect(result.score).toBeCloseTo(0.8);
-    expect(result.hits).toContain("Captured logging requirement");
-    expect(result.misses).toContain("Did not mention tests");
-    expect(result.reasoning).toBe("Solid coverage with minor omissions");
+    expect(result.hits).toContain('Captured logging requirement');
+    expect(result.misses).toContain('Did not mention tests');
+    expect(result.reasoning).toBe('Solid coverage with minor omissions');
     expect(result.evaluatorRawRequest).toBeDefined();
   });
 
-  it("parses JSON from markdown code block", async () => {
+  it('parses JSON from markdown code block', async () => {
     const judgeProvider = new StubProvider({
       text: `Here is the evaluation:\n\n\`\`\`json\n${JSON.stringify({
         score: 0.75,
-        hits: ["Clear structure", "Good examples"],
-        misses: ["Missing edge cases"],
-        reasoning: "Well done overall.",
+        hits: ['Clear structure', 'Good examples'],
+        misses: ['Missing edge cases'],
+        reasoning: 'Well done overall.',
       })}\n\`\`\``,
     });
 
@@ -103,12 +103,12 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
-      candidate: "Answer",
+      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { question: "", guidelines: "" },
+      promptInputs: { question: '', guidelines: '' },
       now: new Date(),
     });
 
@@ -117,13 +117,13 @@ describe("LlmJudgeEvaluator", () => {
     expect(result.misses).toHaveLength(1);
   });
 
-  it("validates score is in range [0.0, 1.0]", async () => {
+  it('validates score is in range [0.0, 1.0]', async () => {
     const judgeProvider = new StubProvider({
       text: JSON.stringify({
         score: 1.5, // Invalid: out of range
-        hits: ["Good"],
+        hits: ['Good'],
         misses: [],
-        reasoning: "Too high",
+        reasoning: 'Too high',
       }),
     });
 
@@ -132,12 +132,12 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
-      candidate: "Answer",
+      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { question: "", guidelines: "" },
+      promptInputs: { question: '', guidelines: '' },
       now: new Date(),
     });
 
@@ -147,13 +147,13 @@ describe("LlmJudgeEvaluator", () => {
     expect(result.misses).toHaveLength(0);
   });
 
-  it("enforces max 4 entries for hits and misses", async () => {
+  it('enforces max 4 entries for hits and misses', async () => {
     const judgeProvider = new StubProvider({
       text: JSON.stringify({
         score: 0.9,
-        hits: ["Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 6"],
-        misses: ["Miss 1", "Miss 2", "Miss 3", "Miss 4", "Miss 5"],
-        reasoning: "Too many items",
+        hits: ['Item 1', 'Item 2', 'Item 3', 'Item 4', 'Item 5', 'Item 6'],
+        misses: ['Miss 1', 'Miss 2', 'Miss 3', 'Miss 4', 'Miss 5'],
+        reasoning: 'Too many items',
       }),
     });
 
@@ -162,12 +162,12 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
-      candidate: "Answer",
+      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { question: "", guidelines: "" },
+      promptInputs: { question: '', guidelines: '' },
       now: new Date(),
     });
 
@@ -176,13 +176,13 @@ describe("LlmJudgeEvaluator", () => {
     expect(result.misses).toHaveLength(4); // Truncated to max 4
   });
 
-  it("uses a custom system prompt when provided", async () => {
-    const customPrompt = "Custom grading system prompt";
+  it('uses a custom system prompt when provided', async () => {
+    const customPrompt = 'Custom grading system prompt';
 
     class CapturingProvider implements Provider {
-      readonly id = "capturing";
-      readonly kind = "mock" as const;
-      readonly targetName = "capturing";
+      readonly id = 'capturing';
+      readonly kind = 'mock' as const;
+      readonly targetName = 'capturing';
       lastRequest?: ProviderRequest;
 
       constructor(private readonly response: ProviderResponse) {}
@@ -196,7 +196,7 @@ describe("LlmJudgeEvaluator", () => {
     const judgeProvider = new CapturingProvider({
       text: JSON.stringify({
         score: 0.7,
-        hits: ["Used custom prompt"],
+        hits: ['Used custom prompt'],
         misses: [],
       }),
     });
@@ -207,12 +207,12 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
-      candidate: "Answer",
+      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { question: "", guidelines: "" },
+      promptInputs: { question: '', guidelines: '' },
       now: new Date(),
     });
 
@@ -221,24 +221,24 @@ describe("LlmJudgeEvaluator", () => {
     // Custom template goes in user prompt (question), system prompt only has output schema
     expect(judgeProvider.lastRequest?.question).toContain(customPrompt);
     expect(judgeProvider.lastRequest?.systemPrompt).toContain(
-      "You must respond with a single JSON object"
+      'You must respond with a single JSON object',
     );
     expect(judgeProvider.lastRequest?.systemPrompt).not.toContain(customPrompt);
 
     expect(result.evaluatorRawRequest?.userPrompt).toContain(customPrompt);
     expect(result.evaluatorRawRequest?.systemPrompt).toContain(
-      "You must respond with a single JSON object"
+      'You must respond with a single JSON object',
     );
     expect(result.evaluatorRawRequest?.systemPrompt).not.toContain(customPrompt);
   });
 
-  it("rejects JSON with invalid hits/misses types", async () => {
+  it('rejects JSON with invalid hits/misses types', async () => {
     const judgeProvider = new StubProvider({
       text: JSON.stringify({
         score: 0.8,
-        hits: "Not an array", // Invalid type
+        hits: 'Not an array', // Invalid type
         misses: [],
-        reasoning: "Invalid hits",
+        reasoning: 'Invalid hits',
       }),
     });
 
@@ -247,12 +247,12 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
-      candidate: "Answer",
+      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { question: "", guidelines: "" },
+      promptInputs: { question: '', guidelines: '' },
       now: new Date(),
     });
 
@@ -262,19 +262,19 @@ describe("LlmJudgeEvaluator", () => {
     expect(result.misses).toHaveLength(0);
   });
 
-  it("tolerates non-JSON output by falling back to defaults", async () => {
-    const judgeProvider = new StubProvider({ text: "Final score: 0.5" });
+  it('tolerates non-JSON output by falling back to defaults', async () => {
+    const judgeProvider = new StubProvider({ text: 'Final score: 0.5' });
     const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
-      candidate: "Answer",
+      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { question: "", guidelines: "" },
+      promptInputs: { question: '', guidelines: '' },
       now: new Date(),
     });
 
@@ -283,7 +283,7 @@ describe("LlmJudgeEvaluator", () => {
     expect(result.misses).toHaveLength(0);
   });
 
-  it("passes multi-turn role markers through to evaluator prompts", async () => {
+  it('passes multi-turn role markers through to evaluator prompts', async () => {
     const judgeProvider = new CapturingProvider({
       text: JSON.stringify({ score: 0.65, hits: [], misses: [] }),
     });
@@ -292,24 +292,24 @@ describe("LlmJudgeEvaluator", () => {
     });
 
     const multiTurnQuestion =
-      "@[System]:\nFollow the coding guidelines.\n\n@[User]:\nDebug the failing test.\n\n@[Assistant]:\nPlease share the stack trace.";
+      '@[System]:\nFollow the coding guidelines.\n\n@[User]:\nDebug the failing test.\n\n@[Assistant]:\nPlease share the stack trace.';
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
-      candidate: "Candidate answer",
+      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      candidate: 'Candidate answer',
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { question: multiTurnQuestion, guidelines: "" },
+      promptInputs: { question: multiTurnQuestion, guidelines: '' },
       now: new Date(),
     });
 
     expect(judgeProvider.lastRequest?.question).toContain(multiTurnQuestion);
-    expect(result.evaluatorRawRequest?.userPrompt).toContain("@[Assistant]:");
-    expect(result.evaluatorRawRequest?.userPrompt).toContain("@[System]:");
+    expect(result.evaluatorRawRequest?.userPrompt).toContain('@[Assistant]:');
+    expect(result.evaluatorRawRequest?.userPrompt).toContain('@[System]:');
   });
 
-  it("keeps single-turn prompts flat when no markers are needed", async () => {
+  it('keeps single-turn prompts flat when no markers are needed', async () => {
     const judgeProvider = new CapturingProvider({
       text: JSON.stringify({ score: 0.8, hits: [], misses: [] }),
     });
@@ -317,21 +317,21 @@ describe("LlmJudgeEvaluator", () => {
       resolveJudgeProvider: async () => judgeProvider,
     });
 
-    const flatQuestion = "Summarize the architecture in two sentences.";
+    const flatQuestion = 'Summarize the architecture in two sentences.';
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: "llm_judge" },
-      candidate: "Candidate answer",
+      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      candidate: 'Candidate answer',
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
-      promptInputs: { question: flatQuestion, guidelines: "" },
+      promptInputs: { question: flatQuestion, guidelines: '' },
       now: new Date(),
     });
 
     expect(judgeProvider.lastRequest?.question).toContain(flatQuestion);
-    expect(judgeProvider.lastRequest?.question).not.toContain("@[User]:");
+    expect(judgeProvider.lastRequest?.question).not.toContain('@[User]:');
     expect(result.evaluatorRawRequest?.userPrompt).toContain(flatQuestion);
-    expect(result.evaluatorRawRequest?.userPrompt).not.toContain("@[User]:");
+    expect(result.evaluatorRawRequest?.userPrompt).not.toContain('@[User]:');
   });
 });

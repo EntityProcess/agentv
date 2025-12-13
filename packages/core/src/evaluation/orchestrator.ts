@@ -1,25 +1,25 @@
-import { createHash, randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-import pLimit from "p-limit";
+import { createHash, randomUUID } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import pLimit from 'p-limit';
 
 import {
   CodeEvaluator,
   type EvaluationScore,
   type Evaluator,
   LlmJudgeEvaluator,
-} from "./evaluators.js";
-import { readTextFile } from "./file-utils.js";
-import { createProvider } from "./providers/index.js";
-import { type ResolvedTarget, resolveTargetDefinition } from "./providers/targets.js";
+} from './evaluators.js';
+import { readTextFile } from './file-utils.js';
+import { createProvider } from './providers/index.js';
+import { type ResolvedTarget, resolveTargetDefinition } from './providers/targets.js';
 import type {
   EnvLookup,
   Provider,
   ProviderRequest,
   ProviderResponse,
   TargetDefinition,
-} from "./providers/types.js";
-import { isAgentProvider } from "./providers/types.js";
+} from './providers/types.js';
+import { isAgentProvider } from './providers/types.js';
 import type {
   EvalCase,
   EvaluationResult,
@@ -27,8 +27,8 @@ import type {
   EvaluatorResult,
   JsonObject,
   JsonValue,
-} from "./types.js";
-import { type PromptInputs, buildPromptInputs, loadEvalCases } from "./yaml-parser.js";
+} from './types.js';
+import { type PromptInputs, buildPromptInputs, loadEvalCases } from './yaml-parser.js';
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -55,7 +55,7 @@ export interface RunEvalCaseOptions {
 export interface ProgressEvent {
   readonly workerId: number;
   readonly evalId: string;
-  readonly status: "pending" | "running" | "completed" | "failed";
+  readonly status: 'pending' | 'running' | 'completed' | 'failed';
   readonly startedAt?: number;
   readonly completedAt?: number;
   readonly error?: string;
@@ -84,7 +84,7 @@ export interface RunEvaluationOptions {
 }
 
 export async function runEvaluation(
-  options: RunEvaluationOptions
+  options: RunEvaluationOptions,
 ): Promise<readonly EvaluationResult[]> {
   const {
     testFilePath: evalFilePath,
@@ -155,7 +155,7 @@ export async function runEvaluation(
   };
 
   const resolveJudgeProvider = async (
-    targetContext: ResolvedTarget
+    targetContext: ResolvedTarget,
   ): Promise<Provider | undefined> => {
     const judgeName = targetContext.judgeTarget ?? targetContext.name;
     const resolvedJudge = resolveTargetByName(judgeName);
@@ -171,10 +171,10 @@ export async function runEvaluation(
   const providerSupportsBatch =
     target.providerBatching === true &&
     primaryProvider.supportsBatch === true &&
-    typeof primaryProvider.invokeBatch === "function";
+    typeof primaryProvider.invokeBatch === 'function';
   if (target.providerBatching && !providerSupportsBatch && verbose) {
     console.warn(
-      `Provider batching requested for target '${target.name}', but provider does not advertise batch support. Using per-case dispatch.`
+      `Provider batching requested for target '${target.name}', but provider does not advertise batch support. Using per-case dispatch.`,
     );
   }
 
@@ -185,7 +185,7 @@ export async function runEvaluation(
       await onProgress({
         workerId: i + 1,
         evalId: filteredEvalCases[i].id,
-        status: "pending",
+        status: 'pending',
       });
     }
   }
@@ -209,7 +209,7 @@ export async function runEvaluation(
       if (verbose) {
         const message = error instanceof Error ? error.message : String(error);
         console.warn(
-          `Provider batch execution failed, falling back to per-case dispatch: ${message}`
+          `Provider batch execution failed, falling back to per-case dispatch: ${message}`,
         );
       }
     }
@@ -234,7 +234,7 @@ export async function runEvaluation(
         await onProgress({
           workerId,
           evalId: evalCase.id,
-          status: "running",
+          status: 'running',
           startedAt: Date.now(),
         });
       }
@@ -259,7 +259,7 @@ export async function runEvaluation(
           await onProgress({
             workerId,
             evalId: evalCase.id,
-            status: result.error ? "failed" : "completed",
+            status: result.error ? 'failed' : 'completed',
             startedAt: 0, // Not used for completed status
             completedAt: Date.now(),
             error: result.error,
@@ -275,14 +275,14 @@ export async function runEvaluation(
           await onProgress({
             workerId,
             evalId: evalCase.id,
-            status: "failed",
+            status: 'failed',
             completedAt: Date.now(),
             error: error instanceof Error ? error.message : String(error),
           });
         }
         throw error;
       }
-    })
+    }),
   );
 
   // Wait for all workers to complete
@@ -292,7 +292,7 @@ export async function runEvaluation(
   const results: EvaluationResult[] = [];
   for (let i = 0; i < settled.length; i++) {
     const outcome = settled[i];
-    if (outcome.status === "fulfilled") {
+    if (outcome.status === 'fulfilled') {
       results.push(outcome.value);
     } else {
       // Build error result for rejected promise
@@ -304,7 +304,7 @@ export async function runEvaluation(
         (now ?? (() => new Date()))(),
         outcome.reason,
         promptInputs,
-        primaryProvider
+        primaryProvider,
       );
       results.push(errorResult);
       if (onResult) {
@@ -346,7 +346,7 @@ async function runBatchEvaluation(options: {
 
   // Prepare prompt inputs up front so we can reuse them for grading.
   const promptInputsList: PromptInputs[] = [];
-  const formattingMode = isAgentProvider(provider) ? "agent" : "lm";
+  const formattingMode = isAgentProvider(provider) ? 'agent' : 'lm';
 
   for (const evalCase of evalCases) {
     const promptInputs = await buildPromptInputs(evalCase, formattingMode);
@@ -365,18 +365,18 @@ async function runBatchEvaluation(options: {
       inputFiles: evalCase.file_paths,
       evalCaseId: evalCase.id,
       metadata: {
-        systemPrompt: promptInputs.systemMessage ?? "",
+        systemPrompt: promptInputs.systemMessage ?? '',
       },
     };
   });
 
   const batchResponse = await provider.invokeBatch?.(batchRequests);
   if (!Array.isArray(batchResponse)) {
-    throw new Error("Provider batching failed: invokeBatch did not return an array");
+    throw new Error('Provider batching failed: invokeBatch did not return an array');
   }
   if (batchResponse.length !== evalCases.length) {
     throw new Error(
-      `Provider batching failed: expected ${evalCases.length} responses, received ${batchResponse.length}`
+      `Provider batching failed: expected ${evalCases.length} responses, received ${batchResponse.length}`,
     );
   }
 
@@ -386,7 +386,7 @@ async function runBatchEvaluation(options: {
       await onProgress({
         workerId: 1,
         evalId: evalCases[i].id,
-        status: "running",
+        status: 'running',
         startedAt,
       });
     }
@@ -401,7 +401,7 @@ async function runBatchEvaluation(options: {
     try {
       result = await evaluateCandidate({
         evalCase,
-        candidate: providerResponse.text ?? "",
+        candidate: providerResponse.text ?? '',
         target,
         provider,
         evaluators: evaluatorRegistry,
@@ -418,7 +418,7 @@ async function runBatchEvaluation(options: {
         nowFn(),
         error,
         promptInputs,
-        provider
+        provider,
       );
       results.push(errorResult);
       if (onResult) {
@@ -428,7 +428,7 @@ async function runBatchEvaluation(options: {
         await onProgress({
           workerId: 1,
           evalId: evalCase.id,
-          status: "failed",
+          status: 'failed',
           completedAt: Date.now(),
           error: error instanceof Error ? error.message : String(error),
         });
@@ -445,7 +445,7 @@ async function runBatchEvaluation(options: {
       await onProgress({
         workerId: 1,
         evalId: evalCase.id,
-        status: "completed",
+        status: 'completed',
         startedAt: 0,
         completedAt: Date.now(),
       });
@@ -471,7 +471,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     judgeProvider,
   } = options;
 
-  const formattingMode = isAgentProvider(provider) ? "agent" : "lm";
+  const formattingMode = isAgentProvider(provider) ? 'agent' : 'lm';
   const promptInputs = await buildPromptInputs(evalCase, formattingMode);
   if (promptDumpDir) {
     await dumpPrompt(promptDumpDir, evalCase, promptInputs);
@@ -515,9 +515,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       evalCase,
       target.name,
       nowFn(),
-      lastError ?? new Error("Provider did not return a response"),
+      lastError ?? new Error('Provider did not return a response'),
       promptInputs,
-      provider
+      provider,
     );
   }
 
@@ -528,7 +528,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   try {
     return await evaluateCandidate({
       evalCase,
-      candidate: providerResponse.text ?? "",
+      candidate: providerResponse.text ?? '',
       target,
       provider,
       evaluators,
@@ -667,7 +667,7 @@ async function runEvaluatorsForCase(options: {
     });
   }
 
-  const evaluatorKind = evalCase.evaluator ?? "llm_judge";
+  const evaluatorKind = evalCase.evaluator ?? 'llm_judge';
   const activeEvaluator = evaluators[evaluatorKind] ?? evaluators.llm_judge;
   if (!activeEvaluator) {
     throw new Error(`No evaluator registered for kind '${evaluatorKind}'`);
@@ -725,7 +725,7 @@ async function runEvaluatorList(options: {
 
   for (const evaluator of evaluators ?? []) {
     try {
-      if (evaluator.type === "llm_judge") {
+      if (evaluator.type === 'llm_judge') {
         const score = await runLlmJudgeEvaluator({
           config: evaluator,
           evalCase,
@@ -751,7 +751,7 @@ async function runEvaluatorList(options: {
         continue;
       }
 
-      if (evaluator.type === "code") {
+      if (evaluator.type === 'code') {
         const codeEvaluator = new CodeEvaluator({
           script: evaluator.script,
           cwd: evaluator.resolvedCwd ?? evaluator.cwd,
@@ -788,15 +788,15 @@ async function runEvaluatorList(options: {
       };
       scored.push({
         score: fallbackScore,
-        name: evaluator.name ?? "unknown",
-        type: evaluator.type ?? "unknown",
+        name: evaluator.name ?? 'unknown',
+        type: evaluator.type ?? 'unknown',
       });
       evaluatorResults.push({
-        name: evaluator.name ?? "unknown",
-        type: evaluator.type ?? "unknown",
+        name: evaluator.name ?? 'unknown',
+        type: evaluator.type ?? 'unknown',
         score: 0,
         hits: [],
-        misses: [`Evaluator '${evaluator.name ?? "unknown"}' failed: ${message}`],
+        misses: [`Evaluator '${evaluator.name ?? 'unknown'}' failed: ${message}`],
         reasoning: message,
       });
     }
@@ -810,13 +810,13 @@ async function runEvaluatorList(options: {
   const misses = scored.flatMap((entry) => entry.score.misses);
   const expectedAspectCount = scored.reduce(
     (total, entry) => total + (entry.score.expectedAspectCount ?? 0),
-    0
+    0,
   );
   const rawAspects = scored.flatMap((entry) => entry.score.rawAspects ?? []);
   const reasoningParts = scored
     .map((entry) => (entry.score.reasoning ? `${entry.name}: ${entry.score.reasoning}` : undefined))
     .filter(isNonEmptyString);
-  const reasoning = reasoningParts.length > 0 ? reasoningParts.join(" | ") : undefined;
+  const reasoning = reasoningParts.length > 0 ? reasoningParts.join(' | ') : undefined;
 
   const score: EvaluationScore = {
     score: aggregateScore,
@@ -831,7 +831,7 @@ async function runEvaluatorList(options: {
 }
 
 async function runLlmJudgeEvaluator(options: {
-  readonly config: Exclude<NonNullable<EvalCase["evaluators"]>[number], { type: "code" }>;
+  readonly config: Exclude<NonNullable<EvalCase['evaluators']>[number], { type: 'code' }>;
   readonly evalCase: EvalCase;
   readonly candidate: string;
   readonly target: ResolvedTarget;
@@ -889,7 +889,7 @@ async function resolveCustomPrompt(config: {
 }
 
 function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function filterEvalCases(evalCases: readonly EvalCase[], evalId?: string): readonly EvalCase[] {
@@ -901,7 +901,7 @@ function filterEvalCases(evalCases: readonly EvalCase[], evalId?: string): reado
 
 function buildEvaluatorRegistry(
   overrides: Partial<Record<string, Evaluator>> | undefined,
-  resolveJudgeProvider: (target: ResolvedTarget) => Promise<Provider | undefined>
+  resolveJudgeProvider: (target: ResolvedTarget) => Promise<Provider | undefined>,
 ): Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator } {
   const llmJudge =
     overrides?.llm_judge ??
@@ -923,9 +923,9 @@ function buildEvaluatorRegistry(
 async function dumpPrompt(
   directory: string,
   evalCase: EvalCase,
-  promptInputs: PromptInputs
+  promptInputs: PromptInputs,
 ): Promise<void> {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const filename = `${timestamp}_${sanitizeFilename(evalCase.id)}.json`;
   const filePath = path.resolve(directory, filename);
 
@@ -937,14 +937,14 @@ async function dumpPrompt(
     guideline_paths: evalCase.guideline_paths,
   } satisfies Record<string, unknown>;
 
-  await writeFile(filePath, JSON.stringify(payload, null, 2), "utf8");
+  await writeFile(filePath, JSON.stringify(payload, null, 2), 'utf8');
 }
 
 function sanitizeFilename(value: string): string {
   if (!value) {
-    return "prompt";
+    return 'prompt';
   }
-  const sanitized = value.replace(/[^A-Za-z0-9._-]+/g, "_");
+  const sanitized = value.replace(/[^A-Za-z0-9._-]+/g, '_');
   return sanitized.length > 0 ? sanitized : randomUUID();
 }
 
@@ -957,7 +957,7 @@ async function invokeProvider(
     readonly attempt: number;
     readonly agentTimeoutMs?: number;
     readonly signal?: AbortSignal;
-  }
+  },
 ): Promise<ProviderResponse> {
   const { evalCase, promptInputs, attempt, agentTimeoutMs, signal } = options;
 
@@ -965,7 +965,7 @@ async function invokeProvider(
   const timeout = agentTimeoutMs ? setTimeout(() => controller.abort(), agentTimeoutMs) : undefined;
 
   if (signal) {
-    signal.addEventListener("abort", () => controller.abort(), { once: true });
+    signal.addEventListener('abort', () => controller.abort(), { once: true });
   }
 
   try {
@@ -978,7 +978,7 @@ async function invokeProvider(
       evalCaseId: evalCase.id,
       attempt,
       metadata: {
-        systemPrompt: promptInputs.systemMessage ?? "",
+        systemPrompt: promptInputs.systemMessage ?? '',
       },
       signal: controller.signal,
     });
@@ -995,7 +995,7 @@ function buildErrorResult(
   timestamp: Date,
   error: unknown,
   promptInputs: PromptInputs,
-  provider?: Provider
+  provider?: Provider,
 ): EvaluationResult {
   const message = error instanceof Error ? error.message : String(error);
 
@@ -1046,19 +1046,19 @@ function createCacheKey(
   provider: Provider,
   target: ResolvedTarget,
   evalCase: EvalCase,
-  promptInputs: PromptInputs
+  promptInputs: PromptInputs,
 ): string {
-  const hash = createHash("sha256");
+  const hash = createHash('sha256');
   hash.update(provider.id);
   hash.update(target.name);
   hash.update(evalCase.id);
   hash.update(promptInputs.question);
   hash.update(promptInputs.guidelines);
-  hash.update(promptInputs.systemMessage ?? "");
+  hash.update(promptInputs.systemMessage ?? '');
   if (promptInputs.chatPrompt) {
     hash.update(JSON.stringify(promptInputs.chatPrompt));
   }
-  return hash.digest("hex");
+  return hash.digest('hex');
 }
 
 function isTimeoutLike(error: unknown): boolean {
@@ -1066,17 +1066,17 @@ function isTimeoutLike(error: unknown): boolean {
     return false;
   }
   if (
-    typeof DOMException !== "undefined" &&
+    typeof DOMException !== 'undefined' &&
     error instanceof DOMException &&
-    error.name === "AbortError"
+    error.name === 'AbortError'
   ) {
     return true;
   }
   if (error instanceof Error) {
     const name = error.name?.toLowerCase();
     const message = error.message?.toLowerCase();
-    return name.includes("timeout") || message.includes("timeout");
+    return name.includes('timeout') || message.includes('timeout');
   }
   const value = String(error).toLowerCase();
-  return value.includes("timeout");
+  return value.includes('timeout');
 }

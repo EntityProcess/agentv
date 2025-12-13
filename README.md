@@ -96,26 +96,6 @@ agentv validate evals/eval1.yaml evals/eval2.yaml
 agentv validate evals/
 ```
 
-**File type detection:**
-
-All AgentV files must include a `$schema` field:
-
-```yaml
-# Eval files
-$schema: agentv-eval-v2
-evalcases:
-  - id: eval-1
-    # ...
-
-# Targets files
-$schema: agentv-targets-v2.2
-targets:
-  - name: default
-    # ...
-```
-
-Files without a `$schema` field will be rejected with a clear error message.
-
 ### Running Evals
 
 Run eval (target auto-selected from eval file or CLI override):

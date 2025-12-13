@@ -3,12 +3,12 @@
  * These variables can be used in custom evaluator templates with {{ variable_name }} syntax.
  */
 export const TEMPLATE_VARIABLES = {
-  CANDIDATE_ANSWER: "candidate_answer",
-  EXPECTED_MESSAGES: "expected_messages",
-  QUESTION: "question",
-  EXPECTED_OUTCOME: "expected_outcome",
-  REFERENCE_ANSWER: "reference_answer",
-  INPUT_MESSAGES: "input_messages",
+  CANDIDATE_ANSWER: 'candidate_answer',
+  EXPECTED_MESSAGES: 'expected_messages',
+  QUESTION: 'question',
+  EXPECTED_OUTCOME: 'expected_outcome',
+  REFERENCE_ANSWER: 'reference_answer',
+  INPUT_MESSAGES: 'input_messages',
 } as const;
 
 /**

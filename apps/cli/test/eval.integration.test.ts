@@ -1,9 +1,9 @@
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { execa } from "execa";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { execa } from 'execa';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 interface EvalFixture {
   readonly baseDir: string;
@@ -14,27 +14,27 @@ interface EvalFixture {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const projectRoot = path.resolve(__dirname, "../../..");
-const CLI_ENTRY = path.join(projectRoot, "apps/cli/src/cli.ts");
-const MOCK_RUNNER = path.join(projectRoot, "apps/cli/test/fixtures/mock-run-evaluation.ts");
+const projectRoot = path.resolve(__dirname, '../../..');
+const CLI_ENTRY = path.join(projectRoot, 'apps/cli/src/cli.ts');
+const MOCK_RUNNER = path.join(projectRoot, 'apps/cli/test/fixtures/mock-run-evaluation.ts');
 let coreBuilt = false;
 
 beforeAll(async () => {
   if (!coreBuilt) {
-    await execa("bun", ["run", "--filter", "@agentv/core", "build"], { cwd: projectRoot });
+    await execa('bun', ['run', '--filter', '@agentv/core', 'build'], { cwd: projectRoot });
     coreBuilt = true;
   }
 }, 30000); // 30 second timeout for building core package
 
 async function createFixture(): Promise<EvalFixture> {
-  const baseDir = await mkdtemp(path.join(tmpdir(), "agentv-cli-test-"));
-  const suiteDir = path.join(baseDir, "suite");
+  const baseDir = await mkdtemp(path.join(tmpdir(), 'agentv-cli-test-'));
+  const suiteDir = path.join(baseDir, 'suite');
   await mkdir(suiteDir, { recursive: true });
 
-  const agentvDir = path.join(suiteDir, ".agentv");
+  const agentvDir = path.join(suiteDir, '.agentv');
   await mkdir(agentvDir, { recursive: true });
 
-  const targetsPath = path.join(agentvDir, "targets.yaml");
+  const targetsPath = path.join(agentvDir, 'targets.yaml');
   const targetsContent = `$schema: agentv-targets-v2.2
 targets:
   - name: default
@@ -44,9 +44,9 @@ targets:
   - name: cli-target
     provider: mock
 `;
-  await writeFile(targetsPath, targetsContent, "utf8");
+  await writeFile(targetsPath, targetsContent, 'utf8');
 
-  const testFilePath = path.join(suiteDir, "sample.test.yaml");
+  const testFilePath = path.join(suiteDir, 'sample.test.yaml');
   const testFileContent = `$schema: agentv-eval-v2
 description: CLI integration test
 target: file-target
@@ -71,12 +71,12 @@ evalcases:
       - role: assistant
         content: "Beta"
 `;
-  await writeFile(testFilePath, testFileContent, "utf8");
+  await writeFile(testFilePath, testFileContent, 'utf8');
 
-  const envPath = path.join(suiteDir, ".env");
-  await writeFile(envPath, "CLI_ENV_SAMPLE=from-dotenv\n", "utf8");
+  const envPath = path.join(suiteDir, '.env');
+  await writeFile(envPath, 'CLI_ENV_SAMPLE=from-dotenv\n', 'utf8');
 
-  const diagnosticsPath = path.join(baseDir, "diagnostics.json");
+  const diagnosticsPath = path.join(baseDir, 'diagnostics.json');
 
   return { baseDir, suiteDir, testFilePath, diagnosticsPath } satisfies EvalFixture;
 }
@@ -84,17 +84,17 @@ evalcases:
 async function runCli(
   fixture: EvalFixture,
   args: readonly string[],
-  extraEnv: Record<string, string | undefined> = {}
+  extraEnv: Record<string, string | undefined> = {},
 ): Promise<{ stdout: string; stderr: string }> {
   const baseEnv: Record<string, string | undefined> = { ...process.env };
   baseEnv.CLI_ENV_SAMPLE = undefined;
 
   try {
-    const result = await execa("bun", [CLI_ENTRY, ...args], {
+    const result = await execa('bun', [CLI_ENTRY, ...args], {
       cwd: fixture.suiteDir,
       env: {
         ...baseEnv,
-        CI: "true", // Disable interactive progress display for tests
+        CI: 'true', // Disable interactive progress display for tests
         AGENTEVO_CLI_EVAL_RUNNER: MOCK_RUNNER,
         AGENTEVO_CLI_EVAL_RUNNER_OUTPUT: fixture.diagnosticsPath,
         ...extraEnv,
@@ -104,22 +104,22 @@ async function runCli(
 
     return { stdout: result.stdout, stderr: result.stderr };
   } catch (error) {
-    console.error("CLI execution failed:", error);
+    console.error('CLI execution failed:', error);
     throw error;
   }
 }
 
 function extractOutputPath(stdout: string): string {
   const lines = stdout.split(/\r?\n/);
-  const outputLine = lines.find((line) => line.startsWith("Output path:"));
+  const outputLine = lines.find((line) => line.startsWith('Output path:'));
   if (!outputLine) {
     throw new Error(`Unable to parse output path from CLI output:\n${stdout}`);
   }
-  return outputLine.replace("Output path:", "").trim();
+  return outputLine.replace('Output path:', '').trim();
 }
 
 async function readJsonLines(filePath: string): Promise<readonly unknown[]> {
-  const raw = await readFile(filePath, "utf8");
+  const raw = await readFile(filePath, 'utf8');
   return raw
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -128,7 +128,7 @@ async function readJsonLines(filePath: string): Promise<readonly unknown[]> {
 }
 
 async function readDiagnostics(fixture: EvalFixture): Promise<Record<string, unknown>> {
-  const raw = await readFile(fixture.diagnosticsPath, "utf8");
+  const raw = await readFile(fixture.diagnosticsPath, 'utf8');
   return JSON.parse(raw) as Record<string, unknown>;
 }
 
@@ -143,21 +143,21 @@ afterEach(async () => {
   }
 });
 
-describe("agentv eval CLI", () => {
-  it("writes results, summary, and prompt dumps using default directories", async () => {
+describe('agentv eval CLI', () => {
+  it('writes results, summary, and prompt dumps using default directories', async () => {
     const fixture = await createFixture();
     fixtures.push(fixture.baseDir);
 
     const { stdout } = await runCli(fixture, [
-      "eval",
+      'eval',
       fixture.testFilePath,
-      "--verbose",
-      "--dump-prompts",
+      '--verbose',
+      '--dump-prompts',
     ]);
 
     // Don't check stderr - it may contain stack traces or other diagnostics
-    expect(stdout).toContain("Using target (test-file): file-target [provider=mock]");
-    expect(stdout).toContain("Mean score: 0.750");
+    expect(stdout).toContain('Using target (test-file): file-target [provider=mock]');
+    expect(stdout).toContain('Mean score: 0.750');
     // Std deviation is an implementation detail - don't check it
 
     const outputPath = extractOutputPath(stdout);
@@ -166,44 +166,44 @@ describe("agentv eval CLI", () => {
     const results = await readJsonLines(outputPath);
     expect(results).toHaveLength(2);
     const [firstResult, secondResult] = results as Array<Record<string, unknown>>;
-    expect(firstResult.eval_id).toBe("case-alpha");
-    expect(secondResult.eval_id).toBe("case-beta");
+    expect(firstResult.eval_id).toBe('case-alpha');
+    expect(secondResult.eval_id).toBe('case-beta');
 
     const diagnostics = await readDiagnostics(fixture);
     expect(diagnostics).toMatchObject({
-      target: "file-target",
-      envSample: "from-dotenv",
+      target: 'file-target',
+      envSample: 'from-dotenv',
       resultCount: 2,
     });
 
     expect(diagnostics.promptDumpDir).toBeDefined();
-    expect(typeof diagnostics.promptDumpDir).toBe("string");
+    expect(typeof diagnostics.promptDumpDir).toBe('string');
     const promptsDir = diagnostics.promptDumpDir as string;
     expect(promptsDir).toContain(`${path.sep}.agentv${path.sep}prompts`);
 
     const promptFiles = await readdir(promptsDir);
-    expect(new Set(promptFiles)).toEqual(new Set(["case-alpha.json", "case-beta.json"]));
+    expect(new Set(promptFiles)).toEqual(new Set(['case-alpha.json', 'case-beta.json']));
   });
 
-  it("prefers CLI target overrides when provided", async () => {
+  it('prefers CLI target overrides when provided', async () => {
     const fixture = await createFixture();
     fixtures.push(fixture.baseDir);
 
     const { stdout } = await runCli(fixture, [
-      "eval",
+      'eval',
       fixture.testFilePath,
-      "--verbose",
-      "--target",
-      "cli-target",
+      '--verbose',
+      '--target',
+      'cli-target',
     ]);
 
-    expect(stdout).toContain("Using target (cli): cli-target [provider=mock]");
+    expect(stdout).toContain('Using target (cli): cli-target [provider=mock]');
 
     const diagnostics = await readDiagnostics(fixture);
-    expect(diagnostics.target).toBe("cli-target");
+    expect(diagnostics.target).toBe('cli-target');
   });
 
-  it("falls back to default target when neither CLI nor file specifies one", async () => {
+  it('falls back to default target when neither CLI nor file specifies one', async () => {
     const fixture = await createFixture();
     fixtures.push(fixture.baseDir);
 
@@ -221,13 +221,13 @@ evalcases:
       - role: assistant
         content: "Hi"
 `;
-    await writeFile(fixture.testFilePath, testFileContent, "utf8");
+    await writeFile(fixture.testFilePath, testFileContent, 'utf8');
 
-    const { stdout } = await runCli(fixture, ["eval", fixture.testFilePath, "--verbose"]);
+    const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath, '--verbose']);
 
-    expect(stdout).toContain("Using target (default): default [provider=mock]");
+    expect(stdout).toContain('Using target (default): default [provider=mock]');
 
     const diagnostics = await readDiagnostics(fixture);
-    expect(diagnostics.target).toBe("default");
+    expect(diagnostics.target).toBe('default');
   });
 });
