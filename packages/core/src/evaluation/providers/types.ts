@@ -1,6 +1,6 @@
-import type { JsonObject } from "../types.js";
+import type { JsonObject } from '../types.js';
 
-export type ChatMessageRole = "system" | "user" | "assistant" | "tool" | "function";
+export type ChatMessageRole = 'system' | 'user' | 'assistant' | 'tool' | 'function';
 
 export interface ChatMessage {
   readonly role: ChatMessageRole;
@@ -11,23 +11,23 @@ export interface ChatMessage {
 export type ChatPrompt = readonly ChatMessage[];
 
 export type ProviderKind =
-  | "azure"
-  | "anthropic"
-  | "gemini"
-  | "codex"
-  | "cli"
-  | "mock"
-  | "vscode"
-  | "vscode-insiders";
+  | 'azure'
+  | 'anthropic'
+  | 'gemini'
+  | 'codex'
+  | 'cli'
+  | 'mock'
+  | 'vscode'
+  | 'vscode-insiders';
 
 /**
  * Agent providers that have filesystem access and don't need unwrapped guidelines.
  * These providers read files directly from the filesystem using file:// URIs.
  */
 export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
-  "codex",
-  "vscode",
-  "vscode-insiders",
+  'codex',
+  'vscode',
+  'vscode-insiders',
 ] as const;
 
 /**
@@ -35,14 +35,14 @@ export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
  * This is the source of truth for provider validation.
  */
 export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
-  "azure",
-  "anthropic",
-  "gemini",
-  "codex",
-  "cli",
-  "mock",
-  "vscode",
-  "vscode-insiders",
+  'azure',
+  'anthropic',
+  'gemini',
+  'codex',
+  'cli',
+  'mock',
+  'vscode',
+  'vscode-insiders',
 ] as const;
 
 /**
@@ -50,19 +50,19 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
  * These map to the canonical ProviderKind values.
  */
 export const PROVIDER_ALIASES: readonly string[] = [
-  "azure-openai", // alias for "azure"
-  "google", // alias for "gemini"
-  "google-gemini", // alias for "gemini"
-  "codex-cli", // alias for "codex"
-  "openai", // legacy/future support
-  "bedrock", // legacy/future support
-  "vertex", // legacy/future support
+  'azure-openai', // alias for "azure"
+  'google', // alias for "gemini"
+  'google-gemini', // alias for "gemini"
+  'codex-cli', // alias for "codex"
+  'openai', // legacy/future support
+  'bedrock', // legacy/future support
+  'vertex', // legacy/future support
 ] as const;
 
 /**
  * Schema identifier for targets.yaml files (version 2).
  */
-export const TARGETS_SCHEMA_V2 = "agentv-targets-v2.2";
+export const TARGETS_SCHEMA_V2 = 'agentv-targets-v2.2';
 
 export interface ProviderRequest {
   readonly question: string;

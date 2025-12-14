@@ -1,8 +1,8 @@
-import { createWriteStream } from "node:fs";
-import { mkdir } from "node:fs/promises";
-import path from "node:path";
-import { finished } from "node:stream/promises";
-import { Mutex } from "async-mutex";
+import { createWriteStream } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
+import { finished } from 'node:stream/promises';
+import { Mutex } from 'async-mutex';
 
 export class JsonlWriter {
   private readonly stream: ReturnType<typeof createWriteStream>;
@@ -15,20 +15,20 @@ export class JsonlWriter {
 
   static async open(filePath: string): Promise<JsonlWriter> {
     await mkdir(path.dirname(filePath), { recursive: true });
-    const stream = createWriteStream(filePath, { flags: "w", encoding: "utf8" });
+    const stream = createWriteStream(filePath, { flags: 'w', encoding: 'utf8' });
     return new JsonlWriter(stream);
   }
 
   async append(record: unknown): Promise<void> {
     await this.mutex.runExclusive(async () => {
       if (this.closed) {
-        throw new Error("Cannot write to closed JSONL writer");
+        throw new Error('Cannot write to closed JSONL writer');
       }
       const line = `${JSON.stringify(record)}\n`;
       if (!this.stream.write(line)) {
         await new Promise<void>((resolve, reject) => {
-          this.stream.once("drain", resolve);
-          this.stream.once("error", reject);
+          this.stream.once('drain', resolve);
+          this.stream.once('error', reject);
         });
       }
     });

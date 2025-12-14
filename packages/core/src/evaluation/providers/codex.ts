@@ -1,21 +1,21 @@
-import { exec as execCallback, spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { constants, createWriteStream } from "node:fs";
-import type { WriteStream } from "node:fs";
-import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
-import { promisify } from "node:util";
+import { exec as execCallback, spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { constants, createWriteStream } from 'node:fs';
+import type { WriteStream } from 'node:fs';
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { promisify } from 'node:util';
 
-import { recordCodexLogEntry } from "./codex-log-tracker.js";
-import { buildPromptDocument, normalizeInputFiles } from "./preread.js";
-import type { CodexResolvedConfig } from "./targets.js";
-import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
+import { recordCodexLogEntry } from './codex-log-tracker.js';
+import { buildPromptDocument, normalizeInputFiles } from './preread.js';
+import type { CodexResolvedConfig } from './targets.js';
+import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 
 const execAsync = promisify(execCallback);
-const WORKSPACE_PREFIX = "agentv-codex-";
-const PROMPT_FILENAME = "prompt.md";
-const JSONL_TYPE_ITEM_COMPLETED = "item.completed";
+const WORKSPACE_PREFIX = 'agentv-codex-';
+const PROMPT_FILENAME = 'prompt.md';
+const JSONL_TYPE_ITEM_COMPLETED = 'item.completed';
 
 interface CodexRunOptions {
   readonly executable: string;
@@ -40,7 +40,7 @@ type CodexRunner = (options: CodexRunOptions) => Promise<CodexRunResult>;
 
 export class CodexProvider implements Provider {
   readonly id: string;
-  readonly kind = "codex" as const;
+  readonly kind = 'codex' as const;
   readonly targetName: string;
   readonly supportsBatch = false;
 
@@ -52,7 +52,7 @@ export class CodexProvider implements Provider {
   constructor(
     targetName: string,
     config: CodexResolvedConfig,
-    runner: CodexRunner = defaultCodexRunner
+    runner: CodexRunner = defaultCodexRunner,
   ) {
     this.id = `codex:${targetName}`;
     this.targetName = targetName;
@@ -62,7 +62,7 @@ export class CodexProvider implements Provider {
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
     if (request.signal?.aborted) {
-      throw new Error("Codex provider request was aborted before execution");
+      throw new Error('Codex provider request was aborted before execution');
     }
 
     await this.ensureEnvironmentReady();
@@ -74,7 +74,7 @@ export class CodexProvider implements Provider {
     try {
       const promptContent = buildPromptDocument(request, inputFiles);
       const promptFile = path.join(workspaceRoot, PROMPT_FILENAME);
-      await writeFile(promptFile, promptContent, "utf8");
+      await writeFile(promptFile, promptContent, 'utf8');
 
       const args = this.buildCodexArgs();
       const cwd = this.resolveCwd(workspaceRoot);
@@ -83,7 +83,7 @@ export class CodexProvider implements Provider {
 
       if (result.timedOut) {
         throw new Error(
-          `Codex CLI timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`
+          `Codex CLI timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
         );
       }
 
@@ -138,18 +138,18 @@ export class CodexProvider implements Provider {
   private buildCodexArgs(): string[] {
     // Global flags must come before 'exec' subcommand
     const args = [
-      "--ask-for-approval",
-      "never",
-      "exec",
-      "--json",
-      "--color",
-      "never",
-      "--skip-git-repo-check",
+      '--ask-for-approval',
+      'never',
+      'exec',
+      '--json',
+      '--color',
+      'never',
+      '--skip-git-repo-check',
     ];
     if (this.config.args && this.config.args.length > 0) {
       args.push(...this.config.args);
     }
-    args.push("-");
+    args.push('-');
     return args;
   }
 
@@ -158,7 +158,7 @@ export class CodexProvider implements Provider {
     cwd: string,
     promptContent: string,
     signal: AbortSignal | undefined,
-    logger: CodexStreamLogger | undefined
+    logger: CodexStreamLogger | undefined,
   ): Promise<CodexRunResult> {
     try {
       return await this.runCodex({
@@ -174,9 +174,9 @@ export class CodexProvider implements Provider {
       });
     } catch (error) {
       const err = error as NodeJS.ErrnoException;
-      if (err.code === "ENOENT") {
+      if (err.code === 'ENOENT') {
         throw new Error(
-          `Codex executable '${this.config.executable}' was not found. Update the target settings.executable or add it to PATH.`
+          `Codex executable '${this.config.executable}' was not found. Update the target settings.executable or add it to PATH.`,
         );
       }
       throw error;
@@ -203,11 +203,11 @@ export class CodexProvider implements Provider {
     if (this.config.logDir) {
       return path.resolve(this.config.logDir);
     }
-    return path.join(process.cwd(), ".agentv", "logs", "codex");
+    return path.join(process.cwd(), '.agentv', 'logs', 'codex');
   }
 
   private async createStreamLogger(
-    request: ProviderRequest
+    request: ProviderRequest,
   ): Promise<CodexStreamLogger | undefined> {
     const logDir = this.resolveLogDirectory();
     if (!logDir) {
@@ -229,7 +229,7 @@ export class CodexProvider implements Provider {
         targetName: this.targetName,
         evalCaseId: request.evalCaseId,
         attempt: request.attempt,
-        format: this.config.logFormat ?? "summary",
+        format: this.config.logFormat ?? 'summary',
       });
       recordCodexLogEntry({
         filePath,
@@ -250,14 +250,14 @@ class CodexStreamLogger {
   readonly filePath: string;
   private readonly stream: WriteStream;
   private readonly startedAt = Date.now();
-  private stdoutBuffer = "";
-  private stderrBuffer = "";
-  private readonly format: "summary" | "json";
+  private stdoutBuffer = '';
+  private stderrBuffer = '';
+  private readonly format: 'summary' | 'json';
 
-  private constructor(filePath: string, format: "summary" | "json") {
+  private constructor(filePath: string, format: 'summary' | 'json') {
     this.filePath = filePath;
     this.format = format;
-    this.stream = createWriteStream(filePath, { flags: "a" });
+    this.stream = createWriteStream(filePath, { flags: 'a' });
   }
 
   static async create(options: {
@@ -265,16 +265,16 @@ class CodexStreamLogger {
     readonly targetName: string;
     readonly evalCaseId?: string;
     readonly attempt?: number;
-    readonly format: "summary" | "json";
+    readonly format: 'summary' | 'json';
   }): Promise<CodexStreamLogger> {
     const logger = new CodexStreamLogger(options.filePath, options.format);
     const header = [
-      "# Codex CLI stream log",
+      '# Codex CLI stream log',
       `# target: ${options.targetName}`,
       options.evalCaseId ? `# eval: ${options.evalCaseId}` : undefined,
       options.attempt !== undefined ? `# attempt: ${options.attempt + 1}` : undefined,
       `# started: ${new Date().toISOString()}`,
-      "",
+      '',
     ].filter((line): line is string => Boolean(line));
     logger.writeLines(header);
     return logger;
@@ -282,20 +282,20 @@ class CodexStreamLogger {
 
   handleStdoutChunk(chunk: string): void {
     this.stdoutBuffer += chunk;
-    this.flushBuffer("stdout");
+    this.flushBuffer('stdout');
   }
 
   handleStderrChunk(chunk: string): void {
     this.stderrBuffer += chunk;
-    this.flushBuffer("stderr");
+    this.flushBuffer('stderr');
   }
 
   async close(): Promise<void> {
-    this.flushBuffer("stdout");
-    this.flushBuffer("stderr");
+    this.flushBuffer('stdout');
+    this.flushBuffer('stderr');
     this.flushRemainder();
     await new Promise<void>((resolve, reject) => {
-      this.stream.once("error", reject);
+      this.stream.once('error', reject);
       this.stream.end(() => resolve());
     });
   }
@@ -306,11 +306,11 @@ class CodexStreamLogger {
     }
   }
 
-  private flushBuffer(source: "stdout" | "stderr"): void {
-    const buffer = source === "stdout" ? this.stdoutBuffer : this.stderrBuffer;
+  private flushBuffer(source: 'stdout' | 'stderr'): void {
+    const buffer = source === 'stdout' ? this.stdoutBuffer : this.stderrBuffer;
     const lines = buffer.split(/\r?\n/);
-    const remainder = lines.pop() ?? "";
-    if (source === "stdout") {
+    const remainder = lines.pop() ?? '';
+    if (source === 'stdout') {
       this.stdoutBuffer = remainder;
     } else {
       this.stderrBuffer = remainder;
@@ -319,40 +319,40 @@ class CodexStreamLogger {
       const formatted = this.formatLine(line, source);
       if (formatted) {
         this.stream.write(formatted);
-        this.stream.write("\n");
+        this.stream.write('\n');
       }
     }
   }
 
-  private formatLine(rawLine: string, source: "stdout" | "stderr"): string | undefined {
+  private formatLine(rawLine: string, source: 'stdout' | 'stderr'): string | undefined {
     const trimmed = rawLine.trim();
     if (trimmed.length === 0) {
       return undefined;
     }
     const message =
-      this.format === "json" ? formatCodexJsonLog(trimmed) : formatCodexLogMessage(trimmed, source);
+      this.format === 'json' ? formatCodexJsonLog(trimmed) : formatCodexLogMessage(trimmed, source);
     return `[+${formatElapsed(this.startedAt)}] [${source}] ${message}`;
   }
 
   private flushRemainder(): void {
     const stdoutRemainder = this.stdoutBuffer.trim();
     if (stdoutRemainder.length > 0) {
-      const formatted = this.formatLine(stdoutRemainder, "stdout");
+      const formatted = this.formatLine(stdoutRemainder, 'stdout');
       if (formatted) {
         this.stream.write(formatted);
-        this.stream.write("\n");
+        this.stream.write('\n');
       }
     }
     const stderrRemainder = this.stderrBuffer.trim();
     if (stderrRemainder.length > 0) {
-      const formatted = this.formatLine(stderrRemainder, "stderr");
+      const formatted = this.formatLine(stderrRemainder, 'stderr');
       if (formatted) {
         this.stream.write(formatted);
-        this.stream.write("\n");
+        this.stream.write('\n');
       }
     }
-    this.stdoutBuffer = "";
-    this.stderrBuffer = "";
+    this.stdoutBuffer = '';
+    this.stderrBuffer = '';
   }
 }
 
@@ -362,20 +362,20 @@ function isCodexLogStreamingDisabled(): boolean {
     return false;
   }
   const normalized = envValue.trim().toLowerCase();
-  return normalized === "false" || normalized === "0" || normalized === "off";
+  return normalized === 'false' || normalized === '0' || normalized === 'off';
 }
 
 function buildLogFilename(request: ProviderRequest, targetName: string): string {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const evalId = sanitizeForFilename(request.evalCaseId ?? "codex");
-  const attemptSuffix = request.attempt !== undefined ? `_attempt-${request.attempt + 1}` : "";
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const evalId = sanitizeForFilename(request.evalCaseId ?? 'codex');
+  const attemptSuffix = request.attempt !== undefined ? `_attempt-${request.attempt + 1}` : '';
   const target = sanitizeForFilename(targetName);
   return `${timestamp}_${target}_${evalId}${attemptSuffix}_${randomUUID().slice(0, 8)}.log`;
 }
 
 function sanitizeForFilename(value: string): string {
-  const sanitized = value.replace(/[^A-Za-z0-9._-]+/g, "_");
-  return sanitized.length > 0 ? sanitized : "codex";
+  const sanitized = value.replace(/[^A-Za-z0-9._-]+/g, '_');
+  return sanitized.length > 0 ? sanitized : 'codex';
 }
 
 function formatElapsed(startedAt: number): string {
@@ -384,12 +384,12 @@ function formatElapsed(startedAt: number): string {
   const minutes = Math.floor((elapsedSeconds % 3600) / 60);
   const seconds = elapsedSeconds % 60;
   if (hours > 0) {
-    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
-  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-function formatCodexLogMessage(rawLine: string, source: "stdout" | "stderr"): string {
+function formatCodexLogMessage(rawLine: string, source: 'stdout' | 'stderr'): string {
   const parsed = tryParseJsonValue(rawLine);
   if (parsed) {
     const summary = summarizeCodexEvent(parsed);
@@ -397,7 +397,7 @@ function formatCodexLogMessage(rawLine: string, source: "stdout" | "stderr"): st
       return summary;
     }
   }
-  if (source === "stderr") {
+  if (source === 'stderr') {
     return `stderr: ${rawLine}`;
   }
   return rawLine;
@@ -416,22 +416,22 @@ function formatCodexJsonLog(rawLine: string): string {
 }
 
 function summarizeCodexEvent(event: unknown): string | undefined {
-  if (!event || typeof event !== "object") {
+  if (!event || typeof event !== 'object') {
     return undefined;
   }
   const record = event as Record<string, unknown>;
-  const type = typeof record.type === "string" ? record.type : undefined;
+  const type = typeof record.type === 'string' ? record.type : undefined;
   let message =
     extractFromEvent(event) ??
     extractFromItem(record.item) ??
     flattenContent(record.output ?? record.content);
   if (!message && type === JSONL_TYPE_ITEM_COMPLETED) {
     const item = record.item;
-    if (item && typeof item === "object") {
+    if (item && typeof item === 'object') {
       const candidate = flattenContent(
         (item as Record<string, unknown>).text ??
           (item as Record<string, unknown>).content ??
-          (item as Record<string, unknown>).output
+          (item as Record<string, unknown>).output,
       );
       if (candidate) {
         message = candidate;
@@ -440,7 +440,7 @@ function summarizeCodexEvent(event: unknown): string | undefined {
   }
   if (!message) {
     const itemType =
-      typeof (record.item as Record<string, unknown> | undefined)?.type === "string"
+      typeof (record.item as Record<string, unknown> | undefined)?.type === 'string'
         ? (record.item as Record<string, unknown>).type
         : undefined;
     if (type && itemType) {
@@ -468,7 +468,7 @@ function tryParseJsonValue(rawLine: string): unknown | undefined {
 }
 
 async function locateExecutable(candidate: string): Promise<string> {
-  const includesPathSeparator = candidate.includes("/") || candidate.includes("\\");
+  const includesPathSeparator = candidate.includes('/') || candidate.includes('\\');
   if (includesPathSeparator) {
     const resolved = path.isAbsolute(candidate) ? candidate : path.resolve(candidate);
     const executablePath = await ensureWindowsExecutableVariant(resolved);
@@ -476,7 +476,7 @@ async function locateExecutable(candidate: string): Promise<string> {
     return executablePath;
   }
 
-  const locator = process.platform === "win32" ? "where" : "which";
+  const locator = process.platform === 'win32' ? 'where' : 'which';
   try {
     const { stdout } = await execAsync(`${locator} ${candidate}`);
     const lines = stdout
@@ -500,7 +500,7 @@ function selectExecutableCandidate(candidates: readonly string[]): string | unde
   if (candidates.length === 0) {
     return undefined;
   }
-  if (process.platform !== "win32") {
+  if (process.platform !== 'win32') {
     return candidates[0];
   }
   const extensions = getWindowsExecutableExtensions();
@@ -514,7 +514,7 @@ function selectExecutableCandidate(candidates: readonly string[]): string | unde
 }
 
 async function ensureWindowsExecutableVariant(candidate: string): Promise<string> {
-  if (process.platform !== "win32") {
+  if (process.platform !== 'win32') {
     return candidate;
   }
   if (hasExecutableExtension(candidate)) {
@@ -539,13 +539,13 @@ function hasExecutableExtension(candidate: string): boolean {
   return getWindowsExecutableExtensions().some((ext) => lower.endsWith(ext));
 }
 
-const DEFAULT_WINDOWS_EXTENSIONS = [".com", ".exe", ".bat", ".cmd", ".ps1"] as const;
+const DEFAULT_WINDOWS_EXTENSIONS = ['.com', '.exe', '.bat', '.cmd', '.ps1'] as const;
 
 function getWindowsExecutableExtensions(): readonly string[] {
-  if (process.platform !== "win32") {
+  if (process.platform !== 'win32') {
     return [];
   }
-  const fromEnv = process.env.PATHEXT?.split(";")
+  const fromEnv = process.env.PATHEXT?.split(';')
     .map((ext) => ext.trim().toLowerCase())
     .filter((ext) => ext.length > 0);
   return fromEnv && fromEnv.length > 0 ? fromEnv : DEFAULT_WINDOWS_EXTENSIONS;
@@ -554,7 +554,7 @@ function getWindowsExecutableExtensions(): readonly string[] {
 function parseCodexJson(output: string): unknown {
   const trimmed = output.trim();
   if (trimmed.length === 0) {
-    throw new Error("Codex CLI produced no output in --json mode");
+    throw new Error('Codex CLI produced no output in --json mode');
   }
   try {
     return JSON.parse(trimmed);
@@ -563,7 +563,7 @@ function parseCodexJson(output: string): unknown {
     if (lineObjects) {
       return lineObjects;
     }
-    const lastBrace = trimmed.lastIndexOf("{");
+    const lastBrace = trimmed.lastIndexOf('{');
     if (lastBrace >= 0) {
       const candidate = trimmed.slice(lastBrace);
       try {
@@ -573,7 +573,7 @@ function parseCodexJson(output: string): unknown {
       }
     }
     const preview = trimmed.slice(0, 200);
-    throw new Error(`Codex CLI emitted invalid JSON: ${preview}${trimmed.length > 200 ? "…" : ""}`);
+    throw new Error(`Codex CLI emitted invalid JSON: ${preview}${trimmed.length > 200 ? '…' : ''}`);
   }
 }
 
@@ -585,8 +585,8 @@ function extractAssistantText(parsed: unknown): string {
     }
   }
 
-  if (!parsed || typeof parsed !== "object") {
-    throw new Error("Codex CLI JSON response did not include an assistant message");
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Codex CLI JSON response did not include an assistant message');
   }
 
   const record = parsed as Record<string, unknown>;
@@ -599,11 +599,11 @@ function extractAssistantText(parsed: unknown): string {
   if (messages) {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       const entry = messages[index];
-      if (!entry || typeof entry !== "object") {
+      if (!entry || typeof entry !== 'object') {
         continue;
       }
       const role = (entry as Record<string, unknown>).role;
-      if (role !== "assistant") {
+      if (role !== 'assistant') {
         continue;
       }
       const content = (entry as Record<string, unknown>).content;
@@ -615,7 +615,7 @@ function extractAssistantText(parsed: unknown): string {
   }
 
   const response = record.response;
-  if (response && typeof response === "object") {
+  if (response && typeof response === 'object') {
     const content = (response as Record<string, unknown>).content;
     const flattened = flattenContent(content);
     if (flattened) {
@@ -629,7 +629,7 @@ function extractAssistantText(parsed: unknown): string {
     return flattenedOutput;
   }
 
-  throw new Error("Codex CLI JSON response did not include an assistant message");
+  throw new Error('Codex CLI JSON response did not include an assistant message');
 }
 
 function extractFromEventStream(events: readonly unknown[]): string | undefined {
@@ -644,11 +644,11 @@ function extractFromEventStream(events: readonly unknown[]): string | undefined 
 }
 
 function extractFromEvent(event: unknown): string | undefined {
-  if (!event || typeof event !== "object") {
+  if (!event || typeof event !== 'object') {
     return undefined;
   }
   const record = event as Record<string, unknown>;
-  const type = typeof record.type === "string" ? record.type : undefined;
+  const type = typeof record.type === 'string' ? record.type : undefined;
   if (type === JSONL_TYPE_ITEM_COMPLETED) {
     const item = record.item;
     const text = extractFromItem(item);
@@ -665,12 +665,12 @@ function extractFromEvent(event: unknown): string | undefined {
 }
 
 function extractFromItem(item: unknown): string | undefined {
-  if (!item || typeof item !== "object") {
+  if (!item || typeof item !== 'object') {
     return undefined;
   }
   const record = item as Record<string, unknown>;
-  const itemType = typeof record.type === "string" ? record.type : undefined;
-  if (itemType === "agent_message" || itemType === "response" || itemType === "output") {
+  const itemType = typeof record.type === 'string' ? record.type : undefined;
+  if (itemType === 'agent_message' || itemType === 'response' || itemType === 'output') {
     const text = flattenContent(record.text ?? record.content ?? record.output);
     if (text) {
       return text;
@@ -680,27 +680,27 @@ function extractFromItem(item: unknown): string | undefined {
 }
 
 function flattenContent(value: unknown): string | undefined {
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     return value;
   }
   if (Array.isArray(value)) {
     const parts = value
       .map((segment) => {
-        if (typeof segment === "string") {
+        if (typeof segment === 'string') {
           return segment;
         }
-        if (segment && typeof segment === "object" && "text" in segment) {
+        if (segment && typeof segment === 'object' && 'text' in segment) {
           const text = (segment as Record<string, unknown>).text;
-          return typeof text === "string" ? text : undefined;
+          return typeof text === 'string' ? text : undefined;
         }
         return undefined;
       })
-      .filter((part): part is string => typeof part === "string" && part.length > 0);
-    return parts.length > 0 ? parts.join(" \n") : undefined;
+      .filter((part): part is string => typeof part === 'string' && part.length > 0);
+    return parts.length > 0 ? parts.join(' \n') : undefined;
   }
-  if (value && typeof value === "object" && "text" in value) {
+  if (value && typeof value === 'object' && 'text' in value) {
     const text = (value as Record<string, unknown>).text;
-    return typeof text === "string" ? text : undefined;
+    return typeof text === 'string' ? text : undefined;
   }
   return undefined;
 }
@@ -735,7 +735,7 @@ function pickDetail(stderr: string, stdout: string): string | undefined {
 
 function formatTimeoutSuffix(timeoutMs: number | undefined): string {
   if (!timeoutMs || timeoutMs <= 0) {
-    return "";
+    return '';
   }
   const seconds = Math.ceil(timeoutMs / 1000);
   return ` after ${seconds}s`;
@@ -746,23 +746,23 @@ async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunRes
     const child = spawn(options.executable, options.args, {
       cwd: options.cwd,
       env: options.env,
-      stdio: ["pipe", "pipe", "pipe"],
+      stdio: ['pipe', 'pipe', 'pipe'],
       shell: shouldShellExecute(options.executable),
     });
 
-    let stdout = "";
-    let stderr = "";
+    let stdout = '';
+    let stderr = '';
     let timedOut = false;
 
     const onAbort = (): void => {
-      child.kill("SIGTERM");
+      child.kill('SIGTERM');
     };
 
     if (options.signal) {
       if (options.signal.aborted) {
         onAbort();
       } else {
-        options.signal.addEventListener("abort", onAbort, { once: true });
+        options.signal.addEventListener('abort', onAbort, { once: true });
       }
     }
 
@@ -770,19 +770,19 @@ async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunRes
     if (options.timeoutMs && options.timeoutMs > 0) {
       timeoutHandle = setTimeout(() => {
         timedOut = true;
-        child.kill("SIGTERM");
+        child.kill('SIGTERM');
       }, options.timeoutMs);
       timeoutHandle.unref?.();
     }
 
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
       stdout += chunk;
       options.onStdoutChunk?.(chunk);
     });
 
-    child.stderr.setEncoding("utf8");
-    child.stderr.on("data", (chunk) => {
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk) => {
       stderr += chunk;
       options.onStderrChunk?.(chunk);
     });
@@ -794,21 +794,21 @@ async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunRes
         clearTimeout(timeoutHandle);
       }
       if (options.signal) {
-        options.signal.removeEventListener("abort", onAbort);
+        options.signal.removeEventListener('abort', onAbort);
       }
     };
 
-    child.on("error", (error) => {
+    child.on('error', (error) => {
       cleanup();
       reject(error);
     });
 
-    child.on("close", (code) => {
+    child.on('close', (code) => {
       cleanup();
       resolve({
         stdout,
         stderr,
-        exitCode: typeof code === "number" ? code : -1,
+        exitCode: typeof code === 'number' ? code : -1,
         timedOut,
       });
     });
@@ -816,9 +816,9 @@ async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunRes
 }
 
 function shouldShellExecute(executable: string): boolean {
-  if (process.platform !== "win32") {
+  if (process.platform !== 'win32') {
     return false;
   }
   const lower = executable.toLowerCase();
-  return lower.endsWith(".cmd") || lower.endsWith(".bat") || lower.endsWith(".ps1");
+  return lower.endsWith('.cmd') || lower.endsWith('.bat') || lower.endsWith('.ps1');
 }

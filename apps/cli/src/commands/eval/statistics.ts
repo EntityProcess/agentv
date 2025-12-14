@@ -1,4 +1,4 @@
-import type { EvaluationResult } from "@agentv/core";
+import type { EvaluationResult } from '@agentv/core';
 
 export interface HistogramBin {
   readonly range: readonly [number, number];
@@ -78,7 +78,7 @@ function buildHistogram(values: readonly number[]): readonly HistogramBin[] {
 }
 
 export function calculateEvaluationSummary(
-  results: readonly EvaluationResult[]
+  results: readonly EvaluationResult[],
 ): EvaluationSummary {
   const scores = results.map((result) => result.score);
   const total = results.length;
@@ -137,26 +137,26 @@ function formatScore(value: number): string {
 
 export function formatEvaluationSummary(summary: EvaluationSummary): string {
   if (summary.total === 0) {
-    return "\nNo results to summarize";
+    return '\nNo results to summarize';
   }
 
   const lines: string[] = [];
 
   // Display errors first if any exist
   if (summary.errorCount > 0) {
-    lines.push("\n==================================================");
-    lines.push("ERRORS");
-    lines.push("==================================================");
+    lines.push('\n==================================================');
+    lines.push('ERRORS');
+    lines.push('==================================================');
     for (const error of summary.errors) {
       lines.push(`\n❌ ${error.evalId}`);
       lines.push(`   ${error.error}`);
     }
-    lines.push("");
+    lines.push('');
   }
 
-  lines.push("\n==================================================");
-  lines.push("EVALUATION SUMMARY");
-  lines.push("==================================================");
+  lines.push('\n==================================================');
+  lines.push('EVALUATION SUMMARY');
+  lines.push('==================================================');
   lines.push(`Total eval cases: ${summary.total}`);
 
   if (summary.errorCount > 0) {
@@ -168,25 +168,25 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
   lines.push(`Median score: ${formatScore(summary.median)}`);
   lines.push(`Min score: ${formatScore(summary.min)}`);
   lines.push(`Max score: ${formatScore(summary.max)}`);
-  if (typeof summary.standardDeviation === "number") {
+  if (typeof summary.standardDeviation === 'number') {
     lines.push(`Std deviation: ${formatScore(summary.standardDeviation)}`);
   }
 
-  lines.push("\nScore distribution:");
+  lines.push('\nScore distribution:');
   for (const bin of summary.histogram) {
     const [start, end] = bin.range;
     lines.push(`  ${start.toFixed(1)}-${end.toFixed(1)}: ${bin.count}`);
   }
 
-  lines.push("\nTop performing eval cases:");
+  lines.push('\nTop performing eval cases:');
   summary.topResults.forEach((result, index) => {
     lines.push(`  ${index + 1}. ${result.eval_id}: ${formatScore(result.score)}`);
   });
 
-  lines.push("\nLowest performing eval cases:");
+  lines.push('\nLowest performing eval cases:');
   summary.bottomResults.forEach((result, index) => {
     lines.push(`  ${index + 1}. ${result.eval_id}: ${formatScore(result.score)}`);
   });
 
-  return lines.join("\n");
+  return lines.join('\n');
 }

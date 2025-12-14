@@ -1,12 +1,12 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import path from "node:path";
-import * as readline from "node:readline/promises";
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import * as readline from 'node:readline/promises';
 
 import {
   getAgentvTemplates,
   getClaudeTemplates,
   getGithubTemplates,
-} from "../../templates/index.js";
+} from '../../templates/index.js';
 
 export interface InitCommandOptions {
   targetPath?: string;
@@ -20,17 +20,17 @@ async function promptYesNo(message: string): Promise<boolean> {
 
   try {
     const answer = await rl.question(`${message} (y/N): `);
-    return answer.toLowerCase() === "y" || answer.toLowerCase() === "yes";
+    return answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
   } finally {
     rl.close();
   }
 }
 
 export async function initCommand(options: InitCommandOptions = {}): Promise<void> {
-  const targetPath = path.resolve(options.targetPath ?? ".");
-  const githubDir = path.join(targetPath, ".github");
-  const agentvDir = path.join(targetPath, ".agentv");
-  const claudeDir = path.join(targetPath, ".claude");
+  const targetPath = path.resolve(options.targetPath ?? '.');
+  const githubDir = path.join(targetPath, '.github');
+  const agentvDir = path.join(targetPath, '.agentv');
+  const claudeDir = path.join(targetPath, '.claude');
 
   // Get templates
   const githubTemplates = getGithubTemplates();
@@ -38,17 +38,17 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   const claudeTemplates = getClaudeTemplates();
 
   // Separate .env.template from other .agentv templates
-  const envTemplate = agentvTemplates.find((t) => t.path === ".env.template");
-  const otherAgentvTemplates = agentvTemplates.filter((t) => t.path !== ".env.template");
+  const envTemplate = agentvTemplates.find((t) => t.path === '.env.template');
+  const otherAgentvTemplates = agentvTemplates.filter((t) => t.path !== '.env.template');
 
   // Check if any files already exist
   const existingFiles: string[] = [];
 
   // Check for .env.template in root
   if (envTemplate) {
-    const envFilePath = path.join(targetPath, ".env.template");
+    const envFilePath = path.join(targetPath, '.env.template');
     if (existsSync(envFilePath)) {
-      existingFiles.push(".env.template");
+      existingFiles.push('.env.template');
     }
   }
 
@@ -79,15 +79,15 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
 
   // If files exist, prompt user
   if (existingFiles.length > 0) {
-    console.log("We detected an existing setup:");
+    console.log('We detected an existing setup:');
     for (const file of existingFiles) {
       console.log(`  - ${file}`);
     }
     console.log();
 
-    const shouldReplace = await promptYesNo("Do you want to replace these files?");
+    const shouldReplace = await promptYesNo('Do you want to replace these files?');
     if (!shouldReplace) {
-      console.log("\nInit cancelled. No files were changed.");
+      console.log('\nInit cancelled. No files were changed.');
       return;
     }
     console.log();
@@ -110,9 +110,9 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
 
   // Create .env.template in the current working directory
   if (envTemplate) {
-    const envFilePath = path.join(targetPath, ".env.template");
-    writeFileSync(envFilePath, envTemplate.content, "utf-8");
-    console.log("Created .env.template");
+    const envFilePath = path.join(targetPath, '.env.template');
+    writeFileSync(envFilePath, envTemplate.content, 'utf-8');
+    console.log('Created .env.template');
   }
 
   // Copy each .github template
@@ -126,7 +126,7 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     }
 
     // Write file
-    writeFileSync(targetFilePath, template.content, "utf-8");
+    writeFileSync(targetFilePath, template.content, 'utf-8');
     console.log(`Created ${path.relative(targetPath, targetFilePath)}`);
   }
 
@@ -141,7 +141,7 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     }
 
     // Write file
-    writeFileSync(targetFilePath, template.content, "utf-8");
+    writeFileSync(targetFilePath, template.content, 'utf-8');
     console.log(`Created ${path.relative(targetPath, targetFilePath)}`);
   }
 
@@ -156,14 +156,14 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     }
 
     // Write file
-    writeFileSync(targetFilePath, template.content, "utf-8");
+    writeFileSync(targetFilePath, template.content, 'utf-8');
     console.log(`Created ${path.relative(targetPath, targetFilePath)}`);
   }
 
-  console.log("\nAgentV initialized successfully!");
-  console.log("\nFiles installed to root:");
+  console.log('\nAgentV initialized successfully!');
+  console.log('\nFiles installed to root:');
   if (envTemplate) {
-    console.log("  - .env.template");
+    console.log('  - .env.template');
   }
   console.log(`\nFiles installed to ${path.relative(targetPath, githubDir)}:`);
   for (const t of githubTemplates) {
@@ -177,8 +177,8 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   for (const t of claudeTemplates) {
     console.log(`  - ${t.path}`);
   }
-  console.log("\nYou can now:");
-  console.log("  1. Copy .env.template to .env and add your API credentials");
-  console.log("  2. Configure targets in .agentv/targets.yaml");
-  console.log("  3. Create eval files using the schema and prompt templates");
+  console.log('\nYou can now:');
+  console.log('  1. Copy .env.template to .env and add your API credentials');
+  console.log('  2. Configure targets in .agentv/targets.yaml');
+  console.log('  3. Create eval files using the schema and prompt templates');
 }

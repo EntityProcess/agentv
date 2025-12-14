@@ -1,9 +1,9 @@
-import { stripVTControlCharacters } from "node:util";
+import { stripVTControlCharacters } from 'node:util';
 
 export interface WorkerProgress {
   workerId: number;
   evalId: string;
-  status: "pending" | "running" | "completed" | "failed";
+  status: 'pending' | 'running' | 'completed' | 'failed';
   startedAt?: number;
   completedAt?: number;
   error?: string;
@@ -11,7 +11,7 @@ export interface WorkerProgress {
 }
 
 // ANSI escape sequences
-const ESC = "\x1B[";
+const ESC = '\x1B[';
 const CLEAR_LINE = `${ESC}K`;
 const MOVE_CURSOR_UP = `${ESC}1A`;
 
@@ -45,7 +45,7 @@ export class ProgressDisplay {
 
     if (this.isInteractive) {
       // Print initial empty line for visual separation
-      this.write("\n");
+      this.write('\n');
 
       // Start periodic rendering (similar to Vitest's approach)
       this.renderTimer = setInterval(() => {
@@ -63,7 +63,7 @@ export class ProgressDisplay {
   updateWorker(progress: WorkerProgress): void {
     this.workers.set(progress.workerId, progress);
 
-    if (progress.status === "completed" || progress.status === "failed") {
+    if (progress.status === 'completed' || progress.status === 'failed') {
       this.completedTests++;
     }
 
@@ -71,12 +71,12 @@ export class ProgressDisplay {
       this.scheduleRender();
     } else {
       // In non-interactive mode, just print completion events
-      const targetSuffix = progress.targetLabel ? ` | ${progress.targetLabel}` : "";
-      if (progress.status === "completed") {
+      const targetSuffix = progress.targetLabel ? ` | ${progress.targetLabel}` : '';
+      if (progress.status === 'completed') {
         console.log(`✓ Eval ${progress.evalId}${targetSuffix} completed`);
-      } else if (progress.status === "failed") {
+      } else if (progress.status === 'failed') {
         console.log(
-          `✗ Eval ${progress.evalId}${targetSuffix} failed${progress.error ? `: ${progress.error}` : ""}`
+          `✗ Eval ${progress.evalId}${targetSuffix} failed${progress.error ? `: ${progress.error}` : ''}`,
         );
       }
     }
@@ -104,8 +104,8 @@ export class ProgressDisplay {
     }
 
     if (!this.hasPrintedLogHeader) {
-      console.log("");
-      console.log("Codex CLI logs:");
+      console.log('');
+      console.log('Codex CLI logs:');
       this.hasPrintedLogHeader = true;
     }
 
@@ -176,8 +176,8 @@ export class ProgressDisplay {
     }
 
     if (this.logPaths.length > 0) {
-      lines.push("");
-      lines.push("Codex CLI logs:");
+      lines.push('');
+      lines.push('Codex CLI logs:');
       this.logPaths.forEach((path, index) => {
         lines.push(`${index + 1}. ${path}`);
       });
@@ -190,7 +190,7 @@ export class ProgressDisplay {
     this.clearWindow();
 
     if (lines.length > 0) {
-      this.write(lines.join("\n"));
+      this.write(lines.join('\n'));
     }
 
     this.windowHeight = rowCount;
@@ -199,7 +199,7 @@ export class ProgressDisplay {
   private formatWorkerLine(worker: WorkerProgress): string {
     const workerLabel = `${worker.workerId}.`.padEnd(4);
     const statusIcon = this.getStatusIcon(worker.status);
-    const targetLabel = worker.targetLabel ? `  | ${worker.targetLabel}` : "";
+    const targetLabel = worker.targetLabel ? `  | ${worker.targetLabel}` : '';
 
     const columns = process.stdout.columns || 80;
     // Leave a small buffer to prevent accidental wrapping at the edge
@@ -216,18 +216,18 @@ export class ProgressDisplay {
     return `${workerLabel} ${statusIcon} ${testLabel}${targetLabel}`;
   }
 
-  private getStatusIcon(status: WorkerProgress["status"]): string {
+  private getStatusIcon(status: WorkerProgress['status']): string {
     switch (status) {
-      case "pending":
-        return "⏳";
-      case "running":
-        return "🔄";
-      case "completed":
-        return "✅";
-      case "failed":
-        return "❌";
+      case 'pending':
+        return '⏳';
+      case 'running':
+        return '🔄';
+      case 'completed':
+        return '✅';
+      case 'failed':
+        return '❌';
       default:
-        return "  ";
+        return '  ';
     }
   }
 
@@ -245,14 +245,14 @@ export class ProgressDisplay {
 
       // Write final state as permanent output (not a window)
       const sortedWorkers = Array.from(this.workers.values()).sort(
-        (a, b) => a.workerId - b.workerId
+        (a, b) => a.workerId - b.workerId,
       );
       for (const worker of sortedWorkers) {
         this.write(`${this.formatWorkerLine(worker)}\n`);
       }
 
       // Add blank line to separate from summary
-      this.write("\n");
+      this.write('\n');
     }
   }
 

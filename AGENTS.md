@@ -43,6 +43,22 @@ This ensures you're testing your local changes, not the published npm package.
 - Prefer named exports
 - Keep modules cohesive
 
+## Version Management
+This project uses [Changesets](https://github.com/changesets/changesets) for automated versioning and changelog generation.
+
+### Creating a changeset
+When making changes that should be included in the next release:
+1. Run `bun changeset` to create a new changeset file
+2. Select the semver bump type (patch, minor, or major)
+3. Write a summary of the changes for the changelog
+4. Commit the generated `.changeset/*.md` file with your changes
+
+### Releasing a new version
+1. Run `bun version` to consume changesets and update package.json version
+2. Review the updated CHANGELOG.md
+3. Commit the version bump and changelog updates
+4. Create a git tag and push to trigger release workflow
+
 ## Package Publishing
 - Core package (`packages/core/`) - Core evaluation engine and grading logic (published as `@agentv/core`)
 - CLI package (`apps/cli/`) is published as `agentv` on npm

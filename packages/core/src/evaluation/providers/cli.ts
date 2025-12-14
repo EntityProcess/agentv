@@ -1,12 +1,12 @@
-import { type ExecException, type ExecOptions, exec as execWithCallback } from "node:child_process";
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import { promisify } from "node:util";
+import { type ExecException, type ExecOptions, exec as execWithCallback } from 'node:child_process';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { promisify } from 'node:util';
 
-import { readTextFile } from "../file-utils.js";
-import type { CliResolvedConfig } from "./targets.js";
-import type { Provider, ProviderRequest, ProviderResponse } from "./types.js";
+import { readTextFile } from '../file-utils.js';
+import type { CliResolvedConfig } from './targets.js';
+import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 
 const execAsync = promisify(execWithCallback);
 const DEFAULT_MAX_BUFFER = 10 * 1024 * 1024; // 10 MB to accommodate verbose CLI output
@@ -29,12 +29,12 @@ export interface CommandRunResult {
 
 export type CommandRunner = (
   command: string,
-  options: CommandRunOptions
+  options: CommandRunOptions,
 ) => Promise<CommandRunResult>;
 
 async function defaultCommandRunner(
   command: string,
-  options: CommandRunOptions
+  options: CommandRunOptions,
 ): Promise<CommandRunResult> {
   const execOptions: ExecOptions = {
     cwd: options.cwd,
@@ -42,7 +42,7 @@ async function defaultCommandRunner(
     timeout: options.timeoutMs,
     signal: options.signal,
     maxBuffer: DEFAULT_MAX_BUFFER,
-    shell: process.platform === "win32" ? "powershell.exe" : undefined,
+    shell: process.platform === 'win32' ? 'powershell.exe' : undefined,
   };
 
   try {
@@ -65,9 +65,9 @@ async function defaultCommandRunner(
     };
 
     return {
-      stdout: execError.stdout ?? "",
-      stderr: execError.stderr ?? "",
-      exitCode: typeof execError.code === "number" ? execError.code : null,
+      stdout: execError.stdout ?? '',
+      stderr: execError.stderr ?? '',
+      exitCode: typeof execError.code === 'number' ? execError.code : null,
       failed: true,
       timedOut: execError.timedOut === true || execError.killed === true,
       signal: execError.signal ?? null,
@@ -77,7 +77,7 @@ async function defaultCommandRunner(
 
 export class CliProvider implements Provider {
   readonly id: string;
-  readonly kind = "cli";
+  readonly kind = 'cli';
   readonly targetName: string;
   readonly supportsBatch = false;
 
@@ -89,7 +89,7 @@ export class CliProvider implements Provider {
   constructor(
     targetName: string,
     config: CliResolvedConfig,
-    runner: CommandRunner = defaultCommandRunner
+    runner: CommandRunner = defaultCommandRunner,
   ) {
     this.targetName = targetName;
     this.id = `cli:${targetName}`;
@@ -100,7 +100,7 @@ export class CliProvider implements Provider {
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
     if (request.signal?.aborted) {
-      throw new Error("CLI provider request was aborted before execution");
+      throw new Error('CLI provider request was aborted before execution');
     }
 
     await this.ensureHealthy(request.signal);
@@ -118,14 +118,14 @@ export class CliProvider implements Provider {
 
     if (result.failed || (result.exitCode ?? 0) !== 0) {
       if (request.signal?.aborted) {
-        throw new Error("CLI provider request was aborted");
+        throw new Error('CLI provider request was aborted');
       }
       if (result.timedOut) {
         throw new Error(
-          `CLI provider timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`
+          `CLI provider timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
         );
       }
-      const codeText = result.exitCode !== null ? result.exitCode : "unknown";
+      const codeText = result.exitCode !== null ? result.exitCode : 'unknown';
       const detail = result.stderr.trim() || result.stdout.trim();
       const message = detail
         ? `${detail} (exit code ${codeText})`
@@ -174,8 +174,8 @@ export class CliProvider implements Provider {
   }
 
   private async runHealthcheck(
-    healthcheck: CliResolvedConfig["healthcheck"],
-    signal?: AbortSignal
+    healthcheck: CliResolvedConfig['healthcheck'],
+    signal?: AbortSignal,
   ): Promise<void> {
     if (!healthcheck) {
       return;
@@ -183,13 +183,13 @@ export class CliProvider implements Provider {
 
     const timeoutMs = healthcheck.timeoutMs ?? this.config.timeoutMs;
 
-    if (healthcheck.type === "http") {
+    if (healthcheck.type === 'http') {
       const controller = new AbortController();
       const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
-      signal?.addEventListener("abort", () => controller.abort(), { once: true });
+      signal?.addEventListener('abort', () => controller.abort(), { once: true });
 
       try {
-        const response = await fetch(healthcheck.url, { method: "GET", signal: controller.signal });
+        const response = await fetch(healthcheck.url, { method: 'GET', signal: controller.signal });
         if (!response.ok) {
           throw new Error(`HTTP ${response.status} ${response.statusText}`);
         }
@@ -208,19 +208,19 @@ export class CliProvider implements Provider {
       healthcheck.commandTemplate,
       buildTemplateValues(
         {
-          question: "",
-          guidelines: "",
+          question: '',
+          guidelines: '',
           inputFiles: [],
-          evalCaseId: "healthcheck",
+          evalCaseId: 'healthcheck',
           attempt: 0,
         },
         this.config,
-        generateOutputFilePath("healthcheck")
-      )
+        generateOutputFilePath('healthcheck'),
+      ),
     );
     if (this.verbose) {
       console.log(
-        `[cli-provider:${this.targetName}] (healthcheck) CLI_EVALS_DIR=${process.env.CLI_EVALS_DIR ?? ""} cwd=${healthcheck.cwd ?? this.config.cwd ?? ""} command=${renderedCommand}`
+        `[cli-provider:${this.targetName}] (healthcheck) CLI_EVALS_DIR=${process.env.CLI_EVALS_DIR ?? ''} cwd=${healthcheck.cwd ?? this.config.cwd ?? ''} command=${renderedCommand}`,
       );
     }
 
@@ -232,7 +232,7 @@ export class CliProvider implements Provider {
     });
 
     if (result.failed || (result.exitCode ?? 0) !== 0) {
-      const codeText = result.exitCode !== null ? result.exitCode : "unknown";
+      const codeText = result.exitCode !== null ? result.exitCode : 'unknown';
       const detail = result.stderr.trim() || result.stdout.trim();
       const message = detail
         ? `${detail} (exit code ${codeText})`
@@ -245,16 +245,16 @@ export class CliProvider implements Provider {
 function buildTemplateValues(
   request: Pick<
     ProviderRequest,
-    "question" | "guidelines" | "inputFiles" | "evalCaseId" | "attempt"
+    'question' | 'guidelines' | 'inputFiles' | 'evalCaseId' | 'attempt'
   >,
   config: CliResolvedConfig,
-  outputFilePath: string
+  outputFilePath: string,
 ): Record<string, string> {
   const inputFiles = normalizeInputFiles(request.inputFiles);
   return {
-    PROMPT: shellEscape(request.question ?? ""),
-    GUIDELINES: shellEscape(request.guidelines ?? ""),
-    EVAL_ID: shellEscape(request.evalCaseId ?? ""),
+    PROMPT: shellEscape(request.question ?? ''),
+    GUIDELINES: shellEscape(request.guidelines ?? ''),
+    EVAL_ID: shellEscape(request.evalCaseId ?? ''),
     ATTEMPT: shellEscape(String(request.attempt ?? 0)),
     FILES: formatFileList(inputFiles, config.filesFormat),
     OUTPUT_FILE: shellEscape(outputFilePath),
@@ -262,7 +262,7 @@ function buildTemplateValues(
 }
 
 function normalizeInputFiles(
-  inputFiles: readonly string[] | undefined
+  inputFiles: readonly string[] | undefined,
 ): readonly string[] | undefined {
   if (!inputFiles || inputFiles.length === 0) {
     return undefined;
@@ -281,20 +281,20 @@ function normalizeInputFiles(
 
 function formatFileList(
   files: readonly string[] | undefined,
-  template: string | undefined
+  template: string | undefined,
 ): string {
   if (!files || files.length === 0) {
-    return "";
+    return '';
   }
 
-  const formatter = template ?? "{path}";
+  const formatter = template ?? '{path}';
   return files
     .map((filePath) => {
       const escapedPath = shellEscape(filePath);
       const escapedName = shellEscape(path.basename(filePath));
-      return formatter.replaceAll("{path}", escapedPath).replaceAll("{basename}", escapedName);
+      return formatter.replaceAll('{path}', escapedPath).replaceAll('{basename}', escapedName);
     })
-    .join(" ");
+    .join(' ');
 }
 
 function renderTemplate(template: string, values: Record<string, string>): string {
@@ -309,7 +309,7 @@ function shellEscape(value: string): string {
     return "''";
   }
 
-  if (process.platform === "win32") {
+  if (process.platform === 'win32') {
     // PowerShell uses backtick (`) for escaping, not backslash
     // Double quotes inside the string need to be escaped with backtick
     // Single quotes can be used instead for simpler escaping
@@ -321,7 +321,7 @@ function shellEscape(value: string): string {
 }
 
 function generateOutputFilePath(evalCaseId?: string): string {
-  const safeEvalId = evalCaseId || "unknown";
+  const safeEvalId = evalCaseId || 'unknown';
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 9);
   return path.join(os.tmpdir(), `agentv-${safeEvalId}-${timestamp}-${random}.json`);
@@ -329,7 +329,7 @@ function generateOutputFilePath(evalCaseId?: string): string {
 
 function formatTimeoutSuffix(timeoutMs: number | undefined): string {
   if (!timeoutMs || timeoutMs <= 0) {
-    return "";
+    return '';
   }
   const seconds = Math.ceil(timeoutMs / 1000);
   return ` after ${seconds}s`;

@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 const generateTextMock = vi.fn(async () => ({
-  text: "ok",
+  text: 'ok',
   reasoningText: undefined,
   usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
   totalUsage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
@@ -14,402 +14,402 @@ const generateTextMock = vi.fn(async () => ({
   toolResults: [],
   staticToolResults: [],
   dynamicToolResults: [],
-  finishReason: "stop",
+  finishReason: 'stop',
   warnings: undefined,
   providerMetadata: undefined,
 }));
 
-const createAzureMock = vi.fn((options: unknown) => () => ({ provider: "azure", options }));
-const createAnthropicMock = vi.fn(() => () => ({ provider: "anthropic" }));
-const createGeminiMock = vi.fn(() => () => ({ provider: "gemini" }));
+const createAzureMock = vi.fn((options: unknown) => () => ({ provider: 'azure', options }));
+const createAnthropicMock = vi.fn(() => () => ({ provider: 'anthropic' }));
+const createGeminiMock = vi.fn(() => () => ({ provider: 'gemini' }));
 
-vi.mock("ai", () => ({
+vi.mock('ai', () => ({
   generateText: () => generateTextMock(),
 }));
 
-vi.mock("@ai-sdk/azure", () => ({
+vi.mock('@ai-sdk/azure', () => ({
   createAzure: (options: unknown) => createAzureMock(options),
 }));
 
-vi.mock("@ai-sdk/anthropic", () => ({
+vi.mock('@ai-sdk/anthropic', () => ({
   createAnthropic: () => createAnthropicMock(),
 }));
 
-vi.mock("@ai-sdk/google", () => ({
+vi.mock('@ai-sdk/google', () => ({
   createGoogleGenerativeAI: () => createGeminiMock(),
 }));
 
-const providerModule = await import("../../../src/evaluation/providers/index.js");
+const providerModule = await import('../../../src/evaluation/providers/index.js');
 const { resolveTargetDefinition, createProvider } = providerModule;
 
-describe("resolveTargetDefinition", () => {
+describe('resolveTargetDefinition', () => {
   beforeEach(() => {
     generateTextMock.mockClear();
   });
 
   it("throws when settings don't use ${{ }} syntax", () => {
     const env = {
-      AZURE_OPENAI_ENDPOINT: "https://example.openai.azure.com",
-      AZURE_OPENAI_API_KEY: "secret",
-      AZURE_DEPLOYMENT_NAME: "gpt-4o",
+      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'secret',
+      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
     } satisfies Record<string, string>;
 
     expect(() =>
       resolveTargetDefinition(
         {
-          name: "default",
-          provider: "azure",
-          endpoint: "AZURE_OPENAI_ENDPOINT",
-          api_key: "AZURE_OPENAI_API_KEY",
-          model: "AZURE_DEPLOYMENT_NAME",
+          name: 'default',
+          provider: 'azure',
+          endpoint: 'AZURE_OPENAI_ENDPOINT',
+          api_key: 'AZURE_OPENAI_API_KEY',
+          model: 'AZURE_DEPLOYMENT_NAME',
         },
-        env
-      )
+        env,
+      ),
     ).toThrow(/must use.*VARIABLE_NAME.*syntax/i);
   });
 
-  it("resolves azure settings using ${{ variable }} syntax", () => {
+  it('resolves azure settings using ${{ variable }} syntax', () => {
     const env = {
-      AZURE_OPENAI_ENDPOINT: "https://example.openai.azure.com",
-      AZURE_OPENAI_API_KEY: "secret",
-      AZURE_DEPLOYMENT_NAME: "gpt-4o",
+      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'secret',
+      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
     } satisfies Record<string, string>;
 
     const target = resolveTargetDefinition(
       {
-        name: "default",
-        provider: "azure",
-        endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
-        api_key: "${{ AZURE_OPENAI_API_KEY }}",
-        model: "${{ AZURE_DEPLOYMENT_NAME }}",
+        name: 'default',
+        provider: 'azure',
+        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
+        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+        model: '${{ AZURE_DEPLOYMENT_NAME }}',
       },
-      env
+      env,
     );
 
-    expect(target.kind).toBe("azure");
+    expect(target.kind).toBe('azure');
     expect(target.config).toMatchObject({
-      resourceName: "https://example.openai.azure.com",
-      deploymentName: "gpt-4o",
-      apiKey: "secret",
-      version: "2024-10-01-preview",
+      resourceName: 'https://example.openai.azure.com',
+      deploymentName: 'gpt-4o',
+      apiKey: 'secret',
+      version: '2024-10-01-preview',
     });
   });
 
-  it("resolves with ${{ }} syntax with extra whitespace", () => {
+  it('resolves with ${{ }} syntax with extra whitespace', () => {
     const env = {
-      MY_VAR: "test-value",
-      MY_API_KEY: "literal-key",
-      MY_MODEL: "literal-model",
+      MY_VAR: 'test-value',
+      MY_API_KEY: 'literal-key',
+      MY_MODEL: 'literal-model',
     } satisfies Record<string, string>;
 
     const target = resolveTargetDefinition(
       {
-        name: "test",
-        provider: "azure",
-        endpoint: "${{  MY_VAR  }}",
-        api_key: "${{ MY_API_KEY }}",
-        model: "${{ MY_MODEL }}",
+        name: 'test',
+        provider: 'azure',
+        endpoint: '${{  MY_VAR  }}',
+        api_key: '${{ MY_API_KEY }}',
+        model: '${{ MY_MODEL }}',
       },
-      env
+      env,
     );
 
-    expect(target.kind).toBe("azure");
-    if (target.kind !== "azure") {
-      throw new Error("expected azure target");
+    expect(target.kind).toBe('azure');
+    if (target.kind !== 'azure') {
+      throw new Error('expected azure target');
     }
-    expect(target.config.resourceName).toBe("test-value");
+    expect(target.config.resourceName).toBe('test-value');
   });
 
-  it("resolves with ${{ }} syntax without spaces", () => {
+  it('resolves with ${{ }} syntax without spaces', () => {
     const env = {
-      MY_ENDPOINT: "https://no-spaces.example.com",
-      MY_KEY: "key123",
-      MY_MODEL: "literal-model",
+      MY_ENDPOINT: 'https://no-spaces.example.com',
+      MY_KEY: 'key123',
+      MY_MODEL: 'literal-model',
     } satisfies Record<string, string>;
 
     const target = resolveTargetDefinition(
       {
-        name: "no-spaces",
-        provider: "azure",
-        endpoint: "${{MY_ENDPOINT}}",
-        api_key: "${{MY_KEY}}",
-        model: "${{MY_MODEL}}",
+        name: 'no-spaces',
+        provider: 'azure',
+        endpoint: '${{MY_ENDPOINT}}',
+        api_key: '${{MY_KEY}}',
+        model: '${{MY_MODEL}}',
       },
-      env
+      env,
     );
 
-    expect(target.kind).toBe("azure");
-    if (target.kind !== "azure") {
-      throw new Error("expected azure target");
+    expect(target.kind).toBe('azure');
+    if (target.kind !== 'azure') {
+      throw new Error('expected azure target');
     }
-    expect(target.config.resourceName).toBe("https://no-spaces.example.com");
-    expect(target.config.apiKey).toBe("key123");
+    expect(target.config.resourceName).toBe('https://no-spaces.example.com');
+    expect(target.config.apiKey).toBe('key123');
   });
 
-  it("throws when ${{ variable }} reference is missing from env", () => {
+  it('throws when ${{ variable }} reference is missing from env', () => {
     const env = {} satisfies Record<string, string>;
 
     expect(() =>
       resolveTargetDefinition(
         {
-          name: "broken",
-          provider: "azure",
-          endpoint: "${{ MISSING_VAR }}",
-          api_key: "key",
-          model: "model",
+          name: 'broken',
+          provider: 'azure',
+          endpoint: '${{ MISSING_VAR }}',
+          api_key: 'key',
+          model: 'model',
         },
-        env
-      )
+        env,
+      ),
     ).toThrow(/MISSING_VAR.*is not set/i);
   });
 
-  it("normalizes azure api versions", () => {
+  it('normalizes azure api versions', () => {
     const env = {
-      AZURE_OPENAI_ENDPOINT: "https://example.openai.azure.com",
-      AZURE_OPENAI_API_KEY: "secret",
-      AZURE_DEPLOYMENT_NAME: "gpt-4o",
-      CUSTOM_VERSION: "api-version=2024-08-01-preview",
+      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'secret',
+      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
+      CUSTOM_VERSION: 'api-version=2024-08-01-preview',
     } satisfies Record<string, string>;
 
     const target = resolveTargetDefinition(
       {
-        name: "azure-version",
-        provider: "azure",
-        endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
-        api_key: "${{ AZURE_OPENAI_API_KEY }}",
-        model: "${{ AZURE_DEPLOYMENT_NAME }}",
-        version: "${{ CUSTOM_VERSION }}",
+        name: 'azure-version',
+        provider: 'azure',
+        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
+        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+        model: '${{ AZURE_DEPLOYMENT_NAME }}',
+        version: '${{ CUSTOM_VERSION }}',
       },
-      env
+      env,
     );
 
-    expect(target.kind).toBe("azure");
-    if (target.kind !== "azure") {
-      throw new Error("expected azure target");
+    expect(target.kind).toBe('azure');
+    if (target.kind !== 'azure') {
+      throw new Error('expected azure target');
     }
 
-    expect(target.config.version).toBe("2024-08-01-preview");
+    expect(target.config.version).toBe('2024-08-01-preview');
   });
 
-  it("throws when required azure environment variables are missing", () => {
+  it('throws when required azure environment variables are missing', () => {
     const env = {
-      AZURE_OPENAI_ENDPOINT: "https://example.openai.azure.com",
+      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
     } satisfies Record<string, string>;
 
     expect(() =>
       resolveTargetDefinition(
         {
-          name: "broken",
-          provider: "azure",
-          endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
-          api_key: "${{ AZURE_OPENAI_API_KEY }}",
-          model: "${{ AZURE_DEPLOYMENT_NAME }}",
+          name: 'broken',
+          provider: 'azure',
+          endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
+          api_key: '${{ AZURE_OPENAI_API_KEY }}',
+          model: '${{ AZURE_DEPLOYMENT_NAME }}',
         },
-        env
-      )
+        env,
+      ),
     ).toThrow(/AZURE_OPENAI_API_KEY/i);
   });
 
-  it("supports vscode configuration with optional workspace template from env var", () => {
+  it('supports vscode configuration with optional workspace template from env var', () => {
     const env = {
-      WORKSPACE_TEMPLATE_PATH: "/path/to/workspace.code-workspace",
+      WORKSPACE_TEMPLATE_PATH: '/path/to/workspace.code-workspace',
     } satisfies Record<string, string>;
 
     const target = resolveTargetDefinition(
       {
-        name: "editor",
-        provider: "vscode",
-        vscode_cmd: "code-insiders",
+        name: 'editor',
+        provider: 'vscode',
+        vscode_cmd: 'code-insiders',
         wait: false,
         dry_run: true,
-        workspace_template: "${{ WORKSPACE_TEMPLATE_PATH }}",
+        workspace_template: '${{ WORKSPACE_TEMPLATE_PATH }}',
       },
-      env
+      env,
     );
 
-    expect(target.kind).toBe("vscode");
-    if (target.kind !== "vscode") {
-      throw new Error("expected vscode target");
+    expect(target.kind).toBe('vscode');
+    if (target.kind !== 'vscode') {
+      throw new Error('expected vscode target');
     }
 
-    expect(target.config.command).toBe("code-insiders");
+    expect(target.config.command).toBe('code-insiders');
     expect(target.config.waitForResponse).toBe(false);
     expect(target.config.dryRun).toBe(true);
-    expect(target.config.workspaceTemplate).toBe("/path/to/workspace.code-workspace");
+    expect(target.config.workspaceTemplate).toBe('/path/to/workspace.code-workspace');
   });
 
-  it("resolves gemini settings from environment with default model", () => {
+  it('resolves gemini settings from environment with default model', () => {
     const env = {
-      GOOGLE_API_KEY: "gemini-secret",
+      GOOGLE_API_KEY: 'gemini-secret',
     } satisfies Record<string, string>;
 
     const target = resolveTargetDefinition(
       {
-        name: "gemini-target",
-        provider: "gemini",
-        api_key: "${{ GOOGLE_API_KEY }}",
+        name: 'gemini-target',
+        provider: 'gemini',
+        api_key: '${{ GOOGLE_API_KEY }}',
       },
-      env
+      env,
     );
 
-    expect(target.kind).toBe("gemini");
-    if (target.kind !== "gemini") {
-      throw new Error("expected gemini target");
+    expect(target.kind).toBe('gemini');
+    if (target.kind !== 'gemini') {
+      throw new Error('expected gemini target');
     }
 
     expect(target.config).toMatchObject({
-      apiKey: "gemini-secret",
-      model: "gemini-2.5-flash",
+      apiKey: 'gemini-secret',
+      model: 'gemini-2.5-flash',
     });
   });
 
-  it("resolves gemini settings with custom model from environment", () => {
+  it('resolves gemini settings with custom model from environment', () => {
     const env = {
-      GOOGLE_API_KEY: "gemini-secret",
-      GOOGLE_GEMINI_MODEL: "gemini-2.5-pro",
+      GOOGLE_API_KEY: 'gemini-secret',
+      GOOGLE_GEMINI_MODEL: 'gemini-2.5-pro',
     } satisfies Record<string, string>;
 
     const target = resolveTargetDefinition(
       {
-        name: "gemini-pro",
-        provider: "gemini",
-        api_key: "${{ GOOGLE_API_KEY }}",
-        model: "${{ GOOGLE_GEMINI_MODEL }}",
+        name: 'gemini-pro',
+        provider: 'gemini',
+        api_key: '${{ GOOGLE_API_KEY }}',
+        model: '${{ GOOGLE_GEMINI_MODEL }}',
       },
-      env
+      env,
     );
 
-    expect(target.kind).toBe("gemini");
-    if (target.kind !== "gemini") {
-      throw new Error("expected gemini target");
+    expect(target.kind).toBe('gemini');
+    if (target.kind !== 'gemini') {
+      throw new Error('expected gemini target');
     }
 
     expect(target.config).toMatchObject({
-      apiKey: "gemini-secret",
-      model: "gemini-2.5-pro",
+      apiKey: 'gemini-secret',
+      model: 'gemini-2.5-pro',
     });
   });
 
-  it("resolves gemini with literal model string", () => {
+  it('resolves gemini with literal model string', () => {
     const env = {
-      GOOGLE_API_KEY: "gemini-secret",
+      GOOGLE_API_KEY: 'gemini-secret',
     } satisfies Record<string, string>;
 
     const target = resolveTargetDefinition(
       {
-        name: "gemini-flash",
-        provider: "google-gemini",
-        api_key: "${{ GOOGLE_API_KEY }}",
-        model: "gemini-1.5-flash",
+        name: 'gemini-flash',
+        provider: 'google-gemini',
+        api_key: '${{ GOOGLE_API_KEY }}',
+        model: 'gemini-1.5-flash',
       },
-      env
+      env,
     );
 
-    expect(target.kind).toBe("gemini");
-    if (target.kind !== "gemini") {
-      throw new Error("expected gemini target");
+    expect(target.kind).toBe('gemini');
+    if (target.kind !== 'gemini') {
+      throw new Error('expected gemini target');
     }
 
     expect(target.config).toMatchObject({
-      apiKey: "gemini-secret",
-      model: "gemini-1.5-flash",
+      apiKey: 'gemini-secret',
+      model: 'gemini-1.5-flash',
     });
   });
 
-  it("throws when google api key is missing", () => {
+  it('throws when google api key is missing', () => {
     expect(() =>
       resolveTargetDefinition(
         {
-          name: "broken-gemini",
-          provider: "gemini",
-          api_key: "${{ GOOGLE_API_KEY }}",
+          name: 'broken-gemini',
+          provider: 'gemini',
+          api_key: '${{ GOOGLE_API_KEY }}',
         },
-        {}
-      )
+        {},
+      ),
     ).toThrow(/GOOGLE_API_KEY/i);
   });
 
-  it("honors provider_batching flag in settings", () => {
+  it('honors provider_batching flag in settings', () => {
     const target = resolveTargetDefinition(
       {
-        name: "batched",
-        provider: "mock",
+        name: 'batched',
+        provider: 'mock',
         provider_batching: true,
       },
-      {}
+      {},
     );
 
-    expect(target.kind).toBe("mock");
+    expect(target.kind).toBe('mock');
     expect(target.providerBatching).toBe(true);
   });
 
-  it("resolves cli settings including cwd and timeout", () => {
+  it('resolves cli settings including cwd and timeout', () => {
     const env = {
-      WORKDIR: "/tmp/project",
-      CLI_TOKEN: "secret-token",
+      WORKDIR: '/tmp/project',
+      CLI_TOKEN: 'secret-token',
     } satisfies Record<string, string>;
 
     const target = resolveTargetDefinition(
       {
-        name: "shell-cli",
-        provider: "cli",
-        command_template: "code chat {PROMPT} {FILES}",
-        cwd: "${{ WORKDIR }}",
+        name: 'shell-cli',
+        provider: 'cli',
+        command_template: 'code chat {PROMPT} {FILES}',
+        cwd: '${{ WORKDIR }}',
         timeout_seconds: 3,
-        files_format: "--file {path}",
+        files_format: '--file {path}',
       },
-      env
+      env,
     );
 
-    expect(target.kind).toBe("cli");
-    if (target.kind !== "cli") {
-      throw new Error("expected cli target");
+    expect(target.kind).toBe('cli');
+    if (target.kind !== 'cli') {
+      throw new Error('expected cli target');
     }
 
-    expect(target.config.commandTemplate).toContain("{PROMPT}");
-    expect(target.config.cwd).toBe("/tmp/project");
+    expect(target.config.commandTemplate).toContain('{PROMPT}');
+    expect(target.config.cwd).toBe('/tmp/project');
     expect(target.config.timeoutMs).toBe(3000);
-    expect(target.config.filesFormat).toBe("--file {path}");
+    expect(target.config.filesFormat).toBe('--file {path}');
   });
 
-  it("throws for unknown cli placeholders", () => {
+  it('throws for unknown cli placeholders', () => {
     expect(() =>
       resolveTargetDefinition(
         {
-          name: "bad-cli",
-          provider: "cli",
-          command_template: "run-task {UNKNOWN}",
+          name: 'bad-cli',
+          provider: 'cli',
+          command_template: 'run-task {UNKNOWN}',
         },
-        {}
-      )
+        {},
+      ),
     ).toThrow(/unsupported placeholder/i);
   });
 
-  it("resolves codex args using ${{ }} syntax", () => {
+  it('resolves codex args using ${{ }} syntax', () => {
     const env = {
-      CODEX_PROFILE: "default",
-      CODEX_MODEL: "gpt-4",
+      CODEX_PROFILE: 'default',
+      CODEX_MODEL: 'gpt-4',
     } satisfies Record<string, string>;
 
     const target = resolveTargetDefinition(
       {
-        name: "codex",
-        provider: "codex",
-        args: ["--profile", "${{ CODEX_PROFILE }}", "--model", "${{ CODEX_MODEL }}"],
+        name: 'codex',
+        provider: 'codex',
+        args: ['--profile', '${{ CODEX_PROFILE }}', '--model', '${{ CODEX_MODEL }}'],
       },
-      env
+      env,
     );
 
-    expect(target.kind).toBe("codex");
-    if (target.kind !== "codex") {
-      throw new Error("expected codex target");
+    expect(target.kind).toBe('codex');
+    if (target.kind !== 'codex') {
+      throw new Error('expected codex target');
     }
 
-    expect(target.config.args).toEqual(["--profile", "default", "--model", "gpt-4"]);
+    expect(target.config.args).toEqual(['--profile', 'default', '--model', 'gpt-4']);
   });
 });
 
-describe("createProvider", () => {
+describe('createProvider', () => {
   beforeEach(() => {
     generateTextMock.mockClear();
     createAzureMock.mockClear();
@@ -417,53 +417,53 @@ describe("createProvider", () => {
     createGeminiMock.mockClear();
   });
 
-  it("creates an azure provider that calls the Vercel AI SDK", async () => {
+  it('creates an azure provider that calls the Vercel AI SDK', async () => {
     const env = {
-      AZURE_OPENAI_ENDPOINT: "https://example.openai.azure.com",
-      AZURE_OPENAI_API_KEY: "key",
-      AZURE_DEPLOYMENT_NAME: "gpt-4o",
+      AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
+      AZURE_OPENAI_API_KEY: 'key',
+      AZURE_DEPLOYMENT_NAME: 'gpt-4o',
     } satisfies Record<string, string>;
 
     const resolved = resolveTargetDefinition(
       {
-        name: "azure-target",
-        provider: "azure",
-        endpoint: "${{ AZURE_OPENAI_ENDPOINT }}",
-        api_key: "${{ AZURE_OPENAI_API_KEY }}",
-        model: "${{ AZURE_DEPLOYMENT_NAME }}",
+        name: 'azure-target',
+        provider: 'azure',
+        endpoint: '${{ AZURE_OPENAI_ENDPOINT }}',
+        api_key: '${{ AZURE_OPENAI_API_KEY }}',
+        model: '${{ AZURE_DEPLOYMENT_NAME }}',
       },
-      env
+      env,
     );
 
     const provider = createProvider(resolved);
-    const response = await provider.invoke({ question: "Hello" });
+    const response = await provider.invoke({ question: 'Hello' });
 
     expect(createAzureMock).toHaveBeenCalledTimes(1);
     expect(generateTextMock).toHaveBeenCalledTimes(1);
-    expect(response.text).toBe("ok");
+    expect(response.text).toBe('ok');
   });
-  it("creates a gemini provider that calls the Vercel AI SDK", async () => {
+  it('creates a gemini provider that calls the Vercel AI SDK', async () => {
     const env = {
-      GOOGLE_API_KEY: "gemini-key",
+      GOOGLE_API_KEY: 'gemini-key',
     } satisfies Record<string, string>;
 
     const resolved = resolveTargetDefinition(
       {
-        name: "gemini-target",
-        provider: "gemini",
-        api_key: "${{ GOOGLE_API_KEY }}",
+        name: 'gemini-target',
+        provider: 'gemini',
+        api_key: '${{ GOOGLE_API_KEY }}',
       },
-      env
+      env,
     );
 
     const provider = createProvider(resolved);
-    expect(provider.kind).toBe("gemini");
-    expect(provider.targetName).toBe("gemini-target");
+    expect(provider.kind).toBe('gemini');
+    expect(provider.targetName).toBe('gemini-target');
 
-    const response = await provider.invoke({ question: "Test prompt" });
+    const response = await provider.invoke({ question: 'Test prompt' });
 
     expect(createGeminiMock).toHaveBeenCalled();
     expect(generateTextMock).toHaveBeenCalled();
-    expect(response.text).toBe("ok");
+    expect(response.text).toBe('ok');
   });
 });

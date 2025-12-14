@@ -1,9 +1,9 @@
-import { readFile } from "node:fs/promises";
-import { parse } from "yaml";
+import { readFile } from 'node:fs/promises';
+import { parse } from 'yaml';
 
-import type { ValidationError, ValidationResult } from "./types.js";
+import type { ValidationError, ValidationResult } from './types.js';
 
-const SCHEMA_CONFIG_V2 = "agentv-config-v2";
+const SCHEMA_CONFIG_V2 = 'agentv-config-v2';
 
 /**
  * Validate a config.yaml file for schema compliance and structural correctness.
@@ -12,17 +12,17 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
   const errors: ValidationError[] = [];
 
   try {
-    const content = await readFile(filePath, "utf8");
+    const content = await readFile(filePath, 'utf8');
     const parsed = parse(content) as unknown;
 
     // Check if parsed content is an object
-    if (typeof parsed !== "object" || parsed === null) {
+    if (typeof parsed !== 'object' || parsed === null) {
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath,
-        message: "Config file must contain a valid YAML object",
+        message: 'Config file must contain a valid YAML object',
       });
-      return { valid: false, filePath, fileType: "config", errors };
+      return { valid: false, filePath, fileType: 'config', errors };
     }
 
     const config = parsed as Record<string, unknown>;
@@ -31,13 +31,13 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
     const schema = config.$schema;
     if (schema !== SCHEMA_CONFIG_V2) {
       const message =
-        typeof schema === "string"
+        typeof schema === 'string'
           ? `Invalid $schema value '${schema}'. Expected '${SCHEMA_CONFIG_V2}'`
           : `Missing required field '$schema'. Please add '$schema: ${SCHEMA_CONFIG_V2}' at the top of the file.`;
       errors.push({
-        severity: "error",
+        severity: 'error',
         filePath,
-        location: "$schema",
+        location: '$schema',
         message,
       });
     }
@@ -47,52 +47,52 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
     if (guidelinePatterns !== undefined) {
       if (!Array.isArray(guidelinePatterns)) {
         errors.push({
-          severity: "error",
+          severity: 'error',
           filePath,
-          location: "guideline_patterns",
+          location: 'guideline_patterns',
           message: "Field 'guideline_patterns' must be an array",
         });
-      } else if (!guidelinePatterns.every((p) => typeof p === "string")) {
+      } else if (!guidelinePatterns.every((p) => typeof p === 'string')) {
         errors.push({
-          severity: "error",
+          severity: 'error',
           filePath,
-          location: "guideline_patterns",
+          location: 'guideline_patterns',
           message: "All entries in 'guideline_patterns' must be strings",
         });
       } else if (guidelinePatterns.length === 0) {
         errors.push({
-          severity: "warning",
+          severity: 'warning',
           filePath,
-          location: "guideline_patterns",
+          location: 'guideline_patterns',
           message: "Field 'guideline_patterns' is empty. Consider removing it or adding patterns.",
         });
       }
     }
 
     // Check for unexpected fields
-    const allowedFields = new Set(["$schema", "guideline_patterns"]);
+    const allowedFields = new Set(['$schema', 'guideline_patterns']);
     const unexpectedFields = Object.keys(config).filter((key) => !allowedFields.has(key));
 
     if (unexpectedFields.length > 0) {
       errors.push({
-        severity: "warning",
+        severity: 'warning',
         filePath,
-        message: `Unexpected fields: ${unexpectedFields.join(", ")}`,
+        message: `Unexpected fields: ${unexpectedFields.join(', ')}`,
       });
     }
 
     return {
-      valid: errors.filter((e) => e.severity === "error").length === 0,
+      valid: errors.filter((e) => e.severity === 'error').length === 0,
       filePath,
-      fileType: "config",
+      fileType: 'config',
       errors,
     };
   } catch (error) {
     errors.push({
-      severity: "error",
+      severity: 'error',
       filePath,
       message: `Failed to parse config file: ${(error as Error).message}`,
     });
-    return { valid: false, filePath, fileType: "config", errors };
+    return { valid: false, filePath, fileType: 'config', errors };
   }
 }

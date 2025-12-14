@@ -1,23 +1,23 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { parse } from "yaml";
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { parse } from 'yaml';
 
-import { extractCodeBlocks } from "./formatting/segment-formatter.js";
-import { extractTargetFromSuite, loadConfig } from "./loaders/config-loader.js";
-import { coerceEvaluator, parseEvaluators } from "./loaders/evaluator-parser.js";
-import { buildSearchRoots, resolveToAbsolutePath } from "./loaders/file-resolver.js";
-import { processMessages, resolveAssistantContent } from "./loaders/message-processor.js";
-import type { EvalCase, JsonObject, JsonValue, TestMessage } from "./types.js";
-import { isJsonObject, isTestMessage } from "./types.js";
+import { extractCodeBlocks } from './formatting/segment-formatter.js';
+import { extractTargetFromSuite, loadConfig } from './loaders/config-loader.js';
+import { coerceEvaluator, parseEvaluators } from './loaders/evaluator-parser.js';
+import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
+import { processMessages, resolveAssistantContent } from './loaders/message-processor.js';
+import type { EvalCase, JsonObject, JsonValue, TestMessage } from './types.js';
+import { isJsonObject, isTestMessage } from './types.js';
 
 // Re-export public APIs from modules
-export { buildPromptInputs, type PromptInputs } from "./formatting/prompt-builder.js";
-export { extractCodeBlocks } from "./formatting/segment-formatter.js";
-export { isGuidelineFile } from "./loaders/config-loader.js";
+export { buildPromptInputs, type PromptInputs } from './formatting/prompt-builder.js';
+export { extractCodeBlocks } from './formatting/segment-formatter.js';
+export { isGuidelineFile } from './loaders/config-loader.js';
 
-const ANSI_YELLOW = "\u001b[33m";
-const ANSI_RED = "\u001b[31m";
-const ANSI_RESET = "\u001b[0m";
+const ANSI_YELLOW = '\u001b[33m';
+const ANSI_RED = '\u001b[31m';
+const ANSI_RESET = '\u001b[0m';
 
 type LoadOptions = {
   readonly verbose?: boolean;
@@ -48,7 +48,7 @@ type RawEvalCase = JsonObject & {
 export async function readTestSuiteMetadata(testFilePath: string): Promise<{ target?: string }> {
   try {
     const absolutePath = path.resolve(testFilePath);
-    const content = await readFile(absolutePath, "utf8");
+    const content = await readFile(absolutePath, 'utf8');
     const parsed = parse(content) as unknown;
 
     if (!isJsonObject(parsed)) {
@@ -67,7 +67,7 @@ export async function readTestSuiteMetadata(testFilePath: string): Promise<{ tar
 export async function loadEvalCases(
   evalFilePath: string,
   repoRoot: URL | string,
-  options?: LoadOptions
+  options?: LoadOptions,
 ): Promise<readonly EvalCase[]> {
   const verbose = options?.verbose ?? false;
   const evalIdFilter = options?.evalId;
@@ -80,7 +80,7 @@ export async function loadEvalCases(
   const config = await loadConfig(absoluteTestPath, repoRootPath);
   const guidelinePatterns = config?.guideline_patterns;
 
-  const rawFile = await readFile(absoluteTestPath, "utf8");
+  const rawFile = await readFile(absoluteTestPath, 'utf8');
   const parsed = parse(rawFile) as unknown;
   if (!isJsonObject(parsed)) {
     throw new Error(`Invalid test file format: ${evalFilePath}`);
@@ -88,7 +88,7 @@ export async function loadEvalCases(
 
   const suite = parsed as RawTestSuite;
   const datasetNameFromSuite = asString(suite.dataset)?.trim();
-  const fallbackDataset = path.basename(absoluteTestPath).replace(/\.ya?ml$/i, "") || "eval";
+  const fallbackDataset = path.basename(absoluteTestPath).replace(/\.ya?ml$/i, '') || 'eval';
   const datasetName =
     datasetNameFromSuite && datasetNameFromSuite.length > 0
       ? datasetNameFromSuite
@@ -99,7 +99,7 @@ export async function loadEvalCases(
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'evalcases' field`);
   }
 
-  const globalEvaluator = coerceEvaluator(suite.evaluator, "global") ?? "llm_judge";
+  const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm_judge';
 
   // Extract global target from execution.target (or legacy root-level target)
   const globalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
@@ -109,7 +109,7 @@ export async function loadEvalCases(
 
   for (const rawEvalcase of rawTestcases) {
     if (!isJsonObject(rawEvalcase)) {
-      logWarning("Skipping invalid eval case entry (expected object)");
+      logWarning('Skipping invalid eval case entry (expected object)');
       continue;
     }
 
@@ -129,7 +129,7 @@ export async function loadEvalCases(
 
     if (!id || !outcome || !Array.isArray(inputMessagesValue)) {
       logError(
-        `Skipping incomplete eval case: ${id ?? "unknown"}. Missing required fields: id, outcome, and/or input_messages`
+        `Skipping incomplete eval case: ${id ?? 'unknown'}. Missing required fields: id, outcome, and/or input_messages`,
       );
       continue;
     }
@@ -140,7 +140,7 @@ export async function loadEvalCases(
 
     // V2 format: input_messages vs expected_messages
     const inputMessages = inputMessagesValue.filter((msg): msg is TestMessage =>
-      isTestMessage(msg)
+      isTestMessage(msg),
     );
     const expectedMessages = hasExpectedMessages
       ? expectedMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg))
@@ -166,7 +166,7 @@ export async function loadEvalCases(
       guidelinePatterns,
       guidelinePaths,
       textParts: inputTextParts,
-      messageType: "input",
+      messageType: 'input',
       verbose,
     });
 
@@ -177,7 +177,7 @@ export async function loadEvalCases(
           searchRoots,
           repoRootPath,
           guidelinePatterns,
-          messageType: "output",
+          messageType: 'output',
           verbose,
         })
       : [];
@@ -186,16 +186,16 @@ export async function loadEvalCases(
     const expectedContent = expectedMessages[0]?.content;
     const referenceAnswer = expectedContent
       ? await resolveAssistantContent(expectedContent, searchRoots, verbose)
-      : "";
+      : '';
     const question = inputTextParts
       .map((part) => part.trim())
       .filter((part) => part.length > 0)
-      .join(" ");
+      .join(' ');
 
     const evalCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator, id) ?? globalEvaluator;
     let evaluators: Awaited<ReturnType<typeof parseEvaluators>>;
     try {
-      evaluators = await parseEvaluators(evalcase, globalExecution, searchRoots, id ?? "unknown");
+      evaluators = await parseEvaluators(evalcase, globalExecution, searchRoots, id ?? 'unknown');
     } catch (error) {
       // Skip entire eval case if evaluator validation fails
       const message = error instanceof Error ? error.message : String(error);
@@ -206,7 +206,7 @@ export async function loadEvalCases(
     // Extract file paths from all input segments (non-guideline files)
     const userFilePaths: string[] = [];
     for (const segment of inputSegments) {
-      if (segment.type === "file" && typeof segment.resolvedPath === "string") {
+      if (segment.type === 'file' && typeof segment.resolvedPath === 'string') {
         userFilePaths.push(segment.resolvedPath);
       }
     }
@@ -243,7 +243,7 @@ export async function loadEvalCases(
           console.log(`    - ${guidelinePath}`);
         }
       } else {
-        console.log("  No guidelines found");
+        console.log('  No guidelines found');
       }
     }
 
@@ -254,12 +254,12 @@ export async function loadEvalCases(
 }
 
 function asString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
+  return typeof value === 'string' ? value : undefined;
 }
 
 function logWarning(message: string, details?: readonly string[]): void {
   if (details && details.length > 0) {
-    const detailBlock = details.join("\n");
+    const detailBlock = details.join('\n');
     console.warn(`${ANSI_YELLOW}Warning: ${message}\n${detailBlock}${ANSI_RESET}`);
   } else {
     console.warn(`${ANSI_YELLOW}Warning: ${message}${ANSI_RESET}`);
@@ -268,7 +268,7 @@ function logWarning(message: string, details?: readonly string[]): void {
 
 function logError(message: string, details?: readonly string[]): void {
   if (details && details.length > 0) {
-    const detailBlock = details.join("\n");
+    const detailBlock = details.join('\n');
     console.error(`${ANSI_RED}Error: ${message}\n${detailBlock}${ANSI_RESET}`);
   } else {
     console.error(`${ANSI_RED}Error: ${message}${ANSI_RESET}`);

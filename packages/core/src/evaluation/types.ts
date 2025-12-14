@@ -15,7 +15,7 @@ export interface JsonObject {
  */
 export type JsonValue = JsonPrimitive | JsonObject | readonly JsonValue[];
 
-const TEST_MESSAGE_ROLE_VALUES = ["system", "user", "assistant", "tool"] as const;
+const TEST_MESSAGE_ROLE_VALUES = ['system', 'user', 'assistant', 'tool'] as const;
 
 /**
  * Immutable list of supported message roles.
@@ -38,7 +38,7 @@ export type TestMessageContent = string | readonly JsonObject[];
  * System-authored instruction message.
  */
 export type SystemTestMessage = {
-  readonly role: "system";
+  readonly role: 'system';
   readonly content: TestMessageContent;
 };
 
@@ -46,7 +46,7 @@ export type SystemTestMessage = {
  * User-authored prompt message.
  */
 export type UserTestMessage = {
-  readonly role: "user";
+  readonly role: 'user';
   readonly content: TestMessageContent;
 };
 
@@ -54,7 +54,7 @@ export type UserTestMessage = {
  * Assistant response message.
  */
 export type AssistantTestMessage = {
-  readonly role: "assistant";
+  readonly role: 'assistant';
   readonly content: TestMessageContent;
 };
 
@@ -62,7 +62,7 @@ export type AssistantTestMessage = {
  * Tool invocation message.
  */
 export type ToolTestMessage = {
-  readonly role: "tool";
+  readonly role: 'tool';
   readonly content: TestMessageContent;
 };
 
@@ -79,14 +79,14 @@ export type TestMessage =
  * Guard validating supported message roles.
  */
 export function isTestMessageRole(value: unknown): value is TestMessageRole {
-  return typeof value === "string" && TEST_MESSAGE_ROLE_SET.has(value);
+  return typeof value === 'string' && TEST_MESSAGE_ROLE_SET.has(value);
 }
 
 /**
  * Guard matching AgentV JSON objects.
  */
 export function isJsonObject(value: unknown): value is JsonObject {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return false;
   }
   return Object.values(value as Record<string, unknown>).every(isJsonValue);
@@ -98,16 +98,16 @@ export function isJsonObject(value: unknown): value is JsonObject {
 export function isJsonValue(value: unknown): value is JsonValue {
   if (
     value === null ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
   ) {
     return true;
   }
   if (Array.isArray(value)) {
     return value.every(isJsonValue);
   }
-  if (typeof value === "object") {
+  if (typeof value === 'object') {
     return isJsonObject(value);
   }
   return false;
@@ -117,14 +117,14 @@ export function isJsonValue(value: unknown): value is JsonValue {
  * Guard validating raw test messages.
  */
 export function isTestMessage(value: unknown): value is TestMessage {
-  if (typeof value !== "object" || value === null) {
+  if (typeof value !== 'object' || value === null) {
     return false;
   }
   const candidate = value as { role?: unknown; content?: unknown };
   if (!isTestMessageRole(candidate.role)) {
     return false;
   }
-  if (typeof candidate.content === "string") {
+  if (typeof candidate.content === 'string') {
     return true;
   }
   if (!Array.isArray(candidate.content)) {
@@ -133,19 +133,19 @@ export function isTestMessage(value: unknown): value is TestMessage {
   return candidate.content.every(isJsonObject);
 }
 
-const EVALUATOR_KIND_VALUES = ["code", "llm_judge"] as const;
+const EVALUATOR_KIND_VALUES = ['code', 'llm_judge'] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
 
 const EVALUATOR_KIND_SET: ReadonlySet<string> = new Set(EVALUATOR_KIND_VALUES);
 
 export function isEvaluatorKind(value: unknown): value is EvaluatorKind {
-  return typeof value === "string" && EVALUATOR_KIND_SET.has(value);
+  return typeof value === 'string' && EVALUATOR_KIND_SET.has(value);
 }
 
 export type CodeEvaluatorConfig = {
   readonly name: string;
-  readonly type: "code";
+  readonly type: 'code';
   readonly script: string;
   readonly resolvedScriptPath?: string;
   readonly cwd?: string;
@@ -154,7 +154,7 @@ export type CodeEvaluatorConfig = {
 
 export type LlmJudgeEvaluatorConfig = {
   readonly name: string;
-  readonly type: "llm_judge";
+  readonly type: 'llm_judge';
   readonly prompt?: string;
   readonly promptPath?: string;
 };
@@ -218,6 +218,6 @@ export interface EvaluatorResult {
 /**
  * Convenience accessor matching the Python hit_count property.
  */
-export function getHitCount(result: Pick<EvaluationResult, "hits">): number {
+export function getHitCount(result: Pick<EvaluationResult, 'hits'>): number {
   return result.hits.length;
 }

@@ -1,7 +1,7 @@
-import { constants } from "node:fs";
-import { access } from "node:fs/promises";
-import path from "node:path";
-import { config as loadDotenv } from "dotenv";
+import { constants } from 'node:fs';
+import { access } from 'node:fs/promises';
+import path from 'node:path';
+import { config as loadDotenv } from 'dotenv';
 
 interface LoadEnvOptions {
   readonly testFilePath: string;
@@ -60,7 +60,7 @@ export async function loadEnvFromHierarchy(options: LoadEnvOptions): Promise<str
   const searchDirs = uniqueDirs([...collectAncestorDirectories(testDir, repoRoot), repoRoot, cwd]);
 
   for (const dir of searchDirs) {
-    const candidate = path.join(dir, ".env");
+    const candidate = path.join(dir, '.env');
     if (await fileExists(candidate)) {
       loadDotenv({ path: candidate, override: false });
       if (verbose) {
@@ -71,7 +71,7 @@ export async function loadEnvFromHierarchy(options: LoadEnvOptions): Promise<str
   }
 
   if (verbose) {
-    console.log("No .env file found in hierarchy");
+    console.log('No .env file found in hierarchy');
   }
 
   return undefined;

@@ -2,9 +2,9 @@
  * Validation result types for AgentV file validation.
  */
 
-export type FileType = "eval" | "targets" | "config" | "unknown";
+export type FileType = 'eval' | 'targets' | 'config' | 'unknown';
 
-export type ValidationSeverity = "error" | "warning";
+export type ValidationSeverity = 'error' | 'warning';
 
 export interface ValidationError {
   readonly severity: ValidationSeverity;

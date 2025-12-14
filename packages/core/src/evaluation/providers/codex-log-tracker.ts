@@ -5,8 +5,8 @@ export type CodexLogEntry = {
   readonly attempt?: number;
 };
 
-const GLOBAL_LOGS_KEY = Symbol.for("agentv.codexLogs");
-const GLOBAL_SUBSCRIBERS_KEY = Symbol.for("agentv.codexLogSubscribers");
+const GLOBAL_LOGS_KEY = Symbol.for('agentv.codexLogs');
+const GLOBAL_SUBSCRIBERS_KEY = Symbol.for('agentv.codexLogSubscribers');
 
 type CodexLogListener = (entry: CodexLogEntry) => void;
 

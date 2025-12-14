@@ -1,7 +1,7 @@
-import { constants } from "node:fs";
-import { access, mkdir } from "node:fs/promises";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { constants } from 'node:fs';
+import { access, mkdir } from 'node:fs/promises';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   type EvalCase,
   type EvaluationCache,
@@ -11,18 +11,18 @@ import {
   ensureVSCodeSubagents,
   loadEvalCases,
   subscribeToCodexLogEntries,
-} from "@agentv/core";
+} from '@agentv/core';
 
-import { loadEnvFromHierarchy } from "./env.js";
+import { loadEnvFromHierarchy } from './env.js';
 import {
   type OutputFormat,
   type OutputWriter,
   createOutputWriter,
   getDefaultExtension,
-} from "./output-writer.js";
-import { ProgressDisplay, type WorkerProgress } from "./progress-display.js";
-import { calculateEvaluationSummary, formatEvaluationSummary } from "./statistics.js";
-import { type TargetSelection, selectTarget } from "./targets.js";
+} from './output-writer.js';
+import { ProgressDisplay, type WorkerProgress } from './progress-display.js';
+import { calculateEvaluationSummary, formatEvaluationSummary } from './statistics.js';
+import { type TargetSelection, selectTarget } from './targets.js';
 
 const DEFAULT_WORKERS = 3;
 
@@ -54,7 +54,7 @@ function normalizeBoolean(value: unknown): boolean {
 }
 
 function normalizeString(value: unknown): string | undefined {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return undefined;
   }
   const trimmed = value.trim();
@@ -62,10 +62,10 @@ function normalizeString(value: unknown): string | undefined {
 }
 
 function normalizeNumber(value: unknown, fallback: number): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     const parsed = Number.parseInt(value, 10);
     if (!Number.isNaN(parsed)) {
       return parsed;
@@ -75,8 +75,8 @@ function normalizeNumber(value: unknown, fallback: number): number {
 }
 
 function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOptions {
-  const formatStr = normalizeString(rawOptions.outputFormat) ?? "jsonl";
-  const format: OutputFormat = formatStr === "yaml" ? "yaml" : "jsonl";
+  const formatStr = normalizeString(rawOptions.outputFormat) ?? 'jsonl';
+  const format: OutputFormat = formatStr === 'yaml' ? 'yaml' : 'jsonl';
 
   const workers = normalizeNumber(rawOptions.workers, 0);
 
@@ -112,7 +112,7 @@ async function findRepoRoot(start: string): Promise<string> {
   let current: string | undefined = fallback;
 
   while (current !== undefined) {
-    const candidate = path.join(current, ".git");
+    const candidate = path.join(current, '.git');
     try {
       await access(candidate, constants.F_OK);
       return current;
@@ -129,23 +129,23 @@ async function findRepoRoot(start: string): Promise<string> {
 }
 
 function buildDefaultOutputPath(cwd: string, format: OutputFormat): string {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const baseName = "eval";
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const baseName = 'eval';
   const extension = getDefaultExtension(format);
-  return path.join(cwd, ".agentv", "results", `${baseName}_${timestamp}${extension}`);
+  return path.join(cwd, '.agentv', 'results', `${baseName}_${timestamp}${extension}`);
 }
 
 function resolvePromptDirectory(
   option: string | boolean | undefined,
-  cwd: string
+  cwd: string,
 ): string | undefined {
   if (option === undefined) {
     return undefined;
   }
-  if (typeof option === "string" && option.trim().length > 0) {
+  if (typeof option === 'string' && option.trim().length > 0) {
     return path.resolve(cwd, option);
   }
-  return path.join(cwd, ".agentv", "prompts");
+  return path.join(cwd, '.agentv', 'prompts');
 }
 
 function createEvaluationCache(): EvaluationCache {
@@ -215,7 +215,7 @@ async function prepareFileMetadata(params: {
 }> {
   const { testFilePath, repoRoot, cwd, options } = params;
 
-  await ensureFileExists(testFilePath, "Test file");
+  await ensureFileExists(testFilePath, 'Test file');
   await loadEnvFromHierarchy({
     testFilePath,
     repoRoot,
@@ -254,7 +254,7 @@ async function prepareFileMetadata(params: {
 async function runWithLimit<T>(
   items: readonly T[],
   limit: number,
-  task: (item: T) => Promise<void>
+  task: (item: T) => Promise<void>,
 ): Promise<void> {
   const safeLimit = Math.max(1, limit);
   let index = 0;
@@ -303,7 +303,7 @@ async function runSingleEvalFile(params: {
     evalCases,
   } = params;
 
-  await ensureFileExists(testFilePath, "Test file");
+  await ensureFileExists(testFilePath, 'Test file');
 
   const resolvedTargetSelection = selection;
   const providerLabel = options.dryRun
@@ -335,29 +335,29 @@ async function runSingleEvalFile(params: {
   }
 
   // VSCode providers require window focus, so only 1 worker is allowed
-  const isVSCodeProvider = ["vscode", "vscode-insiders"].includes(
-    resolvedTargetSelection.resolvedTarget.kind
+  const isVSCodeProvider = ['vscode', 'vscode-insiders'].includes(
+    resolvedTargetSelection.resolvedTarget.kind,
   );
   if (isVSCodeProvider && resolvedWorkers > 1) {
     console.warn(
-      `Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`
+      `Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`,
     );
     resolvedWorkers = 1;
   }
 
   if (options.verbose) {
     const workersSource = workerPreference
-      ? "CLI flag (balanced across files)"
+      ? 'CLI flag (balanced across files)'
       : resolvedTargetSelection.resolvedTarget.workers
-        ? "target setting"
-        : "default";
+        ? 'target setting'
+        : 'default';
     console.log(`Using ${resolvedWorkers} worker(s) (source: ${workersSource})`);
   }
 
   // Auto-provision subagents for VSCode targets
   if (isVSCodeProvider && !options.dryRun) {
     await ensureVSCodeSubagents({
-      kind: resolvedTargetSelection.resolvedTarget.kind as "vscode" | "vscode-insiders",
+      kind: resolvedTargetSelection.resolvedTarget.kind as 'vscode' | 'vscode-insiders',
       count: resolvedWorkers,
       verbose: options.verbose,
     });
@@ -383,7 +383,7 @@ async function runSingleEvalFile(params: {
     },
     onProgress: async (event) => {
       const evalKey = makeEvalKey(testFilePath, event.evalId);
-      if (event.status === "pending" && !seenEvalCases.has(evalKey)) {
+      if (event.status === 'pending' && !seenEvalCases.has(evalKey)) {
         seenEvalCases.add(evalKey);
         progressReporter.setTotal(seenEvalCases.size);
       }
@@ -431,7 +431,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const totalWorkers = options.workers ?? DEFAULT_WORKERS;
   const fileConcurrency = Math.min(
     Math.max(1, totalWorkers),
-    Math.max(1, resolvedTestFiles.length)
+    Math.max(1, resolvedTestFiles.length),
   );
   const perFileWorkers = options.workers
     ? Math.max(1, Math.floor(totalWorkers / fileConcurrency))
@@ -456,10 +456,10 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   }
   const totalEvalCount = Array.from(fileMetadata.values()).reduce(
     (sum, meta) => sum + meta.evalIds.length,
-    0
+    0,
   );
   if (totalEvalCount === 0) {
-    throw new Error("No eval cases matched the provided filters.");
+    throw new Error('No eval cases matched the provided filters.');
   }
   const progressReporter = createProgressReporter(totalWorkers);
   progressReporter.start();
@@ -480,7 +480,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       progressReporter.update(displayId, {
         workerId: displayId,
         evalId,
-        status: "pending",
+        status: 'pending',
         targetLabel: meta.inlineTargetLabel,
       });
     }
@@ -545,9 +545,9 @@ async function resolveEvaluationRunner(): Promise<typeof defaultRunEvaluation> {
   const moduleUrl = pathToFileURL(resolved).href;
   const mod = await import(moduleUrl);
   const candidate = mod.runEvaluation;
-  if (typeof candidate !== "function") {
+  if (typeof candidate !== 'function') {
     throw new Error(
-      `Module '${resolved}' must export a 'runEvaluation' function to override the default implementation`
+      `Module '${resolved}' must export a 'runEvaluation' function to override the default implementation`,
     );
   }
   return candidate as typeof defaultRunEvaluation;

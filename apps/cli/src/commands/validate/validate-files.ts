@@ -1,6 +1,6 @@
-import { constants } from "node:fs";
-import { access, readdir, stat } from "node:fs/promises";
-import path from "node:path";
+import { constants } from 'node:fs';
+import { access, readdir, stat } from 'node:fs/promises';
+import path from 'node:path';
 import {
   type ValidationResult,
   type ValidationSummary,
@@ -9,7 +9,7 @@ import {
   validateEvalFile,
   validateFileReferences,
   validateTargetsFile,
-} from "@agentv/core/evaluation/validation";
+} from '@agentv/core/evaluation/validation';
 
 /**
  * Validate YAML files for AgentV schema compliance.
@@ -40,14 +40,14 @@ async function validateSingleFile(filePath: string): Promise<ValidationResult> {
   // Detect file type
   const fileType = await detectFileType(absolutePath);
 
-  if (fileType === "unknown") {
+  if (fileType === 'unknown') {
     return {
       valid: false,
       filePath: absolutePath,
-      fileType: "unknown",
+      fileType: 'unknown',
       errors: [
         {
-          severity: "error",
+          severity: 'error',
           filePath: absolutePath,
           message:
             "Missing or invalid $schema field. File must declare schema: 'agentv-eval-v2', 'agentv-targets-v2', or 'agentv-config-v2'",
@@ -59,21 +59,21 @@ async function validateSingleFile(filePath: string): Promise<ValidationResult> {
   // Validate based on file type
   let result: ValidationResult;
 
-  if (fileType === "eval") {
+  if (fileType === 'eval') {
     result = await validateEvalFile(absolutePath);
 
     // Also validate file references for eval files
-    if (result.valid || result.errors.filter((e) => e.severity === "error").length === 0) {
+    if (result.valid || result.errors.filter((e) => e.severity === 'error').length === 0) {
       const fileRefErrors = await validateFileReferences(absolutePath);
       if (fileRefErrors.length > 0) {
         result = {
           ...result,
           errors: [...result.errors, ...fileRefErrors],
-          valid: result.valid && fileRefErrors.filter((e) => e.severity === "error").length === 0,
+          valid: result.valid && fileRefErrors.filter((e) => e.severity === 'error').length === 0,
         };
       }
     }
-  } else if (fileType === "targets") {
+  } else if (fileType === 'targets') {
     result = await validateTargetsFile(absolutePath);
   } else {
     result = await validateConfigFile(absolutePath);
@@ -124,7 +124,7 @@ async function findYamlFiles(dirPath: string): Promise<readonly string[]> {
 
       if (entry.isDirectory()) {
         // Skip node_modules and hidden directories
-        if (entry.name === "node_modules" || entry.name.startsWith(".")) {
+        if (entry.name === 'node_modules' || entry.name.startsWith('.')) {
           continue;
         }
         const subFiles = await findYamlFiles(fullPath);
@@ -142,5 +142,5 @@ async function findYamlFiles(dirPath: string): Promise<readonly string[]> {
 
 function isYamlFile(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase();
-  return ext === ".yaml" || ext === ".yml";
+  return ext === '.yaml' || ext === '.yml';
 }

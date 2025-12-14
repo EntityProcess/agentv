@@ -1,16 +1,16 @@
-import type { Command } from "commander";
+import type { Command } from 'commander';
 
-import { formatSummary, isTTY } from "./format-output.js";
-import { validateFiles } from "./validate-files.js";
+import { formatSummary, isTTY } from './format-output.js';
+import { validateFiles } from './validate-files.js';
 
 type ValidateCommandOptions = Record<string, never>;
 
 async function runValidateCommand(
   paths: readonly string[],
-  _options: ValidateCommandOptions
+  _options: ValidateCommandOptions,
 ): Promise<void> {
   if (paths.length === 0) {
-    console.error("Error: No paths specified. Usage: agentv validate <paths...>");
+    console.error('Error: No paths specified. Usage: agentv validate <paths...>');
     process.exit(1);
   }
 
@@ -28,9 +28,9 @@ async function runValidateCommand(
 
 export function registerValidateCommand(program: Command): Command {
   program
-    .command("validate")
-    .description("Validate AgentV eval and targets YAML files")
-    .argument("<paths...>", "Files or directories to validate")
+    .command('validate')
+    .description('Validate AgentV eval and targets YAML files')
+    .argument('<paths...>', 'Files or directories to validate')
     .action(async (paths: string[], _options: ValidateCommandOptions) => {
       try {
         await runValidateCommand(paths, _options);
