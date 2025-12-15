@@ -1,0 +1,178 @@
+# AgentV Rubric Evaluator Example
+# Demonstrates the rubric-based evaluation feature
+
+$schema: agentv-eval-v2
+description: Example showing rubric evaluator with inline rubrics and expected_outcome
+
+target: default
+
+evalcases:
+  # ==========================================
+  # Example 1: Simple inline rubrics
+  # Demonstrates: inline rubrics as strings, expected_outcome field
+  # ==========================================
+  - id: code-explanation-simple
+    
+    expected_outcome: |-
+      Provide a clear explanation of how quicksort works, including time complexity
+
+    input_messages:
+      - role: user
+        content: Explain how the quicksort algorithm works
+
+    expected_messages:
+      - role: assistant
+        content: |-
+          Quicksort is a divide-and-conquer sorting algorithm:
+          
+          1. Choose a pivot element from the array
+          2. Partition: rearrange elements so smaller values are on the left, larger on the right
+          3. Recursively apply quicksort to the left and right partitions
+          
+          Time Complexity:
+          - Best/Average: O(n log n)
+          - Worst case: O(n²) when poorly chosen pivots
+
+    # Inline rubrics - simple string format
+    rubrics:
+      - Mentions divide-and-conquer approach
+      - Explains the partition step
+      - States time complexity correctly
+
+  # ==========================================
+  # Example 2: Detailed rubric objects
+  # Demonstrates: rubric objects with weights and required flags
+  # ==========================================
+  - id: technical-writing-detailed
+    
+    expected_outcome: |-
+      Write a comprehensive guide on HTTP status codes with examples
+
+    input_messages:
+      - role: user
+        content: Write a guide explaining HTTP status codes
+
+    expected_messages:
+      - role: assistant
+        content: |-
+          # HTTP Status Codes Guide
+          
+          ## 2xx Success
+          - 200 OK: Request succeeded
+          - 201 Created: Resource created successfully
+          
+          ## 4xx Client Errors
+          - 400 Bad Request: Invalid syntax
+          - 404 Not Found: Resource doesn't exist
+          
+          ## 5xx Server Errors
+          - 500 Internal Server Error: Server-side error
+
+    # Detailed rubric objects with weights and required flags
+    rubrics:
+      - id: structure
+        description: Has clear headings and organization
+        weight: 1.0
+        required: true
+      
+      - id: success-codes
+        description: Covers 2xx success codes with examples
+        weight: 2.0
+        required: true
+      
+      - id: client-errors
+        description: Explains 4xx client error codes
+        weight: 2.0
+        required: true
+      
+      - id: server-errors
+        description: Explains 5xx server error codes
+        weight: 1.5
+        required: false
+      
+      - id: practical-examples
+        description: Includes practical use case examples
+        weight: 1.0
+        required: false
+
+  # ==========================================
+  # Example 3: Multiple evaluators with rubric
+  # Demonstrates: combining rubric evaluator with other evaluators
+  # ==========================================
+  - id: code-quality-multi-eval
+    
+    expected_outcome: |-
+      Python function that validates email addresses with proper error handling
+
+    input_messages:
+      - role: user
+        content: Write a Python function to validate email addresses
+
+    expected_messages:
+      - role: assistant
+        content: |-
+          import re
+          from typing import Optional
+          
+          def validate_email(email: str) -> bool:
+              """
+              Validates if a string is a properly formatted email address.
+              
+              Args:
+                  email: The email string to validate
+                  
+              Returns:
+                  True if valid email format, False otherwise
+              """
+              if not email or not isinstance(email, str):
+                  return False
+              
+              pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+              return bool(re.match(pattern, email))
+
+    # Inline rubrics for semantic checks
+    rubrics:
+      - Uses regular expressions for email validation
+      - Includes type hints
+      - Has docstring documentation
+      - Handles edge cases (None, empty string)
+
+    execution:
+      evaluators:
+        # Rubric evaluator is auto-added from inline rubrics field
+        
+        # Additional code evaluator for syntax checking
+        - name: python_syntax
+          type: code
+          script: python -m py_compile
+
+  # ==========================================
+  # Example 4: Using expected_outcome without rubrics
+  # Demonstrates: expected_outcome as an alias for outcome
+  # Note: Use 'agentv generate rubrics' to create rubrics from expected_outcome
+  # ==========================================
+  - id: summary-task
+    
+    # expected_outcome is the new preferred field name (outcome still works for backward compatibility)
+    expected_outcome: |-
+      Provide a concise summary of the key points in under 50 words
+
+    input_messages:
+      - role: user
+        content: |-
+          Summarize this article:
+          
+          Climate change is accelerating faster than predicted. Recent studies show
+          Arctic ice melting at unprecedented rates, sea levels rising, and extreme
+          weather events becoming more frequent. Scientists urge immediate action to
+          reduce carbon emissions and transition to renewable energy sources.
+
+    expected_messages:
+      - role: assistant
+        content: |-
+          Climate change accelerates with rapid Arctic ice loss and rising seas.
+          Extreme weather increases. Scientists call for urgent carbon emission
+          cuts and renewable energy adoption.
+
+    # No rubrics defined - will use default llm_judge evaluator
+    # To generate rubrics: agentv generate rubrics evals/rubric-examples.yaml
