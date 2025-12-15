@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import { z } from 'zod';
 
 import type { EvaluationContext, EvaluationScore, Evaluator } from '../evaluators.js';
@@ -46,17 +46,50 @@ export class RubricEvaluator implements Evaluator {
 
     const prompt = this.buildPrompt(context, this.config.rubrics);
 
-    // Use generateObject to get structured output
+    // Use generateText to get structured output (manual JSON parsing for compatibility)
     const model = judgeProvider.asLanguageModel?.();
     if (!model) {
       throw new Error('Judge provider does not support language model interface');
     }
 
-    const { object: result } = await generateObject({
-      model,
-      schema: rubricEvaluationSchema,
-      prompt,
-    });
+    const system = `You are an expert evaluator. Evaluate the candidate answer against each rubric item.
+You must return a valid JSON object matching this schema:
+{
+  "checks": [
+    {
+      "id": "string (rubric id)",
+      "satisfied": boolean,
+      "reasoning": "string (brief explanation)"
+    }
+  ],
+  "overall_reasoning": "string (summary)"
+}`;
+
+    let result: z.infer<typeof rubricEvaluationSchema> | undefined;
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const { text } = await generateText({
+          model,
+          system,
+          prompt,
+        });
+
+        const cleaned = text.replace(/```json\n?|```/g, '').trim();
+        result = rubricEvaluationSchema.parse(JSON.parse(cleaned));
+        break;
+      } catch (e: any) {
+        lastError = e;
+        // Continue to next attempt
+      }
+    }
+
+    if (!result) {
+      throw new Error(
+        `Failed to parse rubric evaluation result after 3 attempts: ${lastError?.message}`,
+      );
+    }
 
     // Calculate score and verdict
     const { score, verdict, hits, misses } = this.calculateScore(result, this.config.rubrics);
@@ -70,7 +103,6 @@ export class RubricEvaluator implements Evaluator {
       reasoning: result.overall_reasoning,
       evaluatorRawRequest: {
         prompt,
-        rubrics: this.config.rubrics,
       },
     };
   }
@@ -79,27 +111,27 @@ export class RubricEvaluator implements Evaluator {
     const parts: string[] = [
       'You are an expert evaluator. Evaluate the candidate answer against each rubric item below.',
       '',
-      '[[ Question ]]',
+      '[[ ## question ## ]]',
       context.evalCase.question,
       '',
-      '[[ Expected Outcome ]]',
+      '[[ ## expected_outcome ## ]]',
       context.evalCase.expected_outcome,
       '',
     ];
 
     if (context.evalCase.reference_answer && context.evalCase.reference_answer.trim().length > 0) {
       parts.push(
-        '[[ Reference Answer ]]',
+        '[[ ## reference_answer ## ]]',
         context.evalCase.reference_answer,
         '',
       );
     }
 
     parts.push(
-      '[[ Candidate Answer ]]',
+      '[[ ## candidate_answer ## ]]',
       context.candidate,
       '',
-      '[[ Rubrics ]]',
+      '[[ ## rubrics ## ]]',
     );
 
     for (const rubric of rubrics) {

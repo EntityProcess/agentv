@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import { z } from 'zod';
 
 import type { Provider } from '../providers/types.js';
@@ -35,11 +35,42 @@ export async function generateRubrics(options: GenerateRubricsOptions): Promise<
     throw new Error('Provider does not support language model interface');
   }
 
-  const { object: result } = await generateObject({
-    model,
-    schema: rubricGenerationSchema,
-    prompt,
-  });
+  const system = `You are an expert at creating evaluation rubrics.
+You must return a valid JSON object matching this schema:
+{
+  "rubrics": [
+    {
+      "id": "string (short identifier)",
+      "description": "string (what to check)",
+      "weight": number (default 1.0),
+      "required": boolean (default true)
+    }
+  ]
+}`;
+
+  let result: z.infer<typeof rubricGenerationSchema> | undefined;
+  let lastError: Error | undefined;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const { text } = await generateText({
+        model,
+        system,
+        prompt,
+      });
+
+      const cleaned = text.replace(/```json\n?|```/g, '').trim();
+      result = rubricGenerationSchema.parse(JSON.parse(cleaned));
+      break;
+    } catch (e: any) {
+      lastError = e;
+      // Continue to next attempt
+    }
+  }
+
+  if (!result) {
+    throw new Error(`Failed to parse generated rubrics after 3 attempts: ${lastError?.message}`);
+  }
 
   return result.rubrics;
 }
@@ -63,17 +94,17 @@ function buildPrompt(
     '',
     'Generate 3-7 rubric items that comprehensively cover the expected outcome.',
     '',
-    '[[ Expected Outcome ]]',
+    '[[ ## expected_outcome ## ]]',
     expectedOutcome,
     '',
   ];
 
   if (question && question.trim().length > 0) {
-    parts.push('[[ Question ]]', question, '');
+    parts.push('[[ ## question ## ]]', question, '');
   }
 
   if (referenceAnswer && referenceAnswer.trim().length > 0) {
-    parts.push('[[ Reference Answer ]]', referenceAnswer, '');
+    parts.push('[[ ## reference_answer ## ]]', referenceAnswer, '');
   }
 
   return parts.join('\n');
