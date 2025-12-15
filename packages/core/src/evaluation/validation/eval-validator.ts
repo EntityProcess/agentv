@@ -83,7 +83,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       continue;
     }
 
-    // Required fields: id, outcome, input_messages, expected_messages
+    // Required fields: id, input_messages, expected_messages
     const id = evalCase.id;
     if (typeof id !== 'string' || id.trim().length === 0) {
       errors.push({
@@ -94,13 +94,14 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       });
     }
 
-    const outcome = evalCase.outcome;
-    if (typeof outcome !== 'string' || outcome.trim().length === 0) {
+    // Optional: expected_outcome or outcome for backward compatibility
+    const expectedOutcome = evalCase.expected_outcome ?? evalCase.outcome;
+    if (expectedOutcome !== undefined && (typeof expectedOutcome !== 'string' || expectedOutcome.trim().length === 0)) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
-        location: `${location}.outcome`,
-        message: "Missing or invalid 'outcome' field (must be a non-empty string)",
+        location: `${location}.expected_outcome`,
+        message: "Invalid 'expected_outcome' or 'outcome' field (must be a non-empty string if provided)",
       });
     }
 
