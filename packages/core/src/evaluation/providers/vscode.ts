@@ -10,6 +10,7 @@ import { readTextFile } from '../file-utils.js';
 import { isGuidelineFile } from '../yaml-parser.js';
 import type { VSCodeResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
+import { AGENTV_BATCH_REQUEST_TEMPLATE, AGENTV_REQUEST_TEMPLATE } from './vscode-templates.js';
 
 export class VSCodeProvider implements Provider {
   readonly id: string;
@@ -41,6 +42,7 @@ export class VSCodeProvider implements Provider {
     const session = await dispatchAgentSession({
       userQuery: promptContent,
       extraAttachments: inputFiles,
+      requestTemplate: AGENTV_REQUEST_TEMPLATE,
       wait: this.config.waitForResponse,
       dryRun: this.config.dryRun,
       vscodeCmd: this.config.command,
@@ -95,6 +97,7 @@ export class VSCodeProvider implements Provider {
     const session = await dispatchBatchAgent({
       userQueries,
       extraAttachments: combinedInputFiles,
+      requestTemplate: AGENTV_BATCH_REQUEST_TEMPLATE,
       wait: this.config.waitForResponse,
       dryRun: this.config.dryRun,
       vscodeCmd: this.config.command,

@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "@agentv/workspace",
+      "dependencies": {
+        "subagent": "^0.5.6",
+      },
       "devDependencies": {
         "@biomejs/biome": "^1.9.4",
         "@changesets/cli": "^2.29.8",
@@ -20,7 +23,7 @@
     },
     "apps/cli": {
       "name": "agentv",
-      "version": "0.19.0",
+      "version": "0.20.0",
       "bin": {
         "agentv": "./dist/cli.js",
       },
@@ -38,14 +41,14 @@
     },
     "packages/core": {
       "name": "@agentv/core",
-      "version": "0.19.0",
+      "version": "0.20.0",
       "dependencies": {
         "@ai-sdk/anthropic": "^2.0.53",
         "@ai-sdk/azure": "^2.0.78",
         "@ai-sdk/google": "^2.0.44",
         "ai": "^5.0.106",
         "micromatch": "^4.0.8",
-        "subagent": "^0.5.5",
+        "subagent": "^0.5.6",
         "yaml": "^2.6.0",
         "zod": "^3.23.8",
       },
@@ -637,7 +640,7 @@
 
     "strip-literal": ["strip-literal@2.1.1", "", { "dependencies": { "js-tokens": "^9.0.1" } }, "sha512-631UJ6O00eNGfMiWG78ck80dfBab8X6IVFB51jZK5Icd7XAs60Z5y7QdSd/wGIklnWvRbUNloVzhOKKmutxQ6Q=="],
 
-    "subagent": ["subagent@0.5.5", "", { "dependencies": { "commander": "^12.1.0", "json5": "^2.2.3", "pino": "^9.5.0", "rotating-file-stream": "^3.2.5" }, "bin": { "subagent": "dist/cli.js" } }, "sha512-8u6gZu8qBMXbh+RGBnVJenakDSDOmSjPG9KTG5O6Z7tc9NGOqKbuyRG/umUNLy0qzS0OhC5fzueGQcGPoakRkw=="],
+    "subagent": ["subagent@0.5.6", "", { "dependencies": { "commander": "^12.1.0", "json5": "^2.2.3", "pino": "^9.5.0", "rotating-file-stream": "^3.2.5" }, "bin": { "subagent": "dist/cli.js" } }, "sha512-ZR9Y+STRgWukNOJD5llUr7jWlYF9DvmGMKYS1Z+M1a5vm4nuRouyinymiD0NMo73w3C2f2rjghgmzeLRFX46UA=="],
 
     "sucrase": ["sucrase@3.35.1", "", { "dependencies": { "@jridgewell/gen-mapping": "^0.3.2", "commander": "^4.0.0", "lines-and-columns": "^1.1.6", "mz": "^2.7.0", "pirates": "^4.0.1", "tinyglobby": "^0.2.11", "ts-interface-checker": "^0.1.9" }, "bin": { "sucrase": "bin/sucrase", "sucrase-node": "bin/sucrase-node" } }, "sha512-DhuTmvZWux4H1UOnWMB3sk0sbaCVOoQZjv8u1rDoTV0HTdGem9hkAZtl4JZy8P2z4Bg0nT+YMeOFyVr4zcG5Tw=="],
 

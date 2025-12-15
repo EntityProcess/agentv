@@ -1,5 +1,12 @@
 # agentv
 
+## 0.20.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @agentv/core@0.21.0
+
 ## 0.20.0
 
 ### Minor Changes
