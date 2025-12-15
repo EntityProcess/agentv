@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { parse, stringify } from 'yaml';
+import { type YAMLSeq, isMap, isSeq, parseDocument } from 'yaml';
 
 import { type JsonObject, type JsonValue, createProvider, generateRubrics } from '@agentv/core';
 import { selectTarget } from '../eval/targets.js';
@@ -45,7 +45,8 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
   // Read the YAML file
   const absolutePath = path.resolve(file);
   const content = await readFile(absolutePath, 'utf8');
-  const parsed = parse(content) as unknown;
+  const doc = parseDocument(content);
+  const parsed = doc.toJSON() as unknown;
 
   if (!isJsonObject(parsed)) {
     throw new Error(`Invalid YAML file format: ${file}`);
@@ -80,8 +81,15 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
   let updatedCount = 0;
   let skippedCount = 0;
 
+  // Get the evalcases node from the document for modification
+  const evalcasesNode = doc.getIn(['evalcases']);
+  if (!evalcasesNode || !isSeq(evalcasesNode)) {
+    throw new Error('evalcases must be a sequence');
+  }
+
   // Process each eval case
-  for (const rawCase of evalcases) {
+  for (let i = 0; i < evalcases.length; i++) {
+    const rawCase = evalcases[i];
     if (!isJsonObject(rawCase)) {
       continue;
     }
@@ -121,15 +129,21 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
       provider,
     });
 
-    // Update the eval case with rubrics
-    (rawCase as Record<string, unknown>).rubrics = rubrics.map(
-      (r: { id: string; description: string; weight: number; required: boolean }) => ({
-        id: r.id,
-        description: r.description,
-        weight: r.weight,
-        required: r.required,
-      }),
-    );
+    // Update the eval case with rubrics in the YAML document
+    const caseNode = (evalcasesNode as YAMLSeq).items[i];
+    if (caseNode && isMap(caseNode)) {
+      caseNode.set(
+        'rubrics',
+        rubrics.map(
+          (r: { id: string; description: string; weight: number; required: boolean }) => ({
+            id: r.id,
+            description: r.description,
+            weight: r.weight,
+            required: r.required,
+          }),
+        ),
+      );
+    }
 
     updatedCount++;
 
@@ -140,7 +154,7 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
 
   // Write back to file
   if (updatedCount > 0) {
-    const output = stringify(parsed, { lineWidth: 0 });
+    const output = doc.toString();
     await writeFile(absolutePath, output, 'utf8');
     console.log(`\nUpdated ${updatedCount} eval case(s) with generated rubrics`);
     if (skippedCount > 0) {

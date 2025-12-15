@@ -12,7 +12,7 @@ evalcases:
   # Demonstrates: inline rubrics as strings, expected_outcome field
   # ==========================================
   - id: code-explanation-simple
-    
+
     expected_outcome: |-
       Provide a clear explanation of how quicksort works, including time complexity
 
@@ -24,11 +24,11 @@ evalcases:
       - role: assistant
         content: |-
           Quicksort is a divide-and-conquer sorting algorithm:
-          
+
           1. Choose a pivot element from the array
           2. Partition: rearrange elements so smaller values are on the left, larger on the right
           3. Recursively apply quicksort to the left and right partitions
-          
+
           Time Complexity:
           - Best/Average: O(n log n)
           - Worst case: O(n²) when poorly chosen pivots
@@ -44,7 +44,7 @@ evalcases:
   # Demonstrates: rubric objects with weights and required flags
   # ==========================================
   - id: technical-writing-detailed
-    
+
     expected_outcome: |-
       Write a comprehensive guide on HTTP status codes with examples
 
@@ -56,15 +56,15 @@ evalcases:
       - role: assistant
         content: |-
           # HTTP Status Codes Guide
-          
+
           ## 2xx Success
           - 200 OK: Request succeeded
           - 201 Created: Resource created successfully
-          
+
           ## 4xx Client Errors
           - 400 Bad Request: Invalid syntax
           - 404 Not Found: Resource doesn't exist
-          
+
           ## 5xx Server Errors
           - 500 Internal Server Error: Server-side error
 
@@ -74,22 +74,22 @@ evalcases:
         description: Has clear headings and organization
         weight: 1.0
         required: true
-      
+
       - id: success-codes
         description: Covers 2xx success codes with examples
         weight: 2.0
         required: true
-      
+
       - id: client-errors
         description: Explains 4xx client error codes
         weight: 2.0
         required: true
-      
+
       - id: server-errors
         description: Explains 5xx server error codes
         weight: 1.5
         required: false
-      
+
       - id: practical-examples
         description: Includes practical use case examples
         weight: 1.0
@@ -100,7 +100,7 @@ evalcases:
   # Demonstrates: combining rubric evaluator with other evaluators
   # ==========================================
   - id: code-quality-multi-eval
-    
+
     expected_outcome: |-
       Python function that validates email addresses with proper error handling
 
@@ -113,7 +113,7 @@ evalcases:
         content: |-
           import re
           from typing import Optional
-          
+
           def validate_email(email: str) -> bool:
               """
               Validates if a string is a properly formatted email address.
@@ -140,7 +140,7 @@ evalcases:
     execution:
       evaluators:
         # Rubric evaluator is auto-added from inline rubrics field
-        
+
         # Additional code evaluator for syntax checking
         - name: python_syntax
           type: code
@@ -152,7 +152,7 @@ evalcases:
   # Note: Use 'agentv generate rubrics' to create rubrics from expected_outcome
   # ==========================================
   - id: summary-task
-    
+
     # expected_outcome is the new preferred field name (outcome still works for backward compatibility)
     expected_outcome: |-
       Provide a concise summary of the key points in under 50 words
@@ -161,7 +161,7 @@ evalcases:
       - role: user
         content: |-
           Summarize this article:
-          
+
           Climate change is accelerating faster than predicted. Recent studies show
           Arctic ice melting at unprecedented rates, sea levels rising, and extreme
           weather events becoming more frequent. Scientists urge immediate action to
