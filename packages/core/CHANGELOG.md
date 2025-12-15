@@ -1,5 +1,11 @@
 # @agentv/core
 
+## 0.21.0
+
+### Minor Changes
+
+- Updated subagent to 0.5.6 and added custom request templates for VSCode evaluations to ensure all outputs are written to a single response file.
+
 ## 0.20.0
 
 ### Minor Changes
