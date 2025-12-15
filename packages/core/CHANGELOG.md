@@ -1,5 +1,11 @@
 # @agentv/core
 
+## 0.22.0
+
+### Minor Changes
+
+- 7349653: Add rubric evaluator and generator for structured, AI-powered grading of agent responses
+
 ## 0.21.0
 
 ### Minor Changes
