@@ -57,6 +57,10 @@ export class AzureProvider implements Provider {
       retryConfig: this.retryConfig,
     });
   }
+
+  asLanguageModel(): LanguageModel {
+    return this.model;
+  }
 }
 
 export class AnthropicProvider implements Provider {
@@ -98,6 +102,10 @@ export class AnthropicProvider implements Provider {
       providerOptions,
     });
   }
+
+  asLanguageModel(): LanguageModel {
+    return this.model;
+  }
 }
 
 export class GeminiProvider implements Provider {
@@ -134,6 +142,10 @@ export class GeminiProvider implements Provider {
       defaults: this.defaults,
       retryConfig: this.retryConfig,
     });
+  }
+
+  asLanguageModel(): LanguageModel {
+    return this.model;
   }
 }
 

@@ -114,6 +114,36 @@ export async function parseEvaluators(
 
     const _model = asString(rawEvaluator.model);
 
+    if (typeValue === 'rubric') {
+      const rubrics = rawEvaluator.rubrics;
+      if (!Array.isArray(rubrics)) {
+        logWarning(`Skipping rubric evaluator '${name}' in '${evalId}': missing rubrics array`);
+        continue;
+      }
+
+      const parsedRubrics = rubrics
+        .filter((r): r is JsonObject => isJsonObject(r))
+        .map((rubric, index) => ({
+          id: asString(rubric.id) ?? `rubric-${index + 1}`,
+          description: asString(rubric.description) ?? '',
+          weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
+          required: typeof rubric.required === 'boolean' ? rubric.required : true,
+        }))
+        .filter((r) => r.description.length > 0);
+
+      if (parsedRubrics.length === 0) {
+        logWarning(`Skipping rubric evaluator '${name}' in '${evalId}': no valid rubrics found`);
+        continue;
+      }
+
+      evaluators.push({
+        name,
+        type: 'rubric',
+        rubrics: parsedRubrics,
+      });
+      continue;
+    }
+
     evaluators.push({
       name,
       type: 'llm_judge',
