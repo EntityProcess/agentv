@@ -2,6 +2,7 @@ import { generateText } from 'ai';
 import { z } from 'zod';
 
 import type { EvaluationContext, EvaluationScore, Evaluator } from '../evaluators.js';
+import type { Provider } from '../providers/types.js';
 import type { RubricEvaluatorConfig, RubricItem } from '../types.js';
 
 const rubricCheckResultSchema = z.object({
@@ -17,14 +18,16 @@ const rubricEvaluationSchema = z.object({
 
 export interface RubricEvaluatorOptions {
   readonly config: RubricEvaluatorConfig;
-  readonly resolveJudgeProvider: (context: EvaluationContext) => Promise<import('../providers/types.js').Provider | undefined>;
+  readonly resolveJudgeProvider: (context: EvaluationContext) => Promise<Provider | undefined>;
 }
 
 export class RubricEvaluator implements Evaluator {
   readonly kind = 'rubric';
 
   private readonly config: RubricEvaluatorConfig;
-  private readonly resolveJudgeProvider: (context: EvaluationContext) => Promise<import('../providers/types.js').Provider | undefined>;
+  private readonly resolveJudgeProvider: (
+    context: EvaluationContext,
+  ) => Promise<Provider | undefined>;
 
   constructor(options: RubricEvaluatorOptions) {
     this.config = options.config;
@@ -79,8 +82,8 @@ You must return a valid JSON object matching this schema:
         const cleaned = text.replace(/```json\n?|```/g, '').trim();
         result = rubricEvaluationSchema.parse(JSON.parse(cleaned));
         break;
-      } catch (e: any) {
-        lastError = e;
+      } catch (e: unknown) {
+        lastError = e instanceof Error ? e : new Error(String(e));
         // Continue to next attempt
       }
     }
@@ -120,19 +123,10 @@ You must return a valid JSON object matching this schema:
     ];
 
     if (context.evalCase.reference_answer && context.evalCase.reference_answer.trim().length > 0) {
-      parts.push(
-        '[[ ## reference_answer ## ]]',
-        context.evalCase.reference_answer,
-        '',
-      );
+      parts.push('[[ ## reference_answer ## ]]', context.evalCase.reference_answer, '');
     }
 
-    parts.push(
-      '[[ ## candidate_answer ## ]]',
-      context.candidate,
-      '',
-      '[[ ## rubrics ## ]]',
-    );
+    parts.push('[[ ## candidate_answer ## ]]', context.candidate, '', '[[ ## rubrics ## ]]');
 
     for (const rubric of rubrics) {
       const requiredLabel = rubric.required ? ' (REQUIRED)' : '';
@@ -140,10 +134,7 @@ You must return a valid JSON object matching this schema:
       parts.push(`- [${rubric.id}]${requiredLabel}${weightLabel}: ${rubric.description}`);
     }
 
-    parts.push(
-      '',
-      'For each rubric, determine if it is satisfied and provide brief reasoning.',
-    );
+    parts.push('', 'For each rubric, determine if it is satisfied and provide brief reasoning.');
 
     return parts.join('\n');
   }

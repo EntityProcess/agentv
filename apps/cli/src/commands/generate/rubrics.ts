@@ -1,14 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { stringify, parse } from 'yaml';
+import { parse, stringify } from 'yaml';
 
-import {
-  createProvider,
-  generateRubrics,
-  resolveTargetDefinition,
-  type JsonObject,
-  type JsonValue,
-} from '@agentv/core';
+import { type JsonObject, type JsonValue, createProvider, generateRubrics } from '@agentv/core';
+import { selectTarget } from '../eval/targets.js';
 
 interface GenerateRubricsOptions {
   readonly file: string;
@@ -63,20 +58,24 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
     throw new Error(`No evalcases found in ${file}`);
   }
 
-  // Determine target
-  const targetFromSuite = asString(suite.execution?.target) ?? asString(suite.target);
-  const targetName = targetOverride ?? targetFromSuite ?? 'openai:gpt-4o';
+  // Resolve target using the same logic as eval command
+  const targetSelection = await selectTarget({
+    testFilePath: absolutePath,
+    repoRoot: process.cwd(),
+    cwd: process.cwd(),
+    cliTargetName: targetOverride,
+    dryRun: false,
+    dryRunDelay: 0,
+    dryRunDelayMin: 0,
+    dryRunDelayMax: 0,
+    env: process.env,
+  });
 
   if (verbose) {
-    console.log(`Using target: ${targetName}`);
+    console.log(`Using target: ${targetSelection.targetName}`);
   }
 
-  // Resolve target and create provider
-  const resolvedTarget = await resolveTargetDefinition(
-    { name: targetName, provider: targetName.split(':')[0] as 'azure' | 'anthropic' | 'gemini' },
-    process.env,
-  );
-  const provider = createProvider(resolvedTarget);
+  const provider = createProvider(targetSelection.resolvedTarget);
 
   let updatedCount = 0;
   let skippedCount = 0;
@@ -123,12 +122,14 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
     });
 
     // Update the eval case with rubrics
-    (rawCase as Record<string, unknown>).rubrics = rubrics.map((r: { id: string; description: string; weight: number; required: boolean }) => ({
-      id: r.id,
-      description: r.description,
-      weight: r.weight,
-      required: r.required,
-    }));
+    (rawCase as Record<string, unknown>).rubrics = rubrics.map(
+      (r: { id: string; description: string; weight: number; required: boolean }) => ({
+        id: r.id,
+        description: r.description,
+        weight: r.weight,
+        required: r.required,
+      }),
+    );
 
     updatedCount++;
 

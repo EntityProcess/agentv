@@ -25,7 +25,9 @@ export interface GenerateRubricsOptions {
 /**
  * Generate rubrics from expected outcome using an LLM.
  */
-export async function generateRubrics(options: GenerateRubricsOptions): Promise<readonly RubricItem[]> {
+export async function generateRubrics(
+  options: GenerateRubricsOptions,
+): Promise<readonly RubricItem[]> {
   const { expectedOutcome, question, referenceAnswer, provider } = options;
 
   const prompt = buildPrompt(expectedOutcome, question, referenceAnswer);
@@ -62,8 +64,8 @@ You must return a valid JSON object matching this schema:
       const cleaned = text.replace(/```json\n?|```/g, '').trim();
       result = rubricGenerationSchema.parse(JSON.parse(cleaned));
       break;
-    } catch (e: any) {
-      lastError = e;
+    } catch (e: unknown) {
+      lastError = e instanceof Error ? e : new Error(String(e));
       // Continue to next attempt
     }
   }
@@ -75,11 +77,7 @@ You must return a valid JSON object matching this schema:
   return result.rubrics;
 }
 
-function buildPrompt(
-  expectedOutcome: string,
-  question?: string,
-  referenceAnswer?: string,
-): string {
+function buildPrompt(expectedOutcome: string, question?: string, referenceAnswer?: string): string {
   const parts: string[] = [
     'You are an expert at creating evaluation rubrics.',
     'Given the expected outcome (and optionally the question and reference answer),',
