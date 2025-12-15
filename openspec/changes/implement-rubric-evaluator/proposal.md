@@ -14,3 +14,7 @@ Client projects currently use custom tools that generate checklists (rubrics) dy
     *   Allow `rubrics` to be defined directly on `EvalCase` in YAML.
     *   Add `verdict` (`pass` | `fail` | `borderline`) to `EvaluationScore`.
 4.  **Integration**: Update `yaml-parser` to configure `RubricEvaluator` from the explicit `rubrics` field. Runtime generation is NOT supported; users must run `generate rubrics` first.
+
+## Future Work
+*   **Unified Evaluator**: In the future, we may merge `RubricEvaluator` back into a generalized `LlmJudgeEvaluator` that supports custom output schemas and scoring logic. For now, a separate class ensures stability and type safety.
+*   **Evaluator Types**: Currently, we introduce a specific `rubric` evaluator type. Long-term, we might align with Azure SDK's pattern of just `code` vs `prompt` (renaming `llm_judge` to `prompt`). `rubric` would then become a specialized configuration of the `prompt` evaluator, but the YAML syntax `rubrics: [...]` would remain as a convenient alias.
