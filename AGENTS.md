@@ -2,6 +2,13 @@
 
 This is a TypeScript monorepo for AgentV - an AI agent evaluation framework.
 
+## High-Level Goals
+AgentV aims to provide a robust, declarative framework for evaluating AI agents.
+- **Declarative Definitions**: Define tasks, expected outcomes, and rubrics in simple YAML files.
+- **Structured Evaluation**: Use "Rubric as Object" (Google ADK style) for deterministic, type-safe grading.
+- **Multi-Objective Scoring**: Measure correctness, latency, cost, and safety in a single run.
+- **Optimization Ready**: Designed to support future automated hyperparameter tuning and candidate generation.
+
 ## Tech Stack & Tools
 - **Language:** TypeScript 5.x targeting ES2022
 - **Runtime:** Bun (use `bun` for all package and script operations)
