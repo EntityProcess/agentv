@@ -1,7 +1,7 @@
 # Unified Evaluator
 
 ## Summary
-Merge `RubricEvaluator` into `LlmJudgeEvaluator` (renaming it to `PromptEvaluator`) to create a single, unified evaluator that handles both unstructured grading (score + reasoning) and structured grading (rubrics). This unifies the handling of `verdict`, `hits`, and `misses` across both modes.
+Merge `RubricEvaluator` into `LlmJudgeEvaluator` to create a single, unified evaluator that handles both unstructured grading (score + reasoning) and structured grading (rubrics). This unifies the handling of `verdict`, `hits`, and `misses` across both modes.
 
 ## Motivation
 Currently, `RubricEvaluator` and `LlmJudgeEvaluator` are separate classes with different behaviors:
@@ -12,13 +12,12 @@ Merging them simplifies the architecture and ensures consistent behavior. Users 
 
 ## Proposed Changes
 
-### 1. Rename and Refactor
-*   Rename `LlmJudgeEvaluator` to `PromptEvaluator`.
-*   Update `PromptEvaluatorConfig` (formerly `LlmJudgeEvaluatorConfig`) to include an optional `rubrics` field.
+### 1. Refactor LlmJudgeEvaluator
+*   Update `LlmJudgeEvaluatorConfig` to include an optional `rubrics` field.
 *   Deprecate `RubricEvaluatorConfig` and `type: 'rubric'`.
 
-### 2. Unified Logic in `PromptEvaluator`
-Modify `PromptEvaluator.evaluate` to check for the presence of `rubrics`.
+### 2. Unified Logic in `LlmJudgeEvaluator`
+Modify `LlmJudgeEvaluator.evaluate` to check for the presence of `rubrics`.
 
 **Mode A: Rubric Mode (if `rubrics` are present)**
 *   **Prompt**: Construct the prompt listing all rubrics (same as current `RubricEvaluator`).
@@ -43,10 +42,10 @@ Ensure `verdict` is always populated in `EvaluationScore`.
     *   `score < 0.6` -> `fail`
 
 ### 4. Implementation Details
-*   **Shared Execution**: Implement a `runWithRetry` method in `PromptEvaluator` that handles the LLM interaction, JSON parsing, and retries (3 attempts) for *both* modes.
+*   **Shared Execution**: Implement a `runWithRetry` method in `LlmJudgeEvaluator` that handles the LLM interaction, JSON parsing, and retries (3 attempts) for *both* modes.
 *   **Provider Compatibility**: Prefer `asLanguageModel` (Vercel AI SDK) if available, falling back to `invoke` (Legacy) if not. This ensures modern features are used where possible while maintaining compatibility.
 
 ## Migration Strategy
-1.  Update `LlmJudgeEvaluator` to handle `rubrics` and rename to `PromptEvaluator`.
-2.  Update `yaml-parser` to map `type: 'rubric'` config to the new unified `PromptEvaluator` with `rubrics` populated.
+1.  Update `LlmJudgeEvaluator` to handle `rubrics`.
+2.  Update `yaml-parser` to map `type: 'rubric'` config to the new unified `LlmJudgeEvaluator` with `rubrics` populated.
 3.  Eventually remove `RubricEvaluator` class and `type: 'rubric'`.

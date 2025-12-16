@@ -2,15 +2,15 @@
 
 ## Architecture
 
-The `PromptEvaluator` will serve as the single entry point for LLM-based evaluation. It will internally switch strategies based on the configuration.
+The `LlmJudgeEvaluator` will serve as the single entry point for LLM-based evaluation. It will internally switch strategies based on the configuration.
 
 ### Class Structure
 
 ```typescript
-export class PromptEvaluator implements Evaluator {
-  readonly kind = 'prompt'; // formerly 'llm_judge'
+export class LlmJudgeEvaluator implements Evaluator {
+  readonly kind = 'llm_judge';
 
-  constructor(options: PromptEvaluatorOptions) { ... }
+  constructor(options: LlmJudgeEvaluatorOptions) { ... }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
     if (this.config.rubrics && this.config.rubrics.length > 0) {
@@ -39,9 +39,9 @@ export class PromptEvaluator implements Evaluator {
 The configuration type will be unified:
 
 ```typescript
-export type PromptEvaluatorConfig = {
+export type LlmJudgeEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'prompt'; // Alias 'llm_judge' for backward compatibility
+  readonly type: 'llm_judge';
   readonly prompt?: string; // Custom template for freeform mode
   readonly rubrics?: readonly RubricItem[]; // Triggers rubric mode
   // ... other options like maxOutputTokens, temperature
@@ -72,13 +72,13 @@ To ensure consistency, `verdict` will be a first-class citizen in `EvaluationSco
 
 ## Trade-offs
 
-*   **Complexity**: The `PromptEvaluator` becomes slightly more complex as it handles two modes. However, this reduces the overall system complexity by removing a separate evaluator class and unifying the configuration surface.
-*   **Backward Compatibility**: We need to support `type: 'llm_judge'` and `type: 'rubric'` in the YAML parser for a while. The parser will map these to `PromptEvaluatorConfig`.
+*   **Complexity**: The `LlmJudgeEvaluator` becomes slightly more complex as it handles two modes. However, this reduces the overall system complexity by removing a separate evaluator class and unifying the configuration surface.
+*   **Backward Compatibility**: We need to support `type: 'llm_judge'` and `type: 'rubric'` in the YAML parser for a while. The parser will map these to `LlmJudgeEvaluatorConfig`.
 
 ## Implementation Details
 
 ### Shared Execution Engine
-To address the disparity in retry logic and provider interaction, `PromptEvaluator` will implement a shared execution method:
+To address the disparity in retry logic and provider interaction, `LlmJudgeEvaluator` will implement a shared execution method:
 
 ```typescript
 private async runWithRetry<T>(

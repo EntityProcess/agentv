@@ -8,7 +8,7 @@ The system SHALL instruct LLM judge evaluators to emit a single JSON object and 
 
 #### Scenario: Enforce JSON prompt contract
 
-- **WHEN** an LLM judge evaluator (PromptEvaluator) builds its prompts in freeform mode
+- **WHEN** an LLM judge evaluator (LlmJudgeEvaluator) builds its prompts in freeform mode
 - **THEN** it renders a user prompt that includes `expected_outcome`, `question`, `reference_answer`, and `candidate_answer`
 - **AND** it adds a system prompt that mandates a single JSON object with `score`, `hits`, `misses`, and `reasoning` (hits/misses capped at four items)
 
@@ -27,17 +27,17 @@ The system SHALL instruct LLM judge evaluators to emit a single JSON object and 
 
 ### ADDED Requirements
 
-### Requirement: Unified Prompt Evaluator
+### Requirement: Unified LLM Judge Evaluator
 
-The system SHALL support a unified `PromptEvaluator` that handles both freeform and rubric-based evaluation.
+The system SHALL support a unified `LlmJudgeEvaluator` that handles both freeform and rubric-based evaluation.
 
 #### Scenario: Rubric Mode Trigger
-- **Given** a `PromptEvaluator` configured with a non-empty `rubrics` list
+- **Given** a `LlmJudgeEvaluator` configured with a non-empty `rubrics` list
 - **When** `evaluate` is called
 - **Then** it SHALL use the rubric-based evaluation logic (checking each rubric item).
 
 #### Scenario: Freeform Mode Trigger
-- **Given** a `PromptEvaluator` configured without `rubrics`
+- **Given** a `LlmJudgeEvaluator` configured without `rubrics`
 - **When** `evaluate` is called
 - **Then** it SHALL use the freeform evaluation logic (generating score/hits/misses via LLM).
 
