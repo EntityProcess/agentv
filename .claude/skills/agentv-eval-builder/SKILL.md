@@ -12,7 +12,7 @@ description: Create and maintain AgentV YAML evaluation files for testing AI age
 
 ## Structure Requirements
 - Root level: `description` (optional), `execution` (optional), `evalcases` (required)
-- Eval case fields: `id` (required), `outcome` (required), `input_messages` (required), `expected_messages` (required)
+- Eval case fields: `id` (required), `expected_outcome` (required), `input_messages` (required), `expected_messages` (required)
 - Optional fields: `conversation_id`, `note`, `execution`
 - Message fields: `role` (required), `content` (required)
 - Message roles: `system`, `user`, `assistant`, `tool`
@@ -37,7 +37,7 @@ execution:
 ```
 
 **Contract:**
-- Input (stdin): JSON with `task`, `outcome`, `expected`, `output`, `system_message`, etc.
+- Input (stdin): JSON with `task`, `expected_outcome`, `expected`, `output`, `system_message`, etc.
 - Output (stdout): JSON with `score` (0.0-1.0), `hits`, `misses`, `reasoning`
 
 **Template:** See `references/custom-evaluators.md` for Python code evaluator template
@@ -76,7 +76,7 @@ execution:
 
 evalcases:
   - id: code-review-basic
-    outcome: Assistant provides helpful code analysis
+    expected_outcome: Assistant provides helpful code analysis
     
     input_messages:
       - role: system

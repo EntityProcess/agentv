@@ -1,5 +1,11 @@
 # agentv
 
+## 0.21.1
+
+### Patch Changes
+
+- rename outcome to expected_outcome in examples and skills
+
 ## 0.21.0
 
 ### Minor Changes

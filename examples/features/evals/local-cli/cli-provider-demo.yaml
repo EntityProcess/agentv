@@ -8,7 +8,7 @@ target: local_cli
 
 evalcases:
   - id: cli-provider-echo
-    outcome: CLI echoes the prompt and mentions all attachment names
+    expected_outcome: CLI echoes the prompt and mentions all attachment names
 
     input_messages:
       - role: system
