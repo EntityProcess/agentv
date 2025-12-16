@@ -28,14 +28,17 @@ describe('CodexProvider', () => {
   });
 
   it('mirrors input files and composes preread block', async () => {
-    const runner = mock<
-      [{ prompt: string; args: readonly string[]; onStdoutChunk?: (chunk: string) => void }],
-      Promise<{ stdout: string; stderr: string; exitCode: number }>
-    >(async () => ({
-      stdout: JSON.stringify({ messages: [{ role: 'assistant', content: 'done' }] }),
-      stderr: '',
-      exitCode: 0,
-    }));
+    const runner = mock(
+      async (_opts: {
+        prompt: string;
+        args: readonly string[];
+        onStdoutChunk?: (chunk: string) => void;
+      }) => ({
+        stdout: JSON.stringify({ messages: [{ role: 'assistant', content: 'done' }] }),
+        stderr: '',
+        exitCode: 0,
+      }),
+    );
     const provider = new CodexProvider(
       'codex-target',
       {
