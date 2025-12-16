@@ -1,5 +1,11 @@
 # @agentv/core
 
+## 0.22.1
+
+### Patch Changes
+
+- Migrated CLI command parsing from commander.js to cmd-ts library for enhanced TypeScript support, better argument validation, and improved developer experience. Updated all command definitions and error handling accordingly.
+
 ## 0.22.0
 
 ### Minor Changes
