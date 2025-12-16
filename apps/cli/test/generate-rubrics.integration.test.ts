@@ -4,12 +4,12 @@
  * These tests verify that the command correctly updates YAML files with generated rubrics.
  */
 
+import { afterEach, beforeAll, describe, expect, it, mock } from 'bun:test';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execa } from 'execa';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 interface GenerateFixture {
   readonly baseDir: string;

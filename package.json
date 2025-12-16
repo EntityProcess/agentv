@@ -15,7 +15,6 @@
     "fix": "biome check --write .",
     "test": "bun --filter @agentv/core test && bun --filter agentv test",
     "test:watch": "bun --filter @agentv/core test:watch & bun --filter agentv test:watch",
-    "test:coverage": "bun --filter @agentv/core test:coverage && bun --filter agentv test:coverage",
     "dev": "bun --filter agentv dev",
     "agentv": "bun apps/cli/dist/cli.js",
     "changeset": "changeset",
@@ -29,13 +28,10 @@
     "@changesets/cli": "^2.29.8",
     "@types/bun": "latest",
     "@types/node": "24.1.0",
-    "@vitest/coverage-v8": "1.6.1",
     "async-mutex": "^0.5.0",
     "p-limit": "^6.1.0",
     "tsup": "8.3.5",
-    "typescript": "5.8.3",
-    "vite-tsconfig-paths": "5.1.1",
-    "vitest": "1.6.1"
+    "typescript": "5.8.3"
   },
   "dependencies": {
     "subagent": "^0.5.6"

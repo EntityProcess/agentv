@@ -14,10 +14,7 @@
   "bin": {
     "agentv": "./dist/cli.js"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "build": "tsup && bun run copy-readme",
@@ -27,9 +24,8 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "fix": "biome check --write .",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test": "bun test",
+    "test:watch": "bun test --watch"
   },
   "dependencies": {
     "@agentv/core": "workspace:*",

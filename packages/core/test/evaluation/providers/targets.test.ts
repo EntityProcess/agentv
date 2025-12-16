@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-const generateTextMock = vi.fn(async () => ({
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
+const generateTextMock = mock(async () => ({
   text: 'ok',
   reasoningText: undefined,
   usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
@@ -19,23 +19,23 @@ const generateTextMock = vi.fn(async () => ({
   providerMetadata: undefined,
 }));
 
-const createAzureMock = vi.fn((options: unknown) => () => ({ provider: 'azure', options }));
-const createAnthropicMock = vi.fn(() => () => ({ provider: 'anthropic' }));
-const createGeminiMock = vi.fn(() => () => ({ provider: 'gemini' }));
+const createAzureMock = mock((options: unknown) => () => ({ provider: 'azure', options }));
+const createAnthropicMock = mock(() => () => ({ provider: 'anthropic' }));
+const createGeminiMock = mock(() => () => ({ provider: 'gemini' }));
 
-vi.mock('ai', () => ({
+mock.module('ai', () => ({
   generateText: () => generateTextMock(),
 }));
 
-vi.mock('@ai-sdk/azure', () => ({
+mock.module('@ai-sdk/azure', () => ({
   createAzure: (options: unknown) => createAzureMock(options),
 }));
 
-vi.mock('@ai-sdk/anthropic', () => ({
+mock.module('@ai-sdk/anthropic', () => ({
   createAnthropic: () => createAnthropicMock(),
 }));
 
-vi.mock('@ai-sdk/google', () => ({
+mock.module('@ai-sdk/google', () => ({
   createGoogleGenerativeAI: () => createGeminiMock(),
 }));
 
