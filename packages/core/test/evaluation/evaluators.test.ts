@@ -82,6 +82,7 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     expect(result.score).toBeCloseTo(0.8);
+    expect(result.verdict).toBe('pass');
     expect(result.hits).toContain('Captured logging requirement');
     expect(result.misses).toContain('Did not mention tests');
     expect(result.reasoning).toBe('Solid coverage with minor omissions');
@@ -113,6 +114,7 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     expect(result.score).toBeCloseTo(0.75);
+    expect(result.verdict).toBe('borderline');
     expect(result.hits).toHaveLength(2);
     expect(result.misses).toHaveLength(1);
   });
@@ -143,6 +145,7 @@ describe('LlmJudgeEvaluator', () => {
 
     // Should fall back to defaults when validation fails
     expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
     expect(result.hits).toHaveLength(0);
     expect(result.misses).toHaveLength(0);
   });
@@ -172,6 +175,7 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     expect(result.score).toBeCloseTo(0.9);
+    expect(result.verdict).toBe('pass');
     expect(result.hits).toHaveLength(4); // Truncated to max 4
     expect(result.misses).toHaveLength(4); // Truncated to max 4
   });
@@ -217,6 +221,7 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     expect(result.score).toBeCloseTo(0.7);
+    expect(result.verdict).toBe('borderline');
 
     // Custom template goes in user prompt (question), system prompt only has output schema
     expect(judgeProvider.lastRequest?.question).toContain(customPrompt);
@@ -258,6 +263,7 @@ describe('LlmJudgeEvaluator', () => {
 
     // Should fall back to defaults when validation fails
     expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
     expect(result.hits).toHaveLength(0);
     expect(result.misses).toHaveLength(0);
   });
@@ -279,8 +285,49 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
     expect(result.hits).toHaveLength(0);
     expect(result.misses).toHaveLength(0);
+  });
+
+  it('supports rubric mode when rubrics are provided in config', async () => {
+    const judgeProvider = new StubProvider({
+      text: JSON.stringify({
+        checks: [
+          { id: 'r1', satisfied: true, reasoning: 'Present' },
+          { id: 'r2', satisfied: false, reasoning: 'Missing' },
+        ],
+        overall_reasoning: 'Mixed compliance.',
+      }),
+    });
+
+    const evaluator = new LlmJudgeEvaluator({
+      resolveJudgeProvider: async () => judgeProvider,
+    });
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      evaluator: {
+        name: 'rubric',
+        type: 'llm_judge',
+        rubrics: [
+          { id: 'r1', description: 'Mentions logging', weight: 1.0, required: true },
+          { id: 'r2', description: 'Mentions tests', weight: 1.0, required: false },
+        ],
+      },
+    });
+
+    expect(result.score).toBeCloseTo(0.5);
+    expect(result.verdict).toBe('fail');
+    expect(result.hits.join('\n')).toContain('[r1]');
+    expect(result.misses.join('\n')).toContain('[r2]');
+    expect(result.reasoning).toBe('Mixed compliance.');
   });
 
   it('passes multi-turn role markers through to evaluator prompts', async () => {

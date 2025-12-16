@@ -230,9 +230,9 @@ export async function loadEvalCases(
         .filter((r) => r.description.length > 0);
 
       if (rubricItems.length > 0) {
-        const rubricEvaluator: import('./types.js').RubricEvaluatorConfig = {
+        const rubricEvaluator: import('./types.js').LlmJudgeEvaluatorConfig = {
           name: 'rubric',
-          type: 'rubric',
+          type: 'llm_judge',
           rubrics: rubricItems,
         };
         // Prepend rubric evaluator to existing evaluators

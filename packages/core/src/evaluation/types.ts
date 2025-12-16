@@ -157,6 +157,7 @@ export type LlmJudgeEvaluatorConfig = {
   readonly type: 'llm_judge';
   readonly prompt?: string;
   readonly promptPath?: string;
+  readonly rubrics?: readonly RubricItem[];
 };
 
 export type RubricItem = {
@@ -166,13 +167,7 @@ export type RubricItem = {
   readonly required: boolean;
 };
 
-export type RubricEvaluatorConfig = {
-  readonly name: string;
-  readonly type: 'rubric';
-  readonly rubrics: readonly RubricItem[];
-};
-
-export type EvaluatorConfig = CodeEvaluatorConfig | LlmJudgeEvaluatorConfig | RubricEvaluatorConfig;
+export type EvaluatorConfig = CodeEvaluatorConfig | LlmJudgeEvaluatorConfig;
 
 /**
  * Eval case definition sourced from AgentV specs.
