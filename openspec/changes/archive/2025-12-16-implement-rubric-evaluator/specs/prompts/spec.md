@@ -2,8 +2,8 @@
 
 ## ADDED Requirements
 
-### Requirement: Rubric Generation Prompt
-The system must use a specific default prompt to generate high-quality, testable rubrics from an `expected_outcome`.
+### Requirement: Rubric Generation Prompt MUST be defined
+The system SHALL use a specific default prompt to generate high-quality, testable rubrics from an `expected_outcome`.
 
 #### Scenario: Default Generation Prompt
 Given a task to generate rubrics
@@ -15,8 +15,8 @@ Avoid vague criteria; each item must be verifiable from an answer.
 Assign weights (0-1) to each item based on its importance to the overall success of the task.
 """
 
-### Requirement: Rubric Grading Prompt
-The system must use a specific prompt to grade answers against a provided rubric.
+### Requirement: Rubric Grading Prompt MUST be defined
+The system SHALL use a specific prompt to grade answers against a provided rubric.
 
 #### Scenario: Grading Prompt Content
 Given a task to grade an answer

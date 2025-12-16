@@ -1,9 +1,10 @@
-# Spec: Rubric Evaluator
+# rubric-evaluator Specification
 
-## ADDED Requirements
-
-### Requirement: Static Rubric Evaluation
-The evaluator must accept a list of pre-defined rubrics and use them for grading.
+## Purpose
+TBD - created by archiving change implement-rubric-evaluator. Update Purpose after archive.
+## Requirements
+### Requirement: Static Rubric Evaluation MUST be supported
+The evaluator SHALL accept a list of pre-defined rubrics and use them for grading.
 
 #### Scenario: Explicit Rubrics
 Given an eval case with `rubrics` defined in YAML
@@ -15,8 +16,8 @@ Given an eval case with no `rubrics`
 When the `RubricEvaluator` runs
 Then it should fail with an error message instructing the user to run `agentv generate-rubrics`.
 
-### Requirement: Structured Grading
-The evaluator must produce a structured evaluation result containing a score and a verdict, validated against a Zod schema.
+### Requirement: Structured Grading MUST produce validated results
+The evaluator SHALL produce a structured evaluation result containing a score and a verdict, validated against a Zod schema.
 
 #### Scenario: Grading Output Schema
 Given a candidate answer and a rubric
@@ -35,8 +36,8 @@ z.object({
 })
 ```
 
-### Requirement: Verdict Logic
-The evaluator must calculate the verdict based on the score and required items.
+### Requirement: Verdict Logic MUST be applied
+The evaluator SHALL calculate the verdict based on the score and required items.
 
 #### Scenario: Pass Verdict
 Given a grading result where all required items are met and score >= 0.8
@@ -49,3 +50,4 @@ Then the verdict should be `fail`.
 #### Scenario: Borderline Verdict
 Given a grading result where score is between 0.6 and 0.8
 Then the verdict should be `borderline`.
+
