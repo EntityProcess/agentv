@@ -59,7 +59,7 @@ interface MemberResult {
 export type AggregationConfig = 
   | { strategy: 'weighted_average'; weights?: Record<string, number> }
   | { strategy: 'code_judge'; code: string }
-  | { strategy: 'llm_judge'; prompt?: string; model?: string };
+  | { strategy: 'llm_judge'; prompt?: string; model?: string }; // prompt supports file path resolution
 
 export type CompositeEvaluatorConfig = {
   readonly name: string;
@@ -105,6 +105,7 @@ console.log(JSON.stringify({ score: finalScore, verdict, reasoning }));
 The LLM receives a prompt containing the JSON representation of all member results.
 *   **Input Format**: The `{{MEMBER_RESULTS_JSON}}` variable will be replaced by `JSON.stringify(Record<string, EvaluationScore>, null, 2)`.
 *   **Output Format**: The LLM must return a JSON object matching the standard `EvaluationScore` schema (score, verdict, reasoning).
+*   **Prompt Resolution**: The `prompt` property supports a file path. If the value resolves to a file, the content is loaded. Otherwise, the value is treated as the prompt string itself.
 
 ```text
 // Default Meta-Judge Prompt
