@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import * as readline from 'node:readline/promises';
+import { command, option, optional, string } from 'cmd-ts';
 
 import {
   getAgentvTemplates,
@@ -182,3 +183,24 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   console.log('  2. Configure targets in .agentv/targets.yaml');
   console.log('  3. Create eval files using the schema and prompt templates');
 }
+
+export const initCmdTsCommand = command({
+  name: 'init',
+  description:
+    'Initialize AgentV in your project (installs prompt templates and schema to .github)',
+  args: {
+    path: option({
+      type: optional(string),
+      long: 'path',
+      description: 'Target directory for initialization (default: current directory)',
+    }),
+  },
+  handler: async ({ path: targetPath }) => {
+    try {
+      await initCommand({ targetPath });
+    } catch (error) {
+      console.error(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  },
+});

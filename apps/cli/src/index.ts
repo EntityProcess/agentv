@@ -1,44 +1,27 @@
 import { readFileSync } from 'node:fs';
-import { Command } from 'commander';
+import { binary, run, subcommands } from 'cmd-ts';
 
-import { registerEvalCommand } from './commands/eval/index.js';
-import { registerGenerateCommand } from './commands/generate/index.js';
-import { initCommand } from './commands/init/index.js';
-import { registerStatusCommand } from './commands/status.js';
-import { registerValidateCommand } from './commands/validate/index.js';
+import { evalCommand } from './commands/eval/index.js';
+import { generateCommand } from './commands/generate/index.js';
+import { initCmdTsCommand } from './commands/init/index.js';
+import { statusCommand } from './commands/status.js';
+import { validateCommand } from './commands/validate/index.js';
 
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-export function createProgram(): Command {
-  const program = new Command();
+export const app = subcommands({
+  name: 'agentv',
+  description: 'AgentV CLI scaffolding',
+  version: packageJson.version,
+  cmds: {
+    status: statusCommand,
+    eval: evalCommand,
+    validate: validateCommand,
+    generate: generateCommand,
+    init: initCmdTsCommand,
+  },
+});
 
-  program.name('agentv').description('AgentV CLI scaffolding').version(packageJson.version);
-
-  registerStatusCommand(program);
-  registerEvalCommand(program);
-  registerValidateCommand(program);
-  registerGenerateCommand(program);
-
-  // Init command
-  program
-    .command('init [path]')
-    .description(
-      'Initialize AgentV in your project (installs prompt templates and schema to .github)',
-    )
-    .action(async (targetPath?: string) => {
-      try {
-        await initCommand({ targetPath });
-      } catch (error) {
-        console.error(`Error: ${(error as Error).message}`);
-        process.exit(1);
-      }
-    });
-
-  return program;
-}
-
-export async function runCli(argv: string[] = process.argv): Promise<Command> {
-  const program = createProgram();
-  await program.parseAsync(argv);
-  return program;
+export async function runCli(argv: string[] = process.argv): Promise<void> {
+  await run(binary(app), argv);
 }
