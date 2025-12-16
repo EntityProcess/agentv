@@ -1,7 +1,7 @@
 # Tasks: Composite Evaluator
 
 1.  **Define Configuration Types**
-    *   Add `CompositeEvaluatorConfig` and `AggregationConfig` to `types.ts`.
+    *   Add `CompositeEvaluatorConfig` and `CompositeAggregatorConfig` to `types.ts`.
     *   Update `EvaluatorConfig` union to include `CompositeEvaluatorConfig`.
 
 2.  **Implement `CompositeEvaluator` Class**

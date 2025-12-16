@@ -1,7 +1,7 @@
 # Add Composite Evaluator
 
 ## Summary
-Introduce `CompositeEvaluator` to enable hierarchical evaluation teams. This allows users to combine multiple sub-evaluators (e.g., Safety, Quality, Style) and aggregate their results using either deterministic logic (Code Meta-Judge) or probabilistic reasoning (LLM Meta-Judge).
+Introduce `CompositeEvaluator` to enable a common evaluation pattern: run multiple child evaluators and then compute a single final result via an explicit aggregator.
 
 ## Motivation
 Complex evaluation scenarios often require multiple specialized checks. For example, a "Release Gate" might require:
@@ -14,13 +14,13 @@ Currently, `agentv` only supports single evaluators per case. `CompositeEvaluato
 
 ### 1. New Evaluator Type: `CompositeEvaluator`
 *   **Type**: `composite`
-*   **Members**: A list of sub-evaluators (can be `llm_judge`, `code_judge`, or nested `composite`).
-*   **Aggregation**: Defines how member results are combined.
+*   **Evaluators**: A list of child evaluators to run (can be `llm_judge`, `code_judge`, or nested `composite`).
+*   **Aggregator**: Defines how child evaluator results are combined into a single `EvaluationScore`.
 
 ### 2. Aggregation Strategies
 *   **`weighted_average`**: Calculates the weighted mean of member scores.
-*   **`code_judge`**: Executes a user-provided script (via child process) to deterministically compute the final score and verdict based on member results.
-*   **`llm_judge`**: Feeds member results into an LLM prompt to decide the final score and verdict.
+*   **`code_judge`**: Executes a user-provided script (via child process) to deterministically compute the final score and verdict based on scorer results.
+*   **`llm_judge`**: Feeds scorer results into an LLM prompt to decide the final score and verdict.
 
 ### 3. Execution Model
 *   Members are executed in parallel.
