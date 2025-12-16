@@ -17,7 +17,11 @@
     *   Update `yaml-parser.ts` to parse `composite` type.
     *   Update `evaluator-factory.ts` (or equivalent) to handle recursive creation of members.
 
-5.  **Validation & Testing**
+5.  **Rename YAML evaluator type: `code` → `code_judge`**
+    *   Update schema/types so the canonical name is `type: code_judge`.
+    *   Remove support for `type: code`.
+
+6.  **Validation & Testing**
     *   Unit test: Weighted average aggregation.
     *   Unit test: Code meta-judge (e.g., safety gate pattern).
     *   Integration test: Composite evaluator with mocked members.

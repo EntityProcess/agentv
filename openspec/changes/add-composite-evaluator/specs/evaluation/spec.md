@@ -31,3 +31,17 @@ The system SHALL support configurable strategies for aggregating child evaluator
 - **When** results are aggregated
 - **Then** it SHALL prompt an LLM with the child evaluator results serialized as JSON
 - **And** parse the LLM's response to determine the final score and verdict.
+
+## MODIFIED Requirements
+
+### Requirement: Code evaluator naming
+The system SHALL use `type: code_judge` as the canonical YAML evaluator type for code-based evaluation.
+
+#### Scenario: Parse canonical `code_judge`
+- **WHEN** an eval case includes an evaluator with `type: code_judge`
+- **THEN** the system executes the configured script as the code-based evaluator
+- **AND** parses the script output using the standard `EvaluationScore` JSON contract.
+
+#### Scenario: Reject `code`
+- **WHEN** an eval case includes an evaluator with `type: code`
+- **THEN** validation fails with an error instructing the user to use `type: code_judge`.

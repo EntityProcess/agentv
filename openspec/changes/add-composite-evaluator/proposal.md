@@ -17,10 +17,18 @@ Currently, `agentv` only supports single evaluators per case. `CompositeEvaluato
 *   **Evaluators**: A list of child evaluators to run (can be `llm_judge`, `code_judge`, or nested `composite`).
 *   **Aggregator**: Defines how child evaluator results are combined into a single `EvaluationScore`.
 
-### 2. Aggregation Strategies
-*   **`weighted_average`**: Calculates the weighted mean of member scores.
-*   **`code_judge`**: Executes a user-provided script (via child process) to deterministically compute the final score and verdict based on scorer results.
-*   **`llm_judge`**: Feeds scorer results into an LLM prompt to decide the final score and verdict.
+### 2. YAML evaluator naming: `code` → `code_judge`
+
+To reduce ambiguity and align naming across built-in evaluators and composite aggregation, the YAML evaluator type currently referred to as `code` SHOULD be renamed to `code_judge`.
+
+This change SHOULD be implemented as:
+- Canonical: `type: code_judge`
+- `type: code` is not supported.
+
+### 3. Aggregation Strategies
+*   **`weighted_average`**: Calculates the weighted mean of child evaluator scores.
+*   **`code_judge`**: Executes a user-provided script (via child process) to deterministically compute the final score and verdict based on child evaluator results.
+*   **`llm_judge`**: Feeds child evaluator results into an LLM prompt to decide the final score and verdict.
 
 ### 3. Execution Model
 *   Members are executed in parallel.

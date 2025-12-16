@@ -12,7 +12,7 @@ export class CompositeEvaluator implements Evaluator {
 
   constructor(
     private config: CompositeEvaluatorConfig,
-    private evaluatorFactory: EvaluatorFactory // To instantiate members
+    private evaluatorFactory: EvaluatorFactory // To instantiate child evaluators
   ) {}
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
@@ -68,6 +68,11 @@ export type CompositeEvaluatorConfig = {
   readonly aggregator: CompositeAggregatorConfig;
 };
 ```
+
+### YAML naming conventions
+
+- Use `type: code_judge` for the code-based evaluator in YAML.
+- Do not support `type: code`.
 
 ### Meta-Judge Interfaces
 
