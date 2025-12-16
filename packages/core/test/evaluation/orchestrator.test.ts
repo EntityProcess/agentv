@@ -111,6 +111,7 @@ const evaluatorRegistry = {
     async evaluate() {
       return {
         score: 0.8,
+        verdict: 'pass',
         hits: ['hit'],
         misses: [],
         expectedAspectCount: 1,

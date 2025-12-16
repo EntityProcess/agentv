@@ -114,31 +114,33 @@ export async function parseEvaluators(
 
     const _model = asString(rawEvaluator.model);
 
+    const rawRubrics = rawEvaluator.rubrics;
+    const parsedRubrics = Array.isArray(rawRubrics)
+      ? rawRubrics
+          .filter((r): r is JsonObject => isJsonObject(r))
+          .map((rubric, index) => ({
+            id: asString(rubric.id) ?? `rubric-${index + 1}`,
+            description: asString(rubric.description) ?? '',
+            weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
+            required: typeof rubric.required === 'boolean' ? rubric.required : true,
+          }))
+          .filter((r) => r.description.length > 0)
+      : undefined;
+
     if (typeValue === 'rubric') {
-      const rubrics = rawEvaluator.rubrics;
-      if (!Array.isArray(rubrics)) {
+      if (!parsedRubrics) {
         logWarning(`Skipping rubric evaluator '${name}' in '${evalId}': missing rubrics array`);
         continue;
       }
-
-      const parsedRubrics = rubrics
-        .filter((r): r is JsonObject => isJsonObject(r))
-        .map((rubric, index) => ({
-          id: asString(rubric.id) ?? `rubric-${index + 1}`,
-          description: asString(rubric.description) ?? '',
-          weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
-          required: typeof rubric.required === 'boolean' ? rubric.required : true,
-        }))
-        .filter((r) => r.description.length > 0);
-
       if (parsedRubrics.length === 0) {
         logWarning(`Skipping rubric evaluator '${name}' in '${evalId}': no valid rubrics found`);
         continue;
       }
 
+      // Back-compat: `type: rubric` maps to `type: llm_judge` with `rubrics`.
       evaluators.push({
         name,
-        type: 'rubric',
+        type: 'llm_judge',
         rubrics: parsedRubrics,
       });
       continue;
@@ -149,6 +151,7 @@ export async function parseEvaluators(
       type: 'llm_judge',
       prompt,
       promptPath,
+      ...(parsedRubrics && parsedRubrics.length > 0 ? { rubrics: parsedRubrics } : {}),
     });
   }
 

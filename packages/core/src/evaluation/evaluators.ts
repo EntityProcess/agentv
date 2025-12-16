@@ -1,9 +1,17 @@
+import { generateText } from 'ai';
+import { z } from 'zod';
+
 import type { ResolvedTarget } from './providers/targets.js';
 import type { ChatPrompt, Provider, ProviderResponse } from './providers/types.js';
 import { TEMPLATE_VARIABLES } from './template-variables.js';
-import type { EvalCase, EvaluationVerdict, EvaluatorConfig, JsonObject } from './types.js';
+import type {
+  EvalCase,
+  EvaluationVerdict,
+  EvaluatorConfig,
+  JsonObject,
+  RubricItem,
+} from './types.js';
 
-export { RubricEvaluator } from './evaluators/rubric-evaluator.js';
 export type { EvaluationVerdict };
 
 /**
@@ -48,7 +56,7 @@ export interface EvaluationContext {
 
 export interface EvaluationScore {
   readonly score: number;
-  readonly verdict?: EvaluationVerdict;
+  readonly verdict: EvaluationVerdict;
   readonly hits: readonly string[];
   readonly misses: readonly string[];
   readonly expectedAspectCount: number;
@@ -71,6 +79,24 @@ export interface LlmJudgeEvaluatorOptions {
   readonly evaluatorTemplate?: string;
 }
 
+const freeformEvaluationSchema = z.object({
+  score: z.number().min(0).max(1).describe('Score between 0.0 and 1.0'),
+  hits: z.array(z.string()).describe('Brief specific achievements').optional(),
+  misses: z.array(z.string()).describe('Brief failures or omissions').optional(),
+  reasoning: z.string().describe('Concise explanation (1-2 sentences)').optional(),
+});
+
+const rubricCheckResultSchema = z.object({
+  id: z.string().describe('The ID of the rubric item being checked'),
+  satisfied: z.boolean().describe('Whether this rubric requirement is met'),
+  reasoning: z.string().describe('Brief explanation (1-2 sentences) for this check'),
+});
+
+const rubricEvaluationSchema = z.object({
+  checks: z.array(rubricCheckResultSchema).describe('Results for each rubric item'),
+  overall_reasoning: z.string().describe('Overall assessment summary (1-2 sentences)'),
+});
+
 export class LlmJudgeEvaluator implements Evaluator {
   readonly kind = 'llm_judge';
 
@@ -92,10 +118,15 @@ export class LlmJudgeEvaluator implements Evaluator {
       throw new Error('No judge provider available for LLM grading');
     }
 
-    return this.evaluateWithPrompt(context, judgeProvider);
+    const config = context.evaluator;
+    if (config?.type === 'llm_judge' && config.rubrics && config.rubrics.length > 0) {
+      return this.evaluateWithRubrics(context, judgeProvider, config.rubrics);
+    }
+
+    return this.evaluateFreeform(context, judgeProvider);
   }
 
-  private async evaluateWithPrompt(
+  private async evaluateFreeform(
     context: EvaluationContext,
     judgeProvider: Provider,
   ): Promise<EvaluationScore> {
@@ -126,38 +157,170 @@ export class LlmJudgeEvaluator implements Evaluator {
       context.evaluatorTemplateOverride ?? this.evaluatorTemplate ?? DEFAULT_EVALUATOR_TEMPLATE;
     const userPrompt = substituteVariables(evaluatorTemplate, variables);
 
-    const response = await judgeProvider.invoke({
-      question: userPrompt,
-      systemPrompt,
-      evalCaseId: context.evalCase.id,
-      attempt: context.attempt,
-      maxOutputTokens: this.maxOutputTokens,
-      temperature: this.temperature,
-    });
-
-    const parsed = parseQualityResponse(response);
-    const score = clampScore(parsed.score ?? 0);
-    const hits = Array.isArray(parsed.hits) ? parsed.hits.filter(isNonEmptyString).slice(0, 4) : [];
-    const misses = Array.isArray(parsed.misses)
-      ? parsed.misses.filter(isNonEmptyString).slice(0, 4)
-      : [];
-    const reasoning = parsed.reasoning ?? response.reasoning;
-    const expectedAspectCount = Math.max(hits.length + misses.length, 1);
-
     const evaluatorRawRequest: JsonObject = {
       userPrompt,
       systemPrompt,
       target: judgeProvider.targetName,
     };
 
+    try {
+      const { data, providerResponse } = await this.runWithRetry({
+        context,
+        judgeProvider,
+        systemPrompt,
+        userPrompt,
+        schema: freeformEvaluationSchema,
+      });
+
+      const score = clampScore(data.score);
+      const hits = Array.isArray(data.hits) ? data.hits.filter(isNonEmptyString).slice(0, 4) : [];
+      const misses = Array.isArray(data.misses)
+        ? data.misses.filter(isNonEmptyString).slice(0, 4)
+        : [];
+      const reasoning = data.reasoning ?? providerResponse?.reasoning;
+      const expectedAspectCount = Math.max(hits.length + misses.length, 1);
+
+      return {
+        score,
+        verdict: scoreToVerdict(score),
+        hits,
+        misses,
+        expectedAspectCount,
+        reasoning,
+        evaluatorRawRequest,
+      };
+    } catch {
+      return {
+        score: 0,
+        verdict: 'fail',
+        hits: [],
+        misses: [],
+        expectedAspectCount: 1,
+        evaluatorRawRequest,
+      };
+    }
+  }
+
+  private async evaluateWithRubrics(
+    context: EvaluationContext,
+    judgeProvider: Provider,
+    rubrics: readonly RubricItem[],
+  ): Promise<EvaluationScore> {
+    if (!rubrics || rubrics.length === 0) {
+      throw new Error(
+        `No rubrics found for evaluator "${context.evaluator?.name ?? 'llm_judge'}". Run "agentv generate rubrics" first.`,
+      );
+    }
+
+    const prompt = this.buildRubricPrompt(context, rubrics);
+    const systemPrompt = buildRubricOutputSchema();
+
+    const evaluatorRawRequest: JsonObject = {
+      userPrompt: prompt,
+      systemPrompt,
+      target: judgeProvider.targetName,
+    };
+
+    const { data } = await this.runWithRetry({
+      context,
+      judgeProvider,
+      systemPrompt,
+      userPrompt: prompt,
+      schema: rubricEvaluationSchema,
+    });
+
+    const { score, verdict, hits, misses } = calculateRubricScore(data, rubrics);
+
     return {
       score,
+      verdict,
       hits,
       misses,
-      expectedAspectCount,
-      reasoning,
+      expectedAspectCount: rubrics.length,
+      reasoning: data.overall_reasoning,
       evaluatorRawRequest,
     };
+  }
+
+  private buildRubricPrompt(context: EvaluationContext, rubrics: readonly RubricItem[]): string {
+    const formattedQuestion =
+      context.promptInputs.question && context.promptInputs.question.trim().length > 0
+        ? context.promptInputs.question
+        : context.evalCase.question;
+
+    const parts: string[] = [
+      'You are an expert evaluator. Evaluate the candidate answer against each rubric item below.',
+      '',
+      '[[ ## question ## ]]',
+      formattedQuestion,
+      '',
+      '[[ ## expected_outcome ## ]]',
+      context.evalCase.expected_outcome,
+      '',
+    ];
+
+    if (context.evalCase.reference_answer && context.evalCase.reference_answer.trim().length > 0) {
+      parts.push('[[ ## reference_answer ## ]]', context.evalCase.reference_answer, '');
+    }
+
+    parts.push('[[ ## candidate_answer ## ]]', context.candidate, '', '[[ ## rubrics ## ]]');
+
+    for (const rubric of rubrics) {
+      const requiredLabel = rubric.required ? ' (REQUIRED)' : '';
+      const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
+      parts.push(`- [${rubric.id}]${requiredLabel}${weightLabel}: ${rubric.description}`);
+    }
+
+    parts.push('', 'For each rubric, determine if it is satisfied and provide brief reasoning.');
+
+    return parts.join('\n');
+  }
+
+  private async runWithRetry<T>(options: {
+    readonly context: EvaluationContext;
+    readonly judgeProvider: Provider;
+    readonly systemPrompt: string;
+    readonly userPrompt: string;
+    readonly schema: z.ZodSchema<T>;
+  }): Promise<{ data: T; providerResponse?: ProviderResponse }> {
+    const { context, judgeProvider, systemPrompt, userPrompt, schema } = options;
+
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        // Prefer Vercel AI SDK language model if available.
+        const model = judgeProvider.asLanguageModel?.();
+        if (model) {
+          const { text } = await generateText({
+            model,
+            system: systemPrompt,
+            prompt: userPrompt,
+            ...(this.maxOutputTokens ? { maxTokens: this.maxOutputTokens } : {}),
+            ...(typeof this.temperature === 'number' ? { temperature: this.temperature } : {}),
+          });
+
+          const data = schema.parse(parseJsonFromText(text));
+          return { data };
+        }
+
+        const response = await judgeProvider.invoke({
+          question: userPrompt,
+          systemPrompt,
+          evalCaseId: context.evalCase.id,
+          attempt: context.attempt,
+          maxOutputTokens: this.maxOutputTokens,
+          temperature: this.temperature,
+        });
+
+        const data = schema.parse(parseJsonFromText(response.text ?? ''));
+        return { data, providerResponse: response };
+      } catch (e: unknown) {
+        lastError = e instanceof Error ? e : new Error(String(e));
+      }
+    }
+
+    throw new Error(`Failed to parse evaluator response after 3 attempts: ${lastError?.message}`);
   }
 }
 
@@ -178,6 +341,31 @@ function buildOutputSchema(): string {
   ].join('\n');
 }
 
+function buildRubricOutputSchema(): string {
+  return `You are an expert evaluator. Evaluate the candidate answer against each rubric item.
+You must return a valid JSON object matching this schema:
+{
+  "checks": [
+    {
+      "id": "string (rubric id)",
+      "satisfied": boolean,
+      "reasoning": "string (brief explanation)"
+    }
+  ],
+  "overall_reasoning": "string (summary)"
+}`;
+}
+
+function scoreToVerdict(score: number): EvaluationVerdict {
+  if (score >= 0.8) {
+    return 'pass';
+  }
+  if (score >= 0.6) {
+    return 'borderline';
+  }
+  return 'fail';
+}
+
 function clampScore(value: number): number {
   if (Number.isNaN(value) || !Number.isFinite(value)) {
     return 0;
@@ -191,103 +379,15 @@ function clampScore(value: number): number {
   return value;
 }
 
-function parseQualityResponse(response: ProviderResponse): {
-  readonly score?: number;
-  readonly hits?: unknown;
-  readonly misses?: unknown;
-  readonly reasoning?: string;
-} {
-  const text = typeof response.text === 'string' ? response.text.trim() : '';
-  if (text.length === 0) {
-    return {};
-  }
-
-  // Try parsing JSON directly
-  const direct = attemptParseJson(text);
-  if (direct && validateQualityJson(direct)) {
-    return direct;
-  }
-
-  // Try extracting JSON from markdown code blocks or surrounding text
-  const extracted = extractJsonBlob(text);
-  if (extracted) {
-    const parsed = attemptParseJson(extracted);
-    if (parsed && validateQualityJson(parsed)) {
-      return parsed;
-    }
-  }
-
-  return {};
-}
-
-function attemptParseJson(text: string):
-  | {
-      readonly score?: number;
-      readonly hits?: unknown;
-      readonly misses?: unknown;
-      readonly reasoning?: string;
-    }
-  | undefined {
-  try {
-    const parsed = JSON.parse(text) as Record<string, unknown>;
-    const score = typeof parsed.score === 'number' ? parsed.score : undefined;
-    const hits = parsed.hits;
-    const misses = parsed.misses;
-    const reasoning = typeof parsed.reasoning === 'string' ? parsed.reasoning : undefined;
-    return { score, hits, misses, reasoning };
-  } catch {
-    return undefined;
-  }
-}
-
-function validateQualityJson(parsed: {
-  readonly score?: number;
-  readonly hits?: unknown;
-  readonly misses?: unknown;
-  readonly reasoning?: string;
-}): boolean {
-  // Validate score is present and in valid range [0.0, 1.0]
-  if (typeof parsed.score !== 'number') {
-    return false;
-  }
-  if (Number.isNaN(parsed.score) || !Number.isFinite(parsed.score)) {
-    return false;
-  }
-  if (parsed.score < 0 || parsed.score > 1) {
-    return false;
-  }
-
-  // Validate hits is an array of strings (max 4 will be enforced during extraction)
-  if (parsed.hits !== undefined) {
-    if (!Array.isArray(parsed.hits)) {
-      return false;
-    }
-    if (!parsed.hits.every((item) => typeof item === 'string')) {
-      return false;
-    }
-  }
-
-  // Validate misses is an array of strings (max 4 will be enforced during extraction)
-  if (parsed.misses !== undefined) {
-    if (!Array.isArray(parsed.misses)) {
-      return false;
-    }
-    if (!parsed.misses.every((item) => typeof item === 'string')) {
-      return false;
-    }
-  }
-
-  // Validate reasoning is a string if present
-  if (parsed.reasoning !== undefined && typeof parsed.reasoning !== 'string') {
-    return false;
-  }
-
-  return true;
-}
-
 function extractJsonBlob(text: string): string | undefined {
   const match = text.match(/\{[\s\S]*\}/);
   return match?.[0];
+}
+
+function parseJsonFromText(text: string): unknown {
+  const cleaned = typeof text === 'string' ? text.replace(/```json\n?|```/g, '').trim() : '';
+  const blob = extractJsonBlob(cleaned) ?? cleaned;
+  return JSON.parse(blob);
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -340,6 +440,7 @@ export class CodeEvaluator implements Evaluator {
 
       return {
         score,
+        verdict: scoreToVerdict(score),
         hits,
         misses,
         expectedAspectCount: hits.length + misses.length || 1,
@@ -353,6 +454,7 @@ export class CodeEvaluator implements Evaluator {
       const message = error instanceof Error ? error.message : String(error);
       return {
         score: 0,
+        verdict: 'fail',
         hits: [],
         misses: [`Code evaluator failed: ${message}`],
         expectedAspectCount: 1,
@@ -365,6 +467,46 @@ export class CodeEvaluator implements Evaluator {
       };
     }
   }
+}
+
+function calculateRubricScore(
+  result: z.infer<typeof rubricEvaluationSchema>,
+  rubrics: readonly RubricItem[],
+): {
+  score: number;
+  verdict: EvaluationVerdict;
+  hits: string[];
+  misses: string[];
+} {
+  const rubricMap = new Map(rubrics.map((rubric) => [rubric.id, rubric]));
+  const hits: string[] = [];
+  const misses: string[] = [];
+  let totalWeight = 0;
+  let earnedWeight = 0;
+  let failedRequired = false;
+
+  for (const check of result.checks) {
+    const rubric = rubricMap.get(check.id);
+    if (!rubric) {
+      continue;
+    }
+
+    totalWeight += rubric.weight;
+
+    if (check.satisfied) {
+      earnedWeight += rubric.weight;
+      hits.push(`[${rubric.id}] ${rubric.description}: ${check.reasoning}`);
+    } else {
+      misses.push(`[${rubric.id}] ${rubric.description}: ${check.reasoning}`);
+      if (rubric.required) {
+        failedRequired = true;
+      }
+    }
+  }
+
+  const score = totalWeight > 0 ? Math.min(1, Math.max(0, earnedWeight / totalWeight)) : 0;
+  const verdict = failedRequired ? 'fail' : scoreToVerdict(score);
+  return { score, verdict, hits, misses };
 }
 
 // Helper functions for CodeEvaluator

@@ -8,7 +8,6 @@ import {
   type EvaluationScore,
   type Evaluator,
   LlmJudgeEvaluator,
-  RubricEvaluator,
 } from './evaluators.js';
 import { readTextFile } from './file-utils.js';
 import { createProvider } from './providers/index.js';
@@ -24,6 +23,7 @@ import { isAgentProvider } from './providers/types.js';
 import type {
   EvalCase,
   EvaluationResult,
+  EvaluationVerdict,
   EvaluatorConfig,
   EvaluatorResult,
   JsonObject,
@@ -750,7 +750,6 @@ async function runEvaluatorList(options: {
           reasoning: score.reasoning,
           evaluator_provider_request: score.evaluatorRawRequest,
         });
-        continue;
       }
 
       if (evaluator.type === 'code') {
@@ -779,45 +778,12 @@ async function runEvaluatorList(options: {
           reasoning: score.reasoning,
           evaluator_provider_request: score.evaluatorRawRequest,
         });
-        continue;
-      }
-
-      if (evaluator.type === 'rubric') {
-        const rubricEvaluator = new RubricEvaluator({
-          config: evaluator,
-          resolveJudgeProvider: async (context) => {
-            if (context.judgeProvider) {
-              return context.judgeProvider;
-            }
-            return judgeProvider;
-          },
-        });
-        const score = await rubricEvaluator.evaluate({
-          evalCase,
-          candidate,
-          target,
-          provider,
-          attempt,
-          promptInputs,
-          now,
-          judgeProvider,
-        });
-        scored.push({ score, name: evaluator.name, type: evaluator.type });
-        evaluatorResults.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-          evaluator_provider_request: score.evaluatorRawRequest,
-        });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const fallbackScore: EvaluationScore = {
         score: 0,
+        verdict: 'fail',
         hits: [],
         misses: [`Evaluator '${evaluator.name}' failed: ${message}`],
         expectedAspectCount: 1,
@@ -832,6 +798,7 @@ async function runEvaluatorList(options: {
         name: evaluator.name ?? 'unknown',
         type: evaluator.type ?? 'unknown',
         score: 0,
+        verdict: 'fail',
         hits: [],
         misses: [`Evaluator '${evaluator.name ?? 'unknown'}' failed: ${message}`],
         reasoning: message,
@@ -857,6 +824,7 @@ async function runEvaluatorList(options: {
 
   const score: EvaluationScore = {
     score: aggregateScore,
+    verdict: scoreToVerdict(aggregateScore),
     hits,
     misses,
     expectedAspectCount,
@@ -927,6 +895,16 @@ async function resolveCustomPrompt(config: {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function scoreToVerdict(score: number): EvaluationVerdict {
+  if (score >= 0.8) {
+    return 'pass';
+  }
+  if (score >= 0.6) {
+    return 'borderline';
+  }
+  return 'fail';
 }
 
 function filterEvalCases(evalCases: readonly EvalCase[], evalId?: string): readonly EvalCase[] {

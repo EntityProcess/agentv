@@ -1,5 +1,11 @@
 # @agentv/core
 
+## 0.22.2
+
+### Patch Changes
+
+- Merge `RubricEvaluator` into `LlmJudgeEvaluator` to create a single, unified evaluator that handles both unstructured grading (score + reasoning) and structured grading (rubrics). This unifies the handling of `verdict`, `hits`, and `misses` across both modes.
+
 ## 0.22.1
 
 ### Patch Changes
