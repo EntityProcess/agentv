@@ -2,32 +2,6 @@
 
 This directory demonstrates AgentV's evaluation features with complete, working examples organized by capability.
 
-## Directory Structure
-
-```
-features/
-├── .env.template                   # Environment configuration template
-├── .gitignore                      # Git ignore rules
-├── README.md                       # This file
-├── evals/                          # Evaluation test cases by feature
-│   ├── basic/                      # Basic schema features
-│   │   └── example-eval.yaml       # Core schema demonstration
-│   ├── rubric/                     # Rubric evaluator feature
-│   │   ├── rubric-examples.yaml    # Rubric examples
-│   │   └── README.md               # Rubric feature documentation
-│   ├── local-cli/                  # CLI-based evaluations
-│   └── snippets/                   # Code snippets for evals
-│       └── python-second-largest.md
-├── evaluators/                     # Evaluator components
-│   ├── prompts/                    # LLM judge prompt templates
-│   │   └── code-correctness-judge.md    # Semantic code evaluation
-│   └── scripts/                    # Code-based evaluators
-│       └── check_python_keywords.py     # Python validator script
-└── prompts/                        # Shared instruction files
-    ├── javascript.instructions.md  # JavaScript guidelines
-    └── python.instructions.md      # Python guidelines
-```
-
 ## Key Files
 
 ### Evaluation Files (`evals/`)
@@ -47,16 +21,10 @@ Organized by feature area:
 
 - **`rubric-examples.yaml`**: Rubric evaluator feature demonstration showing:
   - Inline rubrics (simple strings and detailed objects)
-  - `expected_outcome` field (preferred over `outcome`)
+  - `expected_outcome` field
   - Rubric weights and required flags
   - Verdict field (pass/fail/borderline)
   - Automatic rubric generation from expected outcomes
-
-- **`README.md`**: Detailed rubric feature documentation including:
-  - How to use inline rubrics
-  - Rubric scoring and verdict calculation
-  - CLI commands for rubric generation
-  - Tips and best practices
 
 ### Evaluator Components (`evaluators/`)
 
