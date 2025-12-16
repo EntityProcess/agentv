@@ -37,24 +37,8 @@ export async function validateFiles(paths: readonly string[]): Promise<Validatio
 async function validateSingleFile(filePath: string): Promise<ValidationResult> {
   const absolutePath = path.resolve(filePath);
 
-  // Detect file type
+  // Detect file type (now infers from path if $schema is missing)
   const fileType = await detectFileType(absolutePath);
-
-  if (fileType === 'unknown') {
-    return {
-      valid: false,
-      filePath: absolutePath,
-      fileType: 'unknown',
-      errors: [
-        {
-          severity: 'error',
-          filePath: absolutePath,
-          message:
-            "Missing or invalid $schema field. File must declare schema: 'agentv-eval-v2', 'agentv-targets-v2', or 'agentv-config-v2'",
-        },
-      ],
-    };
-  }
 
   // Validate based on file type
   let result: ValidationResult;

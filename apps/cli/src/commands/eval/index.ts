@@ -1,81 +1,141 @@
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
-import type { Command } from 'commander';
+import {
+  command,
+  flag,
+  multioption,
+  number,
+  option,
+  optional,
+  positional,
+  restPositionals,
+  string,
+} from 'cmd-ts';
 import fg from 'fast-glob';
 
 import { runEvalCommand } from './run-eval.js';
 
-function parseInteger(value: string, fallback: number): number {
-  const parsed = Number.parseInt(value, 10);
-  if (Number.isNaN(parsed)) {
-    return fallback;
-  }
-  return parsed;
-}
-
-export function registerEvalCommand(program: Command): Command {
-  program
-    .command('eval')
-    .description('Run eval suites and report results')
-    .argument('<eval-paths...>', 'Path(s) or glob(s) to evaluation .yaml file(s)')
-    .option('--target <name>', 'Override target name from targets.yaml', 'default')
-    .option('--targets <path>', 'Path to targets.yaml (overrides discovery)')
-    .option('--eval-id <id>', 'Run only the eval case with this identifier')
-    .option(
-      '--workers <count>',
-      'Number of parallel workers (default: 1, max: 50). Can also be set per-target in targets.yaml',
-      (value) => parseInteger(value, 1),
-    )
-    .option('--out <path>', 'Write results to the specified path')
-    .option(
-      '--output-format <format>',
-      "Output format: 'jsonl' or 'yaml' (default: jsonl)",
-      'jsonl',
-    )
-    .option('--dry-run', 'Use mock provider responses instead of real LLM calls', false)
-    .option(
-      '--dry-run-delay <ms>',
-      'Fixed delay in milliseconds for dry-run mode (overridden by delay range if specified)',
-      (value) => parseInteger(value, 0),
-      0,
-    )
-    .option(
-      '--dry-run-delay-min <ms>',
-      'Minimum delay in milliseconds for dry-run mode (requires --dry-run-delay-max)',
-      (value) => parseInteger(value, 0),
-      0,
-    )
-    .option(
-      '--dry-run-delay-max <ms>',
-      'Maximum delay in milliseconds for dry-run mode (requires --dry-run-delay-min)',
-      (value) => parseInteger(value, 0),
-      0,
-    )
-    .option(
-      '--agent-timeout <seconds>',
-      'Timeout in seconds for provider responses (default: 120)',
-      (value) => parseInteger(value, 120),
-      120,
-    )
-    .option(
-      '--max-retries <count>',
-      'Retry count for timeout recoveries (default: 2)',
-      (value) => parseInteger(value, 2),
-      2,
-    )
-    .option('--cache', 'Enable in-memory provider response cache', false)
-    .option('--verbose', 'Enable verbose logging', false)
-    .option(
-      '--dump-prompts [dir]',
-      'Persist prompt payloads for debugging (optional custom directory)',
-    )
-    .action(async (evalPaths: string[], rawOptions: Record<string, unknown>) => {
-      const resolvedPaths = await resolveEvalPaths(evalPaths, process.cwd());
-      await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
-    });
-
-  return program;
-}
+export const evalCommand = command({
+  name: 'eval',
+  description: 'Run eval suites and report results',
+  args: {
+    evalPaths: restPositionals({
+      type: string,
+      displayName: 'eval-paths',
+      description: 'Path(s) or glob(s) to evaluation .yaml file(s)',
+    }),
+    target: option({
+      type: string,
+      long: 'target',
+      description: 'Override target name from targets.yaml',
+      defaultValue: () => 'default',
+    }),
+    targets: option({
+      type: optional(string),
+      long: 'targets',
+      description: 'Path to targets.yaml (overrides discovery)',
+    }),
+    evalId: option({
+      type: optional(string),
+      long: 'eval-id',
+      description: 'Run only the eval case with this identifier',
+    }),
+    workers: option({
+      type: number,
+      long: 'workers',
+      description:
+        'Number of parallel workers (default: 1, max: 50). Can also be set per-target in targets.yaml',
+      defaultValue: () => 1,
+    }),
+    out: option({
+      type: optional(string),
+      long: 'out',
+      description: 'Write results to the specified path',
+    }),
+    outputFormat: option({
+      type: string,
+      long: 'output-format',
+      description: "Output format: 'jsonl' or 'yaml' (default: jsonl)",
+      defaultValue: () => 'jsonl',
+    }),
+    dryRun: flag({
+      long: 'dry-run',
+      description: 'Use mock provider responses instead of real LLM calls',
+    }),
+    dryRunDelay: option({
+      type: number,
+      long: 'dry-run-delay',
+      description:
+        'Fixed delay in milliseconds for dry-run mode (overridden by delay range if specified)',
+      defaultValue: () => 0,
+    }),
+    dryRunDelayMin: option({
+      type: number,
+      long: 'dry-run-delay-min',
+      description: 'Minimum delay in milliseconds for dry-run mode (requires --dry-run-delay-max)',
+      defaultValue: () => 0,
+    }),
+    dryRunDelayMax: option({
+      type: number,
+      long: 'dry-run-delay-max',
+      description: 'Maximum delay in milliseconds for dry-run mode (requires --dry-run-delay-min)',
+      defaultValue: () => 0,
+    }),
+    agentTimeout: option({
+      type: number,
+      long: 'agent-timeout',
+      description: 'Timeout in seconds for provider responses (default: 120)',
+      defaultValue: () => 120,
+    }),
+    maxRetries: option({
+      type: number,
+      long: 'max-retries',
+      description: 'Retry count for timeout recoveries (default: 2)',
+      defaultValue: () => 2,
+    }),
+    cache: flag({
+      long: 'cache',
+      description: 'Enable in-memory provider response cache',
+    }),
+    verbose: flag({
+      long: 'verbose',
+      description: 'Enable verbose logging',
+    }),
+    dumpPrompts: option({
+      type: optional(string),
+      long: 'dump-prompts',
+      description: 'Directory path for persisting prompt payloads for debugging',
+    }),
+  },
+  handler: async (args) => {
+    const resolvedPaths = await resolveEvalPaths(args.evalPaths, process.cwd());
+    // dumpPrompts: if specified, use true for default behavior (even if value is '.'); otherwise undefined
+    const dumpPrompts =
+      args.dumpPrompts !== undefined
+        ? args.dumpPrompts === '.'
+          ? true
+          : args.dumpPrompts
+        : undefined;
+    const rawOptions: Record<string, unknown> = {
+      target: args.target,
+      targets: args.targets,
+      evalId: args.evalId,
+      workers: args.workers,
+      out: args.out,
+      outputFormat: args.outputFormat,
+      dryRun: args.dryRun,
+      dryRunDelay: args.dryRunDelay,
+      dryRunDelayMin: args.dryRunDelayMin,
+      dryRunDelayMax: args.dryRunDelayMax,
+      agentTimeout: args.agentTimeout,
+      maxRetries: args.maxRetries,
+      cache: args.cache,
+      verbose: args.verbose,
+      dumpPrompts,
+    };
+    await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
+  },
+});
 
 async function resolveEvalPaths(evalPaths: string[], cwd: string): Promise<string[]> {
   const normalizedInputs = evalPaths.map((value) => value?.trim()).filter((value) => value);

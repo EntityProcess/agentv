@@ -1,14 +1,9 @@
-import type { Command } from 'commander';
+import { command, restPositionals, string } from 'cmd-ts';
 
 import { formatSummary, isTTY } from './format-output.js';
 import { validateFiles } from './validate-files.js';
 
-type ValidateCommandOptions = Record<string, never>;
-
-async function runValidateCommand(
-  paths: readonly string[],
-  _options: ValidateCommandOptions,
-): Promise<void> {
+async function runValidateCommand(paths: readonly string[]): Promise<void> {
   if (paths.length === 0) {
     console.error('Error: No paths specified. Usage: agentv validate <paths...>');
     process.exit(1);
@@ -26,19 +21,22 @@ async function runValidateCommand(
   }
 }
 
-export function registerValidateCommand(program: Command): Command {
-  program
-    .command('validate')
-    .description('Validate AgentV eval and targets YAML files')
-    .argument('<paths...>', 'Files or directories to validate')
-    .action(async (paths: string[], _options: ValidateCommandOptions) => {
-      try {
-        await runValidateCommand(paths, _options);
-      } catch (error) {
-        console.error(`Error: ${(error as Error).message}`);
-        process.exit(1);
-      }
-    });
-
-  return program;
-}
+export const validateCommand = command({
+  name: 'validate',
+  description: 'Validate AgentV eval and targets YAML files',
+  args: {
+    paths: restPositionals({
+      type: string,
+      displayName: 'paths',
+      description: 'Files or directories to validate',
+    }),
+  },
+  handler: async ({ paths }) => {
+    try {
+      await runValidateCommand(paths);
+    } catch (error) {
+      console.error(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  },
+});

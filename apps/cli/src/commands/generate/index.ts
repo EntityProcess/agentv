@@ -1,28 +1,46 @@
-import type { Command } from 'commander';
+import { command, flag, option, optional, positional, string, subcommands } from 'cmd-ts';
 
 import { generateRubricsCommand } from './rubrics.js';
 
-export function registerGenerateCommand(program: Command): void {
-  const generate = program.command('generate').description('Generate evaluation artifacts');
+const rubricsCommand = command({
+  name: 'rubrics',
+  description: 'Generate rubrics from expected_outcome in YAML eval file',
+  args: {
+    file: positional({
+      type: string,
+      displayName: 'file',
+      description: 'Path to YAML eval file',
+    }),
+    target: option({
+      type: optional(string),
+      long: 'target',
+      short: 't',
+      description: 'Override target for rubric generation (default: file target or openai:gpt-4o)',
+    }),
+    verbose: flag({
+      long: 'verbose',
+      short: 'v',
+      description: 'Show detailed progress',
+    }),
+  },
+  handler: async ({ file, target, verbose }) => {
+    try {
+      await generateRubricsCommand({
+        file,
+        target,
+        verbose,
+      });
+    } catch (error) {
+      console.error(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  },
+});
 
-  generate
-    .command('rubrics <file>')
-    .description('Generate rubrics from expected_outcome in YAML eval file')
-    .option(
-      '-t, --target <target>',
-      'Override target for rubric generation (default: file target or openai:gpt-4o)',
-    )
-    .option('-v, --verbose', 'Show detailed progress')
-    .action(async (file: string, options: { target?: string; verbose?: boolean }) => {
-      try {
-        await generateRubricsCommand({
-          file,
-          target: options.target,
-          verbose: options.verbose,
-        });
-      } catch (error) {
-        console.error(`Error: ${(error as Error).message}`);
-        process.exit(1);
-      }
-    });
-}
+export const generateCommand = subcommands({
+  name: 'generate',
+  description: 'Generate evaluation artifacts',
+  cmds: {
+    rubrics: rubricsCommand,
+  },
+});

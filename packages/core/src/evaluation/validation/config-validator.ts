@@ -27,13 +27,10 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
 
     const config = parsed as Record<string, unknown>;
 
-    // Validate $schema field
+    // Validate $schema field (optional, but if present must be correct)
     const schema = config.$schema;
-    if (schema !== SCHEMA_CONFIG_V2) {
-      const message =
-        typeof schema === 'string'
-          ? `Invalid $schema value '${schema}'. Expected '${SCHEMA_CONFIG_V2}'`
-          : `Missing required field '$schema'. Please add '$schema: ${SCHEMA_CONFIG_V2}' at the top of the file.`;
+    if (schema !== undefined && schema !== SCHEMA_CONFIG_V2) {
+      const message = `Invalid $schema value '${schema}'. Expected '${SCHEMA_CONFIG_V2}' or omit the field.`;
       errors.push({
         severity: 'error',
         filePath,

@@ -153,6 +153,7 @@ describe('agentv eval CLI', () => {
       fixture.testFilePath,
       '--verbose',
       '--dump-prompts',
+      '.',
     ]);
 
     // Don't check stderr - it may contain stack traces or other diagnostics

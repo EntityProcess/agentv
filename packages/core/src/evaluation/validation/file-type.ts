@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { parse } from 'yaml';
 
 import type { FileType } from './types.js';
@@ -9,7 +10,10 @@ const SCHEMA_CONFIG_V2 = 'agentv-config-v2';
 
 /**
  * Detect file type by reading $schema field from YAML file.
- * Returns "unknown" if file cannot be read or $schema is missing/invalid.
+ * If $schema is missing, infers type from filename/path:
+ * - config.yaml under .agentv folder → 'config'
+ * - targets.yaml under .agentv folder → 'targets'
+ * - All other YAML files → 'eval' (default)
  */
 export async function detectFileType(filePath: string): Promise<FileType> {
   try {
@@ -17,14 +21,15 @@ export async function detectFileType(filePath: string): Promise<FileType> {
     const parsed = parse(content) as unknown;
 
     if (typeof parsed !== 'object' || parsed === null) {
-      return 'unknown';
+      return inferFileTypeFromPath(filePath);
     }
 
     const record = parsed as Record<string, unknown>;
     const schema = record.$schema;
 
     if (typeof schema !== 'string') {
-      return 'unknown';
+      // No $schema field - infer from path
+      return inferFileTypeFromPath(filePath);
     }
 
     switch (schema) {
@@ -35,11 +40,33 @@ export async function detectFileType(filePath: string): Promise<FileType> {
       case SCHEMA_CONFIG_V2:
         return 'config';
       default:
-        return 'unknown';
+        // Unknown schema - infer from path
+        return inferFileTypeFromPath(filePath);
     }
   } catch {
-    return 'unknown';
+    return inferFileTypeFromPath(filePath);
   }
+}
+
+/**
+ * Infer file type from filename and directory path.
+ */
+function inferFileTypeFromPath(filePath: string): FileType {
+  const normalized = path.normalize(filePath).replace(/\\/g, '/');
+  const basename = path.basename(filePath);
+
+  // Check if file is under .agentv folder
+  if (normalized.includes('/.agentv/')) {
+    if (basename === 'config.yaml' || basename === 'config.yml') {
+      return 'config';
+    }
+    if (basename === 'targets.yaml' || basename === 'targets.yml') {
+      return 'targets';
+    }
+  }
+
+  // Default to eval file
+  return 'eval';
 }
 
 /**
