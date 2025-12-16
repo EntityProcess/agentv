@@ -49,3 +49,7 @@ Ensure `verdict` is always populated in `EvaluationScore`.
 1.  Update `LlmJudgeEvaluator` to handle `rubrics`.
 2.  Update `yaml-parser` to map `type: 'rubric'` config to the new unified `LlmJudgeEvaluator` with `rubrics` populated.
 3.  Eventually remove `RubricEvaluator` class and `type: 'rubric'`.
+
+## Future Work
+*   **Rename `CodeEvaluator` to `CodeJudgeEvaluator`**: To align with the `llm_judge` / `code_judge` taxonomy.
+*   **Add `CompositeEvaluator`**: To support teams of evaluators and meta-judges.
