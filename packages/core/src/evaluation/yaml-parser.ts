@@ -35,10 +35,12 @@ type RawEvalCase = JsonObject & {
   readonly id?: JsonValue;
   readonly conversation_id?: JsonValue;
   readonly outcome?: JsonValue;
+  readonly expected_outcome?: JsonValue;
   readonly input_messages?: JsonValue;
   readonly expected_messages?: JsonValue;
   readonly execution?: JsonValue;
   readonly evaluators?: JsonValue;
+  readonly rubrics?: JsonValue;
 };
 
 /**
@@ -122,7 +124,8 @@ export async function loadEvalCases(
     }
 
     const conversationId = asString(evalcase.conversation_id);
-    const outcome = asString(evalcase.outcome);
+    // Support both expected_outcome and outcome (backward compatibility)
+    const outcome = asString(evalcase.expected_outcome) ?? asString(evalcase.outcome);
 
     const inputMessagesValue = evalcase.input_messages;
     const expectedMessagesValue = evalcase.expected_messages;
@@ -201,6 +204,40 @@ export async function loadEvalCases(
       const message = error instanceof Error ? error.message : String(error);
       logError(`Skipping eval case '${id}': ${message}`);
       continue;
+    }
+
+    // Handle inline rubrics field (syntactic sugar)
+    const inlineRubrics = evalcase.rubrics;
+    if (inlineRubrics !== undefined && Array.isArray(inlineRubrics)) {
+      const rubricItems = inlineRubrics
+        .filter((r): r is JsonObject | string => isJsonObject(r) || typeof r === 'string')
+        .map((rubric, index) => {
+          if (typeof rubric === 'string') {
+            return {
+              id: `rubric-${index + 1}`,
+              description: rubric,
+              weight: 1.0,
+              required: true,
+            };
+          }
+          return {
+            id: asString(rubric.id) ?? `rubric-${index + 1}`,
+            description: asString(rubric.description) ?? '',
+            weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
+            required: typeof rubric.required === 'boolean' ? rubric.required : true,
+          };
+        })
+        .filter((r) => r.description.length > 0);
+
+      if (rubricItems.length > 0) {
+        const rubricEvaluator: import('./types.js').RubricEvaluatorConfig = {
+          name: 'rubric',
+          type: 'rubric',
+          rubrics: rubricItems,
+        };
+        // Prepend rubric evaluator to existing evaluators
+        evaluators = evaluators ? [rubricEvaluator, ...evaluators] : [rubricEvaluator];
+      }
     }
 
     // Extract file paths from all input segments (non-guideline files)

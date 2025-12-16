@@ -8,6 +8,7 @@ import {
   type EvaluationScore,
   type Evaluator,
   LlmJudgeEvaluator,
+  RubricEvaluator,
 } from './evaluators.js';
 import { readTextFile } from './file-utils.js';
 import { createProvider } from './providers/index.js';
@@ -743,6 +744,7 @@ async function runEvaluatorList(options: {
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
+          verdict: score.verdict,
           hits: score.hits,
           misses: score.misses,
           reasoning: score.reasoning,
@@ -771,6 +773,41 @@ async function runEvaluatorList(options: {
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+          evaluator_provider_request: score.evaluatorRawRequest,
+        });
+        continue;
+      }
+
+      if (evaluator.type === 'rubric') {
+        const rubricEvaluator = new RubricEvaluator({
+          config: evaluator,
+          resolveJudgeProvider: async (context) => {
+            if (context.judgeProvider) {
+              return context.judgeProvider;
+            }
+            return judgeProvider;
+          },
+        });
+        const score = await rubricEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+          judgeProvider,
+        });
+        scored.push({ score, name: evaluator.name, type: evaluator.type });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          verdict: score.verdict,
           hits: score.hits,
           misses: score.misses,
           reasoning: score.reasoning,
@@ -831,7 +868,7 @@ async function runEvaluatorList(options: {
 }
 
 async function runLlmJudgeEvaluator(options: {
-  readonly config: Exclude<NonNullable<EvalCase['evaluators']>[number], { type: 'code' }>;
+  readonly config: import('./types.js').LlmJudgeEvaluatorConfig;
   readonly evalCase: EvalCase;
   readonly candidate: string;
   readonly target: ResolvedTarget;

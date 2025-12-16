@@ -334,6 +334,59 @@ Evaluation criteria and guidelines...
 }
 ```
 
+## Rubric-Based Evaluation
+
+AgentV supports structured evaluation through rubrics - lists of criteria that define what makes a good response. Rubrics are checked by an LLM judge and scored based on weights and requirements.
+
+### Basic Usage
+
+Define rubrics inline using simple strings:
+
+```yaml
+- id: example-1
+  expected_outcome: Explain quicksort algorithm
+  rubrics:
+    - Mentions divide-and-conquer approach
+    - Explains the partition step
+    - States time complexity correctly
+```
+
+Or use detailed objects for fine-grained control:
+
+```yaml
+rubrics:
+  - id: structure
+    description: Has clear headings and organization
+    weight: 1.0
+    required: true
+  - id: examples
+    description: Includes practical examples
+    weight: 0.5
+    required: false
+```
+
+### Generate Rubrics
+
+Automatically generate rubrics from `expected_outcome` fields:
+
+```bash
+# Generate rubrics for all eval cases without rubrics
+agentv generate rubrics evals/my-eval.yaml
+
+# Use a specific LLM target for generation
+agentv generate rubrics evals/my-eval.yaml --target openai:gpt-4o
+```
+
+### Scoring and Verdicts
+
+- **Score**: (sum of satisfied weights) / (total weights)
+- **Verdicts**:
+  - `pass`: Score ≥ 0.8 and all required rubrics met
+  - `borderline`: Score ≥ 0.6 and all required rubrics met
+  - `fail`: Score < 0.6 or any required rubric failed
+
+For complete examples and detailed patterns, see [examples/features/evals/rubric/](examples/features/evals/rubric/).
+
 ## Advanced Configuration
 
 ### Retry Configuration

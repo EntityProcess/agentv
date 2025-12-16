@@ -1,7 +1,10 @@
 import type { ResolvedTarget } from './providers/targets.js';
 import type { ChatPrompt, Provider, ProviderResponse } from './providers/types.js';
 import { TEMPLATE_VARIABLES } from './template-variables.js';
-import type { EvalCase, EvaluatorConfig, JsonObject } from './types.js';
+import type { EvalCase, EvaluationVerdict, EvaluatorConfig, JsonObject } from './types.js';
+
+export { RubricEvaluator } from './evaluators/rubric-evaluator.js';
+export type { EvaluationVerdict };
 
 /**
  * Default evaluator template for the user prompt (variables will be substituted).
@@ -45,6 +48,7 @@ export interface EvaluationContext {
 
 export interface EvaluationScore {
   readonly score: number;
+  readonly verdict?: EvaluationVerdict;
   readonly hits: readonly string[];
   readonly misses: readonly string[];
   readonly expectedAspectCount: number;

@@ -133,7 +133,7 @@ export function isTestMessage(value: unknown): value is TestMessage {
   return candidate.content.every(isJsonObject);
 }
 
-const EVALUATOR_KIND_VALUES = ['code', 'llm_judge'] as const;
+const EVALUATOR_KIND_VALUES = ['code', 'llm_judge', 'rubric'] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
 
@@ -159,7 +159,20 @@ export type LlmJudgeEvaluatorConfig = {
   readonly promptPath?: string;
 };
 
-export type EvaluatorConfig = CodeEvaluatorConfig | LlmJudgeEvaluatorConfig;
+export type RubricItem = {
+  readonly id: string;
+  readonly description: string;
+  readonly weight: number;
+  readonly required: boolean;
+};
+
+export type RubricEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'rubric';
+  readonly rubrics: readonly RubricItem[];
+};
+
+export type EvaluatorConfig = CodeEvaluatorConfig | LlmJudgeEvaluatorConfig | RubricEvaluatorConfig;
 
 /**
  * Eval case definition sourced from AgentV specs.
@@ -204,10 +217,13 @@ export interface EvaluationResult {
   readonly error?: string;
 }
 
+export type EvaluationVerdict = 'pass' | 'fail' | 'borderline';
+
 export interface EvaluatorResult {
   readonly name: string;
   readonly type: EvaluatorKind;
   readonly score: number;
+  readonly verdict?: EvaluationVerdict;
   readonly hits: readonly string[];
   readonly misses: readonly string[];
   readonly reasoning?: string;

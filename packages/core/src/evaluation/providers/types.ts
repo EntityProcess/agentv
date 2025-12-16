@@ -108,6 +108,11 @@ export interface Provider {
    * the orchestrator may send multiple requests in a single provider session.
    */
   invokeBatch?(requests: readonly ProviderRequest[]): Promise<readonly ProviderResponse[]>;
+  /**
+   * Optional method to get a Vercel AI SDK LanguageModel instance for structured output generation.
+   * Used by evaluators that need generateObject/generateText from the AI SDK.
+   */
+  asLanguageModel?(): import('ai').LanguageModel;
 }
 
 export type EnvLookup = Readonly<Record<string, string | undefined>>;
