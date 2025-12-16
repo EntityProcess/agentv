@@ -96,12 +96,16 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
     // Optional: expected_outcome or outcome for backward compatibility
     const expectedOutcome = evalCase.expected_outcome ?? evalCase.outcome;
-    if (expectedOutcome !== undefined && (typeof expectedOutcome !== 'string' || expectedOutcome.trim().length === 0)) {
+    if (
+      expectedOutcome !== undefined &&
+      (typeof expectedOutcome !== 'string' || expectedOutcome.trim().length === 0)
+    ) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
         location: `${location}.expected_outcome`,
-        message: "Invalid 'expected_outcome' or 'outcome' field (must be a non-empty string if provided)",
+        message:
+          "Invalid 'expected_outcome' or 'outcome' field (must be a non-empty string if provided)",
       });
     }
 

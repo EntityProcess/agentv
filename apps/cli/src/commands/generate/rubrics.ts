@@ -1,8 +1,16 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { type YAMLSeq, isMap, isSeq, parseDocument } from 'yaml';
 
-import { type JsonObject, type JsonValue, createProvider, generateRubrics } from '@agentv/core';
+import {
+  type GenerateRubricsOptions as CoreGenerateRubricsOptions,
+  type JsonObject,
+  type JsonValue,
+  type RubricItem,
+  createProvider,
+  generateRubrics,
+} from '@agentv/core';
 import { selectTarget } from '../eval/targets.js';
 
 interface GenerateRubricsOptions {
@@ -35,6 +43,22 @@ function isJsonObject(value: unknown): value is JsonObject {
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
+}
+
+// Allow overriding generateRubrics for testing
+async function loadRubricGenerator(): Promise<
+  (options: CoreGenerateRubricsOptions) => Promise<readonly RubricItem[]>
+> {
+  const customGenerator = process.env.AGENTEVO_CLI_RUBRIC_GENERATOR;
+  if (customGenerator) {
+    const generatorPath = path.resolve(customGenerator);
+    const generatorUrl = pathToFileURL(generatorPath).href;
+    const module = (await import(generatorUrl)) as {
+      generateRubrics: (options: CoreGenerateRubricsOptions) => Promise<readonly RubricItem[]>;
+    };
+    return module.generateRubrics;
+  }
+  return generateRubrics;
 }
 
 export async function generateRubricsCommand(options: GenerateRubricsOptions): Promise<void> {
@@ -77,6 +101,7 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
   }
 
   const provider = createProvider(targetSelection.resolvedTarget);
+  const generateRubricsFunc = await loadRubricGenerator();
 
   let updatedCount = 0;
   let skippedCount = 0;
@@ -122,7 +147,7 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
     const question = extractQuestion(evalCase);
     const referenceAnswer = asString(evalCase.reference_answer);
 
-    const rubrics = await generateRubrics({
+    const rubrics = await generateRubricsFunc({
       expectedOutcome,
       question,
       referenceAnswer,
