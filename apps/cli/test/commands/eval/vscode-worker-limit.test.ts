@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 
 describe('VSCode worker limit validation', () => {
   it('should limit workers to 1 for vscode provider when workers > 1', () => {

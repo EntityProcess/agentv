@@ -1,7 +1,7 @@
+import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { LlmJudgeEvaluator } from '../../src/evaluation/evaluators.js';
 import { type EvaluationCache, runEvalCase } from '../../src/evaluation/orchestrator.js';
@@ -122,7 +122,7 @@ const evaluatorRegistry = {
 
 describe('runTestCase', () => {
   afterEach(() => {
-    vi.useRealTimers();
+    // Bun uses real timers by default
   });
 
   it('produces evaluation result using default grader', async () => {

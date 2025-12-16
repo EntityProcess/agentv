@@ -1,7 +1,7 @@
+import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { unlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { CliProvider, type CommandRunResult } from '../../../src/evaluation/providers/cli.js';
 import type { CliResolvedConfig } from '../../../src/evaluation/providers/targets.js';
@@ -37,7 +37,7 @@ describe('CliProvider', () => {
   });
 
   it('renders placeholders and returns response from output file', async () => {
-    const runner = vi.fn(async (command: string): Promise<CommandRunResult> => {
+    const runner = mock(async (command: string): Promise<CommandRunResult> => {
       // Extract the output file path from the command
       // The command template includes {OUTPUT_FILE} which gets replaced with the temp file path
       const match = command.match(/agentv-case-1-\d+-\w+\.json/);
@@ -67,7 +67,7 @@ describe('CliProvider', () => {
   });
 
   it('throws on non-zero exit codes with stderr context', async () => {
-    const runner = vi.fn(
+    const runner = mock(
       async (_command, _options): Promise<CommandRunResult> => ({
         stdout: '',
         stderr: 'Something went wrong',
@@ -82,7 +82,7 @@ describe('CliProvider', () => {
   });
 
   it('treats timed out commands as failures', async () => {
-    const runner = vi.fn(
+    const runner = mock(
       async (_command, _options): Promise<CommandRunResult> => ({
         stdout: '',
         stderr: '',

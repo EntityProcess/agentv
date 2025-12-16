@@ -1,7 +1,7 @@
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   type CodexLogEntry,
@@ -28,7 +28,7 @@ describe('CodexProvider', () => {
   });
 
   it('mirrors input files and composes preread block', async () => {
-    const runner = vi.fn<
+    const runner = mock<
       [{ prompt: string; args: readonly string[]; onStdoutChunk?: (chunk: string) => void }],
       Promise<{ stdout: string; stderr: string; exitCode: number }>
     >(async () => ({
@@ -94,7 +94,7 @@ describe('CodexProvider', () => {
   });
 
   it('fails when Codex CLI emits invalid JSON', async () => {
-    const runner = vi.fn(async () => ({
+    const runner = mock(async () => ({
       stdout: 'not json',
       stderr: '',
       exitCode: 0,
@@ -124,7 +124,7 @@ describe('CodexProvider', () => {
     ]
       .map((event) => JSON.stringify(event))
       .join('\n');
-    const runner = vi.fn(async () => ({
+    const runner = mock(async () => ({
       stdout: jsonl,
       stderr: '',
       exitCode: 0,
@@ -148,7 +148,7 @@ describe('CodexProvider', () => {
   });
 
   it('streams codex output to a readable log file', async () => {
-    const runner = vi.fn(async (options: { readonly onStdoutChunk?: (chunk: string) => void }) => {
+    const runner = mock(async (options: { readonly onStdoutChunk?: (chunk: string) => void }) => {
       const reasoning = JSON.stringify({
         type: 'item.completed',
         item: { type: 'reasoning', text: 'thinking hard' },
@@ -198,7 +198,7 @@ describe('CodexProvider', () => {
   });
 
   it('supports JSON log format for detailed inspection', async () => {
-    const runner = vi.fn(async (options: { readonly onStdoutChunk?: (chunk: string) => void }) => {
+    const runner = mock(async (options: { readonly onStdoutChunk?: (chunk: string) => void }) => {
       const event = JSON.stringify({
         type: 'item.completed',
         item: { type: 'tool_call', tool: 'search', args: { q: 'hello' } },
