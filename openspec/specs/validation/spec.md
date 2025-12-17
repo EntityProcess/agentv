@@ -69,6 +69,8 @@ The system SHALL validate eval files against the v2 schema.
 
 ### Requirement: Targets File Schema Validation
 
+The system SHALL validate targets files against the targets schema.
+
 #### Scenario: Targets array required
 
 - **WHEN** targets file missing `targets` array
