@@ -174,6 +174,7 @@ Each target specifies:
   endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
   api_key: ${{ AZURE_OPENAI_API_KEY }}
   model: ${{ AZURE_DEPLOYMENT_NAME }}
+  version: ${{ AZURE_OPENAI_API_VERSION }}  # Optional: defaults to 2024-12-01-preview
 ```
 
 Note: Environment variables are referenced using `${{ VARIABLE_NAME }}` syntax. The actual values are resolved from your `.env` file at runtime.
@@ -414,6 +415,7 @@ targets:
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
     model: gpt-4
+    version: ${{ AZURE_OPENAI_API_VERSION }}                # Optional: API version (defaults to 2024-12-01-preview)
     max_retries: 5                                          # Maximum retry attempts
     retry_initial_delay_ms: 2000                            # Initial delay before first retry
     retry_max_delay_ms: 120000                              # Maximum delay cap

@@ -1,5 +1,13 @@
 # agentv
 
+## 0.23.1
+
+### Patch Changes
+
+- 310972e: update azure openai api docs
+- Updated dependencies [310972e]
+  - @agentv/core@0.23.1
+
 ## 0.23.0
 
 ### Minor Changes
