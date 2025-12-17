@@ -1,5 +1,11 @@
 # agentv
 
+## 0.23.0
+
+### Minor Changes
+
+- update agent skills to match implementation
+
 ## 0.22.0
 
 ### Minor Changes
