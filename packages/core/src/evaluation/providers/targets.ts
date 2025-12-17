@@ -168,7 +168,7 @@ const BASE_TARGET_SCHEMA = z
   })
   .passthrough();
 
-const DEFAULT_AZURE_API_VERSION = '2024-10-01-preview';
+const DEFAULT_AZURE_API_VERSION = '2024-12-01-preview';
 
 function normalizeAzureApiVersion(value: string | undefined): string {
   if (!value) {
