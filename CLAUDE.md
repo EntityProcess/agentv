@@ -1,1 +1,1 @@
-Always follow instructions in `@AGENTS.md`.
+ **FIRST ACTION**: Read `AGENTS.md` before doing any work.

@@ -50,31 +50,29 @@ export async function parseEvaluators(
       continue;
     }
 
-    if (typeValue === 'code') {
+    if (typeValue === 'code_judge') {
       const script = asString(rawEvaluator.script);
       if (!script) {
-        logWarning(`Skipping code evaluator '${name}' in '${evalId}': missing script`);
+        logWarning(`Skipping code_judge evaluator '${name}' in '${evalId}': missing script`);
         continue;
       }
 
       const cwd = asString(rawEvaluator.cwd);
       let resolvedCwd: string | undefined;
 
-      // Resolve cwd if provided (relative to eval file), otherwise default to eval file directory
       if (cwd) {
         const resolved = await resolveFileReference(cwd, searchRoots);
         if (resolved.resolvedPath) {
           resolvedCwd = path.resolve(resolved.resolvedPath);
         } else {
           logWarning(
-            `Code evaluator '${name}' in '${evalId}': cwd not found (${resolved.displayPath})`,
+            `Code_judge evaluator '${name}' in '${evalId}': cwd not found (${resolved.displayPath})`,
             resolved.attempted.length > 0
               ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`)
               : undefined,
           );
         }
       } else {
-        // Default to the directory containing the eval file (first search root)
         resolvedCwd = searchRoots[0];
       }
 
@@ -84,6 +82,133 @@ export async function parseEvaluators(
         script,
         cwd,
         resolvedCwd,
+      });
+      continue;
+    }
+
+    if (typeValue === 'composite') {
+      const rawMembers = rawEvaluator.evaluators;
+      if (!Array.isArray(rawMembers)) {
+        logWarning(
+          `Skipping composite evaluator '${name}' in '${evalId}': missing evaluators array`,
+        );
+        continue;
+      }
+
+      const rawAggregator = rawEvaluator.aggregator;
+      if (!isJsonObject(rawAggregator)) {
+        logWarning(`Skipping composite evaluator '${name}' in '${evalId}': missing aggregator`);
+        continue;
+      }
+
+      const aggregatorType = asString(rawAggregator.type);
+      if (
+        aggregatorType !== 'weighted_average' &&
+        aggregatorType !== 'code_judge' &&
+        aggregatorType !== 'llm_judge'
+      ) {
+        logWarning(
+          `Skipping composite evaluator '${name}' in '${evalId}': invalid aggregator type '${aggregatorType}'`,
+        );
+        continue;
+      }
+
+      // Recursively parse member evaluators
+      const memberEvaluators: EvaluatorConfig[] = [];
+      for (const rawMember of rawMembers) {
+        if (!isJsonObject(rawMember)) {
+          logWarning(`Skipping invalid member evaluator in composite '${name}' (expected object)`);
+          continue;
+        }
+
+        const memberName = asString(rawMember.name);
+        const memberType = rawMember.type;
+
+        if (!memberName || !isEvaluatorKind(memberType)) {
+          logWarning(`Skipping member evaluator with invalid name/type in composite '${name}'`);
+          continue;
+        }
+
+        // Parse member evaluator (reuse existing logic for code, llm_judge, code_judge)
+        const memberConfigs = await parseEvaluators(
+          { evaluators: [rawMember] },
+          undefined,
+          searchRoots,
+          `${evalId}:${name}:${memberName}`,
+        );
+
+        if (memberConfigs && memberConfigs.length > 0) {
+          memberEvaluators.push(memberConfigs[0]);
+        }
+      }
+
+      if (memberEvaluators.length === 0) {
+        logWarning(
+          `Skipping composite evaluator '${name}' in '${evalId}': no valid member evaluators`,
+        );
+        continue;
+      }
+
+      // Parse aggregator config
+      let aggregator: import('../types.js').CompositeAggregatorConfig;
+
+      if (aggregatorType === 'weighted_average') {
+        const weights = isJsonObject(rawAggregator.weights)
+          ? (rawAggregator.weights as Record<string, unknown>)
+          : undefined;
+        const parsedWeights: Record<string, number> = {};
+        if (weights) {
+          for (const [key, value] of Object.entries(weights)) {
+            if (typeof value === 'number') {
+              parsedWeights[key] = value;
+            }
+          }
+        }
+        aggregator = {
+          type: 'weighted_average',
+          ...(Object.keys(parsedWeights).length > 0 ? { weights: parsedWeights } : {}),
+        };
+      } else if (aggregatorType === 'code_judge') {
+        const aggregatorPath = asString(rawAggregator.path);
+        if (!aggregatorPath) {
+          logWarning(
+            `Skipping composite evaluator '${name}' in '${evalId}': code_judge aggregator missing path`,
+          );
+          continue;
+        }
+
+        // Don't try to resolve if path contains a command (e.g., "node script.js", "uv run script.py")
+        // This matches the behavior of code evaluators which accept full commands
+        // Set cwd to eval file directory (first search root)
+        aggregator = {
+          type: 'code_judge',
+          path: aggregatorPath,
+          cwd: searchRoots[0],
+        };
+      } else {
+        // llm_judge aggregator
+        const aggregatorPrompt = asString(rawAggregator.prompt);
+        let promptPath: string | undefined;
+
+        if (aggregatorPrompt) {
+          const resolved = await resolveFileReference(aggregatorPrompt, searchRoots);
+          if (resolved.resolvedPath) {
+            promptPath = path.resolve(resolved.resolvedPath);
+          }
+        }
+
+        aggregator = {
+          type: 'llm_judge',
+          ...(aggregatorPrompt ? { prompt: aggregatorPrompt } : {}),
+          ...(promptPath ? { promptPath } : {}),
+        };
+      }
+
+      evaluators.push({
+        name,
+        type: 'composite',
+        evaluators: memberEvaluators,
+        aggregator,
       });
       continue;
     }

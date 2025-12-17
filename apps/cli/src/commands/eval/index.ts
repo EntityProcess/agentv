@@ -44,8 +44,8 @@ export const evalCommand = command({
       type: number,
       long: 'workers',
       description:
-        'Number of parallel workers (default: 1, max: 50). Can also be set per-target in targets.yaml',
-      defaultValue: () => 1,
+        'Number of parallel workers (default: 3, max: 50). Can also be set per-target in targets.yaml',
+      defaultValue: () => 3,
     }),
     out: option({
       type: optional(string),

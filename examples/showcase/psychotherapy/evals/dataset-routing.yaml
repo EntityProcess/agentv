@@ -6,7 +6,7 @@ execution:
   target: default
   evaluators:
     - name: json_schema_validator
-      type: code
+      type: code_judge
       script: uv run validate_output.py
     - name: content_evaluator
       type: llm_judge
