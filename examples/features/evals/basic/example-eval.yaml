@@ -78,7 +78,7 @@ evalcases:
       # Multiple evaluators - supports both code-based and LLM judges
       evaluators:
         - name: keyword_check
-          type: code  # Code evaluators handle regex, keywords, linting, etc.
+          type: code_judge  # Code evaluators handle regex, keywords, linting, etc.
           script: uv run check_python_keywords.py
           cwd: ../../evaluators/scripts  # Working directory for script execution
         - name: code_correctness

@@ -133,7 +133,7 @@ export function isTestMessage(value: unknown): value is TestMessage {
   return candidate.content.every(isJsonObject);
 }
 
-const EVALUATOR_KIND_VALUES = ['code', 'llm_judge', 'rubric'] as const;
+const EVALUATOR_KIND_VALUES = ['code_judge', 'llm_judge', 'rubric', 'composite'] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
 
@@ -167,7 +167,27 @@ export type RubricItem = {
   readonly required: boolean;
 };
 
-export type EvaluatorConfig = CodeEvaluatorConfig | LlmJudgeEvaluatorConfig;
+export type CompositeAggregatorConfig =
+  | { readonly type: 'weighted_average'; readonly weights?: Record<string, number> }
+  | { readonly type: 'code_judge'; readonly path: string; readonly cwd?: string }
+  | {
+      readonly type: 'llm_judge';
+      readonly prompt?: string;
+      readonly promptPath?: string;
+      readonly model?: string;
+    };
+
+export type CompositeEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'composite';
+  readonly evaluators: readonly EvaluatorConfig[];
+  readonly aggregator: CompositeAggregatorConfig;
+};
+
+export type EvaluatorConfig =
+  | CodeEvaluatorConfig
+  | LlmJudgeEvaluatorConfig
+  | CompositeEvaluatorConfig;
 
 /**
  * Eval case definition sourced from AgentV specs.

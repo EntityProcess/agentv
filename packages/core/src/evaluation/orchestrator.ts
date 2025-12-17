@@ -5,6 +5,7 @@ import pLimit from 'p-limit';
 
 import {
   CodeEvaluator,
+  CompositeEvaluator,
   type EvaluationScore,
   type Evaluator,
   LlmJudgeEvaluator,
@@ -767,6 +768,62 @@ async function runEvaluatorList(options: {
           promptInputs,
           now,
         });
+        scored.push({ score, name: evaluator.name, type: 'code_judge' });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: 'code_judge',
+          score: score.score,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+          evaluator_provider_request: score.evaluatorRawRequest,
+        });
+      }
+
+      if (evaluator.type === 'composite') {
+        const evalFileDir = evalCase.guideline_paths[0]
+          ? path.dirname(evalCase.guideline_paths[0])
+          : process.cwd();
+
+        const createEvaluator = (memberConfig: import('./types.js').EvaluatorConfig): Evaluator => {
+          switch (memberConfig.type) {
+            case 'llm_judge':
+              return evaluatorRegistry.llm_judge;
+            case 'code':
+              return new CodeEvaluator({
+                script: memberConfig.script,
+                cwd: memberConfig.resolvedCwd ?? memberConfig.cwd,
+                agentTimeoutMs,
+              });
+            case 'composite':
+              return new CompositeEvaluator({
+                config: memberConfig,
+                cwd: evalFileDir,
+                evaluatorFactory: { create: createEvaluator },
+              });
+            default: {
+              const unknownConfig = memberConfig as { type: string };
+              throw new Error(`Unsupported evaluator type in composite: ${unknownConfig.type}`);
+            }
+          }
+        };
+
+        const compositeEvaluator = new CompositeEvaluator({
+          config: evaluator,
+          cwd: evalFileDir,
+          evaluatorFactory: { create: createEvaluator },
+        });
+        const score = await compositeEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+          judgeProvider,
+        });
         scored.push({ score, name: evaluator.name, type: evaluator.type });
         evaluatorResults.push({
           name: evaluator.name,
@@ -789,14 +846,15 @@ async function runEvaluatorList(options: {
         expectedAspectCount: 1,
         reasoning: message,
       };
+      const resultType = evaluator.type === 'code' ? 'code_judge' : evaluator.type;
       scored.push({
         score: fallbackScore,
         name: evaluator.name ?? 'unknown',
-        type: evaluator.type ?? 'unknown',
+        type: resultType ?? 'llm_judge',
       });
       evaluatorResults.push({
         name: evaluator.name ?? 'unknown',
-        type: evaluator.type ?? 'unknown',
+        type: resultType ?? 'llm_judge',
         score: 0,
         verdict: 'fail',
         hits: [],
