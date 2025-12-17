@@ -1,5 +1,11 @@
 # @agentv/core
 
+## 0.23.1
+
+### Patch Changes
+
+- 310972e: update azure openai api docs
+
 ## 0.23.0
 
 ### Minor Changes
