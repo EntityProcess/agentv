@@ -71,7 +71,7 @@
             "type": "string",
             "description": "Optional conversation identifier for threading multiple eval cases together"
           },
-          "outcome": {
+          "expected_outcome": {
             "type": "string",
             "description": "Description of what the AI should accomplish in this eval"
           },
@@ -207,7 +207,7 @@
             "additionalProperties": true
           }
         },
-        "required": ["id", "outcome", "input_messages", "expected_messages"],
+        "required": ["id", "expected_outcome", "input_messages", "expected_messages"],
         "additionalProperties": false
       }
     }

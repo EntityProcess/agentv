@@ -10,14 +10,13 @@ Code evaluators receive input via stdin and write output to stdout, both as JSON
 
 ```json
 {
-  "task": "string describing the task",
-  "outcome": "expected outcome description",
-  "expected": "expected output string",
-  "output": "generated code/text from the agent",
-  "system_message": "system message if any",
+  "question": "string describing the task/question",
+  "expected_outcome": "expected outcome description",
+  "reference_answer": "gold standard answer (optional)",
+  "candidate_answer": "generated code/text from the agent",
   "guideline_paths": ["path1", "path2"],
-  "attachments": ["file1", "file2"],
-  "user_segments": [{"type": "text", "value": "..."}]
+  "input_files": ["file1", "file2"],
+  "input_messages": [{"role": "user", "content": "..."}]
 }
 ```
 
@@ -65,8 +64,8 @@ def evaluate(input_data: dict[str, Any]) -> dict[str, Any]:
         Evaluation result with score, hits, misses, reasoning
     """
     # Extract only the fields you need
-    # Most evaluators only need 'output' - avoid using unnecessary fields
-    output = input_data.get("output", "")
+    # Most evaluators only need 'candidate_answer' - avoid using unnecessary fields
+    candidate_answer = input_data.get("candidate_answer", "")
     
     # Your validation logic here
     hits = []
@@ -75,7 +74,7 @@ def evaluate(input_data: dict[str, Any]) -> dict[str, Any]:
     # Example: Check for keywords
     required_keywords = ["async", "await"]
     for keyword in required_keywords:
-        if keyword in output:
+        if keyword in candidate_answer:
             hits.append(f"Contains required keyword: {keyword}")
         else:
             misses.append(f"Missing required keyword: {keyword}")
@@ -133,7 +132,7 @@ LLM judges use markdown prompts to guide evaluation. AgentV automatically handle
 - `{{candidate_answer}}` - The actual output to evaluate
 - `{{reference_answer}}` - Gold standard answer (optional, may be empty)
 - `{{input_messages}}` - JSON stringified input message segments
-- `{{expected_messages}}` - JSON stringified expected output segments
+- `{{output_messages}}` - JSON stringified expected output segments
 
 **Default Evaluator Template:**
 
@@ -165,8 +164,8 @@ You can customize this template in your eval file using the `evaluatorTemplate` 
 
 ### For Code-based Evaluators
 
-1. **Focus on relevant fields** - Most evaluators only need the `output` field
-2. **Avoid false positives** - Don't check fields like `task` or `expected` unless you specifically need context
+1. **Focus on relevant fields** - Most evaluators only need the `candidate_answer` field
+2. **Avoid false positives** - Don't check fields like `question` or `reference_answer` unless you specifically need context
 3. **Be deterministic** - Same input should always produce same output
 4. **Handle errors gracefully** - Return a valid result even when evaluation fails
 5. **Provide helpful feedback** - Use `hits` and `misses` to explain the score
@@ -199,8 +198,9 @@ Test your evaluator locally:
 ```bash
 # Create test input
 echo '{
-  "output": "test output here",
-  "task": "test task"
+  "candidate_answer": "test output here",
+  "question": "test task",
+  "expected_outcome": "expected result"
 }' | uv run my_validator.py
 
 # Should output:

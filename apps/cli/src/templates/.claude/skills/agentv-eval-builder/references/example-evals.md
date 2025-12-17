@@ -11,7 +11,7 @@ target: default
 
 evalcases:
   - id: simple-addition
-    outcome: Correctly calculates 2+2
+    expected_outcome: Correctly calculates 2+2
     
     input_messages:
       - role: user
@@ -31,7 +31,7 @@ target: azure_base
 
 evalcases:
   - id: code-review-basic
-    outcome: Assistant provides helpful code analysis with security considerations
+    expected_outcome: Assistant provides helpful code analysis with security considerations
     
     input_messages:
       - role: system
@@ -73,7 +73,7 @@ target: default
 
 evalcases:
   - id: json-generation-with-validation
-    outcome: Generates valid JSON with required fields
+    expected_outcome: Generates valid JSON with required fields
     
     execution:
       evaluators:
@@ -111,7 +111,7 @@ target: default
 
 evalcases:
   - id: debug-with-clarification
-    outcome: |-
+    expected_outcome: |-
       Assistant conducts a multi-turn debugging session, asking clarification
       questions when needed, correctly diagnosing the bug, and proposing a clear
       fix with rationale.
@@ -169,7 +169,7 @@ evalcases:
 - **Relative paths** (start with `./` or `../`): Resolved from eval file directory
   - Example: `../../prompts/file.md` → Two directories up, then into prompts/
 
-### Outcome Writing Tips
+### expected_outcome Writing Tips
 - Be specific about what success looks like
 - Mention key elements that must be present
 - For classification tasks, specify the expected category
