@@ -238,12 +238,14 @@ export interface EvaluatorResult {
   readonly name: string;
   readonly type: EvaluatorKind;
   readonly score: number;
+  readonly weight?: number;
   readonly verdict?: EvaluationVerdict;
   readonly hits: readonly string[];
   readonly misses: readonly string[];
   readonly reasoning?: string;
   readonly raw_request?: JsonObject;
   readonly evaluator_provider_request?: JsonObject;
+  readonly evaluator_results?: readonly EvaluatorResult[];
 }
 
 /**

@@ -4,6 +4,7 @@ import path from 'node:path';
 import pLimit from 'p-limit';
 
 import {
+  type ChildEvaluatorResult,
   CodeEvaluator,
   CompositeEvaluator,
   type EvaluationScore,
@@ -26,6 +27,7 @@ import type {
   EvaluationResult,
   EvaluationVerdict,
   EvaluatorConfig,
+  EvaluatorKind,
   EvaluatorResult,
   JsonObject,
   JsonValue,
@@ -834,6 +836,7 @@ async function runEvaluatorList(options: {
           misses: score.misses,
           reasoning: score.reasoning,
           evaluator_provider_request: score.evaluatorRawRequest,
+          evaluator_results: mapChildResults(score.evaluatorResults),
         });
       }
     } catch (error) {
@@ -1152,4 +1155,25 @@ function isTimeoutLike(error: unknown): boolean {
   }
   const value = String(error).toLowerCase();
   return value.includes('timeout');
+}
+
+function mapChildResults(
+  children?: readonly ChildEvaluatorResult[],
+): readonly EvaluatorResult[] | undefined {
+  if (!children || children.length === 0) {
+    return undefined;
+  }
+
+  return children.map((child) => ({
+    name: child.name,
+    type: child.type as EvaluatorKind,
+    score: child.score,
+    weight: child.weight,
+    verdict: child.verdict,
+    hits: child.hits,
+    misses: child.misses,
+    reasoning: child.reasoning,
+    evaluator_provider_request: child.evaluatorRawRequest,
+    evaluator_results: mapChildResults(child.evaluatorResults),
+  }));
 }
