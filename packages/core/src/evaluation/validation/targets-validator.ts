@@ -115,6 +115,7 @@ const MOCK_SETTINGS = new Set([
   'delayMs',
   'delayMinMs',
   'delayMaxMs',
+  'trace', // For testing tool_trajectory evaluator
 ]);
 
 const CLI_SETTINGS = new Set([

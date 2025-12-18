@@ -47,6 +47,8 @@ interface NormalizedOptions {
   readonly cache: boolean;
   readonly verbose: boolean;
   readonly dumpPrompts?: string | boolean;
+  readonly dumpTraces: boolean;
+  readonly includeTrace: boolean;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -96,6 +98,8 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     cache: normalizeBoolean(rawOptions.cache),
     verbose: normalizeBoolean(rawOptions.verbose),
     dumpPrompts: rawOptions.dumpPrompts as string | boolean | undefined,
+    dumpTraces: normalizeBoolean(rawOptions.dumpTraces),
+    includeTrace: normalizeBoolean(rawOptions.includeTrace),
   } satisfies NormalizedOptions;
 }
 
@@ -343,15 +347,6 @@ async function runSingleEvalFile(params: {
       `Warning: VSCode providers require window focus. Limiting workers from ${resolvedWorkers} to 1 to prevent race conditions.`,
     );
     resolvedWorkers = 1;
-  }
-
-  if (options.verbose) {
-    const workersSource = workerPreference
-      ? 'CLI flag (balanced across files)'
-      : resolvedTargetSelection.resolvedTarget.workers
-        ? 'target setting'
-        : 'default';
-    console.log(`Using ${resolvedWorkers} worker(s) (source: ${workersSource})`);
   }
 
   // Auto-provision subagents for VSCode targets

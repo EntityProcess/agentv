@@ -186,7 +186,7 @@ You can customize this template in your eval file using the `evaluatorTemplate` 
 execution:
   evaluators:
     - name: my_validator
-      type: code
+      type: code_judge
       script: uv run my_validator.py
       cwd: ./evaluators
 ```

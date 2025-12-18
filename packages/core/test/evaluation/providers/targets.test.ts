@@ -91,7 +91,7 @@ describe('resolveTargetDefinition', () => {
       resourceName: 'https://example.openai.azure.com',
       deploymentName: 'gpt-4o',
       apiKey: 'secret',
-      version: '2024-10-01-preview',
+      version: '2024-12-01-preview',
     });
   });
 

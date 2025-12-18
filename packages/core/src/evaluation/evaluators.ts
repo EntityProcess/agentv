@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { ResolvedTarget } from './providers/targets.js';
 import type { ChatPrompt, Provider, ProviderResponse } from './providers/types.js';
 import { TEMPLATE_VARIABLES } from './template-variables.js';
+import type { ToolTrajectoryEvaluatorConfig, TraceEvent, TraceSummary } from './trace.js';
 import type {
   EvalCase,
   EvaluationVerdict,
@@ -52,6 +53,10 @@ export interface EvaluationContext {
   readonly judgeProvider?: Provider;
   readonly evaluatorTemplateOverride?: string;
   readonly evaluator?: EvaluatorConfig;
+  /** Normalized trace events from provider execution (if available) */
+  readonly candidateTrace?: readonly TraceEvent[];
+  /** Lightweight summary of trace events (if available) */
+  readonly candidateTraceSummary?: TraceSummary;
 }
 
 export interface EvaluationScore {
@@ -589,6 +594,333 @@ function substituteVariables(template: string, variables: Record<string, string>
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, varName) => {
     return variables[varName] ?? match;
   });
+}
+
+// Tool Trajectory Evaluator
+
+export interface ToolTrajectoryEvaluatorOptions {
+  readonly config: ToolTrajectoryEvaluatorConfig;
+}
+
+export class ToolTrajectoryEvaluator implements Evaluator {
+  readonly kind = 'tool_trajectory';
+
+  private readonly config: ToolTrajectoryEvaluatorConfig;
+
+  constructor(options: ToolTrajectoryEvaluatorOptions) {
+    this.config = options.config;
+  }
+
+  evaluate(context: EvaluationContext): EvaluationScore {
+    const { candidateTrace, candidateTraceSummary } = context;
+
+    // Handle missing trace
+    if (!candidateTrace || !candidateTraceSummary) {
+      return {
+        score: 0,
+        verdict: 'fail',
+        hits: [],
+        misses: ['No trace available for evaluation'],
+        expectedAspectCount: 1,
+      };
+    }
+
+    switch (this.config.mode) {
+      case 'any_order':
+        return this.evaluateAnyOrder(candidateTraceSummary);
+      case 'in_order':
+        return this.evaluateInOrder(candidateTrace);
+      case 'exact':
+        return this.evaluateExact(candidateTrace);
+      default:
+        return {
+          score: 0,
+          verdict: 'fail',
+          hits: [],
+          misses: [`Unknown mode: ${this.config.mode}`],
+          expectedAspectCount: 1,
+        };
+    }
+  }
+
+  private evaluateAnyOrder(summary: TraceSummary): EvaluationScore {
+    const minimums = this.config.minimums ?? {};
+    const toolNames = Object.keys(minimums);
+
+    if (toolNames.length === 0) {
+      return {
+        score: 1,
+        verdict: 'pass',
+        hits: ['No tool requirements specified'],
+        misses: [],
+        expectedAspectCount: 0,
+      };
+    }
+
+    const hits: string[] = [];
+    const misses: string[] = [];
+
+    for (const toolName of toolNames) {
+      const required = minimums[toolName];
+      const actual = summary.toolCallsByName[toolName] ?? 0;
+      if (actual >= required) {
+        hits.push(`${toolName}: called ${actual} times (required ≥${required})`);
+      } else {
+        misses.push(`${toolName}: called ${actual} times (required ≥${required})`);
+      }
+    }
+
+    const score = hits.length / toolNames.length;
+
+    return {
+      score,
+      verdict: scoreToVerdict(score),
+      hits,
+      misses,
+      expectedAspectCount: toolNames.length,
+    };
+  }
+
+  private evaluateInOrder(trace: readonly TraceEvent[]): EvaluationScore {
+    const expected = this.config.expected ?? [];
+
+    if (expected.length === 0) {
+      return {
+        score: 1,
+        verdict: 'pass',
+        hits: ['No tool sequence specified'],
+        misses: [],
+        expectedAspectCount: 0,
+      };
+    }
+
+    const actualToolCalls = trace.filter((e) => e.type === 'tool_call' && e.name);
+
+    const hits: string[] = [];
+    const misses: string[] = [];
+    let actualIndex = 0;
+
+    for (let i = 0; i < expected.length; i++) {
+      const expectedTool = expected[i].tool;
+      let found = false;
+
+      while (actualIndex < actualToolCalls.length) {
+        if (actualToolCalls[actualIndex].name === expectedTool) {
+          hits.push(`Found ${expectedTool} at position ${actualIndex}`);
+          actualIndex++;
+          found = true;
+          break;
+        }
+        actualIndex++;
+      }
+
+      if (!found) {
+        misses.push(`Expected ${expectedTool} at position ${i}, not found in remaining trace`);
+      }
+    }
+
+    const score = hits.length / expected.length;
+
+    return {
+      score,
+      verdict: scoreToVerdict(score),
+      hits,
+      misses,
+      expectedAspectCount: expected.length,
+    };
+  }
+
+  private evaluateExact(trace: readonly TraceEvent[]): EvaluationScore {
+    const expected = this.config.expected ?? [];
+
+    if (expected.length === 0) {
+      return {
+        score: 1,
+        verdict: 'pass',
+        hits: ['No tool sequence specified'],
+        misses: [],
+        expectedAspectCount: 0,
+      };
+    }
+
+    const actualToolCalls = trace.filter((e) => e.type === 'tool_call' && e.name);
+
+    const hits: string[] = [];
+    const misses: string[] = [];
+
+    if (actualToolCalls.length !== expected.length) {
+      misses.push(`Expected ${expected.length} tool calls, got ${actualToolCalls.length}`);
+    }
+
+    const checkLength = Math.min(expected.length, actualToolCalls.length);
+    for (let i = 0; i < checkLength; i++) {
+      const expectedTool = expected[i].tool;
+      const actualTool = actualToolCalls[i].name;
+      if (actualTool === expectedTool) {
+        hits.push(`Position ${i}: ${expectedTool} ✓`);
+      } else {
+        misses.push(`Position ${i}: expected ${expectedTool}, got ${actualTool}`);
+      }
+    }
+
+    for (let i = checkLength; i < expected.length; i++) {
+      misses.push(`Position ${i}: expected ${expected[i].tool}, got nothing`);
+    }
+
+    const score = hits.length / expected.length;
+
+    return {
+      score,
+      verdict: scoreToVerdict(score),
+      hits,
+      misses,
+      expectedAspectCount: expected.length,
+    };
+  }
+}
+
+// Expected Messages Tool Calls Evaluator
+
+/**
+ * Evaluator that validates tool_calls in expected_messages against the actual trace.
+ * Extracts tool_calls from assistant messages in expected_messages and compares them
+ * sequentially against tool_call events in the trace.
+ */
+export class ExpectedMessagesEvaluator implements Evaluator {
+  readonly kind = 'expected_messages';
+
+  evaluate(context: EvaluationContext): EvaluationScore {
+    const { candidateTrace, evalCase } = context;
+    const expectedSegments = evalCase.expected_segments;
+
+    // Extract tool_calls from expected_messages (assistant messages only)
+    const expectedToolCalls = this.extractExpectedToolCalls(expectedSegments);
+
+    if (expectedToolCalls.length === 0) {
+      // No tool_calls to validate - pass by default
+      return {
+        score: 1,
+        verdict: 'pass',
+        hits: ['No tool_calls specified in expected_messages'],
+        misses: [],
+        expectedAspectCount: 1,
+      };
+    }
+
+    // Handle missing trace
+    if (!candidateTrace || candidateTrace.length === 0) {
+      return {
+        score: 0,
+        verdict: 'fail',
+        hits: [],
+        misses: ['No trace available to validate tool_calls'],
+        expectedAspectCount: expectedToolCalls.length,
+      };
+    }
+
+    // Extract actual tool_call events from trace
+    const actualToolCalls = candidateTrace.filter((e) => e.type === 'tool_call');
+
+    // Validate sequentially
+    return this.validateToolCalls(expectedToolCalls, actualToolCalls);
+  }
+
+  private extractExpectedToolCalls(
+    segments: readonly JsonObject[] | undefined,
+  ): readonly { tool: string; input?: unknown }[] {
+    if (!segments) {
+      return [];
+    }
+
+    const toolCalls: { tool: string; input?: unknown }[] = [];
+    for (const segment of segments) {
+      const role = segment.role;
+      const segmentToolCalls = segment.tool_calls;
+      if (role === 'assistant' && Array.isArray(segmentToolCalls)) {
+        for (const tc of segmentToolCalls) {
+          if (
+            typeof tc === 'object' &&
+            tc !== null &&
+            typeof (tc as { tool?: unknown }).tool === 'string'
+          ) {
+            const toolCall = tc as { tool: string; input?: unknown };
+            toolCalls.push({ tool: toolCall.tool, input: toolCall.input });
+          }
+        }
+      }
+    }
+    return toolCalls;
+  }
+
+  private validateToolCalls(
+    expected: readonly { tool: string; input?: unknown }[],
+    actual: readonly TraceEvent[],
+  ): EvaluationScore {
+    const hits: string[] = [];
+    const misses: string[] = [];
+
+    for (let i = 0; i < expected.length; i++) {
+      const expectedCall = expected[i];
+      const actualCall = actual[i];
+
+      if (!actualCall) {
+        misses.push(
+          `tool_calls[${i}]: expected ${expectedCall.tool}, but no more tool calls in trace`,
+        );
+        continue;
+      }
+
+      // Check tool name
+      if (actualCall.name !== expectedCall.tool) {
+        misses.push(
+          `tool_calls[${i}]: expected ${expectedCall.tool}, got ${actualCall.name ?? 'unknown'}`,
+        );
+        continue;
+      }
+
+      // Check input if specified
+      if (expectedCall.input !== undefined) {
+        if (!this.deepEquals(expectedCall.input, actualCall.input)) {
+          misses.push(`tool_calls[${i}]: ${expectedCall.tool} input mismatch`);
+          continue;
+        }
+      }
+
+      hits.push(`tool_calls[${i}]: ${expectedCall.tool} matched`);
+    }
+
+    const totalChecks = expected.length || 1;
+    const score = hits.length / totalChecks;
+
+    return {
+      score,
+      verdict: score >= 0.8 ? 'pass' : score >= 0.6 ? 'borderline' : 'fail',
+      hits,
+      misses,
+      expectedAspectCount: totalChecks,
+    };
+  }
+
+  private deepEquals(a: unknown, b: unknown): boolean {
+    if (a === b) return true;
+    if (typeof a !== typeof b) return false;
+    if (typeof a !== 'object' || a === null || b === null) return false;
+
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) return false;
+      return a.every((val, i) => this.deepEquals(val, b[i]));
+    }
+
+    if (Array.isArray(a) || Array.isArray(b)) return false;
+
+    const aObj = a as Record<string, unknown>;
+    const bObj = b as Record<string, unknown>;
+    const aKeys = Object.keys(aObj);
+    const bKeys = Object.keys(bObj);
+
+    if (aKeys.length !== bKeys.length) return false;
+    return aKeys.every((key) => this.deepEquals(aObj[key], bObj[key]));
+  }
 }
 
 // Composite Evaluator

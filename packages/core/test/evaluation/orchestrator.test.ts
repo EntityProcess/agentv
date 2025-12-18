@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { LlmJudgeEvaluator } from '../../src/evaluation/evaluators.js';
+import { LlmJudgeEvaluator, ToolTrajectoryEvaluator } from '../../src/evaluation/evaluators.js';
 import { type EvaluationCache, runEvalCase } from '../../src/evaluation/orchestrator.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type {
@@ -11,6 +11,7 @@ import type {
   ProviderRequest,
   ProviderResponse,
 } from '../../src/evaluation/providers/types.js';
+import type { TraceEvent } from '../../src/evaluation/trace.js';
 import type { EvalCase } from '../../src/evaluation/types.js';
 
 class SequenceProvider implements Provider {
@@ -397,5 +398,225 @@ describe('runTestCase', () => {
     expect(result.agent_provider_request).toBeDefined();
     expect(result.lm_provider_request).toBeUndefined();
     expect(result.agent_provider_request?.question).toBe('Explain logging improvements');
+  });
+});
+
+// Provider that returns trace data with responses
+class TraceProvider implements Provider {
+  readonly id: string;
+  readonly kind = 'mock' as const;
+  readonly targetName: string;
+
+  constructor(
+    targetName: string,
+    private readonly response: ProviderResponse,
+    private readonly trace?: readonly TraceEvent[],
+  ) {
+    this.id = `trace:${targetName}`;
+    this.targetName = targetName;
+  }
+
+  async invoke(): Promise<ProviderResponse> {
+    return {
+      ...this.response,
+      trace: this.trace,
+    };
+  }
+}
+
+describe('runEvalCase trace integration', () => {
+  const traceTestCase: EvalCase = {
+    id: 'trace-case',
+    dataset: 'trace-dataset',
+    question: 'What is the weather?',
+    input_messages: [{ role: 'user', content: 'What is the weather?' }],
+    input_segments: [{ type: 'text', value: 'What is the weather?' }],
+    expected_segments: [],
+    reference_answer: 'The weather is sunny',
+    guideline_paths: [],
+    file_paths: [],
+    code_snippets: [],
+    expected_outcome: 'Weather information provided',
+    evaluator: 'llm_judge',
+  };
+
+  it('includes trace_summary in result when provider returns trace', async () => {
+    const trace: TraceEvent[] = [
+      { type: 'model_step', timestamp: '2024-01-01T00:00:00Z', text: 'Thinking...' },
+      {
+        type: 'tool_call',
+        timestamp: '2024-01-01T00:00:01Z',
+        id: 'call-1',
+        name: 'getWeather',
+        input: { city: 'NYC' },
+      },
+      {
+        type: 'tool_result',
+        timestamp: '2024-01-01T00:00:02Z',
+        id: 'call-1',
+        name: 'getWeather',
+        output: '72°F',
+      },
+      { type: 'message', timestamp: '2024-01-01T00:00:03Z', text: 'The weather is 72°F' },
+    ];
+
+    const provider = new TraceProvider('mock', { text: 'The weather is 72°F' }, trace);
+
+    const result = await runEvalCase({
+      evalCase: traceTestCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.trace_summary).toBeDefined();
+    expect(result.trace_summary?.eventCount).toBe(4);
+    expect(result.trace_summary?.toolNames).toEqual(['getWeather']);
+    expect(result.trace_summary?.toolCallsByName).toEqual({ getWeather: 1 });
+    expect(result.trace_summary?.errorCount).toBe(0);
+  });
+
+  it('omits trace_summary when provider returns no trace', async () => {
+    const provider = new TraceProvider('mock', { text: 'The weather is sunny' });
+
+    const result = await runEvalCase({
+      evalCase: traceTestCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.trace_summary).toBeUndefined();
+  });
+
+  it('runs tool_trajectory evaluator with trace data', async () => {
+    const trace: TraceEvent[] = [
+      {
+        type: 'tool_call',
+        timestamp: '2024-01-01T00:00:00Z',
+        id: 'call-1',
+        name: 'search',
+        input: { query: 'weather' },
+      },
+      {
+        type: 'tool_result',
+        timestamp: '2024-01-01T00:00:01Z',
+        id: 'call-1',
+        name: 'search',
+        output: 'result',
+      },
+      {
+        type: 'tool_call',
+        timestamp: '2024-01-01T00:00:02Z',
+        id: 'call-2',
+        name: 'analyze',
+        input: {},
+      },
+      {
+        type: 'tool_result',
+        timestamp: '2024-01-01T00:00:03Z',
+        id: 'call-2',
+        name: 'analyze',
+        output: 'analyzed',
+      },
+    ];
+
+    const provider = new TraceProvider('mock', { text: 'Result' }, trace);
+
+    const trajectoryEvaluator = new ToolTrajectoryEvaluator({
+      config: {
+        name: 'tool-check',
+        type: 'tool_trajectory',
+        mode: 'any_order',
+        minimums: { search: 1, analyze: 1 },
+      },
+    });
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...traceTestCase,
+        evaluators: [
+          {
+            name: 'tool-check',
+            type: 'tool_trajectory',
+            mode: 'any_order',
+            minimums: { search: 1, analyze: 1 },
+          },
+        ],
+      },
+      provider,
+      target: baseTarget,
+      evaluators: {
+        llm_judge: evaluatorRegistry.llm_judge,
+        tool_trajectory: trajectoryEvaluator,
+      },
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.evaluator_results).toHaveLength(1);
+    expect(result.evaluator_results?.[0]?.name).toBe('tool-check');
+    expect(result.evaluator_results?.[0]?.verdict).toBe('pass');
+  });
+
+  it('fails tool_trajectory evaluator when no trace available', async () => {
+    const provider = new TraceProvider('mock', { text: 'Result' });
+
+    const trajectoryEvaluator = new ToolTrajectoryEvaluator({
+      config: {
+        name: 'tool-check',
+        type: 'tool_trajectory',
+        mode: 'any_order',
+        minimums: { search: 1 },
+      },
+    });
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...traceTestCase,
+        evaluators: [
+          {
+            name: 'tool-check',
+            type: 'tool_trajectory',
+            mode: 'any_order',
+            minimums: { search: 1 },
+          },
+        ],
+      },
+      provider,
+      target: baseTarget,
+      evaluators: {
+        llm_judge: evaluatorRegistry.llm_judge,
+        tool_trajectory: trajectoryEvaluator,
+      },
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.evaluator_results?.[0]?.verdict).toBe('fail');
+    expect(result.evaluator_results?.[0]?.misses).toContain('No trace available for evaluation');
+  });
+
+  it('computes correct trace summary with multiple tool calls', async () => {
+    const trace: TraceEvent[] = [
+      { type: 'tool_call', timestamp: '2024-01-01T00:00:00Z', name: 'toolA' },
+      { type: 'tool_call', timestamp: '2024-01-01T00:00:01Z', name: 'toolB' },
+      { type: 'tool_call', timestamp: '2024-01-01T00:00:02Z', name: 'toolA' },
+      { type: 'tool_call', timestamp: '2024-01-01T00:00:03Z', name: 'toolC' },
+      { type: 'error', timestamp: '2024-01-01T00:00:04Z', text: 'Something failed' },
+    ];
+
+    const provider = new TraceProvider('mock', { text: 'Done' }, trace);
+
+    const result = await runEvalCase({
+      evalCase: traceTestCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.trace_summary).toBeDefined();
+    expect(result.trace_summary?.eventCount).toBe(5);
+    expect(result.trace_summary?.toolNames).toEqual(['toolA', 'toolB', 'toolC']);
+    expect(result.trace_summary?.toolCallsByName).toEqual({ toolA: 2, toolB: 1, toolC: 1 });
+    expect(result.trace_summary?.errorCount).toBe(1);
   });
 });

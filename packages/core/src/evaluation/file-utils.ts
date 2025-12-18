@@ -29,6 +29,14 @@ export async function readTextFile(filePath: string): Promise<string> {
 }
 
 /**
+ * Read a JSON file and parse it.
+ */
+export async function readJsonFile<T = unknown>(filePath: string): Promise<T> {
+  const content = await readFile(filePath, 'utf8');
+  return JSON.parse(content) as T;
+}
+
+/**
  * Find git repository root by walking up the directory tree.
  */
 export async function findGitRoot(startPath: string): Promise<string | null> {

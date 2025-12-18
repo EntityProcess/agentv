@@ -106,6 +106,14 @@ export const evalCommand = command({
       long: 'dump-prompts',
       description: 'Directory path for persisting prompt payloads for debugging',
     }),
+    dumpTraces: flag({
+      long: 'dump-traces',
+      description: 'Write trace files to .agentv/traces/',
+    }),
+    includeTrace: flag({
+      long: 'include-trace',
+      description: 'Include full trace in result output (verbose)',
+    }),
   },
   handler: async (args) => {
     const resolvedPaths = await resolveEvalPaths(args.evalPaths, process.cwd());
@@ -132,6 +140,8 @@ export const evalCommand = command({
       cache: args.cache,
       verbose: args.verbose,
       dumpPrompts,
+      dumpTraces: args.dumpTraces,
+      includeTrace: args.includeTrace,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },

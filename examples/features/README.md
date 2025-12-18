@@ -26,6 +26,34 @@ Organized by feature area:
   - Verdict field (pass/fail/borderline)
   - Automatic rubric generation from expected outcomes
 
+#### Tool Trajectory Evaluator (`evals/tool-trajectory/`)
+
+- **`tool-trajectory-demo.yaml`**: Tool trajectory evaluator for agent execution validation:
+  - `any_order` mode: Validates minimum tool call counts (tools can appear in any order)
+  - `in_order` mode: Validates tools appear in expected sequence (allows gaps)
+  - `exact` mode: Validates exact tool sequence match (no gaps, no extra tools)
+
+- **`expected-messages-demo.yaml`**: Expected messages evaluator for tool_calls validation:
+  - Validates `tool_calls` in `expected_messages` against actual trace
+  - Supports optional `input` matching for precise validation
+  - Sequential matching with partial scoring
+
+**Setup for tool-trajectory demos:**
+
+1. Create a `.env` file in `examples/features/` with:
+   ```
+   TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/evals/tool-trajectory
+   ```
+
+2. Run the demos:
+   ```bash
+   cd examples/features
+   npx agentv eval evals/tool-trajectory/tool-trajectory-demo.yaml --target mock_agent
+   npx agentv eval evals/tool-trajectory/expected-messages-demo.yaml --target mock_agent
+   ```
+
+Note: These demos use a mock CLI agent that simulates tool usage. For real agent evaluation, use providers that return trace data (e.g., codex, vscode)
+
 ### Evaluator Components (`evaluators/`)
 
 - **`scripts/`**: Code-based evaluators (Python, shell, etc.)

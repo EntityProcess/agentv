@@ -1,5 +1,26 @@
 # @agentv/core
 
+## 0.25.0
+
+### Minor Changes
+
+- ae3a56e: Smart fallback for CLI provider `cwd` configuration
+
+  When the `cwd` field in a CLI target uses an environment variable that is empty or not set, the system now automatically falls back to using the directory of the eval file. This makes it easier to run evals without requiring explicit environment configuration.
+
+## 0.24.0
+
+### Minor Changes
+
+- 134bc58: - **Trace Events**: New `TraceEvent` and `TraceSummary` types for capturing normalized, provider-agnostic agent execution traces
+  - **Tool Trajectory Evaluator**: New `tool_trajectory` evaluator type with three matching modes:
+  - `any_order`: Validates minimum tool call counts regardless of order
+  - `in_order`: Validates tools appear in expected sequence (allows gaps)
+  - `exact`: Validates exact tool sequence match
+  - **Expected Messages Tool Calls**: Support for `tool_calls` field in `expected_messages` for validating assistant tool usage
+  - **CLI Flags**: `--dump-traces` and `--include-trace` flags for trace output control
+  - **Trace Summary**: Automatic computation of lightweight trace summaries (event count, tool names, call counts, error count) included in evaluation results
+
 ## 0.23.1
 
 ### Patch Changes

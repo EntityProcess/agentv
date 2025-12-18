@@ -5,6 +5,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { readTextFile } from '../file-utils.js';
+import { type TraceEvent, isTraceEvent } from '../trace.js';
 import type { CliResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 
@@ -133,11 +134,13 @@ export class CliProvider implements Provider {
       throw new Error(message);
     }
 
-    // Read from output file
-    const responseText = await this.readAndCleanupOutputFile(outputFilePath);
+    // Read from output file and parse as JSON if possible
+    const responseContent = await this.readAndCleanupOutputFile(outputFilePath);
+    const parsed = this.parseOutputContent(responseContent);
 
     return {
-      text: responseText,
+      text: parsed.text,
+      trace: parsed.trace,
       raw: {
         command: renderedCommand,
         stderr: result.stderr,
@@ -146,6 +149,37 @@ export class CliProvider implements Provider {
         outputFile: outputFilePath,
       },
     };
+  }
+
+  /**
+   * Parse output content from CLI.
+   * If the content is valid JSON with a 'text' field, extract text and optional trace.
+   * Otherwise, treat the entire content as plain text.
+   */
+  private parseOutputContent(content: string): {
+    text: string;
+    trace?: readonly TraceEvent[];
+  } {
+    try {
+      const parsed = JSON.parse(content) as unknown;
+      if (typeof parsed === 'object' && parsed !== null && 'text' in parsed) {
+        const obj = parsed as { text: unknown; trace?: unknown };
+        const text = typeof obj.text === 'string' ? obj.text : String(obj.text);
+        const trace = this.parseTrace(obj.trace);
+        return { text, trace };
+      }
+    } catch {
+      // Not valid JSON, treat as plain text
+    }
+    return { text: content };
+  }
+
+  private parseTrace(trace: unknown): readonly TraceEvent[] | undefined {
+    if (!Array.isArray(trace)) {
+      return undefined;
+    }
+    const validEvents = trace.filter(isTraceEvent);
+    return validEvents.length > 0 ? validEvents : undefined;
   }
 
   private async readAndCleanupOutputFile(filePath: string): Promise<string> {

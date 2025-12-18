@@ -1,3 +1,4 @@
+import type { TraceEvent } from '../trace.js';
 import type { JsonObject } from '../types.js';
 
 export type ChatMessageRole = 'system' | 'user' | 'assistant' | 'tool' | 'function';
@@ -84,6 +85,10 @@ export interface ProviderResponse {
   readonly reasoning?: string;
   readonly raw?: unknown;
   readonly usage?: JsonObject;
+  /** Normalized trace events from agent execution */
+  readonly trace?: readonly TraceEvent[];
+  /** Reference to external trace file (alternative to inline trace) */
+  readonly traceRef?: string;
 }
 
 /**

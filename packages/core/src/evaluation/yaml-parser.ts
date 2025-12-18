@@ -6,7 +6,11 @@ import { extractCodeBlocks } from './formatting/segment-formatter.js';
 import { extractTargetFromSuite, loadConfig } from './loaders/config-loader.js';
 import { coerceEvaluator, parseEvaluators } from './loaders/evaluator-parser.js';
 import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
-import { processMessages, resolveAssistantContent } from './loaders/message-processor.js';
+import {
+  processExpectedMessages,
+  processMessages,
+  resolveAssistantContent,
+} from './loaders/message-processor.js';
 import type { EvalCase, JsonObject, JsonValue, TestMessage } from './types.js';
 import { isJsonObject, isTestMessage } from './types.js';
 
@@ -174,13 +178,12 @@ export async function loadEvalCases(
     });
 
     // Process expected_messages into segments (only if provided)
+    // Preserve full message structure including role and tool_calls for expected_messages evaluator
     const outputSegments = hasExpectedMessages
-      ? await processMessages({
+      ? await processExpectedMessages({
           messages: expectedMessages,
           searchRoots,
           repoRootPath,
-          guidelinePatterns,
-          messageType: 'output',
           verbose,
         })
       : [];

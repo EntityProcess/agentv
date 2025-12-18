@@ -147,7 +147,7 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
   }
 
   try {
-    const resolvedTarget = resolveTargetDefinition(targetDefinition, env);
+    const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath);
     return {
       definitions,
       resolvedTarget,

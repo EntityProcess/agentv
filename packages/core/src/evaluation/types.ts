@@ -1,3 +1,5 @@
+import type { ToolTrajectoryEvaluatorConfig, TraceEvent, TraceSummary } from './trace.js';
+
 /**
  * JSON primitive values appearing in AgentV payloads.
  */
@@ -51,11 +53,21 @@ export type UserTestMessage = {
 };
 
 /**
+ * Tool call specification for expected_messages validation.
+ */
+export type TestMessageToolCall = {
+  readonly tool: string;
+  readonly input?: unknown;
+};
+
+/**
  * Assistant response message.
  */
 export type AssistantTestMessage = {
   readonly role: 'assistant';
   readonly content: TestMessageContent;
+  /** Optional tool_calls for expected_messages validation against traces */
+  readonly tool_calls?: readonly TestMessageToolCall[];
 };
 
 /**
@@ -133,7 +145,14 @@ export function isTestMessage(value: unknown): value is TestMessage {
   return candidate.content.every(isJsonObject);
 }
 
-const EVALUATOR_KIND_VALUES = ['code_judge', 'llm_judge', 'rubric', 'composite'] as const;
+const EVALUATOR_KIND_VALUES = [
+  'code_judge',
+  'llm_judge',
+  'rubric',
+  'composite',
+  'tool_trajectory',
+  'expected_messages',
+] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
 
@@ -184,10 +203,17 @@ export type CompositeEvaluatorConfig = {
   readonly aggregator: CompositeAggregatorConfig;
 };
 
+export type ExpectedMessagesEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'expected_messages';
+};
+
 export type EvaluatorConfig =
   | CodeEvaluatorConfig
   | LlmJudgeEvaluatorConfig
-  | CompositeEvaluatorConfig;
+  | CompositeEvaluatorConfig
+  | ToolTrajectoryEvaluatorConfig
+  | ExpectedMessagesEvaluatorConfig;
 
 /**
  * Eval case definition sourced from AgentV specs.
@@ -230,6 +256,10 @@ export interface EvaluationResult {
   readonly evaluator_provider_request?: JsonObject;
   readonly evaluator_results?: readonly EvaluatorResult[];
   readonly error?: string;
+  /** Lightweight summary of the execution trace (always included when available) */
+  readonly trace_summary?: TraceSummary;
+  /** Full trace events (only included when --include-trace flag is set) */
+  readonly trace?: readonly TraceEvent[];
 }
 
 export type EvaluationVerdict = 'pass' | 'fail' | 'borderline';
