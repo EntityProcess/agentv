@@ -59,20 +59,32 @@ export async function loadEnvFromHierarchy(options: LoadEnvOptions): Promise<str
 
   const searchDirs = uniqueDirs([...collectAncestorDirectories(testDir, repoRoot), repoRoot, cwd]);
 
+  // Collect all .env files in the hierarchy
+  const envFiles: string[] = [];
   for (const dir of searchDirs) {
     const candidate = path.join(dir, '.env');
     if (await fileExists(candidate)) {
-      loadDotenv({ path: candidate, override: false });
-      if (verbose) {
-        console.log(`Loaded environment from: ${candidate}`);
-      }
-      return candidate;
+      envFiles.push(candidate);
     }
   }
 
-  if (verbose) {
-    console.log('No .env file found in hierarchy');
+  if (envFiles.length === 0) {
+    if (verbose) {
+      console.log('No .env file found in hierarchy');
+    }
+    return undefined;
   }
 
-  return undefined;
+  // Load from root to child (reverse order) so child values override parent values
+  // override: false means variables already in process.env won't be overwritten
+  for (let i = envFiles.length - 1; i >= 0; i--) {
+    const envFile = envFiles[i];
+    loadDotenv({ path: envFile, override: false });
+    if (verbose) {
+      console.log(`Loaded environment from: ${envFile}`);
+    }
+  }
+
+  // Return the closest (most specific) .env file path
+  return envFiles[0];
 }
