@@ -78,13 +78,12 @@ evalcases:
     execution:
       evaluators:
         - name: json_format_validator
-          type: code
+          type: code_judge
           script: uv run validate_json.py
           cwd: ./evaluators
         - name: content_evaluator
           type: llm_judge
           prompt: ./judges/semantic_correctness.md
-          model: gpt-5-chat
     
     input_messages:
       - role: user

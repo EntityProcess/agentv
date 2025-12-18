@@ -10,10 +10,17 @@ description: Create and maintain AgentV YAML evaluation files for testing AI age
 - Format: YAML with structured content arrays
 - Examples: `references/example-evals.md`
 
+## Feature Reference
+- Rubrics: `references/rubric-evaluator.md` - Structured criteria-based evaluation
+- Composite Evaluators: `references/composite-evaluator.md` - Combine multiple evaluators
+- Tool Trajectory: `references/tool-trajectory-evaluator.md` - Validate agent tool usage
+- Custom Evaluators: `references/custom-evaluators.md` - Code and LLM judge templates
+
 ## Structure Requirements
-- Root level: `description` (optional), `execution` (optional), `evalcases` (required)
-- Eval case fields: `id` (required), `expected_outcome` (required), `input_messages` (required), `expected_messages` (required)
-- Optional fields: `conversation_id`, `note`, `execution`
+- Root level: `description` (optional), `target` (optional), `execution` (optional), `evalcases` (required)
+- Eval case fields: `id` (required), `expected_outcome` (required), `input_messages` (required)
+- Optional fields: `expected_messages`, `conversation_id`, `rubrics`, `execution`
+- `expected_messages` is optional - omit for outcome-only evaluation where the LLM judge evaluates based on `expected_outcome` criteria alone
 - Message fields: `role` (required), `content` (required)
 - Message roles: `system`, `user`, `assistant`, `tool`
 - Content types: `text` (inline), `file` (relative or absolute path)
@@ -31,13 +38,13 @@ Scripts that validate output programmatically:
 execution:
   evaluators:
     - name: json_format_validator
-      type: code
+      type: code_judge
       script: uv run validate_output.py
       cwd: ../../evaluators/scripts
 ```
 
 **Contract:**
-- Input (stdin): JSON with `question`, `expected_outcome`, `reference_answer`, `candidate_answer`, `guideline_paths`, `input_files`, `input_messages`
+- Input (stdin): JSON with `question`, `expected_outcome`, `reference_answer`, `candidate_answer`, `guideline_paths`, `input_files`, `input_segments`
 - Output (stdout): JSON with `score` (0.0-1.0), `hits`, `misses`, `reasoning`
 
 **Template:** See `references/custom-evaluators.md` for Python code evaluator template
@@ -61,11 +68,73 @@ Evaluators run sequentially:
 execution:
   evaluators:
     - name: format_check      # Runs first
-      type: code
+      type: code_judge
       script: uv run validate_json.py
     - name: content_check     # Runs second
       type: llm_judge
 ```
+
+### Rubric Evaluator
+Inline rubrics for structured criteria-based evaluation:
+
+```yaml
+evalcases:
+  - id: explanation-task
+    expected_outcome: Clear explanation of quicksort
+    input_messages:
+      - role: user
+        content: Explain quicksort
+    rubrics:
+      - Mentions divide-and-conquer approach
+      - Explains the partition step
+      - id: complexity
+        description: States time complexity correctly
+        weight: 2.0
+        required: true
+```
+
+See `references/rubric-evaluator.md` for detailed rubric configuration.
+
+### Composite Evaluator
+Combine multiple evaluators with aggregation:
+
+```yaml
+execution:
+  evaluators:
+    - name: release_gate
+      type: composite
+      evaluators:
+        - name: safety
+          type: llm_judge
+          prompt: ./prompts/safety.md
+        - name: quality
+          type: llm_judge
+          prompt: ./prompts/quality.md
+      aggregator:
+        type: weighted_average
+        weights:
+          safety: 0.3
+          quality: 0.7
+```
+
+See `references/composite-evaluator.md` for aggregation types and patterns.
+
+### Tool Trajectory Evaluator
+Validate agent tool usage from trace data:
+
+```yaml
+execution:
+  evaluators:
+    - name: workflow-check
+      type: tool_trajectory
+      mode: in_order  # or: any_order, exact
+      expected:
+        - tool: fetchData
+        - tool: processData
+        - tool: saveResults
+```
+
+See `references/tool-trajectory-evaluator.md` for modes and configuration.
 
 ## Example
 ```yaml

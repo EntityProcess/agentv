@@ -130,6 +130,8 @@ agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --eval-id 
 - `--max-retries COUNT`: Maximum number of retries for timeout cases (default: 2)
 - `--cache`: Enable caching of LLM responses (default: disabled)
 - `--dump-prompts`: Save all prompts to `.agentv/prompts/` directory
+- `--dump-traces`: Write trace files to `.agentv/traces/` directory
+- `--include-trace`: Include full trace in result output (verbose)
 - `--workers COUNT`: Parallel workers for eval cases (default: 3; target `workers` setting used when provided)
 - `--verbose`: Verbose output
 
@@ -247,14 +249,13 @@ Code evaluators receive input via stdin and write output to stdout as JSON.
 **Input Format (via stdin):**
 ```json
 {
-  "task": "string describing the task",
-  "outcome": "expected outcome description",
-  "expected": "expected output string",
-  "output": "generated code/text from the agent",
-  "system_message": "system message if any",
+  "question": "string describing the task/question",
+  "expected_outcome": "expected outcome description",
+  "reference_answer": "gold standard answer (optional)",
+  "candidate_answer": "generated code/text from the agent",
   "guideline_paths": ["path1", "path2"],
-  "attachments": ["file1", "file2"],
-  "user_segments": [{"type": "text", "value": "..."}]
+  "input_files": ["file1", "file2"],
+  "input_segments": [{"type": "text", "value": "..."}]
 }
 ```
 
@@ -270,8 +271,8 @@ Code evaluators receive input via stdin and write output to stdout as JSON.
 
 **Key Points:**
 - Evaluators receive **full context** but should select only relevant fields
-- Most evaluators only need `output` field - ignore the rest to avoid false positives
-- Complex evaluators can use `task`, `expected`, or `guideline_paths` for context-aware validation
+- Most evaluators only need `candidate_answer` field - ignore the rest to avoid false positives
+- Complex evaluators can use `question`, `reference_answer`, or `guideline_paths` for context-aware validation
 - Score range: `0.0` to `1.0` (float)
 - `hits` and `misses` are optional but recommended for debugging
 
@@ -284,7 +285,7 @@ import sys
 
 def evaluate(input_data):
     # Extract only the fields you need
-    output = input_data.get("output", "")
+    candidate_answer = input_data.get("candidate_answer", "")
     
     # Your validation logic here
     score = 0.0  # to 1.0
