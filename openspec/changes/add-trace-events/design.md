@@ -64,16 +64,77 @@ LLM judges get trace via opt-in template variables.
 
 ## YAML Surface Area
 
-### New evaluator types
-Provide trace checks as built-in evaluators so users don’t need custom code:
+### Three Patterns for Tool-Use Validation
 
-1) `tool_trajectory`
-- Constraints:
-  - `mode`: `any_order` | `in_order` | `exact`
-  - `expected`: list of `{ tool: string }` entries
-  - optional `minimums`: map of `{ [toolName: string]: number }` for per-tool minimum call counts
+**Pattern 1: Precise Flow (expected_messages)**
 
-`tool_trajectory` is the primary deterministic mechanism. If users want “must call knowledgeSearch ≥ 3 times”, they express it via `minimums.knowledgeSearch: 3` rather than relying on an ambiguous global count.
+Validate exact conversation structure including tool calls, reasoning, and turn order:
+
+```yaml
+expected_messages:
+  - role: user
+    content: "Research X"
+  # First search iteration
+  - role: assistant
+    content: "Let me search for X configuration..."
+    tool_calls:
+      - tool: knowledgeSearch
+        args: { query: "X configuration" }
+  - role: tool
+    name: knowledgeSearch
+    content: "..."
+  # Reasoning between searches
+  - role: assistant
+    content: "I found general info, but need specifics..."
+    tool_calls:
+      - tool: knowledgeSearch
+        args: { query: "X detailed setup" }
+  - role: tool
+    name: knowledgeSearch
+    content: "..."
+  # Final answer
+  - role: assistant
+    content: "Based on the results..."
+```
+
+**When to use:** Golden path testing, regression tests for specific flows, debugging conversation structure.
+
+**Pattern 2: High-Level Constraints (evaluator)**
+
+Validate that certain tools were called without specifying exact flow:
+
+```yaml
+evaluators:
+  - type: tool_trajectory
+    mode: any_order
+    minimums:
+      knowledgeSearch: 3
+```
+
+Constraints:
+- `mode`: `any_order` | `in_order` | `exact`
+- `expected`: list of `{ tool: string }` entries
+- `minimums`: map of `{ [toolName: string]: number }` for per-tool minimum call counts
+
+**When to use:** "Must search ≥3 times" without caring about reasoning/order, flexible constraints across prompt variations.
+
+**Pattern 3: Both Together (Belt and Suspenders)**
+
+Combine precise flow with safety net constraints:
+
+```yaml
+expected_messages:
+  - role: user
+    content: "Research X"
+  # ... exact flow ...
+
+evaluators:
+  - type: tool_trajectory
+    minimums:
+      knowledgeSearch: 3  # Safety: even if flow changes, must search ≥3 times
+```
+
+**When to use:** High-value flows where you want both precision and guardrails.
 
 ## Result Serialization
 - JSONL/YAML outputs include `trace_summary` by default.

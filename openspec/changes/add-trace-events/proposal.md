@@ -28,13 +28,28 @@ This change makes trace a first-class evaluation signal, aligned with patterns u
 - Extend evaluator context so evaluators can consume trace.
 - Add template variables so `llm_judge` can optionally see trace (without forcing it).
 
-### 3. Add built-in trace evaluators (no user code)
-- Provide deterministic evaluators aligned with ADK’s trajectory approach:
+### 3. Support tool calls in expected_messages (Precise Flow)
+- Allow `tool_calls` within assistant messages in `expected_messages` to specify expected conversation structure.
+- This mirrors actual LLM API formats (OpenAI, Anthropic, Gemini).
+- Use when you need to validate:
+  - Exact reasoning steps between tool calls
+  - Specific conversation flows (golden paths)
+  - Tool argument correctness
+
+### 4. Add built-in trace evaluators (High-Level Constraints)
+- Provide deterministic evaluators aligned with ADK's trajectory approach:
   - `tool_trajectory` (expected tool-call sequence, with explicit tool names)
+- Use when you want:
+  - Flexible "must use X ≥ N times" constraints
+  - Order-agnostic tool usage validation
+  - Simple minimum-call thresholds
 
-This avoids ambiguous “count” metrics by requiring that any tool constraints be expressed against explicit tool names and sequences.
+### 5. Support Both Together (Complementary)
+- `expected_messages` and trace evaluators work together, not as alternatives.
+- Common pattern: specify exact flow in `expected_messages` + add safety nets via evaluators.
+- Example: golden path conversation + "must search ≥3 times" regardless of exact flow.
 
-### 4. Extend CLI output/debugging for traces
+### 6. Extend CLI output/debugging for traces
 - Add CLI options to persist trace artifacts similarly to `--dump-prompts`.
 - Keep default behavior conservative (avoid bloating result files).
 
