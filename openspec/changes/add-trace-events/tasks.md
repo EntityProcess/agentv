@@ -11,9 +11,8 @@
 - [ ] Propagate trace into orchestrator results and evaluator context
 
 ## 3. Trace evaluators
-- [ ] Implement `tool_call_count` evaluator (deterministic)
-- [ ] Implement `tool_trajectory` evaluator (deterministic)
-- [ ] Add unit tests for both evaluator types
+- [ ] Implement `tool_trajectory` evaluator (deterministic) with `minimums`, `expected`, and `mode` support
+- [ ] Add unit tests for `tool_trajectory` evaluator
 
 ## 4. LLM judge trace visibility (opt-in)
 - [ ] Add template variables for `candidate_trace_summary` (and full trace when enabled)

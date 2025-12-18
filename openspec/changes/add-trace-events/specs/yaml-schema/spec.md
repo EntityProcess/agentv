@@ -28,8 +28,8 @@ expected_messages:
 - **AND** `input` is used for tool arguments (not `args`)
 - **AND** `output` is optional for expected tool results.
 
-#### Scenario: Tool calls without args
-- **GIVEN** a YAML eval case with tool calls that omit the `args` field:
+#### Scenario: Tool calls without input
+- **GIVEN** a YAML eval case with tool calls that omit the `input` field:
 ```yaml
 expected_messages:
   - role: assistant
@@ -37,7 +37,7 @@ expected_messages:
       - tool: knowledgeSearch
 ```
 - **WHEN** the YAML is parsed
-- **THEN** the tool call SHALL be accepted without requiring `args`.
+- **THEN** the tool call SHALL be accepted without requiring `input`.
 
 ### Requirement: Trace-Based Evaluators MUST be supported
 
