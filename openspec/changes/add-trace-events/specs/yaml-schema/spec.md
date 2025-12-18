@@ -15,8 +15,7 @@ expected_messages:
   - role: assistant
     tool_calls:
       - tool: knowledgeSearch
-        input:
-          query: "branch deactivation process"
+        input: { query: "branch deactivation process" }
         output: "Found documentation..."  # Optional
     content: "Let me search for that information..."
   - role: assistant

@@ -105,23 +105,20 @@ evalcases:
         content: "Let me search for information about branch deactivation."
         tool_calls:
           - tool: semanticSearch
-            input:
-              query: "how to deactivate a branch in the system"
+            input: { query: "how to deactivate a branch in the system" }
             output: "..."  # Optional: specify expected output
       
       - role: assistant
         content: "I found general guidance. Let me search for more specific navigation steps."
         tool_calls:
           - tool: semanticSearch
-            input:
-              query: "branch settings navigation path"
+            input: { query: "branch settings navigation path" }
       
       - role: assistant
         content: "Let me verify the deactivation permissions and requirements."
         tool_calls:
           - tool: semanticSearch
-            input:
-              query: "branch deactivation permissions requirements"
+            input: { query: "branch deactivation permissions requirements" }
       
       - role: assistant
         content: |
@@ -132,7 +129,24 @@ evalcases:
           4. Click Deactivate
 ```
 
-### Pattern B: High-Level Constraints (Recommended for most cases)
+### Pattern B: High-Level Constraints (Flexible validation)
+
+```yaml
+evalcases:
+  - id: branch-deactivation-002
+    input_messages:
+      - role: user
+        content: "How do I deactivate a branch?"
+    
+    # Only validate that certain tools were called, not exact flow
+    evaluators:
+      - type: tool_trajectory
+        mode: any_order
+        minimums:
+          semanticSearch: 3
+```
+
+### Combined: Both Patterns (Belt and suspenders)
 
 ```yaml
 evalcases:
