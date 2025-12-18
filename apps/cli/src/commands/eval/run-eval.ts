@@ -349,15 +349,6 @@ async function runSingleEvalFile(params: {
     resolvedWorkers = 1;
   }
 
-  if (options.verbose) {
-    const workersSource = workerPreference
-      ? 'CLI flag (balanced across files)'
-      : resolvedTargetSelection.resolvedTarget.workers
-        ? 'target setting'
-        : 'default';
-    console.log(`Using ${resolvedWorkers} worker(s) (source: ${workersSource})`);
-  }
-
   // Auto-provision subagents for VSCode targets
   if (isVSCodeProvider && !options.dryRun) {
     await ensureVSCodeSubagents({
