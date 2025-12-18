@@ -257,12 +257,12 @@ export async function processExpectedMessages(
   const segments: JsonObject[] = [];
 
   for (const message of messages) {
-    const segment: JsonObject = {
+    const segment: Record<string, unknown> = {
       role: message.role,
     };
 
-    // Preserve tool_calls if present
-    if (message.tool_calls !== undefined) {
+    // Preserve tool_calls if present (only on AssistantTestMessage)
+    if (message.role === 'assistant' && message.tool_calls !== undefined) {
       segment.tool_calls = message.tool_calls as unknown as JsonObject[];
     }
 
@@ -324,7 +324,7 @@ export async function processExpectedMessages(
       segment.content = processedContent;
     }
 
-    segments.push(segment);
+    segments.push(segment as JsonObject);
   }
 
   return segments;
