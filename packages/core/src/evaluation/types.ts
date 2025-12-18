@@ -53,11 +53,21 @@ export type UserTestMessage = {
 };
 
 /**
+ * Tool call specification for expected_messages validation.
+ */
+export type TestMessageToolCall = {
+  readonly tool: string;
+  readonly input?: unknown;
+};
+
+/**
  * Assistant response message.
  */
 export type AssistantTestMessage = {
   readonly role: 'assistant';
   readonly content: TestMessageContent;
+  /** Optional tool_calls for expected_messages validation against traces */
+  readonly tool_calls?: readonly TestMessageToolCall[];
 };
 
 /**
@@ -141,6 +151,7 @@ const EVALUATOR_KIND_VALUES = [
   'rubric',
   'composite',
   'tool_trajectory',
+  'expected_messages',
 ] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
@@ -192,11 +203,17 @@ export type CompositeEvaluatorConfig = {
   readonly aggregator: CompositeAggregatorConfig;
 };
 
+export type ExpectedMessagesEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'expected_messages';
+};
+
 export type EvaluatorConfig =
   | CodeEvaluatorConfig
   | LlmJudgeEvaluatorConfig
   | CompositeEvaluatorConfig
-  | ToolTrajectoryEvaluatorConfig;
+  | ToolTrajectoryEvaluatorConfig
+  | ExpectedMessagesEvaluatorConfig;
 
 /**
  * Eval case definition sourced from AgentV specs.

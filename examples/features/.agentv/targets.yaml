@@ -74,11 +74,12 @@ targets:
 
   # Mock agent CLI for testing tool_trajectory evaluator
   # Uses a TypeScript CLI that simulates an agent with tool usage
+  # Set TOOL_TRAJECTORY_DIR in .env to the absolute path of evals/tool-trajectory/
   - name: mock_agent
     provider: cli
-    judge_target: default
+    # No judge_target needed - demos use non-LLM evaluators (tool_trajectory, expected_messages)
     command_template: bun run ./mock-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}
-    cwd: ./evals/tool-trajectory
+    cwd: ${{ TOOL_TRAJECTORY_DIR }}
     timeout_seconds: 30
     healthcheck:
       type: command

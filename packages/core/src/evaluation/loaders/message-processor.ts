@@ -238,3 +238,94 @@ function logWarning(message: string, details?: readonly string[]): void {
     console.warn(`${ANSI_YELLOW}Warning: ${message}${ANSI_RESET}`);
   }
 }
+
+type ProcessExpectedMessagesOptions = {
+  readonly messages: readonly TestMessage[];
+  readonly searchRoots: readonly string[];
+  readonly repoRootPath: string;
+  readonly verbose: boolean;
+};
+
+/**
+ * Process expected_messages preserving full message structure including role and tool_calls.
+ * This is needed for the expected_messages evaluator to validate tool_calls against traces.
+ */
+export async function processExpectedMessages(
+  options: ProcessExpectedMessagesOptions,
+): Promise<JsonObject[]> {
+  const { messages, searchRoots, repoRootPath, verbose } = options;
+  const segments: JsonObject[] = [];
+
+  for (const message of messages) {
+    const segment: JsonObject = {
+      role: message.role,
+    };
+
+    // Preserve tool_calls if present
+    if (message.tool_calls !== undefined) {
+      segment.tool_calls = message.tool_calls as unknown as JsonObject[];
+    }
+
+    // Process content
+    const content = message.content;
+    if (typeof content === 'string') {
+      segment.content = content;
+    } else if (Array.isArray(content)) {
+      // Process content array, resolving file references
+      const processedContent: JsonObject[] = [];
+      for (const rawSegment of content) {
+        if (!isJsonObject(rawSegment)) {
+          continue;
+        }
+
+        const segmentType = asString(rawSegment.type);
+        if (segmentType === 'file') {
+          const rawValue = asString(rawSegment.value);
+          if (!rawValue) {
+            continue;
+          }
+
+          const { displayPath, resolvedPath, attempted } = await resolveFileReference(
+            rawValue,
+            searchRoots,
+          );
+
+          if (!resolvedPath) {
+            const attempts = attempted.length
+              ? ['  Tried:', ...attempted.map((candidate) => `    ${candidate}`)]
+              : undefined;
+            logWarning(`File not found in expected_messages: ${displayPath}`, attempts);
+            continue;
+          }
+
+          try {
+            const fileContent = (await readFile(resolvedPath, 'utf8')).replace(/\r\n/g, '\n');
+            processedContent.push({
+              type: 'file',
+              path: displayPath,
+              text: fileContent,
+              resolvedPath: path.resolve(resolvedPath),
+            });
+
+            if (verbose) {
+              console.log(`  [Expected Output File] Found: ${displayPath}`);
+              console.log(`    Resolved to: ${resolvedPath}`);
+            }
+          } catch (error) {
+            logWarning(
+              `Could not read expected output file ${resolvedPath}: ${(error as Error).message}`,
+            );
+          }
+          continue;
+        }
+
+        processedContent.push(cloneJsonObject(rawSegment));
+      }
+      segment.content = processedContent;
+    }
+
+    segments.push(segment);
+  }
+
+  return segments;
+}

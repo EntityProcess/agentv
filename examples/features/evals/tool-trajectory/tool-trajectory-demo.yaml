@@ -12,7 +12,10 @@
 # This demo uses a CLI provider (mock-agent.ts) that simulates an agent with tool usage.
 # The mock agent generates different traces based on the prompt content.
 #
-# Run with: npx agentv eval evals/tool-trajectory/tool-trajectory-demo.yaml --target mock_agent
+# Setup:
+#   1. Create examples/features/.env with:
+#      TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/evals/tool-trajectory
+#   2. Run: cd examples/features && npx agentv eval evals/tool-trajectory/tool-trajectory-demo.yaml --target mock_agent
 
 $schema: agentv-eval-v2
 description: Tool trajectory evaluator examples for agent execution validation

@@ -214,6 +214,15 @@ export async function parseEvaluators(
       continue;
     }
 
+    if (typeValue === 'expected_messages') {
+      // expected_messages evaluator validates tool_calls against trace
+      evaluators.push({
+        name,
+        type: 'expected_messages',
+      });
+      continue;
+    }
+
     if (typeValue === 'tool_trajectory') {
       const mode = asString(rawEvaluator.mode);
       if (mode !== 'any_order' && mode !== 'in_order' && mode !== 'exact') {
