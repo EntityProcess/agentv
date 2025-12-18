@@ -10,8 +10,9 @@ import {
   type EvaluationScore,
   type Evaluator,
   LlmJudgeEvaluator,
+  ToolTrajectoryEvaluator,
 } from './evaluators.js';
-import { readTextFile } from './file-utils.js';
+import { readJsonFile, readTextFile } from './file-utils.js';
 import { createProvider } from './providers/index.js';
 import { type ResolvedTarget, resolveTargetDefinition } from './providers/targets.js';
 import type {
@@ -22,6 +23,13 @@ import type {
   TargetDefinition,
 } from './providers/types.js';
 import { isAgentProvider } from './providers/types.js';
+import {
+  type ToolTrajectoryEvaluatorConfig,
+  type TraceEvent,
+  type TraceSummary,
+  computeTraceSummary,
+  isTraceEvent,
+} from './trace.js';
 import type {
   EvalCase,
   EvaluationResult,
@@ -529,6 +537,22 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     await cache.set(cacheKey, providerResponse);
   }
 
+  // Extract trace from provider response (inline or from traceRef file)
+  let candidateTrace: readonly TraceEvent[] | undefined = providerResponse.trace;
+  if (!candidateTrace && providerResponse.traceRef) {
+    try {
+      const rawTrace = await readJsonFile<unknown[]>(providerResponse.traceRef);
+      if (Array.isArray(rawTrace) && rawTrace.every(isTraceEvent)) {
+        candidateTrace = rawTrace as TraceEvent[];
+      }
+    } catch {
+      // Silently ignore trace load failures - trace is optional
+    }
+  }
+
+  // Compute trace summary if trace is available
+  const candidateTraceSummary = candidateTrace ? computeTraceSummary(candidateTrace) : undefined;
+
   try {
     return await evaluateCandidate({
       evalCase,
@@ -541,6 +565,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       attempt,
       judgeProvider,
       agentTimeoutMs,
+      candidateTrace,
+      candidateTraceSummary,
     });
   } catch (error) {
     return buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs, provider);
@@ -558,6 +584,8 @@ async function evaluateCandidate(options: {
   readonly attempt: number;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
+  readonly candidateTrace?: readonly TraceEvent[];
+  readonly candidateTraceSummary?: TraceSummary;
 }): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -570,6 +598,8 @@ async function evaluateCandidate(options: {
     attempt,
     judgeProvider,
     agentTimeoutMs,
+    candidateTrace,
+    candidateTraceSummary,
   } = options;
 
   const gradeTimestamp = nowFn();
@@ -584,6 +614,8 @@ async function evaluateCandidate(options: {
     now: gradeTimestamp,
     judgeProvider,
     agentTimeoutMs,
+    candidateTrace,
+    candidateTraceSummary,
   });
 
   const completedAt = nowFn();
@@ -627,6 +659,7 @@ async function evaluateCandidate(options: {
     lm_provider_request: lmProviderRequest,
     evaluator_provider_request: evaluatorResults ? undefined : score.evaluatorRawRequest,
     evaluator_results: evaluatorResults,
+    trace_summary: candidateTraceSummary,
   };
 }
 
@@ -641,6 +674,8 @@ async function runEvaluatorsForCase(options: {
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
+  readonly candidateTrace?: readonly TraceEvent[];
+  readonly candidateTraceSummary?: TraceSummary;
 }): Promise<{ score: EvaluationScore; evaluatorResults?: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -653,6 +688,8 @@ async function runEvaluatorsForCase(options: {
     now,
     judgeProvider,
     agentTimeoutMs,
+    candidateTrace,
+    candidateTraceSummary,
   } = options;
 
   if (evalCase.evaluators && evalCase.evaluators.length > 0) {
@@ -668,6 +705,8 @@ async function runEvaluatorsForCase(options: {
       now,
       judgeProvider,
       agentTimeoutMs,
+      candidateTrace,
+      candidateTraceSummary,
     });
   }
 
@@ -686,6 +725,8 @@ async function runEvaluatorsForCase(options: {
     promptInputs,
     now,
     judgeProvider,
+    candidateTrace,
+    candidateTraceSummary,
   });
 
   return { score };
@@ -705,6 +746,8 @@ async function runEvaluatorList(options: {
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
+  readonly candidateTrace?: readonly TraceEvent[];
+  readonly candidateTraceSummary?: TraceSummary;
 }): Promise<{ score: EvaluationScore; evaluatorResults: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -718,6 +761,8 @@ async function runEvaluatorList(options: {
     now,
     judgeProvider,
     agentTimeoutMs,
+    candidateTrace,
+    candidateTraceSummary,
   } = options;
 
   const scored: Array<{
@@ -804,6 +849,10 @@ async function runEvaluatorList(options: {
                 cwd: evalFileDir,
                 evaluatorFactory: { create: createEvaluator },
               });
+            case 'tool_trajectory':
+              return new ToolTrajectoryEvaluator({
+                config: memberConfig as ToolTrajectoryEvaluatorConfig,
+              });
             default: {
               const unknownConfig = memberConfig as { type: string };
               throw new Error(`Unsupported evaluator type in composite: ${unknownConfig.type}`);
@@ -837,6 +886,33 @@ async function runEvaluatorList(options: {
           reasoning: score.reasoning,
           evaluator_provider_request: score.evaluatorRawRequest,
           evaluator_results: mapChildResults(score.evaluatorResults),
+        });
+      }
+
+      if (evaluator.type === 'tool_trajectory') {
+        const trajectoryEvaluator = new ToolTrajectoryEvaluator({
+          config: evaluator as ToolTrajectoryEvaluatorConfig,
+        });
+        const score = trajectoryEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+          candidateTrace,
+          candidateTraceSummary,
+        });
+        scored.push({ score, name: evaluator.name, type: evaluator.type });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
         });
       }
     } catch (error) {

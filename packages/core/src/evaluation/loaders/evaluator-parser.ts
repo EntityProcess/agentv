@@ -1,5 +1,6 @@
 import path from 'node:path';
 
+import type { ToolTrajectoryEvaluatorConfig, ToolTrajectoryExpectedItem } from '../trace.js';
 import type { EvaluatorConfig, EvaluatorKind, JsonObject, JsonValue } from '../types.js';
 import { isEvaluatorKind } from '../types.js';
 import { validateCustomPromptContent } from '../validation/prompt-validator.js';
@@ -210,6 +211,76 @@ export async function parseEvaluators(
         evaluators: memberEvaluators,
         aggregator,
       });
+      continue;
+    }
+
+    if (typeValue === 'tool_trajectory') {
+      const mode = asString(rawEvaluator.mode);
+      if (mode !== 'any_order' && mode !== 'in_order' && mode !== 'exact') {
+        logWarning(
+          `Skipping tool_trajectory evaluator '${name}' in '${evalId}': invalid mode '${mode}' (must be any_order, in_order, or exact)`,
+        );
+        continue;
+      }
+
+      const rawMinimums = rawEvaluator.minimums;
+      let minimums: Record<string, number> | undefined;
+      if (rawMinimums !== undefined) {
+        if (!isJsonObject(rawMinimums)) {
+          logWarning(
+            `Skipping tool_trajectory evaluator '${name}' in '${evalId}': minimums must be an object`,
+          );
+          continue;
+        }
+        minimums = {};
+        for (const [toolName, count] of Object.entries(rawMinimums)) {
+          if (typeof count === 'number' && count >= 0) {
+            minimums[toolName] = count;
+          }
+        }
+      }
+
+      const rawExpected = rawEvaluator.expected;
+      let expected: ToolTrajectoryExpectedItem[] | undefined;
+      if (rawExpected !== undefined) {
+        if (!Array.isArray(rawExpected)) {
+          logWarning(
+            `Skipping tool_trajectory evaluator '${name}' in '${evalId}': expected must be an array`,
+          );
+          continue;
+        }
+        expected = [];
+        for (const item of rawExpected) {
+          if (isJsonObject(item) && typeof item.tool === 'string') {
+            expected.push({ tool: item.tool });
+          }
+        }
+      }
+
+      // Validate config completeness based on mode
+      if (mode === 'any_order' && !minimums) {
+        logWarning(
+          `Skipping tool_trajectory evaluator '${name}' in '${evalId}': any_order mode requires minimums`,
+        );
+        continue;
+      }
+
+      if ((mode === 'in_order' || mode === 'exact') && !expected) {
+        logWarning(
+          `Skipping tool_trajectory evaluator '${name}' in '${evalId}': ${mode} mode requires expected`,
+        );
+        continue;
+      }
+
+      const config: ToolTrajectoryEvaluatorConfig = {
+        name,
+        type: 'tool_trajectory',
+        mode,
+        ...(minimums ? { minimums } : {}),
+        ...(expected ? { expected } : {}),
+      };
+
+      evaluators.push(config);
       continue;
     }
 

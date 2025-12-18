@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { ResolvedTarget } from './providers/targets.js';
 import type { ChatPrompt, Provider, ProviderResponse } from './providers/types.js';
 import { TEMPLATE_VARIABLES } from './template-variables.js';
+import type { ToolTrajectoryEvaluatorConfig, TraceEvent, TraceSummary } from './trace.js';
 import type {
   EvalCase,
   EvaluationVerdict,
@@ -52,6 +53,10 @@ export interface EvaluationContext {
   readonly judgeProvider?: Provider;
   readonly evaluatorTemplateOverride?: string;
   readonly evaluator?: EvaluatorConfig;
+  /** Normalized trace events from provider execution (if available) */
+  readonly candidateTrace?: readonly TraceEvent[];
+  /** Lightweight summary of trace events (if available) */
+  readonly candidateTraceSummary?: TraceSummary;
 }
 
 export interface EvaluationScore {
@@ -589,6 +594,163 @@ function substituteVariables(template: string, variables: Record<string, string>
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, varName) => {
     return variables[varName] ?? match;
   });
+}
+
+// Tool Trajectory Evaluator
+
+export interface ToolTrajectoryEvaluatorOptions {
+  readonly config: ToolTrajectoryEvaluatorConfig;
+}
+
+export class ToolTrajectoryEvaluator implements Evaluator {
+  readonly kind = 'tool_trajectory';
+
+  private readonly config: ToolTrajectoryEvaluatorConfig;
+
+  constructor(options: ToolTrajectoryEvaluatorOptions) {
+    this.config = options.config;
+  }
+
+  evaluate(context: EvaluationContext): EvaluationScore {
+    const { candidateTrace, candidateTraceSummary } = context;
+
+    // Handle missing trace
+    if (!candidateTrace || !candidateTraceSummary) {
+      return {
+        score: 0,
+        verdict: 'fail',
+        hits: [],
+        misses: ['No trace available for evaluation'],
+        expectedAspectCount: 1,
+      };
+    }
+
+    switch (this.config.mode) {
+      case 'any_order':
+        return this.evaluateAnyOrder(candidateTraceSummary);
+      case 'in_order':
+        return this.evaluateInOrder(candidateTrace);
+      case 'exact':
+        return this.evaluateExact(candidateTrace);
+      default:
+        return {
+          score: 0,
+          verdict: 'fail',
+          hits: [],
+          misses: [`Unknown mode: ${this.config.mode}`],
+          expectedAspectCount: 1,
+        };
+    }
+  }
+
+  private evaluateAnyOrder(summary: TraceSummary): EvaluationScore {
+    const minimums = this.config.minimums ?? {};
+    const toolNames = Object.keys(minimums);
+    const hits: string[] = [];
+    const misses: string[] = [];
+
+    for (const toolName of toolNames) {
+      const required = minimums[toolName];
+      const actual = summary.toolCallsByName[toolName] ?? 0;
+      if (actual >= required) {
+        hits.push(`${toolName}: called ${actual} times (required ≥${required})`);
+      } else {
+        misses.push(`${toolName}: called ${actual} times (required ≥${required})`);
+      }
+    }
+
+    const totalChecks = toolNames.length || 1;
+    const score = hits.length / totalChecks;
+
+    return {
+      score,
+      verdict: scoreToVerdict(score),
+      hits,
+      misses,
+      expectedAspectCount: totalChecks,
+    };
+  }
+
+  private evaluateInOrder(trace: readonly TraceEvent[]): EvaluationScore {
+    const expected = this.config.expected ?? [];
+    const actualToolCalls = trace.filter((e) => e.type === 'tool_call' && e.name);
+
+    const hits: string[] = [];
+    const misses: string[] = [];
+    let actualIndex = 0;
+
+    for (let i = 0; i < expected.length; i++) {
+      const expectedTool = expected[i].tool;
+      let found = false;
+
+      // Search forward in actual trace for the expected tool
+      while (actualIndex < actualToolCalls.length) {
+        if (actualToolCalls[actualIndex].name === expectedTool) {
+          hits.push(`Found ${expectedTool} at position ${actualIndex}`);
+          actualIndex++;
+          found = true;
+          break;
+        }
+        actualIndex++;
+      }
+
+      if (!found) {
+        misses.push(`Expected ${expectedTool} at position ${i}, not found in remaining trace`);
+      }
+    }
+
+    const totalChecks = expected.length || 1;
+    const score = hits.length / totalChecks;
+
+    return {
+      score,
+      verdict: scoreToVerdict(score),
+      hits,
+      misses,
+      expectedAspectCount: totalChecks,
+    };
+  }
+
+  private evaluateExact(trace: readonly TraceEvent[]): EvaluationScore {
+    const expected = this.config.expected ?? [];
+    const actualToolCalls = trace.filter((e) => e.type === 'tool_call' && e.name);
+
+    const hits: string[] = [];
+    const misses: string[] = [];
+
+    // Check length match
+    if (actualToolCalls.length !== expected.length) {
+      misses.push(`Expected ${expected.length} tool calls, got ${actualToolCalls.length}`);
+    }
+
+    // Check each position
+    const checkLength = Math.min(expected.length, actualToolCalls.length);
+    for (let i = 0; i < checkLength; i++) {
+      const expectedTool = expected[i].tool;
+      const actualTool = actualToolCalls[i].name;
+      if (actualTool === expectedTool) {
+        hits.push(`Position ${i}: ${expectedTool} ✓`);
+      } else {
+        misses.push(`Position ${i}: expected ${expectedTool}, got ${actualTool}`);
+      }
+    }
+
+    // Report extra expected tools not in trace
+    for (let i = checkLength; i < expected.length; i++) {
+      misses.push(`Position ${i}: expected ${expected[i].tool}, got nothing`);
+    }
+
+    const totalChecks = expected.length || 1;
+    const score = hits.length / totalChecks;
+
+    return {
+      score,
+      verdict: scoreToVerdict(score),
+      hits,
+      misses,
+      expectedAspectCount: totalChecks,
+    };
+  }
 }
 
 // Composite Evaluator

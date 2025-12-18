@@ -47,6 +47,8 @@ interface NormalizedOptions {
   readonly cache: boolean;
   readonly verbose: boolean;
   readonly dumpPrompts?: string | boolean;
+  readonly dumpTraces: boolean;
+  readonly includeTrace: boolean;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -96,6 +98,8 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     cache: normalizeBoolean(rawOptions.cache),
     verbose: normalizeBoolean(rawOptions.verbose),
     dumpPrompts: rawOptions.dumpPrompts as string | boolean | undefined,
+    dumpTraces: normalizeBoolean(rawOptions.dumpTraces),
+    includeTrace: normalizeBoolean(rawOptions.includeTrace),
   } satisfies NormalizedOptions;
 }
 
