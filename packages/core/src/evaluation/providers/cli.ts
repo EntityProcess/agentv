@@ -5,7 +5,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { readTextFile } from '../file-utils.js';
-import type { TraceEvent } from '../trace.js';
+import { type TraceEvent, isTraceEvent } from '../trace.js';
 import type { CliResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 
@@ -174,27 +174,11 @@ export class CliProvider implements Provider {
     return { text: content };
   }
 
-  /**
-   * Parse and validate trace events from CLI output.
-   */
   private parseTrace(trace: unknown): readonly TraceEvent[] | undefined {
     if (!Array.isArray(trace)) {
       return undefined;
     }
-    // Validate trace events have required fields
-    const validEvents: TraceEvent[] = [];
-    for (const event of trace) {
-      if (
-        typeof event === 'object' &&
-        event !== null &&
-        'type' in event &&
-        typeof event.type === 'string' &&
-        'timestamp' in event &&
-        typeof event.timestamp === 'string'
-      ) {
-        validEvents.push(event as TraceEvent);
-      }
-    }
+    const validEvents = trace.filter(isTraceEvent);
     return validEvents.length > 0 ? validEvents : undefined;
   }
 

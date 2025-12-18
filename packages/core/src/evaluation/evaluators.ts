@@ -646,6 +646,17 @@ export class ToolTrajectoryEvaluator implements Evaluator {
   private evaluateAnyOrder(summary: TraceSummary): EvaluationScore {
     const minimums = this.config.minimums ?? {};
     const toolNames = Object.keys(minimums);
+
+    if (toolNames.length === 0) {
+      return {
+        score: 1,
+        verdict: 'pass',
+        hits: ['No tool requirements specified'],
+        misses: [],
+        expectedAspectCount: 0,
+      };
+    }
+
     const hits: string[] = [];
     const misses: string[] = [];
 
@@ -659,20 +670,30 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       }
     }
 
-    const totalChecks = toolNames.length || 1;
-    const score = hits.length / totalChecks;
+    const score = hits.length / toolNames.length;
 
     return {
       score,
       verdict: scoreToVerdict(score),
       hits,
       misses,
-      expectedAspectCount: totalChecks,
+      expectedAspectCount: toolNames.length,
     };
   }
 
   private evaluateInOrder(trace: readonly TraceEvent[]): EvaluationScore {
     const expected = this.config.expected ?? [];
+
+    if (expected.length === 0) {
+      return {
+        score: 1,
+        verdict: 'pass',
+        hits: ['No tool sequence specified'],
+        misses: [],
+        expectedAspectCount: 0,
+      };
+    }
+
     const actualToolCalls = trace.filter((e) => e.type === 'tool_call' && e.name);
 
     const hits: string[] = [];
@@ -683,7 +704,6 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       const expectedTool = expected[i].tool;
       let found = false;
 
-      // Search forward in actual trace for the expected tool
       while (actualIndex < actualToolCalls.length) {
         if (actualToolCalls[actualIndex].name === expectedTool) {
           hits.push(`Found ${expectedTool} at position ${actualIndex}`);
@@ -699,31 +719,39 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       }
     }
 
-    const totalChecks = expected.length || 1;
-    const score = hits.length / totalChecks;
+    const score = hits.length / expected.length;
 
     return {
       score,
       verdict: scoreToVerdict(score),
       hits,
       misses,
-      expectedAspectCount: totalChecks,
+      expectedAspectCount: expected.length,
     };
   }
 
   private evaluateExact(trace: readonly TraceEvent[]): EvaluationScore {
     const expected = this.config.expected ?? [];
+
+    if (expected.length === 0) {
+      return {
+        score: 1,
+        verdict: 'pass',
+        hits: ['No tool sequence specified'],
+        misses: [],
+        expectedAspectCount: 0,
+      };
+    }
+
     const actualToolCalls = trace.filter((e) => e.type === 'tool_call' && e.name);
 
     const hits: string[] = [];
     const misses: string[] = [];
 
-    // Check length match
     if (actualToolCalls.length !== expected.length) {
       misses.push(`Expected ${expected.length} tool calls, got ${actualToolCalls.length}`);
     }
 
-    // Check each position
     const checkLength = Math.min(expected.length, actualToolCalls.length);
     for (let i = 0; i < checkLength; i++) {
       const expectedTool = expected[i].tool;
@@ -735,20 +763,18 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       }
     }
 
-    // Report extra expected tools not in trace
     for (let i = checkLength; i < expected.length; i++) {
       misses.push(`Position ${i}: expected ${expected[i].tool}, got nothing`);
     }
 
-    const totalChecks = expected.length || 1;
-    const score = hits.length / totalChecks;
+    const score = hits.length / expected.length;
 
     return {
       score,
       verdict: scoreToVerdict(score),
       hits,
       misses,
-      expectedAspectCount: totalChecks,
+      expectedAspectCount: expected.length,
     };
   }
 }
