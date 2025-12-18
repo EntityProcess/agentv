@@ -71,3 +71,15 @@ targets:
     healthcheck:
       type: command
       command_template: uv run ./mock_cli.py --healthcheck
+
+  # Mock agent CLI for testing tool_trajectory evaluator
+  # Uses a TypeScript CLI that simulates an agent with tool usage
+  - name: mock_agent
+    provider: cli
+    judge_target: default
+    command_template: bun run ./mock-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}
+    cwd: ./evals/tool-trajectory
+    timeout_seconds: 30
+    healthcheck:
+      type: command
+      command_template: bun run ./mock-agent.ts --healthcheck

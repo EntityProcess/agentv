@@ -26,6 +26,16 @@ Organized by feature area:
   - Verdict field (pass/fail/borderline)
   - Automatic rubric generation from expected outcomes
 
+#### Tool Trajectory Evaluator (`evals/tool-trajectory/`)
+
+- **`tool-trajectory-demo.yaml`**: Tool trajectory evaluator for agent execution validation:
+  - `any_order` mode: Validates minimum tool call counts (tools can appear in any order)
+  - `in_order` mode: Validates tools appear in expected sequence (allows gaps)
+  - `exact` mode: Validates exact tool sequence match (no gaps, no extra tools)
+  - `tool_calls` in expected_messages: Validate specific tool calls with inputs/outputs
+  - Combined evaluators: Tool trajectory + LLM judge for comprehensive validation
+  - Note: Requires agent providers that return trace data (e.g., codex, vscode)
+
 ### Evaluator Components (`evaluators/`)
 
 - **`scripts/`**: Code-based evaluators (Python, shell, etc.)
