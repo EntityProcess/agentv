@@ -87,7 +87,7 @@ The agent runner produces a trace file (`trace.json`) capturing the investigatio
 
 ## AgentV Evaluation File
 
-### Pattern 1: High-Level Constraints (Recommended for most cases)
+### Pattern A: Compact Tool Specifications (For precise flow)
 
 ```yaml
 description: Agentic retrieval evaluation - validates multi-step research behavior
@@ -99,64 +99,29 @@ evalcases:
       - role: user
         content: "How do I deactivate a branch?"
     
-    # Validate process via trace
-    evaluators:
-      - type: tool_trajectory
-        mode: any_order
-        minimums:
-          semanticSearch: 3
-    
-    # Validate content
-    expected_messages:
-      - role: tool
-        content: |
-          Documents should explain:
-          - How to navigate to branch settings
-          - The deactivation process
-          - Required permissions
-```
-
-### Pattern 2: Precise Flow (For golden path testing)
-
-```yaml
-evalcases:
-  - id: branch-deactivation-002
-    input_messages:
-      - role: user
-        content: "How do I deactivate a branch?"
-    
-    # Specify exact conversation flow
+    # Specify exact tool usage with compact format
     expected_messages:
       - role: assistant
         content: "Let me search for information about branch deactivation."
         tool_calls:
           - tool: semanticSearch
-            args:
-              query: "how to deactivate a branch"
-      
-      - role: tool
-        name: semanticSearch
-        content: "..." # Don't need exact match
+            input:
+              query: "how to deactivate a branch in the system"
+            output: "..."  # Optional: specify expected output
       
       - role: assistant
         content: "I found general guidance. Let me search for more specific navigation steps."
         tool_calls:
           - tool: semanticSearch
-            args:
-              query: "branch settings navigation"
-      
-      - role: tool
-        name: semanticSearch
-        content: "..."
+            input:
+              query: "branch settings navigation path"
       
       - role: assistant
-        content: "Let me verify the permissions required."
+        content: "Let me verify the deactivation permissions and requirements."
         tool_calls:
           - tool: semanticSearch
-      
-      - role: tool
-        name: semanticSearch
-        content: "..."
+            input:
+              query: "branch deactivation permissions requirements"
       
       - role: assistant
         content: |
@@ -167,7 +132,7 @@ evalcases:
           4. Click Deactivate
 ```
 
-### Pattern 3: Both Together (Belt and Suspenders)
+### Pattern B: High-Level Constraints (Recommended for most cases)
 
 ```yaml
 evalcases:
@@ -176,27 +141,20 @@ evalcases:
       - role: user
         content: "How do I deactivate a branch?"
     
-    # Specify expected flow
+    # Specify exact tool calls with compact format
     expected_messages:
       - role: assistant
         tool_calls:
           - tool: semanticSearch
-      - role: tool
-        name: semanticSearch
-      - role: assistant
-        tool_calls:
+            input: { query: "branch deactivation" }
           - tool: semanticSearch
-      - role: tool
-        name: semanticSearch
-      - role: assistant
-        tool_calls:
+            input: { query: "branch navigation" }
           - tool: semanticSearch
-      - role: tool
-        name: semanticSearch
+            input: { query: "branch permissions" }
       - role: assistant
         content: "To deactivate a branch..."
     
-    # PLUS add safety net
+    # PLUS add safety net constraint
     evaluators:
       - type: tool_trajectory
         minimums:

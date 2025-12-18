@@ -43,11 +43,21 @@ To avoid result bloat, AgentV persists a compact summary by default:
 
 Full trace payload persistence is optional.
 
+**Note:** The `toolCallsByName` summary enables the `tool_trajectory` evaluator with `minimums` to validate tool usage counts without needing a separate `tool_call_count` evaluator.
+
 ## Execution Plumbing
 
 ### ProviderResponse
 - Providers MAY attach a trace to each invocation.
 - Providers MAY attach a `trace_ref` (path/identifier) when the trace is stored externally.
+
+**Implementation scope:** Provider trace emission is **deferred to follow-up work**. Initial implementation focuses on:
+1. Trace data model and schema validation
+2. Evaluator infrastructure (tool_trajectory)
+3. CLI options for trace persistence
+4. Support for providers that supply traces via external files (trace.json)
+
+Provider-specific trace capture (Azure, Anthropic, Gemini, VSCode, Codex) will be added incrementally after core infrastructure is stable.
 
 ### Orchestrator
 - The orchestrator SHALL propagate trace into:
@@ -62,44 +72,110 @@ Full trace payload persistence is optional.
 
 LLM judges get trace via opt-in template variables.
 
+## Architectural Decision: Multiple Tool Calls Format
+
+### Industry Comparison
+
+Different frameworks handle multiple tool calls differently:
+
+| Framework | Approach | Structure |
+|-----------|----------|-----------|
+| **ADK Python** | Multiple parts in ONE event | `Event(content=Content(parts=[Part(function_call), Part(function_call), ...]))` |
+| **Mastra** | Multiple parts in ONE message (internal) | Converts to separate assistant + tool messages for LLM |
+| **Azure SDK** | ONE assistant message + MULTIPLE tool messages | `AssistantMessage(tool_calls=[...])` + `ToolMessage(tool_call_id="1")` + `ToolMessage(tool_call_id="2")` + ... |
+
+**Example: 3 tool calls in one turn**
+
+**ADK Python:**
+```python
+# ONE Event with 3 parts
+Event(content=Content(parts=[
+  Part(function_call=FunctionCall(name='get_weather', args={...})),
+  Part(function_call=FunctionCall(name='get_time', args={...})),
+  Part(function_call=FunctionCall(name='get_traffic', args={...}))
+]))
+```
+
+**Azure SDK:**
+```python
+# ONE assistant message + THREE separate tool messages
+AssistantMessage(tool_calls=[call1, call2, call3])
+ToolMessage(tool_call_id="call-1", content="...")
+ToolMessage(tool_call_id="call-2", content="...")
+ToolMessage(tool_call_id="call-3", content="...")
+```
+
+### AgentV's Choice: Compact Inline Format
+
+**Decision:** AgentV uses a compact format where tool calls and results are co-located:
+
+```yaml
+- role: assistant
+  tool_calls:
+    - tool: getWeather
+      input: { city: "NYC" }
+      output: "72°F"
+    - tool: getTime
+      input: { timezone: "EST" }
+      output: "14:30"
+    - tool: getTraffic
+      input: { location: "Manhattan" }
+      output: "Heavy"
+```
+
+**Rationale:**
+1. **Less verbose** than Azure-style (4 messages → 1 message)
+2. **Natural 1:1 mapping** - each tool call is one spec entry
+3. **Framework-agnostic** - can be converted to any format:
+   - ADK: Expand to multiple parts in one Event
+   - Azure: Expand to multiple ToolMessage objects
+   - Mastra: Convert to multiple tool-invocation parts
+4. **Evaluation-focused** - optimized for specifying expectations, not runtime execution
+5. **Optional output** - supports validation when needed without requiring separate message segments
+
+**Trade-offs accepted:**
+- Not a direct 1:1 match with any single framework's runtime format
+- Providers must convert between runtime format and AgentV's evaluation format
+- This is acceptable because evaluation specs prioritize readability over runtime fidelity
+
 ## YAML Surface Area
 
-### Three Patterns for Tool-Use Validation
+### Two Complementary Patterns
 
-**Pattern 1: Precise Flow (expected_messages)**
+**Pattern A: Compact Tool Specifications (Precise Flow)**
 
-Validate exact conversation structure including tool calls, reasoning, and turn order:
+Validate exact tool usage with inline input/output specs:
 
 ```yaml
 expected_messages:
   - role: user
     content: "Research X"
-  # First search iteration
   - role: assistant
     content: "Let me search for X configuration..."
     tool_calls:
       - tool: knowledgeSearch
-        args: { query: "X configuration" }
-  - role: tool
-    name: knowledgeSearch
-    content: "..."
-  # Reasoning between searches
+        input: { query: "X configuration" }
+        output: "..."  # Optional: specify expected output
+      - tool: knowledgeSearch  # Multiple calls in same turn
+        input: { query: "X detailed setup" }
   - role: assistant
-    content: "I found general info, but need specifics..."
+    content: "I found general info. Let me verify..."
     tool_calls:
       - tool: knowledgeSearch
-        args: { query: "X detailed setup" }
-  - role: tool
-    name: knowledgeSearch
-    content: "..."
-  # Final answer
+        input: { query: "X troubleshooting" }
   - role: assistant
     content: "Based on the results..."
 ```
 
-**When to use:** Golden path testing, regression tests for specific flows, debugging conversation structure.
+**Key features:**
+- 1:1 tool call to spec (natural mapping)
+- Supports multiple calls per turn
+- Optional output validation
+- Less verbose than separate message segments
 
-**Pattern 2: High-Level Constraints (evaluator)**
+**When to use:** Golden path testing, argument validation, output expectations.
+
+**Pattern B: High-Level Constraints (Evaluator)**
 
 Validate that certain tools were called without specifying exact flow:
 
@@ -118,15 +194,15 @@ Constraints:
 
 **When to use:** "Must search ≥3 times" without caring about reasoning/order, flexible constraints across prompt variations.
 
-**Pattern 3: Both Together (Belt and Suspenders)**
-
-Combine precise flow with safety net constraints:
+**Combining Both Patterns (Belt and Suspenders)**
 
 ```yaml
 expected_messages:
-  - role: user
-    content: "Research X"
-  # ... exact flow ...
+  - role: assistant
+    tool_calls:
+      - tool: knowledgeSearch
+        input: { query: "..." }
+      # ... more calls ...
 
 evaluators:
   - type: tool_trajectory

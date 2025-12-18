@@ -15,19 +15,18 @@ expected_messages:
   - role: assistant
     tool_calls:
       - tool: knowledgeSearch
-        args:
+        input:
           query: "branch deactivation process"
+        output: "Found documentation..."  # Optional
     content: "Let me search for that information..."
-  - role: tool
-    tool_call_id: call_1
-    name: knowledgeSearch
-    content: "Found documentation..."
   - role: assistant
     content: "Based on the search results..."
 ```
 - **WHEN** the YAML is parsed
 - **THEN** the eval case SHALL preserve the `tool_calls` structure within assistant messages
 - **AND** the structure SHALL be available to evaluators.
+- **AND** `input` is used for tool arguments (not `args`)
+- **AND** `output` is optional for expected tool results.
 
 #### Scenario: Tool calls without args
 - **GIVEN** a YAML eval case with tool calls that omit the `args` field:
