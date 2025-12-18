@@ -1,3 +1,0 @@
-$schema: wrong-schema
-guideline_patterns:
-  - "**/*.md"

@@ -1,4 +1,0 @@
-targets:
-  - name: default
-    provider: openai
-    model: gpt-4

@@ -5,27 +5,20 @@ Defines the core evaluation runtime: loading eval cases, formatting prompts, inv
 ## Requirements
 ### Requirement: Test Case Execution
 
-The system SHALL execute eval cases using the resolved provider with retries and optional concurrency.
+The system SHALL capture provider traces (when available) and make them available to evaluators and output writers.
 
-#### Scenario: Successful test execution
+#### Scenario: Provider returns a trace
+- **WHEN** a provider invocation completes successfully
+- **AND** the provider response includes a trace payload
+- **THEN** the system captures the trace for that eval case attempt
+- **AND** computes a `trace_summary` with `eventCount`, `toolNames`, `toolCallsByName`, and `errorCount`
+- **AND** makes `candidate_trace` and `candidate_trace_summary` available to evaluators
 
-- **WHEN** a test case is executed with a valid provider configuration
-- **THEN** the provider receives the formatted `question` plus `guidelines` (and a `chatPrompt` for multi-turn LM providers) along with attachment file paths
-- **AND** the provider response text is captured and returned for scoring
-- **AND** execution uses the configured concurrency (`maxConcurrency` override, else target `workers`, else 1)
-
-#### Scenario: Timeout with retry
-
-- **WHEN** a provider invocation times out
-- **AND** retry budget remains
-- **THEN** the system retries the invocation
-- **AND** increments the attempt counter
-
-#### Scenario: Maximum retries exceeded
-
-- **WHEN** a provider invocation exhausts retries or never yields a response
-- **THEN** the system returns an error result for that eval case with the captured error message
-- **AND** continues executing other eval cases without blocking
+#### Scenario: Provider does not support traces
+- **WHEN** a provider invocation completes successfully
+- **AND** the provider response includes no trace payload
+- **THEN** evaluation proceeds as normal
+- **AND** `candidate_trace` and `candidate_trace_summary` are `null` in evaluator context
 
 ### Requirement: LLM Judge Evaluator JSON Contract
 
@@ -125,24 +118,17 @@ The system SHALL allow targets to request provider-level batching via `provider_
 
 ### Requirement: Custom Evaluators
 
-The system SHALL execute configured evaluators per eval case and aggregate scores when multiple evaluators are present.
+The system SHALL allow evaluators to consume trace information when available.
 
-#### Scenario: Aggregating multiple evaluators
+#### Scenario: Deterministic trace evaluator reads trace
+- **WHEN** an eval case includes a trace-based evaluator (e.g., `tool_trajectory`)
+- **THEN** the evaluator receives `candidate_trace_summary`
+- **AND** scores the case deterministically based on configured thresholds
 
-- **WHEN** an eval case declares an `evaluators` array with multiple entries
-- **THEN** each evaluator runs in order, producing per-evaluator results
-- **AND** the overall score is the mean of individual evaluator scores with hits/misses concatenated and reasoning combined per evaluator
-
-#### Scenario: Custom prompt for LLM judge
-
-- **WHEN** an `llm_judge` evaluator includes `prompt` or `promptPath`
-- **THEN** the evaluator loads that prompt override and uses it instead of the default template when calling the judge provider
-
-#### Scenario: Code evaluator execution
-
-- **WHEN** an eval case includes a `code` evaluator
-- **THEN** the evaluator resolves the script path (respecting custom `cwd`), pipes the eval context as JSON to stdin, and parses JSON output for score, hits, misses, and reasoning
-- **AND** returns `score: 0` with an error miss entry if the script errors or times out
+#### Scenario: LLM judge may consume trace (opt-in)
+- **WHEN** an `llm_judge` evaluator is configured to include trace context
+- **THEN** the evaluator prompt MAY include a trace summary section
+- **AND** the evaluator remains valid when trace is absent
 
 ### Requirement: CLI Template Execution
 
@@ -219,3 +205,272 @@ The system SHALL support custom guideline detection via `.agentv.yaml`.
 
 - **WHEN** evaluating whether a file is a guideline
 - **THEN** the path is normalized to forward slashes and matched against the configured globs supporting `**` and `*`
+
+### Requirement: Trace Data Model
+
+The system SHALL use a normalized trace model for provider-agnostic evaluation.
+
+#### Scenario: TraceEvent structure
+- **GIVEN** a provider returns trace data
+- **WHEN** the trace is normalized
+- **THEN** each event has required fields `type` (one of `model_step`, `tool_call`, `tool_result`, `message`, `error`) and `timestamp` (ISO 8601)
+- **AND** optional fields `id`, `name`, `input`, `output`, `text`, `metadata`
+
+#### Scenario: TraceSummary computation
+- **GIVEN** a normalized trace with events:
+  ```json
+  [
+    { "type": "tool_call", "name": "searchDocs" },
+    { "type": "tool_result" },
+    { "type": "tool_call", "name": "searchDocs" },
+    { "type": "tool_result" },
+    { "type": "tool_call", "name": "verify" },
+    { "type": "tool_result" }
+  ]
+  ```
+- **WHEN** TraceSummary is computed
+- **THEN** the result is:
+  ```json
+  {
+    "eventCount": 6,
+    "toolNames": ["searchDocs", "verify"],
+    "toolCallsByName": { "searchDocs": 2, "verify": 1 },
+    "errorCount": 0
+  }
+  ```
+- **AND** `toolNames` is sorted alphabetically
+
+### Requirement: Tool Trajectory Evaluator
+
+The system SHALL provide a built-in `tool_trajectory` evaluator that asserts tool-call constraints.
+
+#### Scenario: Minimum calls met - PASS
+- **GIVEN** an eval case with evaluator:
+  ```yaml
+  type: tool_trajectory
+  mode: any_order
+  minimums:
+    semanticSearch: 3
+  ```
+- **AND** trace summary `toolCallsByName: { "semanticSearch": 3 }`
+- **WHEN** the evaluator runs
+- **THEN** it returns `score: 1.0`
+- **AND** `hits` includes a message like `"semanticSearch called 3 times (minimum: 3)"`
+
+#### Scenario: Minimum calls not met - FAIL
+- **GIVEN** an eval case with evaluator:
+  ```yaml
+  type: tool_trajectory
+  mode: any_order
+  minimums:
+    semanticSearch: 3
+  ```
+- **AND** trace summary `toolCallsByName: { "semanticSearch": 1 }`
+- **WHEN** the evaluator runs
+- **THEN** it returns `score: 0.0`
+- **AND** `misses` includes a message like `"semanticSearch called 1 time (minimum: 3)"`
+
+#### Scenario: Multiple minimums - partial pass
+- **GIVEN** an eval case with evaluator:
+  ```yaml
+  type: tool_trajectory
+  mode: any_order
+  minimums:
+    toolA: 2
+    toolB: 2
+  ```
+- **AND** trace summary `toolCallsByName: { "toolA": 2, "toolB": 1 }`
+- **WHEN** the evaluator runs
+- **THEN** it returns `score: 0.5` (1 of 2 constraints met)
+- **AND** `hits` includes message for toolA
+- **AND** `misses` includes message for toolB
+
+#### Scenario: In-order sequence - PASS
+- **GIVEN** an eval case with evaluator:
+  ```yaml
+  type: tool_trajectory
+  mode: in_order
+  expected:
+    - tool: A
+    - tool: B
+    - tool: C
+  ```
+- **AND** trace contains tool calls in order `[A, X, B, Y, C]` (extra tools allowed)
+- **WHEN** the evaluator runs
+- **THEN** it returns `score: 1.0`
+
+#### Scenario: In-order sequence - FAIL (wrong order)
+- **GIVEN** an eval case with evaluator:
+  ```yaml
+  type: tool_trajectory
+  mode: in_order
+  expected:
+    - tool: A
+    - tool: B
+  ```
+- **AND** trace contains tool calls in order `[B, A]`
+- **WHEN** the evaluator runs
+- **THEN** it returns `score: 0.0`
+- **AND** `misses` explains the order mismatch
+
+#### Scenario: Exact sequence - PASS
+- **GIVEN** an eval case with evaluator:
+  ```yaml
+  type: tool_trajectory
+  mode: exact
+  expected:
+    - tool: A
+    - tool: B
+  ```
+- **AND** trace contains exactly tool calls `[A, B]`
+- **WHEN** the evaluator runs
+- **THEN** it returns `score: 1.0`
+
+#### Scenario: Exact sequence - FAIL (extra tools)
+- **GIVEN** an eval case with evaluator:
+  ```yaml
+  type: tool_trajectory
+  mode: exact
+  expected:
+    - tool: A
+    - tool: B
+  ```
+- **AND** trace contains tool calls `[A, B, C]`
+- **WHEN** the evaluator runs
+- **THEN** it returns `score: 0.0`
+- **AND** `misses` explains the extra tool
+
+#### Scenario: No trace available
+- **GIVEN** an eval case with a `tool_trajectory` evaluator
+- **AND** the provider did not return a trace
+- **WHEN** the evaluator runs
+- **THEN** it returns `score: 0.0`
+- **AND** `misses` includes `"No trace available for evaluation"`
+
+### Requirement: Expected Messages Tool Call Validation
+
+The system SHALL validate `tool_calls` in `expected_messages` against the actual trace.
+
+#### Scenario: Tool calls match - PASS
+- **GIVEN** an eval case with `expected_messages`:
+  ```yaml
+  expected_messages:
+    - role: assistant
+      tool_calls:
+        - tool: searchDocs
+          input: { query: "test" }
+  ```
+- **AND** trace contains:
+  ```json
+  [{ "type": "tool_call", "name": "searchDocs", "input": { "query": "test" } }]
+  ```
+- **WHEN** validation runs
+- **THEN** score is `1.0`
+- **AND** `hits` includes `"tool_calls[0]: searchDocs matched"`
+
+#### Scenario: Tool name mismatch - FAIL
+- **GIVEN** an eval case with `expected_messages`:
+  ```yaml
+  expected_messages:
+    - role: assistant
+      tool_calls:
+        - tool: searchDocs
+  ```
+- **AND** trace contains:
+  ```json
+  [{ "type": "tool_call", "name": "verifyUser" }]
+  ```
+- **WHEN** validation runs
+- **THEN** score is `0.0`
+- **AND** `misses` includes `"tool_calls[0]: expected searchDocs, got verifyUser"`
+
+#### Scenario: Input mismatch - FAIL
+- **GIVEN** an eval case with `expected_messages`:
+  ```yaml
+  expected_messages:
+    - role: assistant
+      tool_calls:
+        - tool: searchDocs
+          input: { query: "expected query" }
+  ```
+- **AND** trace contains:
+  ```json
+  [{ "type": "tool_call", "name": "searchDocs", "input": { "query": "different query" } }]
+  ```
+- **WHEN** validation runs
+- **THEN** score is `0.0`
+- **AND** `misses` includes `"tool_calls[0]: input mismatch"`
+
+#### Scenario: Input not specified - match tool name only
+- **GIVEN** an eval case with `expected_messages`:
+  ```yaml
+  expected_messages:
+    - role: assistant
+      tool_calls:
+        - tool: searchDocs
+  ```
+- **AND** trace contains:
+  ```json
+  [{ "type": "tool_call", "name": "searchDocs", "input": { "query": "any value" } }]
+  ```
+- **WHEN** validation runs
+- **THEN** score is `1.0`
+- **AND** `hits` includes `"tool_calls[0]: searchDocs matched"`
+
+#### Scenario: Multiple tool calls - partial match
+- **GIVEN** an eval case with `expected_messages`:
+  ```yaml
+  expected_messages:
+    - role: assistant
+      tool_calls:
+        - tool: searchDocs
+        - tool: verifyUser
+  ```
+- **AND** trace contains:
+  ```json
+  [
+    { "type": "tool_call", "name": "searchDocs" },
+    { "type": "tool_call", "name": "wrongTool" }
+  ]
+  ```
+- **WHEN** validation runs
+- **THEN** score is `0.5` (1 of 2 matched)
+- **AND** `hits` includes message for searchDocs
+- **AND** `misses` includes message for verifyUser mismatch
+
+#### Scenario: Fewer actual calls than expected - FAIL
+- **GIVEN** an eval case with `expected_messages`:
+  ```yaml
+  expected_messages:
+    - role: assistant
+      tool_calls:
+        - tool: searchDocs
+        - tool: verifyUser
+  ```
+- **AND** trace contains:
+  ```json
+  [{ "type": "tool_call", "name": "searchDocs" }]
+  ```
+- **WHEN** validation runs
+- **THEN** score is `0.5` (1 of 2 matched)
+- **AND** `misses` includes `"tool_calls[1]: expected verifyUser, but no more tool calls in trace"`
+
+#### Scenario: No trace but expected_messages has tool_calls - FAIL
+- **GIVEN** an eval case with `expected_messages` containing `tool_calls`
+- **AND** the provider did not return a trace
+- **WHEN** validation runs
+- **THEN** score is `0.0`
+- **AND** `misses` includes `"No trace available to validate tool_calls"`
+
+### Requirement: Score Aggregation
+
+The system SHALL aggregate scores when multiple evaluators are configured.
+
+#### Scenario: Multiple evaluators aggregation
+- **GIVEN** an eval case with two evaluators
+- **AND** evaluator A returns `score: 1.0`
+- **AND** evaluator B returns `score: 0.0`
+- **WHEN** scores are aggregated
+- **THEN** overall `score` is `0.5` (mean of individual scores)
+- **AND** `status` is `"fail"` (score < 1.0)
+
