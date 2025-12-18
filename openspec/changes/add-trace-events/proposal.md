@@ -31,10 +31,7 @@ This change makes trace a first-class evaluation signal, aligned with patterns u
 ### 3. Support compact tool call format in expected_messages
 - Allow `tool_calls` with inline `input` and optional `output` within assistant messages.
 - Supports multiple tool calls per turn (1:1 mapping of tool call to spec).
-- Use when you need to validate:
-  - Exact reasoning steps and tool usage patterns
-  - Tool argument correctness
-  - Expected tool outputs (optional)
+- Validate tool name, input (deep equality), and output (if specified) against trace.
 
 ### 4. Add built-in trace evaluators (High-Level Constraints)
 - Provide deterministic evaluators aligned with ADK's trajectory approach:
@@ -50,7 +47,9 @@ This change makes trace a first-class evaluation signal, aligned with patterns u
 - Common usage: combine both for precision + guardrails
 
 ### 6. Extend CLI output/debugging for traces
-- Add CLI options to persist trace artifacts similarly to `--dump-prompts`.
+- Include `trace_summary` in results by default (lightweight).
+- Add `--dump-traces` flag to write trace files to `.agentv/traces/`.
+- Add `--include-trace` flag to include full trace inline in result output.
 - Keep default behavior conservative (avoid bloating result files).
 
 ## Example

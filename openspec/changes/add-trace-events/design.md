@@ -22,40 +22,95 @@ AgentV should adopt the simplest common denominator: a normalized **event list**
 ### TraceEvent (normalized)
 A trace is represented as an ordered list of events (attempt-local).
 
-Required fields:
-- `type`: one of `model_step`, `tool_call`, `tool_result`, `message`, `error`
-- `timestamp`: ISO 8601 string
+```typescript
+// packages/core/src/evaluation/trace.ts
 
-Recommended fields:
-- `id`: stable identifier (for pairing tool_call/tool_result)
-- `name`: tool name (for tool_call/tool_result)
-- `input`: JSON value (tool input)
-- `output`: JSON value (tool output)
-- `text`: message content (for message/model_step)
-- `metadata`: JSON object (provider-specific)
+interface TraceEvent {
+  /** Event type */
+  type: "model_step" | "tool_call" | "tool_result" | "message" | "error";
+  /** ISO 8601 timestamp */
+  timestamp: string;
+  /** Stable identifier for pairing tool_call/tool_result */
+  id?: string;
+  /** Tool name (for tool_call/tool_result) */
+  name?: string;
+  /** Tool input - any JSON value */
+  input?: unknown;
+  /** Tool output - any JSON value */
+  output?: unknown;
+  /** Message content (for message/model_step) */
+  text?: string;
+  /** Provider-specific metadata */
+  metadata?: Record<string, unknown>;
+}
+```
 
 ### TraceSummary (always persisted)
 To avoid result bloat, AgentV persists a compact summary by default:
-- `eventCount`
-- `toolNames` (unique, sorted)
-- `toolCallsByName` (map of tool name to call count)
-- `errorCount`
+
+```typescript
+interface TraceSummary {
+  /** Total number of events in trace */
+  eventCount: number;
+  /** Unique tool names, sorted alphabetically */
+  toolNames: string[];
+  /** Map of tool name to call count */
+  toolCallsByName: Record<string, number>;
+  /** Number of error events */
+  errorCount: number;
+}
+```
 
 Full trace payload persistence is optional.
 
 **Note:** The `toolCallsByName` summary enables the `tool_trajectory` evaluator with `minimums` to validate tool usage counts without needing a separate `tool_call_count` evaluator.
 
+### ToolTrajectoryEvaluatorConfig
+
+```typescript
+interface ToolTrajectoryEvaluatorConfig {
+  name?: string;
+  type: "tool_trajectory";
+  /** Matching mode */
+  mode: "any_order" | "in_order" | "exact";
+  /** Minimum call counts per tool (for any_order mode) */
+  minimums?: Record<string, number>;
+  /** Expected tool sequence (for in_order/exact modes) */
+  expected?: Array<{ tool: string }>;
+}
+```
+
 ## Execution Plumbing
 
 ### ProviderResponse
-- Providers MAY attach a trace to each invocation.
-- Providers MAY attach a `trace_ref` (path/identifier) when the trace is stored externally.
+
+Extend the existing provider response type to include optional trace:
+
+```typescript
+// Extend existing ProviderResponse in packages/core/src/evaluation/providers.ts
+
+interface ProviderResponse {
+  // ... existing fields ...
+  text: string;
+  
+  // NEW: Optional trace data
+  /** Normalized trace events */
+  trace?: TraceEvent[];
+  /** Reference to external trace file (alternative to inline trace) */
+  traceRef?: string;
+}
+```
+
+**How providers supply traces:**
+1. **Inline trace**: Provider returns `trace: TraceEvent[]` directly in response
+2. **External file**: Provider returns `traceRef: "path/to/trace.json"` and orchestrator loads it
+3. **No trace**: Provider omits both fields; evaluation proceeds without trace
 
 **Implementation scope:** Provider trace emission is **deferred to follow-up work**. Initial implementation focuses on:
 1. Trace data model and schema validation
 2. Evaluator infrastructure (tool_trajectory)
 3. CLI options for trace persistence
-4. Support for providers that supply traces via external files (trace.json)
+4. Support for providers that supply traces via `traceRef` (external file)
 
 Provider-specific trace capture (Azure, Anthropic, Gemini, VSCode, Codex) will be added incrementally after core infrastructure is stable.
 
@@ -179,6 +234,30 @@ expected_messages:
 
 **When to use:** Golden path testing, argument validation, output expectations.
 
+**Validation logic:**
+
+When `expected_messages` contains assistant messages with `tool_calls`, validation compares against the actual trace:
+
+1. **Extract expected tool calls** from `expected_messages` in order
+2. **Extract actual tool calls** from trace (filter `type: "tool_call"` events)
+3. **Match sequentially** - each expected tool call must match an actual call at the same position:
+   - `tool` name must match exactly
+   - `input` must match via deep equality (if specified)
+   - `output` must match via deep equality (if specified in expected)
+4. **Scoring**:
+   - Each matched tool call contributes to score
+   - Score = (matched calls / expected calls)
+   - `hits` lists matched tool calls
+   - `misses` lists unmatched with details (wrong tool, wrong input, missing)
+
+```typescript
+interface ExpectedToolCall {
+  tool: string;
+  input?: unknown;   // If specified, must match exactly
+  output?: unknown;  // If specified, must match exactly
+}
+```
+
 **Pattern B: High-Level Constraints (Evaluator)**
 
 Validate that certain tools were called without specifying exact flow:
@@ -217,8 +296,9 @@ evaluators:
 **When to use:** High-value flows where you want both precision and guardrails.
 
 ## Result Serialization
-- JSONL/YAML outputs include `trace_summary` by default.
-- Full `trace` included only when enabled via CLI option.
+- JSONL/YAML outputs include `trace_summary` by default (lightweight).
+- Full `trace` array included inline when `--include-trace` flag is provided.
+- Trace files dumped to `.agentv/traces/` when `--dump-traces` flag is provided.
 
 ## Alternatives Considered
 - **Span tree (Mastra-style)**: powerful but heavier; defer until needed.

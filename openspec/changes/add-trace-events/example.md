@@ -1,257 +1,204 @@
-# Example: Evaluating Agentic Retrieval with Traces
+# Example: End-to-End Trace Evaluation Demo
 
-This example demonstrates how to evaluate an AI agent that performs multi-step research using semantic search tools.
+This example demonstrates the core trace evaluation workflow - from agent execution to evaluation results.
 
 ## Scenario
 
-An AI assistant receives a question, performs multiple search iterations to gather information, and synthesizes a comprehensive answer. We want to validate:
-1. **Process:** The agent performs at least 3 search queries
-2. **Content:** The final answer covers required topics
+A support agent answers questions by searching a knowledge base. We want to ensure it performs adequate research (at least 3 searches) before answering.
 
-## Agent Trace Output
+## Step 1: Agent Execution
 
-The agent runner produces a trace file (`trace.json`) capturing the investigation process:
+User asks: **"How do I deactivate a branch?"**
+
+The agent performs research and produces this trace:
 
 ```json
 {
-  "steps": [
+  "trace": [
     {
-      "stepNumber": 1,
-      "text": "Let me search for information about branch deactivation.",
-      "toolCalls": [
-        {
-          "id": "call_abc123",
-          "name": "semanticSearch",
-          "input": {
-            "query": "how to deactivate a branch in the system"
-          },
-          "output": {
-            "results": [
-              {
-                "id": "doc_001",
-                "title": "Branch Management Guide",
-                "excerpt": "To deactivate a branch, navigate to Settings > Branches..."
-              }
-            ]
-          }
-        }
-      ]
+      "type": "tool_call",
+      "timestamp": "2024-01-15T10:00:01Z",
+      "id": "call_1",
+      "name": "semanticSearch",
+      "input": { "query": "branch deactivation process" }
     },
     {
-      "stepNumber": 2,
-      "text": "I found general guidance. Let me search for more specific navigation steps.",
-      "toolCalls": [
-        {
-          "id": "call_def456",
-          "name": "semanticSearch",
-          "input": {
-            "query": "branch settings navigation path"
-          },
-          "output": {
-            "results": [
-              {
-                "id": "doc_002",
-                "title": "System Navigation Reference",
-                "excerpt": "Access branch settings via Admin Console > Organization > Branches"
-              }
-            ]
-          }
-        }
-      ]
+      "type": "tool_result",
+      "timestamp": "2024-01-15T10:00:02Z",
+      "id": "call_1",
+      "output": { "results": ["Navigate to Settings > Branches..."] }
     },
     {
-      "stepNumber": 3,
-      "text": "Let me verify the deactivation permissions and requirements.",
-      "toolCalls": [
-        {
-          "id": "call_ghi789",
-          "name": "semanticSearch",
-          "input": {
-            "query": "branch deactivation permissions requirements"
-          },
-          "output": {
-            "results": [
-              {
-                "id": "doc_003",
-                "title": "Branch Security Policies",
-                "excerpt": "Only organization admins can deactivate branches. All pending transactions must be resolved first."
-              }
-            ]
-          }
-        }
-      ]
+      "type": "tool_call",
+      "timestamp": "2024-01-15T10:00:03Z",
+      "id": "call_2",
+      "name": "semanticSearch",
+      "input": { "query": "branch permissions requirements" }
+    },
+    {
+      "type": "tool_result",
+      "timestamp": "2024-01-15T10:00:04Z",
+      "id": "call_2",
+      "output": { "results": ["Only admins can deactivate branches..."] }
+    },
+    {
+      "type": "tool_call",
+      "timestamp": "2024-01-15T10:00:05Z",
+      "id": "call_3",
+      "name": "semanticSearch",
+      "input": { "query": "branch deactivation prerequisites" }
+    },
+    {
+      "type": "tool_result",
+      "timestamp": "2024-01-15T10:00:06Z",
+      "id": "call_3",
+      "output": { "results": ["Resolve pending transactions first..."] }
     }
-  ]
+  ],
+  "candidate_answer": "To deactivate a branch: 1) Ensure you have admin permissions, 2) Resolve pending transactions, 3) Navigate to Settings > Branches and click Deactivate."
 }
 ```
 
-## AgentV Evaluation File
+## Step 2: Evaluation Configuration
 
-### Pattern A: Compact Tool Specifications (For precise flow)
+Create an eval file that validates the agent's research behavior:
 
 ```yaml
-description: Agentic retrieval evaluation - validates multi-step research behavior
-target: research-assistant
+# evals/support-agent.yaml
+description: Support agent must research thoroughly before answering
+target: support-agent
 
 evalcases:
-  - id: branch-deactivation-001
+  - id: branch-deactivation
     input_messages:
       - role: user
         content: "How do I deactivate a branch?"
     
-    # Specify exact tool usage with compact format
-    expected_messages:
-      - role: assistant
-        content: "Let me search for information about branch deactivation."
-        tool_calls:
-          - tool: semanticSearch
-            input: { query: "how to deactivate a branch in the system" }
-            output: "..."  # Optional: specify expected output
-      
-      - role: assistant
-        content: "I found general guidance. Let me search for more specific navigation steps."
-        tool_calls:
-          - tool: semanticSearch
-            input: { query: "branch settings navigation path" }
-      
-      - role: assistant
-        content: "Let me verify the deactivation permissions and requirements."
-        tool_calls:
-          - tool: semanticSearch
-            input: { query: "branch deactivation permissions requirements" }
-      
-      - role: assistant
-        content: |
-          To deactivate a branch:
-          1. Navigate to Admin Console > Organization > Branches
-          2. Ensure you have organization admin permissions
-          3. Resolve any pending transactions
-          4. Click Deactivate
-```
-
-### Pattern B: High-Level Constraints (Flexible validation)
-
-```yaml
-evalcases:
-  - id: branch-deactivation-002
-    input_messages:
-      - role: user
-        content: "How do I deactivate a branch?"
-    
-    # Only validate that certain tools were called, not exact flow
     evaluators:
-      - type: tool_trajectory
+      - name: research_depth
+        type: tool_trajectory
         mode: any_order
         minimums:
           semanticSearch: 3
 ```
 
-### Combined: Both Patterns (Belt and suspenders)
+## Step 3: Run Evaluation
+
+```bash
+agentv eval evals/support-agent.yaml
+```
+
+## Step 4: Evaluation Result
+
+```json
+{
+  "id": "branch-deactivation",
+  "status": "pass",
+  "score": 1.0,
+  "evaluator_results": [
+    {
+      "name": "research_depth",
+      "type": "tool_trajectory",
+      "score": 1.0,
+      "hits": ["semanticSearch called 3 times (minimum: 3)"],
+      "misses": []
+    }
+  ],
+  "trace_summary": {
+    "eventCount": 6,
+    "toolNames": ["semanticSearch"],
+    "toolCallsByName": { "semanticSearch": 3 },
+    "errorCount": 0
+  }
+}
+```
+
+## What This Validates
+
+1. **Trace capture works** - Provider trace is captured and normalized
+2. **TraceSummary is computed** - Tool calls are counted correctly
+3. **tool_trajectory evaluator works** - Minimum threshold is validated
+4. **Results include trace data** - `trace_summary` appears in output
+
+## Pattern A: Precise Tool Call Validation
+
+Use `expected_messages` with `tool_calls` to validate exact tool usage:
 
 ```yaml
 evalcases:
-  - id: branch-deactivation-003
+  - id: branch-deactivation-precise
     input_messages:
       - role: user
         content: "How do I deactivate a branch?"
     
-    # Specify exact tool calls with compact format
+    # Validate exact tool calls with inputs
     expected_messages:
       - role: assistant
         tool_calls:
           - tool: semanticSearch
-            input: { query: "branch deactivation" }
+            input: { query: "branch deactivation process" }
           - tool: semanticSearch
-            input: { query: "branch navigation" }
+            input: { query: "branch permissions requirements" }
           - tool: semanticSearch
-            input: { query: "branch permissions" }
-      - role: assistant
-        content: "To deactivate a branch..."
+            input: { query: "branch deactivation prerequisites" }
+```
+
+This validates:
+- Tool names match exactly
+- Tool inputs match via deep equality
+- Calls appear in the specified order
+
+## Pattern B: Flexible Constraints
+
+Use `tool_trajectory` evaluator for high-level constraints:
+
+```yaml
+evalcases:
+  - id: branch-deactivation-flexible
+    input_messages:
+      - role: user
+        content: "How do I deactivate a branch?"
     
-    # PLUS add safety net constraint
     evaluators:
-      - type: tool_trajectory
+      - name: research_depth
+        type: tool_trajectory
+        mode: any_order
         minimums:
           semanticSearch: 3
 ```
 
-## Provider Integration
+This validates:
+- At least 3 calls to semanticSearch
+- Order doesn't matter
+- Input values don't matter
 
-The provider converts the investigation trace to AgentV's normalized `TraceEvent[]` format:
+## Combining Both Patterns
 
-```typescript
-function convertToAgentVTrace(steps: InvestigationStep[]): TraceEvent[] {
-  const events: TraceEvent[] = [];
-  
-  for (const step of steps) {
-    // Add reasoning step
-    if (step.text) {
-      events.push({
-        type: "model_step",
-        timestamp: new Date().toISOString(),
-        text: step.text,
-        metadata: { stepNumber: step.stepNumber }
-      });
-    }
+Use both for precision + guardrails:
+
+```yaml
+evalcases:
+  - id: branch-deactivation-strict
+    input_messages:
+      - role: user
+        content: "How do I deactivate a branch?"
     
-    // Add tool calls and results
-    for (const call of step.toolCalls) {
-      events.push({
-        type: "tool_call",
-        timestamp: new Date().toISOString(),
-        id: call.id,
-        name: call.name,
-        input: call.input
-      });
-      
-      if (call.output) {
-        events.push({
-          type: "tool_result",
-          timestamp: new Date().toISOString(),
-          id: call.id,
-          output: call.output
-        });
-      }
-    }
-  }
-  
-  return events;
-}
+    # Precise validation of expected flow
+    expected_messages:
+      - role: assistant
+        tool_calls:
+          - tool: semanticSearch
+            input: { query: "branch deactivation process" }
+          - tool: semanticSearch
+          - tool: semanticSearch
+    
+    # Safety net: must have at least 3 searches
+    evaluators:
+      - name: research_depth
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          semanticSearch: 3
 ```
 
-## Evaluation Results
-
-AgentV produces:
-
-```json
-{
-  "id": "branch-deactivation-001",
-  "status": "pass",
-  "scores": {
-    "tool_trajectory": 1.0
-  },
-  "trace_summary": {
-    "eventCount": 9,
-    "toolNames": ["semanticSearch"],
-    "toolCallsByName": {
-      "semanticSearch": 3
-    },
-    "errorCount": 0
-  },
-  "attempts": [
-    {
-      "candidate_answer": "To deactivate a branch...",
-      "trace_summary": { /* ... */ }
-    }
-  ]
-}
-```
-
-## Key Takeaways
-
-1. **Providers emit structured traces** - Simple JSON format with steps and tool calls
-2. **AgentV normalizes to TraceEvent[]** - Provider-agnostic format for evaluation
-3. **Two complementary approaches:**
-   - `tool_trajectory` evaluator for flexible constraints
-   - `expected_messages` for precise flow validation
-4. **Trace summary always persisted** - Lightweight by default, full trace optional
+Overall score is the mean of all validation results.
