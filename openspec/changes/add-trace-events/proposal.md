@@ -53,6 +53,14 @@ This change makes trace a first-class evaluation signal, aligned with patterns u
 - Add CLI options to persist trace artifacts similarly to `--dump-prompts`.
 - Keep default behavior conservative (avoid bloating result files).
 
+## Example
+
+See [example.md](./example.md) for a complete end-to-end scenario demonstrating:
+- Agent trace format (multi-step investigation with semantic search)
+- Three evaluation patterns (high-level constraints, precise flow, both together)
+- Provider integration (converting traces to AgentV format)
+- Evaluation results output
+
 ## Impact
 - **Affected specs**: `evaluation`, `yaml-schema`, `eval-cli`
 - **Affected code (expected)**: provider response shapes, orchestrator result assembly, evaluator context/template vars, CLI writers.

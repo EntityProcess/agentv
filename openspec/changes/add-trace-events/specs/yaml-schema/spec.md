@@ -7,7 +7,7 @@
 The YAML schema SHALL support `tool_calls` within assistant messages in `expected_messages` to specify expected tool-use conversation structure.
 
 #### Scenario: Assistant message with tool calls
-Given:
+- **GIVEN** a YAML eval case with assistant messages containing `tool_calls`:
 ```yaml
 expected_messages:
   - role: user
@@ -25,26 +25,27 @@ expected_messages:
   - role: assistant
     content: "Based on the search results..."
 ```
-When parsed
-Then the eval case should preserve the tool_calls structure within assistant messages.
+- **WHEN** the YAML is parsed
+- **THEN** the eval case SHALL preserve the `tool_calls` structure within assistant messages
+- **AND** the structure SHALL be available to evaluators.
 
 #### Scenario: Tool calls without args
-Given:
+- **GIVEN** a YAML eval case with tool calls that omit the `args` field:
 ```yaml
 expected_messages:
   - role: assistant
     tool_calls:
       - tool: knowledgeSearch
 ```
-When parsed
-Then the tool call is accepted without requiring args.
+- **WHEN** the YAML is parsed
+- **THEN** the tool call SHALL be accepted without requiring `args`.
 
 ### Requirement: Trace-Based Evaluators MUST be supported
 
 The YAML schema SHALL support configuring trace-based evaluators that can score tool-using agent behavior without custom code.
 
 #### Scenario: Configure tool_trajectory evaluator with minimums
-Given:
+- **GIVEN** a YAML eval case with a `tool_trajectory` evaluator specifying per-tool minimums:
 ```yaml
 evaluators:
   - name: minimum_search_calls
@@ -53,11 +54,12 @@ evaluators:
     minimums:
       knowledgeSearch: 3
 ```
-When parsed
-Then the eval case should include a `tool_trajectory` evaluator configuration with per-tool minimum call counts.
+- **WHEN** the YAML is parsed
+- **THEN** the eval case SHALL include a `tool_trajectory` evaluator configuration
+- **AND** the configuration SHALL include the per-tool minimum call counts.
 
 #### Scenario: Configure tool_trajectory evaluator with expected sequence
-Given:
+- **GIVEN** a YAML eval case with a `tool_trajectory` evaluator specifying an expected tool sequence:
 ```yaml
 evaluators:
   - name: expected_search_pattern
@@ -68,16 +70,18 @@ evaluators:
       - tool: knowledgeSearch
       - tool: knowledgeSearch
 ```
-When parsed
-Then the eval case should include a `tool_trajectory` evaluator configuration with the expected tool list.
+- **WHEN** the YAML is parsed
+- **THEN** the eval case SHALL include a `tool_trajectory` evaluator configuration
+- **AND** the configuration SHALL preserve the expected tool list.
 
 #### Scenario: Reject invalid tool_trajectory mode
-Given:
+- **GIVEN** a YAML eval case with an invalid `mode` value:
 ```yaml
 evaluators:
   - type: tool_trajectory
     mode: sometimes
     expected: [{ tool: knowledgeSearch }]
 ```
-When parsed
-Then schema validation should fail with an actionable error mentioning supported modes.
+- **WHEN** the YAML is parsed
+- **THEN** schema validation SHALL fail
+- **AND** the error message SHALL mention the supported modes (`any_order`, `in_order`, `exact`).
