@@ -25,6 +25,7 @@ expected_messages:
 - **THEN** the eval case SHALL preserve the `tool_calls` structure within assistant messages
 - **AND** the structure SHALL be available to evaluators.
 - **AND** `input` is used for tool arguments (not `args`)
+- **AND** `input` accepts any JSON value in either YAML flow style (`{ key: "value" }`) or block style
 - **AND** `output` is optional for expected tool results.
 
 #### Scenario: Tool calls without input

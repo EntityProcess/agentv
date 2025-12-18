@@ -113,15 +113,19 @@ ToolMessage(tool_call_id="call-3", content="...")
 - role: assistant
   tool_calls:
     - tool: getWeather
-      input: { city: "NYC" }
+      input: { city: "NYC" }  # Flow style (inline JSON) - compact for simple inputs
       output: "72°F"
     - tool: getTime
-      input: { timezone: "EST" }
+      input:                   # Block style - clearer for complex inputs
+        timezone: "EST"
+        format: "24h"
       output: "14:30"
     - tool: getTraffic
       input: { location: "Manhattan" }
       output: "Heavy"
 ```
+
+Both YAML flow style (`{ }`) and block style are supported since YAML parsers handle both natively. Users can choose based on readability preferences.
 
 **Rationale:**
 1. **Less verbose** than Azure-style (4 messages → 1 message)
