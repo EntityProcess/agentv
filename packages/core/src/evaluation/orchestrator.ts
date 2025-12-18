@@ -162,7 +162,7 @@ export async function runEvaluation(
     if (!definition) {
       return undefined;
     }
-    const resolved = resolveTargetDefinition(definition, envLookup);
+    const resolved = resolveTargetDefinition(definition, envLookup, evalFilePath);
     resolvedTargetsByName.set(name, resolved);
     return resolved;
   };

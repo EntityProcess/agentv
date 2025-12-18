@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { z } from 'zod';
 
 import type { EnvLookup, TargetDefinition } from './types.js';
@@ -231,6 +232,7 @@ function resolveRetryConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): RetryCo
 export function resolveTargetDefinition(
   definition: TargetDefinition,
   env: EnvLookup = process.env,
+  evalFilePath?: string,
 ): ResolvedTarget {
   const parsed = BASE_TARGET_SCHEMA.parse(definition);
   const provider = parsed.provider.toLowerCase();
@@ -305,7 +307,7 @@ export function resolveTargetDefinition(
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
-        config: resolveCliConfig(parsed, env),
+        config: resolveCliConfig(parsed, env, evalFilePath),
       };
     default:
       throw new Error(`Unsupported provider '${parsed.provider}' in target '${parsed.name}'`);
@@ -507,6 +509,7 @@ function resolveVSCodeConfig(
 function resolveCliConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
+  evalFilePath?: string,
 ): CliResolvedConfig {
   const commandTemplateSource = target.command_template ?? target.commandTemplate;
   const filesFormat = resolveOptionalLiteralString(
@@ -515,10 +518,14 @@ function resolveCliConfig(
       target.attachments_format ??
       target.attachmentsFormat,
   );
-  const cwd = resolveOptionalString(target.cwd, env, `${target.name} working directory`, {
+  let cwd = resolveOptionalString(target.cwd, env, `${target.name} working directory`, {
     allowLiteral: true,
     optionalEnv: true,
   });
+  // Fallback: if cwd is not set and we have an eval file path, use the eval directory
+  if (!cwd && evalFilePath) {
+    cwd = path.dirname(path.resolve(evalFilePath));
+  }
   const timeoutMs = resolveTimeoutMs(
     target.timeout_seconds ?? target.timeoutSeconds,
     `${target.name} timeout`,
@@ -664,17 +671,17 @@ function resolveOptionalString(
   if (envVarMatch) {
     const varName = envVarMatch[1];
     const envValue = env[varName];
-    if (envValue !== undefined) {
-      if (envValue.trim().length === 0) {
-        throw new Error(`Environment variable '${varName}' for ${description} is empty`);
-      }
-      return envValue;
-    }
     const optionalEnv = options?.optionalEnv ?? false;
-    if (optionalEnv) {
-      return undefined;
+
+    // Treat empty or undefined env vars the same way
+    if (envValue === undefined || envValue.trim().length === 0) {
+      if (optionalEnv) {
+        return undefined;
+      }
+      const status = envValue === undefined ? 'is not set' : 'is empty';
+      throw new Error(`Environment variable '${varName}' required for ${description} ${status}`);
     }
-    throw new Error(`Environment variable '${varName}' required for ${description} is not set`);
+    return envValue;
   }
 
   // Return as literal value
