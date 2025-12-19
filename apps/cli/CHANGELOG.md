@@ -1,5 +1,17 @@
 # agentv
 
+## 0.26.0
+
+### Minor Changes
+
+- 46a9e81: rename guideline_paths to guideline_files and input_segments to input_messages
+
+### Patch Changes
+
+- Updated dependencies [33e15a9]
+- Updated dependencies [46a9e81]
+  - @agentv/core@0.26.0
+
 ## 0.25.0
 
 ### Minor Changes
