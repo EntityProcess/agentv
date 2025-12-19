@@ -619,4 +619,110 @@ describe('runEvalCase trace integration', () => {
     expect(result.trace_summary?.toolCallsByName).toEqual({ toolA: 2, toolB: 1, toolC: 1 });
     expect(result.trace_summary?.errorCount).toBe(1);
   });
+
+  describe('weighted evaluators', () => {
+    it('computes weighted mean across multiple evaluators', async () => {
+      const provider = new SequenceProvider('mock', {
+        responses: [{ text: 'Candidate answer' }],
+      });
+
+      const result = await runEvalCase({
+        evalCase: {
+          ...baseTestCase,
+          evaluators: [
+            { name: 'eval1', type: 'llm_judge', weight: 2.0 },
+            { name: 'eval2', type: 'llm_judge', weight: 1.0 },
+          ],
+        },
+        provider,
+        target: baseTarget,
+        evaluators: evaluatorRegistry,
+      });
+
+      // Both evaluators return 0.8 from the mock registry
+      // eval1 weight=2.0, score=0.8 -> 1.6
+      // eval2 weight=1.0, score=0.8 -> 0.8
+      // Total: (1.6 + 0.8) / (2.0 + 1.0) = 2.4 / 3.0 = 0.8
+      expect(result.score).toBeCloseTo(0.8);
+      expect(result.evaluator_results).toHaveLength(2);
+      expect(result.evaluator_results?.[0]?.weight).toBe(2.0);
+      expect(result.evaluator_results?.[1]?.weight).toBe(1.0);
+    });
+
+    it('defaults missing weights to 1.0', async () => {
+      const provider = new SequenceProvider('mock', {
+        responses: [{ text: 'Candidate answer' }],
+      });
+
+      const result = await runEvalCase({
+        evalCase: {
+          ...baseTestCase,
+          evaluators: [
+            { name: 'eval1', type: 'llm_judge', weight: 3.0 },
+            { name: 'eval2', type: 'llm_judge' }, // no weight specified
+          ],
+        },
+        provider,
+        target: baseTarget,
+        evaluators: evaluatorRegistry,
+      });
+
+      // Both evaluators return 0.8 from the mock registry
+      // eval1 weight=3.0, score=0.8 -> 2.4
+      // eval2 weight=1.0 (default), score=0.8 -> 0.8
+      // Total: (2.4 + 0.8) / (3.0 + 1.0) = 3.2 / 4.0 = 0.8
+      expect(result.score).toBeCloseTo(0.8);
+      expect(result.evaluator_results?.[0]?.weight).toBe(3.0);
+      expect(result.evaluator_results?.[1]?.weight).toBe(1.0);
+    });
+
+    it('excludes evaluators with weight 0', async () => {
+      const provider = new SequenceProvider('mock', {
+        responses: [{ text: 'Candidate answer' }],
+      });
+
+      const result = await runEvalCase({
+        evalCase: {
+          ...baseTestCase,
+          evaluators: [
+            { name: 'eval1', type: 'llm_judge', weight: 0 },
+            { name: 'eval2', type: 'llm_judge', weight: 1.0 },
+          ],
+        },
+        provider,
+        target: baseTarget,
+        evaluators: evaluatorRegistry,
+      });
+
+      // Both evaluators return 0.8 from the mock registry
+      // eval1 weight=0, score=0.8 -> 0
+      // eval2 weight=1.0, score=0.8 -> 0.8
+      // Total: (0 + 0.8) / (0 + 1.0) = 0.8 / 1.0 = 0.8
+      expect(result.score).toBeCloseTo(0.8);
+      expect(result.evaluator_results?.[0]?.weight).toBe(0);
+      expect(result.evaluator_results?.[1]?.weight).toBe(1.0);
+    });
+
+    it('returns 0 when all evaluators have weight 0', async () => {
+      const provider = new SequenceProvider('mock', {
+        responses: [{ text: 'Candidate answer' }],
+      });
+
+      const result = await runEvalCase({
+        evalCase: {
+          ...baseTestCase,
+          evaluators: [
+            { name: 'eval1', type: 'llm_judge', weight: 0 },
+            { name: 'eval2', type: 'llm_judge', weight: 0 },
+          ],
+        },
+        provider,
+        target: baseTarget,
+        evaluators: evaluatorRegistry,
+      });
+
+      // Total weight is 0, so result should be 0
+      expect(result.score).toBe(0);
+    });
+  });
 });

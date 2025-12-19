@@ -770,6 +770,7 @@ async function runEvaluatorList(options: {
     readonly score: EvaluationScore;
     readonly name: string;
     readonly type: string;
+    readonly weight?: number;
   }> = [];
   const evaluatorResults: EvaluatorResult[] = [];
 
@@ -788,11 +789,13 @@ async function runEvaluatorList(options: {
           now,
           judgeProvider,
         });
-        scored.push({ score, name: evaluator.name, type: evaluator.type });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
+          weight,
           verdict: score.verdict,
           hits: score.hits,
           misses: score.misses,
@@ -816,11 +819,13 @@ async function runEvaluatorList(options: {
           promptInputs,
           now,
         });
-        scored.push({ score, name: evaluator.name, type: 'code_judge' });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: 'code_judge', weight });
         evaluatorResults.push({
           name: evaluator.name,
           type: 'code_judge',
           score: score.score,
+          weight,
           verdict: score.verdict,
           hits: score.hits,
           misses: score.misses,
@@ -878,11 +883,13 @@ async function runEvaluatorList(options: {
           now,
           judgeProvider,
         });
-        scored.push({ score, name: evaluator.name, type: evaluator.type });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
+          weight,
           verdict: score.verdict,
           hits: score.hits,
           misses: score.misses,
@@ -907,11 +914,13 @@ async function runEvaluatorList(options: {
           candidateTrace,
           candidateTraceSummary,
         });
-        scored.push({ score, name: evaluator.name, type: evaluator.type });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
+          weight,
           verdict: score.verdict,
           hits: score.hits,
           misses: score.misses,
@@ -932,11 +941,13 @@ async function runEvaluatorList(options: {
           candidateTrace,
           candidateTraceSummary,
         });
-        scored.push({ score, name: evaluator.name, type: evaluator.type });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
+          weight,
           verdict: score.verdict,
           hits: score.hits,
           misses: score.misses,
@@ -954,15 +965,18 @@ async function runEvaluatorList(options: {
         reasoning: message,
       };
       const resultType = evaluator.type === 'code' ? 'code_judge' : evaluator.type;
+      const weight = evaluator.weight ?? 1.0;
       scored.push({
         score: fallbackScore,
         name: evaluator.name ?? 'unknown',
         type: resultType ?? 'llm_judge',
+        weight,
       });
       evaluatorResults.push({
         name: evaluator.name ?? 'unknown',
         type: resultType ?? 'llm_judge',
         score: 0,
+        weight,
         verdict: 'fail',
         hits: [],
         misses: [`Evaluator '${evaluator.name ?? 'unknown'}' failed: ${message}`],
@@ -973,7 +987,9 @@ async function runEvaluatorList(options: {
 
   const aggregateScore =
     scored.length > 0
-      ? scored.reduce((total, entry) => total + entry.score.score, 0) / scored.length
+      ? computeWeightedMean(
+          scored.map((entry) => ({ score: entry.score.score, weight: entry.weight })),
+        )
       : 0;
   const hits = scored.flatMap((entry) => entry.score.hits);
   const misses = scored.flatMap((entry) => entry.score.misses);
@@ -1280,4 +1296,23 @@ function mapChildResults(
     evaluator_provider_request: child.evaluatorRawRequest,
     evaluator_results: mapChildResults(child.evaluatorResults),
   }));
+}
+
+/**
+ * Compute weighted mean of scores, defaulting missing weights to 1.0.
+ * Returns 0 if total weight is 0.
+ */
+function computeWeightedMean(
+  entries: readonly { readonly score: number; readonly weight?: number }[],
+): number {
+  let totalWeight = 0;
+  let weightedSum = 0;
+
+  for (const entry of entries) {
+    const weight = entry.weight ?? 1.0;
+    totalWeight += weight;
+    weightedSum += entry.score * weight;
+  }
+
+  return totalWeight > 0 ? weightedSum / totalWeight : 0;
 }

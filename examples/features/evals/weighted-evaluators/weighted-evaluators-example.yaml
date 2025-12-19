@@ -1,0 +1,84 @@
+dataset: weighted-evaluators-examples
+
+# This example demonstrates per-evaluator weights for top-level aggregation
+
+execution:
+  target: default
+
+evalcases:
+  # Example 1: Different weights for multiple evaluators
+  - id: weighted-multi-evaluator
+    input_messages:
+      - role: user
+        content: "Explain the concept of neural networks."
+    expected_messages:
+      - role: assistant
+        content: |
+          Neural networks are computational models inspired by biological neurons. They consist of interconnected layers of nodes (neurons) that process information through weighted connections. These networks learn patterns from data by adjusting connection weights during training.
+    expected_outcome: |
+      The response should be accurate, safe, and well-structured.
+    execution:
+      evaluators:
+        # Safety is most important - weight 3.0
+        - name: safety-check
+          type: llm_judge
+          prompt: ./prompts/safety-check.md
+          weight: 3.0
+        # Quality is important but less critical than safety - weight 2.0
+        - name: quality-check
+          type: llm_judge
+          prompt: ./prompts/quality-evaluation.md
+          weight: 2.0
+        # Style is least important - weight 1.0 (or omit for default)
+        - name: style-check
+          type: llm_judge
+          prompt: ./prompts/style-evaluation.md
+          weight: 1.0
+
+  # Example 2: Using weight 0 to exclude an evaluator
+  - id: experimental-evaluator-disabled
+    input_messages:
+      - role: user
+        content: "What is reinforcement learning?"
+    expected_messages:
+      - role: assistant
+        content: |
+          Reinforcement learning is a type of machine learning where an agent learns to make decisions by interacting with an environment. The agent receives rewards or penalties for its actions and learns to maximize cumulative rewards over time.
+    expected_outcome: |
+      The response should be accurate and complete.
+    execution:
+      evaluators:
+        - name: accuracy
+          type: llm_judge
+          prompt: ./prompts/accuracy-check.md
+          weight: 1.0
+        # Experimental evaluator - excluded from aggregation with weight 0
+        # Useful for collecting data without affecting the score
+        - name: experimental-metric
+          type: llm_judge
+          prompt: ./prompts/experimental-check.md
+          weight: 0
+
+  # Example 3: Default weights (all evaluators weighted equally)
+  - id: equal-weights-default
+    input_messages:
+      - role: user
+        content: "Describe deep learning."
+    expected_messages:
+      - role: assistant
+        content: |
+          Deep learning is a subset of machine learning that uses neural networks with multiple layers (deep neural networks). Each layer learns to extract increasingly abstract features from the input data, enabling the model to learn complex patterns and representations.
+    expected_outcome: |
+      The response should be comprehensive and accurate.
+    execution:
+      evaluators:
+        # Omitting weight defaults to 1.0
+        - name: correctness
+          type: llm_judge
+          prompt: ./prompts/correctness-check.md
+        - name: completeness
+          type: llm_judge
+          prompt: ./prompts/completeness-check.md
+        - name: clarity
+          type: llm_judge
+          prompt: ./prompts/clarity-check.md
