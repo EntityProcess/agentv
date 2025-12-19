@@ -58,6 +58,8 @@ export async function parseEvaluators(
         continue;
       }
 
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
       const cwd = asString(rawEvaluator.cwd);
       let resolvedCwd: string | undefined;
 
@@ -83,6 +85,7 @@ export async function parseEvaluators(
         script,
         cwd,
         resolvedCwd,
+        ...(weight !== undefined ? { weight } : {}),
       });
       continue;
     }
@@ -205,20 +208,26 @@ export async function parseEvaluators(
         };
       }
 
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
       evaluators.push({
         name,
         type: 'composite',
         evaluators: memberEvaluators,
         aggregator,
+        ...(weight !== undefined ? { weight } : {}),
       });
       continue;
     }
 
     if (typeValue === 'expected_messages') {
       // expected_messages evaluator validates tool_calls against trace
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
       evaluators.push({
         name,
         type: 'expected_messages',
+        ...(weight !== undefined ? { weight } : {}),
       });
       continue;
     }
@@ -281,12 +290,15 @@ export async function parseEvaluators(
         continue;
       }
 
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
       const config: ToolTrajectoryEvaluatorConfig = {
         name,
         type: 'tool_trajectory',
         mode,
         ...(minimums ? { minimums } : {}),
         ...(expected ? { expected } : {}),
+        ...(weight !== undefined ? { weight } : {}),
       };
 
       evaluators.push(config);
@@ -342,14 +354,19 @@ export async function parseEvaluators(
         continue;
       }
 
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
       // Back-compat: `type: rubric` maps to `type: llm_judge` with `rubrics`.
       evaluators.push({
         name,
         type: 'llm_judge',
         rubrics: parsedRubrics,
+        ...(weight !== undefined ? { weight } : {}),
       });
       continue;
     }
+
+    const weight = validateWeight(rawEvaluator.weight, name, evalId);
 
     evaluators.push({
       name,
@@ -357,6 +374,7 @@ export async function parseEvaluators(
       prompt,
       promptPath,
       ...(parsedRubrics && parsedRubrics.length > 0 ? { rubrics: parsedRubrics } : {}),
+      ...(weight !== undefined ? { weight } : {}),
     });
   }
 
@@ -395,4 +413,39 @@ function logWarning(message: string, details?: readonly string[]): void {
   } else {
     console.warn(`${ANSI_YELLOW}Warning: ${message}${ANSI_RESET}`);
   }
+}
+
+/**
+ * Validate and extract weight from evaluator config.
+ * Throws if weight is invalid (negative, NaN, or Infinity).
+ * Returns undefined if weight is not specified.
+ */
+function validateWeight(
+  rawWeight: unknown,
+  evaluatorName: string,
+  evalId: string,
+): number | undefined {
+  if (rawWeight === undefined) {
+    return undefined;
+  }
+
+  if (typeof rawWeight !== 'number') {
+    throw new Error(
+      `Invalid weight for evaluator '${evaluatorName}' in '${evalId}': must be a number`,
+    );
+  }
+
+  if (!Number.isFinite(rawWeight)) {
+    throw new Error(
+      `Invalid weight for evaluator '${evaluatorName}' in '${evalId}': must be finite (got ${rawWeight})`,
+    );
+  }
+
+  if (rawWeight < 0) {
+    throw new Error(
+      `Invalid weight for evaluator '${evaluatorName}' in '${evalId}': must be non-negative (got ${rawWeight})`,
+    );
+  }
+
+  return rawWeight;
 }

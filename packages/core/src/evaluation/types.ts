@@ -169,6 +169,7 @@ export type CodeEvaluatorConfig = {
   readonly resolvedScriptPath?: string;
   readonly cwd?: string;
   readonly resolvedCwd?: string;
+  readonly weight?: number;
 };
 
 export type LlmJudgeEvaluatorConfig = {
@@ -177,6 +178,7 @@ export type LlmJudgeEvaluatorConfig = {
   readonly prompt?: string;
   readonly promptPath?: string;
   readonly rubrics?: readonly RubricItem[];
+  readonly weight?: number;
 };
 
 export type RubricItem = {
@@ -201,11 +203,13 @@ export type CompositeEvaluatorConfig = {
   readonly type: 'composite';
   readonly evaluators: readonly EvaluatorConfig[];
   readonly aggregator: CompositeAggregatorConfig;
+  readonly weight?: number;
 };
 
 export type ExpectedMessagesEvaluatorConfig = {
   readonly name: string;
   readonly type: 'expected_messages';
+  readonly weight?: number;
 };
 
 export type EvaluatorConfig =

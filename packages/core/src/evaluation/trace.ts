@@ -58,6 +58,8 @@ export interface ToolTrajectoryEvaluatorConfig {
   readonly minimums?: Readonly<Record<string, number>>;
   /** Expected tool sequence (for in_order/exact modes) */
   readonly expected?: readonly ToolTrajectoryExpectedItem[];
+  /** Optional weight for top-level aggregation (defaults to 1.0) */
+  readonly weight?: number;
 }
 
 /**
