@@ -1,5 +1,15 @@
 # @agentv/core
 
+## 0.26.0
+
+### Minor Changes
+
+- 33e15a9: Add per-evaluator weights for top-level aggregation
+
+  - Evaluators now support an optional `weight` field to control their influence on the final aggregate score. This enables expressing relative importance (e.g., safety > style) without requiring a composite evaluator.
+
+- 46a9e81: rename guideline_paths to guideline_files and input_segments to input_messages
+
 ## 0.25.0
 
 ### Minor Changes

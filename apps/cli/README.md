@@ -253,9 +253,9 @@ Code evaluators receive input via stdin and write output to stdout as JSON.
   "expected_outcome": "expected outcome description",
   "reference_answer": "gold standard answer (optional)",
   "candidate_answer": "generated code/text from the agent",
-  "guideline_paths": ["path1", "path2"],
-  "input_files": ["file1", "file2"],
-  "input_segments": [{"type": "text", "value": "..."}]
+  "guideline_files": ["path/to/guideline1.md", "path/to/guideline2.md"],
+  "input_files": ["path/to/data.json", "path/to/config.yaml"],
+  "input_messages": [{"role": "user", "content": "..."}]
 }
 ```
 
