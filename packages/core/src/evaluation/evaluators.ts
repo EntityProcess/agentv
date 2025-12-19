@@ -441,8 +441,10 @@ export class CodeEvaluator implements Evaluator {
         expected_outcome: context.evalCase.expected_outcome,
         reference_answer: context.evalCase.reference_answer,
         candidate_answer: context.candidate,
-        guideline_paths: context.evalCase.guideline_paths,
-        input_files: context.evalCase.file_paths,
+        guideline_files: context.evalCase.guideline_paths,
+        input_files: context.evalCase.file_paths.filter(
+          (path) => !context.evalCase.guideline_paths.includes(path),
+        ),
         input_messages: context.evalCase.input_messages,
       },
       null,
