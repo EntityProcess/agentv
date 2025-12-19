@@ -633,13 +633,11 @@ async function evaluateCandidate(options: {
     if (promptInputs.chatPrompt) {
       lmProviderRequest = {
         chat_prompt: promptInputs.chatPrompt as unknown as JsonValue,
-        guideline_paths: evalCase.guideline_paths,
       } as JsonObject;
     } else {
       lmProviderRequest = {
         question: promptInputs.question,
         guidelines: promptInputs.guidelines,
-        guideline_paths: evalCase.guideline_paths,
       } as JsonObject;
     }
   }
