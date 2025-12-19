@@ -44,7 +44,7 @@ execution:
 ```
 
 **Contract:**
-- Input (stdin): JSON with `question`, `expected_outcome`, `reference_answer`, `candidate_answer`, `guideline_paths`, `input_files`, `input_segments`
+- Input (stdin): JSON with `question`, `expected_outcome`, `reference_answer`, `candidate_answer`, `guideline_paths`, `input_files`, `input_messages`
 - Output (stdout): JSON with `score` (0.0-1.0), `hits`, `misses`, `reasoning`
 
 **Template:** See `references/custom-evaluators.md` for Python code evaluator template

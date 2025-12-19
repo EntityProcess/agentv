@@ -443,7 +443,7 @@ export class CodeEvaluator implements Evaluator {
         candidate_answer: context.candidate,
         guideline_paths: context.evalCase.guideline_paths,
         input_files: context.evalCase.file_paths,
-        input_segments: context.evalCase.input_segments,
+        input_messages: context.evalCase.input_messages,
       },
       null,
       2,

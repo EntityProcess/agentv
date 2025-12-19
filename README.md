@@ -255,7 +255,7 @@ Code evaluators receive input via stdin and write output to stdout as JSON.
   "candidate_answer": "generated code/text from the agent",
   "guideline_paths": ["path1", "path2"],
   "input_files": ["file1", "file2"],
-  "input_segments": [{"type": "text", "value": "..."}]
+  "input_messages": [{"role": "user", "content": "..."}]
 }
 ```
 
