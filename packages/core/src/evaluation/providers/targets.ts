@@ -329,7 +329,10 @@ function resolveAzureConfig(
   const apiKey = resolveString(apiKeySource, env, `${target.name} api key`);
   const deploymentName = resolveString(deploymentSource, env, `${target.name} deployment`);
   const version = normalizeAzureApiVersion(
-    resolveOptionalString(versionSource, env, `${target.name} api version`),
+    resolveOptionalString(versionSource, env, `${target.name} api version`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }),
   );
   const temperature = resolveOptionalNumber(temperatureSource, `${target.name} temperature`);
   const maxOutputTokens = resolveOptionalNumber(
