@@ -1,5 +1,15 @@
 # @agentv/core
 
+## 1.0.0
+
+### Major Changes
+
+- 7dcf805: Rename `expected_messages` evaluator type to `expected_tool_calls`
+
+  The evaluator type has been renamed from `expected_messages` to `expected_tool_calls` to better reflect its purpose of validating tool calls against traces.
+
+  Note: The `expected_messages` field in eval cases remains unchanged - only the evaluator type string changes.
+
 ## 0.26.0
 
 ### Minor Changes
