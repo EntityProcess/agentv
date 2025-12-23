@@ -781,15 +781,15 @@ export class ToolTrajectoryEvaluator implements Evaluator {
   }
 }
 
-// Expected Messages Tool Calls Evaluator
+// Expected Tool Calls Evaluator
 
 /**
  * Evaluator that validates tool_calls in expected_messages against the actual trace.
  * Extracts tool_calls from assistant messages in expected_messages and compares them
  * sequentially against tool_call events in the trace.
  */
-export class ExpectedMessagesEvaluator implements Evaluator {
-  readonly kind = 'expected_messages';
+export class ExpectedToolCallsEvaluator implements Evaluator {
+  readonly kind = 'expected_tool_calls';
 
   evaluate(context: EvaluationContext): EvaluationScore {
     const { candidateTrace, evalCase } = context;

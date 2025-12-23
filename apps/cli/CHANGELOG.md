@@ -1,5 +1,20 @@
 # agentv
 
+## 1.0.0
+
+### Major Changes
+
+- 7dcf805: Rename `expected_messages` evaluator type to `expected_tool_calls`
+
+  The evaluator type has been renamed from `expected_messages` to `expected_tool_calls` to better reflect its purpose of validating tool calls against traces.
+
+  Note: The `expected_messages` field in eval cases remains unchanged - only the evaluator type string changes.
+
+### Patch Changes
+
+- Updated dependencies [7dcf805]
+  - @agentv/core@1.0.0
+
 ## 0.26.1
 
 ### Patch Changes
@@ -40,7 +55,7 @@
   - `any_order`: Validates minimum tool call counts regardless of order
   - `in_order`: Validates tools appear in expected sequence (allows gaps)
   - `exact`: Validates exact tool sequence match
-  - **Expected Messages Tool Calls**: Support for `tool_calls` field in `expected_messages` for validating assistant tool usage
+  - **Expected Tool Calls Evaluator**: Support for `tool_calls` field in `expected_messages` for validating assistant tool usage (evaluator type: `expected_tool_calls`)
   - **CLI Flags**: `--dump-traces` and `--include-trace` flags for trace output control
   - **Trace Summary**: Automatic computation of lightweight trace summaries (event count, tool names, call counts, error count) included in evaluation results
 

@@ -151,7 +151,7 @@ const EVALUATOR_KIND_VALUES = [
   'rubric',
   'composite',
   'tool_trajectory',
-  'expected_messages',
+  'expected_tool_calls',
 ] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
@@ -206,9 +206,9 @@ export type CompositeEvaluatorConfig = {
   readonly weight?: number;
 };
 
-export type ExpectedMessagesEvaluatorConfig = {
+export type ExpectedToolCallsEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'expected_messages';
+  readonly type: 'expected_tool_calls';
   readonly weight?: number;
 };
 
@@ -217,7 +217,7 @@ export type EvaluatorConfig =
   | LlmJudgeEvaluatorConfig
   | CompositeEvaluatorConfig
   | ToolTrajectoryEvaluatorConfig
-  | ExpectedMessagesEvaluatorConfig;
+  | ExpectedToolCallsEvaluatorConfig;
 
 /**
  * Eval case definition sourced from AgentV specs.

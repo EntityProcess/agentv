@@ -1,7 +1,7 @@
-# AgentV Expected Messages Tool Calls Demo
-# Demonstrates the expected_messages evaluator for validating tool_calls against traces
+# AgentV Expected Tool Calls Demo
+# Demonstrates the expected_tool_calls evaluator for validating tool_calls against traces
 #
-# The expected_messages evaluator extracts tool_calls from assistant messages in
+# The expected_tool_calls evaluator extracts tool_calls from assistant messages in
 # expected_messages and validates them sequentially against the actual trace.
 #
 # This is an alternative pattern to tool_trajectory for when you want to specify
@@ -13,7 +13,7 @@
 #   2. Run: cd examples/features && npx agentv eval evals/tool-trajectory/expected-messages-demo.yaml --target mock_agent
 
 $schema: agentv-eval-v2
-description: Expected messages tool_calls validation examples
+description: Expected tool_calls validation examples
 
 # Use mock_agent CLI target that returns trace data
 target: mock_agent
@@ -45,7 +45,7 @@ evalcases:
     execution:
       evaluators:
         - name: tool-calls-validator
-          type: expected_messages
+          type: expected_tool_calls
 
   # ==========================================
   # Example 2: Validate with input matching
@@ -75,7 +75,7 @@ evalcases:
     execution:
       evaluators:
         - name: metrics-input-validator
-          type: expected_messages
+          type: expected_tool_calls
 
   # ==========================================
   # Example 3: Data pipeline workflow
@@ -103,7 +103,7 @@ evalcases:
     execution:
       evaluators:
         - name: pipeline-validator
-          type: expected_messages
+          type: expected_tool_calls
 
   # ==========================================
   # Example 4: Authentication flow
@@ -130,7 +130,7 @@ evalcases:
     execution:
       evaluators:
         - name: auth-validator
-          type: expected_messages
+          type: expected_tool_calls
 
   # ==========================================
   # Example 5: Partial match - wrong tool
@@ -157,7 +157,7 @@ evalcases:
     execution:
       evaluators:
         - name: partial-validator
-          type: expected_messages
+          type: expected_tool_calls
 
   # ==========================================
   # Example 6: Branch Deactivation (Precise)
@@ -187,7 +187,7 @@ evalcases:
     execution:
       evaluators:
         - name: branch-validator
-          type: expected_messages
+          type: expected_tool_calls
 
   # ==========================================
   # Example 7: Branch Deactivation (Combined)
@@ -219,7 +219,7 @@ evalcases:
       evaluators:
         # Validate exact sequence and inputs
         - name: sequence-validator
-          type: expected_messages
+          type: expected_tool_calls
         
         # Safety net: must have at least 3 searches (redundant here but shows combination)
         - name: depth-validator

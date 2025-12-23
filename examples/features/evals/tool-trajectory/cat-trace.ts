@@ -44,10 +44,10 @@ function main(): void {
   try {
     // Read the static trace file
     const content = readFileSync(values.trace, 'utf8');
-    
+
     // Write to output file
     writeFileSync(values.output, content);
-    
+
     // Log text to stdout (optional)
     const parsed = JSON.parse(content);
     if (parsed.text) {

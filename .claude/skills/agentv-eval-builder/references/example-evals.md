@@ -166,7 +166,7 @@ evalcases:
     execution:
       evaluators:
         - name: input-validator
-          type: expected_messages
+          type: expected_tool_calls
 ```
 
 ## Static Trace Evaluation

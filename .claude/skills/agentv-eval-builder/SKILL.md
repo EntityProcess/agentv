@@ -79,7 +79,7 @@ execution:
 
 See `references/tool-trajectory-evaluator.md` for modes and configuration.
 
-### Expected Messages Evaluators
+### Expected Tool Calls Evaluators
 Validate tool calls and inputs inline with conversation flow:
 
 ```yaml
@@ -92,7 +92,7 @@ expected_messages:
 execution:
   evaluators:
     - name: input_check
-      type: expected_messages
+      type: expected_tool_calls
 ```
 
 ### Multiple Evaluators

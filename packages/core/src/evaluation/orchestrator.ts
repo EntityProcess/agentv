@@ -9,7 +9,7 @@ import {
   CompositeEvaluator,
   type EvaluationScore,
   type Evaluator,
-  ExpectedMessagesEvaluator,
+  ExpectedToolCallsEvaluator,
   LlmJudgeEvaluator,
   ToolTrajectoryEvaluator,
 } from './evaluators.js';
@@ -857,8 +857,8 @@ async function runEvaluatorList(options: {
               return new ToolTrajectoryEvaluator({
                 config: memberConfig as ToolTrajectoryEvaluatorConfig,
               });
-            case 'expected_messages':
-              return new ExpectedMessagesEvaluator();
+            case 'expected_tool_calls':
+              return new ExpectedToolCallsEvaluator();
             default: {
               const unknownConfig = memberConfig as { type: string };
               throw new Error(`Unsupported evaluator type in composite: ${unknownConfig.type}`);
@@ -926,9 +926,9 @@ async function runEvaluatorList(options: {
         });
       }
 
-      if (evaluator.type === 'expected_messages') {
-        const expectedMessagesEvaluator = new ExpectedMessagesEvaluator();
-        const score = expectedMessagesEvaluator.evaluate({
+      if (evaluator.type === 'expected_tool_calls') {
+        const expectedToolCallsEvaluator = new ExpectedToolCallsEvaluator();
+        const score = expectedToolCallsEvaluator.evaluate({
           evalCase,
           candidate,
           target,
