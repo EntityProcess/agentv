@@ -84,3 +84,15 @@ targets:
     healthcheck:
       type: command
       command_template: bun run ./mock-agent.ts --healthcheck
+
+  # Static trace file target
+  # Reads a static JSON trace file and outputs it for evaluation
+  # Set TOOL_TRAJECTORY_DIR in .env to the absolute path of evals/tool-trajectory/
+  - name: static_trace
+    provider: cli
+    command_template: bun run ./cat-trace.ts --trace static-trace.json --output {OUTPUT_FILE} --prompt {PROMPT}
+    cwd: ${{ TOOL_TRAJECTORY_DIR }}
+    timeout_seconds: 10
+    healthcheck:
+      type: command
+      command_template: bun run ./cat-trace.ts --healthcheck
