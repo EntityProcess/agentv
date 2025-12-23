@@ -76,7 +76,7 @@ execution:
 - Strict protocol validation
 - Regression testing specific behavior
 
-## Expected Messages Evaluator
+## Expected Tool Calls Evaluator
 
 For simpler cases, specify tool_calls inline in `expected_messages`:
 
@@ -84,11 +84,11 @@ For simpler cases, specify tool_calls inline in `expected_messages`:
 evalcases:
   - id: research-task
     expected_outcome: Agent searches and retrieves documents
-    
+
     input_messages:
       - role: user
         content: Research REST vs GraphQL differences
-    
+
     expected_messages:
       - role: assistant
         content: I'll research this topic.
@@ -96,11 +96,11 @@ evalcases:
           - tool: knowledgeSearch
           - tool: knowledgeSearch
           - tool: documentRetrieve
-    
+
     execution:
       evaluators:
         - name: tool-validator
-          type: expected_messages
+          type: expected_tool_calls
 ```
 
 ### With Input Matching
@@ -130,7 +130,7 @@ expected_messages:
 | `in_order` | (matched tools in sequence) / (expected tools count) |
 | `exact` | (correctly positioned tools) / (expected tools count) |
 
-### expected_messages Scoring
+### expected_tool_calls Scoring
 
 Sequential matching: `(matched tool_calls) / (expected tool_calls)`
 
@@ -215,7 +215,7 @@ evalcases:
     execution:
       evaluators:
         - name: pipeline-check
-          type: expected_messages
+          type: expected_tool_calls
 ```
 
 ## CLI Options for Traces
@@ -234,4 +234,4 @@ agentv eval evals/test.yaml --include-trace
 2. **Start with any_order** - Then tighten to `in_order` or `exact` as needed
 3. **Combine with other evaluators** - Use tool trajectory for execution, LLM judge for output quality
 4. **Test with --dump-traces** - Inspect actual traces to understand agent behavior
-5. **Use expected_messages for simple cases** - It's more readable for basic tool validation
+5. **Use expected_tool_calls for simple cases** - It's more readable for basic tool validation

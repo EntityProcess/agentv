@@ -27,7 +27,7 @@
   - `any_order`: Validates minimum tool call counts regardless of order
   - `in_order`: Validates tools appear in expected sequence (allows gaps)
   - `exact`: Validates exact tool sequence match
-  - **Expected Messages Tool Calls**: Support for `tool_calls` field in `expected_messages` for validating assistant tool usage
+  - **Expected Tool Calls Evaluator**: Support for `tool_calls` field in `expected_messages` for validating assistant tool usage (evaluator type: `expected_tool_calls`)
   - **CLI Flags**: `--dump-traces` and `--include-trace` flags for trace output control
   - **Trace Summary**: Automatic computation of lightweight trace summaries (event count, tool names, call counts, error count) included in evaluation results
 

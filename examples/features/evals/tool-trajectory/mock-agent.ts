@@ -152,24 +152,14 @@ The system is operating within normal parameters.`,
     return {
       text: 'To deactivate a branch: 1) Ensure you have admin permissions, 2) Resolve pending transactions, 3) Navigate to Settings > Branches and click Deactivate.',
       trace: [
-        createToolCall(
-          'call-1',
-          'semanticSearch',
-          { query: 'branch deactivation process' },
-          0,
-        ),
+        createToolCall('call-1', 'semanticSearch', { query: 'branch deactivation process' }, 0),
         createToolResult(
           'call-1',
           'semanticSearch',
           { results: ['Navigate to Settings > Branches...'] },
           1,
         ),
-        createToolCall(
-          'call-2',
-          'semanticSearch',
-          { query: 'branch permissions requirements' },
-          2,
-        ),
+        createToolCall('call-2', 'semanticSearch', { query: 'branch permissions requirements' }, 2),
         createToolResult(
           'call-2',
           'semanticSearch',

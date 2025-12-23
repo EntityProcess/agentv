@@ -33,8 +33,8 @@ Organized by feature area:
   - `in_order` mode: Validates tools appear in expected sequence (allows gaps)
   - `exact` mode: Validates exact tool sequence match (no gaps, no extra tools)
 
-- **`expected-messages-demo.yaml`**: Expected messages evaluator for tool_calls validation:
-  - Validates `tool_calls` in `expected_messages` against actual trace
+- **`expected-messages-demo.yaml`**: Expected tool calls evaluator for tool_calls validation:
+  - Validates `tool_calls` in `expected_messages` against actual trace (evaluator type: `expected_tool_calls`)
   - Supports optional `input` matching for precise validation
   - Sequential matching with partial scoring
 

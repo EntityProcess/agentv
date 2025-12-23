@@ -220,13 +220,13 @@ export async function parseEvaluators(
       continue;
     }
 
-    if (typeValue === 'expected_messages') {
-      // expected_messages evaluator validates tool_calls against trace
+    if (typeValue === 'expected_tool_calls') {
+      // expected_tool_calls evaluator validates tool_calls against trace
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
 
       evaluators.push({
         name,
-        type: 'expected_messages',
+        type: 'expected_tool_calls',
         ...(weight !== undefined ? { weight } : {}),
       });
       continue;

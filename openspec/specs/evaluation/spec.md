@@ -347,9 +347,9 @@ The system SHALL provide a built-in `tool_trajectory` evaluator that asserts too
 - **THEN** it returns `score: 0.0`
 - **AND** `misses` includes `"No trace available for evaluation"`
 
-### Requirement: Expected Messages Tool Call Validation
+### Requirement: Expected Tool Calls Evaluator
 
-The system SHALL validate `tool_calls` in `expected_messages` against the actual trace.
+The system SHALL validate `tool_calls` in `expected_messages` against the actual trace (evaluator type: `expected_tool_calls`).
 
 #### Scenario: Tool calls match - PASS
 - **GIVEN** an eval case with `expected_messages`:
