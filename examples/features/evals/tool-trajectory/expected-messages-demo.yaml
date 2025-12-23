@@ -158,3 +158,72 @@ evalcases:
       evaluators:
         - name: partial-validator
           type: expected_messages
+
+  # ==========================================
+  # Example 6: Branch Deactivation (Precise)
+  # Use case: Validate exact tool calls with inputs (Pattern A from openspec)
+  # The mock agent triggers "branch deactivation" scenario
+  # Expected score: 1.0 (exact sequence and input match)
+  # ==========================================
+  - id: branch-deactivation-precise
+    expected_outcome: |-
+      Agent researches branch deactivation process, permissions, and prerequisites.
+
+    input_messages:
+      - role: user
+        content: How do I deactivate a branch?
+
+    expected_messages:
+      - role: assistant
+        content: To deactivate a branch...
+        tool_calls:
+          - tool: semanticSearch
+            input: { query: "branch deactivation process" }
+          - tool: semanticSearch
+            input: { query: "branch permissions requirements" }
+          - tool: semanticSearch
+            input: { query: "branch deactivation prerequisites" }
+
+    execution:
+      evaluators:
+        - name: branch-validator
+          type: expected_messages
+
+  # ==========================================
+  # Example 7: Branch Deactivation (Combined)
+  # Use case: Combine expected_messages with tool_trajectory for robust validation
+  # The mock agent triggers "branch deactivation" scenario
+  # Expected score: 1.0 (both evaluators pass)
+  # ==========================================
+  - id: branch-deactivation-combined
+    expected_outcome: |-
+      Agent researches branch deactivation with correct inputs and sufficient depth.
+
+    input_messages:
+      - role: user
+        content: How do I deactivate a branch?
+
+    # Precise validation of expected flow and inputs
+    expected_messages:
+      - role: assistant
+        content: To deactivate a branch...
+        tool_calls:
+          - tool: semanticSearch
+            input: { query: "branch deactivation process" }
+          - tool: semanticSearch
+            input: { query: "branch permissions requirements" }
+          - tool: semanticSearch
+            input: { query: "branch deactivation prerequisites" }
+
+    execution:
+      evaluators:
+        # Validate exact sequence and inputs
+        - name: sequence-validator
+          type: expected_messages
+        
+        # Safety net: must have at least 3 searches (redundant here but shows combination)
+        - name: depth-validator
+          type: tool_trajectory
+          mode: any_order
+          minimums:
+            semanticSearch: 3

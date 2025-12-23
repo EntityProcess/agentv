@@ -78,13 +78,12 @@ evalcases:
     execution:
       evaluators:
         - name: json_format_validator
-          type: code
+          type: code_judge
           script: uv run validate_json.py
           cwd: ./evaluators
         - name: content_evaluator
           type: llm_judge
           prompt: ./judges/semantic_correctness.md
-          model: gpt-5-chat
     
     input_messages:
       - role: user
@@ -100,6 +99,99 @@ evalcases:
             "email": "alice@example.com",
             "role": "admin"
           }
+```
+
+## Tool Trajectory Evaluation
+
+Validate that an agent uses specific tools during execution.
+
+```yaml
+$schema: agentv-eval-v2
+description: Tool usage validation
+target: mock_agent
+
+evalcases:
+  # Validate minimum tool usage (order doesn't matter)
+  - id: research-depth
+    expected_outcome: Agent researches thoroughly
+    input_messages:
+      - role: user
+        content: Research REST vs GraphQL
+    execution:
+      evaluators:
+        - name: research-check
+          type: tool_trajectory
+          mode: any_order
+          minimums:
+            knowledgeSearch: 2
+            documentRetrieve: 1
+
+  # Validate exact tool sequence
+  - id: auth-flow
+    expected_outcome: Agent follows auth sequence
+    input_messages:
+      - role: user
+        content: Authenticate user
+    execution:
+      evaluators:
+        - name: auth-sequence
+          type: tool_trajectory
+          mode: exact
+          expected:
+            - tool: checkCredentials
+            - tool: generateToken
+```
+
+## Expected Messages with Tool Calls
+
+Validate precise tool inputs inline with expected messages.
+
+```yaml
+$schema: agentv-eval-v2
+description: Tool input validation
+target: mock_agent
+
+evalcases:
+  - id: precise-inputs
+    expected_outcome: Agent calls tools with correct parameters
+    input_messages:
+      - role: user
+        content: Check CPU metrics for prod-1
+    expected_messages:
+      - role: assistant
+        content: Checking metrics...
+        tool_calls:
+          - tool: getCpuMetrics
+            input: { server: "prod-1" }
+    execution:
+      evaluators:
+        - name: input-validator
+          type: expected_messages
+```
+
+## Static Trace Evaluation
+
+Evaluate pre-existing trace files without running an agent.
+
+```yaml
+$schema: agentv-eval-v2
+description: Static trace evaluation
+target: static_trace
+
+evalcases:
+  - id: validate-trace-file
+    expected_outcome: Trace contains required steps
+    input_messages:
+      - role: user
+        content: Analyze trace
+    execution:
+      evaluators:
+        - name: trace-check
+          type: tool_trajectory
+          mode: in_order
+          expected:
+            - tool: webSearch
+            - tool: readFile
 ```
 
 ## Multi-Turn Conversation (Single Eval Case)

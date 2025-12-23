@@ -1,0 +1,33 @@
+{
+  "text": "I have completed the research.",
+  "trace": [
+    {
+      "type": "tool_call",
+      "timestamp": "2024-01-01T10:00:00Z",
+      "id": "call_1",
+      "name": "webSearch",
+      "input": { "query": "AgentV documentation" }
+    },
+    {
+      "type": "tool_result",
+      "timestamp": "2024-01-01T10:00:01Z",
+      "id": "call_1",
+      "name": "webSearch",
+      "output": { "results": ["AgentV is an evaluation framework..."] }
+    },
+    {
+      "type": "tool_call",
+      "timestamp": "2024-01-01T10:00:02Z",
+      "id": "call_2",
+      "name": "readFile",
+      "input": { "path": "README.md" }
+    },
+    {
+      "type": "tool_result",
+      "timestamp": "2024-01-01T10:00:03Z",
+      "id": "call_2",
+      "name": "readFile",
+      "output": "AgentV README content..."
+    }
+  ]
+}

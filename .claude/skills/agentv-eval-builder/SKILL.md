@@ -61,8 +61,42 @@ execution:
       model: gpt-5-chat
 ```
 
-### Evaluator Chaining
-Evaluators run sequentially:
+### Tool Trajectory Evaluators
+Validate agent tool usage patterns (requires trace data from provider):
+
+```yaml
+execution:
+  evaluators:
+    - name: research_check
+      type: tool_trajectory
+      mode: any_order       # Options: any_order, in_order, exact
+      minimums:             # For any_order mode
+        knowledgeSearch: 2
+      expected:             # For in_order/exact modes
+        - tool: knowledgeSearch
+        - tool: documentRetrieve
+```
+
+See `references/tool-trajectory-evaluator.md` for modes and configuration.
+
+### Expected Messages Evaluators
+Validate tool calls and inputs inline with conversation flow:
+
+```yaml
+expected_messages:
+  - role: assistant
+    tool_calls:
+      - tool: getMetrics
+        input: { server: "prod-1" }
+
+execution:
+  evaluators:
+    - name: input_check
+      type: expected_messages
+```
+
+### Multiple Evaluators
+Define multiple evaluators to run sequentially. The final score is a weighted average of all results.
 
 ```yaml
 execution:
@@ -118,23 +152,6 @@ execution:
 ```
 
 See `references/composite-evaluator.md` for aggregation types and patterns.
-
-### Tool Trajectory Evaluator
-Validate agent tool usage from trace data:
-
-```yaml
-execution:
-  evaluators:
-    - name: workflow-check
-      type: tool_trajectory
-      mode: in_order  # or: any_order, exact
-      expected:
-        - tool: fetchData
-        - tool: processData
-        - tool: saveResults
-```
-
-See `references/tool-trajectory-evaluator.md` for modes and configuration.
 
 ## Example
 ```yaml

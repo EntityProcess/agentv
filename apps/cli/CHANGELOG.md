@@ -1,5 +1,11 @@
 # agentv
 
+## 0.26.1
+
+### Patch Changes
+
+- c32ff71: Add comprehensive examples for tool call evaluations, including tool trajectory validation, expected messages with tool calls, and static trace file evaluation
+
 ## 0.26.0
 
 ### Minor Changes
