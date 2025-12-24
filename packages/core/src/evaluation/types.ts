@@ -117,22 +117,34 @@ export function isJsonValue(value: unknown): value is JsonValue {
 
 /**
  * Guard validating raw test messages.
+ * A valid test message has:
+ * - A valid role (system, user, assistant, tool)
+ * - Either content (string or array of objects) OR tool_calls (for assistant messages)
  */
 export function isTestMessage(value: unknown): value is TestMessage {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
-  const candidate = value as { role?: unknown; content?: unknown };
+  const candidate = value as { role?: unknown; content?: unknown; tool_calls?: unknown };
   if (!isTestMessageRole(candidate.role)) {
     return false;
   }
+  // Check for valid content
   if (typeof candidate.content === 'string') {
     return true;
   }
-  if (!Array.isArray(candidate.content)) {
-    return false;
+  if (Array.isArray(candidate.content) && candidate.content.every(isJsonObject)) {
+    return true;
   }
-  return candidate.content.every(isJsonObject);
+  // Allow messages with tool_calls but no content (for expected_messages format)
+  if (Array.isArray(candidate.tool_calls) && candidate.tool_calls.length > 0) {
+    return true;
+  }
+  // Allow messages with structured content object (e.g., { recommendation: ..., summary: ... })
+  if (isJsonObject(candidate.content)) {
+    return true;
+  }
+  return false;
 }
 
 const EVALUATOR_KIND_VALUES = [

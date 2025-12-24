@@ -137,6 +137,10 @@ export async function resolveAssistantContent(
   if (!content) {
     return '';
   }
+  // Handle structured content object (e.g., { recommendation: ..., summary: ... })
+  if (!Array.isArray(content)) {
+    return JSON.stringify(content, null, 2);
+  }
 
   // Track parts with metadata about whether they came from files
   const parts: Array<{ content: string; isFile: boolean; displayPath?: string }> = [];
@@ -247,19 +251,33 @@ type ProcessExpectedMessagesOptions = {
 };
 
 /**
- * Process expected_messages preserving full message structure including role.
+ * Extended message type for expected_messages that may include tool_calls.
+ */
+type ExtendedTestMessage = TestMessage & {
+  readonly name?: string;
+  readonly tool_calls?: readonly JsonObject[];
+};
+
+/**
+ * Process expected_messages preserving full message structure including role and tool_calls.
  * Resolves file references and processes content.
  */
 export async function processExpectedMessages(
   options: ProcessExpectedMessagesOptions,
 ): Promise<JsonObject[]> {
-  const { messages, searchRoots, repoRootPath, verbose } = options;
+  const { messages, searchRoots, verbose } = options;
   const segments: JsonObject[] = [];
 
   for (const message of messages) {
+    const extendedMessage = message as ExtendedTestMessage;
     const segment: Record<string, unknown> = {
       role: message.role,
     };
+
+    // Preserve optional name field
+    if (extendedMessage.name) {
+      segment.name = extendedMessage.name;
+    }
 
     // Process content
     const content = message.content;
@@ -317,6 +335,16 @@ export async function processExpectedMessages(
         processedContent.push(cloneJsonObject(rawSegment));
       }
       segment.content = processedContent;
+    } else if (isJsonObject(content)) {
+      // Handle structured content object (e.g., { recommendation: ..., summary: ... })
+      segment.content = cloneJsonObject(content);
+    }
+
+    // Preserve tool_calls if present
+    if (extendedMessage.tool_calls && Array.isArray(extendedMessage.tool_calls)) {
+      segment.tool_calls = extendedMessage.tool_calls.map((tc) =>
+        isJsonObject(tc) ? cloneJsonObject(tc) : tc,
+      );
     }
 
     segments.push(segment as JsonObject);
