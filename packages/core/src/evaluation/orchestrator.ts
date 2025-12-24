@@ -922,7 +922,6 @@ async function runEvaluatorList(options: {
           reasoning: score.reasoning,
         });
       }
-
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const fallbackScore: EvaluationScore = {

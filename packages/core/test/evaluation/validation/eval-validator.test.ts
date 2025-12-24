@@ -16,5 +16,4 @@ describe('validateEvalFile', () => {
   afterAll(async () => {
     await rm(tempDir, { recursive: true, force: true });
   });
-
 });

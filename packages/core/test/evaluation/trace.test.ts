@@ -154,4 +154,3 @@ describe('isTraceEvent', () => {
     expect(isTraceEvent({ type: 'invalid', timestamp: '2024-01-01T00:00:00Z' })).toBe(false);
   });
 });
-
