@@ -41,38 +41,20 @@ evalcases:
             - tool: readFile
 
   # ==========================================
-  # Example 2: All-in-One Validation
-  # Use case: Combine tool_trajectory and expected_tool_calls for comprehensive validation
-  # Validates:
-  #   1. Exact tool inputs (via expected_tool_calls)
-  #   2. High-level sequence (via tool_trajectory)
+  # Example 2: Exact Sequence Validation
+  # Use case: Validate exact tool sequence
   # Expected score: 1.0
   # ==========================================
-  - id: all-in-one-validation
+  - id: exact-sequence-validation
     expected_outcome: |-
-      Agent performs web search with correct query and reads the correct file.
+      Agent performs web search and reads the file in exact sequence.
 
     input_messages:
       - role: user
         content: Analyze the trace.
 
-    # Validate exact inputs
-    expected_messages:
-      - role: assistant
-        content: I have completed the research.
-        tool_calls:
-          - tool: webSearch
-            input: { query: "AgentV documentation" }
-          - tool: readFile
-            input: { path: "README.md" }
-
     execution:
       evaluators:
-        # Validate inputs match exactly
-        - name: input-validator
-          type: expected_tool_calls
-        
-        # Validate sequence (redundant but demonstrates combination)
         - name: sequence-validator
           type: tool_trajectory
           mode: exact

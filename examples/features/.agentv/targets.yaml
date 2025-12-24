@@ -77,7 +77,7 @@ targets:
   # Set TOOL_TRAJECTORY_DIR in .env to the absolute path of evals/tool-trajectory/
   - name: mock_agent
     provider: cli
-    # No judge_target needed - demos use non-LLM evaluators (tool_trajectory, expected_tool_calls)
+    # No judge_target needed - demos use non-LLM evaluators (tool_trajectory, code_judge)
     command_template: bun run ./mock-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}
     cwd: ${{ TOOL_TRAJECTORY_DIR }}
     timeout_seconds: 30

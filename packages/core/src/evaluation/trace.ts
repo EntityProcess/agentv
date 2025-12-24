@@ -70,18 +70,6 @@ export interface ToolTrajectoryExpectedItem {
 }
 
 /**
- * Expected tool call specification for expected_messages validation.
- */
-export interface ExpectedToolCall {
-  /** Tool name (required) */
-  readonly tool: string;
-  /** Tool input - if specified, must match exactly */
-  readonly input?: unknown;
-  /** Tool output - if specified, must match exactly */
-  readonly output?: unknown;
-}
-
-/**
  * Type guard for TraceEventType values.
  */
 export function isTraceEventType(value: unknown): value is TraceEventType {
@@ -100,17 +88,6 @@ export function isTraceEvent(value: unknown): value is TraceEvent {
   }
   const candidate = value as Record<string, unknown>;
   return isTraceEventType(candidate.type) && typeof candidate.timestamp === 'string';
-}
-
-/**
- * Type guard for ExpectedToolCall objects.
- */
-export function isExpectedToolCall(value: unknown): value is ExpectedToolCall {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return typeof candidate.tool === 'string';
 }
 
 /**

@@ -9,7 +9,6 @@ import {
   CompositeEvaluator,
   type EvaluationScore,
   type Evaluator,
-  ExpectedToolCallsEvaluator,
   LlmJudgeEvaluator,
   ToolTrajectoryEvaluator,
 } from './evaluators.js';
@@ -857,8 +856,6 @@ async function runEvaluatorList(options: {
               return new ToolTrajectoryEvaluator({
                 config: memberConfig as ToolTrajectoryEvaluatorConfig,
               });
-            case 'expected_tool_calls':
-              return new ExpectedToolCallsEvaluator();
             default: {
               const unknownConfig = memberConfig as { type: string };
               throw new Error(`Unsupported evaluator type in composite: ${unknownConfig.type}`);
@@ -926,32 +923,6 @@ async function runEvaluatorList(options: {
         });
       }
 
-      if (evaluator.type === 'expected_tool_calls') {
-        const expectedToolCallsEvaluator = new ExpectedToolCallsEvaluator();
-        const score = expectedToolCallsEvaluator.evaluate({
-          evalCase,
-          candidate,
-          target,
-          provider,
-          attempt,
-          promptInputs,
-          now,
-          candidateTrace,
-          candidateTraceSummary,
-        });
-        const weight = evaluator.weight ?? 1.0;
-        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
-        evaluatorResults.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-        });
-      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const fallbackScore: EvaluationScore = {

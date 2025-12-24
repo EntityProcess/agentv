@@ -29,7 +29,7 @@ const baseTestCase: EvalCase = {
   question: 'Original Question Text',
   input_messages: [{ role: 'user', content: 'User Input Message' }],
   input_segments: [{ type: 'text', value: 'Input Message' }],
-  expected_segments: [{ type: 'text', value: 'Expected Output Message' }],
+  expected_messages: [{ type: 'text', value: 'Expected Output Message' }],
   reference_answer: 'Reference Answer Text',
   guideline_paths: [],
   file_paths: [],

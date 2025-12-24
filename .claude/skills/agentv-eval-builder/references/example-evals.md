@@ -142,33 +142,6 @@ evalcases:
             - tool: generateToken
 ```
 
-## Expected Messages with Tool Calls
-
-Validate precise tool inputs inline with expected messages.
-
-```yaml
-$schema: agentv-eval-v2
-description: Tool input validation
-target: mock_agent
-
-evalcases:
-  - id: precise-inputs
-    expected_outcome: Agent calls tools with correct parameters
-    input_messages:
-      - role: user
-        content: Check CPU metrics for prod-1
-    expected_messages:
-      - role: assistant
-        content: Checking metrics...
-        tool_calls:
-          - tool: getCpuMetrics
-            input: { server: "prod-1" }
-    execution:
-      evaluators:
-        - name: input-validator
-          type: expected_tool_calls
-```
-
 ## Static Trace Evaluation
 
 Evaluate pre-existing trace files without running an agent.

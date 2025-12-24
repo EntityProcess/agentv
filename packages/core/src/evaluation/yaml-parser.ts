@@ -264,7 +264,7 @@ export async function loadEvalCases(
       question: question,
       input_messages: inputMessages,
       input_segments: inputSegments,
-      expected_segments: outputSegments,
+      expected_messages: outputSegments,
       reference_answer: referenceAnswer,
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
       guideline_patterns: guidelinePatterns,

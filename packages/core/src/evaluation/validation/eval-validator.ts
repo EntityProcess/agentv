@@ -175,28 +175,6 @@ function validateMessages(
       });
     }
 
-    // Validate tool_calls field for assistant messages
-    const toolCalls = message.tool_calls;
-    if (toolCalls !== undefined) {
-      if (role !== 'assistant') {
-        errors.push({
-          severity: 'error',
-          filePath,
-          location: `${msgLocation}.tool_calls`,
-          message: 'tool_calls can only be specified on assistant messages',
-        });
-      } else if (!Array.isArray(toolCalls)) {
-        errors.push({
-          severity: 'error',
-          filePath,
-          location: `${msgLocation}.tool_calls`,
-          message: 'tool_calls must be an array',
-        });
-      } else {
-        validateToolCalls(toolCalls, `${msgLocation}.tool_calls`, filePath, errors);
-      }
-    }
-
     // Validate content field (can be string or array)
     const content = message.content;
     if (typeof content === 'string') {
@@ -275,39 +253,3 @@ function validateContentForRoleMarkers(
   }
 }
 
-function validateToolCalls(
-  toolCalls: JsonArray,
-  location: string,
-  filePath: string,
-  errors: ValidationError[],
-): void {
-  for (let i = 0; i < toolCalls.length; i++) {
-    const toolCall = toolCalls[i];
-    const callLocation = `${location}[${i}]`;
-
-    if (!isObject(toolCall)) {
-      errors.push({
-        severity: 'error',
-        filePath,
-        location: callLocation,
-        message: 'Tool call must be an object',
-      });
-      continue;
-    }
-
-    // Required: tool field
-    const tool = toolCall.tool;
-    if (typeof tool !== 'string' || tool.trim().length === 0) {
-      errors.push({
-        severity: 'error',
-        filePath,
-        location: `${callLocation}.tool`,
-        message: "Missing or invalid 'tool' field (must be a non-empty string)",
-      });
-    }
-
-    // Optional: input field (any JSON value is valid)
-    // Optional: output field (any JSON value is valid)
-    // No additional validation needed for input/output - they're flexible
-  }
-}

@@ -247,8 +247,8 @@ type ProcessExpectedMessagesOptions = {
 };
 
 /**
- * Process expected_messages preserving full message structure including role and tool_calls.
- * This is needed for the expected_messages evaluator to validate tool_calls against traces.
+ * Process expected_messages preserving full message structure including role.
+ * Resolves file references and processes content.
  */
 export async function processExpectedMessages(
   options: ProcessExpectedMessagesOptions,
@@ -260,11 +260,6 @@ export async function processExpectedMessages(
     const segment: Record<string, unknown> = {
       role: message.role,
     };
-
-    // Preserve tool_calls if present (only on AssistantTestMessage)
-    if (message.role === 'assistant' && message.tool_calls !== undefined) {
-      segment.tool_calls = message.tool_calls as unknown as JsonObject[];
-    }
 
     // Process content
     const content = message.content;
