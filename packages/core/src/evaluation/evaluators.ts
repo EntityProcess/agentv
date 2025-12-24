@@ -55,6 +55,8 @@ export interface EvaluationContext {
   readonly evaluator?: EvaluatorConfig;
   /** Normalized trace events from provider execution (if available) */
   readonly candidateTrace?: readonly TraceEvent[];
+  /** File path to trace data (alternative to inline candidateTrace) */
+  readonly candidateTraceRef?: string;
   /** Lightweight summary of trace events (if available) */
   readonly candidateTraceSummary?: TraceSummary;
 }
@@ -446,7 +448,7 @@ export class CodeEvaluator implements Evaluator {
           (path) => !context.evalCase.guideline_paths.includes(path),
         ),
         input_messages: context.evalCase.input_messages,
-        candidate_trace: context.candidateTrace ?? null,
+        candidate_trace_file: context.candidateTraceRef ?? null,
         candidate_trace_summary: context.candidateTraceSummary ?? null,
       },
       null,
