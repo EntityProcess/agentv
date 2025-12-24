@@ -53,21 +53,11 @@ export type UserTestMessage = {
 };
 
 /**
- * Tool call specification for expected_messages validation.
- */
-export type TestMessageToolCall = {
-  readonly tool: string;
-  readonly input?: unknown;
-};
-
-/**
  * Assistant response message.
  */
 export type AssistantTestMessage = {
   readonly role: 'assistant';
   readonly content: TestMessageContent;
-  /** Optional tool_calls for expected_messages validation against traces */
-  readonly tool_calls?: readonly TestMessageToolCall[];
 };
 
 /**
@@ -151,7 +141,6 @@ const EVALUATOR_KIND_VALUES = [
   'rubric',
   'composite',
   'tool_trajectory',
-  'expected_tool_calls',
 ] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
@@ -206,18 +195,11 @@ export type CompositeEvaluatorConfig = {
   readonly weight?: number;
 };
 
-export type ExpectedToolCallsEvaluatorConfig = {
-  readonly name: string;
-  readonly type: 'expected_tool_calls';
-  readonly weight?: number;
-};
-
 export type EvaluatorConfig =
   | CodeEvaluatorConfig
   | LlmJudgeEvaluatorConfig
   | CompositeEvaluatorConfig
-  | ToolTrajectoryEvaluatorConfig
-  | ExpectedToolCallsEvaluatorConfig;
+  | ToolTrajectoryEvaluatorConfig;
 
 /**
  * Eval case definition sourced from AgentV specs.
@@ -229,7 +211,7 @@ export interface EvalCase {
   readonly question: string;
   readonly input_messages: readonly TestMessage[];
   readonly input_segments: readonly JsonObject[];
-  readonly expected_segments: readonly JsonObject[];
+  readonly expected_messages: readonly JsonObject[];
   readonly reference_answer?: string;
   readonly guideline_paths: readonly string[];
   readonly guideline_patterns?: readonly string[];

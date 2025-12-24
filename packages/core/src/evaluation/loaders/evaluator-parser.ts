@@ -220,18 +220,6 @@ export async function parseEvaluators(
       continue;
     }
 
-    if (typeValue === 'expected_tool_calls') {
-      // expected_tool_calls evaluator validates tool_calls against trace
-      const weight = validateWeight(rawEvaluator.weight, name, evalId);
-
-      evaluators.push({
-        name,
-        type: 'expected_tool_calls',
-        ...(weight !== undefined ? { weight } : {}),
-      });
-      continue;
-    }
-
     if (typeValue === 'tool_trajectory') {
       const mode = asString(rawEvaluator.mode);
       if (mode !== 'any_order' && mode !== 'in_order' && mode !== 'exact') {

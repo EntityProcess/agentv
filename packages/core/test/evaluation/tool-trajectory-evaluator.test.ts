@@ -33,7 +33,7 @@ const mockEvalCase: EvalCase = {
   question: 'Test question',
   input_messages: [],
   input_segments: [],
-  expected_segments: [],
+  expected_messages: [],
   guideline_paths: [],
   file_paths: [],
   code_snippets: [],

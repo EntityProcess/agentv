@@ -3,7 +3,6 @@ import { describe, expect, it } from 'bun:test';
 import {
   type TraceEvent,
   computeTraceSummary,
-  isExpectedToolCall,
   isTraceEvent,
   isTraceEventType,
 } from '../../src/evaluation/trace.js';
@@ -153,22 +152,5 @@ describe('isTraceEvent', () => {
     expect(isTraceEvent({ type: 'tool_call' })).toBe(false); // missing timestamp
     expect(isTraceEvent({ timestamp: '2024-01-01T00:00:00Z' })).toBe(false); // missing type
     expect(isTraceEvent({ type: 'invalid', timestamp: '2024-01-01T00:00:00Z' })).toBe(false);
-  });
-});
-
-describe('isExpectedToolCall', () => {
-  it('returns true for valid ExpectedToolCall objects', () => {
-    expect(isExpectedToolCall({ tool: 'myTool' })).toBe(true);
-    expect(isExpectedToolCall({ tool: 'myTool', input: { key: 'value' } })).toBe(true);
-    expect(isExpectedToolCall({ tool: 'myTool', output: 'result' })).toBe(true);
-    expect(isExpectedToolCall({ tool: 'myTool', input: {}, output: {} })).toBe(true);
-  });
-
-  it('returns false for invalid ExpectedToolCall objects', () => {
-    expect(isExpectedToolCall(null)).toBe(false);
-    expect(isExpectedToolCall(undefined)).toBe(false);
-    expect(isExpectedToolCall({})).toBe(false);
-    expect(isExpectedToolCall({ tool: 123 })).toBe(false); // tool must be string
-    expect(isExpectedToolCall({ input: {} })).toBe(false); // missing tool
   });
 });

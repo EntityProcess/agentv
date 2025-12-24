@@ -2,13 +2,6 @@
 
 Tool trajectory evaluators validate that an agent used the expected tools during execution. They work with trace data returned by agent providers (codex, vscode, cli with trace support).
 
-## Evaluator Types
-
-AgentV provides two ways to validate tool usage:
-
-1. **`tool_trajectory`** - Dedicated evaluator with configurable matching modes
-2. **`expected_messages`** - Inline tool_calls in expected_messages for simpler cases
-
 ## Tool Trajectory Evaluator
 
 ### Modes
@@ -76,50 +69,6 @@ execution:
 - Strict protocol validation
 - Regression testing specific behavior
 
-## Expected Tool Calls Evaluator
-
-For simpler cases, specify tool_calls inline in `expected_messages`:
-
-```yaml
-evalcases:
-  - id: research-task
-    expected_outcome: Agent searches and retrieves documents
-
-    input_messages:
-      - role: user
-        content: Research REST vs GraphQL differences
-
-    expected_messages:
-      - role: assistant
-        content: I'll research this topic.
-        tool_calls:
-          - tool: knowledgeSearch
-          - tool: knowledgeSearch
-          - tool: documentRetrieve
-
-    execution:
-      evaluators:
-        - name: tool-validator
-          type: expected_tool_calls
-```
-
-### With Input Matching
-
-Validate specific inputs were passed to tools:
-
-```yaml
-expected_messages:
-  - role: assistant
-    content: Checking metrics...
-    tool_calls:
-      - tool: getCpuMetrics
-        input:
-          server: prod-1
-      - tool: getMemoryMetrics
-        input:
-          server: prod-1
-```
-
 ## Scoring
 
 ### tool_trajectory Scoring
@@ -129,10 +78,6 @@ expected_messages:
 | `any_order` | (tools meeting minimum) / (total tools with minimums) |
 | `in_order` | (matched tools in sequence) / (expected tools count) |
 | `exact` | (correctly positioned tools) / (expected tools count) |
-
-### expected_tool_calls Scoring
-
-Sequential matching: `(matched tool_calls) / (expected tool_calls)`
 
 ## Trace Data Requirements
 
@@ -198,24 +143,21 @@ evalcases:
 evalcases:
   - id: data-pipeline
     expected_outcome: Process data through complete pipeline
-    
+
     input_messages:
       - role: user
         content: Process the customer dataset
-    
-    expected_messages:
-      - role: assistant
-        content: Processing data...
-        tool_calls:
-          - tool: loadData
-          - tool: validate
-          - tool: transform
-          - tool: export
-    
+
     execution:
       evaluators:
         - name: pipeline-check
-          type: expected_tool_calls
+          type: tool_trajectory
+          mode: exact
+          expected:
+            - tool: loadData
+            - tool: validate
+            - tool: transform
+            - tool: export
 ```
 
 ## CLI Options for Traces
@@ -234,4 +176,4 @@ agentv eval evals/test.yaml --include-trace
 2. **Start with any_order** - Then tighten to `in_order` or `exact` as needed
 3. **Combine with other evaluators** - Use tool trajectory for execution, LLM judge for output quality
 4. **Test with --dump-traces** - Inspect actual traces to understand agent behavior
-5. **Use expected_tool_calls for simple cases** - It's more readable for basic tool validation
+5. **Use code evaluators for custom validation** - Write custom tool validation scripts with access to trace data

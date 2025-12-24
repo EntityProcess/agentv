@@ -55,6 +55,8 @@ export interface EvaluationContext {
   readonly evaluator?: EvaluatorConfig;
   /** Normalized trace events from provider execution (if available) */
   readonly candidateTrace?: readonly TraceEvent[];
+  /** File path to trace data (alternative to inline candidateTrace) */
+  readonly candidateTraceRef?: string;
   /** Lightweight summary of trace events (if available) */
   readonly candidateTraceSummary?: TraceSummary;
 }
@@ -158,7 +160,7 @@ export class LlmJudgeEvaluator implements Evaluator {
     const variables = {
       [TEMPLATE_VARIABLES.INPUT_MESSAGES]: JSON.stringify(context.evalCase.input_segments, null, 2),
       [TEMPLATE_VARIABLES.EXPECTED_MESSAGES]: JSON.stringify(
-        context.evalCase.expected_segments,
+        context.evalCase.expected_messages,
         null,
         2,
       ),
@@ -446,6 +448,8 @@ export class CodeEvaluator implements Evaluator {
           (path) => !context.evalCase.guideline_paths.includes(path),
         ),
         input_messages: context.evalCase.input_messages,
+        candidate_trace_file: context.candidateTraceRef ?? null,
+        candidate_trace_summary: context.candidateTraceSummary ?? null,
       },
       null,
       2,
@@ -778,150 +782,6 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       misses,
       expectedAspectCount: expected.length,
     };
-  }
-}
-
-// Expected Tool Calls Evaluator
-
-/**
- * Evaluator that validates tool_calls in expected_messages against the actual trace.
- * Extracts tool_calls from assistant messages in expected_messages and compares them
- * sequentially against tool_call events in the trace.
- */
-export class ExpectedToolCallsEvaluator implements Evaluator {
-  readonly kind = 'expected_tool_calls';
-
-  evaluate(context: EvaluationContext): EvaluationScore {
-    const { candidateTrace, evalCase } = context;
-    const expectedSegments = evalCase.expected_segments;
-
-    // Extract tool_calls from expected_messages (assistant messages only)
-    const expectedToolCalls = this.extractExpectedToolCalls(expectedSegments);
-
-    if (expectedToolCalls.length === 0) {
-      // No tool_calls to validate - pass by default
-      return {
-        score: 1,
-        verdict: 'pass',
-        hits: ['No tool_calls specified in expected_messages'],
-        misses: [],
-        expectedAspectCount: 1,
-      };
-    }
-
-    // Handle missing trace
-    if (!candidateTrace || candidateTrace.length === 0) {
-      return {
-        score: 0,
-        verdict: 'fail',
-        hits: [],
-        misses: ['No trace available to validate tool_calls'],
-        expectedAspectCount: expectedToolCalls.length,
-      };
-    }
-
-    // Extract actual tool_call events from trace
-    const actualToolCalls = candidateTrace.filter((e) => e.type === 'tool_call');
-
-    // Validate sequentially
-    return this.validateToolCalls(expectedToolCalls, actualToolCalls);
-  }
-
-  private extractExpectedToolCalls(
-    segments: readonly JsonObject[] | undefined,
-  ): readonly { tool: string; input?: unknown }[] {
-    if (!segments) {
-      return [];
-    }
-
-    const toolCalls: { tool: string; input?: unknown }[] = [];
-    for (const segment of segments) {
-      const role = segment.role;
-      const segmentToolCalls = segment.tool_calls;
-      if (role === 'assistant' && Array.isArray(segmentToolCalls)) {
-        for (const tc of segmentToolCalls) {
-          if (
-            typeof tc === 'object' &&
-            tc !== null &&
-            typeof (tc as { tool?: unknown }).tool === 'string'
-          ) {
-            const toolCall = tc as { tool: string; input?: unknown };
-            toolCalls.push({ tool: toolCall.tool, input: toolCall.input });
-          }
-        }
-      }
-    }
-    return toolCalls;
-  }
-
-  private validateToolCalls(
-    expected: readonly { tool: string; input?: unknown }[],
-    actual: readonly TraceEvent[],
-  ): EvaluationScore {
-    const hits: string[] = [];
-    const misses: string[] = [];
-
-    for (let i = 0; i < expected.length; i++) {
-      const expectedCall = expected[i];
-      const actualCall = actual[i];
-
-      if (!actualCall) {
-        misses.push(
-          `tool_calls[${i}]: expected ${expectedCall.tool}, but no more tool calls in trace`,
-        );
-        continue;
-      }
-
-      // Check tool name
-      if (actualCall.name !== expectedCall.tool) {
-        misses.push(
-          `tool_calls[${i}]: expected ${expectedCall.tool}, got ${actualCall.name ?? 'unknown'}`,
-        );
-        continue;
-      }
-
-      // Check input if specified
-      if (expectedCall.input !== undefined) {
-        if (!this.deepEquals(expectedCall.input, actualCall.input)) {
-          misses.push(`tool_calls[${i}]: ${expectedCall.tool} input mismatch`);
-          continue;
-        }
-      }
-
-      hits.push(`tool_calls[${i}]: ${expectedCall.tool} matched`);
-    }
-
-    const totalChecks = expected.length || 1;
-    const score = hits.length / totalChecks;
-
-    return {
-      score,
-      verdict: score >= 0.8 ? 'pass' : score >= 0.6 ? 'borderline' : 'fail',
-      hits,
-      misses,
-      expectedAspectCount: totalChecks,
-    };
-  }
-
-  private deepEquals(a: unknown, b: unknown): boolean {
-    if (a === b) return true;
-    if (typeof a !== typeof b) return false;
-    if (typeof a !== 'object' || a === null || b === null) return false;
-
-    if (Array.isArray(a) && Array.isArray(b)) {
-      if (a.length !== b.length) return false;
-      return a.every((val, i) => this.deepEquals(val, b[i]));
-    }
-
-    if (Array.isArray(a) || Array.isArray(b)) return false;
-
-    const aObj = a as Record<string, unknown>;
-    const bObj = b as Record<string, unknown>;
-    const aKeys = Object.keys(aObj);
-    const bKeys = Object.keys(bObj);
-
-    if (aKeys.length !== bKeys.length) return false;
-    return aKeys.every((key) => this.deepEquals(aObj[key], bObj[key]));
   }
 }
 

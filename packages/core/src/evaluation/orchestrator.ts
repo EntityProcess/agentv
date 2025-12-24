@@ -9,7 +9,6 @@ import {
   CompositeEvaluator,
   type EvaluationScore,
   type Evaluator,
-  ExpectedToolCallsEvaluator,
   LlmJudgeEvaluator,
   ToolTrajectoryEvaluator,
 } from './evaluators.js';
@@ -567,6 +566,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       judgeProvider,
       agentTimeoutMs,
       candidateTrace,
+      candidateTraceRef: providerResponse.traceRef,
       candidateTraceSummary,
     });
   } catch (error) {
@@ -586,6 +586,7 @@ async function evaluateCandidate(options: {
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
   readonly candidateTrace?: readonly TraceEvent[];
+  readonly candidateTraceRef?: string;
   readonly candidateTraceSummary?: TraceSummary;
 }): Promise<EvaluationResult> {
   const {
@@ -600,6 +601,7 @@ async function evaluateCandidate(options: {
     judgeProvider,
     agentTimeoutMs,
     candidateTrace,
+    candidateTraceRef,
     candidateTraceSummary,
   } = options;
 
@@ -616,6 +618,7 @@ async function evaluateCandidate(options: {
     judgeProvider,
     agentTimeoutMs,
     candidateTrace,
+    candidateTraceRef,
     candidateTraceSummary,
   });
 
@@ -674,6 +677,7 @@ async function runEvaluatorsForCase(options: {
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
   readonly candidateTrace?: readonly TraceEvent[];
+  readonly candidateTraceRef?: string;
   readonly candidateTraceSummary?: TraceSummary;
 }): Promise<{ score: EvaluationScore; evaluatorResults?: EvaluatorResult[] }> {
   const {
@@ -688,6 +692,7 @@ async function runEvaluatorsForCase(options: {
     judgeProvider,
     agentTimeoutMs,
     candidateTrace,
+    candidateTraceRef,
     candidateTraceSummary,
   } = options;
 
@@ -705,6 +710,7 @@ async function runEvaluatorsForCase(options: {
       judgeProvider,
       agentTimeoutMs,
       candidateTrace,
+      candidateTraceRef,
       candidateTraceSummary,
     });
   }
@@ -725,6 +731,7 @@ async function runEvaluatorsForCase(options: {
     now,
     judgeProvider,
     candidateTrace,
+    candidateTraceRef,
     candidateTraceSummary,
   });
 
@@ -746,6 +753,7 @@ async function runEvaluatorList(options: {
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
   readonly candidateTrace?: readonly TraceEvent[];
+  readonly candidateTraceRef?: string;
   readonly candidateTraceSummary?: TraceSummary;
 }): Promise<{ score: EvaluationScore; evaluatorResults: EvaluatorResult[] }> {
   const {
@@ -761,6 +769,7 @@ async function runEvaluatorList(options: {
     judgeProvider,
     agentTimeoutMs,
     candidateTrace,
+    candidateTraceRef,
     candidateTraceSummary,
   } = options;
 
@@ -816,6 +825,8 @@ async function runEvaluatorList(options: {
           attempt,
           promptInputs,
           now,
+          candidateTraceRef,
+          candidateTraceSummary,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: 'code_judge', weight });
@@ -857,8 +868,6 @@ async function runEvaluatorList(options: {
               return new ToolTrajectoryEvaluator({
                 config: memberConfig as ToolTrajectoryEvaluatorConfig,
               });
-            case 'expected_tool_calls':
-              return new ExpectedToolCallsEvaluator();
             default: {
               const unknownConfig = memberConfig as { type: string };
               throw new Error(`Unsupported evaluator type in composite: ${unknownConfig.type}`);
@@ -910,33 +919,7 @@ async function runEvaluatorList(options: {
           promptInputs,
           now,
           candidateTrace,
-          candidateTraceSummary,
-        });
-        const weight = evaluator.weight ?? 1.0;
-        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
-        evaluatorResults.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-        });
-      }
-
-      if (evaluator.type === 'expected_tool_calls') {
-        const expectedToolCallsEvaluator = new ExpectedToolCallsEvaluator();
-        const score = expectedToolCallsEvaluator.evaluate({
-          evalCase,
-          candidate,
-          target,
-          provider,
-          attempt,
-          promptInputs,
-          now,
-          candidateTrace,
+          candidateTraceRef,
           candidateTraceSummary,
         });
         const weight = evaluator.weight ?? 1.0;

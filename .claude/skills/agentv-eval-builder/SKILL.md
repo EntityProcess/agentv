@@ -79,22 +79,6 @@ execution:
 
 See `references/tool-trajectory-evaluator.md` for modes and configuration.
 
-### Expected Tool Calls Evaluators
-Validate tool calls and inputs inline with conversation flow:
-
-```yaml
-expected_messages:
-  - role: assistant
-    tool_calls:
-      - tool: getMetrics
-        input: { server: "prod-1" }
-
-execution:
-  evaluators:
-    - name: input_check
-      type: expected_tool_calls
-```
-
 ### Multiple Evaluators
 Define multiple evaluators to run sequentially. The final score is a weighted average of all results.
 

@@ -33,11 +33,6 @@ Organized by feature area:
   - `in_order` mode: Validates tools appear in expected sequence (allows gaps)
   - `exact` mode: Validates exact tool sequence match (no gaps, no extra tools)
 
-- **`expected-messages-demo.yaml`**: Expected tool calls evaluator for tool_calls validation:
-  - Validates `tool_calls` in `expected_messages` against actual trace (evaluator type: `expected_tool_calls`)
-  - Supports optional `input` matching for precise validation
-  - Sequential matching with partial scoring
-
 **Setup for tool-trajectory demos:**
 
 1. Create a `.env` file in `examples/features/` with:
@@ -49,7 +44,6 @@ Organized by feature area:
    ```bash
    cd examples/features
    npx agentv eval evals/tool-trajectory/tool-trajectory-demo.yaml --target mock_agent
-   npx agentv eval evals/tool-trajectory/expected-messages-demo.yaml --target mock_agent
    ```
 
 Note: These demos use a mock CLI agent that simulates tool usage. For real agent evaluation, use providers that return trace data (e.g., codex, vscode)

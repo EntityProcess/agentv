@@ -1,4 +1,4 @@
-# Repository Guidelines
+# AgentV Repository Guidelines
 
 This is a TypeScript monorepo for AgentV - an AI agent evaluation framework.
 
