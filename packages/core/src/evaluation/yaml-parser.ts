@@ -6,11 +6,7 @@ import { extractCodeBlocks } from './formatting/segment-formatter.js';
 import { extractTargetFromSuite, loadConfig } from './loaders/config-loader.js';
 import { coerceEvaluator, parseEvaluators } from './loaders/evaluator-parser.js';
 import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
-import {
-  processExpectedMessages,
-  processMessages,
-  resolveAssistantContent,
-} from './loaders/message-processor.js';
+import { processExpectedMessages, processMessages } from './loaders/message-processor.js';
 import type { EvalCase, JsonObject, JsonValue, TestMessage } from './types.js';
 import { isJsonObject, isTestMessage } from './types.js';
 
@@ -158,10 +154,6 @@ export async function loadEvalCases(
       continue;
     }
 
-    if (expectedMessages.length > 1) {
-      logWarning(`Multiple expected messages found for eval case: ${id}, using first`);
-    }
-
     const guidelinePaths: string[] = [];
     const inputTextParts: string[] = [];
 
@@ -189,10 +181,27 @@ export async function loadEvalCases(
       : [];
 
     const codeSnippets = extractCodeBlocks(inputSegments);
-    const expectedContent = expectedMessages[0]?.content;
-    const referenceAnswer = expectedContent
-      ? await resolveAssistantContent(expectedContent, searchRoots, verbose)
-      : '';
+
+    // Build reference_answer:
+    // - If multiple expected_messages: use the full array as JSON (includes tool_calls, etc.)
+    // - If single expected_message with content: resolve as text
+    // - Otherwise: empty string
+    let referenceAnswer = '';
+    if (outputSegments.length > 1) {
+      // Multiple messages: provide the full expected conversation as JSON
+      referenceAnswer = JSON.stringify(outputSegments, null, 2);
+    } else if (outputSegments.length === 1) {
+      // Single message: extract content as text if possible
+      const singleMessage = outputSegments[0];
+      if (typeof singleMessage.content === 'string') {
+        referenceAnswer = singleMessage.content;
+      } else if (singleMessage.content) {
+        referenceAnswer = JSON.stringify(singleMessage, null, 2);
+      } else if (singleMessage.tool_calls) {
+        // Message with only tool_calls
+        referenceAnswer = JSON.stringify(singleMessage, null, 2);
+      }
+    }
     const question = inputTextParts
       .map((part) => part.trim())
       .filter((part) => part.length > 0)
