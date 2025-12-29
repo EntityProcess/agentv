@@ -2,7 +2,13 @@ import { generateText } from 'ai';
 import { z } from 'zod';
 
 import type { ResolvedTarget } from './providers/targets.js';
-import type { ChatPrompt, OutputMessage, Provider, ProviderResponse } from './providers/types.js';
+import {
+  extractLastAssistantContent,
+  type ChatPrompt,
+  type OutputMessage,
+  type Provider,
+  type ProviderResponse,
+} from './providers/types.js';
 import { TEMPLATE_VARIABLES } from './template-variables.js';
 import type { ToolTrajectoryEvaluatorConfig, TraceEvent, TraceSummary } from './trace.js';
 import type {
@@ -172,6 +178,11 @@ export class LlmJudgeEvaluator implements Evaluator {
         null,
         2,
       ),
+      [TEMPLATE_VARIABLES.OUTPUT_MESSAGES]: JSON.stringify(
+        context.candidateOutputMessages ?? [],
+        null,
+        2,
+      ),
       [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: context.candidate.trim(),
       [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.EXPECTED_OUTCOME]: context.evalCase.expected_outcome.trim(),
@@ -206,7 +217,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       const misses = Array.isArray(data.misses)
         ? data.misses.filter(isNonEmptyString).slice(0, 4)
         : [];
-      const reasoning = data.reasoning ?? providerResponse?.reasoning;
+      const reasoning = data.reasoning;
       const expectedAspectCount = Math.max(hits.length + misses.length, 1);
 
       return {
@@ -342,7 +353,9 @@ export class LlmJudgeEvaluator implements Evaluator {
           temperature: this.temperature,
         });
 
-        const data = schema.parse(parseJsonFromText(response.text ?? ''));
+        const data = schema.parse(
+          parseJsonFromText(extractLastAssistantContent(response.outputMessages)),
+        );
         return { data, providerResponse: response };
       } catch (e: unknown) {
         lastError = e instanceof Error ? e : new Error(String(e));
@@ -1126,13 +1139,15 @@ export class CompositeEvaluator implements Evaluator {
         attempt: context.attempt,
       });
 
-      const data = freeformEvaluationSchema.parse(parseJsonFromText(response.text ?? ''));
+      const data = freeformEvaluationSchema.parse(
+        parseJsonFromText(extractLastAssistantContent(response.outputMessages)),
+      );
       const score = clampScore(data.score);
       const hits = Array.isArray(data.hits) ? data.hits.filter(isNonEmptyString).slice(0, 4) : [];
       const misses = Array.isArray(data.misses)
         ? data.misses.filter(isNonEmptyString).slice(0, 4)
         : [];
-      const reasoning = data.reasoning ?? response.reasoning;
+      const reasoning = data.reasoning;
 
       return {
         score,

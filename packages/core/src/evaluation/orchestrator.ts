@@ -23,7 +23,7 @@ import type {
   ProviderResponse,
   TargetDefinition,
 } from './providers/types.js';
-import { isAgentProvider } from './providers/types.js';
+import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
 import {
   type ToolTrajectoryEvaluatorConfig,
   type TraceEvent,
@@ -431,11 +431,14 @@ async function runBatchEvaluation(options: {
     }
     const candidateTraceSummary = candidateTrace ? computeTraceSummary(candidateTrace) : undefined;
 
+    // Extract candidate from last assistant message in output_messages
+    const candidate = extractLastAssistantContent(candidateOutputMessages);
+
     let result: EvaluationResult;
     try {
       result = await evaluateCandidate({
         evalCase,
-        candidate: providerResponse.text ?? '',
+        candidate,
         target,
         provider,
         evaluators: evaluatorRegistry,
@@ -584,10 +587,13 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   // Compute trace summary if trace is available
   const candidateTraceSummary = candidateTrace ? computeTraceSummary(candidateTrace) : undefined;
 
+  // Extract candidate from last assistant message in output_messages
+  const candidate = extractLastAssistantContent(candidateOutputMessages);
+
   try {
     return await evaluateCandidate({
       evalCase,
-      candidate: providerResponse.text ?? '',
+      candidate,
       target,
       provider,
       evaluators,

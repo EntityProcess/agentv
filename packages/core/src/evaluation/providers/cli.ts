@@ -145,7 +145,6 @@ export class CliProvider implements Provider {
     const parsed = this.parseOutputContent(responseContent);
 
     return {
-      text: parsed.text,
       trace: parsed.trace,
       outputMessages: parsed.outputMessages,
       raw: {
@@ -243,7 +242,7 @@ export class CliProvider implements Provider {
       const evalCaseId = request.evalCaseId;
       if (!evalCaseId) {
         return {
-          text: '',
+          outputMessages: [],
           raw: {
             command: renderedCommand,
             stderr: result.stderr,
@@ -257,7 +256,7 @@ export class CliProvider implements Provider {
       const parsed = recordsById.get(evalCaseId);
       if (!parsed) {
         return {
-          text: '',
+          outputMessages: [],
           raw: {
             command: renderedCommand,
             stderr: result.stderr,
@@ -269,7 +268,6 @@ export class CliProvider implements Provider {
       }
 
       return {
-        text: parsed.text,
         trace: parsed.trace,
         traceRef: parsed.traceRef,
         outputMessages: parsed.outputMessages,
@@ -289,27 +287,37 @@ export class CliProvider implements Provider {
 
   /**
    * Parse output content from CLI.
-   * If the content is valid JSON with a 'text' field, extract text and optional trace/outputMessages.
-   * Otherwise, treat the entire content as plain text.
+   * If the content is valid JSON with 'output_messages' or 'text' field, extract them.
+   * If only 'text' is provided, wrap it in outputMessages.
+   * Otherwise, treat the entire content as plain text wrapped in outputMessages.
    */
   private parseOutputContent(content: string): {
-    text: string;
     trace?: readonly TraceEvent[];
-    outputMessages?: readonly OutputMessage[];
+    outputMessages: readonly OutputMessage[];
   } {
     try {
       const parsed = JSON.parse(content) as unknown;
-      if (typeof parsed === 'object' && parsed !== null && 'text' in parsed) {
-        const obj = parsed as { text: unknown; trace?: unknown; output_messages?: unknown };
-        const text = typeof obj.text === 'string' ? obj.text : String(obj.text);
+      if (typeof parsed === 'object' && parsed !== null) {
+        const obj = parsed as { text?: unknown; trace?: unknown; output_messages?: unknown };
         const trace = this.parseTrace(obj.trace);
         const outputMessages = this.parseOutputMessages(obj.output_messages);
-        return { text, trace, outputMessages };
+
+        // If output_messages provided, use it
+        if (outputMessages && outputMessages.length > 0) {
+          return { trace, outputMessages };
+        }
+
+        // Fall back to text field, wrap in outputMessages
+        if ('text' in obj) {
+          const text = typeof obj.text === 'string' ? obj.text : String(obj.text);
+          return { trace, outputMessages: [{ role: 'assistant', content: text }] };
+        }
       }
     } catch {
       // Not valid JSON, treat as plain text
     }
-    return { text: content };
+    // Plain text content, wrap in outputMessages
+    return { outputMessages: [{ role: 'assistant', content }] };
   }
 
   private parseTrace(trace: unknown): readonly TraceEvent[] | undefined {
@@ -422,19 +430,17 @@ export class CliProvider implements Provider {
   private parseJsonlBatchOutput(content: string): Map<
     string,
     {
-      text: string;
       trace?: readonly TraceEvent[];
       traceRef?: string;
-      outputMessages?: readonly OutputMessage[];
+      outputMessages: readonly OutputMessage[];
     }
   > {
     const records = new Map<
       string,
       {
-        text: string;
         trace?: readonly TraceEvent[];
         traceRef?: string;
-        outputMessages?: readonly OutputMessage[];
+        outputMessages: readonly OutputMessage[];
       }
     >();
 
@@ -473,13 +479,6 @@ export class CliProvider implements Provider {
         throw new Error(`CLI batch output contains duplicate id: ${id}`);
       }
 
-      const text =
-        typeof obj.text === 'string'
-          ? obj.text
-          : obj.text === undefined
-            ? ''
-            : JSON.stringify(obj.text);
-
       const traceRef =
         typeof obj.traceRef === 'string'
           ? obj.traceRef
@@ -487,11 +486,26 @@ export class CliProvider implements Provider {
             ? obj.trace_ref
             : undefined;
 
+      // Prefer output_messages, fall back to text wrapped in outputMessages
+      const parsedOutputMessages = this.parseOutputMessages(obj.output_messages);
+      let outputMessages: readonly OutputMessage[];
+      if (parsedOutputMessages && parsedOutputMessages.length > 0) {
+        outputMessages = parsedOutputMessages;
+      } else {
+        // Fall back to text field
+        const text =
+          typeof obj.text === 'string'
+            ? obj.text
+            : obj.text === undefined
+              ? ''
+              : JSON.stringify(obj.text);
+        outputMessages = text ? [{ role: 'assistant', content: text }] : [];
+      }
+
       records.set(id, {
-        text,
         trace: this.parseTrace(obj.trace),
         traceRef,
-        outputMessages: this.parseOutputMessages(obj.output_messages),
+        outputMessages,
       });
     }
 

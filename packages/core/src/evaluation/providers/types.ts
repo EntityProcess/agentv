@@ -117,8 +117,6 @@ export interface OutputMessage {
 }
 
 export interface ProviderResponse {
-  readonly text: string;
-  readonly reasoning?: string;
   readonly raw?: unknown;
   readonly usage?: JsonObject;
   /**
@@ -133,6 +131,31 @@ export interface ProviderResponse {
   readonly traceRef?: string;
   /** Output messages from agent execution (primary source for tool trajectory) */
   readonly outputMessages?: readonly OutputMessage[];
+}
+
+/**
+ * Extract the content from the last assistant message in an output message array.
+ * Returns empty string if no assistant message found.
+ */
+export function extractLastAssistantContent(
+  messages: readonly OutputMessage[] | undefined,
+): string {
+  if (!messages || messages.length === 0) {
+    return '';
+  }
+
+  // Find the last assistant message (reverse search)
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role === 'assistant' && msg.content !== undefined) {
+      if (typeof msg.content === 'string') {
+        return msg.content;
+      }
+      return JSON.stringify(msg.content);
+    }
+  }
+
+  return '';
 }
 
 /**

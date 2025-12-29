@@ -9,7 +9,10 @@ import {
   subscribeToCodexLogEntries,
 } from '../../../src/evaluation/providers/codex-log-tracker.js';
 import { CodexProvider } from '../../../src/evaluation/providers/codex.js';
-import type { ProviderRequest } from '../../../src/evaluation/providers/types.js';
+import {
+  extractLastAssistantContent,
+  type ProviderRequest,
+} from '../../../src/evaluation/providers/types.js';
 
 async function createTempDir(prefix: string): Promise<string> {
   return await mkdtemp(path.join(tmpdir(), prefix));
@@ -66,7 +69,7 @@ describe('CodexProvider', () => {
 
     const response = await provider.invoke(request);
 
-    expect(response.text).toBe('done');
+    expect(extractLastAssistantContent(response.outputMessages)).toBe('done');
     expect(runner).toHaveBeenCalledTimes(1);
     const invocation = runner.mock.calls[0][0];
     expect(invocation.args.slice(0, 7)).toEqual([
@@ -147,7 +150,7 @@ describe('CodexProvider', () => {
     };
 
     const response = await provider.invoke(request);
-    expect(response.text).toBe('final answer');
+    expect(extractLastAssistantContent(response.outputMessages)).toBe('final answer');
   });
 
   it('streams codex output to a readable log file', async () => {

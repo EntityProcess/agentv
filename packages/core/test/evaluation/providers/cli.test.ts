@@ -5,7 +5,10 @@ import path from 'node:path';
 
 import { CliProvider, type CommandRunResult } from '../../../src/evaluation/providers/cli.js';
 import type { CliResolvedConfig } from '../../../src/evaluation/providers/targets.js';
-import type { ProviderRequest } from '../../../src/evaluation/providers/types.js';
+import {
+  extractLastAssistantContent,
+  type ProviderRequest,
+} from '../../../src/evaluation/providers/types.js';
 
 const baseConfig: CliResolvedConfig = {
   commandTemplate: 'agent-cli run {PROMPT} {FILES} {OUTPUT_FILE}',
@@ -59,7 +62,7 @@ describe('CliProvider', () => {
     const response = await provider.invoke(baseRequest);
 
     expect(runner).toHaveBeenCalledTimes(1);
-    expect(response.text).toContain('Test response from CLI');
+    expect(extractLastAssistantContent(response.outputMessages)).toContain('Test response from CLI');
     expect(response.raw && (response.raw as Record<string, unknown>).command).toBeDefined();
     const command = runner.mock.calls[0]?.[0] as string;
     expect(command).toContain('--file');
@@ -128,8 +131,8 @@ describe('CliProvider', () => {
 
     expect(runner).toHaveBeenCalledTimes(1);
     expect(responses).toHaveLength(2);
-    expect(responses[0]?.text).toBe('Batch response 1');
-    expect(responses[1]?.text).toBe('Batch response 2');
+    expect(extractLastAssistantContent(responses[0]?.outputMessages)).toBe('Batch response 1');
+    expect(extractLastAssistantContent(responses[1]?.outputMessages)).toBe('Batch response 2');
   });
 
   it('throws when batch output is missing requested ids', async () => {
@@ -166,10 +169,10 @@ describe('CliProvider', () => {
       if (match) {
         const outputFilePath = path.join(os.tmpdir(), match[0]);
         const output = {
-          text: 'Response with tool calls',
           output_messages: [
             {
               role: 'assistant',
+              content: 'Response with tool calls',
               tool_calls: [
                 { tool: 'search', input: { query: 'hello' }, output: 'result' },
                 { tool: 'analyze', input: { data: 123 } },
@@ -192,7 +195,7 @@ describe('CliProvider', () => {
     const provider = new CliProvider('cli-target', baseConfig, runner);
     const response = await provider.invoke(baseRequest);
 
-    expect(response.text).toBe('Response with tool calls');
+    expect(extractLastAssistantContent(response.outputMessages)).toBe('Response with tool calls');
     expect(response.outputMessages).toBeDefined();
     expect(response.outputMessages).toHaveLength(1);
     expect(response.outputMessages?.[0].role).toBe('assistant');

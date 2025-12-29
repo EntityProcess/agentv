@@ -128,7 +128,13 @@ describe('runTestCase', () => {
 
   it('produces evaluation result using default grader', async () => {
     const provider = new SequenceProvider('mock', {
-      responses: [{ text: 'You should add structured logging and avoid global state.' }],
+      responses: [
+        {
+          outputMessages: [
+            { role: 'assistant', content: 'You should add structured logging and avoid global state.' },
+          ],
+        },
+      ],
     });
 
     const result = await runEvalCase({
@@ -147,7 +153,11 @@ describe('runTestCase', () => {
 
   it('reuses cached provider response when available', async () => {
     const provider = new SequenceProvider('mock', {
-      responses: [{ text: 'Use structured logging.' }],
+      responses: [
+        {
+          outputMessages: [{ role: 'assistant', content: 'Use structured logging.' }],
+        },
+      ],
     });
 
     const cache: EvaluationCache = {
@@ -187,7 +197,11 @@ describe('runTestCase', () => {
   it('retries timeout errors up to maxRetries', async () => {
     const provider = new SequenceProvider('mock', {
       errors: [new Error('Request timeout')],
-      responses: [{ text: 'Add structured logging.' }],
+      responses: [
+        {
+          outputMessages: [{ role: 'assistant', content: 'Add structured logging.' }],
+        },
+      ],
     });
 
     const result = await runEvalCase({
@@ -220,7 +234,11 @@ describe('runTestCase', () => {
   it('dumps prompt payloads when directory provided', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'agentv-prompts-'));
     const provider = new SequenceProvider('mock', {
-      responses: [{ text: 'Add structured logging.' }],
+      responses: [
+        {
+          outputMessages: [{ role: 'assistant', content: 'Add structured logging.' }],
+        },
+      ],
     });
 
     await runEvalCase({
@@ -248,7 +266,11 @@ describe('runTestCase', () => {
     writeFileSync(promptPath, 'CUSTOM PROMPT CONTENT with {{ candidate_answer }}', 'utf8');
 
     const provider = new SequenceProvider('mock', {
-      responses: [{ text: 'Answer text' }],
+      responses: [
+        {
+          outputMessages: [{ role: 'assistant', content: 'Answer text' }],
+        },
+      ],
     });
 
     const judgeProvider = new CapturingJudgeProvider('judge', {
@@ -296,7 +318,9 @@ describe('runTestCase', () => {
   });
 
   it('passes chatPrompt for multi-turn evals', async () => {
-    const provider = new CapturingProvider('mock', { text: 'Candidate' });
+    const provider = new CapturingProvider('mock', {
+      outputMessages: [{ role: 'assistant', content: 'Candidate' }],
+    });
 
     const result = await runEvalCase({
       evalCase: {
@@ -346,7 +370,9 @@ describe('runTestCase', () => {
   });
 
   it('omits chatPrompt for single-turn evals', async () => {
-    const provider = new CapturingProvider('mock', { text: 'Candidate' });
+    const provider = new CapturingProvider('mock', {
+      outputMessages: [{ role: 'assistant', content: 'Candidate' }],
+    });
 
     await runEvalCase({
       evalCase: {
@@ -623,7 +649,11 @@ describe('runEvalCase trace integration', () => {
   describe('weighted evaluators', () => {
     it('computes weighted mean across multiple evaluators', async () => {
       const provider = new SequenceProvider('mock', {
-        responses: [{ text: 'Candidate answer' }],
+        responses: [
+          {
+            outputMessages: [{ role: 'assistant', content: 'Candidate answer' }],
+          },
+        ],
       });
 
       const result = await runEvalCase({
@@ -651,7 +681,11 @@ describe('runEvalCase trace integration', () => {
 
     it('defaults missing weights to 1.0', async () => {
       const provider = new SequenceProvider('mock', {
-        responses: [{ text: 'Candidate answer' }],
+        responses: [
+          {
+            outputMessages: [{ role: 'assistant', content: 'Candidate answer' }],
+          },
+        ],
       });
 
       const result = await runEvalCase({
@@ -678,7 +712,11 @@ describe('runEvalCase trace integration', () => {
 
     it('excludes evaluators with weight 0', async () => {
       const provider = new SequenceProvider('mock', {
-        responses: [{ text: 'Candidate answer' }],
+        responses: [
+          {
+            outputMessages: [{ role: 'assistant', content: 'Candidate answer' }],
+          },
+        ],
       });
 
       const result = await runEvalCase({
@@ -705,7 +743,11 @@ describe('runEvalCase trace integration', () => {
 
     it('returns 0 when all evaluators have weight 0', async () => {
       const provider = new SequenceProvider('mock', {
-        responses: [{ text: 'Candidate answer' }],
+        responses: [
+          {
+            outputMessages: [{ role: 'assistant', content: 'Candidate answer' }],
+          },
+        ],
       });
 
       const result = await runEvalCase({

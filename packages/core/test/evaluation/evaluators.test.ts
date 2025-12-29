@@ -9,6 +9,13 @@ import type {
 } from '../../src/evaluation/providers/types.js';
 import type { EvalCase } from '../../src/evaluation/types.js';
 
+/** Helper to create a ProviderResponse with text wrapped in outputMessages */
+function textResponse(text: string): ProviderResponse {
+  return {
+    outputMessages: [{ role: 'assistant', content: text }],
+  };
+}
+
 class StubProvider implements Provider {
   readonly id = 'stub';
   readonly kind = 'mock' as const;
@@ -59,12 +66,12 @@ const baseTarget: ResolvedTarget = {
 describe('LlmJudgeEvaluator', () => {
   it('parses JSON response and returns evaluation score', async () => {
     const judgeProvider = new StubProvider({
-      text: JSON.stringify({
+      outputMessages: [{ role: 'assistant', content: JSON.stringify({
         score: 0.8,
         hits: ['Captured logging requirement'],
         misses: ['Did not mention tests'],
         reasoning: 'Solid coverage with minor omissions',
-      }),
+      })}],
     });
 
     const evaluator = new LlmJudgeEvaluator({
@@ -91,12 +98,12 @@ describe('LlmJudgeEvaluator', () => {
 
   it('parses JSON from markdown code block', async () => {
     const judgeProvider = new StubProvider({
-      text: `Here is the evaluation:\n\n\`\`\`json\n${JSON.stringify({
+      outputMessages: [{ role: 'assistant', content: `Here is the evaluation:\n\n\`\`\`json\n${JSON.stringify({
         score: 0.75,
         hits: ['Clear structure', 'Good examples'],
         misses: ['Missing edge cases'],
         reasoning: 'Well done overall.',
-      })}\n\`\`\``,
+      })}\n\`\`\``}],
     });
 
     const evaluator = new LlmJudgeEvaluator({
@@ -121,12 +128,12 @@ describe('LlmJudgeEvaluator', () => {
 
   it('validates score is in range [0.0, 1.0]', async () => {
     const judgeProvider = new StubProvider({
-      text: JSON.stringify({
+      outputMessages: [{ role: 'assistant', content: JSON.stringify({
         score: 1.5, // Invalid: out of range
         hits: ['Good'],
         misses: [],
         reasoning: 'Too high',
-      }),
+      })}],
     });
 
     const evaluator = new LlmJudgeEvaluator({
@@ -152,12 +159,12 @@ describe('LlmJudgeEvaluator', () => {
 
   it('enforces max 4 entries for hits and misses', async () => {
     const judgeProvider = new StubProvider({
-      text: JSON.stringify({
+      outputMessages: [{ role: 'assistant', content: JSON.stringify({
         score: 0.9,
         hits: ['Item 1', 'Item 2', 'Item 3', 'Item 4', 'Item 5', 'Item 6'],
         misses: ['Miss 1', 'Miss 2', 'Miss 3', 'Miss 4', 'Miss 5'],
         reasoning: 'Too many items',
-      }),
+      })}],
     });
 
     const evaluator = new LlmJudgeEvaluator({
@@ -198,11 +205,11 @@ describe('LlmJudgeEvaluator', () => {
     }
 
     const judgeProvider = new CapturingProvider({
-      text: JSON.stringify({
+      outputMessages: [{ role: 'assistant', content: JSON.stringify({
         score: 0.7,
         hits: ['Used custom prompt'],
         misses: [],
-      }),
+      })}],
     });
 
     const evaluator = new LlmJudgeEvaluator({
@@ -239,12 +246,12 @@ describe('LlmJudgeEvaluator', () => {
 
   it('rejects JSON with invalid hits/misses types', async () => {
     const judgeProvider = new StubProvider({
-      text: JSON.stringify({
+      outputMessages: [{ role: 'assistant', content: JSON.stringify({
         score: 0.8,
         hits: 'Not an array', // Invalid type
         misses: [],
         reasoning: 'Invalid hits',
-      }),
+      })}],
     });
 
     const evaluator = new LlmJudgeEvaluator({
@@ -269,7 +276,7 @@ describe('LlmJudgeEvaluator', () => {
   });
 
   it('tolerates non-JSON output by falling back to defaults', async () => {
-    const judgeProvider = new StubProvider({ text: 'Final score: 0.5' });
+    const judgeProvider = new StubProvider(textResponse('Final score: 0.5'));
     const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
     });
@@ -292,13 +299,13 @@ describe('LlmJudgeEvaluator', () => {
 
   it('supports rubric mode when rubrics are provided in config', async () => {
     const judgeProvider = new StubProvider({
-      text: JSON.stringify({
+      outputMessages: [{ role: 'assistant', content: JSON.stringify({
         checks: [
           { id: 'r1', satisfied: true, reasoning: 'Present' },
           { id: 'r2', satisfied: false, reasoning: 'Missing' },
         ],
         overall_reasoning: 'Mixed compliance.',
-      }),
+      })}],
     });
 
     const evaluator = new LlmJudgeEvaluator({
@@ -332,7 +339,7 @@ describe('LlmJudgeEvaluator', () => {
 
   it('passes multi-turn role markers through to evaluator prompts', async () => {
     const judgeProvider = new CapturingProvider({
-      text: JSON.stringify({ score: 0.65, hits: [], misses: [] }),
+      outputMessages: [{ role: 'assistant', content: JSON.stringify({ score: 0.65, hits: [], misses: [] })}],
     });
     const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
@@ -358,7 +365,7 @@ describe('LlmJudgeEvaluator', () => {
 
   it('keeps single-turn prompts flat when no markers are needed', async () => {
     const judgeProvider = new CapturingProvider({
-      text: JSON.stringify({ score: 0.8, hits: [], misses: [] }),
+      outputMessages: [{ role: 'assistant', content: JSON.stringify({ score: 0.8, hits: [], misses: [] })}],
     });
     const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
