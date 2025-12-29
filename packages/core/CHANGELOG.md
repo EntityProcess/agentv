@@ -1,5 +1,11 @@
 # @agentv/core
 
+## 1.3.0
+
+### Minor Changes
+
+- 5cda52d: Add CLI provider batch mode support (JSONL output) and include a new AML batch CLI example (CSV -> JSONL).
+
 ## 1.2.0
 
 ### Minor Changes

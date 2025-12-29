@@ -110,6 +110,12 @@ export class CliProvider implements Provider {
     const templateValues = buildTemplateValues(request, this.config, outputFilePath);
     const renderedCommand = renderTemplate(this.config.commandTemplate, templateValues);
 
+    if (this.verbose) {
+      console.log(
+        `[cli-provider:${this.targetName}] CLI_EVALS_DIR=${process.env.CLI_EVALS_DIR ?? ''} cwd=${this.config.cwd ?? ''} command=${renderedCommand}`,
+      );
+    }
+
     const result = await this.runCommand(renderedCommand, {
       cwd: this.config.cwd,
       env: process.env,
@@ -171,11 +177,18 @@ export class CliProvider implements Provider {
 
     const outputFilePath = generateOutputFilePath('batch', '.jsonl');
 
+    const batchInputFiles: string[] = [];
+    for (const request of requests) {
+      if (request.inputFiles && request.inputFiles.length > 0) {
+        batchInputFiles.push(...request.inputFiles);
+      }
+    }
+
     const templateValues = buildTemplateValues(
       {
         question: '',
         guidelines: '',
-        inputFiles: [],
+        inputFiles: batchInputFiles,
         evalCaseId: 'batch',
         attempt: 0,
       },
@@ -183,6 +196,12 @@ export class CliProvider implements Provider {
       outputFilePath,
     );
     const renderedCommand = renderTemplate(this.config.commandTemplate, templateValues);
+
+    if (this.verbose) {
+      console.log(
+        `[cli-provider:${this.targetName}] (batch size=${requests.length}) CLI_EVALS_DIR=${process.env.CLI_EVALS_DIR ?? ''} cwd=${this.config.cwd ?? ''} command=${renderedCommand}`,
+      );
+    }
 
     const result = await this.runCommand(renderedCommand, {
       cwd: this.config.cwd,

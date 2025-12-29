@@ -1,6 +1,6 @@
 {
   "name": "@agentv/core",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Primitive runtime components for AgentV",
   "type": "module",
   "repository": {
@@ -36,7 +36,10 @@
     "test:watch": "bun test --watch",
     "diagnostics:azure": "bun src/diagnostics/azure-deployment-diag.ts"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.53",
     "@ai-sdk/azure": "^2.0.78",
