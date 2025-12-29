@@ -105,6 +105,35 @@ bun run batch-runner.ts --eval ./my-eval.yaml --output ./results.jsonl
 
 The `id` field must match the evalcase `id` for AgentV to route output to the correct evaluator.
 
+### Output with Tool Trajectory Support
+
+To enable `tool_trajectory` evaluation, include `output_messages` with `tool_calls`:
+
+```json
+{
+  "id": "case-001",
+  "text": "{\"decision\": \"CLEAR\", ...}",
+  "output_messages": [
+    {
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "tool": "screening_check",
+          "input": { "origin_country": "NZ", "amount": 5000 },
+          "output": { "decision": "CLEAR", "reasons": [] }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": { "decision": "CLEAR" }
+    }
+  ]
+}
+```
+
+AgentV extracts tool calls directly from `output_messages[].tool_calls[]` for `tool_trajectory` evaluators. This is the recommended format for batch runners that make tool calls.
+
 ### Example Runner (TypeScript)
 
 ```typescript

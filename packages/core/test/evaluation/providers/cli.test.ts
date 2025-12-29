@@ -159,4 +159,134 @@ describe('CliProvider', () => {
 
     await expect(provider.invokeBatch([baseRequest, request2])).rejects.toThrow(/missing ids/i);
   });
+
+  it('parses output_messages from single case JSON output', async () => {
+    const runner = mock(async (command: string): Promise<CommandRunResult> => {
+      const match = command.match(/agentv-case-1-\d+-\w+\.json/);
+      if (match) {
+        const outputFilePath = path.join(os.tmpdir(), match[0]);
+        const output = {
+          text: 'Response with tool calls',
+          output_messages: [
+            {
+              role: 'assistant',
+              tool_calls: [
+                { tool: 'search', input: { query: 'hello' }, output: 'result' },
+                { tool: 'analyze', input: { data: 123 } },
+              ],
+            },
+          ],
+        };
+        await writeFile(outputFilePath, JSON.stringify(output), 'utf-8');
+        createdFiles.push(outputFilePath);
+      }
+
+      return {
+        stdout: command,
+        stderr: '',
+        exitCode: 0,
+        failed: false,
+      };
+    });
+
+    const provider = new CliProvider('cli-target', baseConfig, runner);
+    const response = await provider.invoke(baseRequest);
+
+    expect(response.text).toBe('Response with tool calls');
+    expect(response.outputMessages).toBeDefined();
+    expect(response.outputMessages).toHaveLength(1);
+    expect(response.outputMessages?.[0].role).toBe('assistant');
+    expect(response.outputMessages?.[0].toolCalls).toHaveLength(2);
+    expect(response.outputMessages?.[0].toolCalls?.[0].tool).toBe('search');
+    expect(response.outputMessages?.[0].toolCalls?.[0].input).toEqual({ query: 'hello' });
+    expect(response.outputMessages?.[0].toolCalls?.[0].output).toBe('result');
+    expect(response.outputMessages?.[0].toolCalls?.[1].tool).toBe('analyze');
+  });
+
+  it('parses output_messages from batch JSONL output', async () => {
+    const runner = mock(async (command: string): Promise<CommandRunResult> => {
+      const match = command.match(/agentv-batch-\d+-\w+\.jsonl/);
+      if (match) {
+        const outputFilePath = path.join(os.tmpdir(), match[0]);
+        const record1 = {
+          id: 'case-1',
+          text: 'Response 1',
+          output_messages: [
+            {
+              role: 'assistant',
+              tool_calls: [{ tool: 'toolA', input: { x: 1 } }],
+            },
+          ],
+        };
+        const record2 = {
+          id: 'case-2',
+          text: 'Response 2',
+          output_messages: [
+            {
+              role: 'assistant',
+              tool_calls: [{ tool: 'toolB', input: { y: 2 } }],
+            },
+          ],
+        };
+        const jsonl = `${JSON.stringify(record1)}\n${JSON.stringify(record2)}\n`;
+        await writeFile(outputFilePath, jsonl, 'utf-8');
+        createdFiles.push(outputFilePath);
+      }
+
+      return {
+        stdout: command,
+        stderr: '',
+        exitCode: 0,
+        failed: false,
+      };
+    });
+
+    const provider = new CliProvider('cli-target', baseConfig, runner);
+
+    const request2: ProviderRequest = {
+      ...baseRequest,
+      evalCaseId: 'case-2',
+    };
+
+    const responses = await provider.invokeBatch([baseRequest, request2]);
+
+    expect(responses).toHaveLength(2);
+    expect(responses[0]?.outputMessages).toBeDefined();
+    expect(responses[0]?.outputMessages?.[0].toolCalls?.[0].tool).toBe('toolA');
+    expect(responses[1]?.outputMessages).toBeDefined();
+    expect(responses[1]?.outputMessages?.[0].toolCalls?.[0].tool).toBe('toolB');
+  });
+
+  it('handles messages without tool_calls', async () => {
+    const runner = mock(async (command: string): Promise<CommandRunResult> => {
+      const match = command.match(/agentv-case-1-\d+-\w+\.json/);
+      if (match) {
+        const outputFilePath = path.join(os.tmpdir(), match[0]);
+        const output = {
+          text: 'Response',
+          output_messages: [
+            { role: 'user', content: 'Hello' },
+            { role: 'assistant', content: 'Hi there!' },
+          ],
+        };
+        await writeFile(outputFilePath, JSON.stringify(output), 'utf-8');
+        createdFiles.push(outputFilePath);
+      }
+
+      return {
+        stdout: command,
+        stderr: '',
+        exitCode: 0,
+        failed: false,
+      };
+    });
+
+    const provider = new CliProvider('cli-target', baseConfig, runner);
+    const response = await provider.invoke(baseRequest);
+
+    expect(response.outputMessages).toBeDefined();
+    expect(response.outputMessages).toHaveLength(2);
+    expect(response.outputMessages?.[0].toolCalls).toBeUndefined();
+    expect(response.outputMessages?.[1].toolCalls).toBeUndefined();
+  });
 });

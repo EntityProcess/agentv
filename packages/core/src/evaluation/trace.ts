@@ -15,8 +15,8 @@ export type TraceEventType = 'model_step' | 'tool_call' | 'tool_result' | 'messa
 export interface TraceEvent {
   /** Event type */
   readonly type: TraceEventType;
-  /** ISO 8601 timestamp */
-  readonly timestamp: string;
+  /** ISO 8601 timestamp (optional - ordering preserved by array position) */
+  readonly timestamp?: string;
   /** Stable identifier for pairing tool_call/tool_result */
   readonly id?: string;
   /** Tool name (for tool_call/tool_result) */
@@ -81,13 +81,22 @@ export function isTraceEventType(value: unknown): value is TraceEventType {
 
 /**
  * Type guard for TraceEvent objects.
+ * Only requires valid type - timestamp is optional.
  */
 export function isTraceEvent(value: unknown): value is TraceEvent {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
   const candidate = value as Record<string, unknown>;
-  return isTraceEventType(candidate.type) && typeof candidate.timestamp === 'string';
+  // Timestamp is optional - only type is required
+  if (!isTraceEventType(candidate.type)) {
+    return false;
+  }
+  // If timestamp is present, it must be a string
+  if (candidate.timestamp !== undefined && typeof candidate.timestamp !== 'string') {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -115,4 +124,48 @@ export function computeTraceSummary(trace: readonly TraceEvent[]): TraceSummary 
     toolCallsByName: toolCallCounts,
     errorCount,
   };
+}
+
+/**
+ * Input type for extractTraceFromMessages - matches OutputMessage structure
+ * but doesn't require importing from providers/types to avoid circular deps.
+ */
+interface OutputMessageLike {
+  readonly role: string;
+  readonly toolCalls?: readonly {
+    readonly tool: string;
+    readonly input?: unknown;
+    readonly output?: unknown;
+  }[];
+}
+
+/**
+ * Extract trace events from output messages.
+ * Converts toolCalls from OutputMessage format to TraceEvent[] format.
+ * Ordering is preserved by array position (timestamps are not generated).
+ *
+ * @deprecated Use outputMessages directly instead of converting to TraceEvent[].
+ * The tool_trajectory evaluator now works directly with OutputMessage[].
+ */
+export function extractTraceFromMessages(
+  messages: readonly OutputMessageLike[],
+): readonly TraceEvent[] {
+  const events: TraceEvent[] = [];
+
+  for (const message of messages) {
+    if (!message.toolCalls || message.toolCalls.length === 0) {
+      continue;
+    }
+
+    for (const toolCall of message.toolCalls) {
+      events.push({
+        type: 'tool_call',
+        name: toolCall.tool,
+        input: toolCall.input,
+        output: toolCall.output,
+      });
+    }
+  }
+
+  return events;
 }

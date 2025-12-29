@@ -80,15 +80,59 @@ export interface ProviderRequest {
   readonly signal?: AbortSignal;
 }
 
+/**
+ * A tool call within an output message.
+ * Represents a single tool invocation with its input and optional output.
+ */
+export interface ToolCall {
+  /** Tool name */
+  readonly tool: string;
+  /** Tool input arguments */
+  readonly input?: unknown;
+  /** Tool output result */
+  readonly output?: unknown;
+  /** Stable identifier for pairing tool calls */
+  readonly id?: string;
+  /** ISO 8601 timestamp */
+  readonly timestamp?: string;
+}
+
+/**
+ * An output message from agent execution.
+ * Represents a single message in the conversation with optional tool calls.
+ */
+export interface OutputMessage {
+  /** Message role (e.g., 'assistant', 'user', 'tool') */
+  readonly role: string;
+  /** Optional name for the message sender */
+  readonly name?: string;
+  /** Message content */
+  readonly content?: unknown;
+  /** Tool calls made in this message */
+  readonly toolCalls?: readonly ToolCall[];
+  /** ISO 8601 timestamp */
+  readonly timestamp?: string;
+  /** Provider-specific metadata */
+  readonly metadata?: Record<string, unknown>;
+}
+
 export interface ProviderResponse {
   readonly text: string;
   readonly reasoning?: string;
   readonly raw?: unknown;
   readonly usage?: JsonObject;
-  /** Normalized trace events from agent execution */
+  /**
+   * Normalized trace events from agent execution.
+   * @deprecated Use outputMessages instead. Will be removed in v2.0.
+   */
   readonly trace?: readonly TraceEvent[];
-  /** Reference to external trace file (alternative to inline trace) */
+  /**
+   * Reference to external trace file (alternative to inline trace).
+   * @deprecated Use outputMessages instead. Will be removed in v2.0.
+   */
   readonly traceRef?: string;
+  /** Output messages from agent execution (primary source for tool trajectory) */
+  readonly outputMessages?: readonly OutputMessage[];
 }
 
 /**

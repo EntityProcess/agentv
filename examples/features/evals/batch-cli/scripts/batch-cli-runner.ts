@@ -213,7 +213,21 @@ async function main(): Promise<void> {
     throw new Error("CSV missing required header column 'id'");
   }
 
-  const records: Array<{ id: string; text: string }> = [];
+  type OutputRecord = {
+    id: string;
+    text: string;
+    output_messages: Array<{
+      role: string;
+      tool_calls?: Array<{
+        tool: string;
+        input?: unknown;
+        output?: unknown;
+      }>;
+      content?: unknown;
+    }>;
+  };
+
+  const records: OutputRecord[] = [];
 
   for (const line of lines.slice(1)) {
     const cols = parseCsvLine(line);
@@ -250,7 +264,36 @@ async function main(): Promise<void> {
       currency,
     };
 
-    records.push({ id, text: JSON.stringify(payload) });
+    // Build output_messages with tool_calls for trace extraction
+    // This demonstrates the new output_messages format that AgentV can extract traces from
+    records.push({
+      id,
+      text: JSON.stringify(payload),
+      output_messages: [
+        {
+          role: 'assistant',
+          tool_calls: [
+            {
+              tool: 'aml_screening',
+              input: {
+                origin_country: originCountry,
+                destination_country: destinationCountry,
+                amount: Number.isFinite(amount) ? amount : amountRaw,
+                currency,
+              },
+              output: {
+                decision,
+                reasons,
+              },
+            },
+          ],
+        },
+        {
+          role: 'assistant',
+          content: payload,
+        },
+      ],
+    });
   }
 
   const jsonl = `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;

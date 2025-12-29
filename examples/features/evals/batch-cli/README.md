@@ -6,8 +6,34 @@ This example demonstrates an **external batch runner** pattern for a (synthetic)
 2. Expected outputs live in `expected_messages` (schema-aligned), e.g. `content.decision`.
 3. A helper script converts those `input_messages` into a CSV file (`AmlScreeningInput.csv`).
 4. A batch CLI tool reads the CSV once and writes a JSONL file containing one record per eval case.
+5. The batch runner outputs `output_messages` with `tool_calls` in the JSONL, enabling `tool_trajectory` evaluation directly from the message format.
 
 Important: the CSV intentionally does **not** include the expected decision to avoid leaking answers to the provider.
+
+## Tool Trajectory via output_messages
+
+The batch runner outputs JSONL records with `output_messages` containing `tool_calls`:
+
+```json
+{
+  "id": "aml-001",
+  "text": "{...}",
+  "output_messages": [
+    {
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "tool": "aml_screening",
+          "input": { "origin_country": "NZ", ... },
+          "output": { "decision": "CLEAR", ... }
+        }
+      ]
+    }
+  ]
+}
+```
+
+The `tool_trajectory` evaluator extracts tool calls directly from `output_messages[].tool_calls[]`. This is the primary format - no separate `trace` field is required.
 
 ## Files
 

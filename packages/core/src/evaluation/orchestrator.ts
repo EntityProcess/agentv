@@ -17,6 +17,7 @@ import { createProvider } from './providers/index.js';
 import { type ResolvedTarget, resolveTargetDefinition } from './providers/targets.js';
 import type {
   EnvLookup,
+  OutputMessage,
   Provider,
   ProviderRequest,
   ProviderResponse,
@@ -28,6 +29,7 @@ import {
   type TraceEvent,
   type TraceSummary,
   computeTraceSummary,
+  extractTraceFromMessages,
   isTraceEvent,
 } from './trace.js';
 import type {
@@ -409,6 +411,26 @@ async function runBatchEvaluation(options: {
     const evalCase = evalCases[i];
     const promptInputs = promptInputsList[i];
     const providerResponse = batchResponse[i];
+
+    // Extract outputMessages and trace from batch response
+    const candidateOutputMessages = providerResponse.outputMessages;
+    let candidateTrace: readonly TraceEvent[] | undefined = providerResponse.trace;
+    if (!candidateTrace && providerResponse.traceRef) {
+      try {
+        const rawTrace = await readJsonFile<unknown[]>(providerResponse.traceRef);
+        if (Array.isArray(rawTrace) && rawTrace.every(isTraceEvent)) {
+          candidateTrace = rawTrace as TraceEvent[];
+        }
+      } catch {
+        // Silently ignore trace load failures - trace is optional
+      }
+    }
+    // Fallback to extracting trace from outputMessages if no explicit trace (for legacy compatibility)
+    if (!candidateTrace && candidateOutputMessages) {
+      candidateTrace = extractTraceFromMessages(candidateOutputMessages);
+    }
+    const candidateTraceSummary = candidateTrace ? computeTraceSummary(candidateTrace) : undefined;
+
     let result: EvaluationResult;
     try {
       result = await evaluateCandidate({
@@ -422,6 +444,10 @@ async function runBatchEvaluation(options: {
         attempt: 0,
         judgeProvider: await resolveJudgeProvider(target),
         agentTimeoutMs,
+        candidateOutputMessages,
+        candidateTrace,
+        candidateTraceRef: providerResponse.traceRef,
+        candidateTraceSummary,
       });
     } catch (error) {
       const errorResult = buildErrorResult(
@@ -537,7 +563,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     await cache.set(cacheKey, providerResponse);
   }
 
-  // Extract trace from provider response (inline or from traceRef file)
+  // Extract outputMessages and trace from provider response
+  const candidateOutputMessages = providerResponse.outputMessages;
   let candidateTrace: readonly TraceEvent[] | undefined = providerResponse.trace;
   if (!candidateTrace && providerResponse.traceRef) {
     try {
@@ -548,6 +575,10 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     } catch {
       // Silently ignore trace load failures - trace is optional
     }
+  }
+  // Fallback to extracting trace from outputMessages if no explicit trace (for legacy compatibility)
+  if (!candidateTrace && candidateOutputMessages) {
+    candidateTrace = extractTraceFromMessages(candidateOutputMessages);
   }
 
   // Compute trace summary if trace is available
@@ -565,6 +596,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       attempt,
       judgeProvider,
       agentTimeoutMs,
+      candidateOutputMessages,
       candidateTrace,
       candidateTraceRef: providerResponse.traceRef,
       candidateTraceSummary,
@@ -585,6 +617,7 @@ async function evaluateCandidate(options: {
   readonly attempt: number;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
+  readonly candidateOutputMessages?: readonly OutputMessage[];
   readonly candidateTrace?: readonly TraceEvent[];
   readonly candidateTraceRef?: string;
   readonly candidateTraceSummary?: TraceSummary;
@@ -600,6 +633,7 @@ async function evaluateCandidate(options: {
     attempt,
     judgeProvider,
     agentTimeoutMs,
+    candidateOutputMessages,
     candidateTrace,
     candidateTraceRef,
     candidateTraceSummary,
@@ -617,6 +651,7 @@ async function evaluateCandidate(options: {
     now: gradeTimestamp,
     judgeProvider,
     agentTimeoutMs,
+    candidateOutputMessages,
     candidateTrace,
     candidateTraceRef,
     candidateTraceSummary,
@@ -676,6 +711,7 @@ async function runEvaluatorsForCase(options: {
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
+  readonly candidateOutputMessages?: readonly OutputMessage[];
   readonly candidateTrace?: readonly TraceEvent[];
   readonly candidateTraceRef?: string;
   readonly candidateTraceSummary?: TraceSummary;
@@ -691,6 +727,7 @@ async function runEvaluatorsForCase(options: {
     now,
     judgeProvider,
     agentTimeoutMs,
+    candidateOutputMessages,
     candidateTrace,
     candidateTraceRef,
     candidateTraceSummary,
@@ -709,6 +746,7 @@ async function runEvaluatorsForCase(options: {
       now,
       judgeProvider,
       agentTimeoutMs,
+      candidateOutputMessages,
       candidateTrace,
       candidateTraceRef,
       candidateTraceSummary,
@@ -730,6 +768,7 @@ async function runEvaluatorsForCase(options: {
     promptInputs,
     now,
     judgeProvider,
+    candidateOutputMessages,
     candidateTrace,
     candidateTraceRef,
     candidateTraceSummary,
@@ -752,6 +791,7 @@ async function runEvaluatorList(options: {
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
+  readonly candidateOutputMessages?: readonly OutputMessage[];
   readonly candidateTrace?: readonly TraceEvent[];
   readonly candidateTraceRef?: string;
   readonly candidateTraceSummary?: TraceSummary;
@@ -768,6 +808,7 @@ async function runEvaluatorList(options: {
     now,
     judgeProvider,
     agentTimeoutMs,
+    candidateOutputMessages,
     candidateTrace,
     candidateTraceRef,
     candidateTraceSummary,
@@ -918,6 +959,7 @@ async function runEvaluatorList(options: {
           attempt,
           promptInputs,
           now,
+          candidateOutputMessages,
           candidateTrace,
           candidateTraceRef,
           candidateTraceSummary,
