@@ -1,4 +1,0 @@
-id,customer_name,origin_country,destination_country,transaction_type,amount,currency,jurisdiction,effective_date
-aml-001,Example Customer A,NZ,AU,INTERNATIONAL_TRANSFER,5000,USD,AU,2025-01-01
-aml-002,Example Customer B,IR,AU,INTERNATIONAL_TRANSFER,2000,USD,AU,2025-01-01
-aml-003,Example Customer C,US,AU,INTERNATIONAL_TRANSFER,25000,USD,AU,2025-01-01
