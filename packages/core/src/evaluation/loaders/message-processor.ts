@@ -48,6 +48,22 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
       continue;
     }
 
+    // Structured object content (real-world style payloads). Treat as a single text segment.
+    // This keeps prompt building deterministic while preserving the full payload for code evaluators
+    // via evalCase.input_messages.
+    if (isJsonObject(content)) {
+      const rendered = JSON.stringify(content, null, 2);
+      segments.push({ type: 'text', value: rendered });
+      if (textParts) {
+        textParts.push(rendered);
+      }
+      continue;
+    }
+
+    if (!Array.isArray(content)) {
+      continue;
+    }
+
     for (const rawSegment of content) {
       if (!isJsonObject(rawSegment)) {
         continue;

@@ -34,7 +34,7 @@ const TEST_MESSAGE_ROLE_SET: ReadonlySet<string> = new Set(TEST_MESSAGE_ROLE_VAL
 /**
  * Text or structured payload attached to a message.
  */
-export type TestMessageContent = string | readonly JsonObject[];
+export type TestMessageContent = string | JsonObject | readonly JsonObject[];
 
 /**
  * System-authored instruction message.

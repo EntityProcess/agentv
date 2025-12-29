@@ -115,6 +115,11 @@ export async function buildPromptInputs(
           }
         }
       }
+    } else if (isJsonObject(message.content)) {
+      const rendered = JSON.stringify(message.content, null, 2);
+      if (rendered.trim().length > 0) {
+        messageSegments.push({ type: 'text', value: rendered });
+      }
     }
 
     segmentsByMessage.push(messageSegments);
