@@ -226,6 +226,92 @@ evalcases:
           ```
 ```
 
+## Batch CLI Evaluation
+
+Evaluate external batch runners that process all evalcases in one invocation.
+
+```yaml
+$schema: agentv-eval-v2
+description: Batch CLI demo (AML screening)
+target: batch_cli
+
+evalcases:
+  - id: aml-001
+    expected_outcome: |-
+      Batch runner returns JSON with decision=CLEAR.
+
+    expected_messages:
+      - role: assistant
+        content:
+          decision: CLEAR
+
+    input_messages:
+      - role: system
+        content: You are a deterministic AML screening batch checker.
+      - role: user
+        content:
+          request:
+            type: aml_screening_check
+            jurisdiction: AU
+            effective_date: 2025-01-01
+          row:
+            id: aml-001
+            customer_name: Example Customer A
+            origin_country: NZ
+            destination_country: AU
+            transaction_type: INTERNATIONAL_TRANSFER
+            amount: 5000
+            currency: USD
+
+    execution:
+      evaluators:
+        - name: decision-check
+          type: code_judge
+          script: bun run ./scripts/check-batch-cli-output.ts
+          cwd: .
+
+  - id: aml-002
+    expected_outcome: |-
+      Batch runner returns JSON with decision=REVIEW.
+
+    expected_messages:
+      - role: assistant
+        content:
+          decision: REVIEW
+
+    input_messages:
+      - role: system
+        content: You are a deterministic AML screening batch checker.
+      - role: user
+        content:
+          request:
+            type: aml_screening_check
+            jurisdiction: AU
+            effective_date: 2025-01-01
+          row:
+            id: aml-002
+            customer_name: Example Customer B
+            origin_country: IR
+            destination_country: AU
+            transaction_type: INTERNATIONAL_TRANSFER
+            amount: 2000
+            currency: USD
+
+    execution:
+      evaluators:
+        - name: decision-check
+          type: code_judge
+          script: bun run ./scripts/check-batch-cli-output.ts
+          cwd: .
+```
+
+### Batch CLI Pattern Notes
+- **target: batch_cli** - Configure CLI provider with `provider_batching: true`
+- **Batch runner** - Reads eval YAML via `--eval` flag, outputs JSONL keyed by `id`
+- **Structured input** - Put data in `user.content` as objects for runner to extract
+- **Structured expected** - Use `expected_messages.content` with object fields
+- **Per-case evaluators** - Each evalcase has its own evaluator to validate output
+
 ## Notes on Examples
 
 ### File Path Conventions

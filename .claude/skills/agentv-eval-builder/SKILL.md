@@ -15,6 +15,7 @@ description: Create and maintain AgentV YAML evaluation files for testing AI age
 - Composite Evaluators: `references/composite-evaluator.md` - Combine multiple evaluators
 - Tool Trajectory: `references/tool-trajectory-evaluator.md` - Validate agent tool usage
 - Custom Evaluators: `references/custom-evaluators.md` - Code and LLM judge templates
+- Batch CLI: `references/batch-cli-evaluator.md` - Evaluate batch runner output (JSONL)
 
 ## Structure Requirements
 - Root level: `description` (optional), `target` (optional), `execution` (optional), `evalcases` (required)
@@ -136,6 +137,42 @@ execution:
 ```
 
 See `references/composite-evaluator.md` for aggregation types and patterns.
+
+### Batch CLI Evaluation
+Evaluate external batch runners that process all evalcases in one invocation:
+
+```yaml
+$schema: agentv-eval-v2
+description: Batch CLI evaluation
+target: batch_cli
+
+evalcases:
+  - id: case-001
+    expected_outcome: Returns decision=CLEAR
+    expected_messages:
+      - role: assistant
+        content:
+          decision: CLEAR
+    input_messages:
+      - role: user
+        content:
+          row:
+            id: case-001
+            amount: 5000
+    execution:
+      evaluators:
+        - name: decision-check
+          type: code_judge
+          script: bun run ./scripts/check-output.ts
+          cwd: .
+```
+
+**Key pattern:**
+- Batch runner reads eval YAML via `--eval` flag, outputs JSONL keyed by `id`
+- Each evalcase has its own evaluator to validate its corresponding output
+- Use structured `expected_messages.content` for expected output fields
+
+See `references/batch-cli-evaluator.md` for full implementation guide.
 
 ## Example
 ```yaml
