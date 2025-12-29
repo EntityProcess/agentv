@@ -29,7 +29,7 @@ All of which map directly to `TraceEvent` fields (`name`, `input`, `output`, seq
 
 ### 1. Extend ProviderResponse Interface
 
-Add optional `output_messages` field to `ProviderResponse`:
+Add optional `outputMessages` field to `ProviderResponse`:
 
 ```typescript
 export interface ProviderResponse {
@@ -39,14 +39,14 @@ export interface ProviderResponse {
   readonly usage?: JsonObject;
   readonly trace?: readonly TraceEvent[];
   readonly traceRef?: string;
-  readonly output_messages?: readonly OutputMessage[]; // NEW
+  readonly outputMessages?: readonly OutputMessage[]; // NEW
 }
 
 export interface OutputMessage {
   readonly role: string;
   readonly name?: string;
   readonly content?: unknown;
-  readonly tool_calls?: readonly ToolCall[];
+  readonly toolCalls?: readonly ToolCall[];
 }
 
 export interface ToolCall {
@@ -56,9 +56,11 @@ export interface ToolCall {
 }
 ```
 
+**Naming convention:** TypeScript interfaces use camelCase (`outputMessages`, `toolCalls`). JSONL wire format uses snake_case (`output_messages`, `tool_calls`) to match OpenAI convention. CLI provider converts between formats during parsing.
+
 ### 2. Update Orchestrator Trace Extraction
 
-Modify orchestrator to extract traces from `output_messages` when no explicit `trace` is provided:
+Modify orchestrator to extract traces from `outputMessages` when no explicit `trace` is provided:
 
 ```typescript
 // Current: only loads from trace/traceRef
@@ -67,15 +69,17 @@ if (!candidateTrace && providerResponse.traceRef) {
   candidateTrace = await readJsonFile(providerResponse.traceRef);
 }
 
-// Proposed: fallback to output_messages
-if (!candidateTrace && providerResponse.output_messages) {
-  candidateTrace = extractTraceFromMessages(providerResponse.output_messages);
+// Proposed: fallback to outputMessages
+if (!candidateTrace && providerResponse.outputMessages) {
+  candidateTrace = extractTraceFromMessages(providerResponse.outputMessages);
 }
 ```
 
+**Timestamp handling:** Extracted `TraceEvent` objects will have `timestamp` set only if the source message provides it. The `TraceEvent.timestamp` field is optional - ordering is preserved by array position.
+
 ### 3. Update CLI Provider JSONL Parsing
 
-Modify `parseJsonlBatchOutput` to pass through `output_messages`:
+Modify `parseJsonlBatchOutput` to parse `output_messages` from JSONL and convert to camelCase:
 
 ```typescript
 const obj = parsed as {
@@ -83,24 +87,48 @@ const obj = parsed as {
   text?: unknown;
   trace?: unknown;
   traceRef?: unknown;
-  output_messages?: unknown; // NEW
+  trace_ref?: unknown;
+  output_messages?: unknown; // snake_case from JSONL
 };
 
 records.set(id, {
   text,
   trace: this.parseTrace(obj.trace),
   traceRef,
-  outputMessages: this.parseOutputMessages(obj.output_messages), // NEW
+  outputMessages: this.parseOutputMessages(obj.output_messages), // converted to camelCase
 });
 ```
 
-### 4. Implementation Strategy
+The `parseOutputMessages` method converts snake_case fields (`tool_calls`) to camelCase (`toolCalls`) for internal use.
+
+### 4. Make TraceEvent.timestamp Optional
+
+Update `TraceEvent` interface to make `timestamp` optional:
+
+```typescript
+export interface TraceEvent {
+  readonly type: TraceEventType;
+  readonly timestamp?: string;  // Now optional
+  // ... other fields unchanged
+}
+```
+
+Update `isTraceEvent` type guard to not require timestamp:
+
+```typescript
+export function isTraceEvent(value: unknown): value is TraceEvent {
+  // Remove timestamp check - only type is required
+  return isTraceEventType(candidate.type);
+}
+```
+
+### 5. Implementation Strategy
 
 **Phase 1: Core support (this proposal)**
-- Add `output_messages` to `ProviderResponse`
+- Make `TraceEvent.timestamp` optional
+- Add `outputMessages` to `ProviderResponse`
 - Implement `extractTraceFromMessages()` in orchestrator
-- Update CLI provider to pass through `output_messages`
-- Make `trace` optional in favor of `output_messages`
+- Update CLI provider to parse and convert `output_messages`
 
 **Phase 2: Provider updates (future)**
 - Update mock provider examples to use `output_messages`
