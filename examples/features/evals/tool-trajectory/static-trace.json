@@ -99,11 +99,7 @@
           "Bright OLED display option",
           "Strong battery life (up to 15 hours)"
         ],
-        "cons": [
-          "Premium pricing",
-          "Limited port selection",
-          "No discrete GPU option"
-        ],
+        "cons": ["Premium pricing", "Limited port selection", "No discrete GPU option"],
         "confidence": "High"
       }
     }

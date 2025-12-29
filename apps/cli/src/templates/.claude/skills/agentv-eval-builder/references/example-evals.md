@@ -12,11 +12,11 @@ target: default
 evalcases:
   - id: simple-addition
     expected_outcome: Correctly calculates 2+2
-    
+
     input_messages:
       - role: user
         content: What is 2 + 2?
-    
+
     expected_messages:
       - role: assistant
         content: "4"
@@ -32,7 +32,7 @@ target: azure_base
 evalcases:
   - id: code-review-basic
     expected_outcome: Assistant provides helpful code analysis with security considerations
-    
+
     input_messages:
       - role: system
         content: You are an expert code reviewer.
@@ -41,7 +41,7 @@ evalcases:
           - type: text
             value: |-
               Review this function for security issues:
-              
+
               ```python
               def get_user(user_id):
                   query = f"SELECT * FROM users WHERE id = {user_id}"
@@ -49,13 +49,13 @@ evalcases:
               ```
           - type: file
             value: /prompts/security-guidelines.md
-    
+
     expected_messages:
       - role: assistant
         content: |-
-          This code has a critical SQL injection vulnerability. The user_id is directly 
+          This code has a critical SQL injection vulnerability. The user_id is directly
           interpolated into the query string without sanitization.
-          
+
           Recommended fix:
           ```python
           def get_user(user_id):
@@ -74,7 +74,7 @@ target: default
 evalcases:
   - id: json-generation-with-validation
     expected_outcome: Generates valid JSON with required fields
-    
+
     execution:
       evaluators:
         - name: json_format_validator
@@ -84,13 +84,13 @@ evalcases:
         - name: content_evaluator
           type: llm_judge
           prompt: ./judges/semantic_correctness.md
-    
+
     input_messages:
       - role: user
         content: |-
-          Generate a JSON object for a user with name "Alice", 
+          Generate a JSON object for a user with name "Alice",
           email "alice@example.com", and role "admin".
-    
+
     expected_messages:
       - role: assistant
         content: |-
@@ -180,7 +180,7 @@ evalcases:
       Assistant conducts a multi-turn debugging session, asking clarification
       questions when needed, correctly diagnosing the bug, and proposing a clear
       fix with rationale.
-    
+
     input_messages:
       - role: system
         content: You are an expert debugging assistant who reasons step by step, asks clarifying questions, and explains fixes clearly.
@@ -205,7 +205,7 @@ evalcases:
       - role: user
         content: |-
           For `[1, 2, 3, 4]` I expect `[1, 2, 3, 4]`, but I get `[1, 2, 3]`.
-    
+
     expected_messages:
       - role: assistant
         content: |-
@@ -214,7 +214,7 @@ evalcases:
           To include all items, you can either:
           - Use `range(len(items))`, or
           - Iterate directly over the list: `for item in items:`
-          
+
           Here's a corrected version:
 
           ```python
@@ -225,6 +225,92 @@ evalcases:
               return result
           ```
 ```
+
+## Batch CLI Evaluation
+
+Evaluate external batch runners that process all evalcases in one invocation.
+
+```yaml
+$schema: agentv-eval-v2
+description: Batch CLI demo (AML screening)
+target: batch_cli
+
+evalcases:
+  - id: aml-001
+    expected_outcome: |-
+      Batch runner returns JSON with decision=CLEAR.
+
+    expected_messages:
+      - role: assistant
+        content:
+          decision: CLEAR
+
+    input_messages:
+      - role: system
+        content: You are a deterministic AML screening batch checker.
+      - role: user
+        content:
+          request:
+            type: aml_screening_check
+            jurisdiction: AU
+            effective_date: 2025-01-01
+          row:
+            id: aml-001
+            customer_name: Example Customer A
+            origin_country: NZ
+            destination_country: AU
+            transaction_type: INTERNATIONAL_TRANSFER
+            amount: 5000
+            currency: USD
+
+    execution:
+      evaluators:
+        - name: decision-check
+          type: code_judge
+          script: bun run ./scripts/check-batch-cli-output.ts
+          cwd: .
+
+  - id: aml-002
+    expected_outcome: |-
+      Batch runner returns JSON with decision=REVIEW.
+
+    expected_messages:
+      - role: assistant
+        content:
+          decision: REVIEW
+
+    input_messages:
+      - role: system
+        content: You are a deterministic AML screening batch checker.
+      - role: user
+        content:
+          request:
+            type: aml_screening_check
+            jurisdiction: AU
+            effective_date: 2025-01-01
+          row:
+            id: aml-002
+            customer_name: Example Customer B
+            origin_country: IR
+            destination_country: AU
+            transaction_type: INTERNATIONAL_TRANSFER
+            amount: 2000
+            currency: USD
+
+    execution:
+      evaluators:
+        - name: decision-check
+          type: code_judge
+          script: bun run ./scripts/check-batch-cli-output.ts
+          cwd: .
+```
+
+### Batch CLI Pattern Notes
+- **target: batch_cli** - Configure CLI provider with `provider_batching: true`
+- **Batch runner** - Reads eval YAML via `--eval` flag, outputs JSONL keyed by `id`
+- **Structured input** - Put data in `user.content` as objects for runner to extract
+- **Structured expected** - Use `expected_messages.content` with object fields
+- **Per-case evaluators** - Each evalcase has its own evaluator to validate output
 
 ## Notes on Examples
 

@@ -180,7 +180,7 @@ describe('runTestCase', () => {
       useCache: true,
     });
 
-    expect(second.candidate_answer).toContain('structured logging');
+    expect(second.candidate_answer).toBe(first.candidate_answer);
     expect(provider.callIndex).toBe(1);
   });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { LlmJudgeEvaluator } from '../../src/evaluation/evaluators.js';
+import { CodeEvaluator, LlmJudgeEvaluator } from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type {
   Provider,
@@ -380,5 +380,39 @@ describe('LlmJudgeEvaluator', () => {
     expect(judgeProvider.lastRequest?.question).not.toContain('@[User]:');
     expect(result.evaluatorRawRequest?.userPrompt).toContain(flatQuestion);
     expect(result.evaluatorRawRequest?.userPrompt).not.toContain('@[User]:');
+  });
+});
+
+describe('CodeEvaluator', () => {
+  it('passes required fields to code_judge scripts', async () => {
+    const judgeProvider = new StubProvider({ text: '{}' });
+
+    const evalCaseWithExpectedMessages: EvalCase = {
+      ...baseTestCase,
+      expected_messages: [{ role: 'assistant', content: { decision: 'ACCEPT' } }],
+    };
+
+    const expectedCandidate = '{"decision":"ACCEPT"}';
+
+    const script =
+      "bun -e \"import fs from 'node:fs'; const input = JSON.parse(fs.readFileSync(0, 'utf8')); const hasExpected = Array.isArray(input.expected_messages); const hasCandidate = typeof input.candidate_answer === 'string'; let candidateDecisionOk = false; try { const obj = JSON.parse(input.candidate_answer); candidateDecisionOk = obj && obj.decision === 'ACCEPT'; } catch {} const ok = hasExpected && hasCandidate && candidateDecisionOk; console.log(JSON.stringify({ score: ok ? 1 : 0, hits: [hasExpected ? 'expected_messages present' : null, hasCandidate ? 'candidate_answer present' : null, candidateDecisionOk ? 'candidate_answer parses' : null].filter(Boolean), misses: [hasExpected ? null : 'expected_messages missing', hasCandidate ? null : 'candidate_answer missing', candidateDecisionOk ? null : 'candidate_answer invalid'].filter(Boolean) }));\"";
+
+    const evaluator = new CodeEvaluator({ script });
+
+    const result = await evaluator.evaluate({
+      evalCase: evalCaseWithExpectedMessages,
+      candidate: expectedCandidate,
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+    expect(result.hits).toContain('expected_messages present');
+    expect(result.hits).toContain('candidate_answer present');
+    expect(result.hits).toContain('candidate_answer parses');
   });
 });

@@ -521,10 +521,18 @@ function resolveCliConfig(
       target.attachments_format ??
       target.attachmentsFormat,
   );
+
+  const verbose = resolveOptionalBoolean(target.verbose ?? target.cli_verbose ?? target.cliVerbose);
   let cwd = resolveOptionalString(target.cwd, env, `${target.name} working directory`, {
     allowLiteral: true,
     optionalEnv: true,
   });
+
+  // If cwd is a relative path, resolve it relative to the eval file directory.
+  // This makes `cwd: .` in a colocated .agentv/targets.yaml behave intuitively.
+  if (cwd && evalFilePath && !path.isAbsolute(cwd)) {
+    cwd = path.resolve(path.dirname(path.resolve(evalFilePath)), cwd);
+  }
   // Fallback: if cwd is not set and we have an eval file path, use the eval directory
   if (!cwd && evalFilePath) {
     cwd = path.dirname(path.resolve(evalFilePath));
@@ -533,7 +541,7 @@ function resolveCliConfig(
     target.timeout_seconds ?? target.timeoutSeconds,
     `${target.name} timeout`,
   );
-  const healthcheck = resolveCliHealthcheck(target.healthcheck, env, target.name);
+  const healthcheck = resolveCliHealthcheck(target.healthcheck, env, target.name, evalFilePath);
 
   const commandTemplate = resolveString(
     commandTemplateSource,
@@ -549,6 +557,7 @@ function resolveCliConfig(
     cwd,
     timeoutMs,
     healthcheck,
+    verbose,
   };
 }
 
@@ -567,6 +576,7 @@ function resolveCliHealthcheck(
   source: unknown,
   env: EnvLookup,
   targetName: string,
+  evalFilePath?: string,
 ): CliHealthcheck | undefined {
   if (source === undefined || source === null) {
     return undefined;
@@ -603,11 +613,16 @@ function resolveCliHealthcheck(
       allowLiteral: true,
       optionalEnv: true,
     });
+
+    const resolvedCwd =
+      cwd && evalFilePath && !path.isAbsolute(cwd)
+        ? path.resolve(path.dirname(path.resolve(evalFilePath)), cwd)
+        : cwd;
     return {
       type: 'command',
       commandTemplate,
       timeoutMs,
-      cwd,
+      cwd: resolvedCwd,
     };
   }
 

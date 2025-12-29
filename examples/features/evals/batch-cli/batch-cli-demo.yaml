@@ -1,0 +1,117 @@
+# Batch CLI provider demo (synthetic)
+#
+# Goal: demonstrate a realistic batch pattern for AML screening.
+# - Eval cases contain structured `input_messages` objects.
+# - A batch runner converts those objects into a CSV input file.
+# - The CLI provider runs the batch runner once, producing JSONL output.
+
+$schema: agentv-eval-v2
+description: Batch CLI demo (AML screening) using structured input_messages → CSV → JSONL
+
+target: batch_cli
+
+evalcases:
+  - id: aml-001
+    expected_outcome: |-
+      Batch runner returns a JSON object with decision=CLEAR.
+
+    expected_messages:
+      - role: assistant
+        content:
+          decision: CLEAR
+
+    input_messages:
+      - role: system
+        content: |-
+          You are a deterministic AML screening batch checker. Do not use external network calls.
+      - role: user
+        # Structured content object (multiple fields).
+        # The example scripts flatten this into CSV columns.
+        content:
+          request:
+            type: aml_screening_check
+            jurisdiction: AU
+            effective_date: 2025-01-01
+          row:
+            id: aml-001
+            customer_name: Example Customer A
+            origin_country: NZ
+            destination_country: AU
+            transaction_type: INTERNATIONAL_TRANSFER
+            amount: 5000
+            currency: USD
+
+    execution:
+      evaluators:
+        - name: decision-check
+          type: code_judge
+          script: bun run ./scripts/check-batch-cli-output.ts
+          cwd: .
+
+  - id: aml-002
+    expected_outcome: |-
+      Batch runner returns a JSON object with decision=REVIEW.
+
+    expected_messages:
+      - role: assistant
+        content:
+          decision: REVIEW
+
+    input_messages:
+      - role: system
+        content: You are a deterministic AML screening batch checker.
+      - role: user
+        content:
+          request:
+            type: aml_screening_check
+            jurisdiction: AU
+            effective_date: 2025-01-01
+          row:
+            id: aml-002
+            customer_name: Example Customer B
+            origin_country: IR
+            destination_country: AU
+            transaction_type: INTERNATIONAL_TRANSFER
+            amount: 2000
+            currency: USD
+
+    execution:
+      evaluators:
+        - name: decision-check
+          type: code_judge
+          script: bun run ./scripts/check-batch-cli-output.ts
+          cwd: .
+
+  - id: aml-003
+    expected_outcome: |-
+      Batch runner returns a JSON object with decision=REVIEW.
+
+    expected_messages:
+      - role: assistant
+        content:
+          decision: REVIEW
+
+    input_messages:
+      - role: system
+        content: You are a deterministic AML screening batch checker.
+      - role: user
+        content:
+          request:
+            type: aml_screening_check
+            jurisdiction: AU
+            effective_date: 2025-01-01
+          row:
+            id: aml-003
+            customer_name: Example Customer C
+            origin_country: US
+            destination_country: AU
+            transaction_type: INTERNATIONAL_TRANSFER
+            amount: 25000
+            currency: USD
+
+    execution:
+      evaluators:
+        - name: decision-check
+          type: code_judge
+          script: bun run ./scripts/check-batch-cli-output.ts
+          cwd: .

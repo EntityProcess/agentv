@@ -122,6 +122,9 @@ const CLI_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'command_template',
   'commandTemplate',
+  'verbose',
+  'cli_verbose',
+  'cliVerbose',
   'files_format',
   'filesFormat',
   'attachments_format',
@@ -282,6 +285,16 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     const healthcheck = target.healthcheck;
     if (healthcheck !== undefined) {
       validateCliHealthcheck(healthcheck, absolutePath, `${location}.healthcheck`, errors);
+    }
+
+    const verbose = target.verbose ?? target.cli_verbose ?? target.cliVerbose;
+    if (verbose !== undefined && typeof verbose !== 'boolean') {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.verbose`,
+        message: "'verbose' must be a boolean when provided",
+      });
     }
   }
 

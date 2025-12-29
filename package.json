@@ -7,6 +7,7 @@
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "build": "bun --filter @agentv/core build && bun --filter agentv build",
+    "verify": "bun run build && bun run typecheck && bun run lint && bun run test",
     "typecheck": "bun --filter @agentv/core typecheck && bun --filter agentv typecheck",
     "typecheck:workspace": "tsc -b tsconfig.build.json",
     "typecheck:watch": "bun --filter @agentv/core typecheck -- --watch & bun --filter agentv typecheck -- --watch",
@@ -17,6 +18,7 @@
     "test:watch": "bun --filter @agentv/core test:watch & bun --filter agentv test:watch",
     "dev": "bun --filter agentv dev",
     "agentv": "bun apps/cli/dist/cli.js",
+    "agentv:buildrun": "bun run build && bun apps/cli/dist/cli.js",
     "changeset": "changeset",
     "version": "changeset version",
     "subagent:link": "bun scripts/link-subagent.ts",
@@ -31,7 +33,8 @@
     "async-mutex": "^0.5.0",
     "p-limit": "^6.1.0",
     "tsup": "8.3.5",
-    "typescript": "5.8.3"
+    "typescript": "5.8.3",
+    "yaml": "^2.6.1"
   },
   "dependencies": {
     "subagent": "^0.5.6"
