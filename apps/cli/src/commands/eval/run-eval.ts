@@ -173,8 +173,11 @@ type ProgressReporter = {
   addLogPaths(paths: readonly string[]): void;
 };
 
-function createProgressReporter(maxWorkers: number): ProgressReporter {
-  const display = new ProgressDisplay(maxWorkers);
+function createProgressReporter(
+  maxWorkers: number,
+  options?: { verbose?: boolean },
+): ProgressReporter {
+  const display = new ProgressDisplay(maxWorkers, options);
   return {
     isInteractive: display.isInteractiveMode(),
     start: () => display.start(),
@@ -202,6 +205,31 @@ function createDisplayIdTracker(): { getOrAssign(evalKey: string): number } {
       const assigned = nextId++;
       map.set(evalKey, assigned);
       return assigned;
+    },
+  };
+}
+
+/**
+ * Override CLI provider verbose setting based on CLI --verbose flag.
+ * CLI provider logs should only appear when --verbose is passed.
+ */
+function applyVerboseOverride(selection: TargetSelection, cliVerbose: boolean): TargetSelection {
+  const { resolvedTarget } = selection;
+
+  // Only CLI providers have a verbose setting in their config
+  if (resolvedTarget.kind !== 'cli') {
+    return selection;
+  }
+
+  // Set verbose to match CLI --verbose flag
+  return {
+    ...selection,
+    resolvedTarget: {
+      ...resolvedTarget,
+      config: {
+        ...resolvedTarget.config,
+        verbose: cliVerbose,
+      },
     },
   };
 }
@@ -309,7 +337,8 @@ async function runSingleEvalFile(params: {
 
   await ensureFileExists(testFilePath, 'Test file');
 
-  const resolvedTargetSelection = selection;
+  // CLI provider verbose logging should only be enabled when --verbose flag is passed
+  const resolvedTargetSelection = applyVerboseOverride(selection, options.verbose);
   const providerLabel = options.dryRun
     ? `${resolvedTargetSelection.resolvedTarget.kind} (dry-run)`
     : resolvedTargetSelection.resolvedTarget.kind;
@@ -456,7 +485,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   if (totalEvalCount === 0) {
     throw new Error('No eval cases matched the provided filters.');
   }
-  const progressReporter = createProgressReporter(totalWorkers);
+  const progressReporter = createProgressReporter(totalWorkers, { verbose: options.verbose });
   progressReporter.start();
   progressReporter.setTotal(totalEvalCount);
   const seenCodexLogPaths = new Set<string>();

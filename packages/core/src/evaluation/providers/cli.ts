@@ -112,7 +112,7 @@ export class CliProvider implements Provider {
 
     if (this.verbose) {
       console.log(
-        `[cli-provider:${this.targetName}] CLI_EVALS_DIR=${process.env.CLI_EVALS_DIR ?? ''} cwd=${this.config.cwd ?? ''} command=${renderedCommand}`,
+        `[cli-provider:${this.targetName}] cwd=${this.config.cwd ?? ''} command=${renderedCommand}`,
       );
     }
 
@@ -199,7 +199,7 @@ export class CliProvider implements Provider {
 
     if (this.verbose) {
       console.log(
-        `[cli-provider:${this.targetName}] (batch size=${requests.length}) CLI_EVALS_DIR=${process.env.CLI_EVALS_DIR ?? ''} cwd=${this.config.cwd ?? ''} command=${renderedCommand}`,
+        `[cli-provider:${this.targetName}] (batch size=${requests.length}) cwd=${this.config.cwd ?? ''} command=${renderedCommand}`,
       );
     }
 
@@ -459,7 +459,7 @@ export class CliProvider implements Provider {
     );
     if (this.verbose) {
       console.log(
-        `[cli-provider:${this.targetName}] (healthcheck) CLI_EVALS_DIR=${process.env.CLI_EVALS_DIR ?? ''} cwd=${healthcheck.cwd ?? this.config.cwd ?? ''} command=${renderedCommand}`,
+        `[cli-provider:${this.targetName}] (healthcheck) cwd=${healthcheck.cwd ?? this.config.cwd ?? ''} command=${renderedCommand}`,
       );
     }
 
