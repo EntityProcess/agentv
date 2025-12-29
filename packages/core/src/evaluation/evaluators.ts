@@ -441,6 +441,7 @@ export class CodeEvaluator implements Evaluator {
       {
         question: context.evalCase.question,
         expected_outcome: context.evalCase.expected_outcome,
+        expected_messages: context.evalCase.expected_messages,
         reference_answer: context.evalCase.reference_answer,
         candidate_answer: context.candidate,
         guideline_files: context.evalCase.guideline_paths,
