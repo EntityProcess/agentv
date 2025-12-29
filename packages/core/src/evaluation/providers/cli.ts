@@ -527,8 +527,6 @@ export class CliProvider implements Provider {
         await fs.unlink(filePath).catch(() => {
           /* ignore cleanup errors */
         });
-      } else if (this.verbose) {
-        console.log(`[cli-provider:${this.targetName}] Keeping temp file: ${filePath}`);
       }
     }
   }
