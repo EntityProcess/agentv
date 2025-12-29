@@ -102,6 +102,7 @@ export interface CliResolvedConfig {
   readonly timeoutMs?: number;
   readonly healthcheck?: CliHealthcheck;
   readonly verbose?: boolean;
+  readonly keepTempFiles?: boolean;
 }
 
 export type ResolvedTarget =
@@ -523,6 +524,9 @@ function resolveCliConfig(
   );
 
   const verbose = resolveOptionalBoolean(target.verbose ?? target.cli_verbose ?? target.cliVerbose);
+  const keepTempFiles = resolveOptionalBoolean(
+    target.keep_temp_files ?? target.keepTempFiles ?? target.keep_output_files ?? target.keepOutputFiles,
+  );
   let cwd = resolveOptionalString(target.cwd, env, `${target.name} working directory`, {
     allowLiteral: true,
     optionalEnv: true,
@@ -558,6 +562,7 @@ function resolveCliConfig(
     timeoutMs,
     healthcheck,
     verbose,
+    keepTempFiles,
   };
 }
 

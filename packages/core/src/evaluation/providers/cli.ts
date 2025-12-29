@@ -85,6 +85,7 @@ export class CliProvider implements Provider {
   private readonly config: CliResolvedConfig;
   private readonly runCommand: CommandRunner;
   private readonly verbose: boolean;
+  private readonly keepTempFiles: boolean;
   private healthcheckPromise?: Promise<void>;
 
   constructor(
@@ -97,6 +98,7 @@ export class CliProvider implements Provider {
     this.config = config;
     this.runCommand = runner;
     this.verbose = config.verbose ?? false;
+    this.keepTempFiles = config.keepTempFiles ?? false;
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
@@ -521,9 +523,13 @@ export class CliProvider implements Provider {
       throw new Error(`Failed to read output file '${filePath}': ${errorMsg}`);
     } finally {
       // Clean up temp file - ignore errors as the file might not exist on read failure
-      await fs.unlink(filePath).catch(() => {
-        /* ignore cleanup errors */
-      });
+      if (!this.keepTempFiles) {
+        await fs.unlink(filePath).catch(() => {
+          /* ignore cleanup errors */
+        });
+      } else if (this.verbose) {
+        console.log(`[cli-provider:${this.targetName}] Keeping temp file: ${filePath}`);
+      }
     }
   }
 
