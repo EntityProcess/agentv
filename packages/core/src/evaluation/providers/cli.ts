@@ -80,7 +80,7 @@ export class CliProvider implements Provider {
   readonly id: string;
   readonly kind = 'cli';
   readonly targetName: string;
-  readonly supportsBatch = false;
+  readonly supportsBatch = true;
 
   private readonly config: CliResolvedConfig;
   private readonly runCommand: CommandRunner;
@@ -151,6 +151,121 @@ export class CliProvider implements Provider {
     };
   }
 
+  async invokeBatch(requests: readonly ProviderRequest[]): Promise<readonly ProviderResponse[]> {
+    if (requests.length === 0) {
+      return [];
+    }
+
+    for (const request of requests) {
+      if (request.signal?.aborted) {
+        throw new Error('CLI provider batch request was aborted before execution');
+      }
+    }
+
+    const controller = new AbortController();
+    for (const request of requests) {
+      request.signal?.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+
+    await this.ensureHealthy(controller.signal);
+
+    const outputFilePath = generateOutputFilePath('batch', '.jsonl');
+
+    const templateValues = buildTemplateValues(
+      {
+        question: '',
+        guidelines: '',
+        inputFiles: [],
+        evalCaseId: 'batch',
+        attempt: 0,
+      },
+      this.config,
+      outputFilePath,
+    );
+    const renderedCommand = renderTemplate(this.config.commandTemplate, templateValues);
+
+    const result = await this.runCommand(renderedCommand, {
+      cwd: this.config.cwd,
+      env: process.env,
+      timeoutMs: this.config.timeoutMs,
+      signal: controller.signal,
+    });
+
+    if (result.failed || (result.exitCode ?? 0) !== 0) {
+      if (controller.signal.aborted) {
+        throw new Error('CLI provider request was aborted');
+      }
+      if (result.timedOut) {
+        throw new Error(
+          `CLI provider timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
+        );
+      }
+      const codeText = result.exitCode !== null ? result.exitCode : 'unknown';
+      const detail = result.stderr.trim() || result.stdout.trim();
+      const message = detail
+        ? `${detail} (exit code ${codeText})`
+        : `CLI exited with code ${codeText}`;
+      throw new Error(message);
+    }
+
+    const responseContent = await this.readAndCleanupOutputFile(outputFilePath);
+    const recordsById = this.parseJsonlBatchOutput(responseContent);
+
+    const requestedIds = requests
+      .map((request) => request.evalCaseId)
+      .filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+    const missingIds = requestedIds.filter((id) => !recordsById.has(id));
+    if (missingIds.length > 0) {
+      throw new Error(`CLI batch output missing ids: ${missingIds.join(', ')}`);
+    }
+
+    const responses: ProviderResponse[] = requests.map((request) => {
+      const evalCaseId = request.evalCaseId;
+      if (!evalCaseId) {
+        return {
+          text: '',
+          raw: {
+            command: renderedCommand,
+            stderr: result.stderr,
+            exitCode: result.exitCode ?? 0,
+            cwd: this.config.cwd,
+            outputFile: outputFilePath,
+          },
+        };
+      }
+
+      const parsed = recordsById.get(evalCaseId);
+      if (!parsed) {
+        return {
+          text: '',
+          raw: {
+            command: renderedCommand,
+            stderr: result.stderr,
+            exitCode: result.exitCode ?? 0,
+            cwd: this.config.cwd,
+            outputFile: outputFilePath,
+          },
+        };
+      }
+
+      return {
+        text: parsed.text,
+        trace: parsed.trace,
+        traceRef: parsed.traceRef,
+        raw: {
+          command: renderedCommand,
+          stderr: result.stderr,
+          exitCode: result.exitCode ?? 0,
+          cwd: this.config.cwd,
+          outputFile: outputFilePath,
+          recordId: evalCaseId,
+        },
+      };
+    });
+
+    return responses;
+  }
+
   /**
    * Parse output content from CLI.
    * If the content is valid JSON with a 'text' field, extract text and optional trace.
@@ -180,6 +295,77 @@ export class CliProvider implements Provider {
     }
     const validEvents = trace.filter(isTraceEvent);
     return validEvents.length > 0 ? validEvents : undefined;
+  }
+
+  private parseJsonlBatchOutput(content: string): Map<
+    string,
+    {
+      text: string;
+      trace?: readonly TraceEvent[];
+      traceRef?: string;
+    }
+  > {
+    const records = new Map<
+      string,
+      { text: string; trace?: readonly TraceEvent[]; traceRef?: string }
+    >();
+
+    const lines = content
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    for (const line of lines) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(line) as unknown;
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(`CLI batch output contains invalid JSONL line: ${reason}`);
+      }
+
+      if (typeof parsed !== 'object' || parsed === null) {
+        throw new Error('CLI batch output JSONL line must be an object');
+      }
+
+      const obj = parsed as {
+        id?: unknown;
+        text?: unknown;
+        trace?: unknown;
+        traceRef?: unknown;
+        trace_ref?: unknown;
+      };
+      const id = typeof obj.id === 'string' ? obj.id : undefined;
+      if (!id || id.trim().length === 0) {
+        throw new Error('CLI batch output JSONL line missing required string field: id');
+      }
+
+      if (records.has(id)) {
+        throw new Error(`CLI batch output contains duplicate id: ${id}`);
+      }
+
+      const text =
+        typeof obj.text === 'string'
+          ? obj.text
+          : obj.text === undefined
+            ? ''
+            : JSON.stringify(obj.text);
+
+      const traceRef =
+        typeof obj.traceRef === 'string'
+          ? obj.traceRef
+          : typeof obj.trace_ref === 'string'
+            ? obj.trace_ref
+            : undefined;
+
+      records.set(id, {
+        text,
+        trace: this.parseTrace(obj.trace),
+        traceRef,
+      });
+    }
+
+    return records;
   }
 
   private async readAndCleanupOutputFile(filePath: string): Promise<string> {
@@ -354,11 +540,11 @@ function shellEscape(value: string): string {
   return `'${value.replace(/'/g, "'\"'\"'")}'`;
 }
 
-function generateOutputFilePath(evalCaseId?: string): string {
+function generateOutputFilePath(evalCaseId?: string, extension = '.json'): string {
   const safeEvalId = evalCaseId || 'unknown';
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 9);
-  return path.join(os.tmpdir(), `agentv-${safeEvalId}-${timestamp}-${random}.json`);
+  return path.join(os.tmpdir(), `agentv-${safeEvalId}-${timestamp}-${random}${extension}`);
 }
 
 function formatTimeoutSuffix(timeoutMs: number | undefined): string {

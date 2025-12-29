@@ -96,4 +96,67 @@ describe('CliProvider', () => {
 
     await expect(provider.invoke(baseRequest)).rejects.toThrow(/timed out/i);
   });
+
+  it('supports batch mode by reading JSONL records keyed by id', async () => {
+    const runner = mock(async (command: string): Promise<CommandRunResult> => {
+      const match = command.match(/agentv-batch-\d+-\w+\.jsonl/);
+      if (match) {
+        const outputFilePath = path.join(os.tmpdir(), match[0]);
+        const jsonl =
+          `${JSON.stringify({ id: 'case-1', text: 'Batch response 1' })}\n` +
+          `${JSON.stringify({ id: 'case-2', text: 'Batch response 2' })}\n`;
+        await writeFile(outputFilePath, jsonl, 'utf-8');
+        createdFiles.push(outputFilePath);
+      }
+
+      return {
+        stdout: command,
+        stderr: '',
+        exitCode: 0,
+        failed: false,
+      };
+    });
+
+    const provider = new CliProvider('cli-target', baseConfig, runner);
+
+    const request2: ProviderRequest = {
+      ...baseRequest,
+      evalCaseId: 'case-2',
+    };
+
+    const responses = await provider.invokeBatch([baseRequest, request2]);
+
+    expect(runner).toHaveBeenCalledTimes(1);
+    expect(responses).toHaveLength(2);
+    expect(responses[0]?.text).toBe('Batch response 1');
+    expect(responses[1]?.text).toBe('Batch response 2');
+  });
+
+  it('throws when batch output is missing requested ids', async () => {
+    const runner = mock(async (command: string): Promise<CommandRunResult> => {
+      const match = command.match(/agentv-batch-\d+-\w+\.jsonl/);
+      if (match) {
+        const outputFilePath = path.join(os.tmpdir(), match[0]);
+        const jsonl = `${JSON.stringify({ id: 'case-1', text: 'Batch response 1' })}\n`;
+        await writeFile(outputFilePath, jsonl, 'utf-8');
+        createdFiles.push(outputFilePath);
+      }
+
+      return {
+        stdout: command,
+        stderr: '',
+        exitCode: 0,
+        failed: false,
+      };
+    });
+
+    const provider = new CliProvider('cli-target', baseConfig, runner);
+
+    const request2: ProviderRequest = {
+      ...baseRequest,
+      evalCaseId: 'case-2',
+    };
+
+    await expect(provider.invokeBatch([baseRequest, request2])).rejects.toThrow(/missing ids/i);
+  });
 });
