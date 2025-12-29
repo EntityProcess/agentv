@@ -106,7 +106,8 @@ Tool trajectory evaluators require trace data from the agent provider. Supported
 $schema: agentv-eval-v2
 description: Validate research agent tool usage
 
-target: codex_agent  # Provider that returns traces
+execution:
+  target: codex_agent  # Provider that returns traces
 
 evalcases:
   - id: comprehensive-research

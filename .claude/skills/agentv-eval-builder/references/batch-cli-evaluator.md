@@ -23,7 +23,8 @@ Batch CLI evaluation is used when:
 $schema: agentv-eval-v2
 description: Batch CLI demo using structured input_messages
 
-target: batch_cli
+execution:
+  target: batch_cli
 
 evalcases:
   - id: case-001

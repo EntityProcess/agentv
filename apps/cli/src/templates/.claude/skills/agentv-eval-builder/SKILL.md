@@ -18,7 +18,7 @@ description: Create and maintain AgentV YAML evaluation files for testing AI age
 - Batch CLI: `references/batch-cli-evaluator.md` - Evaluate batch runner output (JSONL)
 
 ## Structure Requirements
-- Root level: `description` (optional), `target` (optional), `execution` (optional), `evalcases` (required)
+- Root level: `description` (optional), `execution` (optional with `target` inside), `evalcases` (required)
 - Eval case fields: `id` (required), `expected_outcome` (required), `input_messages` (required)
 - Optional fields: `expected_messages`, `conversation_id`, `rubrics`, `execution`
 - `expected_messages` is optional - omit for outcome-only evaluation where the LLM judge evaluates based on `expected_outcome` criteria alone
@@ -144,7 +144,8 @@ Evaluate external batch runners that process all evalcases in one invocation:
 ```yaml
 $schema: agentv-eval-v2
 description: Batch CLI evaluation
-target: batch_cli
+execution:
+  target: batch_cli
 
 evalcases:
   - id: case-001
@@ -184,7 +185,7 @@ execution:
 evalcases:
   - id: code-review-basic
     expected_outcome: Assistant provides helpful code analysis
-
+    
     input_messages:
       - role: system
         content: You are an expert code reviewer.
@@ -193,14 +194,14 @@ evalcases:
           - type: text
             value: |-
               Review this function:
-
+              
               ```python
               def add(a, b):
                   return a + b
               ```
           - type: file
             value: /prompts/python.instructions.md
-
+    
     expected_messages:
       - role: assistant
         content: |-

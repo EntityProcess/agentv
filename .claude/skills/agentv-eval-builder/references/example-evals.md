@@ -7,7 +7,8 @@ This document contains complete examples of well-structured eval files demonstra
 ```yaml
 $schema: agentv-eval-v2
 description: Basic arithmetic evaluation
-target: default
+execution:
+  target: default
 
 evalcases:
   - id: simple-addition
@@ -27,7 +28,8 @@ evalcases:
 ```yaml
 $schema: agentv-eval-v2
 description: Code review with guidelines
-target: azure_base
+execution:
+  target: azure_base
 
 evalcases:
   - id: code-review-basic
@@ -69,7 +71,8 @@ evalcases:
 ```yaml
 $schema: agentv-eval-v2
 description: JSON generation with validation
-target: default
+execution:
+  target: default
 
 evalcases:
   - id: json-generation-with-validation
@@ -108,7 +111,8 @@ Validate that an agent uses specific tools during execution.
 ```yaml
 $schema: agentv-eval-v2
 description: Tool usage validation
-target: mock_agent
+execution:
+  target: mock_agent
 
 evalcases:
   # Validate minimum tool usage (order doesn't matter)
@@ -149,7 +153,8 @@ Evaluate pre-existing trace files without running an agent.
 ```yaml
 $schema: agentv-eval-v2
 description: Static trace evaluation
-target: static_trace
+execution:
+  target: static_trace
 
 evalcases:
   - id: validate-trace-file
@@ -172,7 +177,8 @@ evalcases:
 ```yaml
 $schema: agentv-eval-v2
 description: Multi-turn debugging session with clarifying questions
-target: default
+execution:
+  target: default
 
 evalcases:
   - id: debug-with-clarification
@@ -233,7 +239,8 @@ Evaluate external batch runners that process all evalcases in one invocation.
 ```yaml
 $schema: agentv-eval-v2
 description: Batch CLI demo (AML screening)
-target: batch_cli
+execution:
+  target: batch_cli
 
 evalcases:
   - id: aml-001
@@ -306,7 +313,7 @@ evalcases:
 ```
 
 ### Batch CLI Pattern Notes
-- **target: batch_cli** - Configure CLI provider with `provider_batching: true`
+- **execution.target: batch_cli** - Configure CLI provider with `provider_batching: true`
 - **Batch runner** - Reads eval YAML via `--eval` flag, outputs JSONL keyed by `id`
 - **Structured input** - Put data in `user.content` as objects for runner to extract
 - **Structured expected** - Use `expected_messages.content` with object fields
