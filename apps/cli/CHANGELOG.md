@@ -1,5 +1,19 @@
 # agentv
 
+## 1.3.1
+
+### Patch Changes
+
+- 9ef9dca: Simplify eval progress display and reduce verbose output
+
+  - Replace ANSI cursor-based interactive display with simple line-based output
+  - Show running/completed/failed status by default, pending only with --verbose
+  - CLI provider verbose logs now require --verbose flag
+  - Remove CLI_EVALS_DIR from verbose logs
+
+- Updated dependencies [9ef9dca]
+  - @agentv/core@1.3.1
+
 ## 1.3.0
 
 ### Minor Changes
