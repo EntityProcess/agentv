@@ -26,8 +26,8 @@ export-screening/
 │   └── export-risk-assessment.md       # Classification guidelines
 ├── evals/
 │   ├── dataset.yaml                    # Eval cases with expert assessments
-│   ├── validate_risk_output.py         # JSON validator + accuracy checker
-│   └── ci_check.py                     # CI/CD threshold checker
+│   ├── validate_risk_output.ts         # JSON validator + accuracy checker
+│   └── ci_check.ts                     # CI/CD threshold checker
 └── .agentv/
     └── targets.yaml                    # (optional) target configuration
 ```
@@ -135,7 +135,7 @@ Each case contains:
 - **Expected output**: Expert risk assessment (`riskLevel: High|Medium|Low`)
 - **Outcome description**: Explanation for human reviewers
 
-### 2. Code Evaluator (`validate_risk_output.py`)
+### 2. Code Evaluator (`validate_risk_output.ts`)
 
 The evaluator:
 1. Validates JSON format and required fields
@@ -187,21 +187,21 @@ Add cases to `dataset.yaml` following the existing pattern:
 
 To change classification categories (e.g., add "Critical"):
 
-1. Update `VALID_RISK_LEVELS` in `validate_risk_output.py`
+1. Update `VALID_RISK_LEVELS` in `validate_risk_output.ts`
 2. Update the skill prompt in `export-risk-assessment.md`
 
 ## CI/CD Integration
 
-The `ci_check.py` script provides threshold-based quality gates for CI/CD pipelines.
+The `ci_check.ts` script provides threshold-based quality gates for CI/CD pipelines.
 
 ### Usage
 
 ```bash
 # Full flow: run eval and check threshold in one command
-uv run ./evals/ci_check.py --eval ./evals/dataset.yaml --threshold 0.95
+bun run ./evals/ci_check.ts --eval ./evals/dataset.yaml --threshold 0.95
 
 # Or check existing aggregator results file
-uv run ./evals/ci_check.py results.aggregators.json --threshold 0.95
+bun run ./evals/ci_check.ts results.aggregators.json --threshold 0.95
 ```
 
 ### Options
@@ -236,10 +236,10 @@ uv run ./evals/ci_check.py results.aggregators.json --threshold 0.95
 
 ```mermaid
 flowchart LR
-    A[dataset.yaml] --> B[ci_check.py<br/>--eval]
+    A[dataset.yaml] --> B[ci_check.ts<br/>--eval]
     B --> C{F1 >= 95%?}
-    C -->|Yes| D[✓ Pass<br/>exit 0]
-    C -->|No| E[✗ Fail<br/>exit 1]
+    C -->|Yes| D[Pass<br/>exit 0]
+    C -->|No| E[Fail<br/>exit 1]
 ```
 
 ### Example: GitHub Actions
@@ -250,9 +250,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
       - name: Run eval and check quality gate
         run: |
-          uv run ./evals/ci_check.py \
+          bun run ./evals/ci_check.ts \
             --eval ./evals/dataset.yaml \
             --threshold 0.95 \
             --check-class High
