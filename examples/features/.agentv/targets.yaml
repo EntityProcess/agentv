@@ -1,5 +1,3 @@
-$schema: agentv-targets-v2.2
-
 # A list of all supported evaluation targets for the project.
 # Each target defines a provider and its specific configuration.
 # Actual values for paths/keys are stored in the local .env file.

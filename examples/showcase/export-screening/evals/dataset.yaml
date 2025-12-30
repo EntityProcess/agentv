@@ -21,11 +21,9 @@ description: Export control risk classification eval for trade compliance screen
 execution:
   target: default
   evaluators:
-    - name: json_format_validator
+    - name: risk_assessment_quality
       type: code_judge
       script: uv run validate_risk_output.py
-    - name: risk_assessment_quality
-      type: llm_judge
 
 evalcases:
   # ============================================
