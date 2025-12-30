@@ -190,7 +190,7 @@ export async function loadEvalCases(
       const lastMessage = outputSegments[outputSegments.length - 1];
       const content = lastMessage.content;
       const toolCalls = lastMessage.tool_calls;
-      
+
       if (typeof content === 'string') {
         referenceAnswer = content;
       } else if (content !== undefined && content !== null) {

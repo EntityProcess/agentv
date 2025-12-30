@@ -63,7 +63,7 @@ execution:
 ```
 
 ### Tool Trajectory Evaluators
-Validate agent tool usage patterns (requires trace data from provider):
+Validate agent tool usage patterns (requires `output_messages` with `tool_calls` from provider):
 
 ```yaml
 execution:
