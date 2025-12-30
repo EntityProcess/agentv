@@ -11,3 +11,4 @@ coverage/
 **/.agentv/results/
 **/.agentv/logs/
 .env
+__pycache__/
