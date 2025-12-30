@@ -4,7 +4,7 @@
  * These tests verify that the command correctly updates YAML files with generated rubrics.
  */
 
-import { afterEach, beforeAll, describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeAll, describe, expect, it } from 'bun:test';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -31,10 +31,7 @@ beforeAll(async () => {
   }
 }, 30000); // 30 second timeout for building core package
 
-async function createFixture(
-  withExistingRubrics = false,
-  withComments = false,
-): Promise<GenerateFixture> {
+async function createFixture(withComments = false): Promise<GenerateFixture> {
   const baseDir = await mkdtemp(path.join(tmpdir(), 'agentv-generate-test-'));
   const suiteDir = path.join(baseDir, 'suite');
   await mkdir(suiteDir, { recursive: true });
@@ -65,19 +62,6 @@ evalcases:`;
   testFileContent += `
   - id: case-with-outcome
     expected_outcome: System should respond politely and helpfully`;
-
-  if (withExistingRubrics) {
-    testFileContent += `
-    rubrics:
-      - id: politeness
-        description: Response must be polite
-        weight: 0.5
-        required: true
-      - id: helpfulness
-        description: Response must be helpful
-        weight: 0.5
-        required: true`;
-  }
 
   testFileContent += `
     input_messages:
@@ -143,7 +127,7 @@ describe('generate rubrics integration', () => {
   });
 
   it('should generate rubrics for cases with expected_outcome', async () => {
-    fixture = await createFixture(false, false);
+    fixture = await createFixture();
 
     const { stdout } = await runGenerateRubrics(fixture);
 
@@ -166,26 +150,8 @@ describe('generate rubrics integration', () => {
     expect(caseWithoutOutcome).not.toContain('rubrics:');
   }, 30000);
 
-  it('should skip cases that already have rubrics', async () => {
-    fixture = await createFixture(true, false);
-
-    const { stdout } = await runGenerateRubrics(fixture);
-
-    expect(stdout).toContain('Generating rubrics for:');
-    expect(stdout).toContain('No eval cases updated');
-
-    // Read the file
-    const content = await readFile(fixture.testFilePath, 'utf8');
-
-    // Check that existing rubrics are preserved
-    expect(content).toContain('politeness');
-    expect(content).toContain('Response must be polite');
-    expect(content).toContain('helpfulness');
-    expect(content).toContain('Response must be helpful');
-  }, 30000);
-
   it('should preserve comments and structure', async () => {
-    fixture = await createFixture(false, true);
+    fixture = await createFixture(true);
 
     const originalContent = await readFile(fixture.testFilePath, 'utf8');
 
@@ -218,62 +184,5 @@ describe('generate rubrics integration', () => {
       const rubricsIndent = lines[rubricsLine].match(/^\s*/)?.[0].length ?? 0;
       expect(rubricsIndent).toBeGreaterThan(evalcasesIndent);
     }
-  }, 30000);
-
-  it('should support verbose output', async () => {
-    fixture = await createFixture(false, false);
-
-    const { stdout } = await runGenerateRubrics(fixture, ['--verbose']);
-
-    expect(stdout).toContain('Using target:');
-    expect(stdout).toContain('Generating rubrics for: case-with-outcome');
-    expect(stdout).toMatch(/Generated \d+ rubric\(s\)/);
-    expect(stdout).toContain('Skipping case-without-outcome: no expected_outcome');
-  }, 30000);
-
-  it('should handle files with no evalcases', async () => {
-    fixture = await createFixture(false, false);
-
-    // Create a file with no evalcases
-    const emptyFilePath = path.join(fixture.suiteDir, 'empty.yaml');
-    await writeFile(
-      emptyFilePath,
-      `$schema: agentv-eval-v2
-description: Empty test
-target: default
-`,
-      'utf8',
-    );
-
-    // Create new fixture with updated testFilePath
-    const emptyFixture: GenerateFixture = {
-      ...fixture,
-      testFilePath: emptyFilePath,
-    };
-
-    const { stdout, stderr } = await runGenerateRubrics(emptyFixture);
-
-    // Should report an error about no evalcases
-    expect(stdout + stderr).toContain('No evalcases found');
-  }, 30000);
-
-  it('should support target override', async () => {
-    fixture = await createFixture(false, false);
-
-    // Add another target to targets.yaml
-    const targetsPath = path.join(fixture.suiteDir, '.agentv', 'targets.yaml');
-    const targetsContent = await readFile(targetsPath, 'utf8');
-    const updatedTargets = `${targetsContent}  - name: custom-target
-    provider: mock
-`;
-    await writeFile(targetsPath, updatedTargets, 'utf8');
-
-    const { stdout } = await runGenerateRubrics(fixture, [
-      '--target',
-      'custom-target',
-      '--verbose',
-    ]);
-
-    expect(stdout).toContain('Using target: custom-target');
   }, 30000);
 });

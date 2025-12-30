@@ -3,6 +3,370 @@ import { z } from 'zod';
 
 import type { EnvLookup, TargetDefinition } from './types.js';
 
+// ---------------------------------------------------------------------------
+// Zod Schemas for CLI Provider Configuration
+// ---------------------------------------------------------------------------
+
+/**
+ * Loose input schema for HTTP healthcheck configuration.
+ * Accepts both snake_case (YAML convention) and camelCase (JavaScript convention)
+ * property names for flexibility in configuration files.
+ *
+ * @example
+ * ```yaml
+ * healthcheck:
+ *   type: http
+ *   url: http://localhost:8080/health
+ *   timeout_seconds: 30
+ * ```
+ */
+export const CliHealthcheckHttpInputSchema = z.object({
+  type: z.literal('http'),
+  url: z.string().min(1, 'healthcheck URL is required'),
+  timeout_seconds: z.number().positive().optional(),
+  timeoutSeconds: z.number().positive().optional(),
+});
+
+/**
+ * Loose input schema for command healthcheck configuration.
+ * Accepts both snake_case (YAML convention) and camelCase (JavaScript convention)
+ * property names for flexibility in configuration files.
+ *
+ * Note: discriminatedUnion requires plain ZodObject, so command_template/commandTemplate
+ * presence is validated during normalization rather than here.
+ *
+ * @example
+ * ```yaml
+ * healthcheck:
+ *   type: command
+ *   command_template: curl http://localhost:8080/health
+ *   cwd: /app
+ *   timeout_seconds: 10
+ * ```
+ */
+export const CliHealthcheckCommandInputSchema = z.object({
+  type: z.literal('command'),
+  command_template: z.string().optional(),
+  commandTemplate: z.string().optional(),
+  cwd: z.string().optional(),
+  timeout_seconds: z.number().positive().optional(),
+  timeoutSeconds: z.number().positive().optional(),
+});
+
+/**
+ * Discriminated union for healthcheck input configuration.
+ * Uses the 'type' field to distinguish between HTTP and command healthchecks.
+ *
+ * @see CliHealthcheckHttpInputSchema for HTTP healthcheck configuration
+ * @see CliHealthcheckCommandInputSchema for command healthcheck configuration
+ */
+export const CliHealthcheckInputSchema = z.discriminatedUnion('type', [
+  CliHealthcheckHttpInputSchema,
+  CliHealthcheckCommandInputSchema,
+]);
+
+/**
+ * Loose input schema for CLI target configuration.
+ * Accepts both snake_case (YAML convention) and camelCase (JavaScript convention)
+ * property names for maximum flexibility in configuration files.
+ *
+ * This schema validates the raw YAML input structure before normalization
+ * and environment variable resolution. Unknown properties are allowed
+ * (passthrough mode) to support future extensions.
+ *
+ * @example
+ * ```yaml
+ * targets:
+ *   - name: my-agent
+ *     provider: cli
+ *     command_template: agent run {PROMPT}
+ *     timeout_seconds: 120
+ *     healthcheck:
+ *       type: http
+ *       url: http://localhost:8080/health
+ * ```
+ */
+export const CliTargetInputSchema = z
+  .object({
+    name: z.string().min(1, 'target name is required'),
+    provider: z
+      .string()
+      .refine((p) => p.toLowerCase() === 'cli', { message: "provider must be 'cli'" }),
+
+    // Command template - required (accept both naming conventions)
+    command_template: z.string().optional(),
+    commandTemplate: z.string().optional(),
+
+    // Files format - optional
+    files_format: z.string().optional(),
+    filesFormat: z.string().optional(),
+    attachments_format: z.string().optional(),
+    attachmentsFormat: z.string().optional(),
+
+    // Working directory - optional
+    cwd: z.string().optional(),
+
+    // Timeout in seconds - optional
+    timeout_seconds: z.number().positive().optional(),
+    timeoutSeconds: z.number().positive().optional(),
+
+    // Healthcheck configuration - optional
+    healthcheck: CliHealthcheckInputSchema.optional(),
+
+    // Verbose mode - optional
+    verbose: z.boolean().optional(),
+    cli_verbose: z.boolean().optional(),
+    cliVerbose: z.boolean().optional(),
+
+    // Keep temp files - optional
+    keep_temp_files: z.boolean().optional(),
+    keepTempFiles: z.boolean().optional(),
+    keep_output_files: z.boolean().optional(),
+    keepOutputFiles: z.boolean().optional(),
+
+    // Common target fields
+    judge_target: z.string().optional(),
+    workers: z.number().int().min(1).optional(),
+    provider_batching: z.boolean().optional(),
+    providerBatching: z.boolean().optional(),
+  })
+  .refine((data) => data.command_template !== undefined || data.commandTemplate !== undefined, {
+    message: 'Either command_template or commandTemplate is required',
+  });
+
+/**
+ * Strict normalized schema for HTTP healthcheck configuration.
+ * Uses camelCase property names only and rejects unknown properties.
+ * This is an internal schema used as part of CliHealthcheckSchema.
+ */
+const CliHealthcheckHttpSchema = z
+  .object({
+    type: z.literal('http'),
+    url: z.string().min(1),
+    timeoutMs: z.number().positive().optional(),
+  })
+  .strict();
+
+/**
+ * Strict normalized schema for command healthcheck configuration.
+ * Uses camelCase property names only and rejects unknown properties.
+ * This is an internal schema used as part of CliHealthcheckSchema.
+ */
+const CliHealthcheckCommandSchema = z
+  .object({
+    type: z.literal('command'),
+    commandTemplate: z.string().min(1),
+    cwd: z.string().optional(),
+    timeoutMs: z.number().positive().optional(),
+  })
+  .strict();
+
+/**
+ * Strict normalized schema for healthcheck configuration.
+ * Discriminated union on 'type' field supporting HTTP and command healthchecks.
+ * Rejects unknown properties to catch typos and misconfigurations.
+ *
+ * @see CliHealthcheckHttpSchema for HTTP healthcheck fields
+ * @see CliHealthcheckCommandSchema for command healthcheck fields
+ */
+export const CliHealthcheckSchema = z.discriminatedUnion('type', [
+  CliHealthcheckHttpSchema,
+  CliHealthcheckCommandSchema,
+]);
+
+/**
+ * Strict normalized schema for CLI target configuration.
+ * This is the final validated shape after environment variable resolution
+ * and snake_case to camelCase normalization.
+ *
+ * Uses .strict() to reject unknown properties, ensuring configuration
+ * errors are caught early rather than silently ignored.
+ *
+ * @example
+ * ```typescript
+ * const config: CliNormalizedConfig = {
+ *   commandTemplate: 'agent run {PROMPT}',
+ *   timeoutMs: 120000,
+ *   verbose: true,
+ * };
+ * CliTargetConfigSchema.parse(config); // Validates the normalized config
+ * ```
+ */
+export const CliTargetConfigSchema = z
+  .object({
+    commandTemplate: z.string().min(1),
+    filesFormat: z.string().optional(),
+    cwd: z.string().optional(),
+    timeoutMs: z.number().positive().optional(),
+    healthcheck: CliHealthcheckSchema.optional(),
+    verbose: z.boolean().optional(),
+    keepTempFiles: z.boolean().optional(),
+  })
+  .strict();
+
+// Type inference from schemas
+export type CliHealthcheckInput = z.infer<typeof CliHealthcheckInputSchema>;
+export type CliTargetInput = z.infer<typeof CliTargetInputSchema>;
+export type CliNormalizedHealthcheck = z.infer<typeof CliHealthcheckSchema>;
+export type CliNormalizedConfig = z.infer<typeof CliTargetConfigSchema>;
+
+/**
+ * Resolved CLI configuration type derived from CliTargetConfigSchema.
+ * This is the final validated shape used by the CLI provider at runtime.
+ * Using Readonly to ensure immutability for runtime safety.
+ */
+export type CliResolvedConfig = Readonly<CliNormalizedConfig>;
+
+/**
+ * Normalizes a healthcheck input from loose (snake_case + camelCase) to
+ * strict normalized form (camelCase only). Resolves environment variables.
+ *
+ * @param input - The loose healthcheck input from YAML
+ * @param env - Environment variable lookup
+ * @param targetName - Name of the target (for error messages)
+ * @param evalFilePath - Optional path to eval file for relative path resolution
+ * @returns Normalized healthcheck configuration
+ */
+export function normalizeCliHealthcheck(
+  input: CliHealthcheckInput,
+  env: EnvLookup,
+  targetName: string,
+  evalFilePath?: string,
+): CliNormalizedHealthcheck {
+  const timeoutSeconds = input.timeout_seconds ?? input.timeoutSeconds;
+  const timeoutMs = timeoutSeconds !== undefined ? Math.floor(timeoutSeconds * 1000) : undefined;
+
+  if (input.type === 'http') {
+    const url = resolveString(input.url, env, `${targetName} healthcheck URL`);
+    return {
+      type: 'http',
+      url,
+      timeoutMs,
+    };
+  }
+
+  // type === 'command'
+  const commandTemplateSource = input.command_template ?? input.commandTemplate;
+  if (commandTemplateSource === undefined) {
+    throw new Error(
+      `${targetName} healthcheck: Either command_template or commandTemplate is required for command healthcheck`,
+    );
+  }
+  const commandTemplate = resolveString(
+    commandTemplateSource,
+    env,
+    `${targetName} healthcheck command template`,
+    true,
+  );
+
+  let cwd = resolveOptionalString(input.cwd, env, `${targetName} healthcheck cwd`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  // Resolve relative cwd paths against eval file directory
+  if (cwd && evalFilePath && !path.isAbsolute(cwd)) {
+    cwd = path.resolve(path.dirname(path.resolve(evalFilePath)), cwd);
+  }
+
+  return {
+    type: 'command',
+    commandTemplate,
+    cwd,
+    timeoutMs,
+  };
+}
+
+/**
+ * Normalizes a CLI target input from loose (snake_case + camelCase) to
+ * strict normalized form (camelCase only). Resolves environment variables.
+ *
+ * This function coalesces snake_case/camelCase variants and resolves
+ * environment variable references using ${{ VAR_NAME }} syntax.
+ *
+ * @param input - The loose CLI target input from YAML
+ * @param env - Environment variable lookup
+ * @param evalFilePath - Optional path to eval file for relative path resolution
+ * @returns Normalized CLI configuration matching CliResolvedConfig
+ */
+export function normalizeCliTargetInput(
+  input: CliTargetInput,
+  env: EnvLookup,
+  evalFilePath?: string,
+): CliNormalizedConfig {
+  const targetName = input.name;
+
+  // Coalesce command template variants - at least one is required by schema refinement
+  const commandTemplateSource = input.command_template ?? input.commandTemplate;
+  if (commandTemplateSource === undefined) {
+    throw new Error(`${targetName}: Either command_template or commandTemplate is required`);
+  }
+  const commandTemplate = resolveString(
+    commandTemplateSource,
+    env,
+    `${targetName} CLI command template`,
+    true,
+  );
+
+  // Coalesce files format variants
+  const filesFormatSource =
+    input.files_format ?? input.filesFormat ?? input.attachments_format ?? input.attachmentsFormat;
+  const filesFormat = resolveOptionalLiteralString(filesFormatSource);
+
+  // Resolve working directory
+  let cwd = resolveOptionalString(input.cwd, env, `${targetName} working directory`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  // Resolve relative cwd paths against eval file directory
+  if (cwd && evalFilePath && !path.isAbsolute(cwd)) {
+    cwd = path.resolve(path.dirname(path.resolve(evalFilePath)), cwd);
+  }
+  // Fallback: if cwd is not set and we have an eval file path, use the eval directory
+  if (!cwd && evalFilePath) {
+    cwd = path.dirname(path.resolve(evalFilePath));
+  }
+
+  // Coalesce timeout variants (seconds -> ms)
+  const timeoutSeconds = input.timeout_seconds ?? input.timeoutSeconds;
+  const timeoutMs = timeoutSeconds !== undefined ? Math.floor(timeoutSeconds * 1000) : undefined;
+
+  // Coalesce verbose variants
+  const verbose = resolveOptionalBoolean(input.verbose ?? input.cli_verbose ?? input.cliVerbose);
+
+  // Coalesce keepTempFiles variants
+  const keepTempFiles = resolveOptionalBoolean(
+    input.keep_temp_files ??
+      input.keepTempFiles ??
+      input.keep_output_files ??
+      input.keepOutputFiles,
+  );
+
+  // Normalize healthcheck if present
+  const healthcheck = input.healthcheck
+    ? normalizeCliHealthcheck(input.healthcheck, env, targetName, evalFilePath)
+    : undefined;
+
+  return {
+    commandTemplate,
+    filesFormat,
+    cwd,
+    timeoutMs,
+    healthcheck,
+    verbose,
+    keepTempFiles,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Other Provider Configurations and Utilities
+// ---------------------------------------------------------------------------
+
+/**
+ * Supported CLI placeholder tokens that can be used in command templates.
+ * These are replaced with actual values during command execution.
+ */
 export const CLI_PLACEHOLDERS = new Set([
   'PROMPT',
   'GUIDELINES',
@@ -80,28 +444,14 @@ export interface VSCodeResolvedConfig {
   readonly workspaceTemplate?: string;
 }
 
-export type CliHealthcheck =
-  | {
-      readonly type: 'http';
-      readonly url: string;
-      readonly timeoutMs?: number;
-    }
-  | {
-      readonly type: 'command';
-      readonly commandTemplate: string;
-      readonly timeoutMs?: number;
-      readonly cwd?: string;
-    };
+/**
+ * Healthcheck configuration type derived from CliHealthcheckSchema.
+ * Supports both HTTP and command-based healthchecks.
+ */
+export type CliHealthcheck = Readonly<CliNormalizedHealthcheck>;
 
-export interface CliResolvedConfig {
-  readonly commandTemplate: string;
-  readonly filesFormat?: string;
-  readonly cwd?: string;
-  readonly timeoutMs?: number;
-  readonly healthcheck?: CliHealthcheck;
-  readonly verbose?: boolean;
-  readonly keepTempFiles?: boolean;
-}
+// Note: CliResolvedConfig is a type alias derived from CliNormalizedConfig (see above),
+// which itself is inferred from CliTargetConfigSchema for type safety and single source of truth.
 
 export type ResolvedTarget =
   | {
@@ -506,63 +856,65 @@ function resolveVSCodeConfig(
   };
 }
 
+/**
+ * Custom Zod error map for CLI provider validation.
+ * Provides clear, user-friendly error messages for common validation failures.
+ */
+const cliErrorMap: z.ZodErrorMap = (issue, ctx) => {
+  if (issue.code === z.ZodIssueCode.unrecognized_keys) {
+    return { message: `Unknown CLI provider settings: ${issue.keys.join(', ')}` };
+  }
+  if (issue.code === z.ZodIssueCode.invalid_union_discriminator) {
+    return { message: "healthcheck type must be 'http' or 'command'" };
+  }
+  if (issue.code === z.ZodIssueCode.invalid_type && issue.expected === 'string') {
+    return { message: `${ctx.defaultError} (expected a string value)` };
+  }
+  return { message: ctx.defaultError };
+};
+
+/**
+ * Resolves a CLI target configuration using Zod schema validation and normalization.
+ *
+ * This function:
+ * 1. Parses the raw target with CliTargetInputSchema for structural validation
+ * 2. Normalizes the input using normalizeCliTargetInput() for env var resolution and casing
+ * 3. Validates CLI placeholders in the command template
+ *
+ * @param target - The raw target definition from YAML
+ * @param env - Environment variable lookup for ${{ VAR }} resolution
+ * @param evalFilePath - Optional path to eval file for relative path resolution
+ * @returns Normalized CLI configuration matching CliResolvedConfig
+ */
 function resolveCliConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
   evalFilePath?: string,
 ): CliResolvedConfig {
-  const commandTemplateSource = target.command_template ?? target.commandTemplate;
-  const filesFormat = resolveOptionalLiteralString(
-    target.files_format ??
-      target.filesFormat ??
-      target.attachments_format ??
-      target.attachmentsFormat,
-  );
-
-  const verbose = resolveOptionalBoolean(target.verbose ?? target.cli_verbose ?? target.cliVerbose);
-  const keepTempFiles = resolveOptionalBoolean(
-    target.keep_temp_files ??
-      target.keepTempFiles ??
-      target.keep_output_files ??
-      target.keepOutputFiles,
-  );
-  let cwd = resolveOptionalString(target.cwd, env, `${target.name} working directory`, {
-    allowLiteral: true,
-    optionalEnv: true,
-  });
-
-  // If cwd is a relative path, resolve it relative to the eval file directory.
-  // This makes `cwd: .` in a colocated .agentv/targets.yaml behave intuitively.
-  if (cwd && evalFilePath && !path.isAbsolute(cwd)) {
-    cwd = path.resolve(path.dirname(path.resolve(evalFilePath)), cwd);
+  // Parse with Zod schema for structural validation with custom error messages
+  const parseResult = CliTargetInputSchema.safeParse(target, { errorMap: cliErrorMap });
+  if (!parseResult.success) {
+    const firstError = parseResult.error.errors[0];
+    const path = firstError?.path.join('.') || '';
+    const prefix = path ? `${target.name} ${path}: ` : `${target.name}: `;
+    throw new Error(`${prefix}${firstError?.message}`);
   }
-  // Fallback: if cwd is not set and we have an eval file path, use the eval directory
-  if (!cwd && evalFilePath) {
-    cwd = path.dirname(path.resolve(evalFilePath));
+
+  // Normalize the parsed input (handles env var resolution, casing, path resolution)
+  const normalized = normalizeCliTargetInput(parseResult.data, env, evalFilePath);
+
+  // Validate CLI placeholders in command template
+  assertSupportedCliPlaceholders(normalized.commandTemplate, `${target.name} CLI command template`);
+
+  // Validate CLI placeholders in healthcheck command template if present
+  if (normalized.healthcheck?.type === 'command') {
+    assertSupportedCliPlaceholders(
+      normalized.healthcheck.commandTemplate,
+      `${target.name} healthcheck command template`,
+    );
   }
-  const timeoutMs = resolveTimeoutMs(
-    target.timeout_seconds ?? target.timeoutSeconds,
-    `${target.name} timeout`,
-  );
-  const healthcheck = resolveCliHealthcheck(target.healthcheck, env, target.name, evalFilePath);
 
-  const commandTemplate = resolveString(
-    commandTemplateSource,
-    env,
-    `${target.name} CLI command template`,
-    true,
-  );
-  assertSupportedCliPlaceholders(commandTemplate, `${target.name} CLI command template`);
-
-  return {
-    commandTemplate,
-    filesFormat,
-    cwd,
-    timeoutMs,
-    healthcheck,
-    verbose,
-    keepTempFiles,
-  };
+  return normalized;
 }
 
 function resolveTimeoutMs(source: unknown, description: string): number | undefined {
@@ -574,63 +926,6 @@ function resolveTimeoutMs(source: unknown, description: string): number | undefi
     throw new Error(`${description} must be greater than zero seconds`);
   }
   return Math.floor(seconds * 1000);
-}
-
-function resolveCliHealthcheck(
-  source: unknown,
-  env: EnvLookup,
-  targetName: string,
-  evalFilePath?: string,
-): CliHealthcheck | undefined {
-  if (source === undefined || source === null) {
-    return undefined;
-  }
-  if (typeof source !== 'object' || Array.isArray(source)) {
-    throw new Error(`${targetName} healthcheck must be an object`);
-  }
-
-  const candidate = source as Record<string, unknown>;
-  const type = candidate.type;
-  const timeoutMs = resolveTimeoutMs(
-    candidate.timeout_seconds ?? candidate.timeoutSeconds,
-    `${targetName} healthcheck timeout`,
-  );
-
-  if (type === 'http') {
-    const url = resolveString(candidate.url, env, `${targetName} healthcheck URL`);
-    return {
-      type: 'http',
-      url,
-      timeoutMs,
-    };
-  }
-
-  if (type === 'command') {
-    const commandTemplate = resolveString(
-      candidate.command_template ?? candidate.commandTemplate,
-      env,
-      `${targetName} healthcheck command template`,
-      true,
-    );
-    assertSupportedCliPlaceholders(commandTemplate, `${targetName} healthcheck command template`);
-    const cwd = resolveOptionalString(candidate.cwd, env, `${targetName} healthcheck cwd`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    });
-
-    const resolvedCwd =
-      cwd && evalFilePath && !path.isAbsolute(cwd)
-        ? path.resolve(path.dirname(path.resolve(evalFilePath)), cwd)
-        : cwd;
-    return {
-      type: 'command',
-      commandTemplate,
-      timeoutMs,
-      cwd: resolvedCwd,
-    };
-  }
-
-  throw new Error(`${targetName} healthcheck type must be 'http' or 'command'`);
 }
 
 function assertSupportedCliPlaceholders(template: string, description: string): void {

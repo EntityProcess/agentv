@@ -3,7 +3,7 @@ import path from 'node:path';
 import { parse } from 'yaml';
 
 import { CLI_PLACEHOLDERS } from '../providers/targets.js';
-import { KNOWN_PROVIDERS, PROVIDER_ALIASES, TARGETS_SCHEMA_V2 } from '../providers/types.js';
+import { KNOWN_PROVIDERS, PROVIDER_ALIASES } from '../providers/types.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
@@ -118,27 +118,8 @@ const MOCK_SETTINGS = new Set([
   'trace', // For testing tool_trajectory evaluator
 ]);
 
-const CLI_SETTINGS = new Set([
-  ...COMMON_SETTINGS,
-  'command_template',
-  'commandTemplate',
-  'verbose',
-  'cli_verbose',
-  'cliVerbose',
-  'files_format',
-  'filesFormat',
-  'attachments_format',
-  'attachmentsFormat',
-  'cwd',
-  'env',
-  'timeout_seconds',
-  'timeoutSeconds',
-  'healthcheck',
-  'keep_temp_files',
-  'keepTempFiles',
-  'keep_output_files',
-  'keepOutputFiles',
-]);
+// CLI_SETTINGS removed - Zod schema validation now handles CLI provider settings validation
+// in resolveCliConfig() via CliTargetInputSchema
 
 function getKnownSettings(provider: string): Set<string> | null {
   const normalizedProvider = provider.toLowerCase();
@@ -161,7 +142,9 @@ function getKnownSettings(provider: string): Set<string> | null {
     case 'mock':
       return MOCK_SETTINGS;
     case 'cli':
-      return CLI_SETTINGS;
+      // CLI provider validation is now handled by Zod schema in resolveCliConfig()
+      // Return null to skip duplicate validation in validateUnknownSettings()
+      return null;
     default:
       return null; // Unknown provider, can't validate settings
   }
@@ -220,21 +203,29 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     };
   }
 
+  /**
+   * Simplified CLI settings validation for early file validation.
+   * Detailed type checking is now handled by Zod schema validation in resolveCliConfig().
+   * This function focuses on critical early checks: command template presence and placeholder validation.
+   */
   function validateCliSettings(
     target: JsonObject,
     absolutePath: string,
     location: string,
     errors: ValidationError[],
   ): void {
+    // Critical check: command template is required
     const commandTemplate = target.command_template ?? target.commandTemplate;
     if (typeof commandTemplate !== 'string' || commandTemplate.trim().length === 0) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
         location: `${location}.commandTemplate`,
-        message: "CLI provider requires 'commandTemplate' as a non-empty string",
+        message:
+          "CLI provider requires 'command_template' or 'commandTemplate' as a non-empty string",
       });
     } else {
+      // Validate CLI placeholders early to give helpful feedback
       recordUnknownPlaceholders(
         commandTemplate,
         absolutePath,
@@ -243,62 +234,10 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       );
     }
 
-    const attachmentsFormat = target.attachments_format ?? target.attachmentsFormat;
-    if (attachmentsFormat !== undefined && typeof attachmentsFormat !== 'string') {
-      errors.push({
-        severity: 'error',
-        filePath: absolutePath,
-        location: `${location}.attachmentsFormat`,
-        message: "'attachmentsFormat' must be a string when provided",
-      });
-    }
-
-    const filesFormat = target.files_format ?? target.filesFormat;
-    if (filesFormat !== undefined && typeof filesFormat !== 'string') {
-      errors.push({
-        severity: 'error',
-        filePath: absolutePath,
-        location: `${location}.filesFormat`,
-        message: "'filesFormat' must be a string when provided",
-      });
-    }
-
-    const cwd = target.cwd;
-    if (cwd !== undefined && typeof cwd !== 'string') {
-      errors.push({
-        severity: 'error',
-        filePath: absolutePath,
-        location: `${location}.cwd`,
-        message: "'cwd' must be a string when provided",
-      });
-    }
-
-    const timeoutSeconds = target.timeout_seconds ?? target.timeoutSeconds;
-    if (timeoutSeconds !== undefined) {
-      const numericTimeout = Number(timeoutSeconds);
-      if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
-        errors.push({
-          severity: 'error',
-          filePath: absolutePath,
-          location: `${location}.timeoutSeconds`,
-          message: "'timeoutSeconds' must be a positive number when provided",
-        });
-      }
-    }
-
+    // Early validation of healthcheck structure and placeholders
     const healthcheck = target.healthcheck;
     if (healthcheck !== undefined) {
       validateCliHealthcheck(healthcheck, absolutePath, `${location}.healthcheck`, errors);
-    }
-
-    const verbose = target.verbose ?? target.cli_verbose ?? target.cliVerbose;
-    if (verbose !== undefined && typeof verbose !== 'boolean') {
-      errors.push({
-        severity: 'error',
-        filePath: absolutePath,
-        location: `${location}.verbose`,
-        message: "'verbose' must be a boolean when provided",
-      });
     }
   }
 
