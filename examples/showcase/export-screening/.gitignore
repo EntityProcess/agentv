@@ -1,0 +1,4 @@
+# Evaluation outputs
+results.jsonl
+metrics.json
+*.jsonl

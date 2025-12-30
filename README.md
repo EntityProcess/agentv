@@ -408,8 +408,6 @@ AgentV supports automatic retry with exponential backoff for handling rate limit
 **Example configuration:**
 
 ```yaml
-$schema: agentv-targets-v2.2
-
 targets:
   - name: azure_base
     provider: azure

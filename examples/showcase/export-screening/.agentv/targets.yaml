@@ -1,0 +1,10 @@
+# Export Screening Mock Targets
+# This file overrides the parent targets.yaml for local testing without LLM calls.
+# Customize the 'response' field to test different scenarios.
+
+targets:
+  # Mock target for testing eval flow without LLM calls
+  # Default: returns High risk - customize to test other scenarios
+  - name: default
+    provider: mock
+    response: '{"riskLevel": "High", "reasoning": "Mock response for testing"}'

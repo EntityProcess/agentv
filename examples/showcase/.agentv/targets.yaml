@@ -1,5 +1,3 @@
-$schema: agentv-targets-v2.2
-
 targets:
   - name: default
     provider: azure
