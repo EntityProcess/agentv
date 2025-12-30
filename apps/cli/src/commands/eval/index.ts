@@ -121,6 +121,11 @@ export const evalCommand = command({
       description:
         "Run aggregator after evaluation (can be used multiple times). Built-in: 'confusion-matrix'",
     }),
+    aggregatorOut: option({
+      type: optional(string),
+      long: 'aggregator-out',
+      description: 'Path to write aggregator results (defaults to <output>.aggregators.json)',
+    }),
   },
   handler: async (args) => {
     const resolvedPaths = await resolveEvalPaths(args.evalPaths, process.cwd());
@@ -150,6 +155,7 @@ export const evalCommand = command({
       dumpTraces: args.dumpTraces,
       includeTrace: args.includeTrace,
       aggregators: args.aggregators.flat(),
+      aggregatorOut: args.aggregatorOut,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },

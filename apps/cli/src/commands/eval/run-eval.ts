@@ -57,6 +57,7 @@ interface NormalizedOptions {
   readonly dumpTraces: boolean;
   readonly includeTrace: boolean;
   readonly aggregators: readonly AggregatorType[];
+  readonly aggregatorOut?: string;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -127,6 +128,7 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     dumpTraces: normalizeBoolean(rawOptions.dumpTraces),
     includeTrace: normalizeBoolean(rawOptions.includeTrace),
     aggregators: normalizeAggregators(rawOptions.aggregators),
+    aggregatorOut: normalizeString(rawOptions.aggregatorOut),
   } satisfies NormalizedOptions;
 }
 
@@ -587,7 +589,8 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
 
     // Write aggregator results to a separate file if aggregators were run
     if (aggregatorOutputs.length > 0) {
-      const aggregatorOutputPath = outputPath.replace(/\.(jsonl|yaml)$/, '.aggregators.json');
+      const aggregatorOutputPath =
+        options.aggregatorOut ?? outputPath.replace(/\.(jsonl|yaml)$/, '.aggregators.json');
       const aggregatorData = aggregatorOutputs.map((output) => ({
         type: output.type,
         ...output.result,
