@@ -17,25 +17,24 @@ When eval cases error (provider timeout, malformed response, etc.), the aggregat
 
 ## What Changes
 
-### New CLI Flags
+### New CLI Flag
 
 | Flag | Type | Description |
 |------|------|-------------|
 | `--fail-below <score>` | number (0.0-1.0) | Exit 1 if aggregate score < threshold |
-| `--allow-errors` | boolean | Continue despite errors (dangerous) |
 
 ### Exit Code Semantics
 
 | Condition | Exit Code | Reason |
 |-----------|-----------|--------|
-| Any eval case errors (default) | 1 | Score is incomplete/invalid |
+| Any eval case errors | 1 | Score is incomplete/invalid |
 | Score < `--fail-below` threshold | 1 | Quality gate failed |
 | All pass, score >= threshold | 0 | Safe to merge |
 | No `--fail-below`, no errors | 0 | Current behavior preserved |
 
 ### Aggregate Score Definition
 
-The aggregate score is the **mean of all non-errored eval case scores** (already computed by `statistics.ts`). This is the same value shown in the summary output.
+The aggregate score is the **mean of all eval case scores** (already computed by `statistics.ts`). This is the same value shown in the summary output.
 
 ## Example Usage
 
@@ -43,16 +42,17 @@ The aggregate score is the **mean of all non-errored eval case scores** (already
 # CI pipeline: fail if any errors OR score < 0.8
 agentv eval evals/*.yaml --fail-below 0.8
 
-# Output on failure:
+# Output on error:
+# CI GATE FAILED: 2 eval case(s) errored - score is invalid
+# Exit code: 1
+
+# Output on threshold failure:
 # CI GATE FAILED: Score 0.72 < threshold 0.80
 # Exit code: 1
 
 # Output on success:
 # CI GATE PASSED: Score 0.85 >= threshold 0.80
 # Exit code: 0
-
-# Lenient mode (not recommended - ignores errors):
-agentv eval evals/*.yaml --fail-below 0.8 --allow-errors
 ```
 
 ## Decision Flow
@@ -60,14 +60,12 @@ agentv eval evals/*.yaml --fail-below 0.8 --allow-errors
 ```mermaid
 flowchart TD
     A[agentv eval completes] --> B{Any eval cases errored?}
-    B -->|Yes| C{--allow-errors flag set?}
+    B -->|Yes| C["Exit 1<br/>(invalid score)"]
     B -->|No| D{--fail-below threshold set?}
-    C -->|No| E["Exit 1<br/>(invalid score)"]
-    C -->|Yes| D
-    D -->|No| F["Exit 0<br/>(no gate)"]
-    D -->|Yes| G{aggregate score >= threshold?}
-    G -->|No| H["Exit 1<br/>(below threshold)"]
-    G -->|Yes| I["Exit 0<br/>(gate passed)"]
+    D -->|No| E["Exit 0<br/>(no gate)"]
+    D -->|Yes| F{aggregate score >= threshold?}
+    F -->|No| G["Exit 1<br/>(below threshold)"]
+    F -->|Yes| H["Exit 0<br/>(gate passed)"]
 ```
 
 ## Impact
