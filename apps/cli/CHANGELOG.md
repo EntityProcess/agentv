@@ -1,5 +1,20 @@
 # agentv
 
+## 1.5.0
+
+### Minor Changes
+
+- f9dcfff: Add `agentv convert` command for JSONL to YAML conversion
+
+  Converts evaluation results from JSONL format to YAML, matching the output format of `--output-yaml`.
+
+  Usage:
+
+  ```bash
+  agentv convert results.jsonl              # outputs results.yaml
+  agentv convert results.jsonl -o out.yaml  # explicit output path
+  ```
+
 ## 1.4.0
 
 ### Minor Changes
