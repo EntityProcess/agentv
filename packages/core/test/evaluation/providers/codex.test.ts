@@ -10,8 +10,8 @@ import {
 } from '../../../src/evaluation/providers/codex-log-tracker.js';
 import { CodexProvider } from '../../../src/evaluation/providers/codex.js';
 import {
-  extractLastAssistantContent,
   type ProviderRequest,
+  extractLastAssistantContent,
 } from '../../../src/evaluation/providers/types.js';
 
 async function createTempDir(prefix: string): Promise<string> {

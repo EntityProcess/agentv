@@ -6,8 +6,8 @@ import path from 'node:path';
 import { CliProvider, type CommandRunResult } from '../../../src/evaluation/providers/cli.js';
 import type { CliResolvedConfig } from '../../../src/evaluation/providers/targets.js';
 import {
-  extractLastAssistantContent,
   type ProviderRequest,
+  extractLastAssistantContent,
 } from '../../../src/evaluation/providers/types.js';
 
 const baseConfig: CliResolvedConfig = {
@@ -62,7 +62,9 @@ describe('CliProvider', () => {
     const response = await provider.invoke(baseRequest);
 
     expect(runner).toHaveBeenCalledTimes(1);
-    expect(extractLastAssistantContent(response.outputMessages)).toContain('Test response from CLI');
+    expect(extractLastAssistantContent(response.outputMessages)).toContain(
+      'Test response from CLI',
+    );
     expect(response.raw && (response.raw as Record<string, unknown>).command).toBeDefined();
     const command = runner.mock.calls[0]?.[0] as string;
     expect(command).toContain('--file');

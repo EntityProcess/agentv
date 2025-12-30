@@ -131,7 +131,10 @@ describe('runTestCase', () => {
       responses: [
         {
           outputMessages: [
-            { role: 'assistant', content: 'You should add structured logging and avoid global state.' },
+            {
+              role: 'assistant',
+              content: 'You should add structured logging and avoid global state.',
+            },
           ],
         },
       ],

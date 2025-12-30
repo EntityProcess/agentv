@@ -525,7 +525,10 @@ function resolveCliConfig(
 
   const verbose = resolveOptionalBoolean(target.verbose ?? target.cli_verbose ?? target.cliVerbose);
   const keepTempFiles = resolveOptionalBoolean(
-    target.keep_temp_files ?? target.keepTempFiles ?? target.keep_output_files ?? target.keepOutputFiles,
+    target.keep_temp_files ??
+      target.keepTempFiles ??
+      target.keep_output_files ??
+      target.keepOutputFiles,
   );
   let cwd = resolveOptionalString(target.cwd, env, `${target.name} working directory`, {
     allowLiteral: true,

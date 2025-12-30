@@ -3,11 +3,11 @@ import { z } from 'zod';
 
 import type { ResolvedTarget } from './providers/targets.js';
 import {
-  extractLastAssistantContent,
   type ChatPrompt,
   type OutputMessage,
   type Provider,
   type ProviderResponse,
+  extractLastAssistantContent,
 } from './providers/types.js';
 import { TEMPLATE_VARIABLES } from './template-variables.js';
 import type { ToolTrajectoryEvaluatorConfig, TraceEvent, TraceSummary } from './trace.js';
@@ -60,19 +60,9 @@ export interface EvaluationContext {
   readonly evaluatorTemplateOverride?: string;
   readonly evaluator?: EvaluatorConfig;
   /** Output messages from agent execution (primary source for tool trajectory) */
-  readonly candidateOutputMessages?: readonly OutputMessage[];
-  /**
-   * Normalized trace events from provider execution.
-   * @deprecated Use candidateOutputMessages instead.
-   */
-  readonly candidateTrace?: readonly TraceEvent[];
-  /**
-   * File path to trace data (alternative to inline candidateTrace).
-   * @deprecated Use candidateOutputMessages instead.
-   */
-  readonly candidateTraceRef?: string;
+  readonly outputMessages?: readonly OutputMessage[];
   /** Lightweight summary of trace events (if available) */
-  readonly candidateTraceSummary?: TraceSummary;
+  readonly traceSummary?: TraceSummary;
 }
 
 export interface EvaluationScore {
@@ -178,11 +168,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         null,
         2,
       ),
-      [TEMPLATE_VARIABLES.OUTPUT_MESSAGES]: JSON.stringify(
-        context.candidateOutputMessages ?? [],
-        null,
-        2,
-      ),
+      [TEMPLATE_VARIABLES.OUTPUT_MESSAGES]: JSON.stringify(context.outputMessages ?? [], null, 2),
       [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: context.candidate.trim(),
       [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.EXPECTED_OUTCOME]: context.evalCase.expected_outcome.trim(),
@@ -465,13 +451,13 @@ export class CodeEvaluator implements Evaluator {
         expected_messages: context.evalCase.expected_messages,
         reference_answer: context.evalCase.reference_answer,
         candidate_answer: context.candidate,
+        output_messages: context.outputMessages ?? null,
         guideline_files: context.evalCase.guideline_paths,
         input_files: context.evalCase.file_paths.filter(
           (path) => !context.evalCase.guideline_paths.includes(path),
         ),
         input_messages: context.evalCase.input_messages,
-        candidate_trace_file: context.candidateTraceRef ?? null,
-        candidate_trace_summary: context.candidateTraceSummary ?? null,
+        candidate_trace_summary: context.traceSummary ?? null,
       },
       null,
       2,
@@ -640,16 +626,13 @@ export class ToolTrajectoryEvaluator implements Evaluator {
   }
 
   evaluate(context: EvaluationContext): EvaluationScore {
-    const { candidateOutputMessages, candidateTrace, candidateTraceSummary } = context;
+    const { outputMessages, traceSummary } = context;
 
-    // Extract tool calls from outputMessages (primary source), fall back to trace
-    let toolCalls = this.extractToolCallsFromMessages(candidateOutputMessages);
-    if (toolCalls.length === 0 && candidateTrace) {
-      toolCalls = this.extractToolCallsFromTrace(candidateTrace);
-    }
+    // Extract tool calls from outputMessages (primary source)
+    const toolCalls = this.extractToolCallsFromMessages(outputMessages);
 
     // Handle missing tool calls
-    if (toolCalls.length === 0 && !candidateTraceSummary) {
+    if (toolCalls.length === 0 && !traceSummary) {
       return {
         score: 0,
         verdict: 'fail',
@@ -660,7 +643,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     }
 
     // Build summary from tool calls if available, otherwise use provided summary
-    const summary = toolCalls.length > 0 ? this.buildSummary(toolCalls) : candidateTraceSummary;
+    const summary = toolCalls.length > 0 ? this.buildSummary(toolCalls) : traceSummary;
 
     if (!summary) {
       return {

@@ -413,7 +413,7 @@ async function runBatchEvaluation(options: {
     const providerResponse = batchResponse[i];
 
     // Extract outputMessages and trace from batch response
-    const candidateOutputMessages = providerResponse.outputMessages;
+    const outputMessages = providerResponse.outputMessages;
     let candidateTrace: readonly TraceEvent[] | undefined = providerResponse.trace;
     if (!candidateTrace && providerResponse.traceRef) {
       try {
@@ -426,13 +426,13 @@ async function runBatchEvaluation(options: {
       }
     }
     // Fallback to extracting trace from outputMessages if no explicit trace (for legacy compatibility)
-    if (!candidateTrace && candidateOutputMessages) {
-      candidateTrace = extractTraceFromMessages(candidateOutputMessages);
+    if (!candidateTrace && outputMessages) {
+      candidateTrace = extractTraceFromMessages(outputMessages);
     }
-    const candidateTraceSummary = candidateTrace ? computeTraceSummary(candidateTrace) : undefined;
+    const traceSummary = candidateTrace ? computeTraceSummary(candidateTrace) : undefined;
 
     // Extract candidate from last assistant message in output_messages
-    const candidate = extractLastAssistantContent(candidateOutputMessages);
+    const candidate = extractLastAssistantContent(outputMessages);
 
     let result: EvaluationResult;
     try {
@@ -447,10 +447,8 @@ async function runBatchEvaluation(options: {
         attempt: 0,
         judgeProvider: await resolveJudgeProvider(target),
         agentTimeoutMs,
-        candidateOutputMessages,
-        candidateTrace,
-        candidateTraceRef: providerResponse.traceRef,
-        candidateTraceSummary,
+        outputMessages,
+        traceSummary,
       });
     } catch (error) {
       const errorResult = buildErrorResult(
@@ -567,7 +565,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   // Extract outputMessages and trace from provider response
-  const candidateOutputMessages = providerResponse.outputMessages;
+  const outputMessages = providerResponse.outputMessages;
   let candidateTrace: readonly TraceEvent[] | undefined = providerResponse.trace;
   if (!candidateTrace && providerResponse.traceRef) {
     try {
@@ -580,15 +578,15 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
   }
   // Fallback to extracting trace from outputMessages if no explicit trace (for legacy compatibility)
-  if (!candidateTrace && candidateOutputMessages) {
-    candidateTrace = extractTraceFromMessages(candidateOutputMessages);
+  if (!candidateTrace && outputMessages) {
+    candidateTrace = extractTraceFromMessages(outputMessages);
   }
 
   // Compute trace summary if trace is available
-  const candidateTraceSummary = candidateTrace ? computeTraceSummary(candidateTrace) : undefined;
+  const traceSummary = candidateTrace ? computeTraceSummary(candidateTrace) : undefined;
 
   // Extract candidate from last assistant message in output_messages
-  const candidate = extractLastAssistantContent(candidateOutputMessages);
+  const candidate = extractLastAssistantContent(outputMessages);
 
   try {
     return await evaluateCandidate({
@@ -602,10 +600,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       attempt,
       judgeProvider,
       agentTimeoutMs,
-      candidateOutputMessages,
-      candidateTrace,
-      candidateTraceRef: providerResponse.traceRef,
-      candidateTraceSummary,
+      outputMessages,
+      traceSummary,
     });
   } catch (error) {
     return buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs, provider);
@@ -623,10 +619,8 @@ async function evaluateCandidate(options: {
   readonly attempt: number;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
-  readonly candidateOutputMessages?: readonly OutputMessage[];
-  readonly candidateTrace?: readonly TraceEvent[];
-  readonly candidateTraceRef?: string;
-  readonly candidateTraceSummary?: TraceSummary;
+  readonly outputMessages?: readonly OutputMessage[];
+  readonly traceSummary?: TraceSummary;
 }): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -639,10 +633,8 @@ async function evaluateCandidate(options: {
     attempt,
     judgeProvider,
     agentTimeoutMs,
-    candidateOutputMessages,
-    candidateTrace,
-    candidateTraceRef,
-    candidateTraceSummary,
+    outputMessages,
+    traceSummary,
   } = options;
 
   const gradeTimestamp = nowFn();
@@ -657,10 +649,8 @@ async function evaluateCandidate(options: {
     now: gradeTimestamp,
     judgeProvider,
     agentTimeoutMs,
-    candidateOutputMessages,
-    candidateTrace,
-    candidateTraceRef,
-    candidateTraceSummary,
+    outputMessages,
+    traceSummary,
   });
 
   const completedAt = nowFn();
@@ -702,7 +692,7 @@ async function evaluateCandidate(options: {
     lm_provider_request: lmProviderRequest,
     evaluator_provider_request: evaluatorResults ? undefined : score.evaluatorRawRequest,
     evaluator_results: evaluatorResults,
-    trace_summary: candidateTraceSummary,
+    trace_summary: traceSummary,
   };
 }
 
@@ -717,10 +707,8 @@ async function runEvaluatorsForCase(options: {
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
-  readonly candidateOutputMessages?: readonly OutputMessage[];
-  readonly candidateTrace?: readonly TraceEvent[];
-  readonly candidateTraceRef?: string;
-  readonly candidateTraceSummary?: TraceSummary;
+  readonly outputMessages?: readonly OutputMessage[];
+  readonly traceSummary?: TraceSummary;
 }): Promise<{ score: EvaluationScore; evaluatorResults?: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -733,10 +721,8 @@ async function runEvaluatorsForCase(options: {
     now,
     judgeProvider,
     agentTimeoutMs,
-    candidateOutputMessages,
-    candidateTrace,
-    candidateTraceRef,
-    candidateTraceSummary,
+    outputMessages,
+    traceSummary,
   } = options;
 
   if (evalCase.evaluators && evalCase.evaluators.length > 0) {
@@ -752,10 +738,8 @@ async function runEvaluatorsForCase(options: {
       now,
       judgeProvider,
       agentTimeoutMs,
-      candidateOutputMessages,
-      candidateTrace,
-      candidateTraceRef,
-      candidateTraceSummary,
+      outputMessages,
+      traceSummary,
     });
   }
 
@@ -774,10 +758,8 @@ async function runEvaluatorsForCase(options: {
     promptInputs,
     now,
     judgeProvider,
-    candidateOutputMessages,
-    candidateTrace,
-    candidateTraceRef,
-    candidateTraceSummary,
+    outputMessages,
+    traceSummary,
   });
 
   return { score };
@@ -797,10 +779,8 @@ async function runEvaluatorList(options: {
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
-  readonly candidateOutputMessages?: readonly OutputMessage[];
-  readonly candidateTrace?: readonly TraceEvent[];
-  readonly candidateTraceRef?: string;
-  readonly candidateTraceSummary?: TraceSummary;
+  readonly outputMessages?: readonly OutputMessage[];
+  readonly traceSummary?: TraceSummary;
 }): Promise<{ score: EvaluationScore; evaluatorResults: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -814,10 +794,8 @@ async function runEvaluatorList(options: {
     now,
     judgeProvider,
     agentTimeoutMs,
-    candidateOutputMessages,
-    candidateTrace,
-    candidateTraceRef,
-    candidateTraceSummary,
+    outputMessages,
+    traceSummary,
   } = options;
 
   const scored: Array<{
@@ -872,8 +850,8 @@ async function runEvaluatorList(options: {
           attempt,
           promptInputs,
           now,
-          candidateTraceRef,
-          candidateTraceSummary,
+          outputMessages,
+          traceSummary,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: 'code_judge', weight });
@@ -965,10 +943,8 @@ async function runEvaluatorList(options: {
           attempt,
           promptInputs,
           now,
-          candidateOutputMessages,
-          candidateTrace,
-          candidateTraceRef,
-          candidateTraceSummary,
+          outputMessages,
+          traceSummary,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
