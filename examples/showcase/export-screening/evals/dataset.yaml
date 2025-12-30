@@ -1,0 +1,417 @@
+# Export Risk Classification Eval Dataset
+#
+# This eval measures AI accuracy in classifying export risk levels (Low/Medium/High)
+# against expert assessments. Results can be post-processed to generate confusion
+# matrices and classification metrics (precision, recall, F1).
+#
+# Each case includes:
+# - Shipment details (origin, destination, product, HS code)
+# - Expert risk assessment (ground truth)
+# - Expected AI output format
+
+$schema: agentv-eval-v2
+description: Export control risk classification eval for trade compliance screening
+
+execution:
+  target: default
+  evaluators:
+    - name: json_format_validator
+      type: code_judge
+      script: uv run validate_risk_output.py
+    - name: risk_assessment_quality
+      type: llm_judge
+
+evalcases:
+  # ============================================
+  # HIGH RISK CASES (Expert Assessment: High)
+  # ============================================
+
+  - id: exp-high-001
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'High' risk. Advanced semiconductor manufacturing
+      equipment exported to a country with strategic technology restrictions.
+      Dual-use controls under electronics/manufacturing categories apply.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: High
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: NL
+              Destination: CN
+              Product: Advanced UV lithography system for semiconductor fabrication
+              HS Code: 8486
+
+  - id: exp-high-002
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'High' risk. High-performance vacuum equipment
+      with specifications potentially meeting dual-use thresholds. Destination
+      is subject to enhanced export controls.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: High
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: DE
+              Destination: CN
+              Product: Turbomolecular vacuum pump (high throughput, 15m3/s)
+              HS Code: 8414
+
+  - id: exp-high-003
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'High' risk. High-frequency test equipment
+      exported to embargoed destination. Clear dual-use concerns under
+      electronics controls.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: High
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: DE
+              Destination: IR
+              Product: Signal analyzer with 40GHz bandwidth
+              HS Code: 9030
+
+  - id: exp-high-004
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'High' risk. Infrared imaging components
+      with clear military applications. MWIR detectors are typically controlled
+      under sensor categories.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: High
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: FR
+              Destination: TR
+              Product: Cooled infrared detector module (MWIR band, 640x512)
+              HS Code: 8541
+
+  - id: exp-high-005
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'High' risk. Night vision technology is
+      heavily controlled. Image intensifier tubes are explicitly listed
+      in dual-use and munitions controls.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: High
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: FR
+              Destination: US
+              Product: Image intensifier tube (Generation III, GaAs photocathode)
+              HS Code: 8540
+
+  - id: exp-high-006
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'High' risk. Inertial navigation systems
+      with fiber optic gyroscopes are controlled for missile technology
+      and military applications.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: High
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: FR
+              Destination: PK
+              Product: Inertial navigation unit with fiber optic gyroscope
+              HS Code: 9014
+              Consignee: National Aerospace Research Center
+
+  - id: exp-high-007
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'High' risk. Radiation-hardened electronics
+      designed for space or military applications are controlled items.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: High
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: US
+              Destination: RU
+              Product: Radiation-hardened field programmable gate array (FPGA)
+              HS Code: 8542
+
+  - id: exp-high-008
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'High' risk. High-performance computing
+      with specific capabilities may exceed dual-use thresholds. Destination
+      raises additional concerns.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: High
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: US
+              Destination: CN
+              Product: GPU cluster for AI training (500 TFLOPS aggregate)
+              HS Code: 8471
+
+  # ============================================
+  # MEDIUM RISK CASES (Expert Assessment: Medium)
+  # ============================================
+
+  - id: exp-med-001
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'Medium' risk. Industrial laser systems
+      may or may not be controlled depending on power output and beam
+      characteristics. Requires specification review.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: Medium
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: DE
+              Destination: IN
+              Product: Industrial fiber laser cutting system
+              HS Code: 9013
+
+  - id: exp-med-002
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'Medium' risk. CNC machine tools may be
+      controlled based on axis count and precision. Standard industrial
+      equipment but requires verification.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: Medium
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: JP
+              Destination: MY
+              Product: 5-axis CNC machining center
+              HS Code: 8457
+
+  - id: exp-med-003
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'Medium' risk. Encryption-capable
+      network equipment requires review under information security
+      controls, but commercial-grade may be exempt.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: Medium
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: US
+              Destination: AE
+              Product: Enterprise network router with VPN capabilities
+              HS Code: 8517
+
+  - id: exp-med-004
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'Medium' risk. Chemical processing
+      equipment may be controlled if suitable for CW precursor production,
+      but standard industrial use is common.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: Medium
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: CH
+              Destination: EG
+              Product: Glass-lined chemical reactor vessel (500L capacity)
+              HS Code: 8419
+
+  # ============================================
+  # LOW RISK CASES (Expert Assessment: Low)
+  # ============================================
+
+  - id: exp-low-001
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'Low' risk. Consumer electronics with
+      no dual-use characteristics. Standard commercial trade between
+      allied nations.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: Low
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: KR
+              Destination: AU
+              Product: LED television display panel (55 inch, 4K resolution)
+              HS Code: 8528
+
+  - id: exp-low-002
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'Low' risk. Standard industrial motors
+      with no special characteristics. Routine commercial transaction.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: Low
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: DE
+              Destination: MX
+              Product: AC induction motor for conveyor system (5kW)
+              HS Code: 8501
+
+  - id: exp-low-003
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'Low' risk. Agricultural equipment
+      with no dual-use applications. Standard trade to allied nation.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: Low
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: US
+              Destination: CA
+              Product: Tractor-mounted crop sprayer system
+              HS Code: 8424
+
+  - id: exp-low-004
+    conversation_id: export-screening
+    outcome: |
+      AI correctly classifies as 'Low' risk. Medical imaging equipment
+      for diagnostic use. Standard healthcare technology export.
+    expected_messages:
+      - role: assistant
+        content:
+          riskLevel: Low
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: NL
+              Destination: BR
+              Product: Ultrasound diagnostic imaging system
+              HS Code: 9018
+              Consignee: Hospital das Clinicas
