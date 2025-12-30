@@ -1,6 +1,7 @@
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import {
+  array,
   command,
   flag,
   multioption,
@@ -114,6 +115,12 @@ export const evalCommand = command({
       long: 'include-trace',
       description: 'Include full trace in result output (verbose)',
     }),
+    aggregators: multioption({
+      type: array(string),
+      long: 'aggregator',
+      description:
+        "Run aggregator after evaluation (can be used multiple times). Built-in: 'confusion-matrix'",
+    }),
   },
   handler: async (args) => {
     const resolvedPaths = await resolveEvalPaths(args.evalPaths, process.cwd());
@@ -142,6 +149,7 @@ export const evalCommand = command({
       dumpPrompts,
       dumpTraces: args.dumpTraces,
       includeTrace: args.includeTrace,
+      aggregators: args.aggregators.flat(),
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },

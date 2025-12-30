@@ -1,5 +1,5 @@
 import { constants } from 'node:fs';
-import { access, mkdir } from 'node:fs/promises';
+import { access, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
@@ -13,6 +13,13 @@ import {
   subscribeToCodexLogEntries,
 } from '@agentv/core';
 
+import {
+  type AggregatorOutput,
+  type AggregatorType,
+  formatAggregatorOutput,
+  isBuiltinAggregator,
+  runAggregator,
+} from './aggregators/index.js';
 import { loadEnvFromHierarchy } from './env.js';
 import {
   type OutputFormat,
@@ -49,6 +56,7 @@ interface NormalizedOptions {
   readonly dumpPrompts?: string | boolean;
   readonly dumpTraces: boolean;
   readonly includeTrace: boolean;
+  readonly aggregators: readonly AggregatorType[];
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -76,6 +84,24 @@ function normalizeNumber(value: unknown, fallback: number): number {
   return fallback;
 }
 
+function normalizeAggregators(value: unknown): AggregatorType[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const result: AggregatorType[] = [];
+  for (const item of value) {
+    if (typeof item === 'string') {
+      const trimmed = item.trim();
+      if (isBuiltinAggregator(trimmed)) {
+        result.push(trimmed);
+      } else if (trimmed.length > 0) {
+        throw new Error(`Unknown aggregator: '${trimmed}'. Available: 'confusion-matrix'`);
+      }
+    }
+  }
+  return result;
+}
+
 function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOptions {
   const formatStr = normalizeString(rawOptions.outputFormat) ?? 'jsonl';
   const format: OutputFormat = formatStr === 'yaml' ? 'yaml' : 'jsonl';
@@ -100,6 +126,7 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     dumpPrompts: rawOptions.dumpPrompts as string | boolean | undefined,
     dumpTraces: normalizeBoolean(rawOptions.dumpTraces),
     includeTrace: normalizeBoolean(rawOptions.includeTrace),
+    aggregators: normalizeAggregators(rawOptions.aggregators),
   } satisfies NormalizedOptions;
 }
 
@@ -544,9 +571,31 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     const summary = calculateEvaluationSummary(allResults);
     console.log(formatEvaluationSummary(summary));
 
+    // Run aggregators if specified
+    const aggregatorOutputs: AggregatorOutput[] = [];
+    if (options.aggregators.length > 0 && allResults.length > 0) {
+      for (const aggregatorType of options.aggregators) {
+        const output = runAggregator(aggregatorType, allResults);
+        aggregatorOutputs.push(output);
+        console.log(formatAggregatorOutput(output));
+      }
+    }
+
     if (allResults.length > 0) {
       console.log(`\nResults written to: ${outputPath}`);
     }
+
+    // Write aggregator results to a separate file if aggregators were run
+    if (aggregatorOutputs.length > 0) {
+      const aggregatorOutputPath = outputPath.replace(/\.(jsonl|yaml)$/, '.aggregators.json');
+      const aggregatorData = aggregatorOutputs.map((output) => ({
+        type: output.type,
+        ...output.result,
+      }));
+      await writeFile(aggregatorOutputPath, JSON.stringify(aggregatorData, null, 2));
+      console.log(`Aggregator results written to: ${aggregatorOutputPath}`);
+    }
+
     if (lastPromptDumpDir && allResults.length > 0) {
       console.log(`Prompt payloads saved to: ${lastPromptDumpDir}`);
     }
