@@ -21,7 +21,11 @@ import {
   getDefaultExtension,
 } from './output-writer.js';
 import { ProgressDisplay, type WorkerProgress } from './progress-display.js';
-import { calculateEvaluationSummary, formatEvaluationSummary } from './statistics.js';
+import {
+  type EvaluationSummary,
+  calculateEvaluationSummary,
+  formatEvaluationSummary,
+} from './statistics.js';
 import { type TargetSelection, selectTarget } from './targets.js';
 
 const DEFAULT_WORKERS = 3;
@@ -49,6 +53,7 @@ interface NormalizedOptions {
   readonly dumpPrompts?: string | boolean;
   readonly dumpTraces: boolean;
   readonly includeTrace: boolean;
+  readonly failBelow?: number;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -76,6 +81,30 @@ function normalizeNumber(value: unknown, fallback: number): number {
   return fallback;
 }
 
+function normalizeFailBelow(value: unknown): number | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (value < 0 || value > 1) {
+      console.error(`Error: --fail-below must be between 0.0 and 1.0, got ${value}`);
+      process.exit(1);
+    }
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value);
+    if (!Number.isNaN(parsed)) {
+      if (parsed < 0 || parsed > 1) {
+        console.error(`Error: --fail-below must be between 0.0 and 1.0, got ${parsed}`);
+        process.exit(1);
+      }
+      return parsed;
+    }
+  }
+  return undefined;
+}
+
 function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOptions {
   const formatStr = normalizeString(rawOptions.outputFormat) ?? 'jsonl';
   const format: OutputFormat = formatStr === 'yaml' ? 'yaml' : 'jsonl';
@@ -100,6 +129,7 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     dumpPrompts: rawOptions.dumpPrompts as string | boolean | undefined,
     dumpTraces: normalizeBoolean(rawOptions.dumpTraces),
     includeTrace: normalizeBoolean(rawOptions.includeTrace),
+    failBelow: normalizeFailBelow(rawOptions.failBelow),
   } satisfies NormalizedOptions;
 }
 
@@ -428,6 +458,40 @@ async function runSingleEvalFile(params: {
   return { results: [...results], promptDumpDir };
 }
 
+interface CIGateResult {
+  readonly shouldExit: boolean;
+  readonly message: string;
+}
+
+function evaluateCIGate(summary: EvaluationSummary, failBelow?: number): CIGateResult {
+  // Check for errors first - any eval case errors make the score invalid
+  if (summary.errorCount > 0) {
+    return {
+      shouldExit: true,
+      message: `CI GATE FAILED: ${summary.errorCount} eval case(s) errored - score is invalid`,
+    };
+  }
+
+  // If no threshold specified, no gate to evaluate
+  if (failBelow === undefined) {
+    return { shouldExit: false, message: '' };
+  }
+
+  // Check threshold
+  const score = summary.mean;
+  if (score < failBelow) {
+    return {
+      shouldExit: true,
+      message: `CI GATE FAILED: Score ${score.toFixed(2)} < threshold ${failBelow.toFixed(2)}`,
+    };
+  }
+
+  return {
+    shouldExit: false,
+    message: `CI GATE PASSED: Score ${score.toFixed(2)} >= threshold ${failBelow.toFixed(2)}`,
+  };
+}
+
 export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> {
   const options = normalizeOptions(input.rawOptions);
   const cwd = process.cwd();
@@ -549,6 +613,16 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     }
     if (lastPromptDumpDir && allResults.length > 0) {
       console.log(`Prompt payloads saved to: ${lastPromptDumpDir}`);
+    }
+
+    // CI gate logic: check for errors and threshold
+    const ciGateResult = evaluateCIGate(summary, options.failBelow);
+    if (ciGateResult.shouldExit) {
+      console.log(`\n${ciGateResult.message}`);
+      process.exit(1);
+    }
+    if (ciGateResult.message) {
+      console.log(`\n${ciGateResult.message}`);
     }
   } finally {
     unsubscribeCodexLogs();

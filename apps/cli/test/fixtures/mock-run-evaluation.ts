@@ -32,36 +32,131 @@ interface EvaluationResultLike {
   readonly timestamp: string;
   readonly reasoning?: string;
   readonly raw_aspects?: readonly string[];
+  readonly error?: string;
 }
 
+type MockScenario = 'default' | 'with-error' | 'low-score' | 'boundary-score';
+
 function buildResults(targetName: string): EvaluationResultLike[] {
+  const scenario = (process.env.AGENTEVO_MOCK_SCENARIO ?? 'default') as MockScenario;
   const baseTime = new Date('2024-01-01T00:00:00.000Z');
-  return [
-    {
-      eval_id: 'case-alpha',
-      score: 0.6,
-      hits: ['alpha'],
-      misses: [],
-      candidate_answer: 'Alpha answer',
-      expected_aspect_count: 1,
-      target: targetName,
-      timestamp: baseTime.toISOString(),
-      reasoning: 'Alpha reasoning',
-      raw_aspects: ['alpha'],
-    },
-    {
-      eval_id: 'case-beta',
-      score: 0.9,
-      hits: ['beta', 'gamma'],
-      misses: ['delta'],
-      candidate_answer: 'Beta answer',
-      expected_aspect_count: 3,
-      target: targetName,
-      timestamp: new Date(baseTime.getTime() + 60_000).toISOString(),
-      reasoning: 'Beta reasoning',
-      raw_aspects: ['beta', 'gamma', 'delta'],
-    },
-  ];
+
+  switch (scenario) {
+    case 'with-error':
+      // One success, one error - average score 0.6, 1 error
+      return [
+        {
+          eval_id: 'case-alpha',
+          score: 0.6,
+          hits: ['alpha'],
+          misses: [],
+          candidate_answer: 'Alpha answer',
+          expected_aspect_count: 1,
+          target: targetName,
+          timestamp: baseTime.toISOString(),
+          reasoning: 'Alpha reasoning',
+          raw_aspects: ['alpha'],
+        },
+        {
+          eval_id: 'case-beta',
+          score: 0,
+          hits: [],
+          misses: [],
+          candidate_answer: '',
+          expected_aspect_count: 1,
+          target: targetName,
+          timestamp: new Date(baseTime.getTime() + 60_000).toISOString(),
+          error: 'Provider timeout after 30000ms',
+        },
+      ];
+
+    case 'low-score':
+      // Both succeed but with low scores (average 0.72)
+      return [
+        {
+          eval_id: 'case-alpha',
+          score: 0.64,
+          hits: ['alpha'],
+          misses: ['beta'],
+          candidate_answer: 'Alpha answer',
+          expected_aspect_count: 2,
+          target: targetName,
+          timestamp: baseTime.toISOString(),
+          reasoning: 'Alpha reasoning',
+          raw_aspects: ['alpha'],
+        },
+        {
+          eval_id: 'case-beta',
+          score: 0.8,
+          hits: ['beta', 'gamma'],
+          misses: ['delta'],
+          candidate_answer: 'Beta answer',
+          expected_aspect_count: 3,
+          target: targetName,
+          timestamp: new Date(baseTime.getTime() + 60_000).toISOString(),
+          reasoning: 'Beta reasoning',
+          raw_aspects: ['beta', 'gamma'],
+        },
+      ];
+
+    case 'boundary-score':
+      // Both succeed with exactly 0.80 average
+      return [
+        {
+          eval_id: 'case-alpha',
+          score: 0.8,
+          hits: ['alpha'],
+          misses: [],
+          candidate_answer: 'Alpha answer',
+          expected_aspect_count: 1,
+          target: targetName,
+          timestamp: baseTime.toISOString(),
+          reasoning: 'Alpha reasoning',
+          raw_aspects: ['alpha'],
+        },
+        {
+          eval_id: 'case-beta',
+          score: 0.8,
+          hits: ['beta', 'gamma'],
+          misses: ['delta'],
+          candidate_answer: 'Beta answer',
+          expected_aspect_count: 3,
+          target: targetName,
+          timestamp: new Date(baseTime.getTime() + 60_000).toISOString(),
+          reasoning: 'Beta reasoning',
+          raw_aspects: ['beta', 'gamma'],
+        },
+      ];
+
+    default:
+      // Default: average score 0.75
+      return [
+        {
+          eval_id: 'case-alpha',
+          score: 0.6,
+          hits: ['alpha'],
+          misses: [],
+          candidate_answer: 'Alpha answer',
+          expected_aspect_count: 1,
+          target: targetName,
+          timestamp: baseTime.toISOString(),
+          reasoning: 'Alpha reasoning',
+          raw_aspects: ['alpha'],
+        },
+        {
+          eval_id: 'case-beta',
+          score: 0.9,
+          hits: ['beta', 'gamma'],
+          misses: ['delta'],
+          candidate_answer: 'Beta answer',
+          expected_aspect_count: 3,
+          target: targetName,
+          timestamp: new Date(baseTime.getTime() + 60_000).toISOString(),
+          reasoning: 'Beta reasoning',
+          raw_aspects: ['beta', 'gamma', 'delta'],
+        },
+      ];
+  }
 }
 
 async function maybeWriteDiagnostics(

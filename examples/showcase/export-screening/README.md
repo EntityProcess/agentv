@@ -198,19 +198,56 @@ To change classification categories (e.g., add "Critical"):
 
 ## CI/CD Integration
 
-The `ci_check.py` script provides threshold-based quality gates for CI/CD pipelines.
+AgentV provides two approaches for CI/CD quality gates:
 
-### Usage
+### Option 1: Native `--fail-below` Flag (Recommended)
+
+The simplest approach uses AgentV's built-in `--fail-below` flag for aggregate score thresholds:
 
 ```bash
-# Full flow: run eval and check threshold in one command
+# Fail if aggregate score < 0.8 or any eval cases error
+bun agentv eval ./evals/dataset.yaml --fail-below 0.8
+```
+
+**Exit Codes:**
+
+| Condition | Exit Code | Reason |
+|-----------|-----------|--------|
+| Any eval case errors | 1 | Score is incomplete/invalid |
+| Score < threshold | 1 | Quality gate failed |
+| All pass, score >= threshold | 0 | Safe to merge |
+
+**Example Output:**
+```
+CI GATE FAILED: Score 0.72 < threshold 0.80
+# or
+CI GATE PASSED: Score 0.85 >= threshold 0.80
+```
+
+**GitHub Actions Example:**
+```yaml
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run eval with quality gate
+        run: bun agentv eval ./evals/dataset.yaml --fail-below 0.8
+```
+
+### Option 2: Custom Metrics with `ci_check.py`
+
+For more sophisticated checks (e.g., per-class F1 scores), use the `ci_check.py` script:
+
+```bash
+# Full flow: run eval and check per-class threshold
 uv run ./evals/ci_check.py --eval ./evals/dataset.yaml --threshold 0.95
 
 # Or check existing results file
 uv run ./evals/ci_check.py results.jsonl --threshold 0.95
 ```
 
-### Options
+**Options:**
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -219,13 +256,7 @@ uv run ./evals/ci_check.py results.jsonl --threshold 0.95
 | `--check-class` | `High` | Risk class to validate (`Low`, `Medium`, `High`) |
 | `--output` | stdout | Optional JSON output file |
 
-### Exit Codes
-
-- **0**: Pass (F1 ≥ threshold)
-- **1**: Fail (F1 < threshold)
-
-### Output Format
-
+**Output Format:**
 ```json
 {
   "result": "pass",
@@ -241,27 +272,15 @@ uv run ./evals/ci_check.py results.jsonl --threshold 0.95
 ### CI/CD Pipeline Flow
 
 ```mermaid
-flowchart LR
-    A[dataset.yaml] --> B[ci_check.py<br/>--eval]
-    B --> C{F1 >= 95%?}
-    C -->|Yes| D[✓ Pass<br/>exit 0]
-    C -->|No| E[✗ Fail<br/>exit 1]
-```
-
-### Example: GitHub Actions
-
-```yaml
-jobs:
-  eval:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run eval and check quality gate
-        run: |
-          uv run ./evals/ci_check.py \
-            --eval ./evals/dataset.yaml \
-            --threshold 0.95 \
-            --check-class High
+flowchart TD
+    A[dataset.yaml] --> B[agentv eval]
+    B --> C{Any errors?}
+    C -->|Yes| D["Exit 1<br/>(invalid score)"]
+    C -->|No| E{--fail-below set?}
+    E -->|No| F["Exit 0<br/>(no gate)"]
+    E -->|Yes| G{score >= threshold?}
+    G -->|No| H["Exit 1<br/>(below threshold)"]
+    G -->|Yes| I["Exit 0<br/>(gate passed)"]
 ```
 
 ## Purpose
