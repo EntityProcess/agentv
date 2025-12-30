@@ -38,12 +38,6 @@ The system SHALL validate target configuration using Zod schemas that serve as b
 - **THEN** the system SHALL reject with a validation error
 - **AND** the error SHALL identify the missing required field within the healthcheck
 
-## REMOVED Requirements
-
-### Requirement: Manual unknown property validation
-
-The system no longer requires manual `validateUnknownSettings()` function for CLI provider configurations. Zod `.strict()` schemas handle unknown property rejection automatically.
-
 ## ADDED Requirements
 
 ### Requirement: Schema export for extensibility
