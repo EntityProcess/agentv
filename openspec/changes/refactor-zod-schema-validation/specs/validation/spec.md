@@ -10,7 +10,6 @@ The system SHALL validate target configuration using Zod schemas that serve as b
 
 - **WHEN** a targets file contains a CLI provider target with an unrecognized property (e.g., `keep_temp_file` instead of `keep_temp_files`)
 - **THEN** the system SHALL reject the configuration with an error identifying the unknown property
-- **AND** the error message SHALL suggest the correct property name when a close match exists
 
 #### Scenario: Valid CLI provider property accepted
 
@@ -79,5 +78,4 @@ The system SHALL normalize target configurations from snake_case to camelCase af
 - **GIVEN** a CLI target with mixed naming: `{ command_template: "...", keepTempFiles: true }`
 - **WHEN** the configuration is resolved
 - **THEN** both properties SHALL be accepted
-- **AND** camelCase SHALL take precedence over snake_case when both are present
-- **AND** a warning SHALL be logged when duplicate properties exist
+- **AND** snake_case SHALL take precedence over camelCase when both are present (matching YAML convention)

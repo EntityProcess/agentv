@@ -237,7 +237,7 @@ export function normalizeCliHealthcheck(
   const timeoutMs = timeoutSeconds !== undefined ? Math.floor(timeoutSeconds * 1000) : undefined;
 
   if (input.type === 'http') {
-    const url = resolveStringInternal(input.url, env, `${targetName} healthcheck URL`);
+    const url = resolveString(input.url, env, `${targetName} healthcheck URL`);
     return {
       type: 'http',
       url,
@@ -252,14 +252,14 @@ export function normalizeCliHealthcheck(
       `${targetName} healthcheck: Either command_template or commandTemplate is required for command healthcheck`,
     );
   }
-  const commandTemplate = resolveStringInternal(
+  const commandTemplate = resolveString(
     commandTemplateSource,
     env,
     `${targetName} healthcheck command template`,
     true,
   );
 
-  let cwd = resolveOptionalStringInternal(input.cwd, env, `${targetName} healthcheck cwd`, {
+  let cwd = resolveOptionalString(input.cwd, env, `${targetName} healthcheck cwd`, {
     allowLiteral: true,
     optionalEnv: true,
   });
@@ -301,7 +301,7 @@ export function normalizeCliTargetInput(
   if (commandTemplateSource === undefined) {
     throw new Error(`${targetName}: Either command_template or commandTemplate is required`);
   }
-  const commandTemplate = resolveStringInternal(
+  const commandTemplate = resolveString(
     commandTemplateSource,
     env,
     `${targetName} CLI command template`,
@@ -311,10 +311,10 @@ export function normalizeCliTargetInput(
   // Coalesce files format variants
   const filesFormatSource =
     input.files_format ?? input.filesFormat ?? input.attachments_format ?? input.attachmentsFormat;
-  const filesFormat = resolveOptionalLiteralStringInternal(filesFormatSource);
+  const filesFormat = resolveOptionalLiteralString(filesFormatSource);
 
   // Resolve working directory
-  let cwd = resolveOptionalStringInternal(input.cwd, env, `${targetName} working directory`, {
+  let cwd = resolveOptionalString(input.cwd, env, `${targetName} working directory`, {
     allowLiteral: true,
     optionalEnv: true,
   });
@@ -333,12 +333,10 @@ export function normalizeCliTargetInput(
   const timeoutMs = timeoutSeconds !== undefined ? Math.floor(timeoutSeconds * 1000) : undefined;
 
   // Coalesce verbose variants
-  const verbose = resolveOptionalBooleanInternal(
-    input.verbose ?? input.cli_verbose ?? input.cliVerbose,
-  );
+  const verbose = resolveOptionalBoolean(input.verbose ?? input.cli_verbose ?? input.cliVerbose);
 
   // Coalesce keepTempFiles variants
-  const keepTempFiles = resolveOptionalBooleanInternal(
+  const keepTempFiles = resolveOptionalBoolean(
     input.keep_temp_files ??
       input.keepTempFiles ??
       input.keep_output_files ??
@@ -359,102 +357,6 @@ export function normalizeCliTargetInput(
     verbose,
     keepTempFiles,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Internal helper functions for CLI normalization
-// These are used by normalizeCliTargetInput and normalizeCliHealthcheck
-// ---------------------------------------------------------------------------
-
-function resolveStringInternal(
-  source: unknown,
-  env: EnvLookup,
-  description: string,
-  allowLiteral = false,
-): string {
-  const value = resolveOptionalStringInternal(source, env, description, {
-    allowLiteral,
-    optionalEnv: false,
-  });
-  if (value === undefined) {
-    throw new Error(`${description} is required`);
-  }
-  return value;
-}
-
-function resolveOptionalStringInternal(
-  source: unknown,
-  env: EnvLookup,
-  description: string,
-  options?: { allowLiteral?: boolean; optionalEnv?: boolean },
-): string | undefined {
-  if (source === undefined || source === null) {
-    return undefined;
-  }
-  if (typeof source !== 'string') {
-    throw new Error(`${description} must be a string`);
-  }
-  const trimmed = source.trim();
-  if (trimmed.length === 0) {
-    return undefined;
-  }
-
-  // Check for ${{ variable }} syntax
-  const envVarMatch = trimmed.match(/^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i);
-  if (envVarMatch) {
-    const varName = envVarMatch[1];
-    const envValue = env[varName];
-    const optionalEnv = options?.optionalEnv ?? false;
-
-    // Treat empty or undefined env vars the same way
-    if (envValue === undefined || envValue.trim().length === 0) {
-      if (optionalEnv) {
-        return undefined;
-      }
-      const status = envValue === undefined ? 'is not set' : 'is empty';
-      throw new Error(`Environment variable '${varName}' required for ${description} ${status}`);
-    }
-    return envValue;
-  }
-
-  // Return as literal value
-  const allowLiteral = options?.allowLiteral ?? false;
-  if (!allowLiteral) {
-    throw new Error(
-      `${description} must use \${{ VARIABLE_NAME }} syntax for environment variables or be marked as allowing literals`,
-    );
-  }
-  return trimmed;
-}
-
-function resolveOptionalLiteralStringInternal(source: unknown): string | undefined {
-  if (source === undefined || source === null) {
-    return undefined;
-  }
-  if (typeof source !== 'string') {
-    throw new Error('expected string value');
-  }
-  const trimmed = source.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function resolveOptionalBooleanInternal(source: unknown): boolean | undefined {
-  if (source === undefined || source === null || source === '') {
-    return undefined;
-  }
-  if (typeof source === 'boolean') {
-    return source;
-  }
-  if (typeof source === 'string') {
-    const lowered = source.trim().toLowerCase();
-    if (lowered === 'true' || lowered === '1') {
-      return true;
-    }
-    if (lowered === 'false' || lowered === '0') {
-      return false;
-    }
-  }
-  throw new Error('expected boolean value');
 }
 
 // ---------------------------------------------------------------------------
@@ -548,8 +450,8 @@ export interface VSCodeResolvedConfig {
  */
 export type CliHealthcheck = Readonly<CliNormalizedHealthcheck>;
 
-// Note: CliResolvedConfig is now defined as a type alias at line 157-161,
-// derived from CliTargetConfigSchema for type safety and single source of truth.
+// Note: CliResolvedConfig is a type alias derived from CliNormalizedConfig (see above),
+// which itself is inferred from CliTargetConfigSchema for type safety and single source of truth.
 
 export type ResolvedTarget =
   | {
