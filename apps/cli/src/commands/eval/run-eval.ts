@@ -53,7 +53,7 @@ interface NormalizedOptions {
   readonly dumpPrompts?: string | boolean;
   readonly dumpTraces: boolean;
   readonly includeTrace: boolean;
-  readonly failBelow?: number;
+  readonly minScore?: number;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -81,13 +81,13 @@ function normalizeNumber(value: unknown, fallback: number): number {
   return fallback;
 }
 
-function normalizeFailBelow(value: unknown): number | undefined {
+function normalizeMinScore(value: unknown): number | undefined {
   if (value === undefined || value === null) {
     return undefined;
   }
   if (typeof value === 'number' && Number.isFinite(value)) {
     if (value < 0 || value > 1) {
-      console.error(`Error: --fail-below must be between 0.0 and 1.0, got ${value}`);
+      console.error(`Error: --min-score must be between 0.0 and 1.0, got ${value}`);
       process.exit(1);
     }
     return value;
@@ -96,7 +96,7 @@ function normalizeFailBelow(value: unknown): number | undefined {
     const parsed = Number.parseFloat(value);
     if (!Number.isNaN(parsed)) {
       if (parsed < 0 || parsed > 1) {
-        console.error(`Error: --fail-below must be between 0.0 and 1.0, got ${parsed}`);
+        console.error(`Error: --min-score must be between 0.0 and 1.0, got ${parsed}`);
         process.exit(1);
       }
       return parsed;
@@ -129,7 +129,7 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     dumpPrompts: rawOptions.dumpPrompts as string | boolean | undefined,
     dumpTraces: normalizeBoolean(rawOptions.dumpTraces),
     includeTrace: normalizeBoolean(rawOptions.includeTrace),
-    failBelow: normalizeFailBelow(rawOptions.failBelow),
+    minScore: normalizeMinScore(rawOptions.minScore),
   } satisfies NormalizedOptions;
 }
 
@@ -463,7 +463,7 @@ interface CIGateResult {
   readonly message: string;
 }
 
-function evaluateCIGate(summary: EvaluationSummary, failBelow?: number): CIGateResult {
+function evaluateCIGate(summary: EvaluationSummary, minScore?: number): CIGateResult {
   // Check for errors first - any eval case errors make the score invalid
   if (summary.errorCount > 0) {
     return {
@@ -473,22 +473,22 @@ function evaluateCIGate(summary: EvaluationSummary, failBelow?: number): CIGateR
   }
 
   // If no threshold specified, no gate to evaluate
-  if (failBelow === undefined) {
+  if (minScore === undefined) {
     return { shouldExit: false, message: '' };
   }
 
   // Check threshold
   const score = summary.mean;
-  if (score < failBelow) {
+  if (score < minScore) {
     return {
       shouldExit: true,
-      message: `CI GATE FAILED: Score ${score.toFixed(2)} < threshold ${failBelow.toFixed(2)}`,
+      message: `CI GATE FAILED: Score ${score.toFixed(2)} < min-score ${minScore.toFixed(2)}`,
     };
   }
 
   return {
     shouldExit: false,
-    message: `CI GATE PASSED: Score ${score.toFixed(2)} >= threshold ${failBelow.toFixed(2)}`,
+    message: `CI GATE PASSED: Score ${score.toFixed(2)} >= min-score ${minScore.toFixed(2)}`,
   };
 }
 
@@ -616,7 +616,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     }
 
     // CI gate logic: check for errors and threshold
-    const ciGateResult = evaluateCIGate(summary, options.failBelow);
+    const ciGateResult = evaluateCIGate(summary, options.minScore);
     if (ciGateResult.shouldExit) {
       console.log(`\n${ciGateResult.message}`);
       process.exit(1);

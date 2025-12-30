@@ -200,13 +200,13 @@ To change classification categories (e.g., add "Critical"):
 
 AgentV provides two approaches for CI/CD quality gates:
 
-### Option 1: Native `--fail-below` Flag (Recommended)
+### Option 1: Native `--min-score` Flag (Recommended)
 
-The simplest approach uses AgentV's built-in `--fail-below` flag for aggregate score thresholds:
+The simplest approach uses AgentV's built-in `--min-score` flag for aggregate score thresholds:
 
 ```bash
 # Fail if aggregate score < 0.8 or any eval cases error
-bun agentv eval ./evals/dataset.yaml --fail-below 0.8
+bun agentv eval ./evals/dataset.yaml --min-score 0.8
 ```
 
 **Exit Codes:**
@@ -219,9 +219,9 @@ bun agentv eval ./evals/dataset.yaml --fail-below 0.8
 
 **Example Output:**
 ```
-CI GATE FAILED: Score 0.72 < threshold 0.80
+CI GATE FAILED: Score 0.72 < min-score 0.80
 # or
-CI GATE PASSED: Score 0.85 >= threshold 0.80
+CI GATE PASSED: Score 0.85 >= min-score 0.80
 ```
 
 **GitHub Actions Example:**
@@ -232,7 +232,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run eval with quality gate
-        run: bun agentv eval ./evals/dataset.yaml --fail-below 0.8
+        run: bun agentv eval ./evals/dataset.yaml --min-score 0.8
 ```
 
 ### Option 2: Custom Metrics with `ci_check.py`
@@ -276,10 +276,10 @@ flowchart TD
     A[dataset.yaml] --> B[agentv eval]
     B --> C{Any errors?}
     C -->|Yes| D["Exit 1<br/>(invalid score)"]
-    C -->|No| E{--fail-below set?}
+    C -->|No| E{--min-score set?}
     E -->|No| F["Exit 0<br/>(no gate)"]
-    E -->|Yes| G{score >= threshold?}
-    G -->|No| H["Exit 1<br/>(below threshold)"]
+    E -->|Yes| G{score >= min-score?}
+    G -->|No| H["Exit 1<br/>(below min-score)"]
     G -->|Yes| I["Exit 0<br/>(gate passed)"]
 ```
 

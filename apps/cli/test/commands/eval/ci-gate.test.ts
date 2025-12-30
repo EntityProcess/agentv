@@ -100,35 +100,35 @@ afterEach(async () => {
   }
 });
 
-describe('CI gate: --fail-below flag', () => {
-  it('exits 1 with validation error when --fail-below is out of range (1.5)', async () => {
+describe('CI gate: --min-score flag', () => {
+  it('exits 1 with validation error when --min-score is out of range (1.5)', async () => {
     const fixture = await createFixture();
     fixtures.push(fixture.baseDir);
 
     const { stderr, exitCode } = await runCli(fixture, [
       'eval',
       fixture.testFilePath,
-      '--fail-below',
+      '--min-score',
       '1.5',
     ]);
 
     expect(exitCode).toBe(1);
-    expect(stderr).toContain('--fail-below must be between 0.0 and 1.0');
+    expect(stderr).toContain('--min-score must be between 0.0 and 1.0');
   });
 
-  it('exits 1 with validation error when --fail-below is negative', async () => {
+  it('exits 1 with validation error when --min-score is negative', async () => {
     const fixture = await createFixture();
     fixtures.push(fixture.baseDir);
 
     const { stderr, exitCode } = await runCli(fixture, [
       'eval',
       fixture.testFilePath,
-      '--fail-below',
+      '--min-score',
       '-0.5',
     ]);
 
     expect(exitCode).toBe(1);
-    expect(stderr).toContain('--fail-below must be between 0.0 and 1.0');
+    expect(stderr).toContain('--min-score must be between 0.0 and 1.0');
   });
 
   it('exits 1 when eval has errors (regardless of threshold)', async () => {
@@ -137,7 +137,7 @@ describe('CI gate: --fail-below flag', () => {
 
     const { stdout, exitCode } = await runCli(
       fixture,
-      ['eval', fixture.testFilePath, '--fail-below', '0.5'],
+      ['eval', fixture.testFilePath, '--min-score', '0.5'],
       { AGENTEVO_MOCK_SCENARIO: 'with-error' },
     );
 
@@ -147,36 +147,36 @@ describe('CI gate: --fail-below flag', () => {
     expect(stdout).toContain('score is invalid');
   });
 
-  it('exits 1 when score (0.72) is below threshold (0.8)', async () => {
+  it('exits 1 when score (0.72) is below min-score (0.8)', async () => {
     const fixture = await createFixture();
     fixtures.push(fixture.baseDir);
 
     const { stdout, exitCode } = await runCli(
       fixture,
-      ['eval', fixture.testFilePath, '--fail-below', '0.8'],
+      ['eval', fixture.testFilePath, '--min-score', '0.8'],
       { AGENTEVO_MOCK_SCENARIO: 'low-score' },
     );
 
     expect(exitCode).toBe(1);
     expect(stdout).toContain('CI GATE FAILED');
     expect(stdout).toContain('Score 0.72');
-    expect(stdout).toContain('< threshold 0.80');
+    expect(stdout).toContain('< min-score 0.80');
   });
 
-  it('exits 0 when score (0.80) equals threshold (0.8) - boundary case', async () => {
+  it('exits 0 when score (0.80) equals min-score (0.8) - boundary case', async () => {
     const fixture = await createFixture();
     fixtures.push(fixture.baseDir);
 
     const { stdout, exitCode } = await runCli(
       fixture,
-      ['eval', fixture.testFilePath, '--fail-below', '0.8'],
+      ['eval', fixture.testFilePath, '--min-score', '0.8'],
       { AGENTEVO_MOCK_SCENARIO: 'boundary-score' },
     );
 
     expect(exitCode).toBe(0);
     expect(stdout).toContain('CI GATE PASSED');
     expect(stdout).toContain('Score 0.80');
-    expect(stdout).toContain('>= threshold 0.80');
+    expect(stdout).toContain('>= min-score 0.80');
   });
 
   it('exits 0 with no flags and no errors - backward compatibility', async () => {
@@ -190,20 +190,20 @@ describe('CI gate: --fail-below flag', () => {
     expect(stdout).not.toContain('CI GATE');
   });
 
-  it('exits 0 when score exceeds threshold', async () => {
+  it('exits 0 when score exceeds min-score', async () => {
     const fixture = await createFixture();
     fixtures.push(fixture.baseDir);
 
-    // Default scenario has 0.75 average, threshold 0.5 should pass
+    // Default scenario has 0.75 average, min-score 0.5 should pass
     const { stdout, exitCode } = await runCli(fixture, [
       'eval',
       fixture.testFilePath,
-      '--fail-below',
+      '--min-score',
       '0.5',
     ]);
 
     expect(exitCode).toBe(0);
     expect(stdout).toContain('CI GATE PASSED');
-    expect(stdout).toContain('>= threshold 0.50');
+    expect(stdout).toContain('>= min-score 0.50');
   });
 });

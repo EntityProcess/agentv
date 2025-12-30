@@ -114,11 +114,11 @@ export const evalCommand = command({
       long: 'include-trace',
       description: 'Include full trace in result output (verbose)',
     }),
-    failBelow: option({
+    minScore: option({
       type: optional(number),
-      long: 'fail-below',
+      long: 'min-score',
       description:
-        'CI gate: exit 1 if aggregate score is below this threshold (0.0-1.0). Also exits 1 if any eval cases error.',
+        'Minimum passing score (0.0-1.0). Exits 1 if score below threshold or any eval cases error.',
     }),
   },
   handler: async (args) => {
@@ -148,7 +148,7 @@ export const evalCommand = command({
       dumpPrompts,
       dumpTraces: args.dumpTraces,
       includeTrace: args.includeTrace,
-      failBelow: args.failBelow,
+      minScore: args.minScore,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },
