@@ -21,16 +21,16 @@ When eval cases error (provider timeout, malformed response, etc.), the aggregat
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--fail-below <score>` | number (0.0-1.0) | Exit 1 if aggregate score < threshold |
+| `--min-score <score>` | number (0.0-1.0) | Minimum passing score. Exit 1 if aggregate score < threshold |
 
 ### Exit Code Semantics
 
 | Condition | Exit Code | Reason |
 |-----------|-----------|--------|
 | Any eval case errors | 1 | Score is incomplete/invalid |
-| Score < `--fail-below` threshold | 1 | Quality gate failed |
+| Score < `--min-score` threshold | 1 | Quality gate failed |
 | All pass, score >= threshold | 0 | Safe to merge |
-| No `--fail-below`, no errors | 0 | Current behavior preserved |
+| No `--min-score`, no errors | 0 | Current behavior preserved |
 
 ### Aggregate Score Definition
 
@@ -40,18 +40,18 @@ The aggregate score is the **mean of all eval case scores** (already computed by
 
 ```bash
 # CI pipeline: fail if any errors OR score < 0.8
-agentv eval evals/*.yaml --fail-below 0.8
+agentv eval evals/*.yaml --min-score 0.8
 
 # Output on error:
 # CI GATE FAILED: 2 eval case(s) errored - score is invalid
 # Exit code: 1
 
 # Output on threshold failure:
-# CI GATE FAILED: Score 0.72 < threshold 0.80
+# CI GATE FAILED: Score 0.72 < min-score 0.80
 # Exit code: 1
 
 # Output on success:
-# CI GATE PASSED: Score 0.85 >= threshold 0.80
+# CI GATE PASSED: Score 0.85 >= min-score 0.80
 # Exit code: 0
 ```
 
@@ -61,10 +61,10 @@ agentv eval evals/*.yaml --fail-below 0.8
 flowchart TD
     A[agentv eval completes] --> B{Any eval cases errored?}
     B -->|Yes| C["Exit 1<br/>(invalid score)"]
-    B -->|No| D{--fail-below threshold set?}
+    B -->|No| D{--min-score set?}
     D -->|No| E["Exit 0<br/>(no gate)"]
-    D -->|Yes| F{aggregate score >= threshold?}
-    F -->|No| G["Exit 1<br/>(below threshold)"]
+    D -->|Yes| F{score >= min-score?}
+    F -->|No| G["Exit 1<br/>(below min-score)"]
     F -->|Yes| H["Exit 0<br/>(gate passed)"]
 ```
 
