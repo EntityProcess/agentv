@@ -27,7 +27,8 @@ export-screening/
 ├── evals/
 │   ├── dataset.yaml                    # Eval cases with expert assessments
 │   ├── validate_risk_output.py         # JSON validator + accuracy checker
-│   └── compute_confusion_matrix.py     # Post-processor for metrics
+│   ├── compute_confusion_matrix.py     # Post-processor for metrics
+│   └── ci_check.py                     # CI/CD threshold checker
 └── .agentv/
     └── targets.yaml                    # (optional) target configuration
 ```
@@ -42,7 +43,7 @@ From the repository root:
 cd examples/showcase/export-screening
 
 # Run evaluation and save results
-bun agentv eval ./evals/dataset.yaml --output results.jsonl
+bun agentv eval ./evals/dataset.yaml --out results.jsonl
 ```
 
 ### Step 2: Compute confusion matrix metrics
@@ -195,6 +196,74 @@ To change classification categories (e.g., add "Critical"):
 2. Update `VALID_RISK_LEVELS` in `validate_risk_output.py`
 3. Update the skill prompt in `export-risk-assessment.md`
 
+## CI/CD Integration
+
+The `ci_check.py` script provides threshold-based quality gates for CI/CD pipelines.
+
+### Usage
+
+```bash
+# Full flow: run eval and check threshold in one command
+uv run ./evals/ci_check.py --eval ./evals/dataset.yaml --threshold 0.95
+
+# Or check existing results file
+uv run ./evals/ci_check.py results.jsonl --threshold 0.95
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--eval` | - | Run agentv eval on this dataset first |
+| `--threshold` | `0.95` | F1 score threshold (0.0-1.0) |
+| `--check-class` | `High` | Risk class to validate (`Low`, `Medium`, `High`) |
+| `--output` | stdout | Optional JSON output file |
+
+### Exit Codes
+
+- **0**: Pass (F1 ≥ threshold)
+- **1**: Fail (F1 < threshold)
+
+### Output Format
+
+```json
+{
+  "result": "pass",
+  "checkedClass": "High",
+  "threshold": 0.95,
+  "actualF1": 0.9625,
+  "margin": 0.0125,
+  "message": "PASS: High F1 score 96.2% >= 95.0% threshold",
+  "metrics": { ... }
+}
+```
+
+### CI/CD Pipeline Flow
+
+```mermaid
+flowchart LR
+    A[dataset.yaml] --> B[ci_check.py<br/>--eval]
+    B --> C{F1 >= 95%?}
+    C -->|Yes| D[✓ Pass<br/>exit 0]
+    C -->|No| E[✗ Fail<br/>exit 1]
+```
+
+### Example: GitHub Actions
+
+```yaml
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run eval and check quality gate
+        run: |
+          uv run ./evals/ci_check.py \
+            --eval ./evals/dataset.yaml \
+            --threshold 0.95 \
+            --check-class High
+```
+
 ## Purpose
 
 This showcase is useful for:
@@ -203,3 +272,4 @@ This showcase is useful for:
 - **Model comparison**: Compare different LLMs on the same eval set
 - **Regression testing**: Ensure prompt changes don't degrade accuracy
 - **Stakeholder reporting**: Generate metrics for compliance team review
+- **CI/CD quality gates**: Automated pass/fail checks in deployment pipelines
