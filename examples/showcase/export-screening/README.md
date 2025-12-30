@@ -15,7 +15,7 @@ Trade compliance teams screen shipments to identify potential dual-use goods req
 1. **Multi-class classification** (Low/Medium/High)
 2. **Structured JSON output** with reasoning
 3. **Code evaluator** for format validation and accuracy checking
-4. **Post-processing script** for confusion matrix and precision/recall/F1 metrics
+4. **Built-in aggregator** for confusion matrix and precision/recall/F1 metrics
 
 ## Files
 
@@ -27,7 +27,6 @@ export-screening/
 ├── evals/
 │   ├── dataset.yaml                    # Eval cases with expert assessments
 │   ├── validate_risk_output.py         # JSON validator + accuracy checker
-│   ├── compute_confusion_matrix.py     # Post-processor for metrics
 │   └── ci_check.py                     # CI/CD threshold checker
 └── .agentv/
     └── targets.yaml                    # (optional) target configuration
@@ -35,100 +34,96 @@ export-screening/
 
 ## Running the Evaluation
 
-### Step 1: Run AgentV evaluation
-
 From the repository root:
 
 ```bash
 cd examples/showcase/export-screening
 
-# Run evaluation and save results
-bun agentv eval ./evals/dataset.yaml --out results.jsonl
-```
-
-### Step 2: Compute confusion matrix metrics
-
-```bash
-# Generate metrics JSON (also prints summary to stderr)
-uv run ./evals/compute_confusion_matrix.py results.jsonl metrics.json
+# Run evaluation with confusion matrix metrics
+bun agentv eval ./evals/dataset.yaml --out results.jsonl --aggregator confusion-matrix
 ```
 
 ### Example Output
 
 ```
-=== Export Risk Classification Metrics ===
+==================================================
+EVALUATION SUMMARY
+==================================================
+Total eval cases: 22
+Mean score: 0.864
+...
 
-Total samples: 16
-Accuracy: 75.0%
+==================================================
+CONFUSION MATRIX
+==================================================
+Total samples: 22
+Parsed samples: 22
+Accuracy: 86.4%
 
 Confusion Matrix (rows=actual, cols=predicted):
-           |      Low   Medium     High
-------------------------------------------
-       Low |        3        1        0
-    Medium |        2        1        1
-      High |        0        1        7
+                 High        Low     Medium
+      High          10          0          2
+       Low          0          5          1
+    Medium          1          0          3
 
 Per-class Metrics:
      Class |  Precision     Recall         F1
-----------------------------------------------
-       Low |      60.0%    75.0%      66.7%
-    Medium |      33.3%    25.0%      28.6%
-      High |      87.5%    87.5%      87.5%
-----------------------------------------------
-   Overall |      60.3%    62.5%      60.9%
+------------------------------------------------
+      High |      90.9%     83.3%      87.0%
+       Low |     100.0%     83.3%      90.9%
+    Medium |      50.0%     75.0%      60.0%
+------------------------------------------------
+ Macro Avg |      80.3%     80.6%      79.3%
+
+Results written to: results.jsonl
+Aggregator results written to: results.aggregators.json
 ```
 
 ### JSON Output Format
 
+The `results.aggregators.json` file contains:
+
 ```json
-{
-  "summary": {
-    "totalSamples": 16,
-    "samplesPerClass": {"Low": 4, "Medium": 4, "High": 8},
-    "accuracy": 0.75
-  },
-  "confusionMatrix": {
-    "classes": ["Low", "Medium", "High"],
-    "matrix": {
-      "Low": {"Low": 3, "Medium": 1, "High": 0},
-      "Medium": {"Low": 2, "Medium": 1, "High": 1},
-      "High": {"Low": 0, "Medium": 1, "High": 7}
+[
+  {
+    "type": "confusion-matrix",
+    "summary": {
+      "totalSamples": 22,
+      "parsedSamples": 22,
+      "unparsedSamples": 0,
+      "samplesPerClass": {"High": 12, "Medium": 4, "Low": 6},
+      "accuracy": 0.8182
     },
-    "description": "matrix[actual][predicted] = count"
-  },
-  "metricsPerClass": {
-    "Low": {"precision": 0.6, "recall": 0.75, "f1": 0.667, ...},
-    "Medium": {"precision": 0.333, "recall": 0.25, "f1": 0.286, ...},
-    "High": {"precision": 0.875, "recall": 0.875, "f1": 0.875, ...}
-  },
-  "overallMetrics": {
-    "precision": 0.603,
-    "recall": 0.625,
-    "f1": 0.609
+    "confusionMatrix": {
+      "classes": ["High", "Low", "Medium"],
+      "matrix": {
+        "High": {"High": 10, "Low": 0, "Medium": 2},
+        "Low": {"High": 0, "Low": 5, "Medium": 1},
+        "Medium": {"High": 1, "Low": 0, "Medium": 3}
+      },
+      "description": "matrix[actual][predicted] = count"
+    },
+    "metricsPerClass": {
+      "High": {"precision": 0.909, "recall": 0.833, "f1": 0.870, ...},
+      "Low": {"precision": 1.0, "recall": 0.833, "f1": 0.909, ...},
+      "Medium": {"precision": 0.5, "recall": 0.75, "f1": 0.6, ...}
+    },
+    "overallMetrics": {
+      "precision": 0.803,
+      "recall": 0.806,
+      "f1": 0.793
+    }
   }
-}
+]
 ```
 
 ## Evaluation Flow
 
-```
-┌─────────────────┐     ┌──────────────────┐     ┌────────────────────┐
-│  dataset.yaml   │────▶│  bun agentv eval │────▶│   results.jsonl    │
-│ (eval cases +   │     │                  │     │  (per-case scores) │
-│  expert labels) │     └──────────────────┘     └─────────┬──────────┘
-└─────────────────┘                                        │
-                                                           ▼
-                                              ┌────────────────────────┐
-                                              │ compute_confusion_     │
-                                              │ matrix.py              │
-                                              └───────────┬────────────┘
-                                                          │
-                                                          ▼
-                                              ┌────────────────────────┐
-                                              │     metrics.json       │
-                                              │ (confusion matrix +    │
-                                              │  precision/recall/F1)  │
-                                              └────────────────────────┘
+```mermaid
+flowchart LR
+    A[dataset.yaml] --> B[bun agentv eval<br/>--aggregator confusion-matrix]
+    B --> C[results.jsonl<br/>per-case scores]
+    B --> D[results.aggregators.json<br/>confusion matrix + P/R/F1]
 ```
 
 ## How It Works
@@ -146,17 +141,17 @@ The evaluator:
 1. Validates JSON format and required fields
 2. Extracts AI's `riskLevel` prediction
 3. Compares to expected `riskLevel` from `expected_messages`
-4. Outputs structured hits/misses for post-processing:
+4. Outputs structured hits/misses for the aggregator:
    - Hit: `"Correct: AI=High, Expected=High"`
    - Miss: `"Mismatch: AI=Low, Expected=High"`
 
-### 3. Post-Processor (`compute_confusion_matrix.py`)
+### 3. Built-in Aggregator (`--aggregator confusion-matrix`)
 
-Parses the JSONL results to:
-1. Extract predicted vs actual classifications from hits/misses
-2. Build confusion matrix
-3. Compute per-class precision, recall, F1
-4. Compute macro-averaged overall metrics
+The confusion-matrix aggregator:
+1. Parses predicted vs actual classifications from hits/misses
+2. Builds confusion matrix
+3. Computes per-class precision, recall, F1
+4. Computes macro-averaged overall metrics
 
 ## Customization
 
@@ -192,9 +187,8 @@ Add cases to `dataset.yaml` following the existing pattern:
 
 To change classification categories (e.g., add "Critical"):
 
-1. Update `CLASSES` in both Python scripts
-2. Update `VALID_RISK_LEVELS` in `validate_risk_output.py`
-3. Update the skill prompt in `export-risk-assessment.md`
+1. Update `VALID_RISK_LEVELS` in `validate_risk_output.py`
+2. Update the skill prompt in `export-risk-assessment.md`
 
 ## CI/CD Integration
 
@@ -206,8 +200,8 @@ The `ci_check.py` script provides threshold-based quality gates for CI/CD pipeli
 # Full flow: run eval and check threshold in one command
 uv run ./evals/ci_check.py --eval ./evals/dataset.yaml --threshold 0.95
 
-# Or check existing results file
-uv run ./evals/ci_check.py results.jsonl --threshold 0.95
+# Or check existing aggregator results file
+uv run ./evals/ci_check.py results.aggregators.json --threshold 0.95
 ```
 
 ### Options

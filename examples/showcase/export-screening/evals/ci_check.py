@@ -9,8 +9,8 @@ Usage:
     # Full flow: run eval then check threshold
     uv run ci_check.py --eval dataset.yaml --threshold 0.95 --check-class High
 
-    # Check existing results file
-    uv run ci_check.py results.jsonl --threshold 0.95 --check-class High
+    # Check existing aggregator results file
+    uv run ci_check.py metrics.aggregators.json --threshold 0.95 --check-class High
 
 Options:
     --eval FILE         Run agentv eval on this dataset first
@@ -30,17 +30,16 @@ import sys
 import tempfile
 from pathlib import Path
 
-from compute_confusion_matrix import compute_metrics
-
 
 def run_eval(eval_file: Path) -> Path:
     """
-    Run agentv eval and return path to results file.
+    Run agentv eval with confusion-matrix aggregator and return path to aggregator results.
 
     Raises SystemExit on failure.
     """
     # Create temp file for results
     results_file = Path(tempfile.mktemp(suffix=".jsonl"))
+    aggregator_file = Path(str(results_file).replace(".jsonl", ".aggregators.json"))
 
     # Find repo root (look for package.json with workspaces)
     repo_root = eval_file.resolve().parent
@@ -53,11 +52,12 @@ def run_eval(eval_file: Path) -> Path:
     else:
         repo_root = Path.cwd()
 
-    # Run agentv eval
+    # Run agentv eval with confusion-matrix aggregator
     cmd = [
         "bun", "agentv", "eval",
         str(eval_file.resolve()),
-        "--out", str(results_file)
+        "--out", str(results_file),
+        "--aggregator", "confusion-matrix"
     ]
 
     print(f"Running: {' '.join(cmd)}", file=sys.stderr)
@@ -84,11 +84,24 @@ def run_eval(eval_file: Path) -> Path:
         print("Error: 'bun' command not found. Ensure bun is installed.", file=sys.stderr)
         sys.exit(1)
 
-    if not results_file.exists():
-        print(f"Error: Eval did not produce results file: {results_file}", file=sys.stderr)
+    if not aggregator_file.exists():
+        print(f"Error: Eval did not produce aggregator file: {aggregator_file}", file=sys.stderr)
         sys.exit(1)
 
-    return results_file
+    return aggregator_file
+
+
+def load_metrics(aggregator_file: Path) -> dict:
+    """Load metrics from aggregator JSON file."""
+    try:
+        data = json.loads(aggregator_file.read_text())
+        # The aggregator output is an array; find confusion-matrix result
+        for item in data:
+            if item.get("type") == "confusion-matrix":
+                return item
+        return {"error": "No confusion-matrix aggregator found in results"}
+    except json.JSONDecodeError as e:
+        return {"error": f"Failed to parse aggregator JSON: {e}"}
 
 
 def check_threshold(
@@ -136,15 +149,15 @@ Examples:
   # Full flow - run eval then check
   uv run ci_check.py --eval dataset.yaml --threshold 0.95
 
-  # Check existing results
-  uv run ci_check.py results.jsonl --threshold 0.95
+  # Check existing aggregator results
+  uv run ci_check.py metrics.aggregators.json --threshold 0.95
         """
     )
     parser.add_argument(
-        "results_file",
+        "aggregator_file",
         type=Path,
         nargs="?",
-        help="AgentV results JSONL file (optional if --eval is provided)"
+        help="AgentV aggregator JSON file (optional if --eval is provided)"
     )
     parser.add_argument(
         "--eval",
@@ -173,23 +186,23 @@ Examples:
 
     args = parser.parse_args()
 
-    # Determine results file
+    # Determine aggregator file
     if args.eval_file:
         if not args.eval_file.exists():
             print(f"Error: Eval file not found: {args.eval_file}", file=sys.stderr)
             sys.exit(1)
-        results_file = run_eval(args.eval_file)
-    elif args.results_file:
-        if not args.results_file.exists():
-            print(f"Error: Results file not found: {args.results_file}", file=sys.stderr)
+        aggregator_file = run_eval(args.eval_file)
+    elif args.aggregator_file:
+        if not args.aggregator_file.exists():
+            print(f"Error: Aggregator file not found: {args.aggregator_file}", file=sys.stderr)
             sys.exit(1)
-        results_file = args.results_file
+        aggregator_file = args.aggregator_file
     else:
-        print("Error: Provide either --eval <dataset.yaml> or <results.jsonl>", file=sys.stderr)
+        print("Error: Provide either --eval <dataset.yaml> or <aggregators.json>", file=sys.stderr)
         sys.exit(1)
 
-    # Compute metrics using existing function
-    metrics = compute_metrics(results_file)
+    # Load metrics from aggregator output
+    metrics = load_metrics(aggregator_file)
 
     if "error" in metrics:
         print(f"Error: {metrics['error']}", file=sys.stderr)
