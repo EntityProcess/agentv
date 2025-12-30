@@ -4,9 +4,10 @@
 # - Eval cases contain structured `input_messages` objects.
 # - A batch runner converts those objects into a CSV input file.
 # - The CLI provider runs the batch runner once, producing JSONL output.
+# - output_messages in JSONL are automatically converted to trace events for tool_trajectory evaluation.
 
 $schema: agentv-eval-v2
-description: Batch CLI demo (AML screening) using structured input_messages → CSV → JSONL
+description: Batch CLI demo (AML screening) using structured input_messages → CSV → JSONL with trace extraction
 
 target: batch_cli
 
@@ -47,6 +48,12 @@ evalcases:
           type: code_judge
           script: bun run ./scripts/check-batch-cli-output.ts
           cwd: .
+        # Verify the aml_screening tool was called using trace extracted from output_messages
+        - name: tool-trajectory-check
+          type: tool_trajectory
+          mode: any_order
+          minimums:
+            aml_screening: 1
 
   - id: aml-002
     expected_outcome: |-
@@ -81,6 +88,12 @@ evalcases:
           type: code_judge
           script: bun run ./scripts/check-batch-cli-output.ts
           cwd: .
+        # Verify the aml_screening tool was called using trace extracted from output_messages
+        - name: tool-trajectory-check
+          type: tool_trajectory
+          mode: any_order
+          minimums:
+            aml_screening: 1
 
   - id: aml-003
     expected_outcome: |-
@@ -115,3 +128,9 @@ evalcases:
           type: code_judge
           script: bun run ./scripts/check-batch-cli-output.ts
           cwd: .
+        # Verify the aml_screening tool was called using trace extracted from output_messages
+        - name: tool-trajectory-check
+          type: tool_trajectory
+          mode: any_order
+          minimums:
+            aml_screening: 1

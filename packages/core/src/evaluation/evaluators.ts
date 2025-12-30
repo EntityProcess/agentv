@@ -2,9 +2,15 @@ import { generateText } from 'ai';
 import { z } from 'zod';
 
 import type { ResolvedTarget } from './providers/targets.js';
-import type { ChatPrompt, Provider, ProviderResponse } from './providers/types.js';
+import {
+  type ChatPrompt,
+  type OutputMessage,
+  type Provider,
+  type ProviderResponse,
+  extractLastAssistantContent,
+} from './providers/types.js';
 import { TEMPLATE_VARIABLES } from './template-variables.js';
-import type { ToolTrajectoryEvaluatorConfig, TraceEvent, TraceSummary } from './trace.js';
+import type { ToolTrajectoryEvaluatorConfig, TraceSummary } from './trace.js';
 import type {
   EvalCase,
   EvaluationVerdict,
@@ -53,12 +59,10 @@ export interface EvaluationContext {
   readonly judgeProvider?: Provider;
   readonly evaluatorTemplateOverride?: string;
   readonly evaluator?: EvaluatorConfig;
-  /** Normalized trace events from provider execution (if available) */
-  readonly candidateTrace?: readonly TraceEvent[];
-  /** File path to trace data (alternative to inline candidateTrace) */
-  readonly candidateTraceRef?: string;
+  /** Output messages from agent execution (primary source for tool trajectory) */
+  readonly outputMessages?: readonly OutputMessage[];
   /** Lightweight summary of trace events (if available) */
-  readonly candidateTraceSummary?: TraceSummary;
+  readonly traceSummary?: TraceSummary;
 }
 
 export interface EvaluationScore {
@@ -164,6 +168,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         null,
         2,
       ),
+      [TEMPLATE_VARIABLES.OUTPUT_MESSAGES]: JSON.stringify(context.outputMessages ?? [], null, 2),
       [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: context.candidate.trim(),
       [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.EXPECTED_OUTCOME]: context.evalCase.expected_outcome.trim(),
@@ -198,7 +203,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       const misses = Array.isArray(data.misses)
         ? data.misses.filter(isNonEmptyString).slice(0, 4)
         : [];
-      const reasoning = data.reasoning ?? providerResponse?.reasoning;
+      const reasoning = data.reasoning;
       const expectedAspectCount = Math.max(hits.length + misses.length, 1);
 
       return {
@@ -334,7 +339,9 @@ export class LlmJudgeEvaluator implements Evaluator {
           temperature: this.temperature,
         });
 
-        const data = schema.parse(parseJsonFromText(response.text ?? ''));
+        const data = schema.parse(
+          parseJsonFromText(extractLastAssistantContent(response.outputMessages)),
+        );
         return { data, providerResponse: response };
       } catch (e: unknown) {
         lastError = e instanceof Error ? e : new Error(String(e));
@@ -444,13 +451,13 @@ export class CodeEvaluator implements Evaluator {
         expected_messages: context.evalCase.expected_messages,
         reference_answer: context.evalCase.reference_answer,
         candidate_answer: context.candidate,
+        output_messages: context.outputMessages ?? null,
         guideline_files: context.evalCase.guideline_paths,
         input_files: context.evalCase.file_paths.filter(
           (path) => !context.evalCase.guideline_paths.includes(path),
         ),
         input_messages: context.evalCase.input_messages,
-        candidate_trace_file: context.candidateTraceRef ?? null,
-        candidate_trace_summary: context.candidateTraceSummary ?? null,
+        candidate_trace_summary: context.traceSummary ?? null,
       },
       null,
       2,
@@ -619,10 +626,26 @@ export class ToolTrajectoryEvaluator implements Evaluator {
   }
 
   evaluate(context: EvaluationContext): EvaluationScore {
-    const { candidateTrace, candidateTraceSummary } = context;
+    const { outputMessages, traceSummary } = context;
 
-    // Handle missing trace
-    if (!candidateTrace || !candidateTraceSummary) {
+    // Extract tool calls from outputMessages (primary source)
+    const toolCalls = this.extractToolCallsFromMessages(outputMessages);
+
+    // Handle missing tool calls
+    if (toolCalls.length === 0 && !traceSummary) {
+      return {
+        score: 0,
+        verdict: 'fail',
+        hits: [],
+        misses: ['No trace available for evaluation'],
+        expectedAspectCount: 1,
+      };
+    }
+
+    // Build summary from tool calls if available, otherwise use provided summary
+    const summary = toolCalls.length > 0 ? this.buildSummary(toolCalls) : traceSummary;
+
+    if (!summary) {
       return {
         score: 0,
         verdict: 'fail',
@@ -634,11 +657,11 @@ export class ToolTrajectoryEvaluator implements Evaluator {
 
     switch (this.config.mode) {
       case 'any_order':
-        return this.evaluateAnyOrder(candidateTraceSummary);
+        return this.evaluateAnyOrder(summary);
       case 'in_order':
-        return this.evaluateInOrder(candidateTrace);
+        return this.evaluateInOrder(toolCalls);
       case 'exact':
-        return this.evaluateExact(candidateTrace);
+        return this.evaluateExact(toolCalls);
       default:
         return {
           score: 0,
@@ -648,6 +671,44 @@ export class ToolTrajectoryEvaluator implements Evaluator {
           expectedAspectCount: 1,
         };
     }
+  }
+
+  /**
+   * Extract tool calls from output messages.
+   */
+  private extractToolCallsFromMessages(
+    messages: readonly OutputMessage[] | undefined,
+  ): readonly { name: string }[] {
+    if (!messages) {
+      return [];
+    }
+
+    const toolCalls: { name: string }[] = [];
+    for (const message of messages) {
+      if (message.toolCalls) {
+        for (const call of message.toolCalls) {
+          toolCalls.push({ name: call.tool });
+        }
+      }
+    }
+    return toolCalls;
+  }
+
+  /**
+   * Build a summary from extracted tool calls.
+   */
+  private buildSummary(toolCalls: readonly { name: string }[]): TraceSummary {
+    const toolCallsByName: Record<string, number> = {};
+    for (const call of toolCalls) {
+      toolCallsByName[call.name] = (toolCallsByName[call.name] ?? 0) + 1;
+    }
+    const toolNames = Object.keys(toolCallsByName).sort();
+    return {
+      eventCount: toolCalls.length,
+      toolNames,
+      toolCallsByName,
+      errorCount: 0,
+    };
   }
 
   private evaluateAnyOrder(summary: TraceSummary): EvaluationScore {
@@ -688,7 +749,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     };
   }
 
-  private evaluateInOrder(trace: readonly TraceEvent[]): EvaluationScore {
+  private evaluateInOrder(toolCalls: readonly { name: string }[]): EvaluationScore {
     const expected = this.config.expected ?? [];
 
     if (expected.length === 0) {
@@ -701,8 +762,6 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       };
     }
 
-    const actualToolCalls = trace.filter((e) => e.type === 'tool_call' && e.name);
-
     const hits: string[] = [];
     const misses: string[] = [];
     let actualIndex = 0;
@@ -711,8 +770,8 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       const expectedTool = expected[i].tool;
       let found = false;
 
-      while (actualIndex < actualToolCalls.length) {
-        if (actualToolCalls[actualIndex].name === expectedTool) {
+      while (actualIndex < toolCalls.length) {
+        if (toolCalls[actualIndex].name === expectedTool) {
           hits.push(`Found ${expectedTool} at position ${actualIndex}`);
           actualIndex++;
           found = true;
@@ -737,7 +796,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     };
   }
 
-  private evaluateExact(trace: readonly TraceEvent[]): EvaluationScore {
+  private evaluateExact(toolCalls: readonly { name: string }[]): EvaluationScore {
     const expected = this.config.expected ?? [];
 
     if (expected.length === 0) {
@@ -750,19 +809,17 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       };
     }
 
-    const actualToolCalls = trace.filter((e) => e.type === 'tool_call' && e.name);
-
     const hits: string[] = [];
     const misses: string[] = [];
 
-    if (actualToolCalls.length !== expected.length) {
-      misses.push(`Expected ${expected.length} tool calls, got ${actualToolCalls.length}`);
+    if (toolCalls.length !== expected.length) {
+      misses.push(`Expected ${expected.length} tool calls, got ${toolCalls.length}`);
     }
 
-    const checkLength = Math.min(expected.length, actualToolCalls.length);
+    const checkLength = Math.min(expected.length, toolCalls.length);
     for (let i = 0; i < checkLength; i++) {
       const expectedTool = expected[i].tool;
-      const actualTool = actualToolCalls[i].name;
+      const actualTool = toolCalls[i].name;
       if (actualTool === expectedTool) {
         hits.push(`Position ${i}: ${expectedTool} ✓`);
       } else {
@@ -1052,13 +1109,15 @@ export class CompositeEvaluator implements Evaluator {
         attempt: context.attempt,
       });
 
-      const data = freeformEvaluationSchema.parse(parseJsonFromText(response.text ?? ''));
+      const data = freeformEvaluationSchema.parse(
+        parseJsonFromText(extractLastAssistantContent(response.outputMessages)),
+      );
       const score = clampScore(data.score);
       const hits = Array.isArray(data.hits) ? data.hits.filter(isNonEmptyString).slice(0, 4) : [];
       const misses = Array.isArray(data.misses)
         ? data.misses.filter(isNonEmptyString).slice(0, 4)
         : [];
-      const reasoning = data.reasoning ?? response.reasoning;
+      const reasoning = data.reasoning;
 
       return {
         score,

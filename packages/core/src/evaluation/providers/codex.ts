@@ -97,7 +97,6 @@ export class CodexProvider implements Provider {
       const assistantText = extractAssistantText(parsed);
 
       return {
-        text: assistantText,
         raw: {
           response: parsed,
           stdout: result.stdout,
@@ -110,6 +109,7 @@ export class CodexProvider implements Provider {
           inputFiles,
           logFile: logger?.filePath,
         },
+        outputMessages: [{ role: 'assistant' as const, content: assistantText }],
       };
     } finally {
       await logger?.close();

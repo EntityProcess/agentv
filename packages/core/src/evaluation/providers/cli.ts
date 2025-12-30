@@ -5,9 +5,8 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { readTextFile } from '../file-utils.js';
-import { type TraceEvent, isTraceEvent } from '../trace.js';
 import type { CliResolvedConfig } from './targets.js';
-import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
+import type { OutputMessage, Provider, ProviderRequest, ProviderResponse } from './types.js';
 
 const execAsync = promisify(execWithCallback);
 const DEFAULT_MAX_BUFFER = 10 * 1024 * 1024; // 10 MB to accommodate verbose CLI output
@@ -85,6 +84,7 @@ export class CliProvider implements Provider {
   private readonly config: CliResolvedConfig;
   private readonly runCommand: CommandRunner;
   private readonly verbose: boolean;
+  private readonly keepTempFiles: boolean;
   private healthcheckPromise?: Promise<void>;
 
   constructor(
@@ -97,6 +97,7 @@ export class CliProvider implements Provider {
     this.config = config;
     this.runCommand = runner;
     this.verbose = config.verbose ?? false;
+    this.keepTempFiles = config.keepTempFiles ?? false;
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
@@ -145,8 +146,7 @@ export class CliProvider implements Provider {
     const parsed = this.parseOutputContent(responseContent);
 
     return {
-      text: parsed.text,
-      trace: parsed.trace,
+      outputMessages: parsed.outputMessages,
       raw: {
         command: renderedCommand,
         stderr: result.stderr,
@@ -242,7 +242,7 @@ export class CliProvider implements Provider {
       const evalCaseId = request.evalCaseId;
       if (!evalCaseId) {
         return {
-          text: '',
+          outputMessages: [],
           raw: {
             command: renderedCommand,
             stderr: result.stderr,
@@ -256,7 +256,7 @@ export class CliProvider implements Provider {
       const parsed = recordsById.get(evalCaseId);
       if (!parsed) {
         return {
-          text: '',
+          outputMessages: [],
           raw: {
             command: renderedCommand,
             stderr: result.stderr,
@@ -268,9 +268,7 @@ export class CliProvider implements Provider {
       }
 
       return {
-        text: parsed.text,
-        trace: parsed.trace,
-        traceRef: parsed.traceRef,
+        outputMessages: parsed.outputMessages,
         raw: {
           command: renderedCommand,
           stderr: result.stderr,
@@ -287,46 +285,147 @@ export class CliProvider implements Provider {
 
   /**
    * Parse output content from CLI.
-   * If the content is valid JSON with a 'text' field, extract text and optional trace.
-   * Otherwise, treat the entire content as plain text.
+   * If the content is valid JSON with 'output_messages' or 'text' field, extract them.
+   * If only 'text' is provided, wrap it in outputMessages.
+   * Otherwise, treat the entire content as plain text wrapped in outputMessages.
    */
   private parseOutputContent(content: string): {
-    text: string;
-    trace?: readonly TraceEvent[];
+    outputMessages: readonly OutputMessage[];
   } {
     try {
       const parsed = JSON.parse(content) as unknown;
-      if (typeof parsed === 'object' && parsed !== null && 'text' in parsed) {
-        const obj = parsed as { text: unknown; trace?: unknown };
-        const text = typeof obj.text === 'string' ? obj.text : String(obj.text);
-        const trace = this.parseTrace(obj.trace);
-        return { text, trace };
+      if (typeof parsed === 'object' && parsed !== null) {
+        const obj = parsed as { text?: unknown; output_messages?: unknown };
+        const outputMessages = this.parseOutputMessages(obj.output_messages);
+
+        // If output_messages provided, use it
+        if (outputMessages && outputMessages.length > 0) {
+          return { outputMessages };
+        }
+
+        // Fall back to text field, wrap in outputMessages
+        if ('text' in obj) {
+          const text = typeof obj.text === 'string' ? obj.text : String(obj.text);
+          return { outputMessages: [{ role: 'assistant', content: text }] };
+        }
       }
     } catch {
       // Not valid JSON, treat as plain text
     }
-    return { text: content };
+    // Plain text content, wrap in outputMessages
+    return { outputMessages: [{ role: 'assistant', content }] };
   }
 
-  private parseTrace(trace: unknown): readonly TraceEvent[] | undefined {
-    if (!Array.isArray(trace)) {
+  /**
+   * Parse output_messages from JSONL (snake_case) and convert to OutputMessage[] (camelCase).
+   */
+  private parseOutputMessages(outputMessages: unknown): readonly OutputMessage[] | undefined {
+    if (!Array.isArray(outputMessages)) {
       return undefined;
     }
-    const validEvents = trace.filter(isTraceEvent);
-    return validEvents.length > 0 ? validEvents : undefined;
+
+    const messages: OutputMessage[] = [];
+    for (const msg of outputMessages) {
+      if (typeof msg !== 'object' || msg === null) {
+        continue;
+      }
+
+      const rawMsg = msg as {
+        role?: unknown;
+        name?: unknown;
+        content?: unknown;
+        tool_calls?: unknown;
+        timestamp?: unknown;
+        metadata?: unknown;
+      };
+
+      // Role is required
+      if (typeof rawMsg.role !== 'string') {
+        continue;
+      }
+
+      const message: OutputMessage = {
+        role: rawMsg.role,
+        name: typeof rawMsg.name === 'string' ? rawMsg.name : undefined,
+        content: rawMsg.content,
+        toolCalls: this.parseToolCalls(rawMsg.tool_calls),
+        timestamp: typeof rawMsg.timestamp === 'string' ? rawMsg.timestamp : undefined,
+        metadata:
+          typeof rawMsg.metadata === 'object' && rawMsg.metadata !== null
+            ? (rawMsg.metadata as Record<string, unknown>)
+            : undefined,
+      };
+
+      messages.push(message);
+    }
+
+    return messages.length > 0 ? messages : undefined;
+  }
+
+  /**
+   * Parse tool_calls from JSONL (snake_case) and convert to ToolCall[] format.
+   */
+  private parseToolCalls(toolCalls: unknown):
+    | readonly {
+        tool: string;
+        input?: unknown;
+        output?: unknown;
+        id?: string;
+        timestamp?: string;
+      }[]
+    | undefined {
+    if (!Array.isArray(toolCalls)) {
+      return undefined;
+    }
+
+    const calls: {
+      tool: string;
+      input?: unknown;
+      output?: unknown;
+      id?: string;
+      timestamp?: string;
+    }[] = [];
+    for (const call of toolCalls) {
+      if (typeof call !== 'object' || call === null) {
+        continue;
+      }
+
+      const rawCall = call as {
+        tool?: unknown;
+        input?: unknown;
+        output?: unknown;
+        id?: unknown;
+        timestamp?: unknown;
+      };
+
+      // Tool name is required
+      if (typeof rawCall.tool !== 'string') {
+        continue;
+      }
+
+      calls.push({
+        tool: rawCall.tool,
+        input: rawCall.input,
+        output: rawCall.output,
+        id: typeof rawCall.id === 'string' ? rawCall.id : undefined,
+        timestamp: typeof rawCall.timestamp === 'string' ? rawCall.timestamp : undefined,
+      });
+    }
+
+    return calls.length > 0 ? calls : undefined;
   }
 
   private parseJsonlBatchOutput(content: string): Map<
     string,
     {
-      text: string;
-      trace?: readonly TraceEvent[];
-      traceRef?: string;
+      outputMessages: readonly OutputMessage[];
     }
   > {
     const records = new Map<
       string,
-      { text: string; trace?: readonly TraceEvent[]; traceRef?: string }
+      {
+        outputMessages: readonly OutputMessage[];
+      }
     >();
 
     const lines = content
@@ -350,9 +449,7 @@ export class CliProvider implements Provider {
       const obj = parsed as {
         id?: unknown;
         text?: unknown;
-        trace?: unknown;
-        traceRef?: unknown;
-        trace_ref?: unknown;
+        output_messages?: unknown;
       };
       const id = typeof obj.id === 'string' ? obj.id : undefined;
       if (!id || id.trim().length === 0) {
@@ -363,24 +460,24 @@ export class CliProvider implements Provider {
         throw new Error(`CLI batch output contains duplicate id: ${id}`);
       }
 
-      const text =
-        typeof obj.text === 'string'
-          ? obj.text
-          : obj.text === undefined
-            ? ''
-            : JSON.stringify(obj.text);
-
-      const traceRef =
-        typeof obj.traceRef === 'string'
-          ? obj.traceRef
-          : typeof obj.trace_ref === 'string'
-            ? obj.trace_ref
-            : undefined;
+      // Prefer output_messages, fall back to text wrapped in outputMessages
+      const parsedOutputMessages = this.parseOutputMessages(obj.output_messages);
+      let outputMessages: readonly OutputMessage[];
+      if (parsedOutputMessages && parsedOutputMessages.length > 0) {
+        outputMessages = parsedOutputMessages;
+      } else {
+        // Fall back to text field
+        const text =
+          typeof obj.text === 'string'
+            ? obj.text
+            : obj.text === undefined
+              ? ''
+              : JSON.stringify(obj.text);
+        outputMessages = text ? [{ role: 'assistant', content: text }] : [];
+      }
 
       records.set(id, {
-        text,
-        trace: this.parseTrace(obj.trace),
-        traceRef,
+        outputMessages,
       });
     }
 
@@ -396,9 +493,11 @@ export class CliProvider implements Provider {
       throw new Error(`Failed to read output file '${filePath}': ${errorMsg}`);
     } finally {
       // Clean up temp file - ignore errors as the file might not exist on read failure
-      await fs.unlink(filePath).catch(() => {
-        /* ignore cleanup errors */
-      });
+      if (!this.keepTempFiles) {
+        await fs.unlink(filePath).catch(() => {
+          /* ignore cleanup errors */
+        });
+      }
     }
   }
 

@@ -17,18 +17,17 @@ import { createProvider } from './providers/index.js';
 import { type ResolvedTarget, resolveTargetDefinition } from './providers/targets.js';
 import type {
   EnvLookup,
+  OutputMessage,
   Provider,
   ProviderRequest,
   ProviderResponse,
   TargetDefinition,
 } from './providers/types.js';
-import { isAgentProvider } from './providers/types.js';
+import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
 import {
   type ToolTrajectoryEvaluatorConfig,
-  type TraceEvent,
   type TraceSummary,
   computeTraceSummary,
-  isTraceEvent,
 } from './trace.js';
 import type {
   EvalCase,
@@ -409,11 +408,19 @@ async function runBatchEvaluation(options: {
     const evalCase = evalCases[i];
     const promptInputs = promptInputsList[i];
     const providerResponse = batchResponse[i];
+
+    // Extract outputMessages from batch response
+    const outputMessages = providerResponse.outputMessages;
+    const traceSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+
+    // Extract candidate from last assistant message in output_messages
+    const candidate = extractLastAssistantContent(outputMessages);
+
     let result: EvaluationResult;
     try {
       result = await evaluateCandidate({
         evalCase,
-        candidate: providerResponse.text ?? '',
+        candidate,
         target,
         provider,
         evaluators: evaluatorRegistry,
@@ -422,6 +429,8 @@ async function runBatchEvaluation(options: {
         attempt: 0,
         judgeProvider: await resolveJudgeProvider(target),
         agentTimeoutMs,
+        outputMessages,
+        traceSummary,
       });
     } catch (error) {
       const errorResult = buildErrorResult(
@@ -537,26 +546,19 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     await cache.set(cacheKey, providerResponse);
   }
 
-  // Extract trace from provider response (inline or from traceRef file)
-  let candidateTrace: readonly TraceEvent[] | undefined = providerResponse.trace;
-  if (!candidateTrace && providerResponse.traceRef) {
-    try {
-      const rawTrace = await readJsonFile<unknown[]>(providerResponse.traceRef);
-      if (Array.isArray(rawTrace) && rawTrace.every(isTraceEvent)) {
-        candidateTrace = rawTrace as TraceEvent[];
-      }
-    } catch {
-      // Silently ignore trace load failures - trace is optional
-    }
-  }
+  // Extract outputMessages from provider response
+  const outputMessages = providerResponse.outputMessages;
 
-  // Compute trace summary if trace is available
-  const candidateTraceSummary = candidateTrace ? computeTraceSummary(candidateTrace) : undefined;
+  // Compute trace summary if outputMessages available
+  const traceSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+
+  // Extract candidate from last assistant message in output_messages
+  const candidate = extractLastAssistantContent(outputMessages);
 
   try {
     return await evaluateCandidate({
       evalCase,
-      candidate: providerResponse.text ?? '',
+      candidate,
       target,
       provider,
       evaluators,
@@ -565,9 +567,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       attempt,
       judgeProvider,
       agentTimeoutMs,
-      candidateTrace,
-      candidateTraceRef: providerResponse.traceRef,
-      candidateTraceSummary,
+      outputMessages,
+      traceSummary,
     });
   } catch (error) {
     return buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs, provider);
@@ -585,9 +586,8 @@ async function evaluateCandidate(options: {
   readonly attempt: number;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
-  readonly candidateTrace?: readonly TraceEvent[];
-  readonly candidateTraceRef?: string;
-  readonly candidateTraceSummary?: TraceSummary;
+  readonly outputMessages?: readonly OutputMessage[];
+  readonly traceSummary?: TraceSummary;
 }): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -600,9 +600,8 @@ async function evaluateCandidate(options: {
     attempt,
     judgeProvider,
     agentTimeoutMs,
-    candidateTrace,
-    candidateTraceRef,
-    candidateTraceSummary,
+    outputMessages,
+    traceSummary,
   } = options;
 
   const gradeTimestamp = nowFn();
@@ -617,9 +616,8 @@ async function evaluateCandidate(options: {
     now: gradeTimestamp,
     judgeProvider,
     agentTimeoutMs,
-    candidateTrace,
-    candidateTraceRef,
-    candidateTraceSummary,
+    outputMessages,
+    traceSummary,
   });
 
   const completedAt = nowFn();
@@ -661,7 +659,7 @@ async function evaluateCandidate(options: {
     lm_provider_request: lmProviderRequest,
     evaluator_provider_request: evaluatorResults ? undefined : score.evaluatorRawRequest,
     evaluator_results: evaluatorResults,
-    trace_summary: candidateTraceSummary,
+    trace_summary: traceSummary,
   };
 }
 
@@ -676,9 +674,8 @@ async function runEvaluatorsForCase(options: {
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
-  readonly candidateTrace?: readonly TraceEvent[];
-  readonly candidateTraceRef?: string;
-  readonly candidateTraceSummary?: TraceSummary;
+  readonly outputMessages?: readonly OutputMessage[];
+  readonly traceSummary?: TraceSummary;
 }): Promise<{ score: EvaluationScore; evaluatorResults?: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -691,9 +688,8 @@ async function runEvaluatorsForCase(options: {
     now,
     judgeProvider,
     agentTimeoutMs,
-    candidateTrace,
-    candidateTraceRef,
-    candidateTraceSummary,
+    outputMessages,
+    traceSummary,
   } = options;
 
   if (evalCase.evaluators && evalCase.evaluators.length > 0) {
@@ -709,9 +705,8 @@ async function runEvaluatorsForCase(options: {
       now,
       judgeProvider,
       agentTimeoutMs,
-      candidateTrace,
-      candidateTraceRef,
-      candidateTraceSummary,
+      outputMessages,
+      traceSummary,
     });
   }
 
@@ -730,9 +725,8 @@ async function runEvaluatorsForCase(options: {
     promptInputs,
     now,
     judgeProvider,
-    candidateTrace,
-    candidateTraceRef,
-    candidateTraceSummary,
+    outputMessages,
+    traceSummary,
   });
 
   return { score };
@@ -752,9 +746,8 @@ async function runEvaluatorList(options: {
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
-  readonly candidateTrace?: readonly TraceEvent[];
-  readonly candidateTraceRef?: string;
-  readonly candidateTraceSummary?: TraceSummary;
+  readonly outputMessages?: readonly OutputMessage[];
+  readonly traceSummary?: TraceSummary;
 }): Promise<{ score: EvaluationScore; evaluatorResults: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -768,9 +761,8 @@ async function runEvaluatorList(options: {
     now,
     judgeProvider,
     agentTimeoutMs,
-    candidateTrace,
-    candidateTraceRef,
-    candidateTraceSummary,
+    outputMessages,
+    traceSummary,
   } = options;
 
   const scored: Array<{
@@ -825,8 +817,8 @@ async function runEvaluatorList(options: {
           attempt,
           promptInputs,
           now,
-          candidateTraceRef,
-          candidateTraceSummary,
+          outputMessages,
+          traceSummary,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: 'code_judge', weight });
@@ -918,9 +910,8 @@ async function runEvaluatorList(options: {
           attempt,
           promptInputs,
           now,
-          candidateTrace,
-          candidateTraceRef,
-          candidateTraceSummary,
+          outputMessages,
+          traceSummary,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });

@@ -58,7 +58,7 @@ export class VSCodeProvider implements Provider {
 
     if (this.config.dryRun) {
       return {
-        text: '',
+        outputMessages: [],
         raw: {
           session,
           inputFiles,
@@ -69,7 +69,7 @@ export class VSCodeProvider implements Provider {
     const responseText = await readTextFile(session.responseFile);
 
     return {
-      text: responseText,
+      outputMessages: [{ role: 'assistant', content: responseText }],
       raw: {
         session,
         inputFiles,
@@ -113,7 +113,7 @@ export class VSCodeProvider implements Provider {
 
     if (this.config.dryRun) {
       return normalizedRequests.map(({ inputFiles }) => ({
-        text: '',
+        outputMessages: [],
         raw: {
           session,
           inputFiles,
@@ -132,7 +132,7 @@ export class VSCodeProvider implements Provider {
     for (const [index, responseFile] of session.responseFiles.entries()) {
       const responseText = await readTextFile(responseFile);
       responses.push({
-        text: responseText,
+        outputMessages: [{ role: 'assistant', content: responseText }],
         raw: {
           session,
           inputFiles: normalizedRequests[index]?.inputFiles,

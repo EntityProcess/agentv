@@ -299,11 +299,11 @@ async function invokeModel(options: {
 }
 
 function mapResponse(result: TextResult): ProviderResponse {
+  const content = result.text ?? '';
   return {
-    text: result.text ?? '',
-    reasoning: result.reasoningText ?? undefined,
     raw: result,
     usage: toJsonObject(result.totalUsage ?? result.usage),
+    outputMessages: [{ role: 'assistant' as const, content }],
   };
 }
 

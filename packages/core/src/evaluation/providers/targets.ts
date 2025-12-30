@@ -70,8 +70,6 @@ export interface MockResolvedConfig {
   readonly delayMs?: number;
   readonly delayMinMs?: number;
   readonly delayMaxMs?: number;
-  /** Mock trace events for testing tool_trajectory evaluator */
-  readonly trace?: readonly import('../trace.js').TraceEvent[];
 }
 
 export interface VSCodeResolvedConfig {
@@ -102,6 +100,7 @@ export interface CliResolvedConfig {
   readonly timeoutMs?: number;
   readonly healthcheck?: CliHealthcheck;
   readonly verbose?: boolean;
+  readonly keepTempFiles?: boolean;
 }
 
 export type ResolvedTarget =
@@ -464,9 +463,7 @@ function normalizeCodexLogFormat(value: unknown): 'summary' | 'json' | undefined
 
 function resolveMockConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): MockResolvedConfig {
   const response = typeof target.response === 'string' ? target.response : undefined;
-  // Parse trace array if provided (for testing tool_trajectory evaluator)
-  const trace = Array.isArray(target.trace) ? target.trace : undefined;
-  return { response, trace };
+  return { response };
 }
 
 function resolveVSCodeConfig(
@@ -523,6 +520,12 @@ function resolveCliConfig(
   );
 
   const verbose = resolveOptionalBoolean(target.verbose ?? target.cli_verbose ?? target.cliVerbose);
+  const keepTempFiles = resolveOptionalBoolean(
+    target.keep_temp_files ??
+      target.keepTempFiles ??
+      target.keep_output_files ??
+      target.keepOutputFiles,
+  );
   let cwd = resolveOptionalString(target.cwd, env, `${target.name} working directory`, {
     allowLiteral: true,
     optionalEnv: true,
@@ -558,6 +561,7 @@ function resolveCliConfig(
     timeoutMs,
     healthcheck,
     verbose,
+    keepTempFiles,
   };
 }
 

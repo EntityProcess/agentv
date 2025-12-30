@@ -3,12 +3,8 @@ import { describe, expect, it } from 'bun:test';
 import { ToolTrajectoryEvaluator } from '../../src/evaluation/evaluators.js';
 import type { EvaluationContext } from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
-import type { Provider } from '../../src/evaluation/providers/types.js';
-import type {
-  ToolTrajectoryEvaluatorConfig,
-  TraceEvent,
-  TraceSummary,
-} from '../../src/evaluation/trace.js';
+import type { OutputMessage, Provider } from '../../src/evaluation/providers/types.js';
+import type { ToolTrajectoryEvaluatorConfig, TraceSummary } from '../../src/evaluation/trace.js';
 import { computeTraceSummary } from '../../src/evaluation/trace.js';
 import type { EvalCase } from '../../src/evaluation/types.js';
 
@@ -24,7 +20,7 @@ const mockProvider: Provider = {
   kind: 'mock',
   targetName: 'mock',
   async invoke() {
-    return { text: '' };
+    return { outputMessages: [] };
   },
 };
 
@@ -41,8 +37,8 @@ const mockEvalCase: EvalCase = {
 };
 
 function createContext(options: {
-  candidateTrace?: readonly TraceEvent[];
-  candidateTraceSummary?: TraceSummary;
+  traceSummary?: TraceSummary;
+  outputMessages?: readonly OutputMessage[];
 }): EvaluationContext {
   return {
     evalCase: mockEvalCase,
@@ -52,8 +48,8 @@ function createContext(options: {
     attempt: 0,
     promptInputs: { question: '', guidelines: '' },
     now: new Date(),
-    candidateTrace: options.candidateTrace,
-    candidateTraceSummary: options.candidateTraceSummary,
+    traceSummary: options.traceSummary,
+    outputMessages: options.outputMessages,
   };
 }
 
@@ -78,13 +74,18 @@ describe('ToolTrajectoryEvaluator', () => {
 
   describe('any_order mode', () => {
     it('passes when all minimums are met', () => {
-      const trace: TraceEvent[] = [
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:00Z', name: 'search' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:01Z', name: 'search' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:02Z', name: 'search' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:03Z', name: 'analyze' },
+      const outputMessages: OutputMessage[] = [
+        {
+          role: 'assistant',
+          toolCalls: [
+            { tool: 'search' },
+            { tool: 'search' },
+            { tool: 'search' },
+            { tool: 'analyze' },
+          ],
+        },
       ];
-      const summary = computeTraceSummary(trace);
+      const summary = computeTraceSummary(outputMessages);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -96,8 +97,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          candidateTrace: trace,
-          candidateTraceSummary: summary,
+          traceSummary: summary,
         }),
       );
 
@@ -108,11 +108,13 @@ describe('ToolTrajectoryEvaluator', () => {
     });
 
     it('fails when minimums are not met', () => {
-      const trace: TraceEvent[] = [
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:00Z', name: 'search' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:01Z', name: 'analyze' },
+      const outputMessages: OutputMessage[] = [
+        {
+          role: 'assistant',
+          toolCalls: [{ tool: 'search' }, { tool: 'analyze' }],
+        },
       ];
-      const summary = computeTraceSummary(trace);
+      const summary = computeTraceSummary(outputMessages);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -124,8 +126,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          candidateTrace: trace,
-          candidateTraceSummary: summary,
+          traceSummary: summary,
         }),
       );
 
@@ -137,12 +138,13 @@ describe('ToolTrajectoryEvaluator', () => {
     });
 
     it('handles partial scoring correctly', () => {
-      const trace: TraceEvent[] = [
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:00Z', name: 'toolA' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:01Z', name: 'toolA' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:02Z', name: 'toolB' },
+      const outputMessages: OutputMessage[] = [
+        {
+          role: 'assistant',
+          toolCalls: [{ tool: 'toolA' }, { tool: 'toolA' }, { tool: 'toolB' }],
+        },
       ];
-      const summary = computeTraceSummary(trace);
+      const summary = computeTraceSummary(outputMessages);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -154,8 +156,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          candidateTrace: trace,
-          candidateTraceSummary: summary,
+          traceSummary: summary,
         }),
       );
 
@@ -166,13 +167,17 @@ describe('ToolTrajectoryEvaluator', () => {
 
   describe('in_order mode', () => {
     it('passes when tools appear in expected order', () => {
-      const trace: TraceEvent[] = [
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:00Z', name: 'init' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:01Z', name: 'search' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:02Z', name: 'analyze' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:03Z', name: 'report' },
+      const outputMessages: OutputMessage[] = [
+        {
+          role: 'assistant',
+          toolCalls: [
+            { tool: 'init', input: {}, output: {} },
+            { tool: 'search', input: {}, output: {} },
+            { tool: 'analyze', input: {}, output: {} },
+            { tool: 'report', input: {}, output: {} },
+          ],
+        },
       ];
-      const summary = computeTraceSummary(trace);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -184,8 +189,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          candidateTrace: trace,
-          candidateTraceSummary: summary,
+          outputMessages,
         }),
       );
 
@@ -195,11 +199,15 @@ describe('ToolTrajectoryEvaluator', () => {
     });
 
     it('fails when expected tool is missing', () => {
-      const trace: TraceEvent[] = [
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:00Z', name: 'search' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:01Z', name: 'report' },
+      const outputMessages: OutputMessage[] = [
+        {
+          role: 'assistant',
+          toolCalls: [
+            { tool: 'search', input: {}, output: {} },
+            { tool: 'report', input: {}, output: {} },
+          ],
+        },
       ];
-      const summary = computeTraceSummary(trace);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -211,8 +219,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          candidateTrace: trace,
-          candidateTraceSummary: summary,
+          outputMessages,
         }),
       );
 
@@ -226,11 +233,15 @@ describe('ToolTrajectoryEvaluator', () => {
     });
 
     it('fails when tools appear in wrong order', () => {
-      const trace: TraceEvent[] = [
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:00Z', name: 'report' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:01Z', name: 'search' },
+      const outputMessages: OutputMessage[] = [
+        {
+          role: 'assistant',
+          toolCalls: [
+            { tool: 'report', input: {}, output: {} },
+            { tool: 'search', input: {}, output: {} },
+          ],
+        },
       ];
-      const summary = computeTraceSummary(trace);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -242,8 +253,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          candidateTrace: trace,
-          candidateTraceSummary: summary,
+          outputMessages,
         }),
       );
 
@@ -257,11 +267,15 @@ describe('ToolTrajectoryEvaluator', () => {
 
   describe('exact mode', () => {
     it('passes when trace exactly matches expected', () => {
-      const trace: TraceEvent[] = [
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:00Z', name: 'search' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:01Z', name: 'analyze' },
+      const outputMessages: OutputMessage[] = [
+        {
+          role: 'assistant',
+          toolCalls: [
+            { tool: 'search', input: {}, output: {} },
+            { tool: 'analyze', input: {}, output: {} },
+          ],
+        },
       ];
-      const summary = computeTraceSummary(trace);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -273,8 +287,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          candidateTrace: trace,
-          candidateTraceSummary: summary,
+          outputMessages,
         }),
       );
 
@@ -283,12 +296,16 @@ describe('ToolTrajectoryEvaluator', () => {
     });
 
     it('fails when trace has extra tools', () => {
-      const trace: TraceEvent[] = [
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:00Z', name: 'search' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:01Z', name: 'analyze' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:02Z', name: 'extra' },
+      const outputMessages: OutputMessage[] = [
+        {
+          role: 'assistant',
+          toolCalls: [
+            { tool: 'search', input: {}, output: {} },
+            { tool: 'analyze', input: {}, output: {} },
+            { tool: 'extra', input: {}, output: {} },
+          ],
+        },
       ];
-      const summary = computeTraceSummary(trace);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -300,8 +317,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          candidateTrace: trace,
-          candidateTraceSummary: summary,
+          outputMessages,
         }),
       );
 
@@ -310,11 +326,15 @@ describe('ToolTrajectoryEvaluator', () => {
     });
 
     it('fails when trace has wrong tool at position', () => {
-      const trace: TraceEvent[] = [
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:00Z', name: 'search' },
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:01Z', name: 'wrong' },
+      const outputMessages: OutputMessage[] = [
+        {
+          role: 'assistant',
+          toolCalls: [
+            { tool: 'search', input: {}, output: {} },
+            { tool: 'wrong', input: {}, output: {} },
+          ],
+        },
       ];
-      const summary = computeTraceSummary(trace);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -326,8 +346,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          candidateTrace: trace,
-          candidateTraceSummary: summary,
+          outputMessages,
         }),
       );
 
@@ -337,10 +356,12 @@ describe('ToolTrajectoryEvaluator', () => {
     });
 
     it('fails when trace is shorter than expected', () => {
-      const trace: TraceEvent[] = [
-        { type: 'tool_call', timestamp: '2024-01-01T00:00:00Z', name: 'search' },
+      const outputMessages: OutputMessage[] = [
+        {
+          role: 'assistant',
+          toolCalls: [{ tool: 'search', input: {}, output: {} }],
+        },
       ];
-      const summary = computeTraceSummary(trace);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -352,8 +373,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          candidateTrace: trace,
-          candidateTraceSummary: summary,
+          outputMessages,
         }),
       );
 

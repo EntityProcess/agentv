@@ -1,4 +1,3 @@
-import type { TraceEvent } from '../trace.js';
 import type { MockResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 
@@ -14,7 +13,6 @@ export class MockProvider implements Provider {
   private readonly delayMs: number;
   private readonly delayMinMs: number;
   private readonly delayMaxMs: number;
-  private readonly trace?: readonly TraceEvent[];
 
   constructor(targetName: string, config: MockResolvedConfig) {
     this.id = `mock:${targetName}`;
@@ -23,7 +21,6 @@ export class MockProvider implements Provider {
     this.delayMs = config.delayMs ?? 0;
     this.delayMinMs = config.delayMinMs ?? 0;
     this.delayMaxMs = config.delayMaxMs ?? 0;
-    this.trace = config.trace;
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
@@ -33,12 +30,11 @@ export class MockProvider implements Provider {
     }
 
     return {
-      text: this.cannedResponse,
+      outputMessages: [{ role: 'assistant' as const, content: this.cannedResponse }],
       raw: {
         question: request.question,
         guidelines: request.guidelines,
       },
-      trace: this.trace,
     };
   }
 

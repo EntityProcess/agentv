@@ -134,6 +134,10 @@ const CLI_SETTINGS = new Set([
   'timeout_seconds',
   'timeoutSeconds',
   'healthcheck',
+  'keep_temp_files',
+  'keepTempFiles',
+  'keep_output_files',
+  'keepOutputFiles',
 ]);
 
 function getKnownSettings(provider: string): Set<string> | null {

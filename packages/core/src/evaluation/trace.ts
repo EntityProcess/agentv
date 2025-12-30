@@ -4,34 +4,6 @@
  */
 
 /**
- * Supported trace event types.
- */
-export type TraceEventType = 'model_step' | 'tool_call' | 'tool_result' | 'message' | 'error';
-
-/**
- * Normalized trace event representing a single step in agent execution.
- * Provider-agnostic format for tool-call trajectory evaluation.
- */
-export interface TraceEvent {
-  /** Event type */
-  readonly type: TraceEventType;
-  /** ISO 8601 timestamp */
-  readonly timestamp: string;
-  /** Stable identifier for pairing tool_call/tool_result */
-  readonly id?: string;
-  /** Tool name (for tool_call/tool_result) */
-  readonly name?: string;
-  /** Tool input - any JSON value */
-  readonly input?: unknown;
-  /** Tool output - any JSON value */
-  readonly output?: unknown;
-  /** Message content (for message/model_step) */
-  readonly text?: string;
-  /** Provider-specific metadata */
-  readonly metadata?: Record<string, unknown>;
-}
-
-/**
  * Compact summary of a trace for lightweight persistence.
  * Included in results by default to avoid payload bloat.
  */
@@ -70,49 +42,38 @@ export interface ToolTrajectoryExpectedItem {
 }
 
 /**
- * Type guard for TraceEventType values.
+ * Simplified input type for computeTraceSummary.
+ * Matches OutputMessage structure without requiring full provider/types import.
  */
-export function isTraceEventType(value: unknown): value is TraceEventType {
-  return (
-    typeof value === 'string' &&
-    ['model_step', 'tool_call', 'tool_result', 'message', 'error'].includes(value)
-  );
+interface OutputMessageLike {
+  readonly toolCalls?: readonly {
+    readonly tool: string;
+  }[];
 }
 
 /**
- * Type guard for TraceEvent objects.
- */
-export function isTraceEvent(value: unknown): value is TraceEvent {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return isTraceEventType(candidate.type) && typeof candidate.timestamp === 'string';
-}
-
-/**
- * Compute a lightweight summary from a full trace.
+ * Compute a lightweight summary from output messages.
  * Used for default result persistence without payload bloat.
  */
-export function computeTraceSummary(trace: readonly TraceEvent[]): TraceSummary {
+export function computeTraceSummary(messages: readonly OutputMessageLike[]): TraceSummary {
   const toolCallCounts: Record<string, number> = {};
-  let errorCount = 0;
+  let totalToolCalls = 0;
 
-  for (const event of trace) {
-    if (event.type === 'tool_call' && event.name) {
-      toolCallCounts[event.name] = (toolCallCounts[event.name] ?? 0) + 1;
-    }
-    if (event.type === 'error') {
-      errorCount++;
+  for (const message of messages) {
+    if (!message.toolCalls) continue;
+
+    for (const toolCall of message.toolCalls) {
+      toolCallCounts[toolCall.tool] = (toolCallCounts[toolCall.tool] ?? 0) + 1;
+      totalToolCalls++;
     }
   }
 
   const toolNames = Object.keys(toolCallCounts).sort();
 
   return {
-    eventCount: trace.length,
+    eventCount: totalToolCalls,
     toolNames,
     toolCallsByName: toolCallCounts,
-    errorCount,
+    errorCount: 0,
   };
 }

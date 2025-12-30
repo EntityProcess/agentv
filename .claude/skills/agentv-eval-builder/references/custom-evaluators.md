@@ -16,9 +16,12 @@ Code evaluators receive input via stdin and write output to stdout, both as JSON
   "candidate_answer": "generated code/text from the agent",
   "guideline_paths": ["path1", "path2"],
   "input_files": ["file1", "file2"],
-  "input_messages": [{"role": "user", "content": "..."}]
+  "input_messages": [{"role": "user", "content": "..."}],
+  "output_messages": [{"role": "assistant", "content": "...", "tool_calls": [...]}]
 }
 ```
+
+The `output_messages` array contains the full agent execution trace with tool calls, enabling custom validation of agent behavior.
 
 ### Output Format (to stdout)
 

@@ -41,6 +41,7 @@ mock.module('@ai-sdk/google', () => ({
 
 const providerModule = await import('../../../src/evaluation/providers/index.js');
 const { resolveTargetDefinition, createProvider } = providerModule;
+const { extractLastAssistantContent } = await import('../../../src/evaluation/providers/types.js');
 
 describe('resolveTargetDefinition', () => {
   beforeEach(() => {
@@ -440,7 +441,7 @@ describe('createProvider', () => {
 
     expect(createAzureMock).toHaveBeenCalledTimes(1);
     expect(generateTextMock).toHaveBeenCalledTimes(1);
-    expect(response.text).toBe('ok');
+    expect(extractLastAssistantContent(response.outputMessages)).toBe('ok');
   });
   it('creates a gemini provider that calls the Vercel AI SDK', async () => {
     const env = {
@@ -464,6 +465,6 @@ describe('createProvider', () => {
 
     expect(createGeminiMock).toHaveBeenCalled();
     expect(generateTextMock).toHaveBeenCalled();
-    expect(response.text).toBe('ok');
+    expect(extractLastAssistantContent(response.outputMessages)).toBe('ok');
   });
 });

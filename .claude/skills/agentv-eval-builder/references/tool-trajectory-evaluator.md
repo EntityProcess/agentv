@@ -81,22 +81,40 @@ execution:
 
 ## Trace Data Requirements
 
-Tool trajectory evaluators require trace data from the agent provider. Supported providers:
+Tool trajectory evaluators require trace data from the agent provider. Providers return `output_messages` containing `tool_calls` that capture agent tool usage.
 
-- **codex** - Returns trace via JSONL log events
-- **vscode / vscode-insiders** - Returns trace from Copilot execution
-- **cli** - Can return trace if agent outputs trace format
+### Output Messages Format
 
-### Trace Event Structure
+Providers return `output_messages` with `tool_calls` in the JSONL output:
 
 ```json
 {
-  "type": "tool_call",
-  "name": "knowledgeSearch",
-  "input": { "query": "REST vs GraphQL" },
-  "timestamp": "2024-01-15T10:30:00Z"
+  "id": "eval-001",
+  "output_messages": [
+    {
+      "role": "assistant",
+      "content": "I'll search for information about this topic.",
+      "tool_calls": [
+        {
+          "tool": "knowledgeSearch",
+          "input": { "query": "REST vs GraphQL" },
+          "output": { "results": [...] },
+          "id": "call_123",
+          "timestamp": "2024-01-15T10:30:00Z"
+        }
+      ]
+    }
+  ]
 }
 ```
+
+The evaluator extracts tool calls from `output_messages[].tool_calls[]`. Optional fields `id` and `timestamp` can be included for debugging.
+
+### Supported Providers
+
+- **codex** - Returns output_messages via JSONL log events
+- **vscode / vscode-insiders** - Returns output_messages from Copilot execution
+- **cli** - Returns `output_messages` with `tool_calls`
 
 ## Complete Examples
 
