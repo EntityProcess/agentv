@@ -183,23 +183,22 @@ export async function loadEvalCases(
     const codeSnippets = extractCodeBlocks(inputSegments);
 
     // Build reference_answer:
-    // - If multiple expected_messages: use the full array as JSON (includes tool_calls, etc.)
-    // - If single expected_message with content: resolve as text
-    // - Otherwise: empty string
+    // Extract the content from the last message in expected_messages (similar to candidate_answer)
     let referenceAnswer = '';
-    if (outputSegments.length > 1) {
-      // Multiple messages: provide the full expected conversation as JSON
-      referenceAnswer = JSON.stringify(outputSegments, null, 2);
-    } else if (outputSegments.length === 1) {
-      // Single message: extract content as text if possible
-      const singleMessage = outputSegments[0];
-      if (typeof singleMessage.content === 'string') {
-        referenceAnswer = singleMessage.content;
-      } else if (singleMessage.content) {
-        referenceAnswer = JSON.stringify(singleMessage, null, 2);
-      } else if (singleMessage.tool_calls) {
-        // Message with only tool_calls
-        referenceAnswer = JSON.stringify(singleMessage, null, 2);
+    if (outputSegments.length > 0) {
+      // Get the last message
+      const lastMessage = outputSegments[outputSegments.length - 1];
+      const content = lastMessage.content;
+      const toolCalls = lastMessage.tool_calls;
+      
+      if (typeof content === 'string') {
+        referenceAnswer = content;
+      } else if (content !== undefined && content !== null) {
+        // Serialize just the content, not the entire message
+        referenceAnswer = JSON.stringify(content, null, 2);
+      } else if (toolCalls !== undefined && toolCalls !== null) {
+        // Message with only tool_calls - serialize just the tool_calls
+        referenceAnswer = JSON.stringify(toolCalls, null, 2);
       }
     }
     const question = inputTextParts
