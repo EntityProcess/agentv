@@ -1,4 +1,4 @@
-import type { ToolTrajectoryEvaluatorConfig, TraceEvent, TraceSummary } from './trace.js';
+import type { ToolTrajectoryEvaluatorConfig, TraceSummary } from './trace.js';
 
 /**
  * JSON primitive values appearing in AgentV payloads.
@@ -256,8 +256,6 @@ export interface EvaluationResult {
   readonly error?: string;
   /** Lightweight summary of the execution trace (always included when available) */
   readonly trace_summary?: TraceSummary;
-  /** Full trace events (only included when --include-trace flag is set) */
-  readonly trace?: readonly TraceEvent[];
 }
 
 export type EvaluationVerdict = 'pass' | 'fail' | 'borderline';

@@ -1,4 +1,3 @@
-import type { TraceEvent } from '../trace.js';
 import type { JsonObject } from '../types.js';
 
 export type ChatMessageRole = 'system' | 'user' | 'assistant' | 'tool' | 'function';
@@ -119,16 +118,6 @@ export interface OutputMessage {
 export interface ProviderResponse {
   readonly raw?: unknown;
   readonly usage?: JsonObject;
-  /**
-   * Normalized trace events from agent execution.
-   * @deprecated Use outputMessages instead. Will be removed in v2.0.
-   */
-  readonly trace?: readonly TraceEvent[];
-  /**
-   * Reference to external trace file (alternative to inline trace).
-   * @deprecated Use outputMessages instead. Will be removed in v2.0.
-   */
-  readonly traceRef?: string;
   /** Output messages from agent execution (primary source for tool trajectory) */
   readonly outputMessages?: readonly OutputMessage[];
 }

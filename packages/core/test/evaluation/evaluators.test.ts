@@ -431,7 +431,7 @@ describe('LlmJudgeEvaluator', () => {
 
 describe('CodeEvaluator', () => {
   it('passes required fields to code_judge scripts', async () => {
-    const judgeProvider = new StubProvider({ text: '{}' });
+    const judgeProvider = new StubProvider(textResponse('{}'));
 
     const evalCaseWithExpectedMessages: EvalCase = {
       ...baseTestCase,

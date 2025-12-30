@@ -70,8 +70,6 @@ export interface MockResolvedConfig {
   readonly delayMs?: number;
   readonly delayMinMs?: number;
   readonly delayMaxMs?: number;
-  /** Mock trace events for testing tool_trajectory evaluator */
-  readonly trace?: readonly import('../trace.js').TraceEvent[];
 }
 
 export interface VSCodeResolvedConfig {
@@ -465,9 +463,7 @@ function normalizeCodexLogFormat(value: unknown): 'summary' | 'json' | undefined
 
 function resolveMockConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): MockResolvedConfig {
   const response = typeof target.response === 'string' ? target.response : undefined;
-  // Parse trace array if provided (for testing tool_trajectory evaluator)
-  const trace = Array.isArray(target.trace) ? target.trace : undefined;
-  return { response, trace };
+  return { response };
 }
 
 function resolveVSCodeConfig(

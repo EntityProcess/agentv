@@ -7,11 +7,12 @@ import { LlmJudgeEvaluator, ToolTrajectoryEvaluator } from '../../src/evaluation
 import { type EvaluationCache, runEvalCase } from '../../src/evaluation/orchestrator.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type {
+  OutputMessage,
   Provider,
   ProviderRequest,
   ProviderResponse,
+  ToolCall,
 } from '../../src/evaluation/providers/types.js';
-import type { TraceEvent } from '../../src/evaluation/trace.js';
 import type { EvalCase } from '../../src/evaluation/types.js';
 
 class SequenceProvider implements Provider {
@@ -277,12 +278,16 @@ describe('runTestCase', () => {
     });
 
     const judgeProvider = new CapturingJudgeProvider('judge', {
-      text: JSON.stringify({
-        score: 0.9,
-        hits: ['used prompt'],
-        misses: [],
-      }),
-      reasoning: 'ok',
+      outputMessages: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            score: 0.9,
+            hits: ['used prompt'],
+            misses: [],
+          }),
+        },
+      ],
     });
 
     const evaluatorRegistry = {
@@ -407,7 +412,7 @@ describe('runTestCase', () => {
       readonly kind = 'codex'; // Agent provider kind
       readonly targetName = 'agent';
       async invoke() {
-        return { text: 'ok' };
+        return { outputMessages: [{ role: 'assistant', content: 'ok' }] };
       }
     }
 
@@ -430,7 +435,7 @@ describe('runTestCase', () => {
   });
 });
 
-// Provider that returns trace data with responses
+// Provider that returns outputMessages with tool calls
 class TraceProvider implements Provider {
   readonly id: string;
   readonly kind = 'mock' as const;
@@ -439,7 +444,7 @@ class TraceProvider implements Provider {
   constructor(
     targetName: string,
     private readonly response: ProviderResponse,
-    private readonly trace?: readonly TraceEvent[],
+    private readonly outputMessages?: readonly OutputMessage[],
   ) {
     this.id = `trace:${targetName}`;
     this.targetName = targetName;
@@ -448,7 +453,7 @@ class TraceProvider implements Provider {
   async invoke(): Promise<ProviderResponse> {
     return {
       ...this.response,
-      trace: this.trace,
+      outputMessages: this.outputMessages,
     };
   }
 }
@@ -469,27 +474,28 @@ describe('runEvalCase trace integration', () => {
     evaluator: 'llm_judge',
   };
 
-  it('includes trace_summary in result when provider returns trace', async () => {
-    const trace: TraceEvent[] = [
-      { type: 'model_step', timestamp: '2024-01-01T00:00:00Z', text: 'Thinking...' },
+  it('includes trace_summary in result when provider returns outputMessages with tool calls', async () => {
+    const outputMessages: OutputMessage[] = [
       {
-        type: 'tool_call',
-        timestamp: '2024-01-01T00:00:01Z',
-        id: 'call-1',
-        name: 'getWeather',
-        input: { city: 'NYC' },
+        role: 'assistant',
+        content: 'The weather is 72°F',
+        toolCalls: [
+          {
+            tool: 'getWeather',
+            input: { city: 'NYC' },
+            output: '72°F',
+            id: 'call-1',
+            timestamp: '2024-01-01T00:00:01Z',
+          },
+        ],
       },
-      {
-        type: 'tool_result',
-        timestamp: '2024-01-01T00:00:02Z',
-        id: 'call-1',
-        name: 'getWeather',
-        output: '72°F',
-      },
-      { type: 'message', timestamp: '2024-01-01T00:00:03Z', text: 'The weather is 72°F' },
     ];
 
-    const provider = new TraceProvider('mock', { text: 'The weather is 72°F' }, trace);
+    const provider = new TraceProvider(
+      'mock',
+      { outputMessages: [{ role: 'assistant', content: 'The weather is 72°F' }] },
+      outputMessages,
+    );
 
     const result = await runEvalCase({
       evalCase: traceTestCase,
@@ -499,14 +505,16 @@ describe('runEvalCase trace integration', () => {
     });
 
     expect(result.trace_summary).toBeDefined();
-    expect(result.trace_summary?.eventCount).toBe(4);
+    expect(result.trace_summary?.eventCount).toBe(1);
     expect(result.trace_summary?.toolNames).toEqual(['getWeather']);
     expect(result.trace_summary?.toolCallsByName).toEqual({ getWeather: 1 });
     expect(result.trace_summary?.errorCount).toBe(0);
   });
 
-  it('omits trace_summary when provider returns no trace', async () => {
-    const provider = new TraceProvider('mock', { text: 'The weather is sunny' });
+  it('omits trace_summary when provider returns no outputMessages', async () => {
+    const provider = new TraceProvider('mock', {
+      outputMessages: [{ role: 'assistant', content: 'The weather is sunny' }],
+    });
 
     const result = await runEvalCase({
       evalCase: traceTestCase,
@@ -518,39 +526,35 @@ describe('runEvalCase trace integration', () => {
     expect(result.trace_summary).toBeUndefined();
   });
 
-  it('runs tool_trajectory evaluator with trace data', async () => {
-    const trace: TraceEvent[] = [
+  it('runs tool_trajectory evaluator with outputMessages', async () => {
+    const outputMessages: OutputMessage[] = [
       {
-        type: 'tool_call',
-        timestamp: '2024-01-01T00:00:00Z',
-        id: 'call-1',
-        name: 'search',
-        input: { query: 'weather' },
-      },
-      {
-        type: 'tool_result',
-        timestamp: '2024-01-01T00:00:01Z',
-        id: 'call-1',
-        name: 'search',
-        output: 'result',
-      },
-      {
-        type: 'tool_call',
-        timestamp: '2024-01-01T00:00:02Z',
-        id: 'call-2',
-        name: 'analyze',
-        input: {},
-      },
-      {
-        type: 'tool_result',
-        timestamp: '2024-01-01T00:00:03Z',
-        id: 'call-2',
-        name: 'analyze',
-        output: 'analyzed',
+        role: 'assistant',
+        content: 'Result',
+        toolCalls: [
+          {
+            tool: 'search',
+            input: { query: 'weather' },
+            output: 'result',
+            id: 'call-1',
+            timestamp: '2024-01-01T00:00:00Z',
+          },
+          {
+            tool: 'analyze',
+            input: {},
+            output: 'analyzed',
+            id: 'call-2',
+            timestamp: '2024-01-01T00:00:02Z',
+          },
+        ],
       },
     ];
 
-    const provider = new TraceProvider('mock', { text: 'Result' }, trace);
+    const provider = new TraceProvider(
+      'mock',
+      { outputMessages: [{ role: 'assistant', content: 'Result' }] },
+      outputMessages,
+    );
 
     const trajectoryEvaluator = new ToolTrajectoryEvaluator({
       config: {
@@ -588,7 +592,9 @@ describe('runEvalCase trace integration', () => {
   });
 
   it('fails tool_trajectory evaluator when no trace available', async () => {
-    const provider = new TraceProvider('mock', { text: 'Result' });
+    const provider = new TraceProvider('mock', {
+      outputMessages: [{ role: 'assistant', content: 'Result' }],
+    });
 
     const trajectoryEvaluator = new ToolTrajectoryEvaluator({
       config: {
@@ -625,15 +631,24 @@ describe('runEvalCase trace integration', () => {
   });
 
   it('computes correct trace summary with multiple tool calls', async () => {
-    const trace: TraceEvent[] = [
-      { type: 'tool_call', timestamp: '2024-01-01T00:00:00Z', name: 'toolA' },
-      { type: 'tool_call', timestamp: '2024-01-01T00:00:01Z', name: 'toolB' },
-      { type: 'tool_call', timestamp: '2024-01-01T00:00:02Z', name: 'toolA' },
-      { type: 'tool_call', timestamp: '2024-01-01T00:00:03Z', name: 'toolC' },
-      { type: 'error', timestamp: '2024-01-01T00:00:04Z', text: 'Something failed' },
+    const outputMessages: OutputMessage[] = [
+      {
+        role: 'assistant',
+        content: 'Done',
+        toolCalls: [
+          { tool: 'toolA', timestamp: '2024-01-01T00:00:00Z' },
+          { tool: 'toolB', timestamp: '2024-01-01T00:00:01Z' },
+          { tool: 'toolA', timestamp: '2024-01-01T00:00:02Z' },
+          { tool: 'toolC', timestamp: '2024-01-01T00:00:03Z' },
+        ],
+      },
     ];
 
-    const provider = new TraceProvider('mock', { text: 'Done' }, trace);
+    const provider = new TraceProvider(
+      'mock',
+      { outputMessages: [{ role: 'assistant', content: 'Done' }] },
+      outputMessages,
+    );
 
     const result = await runEvalCase({
       evalCase: traceTestCase,
@@ -643,10 +658,10 @@ describe('runEvalCase trace integration', () => {
     });
 
     expect(result.trace_summary).toBeDefined();
-    expect(result.trace_summary?.eventCount).toBe(5);
+    expect(result.trace_summary?.eventCount).toBe(4);
     expect(result.trace_summary?.toolNames).toEqual(['toolA', 'toolB', 'toolC']);
     expect(result.trace_summary?.toolCallsByName).toEqual({ toolA: 2, toolB: 1, toolC: 1 });
-    expect(result.trace_summary?.errorCount).toBe(1);
+    expect(result.trace_summary?.errorCount).toBe(0);
   });
 
   describe('weighted evaluators', () => {

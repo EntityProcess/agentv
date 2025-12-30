@@ -5,7 +5,6 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { readTextFile } from '../file-utils.js';
-import { type TraceEvent, isTraceEvent } from '../trace.js';
 import type { CliResolvedConfig } from './targets.js';
 import type { OutputMessage, Provider, ProviderRequest, ProviderResponse } from './types.js';
 
@@ -147,7 +146,6 @@ export class CliProvider implements Provider {
     const parsed = this.parseOutputContent(responseContent);
 
     return {
-      trace: parsed.trace,
       outputMessages: parsed.outputMessages,
       raw: {
         command: renderedCommand,
@@ -270,8 +268,6 @@ export class CliProvider implements Provider {
       }
 
       return {
-        trace: parsed.trace,
-        traceRef: parsed.traceRef,
         outputMessages: parsed.outputMessages,
         raw: {
           command: renderedCommand,
@@ -294,25 +290,23 @@ export class CliProvider implements Provider {
    * Otherwise, treat the entire content as plain text wrapped in outputMessages.
    */
   private parseOutputContent(content: string): {
-    trace?: readonly TraceEvent[];
     outputMessages: readonly OutputMessage[];
   } {
     try {
       const parsed = JSON.parse(content) as unknown;
       if (typeof parsed === 'object' && parsed !== null) {
-        const obj = parsed as { text?: unknown; trace?: unknown; output_messages?: unknown };
-        const trace = this.parseTrace(obj.trace);
+        const obj = parsed as { text?: unknown; output_messages?: unknown };
         const outputMessages = this.parseOutputMessages(obj.output_messages);
 
         // If output_messages provided, use it
         if (outputMessages && outputMessages.length > 0) {
-          return { trace, outputMessages };
+          return { outputMessages };
         }
 
         // Fall back to text field, wrap in outputMessages
         if ('text' in obj) {
           const text = typeof obj.text === 'string' ? obj.text : String(obj.text);
-          return { trace, outputMessages: [{ role: 'assistant', content: text }] };
+          return { outputMessages: [{ role: 'assistant', content: text }] };
         }
       }
     } catch {
@@ -320,14 +314,6 @@ export class CliProvider implements Provider {
     }
     // Plain text content, wrap in outputMessages
     return { outputMessages: [{ role: 'assistant', content }] };
-  }
-
-  private parseTrace(trace: unknown): readonly TraceEvent[] | undefined {
-    if (!Array.isArray(trace)) {
-      return undefined;
-    }
-    const validEvents = trace.filter(isTraceEvent);
-    return validEvents.length > 0 ? validEvents : undefined;
   }
 
   /**
@@ -432,16 +418,12 @@ export class CliProvider implements Provider {
   private parseJsonlBatchOutput(content: string): Map<
     string,
     {
-      trace?: readonly TraceEvent[];
-      traceRef?: string;
       outputMessages: readonly OutputMessage[];
     }
   > {
     const records = new Map<
       string,
       {
-        trace?: readonly TraceEvent[];
-        traceRef?: string;
         outputMessages: readonly OutputMessage[];
       }
     >();
@@ -467,9 +449,6 @@ export class CliProvider implements Provider {
       const obj = parsed as {
         id?: unknown;
         text?: unknown;
-        trace?: unknown;
-        traceRef?: unknown;
-        trace_ref?: unknown;
         output_messages?: unknown;
       };
       const id = typeof obj.id === 'string' ? obj.id : undefined;
@@ -480,13 +459,6 @@ export class CliProvider implements Provider {
       if (records.has(id)) {
         throw new Error(`CLI batch output contains duplicate id: ${id}`);
       }
-
-      const traceRef =
-        typeof obj.traceRef === 'string'
-          ? obj.traceRef
-          : typeof obj.trace_ref === 'string'
-            ? obj.trace_ref
-            : undefined;
 
       // Prefer output_messages, fall back to text wrapped in outputMessages
       const parsedOutputMessages = this.parseOutputMessages(obj.output_messages);
@@ -505,8 +477,6 @@ export class CliProvider implements Provider {
       }
 
       records.set(id, {
-        trace: this.parseTrace(obj.trace),
-        traceRef,
         outputMessages,
       });
     }

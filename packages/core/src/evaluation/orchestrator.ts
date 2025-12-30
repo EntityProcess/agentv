@@ -26,11 +26,8 @@ import type {
 import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
 import {
   type ToolTrajectoryEvaluatorConfig,
-  type TraceEvent,
   type TraceSummary,
   computeTraceSummary,
-  extractTraceFromMessages,
-  isTraceEvent,
 } from './trace.js';
 import type {
   EvalCase,
@@ -412,24 +409,9 @@ async function runBatchEvaluation(options: {
     const promptInputs = promptInputsList[i];
     const providerResponse = batchResponse[i];
 
-    // Extract outputMessages and trace from batch response
+    // Extract outputMessages from batch response
     const outputMessages = providerResponse.outputMessages;
-    let candidateTrace: readonly TraceEvent[] | undefined = providerResponse.trace;
-    if (!candidateTrace && providerResponse.traceRef) {
-      try {
-        const rawTrace = await readJsonFile<unknown[]>(providerResponse.traceRef);
-        if (Array.isArray(rawTrace) && rawTrace.every(isTraceEvent)) {
-          candidateTrace = rawTrace as TraceEvent[];
-        }
-      } catch {
-        // Silently ignore trace load failures - trace is optional
-      }
-    }
-    // Fallback to extracting trace from outputMessages if no explicit trace (for legacy compatibility)
-    if (!candidateTrace && outputMessages) {
-      candidateTrace = extractTraceFromMessages(outputMessages);
-    }
-    const traceSummary = candidateTrace ? computeTraceSummary(candidateTrace) : undefined;
+    const traceSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
 
     // Extract candidate from last assistant message in output_messages
     const candidate = extractLastAssistantContent(outputMessages);
@@ -564,26 +546,11 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     await cache.set(cacheKey, providerResponse);
   }
 
-  // Extract outputMessages and trace from provider response
+  // Extract outputMessages from provider response
   const outputMessages = providerResponse.outputMessages;
-  let candidateTrace: readonly TraceEvent[] | undefined = providerResponse.trace;
-  if (!candidateTrace && providerResponse.traceRef) {
-    try {
-      const rawTrace = await readJsonFile<unknown[]>(providerResponse.traceRef);
-      if (Array.isArray(rawTrace) && rawTrace.every(isTraceEvent)) {
-        candidateTrace = rawTrace as TraceEvent[];
-      }
-    } catch {
-      // Silently ignore trace load failures - trace is optional
-    }
-  }
-  // Fallback to extracting trace from outputMessages if no explicit trace (for legacy compatibility)
-  if (!candidateTrace && outputMessages) {
-    candidateTrace = extractTraceFromMessages(outputMessages);
-  }
 
-  // Compute trace summary if trace is available
-  const traceSummary = candidateTrace ? computeTraceSummary(candidateTrace) : undefined;
+  // Compute trace summary if outputMessages available
+  const traceSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
 
   // Extract candidate from last assistant message in output_messages
   const candidate = extractLastAssistantContent(outputMessages);

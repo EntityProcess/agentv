@@ -10,7 +10,7 @@ import {
   extractLastAssistantContent,
 } from './providers/types.js';
 import { TEMPLATE_VARIABLES } from './template-variables.js';
-import type { ToolTrajectoryEvaluatorConfig, TraceEvent, TraceSummary } from './trace.js';
+import type { ToolTrajectoryEvaluatorConfig, TraceSummary } from './trace.js';
 import type {
   EvalCase,
   EvaluationVerdict,
@@ -689,19 +689,6 @@ export class ToolTrajectoryEvaluator implements Evaluator {
         for (const call of message.toolCalls) {
           toolCalls.push({ name: call.tool });
         }
-      }
-    }
-    return toolCalls;
-  }
-
-  /**
-   * Extract tool calls from trace events (legacy fallback).
-   */
-  private extractToolCallsFromTrace(trace: readonly TraceEvent[]): readonly { name: string }[] {
-    const toolCalls: { name: string }[] = [];
-    for (const event of trace) {
-      if (event.type === 'tool_call' && event.name) {
-        toolCalls.push({ name: event.name });
       }
     }
     return toolCalls;
