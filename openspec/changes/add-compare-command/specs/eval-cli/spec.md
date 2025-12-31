@@ -64,3 +64,26 @@ The CLI SHALL provide a `compare` command to analyze performance differences bet
 - **THEN** the CLI exits with code 0
 - **WHEN** file1 has better mean score than file2
 - **THEN** the CLI exits with code 1
+
+#### Scenario: Delta visualization
+
+- **WHEN** displaying score deltas in table or markdown format
+- **THEN** the CLI uses directional indicators (↑ improvement, ↓ regression, → no change)
+- **AND** applies color coding (green for improvement, red for regression)
+- **AND** shows both absolute delta and percentage change where meaningful
+
+#### Scenario: Cost and token comparison
+
+- **WHEN** result files include cost or token usage metadata
+- **THEN** the CLI computes and displays aggregate cost/token deltas
+- **AND** shows percentage change in resource usage
+- **WHEN** cost/token metadata is not present
+- **THEN** the CLI omits these metrics without error
+
+#### Scenario: Run metadata comparison
+
+- **WHEN** result files include run metadata (model name, configuration)
+- **THEN** the CLI displays metadata differences in summary header
+- **AND** highlights configuration changes between runs
+- **WHEN** metadata is not present
+- **THEN** the CLI proceeds with score comparison only

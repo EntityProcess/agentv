@@ -13,6 +13,10 @@ Users need to evaluate effectiveness of different models, prompts, and configura
   - Effect size measurement (Cohen's d)
   - Output formats: table, JSON, markdown
   - Exit code indicates comparison result for CI integration
+  - Delta visualization with directional indicators (↑↓→) and color coding
+  - Show both absolute delta and percentage change
+  - Compare cost/token metrics when available in results
+  - Display run metadata differences (model, config) when available
 
 ## Impact
 
