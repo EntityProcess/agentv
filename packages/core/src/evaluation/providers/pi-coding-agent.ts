@@ -379,7 +379,7 @@ class PiStreamLogger {
       return undefined;
     }
     const message =
-      this.format === 'json' ? trimmed : formatPiLogMessage(trimmed, source);
+      this.format === 'json' ? formatPiJsonLog(trimmed) : formatPiLogMessage(trimmed, source);
     return `[+${formatElapsed(this.startedAt)}] [${source}] ${message}`;
   }
 
@@ -441,6 +441,18 @@ function formatPiLogMessage(rawLine: string, source: 'stdout' | 'stderr'): strin
     return `stderr: ${rawLine}`;
   }
   return rawLine;
+}
+
+function formatPiJsonLog(rawLine: string): string {
+  const parsed = tryParseJsonValue(rawLine);
+  if (!parsed) {
+    return rawLine;
+  }
+  try {
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return rawLine;
+  }
 }
 
 function summarizePiEvent(event: unknown): string | undefined {
