@@ -55,6 +55,17 @@ targets:
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
     model: ${{ GEMINI_MODEL_NAME }}
 
+  # Pi Coding Agent - autonomous coding CLI from pi-mono
+  - name: pi_coding_agent
+    provider: pi-coding-agent
+    executable: node /root/projects/pi-mono/packages/coding-agent/dist/cli.js
+    pi_provider: google
+    model: ${{ GEMINI_MODEL_NAME }}
+    api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
+    judge_target: gemini_base
+    timeout_seconds: 180
+    tools: read,bash,edit,write  # Default tools for coding tasks
+
   - name: local_cli
     provider: cli
     judge_target: azure_base

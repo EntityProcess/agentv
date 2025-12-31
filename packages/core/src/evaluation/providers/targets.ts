@@ -429,6 +429,19 @@ export interface CodexResolvedConfig {
   readonly logFormat?: 'summary' | 'json';
 }
 
+export interface PiCodingAgentResolvedConfig {
+  readonly executable: string;
+  readonly provider?: string;
+  readonly model?: string;
+  readonly apiKey?: string;
+  readonly tools?: string;
+  readonly thinking?: string;
+  readonly args?: readonly string[];
+  readonly cwd?: string;
+  readonly timeoutMs?: number;
+  readonly logDir?: string;
+}
+
 export interface MockResolvedConfig {
   readonly response?: string;
   readonly delayMs?: number;
@@ -485,6 +498,14 @@ export type ResolvedTarget =
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: CodexResolvedConfig;
+    }
+  | {
+      readonly kind: 'pi-coding-agent';
+      readonly name: string;
+      readonly judgeTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: PiCodingAgentResolvedConfig;
     }
   | {
       readonly kind: 'mock';
@@ -629,6 +650,16 @@ export function resolveTargetDefinition(
         workers: parsed.workers,
         providerBatching,
         config: resolveCodexConfig(parsed, env),
+      };
+    case 'pi':
+    case 'pi-coding-agent':
+      return {
+        kind: 'pi-coding-agent',
+        name: parsed.name,
+        judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolvePiCodingAgentConfig(parsed, env),
       };
     case 'mock':
       return {
@@ -809,6 +840,81 @@ function normalizeCodexLogFormat(value: unknown): 'summary' | 'json' | undefined
     return normalized;
   }
   throw new Error("codex log format must be 'summary' or 'json'");
+}
+
+function resolvePiCodingAgentConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): PiCodingAgentResolvedConfig {
+  const executableSource = target.executable ?? target.command ?? target.binary;
+  const providerSource = target.pi_provider ?? target.piProvider ?? target.llm_provider;
+  const modelSource = target.model ?? target.pi_model ?? target.piModel;
+  const apiKeySource = target.api_key ?? target.apiKey;
+  const toolsSource = target.tools ?? target.pi_tools ?? target.piTools;
+  const thinkingSource = target.thinking ?? target.pi_thinking ?? target.piThinking;
+  const argsSource = target.args ?? target.arguments;
+  const cwdSource = target.cwd;
+  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
+  const logDirSource =
+    target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
+
+  const executable =
+    resolveOptionalString(executableSource, env, `${target.name} pi executable`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }) ?? 'node /root/projects/pi-mono/packages/coding-agent/dist/cli.js';
+
+  const provider = resolveOptionalString(providerSource, env, `${target.name} pi provider`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const model = resolveOptionalString(modelSource, env, `${target.name} pi model`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const apiKey = resolveOptionalString(apiKeySource, env, `${target.name} pi api key`, {
+    allowLiteral: false,
+    optionalEnv: true,
+  });
+
+  const tools = resolveOptionalString(toolsSource, env, `${target.name} pi tools`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const thinking = resolveOptionalString(thinkingSource, env, `${target.name} pi thinking`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const args = resolveOptionalStringArray(argsSource, env, `${target.name} pi args`);
+
+  const cwd = resolveOptionalString(cwdSource, env, `${target.name} pi cwd`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} pi timeout`);
+
+  const logDir = resolveOptionalString(logDirSource, env, `${target.name} pi log directory`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  return {
+    executable,
+    provider,
+    model,
+    apiKey,
+    tools,
+    thinking,
+    args,
+    cwd,
+    timeoutMs,
+    logDir,
+  };
 }
 
 function resolveMockConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): MockResolvedConfig {

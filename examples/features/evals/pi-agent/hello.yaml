@@ -1,0 +1,14 @@
+$schema: agentv-eval-v2
+description: Test Pi Coding Agent provider
+target: pi_coding_agent
+
+evalcases:
+  - id: hello-world
+    expected_outcome: |
+      The agent should respond with a greeting like "Hello" or "Hi".
+
+    input_messages:
+      - role: user
+        content:
+          - type: text
+            value: Say hello in one word. Only output the word, nothing else.
