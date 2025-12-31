@@ -549,7 +549,7 @@ async function main(): Promise<void> {
   const outputFile = values.output ?? defaultOutputFile;
 
   writeFileSync(outputFile, outputJson);
-  logInfo(`Result written to: ${outputFile}`);
+  logInfo(`CI results written to: ${outputFile}`);
 
   logInfo(formatConfusionMatrixReport(metrics, result.policyWeightedOverall));
 
