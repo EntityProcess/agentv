@@ -1,6 +1,6 @@
 # AgentV
 
-A TypeScript-based AI agent evaluation and optimization framework using YAML specifications to score task completion. Built for modern development workflows with first-class support for VS Code Copilot, OpenAI Codex CLI and Azure OpenAI.
+A TypeScript-based AI agent evaluation and optimization framework using YAML specifications to score task completion. Built for modern development workflows with first-class support for VS Code Copilot, OpenAI Codex CLI, Pi Coding Agent, and Azure OpenAI.
 
 ## Installation and Setup
 
@@ -162,7 +162,7 @@ Execution targets in `.agentv/targets.yaml` decouple evals from providers/settin
 Each target specifies:
 
 - `name`: Unique identifier for the target
-- `provider`: The model provider (`azure`, `anthropic`, `gemini`, `codex`, `vscode`, `vscode-insiders`, `cli`, or `mock`)
+- `provider`: The model provider (`azure`, `anthropic`, `gemini`, `codex`, `pi-coding-agent`, `vscode`, `vscode-insiders`, `cli`, or `mock`)
 - Provider-specific configuration fields at the top level (no `settings` wrapper needed)
 - Optional fields: `judge_target`, `workers`, `provider_batching`
 
@@ -239,6 +239,24 @@ Note: Environment variables are referenced using `${{ VARIABLE_NAME }}` syntax. 
 
 Codex targets require the standalone `codex` CLI and a configured profile (via `codex configure`) so credentials are stored in `~/.codex/config` (or whatever path the CLI already uses). AgentV mirrors all guideline and attachment files into a fresh scratch workspace, so the `file://` preread links remain valid even when the CLI runs outside your repo tree.
 Confirm the CLI works by running `codex exec --json --profile <name> "ping"` (or any supported dry run) before starting an eval. This prints JSONL events; seeing `item.completed` messages indicates the CLI is healthy.
+
+**Pi Coding Agent targets:**
+
+```yaml
+- name: pi_agent
+  provider: pi-coding-agent
+  judge_target: gemini_base
+  executable: node /path/to/pi-mono/packages/coding-agent/dist/cli.js
+  pi_provider: google                       # google, anthropic, openai, groq, xai, openrouter
+  model: ${{ GEMINI_MODEL_NAME }}
+  api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
+  tools: read,bash,edit,write               # Available tools for the agent
+  timeout_seconds: 180
+  cwd: ${{ PI_WORKSPACE_DIR }}              # Optional: run in specific directory
+  log_format: json                          # 'summary' (default) or 'json' for full logs
+```
+
+Pi Coding Agent is an autonomous coding CLI from [pi-mono](https://github.com/badlogic/pi-mono). It supports multiple LLM providers and outputs JSONL events. AgentV extracts tool trajectories from the output for trace-based evaluation. File attachments are passed using Pi's native `@path` syntax.
 
 ## Writing Custom Evaluators
 
