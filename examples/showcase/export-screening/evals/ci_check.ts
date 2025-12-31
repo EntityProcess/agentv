@@ -380,7 +380,11 @@ function formatConfusionMatrixReport(
   const matrix = metrics.confusionMatrix.matrix;
   const macroOverall = metrics.overallMetrics;
 
-  const colWidth = 10;
+  const cellWidth = 10;
+  const labelWidth = Math.max(
+    10,
+    ...['Class', ...classes, 'Overall (Macro)', 'Overall (Policy)'].map((label) => label.length),
+  );
   const lines: string[] = [];
 
   lines.push('\n==================================================');
@@ -394,36 +398,35 @@ function formatConfusionMatrixReport(
   lines.push(`Accuracy: ${formatPercent(metrics.summary.accuracy)}`);
 
   lines.push('\nConfusion Matrix (rows=expert/actual, cols=ai/predicted):');
-  const header = [''.padStart(colWidth)].concat(classes.map((cls) => cls.padStart(colWidth)));
+  const header = [''.padStart(labelWidth)].concat(classes.map((cls) => cls.padStart(cellWidth)));
   lines.push(header.join(' '));
   lines.push('-'.repeat(header.join(' ').length));
 
   for (const actual of classes) {
-    const row = [actual.padStart(colWidth)].concat(
-      classes.map((predicted) => String(matrix[actual]?.[predicted] ?? 0).padStart(colWidth)),
+    const row = [actual.padStart(labelWidth)].concat(
+      classes.map((predicted) => String(matrix[actual]?.[predicted] ?? 0).padStart(cellWidth)),
     );
     lines.push(row.join(' '));
   }
 
   lines.push('\nPer-class Metrics:');
-  lines.push(
-    `${'Class'.padStart(colWidth)} | ${'Precision'.padStart(10)} ${'Recall'.padStart(10)} ${'F1'.padStart(10)}`,
-  );
-  lines.push('-'.repeat(48));
+  const metricsHeader = `${'Class'.padStart(labelWidth)} | ${'Precision'.padStart(10)} ${'Recall'.padStart(10)} ${'F1'.padStart(10)}`;
+  lines.push(metricsHeader);
+  lines.push('-'.repeat(metricsHeader.length));
 
   for (const cls of classes) {
     const per = metrics.metricsPerClass[cls] ?? { precision: 0, recall: 0, f1: 0 };
     lines.push(
-      `${cls.padStart(colWidth)} | ${formatPercent(per.precision).padStart(10)} ${formatPercent(per.recall).padStart(10)} ${formatPercent(per.f1).padStart(10)}`,
+      `${cls.padStart(labelWidth)} | ${formatPercent(per.precision).padStart(10)} ${formatPercent(per.recall).padStart(10)} ${formatPercent(per.f1).padStart(10)}`,
     );
   }
 
-  lines.push('-'.repeat(48));
+  lines.push('-'.repeat(metricsHeader.length));
   lines.push(
-    `${'Overall (Macro)'.padStart(colWidth)} | ${formatPercent(macroOverall.precision).padStart(10)} ${formatPercent(macroOverall.recall).padStart(10)} ${formatPercent(macroOverall.f1).padStart(10)}`,
+    `${'Overall (Macro)'.padStart(labelWidth)} | ${formatPercent(macroOverall.precision).padStart(10)} ${formatPercent(macroOverall.recall).padStart(10)} ${formatPercent(macroOverall.f1).padStart(10)}`,
   );
   lines.push(
-    `${'Overall (Policy)'.padStart(colWidth)} | ${formatPercent(policyWeightedOverall.precision).padStart(10)} ${formatPercent(policyWeightedOverall.recall).padStart(10)} ${formatPercent(policyWeightedOverall.f1).padStart(10)}`,
+    `${'Overall (Policy)'.padStart(labelWidth)} | ${formatPercent(policyWeightedOverall.precision).padStart(10)} ${formatPercent(policyWeightedOverall.recall).padStart(10)} ${formatPercent(policyWeightedOverall.f1).padStart(10)}`,
   );
 
   return lines.join('\n');
