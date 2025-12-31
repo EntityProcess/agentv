@@ -58,7 +58,7 @@ targets:
   # Pi Coding Agent - autonomous coding CLI from pi-mono
   - name: pi_coding_agent
     provider: pi-coding-agent
-    executable: node /root/projects/pi-mono/packages/coding-agent/dist/cli.js
+    executable: ${{ PI_CLI_PATH }}  # Optional: defaults to `pi` if omitted
     pi_provider: google
     model: ${{ GEMINI_MODEL_NAME }}
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}

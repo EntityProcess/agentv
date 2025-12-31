@@ -864,7 +864,7 @@ function resolvePiCodingAgentConfig(
     resolveOptionalString(executableSource, env, `${target.name} pi executable`, {
       allowLiteral: true,
       optionalEnv: true,
-    }) ?? 'node /root/projects/pi-mono/packages/coding-agent/dist/cli.js';
+    }) ?? 'pi';
 
   const provider = resolveOptionalString(providerSource, env, `${target.name} pi provider`, {
     allowLiteral: true,
