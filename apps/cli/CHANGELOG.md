@@ -1,5 +1,31 @@
 # agentv
 
+## 1.6.0
+
+### Minor Changes
+
+- b0bcc50: Add compare command for evaluation result comparison
+
+  - New `agentv compare` command to compute differences between two JSONL result files
+  - Match results by eval_id and compute score deltas
+  - Classify outcomes as win/loss/tie based on configurable threshold
+  - Exit code indicates comparison result for CI integration
+
+- 9d45033: Add Pi Coding Agent provider and default system prompts for agent evaluations
+
+  - New `pi-coding-agent` provider for the Pi Coding Agent CLI from pi-mono
+  - Support file attachments using Pi's native `@path` syntax
+  - Extract tool trajectory/traces from Pi's JSONL output
+  - Display log file paths in console during eval runs
+  - Add `log_format` option ('summary' or 'json') for log verbosity
+  - Add default system prompt for Pi and Codex providers instructing agents to include code in response using git diff format
+  - Add `system_prompt` config option to override default behavior via targets.yaml
+
+### Patch Changes
+
+- Updated dependencies [9d45033]
+  - @agentv/core@1.5.0
+
 ## 1.5.1
 
 ### Patch Changes
