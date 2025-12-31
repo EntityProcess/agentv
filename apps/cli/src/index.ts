@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { binary, run, subcommands } from 'cmd-ts';
 
+import { compareCommand } from './commands/compare/index.js';
 import { convertCommand } from './commands/convert/index.js';
 import { evalCommand } from './commands/eval/index.js';
 import { generateCommand } from './commands/generate/index.js';
@@ -14,6 +15,7 @@ export const app = subcommands({
   description: 'AgentV CLI',
   version: packageJson.version,
   cmds: {
+    compare: compareCommand,
     convert: convertCommand,
     eval: evalCommand,
     generate: generateCommand,
