@@ -60,17 +60,17 @@ interface ConfusionMatrixMetrics {
 
 interface PolicyWeightedOverall {
   /**
-   * Spreadsheet-compatible "overall precision":
+   * Policy-weighted "overall precision":
    * SUM(precision * recall) / SUM(recall)
    */
   precision: number;
   /**
-   * Spreadsheet-compatible "overall recall":
+   * Policy-weighted "overall recall":
    * AVERAGE(recall)
    */
   recall: number;
   /**
-   * Spreadsheet-compatible "overall F1":
+   * Policy-weighted "overall F1":
    * 2 * SUM(precision * recall) / SUM(precision + recall)
    */
   f1: number;

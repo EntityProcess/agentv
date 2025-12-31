@@ -45,7 +45,7 @@ bun agentv eval ./evals/dataset.yaml --out results.jsonl
 
 ### Computing Metrics
 
-Use the wrapper script to compute a confusion matrix and spreadsheet-compatible policy-weighted overall metrics from `results.jsonl`. It prints a human-readable confusion matrix table to the console and writes a structured CI result JSON file (defaults to `results.ci_check.json`):
+Use the wrapper script to compute a confusion matrix and policy-weighted overall metrics from `results.jsonl`. It prints a human-readable confusion matrix table to the console and writes a structured CI result JSON file (defaults to `results.ci_check.json`):
 
 ```bash
 bun run ./evals/ci_check.ts results.jsonl --threshold 0.95 --check-class High
@@ -86,7 +86,7 @@ The `ci_check.ts` script:
 2. Parses predicted vs actual classifications from hits/misses
 3. Builds confusion matrix
 4. Computes per-class precision, recall, F1
-5. Computes macro-averaged overall metrics and spreadsheet-compatible policy-weighted overall metrics
+5. Computes macro-averaged overall metrics and policy-weighted overall metrics
 
 ## Customization
 
