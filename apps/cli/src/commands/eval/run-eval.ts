@@ -11,6 +11,7 @@ import {
   ensureVSCodeSubagents,
   loadEvalCases,
   subscribeToCodexLogEntries,
+  subscribeToPiLogEntries,
 } from '@agentv/core';
 
 import { loadEnvFromHierarchy } from './env.js';
@@ -170,7 +171,7 @@ type ProgressReporter = {
   setTotal(total: number): void;
   update(workerId: number, progress: WorkerProgress): void;
   finish(): void;
-  addLogPaths(paths: readonly string[]): void;
+  addLogPaths(paths: readonly string[], provider?: 'codex' | 'pi'): void;
 };
 
 function createProgressReporter(
@@ -185,7 +186,8 @@ function createProgressReporter(
     update: (workerId: number, progress: WorkerProgress) =>
       display.updateWorker({ ...progress, workerId }),
     finish: () => display.finish(),
-    addLogPaths: (paths: readonly string[]) => display.addLogPaths(paths),
+    addLogPaths: (paths: readonly string[], provider?: 'codex' | 'pi') =>
+      display.addLogPaths(paths, provider),
   };
 }
 
@@ -494,7 +496,15 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       return;
     }
     seenCodexLogPaths.add(entry.filePath);
-    progressReporter.addLogPaths([entry.filePath]);
+    progressReporter.addLogPaths([entry.filePath], 'codex');
+  });
+  const seenPiLogPaths = new Set<string>();
+  const unsubscribePiLogs = subscribeToPiLogEntries((entry) => {
+    if (!entry.filePath || seenPiLogPaths.has(entry.filePath)) {
+      return;
+    }
+    seenPiLogPaths.add(entry.filePath);
+    progressReporter.addLogPaths([entry.filePath], 'pi');
   });
   for (const [testFilePath, meta] of fileMetadata.entries()) {
     for (const evalId of meta.evalIds) {
@@ -553,6 +563,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     }
   } finally {
     unsubscribeCodexLogs();
+    unsubscribePiLogs();
     await outputWriter.close().catch(() => undefined);
   }
 }

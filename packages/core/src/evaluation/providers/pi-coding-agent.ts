@@ -6,6 +6,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { recordPiLogEntry } from './pi-log-tracker.js';
 import { normalizeInputFiles } from './preread.js';
 import type { PiCodingAgentResolvedConfig } from './targets.js';
 import type {
@@ -273,6 +274,12 @@ export class PiCodingAgentProvider implements Provider {
 
     try {
       const logger = await PiStreamLogger.create({
+        filePath,
+        targetName: this.targetName,
+        evalCaseId: request.evalCaseId,
+        attempt: request.attempt,
+      });
+      recordPiLogEntry({
         filePath,
         targetName: this.targetName,
         evalCaseId: request.evalCaseId,

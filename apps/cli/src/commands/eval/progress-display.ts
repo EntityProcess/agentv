@@ -78,7 +78,7 @@ export class ProgressDisplay {
     }
   }
 
-  addLogPaths(paths: readonly string[]): void {
+  addLogPaths(paths: readonly string[], provider?: 'codex' | 'pi'): void {
     const newPaths: string[] = [];
     for (const path of paths) {
       if (this.logPathSet.has(path)) {
@@ -96,7 +96,8 @@ export class ProgressDisplay {
 
     if (!this.hasPrintedLogHeader) {
       console.log('');
-      console.log('Codex CLI logs:');
+      const label = provider === 'pi' ? 'Pi Coding Agent' : 'Codex CLI';
+      console.log(`${label} logs:`);
       this.hasPrintedLogHeader = true;
     }
 
