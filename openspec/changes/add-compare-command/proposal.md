@@ -2,21 +2,16 @@
 
 ## Why
 
-Users need to evaluate effectiveness of different models, prompts, and configurations. Currently there's no built-in way to compare two evaluation runs to determine which configuration performs better and whether the difference is statistically significant.
+Users need to evaluate effectiveness of different models, prompts, and configurations. Currently there's no built-in way to compare two evaluation runs.
 
 ## What Changes
 
-- **Add `agentv compare` command**: Compare two result files (JSONL) to analyze performance differences
+- **Add `agentv compare` command**: Minimal comparison of two result files (JSONL)
   - Match results by `eval_id`
-  - Compute wins/losses/ties based on configurable threshold
-  - Statistical significance testing (Wilcoxon signed-rank test)
-  - Effect size measurement (Cohen's d)
-  - Output formats: table, JSON, markdown
+  - Compute score deltas
+  - Classify wins/losses/ties based on configurable threshold
+  - Output structured JSON (external tools handle formatting/analysis)
   - Exit code indicates comparison result for CI integration
-  - Delta visualization with directional indicators (↑↓→) and color coding
-  - Show both absolute delta and percentage change
-  - Compare cost/token metrics when available in results
-  - Display run metadata differences (model, config) when available
 
 ## Impact
 
