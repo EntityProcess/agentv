@@ -243,7 +243,7 @@ Confirm the CLI works by running `codex exec --json --profile <name> "ping"` (or
 **Pi Coding Agent targets:**
 
 ```yaml
-- name: pi_agent
+- name: pi
   provider: pi-coding-agent
   judge_target: gemini_base
   executable: ${{ PI_CLI_PATH }}            # Optional: defaults to `pi` if omitted
@@ -254,6 +254,9 @@ Confirm the CLI works by running `codex exec --json --profile <name> "ping"` (or
   timeout_seconds: 180
   cwd: ${{ PI_WORKSPACE_DIR }}              # Optional: run in specific directory
   log_format: json                          # 'summary' (default) or 'json' for full logs
+  system_prompt: |                          # Optional: prepended to all prompts
+    Always include your complete code in your response.
+    Do not just write files - show the code in your response text.
 ```
 
 Pi Coding Agent is an autonomous coding CLI from [pi-mono](https://github.com/badlogic/pi-mono). Install it globally with `npm install -g @anthropic/pi-coding-agent` (or use a local path via `executable`). It supports multiple LLM providers and outputs JSONL events. AgentV extracts tool trajectories from the output for trace-based evaluation. File attachments are passed using Pi's native `@path` syntax.

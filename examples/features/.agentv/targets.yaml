@@ -66,6 +66,9 @@ targets:
     timeout_seconds: 180
     tools: read,bash,edit,write  # Default tools for coding tasks
     log_format: json  # 'summary' (default) or 'json' for raw event logs
+    system_prompt: |
+      Always include your complete code in your response.
+      Do not just write files - show the code in your response text.
 
   - name: local_cli
     provider: cli

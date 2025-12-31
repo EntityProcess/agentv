@@ -441,6 +441,7 @@ export interface PiCodingAgentResolvedConfig {
   readonly timeoutMs?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
+  readonly systemPrompt?: string;
 }
 
 export interface MockResolvedConfig {
@@ -859,6 +860,7 @@ function resolvePiCodingAgentConfig(
   const logDirSource =
     target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
   const logFormatSource = target.log_format ?? target.logFormat;
+  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} pi executable`, {
@@ -908,6 +910,11 @@ function resolvePiCodingAgentConfig(
   const logFormat =
     logFormatSource === 'json' || logFormatSource === 'summary' ? logFormatSource : undefined;
 
+  const systemPrompt =
+    typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
+      ? systemPromptSource.trim()
+      : undefined;
+
   return {
     executable,
     provider,
@@ -920,6 +927,7 @@ function resolvePiCodingAgentConfig(
     timeoutMs,
     logDir,
     logFormat,
+    systemPrompt,
   };
 }
 

@@ -168,9 +168,15 @@ export class PiCodingAgentProvider implements Provider {
       }
     }
 
+    // Prepend system prompt from target config if provided
+    let fullPrompt = prompt;
+    if (this.config.systemPrompt) {
+      fullPrompt = `${this.config.systemPrompt}\n\n${prompt}`;
+    }
+
     // Escape @ symbols in prompt that aren't file references
     // Pi CLI interprets @ as file prefix, but AgentV uses @[Role]: for multi-turn
-    const escapedPrompt = escapeAtSymbols(prompt);
+    const escapedPrompt = escapeAtSymbols(fullPrompt);
 
     // Prompt is passed as the final argument
     args.push(escapedPrompt);
