@@ -11,7 +11,17 @@ The CLI SHALL provide a `compare` command to compute differences between two eva
 - **AND** matches results by `eval_id`
 - **AND** computes score deltas (score2 - score1) for each matched case
 - **AND** classifies outcomes as win/loss/tie based on threshold (default 0.1)
-- **AND** outputs JSON with matched cases, unmatched counts, and summary statistics
+- **AND** outputs JSON with the following structure:
+
+```json
+{
+  "matched": [
+    {"eval_id": "case-1", "score1": 0.8, "score2": 0.9, "delta": 0.1, "outcome": "win"}
+  ],
+  "unmatched": {"file1": 2, "file2": 1},
+  "summary": {"total": 50, "matched": 47, "wins": 12, "losses": 5, "ties": 30, "meanDelta": 0.034}
+}
+```
 
 #### Scenario: Configurable threshold
 
