@@ -117,14 +117,6 @@ Run a specific eval case with custom targets path:
 agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --eval-id "my-eval-case" "path/to/eval.yaml"
 ```
 
-Run with aggregators and custom aggregator output path:
-
-```bash
-agentv eval "path/to/eval.yaml" \
-  --aggregator confusion-matrix \
-  --aggregator-out "path/to/metrics.json"
-```
-
 ### Command Line Options
 
 - `eval_paths...`: Path(s) or glob(s) to eval YAML files (required; e.g., `evals/**/*.yaml`)
@@ -141,8 +133,6 @@ agentv eval "path/to/eval.yaml" \
 - `--dump-traces`: Write trace files to `.agentv/traces/` directory
 - `--include-trace`: Include full trace in result output (verbose)
 - `--workers COUNT`: Parallel workers for eval cases (default: 3; target `workers` setting used when provided)
-- `--aggregator AGGREGATOR_NAME`: Run aggregator after evaluation (can be used multiple times). Built-in: `confusion-matrix`
-- `--aggregator-out PATH`: Path to write aggregator results (default: `<output>.aggregators.json`)
 - `--verbose`: Verbose output
 
 ### Target Selection Priority

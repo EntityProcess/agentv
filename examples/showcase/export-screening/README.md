@@ -15,7 +15,7 @@ Trade compliance teams screen shipments to identify potential dual-use goods req
 1. **Multi-class classification** (Low/Medium/High)
 2. **Structured JSON output** with reasoning
 3. **Code evaluator** for format validation and accuracy checking
-4. **Built-in aggregator** for confusion matrix and precision/recall/F1 metrics
+4. **Wrapper-based metrics** (confusion matrix + precision/recall/F1 + policy-weighted overall)
 
 ## Files
 
@@ -39,91 +39,25 @@ From the repository root:
 ```bash
 cd examples/showcase/export-screening
 
-# Run evaluation with confusion matrix metrics
-bun agentv eval ./evals/dataset.yaml --out results.jsonl --aggregator confusion-matrix
+# Run evaluation (produces per-case results)
+bun agentv eval ./evals/dataset.yaml --out results.jsonl
 ```
 
-### Example Output
+### Computing Metrics
 
-```
-==================================================
-EVALUATION SUMMARY
-==================================================
-Total eval cases: 22
-Mean score: 0.864
-...
+Use the wrapper script to compute a confusion matrix and spreadsheet-compatible policy-weighted overall metrics from `results.jsonl`:
 
-==================================================
-CONFUSION MATRIX
-==================================================
-Total samples: 22
-Parsed samples: 22
-Accuracy: 86.4%
-
-Confusion Matrix (rows=actual, cols=predicted):
-                 High        Low     Medium
-      High          10          0          2
-       Low          0          5          1
-    Medium          1          0          3
-
-Per-class Metrics:
-     Class |  Precision     Recall         F1
-------------------------------------------------
-      High |      90.9%     83.3%      87.0%
-       Low |     100.0%     83.3%      90.9%
-    Medium |      50.0%     75.0%      60.0%
-------------------------------------------------
- Macro Avg |      80.3%     80.6%      79.3%
-
-Results written to: results.jsonl
-Aggregator results written to: results.aggregators.json
-```
-
-### JSON Output Format
-
-The `results.aggregators.json` file contains:
-
-```json
-[
-  {
-    "type": "confusion-matrix",
-    "summary": {
-      "totalSamples": 22,
-      "parsedSamples": 22,
-      "unparsedSamples": 0,
-      "samplesPerClass": {"High": 12, "Medium": 4, "Low": 6},
-      "accuracy": 0.8182
-    },
-    "confusionMatrix": {
-      "classes": ["High", "Low", "Medium"],
-      "matrix": {
-        "High": {"High": 10, "Low": 0, "Medium": 2},
-        "Low": {"High": 0, "Low": 5, "Medium": 1},
-        "Medium": {"High": 1, "Low": 0, "Medium": 3}
-      },
-      "description": "matrix[actual][predicted] = count"
-    },
-    "metricsPerClass": {
-      "High": {"precision": 0.909, "recall": 0.833, "f1": 0.870, ...},
-      "Low": {"precision": 1.0, "recall": 0.833, "f1": 0.909, ...},
-      "Medium": {"precision": 0.5, "recall": 0.75, "f1": 0.6, ...}
-    },
-    "overallMetrics": {
-      "precision": 0.803,
-      "recall": 0.806,
-      "f1": 0.793
-    }
-  }
-]
+```bash
+bun run ./evals/ci_check.ts results.jsonl --threshold 0.95 --check-class High
 ```
 
 ## Evaluation Flow
 
 ```mermaid
 flowchart LR
-    A[dataset.yaml] --> B[bun agentv eval<br/>--aggregator confusion-matrix]
+    A[dataset.yaml] --> B[bun agentv eval]
     B --> C[results.jsonl<br/>per-case scores]
-    B --> D[results.aggregators.json<br/>confusion matrix + P/R/F1]
+    C --> D[ci_check.ts<br/>confusion matrix + P/R/F1 + policy-weighted overall]
 ```
 
 ## How It Works
@@ -141,17 +75,18 @@ The evaluator:
 1. Validates JSON format and required fields
 2. Extracts AI's `riskLevel` prediction
 3. Compares to expected `riskLevel` from `expected_messages`
-4. Outputs structured hits/misses for the aggregator:
+4. Outputs structured hits/misses for downstream wrappers:
    - Hit: `"Correct: AI=High, Expected=High"`
    - Miss: `"Mismatch: AI=Low, Expected=High"`
 
-### 3. Built-in Aggregator (`--aggregator confusion-matrix`)
+### 3. Wrapper Script (`ci_check.ts`)
 
-The confusion-matrix aggregator:
-1. Parses predicted vs actual classifications from hits/misses
-2. Builds confusion matrix
-3. Computes per-class precision, recall, F1
-4. Computes macro-averaged overall metrics
+The `ci_check.ts` script:
+1. Reads `results.jsonl`
+2. Parses predicted vs actual classifications from hits/misses
+3. Builds confusion matrix
+4. Computes per-class precision, recall, F1
+5. Computes macro-averaged overall metrics and spreadsheet-compatible policy-weighted overall metrics
 
 ## Customization
 
@@ -200,8 +135,8 @@ The `ci_check.ts` script provides threshold-based quality gates for CI/CD pipeli
 # Full flow: run eval and check threshold in one command
 bun run ./evals/ci_check.ts --eval ./evals/dataset.yaml --threshold 0.95
 
-# Or check existing aggregator results file
-bun run ./evals/ci_check.ts results.aggregators.json --threshold 0.95
+# Or check existing results file
+bun run ./evals/ci_check.ts results.jsonl --threshold 0.95
 ```
 
 ### Options
@@ -211,7 +146,7 @@ bun run ./evals/ci_check.ts results.aggregators.json --threshold 0.95
 | `--eval` | - | Run agentv eval on this dataset first |
 | `--threshold` | `0.95` | F1 score threshold (0.0-1.0) |
 | `--check-class` | `High` | Risk class to validate (`Low`, `Medium`, `High`) |
-| `--output` | stdout | Optional JSON output file |
+| `--output` | (auto) | Optional JSON output file |
 
 ### Exit Codes
 
@@ -228,6 +163,7 @@ bun run ./evals/ci_check.ts results.aggregators.json --threshold 0.95
   "actualF1": 0.9625,
   "margin": 0.0125,
   "message": "PASS: High F1 score 96.2% >= 95.0% threshold",
+  "policyWeightedOverall": { "precision": 0.68, "recall": 0.65, "f1": 0.80 },
   "metrics": { ... }
 }
 ```

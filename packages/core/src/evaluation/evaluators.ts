@@ -550,12 +550,66 @@ async function executeScript(
   agentTimeoutMs?: number,
   cwd?: string,
 ): Promise<string> {
+  const bunSpawn = (globalThis as { Bun?: { spawn?: unknown } }).Bun?.spawn;
+  if (typeof bunSpawn === 'function') {
+    const encoder = new TextEncoder();
+
+    return await new Promise<string>((resolve, reject) => {
+      const proc = bunSpawn({
+        cmd: ['sh', '-c', scriptPath],
+        cwd,
+        stdin: encoder.encode(input),
+        stdout: 'pipe',
+        stderr: 'pipe',
+      });
+
+      const timeout = agentTimeoutMs
+        ? setTimeout(() => {
+            proc.kill();
+            reject(new Error(`Code evaluator timed out after ${agentTimeoutMs}ms`));
+          }, agentTimeoutMs)
+        : undefined;
+
+      void (async () => {
+        try {
+          const stdout = await new Response(proc.stdout).text();
+          const stderr = await new Response(proc.stderr).text();
+          const exitCode = await proc.exited;
+
+          if (timeout !== undefined) {
+            clearTimeout(timeout);
+          }
+
+          if (exitCode !== 0) {
+            const trimmedErr = stderr.trim();
+            reject(
+              new Error(
+                trimmedErr.length > 0
+                  ? `Code evaluator exited with code ${exitCode}: ${trimmedErr}`
+                  : `Code evaluator exited with code ${exitCode}`,
+              ),
+            );
+            return;
+          }
+
+          resolve(stdout.trim());
+        } catch (error) {
+          if (timeout !== undefined) {
+            clearTimeout(timeout);
+          }
+          reject(error);
+        }
+      })();
+    });
+  }
+
   const { spawn } = await import('node:child_process');
 
   return await new Promise<string>((resolve, reject) => {
     const child = spawn(scriptPath, {
       shell: true,
       cwd,
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let stdout = '';

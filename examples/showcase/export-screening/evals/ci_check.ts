@@ -9,14 +9,14 @@
  *   # Full flow: run eval then check threshold
  *   bun run ci_check.ts --eval dataset.yaml --threshold 0.95 --check-class High
  *
- *   # Check existing aggregator results file
- *   bun run ci_check.ts metrics.aggregators.json --threshold 0.95 --check-class High
+ *   # Check existing results JSONL file
+ *   bun run ci_check.ts results.jsonl --threshold 0.95 --check-class High
  *
  * Options:
  *   --eval FILE         Run agentv eval on this dataset first
  *   --threshold FLOAT   F1 score threshold (default: 0.95)
  *   --check-class STR   Risk class to check (default: High)
- *   --output FILE       Output JSON file (optional, prints to stdout if omitted)
+ *   --output FILE       Output JSON file (optional, defaults next to results.jsonl)
  *
  * Exit Codes:
  *   0 - Pass (F1 >= threshold)
@@ -25,15 +25,55 @@
 
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { spawn } from 'bun';
 
+function logInfo(message: string): void {
+  console.log(message);
+}
+
+function logError(message: string): void {
+  console.error(message);
+}
+
+interface EvaluationResultJsonlRecord {
+  hits?: string[];
+  misses?: string[];
+}
+
 interface ConfusionMatrixMetrics {
-  type: string;
+  confusionMatrix: {
+    classes: string[];
+    matrix: Record<string, Record<string, number>>;
+    description: string;
+  };
   metricsPerClass: Record<string, { f1: number; precision: number; recall: number }>;
   overallMetrics: { f1: number; precision: number; recall: number };
-  summary: { accuracy: number; totalSamples: number };
+  summary: {
+    accuracy: number;
+    totalSamples: number;
+    parsedSamples: number;
+    unparsedSamples: number;
+  };
+}
+
+interface PolicyWeightedOverall {
+  /**
+   * Spreadsheet-compatible "overall precision":
+   * SUM(precision * recall) / SUM(recall)
+   */
+  precision: number;
+  /**
+   * Spreadsheet-compatible "overall recall":
+   * AVERAGE(recall)
+   */
+  recall: number;
+  /**
+   * Spreadsheet-compatible "overall F1":
+   * 2 * SUM(precision * recall) / SUM(precision + recall)
+   */
+  f1: number;
 }
 
 interface ThresholdResult {
@@ -43,6 +83,7 @@ interface ThresholdResult {
   actualF1: number;
   margin: number;
   message: string;
+  policyWeightedOverall: PolicyWeightedOverall;
   metrics: ConfusionMatrixMetrics;
 }
 
@@ -70,24 +111,14 @@ function findRepoRoot(startPath: string): string {
 async function runEval(evalFile: string): Promise<string> {
   const tempDir = mkdtempSync(join(tmpdir(), 'agentv-'));
   const resultsFile = join(tempDir, 'results.jsonl');
-  const aggregatorFile = join(tempDir, 'results.aggregators.json');
 
   const repoRoot = findRepoRoot(dirname(evalFile));
   const evalPath = resolve(evalFile);
 
-  const cmd = [
-    'bun',
-    'agentv',
-    'eval',
-    evalPath,
-    '--out',
-    resultsFile,
-    '--aggregator',
-    'confusion-matrix',
-  ];
+  const cmd = ['bun', 'agentv', 'eval', evalPath, '--out', resultsFile];
 
-  console.error(`Running: ${cmd.join(' ')}`);
-  console.error(`Working directory: ${repoRoot}`);
+  logInfo(`Running: ${cmd.join(' ')}`);
+  logInfo(`Working directory: ${repoRoot}`);
 
   const proc = spawn({
     cmd,
@@ -101,41 +132,240 @@ async function runEval(evalFile: string): Promise<string> {
   const exitCode = await proc.exited;
 
   if (exitCode !== 0) {
-    console.error('Error running agentv eval:');
-    console.error(stderr);
+    logError('Error running agentv eval:');
+    logError(stderr);
     process.exit(1);
   }
 
   if (stdout) {
-    console.error(stdout);
+    logInfo(stdout);
   }
 
-  if (!existsSync(aggregatorFile)) {
-    console.error(`Error: Eval did not produce aggregator file: ${aggregatorFile}`);
+  if (!existsSync(resultsFile)) {
+    logError(`Error: Eval did not produce results file: ${resultsFile}`);
     process.exit(1);
   }
 
-  return aggregatorFile;
+  return resultsFile;
 }
 
-function loadMetrics(aggregatorFile: string): ConfusionMatrixMetrics | { error: string } {
-  try {
-    const data = JSON.parse(readFileSync(aggregatorFile, 'utf-8')) as unknown[];
+function roundTo4(value: number): number {
+  return Math.round(value * 10000) / 10000;
+}
 
-    for (const item of data) {
-      if (
-        typeof item === 'object' &&
-        item !== null &&
-        (item as { type?: string }).type === 'confusion-matrix'
-      ) {
-        return item as ConfusionMatrixMetrics;
+function parseClassificationFromResult(
+  record: EvaluationResultJsonlRecord,
+): { predicted: string; actual: string } | null {
+  const hits = Array.isArray(record.hits) ? record.hits : [];
+  const misses = Array.isArray(record.misses) ? record.misses : [];
+
+  const comparisonPattern = /AI=([^\s,]+),?\s*Expected=([^\s,]+)/;
+
+  for (const miss of misses) {
+    const match = comparisonPattern.exec(miss);
+    if (match) {
+      return { predicted: match[1], actual: match[2] };
+    }
+  }
+
+  for (const hit of hits) {
+    const match = comparisonPattern.exec(hit);
+    if (match) {
+      return { predicted: match[1], actual: match[2] };
+    }
+  }
+
+  return null;
+}
+
+function loadResults(
+  resultsFile: string,
+): { records: EvaluationResultJsonlRecord[] } | { error: string } {
+  try {
+    const text = readFileSync(resultsFile, 'utf-8');
+    const records: EvaluationResultJsonlRecord[] = [];
+    for (const line of text.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        records.push(JSON.parse(trimmed) as EvaluationResultJsonlRecord);
+      } catch {
+        // Ignore invalid JSONL line.
+      }
+    }
+    return { records };
+  } catch (e) {
+    return { error: `Failed to read results JSONL: ${e}` };
+  }
+}
+
+function buildConfusionMatrix(
+  records: readonly EvaluationResultJsonlRecord[],
+  classes: readonly string[],
+): {
+  matrix: Record<string, Record<string, number>>;
+  parsedSamples: number;
+  unparsedSamples: number;
+} {
+  const matrix: Record<string, Record<string, number>> = {};
+  for (const actual of classes) {
+    matrix[actual] = {};
+    for (const predicted of classes) {
+      matrix[actual][predicted] = 0;
+    }
+  }
+
+  let parsedSamples = 0;
+  let unparsedSamples = 0;
+
+  for (const record of records) {
+    const classification = parseClassificationFromResult(record);
+    if (!classification) {
+      unparsedSamples += 1;
+      continue;
+    }
+    const { predicted, actual } = classification;
+    if (!classes.includes(predicted) || !classes.includes(actual)) {
+      unparsedSamples += 1;
+      continue;
+    }
+    matrix[actual][predicted] += 1;
+    parsedSamples += 1;
+  }
+
+  return { matrix, parsedSamples, unparsedSamples };
+}
+
+function computePerClassMetrics(
+  matrix: Record<string, Record<string, number>>,
+  classes: readonly string[],
+): Record<string, { precision: number; recall: number; f1: number }> {
+  const metrics: Record<string, { precision: number; recall: number; f1: number }> = {};
+
+  for (const cls of classes) {
+    const tp = matrix[cls][cls];
+    let fp = 0;
+    let fn = 0;
+
+    for (const actual of classes) {
+      if (actual !== cls) {
+        fp += matrix[actual][cls];
       }
     }
 
-    return { error: 'No confusion-matrix aggregator found in results' };
-  } catch (e) {
-    return { error: `Failed to parse aggregator JSON: ${e}` };
+    for (const predicted of classes) {
+      if (predicted !== cls) {
+        fn += matrix[cls][predicted];
+      }
+    }
+
+    const precision = tp + fp > 0 ? tp / (tp + fp) : 0;
+    const recall = tp + fn > 0 ? tp / (tp + fn) : 0;
+    const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
+
+    metrics[cls] = {
+      precision: roundTo4(precision),
+      recall: roundTo4(recall),
+      f1: roundTo4(f1),
+    };
   }
+
+  return metrics;
+}
+
+function computeAccuracy(
+  matrix: Record<string, Record<string, number>>,
+  classes: readonly string[],
+): number {
+  let correct = 0;
+  let total = 0;
+
+  for (const actual of classes) {
+    correct += matrix[actual][actual];
+    for (const predicted of classes) {
+      total += matrix[actual][predicted];
+    }
+  }
+
+  return total > 0 ? roundTo4(correct / total) : 0;
+}
+
+function computeMacroOverall(
+  metricsPerClass: Record<string, { precision: number; recall: number; f1: number }>,
+  classes: readonly string[],
+): { precision: number; recall: number; f1: number } {
+  if (classes.length === 0) {
+    return { precision: 0, recall: 0, f1: 0 };
+  }
+
+  const precision =
+    classes.reduce((sum, cls) => sum + (metricsPerClass[cls]?.precision ?? 0), 0) / classes.length;
+  const recall =
+    classes.reduce((sum, cls) => sum + (metricsPerClass[cls]?.recall ?? 0), 0) / classes.length;
+  const f1 =
+    classes.reduce((sum, cls) => sum + (metricsPerClass[cls]?.f1 ?? 0), 0) / classes.length;
+
+  return { precision: roundTo4(precision), recall: roundTo4(recall), f1: roundTo4(f1) };
+}
+
+function computeMetricsFromResults(
+  resultsFile: string,
+): ConfusionMatrixMetrics | { error: string } {
+  const loaded = loadResults(resultsFile);
+  if ('error' in loaded) return loaded;
+
+  const classes = ['Low', 'Medium', 'High'];
+  const { matrix, parsedSamples, unparsedSamples } = buildConfusionMatrix(loaded.records, classes);
+
+  const metricsPerClass = computePerClassMetrics(matrix, classes);
+  const accuracy = computeAccuracy(matrix, classes);
+  const overallMetrics = computeMacroOverall(metricsPerClass, classes);
+
+  const totalSamples = loaded.records.length;
+
+  return {
+    confusionMatrix: {
+      classes,
+      matrix,
+      description: 'matrix[actual][predicted] = count',
+    },
+    metricsPerClass,
+    overallMetrics,
+    summary: {
+      accuracy,
+      totalSamples,
+      parsedSamples,
+      unparsedSamples,
+    },
+  };
+}
+
+function computePolicyWeightedOverall(metrics: ConfusionMatrixMetrics): PolicyWeightedOverall {
+  const perClass = metrics.metricsPerClass ?? {};
+  const classList = ['Low', 'Medium', 'High'].filter((cls) => cls in perClass);
+
+  let sumRecall = 0;
+  let sumPrecisionTimesRecall = 0;
+  let sumPrecisionPlusRecall = 0;
+
+  for (const cls of classList) {
+    const precision = perClass[cls]?.precision ?? 0;
+    const recall = perClass[cls]?.recall ?? 0;
+    sumRecall += recall;
+    sumPrecisionTimesRecall += precision * recall;
+    sumPrecisionPlusRecall += precision + recall;
+  }
+
+  const precision = sumRecall > 0 ? sumPrecisionTimesRecall / sumRecall : 0;
+  const recall = classList.length > 0 ? sumRecall / classList.length : 0;
+  const f1 =
+    sumPrecisionPlusRecall > 0 ? (2 * sumPrecisionTimesRecall) / sumPrecisionPlusRecall : 0;
+
+  return {
+    precision: roundTo4(precision),
+    recall: roundTo4(recall),
+    f1: roundTo4(f1),
+  };
 }
 
 function checkThreshold(
@@ -149,6 +379,8 @@ function checkThreshold(
 
   const passed = actualF1 >= threshold;
 
+  const policyWeightedOverall = computePolicyWeightedOverall(metrics);
+
   return {
     result: passed ? 'pass' : 'fail',
     checkedClass: checkClass,
@@ -158,19 +390,20 @@ function checkThreshold(
     message: passed
       ? `PASS: ${checkClass} F1 score ${(actualF1 * 100).toFixed(1)}% >= ${(threshold * 100).toFixed(1)}% threshold`
       : `FAIL: ${checkClass} F1 score ${(actualF1 * 100).toFixed(1)}% < ${(threshold * 100).toFixed(1)}% threshold`,
+    policyWeightedOverall,
     metrics,
   };
 }
 
 function printUsage(): void {
-  console.error(`
-Usage: bun run ci_check.ts [options] [aggregator_file]
+  logInfo(`
+Usage: bun run ci_check.ts [options] [results.jsonl]
 
 Options:
   --eval <file>        Run agentv eval on this dataset first
   --threshold <num>    F1 score threshold (default: 0.95)
   --check-class <str>  Risk class to check: Low, Medium, High (default: High)
-  --output <file>      Output JSON file (prints to stdout if omitted)
+  --output <file>      Output JSON file (defaults next to results.jsonl)
   --help               Show this help message
 
 Exit Codes:
@@ -181,8 +414,8 @@ Examples:
   # Full flow - run eval then check
   bun run ci_check.ts --eval dataset.yaml --threshold 0.95
 
-  # Check existing aggregator results
-  bun run ci_check.ts metrics.aggregators.json --threshold 0.95
+  # Check existing results file
+  bun run ci_check.ts results.jsonl --threshold 0.95
 `);
 }
 
@@ -208,36 +441,36 @@ async function main(): Promise<void> {
   const checkClass = values['check-class'] ?? 'High';
 
   if (!['Low', 'Medium', 'High'].includes(checkClass)) {
-    console.error('Error: --check-class must be Low, Medium, or High');
+    logError('Error: --check-class must be Low, Medium, or High');
     process.exit(1);
   }
 
-  // Determine aggregator file
-  let aggregatorFile: string;
+  // Determine results file
+  let resultsFile: string;
 
   if (values.eval) {
     if (!existsSync(values.eval)) {
-      console.error(`Error: Eval file not found: ${values.eval}`);
+      logError(`Error: Eval file not found: ${values.eval}`);
       process.exit(1);
     }
-    aggregatorFile = await runEval(values.eval);
+    resultsFile = await runEval(values.eval);
   } else if (positionals.length > 0) {
-    aggregatorFile = positionals[0];
-    if (!existsSync(aggregatorFile)) {
-      console.error(`Error: Aggregator file not found: ${aggregatorFile}`);
+    resultsFile = positionals[0];
+    if (!existsSync(resultsFile)) {
+      logError(`Error: Results file not found: ${resultsFile}`);
       process.exit(1);
     }
   } else {
-    console.error('Error: Provide either --eval <dataset.yaml> or <aggregators.json>');
+    logError('Error: Provide either --eval <dataset.yaml> or <results.jsonl>');
     printUsage();
     process.exit(1);
   }
 
-  // Load metrics from aggregator output
-  const metrics = loadMetrics(aggregatorFile);
+  // Compute metrics from AgentV JSONL results
+  const metrics = computeMetricsFromResults(resultsFile);
 
   if ('error' in metrics) {
-    console.error(`Error: ${metrics.error}`);
+    logError(`Error: ${metrics.error}`);
     process.exit(1);
   }
 
@@ -246,16 +479,17 @@ async function main(): Promise<void> {
 
   // Output JSON
   const outputJson = JSON.stringify(result, null, 2);
+  const defaultOutputFile = join(
+    dirname(resultsFile),
+    basename(resultsFile).replace(/\.jsonl$/i, '.ci_check.json'),
+  );
+  const outputFile = values.output ?? defaultOutputFile;
 
-  if (values.output) {
-    writeFileSync(values.output, outputJson);
-    console.error(`Result written to: ${values.output}`);
-  } else {
-    console.log(outputJson);
-  }
+  writeFileSync(outputFile, outputJson);
+  logInfo(`Result written to: ${outputFile}`);
 
-  // Print summary to stderr
-  console.error(`\n${result.message}`);
+  // Print summary to stdout
+  logInfo(`\n${result.message}`);
 
   // Exit with appropriate code
   process.exit(result.result === 'pass' ? 0 : 1);
