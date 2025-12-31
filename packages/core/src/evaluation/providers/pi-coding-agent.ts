@@ -167,8 +167,12 @@ export class PiCodingAgentProvider implements Provider {
       }
     }
 
+    // Escape @ symbols in prompt that aren't file references
+    // Pi CLI interprets @ as file prefix, but AgentV uses @[Role]: for multi-turn
+    const escapedPrompt = escapeAtSymbols(prompt);
+
     // Prompt is passed as the final argument
-    args.push(prompt);
+    args.push(escapedPrompt);
 
     return args;
   }
@@ -679,6 +683,17 @@ function extractAssistantText(messages: readonly OutputMessage[]): string {
     }
   }
   return '';
+}
+
+/**
+ * Escape @ symbols in prompt text that pi CLI would interpret as file references.
+ * Pi CLI uses @path syntax for file inclusion, but AgentV prompts use @[Role]: markers.
+ * We replace @[ with [[ to avoid pi trying to read these as files.
+ */
+function escapeAtSymbols(prompt: string): string {
+  // Replace @[Role]: patterns with [[Role]]: to avoid pi file interpretation
+  // This handles @[System]:, @[User]:, @[Assistant]:, @[Tool]: etc.
+  return prompt.replace(/@\[([^\]]+)\]:/g, '[[$1]]:');
 }
 
 function pickDetail(stderr: string, stdout: string): string | undefined {
