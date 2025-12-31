@@ -378,6 +378,7 @@ function formatConfusionMatrixReport(
 ): string {
   const classes = metrics.confusionMatrix.classes;
   const matrix = metrics.confusionMatrix.matrix;
+  const macroOverall = metrics.overallMetrics;
 
   const colWidth = 10;
   const lines: string[] = [];
@@ -419,7 +420,10 @@ function formatConfusionMatrixReport(
 
   lines.push('-'.repeat(48));
   lines.push(
-    `${'Overall'.padStart(colWidth)} | ${formatPercent(policyWeightedOverall.precision).padStart(10)} ${formatPercent(policyWeightedOverall.recall).padStart(10)} ${formatPercent(policyWeightedOverall.f1).padStart(10)}`,
+    `${'Overall (Macro)'.padStart(colWidth)} | ${formatPercent(macroOverall.precision).padStart(10)} ${formatPercent(macroOverall.recall).padStart(10)} ${formatPercent(macroOverall.f1).padStart(10)}`,
+  );
+  lines.push(
+    `${'Overall (Policy)'.padStart(colWidth)} | ${formatPercent(policyWeightedOverall.precision).padStart(10)} ${formatPercent(policyWeightedOverall.recall).padStart(10)} ${formatPercent(policyWeightedOverall.f1).padStart(10)}`,
   );
 
   return lines.join('\n');
