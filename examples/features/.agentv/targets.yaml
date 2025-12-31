@@ -56,7 +56,7 @@ targets:
     model: ${{ GEMINI_MODEL_NAME }}
 
   # Pi Coding Agent - autonomous coding CLI from pi-mono
-  - name: pi_coding_agent
+  - name: pi
     provider: pi-coding-agent
     executable: ${{ PI_CLI_PATH }}  # Optional: defaults to `pi` if omitted
     pi_provider: google

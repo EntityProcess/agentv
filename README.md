@@ -243,7 +243,7 @@ Confirm the CLI works by running `codex exec --json --profile <name> "ping"` (or
 **Pi Coding Agent targets:**
 
 ```yaml
-- name: pi_agent
+- name: pi
   provider: pi-coding-agent
   judge_target: gemini_base
   executable: ${{ PI_CLI_PATH }}            # Optional: defaults to `pi` if omitted
