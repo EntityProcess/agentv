@@ -398,15 +398,14 @@ function formatConfusionMatrixReport(
   lines.push(`Accuracy: ${formatPercent(metrics.summary.accuracy)}`);
 
   lines.push('\nConfusion Matrix (rows=expert/actual, cols=ai/predicted):');
-  const header = [''.padStart(labelWidth)].concat(classes.map((cls) => cls.padStart(cellWidth)));
-  lines.push(header.join(' '));
-  lines.push('-'.repeat(header.join(' ').length));
+  const matrixHeader = `${''.padStart(labelWidth)} | ${classes.map((cls) => cls.padStart(cellWidth)).join(' ')}`;
+  lines.push(matrixHeader);
+  lines.push('-'.repeat(matrixHeader.length));
 
   for (const actual of classes) {
-    const row = [actual.padStart(labelWidth)].concat(
-      classes.map((predicted) => String(matrix[actual]?.[predicted] ?? 0).padStart(cellWidth)),
+    lines.push(
+      `${actual.padStart(labelWidth)} | ${classes.map((predicted) => String(matrix[actual]?.[predicted] ?? 0).padStart(cellWidth)).join(' ')}`,
     );
-    lines.push(row.join(' '));
   }
 
   lines.push('\nPer-class Metrics:');
