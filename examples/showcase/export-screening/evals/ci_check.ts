@@ -368,6 +368,63 @@ function computePolicyWeightedOverall(metrics: ConfusionMatrixMetrics): PolicyWe
   };
 }
 
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatConfusionMatrixReport(
+  metrics: ConfusionMatrixMetrics,
+  policyWeightedOverall: PolicyWeightedOverall,
+): string {
+  const classes = metrics.confusionMatrix.classes;
+  const matrix = metrics.confusionMatrix.matrix;
+
+  const colWidth = 10;
+  const lines: string[] = [];
+
+  lines.push('\n==================================================');
+  lines.push('CONFUSION MATRIX');
+  lines.push('==================================================');
+  lines.push(`Total samples: ${metrics.summary.totalSamples}`);
+  lines.push(`Parsed samples: ${metrics.summary.parsedSamples}`);
+  if (metrics.summary.unparsedSamples > 0) {
+    lines.push(`Unparsed samples: ${metrics.summary.unparsedSamples}`);
+  }
+  lines.push(`Accuracy: ${formatPercent(metrics.summary.accuracy)}`);
+
+  lines.push('\nConfusion Matrix (rows=expert/actual, cols=ai/predicted):');
+  const header = [''.padStart(colWidth)].concat(classes.map((cls) => cls.padStart(colWidth)));
+  lines.push(header.join(' '));
+  lines.push('-'.repeat(header.join(' ').length));
+
+  for (const actual of classes) {
+    const row = [actual.padStart(colWidth)].concat(
+      classes.map((predicted) => String(matrix[actual]?.[predicted] ?? 0).padStart(colWidth)),
+    );
+    lines.push(row.join(' '));
+  }
+
+  lines.push('\nPer-class Metrics:');
+  lines.push(
+    `${'Class'.padStart(colWidth)} | ${'Precision'.padStart(10)} ${'Recall'.padStart(10)} ${'F1'.padStart(10)}`,
+  );
+  lines.push('-'.repeat(48));
+
+  for (const cls of classes) {
+    const per = metrics.metricsPerClass[cls] ?? { precision: 0, recall: 0, f1: 0 };
+    lines.push(
+      `${cls.padStart(colWidth)} | ${formatPercent(per.precision).padStart(10)} ${formatPercent(per.recall).padStart(10)} ${formatPercent(per.f1).padStart(10)}`,
+    );
+  }
+
+  lines.push('-'.repeat(48));
+  lines.push(
+    `${'Overall'.padStart(colWidth)} | ${formatPercent(policyWeightedOverall.precision).padStart(10)} ${formatPercent(policyWeightedOverall.recall).padStart(10)} ${formatPercent(policyWeightedOverall.f1).padStart(10)}`,
+  );
+
+  return lines.join('\n');
+}
+
 function checkThreshold(
   metrics: ConfusionMatrixMetrics,
   checkClass: string,
@@ -487,6 +544,8 @@ async function main(): Promise<void> {
 
   writeFileSync(outputFile, outputJson);
   logInfo(`Result written to: ${outputFile}`);
+
+  logInfo(formatConfusionMatrixReport(metrics, result.policyWeightedOverall));
 
   // Print summary to stdout
   logInfo(`\n${result.message}`);
