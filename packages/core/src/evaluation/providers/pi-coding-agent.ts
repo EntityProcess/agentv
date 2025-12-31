@@ -24,8 +24,10 @@ const PROMPT_FILENAME = 'prompt.md';
  * Default system prompt for Pi Coding Agent evaluations.
  * Ensures the agent returns code in its response rather than just writing files.
  */
-const DEFAULT_SYSTEM_PROMPT = `IMPORTANT: Always include your complete code and solutions in your response text.
-Do not just write files - show all code, diffs, and outputs directly in your response.
+const DEFAULT_SYSTEM_PROMPT = `**IMPORTANT**: Follow these instructions for your response:
+- Do NOT create any additional output files in the workspace.
+- All intended file outputs/changes MUST be written in your response.
+- For each intended file, include the relative path and unified git diff following the convention \`diff --git ...\`.
 This is required for evaluation scoring.`;
 
 interface PiRunOptions {
