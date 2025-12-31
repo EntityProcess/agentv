@@ -20,6 +20,14 @@ import type {
 const WORKSPACE_PREFIX = 'agentv-pi-';
 const PROMPT_FILENAME = 'prompt.md';
 
+/**
+ * Default system prompt for Pi Coding Agent evaluations.
+ * Ensures the agent returns code in its response rather than just writing files.
+ */
+const DEFAULT_SYSTEM_PROMPT = `IMPORTANT: Always include your complete code and solutions in your response text.
+Do not just write files - show all code, diffs, and outputs directly in your response.
+This is required for evaluation scoring.`;
+
 interface PiRunOptions {
   readonly executable: string;
   readonly args: readonly string[];
@@ -168,11 +176,9 @@ export class PiCodingAgentProvider implements Provider {
       }
     }
 
-    // Prepend system prompt from target config if provided
-    let fullPrompt = prompt;
-    if (this.config.systemPrompt) {
-      fullPrompt = `${this.config.systemPrompt}\n\n${prompt}`;
-    }
+    // Prepend system prompt (use default if not configured)
+    const systemPrompt = this.config.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
+    const fullPrompt = `${systemPrompt}\n\n${prompt}`;
 
     // Escape @ symbols in prompt that aren't file references
     // Pi CLI interprets @ as file prefix, but AgentV uses @[Role]: for multi-turn
