@@ -1,5 +1,11 @@
 # @agentv/core
 
+## 1.4.1
+
+### Patch Changes
+
+- d6ca0e9: Fix `code_judge` script execution under Bun via a shared subprocess helper and migrate the export-screening showcase evaluators/checks from Python to TypeScript.
+
 ## 1.4.0
 
 ### Minor Changes
