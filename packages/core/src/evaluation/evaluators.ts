@@ -1,6 +1,7 @@
 import { generateText } from 'ai';
 import { z } from 'zod';
 
+import { execShellWithStdin } from '../runtime/exec.js';
 import type { ResolvedTarget } from './providers/targets.js';
 import {
   type ChatPrompt,
@@ -550,50 +551,21 @@ async function executeScript(
   agentTimeoutMs?: number,
   cwd?: string,
 ): Promise<string> {
-  const { spawn } = await import('node:child_process');
-
-  return await new Promise<string>((resolve, reject) => {
-    const child = spawn(scriptPath, {
-      shell: true,
-      cwd,
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    const timeout = agentTimeoutMs
-      ? setTimeout(() => {
-          child.kill();
-          reject(new Error(`Code evaluator timed out after ${agentTimeoutMs}ms`));
-        }, agentTimeoutMs)
-      : undefined;
-
-    child.stdout?.on('data', (data) => {
-      stdout += data.toString();
-    });
-    child.stderr?.on('data', (data) => {
-      stderr += data.toString();
-    });
-    child.on('error', (error) => {
-      if (timeout !== undefined) {
-        clearTimeout(timeout);
-      }
-      reject(error);
-    });
-    child.on('exit', (code) => {
-      if (timeout !== undefined) {
-        clearTimeout(timeout);
-      }
-      if (code && code !== 0 && stderr.length > 0) {
-        reject(new Error(`Code evaluator exited with code ${code}: ${stderr.trim()}`));
-        return;
-      }
-      resolve(stdout.trim());
-    });
-
-    child.stdin?.write(input);
-    child.stdin?.end();
+  const { stdout, stderr, exitCode } = await execShellWithStdin(scriptPath, input, {
+    cwd,
+    timeoutMs: agentTimeoutMs,
   });
+
+  if (exitCode !== 0) {
+    const trimmedErr = stderr.trim();
+    throw new Error(
+      trimmedErr.length > 0
+        ? `Code evaluator exited with code ${exitCode}: ${trimmedErr}`
+        : `Code evaluator exited with code ${exitCode}`,
+    );
+  }
+
+  return stdout.trim();
 }
 
 function parseJsonSafe(payload: string): Record<string, unknown> | undefined {

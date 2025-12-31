@@ -23,7 +23,7 @@ execution:
   evaluators:
     - name: risk_assessment_quality
       type: code_judge
-      script: uv run validate_risk_output.py
+      script: bun run validate_risk_output.ts
 
 evalcases:
   # ============================================

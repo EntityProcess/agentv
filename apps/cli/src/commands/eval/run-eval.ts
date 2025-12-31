@@ -547,6 +547,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     if (allResults.length > 0) {
       console.log(`\nResults written to: ${outputPath}`);
     }
+
     if (lastPromptDumpDir && allResults.length > 0) {
       console.log(`Prompt payloads saved to: ${lastPromptDumpDir}`);
     }

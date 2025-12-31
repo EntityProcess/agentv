@@ -15,7 +15,7 @@ Trade compliance teams screen shipments to identify potential dual-use goods req
 1. **Multi-class classification** (Low/Medium/High)
 2. **Structured JSON output** with reasoning
 3. **Code evaluator** for format validation and accuracy checking
-4. **Post-processing script** for confusion matrix and precision/recall/F1 metrics
+4. **Wrapper-based metrics** (confusion matrix + precision/recall/F1 + policy-weighted overall)
 
 ## Files
 
@@ -26,109 +26,38 @@ export-screening/
 │   └── export-risk-assessment.md       # Classification guidelines
 ├── evals/
 │   ├── dataset.yaml                    # Eval cases with expert assessments
-│   ├── validate_risk_output.py         # JSON validator + accuracy checker
-│   ├── compute_confusion_matrix.py     # Post-processor for metrics
-│   └── ci_check.py                     # CI/CD threshold checker
+│   ├── validate_risk_output.ts         # JSON validator + accuracy checker
+│   └── ci_check.ts                     # CI/CD threshold checker
 └── .agentv/
     └── targets.yaml                    # (optional) target configuration
 ```
 
 ## Running the Evaluation
 
-### Step 1: Run AgentV evaluation
-
 From the repository root:
 
 ```bash
 cd examples/showcase/export-screening
 
-# Run evaluation and save results
+# Run evaluation (produces per-case results)
 bun agentv eval ./evals/dataset.yaml --out results.jsonl
 ```
 
-### Step 2: Compute confusion matrix metrics
+### Computing Metrics
+
+Use the wrapper script to compute a confusion matrix and policy-weighted overall metrics from `results.jsonl`. It prints a human-readable confusion matrix table to the console and writes a structured CI result JSON file (defaults to `results.ci_check.json`):
 
 ```bash
-# Generate metrics JSON (also prints summary to stderr)
-uv run ./evals/compute_confusion_matrix.py results.jsonl metrics.json
-```
-
-### Example Output
-
-```
-=== Export Risk Classification Metrics ===
-
-Total samples: 16
-Accuracy: 75.0%
-
-Confusion Matrix (rows=actual, cols=predicted):
-           |      Low   Medium     High
-------------------------------------------
-       Low |        3        1        0
-    Medium |        2        1        1
-      High |        0        1        7
-
-Per-class Metrics:
-     Class |  Precision     Recall         F1
-----------------------------------------------
-       Low |      60.0%    75.0%      66.7%
-    Medium |      33.3%    25.0%      28.6%
-      High |      87.5%    87.5%      87.5%
-----------------------------------------------
-   Overall |      60.3%    62.5%      60.9%
-```
-
-### JSON Output Format
-
-```json
-{
-  "summary": {
-    "totalSamples": 16,
-    "samplesPerClass": {"Low": 4, "Medium": 4, "High": 8},
-    "accuracy": 0.75
-  },
-  "confusionMatrix": {
-    "classes": ["Low", "Medium", "High"],
-    "matrix": {
-      "Low": {"Low": 3, "Medium": 1, "High": 0},
-      "Medium": {"Low": 2, "Medium": 1, "High": 1},
-      "High": {"Low": 0, "Medium": 1, "High": 7}
-    },
-    "description": "matrix[actual][predicted] = count"
-  },
-  "metricsPerClass": {
-    "Low": {"precision": 0.6, "recall": 0.75, "f1": 0.667, ...},
-    "Medium": {"precision": 0.333, "recall": 0.25, "f1": 0.286, ...},
-    "High": {"precision": 0.875, "recall": 0.875, "f1": 0.875, ...}
-  },
-  "overallMetrics": {
-    "precision": 0.603,
-    "recall": 0.625,
-    "f1": 0.609
-  }
-}
+bun run ./evals/ci_check.ts results.jsonl --threshold 0.95 --check-class High
 ```
 
 ## Evaluation Flow
 
-```
-┌─────────────────┐     ┌──────────────────┐     ┌────────────────────┐
-│  dataset.yaml   │────▶│  bun agentv eval │────▶│   results.jsonl    │
-│ (eval cases +   │     │                  │     │  (per-case scores) │
-│  expert labels) │     └──────────────────┘     └─────────┬──────────┘
-└─────────────────┘                                        │
-                                                           ▼
-                                              ┌────────────────────────┐
-                                              │ compute_confusion_     │
-                                              │ matrix.py              │
-                                              └───────────┬────────────┘
-                                                          │
-                                                          ▼
-                                              ┌────────────────────────┐
-                                              │     metrics.json       │
-                                              │ (confusion matrix +    │
-                                              │  precision/recall/F1)  │
-                                              └────────────────────────┘
+```mermaid
+flowchart LR
+    A[dataset.yaml] --> B[bun agentv eval]
+    B --> C[results.jsonl<br/>per-case scores]
+    C --> D[ci_check.ts<br/>confusion matrix + P/R/F1 + policy-weighted overall]
 ```
 
 ## How It Works
@@ -140,23 +69,24 @@ Each case contains:
 - **Expected output**: Expert risk assessment (`riskLevel: High|Medium|Low`)
 - **Outcome description**: Explanation for human reviewers
 
-### 2. Code Evaluator (`validate_risk_output.py`)
+### 2. Code Evaluator (`validate_risk_output.ts`)
 
 The evaluator:
 1. Validates JSON format and required fields
 2. Extracts AI's `riskLevel` prediction
 3. Compares to expected `riskLevel` from `expected_messages`
-4. Outputs structured hits/misses for post-processing:
+4. Outputs structured hits/misses for downstream wrappers:
    - Hit: `"Correct: AI=High, Expected=High"`
    - Miss: `"Mismatch: AI=Low, Expected=High"`
 
-### 3. Post-Processor (`compute_confusion_matrix.py`)
+### 3. Wrapper Script (`ci_check.ts`)
 
-Parses the JSONL results to:
-1. Extract predicted vs actual classifications from hits/misses
-2. Build confusion matrix
-3. Compute per-class precision, recall, F1
-4. Compute macro-averaged overall metrics
+The `ci_check.ts` script:
+1. Reads `results.jsonl`
+2. Parses predicted vs actual classifications from hits/misses
+3. Builds confusion matrix
+4. Computes per-class precision, recall, F1
+5. Computes macro-averaged overall metrics and policy-weighted overall metrics
 
 ## Customization
 
@@ -192,22 +122,21 @@ Add cases to `dataset.yaml` following the existing pattern:
 
 To change classification categories (e.g., add "Critical"):
 
-1. Update `CLASSES` in both Python scripts
-2. Update `VALID_RISK_LEVELS` in `validate_risk_output.py`
-3. Update the skill prompt in `export-risk-assessment.md`
+1. Update `VALID_RISK_LEVELS` in `validate_risk_output.ts`
+2. Update the skill prompt in `export-risk-assessment.md`
 
 ## CI/CD Integration
 
-The `ci_check.py` script provides threshold-based quality gates for CI/CD pipelines.
+The `ci_check.ts` script provides threshold-based quality gates for CI/CD pipelines.
 
 ### Usage
 
 ```bash
 # Full flow: run eval and check threshold in one command
-uv run ./evals/ci_check.py --eval ./evals/dataset.yaml --threshold 0.95
+bun run ./evals/ci_check.ts --eval ./evals/dataset.yaml --threshold 0.95
 
 # Or check existing results file
-uv run ./evals/ci_check.py results.jsonl --threshold 0.95
+bun run ./evals/ci_check.ts results.jsonl --threshold 0.95
 ```
 
 ### Options
@@ -217,7 +146,7 @@ uv run ./evals/ci_check.py results.jsonl --threshold 0.95
 | `--eval` | - | Run agentv eval on this dataset first |
 | `--threshold` | `0.95` | F1 score threshold (0.0-1.0) |
 | `--check-class` | `High` | Risk class to validate (`Low`, `Medium`, `High`) |
-| `--output` | stdout | Optional JSON output file |
+| `--output` | (auto) | Optional JSON output file |
 
 ### Exit Codes
 
@@ -234,6 +163,7 @@ uv run ./evals/ci_check.py results.jsonl --threshold 0.95
   "actualF1": 0.9625,
   "margin": 0.0125,
   "message": "PASS: High F1 score 96.2% >= 95.0% threshold",
+  "policyWeightedOverall": { "precision": 0.68, "recall": 0.65, "f1": 0.80 },
   "metrics": { ... }
 }
 ```
@@ -242,10 +172,10 @@ uv run ./evals/ci_check.py results.jsonl --threshold 0.95
 
 ```mermaid
 flowchart LR
-    A[dataset.yaml] --> B[ci_check.py<br/>--eval]
+    A[dataset.yaml] --> B[ci_check.ts<br/>--eval]
     B --> C{F1 >= 95%?}
-    C -->|Yes| D[✓ Pass<br/>exit 0]
-    C -->|No| E[✗ Fail<br/>exit 1]
+    C -->|Yes| D[Pass<br/>exit 0]
+    C -->|No| E[Fail<br/>exit 1]
 ```
 
 ### Example: GitHub Actions
@@ -256,9 +186,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
       - name: Run eval and check quality gate
         run: |
-          uv run ./evals/ci_check.py \
+          bun run ./evals/ci_check.ts \
             --eval ./evals/dataset.yaml \
             --threshold 0.95 \
             --check-class High
