@@ -2,4 +2,3 @@
 results.jsonl
 metrics.json
 *.jsonl
-*.aggregators.json
