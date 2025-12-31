@@ -427,6 +427,7 @@ export interface CodexResolvedConfig {
   readonly timeoutMs?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
+  readonly systemPrompt?: string;
 }
 
 export interface PiCodingAgentResolvedConfig {
@@ -800,6 +801,7 @@ function resolveCodexConfig(
     target.log_output_format ??
     target.logOutputFormat ??
     env.AGENTV_CODEX_LOG_FORMAT;
+  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} codex executable`, {
@@ -820,6 +822,11 @@ function resolveCodexConfig(
   });
   const logFormat = normalizeCodexLogFormat(logFormatSource);
 
+  const systemPrompt =
+    typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
+      ? systemPromptSource.trim()
+      : undefined;
+
   return {
     executable,
     args,
@@ -827,6 +834,7 @@ function resolveCodexConfig(
     timeoutMs,
     logDir,
     logFormat,
+    systemPrompt,
   };
 }
 
