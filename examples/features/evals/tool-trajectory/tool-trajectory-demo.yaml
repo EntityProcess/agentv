@@ -9,6 +9,11 @@
 # - in_order: Validates tools appear in expected sequence (allows gaps)
 # - exact: Validates exact tool sequence match (no gaps, no extra tools)
 #
+# Argument matching (PLANNED - see openspec/changes/add-trajectory-argument-matching/):
+# - Exact: args: { key: "value" } - must match exactly (deep equality)
+# - Skip: args: any - validate tool name only, ignore arguments
+# Note: For pattern/regex matching, use a code_judge evaluator instead.
+#
 # This demo uses a CLI provider (mock-agent.ts) that simulates an agent with tool usage.
 # The mock agent generates different traces based on the prompt content.
 #
@@ -148,3 +153,67 @@ evalcases:
             knowledgeSearch: 1    # Present in research trace (will pass)
             documentRetrieve: 1   # Present in research trace (will pass)
             generateReport: 1     # NOT present (will fail - demonstrates partial scoring)
+
+  # ==========================================
+  # PLANNED FEATURES - Argument Matching
+  # The examples below show the intended syntax for argument validation.
+  # See: openspec/changes/add-trajectory-argument-matching/
+  # ==========================================
+
+  # ==========================================
+  # Example 6: Exact argument matching
+  # Use case: Validate tool is called with specific argument values
+  # PLANNED - will not run until feature is implemented
+  # ==========================================
+  - id: exact-args-match
+
+    expected_outcome: |-
+      Agent searches for weather and retrieves forecast for the correct city.
+
+    input_messages:
+      - role: user
+        content: What's the weather like in Paris?
+
+    execution:
+      evaluators:
+        - name: arg-validation
+          type: tool_trajectory
+          mode: in_order
+          expected:
+            - tool: search
+              args:
+                query: "weather Paris"
+            - tool: get_weather
+              args:
+                location: "Paris"
+
+  # ==========================================
+  # Example 7: Skip argument validation with `any`
+  # Use case: Validate tool sequence but ignore specific arguments
+  # PLANNED - will not run until feature is implemented
+  # ==========================================
+  - id: skip-args-validation
+
+    expected_outcome: |-
+      Agent loads data, transforms it, and saves. Arguments don't matter.
+
+    input_messages:
+      - role: user
+        content: Load customer data, normalize it, and save
+
+    execution:
+      evaluators:
+        - name: workflow-sequence-only
+          type: tool_trajectory
+          mode: in_order
+          expected:
+            # Exact match: must use specific source
+            - tool: load_data
+              args:
+                source: "customers"
+            # Skip: any transformation is acceptable
+            - tool: transform
+              args: any
+            # Skip: we don't care about save arguments
+            - tool: save_data
+              args: any
