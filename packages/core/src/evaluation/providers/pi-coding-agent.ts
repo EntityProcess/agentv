@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { buildPromptDocument, normalizeInputFiles } from './preread.js';
+import { normalizeInputFiles } from './preread.js';
 import type { PiCodingAgentResolvedConfig } from './targets.js';
 import type {
   OutputMessage,
@@ -69,11 +69,11 @@ export class PiCodingAgentProvider implements Provider {
     const workspaceRoot = await this.createWorkspace();
     const logger = await this.createStreamLogger(request).catch(() => undefined);
     try {
-      const promptContent = buildPromptDocument(request, inputFiles);
+      // Save prompt to file for debugging/logging
       const promptFile = path.join(workspaceRoot, PROMPT_FILENAME);
-      await writeFile(promptFile, promptContent, 'utf8');
+      await writeFile(promptFile, request.question, 'utf8');
 
-      const args = this.buildPiArgs(promptContent);
+      const args = this.buildPiArgs(request.question, inputFiles);
       const cwd = this.resolveCwd(workspaceRoot);
 
       const result = await this.executePi(args, cwd, request.signal, logger);
@@ -122,7 +122,7 @@ export class PiCodingAgentProvider implements Provider {
     return path.resolve(this.config.cwd);
   }
 
-  private buildPiArgs(prompt: string): string[] {
+  private buildPiArgs(prompt: string, inputFiles: readonly string[] | undefined): string[] {
     const args: string[] = [];
 
     // Provider and model configuration
@@ -158,6 +158,13 @@ export class PiCodingAgentProvider implements Provider {
     // Custom args
     if (this.config.args && this.config.args.length > 0) {
       args.push(...this.config.args);
+    }
+
+    // Input files passed with @path syntax (pi-native file inclusion)
+    if (inputFiles && inputFiles.length > 0) {
+      for (const file of inputFiles) {
+        args.push(`@${file}`);
+      }
     }
 
     // Prompt is passed as the final argument
