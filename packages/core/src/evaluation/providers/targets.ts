@@ -440,6 +440,7 @@ export interface PiCodingAgentResolvedConfig {
   readonly cwd?: string;
   readonly timeoutMs?: number;
   readonly logDir?: string;
+  readonly logFormat?: 'summary' | 'json';
 }
 
 export interface MockResolvedConfig {
@@ -857,6 +858,7 @@ function resolvePiCodingAgentConfig(
   const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
   const logDirSource =
     target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
+  const logFormatSource = target.log_format ?? target.logFormat;
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} pi executable`, {
@@ -903,6 +905,9 @@ function resolvePiCodingAgentConfig(
     optionalEnv: true,
   });
 
+  const logFormat =
+    logFormatSource === 'json' || logFormatSource === 'summary' ? logFormatSource : undefined;
+
   return {
     executable,
     provider,
@@ -914,6 +919,7 @@ function resolvePiCodingAgentConfig(
     cwd,
     timeoutMs,
     logDir,
+    logFormat,
   };
 }
 

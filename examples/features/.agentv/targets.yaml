@@ -65,6 +65,7 @@ targets:
     judge_target: gemini_base
     timeout_seconds: 180
     tools: read,bash,edit,write  # Default tools for coding tasks
+    log_format: json  # 'summary' (default) or 'json' for raw event logs
 
   - name: local_cli
     provider: cli

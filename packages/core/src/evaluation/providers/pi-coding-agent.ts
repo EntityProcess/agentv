@@ -278,6 +278,7 @@ export class PiCodingAgentProvider implements Provider {
         targetName: this.targetName,
         evalCaseId: request.evalCaseId,
         attempt: request.attempt,
+        format: this.config.logFormat ?? 'summary',
       });
       recordPiLogEntry({
         filePath,
@@ -300,9 +301,11 @@ class PiStreamLogger {
   private readonly startedAt = Date.now();
   private stdoutBuffer = '';
   private stderrBuffer = '';
+  private readonly format: 'summary' | 'json';
 
-  private constructor(filePath: string) {
+  private constructor(filePath: string, format: 'summary' | 'json') {
     this.filePath = filePath;
+    this.format = format;
     this.stream = createWriteStream(filePath, { flags: 'a' });
   }
 
@@ -311,8 +314,9 @@ class PiStreamLogger {
     readonly targetName: string;
     readonly evalCaseId?: string;
     readonly attempt?: number;
+    readonly format: 'summary' | 'json';
   }): Promise<PiStreamLogger> {
-    const logger = new PiStreamLogger(options.filePath);
+    const logger = new PiStreamLogger(options.filePath, options.format);
     const header = [
       '# Pi Coding Agent stream log',
       `# target: ${options.targetName}`,
@@ -374,7 +378,8 @@ class PiStreamLogger {
     if (trimmed.length === 0) {
       return undefined;
     }
-    const message = formatPiLogMessage(trimmed, source);
+    const message =
+      this.format === 'json' ? trimmed : formatPiLogMessage(trimmed, source);
     return `[+${formatElapsed(this.startedAt)}] [${source}] ${message}`;
   }
 
