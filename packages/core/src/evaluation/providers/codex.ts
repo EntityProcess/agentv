@@ -17,6 +17,16 @@ const WORKSPACE_PREFIX = 'agentv-codex-';
 const PROMPT_FILENAME = 'prompt.md';
 const JSONL_TYPE_ITEM_COMPLETED = 'item.completed';
 
+/**
+ * Default system prompt for Codex CLI evaluations.
+ * Ensures the agent returns code in its response rather than just writing files.
+ */
+const DEFAULT_SYSTEM_PROMPT = `**IMPORTANT**: Follow these instructions for your response:
+- Do NOT create any additional output files in the workspace.
+- All intended file outputs/changes MUST be written in your response.
+- For each intended file, include the relative path and unified git diff following the convention \`diff --git ...\`.
+This is required for evaluation scoring.`;
+
 interface CodexRunOptions {
   readonly executable: string;
   readonly args: readonly string[];
@@ -72,7 +82,9 @@ export class CodexProvider implements Provider {
     const workspaceRoot = await this.createWorkspace();
     const logger = await this.createStreamLogger(request).catch(() => undefined);
     try {
-      const promptContent = buildPromptDocument(request, inputFiles);
+      const basePrompt = buildPromptDocument(request, inputFiles);
+      const systemPrompt = this.config.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
+      const promptContent = `${systemPrompt}\n\n${basePrompt}`;
       const promptFile = path.join(workspaceRoot, PROMPT_FILENAME);
       await writeFile(promptFile, promptContent, 'utf8');
 

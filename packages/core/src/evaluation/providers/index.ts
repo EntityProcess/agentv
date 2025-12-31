@@ -2,6 +2,7 @@ import { AnthropicProvider, AzureProvider, GeminiProvider } from './ai-sdk.js';
 import { CliProvider } from './cli.js';
 import { CodexProvider } from './codex.js';
 import { MockProvider } from './mock.js';
+import { PiCodingAgentProvider } from './pi-coding-agent.js';
 import type { ResolvedTarget } from './targets.js';
 import { resolveTargetDefinition } from './targets.js';
 import type { EnvLookup, Provider, TargetDefinition } from './types.js';
@@ -22,6 +23,7 @@ export type {
   CliResolvedConfig,
   GeminiResolvedConfig,
   MockResolvedConfig,
+  PiCodingAgentResolvedConfig,
   ResolvedTarget,
   VSCodeResolvedConfig,
 } from './targets.js';
@@ -34,6 +36,7 @@ export {
   type EnsureSubagentsResult,
 } from './vscode.js';
 export { consumeCodexLogEntries, subscribeToCodexLogEntries } from './codex-log-tracker.js';
+export { consumePiLogEntries, subscribeToPiLogEntries } from './pi-log-tracker.js';
 
 export function createProvider(target: ResolvedTarget): Provider {
   switch (target.kind) {
@@ -47,6 +50,8 @@ export function createProvider(target: ResolvedTarget): Provider {
       return new CliProvider(target.name, target.config);
     case 'codex':
       return new CodexProvider(target.name, target.config);
+    case 'pi-coding-agent':
+      return new PiCodingAgentProvider(target.name, target.config);
     case 'mock':
       return new MockProvider(target.name, target.config);
     case 'vscode':

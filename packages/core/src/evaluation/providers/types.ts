@@ -15,6 +15,7 @@ export type ProviderKind =
   | 'anthropic'
   | 'gemini'
   | 'codex'
+  | 'pi-coding-agent'
   | 'cli'
   | 'mock'
   | 'vscode'
@@ -26,6 +27,7 @@ export type ProviderKind =
  */
 export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'codex',
+  'pi-coding-agent',
   'vscode',
   'vscode-insiders',
 ] as const;
@@ -39,6 +41,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'anthropic',
   'gemini',
   'codex',
+  'pi-coding-agent',
   'cli',
   'mock',
   'vscode',
@@ -54,6 +57,7 @@ export const PROVIDER_ALIASES: readonly string[] = [
   'google', // alias for "gemini"
   'google-gemini', // alias for "gemini"
   'codex-cli', // alias for "codex"
+  'pi', // alias for "pi-coding-agent"
   'openai', // legacy/future support
   'bedrock', // legacy/future support
   'vertex', // legacy/future support
