@@ -1,5 +1,5 @@
-{"eval_id": "code-review-001", "score": 0.72, "target": "gpt-4", "timestamp": "2025-01-15T10:00:00Z"}
-{"eval_id": "code-review-002", "score": 0.85, "target": "gpt-4", "timestamp": "2025-01-15T10:01:00Z"}
-{"eval_id": "code-review-003", "score": 0.68, "target": "gpt-4", "timestamp": "2025-01-15T10:02:00Z"}
-{"eval_id": "code-gen-001", "score": 0.90, "target": "gpt-4", "timestamp": "2025-01-15T10:03:00Z"}
-{"eval_id": "code-gen-002", "score": 0.75, "target": "gpt-4", "timestamp": "2025-01-15T10:04:00Z"}
+{"eval_id": "code-review-001", "score": 0.72, "target": "gpt-4.1", "timestamp": "2025-01-15T10:00:00Z"}
+{"eval_id": "code-review-002", "score": 0.85, "target": "gpt-4.1", "timestamp": "2025-01-15T10:01:00Z"}
+{"eval_id": "code-review-003", "score": 0.68, "target": "gpt-4.1", "timestamp": "2025-01-15T10:02:00Z"}
+{"eval_id": "code-gen-001", "score": 0.90, "target": "gpt-4.1", "timestamp": "2025-01-15T10:03:00Z"}
+{"eval_id": "code-gen-002", "score": 0.75, "target": "gpt-4.1", "timestamp": "2025-01-15T10:04:00Z"}

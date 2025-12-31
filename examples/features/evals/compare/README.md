@@ -6,7 +6,7 @@ This example demonstrates the `agentv compare` command for comparing evaluation 
 
 Compare model performance across different configurations:
 - Baseline vs. candidate prompts
-- Different model versions (e.g., GPT-4 vs. GPT-4o)
+- Different model versions (e.g., GPT-4.1 vs. GPT-5)
 - Before/after optimization runs
 
 ## Sample Files

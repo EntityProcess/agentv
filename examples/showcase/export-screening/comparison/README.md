@@ -12,19 +12,19 @@ You're evaluating AI models for export control risk classification. This compari
 
 ## Sample Files
 
-- `baseline-gpt4.jsonl` - GPT-4 baseline results (reference performance)
-- `candidate-gpt4o.jsonl` - GPT-4o candidate results (newer model)
+- `baseline-gpt4.1.jsonl` - GPT-4.1 baseline results (reference performance)
+- `candidate-gpt5.jsonl` - GPT-5 candidate results (newer model)
 - `candidate-optimized.jsonl` - Optimized prompt results
 
 ## Running Comparisons
 
 ### Basic Model Comparison
 
-Compare GPT-4o against the GPT-4 baseline:
+Compare GPT-5 against the GPT-4.1 baseline:
 
 ```bash
 cd examples/showcase/export-screening/comparison
-agentv compare baseline-gpt4.jsonl candidate-gpt4o.jsonl
+agentv compare baseline-gpt4.1.jsonl candidate-gpt5.jsonl
 ```
 
 Expected output shows wins/losses/ties and mean delta.
@@ -34,7 +34,7 @@ Expected output shows wins/losses/ties and mean delta.
 Compare optimized prompt against baseline:
 
 ```bash
-agentv compare baseline-gpt4.jsonl candidate-optimized.jsonl --threshold 0.05
+agentv compare baseline-gpt4.1.jsonl candidate-optimized.jsonl --threshold 0.05
 ```
 
 Using a stricter threshold (0.05) ensures only meaningful improvements count as wins.
@@ -45,7 +45,7 @@ Using a stricter threshold (0.05) ensures only meaningful improvements count as 
 #!/bin/bash
 # quality-gate.sh - Run before deployment
 
-BASELINE="comparison/baseline-gpt4.jsonl"
+BASELINE="comparison/baseline-gpt4.1.jsonl"
 CANDIDATE=".agentv/results/latest.jsonl"
 
 echo "Comparing candidate against baseline..."
@@ -125,5 +125,5 @@ Maintain a baseline and update it when improvements are validated:
 # After successful deployment
 cp candidate.jsonl baseline.jsonl
 git add baseline.jsonl
-git commit -m "Update baseline after GPT-4o deployment"
+git commit -m "Update baseline after GPT-5 deployment"
 ```

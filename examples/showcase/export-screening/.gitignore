@@ -3,3 +3,6 @@ results.jsonl
 metrics.json
 *.jsonl
 *.aggregators.json
+
+# Allow comparison sample files
+!comparison/*.jsonl
