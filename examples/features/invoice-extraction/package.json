@@ -1,0 +1,14 @@
+{
+  "name": "@agentv-examples/invoice-extraction",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Invoice extraction evaluation example for AgentV",
+  "type": "module",
+  "scripts": {
+    "extract": "bun run mock_extractor.ts"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^27.0.0",
+    "jsdom": "^27.4.0"
+  }
+}

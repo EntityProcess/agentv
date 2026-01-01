@@ -1,12 +1,10 @@
 # Structured Data Evaluation Examples
 
-This directory contains example evaluation files demonstrating AgentV's structured data evaluators for document extraction and data quality assessment.
+This directory contains evaluation examples demonstrating AgentV's proposed structured data evaluators for document extraction and data quality assessment.
 
 > **⚠️ Important**: These examples use the proposed `field_accuracy` evaluator from OpenSpec proposal [`add-structured-data-evaluators`](../../../openspec/changes/add-structured-data-evaluators/). They will not run until that proposal is implemented. Use these as reference for functional testing during implementation.
 
-## Examples
-
-### Invoice Extraction (`invoice-extraction.yaml`)
+## Invoice Extraction Example
 
 **Use Case:** Commercial invoice extractor that parses structured trade data from shipping documents.
 
@@ -46,27 +44,36 @@ The `mock_extractor.ts` intentionally produces realistic variations to test the 
 
 **Directory Structure:**
 ```
-structured-data/
-├── invoice-extraction.yaml    # Eval dataset with 5 test cases
+invoice-extraction/
+├── package.json               # Local dependencies (jsdom)
 ├── mock_extractor.ts          # Mock CLI that extracts data from HTML
-├── fixtures/                  # Test input files
-│   ├── invoice-001.html       # Complete invoice (8 line items)
-│   ├── invoice-002.html       # Supplier name spacing test
-│   ├── invoice-003.html       # Rounding tolerance test
-│   ├── invoice-004.html       # Missing required fields
-│   ├── invoice-005.html       # Partial extraction (2 line items)
-│   └── README.md
-└── README.md
+├── README.md                  # This file
+├── evals/
+│   └── dataset.yaml           # Evaluation dataset with 5 test cases
+└── fixtures/                  # Test input files
+    ├── invoice-001.html       # Complete invoice (8 line items)
+    ├── invoice-002.html       # Supplier name spacing test
+    ├── invoice-003.html       # Rounding tolerance test
+    ├── invoice-004.html       # Missing required fields
+    ├── invoice-005.html       # Partial extraction (2 line items)
+    └── README.md
+```
+
+## Getting Started
+
+**Install dependencies:**
+```bash
+cd examples/features/invoice-extraction
+bun install
 ```
 
 **Running the Example:**
 ```bash
 # Note: Requires field_accuracy evaluator to be implemented
-cd examples/features/structured-data
-agentv eval invoice-extraction.yaml
+agentv eval evals/dataset.yaml
 
 # Manual test of extractor
-bun run mock_extractor.ts ./fixtures/invoice-001.html
+bun run extract ./fixtures/invoice-001.html
 ```
 
 ## Running Evaluations
