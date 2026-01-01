@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 
+import { CodeEvaluator } from '../../src/evaluation/evaluators.js';
+import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
+import type { EvalCase } from '../../src/evaluation/types.js';
 import {
   type TraceSummary,
   avgToolDurationMs,
@@ -244,5 +247,113 @@ describe('Execution Metrics', () => {
       expect(baseSummary.tokenUsage).toBeUndefined();
       expect(result.tokenUsage).toEqual({ input: 1000, output: 500 });
     });
+  });
+});
+
+describe('Code Judge Metrics Integration', () => {
+  const baseTestCase: EvalCase = {
+    id: 'metrics-test',
+    dataset: 'test',
+    question: 'Test question',
+    input_messages: [{ role: 'user', content: 'Test' }],
+    input_segments: [{ type: 'text', value: 'Test' }],
+    expected_messages: [],
+    reference_answer: '',
+    guideline_paths: [],
+    file_paths: [],
+    code_snippets: [],
+    expected_outcome: 'Test outcome',
+    evaluator: 'code_judge',
+  };
+
+  const baseTarget: ResolvedTarget = {
+    kind: 'mock',
+    name: 'mock',
+    config: { response: '{}' },
+  };
+
+  it('passes traceSummary to code_judge scripts', async () => {
+    // Script that checks if traceSummary is present and has expected fields
+    const script = `bun -e "
+      import fs from 'node:fs';
+      const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+      const summary = input.traceSummary;
+      const hasEventCount = summary && typeof summary.eventCount === 'number';
+      const hasTokenUsage = summary && summary.tokenUsage && typeof summary.tokenUsage.input === 'number';
+      const hasCostUsd = summary && typeof summary.costUsd === 'number';
+      const score = (hasEventCount && hasTokenUsage && hasCostUsd) ? 1 : 0;
+      console.log(JSON.stringify({
+        score,
+        hits: [
+          hasEventCount ? 'eventCount present' : null,
+          hasTokenUsage ? 'tokenUsage present' : null,
+          hasCostUsd ? 'costUsd present' : null
+        ].filter(Boolean),
+        misses: [
+          hasEventCount ? null : 'eventCount missing',
+          hasTokenUsage ? null : 'tokenUsage missing',
+          hasCostUsd ? null : 'costUsd missing'
+        ].filter(Boolean),
+        reasoning: 'Checked traceSummary fields'
+      }));
+    "`;
+
+    const evaluator = new CodeEvaluator({ script });
+
+    const traceSummary: TraceSummary = {
+      eventCount: 3,
+      toolNames: ['Read', 'Edit'],
+      toolCallsByName: { Read: 2, Edit: 1 },
+      errorCount: 0,
+      tokenUsage: { input: 1000, output: 500 },
+      costUsd: 0.005,
+      durationMs: 2500,
+    };
+
+    const result = await evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Test answer',
+      target: baseTarget,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary,
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+    expect(result.hits).toContain('eventCount present');
+    expect(result.hits).toContain('tokenUsage present');
+    expect(result.hits).toContain('costUsd present');
+  });
+
+  it('handles missing traceSummary gracefully', async () => {
+    // Script that handles missing traceSummary
+    const script = `bun -e "
+      import fs from 'node:fs';
+      const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+      const hasSummary = input.traceSummary !== null && input.traceSummary !== undefined;
+      console.log(JSON.stringify({
+        score: hasSummary ? 0 : 1,
+        hits: hasSummary ? [] : ['Correctly handled missing summary'],
+        misses: hasSummary ? ['Expected no summary'] : [],
+        reasoning: 'Checked for missing traceSummary'
+      }));
+    "`;
+
+    const evaluator = new CodeEvaluator({ script });
+
+    const result = await evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Test answer',
+      target: baseTarget,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      // No traceSummary provided
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.hits).toContain('Correctly handled missing summary');
   });
 });

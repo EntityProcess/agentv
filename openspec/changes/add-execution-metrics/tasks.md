@@ -25,10 +25,10 @@
 
 ## 5. Examples & Documentation
 
-- [ ] 5.1 Add metrics evaluation example to `examples/features/`
-- [ ] 5.2 Create code judge example that uses metrics
+- [x] 5.1 Add metrics evaluation example to `examples/features/`
+- [x] 5.2 Create code judge example that uses metrics
 
 ## 6. Testing
 
 - [x] 6.1 Unit tests for metric computation
-- [ ] 6.2 Integration test with metric-aware code judge
+- [x] 6.2 Integration test with metric-aware code judge

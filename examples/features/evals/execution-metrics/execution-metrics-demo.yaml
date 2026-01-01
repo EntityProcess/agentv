@@ -1,0 +1,88 @@
+# Execution Metrics Demo
+# Demonstrates how to use execution metrics in evaluation
+#
+# Execution metrics capture runtime information from provider invocations:
+# - tokenUsage: { input, output, cached? } - token consumption
+# - costUsd: API cost in USD
+# - durationMs: execution time in milliseconds
+#
+# These metrics are available in:
+# 1. TraceSummary (included in evaluation results)
+# 2. Code judge stdin (for custom metric-based evaluation)
+#
+# Run: cd examples/features/evals/execution-metrics
+#      npx agentv eval execution-metrics-demo.yaml --target your_target
+
+$schema: agentv-eval-v2
+description: Demonstrates execution metrics collection and evaluation
+
+target: default
+
+evalcases:
+  # ==========================================
+  # Example 1: Basic metrics collection
+  # Metrics are automatically included in results when available
+  # ==========================================
+  - id: metrics-collection
+
+    expected_outcome: |-
+      Agent responds to a simple query. Execution metrics are captured
+      automatically and included in the evaluation result.
+
+    input_messages:
+      - role: user
+        content: What is 2 + 2?
+
+    execution:
+      evaluators:
+        - name: basic-check
+          type: llm_judge
+
+  # ==========================================
+  # Example 2: Metric-aware code judge
+  # Use custom thresholds to evaluate efficiency
+  # ==========================================
+  - id: efficiency-evaluation
+
+    expected_outcome: |-
+      Agent efficiently answers a simple question without excessive
+      token usage or tool calls.
+
+    input_messages:
+      - role: user
+        content: List three primary colors.
+
+    execution:
+      evaluators:
+        # Custom code judge that evaluates efficiency metrics
+        - name: efficiency-check
+          type: code_judge
+          script: bun run scripts/check-efficiency.ts
+
+  # ==========================================
+  # Example 3: Combined trajectory and metrics
+  # Evaluate both tool usage and efficiency together
+  # ==========================================
+  - id: combined-evaluation
+
+    expected_outcome: |-
+      Agent searches for information and provides a response.
+      Evaluation checks both tool trajectory and execution efficiency.
+
+    input_messages:
+      - role: user
+        content: Find information about the weather in New York.
+
+    execution:
+      evaluators:
+        # Built-in: Check tool sequence
+        - name: trajectory-check
+          type: tool_trajectory
+          mode: any_order
+          minimums:
+            search: 1
+
+        # Custom: Check efficiency metrics
+        - name: metrics-check
+          type: code_judge
+          script: bun run scripts/check-efficiency.ts

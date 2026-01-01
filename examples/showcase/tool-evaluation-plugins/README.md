@@ -16,29 +16,18 @@ This showcase demonstrates **plugin-based tool evaluation patterns** that comple
 
 ## Plugin Examples
 
-### 1. Tool Selection Evaluator (`tool_selection_judge.py`)
+### 1. Tool Selection Evaluator (`tool-selection-judge.ts`)
 
-Evaluates whether the agent selected the **right tools** for the task. Uses LLM-as-judge pattern to semantically assess tool choices.
+Evaluates whether the agent selected the **right tools** for the task. Uses heuristic matching to assess tool choices against task keywords.
 
 ```yaml
 evaluators:
   - name: tool-selection
     type: code_judge
-    script: scripts/tool_selection_judge.py
+    script: bun run scripts/tool-selection-judge.ts
 ```
 
-### 2. Tool Input Validator (`tool_input_validator.ts`)
-
-Validates that tool **arguments are semantically appropriate** (not just syntactically correct). Checks if argument values make sense in context.
-
-```yaml
-evaluators:
-  - name: input-validation
-    type: code_judge
-    script: scripts/tool_input_validator.ts
-```
-
-### 3. Tool Efficiency Scorer (`efficiency_scorer.py`)
+### 2. Tool Efficiency Scorer (`efficiency-scorer.ts`)
 
 Computes efficiency metrics and scores based on configurable thresholds. Demonstrates how to use execution metrics in evaluation.
 
@@ -46,10 +35,10 @@ Computes efficiency metrics and scores based on configurable thresholds. Demonst
 evaluators:
   - name: efficiency
     type: code_judge
-    script: scripts/efficiency_scorer.py
+    script: bun run scripts/efficiency-scorer.ts
 ```
 
-### 4. Pairwise Tool Comparison (`pairwise_tool_compare.py`)
+### 3. Pairwise Tool Comparison (`pairwise-tool-compare.ts`)
 
 Compares two agent responses for tool usage quality with position bias mitigation (runs comparison twice with swapped order).
 
@@ -57,7 +46,7 @@ Compares two agent responses for tool usage quality with position bias mitigatio
 evaluators:
   - name: pairwise-compare
     type: code_judge
-    script: scripts/pairwise_tool_compare.py
+    script: bun run scripts/pairwise-tool-compare.ts
 ```
 
 ## Running the Examples
@@ -74,9 +63,9 @@ All code judges receive a JSON object on stdin with:
 ```json
 {
   "question": "User's question/task",
-  "expected_outcome": "Expected behavior description",
-  "candidate_answer": "Agent's final response",
-  "output_messages": [
+  "expectedOutcome": "Expected behavior description",
+  "candidateAnswer": "Agent's final response",
+  "outputMessages": [
     {
       "role": "assistant",
       "content": "...",
@@ -91,13 +80,11 @@ All code judges receive a JSON object on stdin with:
       "content": "Tool result..."
     }
   ],
-  "candidate_trace_summary": {
+  "traceSummary": {
     "eventCount": 5,
     "toolNames": ["search", "fetch"],
     "toolCallsByName": { "search": 2, "fetch": 1 },
-    "errorCount": 0
-  },
-  "execution_metrics": {
+    "errorCount": 0,
     "tokenUsage": { "input": 1000, "output": 500 },
     "durationMs": 3500,
     "costUsd": 0.0015
