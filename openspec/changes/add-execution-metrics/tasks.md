@@ -15,7 +15,7 @@
 
 - [x] 3.1 Define provider metric reporting interface
 - [x] 3.2 Update CLI provider to parse and report metrics (token_usage, cost_usd, duration_ms)
-- [ ] 3.3 Document metric reporting for custom providers
+- [x] 3.3 Document metric reporting for custom providers (see proposal.md)
 
 ## 4. Output & Evaluation
 
