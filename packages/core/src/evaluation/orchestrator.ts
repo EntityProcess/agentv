@@ -28,6 +28,7 @@ import {
   type ToolTrajectoryEvaluatorConfig,
   type TraceSummary,
   computeTraceSummary,
+  mergeExecutionMetrics,
 } from './trace.js';
 import type {
   EvalCase,
@@ -411,7 +412,15 @@ async function runBatchEvaluation(options: {
 
     // Extract outputMessages from batch response
     const outputMessages = providerResponse.outputMessages;
-    const traceSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+    const baseSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+    // Merge execution metrics from provider response
+    const traceSummary = baseSummary
+      ? mergeExecutionMetrics(baseSummary, {
+          tokenUsage: providerResponse.tokenUsage,
+          costUsd: providerResponse.costUsd,
+          durationMs: providerResponse.durationMs,
+        })
+      : undefined;
 
     // Extract candidate from last assistant message in output_messages
     const candidate = extractLastAssistantContent(outputMessages);
@@ -550,7 +559,15 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   const outputMessages = providerResponse.outputMessages;
 
   // Compute trace summary if outputMessages available
-  const traceSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+  const baseSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+  // Merge execution metrics from provider response
+  const traceSummary = baseSummary
+    ? mergeExecutionMetrics(baseSummary, {
+        tokenUsage: providerResponse.tokenUsage,
+        costUsd: providerResponse.costUsd,
+        durationMs: providerResponse.durationMs,
+      })
+    : undefined;
 
   // Extract candidate from last assistant message in output_messages
   const candidate = extractLastAssistantContent(outputMessages);

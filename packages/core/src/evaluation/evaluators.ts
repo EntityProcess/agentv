@@ -11,7 +11,11 @@ import {
   extractLastAssistantContent,
 } from './providers/types.js';
 import { TEMPLATE_VARIABLES } from './template-variables.js';
-import type { ToolTrajectoryEvaluatorConfig, TraceSummary } from './trace.js';
+import type {
+  ToolTrajectoryEvaluatorConfig,
+  ToolTrajectoryExpectedItem,
+  TraceSummary,
+} from './trace.js';
 import type {
   EvalCase,
   EvaluationVerdict,
@@ -584,6 +588,58 @@ function substituteVariables(template: string, variables: Record<string, string>
 
 // Tool Trajectory Evaluator
 
+/** Extracted tool call with optional arguments */
+interface ExtractedToolCall {
+  readonly name: string;
+  readonly args?: Record<string, unknown>;
+}
+
+/**
+ * Deep equality check for two values.
+ * Handles primitives, arrays, and plain objects.
+ */
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return a === b;
+  if (typeof a !== typeof b) return false;
+  if (typeof a !== 'object') return a === b;
+
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    return a.every((val, i) => deepEqual(val, b[i]));
+  }
+
+  const aObj = a as Record<string, unknown>;
+  const bObj = b as Record<string, unknown>;
+  const aKeys = Object.keys(aObj);
+  const bKeys = Object.keys(bObj);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((key) => Object.hasOwn(bObj, key) && deepEqual(aObj[key], bObj[key]));
+}
+
+/**
+ * Check if actual args match expected args.
+ * - 'any' → always matches
+ * - object → partial match (only specified keys, deep equality)
+ */
+function argsMatch(
+  expected: ToolTrajectoryExpectedItem['args'],
+  actual: Record<string, unknown> | undefined,
+): boolean {
+  // No args constraint means match
+  if (expected === undefined) return true;
+  // 'any' means skip validation
+  if (expected === 'any') return true;
+  // Partial match: check only specified keys
+  if (actual === undefined) return false;
+  for (const key of Object.keys(expected)) {
+    if (!Object.hasOwn(actual, key)) return false;
+    if (!deepEqual(expected[key], actual[key])) return false;
+  }
+  return true;
+}
+
 export interface ToolTrajectoryEvaluatorOptions {
   readonly config: ToolTrajectoryEvaluatorConfig;
 }
@@ -650,16 +706,19 @@ export class ToolTrajectoryEvaluator implements Evaluator {
    */
   private extractToolCallsFromMessages(
     messages: readonly OutputMessage[] | undefined,
-  ): readonly { name: string }[] {
+  ): readonly ExtractedToolCall[] {
     if (!messages) {
       return [];
     }
 
-    const toolCalls: { name: string }[] = [];
+    const toolCalls: ExtractedToolCall[] = [];
     for (const message of messages) {
       if (message.toolCalls) {
         for (const call of message.toolCalls) {
-          toolCalls.push({ name: call.tool });
+          toolCalls.push({
+            name: call.tool,
+            args: call.input as Record<string, unknown> | undefined,
+          });
         }
       }
     }
@@ -669,7 +728,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
   /**
    * Build a summary from extracted tool calls.
    */
-  private buildSummary(toolCalls: readonly { name: string }[]): TraceSummary {
+  private buildSummary(toolCalls: readonly ExtractedToolCall[]): TraceSummary {
     const toolCallsByName: Record<string, number> = {};
     for (const call of toolCalls) {
       toolCallsByName[call.name] = (toolCallsByName[call.name] ?? 0) + 1;
@@ -721,7 +780,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     };
   }
 
-  private evaluateInOrder(toolCalls: readonly { name: string }[]): EvaluationScore {
+  private evaluateInOrder(toolCalls: readonly ExtractedToolCall[]): EvaluationScore {
     const expected = this.config.expected ?? [];
 
     if (expected.length === 0) {
@@ -739,20 +798,33 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     let actualIndex = 0;
 
     for (let i = 0; i < expected.length; i++) {
-      const expectedTool = expected[i].tool;
+      const expectedItem = expected[i];
+      const expectedTool = expectedItem.tool;
       let found = false;
+      let argsMismatch = false;
 
       while (actualIndex < toolCalls.length) {
-        if (toolCalls[actualIndex].name === expectedTool) {
-          hits.push(`Found ${expectedTool} at position ${actualIndex}`);
+        const actualCall = toolCalls[actualIndex];
+        if (actualCall.name === expectedTool) {
+          // Tool name matches, check args if specified
+          if (argsMatch(expectedItem.args, actualCall.args)) {
+            hits.push(`Found ${expectedTool} at position ${actualIndex}`);
+            actualIndex++;
+            found = true;
+            break;
+          }
+          // Tool name matches but args don't - this is a miss for this expected item
+          misses.push(
+            `Expected ${expectedTool} at position ${i}: tool found at ${actualIndex} but args mismatch`,
+          );
           actualIndex++;
-          found = true;
+          argsMismatch = true;
           break;
         }
         actualIndex++;
       }
 
-      if (!found) {
+      if (!found && !argsMismatch) {
         misses.push(`Expected ${expectedTool} at position ${i}, not found in remaining trace`);
       }
     }
@@ -768,7 +840,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     };
   }
 
-  private evaluateExact(toolCalls: readonly { name: string }[]): EvaluationScore {
+  private evaluateExact(toolCalls: readonly ExtractedToolCall[]): EvaluationScore {
     const expected = this.config.expected ?? [];
 
     if (expected.length === 0) {
@@ -790,10 +862,17 @@ export class ToolTrajectoryEvaluator implements Evaluator {
 
     const checkLength = Math.min(expected.length, toolCalls.length);
     for (let i = 0; i < checkLength; i++) {
-      const expectedTool = expected[i].tool;
-      const actualTool = toolCalls[i].name;
+      const expectedItem = expected[i];
+      const expectedTool = expectedItem.tool;
+      const actualCall = toolCalls[i];
+      const actualTool = actualCall.name;
       if (actualTool === expectedTool) {
-        hits.push(`Position ${i}: ${expectedTool} ✓`);
+        // Tool name matches, check args if specified
+        if (argsMatch(expectedItem.args, actualCall.args)) {
+          hits.push(`Position ${i}: ${expectedTool}`);
+        } else {
+          misses.push(`Position ${i}: ${expectedTool} args mismatch`);
+        }
       } else {
         misses.push(`Position ${i}: expected ${expectedTool}, got ${actualTool}`);
       }

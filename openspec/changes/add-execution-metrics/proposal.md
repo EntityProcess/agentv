@@ -12,8 +12,8 @@ This is infrastructure/data collection - not domain logic. Providers optionally 
 
 ## What Changes
 
-- Extend `TraceSummary` to `ExecutionMetrics` with optional fields for token usage, cost, duration
-- Add computed metrics: `explorationRatio`, `tokensPerTool`
+- Add optional execution metrics fields to `TraceSummary` (token usage, cost, duration)
+- Add helper functions to compute derived metrics (`explorationRatio`, `tokensPerTool`)
 - Make metrics available to evaluators and output writers
 - Add example demonstrating metrics-based evaluation
 

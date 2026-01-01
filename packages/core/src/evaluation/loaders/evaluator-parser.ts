@@ -258,7 +258,14 @@ export async function parseEvaluators(
         expected = [];
         for (const item of rawExpected) {
           if (isJsonObject(item) && typeof item.tool === 'string') {
-            expected.push({ tool: item.tool });
+            // Parse optional args field: 'any' or Record<string, unknown>
+            let args: ToolTrajectoryExpectedItem['args'];
+            if (item.args === 'any') {
+              args = 'any';
+            } else if (isJsonObject(item.args)) {
+              args = item.args as Record<string, unknown>;
+            }
+            expected.push({ tool: item.tool, ...(args !== undefined ? { args } : {}) });
           }
         }
       }
