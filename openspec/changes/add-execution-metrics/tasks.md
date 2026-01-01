@@ -14,7 +14,7 @@
 ## 3. Provider Integration
 
 - [x] 3.1 Define provider metric reporting interface
-- [ ] 3.2 Update CLI provider to report duration metrics
+- [x] 3.2 Update CLI provider to parse and report metrics (token_usage, cost_usd, duration_ms)
 - [ ] 3.3 Document metric reporting for custom providers
 
 ## 4. Output & Evaluation

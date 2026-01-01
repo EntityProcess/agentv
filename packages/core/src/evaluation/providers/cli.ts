@@ -6,7 +6,13 @@ import { promisify } from 'node:util';
 
 import { readTextFile } from '../file-utils.js';
 import type { CliResolvedConfig } from './targets.js';
-import type { OutputMessage, Provider, ProviderRequest, ProviderResponse } from './types.js';
+import type {
+  OutputMessage,
+  Provider,
+  ProviderRequest,
+  ProviderResponse,
+  ProviderTokenUsage,
+} from './types.js';
 
 const execAsync = promisify(execWithCallback);
 const DEFAULT_MAX_BUFFER = 10 * 1024 * 1024; // 10 MB to accommodate verbose CLI output
@@ -117,12 +123,15 @@ export class CliProvider implements Provider {
       );
     }
 
+    // Measure wall-clock time as fallback for duration
+    const startTime = Date.now();
     const result = await this.runCommand(renderedCommand, {
       cwd: this.config.cwd,
       env: process.env,
       timeoutMs: this.config.timeoutMs,
       signal: request.signal,
     });
+    const measuredDurationMs = Date.now() - startTime;
 
     if (result.failed || (result.exitCode ?? 0) !== 0) {
       if (request.signal?.aborted) {
@@ -147,6 +156,9 @@ export class CliProvider implements Provider {
 
     return {
       outputMessages: parsed.outputMessages,
+      tokenUsage: parsed.tokenUsage,
+      costUsd: parsed.costUsd,
+      durationMs: parsed.durationMs ?? measuredDurationMs,
       raw: {
         command: renderedCommand,
         stderr: result.stderr,
@@ -203,12 +215,15 @@ export class CliProvider implements Provider {
       );
     }
 
+    // Measure wall-clock time for batch (used as fallback if records don't provide duration)
+    const startTime = Date.now();
     const result = await this.runCommand(renderedCommand, {
       cwd: this.config.cwd,
       env: process.env,
       timeoutMs: this.config.timeoutMs,
       signal: controller.signal,
     });
+    const measuredDurationMs = Date.now() - startTime;
 
     if (result.failed || (result.exitCode ?? 0) !== 0) {
       if (controller.signal.aborted) {
@@ -238,11 +253,15 @@ export class CliProvider implements Provider {
       throw new Error(`CLI batch output missing ids: ${missingIds.join(', ')}`);
     }
 
+    // Calculate per-request fallback duration (total time / number of requests)
+    const perRequestFallbackMs = Math.round(measuredDurationMs / requests.length);
+
     const responses: ProviderResponse[] = requests.map((request) => {
       const evalCaseId = request.evalCaseId;
       if (!evalCaseId) {
         return {
           outputMessages: [],
+          durationMs: perRequestFallbackMs,
           raw: {
             command: renderedCommand,
             stderr: result.stderr,
@@ -257,6 +276,7 @@ export class CliProvider implements Provider {
       if (!parsed) {
         return {
           outputMessages: [],
+          durationMs: perRequestFallbackMs,
           raw: {
             command: renderedCommand,
             stderr: result.stderr,
@@ -269,6 +289,9 @@ export class CliProvider implements Provider {
 
       return {
         outputMessages: parsed.outputMessages,
+        tokenUsage: parsed.tokenUsage,
+        costUsd: parsed.costUsd,
+        durationMs: parsed.durationMs ?? perRequestFallbackMs,
         raw: {
           command: renderedCommand,
           stderr: result.stderr,
@@ -288,25 +311,52 @@ export class CliProvider implements Provider {
    * If the content is valid JSON with 'output_messages' or 'text' field, extract them.
    * If only 'text' is provided, wrap it in outputMessages.
    * Otherwise, treat the entire content as plain text wrapped in outputMessages.
+   *
+   * Also extracts optional execution metrics:
+   * - token_usage: { input, output, cached? }
+   * - cost_usd: number
+   * - duration_ms: number
    */
   private parseOutputContent(content: string): {
     outputMessages: readonly OutputMessage[];
+    tokenUsage?: ProviderTokenUsage;
+    costUsd?: number;
+    durationMs?: number;
   } {
     try {
       const parsed = JSON.parse(content) as unknown;
       if (typeof parsed === 'object' && parsed !== null) {
-        const obj = parsed as { text?: unknown; output_messages?: unknown };
+        const obj = parsed as {
+          text?: unknown;
+          output_messages?: unknown;
+          token_usage?: unknown;
+          cost_usd?: unknown;
+          duration_ms?: unknown;
+        };
+
+        // Parse execution metrics
+        const tokenUsage = this.parseTokenUsage(obj.token_usage);
+        const costUsd =
+          typeof obj.cost_usd === 'number' && obj.cost_usd >= 0 ? obj.cost_usd : undefined;
+        const durationMs =
+          typeof obj.duration_ms === 'number' && obj.duration_ms >= 0 ? obj.duration_ms : undefined;
+
         const outputMessages = this.parseOutputMessages(obj.output_messages);
 
         // If output_messages provided, use it
         if (outputMessages && outputMessages.length > 0) {
-          return { outputMessages };
+          return { outputMessages, tokenUsage, costUsd, durationMs };
         }
 
         // Fall back to text field, wrap in outputMessages
         if ('text' in obj) {
           const text = typeof obj.text === 'string' ? obj.text : String(obj.text);
-          return { outputMessages: [{ role: 'assistant', content: text }] };
+          return {
+            outputMessages: [{ role: 'assistant', content: text }],
+            tokenUsage,
+            costUsd,
+            durationMs,
+          };
         }
       }
     } catch {
@@ -314,6 +364,27 @@ export class CliProvider implements Provider {
     }
     // Plain text content, wrap in outputMessages
     return { outputMessages: [{ role: 'assistant', content }] };
+  }
+
+  /**
+   * Parse token_usage from CLI output.
+   */
+  private parseTokenUsage(tokenUsage: unknown): ProviderTokenUsage | undefined {
+    if (typeof tokenUsage !== 'object' || tokenUsage === null) {
+      return undefined;
+    }
+
+    const obj = tokenUsage as { input?: unknown; output?: unknown; cached?: unknown };
+
+    if (typeof obj.input !== 'number' || typeof obj.output !== 'number') {
+      return undefined;
+    }
+
+    return {
+      input: obj.input,
+      output: obj.output,
+      cached: typeof obj.cached === 'number' ? obj.cached : undefined,
+    };
   }
 
   /**
@@ -419,12 +490,18 @@ export class CliProvider implements Provider {
     string,
     {
       outputMessages: readonly OutputMessage[];
+      tokenUsage?: ProviderTokenUsage;
+      costUsd?: number;
+      durationMs?: number;
     }
   > {
     const records = new Map<
       string,
       {
         outputMessages: readonly OutputMessage[];
+        tokenUsage?: ProviderTokenUsage;
+        costUsd?: number;
+        durationMs?: number;
       }
     >();
 
@@ -450,6 +527,9 @@ export class CliProvider implements Provider {
         id?: unknown;
         text?: unknown;
         output_messages?: unknown;
+        token_usage?: unknown;
+        cost_usd?: unknown;
+        duration_ms?: unknown;
       };
       const id = typeof obj.id === 'string' ? obj.id : undefined;
       if (!id || id.trim().length === 0) {
@@ -459,6 +539,13 @@ export class CliProvider implements Provider {
       if (records.has(id)) {
         throw new Error(`CLI batch output contains duplicate id: ${id}`);
       }
+
+      // Parse execution metrics
+      const tokenUsage = this.parseTokenUsage(obj.token_usage);
+      const costUsd =
+        typeof obj.cost_usd === 'number' && obj.cost_usd >= 0 ? obj.cost_usd : undefined;
+      const durationMs =
+        typeof obj.duration_ms === 'number' && obj.duration_ms >= 0 ? obj.duration_ms : undefined;
 
       // Prefer output_messages, fall back to text wrapped in outputMessages
       const parsedOutputMessages = this.parseOutputMessages(obj.output_messages);
@@ -478,6 +565,9 @@ export class CliProvider implements Provider {
 
       records.set(id, {
         outputMessages,
+        tokenUsage,
+        costUsd,
+        durationMs,
       });
     }
 
