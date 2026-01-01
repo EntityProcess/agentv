@@ -1,0 +1,329 @@
+# Invoice Extraction Evaluation Dataset
+#
+# ⚠️  IMPORTANT: This example uses the proposed `field_accuracy` evaluator from
+# OpenSpec proposal 'add-structured-data-evaluators'. It will not run until that
+# proposal is implemented. See: openspec/changes/add-structured-data-evaluators/
+#
+# This eval tests a mock invoice extractor's ability to extract structured trade data
+# from commercial invoices, including header fields, party details, line items, and totals.
+#
+# Use case: Document processing pipeline that ingests shipping invoices,
+# extracts structured data, and displays it in a web UI.
+#
+# Evaluation approach:
+# - Field-level accuracy with exact matching for invoice numbers and dates
+# - Numeric tolerance for currency amounts (handles rounding)
+# - Fuzzy matching for company names (handles spacing variations like "Acme - Shipping" vs "Acme Shipping")
+#
+# AgentV High-Level Goals Alignment:
+# ✅ Declarative Definitions - Uses YAML with clear expected outcomes
+# ✅ Structured Evaluation - Demonstrates deterministic field comparison (primitive for rubric-based)
+# ⚠️  Multi-Objective Scoring - Currently only correctness; latency/cost/safety planned
+# ✅ Optimization Ready - Weighted fields enable future hyperparameter tuning
+
+$schema: agentv-eval-v2
+description: Commercial invoice data extraction evaluation
+
+execution:
+  target: default
+  evaluators:
+    # Primary evaluator: Correctness via field-level accuracy
+    - name: invoice_field_accuracy
+      type: field_accuracy
+      fields:
+        # Header fields - exact matching required
+        - path: invoice_number
+          match: exact
+          required: true
+          weight: 2.0
+        - path: invoice_date
+          match: exact
+          required: true
+          weight: 1.0
+        - path: currency
+          match: exact
+          required: true
+          weight: 1.0
+        
+        # Party information - fuzzy matching for spacing variations
+        - path: supplier.name
+          match: fuzzy
+          algorithm: levenshtein
+          threshold: 0.85
+          required: true
+          weight: 1.0
+        - path: supplier.address
+          match: fuzzy
+          algorithm: levenshtein
+          threshold: 0.80
+          required: false
+          weight: 0.5
+        - path: importer.name
+          match: exact
+          required: true
+          weight: 1.0
+        - path: importer.address
+          match: fuzzy
+          algorithm: levenshtein
+          threshold: 0.80
+          required: false
+          weight: 0.5
+        
+        # Totals - numeric tolerance for rounding
+        - path: net_total
+          match: numeric_tolerance
+          tolerance: 1.0
+          relative: false
+          required: true
+          weight: 3.0
+        - path: gross_total
+          match: numeric_tolerance
+          tolerance: 1.0
+          relative: false
+          required: true
+          weight: 3.0
+      
+      aggregation: weighted_average
+    
+    # Alternative: Rubric-based evaluation ("Rubric as Object" pattern)
+    # Demonstrates AgentV's structured evaluation goal with human-readable criteria
+    # - name: invoice_extraction_rubric
+    #   type: rubric
+    #   rubrics:
+    #     - id: header_completeness
+    #       description: "Invoice number, date, and currency extracted correctly"
+    #       weight: 1.0
+    #       required: true
+    #     - id: party_accuracy
+    #       description: "Supplier and importer names and addresses match expected format"
+    #       weight: 1.0
+    #       required: true
+    #     - id: financial_precision
+    #       description: "Net and gross totals within acceptable tolerance (±$1)"
+    #       weight: 2.0
+    #       required: true
+    #     - id: line_items_completeness
+    #       description: "All line items extracted with descriptions, quantities, and amounts"
+    #       weight: 1.5
+    #       required: false
+    
+    # Future: Multi-objective scoring (not yet implemented)
+    # - name: performance_check
+    #   type: latency
+    #   threshold: 2000  # ms
+    # - name: cost_tracking
+    #   type: cost
+    #   budget: 0.10  # USD per eval case
+    # - name: safety_check
+    #   type: safety
+    #   checks: ["no_pii_leakage", "data_sanitization"]
+
+evalcases:
+  # ============================================
+  # Test Case 1: CMA CGM Shipping Invoice
+  # Perfect extraction scenario
+  # ============================================
+  - id: invoice-001
+    conversation_id: invoice-extraction
+    outcome: |
+      Extractor correctly extracts all required fields from demo commercial invoice.
+      Invoice number and date match exactly. Currency amounts within tolerance (±$1).
+      Supplier name "Acme - Shipping" matches "Acme Shipping" via fuzzy matching (0.85+ threshold).
+      All 8 line items extracted with correct descriptions, quantities, and amounts.
+    expected_messages:
+      - role: assistant
+        content:
+          invoice_number: "INV-2025-001234"
+          invoice_date: "15-JAN-2025"
+          incoterm: null
+          currency: "USD"
+          net_total: 1889
+          gross_total: 1889
+          supplier:
+            name: "Acme Shipping"
+            address: "Acme - Shipping\n123 Harbor Boulevard\nSuite 400\n90001  Los Angeles\nUSA"
+          importer:
+            name: "Global Trade Co"
+            address: "Global Trade Co\n456 Commerce Street\n10001  New York\nUSA"
+          line_items:
+            - description: "OCEAN FREIGHT"
+              product_code: "853720"
+              quantity: 1
+              unit_price: 1370
+              line_total: 1370
+              unit_type: "C2 1 USD"
+              hs_code: "853720"
+            - description: "Bunker Adjustment Factor"
+              product_code: null
+              quantity: 1
+              unit_price: 262
+              line_total: 262
+              unit_type: "C2 1 TEU"
+              hs_code: "853720"
+            - description: "Container maintenance Fee at destination"
+              product_code: null
+              quantity: 1
+              unit_price: 20
+              line_total: 20
+              unit_type: "C2 1 TEU"
+              hs_code: "853720"
+            - description: "Advanced Manifest Declaration Fee"
+              product_code: null
+              quantity: 1
+              unit_price: 32
+              line_total: 32
+              unit_type: "C2 1 FIX"
+              hs_code: "853720"
+            - description: "Energy Transition Surcharge"
+              product_code: null
+              quantity: 1
+              unit_price: 68
+              line_total: 68
+              unit_type: "C2 1 TEU"
+              hs_code: "853720"
+            - description: "Emergency Operational Recovery"
+              product_code: null
+              quantity: 1
+              unit_price: 75
+              line_total: 75
+              unit_type: "C2 1 UNI"
+              hs_code: "853720"
+            - description: "On carriage chassis admin fees"
+              product_code: null
+              quantity: 1
+              unit_price: 12
+              line_total: 12
+              unit_type: "C2 1 UNI"
+              hs_code: "853720"
+            - description: "On Carriage Additional - Emergency Fuel Surch."
+              product_code: null
+              quantity: 1
+              unit_price: 50
+              line_total: 50
+              unit_type: "C2 1 UNI"
+              hs_code: "853720"
+    input_messages:
+      - role: user
+        content: |
+          Extract all structured data from the demo commercial shipping invoice.
+          Return a JSON object with invoice header, party details, line items, and totals.
+
+  # ============================================
+  # Test Case 2: Supplier Name Spacing Variation
+  # Tests fuzzy matching for "Acme - Shipping" vs "Acme Shipping"
+  # ============================================
+  - id: invoice-002
+    conversation_id: invoice-extraction
+    outcome: |
+      Extractor outputs "Acme - Shipping" (with spaces around hyphen) which should
+      match expected "Acme Shipping" via fuzzy matching with levenshtein distance.
+      Similarity score should be above 0.85 threshold.
+    expected_messages:
+      - role: assistant
+        content:
+          invoice_number: "INV-2025-001234"
+          invoice_date: "15-JAN-2025"
+          currency: "USD"
+          net_total: 1889
+          gross_total: 1889
+          supplier:
+            name: "Acme Shipping"
+          importer:
+            name: "Global Trade Co"
+    input_messages:
+      - role: user
+        content: "Extract invoice header and party names."
+
+  # ============================================
+  # Test Case 3: Amount Rounding Tolerance
+  # Tests numeric tolerance for total amounts
+  # ============================================
+  - id: invoice-003
+    conversation_id: invoice-extraction
+    outcome: |
+      Extractor calculates totals as 1889.5 due to rounding, but expected
+      is 1889. With tolerance of ±1.0, this should pass.
+    expected_messages:
+      - role: assistant
+        content:
+          invoice_number: "INV-2025-001234"
+          invoice_date: "15-JAN-2025"
+          currency: "USD"
+          net_total: 1889
+          gross_total: 1889
+          supplier:
+            name: "Acme - Shipping"
+          importer:
+            name: "Global Trade Co"
+    input_messages:
+      - role: user
+        content: "Extract invoice totals."
+
+  # ============================================
+  # Test Case 4: Missing Required Fields
+  # Tests evaluation failure when critical fields missing
+  # ============================================
+  - id: invoice-004
+    conversation_id: invoice-extraction
+    outcome: |
+      Extractor fails to extract invoice number (required field with weight 2.0).
+      Score should be significantly reduced despite other fields matching.
+    expected_messages:
+      - role: assistant
+        content:
+          # invoice_number missing (required)
+          invoice_date: "15-JAN-2025"
+          currency: "USD"
+          net_total: 1889
+          gross_total: 1889
+          supplier:
+            name: "Acme - Shipping"
+          importer:
+            name: "Global Trade Co"
+    input_messages:
+      - role: user
+        content: "Extract invoice data (incomplete extraction)."
+
+  # ============================================
+  # Test Case 5: Line Items Array Validation
+  # Tests nested field path extraction with array indexing
+  # ============================================
+  - id: invoice-005
+    conversation_id: invoice-extraction
+    outcome: |
+      Extractor correctly extracts first two line items with proper array structure.
+      Field paths like line_items[0].description should resolve correctly.
+    evaluators:
+      - name: line_items_check
+        type: field_accuracy
+        fields:
+          - path: line_items[0].description
+            match: exact
+            required: true
+            weight: 1.0
+          - path: line_items[0].line_total
+            match: numeric_tolerance
+            tolerance: 1.0
+            required: true
+            weight: 1.0
+          - path: line_items[1].description
+            match: exact
+            required: true
+            weight: 1.0
+          - path: line_items[1].line_total
+            match: numeric_tolerance
+            tolerance: 1.0
+            required: true
+            weight: 1.0
+        aggregation: weighted_average
+    expected_messages:
+      - role: assistant
+        content:
+          line_items:
+            - description: "OCEAN FREIGHT"
+              line_total: 1370
+            - description: "Bunker Adjustment Factor"
+              line_total: 262
+    input_messages:
+      - role: user
+        content: "Extract first two line items from invoice."
