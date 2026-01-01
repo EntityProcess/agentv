@@ -8,7 +8,8 @@
 
 description: Batch CLI demo (AML screening) using structured input_messages → CSV → JSONL with trace extraction
 
-target: batch_cli
+execution:
+  target: batch_cli
 
 evalcases:
   - id: aml-001

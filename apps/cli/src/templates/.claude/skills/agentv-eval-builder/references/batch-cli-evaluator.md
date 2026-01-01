@@ -21,7 +21,6 @@ Batch CLI evaluation is used when:
 
 ```yaml
 description: Batch CLI demo using structured input_messages
-
 execution:
   target: batch_cli
 

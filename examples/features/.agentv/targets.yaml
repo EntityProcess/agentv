@@ -107,3 +107,15 @@ targets:
     healthcheck:
       type: command
       command_template: bun run ./cat-trace.ts --healthcheck
+
+  # Mock metrics agent for testing execution metrics
+  # Returns token_usage, cost_usd, duration_ms with tool calls
+  # Set EXECUTION_METRICS_DIR in .env to the absolute path of evals/execution-metrics/
+  - name: mock_metrics_agent
+    provider: cli
+    command_template: bun run ./mock-metrics-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}
+    cwd: ${{ EXECUTION_METRICS_DIR }}
+    timeout_seconds: 30
+    healthcheck:
+      type: command
+      command_template: bun run ./mock-metrics-agent.ts --healthcheck

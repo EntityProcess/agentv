@@ -3,7 +3,8 @@
 
 description: Example showing rubric evaluator with inline rubrics and expected_outcome
 
-target: default
+execution:
+  target: default
 
 evalcases:
   # ==========================================

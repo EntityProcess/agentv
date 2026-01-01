@@ -3,9 +3,9 @@
 
 description: Example showing basic features, conversation threading, multiple evaluators
 
-# File-level default target (optional)
-# Can be overridden per eval case via execution.target
-target: default
+# File-level default target
+execution:
+  target: default
 
 evalcases:
   # ==========================================

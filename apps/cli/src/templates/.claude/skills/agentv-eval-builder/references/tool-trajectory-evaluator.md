@@ -122,7 +122,6 @@ The evaluator extracts tool calls from `output_messages[].tool_calls[]`. Optiona
 
 ```yaml
 description: Validate research agent tool usage
-
 execution:
   target: codex_agent  # Provider that returns traces
 

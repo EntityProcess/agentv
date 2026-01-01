@@ -3,7 +3,8 @@
 description: Minimal demo showing how to invoke a CLI target with file attachments
 
 # Use the CLI target defined in .agentv/targets.yaml
-target: local_cli
+execution:
+  target: local_cli
 
 evalcases:
   - id: cli-provider-echo

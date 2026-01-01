@@ -10,7 +10,8 @@
 description: Showcase of tool evaluation plugin patterns
 
 # Use mock_agent target (configure in .agentv/targets.yaml)
-target: mock_agent
+execution:
+  target: mock_agent
 
 evalcases:
   # ==========================================

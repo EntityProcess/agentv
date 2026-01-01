@@ -25,7 +25,8 @@
 description: Tool trajectory evaluator examples for agent execution validation
 
 # Use mock_agent CLI target that returns trace data
-target: mock_agent
+execution:
+  target: mock_agent
 
 evalcases:
   # ==========================================

@@ -10,12 +10,16 @@
 # 1. TraceSummary (included in evaluation results)
 # 2. Code judge stdin (for custom metric-based evaluation)
 #
-# Run: cd examples/features/evals/execution-metrics
-#      npx agentv eval execution-metrics-demo.yaml --target your_target
+# Setup:
+#   1. Add to examples/features/.env:
+#      EXECUTION_METRICS_DIR=/absolute/path/to/examples/features/evals/execution-metrics
+#   2. Run: cd examples/features && npx agentv eval evals/execution-metrics/execution-metrics-demo.yaml
 
 description: Demonstrates execution metrics collection and evaluation
 
-target: default
+# Mock agent that returns realistic execution metrics
+execution:
+  target: mock_metrics_agent
 
 evalcases:
   # ==========================================
@@ -30,7 +34,7 @@ evalcases:
 
     input_messages:
       - role: user
-        content: What is 2 + 2?
+        content: Hello, this is a simple question.
 
     execution:
       evaluators:
@@ -49,7 +53,7 @@ evalcases:
 
     input_messages:
       - role: user
-        content: List three primary colors.
+        content: Hello, give me a simple response.
 
     execution:
       evaluators:
@@ -59,29 +63,50 @@ evalcases:
           script: bun run scripts/check-efficiency.ts
 
   # ==========================================
-  # Example 3: Combined trajectory and metrics
-  # Evaluate both tool usage and efficiency together
+  # Example 3: Research task with higher metrics
+  # Demonstrates metrics for more complex operations
   # ==========================================
-  - id: combined-evaluation
+  - id: research-metrics
 
     expected_outcome: |-
-      Agent searches for information and provides a response.
-      Evaluation checks both tool trajectory and execution efficiency.
+      Agent performs research and uses tools. Metrics reflect
+      higher token usage and multiple tool calls.
 
     input_messages:
       - role: user
-        content: Find information about the weather in New York.
+        content: Research and analyze the topic of machine learning.
 
     execution:
       evaluators:
-        # Built-in: Check tool sequence
+        # Check tool trajectory
         - name: trajectory-check
           type: tool_trajectory
           mode: any_order
           minimums:
             search: 1
 
-        # Custom: Check efficiency metrics
+        # Check efficiency metrics
         - name: metrics-check
+          type: code_judge
+          script: bun run scripts/check-efficiency.ts
+
+  # ==========================================
+  # Example 4: Inefficient agent detection
+  # Demonstrates failing efficiency checks
+  # ==========================================
+  - id: inefficient-detection
+
+    expected_outcome: |-
+      Agent uses excessive resources. Efficiency check should fail
+      due to too many tool calls and high token usage.
+
+    input_messages:
+      - role: user
+        content: Do something inefficient and wasteful.
+
+    execution:
+      evaluators:
+        # This should fail - agent uses too many tools
+        - name: efficiency-check
           type: code_judge
           script: bun run scripts/check-efficiency.ts

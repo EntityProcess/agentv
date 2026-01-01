@@ -12,7 +12,8 @@
 description: Static trace file evaluation demo - Product Research Agent
 
 # Use static_trace target that reads from a file
-target: static_trace
+execution:
+  target: static_trace
 
 evalcases:
   # =============================================================================
