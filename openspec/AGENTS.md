@@ -2,6 +2,10 @@
 
 Instructions for AI coding assistants using OpenSpec for spec-driven development.
 
+## CLI Installation
+
+If the `openspec` command is not available, use `npx @fission-ai/openspec <command>` instead.
+
 ## TL;DR Quick Checklist
 
 - Search existing work: `openspec spec list --long`, `openspec list` (use `rg` only for full-text search)
