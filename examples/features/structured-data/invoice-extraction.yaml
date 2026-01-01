@@ -25,7 +25,7 @@ $schema: agentv-eval-v2
 description: Commercial invoice data extraction evaluation
 
 execution:
-  target: default
+  target: bun run mock_extractor.ts
   evaluators:
     # Primary evaluator: Correctness via field-level accuracy
     - name: invoice_field_accuracy
@@ -204,9 +204,13 @@ evalcases:
               hs_code: "853720"
     input_messages:
       - role: user
-        content: |
-          Extract all structured data from the demo commercial shipping invoice.
-          Return a JSON object with invoice header, party details, line items, and totals.
+        content:
+          - type: file
+            value: ./fixtures/invoice-001.html
+          - type: text
+            value: |
+              Extract all structured data from this commercial shipping invoice.
+              Return a JSON object with invoice header, party details, line items, and totals.
 
   # ============================================
   # Test Case 2: Supplier Name Spacing Variation
@@ -232,7 +236,11 @@ evalcases:
             name: "Global Trade Co"
     input_messages:
       - role: user
-        content: "Extract invoice header and party names."
+        content:
+          - type: file
+            value: ./fixtures/invoice-002.html
+          - type: text
+            value: "Extract invoice header and party names."
 
   # ============================================
   # Test Case 3: Amount Rounding Tolerance
@@ -257,7 +265,11 @@ evalcases:
             name: "Global Trade Co"
     input_messages:
       - role: user
-        content: "Extract invoice totals."
+        content:
+          - type: file
+            value: ./fixtures/invoice-003.html
+          - type: text
+            value: "Extract invoice totals."
 
   # ============================================
   # Test Case 4: Missing Required Fields
@@ -282,7 +294,11 @@ evalcases:
             name: "Global Trade Co"
     input_messages:
       - role: user
-        content: "Extract invoice data (incomplete extraction)."
+        content:
+          - type: file
+            value: ./fixtures/invoice-004.html
+          - type: text
+            value: "Extract invoice data (incomplete extraction)."
 
   # ============================================
   # Test Case 5: Line Items Array Validation
@@ -326,4 +342,8 @@ evalcases:
               line_total: 262
     input_messages:
       - role: user
-        content: "Extract first two line items from invoice."
+        content:
+          - type: file
+            value: ./fixtures/invoice-005.html
+          - type: text
+            value: "Extract first two line items from invoice."

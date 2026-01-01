@@ -10,6 +10,12 @@ This directory contains example evaluation files demonstrating AgentV's structur
 
 **Use Case:** Commercial invoice extractor that parses structured trade data from shipping documents.
 
+**Architecture:**
+- **Input**: HTML mock files in `fixtures/` (simulating OCR-extracted content from PDFs)
+- **Extractor**: `mock_extractor.ts` - TypeScript CLI that parses HTML and outputs JSON
+- **Evaluator**: `field_accuracy` - Validates extracted fields against expected values
+- **Test Cases**: 5 scenarios covering perfect extraction, fuzzy matching, tolerance, missing fields, and arrays
+
 **AgentV Goals Alignment:**
 - ✅ **Declarative Definitions**: YAML-based configuration with clear expected outcomes
 - ✅ **Structured Evaluation**: Demonstrates deterministic field comparison (primitive for rubric-based patterns)
@@ -24,21 +30,39 @@ This directory contains example evaluation files demonstrating AgentV's structur
   - Nested field paths for line item arrays
 
 **Test Scenarios:**
-1. **Perfect extraction** - All fields extracted correctly, fuzzy matching for supplier name
-2. **Spacing variation** - Tests "Acme - Shipping" matching "Acme Shipping" via fuzzy threshold
-3. **Amount tolerance** - Numeric rounding within ±$1 tolerance
-4. **Missing required field** - Critical field missing reduces score significantly
-5. **Nested arrays** - Line item extraction with array indexing (line_items[0].description)
 
-**Running the Eval:**
-```bash
-# From repository root
-bun agentv run examples/features/structured-data/invoice-extraction.yaml
+1. **invoice-001**: Perfect extraction - All 8 line items with exact matches
+2. **invoice-002**: Fuzzy matching - "Acme - Shipping" vs "Acme Shipping" (0.85+ threshold)
+3. **invoice-003**: Numeric tolerance - 1889.5 rounds to 1889 (±$1 tolerance)
+4. **invoice-004**: Missing required fields - Invoice number omitted, score reduced
+5. **invoice-005**: Array validation - First 2 line items with path `line_items[0].description`
 
-# Or using locally built CLI
-cd apps/cli
-bun dev -- run ../../examples/features/structured-data/invoice-extraction.yaml
+**Directory Structure:**
 ```
+structured-data/
+├── invoice-extraction.yaml    # Eval dataset with 5 test cases
+├── mock_extractor.ts          # Mock CLI that extracts data from HTML
+├── fixtures/                  # Test input files
+│   ├── invoice-001.html       # Complete invoice (8 line items)
+│   ├── invoice-002.html       # Supplier name spacing test
+│   ├── invoice-003.html       # Rounding tolerance test
+│   ├── invoice-004.html       # Missing required fields
+│   ├── invoice-005.html       # Partial extraction (2 line items)
+│   └── README.md
+└── README.md
+```
+
+**Running the Example:**
+```bash
+# Note: Requires field_accuracy evaluator to be implemented
+cd examples/features/structured-data
+agentv eval invoice-extraction.yaml
+
+# Manual test of extractor
+bun run mock_extractor.ts ./fixtures/invoice-001.html
+```
+
+## Running Evaluations
 
 **Expected Output:**
 ```json
@@ -210,7 +234,11 @@ evalcases:
           total: 42.99
     input_messages:
       - role: user
-        content: "Extract data from receipt"
+        content:
+          - type: file
+            value: ./fixtures/receipt-001.pdf
+          - type: text
+            value: "Extract structured data from this receipt"
 ```
 
 ## Best Practices
