@@ -117,11 +117,14 @@ evalcases:
         content: Summarize the main points of the user manual.
 
     # Reference answer for comparison (from a baseline agent)
-    reference_answer: |-
-      Here is a summary of the user manual:
-      1. Installation: Follow the setup wizard
-      2. Configuration: Edit settings.json
-      3. Usage: Run the main command
+    # Note: reference_answer is constructed from expected_messages content
+    expected_messages:
+      - role: assistant
+        content: |-
+          Here is a summary of the user manual:
+          1. Installation: Follow the setup wizard
+          2. Configuration: Edit settings.json
+          3. Usage: Run the main command
 
     execution:
       evaluators:

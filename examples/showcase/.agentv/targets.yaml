@@ -22,3 +22,8 @@ targets:
     workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
     provider_batching: false
     judge_target: default
+
+  - name: mock_agent
+    provider: cli
+    command_template: bun run ../tool-evaluation-plugins/mock-tool-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}
+    cwd: ${{ TOOL_EVAL_PLUGINS_DIR }}

@@ -32,17 +32,27 @@
 
 interface ToolCall {
   tool: string;
-  args?: Record<string, unknown>;
+  input?: unknown; // Tool input arguments
+  output?: unknown; // Tool output result
+  id?: string;
+  timestamp?: string;
 }
 
 interface OutputMessage {
   role: string;
+  content?: unknown;
   toolCalls?: ToolCall[];
+  timestamp?: string;
 }
 
 interface TraceSummary {
   eventCount: number;
+  toolNames: string[];
   toolCallsByName: Record<string, number>;
+  errorCount: number;
+  tokenUsage?: { input: number; output: number; cached?: number };
+  costUsd?: number;
+  durationMs?: number;
 }
 
 interface EvalInput {
@@ -61,7 +71,7 @@ interface EvalOutput {
 
 interface ExtractedToolCall {
   tool: string;
-  args: Record<string, unknown>;
+  input: Record<string, unknown>;
 }
 
 function extractToolCalls(messages: OutputMessage[]): ExtractedToolCall[] {
@@ -71,7 +81,7 @@ function extractToolCalls(messages: OutputMessage[]): ExtractedToolCall[] {
       for (const call of msg.toolCalls) {
         toolCalls.push({
           tool: call.tool,
-          args: call.args ?? {},
+          input: (call.input as Record<string, unknown>) ?? {},
         });
       }
     }

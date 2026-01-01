@@ -30,9 +30,19 @@
  *   - reasoning: Comparison explanation with bias check result
  */
 
+interface ToolCall {
+  tool: string;
+  input?: unknown; // Tool input arguments
+  output?: unknown; // Tool output result
+  id?: string;
+  timestamp?: string;
+}
+
 interface OutputMessage {
   role: string;
-  toolCalls?: Array<{ tool: string; args?: Record<string, unknown> }>;
+  content?: unknown;
+  toolCalls?: ToolCall[];
+  timestamp?: string;
 }
 
 interface EvalInput {

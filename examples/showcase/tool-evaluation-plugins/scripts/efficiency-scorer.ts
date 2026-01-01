@@ -32,10 +32,13 @@
 
 interface TraceSummary {
   eventCount: number;
+  toolNames: string[];
   toolCallsByName: Record<string, number>;
+  errorCount: number;
   tokenUsage?: { input: number; output: number; cached?: number };
   costUsd?: number;
   durationMs?: number;
+  toolDurations?: Record<string, number[]>;
 }
 
 interface EvalInput {

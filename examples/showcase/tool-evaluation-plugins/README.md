@@ -7,7 +7,7 @@ This showcase demonstrates **plugin-based tool evaluation patterns** that comple
 | Pattern | Implementation | Reason |
 |---------|----------------|--------|
 | Tool name/sequence matching | Built-in (`tool_trajectory`) | Deterministic, reusable primitive |
-| Argument matching | Built-in (planned) | Extension of existing primitive |
+| Argument matching | Built-in (`tool_trajectory`) | Extension of sequence matching |
 | Tool selection correctness | **Plugin** | Requires semantic judgment |
 | Tool input appropriateness | **Plugin** | Domain-specific criteria |
 | Tool output utilization | **Plugin** | Requires understanding tool purposes |
@@ -52,8 +52,11 @@ evaluators:
 ## Running the Examples
 
 ```bash
-cd examples/showcase/tool-evaluation-plugins
-npx agentv eval tool-eval-demo.yaml --target mock_agent
+# Set the required environment variable for the mock agent
+export TOOL_EVAL_PLUGINS_DIR=$(pwd)/examples/showcase/tool-evaluation-plugins
+
+# Run the demo
+npx agentv eval examples/showcase/tool-evaluation-plugins/tool-eval-demo.yaml
 ```
 
 ## Input Contract
@@ -64,33 +67,36 @@ All code judges receive a JSON object on stdin with:
 {
   "question": "User's question/task",
   "expectedOutcome": "Expected behavior description",
+  "referenceAnswer": "Gold standard answer (from expected_messages)",
   "candidateAnswer": "Agent's final response",
   "outputMessages": [
     {
       "role": "assistant",
       "content": "...",
       "toolCalls": [
-        { "id": "...", "tool": "search", "args": { "query": "..." } }
+        {
+          "tool": "search",
+          "input": { "query": "..." },
+          "output": { "results": [...] },
+          "id": "call_123",
+          "timestamp": "2024-01-15T10:30:00Z"
+        }
       ]
-    },
-    {
-      "role": "tool",
-      "toolCallId": "...",
-      "toolName": "search",
-      "content": "Tool result..."
     }
   ],
   "traceSummary": {
     "eventCount": 5,
-    "toolNames": ["search", "fetch"],
+    "toolNames": ["fetch", "search"],
     "toolCallsByName": { "search": 2, "fetch": 1 },
     "errorCount": 0,
     "tokenUsage": { "input": 1000, "output": 500 },
-    "durationMs": 3500,
-    "costUsd": 0.0015
+    "costUsd": 0.0015,
+    "durationMs": 3500
   }
 }
 ```
+
+**Note:** `traceSummary` is a lightweight summary (just counts). To access tool call arguments, use `outputMessages[].toolCalls[].input`.
 
 ## Output Contract
 
