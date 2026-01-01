@@ -31,11 +31,18 @@ This directory contains example evaluation files demonstrating AgentV's structur
 
 **Test Scenarios:**
 
-1. **invoice-001**: Perfect extraction - All 8 line items with exact matches
-2. **invoice-002**: Fuzzy matching - "Acme - Shipping" vs "Acme Shipping" (0.85+ threshold)
-3. **invoice-003**: Numeric tolerance - 1889.5 rounds to 1889 (±$1 tolerance)
-4. **invoice-004**: Missing required fields - Invoice number omitted, score reduced
+1. **invoice-001**: Perfect extraction - Extractor normalizes data to match expected (rounds decimals, cleans spacing)
+2. **invoice-002**: **Fuzzy matching test** - Extractor outputs "Acme - Shipping" (with hyphen/spaces), expected is "Acme Shipping". Tests Levenshtein similarity > 0.85
+3. **invoice-003**: **Numeric tolerance test** - Extractor outputs 1889.5, expected is 1889. Tests ±$1 tolerance accepts 0.5 difference
+4. **invoice-004**: **Missing required field** - Extractor fails to find invoice_number (absent in HTML), tests required field scoring penalty
 5. **invoice-005**: Array validation - First 2 line items with path `line_items[0].description`
+
+**How the Mock Extractor Works:**
+The `mock_extractor.ts` intentionally produces realistic variations to test the evaluator:
+- **invoice-001**: Normalizes data (rounds 1889.00 → 1889, cleans "Acme - Shipping" → "Acme Shipping")
+- **invoice-002**: Preserves OCR-like formatting ("Acme - Shipping" kept as-is from HTML)
+- **invoice-003**: Keeps decimal precision (1889.50 → 1889.5) to test tolerance
+- **invoice-004**: Returns undefined for missing fields (HTML has no invoice_number)
 
 **Directory Structure:**
 ```

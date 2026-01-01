@@ -126,10 +126,10 @@ evalcases:
   - id: invoice-001
     conversation_id: invoice-extraction
     outcome: |
-      Extractor correctly extracts all required fields from demo commercial invoice.
-      Invoice number and date match exactly. Currency amounts within tolerance (±$1).
-      Supplier name "Acme - Shipping" matches "Acme Shipping" via fuzzy matching (0.85+ threshold).
-      All 8 line items extracted with correct descriptions, quantities, and amounts.
+      Extractor produces clean data matching expected ground truth.
+      Mock extractor rounds supplier name from "Acme - Shipping" to "Acme Shipping" in HTML.
+      All numeric values rounded to integers (1889 not 1889.00).
+      Tests that exact matching passes when extractor normalizes data correctly.
     expected_messages:
       - role: assistant
         content:
@@ -219,9 +219,11 @@ evalcases:
   - id: invoice-002
     conversation_id: invoice-extraction
     outcome: |
-      Extractor outputs "Acme - Shipping" (with spaces around hyphen) which should
-      match expected "Acme Shipping" via fuzzy matching with levenshtein distance.
-      Similarity score should be above 0.85 threshold.
+      ACTUAL EXTRACTOR OUTPUT: supplier.name = "Acme - Shipping" (preserves HTML spacing/hyphen)
+      EXPECTED GROUND TRUTH: supplier.name = "Acme Shipping" (normalized)
+      
+      This simulates OCR output that preserves document formatting.
+      Fuzzy matching (Levenshtein) should detect similarity above 0.85 threshold and pass.
     expected_messages:
       - role: assistant
         content:
@@ -249,8 +251,11 @@ evalcases:
   - id: invoice-003
     conversation_id: invoice-extraction
     outcome: |
-      Extractor calculates totals as 1889.5 due to rounding, but expected
-      is 1889. With tolerance of ±1.0, this should pass.
+      ACTUAL EXTRACTOR OUTPUT: net_total = 1889.5, gross_total = 1889.5
+      EXPECTED GROUND TRUTH: net_total = 1889, gross_total = 1889
+      
+      HTML contains 1889.50 USD. Mock extractor preserves decimal for invoice-003.
+      Numeric tolerance (±1.0) should accept 0.5 difference and pass.
     expected_messages:
       - role: assistant
         content:
@@ -278,8 +283,11 @@ evalcases:
   - id: invoice-004
     conversation_id: invoice-extraction
     outcome: |
-      Extractor fails to extract invoice number (required field with weight 2.0).
-      Score should be significantly reduced despite other fields matching.
+      ACTUAL EXTRACTOR OUTPUT: invoice_number = undefined (field missing in HTML)
+      EXPECTED GROUND TRUTH: invoice_number = "INV-2025-001234"
+      
+      Tests required field validation. Score should drop significantly due to
+      missing critical field (weight 2.0).
     expected_messages:
       - role: assistant
         content:
