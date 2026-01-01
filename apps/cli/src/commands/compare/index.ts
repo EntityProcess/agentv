@@ -2,12 +2,12 @@ import { readFileSync } from 'node:fs';
 import { command, number, option, optional, positional, string } from 'cmd-ts';
 
 interface EvalResult {
-  eval_id: string;
+  evalId: string;
   score: number;
 }
 
 interface MatchedResult {
-  eval_id: string;
+  evalId: string;
   score1: number;
   score2: number;
   delta: number;
@@ -35,14 +35,14 @@ export function loadJsonlResults(filePath: string): EvalResult[] {
     .filter((line) => line.trim());
 
   return lines.map((line) => {
-    const record = JSON.parse(line) as { eval_id?: string; score?: number };
-    if (typeof record.eval_id !== 'string') {
-      throw new Error(`Missing eval_id in result: ${line}`);
+    const record = JSON.parse(line) as { evalId?: string; score?: number };
+    if (typeof record.evalId !== 'string') {
+      throw new Error(`Missing evalId in result: ${line}`);
     }
     if (typeof record.score !== 'number') {
       throw new Error(`Missing or invalid score in result: ${line}`);
     }
-    return { eval_id: record.eval_id, score: record.score };
+    return { evalId: record.evalId, score: record.score };
   });
 }
 
@@ -57,8 +57,8 @@ export function compareResults(
   results2: EvalResult[],
   threshold: number,
 ): ComparisonOutput {
-  const map1 = new Map(results1.map((r) => [r.eval_id, r.score]));
-  const map2 = new Map(results2.map((r) => [r.eval_id, r.score]));
+  const map1 = new Map(results1.map((r) => [r.evalId, r.score]));
+  const map2 = new Map(results2.map((r) => [r.evalId, r.score]));
 
   const matched: MatchedResult[] = [];
   const matchedIds = new Set<string>();
@@ -68,7 +68,7 @@ export function compareResults(
     if (score2 !== undefined) {
       const delta = score2 - score1;
       matched.push({
-        eval_id: evalId,
+        evalId: evalId,
         score1,
         score2,
         delta,
@@ -78,8 +78,8 @@ export function compareResults(
     }
   }
 
-  const unmatchedFile1 = results1.filter((r) => !matchedIds.has(r.eval_id)).length;
-  const unmatchedFile2 = results2.filter((r) => !map1.has(r.eval_id)).length;
+  const unmatchedFile1 = results1.filter((r) => !matchedIds.has(r.evalId)).length;
+  const unmatchedFile2 = results2.filter((r) => !map1.has(r.evalId)).length;
 
   const wins = matched.filter((m) => m.outcome === 'win').length;
   const losses = matched.filter((m) => m.outcome === 'loss').length;

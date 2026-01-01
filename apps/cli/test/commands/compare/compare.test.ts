@@ -26,14 +26,14 @@ describe('compare command', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(
         filePath,
-        '{"eval_id": "case-1", "score": 0.8}\n{"eval_id": "case-2", "score": 0.9}\n',
+        '{"evalId": "case-1", "score": 0.8}\n{"evalId": "case-2", "score": 0.9}\n',
       );
 
       const results = loadJsonlResults(filePath);
 
       expect(results).toEqual([
-        { eval_id: 'case-1', score: 0.8 },
-        { eval_id: 'case-2', score: 0.9 },
+        { evalId: 'case-1', score: 0.8 },
+        { evalId: 'case-2', score: 0.9 },
       ]);
     });
 
@@ -41,7 +41,7 @@ describe('compare command', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(
         filePath,
-        '{"eval_id": "case-1", "score": 0.8}\n\n{"eval_id": "case-2", "score": 0.9}\n',
+        '{"evalId": "case-1", "score": 0.8}\n\n{"evalId": "case-2", "score": 0.9}\n',
       );
 
       const results = loadJsonlResults(filePath);
@@ -49,16 +49,16 @@ describe('compare command', () => {
       expect(results).toHaveLength(2);
     });
 
-    it('should throw error for missing eval_id', () => {
+    it('should throw error for missing evalId', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(filePath, '{"score": 0.8}\n');
 
-      expect(() => loadJsonlResults(filePath)).toThrow('Missing eval_id');
+      expect(() => loadJsonlResults(filePath)).toThrow('Missing evalId');
     });
 
     it('should throw error for missing score', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
-      writeFileSync(filePath, '{"eval_id": "case-1"}\n');
+      writeFileSync(filePath, '{"evalId": "case-1"}\n');
 
       expect(() => loadJsonlResults(filePath)).toThrow('Missing or invalid score');
     });
@@ -93,27 +93,27 @@ describe('compare command', () => {
   });
 
   describe('compareResults', () => {
-    it('should match results by eval_id and compute deltas', () => {
+    it('should match results by evalId and compute deltas', () => {
       // Use values that avoid floating point precision issues
       const results1 = [
-        { eval_id: 'case-1', score: 0.5 },
-        { eval_id: 'case-2', score: 0.75 },
+        { evalId: 'case-1', score: 0.5 },
+        { evalId: 'case-2', score: 0.75 },
       ];
       const results2 = [
-        { eval_id: 'case-1', score: 0.7 }, // +0.2 win
-        { eval_id: 'case-2', score: 0.5 }, // -0.25 loss
+        { evalId: 'case-1', score: 0.7 }, // +0.2 win
+        { evalId: 'case-2', score: 0.5 }, // -0.25 loss
       ];
 
       const comparison = compareResults(results1, results2, 0.1);
 
       expect(comparison.matched).toHaveLength(2);
-      expect(comparison.matched[0].eval_id).toBe('case-1');
+      expect(comparison.matched[0].evalId).toBe('case-1');
       expect(comparison.matched[0].score1).toBe(0.5);
       expect(comparison.matched[0].score2).toBe(0.7);
       expect(comparison.matched[0].delta).toBeCloseTo(0.2, 10);
       expect(comparison.matched[0].outcome).toBe('win');
 
-      expect(comparison.matched[1].eval_id).toBe('case-2');
+      expect(comparison.matched[1].evalId).toBe('case-2');
       expect(comparison.matched[1].score1).toBe(0.75);
       expect(comparison.matched[1].score2).toBe(0.5);
       expect(comparison.matched[1].delta).toBeCloseTo(-0.25, 10);
@@ -122,12 +122,12 @@ describe('compare command', () => {
 
     it('should count unmatched results', () => {
       const results1 = [
-        { eval_id: 'case-1', score: 0.8 },
-        { eval_id: 'only-in-1', score: 0.5 },
+        { evalId: 'case-1', score: 0.8 },
+        { evalId: 'only-in-1', score: 0.5 },
       ];
       const results2 = [
-        { eval_id: 'case-1', score: 0.9 },
-        { eval_id: 'only-in-2', score: 0.6 },
+        { evalId: 'case-1', score: 0.9 },
+        { evalId: 'only-in-2', score: 0.6 },
       ];
 
       const comparison = compareResults(results1, results2, 0.1);
@@ -138,14 +138,14 @@ describe('compare command', () => {
     it('should compute summary statistics', () => {
       // Use values that produce clear deltas above/below threshold
       const results1 = [
-        { eval_id: 'case-1', score: 0.5 },
-        { eval_id: 'case-2', score: 0.75 },
-        { eval_id: 'case-3', score: 0.6 },
+        { evalId: 'case-1', score: 0.5 },
+        { evalId: 'case-2', score: 0.75 },
+        { evalId: 'case-3', score: 0.6 },
       ];
       const results2 = [
-        { eval_id: 'case-1', score: 0.7 }, // win (+0.2)
-        { eval_id: 'case-2', score: 0.5 }, // loss (-0.25)
-        { eval_id: 'case-3', score: 0.65 }, // tie (+0.05)
+        { evalId: 'case-1', score: 0.7 }, // win (+0.2)
+        { evalId: 'case-2', score: 0.5 }, // loss (-0.25)
+        { evalId: 'case-3', score: 0.65 }, // tie (+0.05)
       ];
 
       const comparison = compareResults(results1, results2, 0.1);

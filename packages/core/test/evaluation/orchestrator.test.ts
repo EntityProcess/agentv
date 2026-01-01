@@ -183,7 +183,7 @@ describe('runTestCase', () => {
       useCache: true,
     });
 
-    expect(first.candidate_answer).toContain('structured logging');
+    expect(first.candidateAnswer).toContain('structured logging');
 
     const second = await runEvalCase({
       evalCase: baseTestCase,
@@ -194,7 +194,7 @@ describe('runTestCase', () => {
       useCache: true,
     });
 
-    expect(second.candidate_answer).toBe(first.candidate_answer);
+    expect(second.candidateAnswer).toBe(first.candidateAnswer);
     expect(provider.callIndex).toBe(1);
   });
 
@@ -314,13 +314,13 @@ describe('runTestCase', () => {
     );
     expect(judgeProvider.lastRequest?.systemPrompt).not.toContain('CUSTOM PROMPT CONTENT');
 
-    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.userPrompt).toContain(
+    expect(result.evaluatorResults?.[0]?.evaluatorProviderRequest?.userPrompt).toContain(
       'CUSTOM PROMPT CONTENT',
     );
-    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.systemPrompt).toContain(
+    expect(result.evaluatorResults?.[0]?.evaluatorProviderRequest?.systemPrompt).toContain(
       'You must respond with a single JSON object',
     );
-    expect(result.evaluator_results?.[0]?.evaluator_provider_request?.systemPrompt).not.toContain(
+    expect(result.evaluatorResults?.[0]?.evaluatorProviderRequest?.systemPrompt).not.toContain(
       'CUSTOM PROMPT CONTENT',
     );
   });
@@ -374,7 +374,7 @@ describe('runTestCase', () => {
       content: '<file path="snippet.txt">\ncode()\n</file>\nReview',
     });
     expect(chatPrompt[2]).toEqual({ role: 'assistant', content: 'Ack' });
-    expect(result.lm_provider_request?.chat_prompt).toBeDefined();
+    expect(result.lmProviderRequest?.chat_prompt).toBeDefined();
   });
 
   it('omits chatPrompt for single-turn evals', async () => {
@@ -429,9 +429,9 @@ describe('runTestCase', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.agent_provider_request).toBeDefined();
-    expect(result.lm_provider_request).toBeUndefined();
-    expect(result.agent_provider_request?.question).toBe('Explain logging improvements');
+    expect(result.agentProviderRequest).toBeDefined();
+    expect(result.lmProviderRequest).toBeUndefined();
+    expect(result.agentProviderRequest?.question).toBe('Explain logging improvements');
   });
 });
 
@@ -474,7 +474,7 @@ describe('runEvalCase trace integration', () => {
     evaluator: 'llm_judge',
   };
 
-  it('includes trace_summary in result when provider returns outputMessages with tool calls', async () => {
+  it('includes traceSummary in result when provider returns outputMessages with tool calls', async () => {
     const outputMessages: OutputMessage[] = [
       {
         role: 'assistant',
@@ -504,14 +504,14 @@ describe('runEvalCase trace integration', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.trace_summary).toBeDefined();
-    expect(result.trace_summary?.eventCount).toBe(1);
-    expect(result.trace_summary?.toolNames).toEqual(['getWeather']);
-    expect(result.trace_summary?.toolCallsByName).toEqual({ getWeather: 1 });
-    expect(result.trace_summary?.errorCount).toBe(0);
+    expect(result.traceSummary).toBeDefined();
+    expect(result.traceSummary?.eventCount).toBe(1);
+    expect(result.traceSummary?.toolNames).toEqual(['getWeather']);
+    expect(result.traceSummary?.toolCallsByName).toEqual({ getWeather: 1 });
+    expect(result.traceSummary?.errorCount).toBe(0);
   });
 
-  it('omits trace_summary when provider returns no outputMessages', async () => {
+  it('omits traceSummary when provider returns no outputMessages', async () => {
     const provider = new TraceProvider('mock', {
       outputMessages: [{ role: 'assistant', content: 'The weather is sunny' }],
     });
@@ -523,7 +523,7 @@ describe('runEvalCase trace integration', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.trace_summary).toBeUndefined();
+    expect(result.traceSummary).toBeUndefined();
   });
 
   it('runs tool_trajectory evaluator with outputMessages', async () => {
@@ -586,9 +586,9 @@ describe('runEvalCase trace integration', () => {
     });
 
     expect(result.score).toBe(1);
-    expect(result.evaluator_results).toHaveLength(1);
-    expect(result.evaluator_results?.[0]?.name).toBe('tool-check');
-    expect(result.evaluator_results?.[0]?.verdict).toBe('pass');
+    expect(result.evaluatorResults).toHaveLength(1);
+    expect(result.evaluatorResults?.[0]?.name).toBe('tool-check');
+    expect(result.evaluatorResults?.[0]?.verdict).toBe('pass');
   });
 
   it('fails tool_trajectory evaluator when no trace available', async () => {
@@ -626,8 +626,8 @@ describe('runEvalCase trace integration', () => {
     });
 
     expect(result.score).toBe(0);
-    expect(result.evaluator_results?.[0]?.verdict).toBe('fail');
-    expect(result.evaluator_results?.[0]?.misses).toContain('No trace available for evaluation');
+    expect(result.evaluatorResults?.[0]?.verdict).toBe('fail');
+    expect(result.evaluatorResults?.[0]?.misses).toContain('No trace available for evaluation');
   });
 
   it('computes correct trace summary with multiple tool calls', async () => {
@@ -657,11 +657,11 @@ describe('runEvalCase trace integration', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.trace_summary).toBeDefined();
-    expect(result.trace_summary?.eventCount).toBe(4);
-    expect(result.trace_summary?.toolNames).toEqual(['toolA', 'toolB', 'toolC']);
-    expect(result.trace_summary?.toolCallsByName).toEqual({ toolA: 2, toolB: 1, toolC: 1 });
-    expect(result.trace_summary?.errorCount).toBe(0);
+    expect(result.traceSummary).toBeDefined();
+    expect(result.traceSummary?.eventCount).toBe(4);
+    expect(result.traceSummary?.toolNames).toEqual(['toolA', 'toolB', 'toolC']);
+    expect(result.traceSummary?.toolCallsByName).toEqual({ toolA: 2, toolB: 1, toolC: 1 });
+    expect(result.traceSummary?.errorCount).toBe(0);
   });
 
   describe('weighted evaluators', () => {
@@ -692,9 +692,9 @@ describe('runEvalCase trace integration', () => {
       // eval2 weight=1.0, score=0.8 -> 0.8
       // Total: (1.6 + 0.8) / (2.0 + 1.0) = 2.4 / 3.0 = 0.8
       expect(result.score).toBeCloseTo(0.8);
-      expect(result.evaluator_results).toHaveLength(2);
-      expect(result.evaluator_results?.[0]?.weight).toBe(2.0);
-      expect(result.evaluator_results?.[1]?.weight).toBe(1.0);
+      expect(result.evaluatorResults).toHaveLength(2);
+      expect(result.evaluatorResults?.[0]?.weight).toBe(2.0);
+      expect(result.evaluatorResults?.[1]?.weight).toBe(1.0);
     });
 
     it('defaults missing weights to 1.0', async () => {
@@ -724,8 +724,8 @@ describe('runEvalCase trace integration', () => {
       // eval2 weight=1.0 (default), score=0.8 -> 0.8
       // Total: (2.4 + 0.8) / (3.0 + 1.0) = 3.2 / 4.0 = 0.8
       expect(result.score).toBeCloseTo(0.8);
-      expect(result.evaluator_results?.[0]?.weight).toBe(3.0);
-      expect(result.evaluator_results?.[1]?.weight).toBe(1.0);
+      expect(result.evaluatorResults?.[0]?.weight).toBe(3.0);
+      expect(result.evaluatorResults?.[1]?.weight).toBe(1.0);
     });
 
     it('excludes evaluators with weight 0', async () => {
@@ -755,8 +755,8 @@ describe('runEvalCase trace integration', () => {
       // eval2 weight=1.0, score=0.8 -> 0.8
       // Total: (0 + 0.8) / (0 + 1.0) = 0.8 / 1.0 = 0.8
       expect(result.score).toBeCloseTo(0.8);
-      expect(result.evaluator_results?.[0]?.weight).toBe(0);
-      expect(result.evaluator_results?.[1]?.weight).toBe(1.0);
+      expect(result.evaluatorResults?.[0]?.weight).toBe(0);
+      expect(result.evaluatorResults?.[1]?.weight).toBe(1.0);
     });
 
     it('returns 0 when all evaluators have weight 0', async () => {

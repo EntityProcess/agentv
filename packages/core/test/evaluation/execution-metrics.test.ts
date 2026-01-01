@@ -4,8 +4,8 @@ import {
   type TraceSummary,
   avgToolDurationMs,
   explorationRatio,
-  tokensPerTool,
   mergeExecutionMetrics,
+  tokensPerTool,
 } from '../../src/evaluation/trace.js';
 
 describe('Execution Metrics', () => {

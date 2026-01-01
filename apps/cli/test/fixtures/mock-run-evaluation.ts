@@ -22,44 +22,44 @@ interface RunEvaluationOptionsLike {
 }
 
 interface EvaluationResultLike {
-  readonly eval_id: string;
+  readonly evalId: string;
   readonly score: number;
   readonly hits: readonly string[];
   readonly misses: readonly string[];
-  readonly candidate_answer: string;
-  readonly expected_aspect_count: number;
+  readonly candidateAnswer: string;
+  readonly expectedAspectCount: number;
   readonly target: string;
   readonly timestamp: string;
   readonly reasoning?: string;
-  readonly raw_aspects?: readonly string[];
+  readonly rawAspects?: readonly string[];
 }
 
 function buildResults(targetName: string): EvaluationResultLike[] {
   const baseTime = new Date('2024-01-01T00:00:00.000Z');
   return [
     {
-      eval_id: 'case-alpha',
+      evalId: 'case-alpha',
       score: 0.6,
       hits: ['alpha'],
       misses: [],
-      candidate_answer: 'Alpha answer',
-      expected_aspect_count: 1,
+      candidateAnswer: 'Alpha answer',
+      expectedAspectCount: 1,
       target: targetName,
       timestamp: baseTime.toISOString(),
       reasoning: 'Alpha reasoning',
-      raw_aspects: ['alpha'],
+      rawAspects: ['alpha'],
     },
     {
-      eval_id: 'case-beta',
+      evalId: 'case-beta',
       score: 0.9,
       hits: ['beta', 'gamma'],
       misses: ['delta'],
-      candidate_answer: 'Beta answer',
-      expected_aspect_count: 3,
+      candidateAnswer: 'Beta answer',
+      expectedAspectCount: 3,
       target: targetName,
       timestamp: new Date(baseTime.getTime() + 60_000).toISOString(),
       reasoning: 'Beta reasoning',
-      raw_aspects: ['beta', 'gamma', 'delta'],
+      rawAspects: ['beta', 'gamma', 'delta'],
     },
   ];
 }
@@ -109,7 +109,7 @@ export async function runEvaluation(
   await maybeWriteDiagnostics(options, results);
   await maybeWritePromptDump(
     options.promptDumpDir,
-    results.map((result) => result.eval_id),
+    results.map((result) => result.evalId),
   );
 
   for (const result of results) {
