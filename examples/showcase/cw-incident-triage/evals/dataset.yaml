@@ -5,7 +5,6 @@
 # 2. Clear expected outcomes for analysis.
 # 3. Diverse examples covering edge cases, including ambiguities between defects and feature requests.
 
-$schema: agentv-eval-v2
 description: CargoWise criticality rating (CR1-CR9) classification eval for support ticket triage in logistics software.
 execution:
   target: default

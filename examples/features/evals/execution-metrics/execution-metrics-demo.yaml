@@ -13,7 +13,6 @@
 # Run: cd examples/features/evals/execution-metrics
 #      npx agentv eval execution-metrics-demo.yaml --target your_target
 
-$schema: agentv-eval-v2
 description: Demonstrates execution metrics collection and evaluation
 
 target: default

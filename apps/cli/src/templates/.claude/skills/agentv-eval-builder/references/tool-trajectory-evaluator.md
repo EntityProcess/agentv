@@ -121,7 +121,6 @@ The evaluator extracts tool calls from `output_messages[].tool_calls[]`. Optiona
 ### Research Agent Validation
 
 ```yaml
-$schema: agentv-eval-v2
 description: Validate research agent tool usage
 
 execution:

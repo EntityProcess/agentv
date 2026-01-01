@@ -143,7 +143,6 @@ See `references/composite-evaluator.md` for aggregation types and patterns.
 Evaluate external batch runners that process all evalcases in one invocation:
 
 ```yaml
-$schema: agentv-eval-v2
 description: Batch CLI evaluation
 execution:
   target: batch_cli
@@ -178,7 +177,6 @@ See `references/batch-cli-evaluator.md` for full implementation guide.
 
 ## Example
 ```yaml
-$schema: agentv-eval-v2
 description: Example showing basic features and conversation threading
 execution:
   target: default

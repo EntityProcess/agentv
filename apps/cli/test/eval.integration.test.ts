@@ -47,8 +47,7 @@ targets:
   await writeFile(targetsPath, targetsContent, 'utf8');
 
   const testFilePath = path.join(suiteDir, 'sample.test.yaml');
-  const testFileContent = `$schema: agentv-eval-v2
-description: CLI integration test
+  const testFileContent = `description: CLI integration test
 target: file-target
 
 evalcases:

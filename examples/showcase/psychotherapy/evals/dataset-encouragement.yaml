@@ -1,4 +1,3 @@
-$schema: agentv-eval-v2
 description: |-
   Evaluation suite for 'Resource-Focused Encouragement'.
   Verifies capability to perform Validation, Resource Identification, and Reframing.

@@ -7,7 +7,6 @@
 # Run: cd examples/showcase/tool-evaluation-plugins
 #      npx agentv eval tool-eval-demo.yaml --target mock_agent
 
-$schema: agentv-eval-v2
 description: Showcase of tool evaluation plugin patterns
 
 # Use mock_agent target (configure in .agentv/targets.yaml)
