@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test';
 
 import { CodeEvaluator } from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
-import type { EvalCase } from '../../src/evaluation/types.js';
 import {
   type TraceSummary,
   avgToolDurationMs,
@@ -10,6 +9,7 @@ import {
   mergeExecutionMetrics,
   tokensPerTool,
 } from '../../src/evaluation/trace.js';
+import type { EvalCase } from '../../src/evaluation/types.js';
 
 describe('Execution Metrics', () => {
   describe('explorationRatio', () => {

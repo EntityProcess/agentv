@@ -128,11 +128,11 @@ function compareResponses(
 
   if (aScore > bScore) {
     return { winner: 'A', aAdvantages, bAdvantages };
-  } else if (bScore > aScore) {
-    return { winner: 'B', aAdvantages, bAdvantages };
-  } else {
-    return { winner: 'TIE', aAdvantages, bAdvantages };
   }
+  if (bScore > aScore) {
+    return { winner: 'B', aAdvantages, bAdvantages };
+  }
+  return { winner: 'TIE', aAdvantages, bAdvantages };
 }
 
 function pairwiseWithBiasMitigation(
