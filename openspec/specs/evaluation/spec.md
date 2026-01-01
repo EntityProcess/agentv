@@ -124,6 +124,7 @@ The system SHALL allow evaluators to consume trace information when available.
 - **WHEN** an eval case includes a trace-based evaluator (e.g., `tool_trajectory`)
 - **THEN** the evaluator receives `candidate_trace_summary`
 - **AND** scores the case deterministically based on configured thresholds
+- **AND** the evaluator score MAY be weighted during top-level aggregation if a `weight` is provided
 
 #### Scenario: LLM judge may consume trace (opt-in)
 - **WHEN** an `llm_judge` evaluator is configured to include trace context
@@ -208,13 +209,14 @@ The system SHALL support custom guideline detection via `.agentv.yaml`.
 
 ### Requirement: Trace Data Model
 
-The system SHALL use a normalized trace model for provider-agnostic evaluation.
+The system SHALL use a normalized trace model for provider-agnostic evaluation. **The `trace` field is deprecated in favor of `outputMessages`.**
 
 #### Scenario: TraceEvent structure
 - **GIVEN** a provider returns trace data
 - **WHEN** the trace is normalized
-- **THEN** each event has required fields `type` (one of `model_step`, `tool_call`, `tool_result`, `message`, `error`) and `timestamp` (ISO 8601)
-- **AND** optional fields `id`, `name`, `input`, `output`, `text`, `metadata`
+- **THEN** each event has required field `type` (one of `model_step`, `tool_call`, `tool_result`, `message`, `error`)
+- **AND** optional fields `timestamp` (ISO 8601), `id`, `name`, `input`, `output`, `text`, `metadata`
+- **AND** the `trace` field carries a `@deprecated` annotation recommending `outputMessages` instead
 
 #### Scenario: TraceSummary computation
 - **GIVEN** a normalized trace with events:
@@ -240,11 +242,29 @@ The system SHALL use a normalized trace model for provider-agnostic evaluation.
   ```
 - **AND** `toolNames` is sorted alphabetically
 
+#### Scenario: TraceSummary from outputMessages
+- **GIVEN** output messages with tool calls:
+  ```json
+  [
+    { "role": "assistant", "toolCalls": [{ "tool": "searchDocs" }, { "tool": "verify" }] }
+  ]
+  ```
+- **WHEN** TraceSummary is computed from outputMessages
+- **THEN** the result matches trace-based computation:
+  ```json
+  {
+    "eventCount": 2,
+    "toolNames": ["searchDocs", "verify"],
+    "toolCallsByName": { "searchDocs": 1, "verify": 1 },
+    "errorCount": 0
+  }
+  ```
+
 ### Requirement: Tool Trajectory Evaluator
 
-The system SHALL provide a built-in `tool_trajectory` evaluator that asserts tool-call constraints.
+The system SHALL provide a built-in `tool_trajectory` evaluator that asserts tool-call constraints using `outputMessages` as the primary source.
 
-#### Scenario: Minimum calls met - PASS
+#### Scenario: Minimum calls met - PASS (from outputMessages)
 - **GIVEN** an eval case with evaluator:
   ```yaml
   type: tool_trajectory
@@ -252,10 +272,23 @@ The system SHALL provide a built-in `tool_trajectory` evaluator that asserts too
   minimums:
     semanticSearch: 3
   ```
-- **AND** trace summary `toolCallsByName: { "semanticSearch": 3 }`
+- **AND** outputMessages contains 3 tool calls to `semanticSearch`
 - **WHEN** the evaluator runs
 - **THEN** it returns `score: 1.0`
 - **AND** `hits` includes a message like `"semanticSearch called 3 times (minimum: 3)"`
+
+#### Scenario: Minimum calls met - PASS (fallback to trace)
+- **GIVEN** an eval case with evaluator:
+  ```yaml
+  type: tool_trajectory
+  mode: any_order
+  minimums:
+    semanticSearch: 3
+  ```
+- **AND** no outputMessages available
+- **AND** trace summary `toolCallsByName: { "semanticSearch": 3 }`
+- **WHEN** the evaluator runs
+- **THEN** it returns `score: 1.0` using the trace fallback
 
 #### Scenario: Minimum calls not met - FAIL
 - **GIVEN** an eval case with evaluator:
@@ -265,7 +298,7 @@ The system SHALL provide a built-in `tool_trajectory` evaluator that asserts too
   minimums:
     semanticSearch: 3
   ```
-- **AND** trace summary `toolCallsByName: { "semanticSearch": 1 }`
+- **AND** outputMessages contains 1 tool call to `semanticSearch`
 - **WHEN** the evaluator runs
 - **THEN** it returns `score: 0.0`
 - **AND** `misses` includes a message like `"semanticSearch called 1 time (minimum: 3)"`
@@ -279,7 +312,7 @@ The system SHALL provide a built-in `tool_trajectory` evaluator that asserts too
     toolA: 2
     toolB: 2
   ```
-- **AND** trace summary `toolCallsByName: { "toolA": 2, "toolB": 1 }`
+- **AND** outputMessages contains 2 calls to `toolA` and 1 call to `toolB`
 - **WHEN** the evaluator runs
 - **THEN** it returns `score: 0.5` (1 of 2 constraints met)
 - **AND** `hits` includes message for toolA
@@ -295,7 +328,7 @@ The system SHALL provide a built-in `tool_trajectory` evaluator that asserts too
     - tool: B
     - tool: C
   ```
-- **AND** trace contains tool calls in order `[A, X, B, Y, C]` (extra tools allowed)
+- **AND** outputMessages contains tool calls in order `[A, X, B, Y, C]` (extra tools allowed)
 - **WHEN** the evaluator runs
 - **THEN** it returns `score: 1.0`
 
@@ -308,7 +341,7 @@ The system SHALL provide a built-in `tool_trajectory` evaluator that asserts too
     - tool: A
     - tool: B
   ```
-- **AND** trace contains tool calls in order `[B, A]`
+- **AND** outputMessages contains tool calls in order `[B, A]`
 - **WHEN** the evaluator runs
 - **THEN** it returns `score: 0.0`
 - **AND** `misses` explains the order mismatch
@@ -322,7 +355,7 @@ The system SHALL provide a built-in `tool_trajectory` evaluator that asserts too
     - tool: A
     - tool: B
   ```
-- **AND** trace contains exactly tool calls `[A, B]`
+- **AND** outputMessages contains exactly tool calls `[A, B]`
 - **WHEN** the evaluator runs
 - **THEN** it returns `score: 1.0`
 
@@ -335,17 +368,127 @@ The system SHALL provide a built-in `tool_trajectory` evaluator that asserts too
     - tool: A
     - tool: B
   ```
-- **AND** trace contains tool calls `[A, B, C]`
+- **AND** outputMessages contains tool calls `[A, B, C]`
 - **WHEN** the evaluator runs
 - **THEN** it returns `score: 0.0`
 - **AND** `misses` explains the extra tool
 
-#### Scenario: No trace available
+#### Scenario: No trace or outputMessages available
 - **GIVEN** an eval case with a `tool_trajectory` evaluator
-- **AND** the provider did not return a trace
+- **AND** the provider returned neither trace nor outputMessages
 - **WHEN** the evaluator runs
 - **THEN** it returns `score: 0.0`
 - **AND** `misses` includes `"No trace available for evaluation"`
+
+### Requirement: Output Message Format
+
+The system SHALL accept agent execution data in OpenAI-style output message format with optional extended fields.
+
+#### Scenario: ToolCall with optional trace fields
+- **GIVEN** a provider returns output messages with tool calls
+- **WHEN** the JSONL contains:
+  ```json
+  {
+    "output_messages": [{
+      "role": "assistant",
+      "tool_calls": [{
+        "tool": "searchDocs",
+        "input": {"query": "test"},
+        "output": {"results": []},
+        "id": "call_123",
+        "timestamp": "2025-01-01T00:00:00Z"
+      }]
+    }]
+  }
+  ```
+- **THEN** the system parses `id` and `timestamp` as optional ToolCall fields
+- **AND** converts snake_case wire format to camelCase TypeScript interfaces
+
+#### Scenario: OutputMessage with optional metadata
+- **GIVEN** a provider returns output messages
+- **WHEN** messages include optional fields:
+  ```json
+  {
+    "output_messages": [{
+      "role": "assistant",
+      "content": "response",
+      "timestamp": "2025-01-01T00:00:00Z",
+      "metadata": {"latency_ms": 150}
+    }]
+  }
+  ```
+- **THEN** the system parses `timestamp` and `metadata` as optional OutputMessage fields
+- **AND** makes these available to evaluators via `context.outputMessages`
+
+### Requirement: Evaluator OutputMessages Context
+
+The system SHALL pass output messages to evaluators as the primary source for tool trajectory analysis.
+
+#### Scenario: OutputMessages available in evaluator context
+- **GIVEN** a provider returns `output_messages` with `tool_calls`
+- **WHEN** an evaluator is invoked
+- **THEN** `context.outputMessages` contains the parsed messages
+- **AND** evaluators can access tool calls via `outputMessages[].toolCalls[]`
+
+#### Scenario: Fallback to trace when outputMessages absent
+- **GIVEN** a provider returns `trace` but no `output_messages`
+- **WHEN** an evaluator is invoked
+- **THEN** `context.trace` contains the trace events
+- **AND** `context.outputMessages` is undefined
+
+### Requirement: Per-evaluator weights in top-level aggregation
+
+The system SHALL allow each configured evaluator to provide an optional numeric `weight` that influences the eval-case aggregate score.
+
+- If `weight` is omitted, it defaults to `1.0`.
+- The eval-case aggregate score SHALL be computed as the weighted mean:
+
+$$
+\text{score} = \frac{\sum_i (w_i \cdot s_i)}{\sum_i w_i}
+$$
+
+Where $s_i \in [0,1]$ is the evaluator score and $w_i \ge 0$ is the evaluator weight.
+
+#### Scenario: Default aggregation (no weights)
+- **GIVEN** an eval case with two evaluators without `weight`
+- **AND** evaluator scores are `0.8` and `0.4`
+- **WHEN** the system computes the eval-case score
+- **THEN** the overall score is the unweighted mean `(0.8 + 0.4) / 2 = 0.6`
+
+#### Scenario: Weighted aggregation (mixed weights)
+- **GIVEN** an eval case with evaluators:
+  ```yaml
+  evaluators:
+    - name: safety
+      type: llm_judge
+      weight: 3
+    - name: style
+      type: llm_judge
+      weight: 1
+  ```
+- **AND** evaluator scores are `safety=0.8` and `style=0.4`
+- **WHEN** the system computes the eval-case score
+- **THEN** the overall score is `(3*0.8 + 1*0.4) / (3+1) = 0.7`
+
+#### Scenario: Weight of zero excludes evaluator from aggregation
+- **GIVEN** an eval case with two evaluators
+- **AND** one evaluator has `weight: 0`
+- **WHEN** the system computes the eval-case score
+- **THEN** the evaluator with `weight: 0` does not affect the aggregate score
+
+#### Scenario: All weights are zero
+- **GIVEN** an eval case where every evaluator has `weight: 0`
+- **WHEN** the system computes the eval-case score
+- **THEN** the overall score is `0.0`
+
+### Requirement: Persist evaluator weight in results
+
+The system SHALL include the effective `weight` used for aggregation in the per-evaluator results.
+
+#### Scenario: Weight included in evaluator_results
+- **GIVEN** an eval case with an evaluator configured with `weight: 2`
+- **WHEN** evaluation completes
+- **THEN** the corresponding `evaluator_results[*].weight` field is `2`
 
 ### Requirement: Score Aggregation
 
