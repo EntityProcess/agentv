@@ -34,7 +34,6 @@ interface InvoiceData {
   };
   line_items?: Array<{
     description?: string;
-    product_code?: string | null;
     quantity?: number;
     unit_price?: number;
     line_total?: number;
@@ -150,18 +149,18 @@ function extractInvoiceData(htmlPath: string): InvoiceData {
     const rows = tbody.querySelectorAll("tr");
     rows.forEach(row => {
       const cells = row.querySelectorAll("td");
-      if (cells.length >= 7) {
+      if (cells.length >= 6) {
+        // invoice-001: 6 columns (description, quantity, unit_price, line_total, unit_type, hs_code)
         data.line_items!.push({
           description: cells[0].textContent?.trim(),
-          product_code: cells[1].textContent?.trim() || null,
-          quantity: parseInt(cells[2].textContent?.trim() || "0"),
-          unit_price: parseFloat(cells[3].textContent?.trim() || "0"),
-          line_total: parseFloat(cells[4].textContent?.trim() || "0"),
-          unit_type: cells[5].textContent?.trim(),
-          hs_code: cells[6].textContent?.trim()
+          quantity: parseInt(cells[1].textContent?.trim() || "0"),
+          unit_price: parseFloat(cells[2].textContent?.trim() || "0"),
+          line_total: parseFloat(cells[3].textContent?.trim() || "0"),
+          unit_type: cells[4].textContent?.trim(),
+          hs_code: cells[5].textContent?.trim()
         });
       } else if (cells.length === 2) {
-        // Simplified format (invoice-005)
+        // invoice-005: Simplified format (description, line_total)
         data.line_items!.push({
           description: cells[0].textContent?.trim(),
           line_total: parseFloat(cells[1].textContent?.trim() || "0")

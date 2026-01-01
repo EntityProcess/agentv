@@ -147,56 +147,48 @@ evalcases:
             address: "Global Trade Co\n456 Commerce Street\n10001  New York\nUSA"
           line_items:
             - description: "OCEAN FREIGHT"
-              product_code: "853720"
               quantity: 1
               unit_price: 1370
               line_total: 1370
               unit_type: "C2 1 USD"
               hs_code: "853720"
             - description: "Bunker Adjustment Factor"
-              product_code: null
               quantity: 1
               unit_price: 262
               line_total: 262
               unit_type: "C2 1 TEU"
               hs_code: "853720"
             - description: "Container maintenance Fee at destination"
-              product_code: null
               quantity: 1
               unit_price: 20
               line_total: 20
               unit_type: "C2 1 TEU"
               hs_code: "853720"
             - description: "Advanced Manifest Declaration Fee"
-              product_code: null
               quantity: 1
               unit_price: 32
               line_total: 32
               unit_type: "C2 1 FIX"
               hs_code: "853720"
             - description: "Energy Transition Surcharge"
-              product_code: null
               quantity: 1
               unit_price: 68
               line_total: 68
               unit_type: "C2 1 TEU"
               hs_code: "853720"
             - description: "Emergency Operational Recovery"
-              product_code: null
               quantity: 1
               unit_price: 75
               line_total: 75
               unit_type: "C2 1 UNI"
               hs_code: "853720"
             - description: "On carriage chassis admin fees"
-              product_code: null
               quantity: 1
               unit_price: 12
               line_total: 12
               unit_type: "C2 1 UNI"
               hs_code: "853720"
             - description: "On Carriage Additional - Emergency Fuel Surch."
-              product_code: null
               quantity: 1
               unit_price: 50
               line_total: 50
