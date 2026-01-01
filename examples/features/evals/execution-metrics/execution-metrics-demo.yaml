@@ -38,8 +38,10 @@ evalcases:
 
     execution:
       evaluators:
-        - name: basic-check
-          type: llm_judge
+        # Verify that execution metrics are present in traceSummary
+        - name: metrics-present
+          type: code_judge
+          script: bun run scripts/check-metrics-present.ts
 
   # ==========================================
   # Example 2: Metric-aware code judge

@@ -48,6 +48,34 @@ execution:
 - Allow agent to use additional helper tools
 - Check that key steps happen in sequence
 
+### Argument Matching
+
+For `in_order` and `exact` modes, you can optionally validate tool arguments:
+
+```yaml
+execution:
+  evaluators:
+    - name: search-validation
+      type: tool_trajectory
+      mode: in_order
+      expected:
+        # Partial match - only specified keys are checked
+        - tool: search
+          args: { query: "machine learning" }
+
+        # Skip argument validation for this tool
+        - tool: process
+          args: any
+
+        # No args field = no argument validation (same as args: any)
+        - tool: saveResults
+```
+
+**Argument matching modes:**
+- `args: { key: value }` - Partial deep equality (only specified keys are checked)
+- `args: any` - Skip argument validation
+- No `args` field - Same as `args: any`
+
 #### 3. `exact` - Strict Sequence Match
 
 Validates the exact tool sequence with no gaps or extra tools:

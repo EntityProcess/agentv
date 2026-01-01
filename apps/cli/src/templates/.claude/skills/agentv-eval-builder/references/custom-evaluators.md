@@ -11,17 +11,42 @@ Code evaluators receive input via stdin and write output to stdout, both as JSON
 ```json
 {
   "question": "string describing the task/question",
-  "expected_outcome": "expected outcome description",
-  "reference_answer": "gold standard answer (optional)",
-  "candidate_answer": "generated code/text from the agent",
-  "guideline_paths": ["path1", "path2"],
-  "input_files": ["file1", "file2"],
-  "input_messages": [{"role": "user", "content": "..."}],
-  "output_messages": [{"role": "assistant", "content": "...", "tool_calls": [...]}]
+  "expectedOutcome": "expected outcome description",
+  "referenceAnswer": "gold standard answer (optional)",
+  "candidateAnswer": "generated code/text from the agent",
+  "guidelineFiles": ["path1", "path2"],
+  "inputFiles": ["file1", "file2"],
+  "inputMessages": [{"role": "user", "content": "..."}],
+  "outputMessages": [
+    {
+      "role": "assistant",
+      "content": "...",
+      "toolCalls": [
+        {
+          "tool": "search",
+          "input": { "query": "..." },
+          "output": { "results": [...] },
+          "id": "call_123",
+          "timestamp": "2024-01-15T10:30:00Z"
+        }
+      ]
+    }
+  ],
+  "traceSummary": {
+    "eventCount": 5,
+    "toolNames": ["fetch", "search"],
+    "toolCallsByName": { "search": 2, "fetch": 1 },
+    "errorCount": 0,
+    "tokenUsage": { "input": 1000, "output": 500 },
+    "costUsd": 0.0015,
+    "durationMs": 3500
+  }
 }
 ```
 
-The `output_messages` array contains the full agent execution trace with tool calls, enabling custom validation of agent behavior.
+**Key fields:**
+- `outputMessages` - Full agent execution trace with tool calls (use `toolCalls[].input` for arguments)
+- `traceSummary` - Lightweight summary with execution metrics (counts only, no tool arguments)
 
 ### Output Format (to stdout)
 
@@ -189,7 +214,7 @@ You can customize this template in your eval file using the `evaluatorTemplate` 
 execution:
   evaluators:
     - name: my_validator
-      type: code
+      type: code_judge
       script: uv run my_validator.py
       cwd: ./evaluators
 ```

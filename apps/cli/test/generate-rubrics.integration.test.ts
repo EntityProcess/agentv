@@ -50,7 +50,9 @@ targets:
   const testFilePath = path.join(suiteDir, 'test.yaml');
 
   let testFileContent = `description: Generate rubrics integration test
-target: default
+
+execution:
+  target: default
 
 evalcases:`;
 
