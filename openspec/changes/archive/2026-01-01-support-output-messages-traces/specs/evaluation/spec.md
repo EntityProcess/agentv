@@ -36,6 +36,15 @@ The system SHALL extract trace events from provider `outputMessages` when no exp
 - **THEN** the system uses the explicit `trace` field
 - **AND** ignores `outputMessages` for trace extraction
 
+### Requirement: TraceEvent timestamp is optional
+
+The `TraceEvent.timestamp` field SHALL be optional to support trace extraction from sources that don't provide timestamps.
+
+#### Scenario: TraceEvent without timestamp
+- **WHEN** a `TraceEvent` is created without a `timestamp` field
+- **THEN** the event is valid and can be used for evaluation
+- **AND** trace ordering is determined by array position, not timestamp
+
 ## MODIFIED Requirements
 
 ### Requirement: Test Case Execution
@@ -48,12 +57,3 @@ The system SHALL capture provider traces from explicit `trace`, `traceRef`, or `
 - **THEN** the system captures the trace for that eval case attempt
 - **AND** computes a `trace_summary` with `eventCount`, `toolNames`, `toolCallsByName`, and `errorCount`
 - **AND** makes `candidate_trace` and `candidate_trace_summary` available to evaluators
-
-### Requirement: TraceEvent timestamp is optional
-
-The `TraceEvent.timestamp` field SHALL be optional to support trace extraction from sources that don't provide timestamps.
-
-#### Scenario: TraceEvent without timestamp
-- **WHEN** a `TraceEvent` is created without a `timestamp` field
-- **THEN** the event is valid and can be used for evaluation
-- **AND** trace ordering is determined by array position, not timestamp
