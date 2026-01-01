@@ -9,7 +9,7 @@
 # - in_order: Validates tools appear in expected sequence (allows gaps)
 # - exact: Validates exact tool sequence match (no gaps, no extra tools)
 #
-# Argument matching (PLANNED - see openspec/changes/add-trajectory-argument-matching/):
+# Argument matching:
 # - Exact: args: { key: "value" } - must match exactly (deep equality)
 # - Skip: args: any - validate tool name only, ignore arguments
 # Note: For pattern/regex matching, use a code_judge evaluator instead.
@@ -154,15 +154,12 @@ evalcases:
             generateReport: 1     # NOT present (will fail - demonstrates partial scoring)
 
   # ==========================================
-  # PLANNED FEATURES - Argument Matching
-  # The examples below show the intended syntax for argument validation.
-  # See: openspec/changes/add-trajectory-argument-matching/
+  # ARGUMENT MATCHING EXAMPLES
   # ==========================================
 
   # ==========================================
   # Example 6: Exact argument matching
   # Use case: Validate tool is called with specific argument values
-  # PLANNED - will not run until feature is implemented
   # ==========================================
   - id: exact-args-match
 
@@ -189,7 +186,6 @@ evalcases:
   # ==========================================
   # Example 7: Skip argument validation with `any`
   # Use case: Validate tool sequence but ignore specific arguments
-  # PLANNED - will not run until feature is implemented
   # ==========================================
   - id: skip-args-validation
 
