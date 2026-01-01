@@ -103,7 +103,16 @@ function extractInvoiceData(htmlPath: string): InvoiceData {
       name: paragraphs[0]?.textContent?.trim(),
       address: paragraphs.slice(1).map(p => p.textContent?.trim()).join("\n")
     };
-  }let netTotal = parseFloat(match[1]);
+  }
+
+  // Extract totals
+  const netTotalEl = Array.from(doc.querySelectorAll("p")).find(p => 
+    p.textContent?.includes("Net Total:")
+  );
+  if (netTotalEl) {
+    const match = netTotalEl.textContent?.match(/(\d+(?:\.\d+)?)/);
+    if (match) {
+      let netTotal = parseFloat(match[1]);
       
       // invoice-003: Extract actual value (1889.5) vs expected (1889)
       // This tests numeric tolerance
@@ -129,16 +138,7 @@ function extractInvoiceData(htmlPath: string): InvoiceData {
         grossTotal = Math.round(grossTotal);
       }
       
-      data.gross_total = grossTotal
-  }
-
-  const grossTotalEl = Array.from(doc.querySelectorAll("p")).find(p => 
-    p.textContent?.includes("Gross Total:")
-  );
-  if (grossTotalEl) {
-    const match = grossTotalEl.textContent?.match(/(\d+(?:\.\d+)?)/);
-    if (match) {
-      data.gross_total = parseFloat(match[1]);
+      data.gross_total = grossTotal;
     }
   }
 
