@@ -18,6 +18,7 @@ AgentV's core should remain minimal. Complex or domain-specific logic belongs in
 
 **Extension points (prefer these over adding built-ins):**
 - `code_judge` scripts for custom evaluation logic
+- `llm_judge` evaluators with custom prompt files for domain-specific LLM grading
 - CLI wrappers that consume AgentV's JSON/JSONL output for post-processing (aggregation, comparison, reporting)
 
 **Ask yourself:** "Can this be achieved with existing primitives + a plugin or wrapper?" If yes, it should not be a built-in.
