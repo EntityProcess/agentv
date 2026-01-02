@@ -4,6 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
+import { z } from 'zod';
+
 import { readTextFile } from '../file-utils.js';
 import type { CliResolvedConfig } from './targets.js';
 import type {
@@ -13,6 +15,91 @@ import type {
   ProviderResponse,
   ProviderTokenUsage,
 } from './types.js';
+
+// ---------------------------------------------------------------------------
+// Zod Schemas for CLI Output Parsing
+// ---------------------------------------------------------------------------
+
+/**
+ * Schema for tool calls in output messages.
+ * Validates tool_calls array items from CLI JSON output.
+ */
+const ToolCallSchema = z.object({
+  tool: z.string(),
+  input: z.unknown().optional(),
+  output: z.unknown().optional(),
+  id: z.string().optional(),
+  timestamp: z.string().optional(),
+});
+
+/**
+ * Schema for individual output messages.
+ * Validates output_messages array items from CLI JSON output.
+ * Uses snake_case field names matching JSONL convention.
+ */
+const OutputMessageInputSchema = z.object({
+  role: z.string(),
+  name: z.string().optional(),
+  content: z.unknown().optional(),
+  tool_calls: z.array(ToolCallSchema).optional(),
+  timestamp: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+/**
+ * Schema for token usage metrics.
+ * Validates token_usage object from CLI JSON output.
+ */
+const TokenUsageSchema = z.object({
+  input: z.number(),
+  output: z.number(),
+  cached: z.number().optional(),
+});
+
+/**
+ * Schema for CLI single output JSON structure.
+ * Validates the complete JSON output from a single CLI invocation.
+ * All fields are optional to support various output formats.
+ */
+const CliOutputSchema = z.object({
+  text: z.unknown().optional(),
+  output_messages: z.array(OutputMessageInputSchema).optional(),
+  token_usage: TokenUsageSchema.optional(),
+  cost_usd: z.number().nonnegative().optional(),
+  duration_ms: z.number().nonnegative().optional(),
+});
+
+/**
+ * Schema for CLI JSONL batch output records.
+ * Extends CliOutputSchema with required 'id' field for batch processing.
+ */
+const CliJsonlRecordSchema = CliOutputSchema.extend({
+  id: z.string().min(1),
+});
+
+// Type for parsed output messages from Zod schema
+type ParsedOutputMessage = z.infer<typeof OutputMessageInputSchema>;
+
+/**
+ * Converts Zod-parsed output messages to internal OutputMessage format.
+ * Handles snake_case to camelCase conversion for toolCalls.
+ */
+function convertOutputMessages(
+  messages: readonly ParsedOutputMessage[] | undefined,
+): readonly OutputMessage[] | undefined {
+  if (!messages || messages.length === 0) {
+    return undefined;
+  }
+
+  return messages.map((msg) => ({
+    role: msg.role,
+    name: msg.name,
+    content: msg.content,
+    toolCalls: msg.tool_calls,
+    timestamp: msg.timestamp,
+    metadata: msg.metadata,
+  }));
+}
 
 const execAsync = promisify(execWithCallback);
 const DEFAULT_MAX_BUFFER = 10 * 1024 * 1024; // 10 MB to accommodate verbose CLI output
@@ -323,167 +410,49 @@ export class CliProvider implements Provider {
     costUsd?: number;
     durationMs?: number;
   } {
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(content) as unknown;
-      if (typeof parsed === 'object' && parsed !== null) {
-        const obj = parsed as {
-          text?: unknown;
-          output_messages?: unknown;
-          token_usage?: unknown;
-          cost_usd?: unknown;
-          duration_ms?: unknown;
-        };
-
-        // Parse execution metrics
-        const tokenUsage = this.parseTokenUsage(obj.token_usage);
-        const costUsd =
-          typeof obj.cost_usd === 'number' && obj.cost_usd >= 0 ? obj.cost_usd : undefined;
-        const durationMs =
-          typeof obj.duration_ms === 'number' && obj.duration_ms >= 0 ? obj.duration_ms : undefined;
-
-        const outputMessages = this.parseOutputMessages(obj.output_messages);
-
-        // If output_messages provided, use it
-        if (outputMessages && outputMessages.length > 0) {
-          return { outputMessages, tokenUsage, costUsd, durationMs };
-        }
-
-        // Fall back to text field, wrap in outputMessages
-        if ('text' in obj) {
-          const text = typeof obj.text === 'string' ? obj.text : String(obj.text);
-          return {
-            outputMessages: [{ role: 'assistant', content: text }],
-            tokenUsage,
-            costUsd,
-            durationMs,
-          };
-        }
-      }
+      parsed = JSON.parse(content);
     } catch {
       // Not valid JSON, treat as plain text
+      return { outputMessages: [{ role: 'assistant', content }] };
     }
-    // Plain text content, wrap in outputMessages
+
+    // Validate against schema
+    const result = CliOutputSchema.safeParse(parsed);
+    if (!result.success) {
+      // Invalid structure, treat as plain text
+      return { outputMessages: [{ role: 'assistant', content }] };
+    }
+
+    const obj = result.data;
+
+    // Convert output_messages to OutputMessage[] format
+    const outputMessages = convertOutputMessages(obj.output_messages);
+
+    // If output_messages provided, use it
+    if (outputMessages && outputMessages.length > 0) {
+      return {
+        outputMessages,
+        tokenUsage: obj.token_usage,
+        costUsd: obj.cost_usd,
+        durationMs: obj.duration_ms,
+      };
+    }
+
+    // Fall back to text field, wrap in outputMessages
+    if (obj.text !== undefined) {
+      const text = typeof obj.text === 'string' ? obj.text : String(obj.text);
+      return {
+        outputMessages: [{ role: 'assistant', content: text }],
+        tokenUsage: obj.token_usage,
+        costUsd: obj.cost_usd,
+        durationMs: obj.duration_ms,
+      };
+    }
+
+    // No output_messages or text, treat original content as plain text
     return { outputMessages: [{ role: 'assistant', content }] };
-  }
-
-  /**
-   * Parse token_usage from CLI output.
-   */
-  private parseTokenUsage(tokenUsage: unknown): ProviderTokenUsage | undefined {
-    if (typeof tokenUsage !== 'object' || tokenUsage === null) {
-      return undefined;
-    }
-
-    const obj = tokenUsage as { input?: unknown; output?: unknown; cached?: unknown };
-
-    if (typeof obj.input !== 'number' || typeof obj.output !== 'number') {
-      return undefined;
-    }
-
-    return {
-      input: obj.input,
-      output: obj.output,
-      cached: typeof obj.cached === 'number' ? obj.cached : undefined,
-    };
-  }
-
-  /**
-   * Parse output_messages from JSONL (snake_case) and convert to OutputMessage[] (camelCase).
-   */
-  private parseOutputMessages(outputMessages: unknown): readonly OutputMessage[] | undefined {
-    if (!Array.isArray(outputMessages)) {
-      return undefined;
-    }
-
-    const messages: OutputMessage[] = [];
-    for (const msg of outputMessages) {
-      if (typeof msg !== 'object' || msg === null) {
-        continue;
-      }
-
-      const rawMsg = msg as {
-        role?: unknown;
-        name?: unknown;
-        content?: unknown;
-        tool_calls?: unknown;
-        timestamp?: unknown;
-        metadata?: unknown;
-      };
-
-      // Role is required
-      if (typeof rawMsg.role !== 'string') {
-        continue;
-      }
-
-      const message: OutputMessage = {
-        role: rawMsg.role,
-        name: typeof rawMsg.name === 'string' ? rawMsg.name : undefined,
-        content: rawMsg.content,
-        toolCalls: this.parseToolCalls(rawMsg.tool_calls),
-        timestamp: typeof rawMsg.timestamp === 'string' ? rawMsg.timestamp : undefined,
-        metadata:
-          typeof rawMsg.metadata === 'object' && rawMsg.metadata !== null
-            ? (rawMsg.metadata as Record<string, unknown>)
-            : undefined,
-      };
-
-      messages.push(message);
-    }
-
-    return messages.length > 0 ? messages : undefined;
-  }
-
-  /**
-   * Parse tool_calls from JSONL (snake_case) and convert to ToolCall[] format.
-   */
-  private parseToolCalls(toolCalls: unknown):
-    | readonly {
-        tool: string;
-        input?: unknown;
-        output?: unknown;
-        id?: string;
-        timestamp?: string;
-      }[]
-    | undefined {
-    if (!Array.isArray(toolCalls)) {
-      return undefined;
-    }
-
-    const calls: {
-      tool: string;
-      input?: unknown;
-      output?: unknown;
-      id?: string;
-      timestamp?: string;
-    }[] = [];
-    for (const call of toolCalls) {
-      if (typeof call !== 'object' || call === null) {
-        continue;
-      }
-
-      const rawCall = call as {
-        tool?: unknown;
-        input?: unknown;
-        output?: unknown;
-        id?: unknown;
-        timestamp?: unknown;
-      };
-
-      // Tool name is required
-      if (typeof rawCall.tool !== 'string') {
-        continue;
-      }
-
-      calls.push({
-        tool: rawCall.tool,
-        input: rawCall.input,
-        output: rawCall.output,
-        id: typeof rawCall.id === 'string' ? rawCall.id : undefined,
-        timestamp: typeof rawCall.timestamp === 'string' ? rawCall.timestamp : undefined,
-      });
-    }
-
-    return calls.length > 0 ? calls : undefined;
   }
 
   private parseJsonlBatchOutput(content: string): Map<
@@ -513,45 +482,33 @@ export class CliProvider implements Provider {
     for (const line of lines) {
       let parsed: unknown;
       try {
-        parsed = JSON.parse(line) as unknown;
+        parsed = JSON.parse(line);
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         throw new Error(`CLI batch output contains invalid JSONL line: ${reason}`);
       }
 
-      if (typeof parsed !== 'object' || parsed === null) {
+      // Validate against schema
+      const result = CliJsonlRecordSchema.safeParse(parsed);
+      if (!result.success) {
+        const firstError = result.error.errors[0];
+        if (firstError?.path.includes('id')) {
+          throw new Error('CLI batch output JSONL line missing required string field: id');
+        }
         throw new Error('CLI batch output JSONL line must be an object');
       }
 
-      const obj = parsed as {
-        id?: unknown;
-        text?: unknown;
-        output_messages?: unknown;
-        token_usage?: unknown;
-        cost_usd?: unknown;
-        duration_ms?: unknown;
-      };
-      const id = typeof obj.id === 'string' ? obj.id : undefined;
-      if (!id || id.trim().length === 0) {
-        throw new Error('CLI batch output JSONL line missing required string field: id');
-      }
+      const obj = result.data;
 
-      if (records.has(id)) {
-        throw new Error(`CLI batch output contains duplicate id: ${id}`);
+      if (records.has(obj.id)) {
+        throw new Error(`CLI batch output contains duplicate id: ${obj.id}`);
       }
-
-      // Parse execution metrics
-      const tokenUsage = this.parseTokenUsage(obj.token_usage);
-      const costUsd =
-        typeof obj.cost_usd === 'number' && obj.cost_usd >= 0 ? obj.cost_usd : undefined;
-      const durationMs =
-        typeof obj.duration_ms === 'number' && obj.duration_ms >= 0 ? obj.duration_ms : undefined;
 
       // Prefer output_messages, fall back to text wrapped in outputMessages
-      const parsedOutputMessages = this.parseOutputMessages(obj.output_messages);
-      let outputMessages: readonly OutputMessage[];
-      if (parsedOutputMessages && parsedOutputMessages.length > 0) {
-        outputMessages = parsedOutputMessages;
+      const outputMessages = convertOutputMessages(obj.output_messages);
+      let finalOutputMessages: readonly OutputMessage[];
+      if (outputMessages && outputMessages.length > 0) {
+        finalOutputMessages = outputMessages;
       } else {
         // Fall back to text field
         const text =
@@ -560,14 +517,14 @@ export class CliProvider implements Provider {
             : obj.text === undefined
               ? ''
               : JSON.stringify(obj.text);
-        outputMessages = text ? [{ role: 'assistant', content: text }] : [];
+        finalOutputMessages = text ? [{ role: 'assistant', content: text }] : [];
       }
 
-      records.set(id, {
-        outputMessages,
-        tokenUsage,
-        costUsd,
-        durationMs,
+      records.set(obj.id, {
+        outputMessages: finalOutputMessages,
+        tokenUsage: obj.token_usage,
+        costUsd: obj.cost_usd,
+        durationMs: obj.duration_ms,
       });
     }
 
