@@ -50,6 +50,10 @@ import { type PromptInputs, buildPromptInputs, loadEvalCases } from './yaml-pars
 
 type MaybePromise<T> = T | Promise<T>;
 
+function usesFileReferencePrompt(provider: Provider): boolean {
+  return isAgentProvider(provider) || provider.kind === 'cli';
+}
+
 export interface EvaluationCache {
   get(key: string): MaybePromise<ProviderResponse | undefined>;
   set(key: string, value: ProviderResponse): MaybePromise<void>;
@@ -315,8 +319,7 @@ export async function runEvaluation(
     } else {
       // Build error result for rejected promise
       const evalCase = filteredEvalCases[i];
-      const formattingMode =
-        isAgentProvider(primaryProvider) || primaryProvider.kind === 'cli' ? 'agent' : 'lm';
+      const formattingMode = usesFileReferencePrompt(primaryProvider) ? 'agent' : 'lm';
       const promptInputs = await buildPromptInputs(evalCase, formattingMode);
       const errorResult = buildErrorResult(
         evalCase,
@@ -366,7 +369,7 @@ async function runBatchEvaluation(options: {
 
   // Prepare prompt inputs up front so we can reuse them for grading.
   const promptInputsList: PromptInputs[] = [];
-  const formattingMode = isAgentProvider(provider) || provider.kind === 'cli' ? 'agent' : 'lm';
+  const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
 
   for (const evalCase of evalCases) {
     const promptInputs = await buildPromptInputs(evalCase, formattingMode);
@@ -509,7 +512,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     judgeProvider,
   } = options;
 
-  const formattingMode = isAgentProvider(provider) || provider.kind === 'cli' ? 'agent' : 'lm';
+  const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
   const promptInputs = await buildPromptInputs(evalCase, formattingMode);
   if (promptDumpDir) {
     await dumpPrompt(promptDumpDir, evalCase, promptInputs);
