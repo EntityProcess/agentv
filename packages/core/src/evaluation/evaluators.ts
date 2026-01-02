@@ -78,7 +78,6 @@ export interface EvaluationScore {
   readonly misses: readonly string[];
   readonly expectedAspectCount: number;
   readonly reasoning?: string;
-  readonly rawAspects?: readonly string[];
   readonly evaluatorRawRequest?: JsonObject;
   readonly evaluatorResults?: readonly ChildEvaluatorResult[];
 }
