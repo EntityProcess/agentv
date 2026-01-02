@@ -31,7 +31,6 @@ interface EvaluationResultLike {
   readonly target: string;
   readonly timestamp: string;
   readonly reasoning?: string;
-  readonly rawAspects?: readonly string[];
 }
 
 function buildResults(targetName: string): EvaluationResultLike[] {
@@ -47,7 +46,6 @@ function buildResults(targetName: string): EvaluationResultLike[] {
       target: targetName,
       timestamp: baseTime.toISOString(),
       reasoning: 'Alpha reasoning',
-      rawAspects: ['alpha'],
     },
     {
       evalId: 'case-beta',
@@ -59,7 +57,6 @@ function buildResults(targetName: string): EvaluationResultLike[] {
       target: targetName,
       timestamp: new Date(baseTime.getTime() + 60_000).toISOString(),
       reasoning: 'Beta reasoning',
-      rawAspects: ['beta', 'gamma', 'delta'],
     },
   ];
 }

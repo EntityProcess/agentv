@@ -671,7 +671,6 @@ async function evaluateCandidate(options: {
     candidateAnswer: candidate,
     target: target.name,
     reasoning: score.reasoning,
-    rawAspects: score.rawAspects,
     agentProviderRequest: agentProviderRequest,
     lmProviderRequest: lmProviderRequest,
     evaluatorProviderRequest: evaluatorResults ? undefined : score.evaluatorRawRequest,
@@ -986,7 +985,6 @@ async function runEvaluatorList(options: {
     (total, entry) => total + (entry.score.expectedAspectCount ?? 0),
     0,
   );
-  const rawAspects = scored.flatMap((entry) => entry.score.rawAspects ?? []);
   const reasoningParts = scored
     .map((entry) => (entry.score.reasoning ? `${entry.name}: ${entry.score.reasoning}` : undefined))
     .filter(isNonEmptyString);
@@ -999,7 +997,6 @@ async function runEvaluatorList(options: {
     misses,
     expectedAspectCount,
     reasoning,
-    rawAspects: rawAspects.length > 0 ? rawAspects : undefined,
   };
 
   return { score, evaluatorResults };
@@ -1220,7 +1217,6 @@ function buildErrorResult(
     misses: [`Error: ${message}`],
     candidateAnswer: `Error occurred: ${message}`,
     target: targetName,
-    rawAspects: [],
     agentProviderRequest: agentProviderRequest,
     lmProviderRequest: lmProviderRequest,
     error: message,

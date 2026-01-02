@@ -248,7 +248,6 @@ export interface EvaluationResult {
   readonly candidateAnswer: string;
   readonly target: string;
   readonly reasoning?: string;
-  readonly rawAspects?: readonly string[];
   readonly agentProviderRequest?: JsonObject;
   readonly lmProviderRequest?: JsonObject;
   readonly evaluatorProviderRequest?: JsonObject;
