@@ -917,6 +917,8 @@ async function runEvaluatorList(options: {
           promptInputs,
           now,
           judgeProvider,
+          outputMessages,
+          traceSummary,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });

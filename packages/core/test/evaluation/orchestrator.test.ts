@@ -630,6 +630,44 @@ describe('runEvalCase trace integration', () => {
     expect(result.evaluatorResults?.[0]?.misses).toContain('No trace available for evaluation');
   });
 
+  it('runs latency/cost evaluators inside composite using traceSummary', async () => {
+    const outputMessages: OutputMessage[] = [{ role: 'assistant', content: 'Done' }];
+
+    const provider = new TraceProvider('mock', { costUsd: 0.05, durationMs: 1200 }, outputMessages);
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...traceTestCase,
+        evaluators: [
+          {
+            name: 'metrics',
+            type: 'composite',
+            evaluators: [
+              { name: 'latency', type: 'latency', threshold: 1500 },
+              { name: 'cost', type: 'cost', budget: 0.1 },
+            ],
+            aggregator: { type: 'weighted_average' },
+          },
+        ],
+      },
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.evaluatorResults).toHaveLength(1);
+    expect(result.evaluatorResults?.[0]?.name).toBe('metrics');
+    expect(result.evaluatorResults?.[0]?.verdict).toBe('pass');
+    expect(result.evaluatorResults?.[0]?.evaluatorResults).toHaveLength(2);
+    const childNames = result.evaluatorResults?.[0]?.evaluatorResults?.map((child) => child.name);
+    expect(childNames).toEqual(['latency', 'cost']);
+    const childVerdicts = result.evaluatorResults?.[0]?.evaluatorResults?.map(
+      (child) => child.verdict,
+    );
+    expect(childVerdicts).toEqual(['pass', 'pass']);
+  });
+
   it('computes correct trace summary with multiple tool calls', async () => {
     const outputMessages: OutputMessage[] = [
       {
