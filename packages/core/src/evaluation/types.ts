@@ -154,6 +154,8 @@ const EVALUATOR_KIND_VALUES = [
   'composite',
   'tool_trajectory',
   'field_accuracy',
+  'latency',
+  'cost',
 ] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
@@ -255,12 +257,38 @@ export type FieldAccuracyEvaluatorConfig = {
   readonly weight?: number;
 };
 
+/**
+ * Configuration for the latency evaluator.
+ * Checks execution duration against a threshold.
+ */
+export type LatencyEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'latency';
+  /** Maximum allowed duration in milliseconds */
+  readonly threshold: number;
+  readonly weight?: number;
+};
+
+/**
+ * Configuration for the cost evaluator.
+ * Checks execution cost against a budget.
+ */
+export type CostEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'cost';
+  /** Maximum allowed cost in USD */
+  readonly budget: number;
+  readonly weight?: number;
+};
+
 export type EvaluatorConfig =
   | CodeEvaluatorConfig
   | LlmJudgeEvaluatorConfig
   | CompositeEvaluatorConfig
   | ToolTrajectoryEvaluatorConfig
-  | FieldAccuracyEvaluatorConfig;
+  | FieldAccuracyEvaluatorConfig
+  | LatencyEvaluatorConfig
+  | CostEvaluatorConfig;
 
 /**
  * Eval case definition sourced from AgentV specs.

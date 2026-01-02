@@ -299,18 +299,19 @@ evalcases:
 6. **Start strict, relax gradually** - Begin with exact matching, add tolerance as needed
 
 ### Multi-Objective Evaluation
-While the example focuses on correctness, AgentV's goals include multi-objective scoring:
+AgentV supports multi-objective scoring across different dimensions:
 - **Correctness**: Field accuracy, rubric satisfaction
-- **Latency**: Extraction time per document (planned)
-- **Cost**: Token usage, API costs (planned)
-- **Safety**: PII handling, data sanitization (planned)
+- **Latency**: Execution time threshold (`type: latency`, `threshold: 2000`)
+- **Cost**: API cost budget (`type: cost`, `budget: 0.10`)
 
 Use weighted aggregation across objectives for holistic evaluation.
 
 ### Choosing Evaluator Types
-- **`field_accuracy`** (proposed): Best for structured extraction with known schema
-- **`rubric`** (available now): Best for qualitative assessment with human-readable criteria
-- **`code_judge`** (available now): Best for complex validation logic or custom metrics
+- **`field_accuracy`**: Best for structured extraction with known schema
+- **`latency`**: Check execution duration against threshold (requires provider metrics)
+- **`cost`**: Check execution cost against budget (requires provider metrics)
+- **`rubric`**: Best for qualitative assessment with human-readable criteria
+- **`code_judge`**: Best for complex validation logic or custom metrics
 - **Combine multiple**: Use `field_accuracy` for structure + `rubric` for quality
 
 ## Performance Benchmarks

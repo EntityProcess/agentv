@@ -100,16 +100,13 @@ execution:
     #       weight: 1.5
     #       required: false
     
-    # Future: Multi-objective scoring (not yet implemented)
+    # Execution metrics evaluators (optional, require provider to report metrics)
     # - name: performance_check
     #   type: latency
-    #   threshold: 2000  # ms
+    #   threshold: 2000  # max allowed duration in milliseconds
     # - name: cost_tracking
     #   type: cost
-    #   budget: 0.10  # USD per eval case
-    # - name: safety_check
-    #   type: safety
-    #   checks: ["no_pii_leakage", "data_sanitization"]
+    #   budget: 0.10  # max allowed cost in USD per eval case
 
 evalcases:
   # ============================================

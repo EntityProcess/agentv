@@ -7,9 +7,11 @@ import {
   type ChildEvaluatorResult,
   CodeEvaluator,
   CompositeEvaluator,
+  CostEvaluator,
   type EvaluationScore,
   type Evaluator,
   FieldAccuracyEvaluator,
+  LatencyEvaluator,
   LlmJudgeEvaluator,
   ToolTrajectoryEvaluator,
 } from './evaluators.js';
@@ -32,6 +34,7 @@ import {
   mergeExecutionMetrics,
 } from './trace.js';
 import type {
+  CostEvaluatorConfig,
   EvalCase,
   EvaluationResult,
   EvaluationVerdict,
@@ -41,6 +44,7 @@ import type {
   FieldAccuracyEvaluatorConfig,
   JsonObject,
   JsonValue,
+  LatencyEvaluatorConfig,
 } from './types.js';
 import { type PromptInputs, buildPromptInputs, loadEvalCases } from './yaml-parser.js';
 
@@ -884,6 +888,14 @@ async function runEvaluatorList(options: {
               return new FieldAccuracyEvaluator({
                 config: memberConfig as FieldAccuracyEvaluatorConfig,
               });
+            case 'latency':
+              return new LatencyEvaluator({
+                config: memberConfig as LatencyEvaluatorConfig,
+              });
+            case 'cost':
+              return new CostEvaluator({
+                config: memberConfig as CostEvaluatorConfig,
+              });
             default: {
               const unknownConfig = memberConfig as { type: string };
               throw new Error(`Unsupported evaluator type in composite: ${unknownConfig.type}`);
@@ -956,6 +968,64 @@ async function runEvaluatorList(options: {
           config: evaluator as FieldAccuracyEvaluatorConfig,
         });
         const score = fieldAccuracyEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+          outputMessages,
+          traceSummary,
+        });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+        });
+      }
+
+      if (evaluator.type === 'latency') {
+        const latencyEvaluator = new LatencyEvaluator({
+          config: evaluator as LatencyEvaluatorConfig,
+        });
+        const score = latencyEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+          outputMessages,
+          traceSummary,
+        });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+        });
+      }
+
+      if (evaluator.type === 'cost') {
+        const costEvaluator = new CostEvaluator({
+          config: evaluator as CostEvaluatorConfig,
+        });
+        const score = costEvaluator.evaluate({
           evalCase,
           candidate,
           target,

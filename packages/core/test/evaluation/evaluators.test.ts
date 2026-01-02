@@ -4,7 +4,9 @@ import { fileURLToPath } from 'node:url';
 
 import {
   CodeEvaluator,
+  CostEvaluator,
   FieldAccuracyEvaluator,
+  LatencyEvaluator,
   LlmJudgeEvaluator,
 } from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
@@ -796,5 +798,243 @@ describe('FieldAccuracyEvaluator', () => {
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('fail');
     expect(result.misses[0]).toContain('parse');
+  });
+});
+
+describe('LatencyEvaluator', () => {
+  it('passes when duration is under threshold', () => {
+    const evaluator = new LatencyEvaluator({
+      config: {
+        name: 'latency_check',
+        type: 'latency',
+        threshold: 2000,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 1,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        durationMs: 1500,
+      },
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+    expect(result.hits[0]).toContain('1500ms');
+  });
+
+  it('fails when duration exceeds threshold', () => {
+    const evaluator = new LatencyEvaluator({
+      config: {
+        name: 'latency_check',
+        type: 'latency',
+        threshold: 1000,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 1,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        durationMs: 2500,
+      },
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('2500ms');
+  });
+
+  it('fails when no duration data available', () => {
+    const evaluator = new LatencyEvaluator({
+      config: {
+        name: 'latency_check',
+        type: 'latency',
+        threshold: 2000,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      // No traceSummary
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('No duration data');
+  });
+
+  it('passes when duration equals threshold exactly', () => {
+    const evaluator = new LatencyEvaluator({
+      config: {
+        name: 'latency_check',
+        type: 'latency',
+        threshold: 1000,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 1,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        durationMs: 1000,
+      },
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+  });
+});
+
+describe('CostEvaluator', () => {
+  it('passes when cost is under budget', () => {
+    const evaluator = new CostEvaluator({
+      config: {
+        name: 'cost_check',
+        type: 'cost',
+        budget: 0.1,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 1,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        costUsd: 0.05,
+      },
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+    expect(result.hits[0]).toContain('$0.0500');
+  });
+
+  it('fails when cost exceeds budget', () => {
+    const evaluator = new CostEvaluator({
+      config: {
+        name: 'cost_check',
+        type: 'cost',
+        budget: 0.05,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 1,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        costUsd: 0.15,
+      },
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('$0.1500');
+  });
+
+  it('fails when no cost data available', () => {
+    const evaluator = new CostEvaluator({
+      config: {
+        name: 'cost_check',
+        type: 'cost',
+        budget: 0.1,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      // No traceSummary
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('No cost data');
+  });
+
+  it('passes when cost equals budget exactly', () => {
+    const evaluator = new CostEvaluator({
+      config: {
+        name: 'cost_check',
+        type: 'cost',
+        budget: 0.1,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 1,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        costUsd: 0.1,
+      },
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
   });
 });

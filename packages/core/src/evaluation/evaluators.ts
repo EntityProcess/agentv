@@ -18,12 +18,14 @@ import type {
   TraceSummary,
 } from './trace.js';
 import type {
+  CostEvaluatorConfig,
   EvalCase,
   EvaluationVerdict,
   EvaluatorConfig,
   FieldAccuracyEvaluatorConfig,
   FieldConfig,
   JsonObject,
+  LatencyEvaluatorConfig,
   RubricItem,
 } from './types.js';
 
@@ -1767,5 +1769,130 @@ export class CompositeEvaluator implements Evaluator {
         evaluatorResults,
       };
     }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Latency Evaluator
+// ----------------------------------------------------------------------------
+
+export interface LatencyEvaluatorOptions {
+  readonly config: LatencyEvaluatorConfig;
+}
+
+/**
+ * Evaluator that checks execution duration against a threshold.
+ * Uses traceSummary.durationMs from the evaluation context.
+ */
+export class LatencyEvaluator implements Evaluator {
+  readonly kind = 'latency';
+
+  private readonly config: LatencyEvaluatorConfig;
+
+  constructor(options: LatencyEvaluatorOptions) {
+    this.config = options.config;
+  }
+
+  evaluate(context: EvaluationContext): EvaluationScore {
+    const { threshold } = this.config;
+    const durationMs = context.traceSummary?.durationMs;
+
+    // If no duration data available, we can't evaluate
+    if (durationMs === undefined) {
+      return {
+        score: 0,
+        verdict: 'fail',
+        hits: [],
+        misses: ['No duration data available in trace'],
+        expectedAspectCount: 1,
+        reasoning: 'Execution duration not reported by provider',
+        evaluatorRawRequest: {
+          type: 'latency',
+          threshold,
+          durationMs: null,
+        },
+      };
+    }
+
+    const passed = durationMs <= threshold;
+    const score = passed ? 1 : 0;
+
+    return {
+      score,
+      verdict: passed ? 'pass' : 'fail',
+      hits: passed ? [`Duration ${durationMs}ms <= ${threshold}ms threshold`] : [],
+      misses: passed ? [] : [`Duration ${durationMs}ms > ${threshold}ms threshold`],
+      expectedAspectCount: 1,
+      reasoning: `Execution took ${durationMs}ms (threshold: ${threshold}ms)`,
+      evaluatorRawRequest: {
+        type: 'latency',
+        threshold,
+        durationMs,
+      },
+    };
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Cost Evaluator
+// ----------------------------------------------------------------------------
+
+export interface CostEvaluatorOptions {
+  readonly config: CostEvaluatorConfig;
+}
+
+/**
+ * Evaluator that checks execution cost against a budget.
+ * Uses traceSummary.costUsd from the evaluation context.
+ */
+export class CostEvaluator implements Evaluator {
+  readonly kind = 'cost';
+
+  private readonly config: CostEvaluatorConfig;
+
+  constructor(options: CostEvaluatorOptions) {
+    this.config = options.config;
+  }
+
+  evaluate(context: EvaluationContext): EvaluationScore {
+    const { budget } = this.config;
+    const costUsd = context.traceSummary?.costUsd;
+
+    // If no cost data available, we can't evaluate
+    if (costUsd === undefined) {
+      return {
+        score: 0,
+        verdict: 'fail',
+        hits: [],
+        misses: ['No cost data available in trace'],
+        expectedAspectCount: 1,
+        reasoning: 'Execution cost not reported by provider',
+        evaluatorRawRequest: {
+          type: 'cost',
+          budget,
+          costUsd: null,
+        },
+      };
+    }
+
+    const passed = costUsd <= budget;
+    const score = passed ? 1 : 0;
+
+    // Format cost for display
+    const formatCost = (n: number) => `$${n.toFixed(4)}`;
+
+    return {
+      score,
+      verdict: passed ? 'pass' : 'fail',
+      hits: passed ? [`Cost ${formatCost(costUsd)} <= ${formatCost(budget)} budget`] : [],
+      misses: passed ? [] : [`Cost ${formatCost(costUsd)} > ${formatCost(budget)} budget`],
+      expectedAspectCount: 1,
+      reasoning: `Execution cost ${formatCost(costUsd)} (budget: ${formatCost(budget)})`,
+      evaluatorRawRequest: {
+        type: 'cost',
+        budget,
+        costUsd,
+      },
+    };
   }
 }

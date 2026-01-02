@@ -388,6 +388,46 @@ export async function parseEvaluators(
       continue;
     }
 
+    if (typeValue === 'latency') {
+      const threshold = rawEvaluator.threshold;
+      if (typeof threshold !== 'number' || threshold < 0) {
+        logWarning(
+          `Skipping latency evaluator '${name}' in '${evalId}': threshold must be a non-negative number`,
+        );
+        continue;
+      }
+
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
+      evaluators.push({
+        name,
+        type: 'latency',
+        threshold,
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'cost') {
+      const budget = rawEvaluator.budget;
+      if (typeof budget !== 'number' || budget < 0) {
+        logWarning(
+          `Skipping cost evaluator '${name}' in '${evalId}': budget must be a non-negative number`,
+        );
+        continue;
+      }
+
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
+      evaluators.push({
+        name,
+        type: 'cost',
+        budget,
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
     const prompt = asString(rawEvaluator.prompt);
     let promptPath: string | undefined;
     if (prompt) {
