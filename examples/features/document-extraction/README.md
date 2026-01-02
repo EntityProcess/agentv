@@ -1,223 +1,63 @@
-# Structured Data Evaluation Examples
+# Document Extraction Example (`field_accuracy`)
 
-This directory contains evaluation examples demonstrating AgentV's proposed structured data evaluators for document extraction and data quality assessment.
+This folder is a small, runnable showcase of using `field_accuracy` to grade structured outputs from a document extractor.
 
-> **Note**: These examples use the `field_accuracy` evaluator implemented in OpenSpec proposal [`add-structured-data-evaluators`](../../../openspec/changes/add-structured-data-evaluators/).
+## Run
 
-> **Note on Geometric Evaluators**: IoU (bounding box) and coordinate distance evaluators are implemented as `code_judge` plugins rather than built-ins. See the [geometric evaluators spec](../../../openspec/changes/add-structured-data-evaluators/specs/geometric-evaluators/spec.md) for ready-to-use Python scripts.
+From repo root:
 
-> **Note on Fuzzy Matching**: Fuzzy string matching (Levenshtein, Jaro-Winkler) is implemented as a `code_judge` plugin. See [`fuzzy_match.ts`](./fuzzy_match.ts) for a ready-to-use TypeScript implementation.
-
-## Invoice Extraction Example
-
-**Use Case:** Commercial invoice extractor that parses structured trade data from shipping documents.
-
-**Architecture:**
-- **Input**: JSON mock files in `fixtures/` (simulating extracted invoice data)
-- **Extractor**: `mock_extractor.ts` - Simple script that reads JSON and outputs it
-- **Evaluator**: `field_accuracy` - Validates extracted fields against expected values
-- **Test Cases**: 5 scenarios covering perfect extraction, fuzzy matching, tolerance, missing fields, and arrays
-
-**AgentV Goals Alignment:**
-- ✅ **Declarative Definitions**: YAML-based configuration with clear expected outcomes
-- ✅ **Structured Evaluation**: Demonstrates deterministic field comparison (primitive for rubric-based patterns)
-- ✅ **Multi-Objective Scoring**: Supports correctness, latency, and cost evaluation
-- ✅ **Optimization Ready**: Weighted fields enable future hyperparameter tuning of extraction algorithms
-
-**Evaluators Used:**
-- `field_accuracy` - Validates extracted fields against ground truth
-  - Exact matching for invoice numbers and currency codes
-  - Date matching with format normalization (handles "15-JAN-2025" vs "2025-01-15")
-  - Numeric tolerance for amounts (±$1 to handle rounding)
-  - Nested field paths for line item arrays
-- `latency` - Check execution duration against threshold (optional, requires provider metrics)
-- `cost` - Check execution cost against budget (optional, requires provider metrics)
-- `code_judge` with `fuzzy_match.ts` - For company names with OCR variations (Levenshtein similarity)
-
-**Test Scenarios:**
-
-1. **invoice-001**: Perfect extraction - Extractor normalizes data to match expected (rounds decimals, cleans spacing)
-2. **invoice-002**: **Fuzzy matching test** - Extractor outputs "Acme - Shipping", expected is "Acme Shipping". Use `fuzzy_match.ts` code_judge for Levenshtein similarity
-3. **invoice-003**: **Numeric tolerance test** - Extractor outputs 1889.5, expected is 1889. Tests ±$1 tolerance accepts 0.5 difference
-4. **invoice-004**: **Missing required field** - Extractor fails to find invoice_number (absent in HTML), tests required field scoring penalty
-5. **invoice-005**: Array validation - First 2 line items with path `line_items[0].description`
-
-**How the Mock Extractor Works:**
-The `mock_extractor.ts` simply reads JSON fixtures to test the evaluator. The fixtures contain intentional variations:
-- **invoice-001**: Perfect extraction (baseline)
-- **invoice-002**: Preserves "Acme - Shipping" (with hyphen) to test fuzzy matching
-- **invoice-003**: Keeps decimal 1889.5 (vs expected 1889) to test numeric tolerance
-- **invoice-004**: Missing invoice_number field to test required field penalty
-
-**Directory Structure:**
-```
-document-extraction/
-├── package.json               # No dependencies needed!
-├── mock_extractor.ts          # Simple JSON reader (27 lines)
-├── README.md                  # This file
-├── evals/
-│   └── dataset.yaml           # Evaluation dataset with 5 test cases
-└── fixtures/                  # Test JSON data
-    ├── invoice-001.json       # Complete invoice (8 line items)
-    ├── invoice-002.json       # Supplier name spacing test
-    ├── invoice-003.json       # Rounding tolerance test
-    ├── invoice-004.json       # Missing required fields
-    ├── invoice-005.json       # Partial extraction (2 line items)
-    └── README.md
-```
-
-## Getting Started
-
-**No installation needed!** The example uses only built-in Node.js APIs.
-
-**Running the Example:**
 ```bash
-# Run evaluations (when field_accuracy is implemented)
-cd examples/features/document-extraction
-agentv eval evals/dataset.yaml
-
-# Manual test of extractor
-bun run extract ../fixtures/invoice-001.json
+bun agentv eval examples/features/document-extraction/evals/dataset.yaml
 ```
 
-## Running Evaluations
+This eval discovers the example target definition at `examples/features/document-extraction/.agentv/targets.yaml` automatically.
 
-**Expected Output:**
-```json
-{
-  "evalCaseResults": [
-    {
-      "id": "invoice-001",
-      "score": 1.0,
-      "verdict": "pass",
-      "evaluatorResults": [
-        {
-          "name": "invoice_field_accuracy",
-          "type": "field_accuracy",
-          "score": 1.0,
-          "hits": [
-            "invoice_number",
-            "invoice_date",
-            "supplier.name",
-            "net_total"
-          ],
-          "misses": []
-        }
-      ]
-    }
-  ]
-}
-```
+## What It Demonstrates
 
-## Field Accuracy Evaluator Configuration
+- `expected_messages` holds the ground-truth structured object (the expected extraction output).
+- `field_accuracy` selects which fields to score (by JSON-path-like `path`) and how (`exact`, `date`, `numeric_tolerance`).
+- OCR-ish string fuzziness is handled via `code_judge` scripts (see `multi_field_fuzzy.ts`).
 
-### Match Types
+## Where To Look
 
-**Exact Match** - Strict equality
-```yaml
-- path: invoice.invoice_number
-  match: exact
-  required: true
-  weight: 1.0
-```
+- Dataset: `examples/features/document-extraction/evals/dataset.yaml`
+- Target (mock extractor): `examples/features/document-extraction/mock_extractor.ts`
+- Fixtures: `examples/features/document-extraction/fixtures/`
+- Fuzzy judges (plugins): `examples/features/document-extraction/multi_field_fuzzy.ts`, `examples/features/document-extraction/fuzzy_match.ts`
 
-**Date Match** - Format-normalized date comparison
-```yaml
-- path: invoice.invoice_date
-  match: date
-  formats: ["DD-MMM-YYYY", "YYYY-MM-DD", "MM/DD/YYYY"]
-  required: true
-  weight: 1.0
-```
+## Minimal YAML Patterns
 
-Supported format tokens:
-- `YYYY` - 4-digit year
-- `MM` - 2-digit month (01-12)
-- `DD` - 2-digit day (01-31)
-- `MMM` - 3-letter month abbreviation (JAN, FEB, etc.)
-
-**Numeric Tolerance** - Allow rounding errors
-```yaml
-- path: invoice.total
-  match: numeric_tolerance
-  tolerance: 0.01  # ±$0.01
-  relative: false  # Absolute tolerance
-  required: true
-  weight: 3.0
-```
-
-**Fuzzy Match** - Handle OCR/spacing variations (via code_judge)
-
-For fuzzy string matching, use the provided scripts. The `multi_field_fuzzy.ts` script supports config pass-through for multiple fields:
+Field accuracy:
 
 ```yaml
-evaluators:
-  - name: party_names_fuzzy
-    type: code_judge
-    script: ./multi_field_fuzzy.ts
-    # These properties are passed to the script via stdin config
-    fields:
-      - path: supplier.name
-        threshold: 0.85
-      - path: importer.name
-        threshold: 0.90
-    algorithm: levenshtein  # or jaro_winkler
+execution:
+  evaluators:
+    - name: invoice_field_accuracy
+      type: field_accuracy
+      fields:
+        - path: invoice_number
+          match: exact
+        - path: invoice_date
+          match: date
+          formats: ["DD-MMM-YYYY", "YYYY-MM-DD"]
+        - path: net_total
+          match: numeric_tolerance
+          tolerance: 1.0
 ```
 
-Any unrecognized properties on a `code_judge` evaluator are passed to the script as `config` in the stdin payload. This allows scripts to be reusable with different configurations.
+Fuzzy matching via `code_judge` (config pass-through):
 
-For simpler single-field matching, see `fuzzy_match.ts` or `supplier_name_fuzzy.ts`.
-
-### Aggregation Strategies
-
-**Weighted Average** (default) - Each field contributes proportionally
 ```yaml
-aggregation: weighted_average
-# Final score = sum(field_score * weight) / sum(weights)
+execution:
+  evaluators:
+    - name: party_names_fuzzy
+      type: code_judge
+      script: ../multi_field_fuzzy.ts
+      fields:
+        - path: supplier.name
+          threshold: 0.85
+      algorithm: levenshtein
 ```
-
-**All or Nothing** - Any failure causes overall failure
-```yaml
-aggregation: all_or_nothing
-# Final score = 1.0 if all fields match, else 0.0
-```
-
-## Sample Data Structure
-
-The expected invoice extraction output follows this schema (based on mock extractor output):
-
-```typescript
-interface InvoiceExtraction {
-  invoice_number: string;
-  invoice_date: string;
-  incoterm: string | null;
-  currency: string;
-  net_total: number;
-  gross_total: number;
-  
-  supplier: {
-    name: string;
-    address: string;
-  };
-  
-  importer: {
-    name: string;
-    address: string;
-  };
-  
-  line_items: Array<{
-    description: string;
-    product_code: string | null;
-    quantity: number;
-    unit_price: number;
-    line_total: number;
-    unit_type: string;
-    hs_code: string;
-  }>;
-}
-```
-
-**Example output from mock extractor:**
 ```json
 {
   "invoice_number": "INV-2025-001234",
