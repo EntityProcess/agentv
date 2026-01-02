@@ -4,6 +4,8 @@ This directory contains evaluation examples demonstrating AgentV's proposed stru
 
 > **⚠️ Important**: These examples use the proposed `field_accuracy` evaluator from OpenSpec proposal [`add-structured-data-evaluators`](../../../openspec/changes/add-structured-data-evaluators/). They will not run until that proposal is implemented. Use these as reference for functional testing during implementation.
 
+> **Note on Geometric Evaluators**: IoU (bounding box) and coordinate distance evaluators are implemented as `code_judge` plugins rather than built-ins. See the [geometric evaluators spec](../../../openspec/changes/add-structured-data-evaluators/specs/geometric-evaluators/spec.md) for ready-to-use Python scripts.
+
 ## Invoice Extraction Example
 
 **Use Case:** Commercial invoice extractor that parses structured trade data from shipping documents.
@@ -22,9 +24,10 @@ This directory contains evaluation examples demonstrating AgentV's proposed stru
 
 **Evaluators Used:**
 - `field_accuracy` - Validates extracted fields against ground truth
-  - Exact matching for invoice numbers, dates, currency codes
+  - Exact matching for invoice numbers and currency codes
+  - Date matching with format normalization (handles "15-JAN-2025" vs "2025-01-15")
   - Numeric tolerance for amounts (±$1 to handle rounding)
-  - Fuzzy matching for company names (handles spacing like "CMA - CGM" vs "CMA CGM")
+  - Fuzzy matching for company names (handles spacing like "Acme - Shipping" vs "Acme Shipping")
   - Nested field paths for line item arrays
 
 **Test Scenarios:**
@@ -113,6 +116,21 @@ bun run extract ../fixtures/invoice-001.json
   required: true
   weight: 1.0
 ```
+
+**Date Match** - Format-normalized date comparison
+```yaml
+- path: invoice.invoice_date
+  match: date
+  formats: ["DD-MMM-YYYY", "YYYY-MM-DD", "MM/DD/YYYY"]
+  required: true
+  weight: 1.0
+```
+
+Supported format tokens:
+- `YYYY` - 4-digit year
+- `MM` - 2-digit month (01-12)
+- `DD` - 2-digit day (01-31)
+- `MMM` - 3-letter month abbreviation (JAN, FEB, etc.)
 
 **Numeric Tolerance** - Allow rounding errors
 ```yaml
@@ -303,6 +321,6 @@ Field accuracy evaluation targets:
 
 ## Related Examples
 
-- `geometric-evaluators/` - Bounding box and coordinate validation
+- [Geometric Evaluators (code_judge)](../../../openspec/changes/add-structured-data-evaluators/specs/geometric-evaluators/spec.md) - IoU and coordinate distance as Python scripts
 - `../showcase/export-screening/` - Complex multi-evaluator example
 - `../showcase/psychotherapy/` - Multi-turn conversation evaluation

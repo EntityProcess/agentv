@@ -1,319 +1,338 @@
-# Spec: Geometric Evaluators
+# Spec: Geometric Evaluators (Plugin Approach)
 
 ## Purpose
-Provides universal primitives for spatial and geometric comparisons, including IoU (Intersection over Union) for bounding box evaluation and distance metrics for coordinate comparison, commonly used in computer vision, document layout analysis, and object detection tasks.
 
-## ADDED Requirements
+This document describes geometric evaluation capabilities (IoU for bounding boxes, coordinate distance metrics) that are **recommended for implementation as `code_judge` plugins** rather than built-in evaluators.
 
-### Requirement: IoU Score Evaluator MUST support XYXY format
+## Rationale for Plugin Approach
 
-The system SHALL provide an `iou_score` evaluator that calculates Intersection over Union for bounding boxes in XYXY format (x1, y1, x2, y2).
+After reviewing AgentV's design principles, geometric evaluators are better suited as plugins because:
 
-#### Scenario: Perfect overlap returns IoU of 1.0
-- **GIVEN** extracted bbox `[10, 10, 50, 50]` (XYXY format)
-- **AND** expected bbox `[10, 10, 50, 50]`
-- **AND** evaluator configured with:
-  ```yaml
+1. **Algorithm Complexity**: IoU for polygons requires Sutherland-Hodgman clipping. Optimal bbox matching requires Hungarian algorithm (O(n³)). These add significant code complexity.
+
+2. **Limited Universality**: Most AgentV users evaluate text/structured data. Bounding box evaluation is domain-specific to computer vision and document layout analysis.
+
+3. **Dependency Concerns**: Robust polygon operations benefit from libraries like `shapely` (Python) or `turf` (JS), adding dependencies.
+
+4. **Easy Plugin Path**: A simple `code_judge` script can compute IoU in ~30 lines, giving users full control over matching logic.
+
+## Recommended Implementation: `code_judge` Scripts
+
+### Basic IoU Evaluator (Python)
+
+```python
+#!/usr/bin/env python3
+"""
+IoU (Intersection over Union) evaluator for bounding boxes.
+Expects XYXY format: [x1, y1, x2, y2]
+
+Usage in dataset.yaml:
   evaluators:
-    - type: iou_score
-      bbox_path: detected_box
-      expected_bbox_path: ground_truth_box
-      format: xyxy
-  ```
-- **WHEN** IoU is calculated
-- **THEN** score = 1.0 (perfect match)
-- **AND** verdict = "pass"
+    - name: bbox_iou
+      type: code_judge
+      path: ./evaluators/iou_evaluator.py
+"""
+import json
+import sys
 
-#### Scenario: Partial overlap returns proportional IoU
-- **GIVEN** extracted bbox `[10, 10, 30, 30]` (area = 400)
-- **AND** expected bbox `[20, 20, 40, 40]` (area = 400)
-- **AND** intersection area = 100 (overlap region [20,20,30,30])
-- **WHEN** IoU is calculated
-- **THEN** IoU = intersection / union = 100 / (400 + 400 - 100) = 100 / 700 ≈ 0.143
-- **AND** score = 0.143
+def compute_iou(box1: list, box2: list) -> float:
+    """Compute IoU for two XYXY bounding boxes."""
+    # Intersection coordinates
+    x1 = max(box1[0], box2[0])
+    y1 = max(box1[1], box2[1])
+    x2 = min(box1[2], box2[2])
+    y2 = min(box1[3], box2[3])
 
-#### Scenario: No overlap returns IoU of 0.0
-- **GIVEN** extracted bbox `[10, 10, 20, 20]`
-- **AND** expected bbox `[50, 50, 60, 60]`
-- **WHEN** IoU is calculated
-- **THEN** score = 0.0 (no intersection)
-- **AND** verdict = "fail"
+    # Intersection area
+    inter_width = max(0, x2 - x1)
+    inter_height = max(0, y2 - y1)
+    inter_area = inter_width * inter_height
 
-### Requirement: IoU Score Evaluator MUST support XYWH format
+    # Union area
+    box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    union_area = box1_area + box2_area - inter_area
 
-The system SHALL support bounding boxes in XYWH format (x, y, width, height) with automatic conversion.
+    return inter_area / union_area if union_area > 0 else 0.0
 
-#### Scenario: XYWH format conversion and IoU calculation
-- **GIVEN** extracted bbox `[10, 10, 40, 40]` (XYWH: x=10, y=10, w=40, h=40)
-- **AND** expected bbox `[10, 10, 40, 40]` (XYWH)
-- **AND** evaluator configured with `format: xywh`
-- **WHEN** IoU is calculated
-- **THEN** boxes are converted to XYXY internally: [10, 10, 50, 50]
-- **AND** score = 1.0
 
-#### Scenario: Partial overlap with XYWH format
-- **GIVEN** extracted bbox `[10, 10, 20, 20]` (XYWH)
-- **AND** expected bbox `[15, 15, 20, 20]` (XYWH)
-- **WHEN** IoU is calculated
-- **THEN** converted to XYXY: [10, 10, 30, 30] and [15, 15, 35, 35]
-- **AND** IoU is computed based on intersection/union
+def main():
+    data = json.load(sys.stdin)
 
-### Requirement: IoU Score Evaluator MUST support polygon format
+    # Extract bboxes from candidate and reference
+    # Adjust paths based on your data structure
+    candidate = data.get("candidate_answer", {})
+    reference = data.get("reference_answer", {})
 
-The system SHALL support arbitrary polygons defined by vertex coordinates with polygon intersection calculation.
+    extracted_bbox = candidate.get("bbox") or candidate.get("bounding_box")
+    expected_bbox = reference.get("bbox") or reference.get("bounding_box")
 
-#### Scenario: Polygon defined by 4 vertices
-- **GIVEN** extracted polygon `[[10,10], [50,10], [50,50], [10,50]]`
-- **AND** expected polygon `[[10,10], [50,10], [50,50], [10,50]]`
-- **AND** evaluator configured with `format: polygon`
-- **WHEN** IoU is calculated
-- **THEN** polygon intersection area is computed
-- **AND** polygon union area is computed
-- **AND** score = intersection / union
+    if not extracted_bbox or not expected_bbox:
+        print(json.dumps({
+            "score": 0.0,
+            "hits": [],
+            "misses": ["Missing bounding box data"],
+            "reasoning": "Could not find bbox in candidate or reference"
+        }))
+        return
 
-#### Scenario: Rotated polygon vs axis-aligned box
-- **GIVEN** extracted polygon representing rotated rectangle
-- **AND** expected polygon representing axis-aligned rectangle
-- **WHEN** IoU is calculated
-- **THEN** generic polygon intersection algorithm is used
-- **AND** score reflects geometric overlap
+    iou = compute_iou(extracted_bbox, expected_bbox)
+    threshold = 0.5  # Configurable threshold
 
-### Requirement: IoU Score Evaluator MUST support batch evaluation
+    result = {
+        "score": iou,
+        "hits": [f"IoU: {iou:.3f}"] if iou >= threshold else [],
+        "misses": [] if iou >= threshold else [f"IoU below threshold: {iou:.3f} < {threshold}"],
+        "reasoning": f"Bounding box IoU = {iou:.3f}"
+    }
 
-The system SHALL evaluate multiple bounding boxes and return aggregate scores.
+    print(json.dumps(result))
 
-#### Scenario: Array of bounding boxes with matching
-- **GIVEN** extracted data `{ detected_boxes: [[10,10,50,50], [60,60,100,100]] }`
-- **AND** expected data `{ ground_truth_boxes: [[10,10,50,50], [60,60,100,100]] }`
-- **AND** evaluator configured with array paths
-- **WHEN** batch evaluation executes
-- **THEN** IoU is computed for each pair: [1.0, 1.0]
-- **AND** aggregate score is mean IoU: 1.0
 
-#### Scenario: One-to-one matching with Hungarian algorithm
-- **GIVEN** 3 detected boxes and 3 ground truth boxes
-- **AND** no predefined correspondence
-- **WHEN** batch evaluation executes
-- **THEN** optimal matching is computed (maximize total IoU)
-- **AND** per-box IoU scores are calculated
-- **AND** mean IoU is returned as aggregate score
+if __name__ == "__main__":
+    main()
+```
 
-#### Scenario: Mismatched array lengths
-- **GIVEN** 2 detected boxes but 3 ground truth boxes
-- **WHEN** batch evaluation executes
-- **THEN** matching is performed for available pairs
-- **AND** unmatched ground truth boxes contribute 0.0 to recall
-- **AND** precision/recall metrics are computed
+### Batch IoU with Matching (Python)
 
-### Requirement: IoU Score Evaluator MUST support threshold-based verdicts
+For evaluating multiple bounding boxes with optimal matching:
 
-The system SHALL allow configurable IoU thresholds to determine pass/fail verdicts.
+```python
+#!/usr/bin/env python3
+"""
+Batch IoU evaluator with greedy matching.
+For true optimal matching, use scipy.optimize.linear_sum_assignment (Hungarian algorithm).
+"""
+import json
+import sys
+from typing import List, Tuple
 
-#### Scenario: Pass with IoU above threshold
-- **GIVEN** calculated IoU = 0.75
-- **AND** evaluator configured with `threshold: 0.7`
-- **WHEN** verdict is determined
-- **THEN** verdict = "pass" (0.75 > 0.7)
-- **AND** score = 0.75 (continuous value preserved)
 
-#### Scenario: Fail with IoU below threshold
-- **GIVEN** calculated IoU = 0.65
-- **AND** evaluator configured with `threshold: 0.7`
-- **WHEN** verdict is determined
-- **THEN** verdict = "fail" (0.65 < 0.7)
-- **AND** score = 0.65
+def compute_iou(box1: list, box2: list) -> float:
+    x1 = max(box1[0], box2[0])
+    y1 = max(box1[1], box2[1])
+    x2 = min(box1[2], box2[2])
+    y2 = min(box1[3], box2[3])
 
-#### Scenario: No threshold uses graded scoring only
-- **GIVEN** calculated IoU = 0.55
-- **AND** evaluator configured without threshold
-- **WHEN** verdict is determined
-- **THEN** score = 0.55
-- **AND** verdict = "partial" (based on score range)
+    inter_area = max(0, x2 - x1) * max(0, y2 - y1)
+    box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    union_area = box1_area + box2_area - inter_area
 
-### Requirement: Coordinate Distance Evaluator MUST support Euclidean distance
+    return inter_area / union_area if union_area > 0 else 0.0
 
-The system SHALL calculate Euclidean distance between extracted and expected coordinates.
 
-#### Scenario: 2D coordinate distance calculation
-- **GIVEN** extracted point `[10, 20]`
-- **AND** expected point `[13, 24]`
-- **AND** evaluator configured with:
-  ```yaml
+def greedy_match(detected: List[list], ground_truth: List[list], threshold: float = 0.5) -> Tuple[int, int, float]:
+    """
+    Greedy matching: for each ground truth, find best unmatched detection.
+    Returns (true_positives, false_negatives, mean_iou_of_matches)
+    """
+    matched_detections = set()
+    matches = []
+
+    for gt_box in ground_truth:
+        best_iou = 0.0
+        best_idx = -1
+
+        for idx, det_box in enumerate(detected):
+            if idx in matched_detections:
+                continue
+            iou = compute_iou(gt_box, det_box)
+            if iou > best_iou:
+                best_iou = iou
+                best_idx = idx
+
+        if best_iou >= threshold and best_idx >= 0:
+            matched_detections.add(best_idx)
+            matches.append(best_iou)
+
+    tp = len(matches)
+    fn = len(ground_truth) - tp
+    fp = len(detected) - tp
+    mean_iou = sum(matches) / len(matches) if matches else 0.0
+
+    return tp, fp, fn, mean_iou
+
+
+def main():
+    data = json.load(sys.stdin)
+
+    candidate = data.get("candidate_answer", {})
+    reference = data.get("reference_answer", {})
+
+    detected = candidate.get("boxes", [])
+    ground_truth = reference.get("boxes", [])
+    threshold = 0.5
+
+    tp, fp, fn, mean_iou = greedy_match(detected, ground_truth, threshold)
+
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+
+    hits = []
+    misses = []
+
+    if tp > 0:
+        hits.append(f"Matched {tp} boxes (mean IoU: {mean_iou:.3f})")
+    if fp > 0:
+        misses.append(f"{fp} false positive detections")
+    if fn > 0:
+        misses.append(f"{fn} missed ground truth boxes")
+
+    print(json.dumps({
+        "score": f1,
+        "hits": hits,
+        "misses": misses,
+        "reasoning": f"Precision: {precision:.2f}, Recall: {recall:.2f}, F1: {f1:.2f}"
+    }))
+
+
+if __name__ == "__main__":
+    main()
+```
+
+### Coordinate Distance Evaluator (Python)
+
+```python
+#!/usr/bin/env python3
+"""
+Coordinate distance evaluator supporting Euclidean, Manhattan, and Cosine metrics.
+"""
+import json
+import math
+import sys
+from typing import List
+
+
+def euclidean_distance(p1: List[float], p2: List[float]) -> float:
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(p1, p2)))
+
+
+def manhattan_distance(p1: List[float], p2: List[float]) -> float:
+    return sum(abs(a - b) for a, b in zip(p1, p2))
+
+
+def cosine_distance(p1: List[float], p2: List[float]) -> float:
+    dot = sum(a * b for a, b in zip(p1, p2))
+    mag1 = math.sqrt(sum(a ** 2 for a in p1))
+    mag2 = math.sqrt(sum(b ** 2 for b in p2))
+    if mag1 == 0 or mag2 == 0:
+        return 1.0  # Maximum distance for zero vectors
+    similarity = dot / (mag1 * mag2)
+    return 1.0 - similarity
+
+
+METRICS = {
+    "euclidean": euclidean_distance,
+    "manhattan": manhattan_distance,
+    "cosine": cosine_distance,
+}
+
+
+def main():
+    data = json.load(sys.stdin)
+
+    candidate = data.get("candidate_answer", {})
+    reference = data.get("reference_answer", {})
+
+    extracted = candidate.get("coordinates") or candidate.get("point")
+    expected = reference.get("coordinates") or reference.get("point")
+
+    metric = "euclidean"  # Configurable
+    threshold = 10.0      # Configurable
+
+    if not extracted or not expected:
+        print(json.dumps({
+            "score": 0.0,
+            "hits": [],
+            "misses": ["Missing coordinate data"],
+        }))
+        return
+
+    if len(extracted) != len(expected):
+        print(json.dumps({
+            "score": 0.0,
+            "hits": [],
+            "misses": [f"Dimension mismatch: {len(extracted)}D vs {len(expected)}D"],
+        }))
+        return
+
+    distance_fn = METRICS.get(metric, euclidean_distance)
+    distance = distance_fn(extracted, expected)
+
+    # Convert distance to score (closer = higher score)
+    if metric == "cosine":
+        score = 1.0 - distance  # Cosine distance is already 0-1
+    else:
+        score = 1.0 if distance <= threshold else max(0.0, 1.0 - (distance - threshold) / threshold)
+
+    passed = distance <= threshold if metric != "cosine" else distance <= 0.5
+
+    print(json.dumps({
+        "score": score,
+        "hits": [f"{metric} distance: {distance:.3f}"] if passed else [],
+        "misses": [] if passed else [f"Distance exceeds threshold: {distance:.3f} > {threshold}"],
+        "reasoning": f"{metric.capitalize()} distance = {distance:.3f}"
+    }))
+
+
+if __name__ == "__main__":
+    main()
+```
+
+## Usage in AgentV
+
+### YAML Configuration
+
+```yaml
+$schema: agentv-eval-v2
+description: Object detection evaluation with IoU
+
+execution:
+  target: vision_model
   evaluators:
-    - type: coordinate_distance
-      point_path: extracted_center
-      expected_point_path: reference_center
-      metric: euclidean
-      threshold: 10.0
-  ```
-- **WHEN** distance is calculated
-- **THEN** distance = sqrt((13-10)² + (24-20)²) = sqrt(9 + 16) = 5.0
-- **AND** score = 1.0 (within threshold)
+    - name: bbox_accuracy
+      type: code_judge
+      path: ./evaluators/iou_evaluator.py
 
-#### Scenario: 3D coordinate distance
-- **GIVEN** extracted point `[10, 20, 30]`
-- **AND** expected point `[13, 24, 32]`
-- **WHEN** Euclidean distance is calculated
-- **THEN** distance = sqrt((13-10)² + (24-20)² + (32-30)²) = sqrt(9 + 16 + 4) ≈ 5.385
+    - name: centroid_precision
+      type: code_judge
+      path: ./evaluators/coordinate_distance.py
 
-#### Scenario: Distance exceeds threshold
-- **GIVEN** extracted point `[10, 10]`
-- **AND** expected point `[50, 50]`
-- **AND** threshold: 10.0
-- **WHEN** distance is calculated
-- **THEN** distance = sqrt((50-10)² + (50-10)²) ≈ 56.57
-- **AND** score = 0.0 (exceeds threshold)
-- **AND** verdict = "fail"
+evalcases:
+  - id: detection-001
+    expected_messages:
+      - role: assistant
+        content:
+          boxes: [[10, 10, 50, 50], [100, 100, 150, 150]]
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ./test-image.png
+          - type: text
+            value: "Detect objects in this image and return bounding boxes"
+```
 
-### Requirement: Coordinate Distance Evaluator MUST support Manhattan distance
+## Future Consideration: Built-in Evaluator
 
-The system SHALL calculate Manhattan (L1) distance as an alternative metric.
+If user demand is high and patterns stabilize, geometric evaluators could be promoted to built-ins in a future release. Criteria for promotion:
 
-#### Scenario: Manhattan distance calculation
-- **GIVEN** extracted point `[10, 20]`
-- **AND** expected point `[13, 24]`
-- **AND** evaluator configured with `metric: manhattan`
-- **WHEN** distance is calculated
-- **THEN** distance = |13-10| + |24-20| = 3 + 4 = 7
+1. **Usage Metrics**: >20% of AgentV users need bbox evaluation
+2. **Stable API**: Plugin implementations have converged on standard interface
+3. **Performance**: Built-in offers >10x performance improvement over scripts
+4. **Complexity Budget**: Core maintainers accept the added code
 
-#### Scenario: Manhattan vs Euclidean comparison
-- **GIVEN** same points `[10, 20]` and `[13, 24]`
-- **WHEN** both metrics are calculated
-- **THEN** Euclidean = 5.0
-- **AND** Manhattan = 7.0
-- **AND** Manhattan distance is always >= Euclidean
+Until then, the `code_judge` approach provides full flexibility with minimal AgentV core changes.
 
-### Requirement: Coordinate Distance Evaluator MUST support Cosine distance
+## Reference Algorithms
 
-The system SHALL calculate cosine distance for angular similarity between coordinate vectors.
+For implementers needing advanced features:
 
-#### Scenario: Cosine distance for direction similarity
-- **GIVEN** extracted vector `[1, 0]`
-- **AND** expected vector `[0.707, 0.707]` (45° rotation)
-- **AND** evaluator configured with `metric: cosine`
-- **WHEN** distance is calculated
-- **THEN** cosine_similarity = dot(v1, v2) / (||v1|| * ||v2||)
-- **AND** cosine_distance = 1 - cosine_similarity
-- **AND** score reflects angular alignment
-
-#### Scenario: Identical direction vectors
-- **GIVEN** extracted vector `[3, 4]`
-- **AND** expected vector `[6, 8]` (same direction, different magnitude)
-- **WHEN** cosine distance is calculated
-- **THEN** cosine_similarity = 1.0 (identical direction)
-- **AND** cosine_distance = 0.0
-- **AND** score = 1.0
-
-### Requirement: Coordinate Distance Evaluator MUST support batch evaluation
-
-The system SHALL evaluate multiple coordinate pairs and return aggregate metrics.
-
-#### Scenario: Array of coordinate pairs
-- **GIVEN** extracted points `[[10,10], [20,20], [30,30]]`
-- **AND** expected points `[[11,11], [21,19], [29,32]]`
-- **AND** evaluator configured with threshold: 5.0
-- **WHEN** batch evaluation executes
-- **THEN** distance computed for each pair: [1.41, 2.24, 3.16]
-- **AND** all within threshold
-- **AND** aggregate score = mean(scores) = 1.0
-
-#### Scenario: Mixed results in batch
-- **GIVEN** 5 coordinate pairs with distances [2, 4, 8, 15, 3]
-- **AND** threshold: 10.0
-- **WHEN** batch evaluation executes
-- **THEN** passes: 4, fails: 1
-- **AND** aggregate score = 4/5 = 0.8
-
-### Requirement: Geometric Evaluators MUST handle invalid inputs gracefully
-
-The system SHALL validate input formats and handle errors without throwing exceptions.
-
-#### Scenario: Invalid bbox coordinates
-- **GIVEN** extracted bbox `[50, 50, 10, 10]` (x2 < x1, y2 < y1)
-- **WHEN** IoU evaluator processes bbox
-- **THEN** validation error is logged
-- **AND** score = 0.0
-- **AND** `misses` includes "Invalid bounding box format"
-
-#### Scenario: Mismatched coordinate dimensions
-- **GIVEN** extracted point `[10, 20]` (2D)
-- **AND** expected point `[10, 20, 30]` (3D)
-- **WHEN** distance evaluator processes coordinates
-- **THEN** validation error is logged
-- **AND** score = 0.0
-- **AND** reasoning explains dimension mismatch
-
-#### Scenario: Non-numeric coordinate values
-- **GIVEN** extracted point `["10", "20"]` (strings instead of numbers)
-- **WHEN** evaluator processes coordinates
-- **THEN** type coercion is attempted
-- **AND** if coercion fails, score = 0.0 with error message
-
-### Requirement: Geometric Evaluators configuration MUST be validated
-
-The system SHALL validate evaluator configuration at YAML parse time.
-
-#### Scenario: Reject invalid bbox format
-- **GIVEN** evaluator configured with `format: invalid_format`
-- **WHEN** YAML parser loads config
-- **THEN** validation fails with error "Invalid bbox format: invalid_format"
-- **AND** suggests valid formats: xyxy, xywh, polygon
-
-#### Scenario: Reject invalid distance metric
-- **GIVEN** evaluator configured with `metric: invalid_metric`
-- **WHEN** YAML parser loads config
-- **THEN** validation fails with error "Invalid distance metric: invalid_metric"
-- **AND** suggests valid metrics: euclidean, manhattan, cosine
-
-#### Scenario: Require threshold for distance evaluator
-- **GIVEN** coordinate_distance evaluator without `threshold`
-- **WHEN** validation runs
-- **THEN** warning is logged
-- **AND** default threshold is applied (or evaluation proceeds with graded scoring only)
-
-### Requirement: Geometric Evaluators MUST return structured results
-
-The system SHALL return evaluation results with `score`, `verdict`, `hits`, `misses`, and geometric metadata.
-
-#### Scenario: IoU result with metadata
-- **GIVEN** IoU calculation completes with score 0.75
-- **WHEN** result is returned
-- **THEN** result includes:
-  - `score: 0.75`
-  - `verdict: "pass"` (if above threshold)
-  - `hits: ["bbox matches above 0.7"]`
-  - `misses: []`
-  - `metadata: { iou: 0.75, intersection_area: 300, union_area: 400 }`
-
-#### Scenario: Distance result with metadata
-- **GIVEN** distance calculation with Euclidean distance 5.2
-- **WHEN** result is returned
-- **THEN** result includes:
-  - `score: 1.0` (if within threshold) or graded score
-  - `verdict: "pass"`
-  - `metadata: { distance: 5.2, metric: "euclidean", threshold: 10.0 }`
-
-### Requirement: Geometric Evaluators MUST support precision/recall metrics for detection tasks
-
-The system SHALL compute precision, recall, and F1 score when evaluating object detection results.
-
-#### Scenario: Perfect detection
-- **GIVEN** 3 detected boxes, 3 ground truth boxes, all with IoU > threshold
-- **WHEN** precision/recall is computed
-- **THEN** precision = 3/3 = 1.0 (all detections correct)
-- **AND** recall = 3/3 = 1.0 (all ground truths detected)
-- **AND** F1 = 2 * (1.0 * 1.0) / (1.0 + 1.0) = 1.0
-
-#### Scenario: False positives present
-- **GIVEN** 5 detected boxes, 3 ground truth boxes, only 3 matched above threshold
-- **WHEN** precision/recall is computed
-- **THEN** precision = 3/5 = 0.6 (2 false positives)
-- **AND** recall = 3/3 = 1.0 (all ground truths detected)
-- **AND** F1 = 2 * (0.6 * 1.0) / (0.6 + 1.0) = 0.75
-
-#### Scenario: False negatives present
-- **GIVEN** 2 detected boxes, 5 ground truth boxes, only 2 matched
-- **WHEN** precision/recall is computed
-- **THEN** precision = 2/2 = 1.0 (no false positives)
-- **AND** recall = 2/5 = 0.4 (3 missed detections)
-- **AND** F1 = 2 * (1.0 * 0.4) / (1.0 + 0.4) ≈ 0.571
+| Feature | Algorithm | Library |
+|---------|-----------|---------|
+| Polygon IoU | Sutherland-Hodgman clipping | `shapely` (Python), `turf` (JS) |
+| Optimal matching | Hungarian algorithm | `scipy.optimize.linear_sum_assignment` |
+| Rotated bbox IoU | Separating Axis Theorem | Custom implementation |
+| mAP calculation | COCO-style evaluation | `pycocotools` |

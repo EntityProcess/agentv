@@ -124,6 +124,69 @@ The system SHALL support fuzzy string comparison using Levenshtein or Jaro-Winkl
 - **AND** the field fails because 0.15 < 0.80
 - **AND** `misses` includes "vendor.name"
 
+### Requirement: Field Accuracy Evaluator MUST support date matching with format normalization
+
+The system SHALL support comparing dates across different formats by normalizing to a common representation.
+
+#### Scenario: ISO date matches localized date
+- **GIVEN** extracted data `{ invoice: { date: "2025-01-15" } }` (ISO format)
+- **AND** expected data `{ invoice: { date: "15-JAN-2025" } }` (localized format)
+- **AND** evaluator configured with:
+  ```yaml
+  fields:
+    - path: invoice.date
+      match: date
+      formats: ["YYYY-MM-DD", "DD-MMM-YYYY"]
+  ```
+- **WHEN** the evaluator executes
+- **THEN** both dates are parsed and normalized to epoch timestamp
+- **AND** the field score is 1.0 (dates represent same day)
+
+#### Scenario: US format matches EU format
+- **GIVEN** extracted data `{ invoice: { date: "01/15/2025" } }` (US: MM/DD/YYYY)
+- **AND** expected data `{ invoice: { date: "15/01/2025" } }` (EU: DD/MM/YYYY)
+- **AND** evaluator configured with:
+  ```yaml
+  fields:
+    - path: invoice.date
+      match: date
+      formats: ["MM/DD/YYYY", "DD/MM/YYYY"]
+  ```
+- **WHEN** the evaluator executes
+- **THEN** dates are parsed according to their format hints
+- **AND** the field score is 1.0 if both represent January 15, 2025
+
+#### Scenario: Date with time component
+- **GIVEN** extracted data `{ invoice: { date: "2025-01-15T10:30:00Z" } }`
+- **AND** expected data `{ invoice: { date: "2025-01-15" } }`
+- **AND** evaluator configured with `match: date`
+- **WHEN** the evaluator executes
+- **THEN** comparison uses date portion only (ignores time)
+- **AND** the field score is 1.0
+
+#### Scenario: Unparseable date format
+- **GIVEN** extracted data `{ invoice: { date: "not-a-date" } }`
+- **AND** expected data `{ invoice: { date: "2025-01-15" } }`
+- **AND** evaluator configured with `match: date`
+- **WHEN** the evaluator executes
+- **THEN** the field score is 0.0
+- **AND** `misses` includes "invoice.date (unparseable date)"
+
+#### Scenario: Default formats when none specified
+- **GIVEN** evaluator configured with:
+  ```yaml
+  fields:
+    - path: invoice.date
+      match: date
+      # no formats specified
+  ```
+- **WHEN** validation runs
+- **THEN** default formats are used:
+  - `YYYY-MM-DD` (ISO)
+  - `DD-MMM-YYYY` (e.g., "15-JAN-2025")
+  - `MM/DD/YYYY` (US)
+  - `DD/MM/YYYY` (EU)
+
 ### Requirement: Field Accuracy Evaluator MUST support nested field paths
 
 The system SHALL resolve nested field paths using dot notation (e.g., `invoice.line_items[0].amount`).
@@ -201,7 +264,7 @@ The system SHALL validate evaluator configuration at YAML parse time.
 - **GIVEN** evaluator configured with `match: invalid_type`
 - **WHEN** the YAML parser loads the config
 - **THEN** validation fails with error "Invalid match type: invalid_type"
-- **AND** suggests valid types: exact, fuzzy, numeric_tolerance
+- **AND** suggests valid types: exact, fuzzy, numeric_tolerance, date
 
 #### Scenario: Require threshold for fuzzy matching
 - **GIVEN** evaluator configured with:

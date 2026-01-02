@@ -1,8 +1,8 @@
 # Proposal: Add Structured Data Evaluators
 
-**Change ID:** `add-structured-data-evaluators`  
-**Status:** Draft  
-**Author:** AI Agent  
+**Change ID:** `add-structured-data-evaluators`
+**Status:** Draft
+**Author:** AI Agent
 **Created:** 2026-01-02
 
 ## Problem Statement
@@ -10,13 +10,11 @@
 AgentV currently supports LLM-based evaluation (`llm_judge`), code-based evaluation (`code_judge`), rubric-based evaluation, and tool trajectory evaluation. However, it lacks built-in primitives for common structured data comparison tasks that appear across multiple domains:
 
 1. **Field-level accuracy validation** - Comparing extracted structured fields (e.g., invoice amounts, dates, names) against ground truth with configurable matching strategies
-2. **Schema validation** - Verifying that extracted data conforms to expected structure and required fields
-3. **Geometric/spatial comparison** - Measuring accuracy of bounding boxes, coordinates, or spatial layouts using industry-standard metrics like IoU (Intersection over Union)
-4. **Fuzzy matching** - Handling OCR errors, formatting variations, and numeric tolerances common in document processing
+2. **Fuzzy matching** - Handling OCR errors, formatting variations, and numeric tolerances common in document processing
+3. **Date format normalization** - Comparing dates across different formats (ISO, localized, etc.)
 
 These capabilities are universal primitives applicable to many use cases:
 - **Document extraction**: PDFs, invoices, forms, receipts
-- **Object detection**: Bounding boxes, image segmentation, layout analysis
 - **Data quality**: Structured output validation, schema compliance
 - **Trade data**: Financial amounts with tolerance, date format normalization
 
@@ -24,7 +22,8 @@ Currently, users must implement these comparisons in custom `code_judge` scripts
 - Code duplication across projects
 - Inconsistent scoring methodologies
 - Higher barrier to entry for common evaluation patterns
-- Lack of standardized metrics (precision, recall, F1)
+
+**Note on Geometric Evaluators**: While IoU (Intersection over Union) and coordinate distance metrics are valuable for computer vision tasks, they involve complex algorithms (polygon intersection, Hungarian matching) that conflict with AgentV's "lightweight core" principle. These are better served by `code_judge` scripts or external plugins. See [Out of Scope](#out-of-scope) for details.
 
 ## Industry Research Context
 
@@ -39,9 +38,9 @@ These frameworks converge on treating field comparison, fuzzy matching, and geom
 
 ## Proposed Solution
 
-Add two new evaluator types to AgentV core that provide universal primitives for structured data comparison:
+Add one new evaluator type to AgentV core that provides universal primitives for structured data comparison:
 
-### 1. Structured Data Evaluator (`field_accuracy`)
+### Structured Data Evaluator (`field_accuracy`)
 
 Compares extracted structured data against expected values with configurable matching strategies.
 
@@ -57,7 +56,8 @@ evaluators:
         required: true
         weight: 1.0
       - path: invoice.invoice_date
-        match: exact
+        match: date
+        formats: ["DD-MMM-YYYY", "YYYY-MM-DD", "MM/DD/YYYY"]
         required: true
         weight: 0.5
       - path: invoice.vendor_name
@@ -72,78 +72,91 @@ evaluators:
 - `exact`: Strict equality (default)
 - `fuzzy`: String similarity using Levenshtein or Jaro-Winkler distance
 - `numeric_tolerance`: Absolute or relative tolerance for numbers
-- `semantic`: Embedding-based similarity (optional, future enhancement)
+- `date`: Date comparison with format normalization (handles "15-JAN-2025" vs "2025-01-15")
 
 **Scoring:**
 - Per-field scores aggregated using `weighted_average` (default) or `all_or_nothing`
 - Returns `hits` (fields that match), `misses` (fields that don't match)
 - Supports nested field paths using dot notation (e.g., `invoice.line_items[0].amount`)
 
-### 2. Geometric Evaluator (`iou_score`, `coordinate_distance`)
-
-Provides spatial comparison metrics for bounding boxes and coordinates.
-
-**YAML Configuration:**
-```yaml
-evaluators:
-  - name: bbox_accuracy
-    type: iou_score
-    bbox_path: detected_boxes
-    expected_bbox_path: ground_truth_boxes
-    threshold: 0.7
-    format: xyxy  # or xywh, polygon
-  
-  - name: coordinate_precision
-    type: coordinate_distance
-    point_path: extracted_coordinates
-    expected_point_path: reference_coordinates
-    metric: euclidean  # or manhattan, cosine
-    threshold: 10.0  # pixels or units
-```
-
-**Capabilities:**
-- **IoU (Intersection over Union)**: Standard metric for bounding box overlap
-- **Distance metrics**: Euclidean, Manhattan, or cosine distance for point/coordinate comparison
-- **Format flexibility**: Supports multiple bounding box formats (xyxy, xywh, polygon vertices)
-- **Batch evaluation**: Automatically handles arrays of boxes/points
-
 ## Design Principles Alignment
 
-✅ **Lightweight Core, Plugin Extensibility**: These are universal primitives applicable to many domains, not domain-specific logic. Field comparison, fuzzy matching, and IoU are used across document processing, CV, data validation, and testing.
+✅ **Lightweight Core, Plugin Extensibility**: Field comparison, fuzzy matching, date normalization, and numeric tolerance are universal primitives applicable across document processing, data validation, and testing. Complex geometric operations (IoU, polygon intersection) are deferred to plugins.
 
-✅ **Built-ins for Primitives Only**: Each evaluator is stateless, deterministic, has single responsibility, cannot be trivially composed from other primitives, and needed by majority of users doing structured output evaluation.
+✅ **Built-ins for Primitives Only**: The `field_accuracy` evaluator is stateless, deterministic, has single responsibility, cannot be trivially composed from other primitives, and needed by majority of users doing structured output evaluation.
 
-✅ **Align with Industry Standards**: IoU is the standard metric in computer vision (COCO, PASCAL VOC). Levenshtein distance is the standard for fuzzy string matching. Field-level accuracy with precision/recall is used in Azure Form Recognizer, Google ADK, and document AI literature.
+✅ **Align with Industry Standards**: Levenshtein distance is the standard for fuzzy string matching. Field-level accuracy with weighted scoring is used in Azure Form Recognizer, Google ADK, and document AI literature.
 
 ✅ **Non-Breaking Extensions**: All new evaluator types are optional. Existing `llm_judge`, `code_judge`, `rubric`, and `tool_trajectory` evaluators continue working unchanged.
 
 ## Capabilities Affected
 
-This change introduces **two new capabilities** and updates one existing capability:
+This change introduces **one new capability** and updates one existing capability:
 
-1. **`structured-data-evaluators` (NEW)** - Field accuracy and schema validation primitives
-2. **`geometric-evaluators` (NEW)** - IoU and coordinate distance metrics
-3. **`yaml-schema` (MODIFIED)** - Extends evaluator type union to include new types
+1. **`structured-data-evaluators` (NEW)** - Field accuracy with exact, fuzzy, numeric, and date matching
+2. **`yaml-schema` (MODIFIED)** - Extends evaluator type union to include `field_accuracy`
 
 ## Out of Scope
 
 The following remain external to AgentV core (implemented via plugins or `code_judge` scripts):
 
+- ❌ **Geometric evaluators (IoU, coordinate distance)** - Complex algorithms (polygon intersection, Hungarian matching for optimal bbox assignment, precision/recall/F1 for detection) conflict with lightweight core principle. Provide as `code_judge` examples instead.
+- ❌ **Semantic/embedding-based matching** - Requires external embedding models, adds significant dependencies
 - ❌ PDF/image processing (parsing, OCR, layout detection)
 - ❌ Azure SDK integrations (Form Recognizer API wrappers)
 - ❌ Domain-specific validators (invoice schema, customs forms, medical records)
-- ❌ SQL database schema validation
+- ❌ JSON Schema validation (can be done with existing `code_judge`)
 - ❌ Confidence score extraction from external APIs
-- ❌ Dataset version management (Phase 1 only adds split support)
+
+### Why Geometric Evaluators Are Deferred
+
+The original proposal included `iou_score` and `coordinate_distance` evaluators. After review, these are deferred because:
+
+1. **Algorithm Complexity**: IoU for polygons requires Sutherland-Hodgman clipping or similar. Optimal bbox matching requires Hungarian algorithm (O(n³)).
+2. **Limited Universality**: Most AgentV users evaluate text/structured data, not bounding boxes.
+3. **Easy Plugin Path**: A 50-line Python `code_judge` script can compute IoU using shapely or numpy.
+
+**Example `code_judge` for IoU** (recommended approach):
+```python
+#!/usr/bin/env python3
+import json
+import sys
+
+def compute_iou(box1, box2):
+    """Compute IoU for two XYXY boxes."""
+    x1 = max(box1[0], box2[0])
+    y1 = max(box1[1], box2[1])
+    x2 = min(box1[2], box2[2])
+    y2 = min(box1[3], box2[3])
+
+    inter_area = max(0, x2 - x1) * max(0, y2 - y1)
+    box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    union_area = box1_area + box2_area - inter_area
+
+    return inter_area / union_area if union_area > 0 else 0.0
+
+data = json.load(sys.stdin)
+extracted = data["candidate_answer"]["bbox"]
+expected = data["reference_answer"]["bbox"]
+iou = compute_iou(extracted, expected)
+
+print(json.dumps({
+    "score": iou,
+    "hits": [f"IoU: {iou:.3f}"] if iou > 0.5 else [],
+    "misses": [] if iou > 0.5 else [f"IoU too low: {iou:.3f}"],
+    "reasoning": f"Bounding box IoU = {iou:.3f}"
+}))
+```
 
 ## Success Criteria
 
 1. Users can evaluate structured data extraction (e.g., invoice parsing) without writing custom code
-2. Bounding box evaluation uses industry-standard IoU metrics
-3. Fuzzy matching handles OCR errors and formatting variations
-4. All existing tests pass; new evaluators have >90% test coverage
-5. Documentation includes examples for document extraction and object detection use cases
-6. Performance: <10ms overhead per field comparison, <5ms per bbox IoU calculation
+2. Fuzzy matching handles OCR errors and formatting variations
+3. Date matching handles common format variations (ISO, localized, etc.)
+4. All existing tests pass; new evaluator has >90% test coverage
+5. Documentation includes examples for document extraction use cases
+6. Performance: <10ms overhead per field comparison
 
 ## Dependencies
 
@@ -169,11 +182,16 @@ The following remain external to AgentV core (implemented via plugins or `code_j
 3. **Fuzzy threshold defaults**: What's reasonable default for fuzzy match threshold?
    - **Recommendation**: 0.85 (based on Azure Cognitive Search and Elasticsearch defaults)
 
-4. **IoU threshold**: Binary pass/fail or graded scoring?
-   - **Recommendation**: Graded scoring (IoU value as score) with optional threshold for pass/fail verdict
+4. **Date format handling**: Which date formats should be supported out of the box?
+   - **Recommendation**: Support common formats via simple pattern matching:
+     - ISO: `YYYY-MM-DD`, `YYYY-MM-DDTHH:mm:ss`
+     - US: `MM/DD/YYYY`, `MM-DD-YYYY`
+     - EU: `DD/MM/YYYY`, `DD-MM-YYYY`
+     - Localized: `DD-MMM-YYYY` (e.g., "15-JAN-2025")
+   - Normalize all to epoch timestamp for comparison
 
-5. **Dataset split support**: Should this proposal include train/test/validation splits?
-   - **Recommendation**: Defer to separate proposal focused on dataset management (keep this focused on evaluators)
+5. **Array field comparison**: How should arrays be compared (ordered vs unordered)?
+   - **Recommendation**: Support both via config (`array_match: ordered` or `array_match: any_order`)
 
 ## References
 
@@ -187,8 +205,9 @@ The following remain external to AgentV core (implemented via plugins or `code_j
 ## Next Steps
 
 1. Review and approve this proposal
-2. Implement spec deltas for `structured-data-evaluators` and `geometric-evaluators`
-3. Implement evaluators in `packages/core/src/evaluation/evaluators.ts`
-4. Add YAML schema extensions and validation
-5. Write comprehensive tests and examples
-6. Update documentation with use case guides
+2. Implement spec delta for `structured-data-evaluators` (including date match type)
+3. Implement `FieldAccuracyEvaluator` in `packages/core/src/evaluation/evaluators.ts`
+4. Add YAML schema extensions and validation for `field_accuracy` type
+5. Write comprehensive tests (exact, fuzzy, numeric, date matching)
+6. Add `code_judge` example for IoU in `examples/` (demonstrate plugin approach)
+7. Update documentation with document extraction use case guide

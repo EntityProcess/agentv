@@ -11,14 +11,15 @@
 # extracts structured data, and displays it in a web UI.
 #
 # Evaluation approach:
-# - Field-level accuracy with exact matching for invoice numbers and dates
+# - Field-level accuracy with exact matching for invoice numbers and currency codes
+# - Date matching with format normalization (handles "15-JAN-2025" vs "2025-01-15")
 # - Numeric tolerance for currency amounts (handles rounding)
 # - Fuzzy matching for company names (handles spacing variations like "Acme - Shipping" vs "Acme Shipping")
 #
 # AgentV High-Level Goals Alignment:
 # ✅ Declarative Definitions - Uses YAML with clear expected outcomes
 # ✅ Structured Evaluation - Demonstrates deterministic field comparison (primitive for rubric-based)
-# ⚠️  Multi-Objective Scoring - Currently only correctness; latency/cost/safety planned
+# ✅ Lightweight Core - Geometric evaluators deferred to code_judge plugins
 # ✅ Optimization Ready - Weighted fields enable future hyperparameter tuning
 
 $schema: agentv-eval-v2
@@ -31,13 +32,14 @@ execution:
     - name: invoice_field_accuracy
       type: field_accuracy
       fields:
-        # Header fields - exact matching required
+        # Header fields
         - path: invoice_number
           match: exact
           required: true
           weight: 2.0
         - path: invoice_date
-          match: exact
+          match: date
+          formats: ["DD-MMM-YYYY", "YYYY-MM-DD", "MM/DD/YYYY"]
           required: true
           weight: 1.0
         - path: currency
