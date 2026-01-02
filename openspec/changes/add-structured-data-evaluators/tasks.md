@@ -45,7 +45,7 @@ This proposal focuses on the `field_accuracy` evaluator only. Geometric evaluato
 - [x] **Task 2.2**: Add fuzzy matching via code_judge with config pass-through
   - Removed fuzzy from core (lightweight core principle)
   - Add config pass-through: unrecognized YAML properties passed to script stdin
-  - Create example scripts: `multi_field_fuzzy.ts`, `fuzzy_match.ts`, `supplier_name_fuzzy.ts`
+  - Create example scripts: `multi_field_fuzzy.ts`, `fuzzy_match.ts`
   - Add unit tests for config pass-through in evaluator-parser
 
 - [x] **Task 2.3**: Add numeric tolerance support to `FieldAccuracyEvaluator`

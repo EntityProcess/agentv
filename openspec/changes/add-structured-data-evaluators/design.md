@@ -120,7 +120,7 @@ evaluators:
 **Example Scripts Provided**:
 - `multi_field_fuzzy.ts` - Configurable multi-field fuzzy matcher (Levenshtein + Jaro-Winkler)
 - `fuzzy_match.ts` - Generic single-value fuzzy matcher
-- `supplier_name_fuzzy.ts` - Field-specific matcher example
+- (Removed) `supplier_name_fuzzy.ts` - superseded by configurable `multi_field_fuzzy.ts`
 
 ### 4. Numeric Tolerance Comparison
 

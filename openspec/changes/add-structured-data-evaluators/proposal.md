@@ -80,7 +80,7 @@ evaluators:
 
 **Fuzzy Matching (via code_judge with config pass-through):**
 - Unrecognized YAML properties are passed to script via `config` in stdin
-- Example scripts provided: `multi_field_fuzzy.ts`, `fuzzy_match.ts`, `supplier_name_fuzzy.ts`
+- Example scripts provided: `multi_field_fuzzy.ts`, `fuzzy_match.ts`
 
 **Scoring:**
 - Per-field scores aggregated using `weighted_average` (default) or `all_or_nothing`
