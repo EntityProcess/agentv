@@ -210,13 +210,10 @@ export type CompositeEvaluatorConfig = {
 
 /**
  * Match type for field accuracy evaluation.
+ * Note: For fuzzy string matching (Levenshtein, Jaro-Winkler, etc.), use a code_judge evaluator.
+ * See examples/features/document-extraction/fuzzy_match.ts for an example.
  */
-export type FieldMatchType = 'exact' | 'fuzzy' | 'numeric_tolerance' | 'date';
-
-/**
- * Fuzzy match algorithm selection.
- */
-export type FuzzyAlgorithm = 'levenshtein' | 'jaro_winkler';
+export type FieldMatchType = 'exact' | 'numeric_tolerance' | 'date';
 
 /**
  * Aggregation strategy for combining field scores.
@@ -235,10 +232,6 @@ export type FieldConfig = {
   readonly required?: boolean;
   /** Weight for aggregation (default: 1.0) */
   readonly weight?: number;
-  /** Threshold for fuzzy matching (0.0-1.0, default: 0.85) */
-  readonly threshold?: number;
-  /** Algorithm for fuzzy matching (default: levenshtein) */
-  readonly algorithm?: FuzzyAlgorithm;
   /** Tolerance for numeric matching (absolute value unless relative is true) */
   readonly tolerance?: number;
   /** Whether tolerance is relative (percentage) vs absolute */

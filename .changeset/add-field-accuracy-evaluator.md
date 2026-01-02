@@ -26,18 +26,18 @@ evaluators:
         match: date
         formats: ["DD-MMM-YYYY", "YYYY-MM-DD"]
       - path: vendor.name
-        match: fuzzy
-        threshold: 0.85
-        algorithm: levenshtein
+        match: exact
+        required: true
     aggregation: weighted_average
 ```
 
 ### Match Types
 
 - **`exact`**: Strict equality comparison (default)
-- **`fuzzy`**: String similarity with Levenshtein or Jaro-Winkler distance
 - **`numeric_tolerance`**: Absolute or relative tolerance for numbers
 - **`date`**: Date comparison with automatic format normalization
+
+For **fuzzy string matching** (Levenshtein, Jaro-Winkler, etc.), use a `code_judge` evaluator. See `examples/features/document-extraction/fuzzy_match.ts` for a ready-to-use implementation.
 
 ### Aggregation Strategies
 

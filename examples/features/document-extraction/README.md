@@ -6,6 +6,8 @@ This directory contains evaluation examples demonstrating AgentV's proposed stru
 
 > **Note on Geometric Evaluators**: IoU (bounding box) and coordinate distance evaluators are implemented as `code_judge` plugins rather than built-ins. See the [geometric evaluators spec](../../../openspec/changes/add-structured-data-evaluators/specs/geometric-evaluators/spec.md) for ready-to-use Python scripts.
 
+> **Note on Fuzzy Matching**: Fuzzy string matching (Levenshtein, Jaro-Winkler) is implemented as a `code_judge` plugin. See [`fuzzy_match.ts`](./fuzzy_match.ts) for a ready-to-use TypeScript implementation.
+
 ## Invoice Extraction Example
 
 **Use Case:** Commercial invoice extractor that parses structured trade data from shipping documents.
@@ -27,13 +29,13 @@ This directory contains evaluation examples demonstrating AgentV's proposed stru
   - Exact matching for invoice numbers and currency codes
   - Date matching with format normalization (handles "15-JAN-2025" vs "2025-01-15")
   - Numeric tolerance for amounts (±$1 to handle rounding)
-  - Fuzzy matching for company names (handles spacing like "Acme - Shipping" vs "Acme Shipping")
   - Nested field paths for line item arrays
+- `code_judge` with `fuzzy_match.ts` - For company names with OCR variations (Levenshtein similarity)
 
 **Test Scenarios:**
 
 1. **invoice-001**: Perfect extraction - Extractor normalizes data to match expected (rounds decimals, cleans spacing)
-2. **invoice-002**: **Fuzzy matching test** - Extractor outputs "Acme - Shipping" (with hyphen/spaces), expected is "Acme Shipping". Tests Levenshtein similarity > 0.85
+2. **invoice-002**: **Fuzzy matching test** - Extractor outputs "Acme - Shipping", expected is "Acme Shipping". Use `fuzzy_match.ts` code_judge for Levenshtein similarity
 3. **invoice-003**: **Numeric tolerance test** - Extractor outputs 1889.5, expected is 1889. Tests ±$1 tolerance accepts 0.5 difference
 4. **invoice-004**: **Missing required field** - Extractor fails to find invoice_number (absent in HTML), tests required field scoring penalty
 5. **invoice-005**: Array validation - First 2 line items with path `line_items[0].description`
@@ -142,15 +144,17 @@ Supported format tokens:
   weight: 3.0
 ```
 
-**Fuzzy Match** - Handle OCR/spacing variations
+**Fuzzy Match** - Handle OCR/spacing variations (via code_judge)
+
+For fuzzy string matching, use the provided `fuzzy_match.ts` script:
 ```yaml
-- path: invoice.issuer.name
-  match: fuzzy
-  algorithm: levenshtein  # or jaro_winkler
-  threshold: 0.85  # 0.0-1.0 similarity score
-  required: true
-  weight: 0.8
+evaluators:
+  - name: vendor_name_fuzzy
+    type: code_judge
+    script: ./fuzzy_match.ts
 ```
+
+The script supports both Levenshtein and Jaro-Winkler algorithms with configurable thresholds. Edit the constants at the top of the file to customize.
 
 ### Aggregation Strategies
 
@@ -241,16 +245,20 @@ interface InvoiceExtraction {
 $schema: agentv-eval-v2
 description: Receipt data extraction
 
-execution:total
+execution:
+  evaluators:
+    - name: receipt_fields
+      type: field_accuracy
+      fields:
+        - path: total
           match: numeric_tolerance
           tolerance: 0.01
           weight: 3.0
         - path: merchant
-          match: fuzzy
-          threshold: 0.80
+          match: exact
           weight: 1.0
         - path: date
-          match: exact
+          match: date
           weight: 1.0
 
 evalcases:
@@ -274,7 +282,7 @@ evalcases:
 
 ### Field Accuracy Configuration
 1. **Weight critical fields higher** - Total amounts, IDs, dates should have weight >1.0
-2. **Use fuzzy matching for text** - Names, addresses often have OCR variations
+2. **Use code_judge for fuzzy text matching** - Names and addresses with OCR variations benefit from `fuzzy_match.ts`
 3. **Set realistic tolerances** - Base on observed accuracy (e.g., ±$1 for invoice totals)
 4. **Mark optional fields** - `required: false` for non-critical data
 5. **Test edge cases** - Include corrupted, partial, and malformed documents
@@ -307,7 +315,7 @@ Field accuracy evaluation targets:
 **Low scores despite correct extraction:**
 - Check field path syntax (use dot notation: `invoice.vendor.name`)
 - Verify data types match (string "100" ≠ number 100)
-- Review fuzzy threshold (0.85 may be too strict)
+- For text with variations, use `fuzzy_match.ts` code_judge instead of exact match
 
 **All fields score 0.0:**
 - Confirm candidate output structure matches expected schema

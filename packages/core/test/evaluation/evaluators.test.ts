@@ -546,40 +546,6 @@ describe('FieldAccuracyEvaluator', () => {
     expect(result.misses[0]).toContain('required');
   });
 
-  it('applies fuzzy matching with Levenshtein similarity', () => {
-    const evaluator = new FieldAccuracyEvaluator({
-      config: {
-        name: 'test',
-        type: 'field_accuracy',
-        fields: [
-          {
-            path: 'vendor.name',
-            match: 'fuzzy',
-            algorithm: 'levenshtein',
-            threshold: 0.85,
-            required: true,
-            weight: 1.0,
-          },
-        ],
-      },
-    });
-
-    // "Acme - Shipping" vs "Acme Shipping" - should be similar enough
-    const result = evaluator.evaluate({
-      evalCase: baseTestCaseWithExpected,
-      candidate: JSON.stringify({ vendor: { name: 'Acme - Shipping' } }),
-      target: baseTarget,
-      provider: judgeProvider,
-      attempt: 0,
-      promptInputs: { question: '', guidelines: '' },
-      now: new Date(),
-    });
-
-    expect(result.score).toBeGreaterThan(0.85);
-    expect(result.verdict).toBe('pass');
-    expect(result.hits).toHaveLength(1);
-  });
-
   it('applies numeric tolerance matching', () => {
     const evaluator = new FieldAccuracyEvaluator({
       config: {

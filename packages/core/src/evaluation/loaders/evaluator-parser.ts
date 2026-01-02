@@ -308,6 +308,13 @@ export async function parseEvaluators(
         continue;
       }
 
+      if (rawFields.length === 0) {
+        logWarning(
+          `Skipping field_accuracy evaluator '${name}' in '${evalId}': fields array is empty`,
+        );
+        continue;
+      }
+
       const fields: import('../types.js').FieldConfig[] = [];
       for (const rawField of rawFields) {
         if (!isJsonObject(rawField)) {
@@ -329,7 +336,7 @@ export async function parseEvaluators(
 
         if (!match || !isValidFieldMatchType(match)) {
           logWarning(
-            `Skipping field '${fieldPath}' with invalid match type '${match}' in evaluator '${name}' (must be exact, fuzzy, numeric_tolerance, or date)`,
+            `Skipping field '${fieldPath}' with invalid match type '${match}' in evaluator '${name}' (must be exact, numeric_tolerance, or date). For fuzzy matching, use a code_judge evaluator.`,
           );
           continue;
         }
@@ -339,8 +346,6 @@ export async function parseEvaluators(
           match,
           ...(typeof rawField.required === 'boolean' ? { required: rawField.required } : {}),
           ...(typeof rawField.weight === 'number' ? { weight: rawField.weight } : {}),
-          ...(typeof rawField.threshold === 'number' ? { threshold: rawField.threshold } : {}),
-          ...(isValidFuzzyAlgorithm(rawField.algorithm) ? { algorithm: rawField.algorithm } : {}),
           ...(typeof rawField.tolerance === 'number' ? { tolerance: rawField.tolerance } : {}),
           ...(typeof rawField.relative === 'boolean' ? { relative: rawField.relative } : {}),
           ...(Array.isArray(rawField.formats)
@@ -518,16 +523,10 @@ function validateWeight(
   return rawWeight;
 }
 
-const VALID_FIELD_MATCH_TYPES = new Set(['exact', 'fuzzy', 'numeric_tolerance', 'date']);
+const VALID_FIELD_MATCH_TYPES = new Set(['exact', 'numeric_tolerance', 'date']);
 
 function isValidFieldMatchType(value: unknown): value is import('../types.js').FieldMatchType {
   return typeof value === 'string' && VALID_FIELD_MATCH_TYPES.has(value);
-}
-
-const VALID_FUZZY_ALGORITHMS = new Set(['levenshtein', 'jaro_winkler']);
-
-function isValidFuzzyAlgorithm(value: unknown): value is import('../types.js').FuzzyAlgorithm {
-  return typeof value === 'string' && VALID_FUZZY_ALGORITHMS.has(value);
 }
 
 const VALID_FIELD_AGGREGATION_TYPES = new Set(['weighted_average', 'all_or_nothing']);
