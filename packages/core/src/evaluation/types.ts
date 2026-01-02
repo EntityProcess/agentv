@@ -156,6 +156,7 @@ const EVALUATOR_KIND_VALUES = [
   'field_accuracy',
   'latency',
   'cost',
+  'token_usage',
 ] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
@@ -281,6 +282,22 @@ export type CostEvaluatorConfig = {
   readonly weight?: number;
 };
 
+/**
+ * Configuration for the token_usage evaluator.
+ * Checks provider-reported token usage against configured limits.
+ */
+export type TokenUsageEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'token_usage';
+  /** Maximum allowed total tokens (input + output + cached, when present) */
+  readonly max_total?: number;
+  /** Maximum allowed input tokens (prompt) */
+  readonly max_input?: number;
+  /** Maximum allowed output tokens (completion) */
+  readonly max_output?: number;
+  readonly weight?: number;
+};
+
 export type EvaluatorConfig =
   | CodeEvaluatorConfig
   | LlmJudgeEvaluatorConfig
@@ -288,7 +305,8 @@ export type EvaluatorConfig =
   | ToolTrajectoryEvaluatorConfig
   | FieldAccuracyEvaluatorConfig
   | LatencyEvaluatorConfig
-  | CostEvaluatorConfig;
+  | CostEvaluatorConfig
+  | TokenUsageEvaluatorConfig;
 
 /**
  * Eval case definition sourced from AgentV specs.

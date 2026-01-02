@@ -289,3 +289,28 @@ describe('parseEvaluators - code_judge config pass-through', () => {
     expect(config.config).toEqual({ threshold: 0.85 });
   });
 });
+
+describe('parseEvaluators - token_usage', () => {
+  it('parses token_usage evaluator with limits', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'token-budget',
+          type: 'token_usage',
+          max_total: 1000,
+          max_output: 200,
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toEqual({
+      name: 'token-budget',
+      type: 'token_usage',
+      max_total: 1000,
+      max_output: 200,
+    });
+  });
+});

@@ -428,6 +428,52 @@ export async function parseEvaluators(
       continue;
     }
 
+    if (typeValue === 'token_usage') {
+      const maxTotal = rawEvaluator.max_total ?? rawEvaluator.maxTotal;
+      const maxInput = rawEvaluator.max_input ?? rawEvaluator.maxInput;
+      const maxOutput = rawEvaluator.max_output ?? rawEvaluator.maxOutput;
+
+      const limits = [
+        ['max_total', maxTotal],
+        ['max_input', maxInput],
+        ['max_output', maxOutput],
+      ] as const;
+
+      const validLimits: Partial<Record<'max_total' | 'max_input' | 'max_output', number>> = {};
+
+      for (const [key, raw] of limits) {
+        if (raw === undefined) continue;
+        if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0) {
+          logWarning(
+            `Skipping token_usage evaluator '${name}' in '${evalId}': ${key} must be a non-negative finite number`,
+          );
+          continue;
+        }
+        validLimits[key] = raw;
+      }
+
+      if (
+        validLimits.max_total === undefined &&
+        validLimits.max_input === undefined &&
+        validLimits.max_output === undefined
+      ) {
+        logWarning(
+          `Skipping token_usage evaluator '${name}' in '${evalId}': must set at least one of max_total, max_input, max_output`,
+        );
+        continue;
+      }
+
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
+      evaluators.push({
+        name,
+        type: 'token_usage',
+        ...validLimits,
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
     const prompt = asString(rawEvaluator.prompt);
     let promptPath: string | undefined;
     if (prompt) {

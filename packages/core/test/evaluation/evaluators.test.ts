@@ -8,6 +8,7 @@ import {
   FieldAccuracyEvaluator,
   LatencyEvaluator,
   LlmJudgeEvaluator,
+  TokenUsageEvaluator,
 } from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type {
@@ -1036,5 +1037,81 @@ describe('CostEvaluator', () => {
 
     expect(result.score).toBe(1);
     expect(result.verdict).toBe('pass');
+  });
+});
+
+describe('TokenUsageEvaluator', () => {
+  it('passes when total tokens are under max_total', () => {
+    const evaluator = new TokenUsageEvaluator({
+      config: { name: 'token_budget', type: 'token_usage', max_total: 1000 },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 0,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        tokenUsage: { input: 400, output: 500, cached: 0 },
+      },
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+    expect(result.hits.join(' ')).toContain('Total tokens');
+  });
+
+  it('fails when output tokens exceed max_output', () => {
+    const evaluator = new TokenUsageEvaluator({
+      config: { name: 'token_budget', type: 'token_usage', max_output: 100 },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 0,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        tokenUsage: { input: 10, output: 150 },
+      },
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses.join(' ')).toContain('Output tokens');
+  });
+
+  it('fails when no token usage data available', () => {
+    const evaluator = new TokenUsageEvaluator({
+      config: { name: 'token_budget', type: 'token_usage', max_total: 1000 },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('token usage');
   });
 });

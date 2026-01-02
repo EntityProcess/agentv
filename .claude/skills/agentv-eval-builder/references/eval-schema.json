@@ -32,7 +32,16 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["code", "llm_judge"],
+                "enum": [
+                  "code",
+                  "llm_judge",
+                  "composite",
+                  "tool_trajectory",
+                  "field_accuracy",
+                  "latency",
+                  "cost",
+                  "token_usage"
+                ],
                 "description": "Evaluator type: 'code' for scripts/regex/keywords, 'llm_judge' for LLM-based evaluation"
               },
               "script": {

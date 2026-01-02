@@ -13,6 +13,7 @@ import {
   FieldAccuracyEvaluator,
   LatencyEvaluator,
   LlmJudgeEvaluator,
+  TokenUsageEvaluator,
   ToolTrajectoryEvaluator,
 } from './evaluators.js';
 import { readJsonFile, readTextFile } from './file-utils.js';
@@ -45,6 +46,7 @@ import type {
   JsonObject,
   JsonValue,
   LatencyEvaluatorConfig,
+  TokenUsageEvaluatorConfig,
 } from './types.js';
 import { type PromptInputs, buildPromptInputs, loadEvalCases } from './yaml-parser.js';
 
@@ -423,7 +425,21 @@ async function runBatchEvaluation(options: {
 
     // Extract outputMessages from batch response
     const outputMessages = providerResponse.outputMessages;
-    const baseSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+    const hasExecutionMetrics =
+      providerResponse.tokenUsage !== undefined ||
+      providerResponse.costUsd !== undefined ||
+      providerResponse.durationMs !== undefined;
+
+    const baseSummary = outputMessages
+      ? computeTraceSummary(outputMessages)
+      : hasExecutionMetrics
+        ? {
+            eventCount: 0,
+            toolNames: [],
+            toolCallsByName: {},
+            errorCount: 0,
+          }
+        : undefined;
     // Merge execution metrics from provider response
     const traceSummary = baseSummary
       ? mergeExecutionMetrics(baseSummary, {
@@ -569,8 +585,22 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   // Extract outputMessages from provider response
   const outputMessages = providerResponse.outputMessages;
 
-  // Compute trace summary if outputMessages available
-  const baseSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+  const hasExecutionMetrics =
+    providerResponse.tokenUsage !== undefined ||
+    providerResponse.costUsd !== undefined ||
+    providerResponse.durationMs !== undefined;
+
+  // Compute trace summary if outputMessages available. If not, still preserve execution metrics.
+  const baseSummary = outputMessages
+    ? computeTraceSummary(outputMessages)
+    : hasExecutionMetrics
+      ? {
+          eventCount: 0,
+          toolNames: [],
+          toolCallsByName: {},
+          errorCount: 0,
+        }
+      : undefined;
   // Merge execution metrics from provider response
   const traceSummary = baseSummary
     ? mergeExecutionMetrics(baseSummary, {
@@ -901,6 +931,10 @@ async function runEvaluatorList(options: {
               return new CostEvaluator({
                 config: memberConfig as CostEvaluatorConfig,
               });
+            case 'token_usage':
+              return new TokenUsageEvaluator({
+                config: memberConfig as TokenUsageEvaluatorConfig,
+              });
             default: {
               const unknownConfig = memberConfig as { type: string };
               throw new Error(`Unsupported evaluator type in composite: ${unknownConfig.type}`);
@@ -1033,6 +1067,35 @@ async function runEvaluatorList(options: {
           config: evaluator as CostEvaluatorConfig,
         });
         const score = costEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+          outputMessages,
+          traceSummary,
+        });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+        });
+      }
+
+      if (evaluator.type === 'token_usage') {
+        const tokenUsageEvaluator = new TokenUsageEvaluator({
+          config: evaluator as TokenUsageEvaluatorConfig,
+        });
+        const score = tokenUsageEvaluator.evaluate({
           evalCase,
           candidate,
           target,

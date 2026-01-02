@@ -580,6 +580,32 @@ describe('runEvalCase trace integration', () => {
     expect(result.traceSummary).toBeUndefined();
   });
 
+  it('includes traceSummary when provider reports tokenUsage without outputMessages', async () => {
+    const provider = new TraceProvider('mock', {
+      tokenUsage: { input: 10, output: 20, cached: 5 },
+    });
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...traceTestCase,
+        evaluators: [
+          {
+            name: 'token-budget',
+            type: 'token_usage',
+            max_total: 1000,
+          },
+        ],
+      },
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.traceSummary).toBeDefined();
+    expect(result.traceSummary?.tokenUsage).toEqual({ input: 10, output: 20, cached: 5 });
+    expect(result.score).toBe(1);
+  });
+
   it('runs tool_trajectory evaluator with outputMessages', async () => {
     const outputMessages: OutputMessage[] = [
       {

@@ -5,6 +5,7 @@ This reference covers the built-in evaluators used for grading structured output
 - `field_accuracy`
 - `latency`
 - `cost`
+- `token_usage`
 
 ## Ground Truth (`expected_messages`)
 
@@ -71,6 +72,21 @@ execution:
       budget: 0.10
 ```
 
+## `token_usage`
+
+Gate on provider-reported token usage (useful when cost is unavailable or model pricing differs).
+
+```yaml
+execution:
+  evaluators:
+    - name: token-budget
+      type: token_usage
+      max_total: 10000
+      # or:
+      # max_input: 8000
+      # max_output: 2000
+```
+
 ## Common pattern: combine correctness + gates
 
 Use a `composite` evaluator if you want a single “release gate” score/verdict from multiple checks:
@@ -92,10 +108,14 @@ execution:
         - name: cost
           type: cost
           budget: 0.10
+        - name: tokens
+          type: token_usage
+          max_total: 10000
       aggregator:
         type: weighted_average
         weights:
           correctness: 0.8
           latency: 0.1
-          cost: 0.1
+          cost: 0.05
+          tokens: 0.05
 ```
