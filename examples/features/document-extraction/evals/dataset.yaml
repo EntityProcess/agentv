@@ -25,7 +25,7 @@ $schema: agentv-eval-v2
 description: Commercial invoice data extraction evaluation
 
 execution:
-  target: bun run mock_extractor.ts
+  target: mock_extractor
   evaluators:
     # Primary evaluator: Correctness via field-level accuracy
     - name: invoice_field_accuracy
