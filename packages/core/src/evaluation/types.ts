@@ -153,6 +153,7 @@ const EVALUATOR_KIND_VALUES = [
   'rubric',
   'composite',
   'tool_trajectory',
+  'field_accuracy',
 ] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
@@ -207,11 +208,64 @@ export type CompositeEvaluatorConfig = {
   readonly weight?: number;
 };
 
+/**
+ * Match type for field accuracy evaluation.
+ */
+export type FieldMatchType = 'exact' | 'fuzzy' | 'numeric_tolerance' | 'date';
+
+/**
+ * Fuzzy match algorithm selection.
+ */
+export type FuzzyAlgorithm = 'levenshtein' | 'jaro_winkler';
+
+/**
+ * Aggregation strategy for combining field scores.
+ */
+export type FieldAggregationType = 'weighted_average' | 'all_or_nothing';
+
+/**
+ * Configuration for a single field to evaluate.
+ */
+export type FieldConfig = {
+  /** Dot-notation path to the field (e.g., "invoice.vendor.name" or "items[0].amount") */
+  readonly path: string;
+  /** Match strategy for this field */
+  readonly match: FieldMatchType;
+  /** Whether this field is required (missing required fields count as failures) */
+  readonly required?: boolean;
+  /** Weight for aggregation (default: 1.0) */
+  readonly weight?: number;
+  /** Threshold for fuzzy matching (0.0-1.0, default: 0.85) */
+  readonly threshold?: number;
+  /** Algorithm for fuzzy matching (default: levenshtein) */
+  readonly algorithm?: FuzzyAlgorithm;
+  /** Tolerance for numeric matching (absolute value unless relative is true) */
+  readonly tolerance?: number;
+  /** Whether tolerance is relative (percentage) vs absolute */
+  readonly relative?: boolean;
+  /** Date formats to try when parsing (default: common formats) */
+  readonly formats?: readonly string[];
+};
+
+/**
+ * Configuration for the field_accuracy evaluator.
+ */
+export type FieldAccuracyEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'field_accuracy';
+  /** Fields to compare between candidate and expected */
+  readonly fields: readonly FieldConfig[];
+  /** Strategy for combining field scores (default: weighted_average) */
+  readonly aggregation?: FieldAggregationType;
+  readonly weight?: number;
+};
+
 export type EvaluatorConfig =
   | CodeEvaluatorConfig
   | LlmJudgeEvaluatorConfig
   | CompositeEvaluatorConfig
-  | ToolTrajectoryEvaluatorConfig;
+  | ToolTrajectoryEvaluatorConfig
+  | FieldAccuracyEvaluatorConfig;
 
 /**
  * Eval case definition sourced from AgentV specs.

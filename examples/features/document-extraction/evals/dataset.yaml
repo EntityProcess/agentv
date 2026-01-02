@@ -1,9 +1,5 @@
 # Invoice Extraction Evaluation Dataset
 #
-# ⚠️  IMPORTANT: This example uses the proposed `field_accuracy` evaluator from
-# OpenSpec proposal 'add-structured-data-evaluators'. It will not run until that
-# proposal is implemented. See: openspec/changes/add-structured-data-evaluators/
-#
 # This eval tests a mock invoice extractor's ability to extract structured trade data
 # from commercial invoices, including header fields, party details, line items, and totals.
 #

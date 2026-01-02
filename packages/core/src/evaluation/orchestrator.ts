@@ -9,6 +9,7 @@ import {
   CompositeEvaluator,
   type EvaluationScore,
   type Evaluator,
+  FieldAccuracyEvaluator,
   LlmJudgeEvaluator,
   ToolTrajectoryEvaluator,
 } from './evaluators.js';
@@ -37,6 +38,7 @@ import type {
   EvaluatorConfig,
   EvaluatorKind,
   EvaluatorResult,
+  FieldAccuracyEvaluatorConfig,
   JsonObject,
   JsonValue,
 } from './types.js';
@@ -876,6 +878,10 @@ async function runEvaluatorList(options: {
               return new ToolTrajectoryEvaluator({
                 config: memberConfig as ToolTrajectoryEvaluatorConfig,
               });
+            case 'field_accuracy':
+              return new FieldAccuracyEvaluator({
+                config: memberConfig as FieldAccuracyEvaluatorConfig,
+              });
             default: {
               const unknownConfig = memberConfig as { type: string };
               throw new Error(`Unsupported evaluator type in composite: ${unknownConfig.type}`);
@@ -919,6 +925,35 @@ async function runEvaluatorList(options: {
           config: evaluator as ToolTrajectoryEvaluatorConfig,
         });
         const score = trajectoryEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+          outputMessages,
+          traceSummary,
+        });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+        });
+      }
+
+      if (evaluator.type === 'field_accuracy') {
+        const fieldAccuracyEvaluator = new FieldAccuracyEvaluator({
+          config: evaluator as FieldAccuracyEvaluatorConfig,
+        });
+        const score = fieldAccuracyEvaluator.evaluate({
           evalCase,
           candidate,
           target,

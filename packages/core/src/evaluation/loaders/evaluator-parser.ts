@@ -299,6 +299,80 @@ export async function parseEvaluators(
       continue;
     }
 
+    if (typeValue === 'field_accuracy') {
+      const rawFields = rawEvaluator.fields;
+      if (!Array.isArray(rawFields)) {
+        logWarning(
+          `Skipping field_accuracy evaluator '${name}' in '${evalId}': missing fields array`,
+        );
+        continue;
+      }
+
+      const fields: import('../types.js').FieldConfig[] = [];
+      for (const rawField of rawFields) {
+        if (!isJsonObject(rawField)) {
+          logWarning(
+            `Skipping invalid field entry in field_accuracy evaluator '${name}' (expected object)`,
+          );
+          continue;
+        }
+
+        const fieldPath = asString(rawField.path);
+        const match = asString(rawField.match);
+
+        if (!fieldPath) {
+          logWarning(
+            `Skipping field without path in field_accuracy evaluator '${name}' in '${evalId}'`,
+          );
+          continue;
+        }
+
+        if (!match || !isValidFieldMatchType(match)) {
+          logWarning(
+            `Skipping field '${fieldPath}' with invalid match type '${match}' in evaluator '${name}' (must be exact, fuzzy, numeric_tolerance, or date)`,
+          );
+          continue;
+        }
+
+        const fieldConfig: import('../types.js').FieldConfig = {
+          path: fieldPath,
+          match,
+          ...(typeof rawField.required === 'boolean' ? { required: rawField.required } : {}),
+          ...(typeof rawField.weight === 'number' ? { weight: rawField.weight } : {}),
+          ...(typeof rawField.threshold === 'number' ? { threshold: rawField.threshold } : {}),
+          ...(isValidFuzzyAlgorithm(rawField.algorithm) ? { algorithm: rawField.algorithm } : {}),
+          ...(typeof rawField.tolerance === 'number' ? { tolerance: rawField.tolerance } : {}),
+          ...(typeof rawField.relative === 'boolean' ? { relative: rawField.relative } : {}),
+          ...(Array.isArray(rawField.formats)
+            ? { formats: rawField.formats.filter((f): f is string => typeof f === 'string') }
+            : {}),
+        };
+
+        fields.push(fieldConfig);
+      }
+
+      if (fields.length === 0) {
+        logWarning(
+          `Skipping field_accuracy evaluator '${name}' in '${evalId}': no valid fields found`,
+        );
+        continue;
+      }
+
+      const aggregation = asString(rawEvaluator.aggregation);
+      const validAggregation = isValidFieldAggregationType(aggregation) ? aggregation : undefined;
+
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
+      evaluators.push({
+        name,
+        type: 'field_accuracy',
+        fields,
+        ...(validAggregation ? { aggregation: validAggregation } : {}),
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
     const prompt = asString(rawEvaluator.prompt);
     let promptPath: string | undefined;
     if (prompt) {
@@ -442,4 +516,24 @@ function validateWeight(
   }
 
   return rawWeight;
+}
+
+const VALID_FIELD_MATCH_TYPES = new Set(['exact', 'fuzzy', 'numeric_tolerance', 'date']);
+
+function isValidFieldMatchType(value: unknown): value is import('../types.js').FieldMatchType {
+  return typeof value === 'string' && VALID_FIELD_MATCH_TYPES.has(value);
+}
+
+const VALID_FUZZY_ALGORITHMS = new Set(['levenshtein', 'jaro_winkler']);
+
+function isValidFuzzyAlgorithm(value: unknown): value is import('../types.js').FuzzyAlgorithm {
+  return typeof value === 'string' && VALID_FUZZY_ALGORITHMS.has(value);
+}
+
+const VALID_FIELD_AGGREGATION_TYPES = new Set(['weighted_average', 'all_or_nothing']);
+
+function isValidFieldAggregationType(
+  value: unknown,
+): value is import('../types.js').FieldAggregationType {
+  return typeof value === 'string' && VALID_FIELD_AGGREGATION_TYPES.has(value);
 }

@@ -1,9 +1,10 @@
 # Proposal: Add Structured Data Evaluators
 
 **Change ID:** `add-structured-data-evaluators`
-**Status:** Draft
+**Status:** Implemented
 **Author:** AI Agent
 **Created:** 2026-01-02
+**Implemented:** 2026-01-02
 
 ## Problem Statement
 

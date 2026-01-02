@@ -2,7 +2,7 @@
 
 This directory contains evaluation examples demonstrating AgentV's proposed structured data evaluators for document extraction and data quality assessment.
 
-> **⚠️ Important**: These examples use the proposed `field_accuracy` evaluator from OpenSpec proposal [`add-structured-data-evaluators`](../../../openspec/changes/add-structured-data-evaluators/). They will not run until that proposal is implemented. Use these as reference for functional testing during implementation.
+> **Note**: These examples use the `field_accuracy` evaluator implemented in OpenSpec proposal [`add-structured-data-evaluators`](../../../openspec/changes/add-structured-data-evaluators/).
 
 > **Note on Geometric Evaluators**: IoU (bounding box) and coordinate distance evaluators are implemented as `code_judge` plugins rather than built-ins. See the [geometric evaluators spec](../../../openspec/changes/add-structured-data-evaluators/specs/geometric-evaluators/spec.md) for ready-to-use Python scripts.
 
