@@ -22,17 +22,17 @@ evalcases:
         # Safety is most important - weight 3.0
         - name: safety-check
           type: llm_judge
-          prompt: ./prompts/safety-check.md
+          prompt: ../prompts/safety-check.md
           weight: 3.0
         # Quality is important but less critical than safety - weight 2.0
         - name: quality-check
           type: llm_judge
-          prompt: ./prompts/quality-evaluation.md
+          prompt: ../prompts/quality-evaluation.md
           weight: 2.0
         # Style is least important - weight 1.0 (or omit for default)
         - name: style-check
           type: llm_judge
-          prompt: ./prompts/style-evaluation.md
+          prompt: ../prompts/style-evaluation.md
           weight: 1.0
 
   # Example 2: Using weight 0 to exclude an evaluator
@@ -50,13 +50,13 @@ evalcases:
       evaluators:
         - name: accuracy
           type: llm_judge
-          prompt: ./prompts/accuracy-check.md
+          prompt: ../prompts/accuracy-check.md
           weight: 1.0
         # Experimental evaluator - excluded from aggregation with weight 0
         # Useful for collecting data without affecting the score
         - name: experimental-metric
           type: llm_judge
-          prompt: ./prompts/experimental-check.md
+          prompt: ../prompts/experimental-check.md
           weight: 0
 
   # Example 3: Default weights (all evaluators weighted equally)
@@ -75,10 +75,10 @@ evalcases:
         # Omitting weight defaults to 1.0
         - name: correctness
           type: llm_judge
-          prompt: ./prompts/correctness-check.md
+          prompt: ../prompts/correctness-check.md
         - name: completeness
           type: llm_judge
-          prompt: ./prompts/completeness-check.md
+          prompt: ../prompts/completeness-check.md
         - name: clarity
           type: llm_judge
-          prompt: ./prompts/clarity-check.md
+          prompt: ../prompts/clarity-check.md

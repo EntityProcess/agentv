@@ -41,8 +41,12 @@ export async function execShellWithStdin(
   const bunSpawn = getBunSpawn();
   if (bunSpawn) {
     const encoder = new TextEncoder();
+    // Use platform-appropriate shell
+    const isWindows = process.platform === 'win32';
+    const shellCmd = isWindows ? ['cmd.exe', '/c', command] : ['sh', '-c', command];
+    
     const proc = bunSpawn({
-      cmd: ['sh', '-c', command],
+      cmd: shellCmd,
       cwd: options.cwd,
       stdin: encoder.encode(stdinPayload),
       stdout: 'pipe',

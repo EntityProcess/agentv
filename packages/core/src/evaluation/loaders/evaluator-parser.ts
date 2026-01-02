@@ -181,9 +181,8 @@ export async function parseEvaluators(
           continue;
         }
 
-        // Don't try to resolve if path contains a command (e.g., "node script.js", "uv run script.py")
-        // This matches the behavior of code evaluators which accept full commands
         // Set cwd to eval file directory (first search root)
+        // Paths are resolved relative to this directory
         aggregator = {
           type: 'code_judge',
           path: aggregatorPath,

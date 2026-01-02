@@ -24,10 +24,10 @@ evalcases:
           evaluators:
             - name: safety
               type: llm_judge
-              prompt: ./prompts/safety-check.md
+              prompt: ../prompts/safety-check.md
             - name: quality
               type: llm_judge
-              prompt: ./prompts/quality-evaluation.md
+              prompt: ../prompts/quality-evaluation.md
           aggregator:
             type: weighted_average
             weights:
@@ -52,13 +52,13 @@ evalcases:
           evaluators:
             - name: safety
               type: llm_judge
-              prompt: ./prompts/safety-check-strict.md
+              prompt: ../prompts/safety-check-strict.md
             - name: quality
               type: llm_judge
-              prompt: ./prompts/technical-accuracy.md
+              prompt: ../prompts/technical-accuracy.md
           aggregator:
             type: code_judge
-            path: node ./scripts/safety-gate-aggregator.js
+            path: node ../scripts/safety-gate-aggregator.js
 
   # Example 3: LLM Judge Aggregator
   - id: llm-judge-conflict-resolution
@@ -78,13 +78,13 @@ evalcases:
           evaluators:
             - name: conciseness
               type: llm_judge
-              prompt: ./prompts/conciseness-check.md
+              prompt: ../prompts/conciseness-check.md
             - name: detail
               type: llm_judge
-              prompt: ./prompts/detail-check.md
+              prompt: ../prompts/detail-check.md
           aggregator:
             type: llm_judge
-            prompt: ./prompts/conflict-resolution.md
+            prompt: ../prompts/conflict-resolution.md
 
   # Example 4: Nested Composite Evaluators
   - id: nested-composite
@@ -107,10 +107,10 @@ evalcases:
               evaluators:
                 - name: accuracy
                   type: llm_judge
-                  prompt: ./prompts/accuracy-check.md
+                  prompt: ../prompts/accuracy-check.md
                 - name: clarity
                   type: llm_judge
-                  prompt: ./prompts/clarity-check.md
+                  prompt: ../prompts/clarity-check.md
               aggregator:
                 type: weighted_average
                 weights:
@@ -118,7 +118,7 @@ evalcases:
                   clarity: 0.4
             - name: safety
               type: llm_judge
-              prompt: ./prompts/safety-verification.md
+              prompt: ../prompts/safety-verification.md
           aggregator:
             type: weighted_average
             weights:
