@@ -9,8 +9,8 @@ This directory contains evaluation examples demonstrating AgentV's proposed stru
 **Use Case:** Commercial invoice extractor that parses structured trade data from shipping documents.
 
 **Architecture:**
-- **Input**: HTML mock files in `fixtures/` (simulating OCR-extracted content from PDFs)
-- **Extractor**: `mock_extractor.ts` - TypeScript CLI that parses HTML and outputs JSON
+- **Input**: JSON mock files in `fixtures/` (simulating extracted invoice data)
+- **Extractor**: `mock_extractor.ts` - Simple script that reads JSON and outputs it
 - **Evaluator**: `field_accuracy` - Validates extracted fields against expected values
 - **Test Cases**: 5 scenarios covering perfect extraction, fuzzy matching, tolerance, missing fields, and arrays
 
@@ -36,44 +36,41 @@ This directory contains evaluation examples demonstrating AgentV's proposed stru
 5. **invoice-005**: Array validation - First 2 line items with path `line_items[0].description`
 
 **How the Mock Extractor Works:**
-The `mock_extractor.ts` intentionally produces realistic variations to test the evaluator:
-- **invoice-001**: Normalizes data (rounds 1889.00 → 1889, cleans "Acme - Shipping" → "Acme Shipping")
-- **invoice-002**: Preserves OCR-like formatting ("Acme - Shipping" kept as-is from HTML)
-- **invoice-003**: Keeps decimal precision (1889.50 → 1889.5) to test tolerance
-- **invoice-004**: Returns undefined for missing fields (HTML has no invoice_number)
+The `mock_extractor.ts` simply reads JSON fixtures to test the evaluator. The fixtures contain intentional variations:
+- **invoice-001**: Perfect extraction (baseline)
+- **invoice-002**: Preserves "Acme - Shipping" (with hyphen) to test fuzzy matching
+- **invoice-003**: Keeps decimal 1889.5 (vs expected 1889) to test numeric tolerance
+- **invoice-004**: Missing invoice_number field to test required field penalty
 
 **Directory Structure:**
 ```
 invoice-extraction/
-├── package.json               # Local dependencies (jsdom)
-├── mock_extractor.ts          # Mock CLI that extracts data from HTML
+├── package.json               # No dependencies needed!
+├── mock_extractor.ts          # Simple JSON reader (27 lines)
 ├── README.md                  # This file
 ├── evals/
 │   └── dataset.yaml           # Evaluation dataset with 5 test cases
-└── fixtures/                  # Test input files
-    ├── invoice-001.html       # Complete invoice (8 line items)
-    ├── invoice-002.html       # Supplier name spacing test
-    ├── invoice-003.html       # Rounding tolerance test
-    ├── invoice-004.html       # Missing required fields
-    ├── invoice-005.html       # Partial extraction (2 line items)
+└── fixtures/                  # Test JSON data
+    ├── invoice-001.json       # Complete invoice (8 line items)
+    ├── invoice-002.json       # Supplier name spacing test
+    ├── invoice-003.json       # Rounding tolerance test
+    ├── invoice-004.json       # Missing required fields
+    ├── invoice-005.json       # Partial extraction (2 line items)
     └── README.md
 ```
 
 ## Getting Started
 
-**Install dependencies:**
-```bash
-cd examples/features/invoice-extraction
-bun install
-```
+**No installation needed!** The example uses only built-in Node.js APIs.
 
 **Running the Example:**
 ```bash
-# Note: Requires field_accuracy evaluator to be implemented
+# Run evaluations (when field_accuracy is implemented)
+cd examples/features/invoice-extraction
 agentv eval evals/dataset.yaml
 
 # Manual test of extractor
-bun run extract ./fixtures/invoice-001.html
+bun run extract ../fixtures/invoice-001.json
 ```
 
 ## Running Evaluations

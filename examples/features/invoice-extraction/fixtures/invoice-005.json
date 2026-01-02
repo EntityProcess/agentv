@@ -1,0 +1,12 @@
+{
+  "line_items": [
+    {
+      "description": "OCEAN FREIGHT",
+      "line_total": 1370
+    },
+    {
+      "description": "Bunker Adjustment Factor",
+      "line_total": 262
+    }
+  ]
+}

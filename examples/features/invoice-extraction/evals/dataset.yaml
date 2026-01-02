@@ -198,7 +198,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ./fixtures/invoice-001.html
+            value: ../fixtures/invoice-001.json
           - type: text
             value: |
               Extract all structured data from this commercial shipping invoice.
@@ -232,7 +232,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ./fixtures/invoice-002.html
+            value: ../fixtures/invoice-002.json
           - type: text
             value: "Extract invoice header and party names."
 
@@ -264,7 +264,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ./fixtures/invoice-003.html
+            value: ../fixtures/invoice-003.json
           - type: text
             value: "Extract invoice totals."
 
@@ -296,7 +296,7 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ./fixtures/invoice-004.html
+            value: ../fixtures/invoice-004.json
           - type: text
             value: "Extract invoice data (incomplete extraction)."
 
@@ -344,6 +344,6 @@ evalcases:
       - role: user
         content:
           - type: file
-            value: ./fixtures/invoice-005.html
+            value: ../fixtures/invoice-005.json
           - type: text
             value: "Extract first two line items from invoice."
