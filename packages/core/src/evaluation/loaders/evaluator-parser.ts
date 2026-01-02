@@ -79,6 +79,15 @@ export async function parseEvaluators(
         resolvedCwd = searchRoots[0];
       }
 
+      // Collect unrecognized properties as pass-through config
+      const knownProps = new Set(['name', 'type', 'script', 'cwd', 'weight']);
+      const config: Record<string, JsonValue> = {};
+      for (const [key, value] of Object.entries(rawEvaluator)) {
+        if (!knownProps.has(key) && value !== undefined) {
+          config[key] = value as JsonValue;
+        }
+      }
+
       evaluators.push({
         name,
         type: 'code',
@@ -86,6 +95,7 @@ export async function parseEvaluators(
         cwd,
         resolvedCwd,
         ...(weight !== undefined ? { weight } : {}),
+        ...(Object.keys(config).length > 0 ? { config } : {}),
       });
       continue;
     }

@@ -35,7 +35,7 @@ This proposal synthesizes evaluation patterns from leading frameworks:
 - **LangWatch**: Dataset splitting (train/test/validation), structured evaluation results with `score`, `passed`, `status`, `details` properties, evaluation wizard patterns
 - **Mastra**: Content similarity scorers, prompt alignment scoring, structured data extraction utilities
 
-These frameworks converge on treating field comparison, fuzzy matching, and geometric metrics as **universal primitives** rather than domain-specific features.
+These frameworks converge on treating field comparison, date normalization, and numeric tolerance as **universal primitives**. Fuzzy matching and geometric metrics vary by use case and are better served via plugins.
 
 ## Proposed Solution
 
@@ -61,19 +61,26 @@ evaluators:
         formats: ["DD-MMM-YYYY", "YYYY-MM-DD", "MM/DD/YYYY"]
         required: true
         weight: 0.5
-      - path: invoice.vendor_name
-        match: fuzzy
-        threshold: 0.85
-        algorithm: levenshtein
-        weight: 0.8
     aggregation: weighted_average
+
+  # Fuzzy matching via code_judge with config pass-through
+  - name: vendor_fuzzy
+    type: code_judge
+    script: ./multi_field_fuzzy.ts
+    fields:
+      - path: invoice.vendor_name
+        threshold: 0.85
+    algorithm: levenshtein
 ```
 
-**Match Types:**
+**Match Types (field_accuracy):**
 - `exact`: Strict equality (default)
-- `fuzzy`: String similarity using Levenshtein or Jaro-Winkler distance
 - `numeric_tolerance`: Absolute or relative tolerance for numbers
 - `date`: Date comparison with format normalization (handles "15-JAN-2025" vs "2025-01-15")
+
+**Fuzzy Matching (via code_judge with config pass-through):**
+- Unrecognized YAML properties are passed to script via `config` in stdin
+- Example scripts provided: `multi_field_fuzzy.ts`, `fuzzy_match.ts`, `supplier_name_fuzzy.ts`
 
 **Scoring:**
 - Per-field scores aggregated using `weighted_average` (default) or `all_or_nothing`
@@ -82,11 +89,11 @@ evaluators:
 
 ## Design Principles Alignment
 
-✅ **Lightweight Core, Plugin Extensibility**: Field comparison, fuzzy matching, date normalization, and numeric tolerance are universal primitives applicable across document processing, data validation, and testing. Complex geometric operations (IoU, polygon intersection) are deferred to plugins.
+✅ **Lightweight Core, Plugin Extensibility**: Field comparison, date normalization, and numeric tolerance are universal primitives applicable across document processing, data validation, and testing. Fuzzy matching and complex geometric operations (IoU, polygon intersection) are provided via `code_judge` plugins with config pass-through.
 
 ✅ **Built-ins for Primitives Only**: The `field_accuracy` evaluator is stateless, deterministic, has single responsibility, cannot be trivially composed from other primitives, and needed by majority of users doing structured output evaluation.
 
-✅ **Align with Industry Standards**: Levenshtein distance is the standard for fuzzy string matching. Field-level accuracy with weighted scoring is used in Azure Form Recognizer, Google ADK, and document AI literature.
+✅ **Align with Industry Standards**: Field-level accuracy with weighted scoring is used in Azure Form Recognizer, Google ADK, and document AI literature. Fuzzy matching via code_judge follows the plugin pattern used by LangWatch.
 
 ✅ **Non-Breaking Extensions**: All new evaluator types are optional. Existing `llm_judge`, `code_judge`, `rubric`, and `tool_trajectory` evaluators continue working unchanged.
 
@@ -94,7 +101,7 @@ evaluators:
 
 This change introduces **one new capability** and updates one existing capability:
 
-1. **`structured-data-evaluators` (NEW)** - Field accuracy with exact, fuzzy, numeric, and date matching
+1. **`structured-data-evaluators` (NEW)** - Field accuracy with exact, numeric, and date matching; fuzzy via code_judge config pass-through
 2. **`yaml-schema` (MODIFIED)** - Extends evaluator type union to include `field_accuracy`
 
 ## Out of Scope
@@ -180,8 +187,8 @@ print(json.dumps({
 2. **Field path syntax**: Use dot notation (`invoice.amount`) or JSONPath (`$.invoice.amount`)?
    - **Recommendation**: Start with dot notation (simpler), add JSONPath in future if needed
 
-3. **Fuzzy threshold defaults**: What's reasonable default for fuzzy match threshold?
-   - **Recommendation**: 0.85 (based on Azure Cognitive Search and Elasticsearch defaults)
+3. **Fuzzy matching approach**: Should fuzzy matching be built-in or via plugin?
+   - **Resolution**: Via `code_judge` plugin with config pass-through (lightweight core principle); example scripts use 0.85 threshold
 
 4. **Date format handling**: Which date formats should be supported out of the box?
    - **Recommendation**: Support common formats via simple pattern matching:
@@ -209,6 +216,6 @@ print(json.dumps({
 2. Implement spec delta for `structured-data-evaluators` (including date match type)
 3. Implement `FieldAccuracyEvaluator` in `packages/core/src/evaluation/evaluators.ts`
 4. Add YAML schema extensions and validation for `field_accuracy` type
-5. Write comprehensive tests (exact, fuzzy, numeric, date matching)
+5. Write comprehensive tests (exact, numeric, date matching, code_judge config pass-through)
 6. Add `code_judge` example for IoU in `examples/` (demonstrate plugin approach)
 7. Update documentation with document extraction use case guide

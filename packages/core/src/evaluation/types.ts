@@ -172,6 +172,8 @@ export type CodeEvaluatorConfig = {
   readonly cwd?: string;
   readonly resolvedCwd?: string;
   readonly weight?: number;
+  /** Pass-through configuration for the code_judge script (any unrecognized YAML properties) */
+  readonly config?: JsonObject;
 };
 
 export type LlmJudgeEvaluatorConfig = {

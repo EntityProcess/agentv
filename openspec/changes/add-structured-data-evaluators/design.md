@@ -76,37 +76,51 @@ const data = { invoice: { vendor: { name: "Acme" } } };
 const value = resolveFieldPath(data, 'invoice.vendor.name'); // "Acme"
 ```
 
-### 3. Fuzzy Matching Implementation
+### 3. Fuzzy Matching via code_judge with Config Pass-Through
 
-**Decision**: Implement **Levenshtein** and **Jaro-Winkler** algorithms directly in TypeScript.
+**Decision**: Provide fuzzy matching as `code_judge` examples rather than built-in evaluator.
 
 **Rationale**:
-- Levenshtein: Universal string similarity metric (edit distance)
-- Jaro-Winkler: Optimized for prefix matching (better for names, addresses)
-- Both are small algorithms (<50 LOC each)
-- No external dependencies needed
-- Full control over normalization (lowercase, trim)
+- Follows AgentV's "lightweight core" principle
+- Fuzzy matching requirements vary widely (algorithms, normalization, thresholds per field)
+- Industry research shows varied approaches (Google ADK uses LLM-as-Judge, Mastra uses Dice's via npm)
+- Config pass-through enables reusable scripts without hardcoding
 
-**Alternative Considered**: External library (e.g., `string-similarity`, `natural`)
-- **Rejected**: Adds dependency weight for simple algorithms, introduces version risk
+**Implementation**: Any unrecognized YAML properties on `code_judge` are passed to the script via `config` in stdin:
 
-**Normalization Strategy**:
-```typescript
-function normalizeString(str: string): string {
-  return str.trim().toLowerCase();
-}
+```yaml
+evaluators:
+  - name: party_names_fuzzy
+    type: code_judge
+    script: ./multi_field_fuzzy.ts
+    # These become config.fields and config.algorithm in stdin
+    fields:
+      - path: supplier.name
+        threshold: 0.85
+      - path: importer.name
+        threshold: 0.90
+    algorithm: levenshtein
+```
 
-function levenshteinDistance(a: string, b: string): number {
-  // Standard dynamic programming implementation
-  // Returns edit distance (0 = identical, higher = more different)
-}
-
-function levenshteinSimilarity(a: string, b: string): number {
-  const distance = levenshteinDistance(a, b);
-  const maxLen = Math.max(a.length, b.length);
-  return maxLen === 0 ? 1.0 : 1.0 - distance / maxLen;
+**Stdin Payload**:
+```json
+{
+  "candidate_answer": "...",
+  "reference_answer": "...",
+  "config": {
+    "fields": [
+      { "path": "supplier.name", "threshold": 0.85 },
+      { "path": "importer.name", "threshold": 0.90 }
+    ],
+    "algorithm": "levenshtein"
+  }
 }
 ```
+
+**Example Scripts Provided**:
+- `multi_field_fuzzy.ts` - Configurable multi-field fuzzy matcher (Levenshtein + Jaro-Winkler)
+- `fuzzy_match.ts` - Generic single-value fuzzy matcher
+- `supplier_name_fuzzy.ts` - Field-specific matcher example
 
 ### 4. Numeric Tolerance Comparison
 
@@ -357,8 +371,8 @@ try {
 ## Testing Strategy
 
 ### Unit Tests
-- **Field accuracy**: All match types (exact, fuzzy, numeric_tolerance) with edge cases
-- **Fuzzy matching**: Levenshtein and Jaro-Winkler algorithms with known inputs
+- **Field accuracy**: All match types (exact, numeric_tolerance, date) with edge cases
+- **Fuzzy matching via code_judge**: Example scripts with config pass-through
 - **Numeric tolerance**: Absolute and relative modes, edge cases (null, infinity, NaN)
 - **IoU calculation**: All formats (xyxy, xywh, polygon), perfect/partial/no overlap
 - **Distance metrics**: All three metrics (Euclidean, Manhattan, Cosine), 2D/3D
@@ -427,7 +441,7 @@ These are **explicitly deferred** to future proposals:
 
 | Question | Resolution |
 |----------|-----------|
-| Should fuzzy match threshold default to 0.85? | **Yes** - aligns with Azure Cognitive Search and Elasticsearch |
+| Should fuzzy matching be built-in? | **No** - provide as code_judge examples with config pass-through (lightweight core principle) |
 | Use lodash or custom field resolver? | **lodash** - battle-tested, handles edge cases |
 | Support JSONPath syntax? | **No** - dot notation sufficient for Phase 1, add later if needed |
 | Polygon IoU algorithm? | **Bounding box approximation** for Phase 1, defer Sutherland-Hodgman |

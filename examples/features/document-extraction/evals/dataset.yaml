@@ -199,7 +199,7 @@ evalcases:
 
   # ============================================
   # Test Case 2: Supplier Name Spacing Variation
-  # Demonstrates fuzzy matching via code_judge for OCR variations
+  # Demonstrates fuzzy matching via code_judge with config pass-through
   # ============================================
   - id: invoice-002
     conversation_id: invoice-extraction
@@ -208,13 +208,19 @@ evalcases:
       EXPECTED GROUND TRUTH: supplier.name = "Acme Shipping" (normalized)
 
       This simulates OCR output that preserves document formatting.
-      Uses code_judge with Levenshtein similarity (threshold 0.85) for supplier.name,
-      combined with field_accuracy for other fields.
+      Uses code_judge with config pass-through for multi-field fuzzy matching.
     evaluators:
-      # Fuzzy match for supplier name (handles OCR variations)
-      - name: supplier_name_fuzzy
+      # Multi-field fuzzy match with config pass-through
+      - name: party_names_fuzzy
         type: code_judge
-        script: ../supplier_name_fuzzy.ts
+        script: ../multi_field_fuzzy.ts
+        # These properties are passed to the script via stdin config
+        fields:
+          - path: supplier.name
+            threshold: 0.85
+          - path: importer.name
+            threshold: 0.90
+        algorithm: levenshtein
       # Exact/numeric matching for other fields
       - name: other_fields
         type: field_accuracy
@@ -230,8 +236,6 @@ evalcases:
           - path: net_total
             match: numeric_tolerance
             tolerance: 1.0
-          - path: importer.name
-            match: exact
     expected_messages:
       - role: assistant
         content:

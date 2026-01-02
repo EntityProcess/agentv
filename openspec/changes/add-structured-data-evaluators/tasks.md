@@ -12,7 +12,8 @@ This proposal focuses on the `field_accuracy` evaluator only. Geometric evaluato
 
 - [x] **Task 1.1**: Draft spec delta for `structured-data-evaluators` capability
   - Define requirements for field_accuracy evaluator
-  - Specify match types (exact, fuzzy, numeric_tolerance, date)
+  - Specify match types (exact, numeric_tolerance, date)
+  - Document fuzzy matching via code_judge with config pass-through
   - Document field path syntax (dot notation)
   - Include scenarios for weighted aggregation
 
@@ -41,11 +42,11 @@ This proposal focuses on the `field_accuracy` evaluator only. Geometric evaluato
   - Implement exact match strategy
   - Add unit tests for exact matching
 
-- [x] **Task 2.2**: Add fuzzy matching support to `FieldAccuracyEvaluator`
-  - Implement Levenshtein distance algorithm
-  - Implement Jaro-Winkler distance algorithm
-  - Add threshold-based scoring
-  - Add unit tests for fuzzy matching
+- [x] **Task 2.2**: Add fuzzy matching via code_judge with config pass-through
+  - Removed fuzzy from core (lightweight core principle)
+  - Add config pass-through: unrecognized YAML properties passed to script stdin
+  - Create example scripts: `multi_field_fuzzy.ts`, `fuzzy_match.ts`, `supplier_name_fuzzy.ts`
+  - Add unit tests for config pass-through in evaluator-parser
 
 - [x] **Task 2.3**: Add numeric tolerance support to `FieldAccuracyEvaluator`
   - Implement absolute tolerance comparison
@@ -74,7 +75,7 @@ This proposal focuses on the `field_accuracy` evaluator only. Geometric evaluato
 
 - [x] **Task 3.1**: Extend YAML schema types in `packages/core/src/evaluation/types.ts`
   - Add `FieldAccuracyEvaluatorConfig` type
-  - Add `FieldMatchType` enum (exact, fuzzy, numeric_tolerance, date)
+  - Add `FieldMatchType` enum (exact, numeric_tolerance, date)
   - Update `EvaluatorConfig` union type
   - Update `EvaluatorKind` literals
 
@@ -94,11 +95,12 @@ This proposal focuses on the `field_accuracy` evaluator only. Geometric evaluato
 
 - [x] **Task 4.1**: Verify example eval files in `examples/features/document-extraction/`
   - Verify invoice extraction example with field_accuracy works
-  - Test all match types (exact, fuzzy, numeric, date)
+  - Test all match types (exact, numeric, date) plus code_judge fuzzy matching
   - Include ground truth data and expected results
 
 - [x] **Task 4.2**: Add integration tests in `packages/core/test/evaluation/evaluators.test.ts`
-  - Test exact matching, fuzzy matching, numeric tolerance, date matching
+  - Test exact matching, numeric tolerance, date matching
+  - Test code_judge config pass-through for fuzzy matching
   - Test weighted aggregation and all_or_nothing aggregation
   - Test nested field paths and array index paths
   - Test error handling for invalid JSON
@@ -142,13 +144,13 @@ This proposal focuses on the `field_accuracy` evaluator only. Geometric evaluato
 - [x] **Task 6.3**: Performance benchmarking
   - Field comparison is synchronous and lightweight
   - Date parsing uses native JavaScript Date
-  - Fuzzy matching uses efficient Levenshtein/Jaro-Winkler implementations
+  - Fuzzy matching via code_judge uses provided example scripts
 
 - [x] **Task 6.4**: Manual functional testing
   - Test with document extraction use case (examples/features/document-extraction)
   - Verify error messages are helpful
   - Test with various date formats
-  - Test with fuzzy matching edge cases
+  - Test with code_judge fuzzy matching and config pass-through
 
 ## Phase 7: Finalization
 

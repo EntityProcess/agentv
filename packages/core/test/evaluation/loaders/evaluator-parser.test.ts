@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { mkdir, rm } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 import { parseEvaluators } from '../../../src/evaluation/loaders/evaluator-parser.js';
 import type { ToolTrajectoryEvaluatorConfig } from '../../../src/evaluation/trace.js';
+import type { CodeEvaluatorConfig } from '../../../src/evaluation/types.js';
 
 describe('parseEvaluators - tool_trajectory', () => {
   let tempDir: string;
@@ -197,5 +198,94 @@ describe('parseEvaluators - tool_trajectory', () => {
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as ToolTrajectoryEvaluatorConfig;
     expect(config.expected).toEqual([{ tool: 'validTool' }, { tool: 'anotherValid' }]);
+  });
+});
+
+describe('parseEvaluators - code_judge config pass-through', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-code-judge-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+    // Create a dummy script file
+    await writeFile(path.join(tempDir, 'test_script.ts'), '// dummy script');
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('passes unrecognized properties as config', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'fuzzy-matcher',
+          type: 'code_judge',
+          script: './test_script.ts',
+          fields: [
+            { path: 'supplier.name', threshold: 0.85 },
+            { path: 'importer.name', threshold: 0.9 },
+          ],
+          algorithm: 'levenshtein',
+          customOption: true,
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as CodeEvaluatorConfig;
+    expect(config.type).toBe('code');
+    expect(config.name).toBe('fuzzy-matcher');
+    expect(config.config).toEqual({
+      fields: [
+        { path: 'supplier.name', threshold: 0.85 },
+        { path: 'importer.name', threshold: 0.9 },
+      ],
+      algorithm: 'levenshtein',
+      customOption: true,
+    });
+  });
+
+  it('does not include config when no extra properties', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'simple-judge',
+          type: 'code_judge',
+          script: './test_script.ts',
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as CodeEvaluatorConfig;
+    expect(config.type).toBe('code');
+    expect(config.config).toBeUndefined();
+  });
+
+  it('excludes known properties from config', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'with-weight',
+          type: 'code_judge',
+          script: './test_script.ts',
+          cwd: tempDir,
+          weight: 2.0,
+          threshold: 0.85, // This should go to config
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as CodeEvaluatorConfig;
+    expect(config.weight).toBe(2.0);
+    expect(config.config).toEqual({ threshold: 0.85 });
   });
 });

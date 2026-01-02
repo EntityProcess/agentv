@@ -146,15 +146,25 @@ Supported format tokens:
 
 **Fuzzy Match** - Handle OCR/spacing variations (via code_judge)
 
-For fuzzy string matching, use the provided `fuzzy_match.ts` script:
+For fuzzy string matching, use the provided scripts. The `multi_field_fuzzy.ts` script supports config pass-through for multiple fields:
+
 ```yaml
 evaluators:
-  - name: vendor_name_fuzzy
+  - name: party_names_fuzzy
     type: code_judge
-    script: ./fuzzy_match.ts
+    script: ./multi_field_fuzzy.ts
+    # These properties are passed to the script via stdin config
+    fields:
+      - path: supplier.name
+        threshold: 0.85
+      - path: importer.name
+        threshold: 0.90
+    algorithm: levenshtein  # or jaro_winkler
 ```
 
-The script supports both Levenshtein and Jaro-Winkler algorithms with configurable thresholds. Edit the constants at the top of the file to customize.
+Any unrecognized properties on a `code_judge` evaluator are passed to the script as `config` in the stdin payload. This allows scripts to be reusable with different configurations.
+
+For simpler single-field matching, see `fuzzy_match.ts` or `supplier_name_fuzzy.ts`.
 
 ### Aggregation Strategies
 

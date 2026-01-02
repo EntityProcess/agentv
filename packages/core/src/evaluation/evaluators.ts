@@ -435,6 +435,8 @@ export interface CodeEvaluatorOptions {
   readonly script: string;
   readonly cwd?: string;
   readonly agentTimeoutMs?: number;
+  /** Pass-through configuration from YAML (any unrecognized properties) */
+  readonly config?: Record<string, unknown>;
 }
 
 export class CodeEvaluator implements Evaluator {
@@ -443,11 +445,13 @@ export class CodeEvaluator implements Evaluator {
   private readonly script: string;
   private readonly cwd?: string;
   private readonly agentTimeoutMs?: number;
+  private readonly config?: Record<string, unknown>;
 
   constructor(options: CodeEvaluatorOptions) {
     this.script = options.script;
     this.cwd = options.cwd;
     this.agentTimeoutMs = options.agentTimeoutMs;
+    this.config = options.config;
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
@@ -465,6 +469,8 @@ export class CodeEvaluator implements Evaluator {
       ),
       input_messages: context.evalCase.input_messages,
       trace_summary: context.traceSummary ?? null,
+      // Pass-through config from YAML (any unrecognized properties)
+      config: this.config ?? null,
     };
 
     // Recursively convert all nested objects to snake_case for Python compatibility

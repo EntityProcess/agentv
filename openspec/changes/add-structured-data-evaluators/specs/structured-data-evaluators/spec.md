@@ -80,49 +80,59 @@ The system SHALL support comparing numeric fields with configurable absolute or 
 - **WHEN** the evaluator executes
 - **THEN** the field score is 0.0 (|105 - 100| = 5.0 > 1.0)
 
-### Requirement: Field Accuracy Evaluator MUST support fuzzy string matching
+### Requirement: Fuzzy string matching MUST be supported via code_judge with config pass-through
 
-The system SHALL support fuzzy string comparison using Levenshtein or Jaro-Winkler distance with configurable thresholds.
+The system SHALL support fuzzy string comparison via `code_judge` evaluators with configurable fields and thresholds passed through YAML properties.
 
-#### Scenario: Fuzzy match succeeds above threshold
-- **GIVEN** extracted data `{ vendor: { name: "Acme Corp" } }`
-- **AND** expected data `{ vendor: { name: "ACME CORP" } }`
+#### Scenario: Multi-field fuzzy match via code_judge with config
+- **GIVEN** extracted data `{ vendor: { name: "Acme Corp" }, supplier: { name: "XYZ Inc" } }`
+- **AND** expected data `{ vendor: { name: "ACME CORP" }, supplier: { name: "XYZ Industries" } }`
 - **AND** evaluator configured with:
   ```yaml
-  fields:
-    - path: vendor.name
-      match: fuzzy
+  evaluators:
+    - name: fuzzy_names
+      type: code_judge
+      script: ./multi_field_fuzzy.ts
+      # These properties are passed to script via stdin config
+      fields:
+        - path: vendor.name
+          threshold: 0.80
+        - path: supplier.name
+          threshold: 0.85
       algorithm: levenshtein
-      threshold: 0.80
   ```
 - **WHEN** the evaluator executes
-- **THEN** the similarity score is computed (e.g., 0.89)
-- **AND** the field passes because 0.89 > 0.80
-- **AND** the normalized field score reflects the similarity (0.89)
+- **THEN** the script receives `config.fields` and `config.algorithm` in stdin
+- **AND** the script compares each field using the specified algorithm and thresholds
+- **AND** results are aggregated across fields
 
-#### Scenario: Fuzzy match with Jaro-Winkler for prefix similarity
-- **GIVEN** extracted data `{ vendor: { name: "Microsoft Corp" } }`
-- **AND** expected data `{ vendor: { name: "Microsoft Corporation" } }`
-- **AND** evaluator configured with:
+#### Scenario: Config pass-through for code_judge
+- **GIVEN** a code_judge evaluator with unrecognized YAML properties
+- **WHEN** the evaluator parser processes the config
+- **THEN** known properties (`name`, `type`, `script`, `cwd`, `weight`) are handled normally
+- **AND** all other properties are collected into a `config` object
+- **AND** the `config` object is passed to the script via stdin payload
+
+#### Scenario: Fuzzy match script receives config in stdin
+- **GIVEN** evaluator configured with custom properties:
   ```yaml
-  fields:
-    - path: vendor.name
-      match: fuzzy
-      algorithm: jaro_winkler
-      threshold: 0.85
+  - type: code_judge
+    script: ./fuzzy.ts
+    fields: [{ path: "name", threshold: 0.9 }]
+    algorithm: jaro_winkler
   ```
-- **WHEN** the evaluator executes
-- **THEN** Jaro-Winkler score is computed (emphasizing prefix match)
-- **AND** the field passes if score > 0.85
-
-#### Scenario: Fuzzy match fails below threshold
-- **GIVEN** extracted data `{ vendor: { name: "XYZ Inc" } }`
-- **AND** expected data `{ vendor: { name: "Acme Corp" } }`
-- **AND** evaluator configured with threshold 0.80
-- **WHEN** the evaluator executes
-- **THEN** the similarity score is low (e.g., 0.15)
-- **AND** the field fails because 0.15 < 0.80
-- **AND** `misses` includes "vendor.name"
+- **WHEN** the script is executed
+- **THEN** stdin contains JSON with:
+  ```json
+  {
+    "candidate_answer": "...",
+    "reference_answer": "...",
+    "config": {
+      "fields": [{ "path": "name", "threshold": 0.9 }],
+      "algorithm": "jaro_winkler"
+    }
+  }
+  ```
 
 ### Requirement: Field Accuracy Evaluator MUST support date matching with format normalization
 
