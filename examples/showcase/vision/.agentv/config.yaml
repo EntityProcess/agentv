@@ -1,0 +1,22 @@
+# AgentV Configuration for Vision Examples
+# This configuration specifies directories and settings for vision evaluation examples
+
+# Directory containing evaluation YAML files
+evalsDir: ./datasets
+
+# Directory containing evaluator definitions (LLM judges and code validators)
+evaluatorsDir: ./evaluators
+
+# Test images directory (users should place test images here)
+testImagesDir: ./test-images
+
+# Default settings for vision evaluations
+defaults:
+  # Default model target (can be overridden in YAML)
+  target: openai-gpt4o
+  
+  # Default image detail level
+  imageDetail: high
+  
+  # Timeout for vision model calls (in milliseconds)
+  timeout: 60000

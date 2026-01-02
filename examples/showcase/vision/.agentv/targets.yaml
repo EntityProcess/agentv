@@ -1,0 +1,39 @@
+# Target Model Configurations for Vision Examples
+# Defines available vision-capable models for evaluation
+
+targets:
+  # OpenAI GPT-4o (default, recommended for vision tasks)
+  openai-gpt4o:
+    provider: openai
+    model: gpt-4o
+    apiKey: ${OPENAI_API_KEY}
+    supportsVision: true
+    costPer1kImages:
+      low: 42.50      # $85/1M tokens * 0.5K tokens/image
+      high: 102.00    # $85/1M tokens * 1.2K tokens/image
+      auto: 72.25     # Average
+  
+  # Anthropic Claude 3.5 Sonnet
+  anthropic-claude:
+    provider: anthropic
+    model: claude-3-5-sonnet-20241022
+    apiKey: ${ANTHROPIC_API_KEY}
+    supportsVision: true
+    costPer1kImages:
+      low: 120.00     # $3/1M tokens * 40K base + 0.5K image
+      high: 216.00    # $3/1M tokens * 40K base + 1.2K image
+      auto: 168.00    # Average
+  
+  # Google Gemini 2.5 Flash
+  google-gemini:
+    provider: google
+    model: gemini-2.0-flash-exp
+    apiKey: ${GOOGLE_API_KEY}
+    supportsVision: true
+    costPer1kImages:
+      low: 1.88       # $0.075/1M tokens * 25K base + 0.5K image
+      high: 2.26      # $0.075/1M tokens * 25K base + 1.2K image
+      auto: 2.07      # Average (most cost-effective)
+
+# Default target
+default: openai-gpt4o

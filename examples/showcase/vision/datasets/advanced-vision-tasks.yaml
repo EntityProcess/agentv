@@ -1,0 +1,352 @@
+# Advanced Vision Evaluation Tasks
+# Demonstrates complex multimodal scenarios and vision-language reasoning
+
+$schema: agentv-eval-v2
+description: Advanced vision tasks including reasoning, structured outputs, and multi-turn conversations
+
+target: default
+
+evalcases:
+  # ==========================================
+  # Example 1: Structured Output from Vision
+  # Tests JSON output with visual analysis
+  # ==========================================
+  - id: structured-object-detection
+    
+    expected_outcome: Assistant returns valid JSON with detected objects, positions, and confidence scores
+    
+    input_messages:
+      - role: system
+        content: |-
+          You are an object detection system that returns structured JSON output.
+          Always return valid JSON matching the requested schema.
+      
+      - role: user
+        content:
+          - type: text
+            value: |-
+              Analyze this image and return a JSON object with the following structure:
+              ```json
+              {
+                "objects": [
+                  {"name": "object_name", "count": 1, "position": "location", "confidence": 0.95}
+                ],
+                "scene": "scene_description",
+                "dominant_colors": ["color1", "color2"]
+              }
+              ```
+          - type: image
+            value: ./test-images/product-shelf.jpg
+            detail: high
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          ```json
+          {
+            "objects": [
+              {"name": "bottle", "count": 5, "position": "top shelf", "confidence": 0.98},
+              {"name": "can", "count": 8, "position": "middle shelf", "confidence": 0.95},
+              {"name": "box", "count": 3, "position": "bottom shelf", "confidence": 0.92}
+            ],
+            "scene": "retail product shelf display",
+            "dominant_colors": ["white", "blue", "red"]
+          }
+          ```
+    
+    execution:
+      evaluators:
+        - name: json_validation
+          type: code_judge
+          script: uv run json_validator.py
+          cwd: ../evaluators/code-validators
+        - name: object_accuracy
+          type: llm_judge
+          prompt: ../evaluators/llm-judges/structured-output-judge.md
+
+  # ==========================================
+  # Example 2: Visual Reasoning
+  # Tests logical reasoning about visual content
+  # ==========================================
+  - id: visual-reasoning-problem
+    
+    conversation_id: vision-reasoning-001
+    
+    expected_outcome: Assistant uses visual information to solve logical problem
+    
+    input_messages:
+      - role: system
+        content: You can analyze images and apply logical reasoning to solve problems.
+      
+      - role: user
+        content:
+          - type: text
+            value: |-
+              Look at this chess board position. 
+              1. Whose turn is it? (white or black)
+              2. Is any piece under attack?
+              3. What would be a good next move for white?
+          - type: image
+            value: ./test-images/chess-position.jpg
+            detail: high
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          Based on the chess position:
+          1. It's White's turn (Black pieces just moved)
+          2. Yes, Black's knight is attacking White's bishop on e4
+          3. Good move: Nf3 (knight to f3) - defends the bishop and controls center
+          
+          Alternative: Bd3 (bishop retreat) - saves piece but passive
+    
+    execution:
+      evaluators:
+        - name: reasoning_quality
+          type: llm_judge
+          prompt: ../evaluators/llm-judges/reasoning-judge.md
+
+  # ==========================================
+  # Example 3: Multi-Turn Vision Conversation
+  # Tests maintaining context with images across turns
+  # ==========================================
+  - id: multi-turn-image-discussion-part1
+    
+    conversation_id: vision-conversation-001
+    
+    expected_outcome: Assistant provides initial analysis of image
+    
+    input_messages:
+      - role: system
+        content: You help analyze images in detail through multi-turn conversations.
+      
+      - role: user
+        content:
+          - type: text
+            value: "What are the main elements in this architecture diagram?"
+          - type: image
+            value: ./test-images/system-architecture.jpg
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          Main elements in the architecture:
+          1. Client Layer - Web and Mobile apps
+          2. API Gateway - Routing and authentication
+          3. Service Layer - Microservices (User, Order, Payment)
+          4. Database Layer - PostgreSQL and Redis
+          5. Message Queue - RabbitMQ for async processing
+
+  - id: multi-turn-image-discussion-part2
+    
+    conversation_id: vision-conversation-001
+    
+    expected_outcome: Assistant answers follow-up question referencing previous image context
+    
+    input_messages:
+      - role: system
+        content: You help analyze images in detail through multi-turn conversations.
+      
+      - role: user
+        content:
+          - type: text
+            value: "What are the main elements in this architecture diagram?"
+          - type: image
+            value: ./test-images/system-architecture.jpg
+      
+      - role: assistant
+        content: |-
+          Main elements in the architecture:
+          1. Client Layer - Web and Mobile apps
+          2. API Gateway - Routing and authentication
+          3. Service Layer - Microservices (User, Order, Payment)
+          4. Database Layer - PostgreSQL and Redis
+          5. Message Queue - RabbitMQ for async processing
+      
+      - role: user
+        content: "What's the purpose of the message queue in this system?"
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          The RabbitMQ message queue serves several purposes:
+          1. Decouples services for async communication
+          2. Handles order processing without blocking API responses
+          3. Manages payment notifications
+          4. Provides retry mechanism for failed operations
+          5. Enables horizontal scaling of service workers
+
+  # ==========================================
+  # Example 4: Image Quality Assessment
+  # Tests aesthetic and technical quality evaluation
+  # ==========================================
+  - id: image-quality-assessment
+    
+    expected_outcome: Assistant evaluates technical and aesthetic quality of image
+    
+    input_messages:
+      - role: system
+        content: |-
+          You are an expert in image quality assessment. Evaluate images on:
+          - Technical quality (sharpness, exposure, noise)
+          - Composition (rule of thirds, balance, framing)
+          - Color grading
+          - Overall aesthetic appeal
+      
+      - role: user
+        content:
+          - type: text
+            value: "Evaluate the quality of this photograph. Rate it from 1-10 and explain your assessment."
+          - type: image
+            value: ./test-images/landscape-photo.jpg
+            detail: high
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          Quality Assessment: 8/10
+          
+          Technical Quality:
+          - Sharpness: Excellent (9/10) - Sharp focus on foreground
+          - Exposure: Good (8/10) - Well balanced, slight highlight clipping
+          - Noise: Very good (8/10) - Minimal noise, clean image
+          
+          Composition:
+          - Rule of thirds: Well applied, horizon at lower third
+          - Balance: Good visual weight distribution
+          - Leading lines: Path creates depth
+          
+          Color & Aesthetic:
+          - Color grading: Warm golden hour tones
+          - Mood: Peaceful and inviting
+          - Overall: Professional quality landscape
+    
+    execution:
+      evaluators:
+        - name: assessment_completeness
+          type: llm_judge
+          prompt: ../evaluators/llm-judges/quality-assessment-judge.md
+
+  # ==========================================
+  # Example 5: Chart/Graph Analysis
+  # Tests data visualization interpretation
+  # ==========================================
+  - id: chart-data-extraction
+    
+    expected_outcome: Assistant accurately extracts data and insights from chart
+    
+    input_messages:
+      - role: system
+        content: You can read and interpret charts, graphs, and data visualizations accurately.
+      
+      - role: user
+        content:
+          - type: text
+            value: |-
+              Analyze this bar chart:
+              1. What are the top 3 values?
+              2. What trend do you observe?
+              3. What's the average value approximately?
+          - type: image
+            value: ./test-images/sales-chart.jpg
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          Bar Chart Analysis:
+          
+          1. Top 3 values:
+             - Q4 2025: $2.4M
+             - Q3 2025: $2.1M
+             - Q2 2025: $1.9M
+          
+          2. Trend: Consistent upward trend throughout 2025
+             - 58% growth from Q1 to Q4
+             - Steady quarterly increases
+          
+          3. Average value: Approximately $1.95M per quarter
+    
+    execution:
+      evaluators:
+        - name: data_accuracy
+          type: code_judge
+          script: uv run chart_validator.py
+          cwd: ../evaluators/code-validators
+
+  # ==========================================
+  # Example 6: Scene Understanding with Context
+  # Tests contextual understanding and inference
+  # ==========================================
+  - id: scene-context-inference
+    
+    expected_outcome: Assistant infers context and situation beyond literal visual elements
+    
+    input_messages:
+      - role: system
+        content: You can understand scenes contextually, inferring situation, emotions, and social dynamics.
+      
+      - role: user
+        content:
+          - type: text
+            value: "What's happening in this scene? What can you infer about the situation and mood?"
+          - type: image
+            value: ./test-images/office-celebration.jpg
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          Scene Analysis:
+          
+          What's happening:
+          - Office celebration or milestone event
+          - Team gathered around cake/refreshments
+          - Informal standing arrangement
+          
+          Contextual inferences:
+          - Likely birthday, project completion, or company anniversary
+          - Positive team dynamics (relaxed postures, smiles)
+          - Mid-afternoon timing (sunlight through windows)
+          - Small to medium team size (8-10 people)
+          
+          Mood: Celebratory, casual, team-bonding atmosphere
+
+  # ==========================================
+  # Example 7: Image + Text Instructions
+  # Tests following written instructions with visual reference
+  # ==========================================
+  - id: instruction-following-with-image
+    
+    expected_outcome: Assistant follows complex instructions referencing visual elements
+    
+    input_messages:
+      - role: system
+        content: You follow instructions precisely, referencing visual elements when specified.
+      
+      - role: user
+        content:
+          - type: text
+            value: "Based on this floor plan, calculate the total area and list the rooms from largest to smallest."
+          - type: image
+            value: ./test-images/floor-plan.jpg
+            detail: high
+          - type: file
+            value: ./attachments/measurement-guidelines.txt
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          Floor Plan Analysis:
+          
+          Total Area: 1,450 sq ft
+          
+          Rooms by size (largest to smallest):
+          1. Living Room: 350 sq ft
+          2. Master Bedroom: 280 sq ft
+          3. Kitchen: 220 sq ft
+          4. Bedroom 2: 200 sq ft
+          5. Bathroom 1: 120 sq ft
+          6. Bathroom 2: 90 sq ft
+          7. Hallway: 90 sq ft
+          8. Storage: 100 sq ft
+          
+          Notes: Measurements based on scale provided in plan (1:50)
