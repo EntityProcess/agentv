@@ -166,8 +166,8 @@ describe('agentv eval CLI', () => {
     const results = await readJsonLines(outputPath);
     expect(results).toHaveLength(2);
     const [firstResult, secondResult] = results as Array<Record<string, unknown>>;
-    expect(firstResult.evalId).toBe('case-alpha');
-    expect(secondResult.evalId).toBe('case-beta');
+    expect(firstResult.eval_id).toBe('case-alpha');
+    expect(secondResult.eval_id).toBe('case-beta');
 
     const diagnostics = await readDiagnostics(fixture);
     expect(diagnostics).toMatchObject({

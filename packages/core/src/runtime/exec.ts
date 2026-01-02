@@ -44,7 +44,7 @@ export async function execShellWithStdin(
     // Use platform-appropriate shell
     const isWindows = process.platform === 'win32';
     const shellCmd = isWindows ? ['cmd.exe', '/c', command] : ['sh', '-c', command];
-    
+
     const proc = bunSpawn({
       cmd: shellCmd,
       cwd: options.cwd,
