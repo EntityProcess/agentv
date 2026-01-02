@@ -9,8 +9,6 @@ Rubrics provide structured evaluation through lists of criteria that define what
 Define rubrics as simple strings - each becomes a required criterion with weight 1.0:
 
 ```yaml
-$schema: agentv-eval-v2
-
 evalcases:
   - id: quicksort-explanation
     expected_outcome: Explain how quicksort works

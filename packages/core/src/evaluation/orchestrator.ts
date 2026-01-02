@@ -28,6 +28,7 @@ import {
   type ToolTrajectoryEvaluatorConfig,
   type TraceSummary,
   computeTraceSummary,
+  mergeExecutionMetrics,
 } from './trace.js';
 import type {
   EvalCase,
@@ -411,7 +412,15 @@ async function runBatchEvaluation(options: {
 
     // Extract outputMessages from batch response
     const outputMessages = providerResponse.outputMessages;
-    const traceSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+    const baseSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+    // Merge execution metrics from provider response
+    const traceSummary = baseSummary
+      ? mergeExecutionMetrics(baseSummary, {
+          tokenUsage: providerResponse.tokenUsage,
+          costUsd: providerResponse.costUsd,
+          durationMs: providerResponse.durationMs,
+        })
+      : undefined;
 
     // Extract candidate from last assistant message in output_messages
     const candidate = extractLastAssistantContent(outputMessages);
@@ -550,7 +559,15 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   const outputMessages = providerResponse.outputMessages;
 
   // Compute trace summary if outputMessages available
-  const traceSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+  const baseSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+  // Merge execution metrics from provider response
+  const traceSummary = baseSummary
+    ? mergeExecutionMetrics(baseSummary, {
+        tokenUsage: providerResponse.tokenUsage,
+        costUsd: providerResponse.costUsd,
+        durationMs: providerResponse.durationMs,
+      })
+    : undefined;
 
   // Extract candidate from last assistant message in output_messages
   const candidate = extractLastAssistantContent(outputMessages);
@@ -645,21 +662,21 @@ async function evaluateCandidate(options: {
 
   return {
     timestamp: completedAt.toISOString(),
-    eval_id: evalCase.id,
+    evalId: evalCase.id,
     dataset: evalCase.dataset,
-    conversation_id: evalCase.conversation_id,
+    conversationId: evalCase.conversation_id,
     score: score.score,
     hits: score.hits,
     misses: score.misses,
-    candidate_answer: candidate,
+    candidateAnswer: candidate,
     target: target.name,
     reasoning: score.reasoning,
-    raw_aspects: score.rawAspects,
-    agent_provider_request: agentProviderRequest,
-    lm_provider_request: lmProviderRequest,
-    evaluator_provider_request: evaluatorResults ? undefined : score.evaluatorRawRequest,
-    evaluator_results: evaluatorResults,
-    trace_summary: traceSummary,
+    rawAspects: score.rawAspects,
+    agentProviderRequest: agentProviderRequest,
+    lmProviderRequest: lmProviderRequest,
+    evaluatorProviderRequest: evaluatorResults ? undefined : score.evaluatorRawRequest,
+    evaluatorResults: evaluatorResults,
+    traceSummary: traceSummary,
   };
 }
 
@@ -799,7 +816,7 @@ async function runEvaluatorList(options: {
           hits: score.hits,
           misses: score.misses,
           reasoning: score.reasoning,
-          evaluator_provider_request: score.evaluatorRawRequest,
+          evaluatorProviderRequest: score.evaluatorRawRequest,
         });
       }
 
@@ -831,7 +848,7 @@ async function runEvaluatorList(options: {
           hits: score.hits,
           misses: score.misses,
           reasoning: score.reasoning,
-          evaluator_provider_request: score.evaluatorRawRequest,
+          evaluatorProviderRequest: score.evaluatorRawRequest,
         });
       }
 
@@ -893,8 +910,8 @@ async function runEvaluatorList(options: {
           hits: score.hits,
           misses: score.misses,
           reasoning: score.reasoning,
-          evaluator_provider_request: score.evaluatorRawRequest,
-          evaluator_results: mapChildResults(score.evaluatorResults),
+          evaluatorProviderRequest: score.evaluatorRawRequest,
+          evaluatorResults: mapChildResults(score.evaluatorResults),
         });
       }
 
@@ -1195,17 +1212,17 @@ function buildErrorResult(
 
   return {
     timestamp: timestamp.toISOString(),
-    eval_id: evalCase.id,
+    evalId: evalCase.id,
     dataset: evalCase.dataset,
-    conversation_id: evalCase.conversation_id,
+    conversationId: evalCase.conversation_id,
     score: 0,
     hits: [],
     misses: [`Error: ${message}`],
-    candidate_answer: `Error occurred: ${message}`,
+    candidateAnswer: `Error occurred: ${message}`,
     target: targetName,
-    raw_aspects: [],
-    agent_provider_request: agentProviderRequest,
-    lm_provider_request: lmProviderRequest,
+    rawAspects: [],
+    agentProviderRequest: agentProviderRequest,
+    lmProviderRequest: lmProviderRequest,
     error: message,
   } satisfies EvaluationResult;
 }
@@ -1265,8 +1282,8 @@ function mapChildResults(
     hits: child.hits,
     misses: child.misses,
     reasoning: child.reasoning,
-    evaluator_provider_request: child.evaluatorRawRequest,
-    evaluator_results: mapChildResults(child.evaluatorResults),
+    evaluatorProviderRequest: child.evaluatorRawRequest,
+    evaluatorResults: mapChildResults(child.evaluatorResults),
   }));
 }
 

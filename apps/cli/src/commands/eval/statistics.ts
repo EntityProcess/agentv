@@ -86,7 +86,7 @@ export function calculateEvaluationSummary(
   // Track errors
   const errors = results
     .filter((result) => result.error !== undefined)
-    .map((result) => ({ evalId: result.eval_id, error: result.error as string }));
+    .map((result) => ({ evalId: result.evalId, error: result.error as string }));
   const errorCount = errors.length;
 
   if (total === 0) {
@@ -180,12 +180,12 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
 
   lines.push('\nTop performing eval cases:');
   summary.topResults.forEach((result, index) => {
-    lines.push(`  ${index + 1}. ${result.eval_id}: ${formatScore(result.score)}`);
+    lines.push(`  ${index + 1}. ${result.evalId}: ${formatScore(result.score)}`);
   });
 
   lines.push('\nLowest performing eval cases:');
   summary.bottomResults.forEach((result, index) => {
-    lines.push(`  ${index + 1}. ${result.eval_id}: ${formatScore(result.score)}`);
+    lines.push(`  ${index + 1}. ${result.evalId}: ${formatScore(result.score)}`);
   });
 
   return lines.join('\n');

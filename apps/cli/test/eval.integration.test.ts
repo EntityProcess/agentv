@@ -47,8 +47,7 @@ targets:
   await writeFile(targetsPath, targetsContent, 'utf8');
 
   const testFilePath = path.join(suiteDir, 'sample.test.yaml');
-  const testFileContent = `$schema: agentv-eval-v2
-description: CLI integration test
+  const testFileContent = `description: CLI integration test
 target: file-target
 
 evalcases:
@@ -167,8 +166,8 @@ describe('agentv eval CLI', () => {
     const results = await readJsonLines(outputPath);
     expect(results).toHaveLength(2);
     const [firstResult, secondResult] = results as Array<Record<string, unknown>>;
-    expect(firstResult.eval_id).toBe('case-alpha');
-    expect(secondResult.eval_id).toBe('case-beta');
+    expect(firstResult.evalId).toBe('case-alpha');
+    expect(secondResult.evalId).toBe('case-beta');
 
     const diagnostics = await readDiagnostics(fixture);
     expect(diagnostics).toMatchObject({

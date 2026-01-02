@@ -119,11 +119,29 @@ export interface OutputMessage {
   readonly metadata?: Record<string, unknown>;
 }
 
+/**
+ * Token usage metrics reported by provider.
+ */
+export interface ProviderTokenUsage {
+  /** Input/prompt tokens consumed */
+  readonly input: number;
+  /** Output/completion tokens generated */
+  readonly output: number;
+  /** Cached tokens (optional, provider-specific) */
+  readonly cached?: number;
+}
+
 export interface ProviderResponse {
   readonly raw?: unknown;
   readonly usage?: JsonObject;
   /** Output messages from agent execution (primary source for tool trajectory) */
   readonly outputMessages?: readonly OutputMessage[];
+  /** Token usage metrics (optional) */
+  readonly tokenUsage?: ProviderTokenUsage;
+  /** Total cost in USD (optional) */
+  readonly costUsd?: number;
+  /** Execution duration in milliseconds (optional) */
+  readonly durationMs?: number;
 }
 
 /**

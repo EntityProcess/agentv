@@ -19,7 +19,7 @@ description: Create and maintain AgentV YAML evaluation files for testing AI age
 - Compare: `references/compare-command.md` - Compare evaluation results between runs
 
 ## Structure Requirements
-- Root level: `description` (optional), `execution` (optional with `target` inside), `evalcases` (required)
+- Root level: `description` (optional), `execution` (with `target`), `evalcases` (required)
 - Eval case fields: `id` (required), `expected_outcome` (required), `input_messages` (required)
 - Optional fields: `expected_messages`, `conversation_id`, `rubrics`, `execution`
 - `expected_messages` is optional - omit for outcome-only evaluation where the LLM judge evaluates based on `expected_outcome` criteria alone
@@ -143,7 +143,6 @@ See `references/composite-evaluator.md` for aggregation types and patterns.
 Evaluate external batch runners that process all evalcases in one invocation:
 
 ```yaml
-$schema: agentv-eval-v2
 description: Batch CLI evaluation
 execution:
   target: batch_cli
@@ -178,7 +177,6 @@ See `references/batch-cli-evaluator.md` for full implementation guide.
 
 ## Example
 ```yaml
-$schema: agentv-eval-v2
 description: Example showing basic features and conversation threading
 execution:
   target: default

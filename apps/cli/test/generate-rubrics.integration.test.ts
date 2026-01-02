@@ -49,9 +49,10 @@ targets:
 
   const testFilePath = path.join(suiteDir, 'test.yaml');
 
-  let testFileContent = `$schema: agentv-eval-v2
-description: Generate rubrics integration test
-target: default
+  let testFileContent = `description: Generate rubrics integration test
+
+execution:
+  target: default
 
 evalcases:`;
 

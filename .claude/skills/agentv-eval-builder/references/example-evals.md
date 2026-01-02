@@ -5,7 +5,6 @@ This document contains complete examples of well-structured eval files demonstra
 ## Basic Example: Simple Q&A Eval
 
 ```yaml
-$schema: agentv-eval-v2
 description: Basic arithmetic evaluation
 execution:
   target: default
@@ -26,7 +25,6 @@ evalcases:
 ## Code Review with File References
 
 ```yaml
-$schema: agentv-eval-v2
 description: Code review with guidelines
 execution:
   target: azure_base
@@ -69,7 +67,6 @@ evalcases:
 ## Multi-Evaluator Configuration
 
 ```yaml
-$schema: agentv-eval-v2
 description: JSON generation with validation
 execution:
   target: default
@@ -109,7 +106,6 @@ evalcases:
 Validate that an agent uses specific tools during execution.
 
 ```yaml
-$schema: agentv-eval-v2
 description: Tool usage validation
 execution:
   target: mock_agent
@@ -151,7 +147,6 @@ evalcases:
 Evaluate pre-existing trace files without running an agent.
 
 ```yaml
-$schema: agentv-eval-v2
 description: Static trace evaluation
 execution:
   target: static_trace
@@ -175,7 +170,6 @@ evalcases:
 ## Multi-Turn Conversation (Single Eval Case)
 
 ```yaml
-$schema: agentv-eval-v2
 description: Multi-turn debugging session with clarifying questions
 execution:
   target: default
@@ -237,7 +231,6 @@ evalcases:
 Evaluate external batch runners that process all evalcases in one invocation.
 
 ```yaml
-$schema: agentv-eval-v2
 description: Batch CLI demo (AML screening)
 execution:
   target: batch_cli

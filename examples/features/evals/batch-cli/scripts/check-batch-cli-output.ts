@@ -5,9 +5,9 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 type EvalInput = {
-  readonly input_messages?: unknown;
-  readonly expected_messages?: unknown;
-  readonly candidate_answer?: unknown;
+  readonly inputMessages?: unknown;
+  readonly expectedMessages?: unknown;
+  readonly candidateAnswer?: unknown;
 };
 
 function findExpectedDecisionFromExpectedMessages(expectedMessages: unknown): string | undefined {
@@ -53,9 +53,9 @@ function main(): void {
   const input = JSON.parse(stdin) as EvalInput;
 
   const expectedDecision =
-    findExpectedDecisionFromExpectedMessages(input.expected_messages) ??
-    findExpectedDecision(input.input_messages);
-  const candidate = typeof input.candidate_answer === 'string' ? input.candidate_answer : '';
+    findExpectedDecisionFromExpectedMessages(input.expectedMessages) ??
+    findExpectedDecision(input.inputMessages);
+  const candidate = typeof input.candidateAnswer === 'string' ? input.candidateAnswer : '';
 
   let candidateObj: unknown;
   try {
@@ -73,7 +73,7 @@ function main(): void {
   const misses: string[] = [];
 
   if (!expectedDecision) {
-    misses.push('Missing expected decision (expected_messages[].content.decision)');
+    misses.push('Missing expected decision (expectedMessages[].content.decision)');
   } else {
     hits.push(`expected.decision present: ${expectedDecision}`);
   }

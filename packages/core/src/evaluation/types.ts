@@ -239,23 +239,23 @@ export interface EvalCase {
  */
 export interface EvaluationResult {
   readonly timestamp: string;
-  readonly eval_id: string;
+  readonly evalId: string;
   readonly dataset?: string;
-  readonly conversation_id?: string;
+  readonly conversationId?: string;
   readonly score: number;
   readonly hits: readonly string[];
   readonly misses: readonly string[];
-  readonly candidate_answer: string;
+  readonly candidateAnswer: string;
   readonly target: string;
   readonly reasoning?: string;
-  readonly raw_aspects?: readonly string[];
-  readonly agent_provider_request?: JsonObject;
-  readonly lm_provider_request?: JsonObject;
-  readonly evaluator_provider_request?: JsonObject;
-  readonly evaluator_results?: readonly EvaluatorResult[];
+  readonly rawAspects?: readonly string[];
+  readonly agentProviderRequest?: JsonObject;
+  readonly lmProviderRequest?: JsonObject;
+  readonly evaluatorProviderRequest?: JsonObject;
+  readonly evaluatorResults?: readonly EvaluatorResult[];
   readonly error?: string;
   /** Lightweight summary of the execution trace (always included when available) */
-  readonly trace_summary?: TraceSummary;
+  readonly traceSummary?: TraceSummary;
 }
 
 export type EvaluationVerdict = 'pass' | 'fail' | 'borderline';
@@ -269,9 +269,9 @@ export interface EvaluatorResult {
   readonly hits: readonly string[];
   readonly misses: readonly string[];
   readonly reasoning?: string;
-  readonly raw_request?: JsonObject;
-  readonly evaluator_provider_request?: JsonObject;
-  readonly evaluator_results?: readonly EvaluatorResult[];
+  readonly rawRequest?: JsonObject;
+  readonly evaluatorProviderRequest?: JsonObject;
+  readonly evaluatorResults?: readonly EvaluatorResult[];
 }
 
 /**

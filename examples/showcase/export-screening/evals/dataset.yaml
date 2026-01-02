@@ -15,7 +15,6 @@
 # - Tier 4.A: Manufacturing/Testing Equipment (8486.xx, 8534.00, 9030.xx, etc.)
 # - Tier 4.B: CNC Machine Tools (8457.10, 8458.xx, 8459.61, 8466.93)
 
-$schema: agentv-eval-v2
 description: Export control risk classification eval for trade compliance screening
 
 execution:

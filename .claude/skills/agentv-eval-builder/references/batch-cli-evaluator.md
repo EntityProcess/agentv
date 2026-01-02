@@ -20,9 +20,7 @@ Batch CLI evaluation is used when:
 ## Eval File Structure
 
 ```yaml
-$schema: agentv-eval-v2
 description: Batch CLI demo using structured input_messages
-
 execution:
   target: batch_cli
 

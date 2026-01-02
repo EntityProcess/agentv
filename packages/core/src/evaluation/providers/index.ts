@@ -14,6 +14,7 @@ export type {
   ProviderKind,
   ProviderRequest,
   ProviderResponse,
+  ProviderTokenUsage,
   TargetDefinition,
 } from './types.js';
 

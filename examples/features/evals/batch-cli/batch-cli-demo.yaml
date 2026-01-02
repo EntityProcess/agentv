@@ -6,10 +6,10 @@
 # - The CLI provider runs the batch runner once, producing JSONL output.
 # - output_messages in JSONL are automatically converted to trace events for tool_trajectory evaluation.
 
-$schema: agentv-eval-v2
 description: Batch CLI demo (AML screening) using structured input_messages → CSV → JSONL with trace extraction
 
-target: batch_cli
+execution:
+  target: batch_cli
 
 evalcases:
   - id: aml-001

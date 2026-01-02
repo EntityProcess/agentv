@@ -14,59 +14,34 @@
 import { writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 
-interface TraceEvent {
-  type: 'tool_call' | 'tool_result' | 'model_step' | 'message' | 'error';
-  timestamp: string;
-  id?: string;
-  name?: string;
+interface ToolCall {
+  tool: string;
   input?: unknown;
   output?: unknown;
-  text?: string;
+  id?: string;
+  timestamp?: string;
+}
+
+interface OutputMessage {
+  role: 'assistant';
+  content: string;
+  tool_calls?: ToolCall[];
 }
 
 interface AgentResponse {
-  text: string;
-  trace: TraceEvent[];
+  output_messages: OutputMessage[];
 }
 
-function createTimestamp(offsetSeconds: number): string {
-  const date = new Date('2024-01-01T00:00:00Z');
-  date.setSeconds(date.getSeconds() + offsetSeconds);
-  return date.toISOString();
-}
-
-function createToolCall(
-  id: string,
-  name: string,
-  input: unknown,
-  offsetSeconds: number,
-): TraceEvent {
+function createToolCall(name: string, input: unknown, id?: string): ToolCall {
   return {
-    type: 'tool_call',
-    timestamp: createTimestamp(offsetSeconds),
-    id,
-    name,
+    tool: name,
     input,
-  };
-}
-
-function createToolResult(
-  id: string,
-  name: string,
-  output: unknown,
-  offsetSeconds: number,
-): TraceEvent {
-  return {
-    type: 'tool_result',
-    timestamp: createTimestamp(offsetSeconds),
     id,
-    name,
-    output,
   };
 }
 
 /**
- * Generate trace based on the prompt content.
+ * Generate response based on the prompt content.
  * Different prompts trigger different tool sequences to demonstrate various evaluator modes.
  */
 function generateResponse(prompt: string): AgentResponse {
@@ -75,35 +50,61 @@ function generateResponse(prompt: string): AgentResponse {
   // Scenario 1: Research task - uses knowledgeSearch and documentRetrieve
   if (lowerPrompt.includes('research') || lowerPrompt.includes('search')) {
     return {
-      text: 'Based on my research of the knowledge base, here is my analysis of REST vs GraphQL APIs...',
-      trace: [
-        createToolCall('call-1', 'knowledgeSearch', { query: 'REST API characteristics' }, 0),
-        createToolResult('call-1', 'knowledgeSearch', 'REST uses HTTP methods...', 1),
-        createToolCall('call-2', 'knowledgeSearch', { query: 'GraphQL characteristics' }, 2),
-        createToolResult('call-2', 'knowledgeSearch', 'GraphQL uses single endpoint...', 3),
-        createToolCall('call-3', 'documentRetrieve', { docId: 'api-comparison' }, 4),
-        createToolResult('call-3', 'documentRetrieve', 'Detailed comparison document...', 5),
+      output_messages: [
+        {
+          role: 'assistant',
+          content:
+            'Based on my research of the knowledge base, here is my analysis of REST vs GraphQL APIs...',
+          tool_calls: [
+            createToolCall('knowledgeSearch', { query: 'REST API characteristics' }),
+            createToolCall('knowledgeSearch', { query: 'GraphQL characteristics' }),
+            createToolCall('documentRetrieve', { docId: 'api-comparison' }),
+          ],
+        },
       ],
     };
   }
 
-  // Scenario 2: Data pipeline - uses fetchData, validateSchema, transformData, saveResults
+  // Scenario 2a: Data loading/transformation - uses load_data, transform, save_data
+  // Must be checked BEFORE generic data pipeline to match specific "load" + "customer"/"normalize"
+  if (
+    lowerPrompt.includes('load') &&
+    (lowerPrompt.includes('customer') || lowerPrompt.includes('normalize'))
+  ) {
+    return {
+      output_messages: [
+        {
+          role: 'assistant',
+          content: 'Customer data loaded, normalized, and saved successfully.',
+          tool_calls: [
+            createToolCall('load_data', { source: 'customers' }),
+            createToolCall('transform', { operation: 'normalize' }),
+            createToolCall('save_data', { destination: 'output' }),
+          ],
+        },
+      ],
+    };
+  }
+
+  // Scenario 2b: Data pipeline - uses fetchData, validateSchema, transformData, saveResults
   if (
     lowerPrompt.includes('process') ||
     lowerPrompt.includes('data') ||
     lowerPrompt.includes('pipeline')
   ) {
     return {
-      text: 'Data processing complete. Validated 1,247 records, transformed and saved successfully.',
-      trace: [
-        createToolCall('call-1', 'fetchData', { endpoint: '/api/customers' }, 0),
-        createToolResult('call-1', 'fetchData', '[...1247 records...]', 1),
-        createToolCall('call-2', 'validateSchema', { schema: 'customer-v2' }, 2),
-        createToolResult('call-2', 'validateSchema', 'All records valid', 3),
-        createToolCall('call-3', 'transformData', { format: 'normalized' }, 4),
-        createToolResult('call-3', 'transformData', 'Transformed 1247 records', 5),
-        createToolCall('call-4', 'saveResults', { destination: 'processed_customers' }, 6),
-        createToolResult('call-4', 'saveResults', 'Saved successfully', 7),
+      output_messages: [
+        {
+          role: 'assistant',
+          content:
+            'Data processing complete. Validated 1,247 records, transformed and saved successfully.',
+          tool_calls: [
+            createToolCall('fetchData', { endpoint: '/api/customers' }),
+            createToolCall('validateSchema', { schema: 'customer-v2' }),
+            createToolCall('transformData', { format: 'normalized' }),
+            createToolCall('saveResults', { destination: 'processed_customers' }),
+          ],
+        },
       ],
     };
   }
@@ -115,14 +116,16 @@ function generateResponse(prompt: string): AgentResponse {
     lowerPrompt.includes('credential')
   ) {
     return {
-      text: 'Authentication successful. Token generated for user.',
-      trace: [
-        createToolCall('call-1', 'checkCredentials', { user: 'user@example.com' }, 0),
-        createToolResult('call-1', 'checkCredentials', 'Credentials valid', 1),
-        createToolCall('call-2', 'generateToken', { userId: 'user@example.com', ttl: 3600 }, 2),
-        createToolResult('call-2', 'generateToken', 'token_abc123...', 3),
-        createToolCall('call-3', 'auditLog', { event: 'login', user: 'user@example.com' }, 4),
-        createToolResult('call-3', 'auditLog', 'Logged', 5),
+      output_messages: [
+        {
+          role: 'assistant',
+          content: 'Authentication successful. Token generated for user.',
+          tool_calls: [
+            createToolCall('checkCredentials', { user: 'user@example.com' }),
+            createToolCall('generateToken', { userId: 'user@example.com', ttl: 3600 }),
+            createToolCall('auditLog', { event: 'login', user: 'user@example.com' }),
+          ],
+        },
       ],
     };
   }
@@ -134,15 +137,18 @@ function generateResponse(prompt: string): AgentResponse {
     lowerPrompt.includes('memory')
   ) {
     return {
-      text: `Based on the current system metrics:
+      output_messages: [
+        {
+          role: 'assistant',
+          content: `Based on the current system metrics:
 - CPU Usage: 45% average across all cores
 - Memory Usage: 6.2GB / 16GB (38.75%)
 The system is operating within normal parameters.`,
-      trace: [
-        createToolCall('call-1', 'getCpuMetrics', { server: 'prod-1' }, 0),
-        createToolResult('call-1', 'getCpuMetrics', '45%', 1),
-        createToolCall('call-2', 'getMemoryMetrics', { server: 'prod-1' }, 2),
-        createToolResult('call-2', 'getMemoryMetrics', '6.2GB / 16GB', 3),
+          tool_calls: [
+            createToolCall('getCpuMetrics', { server: 'prod-1' }),
+            createToolCall('getMemoryMetrics', { server: 'prod-1' }),
+          ],
+        },
       ],
     };
   }
@@ -150,42 +156,45 @@ The system is operating within normal parameters.`,
   // Scenario 5: Branch deactivation - uses semanticSearch multiple times
   if (lowerPrompt.includes('deactivate') && lowerPrompt.includes('branch')) {
     return {
-      text: 'To deactivate a branch: 1) Ensure you have admin permissions, 2) Resolve pending transactions, 3) Navigate to Settings > Branches and click Deactivate.',
-      trace: [
-        createToolCall('call-1', 'semanticSearch', { query: 'branch deactivation process' }, 0),
-        createToolResult(
-          'call-1',
-          'semanticSearch',
-          { results: ['Navigate to Settings > Branches...'] },
-          1,
-        ),
-        createToolCall('call-2', 'semanticSearch', { query: 'branch permissions requirements' }, 2),
-        createToolResult(
-          'call-2',
-          'semanticSearch',
-          { results: ['Only admins can deactivate branches...'] },
-          3,
-        ),
-        createToolCall(
-          'call-3',
-          'semanticSearch',
-          { query: 'branch deactivation prerequisites' },
-          4,
-        ),
-        createToolResult(
-          'call-3',
-          'semanticSearch',
-          { results: ['Resolve pending transactions first...'] },
-          5,
-        ),
+      output_messages: [
+        {
+          role: 'assistant',
+          content:
+            'To deactivate a branch: 1) Ensure you have admin permissions, 2) Resolve pending transactions, 3) Navigate to Settings > Branches and click Deactivate.',
+          tool_calls: [
+            createToolCall('semanticSearch', { query: 'branch deactivation process' }),
+            createToolCall('semanticSearch', { query: 'branch permissions requirements' }),
+            createToolCall('semanticSearch', { query: 'branch deactivation prerequisites' }),
+          ],
+        },
+      ],
+    };
+  }
+
+  // Scenario 6: Weather query - uses search and get_weather with exact args
+  if (lowerPrompt.includes('weather')) {
+    return {
+      output_messages: [
+        {
+          role: 'assistant',
+          content: 'The weather in Paris is currently sunny with a high of 22°C.',
+          tool_calls: [
+            createToolCall('search', { query: 'weather Paris' }),
+            createToolCall('get_weather', { location: 'Paris' }),
+          ],
+        },
       ],
     };
   }
 
   // Default: generic response with no tools
   return {
-    text: 'I processed your request.',
-    trace: [],
+    output_messages: [
+      {
+        role: 'assistant',
+        content: 'I processed your request.',
+      },
+    ],
   };
 }
 
@@ -223,7 +232,10 @@ function main(): void {
   writeFileSync(values.output, JSON.stringify(response, null, 2));
 
   // Also output the text to stdout for logging
-  console.log(response.text);
+  const firstMessage = response.output_messages[0];
+  if (firstMessage) {
+    console.log(firstMessage.content);
+  }
 }
 
 main();

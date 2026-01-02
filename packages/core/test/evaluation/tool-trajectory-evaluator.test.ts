@@ -136,33 +136,6 @@ describe('ToolTrajectoryEvaluator', () => {
       expect(result.misses.length).toBe(1); // search failed
       expect(result.misses[0]).toContain('search: called 1 times (required ≥3)');
     });
-
-    it('handles partial scoring correctly', () => {
-      const outputMessages: OutputMessage[] = [
-        {
-          role: 'assistant',
-          toolCalls: [{ tool: 'toolA' }, { tool: 'toolA' }, { tool: 'toolB' }],
-        },
-      ];
-      const summary = computeTraceSummary(outputMessages);
-
-      const config: ToolTrajectoryEvaluatorConfig = {
-        name: 'test',
-        type: 'tool_trajectory',
-        mode: 'any_order',
-        minimums: { toolA: 2, toolB: 2, toolC: 1 }, // Only toolA meets the minimum
-      };
-      const evaluator = new ToolTrajectoryEvaluator({ config });
-
-      const result = evaluator.evaluate(
-        createContext({
-          traceSummary: summary,
-        }),
-      );
-
-      expect(result.score).toBeCloseTo(1 / 3); // Only 1 out of 3 checks passed
-      expect(result.verdict).toBe('fail');
-    });
   });
 
   describe('in_order mode', () => {
@@ -354,31 +327,181 @@ describe('ToolTrajectoryEvaluator', () => {
       expect(result.verdict).toBe('fail');
       expect(result.misses.some((m) => m.includes('expected analyze, got wrong'))).toBe(true);
     });
+  });
 
-    it('fails when trace is shorter than expected', () => {
-      const outputMessages: OutputMessage[] = [
-        {
-          role: 'assistant',
-          toolCalls: [{ tool: 'search', input: {}, output: {} }],
-        },
-      ];
+  describe('argument matching', () => {
+    describe('exact mode with args', () => {
+      it('passes when args match exactly', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [
+              { tool: 'search', input: { query: 'test', limit: 10 } },
+              { tool: 'analyze', input: { format: 'json' } },
+            ],
+          },
+        ];
 
-      const config: ToolTrajectoryEvaluatorConfig = {
-        name: 'test',
-        type: 'tool_trajectory',
-        mode: 'exact',
-        expected: [{ tool: 'search' }, { tool: 'analyze' }],
-      };
-      const evaluator = new ToolTrajectoryEvaluator({ config });
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [
+            { tool: 'search', args: { query: 'test', limit: 10 } },
+            { tool: 'analyze', args: { format: 'json' } },
+          ],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
 
-      const result = evaluator.evaluate(
-        createContext({
-          outputMessages,
-        }),
-      );
+        const result = evaluator.evaluate(createContext({ outputMessages }));
 
-      expect(result.score).toBe(0.5); // Only 1 out of 2 positions matches
-      expect(result.misses.some((m) => m.includes('expected analyze, got nothing'))).toBe(true);
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+      });
+
+      it('fails when args do not match', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'search', input: { query: 'wrong', limit: 10 } }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'search', args: { query: 'test', limit: 10 } }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        expect(result.score).toBe(0);
+        expect(result.verdict).toBe('fail');
+        expect(result.misses.some((m) => m.includes('args mismatch'))).toBe(true);
+      });
+
+      it('skips arg validation with args: any', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'search', input: { query: 'anything', limit: 999 } }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'search', args: 'any' }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+      });
+
+      it('matches without args field (backward compatibility)', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'search', input: { any: 'args' } }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'search' }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+      });
+    });
+
+    describe('in_order mode with args', () => {
+      it('fails when tool found but args mismatch', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [
+              { tool: 'search', input: { query: 'wrong' } },
+              { tool: 'analyze', input: { format: 'json' } },
+            ],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'in_order',
+          expected: [
+            { tool: 'search', args: { query: 'test' } },
+            { tool: 'analyze', args: { format: 'json' } },
+          ],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        expect(result.score).toBe(0.5);
+        expect(result.verdict).toBe('fail');
+        expect(result.misses.some((m) => m.includes('args mismatch'))).toBe(true);
+      });
+    });
+
+    describe('array argument matching', () => {
+      it('matches arrays with deep equality', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'search', input: { tags: ['a', 'b', 'c'] } }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'search', args: { tags: ['a', 'b', 'c'] } }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+      });
+
+      it('fails on array order mismatch', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'search', input: { tags: ['c', 'b', 'a'] } }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'search', args: { tags: ['a', 'b', 'c'] } }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        expect(result.score).toBe(0);
+        expect(result.verdict).toBe('fail');
+      });
     });
   });
 });

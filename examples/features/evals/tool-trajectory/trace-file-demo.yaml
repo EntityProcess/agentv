@@ -9,11 +9,11 @@
 #      TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/evals/tool-trajectory
 #   2. Run: cd examples/features && npx agentv eval evals/tool-trajectory/trace-file-demo.yaml --target static_trace
 
-$schema: agentv-eval-v2
 description: Static trace file evaluation demo - Product Research Agent
 
 # Use static_trace target that reads from a file
-target: static_trace
+execution:
+  target: static_trace
 
 evalcases:
   # =============================================================================

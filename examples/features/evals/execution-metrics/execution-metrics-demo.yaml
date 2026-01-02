@@ -1,0 +1,114 @@
+# Execution Metrics Demo
+# Demonstrates how to use execution metrics in evaluation
+#
+# Execution metrics capture runtime information from provider invocations:
+# - tokenUsage: { input, output, cached? } - token consumption
+# - costUsd: API cost in USD
+# - durationMs: execution time in milliseconds
+#
+# These metrics are available in:
+# 1. TraceSummary (included in evaluation results)
+# 2. Code judge stdin (for custom metric-based evaluation)
+#
+# Setup:
+#   1. Add to examples/features/.env:
+#      EXECUTION_METRICS_DIR=/absolute/path/to/examples/features/evals/execution-metrics
+#   2. Run: cd examples/features && npx agentv eval evals/execution-metrics/execution-metrics-demo.yaml
+
+description: Demonstrates execution metrics collection and evaluation
+
+# Mock agent that returns realistic execution metrics
+execution:
+  target: mock_metrics_agent
+
+evalcases:
+  # ==========================================
+  # Example 1: Basic metrics collection
+  # Metrics are automatically included in results when available
+  # ==========================================
+  - id: metrics-collection
+
+    expected_outcome: |-
+      Agent responds to a simple query. Execution metrics are captured
+      automatically and included in the evaluation result.
+
+    input_messages:
+      - role: user
+        content: Hello, this is a simple question.
+
+    execution:
+      evaluators:
+        # Verify that execution metrics are present in traceSummary
+        - name: metrics-present
+          type: code_judge
+          script: bun run scripts/check-metrics-present.ts
+
+  # ==========================================
+  # Example 2: Metric-aware code judge
+  # Use custom thresholds to evaluate efficiency
+  # ==========================================
+  - id: efficiency-evaluation
+
+    expected_outcome: |-
+      Agent efficiently answers a simple question without excessive
+      token usage or tool calls.
+
+    input_messages:
+      - role: user
+        content: Hello, give me a simple response.
+
+    execution:
+      evaluators:
+        # Custom code judge that evaluates efficiency metrics
+        - name: efficiency-check
+          type: code_judge
+          script: bun run scripts/check-efficiency.ts
+
+  # ==========================================
+  # Example 3: Research task with higher metrics
+  # Demonstrates metrics for more complex operations
+  # ==========================================
+  - id: research-metrics
+
+    expected_outcome: |-
+      Agent performs research and uses tools. Metrics reflect
+      higher token usage and multiple tool calls.
+
+    input_messages:
+      - role: user
+        content: Research and analyze the topic of machine learning.
+
+    execution:
+      evaluators:
+        # Check tool trajectory
+        - name: trajectory-check
+          type: tool_trajectory
+          mode: any_order
+          minimums:
+            search: 1
+
+        # Check efficiency metrics
+        - name: metrics-check
+          type: code_judge
+          script: bun run scripts/check-efficiency.ts
+
+  # ==========================================
+  # Example 4: Inefficient agent detection
+  # Demonstrates failing efficiency checks
+  # ==========================================
+  - id: inefficient-detection
+
+    expected_outcome: |-
+      Agent uses excessive resources. Efficiency check should fail
+      due to too many tool calls and high token usage.
+
+    input_messages:
+      - role: user
+        content: Do something inefficient and wasteful.
+
+    execution:
+      evaluators:
+        # This should fail - agent uses too many tools
+        - name: efficiency-check
+          type: code_judge
+          script: bun run scripts/check-efficiency.ts

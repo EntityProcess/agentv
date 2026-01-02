@@ -1,0 +1,134 @@
+# Tool Evaluation Plugins Demo
+# Demonstrates plugin-based (code judge) tool evaluation patterns
+#
+# These patterns complement the built-in tool_trajectory evaluator with
+# semantic evaluation capabilities that require domain-specific logic.
+#
+# Run: cd examples/showcase/tool-evaluation-plugins
+#      npx agentv eval tool-eval-demo.yaml --target mock_agent
+
+description: Showcase of tool evaluation plugin patterns
+
+# Use mock_agent target (configure in .agentv/targets.yaml)
+execution:
+  target: mock_agent
+
+evalcases:
+  # ==========================================
+  # Example 1: Tool Selection Evaluation
+  # Use case: Verify agent chose appropriate tools for the task
+  # ==========================================
+  - id: tool-selection-demo
+
+    expected_outcome: |-
+      Agent should search for relevant information and fetch data from APIs.
+      Uses search and fetch tools appropriately for the research task.
+
+    input_messages:
+      - role: user
+        content: Find information about the current weather in Tokyo and fetch the detailed forecast.
+
+    execution:
+      evaluators:
+        # Built-in: Check minimum tool calls
+        - name: trajectory-check
+          type: tool_trajectory
+          mode: any_order
+          minimums:
+            search: 1
+            fetch: 1
+
+        # Plugin: Semantic tool selection evaluation
+        - name: selection-quality
+          type: code_judge
+          script: bun run scripts/tool-selection-judge.ts
+
+  # ==========================================
+  # Example 2: Efficiency Scoring
+  # Use case: Evaluate resource efficiency of agent execution
+  # ==========================================
+  - id: efficiency-demo
+
+    expected_outcome: |-
+      Agent efficiently processes the request with minimal redundant operations.
+      Simple task requiring straightforward tool usage.
+
+    input_messages:
+      - role: user
+        content: Get the current time.
+
+    execution:
+      evaluators:
+        # Plugin: Efficiency metrics scoring
+        - name: efficiency-check
+          type: code_judge
+          script: bun run scripts/efficiency-scorer.ts
+
+  # ==========================================
+  # Example 3: Combined Built-in + Plugin Evaluation
+  # Use case: Comprehensive tool usage assessment
+  # ==========================================
+  - id: combined-evaluation
+
+    expected_outcome: |-
+      Agent performs comprehensive data analysis:
+      1. Search multiple sources
+      2. Validate data quality
+      3. Process and transform results
+      4. Output formatted report
+
+    input_messages:
+      - role: user
+        content: Analyze the quarterly sales data and generate a summary report.
+
+    execution:
+      evaluators:
+        # Built-in: Verify required workflow sequence
+        - name: workflow-trajectory
+          type: tool_trajectory
+          mode: in_order
+          expected:
+            - tool: search
+            - tool: validate
+            - tool: process
+
+        # Plugin: Check if tools were appropriate choices
+        - name: selection-check
+          type: code_judge
+          script: bun run scripts/tool-selection-judge.ts
+
+        # Plugin: Evaluate efficiency
+        - name: efficiency
+          type: code_judge
+          script: bun run scripts/efficiency-scorer.ts
+
+  # ==========================================
+  # Example 4: Pairwise Comparison
+  # Use case: Compare candidate against baseline response
+  # Requires reference_answer field
+  # ==========================================
+  - id: pairwise-demo
+
+    expected_outcome: |-
+      Agent should retrieve and summarize the document efficiently.
+
+    input_messages:
+      - role: user
+        content: Summarize the main points of the user manual.
+
+    # Reference answer for comparison (from a baseline agent)
+    # Note: reference_answer is constructed from expected_messages content
+    expected_messages:
+      - role: assistant
+        content: |-
+          Here is a summary of the user manual:
+          1. Installation: Follow the setup wizard
+          2. Configuration: Edit settings.json
+          3. Usage: Run the main command
+
+    execution:
+      evaluators:
+        # Plugin: Pairwise comparison with position bias mitigation
+        - name: pairwise-quality
+          type: code_judge
+          script: bun run scripts/pairwise-tool-compare.ts

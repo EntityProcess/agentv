@@ -9,6 +9,35 @@ AgentV aims to provide a robust, declarative framework for evaluating AI agents.
 - **Multi-Objective Scoring**: Measure correctness, latency, cost, and safety in a single run.
 - **Optimization Ready**: Designed to support future automated hyperparameter tuning and candidate generation.
 
+## IMPORTANT: Design Principles
+
+These principles guide all feature decisions. **Follow these when proposing or implementing changes.**
+
+### 1. Lightweight Core, Plugin Extensibility
+AgentV's core should remain minimal. Complex or domain-specific logic belongs in plugins, not built-in features.
+
+**Extension points (prefer these over adding built-ins):**
+- `code_judge` scripts for custom evaluation logic
+- `llm_judge` evaluators with custom prompt files for domain-specific LLM grading
+- CLI wrappers that consume AgentV's JSON/JSONL output for post-processing (aggregation, comparison, reporting)
+
+**Ask yourself:** "Can this be achieved with existing primitives + a plugin or wrapper?" If yes, it should not be a built-in.
+
+### 2. Built-ins for Primitives Only
+Built-in evaluators provide **universal primitives** that users compose. A primitive is:
+- Stateless and deterministic
+- Has a single, clear responsibility
+- Cannot be trivially composed from other primitives
+- Needed by the majority of users
+
+If a feature serves a niche use case or adds conditional logic, it belongs in a plugin.
+
+### 3. Align with Industry Standards
+Before adding features, research how peer frameworks solve the problem. Prefer the **lowest common denominator** that covers most use cases. Novel features without industry precedent require strong justification and should default to plugin implementation.
+
+### 4. Non-Breaking Extensions
+New fields should be optional. Existing configurations must continue working unchanged.
+
 ## Tech Stack & Tools
 - **Language:** TypeScript 5.x targeting ES2022
 - **Runtime:** Bun (use `bun` for all package and script operations)
