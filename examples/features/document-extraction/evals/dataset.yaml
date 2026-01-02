@@ -1,4 +1,4 @@
-# Invoice Extraction Evaluation Dataset
+# Document Extraction Evaluation Dataset
 #
 # This eval tests a mock invoice extractor's ability to extract structured trade data
 # from commercial invoices, including header fields, party details, line items, and totals.
@@ -117,7 +117,7 @@ evalcases:
   # Perfect extraction scenario
   # ============================================
   - id: invoice-001
-    conversation_id: invoice-extraction
+    conversation_id: document-extraction
     outcome: |
       Extractor produces clean data matching expected ground truth.
       Mock extractor rounds supplier name from "Acme - Shipping" to "Acme Shipping" in HTML.
@@ -202,7 +202,7 @@ evalcases:
   # Demonstrates fuzzy matching via code_judge with config pass-through
   # ============================================
   - id: invoice-002
-    conversation_id: invoice-extraction
+    conversation_id: document-extraction
     outcome: |
       ACTUAL EXTRACTOR OUTPUT: supplier.name = "Acme - Shipping" (preserves HTML spacing/hyphen)
       EXPECTED GROUND TRUTH: supplier.name = "Acme Shipping" (normalized)
@@ -261,7 +261,7 @@ evalcases:
   # Tests numeric tolerance for total amounts
   # ============================================
   - id: invoice-003
-    conversation_id: invoice-extraction
+    conversation_id: document-extraction
     outcome: |
       ACTUAL EXTRACTOR OUTPUT: net_total = 1889.5, gross_total = 1889.5
       EXPECTED GROUND TRUTH: net_total = 1889, gross_total = 1889
@@ -293,7 +293,7 @@ evalcases:
   # Tests evaluation failure when critical fields missing
   # ============================================
   - id: invoice-004
-    conversation_id: invoice-extraction
+    conversation_id: document-extraction
     outcome: |
       ACTUAL EXTRACTOR OUTPUT: invoice_number = undefined (field missing in fixture)
       EXPECTED GROUND TRUTH: invoice_number = "INV-2025-001234"
@@ -325,7 +325,7 @@ evalcases:
   # Tests nested field path extraction with array indexing
   # ============================================
   - id: invoice-005
-    conversation_id: invoice-extraction
+    conversation_id: document-extraction
     outcome: |
       Extractor correctly extracts first two line items with proper array structure.
       Field paths like line_items[0].description should resolve correctly.

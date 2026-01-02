@@ -49,7 +49,7 @@ The `mock_extractor.ts` simply reads JSON fixtures to test the evaluator. The fi
 
 **Directory Structure:**
 ```
-invoice-extraction/
+document-extraction/
 ├── package.json               # No dependencies needed!
 ├── mock_extractor.ts          # Simple JSON reader (27 lines)
 ├── README.md                  # This file
@@ -71,7 +71,7 @@ invoice-extraction/
 **Running the Example:**
 ```bash
 # Run evaluations (when field_accuracy is implemented)
-cd examples/features/invoice-extraction
+cd examples/features/document-extraction
 agentv eval evals/dataset.yaml
 
 # Manual test of extractor

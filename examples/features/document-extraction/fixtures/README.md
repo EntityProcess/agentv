@@ -1,4 +1,4 @@
-# Invoice Extraction Test Fixtures
+# Document Extraction Test Fixtures
 
 This directory contains JSON mock files representing extracted invoice data for testing the field_accuracy evaluator.
 

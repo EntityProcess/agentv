@@ -1,7 +1,7 @@
 {
-  "name": "@agentv-examples/invoice-extraction",
+  "name": "@agentv-examples/document-extraction",
   "version": "0.0.0",
-  "description": "Invoice extraction evaluation example for AgentV",
+  "description": "Document extraction evaluation example for AgentV",
   "private": true,
   "scripts": {
     "extract": "bun run mock_extractor.ts"
