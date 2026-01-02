@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'bun:test';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { CodeEvaluator } from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
@@ -273,30 +275,9 @@ describe('Code Judge Metrics Integration', () => {
   };
 
   it('passes traceSummary to code_judge scripts', async () => {
-    // Script that checks if traceSummary is present and has expected fields
-    const script = `bun -e "
-      import fs from 'node:fs';
-      const input = JSON.parse(fs.readFileSync(0, 'utf8'));
-      const summary = input.traceSummary;
-      const hasEventCount = summary && typeof summary.eventCount === 'number';
-      const hasTokenUsage = summary && summary.tokenUsage && typeof summary.tokenUsage.input === 'number';
-      const hasCostUsd = summary && typeof summary.costUsd === 'number';
-      const score = (hasEventCount && hasTokenUsage && hasCostUsd) ? 1 : 0;
-      console.log(JSON.stringify({
-        score,
-        hits: [
-          hasEventCount ? 'eventCount present' : null,
-          hasTokenUsage ? 'tokenUsage present' : null,
-          hasCostUsd ? 'costUsd present' : null
-        ].filter(Boolean),
-        misses: [
-          hasEventCount ? null : 'eventCount missing',
-          hasTokenUsage ? null : 'tokenUsage missing',
-          hasCostUsd ? null : 'costUsd missing'
-        ].filter(Boolean),
-        reasoning: 'Checked traceSummary fields'
-      }));
-    "`;
+    // Use external script file for cross-platform compatibility
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const script = `node ${join(__dirname, '../fixtures/test-trace-summary.cjs')}`;
 
     const evaluator = new CodeEvaluator({ script });
 
@@ -328,18 +309,9 @@ describe('Code Judge Metrics Integration', () => {
   });
 
   it('handles missing traceSummary gracefully', async () => {
-    // Script that handles missing traceSummary
-    const script = `bun -e "
-      import fs from 'node:fs';
-      const input = JSON.parse(fs.readFileSync(0, 'utf8'));
-      const hasSummary = input.traceSummary !== null && input.traceSummary !== undefined;
-      console.log(JSON.stringify({
-        score: hasSummary ? 0 : 1,
-        hits: hasSummary ? [] : ['Correctly handled missing summary'],
-        misses: hasSummary ? ['Expected no summary'] : [],
-        reasoning: 'Checked for missing traceSummary'
-      }));
-    "`;
+    // Use external script file for cross-platform compatibility
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const script = `node ${join(__dirname, '../fixtures/test-no-trace-summary.cjs')}`;
 
     const evaluator = new CodeEvaluator({ script });
 

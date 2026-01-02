@@ -6,6 +6,8 @@ import { normalizeLineEndings } from '@agentv/core';
 import { Mutex } from 'async-mutex';
 import { stringify as stringifyYaml } from 'yaml';
 
+import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
+
 export class YamlWriter {
   private readonly stream: ReturnType<typeof createWriteStream>;
   private readonly mutex = new Mutex();
@@ -28,8 +30,11 @@ export class YamlWriter {
         throw new Error('Cannot write to closed YAML writer');
       }
 
+      // Convert record to snake_case for Python ecosystem compatibility
+      const snakeCaseRecord = toSnakeCaseDeep(record);
+
       // Convert to YAML with proper multi-line string handling
-      const yamlDoc = stringifyYaml(record, {
+      const yamlDoc = stringifyYaml(snakeCaseRecord, {
         indent: 2,
         lineWidth: 0, // Disable line wrapping
         // Let YAML library choose appropriate string style based on content

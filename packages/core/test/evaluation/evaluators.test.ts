@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'bun:test';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { CodeEvaluator, LlmJudgeEvaluator } from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
@@ -440,8 +442,9 @@ describe('CodeEvaluator', () => {
 
     const expectedCandidate = '{"decision":"ACCEPT"}';
 
-    const script =
-      "bun -e \"import fs from 'node:fs'; const input = JSON.parse(fs.readFileSync(0, 'utf8')); const hasExpected = Array.isArray(input.expectedMessages); const hasCandidate = typeof input.candidateAnswer === 'string'; let candidateDecisionOk = false; try { const obj = JSON.parse(input.candidateAnswer); candidateDecisionOk = obj && obj.decision === 'ACCEPT'; } catch {} const ok = hasExpected && hasCandidate && candidateDecisionOk; console.log(JSON.stringify({ score: ok ? 1 : 0, hits: [hasExpected ? 'expectedMessages present' : null, hasCandidate ? 'candidateAnswer present' : null, candidateDecisionOk ? 'candidateAnswer parses' : null].filter(Boolean), misses: [hasExpected ? null : 'expectedMessages missing', hasCandidate ? null : 'candidateAnswer missing', candidateDecisionOk ? null : 'candidateAnswer invalid'].filter(Boolean) }));\"";
+    // Use external script file for cross-platform compatibility
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const script = `node ${join(__dirname, '../fixtures/test-judge.cjs')}`;
 
     const evaluator = new CodeEvaluator({ script });
 
@@ -457,8 +460,8 @@ describe('CodeEvaluator', () => {
 
     expect(result.score).toBe(1);
     expect(result.verdict).toBe('pass');
-    expect(result.hits).toContain('expectedMessages present');
-    expect(result.hits).toContain('candidateAnswer present');
-    expect(result.hits).toContain('candidateAnswer parses');
+    expect(result.hits).toContain('expected_messages present');
+    expect(result.hits).toContain('candidate_answer present');
+    expect(result.hits).toContain('candidate_answer parses');
   });
 });
