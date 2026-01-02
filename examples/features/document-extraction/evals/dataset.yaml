@@ -256,7 +256,7 @@ evalcases:
       ACTUAL EXTRACTOR OUTPUT: net_total = 1889.5, gross_total = 1889.5
       EXPECTED GROUND TRUTH: net_total = 1889, gross_total = 1889
       
-      Fixture contains 1889.5 USD. Mock extractor preserves decimals for invoice-003.
+      Input sample contains 1889.5 USD. Mock extractor preserves decimals for invoice-003.
       Numeric tolerance (±1.0) should accept 0.5 difference and pass.
     expected_messages:
       - role: assistant
