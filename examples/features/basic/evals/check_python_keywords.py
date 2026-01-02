@@ -83,8 +83,8 @@ def main():
         # Read input from stdin
         input_data = json.loads(sys.stdin.read())
         
-        # Extract the generated output
-        output = input_data.get("candidate_answer", "")
+        # Extract the generated output (AgentV uses camelCase)
+        output = input_data.get("candidateAnswer", "")
         
         # Extract code from markdown if present
         code = extract_code_from_markdown(output)
