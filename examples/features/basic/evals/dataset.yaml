@@ -41,8 +41,6 @@ evalcases:
           # Files ending in .instructions.md are treated as guidelines
           - type: file
             value: javascript.instructions.md
-          - type: file
-            value: ../../local-cli/evals/example.txt
     
     expected_messages:
       - role: assistant
