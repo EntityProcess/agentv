@@ -22,11 +22,11 @@ describe('compare command', () => {
   });
 
   describe('loadJsonlResults', () => {
-    it('should load valid JSONL file with eval results', () => {
+    it('should load valid JSONL file with snake_case eval results', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(
         filePath,
-        '{"evalId": "case-1", "score": 0.8}\n{"evalId": "case-2", "score": 0.9}\n',
+        '{"eval_id": "case-1", "score": 0.8}\n{"eval_id": "case-2", "score": 0.9}\n',
       );
 
       const results = loadJsonlResults(filePath);
@@ -41,7 +41,7 @@ describe('compare command', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(
         filePath,
-        '{"evalId": "case-1", "score": 0.8}\n\n{"evalId": "case-2", "score": 0.9}\n',
+        '{"eval_id": "case-1", "score": 0.8}\n\n{"eval_id": "case-2", "score": 0.9}\n',
       );
 
       const results = loadJsonlResults(filePath);
@@ -49,16 +49,16 @@ describe('compare command', () => {
       expect(results).toHaveLength(2);
     });
 
-    it('should throw error for missing evalId', () => {
+    it('should throw error for missing eval_id', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(filePath, '{"score": 0.8}\n');
 
-      expect(() => loadJsonlResults(filePath)).toThrow('Missing evalId');
+      expect(() => loadJsonlResults(filePath)).toThrow('Missing eval_id');
     });
 
     it('should throw error for missing score', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
-      writeFileSync(filePath, '{"evalId": "case-1"}\n');
+      writeFileSync(filePath, '{"eval_id": "case-1"}\n');
 
       expect(() => loadJsonlResults(filePath)).toThrow('Missing or invalid score');
     });
