@@ -257,7 +257,7 @@ Confirm the CLI works by running `codex exec --json --profile <name> "ping"` (or
   # system_prompt: optional override for the default system prompt
 ```
 
-Pi Coding Agent is an autonomous coding CLI from [pi-mono](https://github.com/badlogic/pi-mono). Install it globally with `npm install -g @anthropic/pi-coding-agent` (or use a local path via `executable`). It supports multiple LLM providers and outputs JSONL events. AgentV extracts tool trajectories from the output for trace-based evaluation. File attachments are passed using Pi's native `@path` syntax.
+Pi Coding Agent is an autonomous coding CLI from [pi-mono](https://github.com/badlogic/pi-mono). Install it globally with `npm install -g @mariozechner/pi-coding-agent` (or use a local path via `executable`). It supports multiple LLM providers and outputs JSONL events. AgentV extracts tool trajectories from the output for trace-based evaluation. File attachments are passed using Pi's native `@path` syntax.
 
 By default, a system prompt instructs the agent to include code in its response (required for evaluation scoring). Use `system_prompt` to override this behavior.
 
