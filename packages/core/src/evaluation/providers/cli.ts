@@ -65,8 +65,8 @@ const CliOutputSchema = z.object({
   text: z.unknown().optional(),
   output_messages: z.array(OutputMessageInputSchema).optional(),
   token_usage: TokenUsageSchema.optional(),
-  cost_usd: z.number().nonnegative().optional(),
-  duration_ms: z.number().nonnegative().optional(),
+  cost_usd: z.number().optional(),
+  duration_ms: z.number().optional(),
 });
 
 /**
@@ -79,6 +79,31 @@ const CliJsonlRecordSchema = CliOutputSchema.extend({
 
 // Type for parsed output messages from Zod schema
 type ParsedOutputMessage = z.infer<typeof OutputMessageInputSchema>;
+
+/**
+ * Validates cost_usd and duration_ms values, warning and discarding negative values.
+ * Returns sanitized values (undefined if negative).
+ */
+function validateMetrics(
+  costUsd: number | undefined,
+  durationMs: number | undefined,
+  context: string,
+): { costUsd: number | undefined; durationMs: number | undefined } {
+  let validCostUsd = costUsd;
+  let validDurationMs = durationMs;
+
+  if (costUsd !== undefined && costUsd < 0) {
+    console.warn(`[cli-provider] ${context}: ignoring negative cost_usd value (${costUsd})`);
+    validCostUsd = undefined;
+  }
+
+  if (durationMs !== undefined && durationMs < 0) {
+    console.warn(`[cli-provider] ${context}: ignoring negative duration_ms value (${durationMs})`);
+    validDurationMs = undefined;
+  }
+
+  return { costUsd: validCostUsd, durationMs: validDurationMs };
+}
 
 /**
  * Converts Zod-parsed output messages to internal OutputMessage format.
@@ -427,6 +452,9 @@ export class CliProvider implements Provider {
 
     const obj = result.data;
 
+    // Validate metrics and warn about negative values
+    const metrics = validateMetrics(obj.cost_usd, obj.duration_ms, 'parsing output');
+
     // Convert output_messages to OutputMessage[] format
     const outputMessages = convertOutputMessages(obj.output_messages);
 
@@ -435,8 +463,8 @@ export class CliProvider implements Provider {
       return {
         outputMessages,
         tokenUsage: obj.token_usage,
-        costUsd: obj.cost_usd,
-        durationMs: obj.duration_ms,
+        costUsd: metrics.costUsd,
+        durationMs: metrics.durationMs,
       };
     }
 
@@ -446,8 +474,8 @@ export class CliProvider implements Provider {
       return {
         outputMessages: [{ role: 'assistant', content: text }],
         tokenUsage: obj.token_usage,
-        costUsd: obj.cost_usd,
-        durationMs: obj.duration_ms,
+        costUsd: metrics.costUsd,
+        durationMs: metrics.durationMs,
       };
     }
 
@@ -520,11 +548,14 @@ export class CliProvider implements Provider {
         finalOutputMessages = text ? [{ role: 'assistant', content: text }] : [];
       }
 
+      // Validate metrics and warn about negative values
+      const metrics = validateMetrics(obj.cost_usd, obj.duration_ms, `batch record '${obj.id}'`);
+
       records.set(obj.id, {
         outputMessages: finalOutputMessages,
         tokenUsage: obj.token_usage,
-        costUsd: obj.cost_usd,
-        durationMs: obj.duration_ms,
+        costUsd: metrics.costUsd,
+        durationMs: metrics.durationMs,
       });
     }
 
