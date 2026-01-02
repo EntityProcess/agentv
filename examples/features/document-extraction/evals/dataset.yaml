@@ -12,12 +12,6 @@
 # - Numeric tolerance for currency amounts (handles rounding)
 # - For fuzzy matching (OCR variations), use code_judge with fuzzy_match.ts
 #
-# AgentV High-Level Goals Alignment:
-# ✅ Declarative Definitions - Uses YAML with clear expected outcomes
-# ✅ Structured Evaluation - Demonstrates deterministic field comparison (primitive for rubric-based)
-# ✅ Lightweight Core - Geometric evaluators deferred to code_judge plugins
-# ✅ Optimization Ready - Weighted fields enable future hyperparameter tuning
-
 description: Commercial invoice data extraction evaluation
 
 execution:
