@@ -273,15 +273,15 @@ evalcases:
   - id: invoice-004
     conversation_id: invoice-extraction
     outcome: |
-      ACTUAL EXTRACTOR OUTPUT: invoice_number = undefined (field missing in HTML)
+      ACTUAL EXTRACTOR OUTPUT: invoice_number = undefined (field missing in fixture)
       EXPECTED GROUND TRUTH: invoice_number = "INV-2025-001234"
-      
+
       Tests required field validation. Score should drop significantly due to
-      missing critical field (weight 2.0).
+      missing critical field (weight 2.0). Expected score ~0.85 (lose 2/13 weight).
     expected_messages:
       - role: assistant
         content:
-          # invoice_number missing (required)
+          invoice_number: "INV-2025-001234"  # Expected but missing in candidate
           invoice_date: "15-JAN-2025"
           currency: "USD"
           net_total: 1889
