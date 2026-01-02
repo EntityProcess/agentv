@@ -199,7 +199,7 @@ evalcases:
 
   # ============================================
   # Test Case 2: Supplier Name Spacing Variation
-  # Demonstrates exact match failure - use code_judge fuzzy_match.ts for OCR variations
+  # Demonstrates fuzzy matching via code_judge for OCR variations
   # ============================================
   - id: invoice-002
     conversation_id: invoice-extraction
@@ -208,8 +208,30 @@ evalcases:
       EXPECTED GROUND TRUTH: supplier.name = "Acme Shipping" (normalized)
 
       This simulates OCR output that preserves document formatting.
-      With exact matching, this will fail. To handle OCR variations, add a
-      code_judge evaluator using fuzzy_match.ts (Levenshtein similarity).
+      Uses code_judge with Levenshtein similarity (threshold 0.85) for supplier.name,
+      combined with field_accuracy for other fields.
+    evaluators:
+      # Fuzzy match for supplier name (handles OCR variations)
+      - name: supplier_name_fuzzy
+        type: code_judge
+        script: ../supplier_name_fuzzy.ts
+      # Exact/numeric matching for other fields
+      - name: other_fields
+        type: field_accuracy
+        fields:
+          - path: invoice_number
+            match: exact
+            required: true
+          - path: invoice_date
+            match: date
+            formats: ["DD-MMM-YYYY", "YYYY-MM-DD"]
+          - path: currency
+            match: exact
+          - path: net_total
+            match: numeric_tolerance
+            tolerance: 1.0
+          - path: importer.name
+            match: exact
     expected_messages:
       - role: assistant
         content:
