@@ -162,7 +162,7 @@ Execution targets in `.agentv/targets.yaml` decouple evals from providers/settin
 Each target specifies:
 
 - `name`: Unique identifier for the target
-- `provider`: The model provider (`azure`, `anthropic`, `gemini`, `codex`, `pi-coding-agent`, `vscode`, `vscode-insiders`, `cli`, or `mock`)
+- `provider`: The model provider (`azure`, `anthropic`, `gemini`, `codex`, `pi`, `vscode`, `vscode-insiders`, `cli`, or `mock`)
 - Provider-specific configuration fields at the top level (no `settings` wrapper needed)
 - Optional fields: `judge_target`, `workers`, `provider_batching`
 
@@ -244,7 +244,7 @@ Confirm the CLI works by running `codex exec --json --profile <name> "ping"` (or
 
 ```yaml
 - name: pi
-  provider: pi-coding-agent
+  provider: pi
   judge_target: gemini_base
   executable: ${{ PI_CLI_PATH }}            # Optional: defaults to `pi` if omitted
   pi_provider: google                       # google, anthropic, openai, groq, xai, openrouter
@@ -257,7 +257,7 @@ Confirm the CLI works by running `codex exec --json --profile <name> "ping"` (or
   # system_prompt: optional override for the default system prompt
 ```
 
-Pi Coding Agent is an autonomous coding CLI from [pi-mono](https://github.com/badlogic/pi-mono). Install it globally with `npm install -g @anthropic/pi-coding-agent` (or use a local path via `executable`). It supports multiple LLM providers and outputs JSONL events. AgentV extracts tool trajectories from the output for trace-based evaluation. File attachments are passed using Pi's native `@path` syntax.
+Pi Coding Agent is an autonomous coding CLI from [pi-mono](https://github.com/badlogic/pi-mono). Install it globally with `npm install -g pi` (or use a local path via `executable`). It supports multiple LLM providers and outputs JSONL events. AgentV extracts tool trajectories from the output for trace-based evaluation. File attachments are passed using Pi's native `@path` syntax.
 
 By default, a system prompt instructs the agent to include code in its response (required for evaluation scoring). Use `system_prompt` to override this behavior.
 

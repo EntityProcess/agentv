@@ -8,7 +8,7 @@ import path from 'node:path';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
 import { normalizeInputFiles } from './preread.js';
-import type { PiCodingAgentResolvedConfig } from './targets.js';
+import type { PiResolvedConfig } from './targets.js';
 import type {
   OutputMessage,
   Provider,
@@ -50,21 +50,17 @@ interface PiRunResult {
 
 type PiRunner = (options: PiRunOptions) => Promise<PiRunResult>;
 
-export class PiCodingAgentProvider implements Provider {
+export class PiProvider implements Provider {
   readonly id: string;
-  readonly kind = 'pi-coding-agent' as const;
+  readonly kind = 'pi' as const;
   readonly targetName: string;
   readonly supportsBatch = false;
 
-  private readonly config: PiCodingAgentResolvedConfig;
+  private readonly config: PiResolvedConfig;
   private readonly runPi: PiRunner;
 
-  constructor(
-    targetName: string,
-    config: PiCodingAgentResolvedConfig,
-    runner: PiRunner = defaultPiRunner,
-  ) {
-    this.id = `pi-coding-agent:${targetName}`;
+  constructor(targetName: string, config: PiResolvedConfig, runner: PiRunner = defaultPiRunner) {
+    this.id = `pi:${targetName}`;
     this.targetName = targetName;
     this.config = config;
     this.runPi = runner;
@@ -268,7 +264,7 @@ export class PiCodingAgentProvider implements Provider {
     if (this.config.logDir) {
       return path.resolve(this.config.logDir);
     }
-    return path.join(process.cwd(), '.agentv', 'logs', 'pi-coding-agent');
+    return path.join(process.cwd(), '.agentv', 'logs', 'pi');
   }
 
   private async createStreamLogger(request: ProviderRequest): Promise<PiStreamLogger | undefined> {

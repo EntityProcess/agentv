@@ -430,7 +430,7 @@ export interface CodexResolvedConfig {
   readonly systemPrompt?: string;
 }
 
-export interface PiCodingAgentResolvedConfig {
+export interface PiResolvedConfig {
   readonly executable: string;
   readonly provider?: string;
   readonly model?: string;
@@ -503,12 +503,12 @@ export type ResolvedTarget =
       readonly config: CodexResolvedConfig;
     }
   | {
-      readonly kind: 'pi-coding-agent';
+      readonly kind: 'pi';
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
-      readonly config: PiCodingAgentResolvedConfig;
+      readonly config: PiResolvedConfig;
     }
   | {
       readonly kind: 'mock';
@@ -657,12 +657,12 @@ export function resolveTargetDefinition(
     case 'pi':
     case 'pi-coding-agent':
       return {
-        kind: 'pi-coding-agent',
+        kind: 'pi',
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
-        config: resolvePiCodingAgentConfig(parsed, env),
+        config: resolvePiConfig(parsed, env),
       };
     case 'mock':
       return {
@@ -852,10 +852,10 @@ function normalizeCodexLogFormat(value: unknown): 'summary' | 'json' | undefined
   throw new Error("codex log format must be 'summary' or 'json'");
 }
 
-function resolvePiCodingAgentConfig(
+function resolvePiConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
-): PiCodingAgentResolvedConfig {
+): PiResolvedConfig {
   const executableSource = target.executable ?? target.command ?? target.binary;
   const providerSource = target.pi_provider ?? target.piProvider ?? target.llm_provider;
   const modelSource = target.model ?? target.pi_model ?? target.piModel;
