@@ -40,9 +40,9 @@ evalcases:
           # File references are resolved relative to the eval file directory
           # Files ending in .instructions.md are treated as guidelines
           - type: file
-            value: ../../prompts/javascript.instructions.md
+            value: javascript.instructions.md
           - type: file
-            value: ../local-cli/attachments/example.txt
+            value: ../../local-cli/evals/example.txt
     
     expected_messages:
       - role: assistant
@@ -79,10 +79,10 @@ evalcases:
         - name: keyword_check
           type: code_judge  # Code evaluators handle regex, keywords, linting, etc.
           script: uv run check_python_keywords.py
-          cwd: ../../evaluators/scripts  # Working directory for script execution
+          cwd: .  # Working directory for script execution
         - name: code_correctness
           type: llm_judge  # LLM-based evaluation
-          prompt: ../../evaluators/prompts/code-correctness-judge.md
+          prompt: code-correctness-judge.md
     
     input_messages:
       - role: system
@@ -98,7 +98,7 @@ evalcases:
               4. Raises appropriate exceptions for invalid input
           # Reference to real instruction file
           - type: file
-            value: ../../prompts/python.instructions.md
+            value: python.instructions.md
     
     expected_messages:
       - role: assistant
