@@ -86,6 +86,26 @@ class CapturingProvider implements Provider {
   }
 }
 
+class CapturingCliProvider implements Provider {
+  readonly id: string;
+  readonly kind = 'cli' as const;
+  readonly targetName: string;
+  lastRequest?: ProviderRequest;
+
+  constructor(
+    targetName: string,
+    private readonly response: ProviderResponse,
+  ) {
+    this.id = `cli:${targetName}`;
+    this.targetName = targetName;
+  }
+
+  async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+    this.lastRequest = request;
+    return this.response;
+  }
+}
+
 const baseTestCase: EvalCase = {
   id: 'case-1',
   dataset: 'test-dataset',
@@ -432,6 +452,40 @@ describe('runTestCase', () => {
     expect(result.agentProviderRequest).toBeDefined();
     expect(result.lmProviderRequest).toBeUndefined();
     expect(result.agentProviderRequest?.question).toBe('Explain logging improvements');
+  });
+
+  it('uses file references (not embedded contents) for cli providers', async () => {
+    const provider = new CapturingCliProvider('cli', {
+      outputMessages: [{ role: 'assistant', content: 'ok' }],
+    });
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...baseTestCase,
+        input_messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'file', value: 'input.json' },
+              { type: 'text', value: 'Summarize the file.' },
+            ],
+          },
+        ],
+        input_segments: [
+          { type: 'file', path: 'input.json', text: '{"secret":true}' },
+          { type: 'text', value: 'Summarize the file.' },
+        ],
+        file_paths: ['/abs/path/input.json'],
+      },
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.lmProviderRequest).toBeDefined();
+    expect(result.lmProviderRequest?.question).toContain('<file: path="input.json">');
+    expect(result.lmProviderRequest?.question).not.toContain('<file path="input.json">');
+    expect(result.lmProviderRequest?.question).not.toContain('{"secret":true}');
   });
 });
 

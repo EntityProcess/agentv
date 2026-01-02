@@ -315,7 +315,9 @@ export async function runEvaluation(
     } else {
       // Build error result for rejected promise
       const evalCase = filteredEvalCases[i];
-      const promptInputs = await buildPromptInputs(evalCase);
+      const formattingMode =
+        isAgentProvider(primaryProvider) || primaryProvider.kind === 'cli' ? 'agent' : 'lm';
+      const promptInputs = await buildPromptInputs(evalCase, formattingMode);
       const errorResult = buildErrorResult(
         evalCase,
         target.name,
@@ -364,7 +366,7 @@ async function runBatchEvaluation(options: {
 
   // Prepare prompt inputs up front so we can reuse them for grading.
   const promptInputsList: PromptInputs[] = [];
-  const formattingMode = isAgentProvider(provider) ? 'agent' : 'lm';
+  const formattingMode = isAgentProvider(provider) || provider.kind === 'cli' ? 'agent' : 'lm';
 
   for (const evalCase of evalCases) {
     const promptInputs = await buildPromptInputs(evalCase, formattingMode);
@@ -507,7 +509,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     judgeProvider,
   } = options;
 
-  const formattingMode = isAgentProvider(provider) ? 'agent' : 'lm';
+  const formattingMode = isAgentProvider(provider) || provider.kind === 'cli' ? 'agent' : 'lm';
   const promptInputs = await buildPromptInputs(evalCase, formattingMode);
   if (promptDumpDir) {
     await dumpPrompt(promptDumpDir, evalCase, promptInputs);
