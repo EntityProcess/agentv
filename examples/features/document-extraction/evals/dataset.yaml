@@ -18,7 +18,6 @@
 # ✅ Lightweight Core - Geometric evaluators deferred to code_judge plugins
 # ✅ Optimization Ready - Weighted fields enable future hyperparameter tuning
 
-$schema: agentv-eval-v2
 description: Commercial invoice data extraction evaluation
 
 execution:
