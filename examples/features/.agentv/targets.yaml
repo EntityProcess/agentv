@@ -68,6 +68,16 @@ targets:
     log_format: json  # 'summary' (default) or 'json' for raw event logs
     # system_prompt: optional override (default instructs agent to include code in response)
 
+  # Claude Code - Anthropic's autonomous coding CLI
+  - name: claude-code
+    provider: claude-code
+    judge_target: azure_base
+    # executable: ${{ CLAUDE_CODE_CLI_PATH }}  # Optional: defaults to `claude` on PATH
+    # model: claude-sonnet-4-20250514          # Optional: override model
+    timeout_seconds: 180
+    log_format: json  # 'summary' (default) or 'json' for raw event logs
+    # system_prompt: optional override (default instructs agent to include code in response)
+
   - name: local_cli
     provider: cli
     judge_target: azure_base
