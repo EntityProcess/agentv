@@ -194,7 +194,7 @@ evalcases:
   - id: invoice-002
     conversation_id: document-extraction
     outcome: |
-      ACTUAL EXTRACTOR OUTPUT: supplier.name = "Acme - Shipping" (preserves HTML spacing/hyphen)
+      ACTUAL EXTRACTOR OUTPUT: supplier.name = "Acme - Shipping" (preserves document punctuation)
       EXPECTED GROUND TRUTH: supplier.name = "Acme Shipping" (normalized)
 
       This simulates OCR output that preserves document formatting.
