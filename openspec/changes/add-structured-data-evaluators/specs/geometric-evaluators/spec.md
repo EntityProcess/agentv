@@ -286,7 +286,6 @@ if __name__ == "__main__":
 ### YAML Configuration
 
 ```yaml
-$schema: agentv-eval-v2
 description: Object detection evaluation with IoU
 
 execution:

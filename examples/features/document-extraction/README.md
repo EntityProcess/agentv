@@ -254,7 +254,6 @@ interface InvoiceExtraction {
 ### Example: Custom Document Type
 
 ```yaml
-$schema: agentv-eval-v2
 description: Receipt data extraction
 
 execution:
