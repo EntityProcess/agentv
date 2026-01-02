@@ -445,6 +445,17 @@ export interface PiCodingAgentResolvedConfig {
   readonly systemPrompt?: string;
 }
 
+export interface ClaudeCodeResolvedConfig {
+  readonly executable: string;
+  readonly model?: string;
+  readonly systemPrompt?: string;
+  readonly args?: readonly string[];
+  readonly cwd?: string;
+  readonly timeoutMs?: number;
+  readonly logDir?: string;
+  readonly logFormat?: 'summary' | 'json';
+}
+
 export interface MockResolvedConfig {
   readonly response?: string;
   readonly delayMs?: number;
@@ -509,6 +520,14 @@ export type ResolvedTarget =
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: PiCodingAgentResolvedConfig;
+    }
+  | {
+      readonly kind: 'claude-code';
+      readonly name: string;
+      readonly judgeTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: ClaudeCodeResolvedConfig;
     }
   | {
       readonly kind: 'mock';
@@ -663,6 +682,15 @@ export function resolveTargetDefinition(
         workers: parsed.workers,
         providerBatching,
         config: resolvePiCodingAgentConfig(parsed, env),
+      };
+    case 'claude-code':
+      return {
+        kind: 'claude-code',
+        name: parsed.name,
+        judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolveClaudeCodeConfig(parsed, env),
       };
     case 'mock':
       return {
@@ -937,6 +965,88 @@ function resolvePiCodingAgentConfig(
     logFormat,
     systemPrompt,
   };
+}
+
+function resolveClaudeCodeConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): ClaudeCodeResolvedConfig {
+  const executableSource = target.executable ?? target.command ?? target.binary;
+  const modelSource = target.model;
+  const argsSource = target.args ?? target.arguments;
+  const cwdSource = target.cwd;
+  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
+  const logDirSource =
+    target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
+  const logFormatSource =
+    target.log_format ??
+    target.logFormat ??
+    target.log_output_format ??
+    target.logOutputFormat ??
+    env.AGENTV_CLAUDE_CODE_LOG_FORMAT;
+  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
+
+  const executable =
+    resolveOptionalString(executableSource, env, `${target.name} claude-code executable`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }) ?? 'claude';
+
+  const model = resolveOptionalString(modelSource, env, `${target.name} claude-code model`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const args = resolveOptionalStringArray(argsSource, env, `${target.name} claude-code args`);
+
+  const cwd = resolveOptionalString(cwdSource, env, `${target.name} claude-code cwd`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} claude-code timeout`);
+
+  const logDir = resolveOptionalString(
+    logDirSource,
+    env,
+    `${target.name} claude-code log directory`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
+
+  const logFormat = normalizeClaudeCodeLogFormat(logFormatSource);
+
+  const systemPrompt =
+    typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
+      ? systemPromptSource.trim()
+      : undefined;
+
+  return {
+    executable,
+    model,
+    systemPrompt,
+    args,
+    cwd,
+    timeoutMs,
+    logDir,
+    logFormat,
+  };
+}
+
+function normalizeClaudeCodeLogFormat(value: unknown): 'summary' | 'json' | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw new Error("claude-code log format must be 'summary' or 'json'");
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'json' || normalized === 'summary') {
+    return normalized;
+  }
+  throw new Error("claude-code log format must be 'summary' or 'json'");
 }
 
 function resolveMockConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): MockResolvedConfig {
