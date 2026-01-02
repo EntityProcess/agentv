@@ -21,7 +21,7 @@ This directory contains evaluation examples demonstrating AgentV's proposed stru
 **AgentV Goals Alignment:**
 - ✅ **Declarative Definitions**: YAML-based configuration with clear expected outcomes
 - ✅ **Structured Evaluation**: Demonstrates deterministic field comparison (primitive for rubric-based patterns)
-- ⚠️ **Multi-Objective Scoring**: Currently demonstrates correctness only; includes placeholders for latency/cost/safety
+- ✅ **Multi-Objective Scoring**: Supports correctness, latency, and cost evaluation
 - ✅ **Optimization Ready**: Weighted fields enable future hyperparameter tuning of extraction algorithms
 
 **Evaluators Used:**
@@ -30,6 +30,8 @@ This directory contains evaluation examples demonstrating AgentV's proposed stru
   - Date matching with format normalization (handles "15-JAN-2025" vs "2025-01-15")
   - Numeric tolerance for amounts (±$1 to handle rounding)
   - Nested field paths for line item arrays
+- `latency` - Check execution duration against threshold (optional, requires provider metrics)
+- `cost` - Check execution cost against budget (optional, requires provider metrics)
 - `code_judge` with `fuzzy_match.ts` - For company names with OCR variations (Levenshtein similarity)
 
 **Test Scenarios:**
