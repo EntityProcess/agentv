@@ -1,68 +1,110 @@
 # AgentV Features Examples
 
-This directory demonstrates AgentV's evaluation features with complete, working examples organized by capability.
+This directory demonstrates AgentV's evaluation features with complete, working examples. Each feature is self-contained in its own subfolder following the showcase convention.
 
-## Key Files
+## Directory Structure
 
-### Evaluation Files (`evals/`)
+Each feature example follows this pattern:
+```
+feature-name/
+├── evals/
+│   ├── dataset.yaml          # Primary eval file
+│   ├── *.py                  # Code evaluators (if needed)
+│   ├── *.md                  # LLM judge prompts (if needed)
+│   └── [other eval files]    # Additional evals or fixtures
+├── README.md                  # Feature documentation
+└── [other feature files]      # Scripts, configs, etc.
+```
 
-Organized by feature area:
+## Available Features
 
-#### Basic Features (`evals/basic/`)
+### Basic Features (`basic/`)
 
-- **`example-eval.yaml`**: Core schema demonstration showing:
-  - Basic features: `input_messages`, `expected_messages`
-  - File references and content blocks
-  - Conversation threading with `conversation_id`
-  - Multiple evaluators (code + LLM judge)
-  - Target overrides per eval case
+Core schema demonstration showing:
+- Basic features: `input_messages`, `expected_messages`
+- File references and content blocks
+- Conversation threading with `conversation_id`
+- Multiple evaluators (code + LLM judge)
+- Target overrides per eval case
 
-#### Rubric Evaluator (`evals/rubric/`)
+**Eval file:** [basic/evals/dataset.yaml](basic/evals/dataset.yaml)
 
-- **`rubric-examples.yaml`**: Rubric evaluator feature demonstration showing:
-  - Inline rubrics (simple strings and detailed objects)
-  - `expected_outcome` field
-  - Rubric weights and required flags
-  - Verdict field (pass/fail/borderline)
-  - Automatic rubric generation from expected outcomes
+### Rubric Evaluator (`rubric/`)
 
-#### Tool Trajectory Evaluator (`evals/tool-trajectory/`)
+Rubric evaluator feature demonstration showing:
+- Inline rubrics (simple strings and detailed objects)
+- `expected_outcome` field
+- Rubric weights and required flags
+- Verdict field (pass/fail/borderline)
+- Automatic rubric generation from expected outcomes
 
-- **`tool-trajectory-demo.yaml`**: Tool trajectory evaluator for agent execution validation:
-  - `any_order` mode: Validates minimum tool call counts (tools can appear in any order)
-  - `in_order` mode: Validates tools appear in expected sequence (allows gaps)
-  - `exact` mode: Validates exact tool sequence match (no gaps, no extra tools)
+**Eval file:** [rubric/evals/dataset.yaml](rubric/evals/dataset.yaml)
+
+### Tool Trajectory Evaluator (`tool-trajectory/`)
+
+Tool trajectory evaluator for agent execution validation:
+- `any_order` mode: Validates minimum tool call counts (tools can appear in any order)
+- `in_order` mode: Validates tools appear in expected sequence (allows gaps)
+- `exact` mode: Validates exact tool sequence match (no gaps, no extra tools)
+
+**Eval files:** 
+- [tool-trajectory/evals/dataset.yaml](tool-trajectory/evals/dataset.yaml)
+- [tool-trajectory/evals/trace-file-demo.yaml](tool-trajectory/evals/trace-file-demo.yaml)
 
 **Setup for tool-trajectory demos:**
 
 1. Create a `.env` file in `examples/features/` with:
    ```
-   TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/evals/tool-trajectory
+   TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/tool-trajectory
    ```
 
 2. Run the demos:
    ```bash
    cd examples/features
-   npx agentv eval evals/tool-trajectory/tool-trajectory-demo.yaml --target mock_agent
+   npx agentv eval tool-trajectory/evals/dataset.yaml --target mock_agent
    ```
 
 Note: These demos use a mock CLI agent that simulates tool usage. For real agent evaluation, use providers that return trace data (e.g., codex, vscode)
 
-### Evaluator Components (`evaluators/`)
+### Composite Evaluator (`composite/`)
 
-- **`scripts/`**: Code-based evaluators (Python, shell, etc.)
-  - Input: JSON with eval case data via stdin
-  - Output: JSON with score, passed flag, and reasoning
-  - Example: `check_python_keywords.py` validates Python code quality
+Demonstrates composite evaluation patterns.
 
-- **`prompts/`**: LLM judge prompt templates (Markdown)
-  - Define how an LLM should evaluate outputs
-  - Include scoring guidelines and output format
-  - Example: `code-correctness-judge.md` for semantic code review
+**Eval file:** [composite/evals/dataset.yaml](composite/evals/dataset.yaml)
 
-### Shared Instruction Files (`prompts/`)
+### Compare (`compare/`)
 
-- **`python.instructions.md`**: Python coding guidelines
-- **`javascript.instructions.md`**: JavaScript coding guidelines
-- These instruction files can be referenced in eval files to provide context
+Demonstrates comparison of baseline and candidate evaluation results.
+
+**Files:** [compare/evals/](compare/evals/)
+
+### Weighted Evaluators (`weighted-evaluators/`)
+
+Shows how to use weighted evaluator configurations.
+
+**Eval file:** [weighted-evaluators/evals/dataset.yaml](weighted-evaluators/evals/dataset.yaml)
+
+### Execution Metrics (`execution-metrics/`)
+
+Demonstrates tracking and evaluation of execution performance metrics.
+
+**Eval file:** [execution-metrics/evals/dataset.yaml](execution-metrics/evals/dataset.yaml)
+
+### Local CLI Provider (`local-cli/`)
+
+Shows how to invoke a CLI target with file attachments using the template-based CLI provider.
+
+**Eval file:** [local-cli/evals/dataset.yaml](local-cli/evals/dataset.yaml)
+
+### Batch CLI (`batch-cli/`)
+
+Demonstrates batch evaluation using CLI targets.
+
+**Eval file:** [batch-cli/evals/dataset.yaml](batch-cli/evals/dataset.yaml)
+
+## Document Extraction (`document-extraction/`)
+
+Invoice data extraction evaluation (see dedicated README in that folder).
+
+**Eval file:** [document-extraction/evals/dataset.yaml](document-extraction/evals/dataset.yaml)
 

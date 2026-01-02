@@ -1,0 +1,49 @@
+SUPERSECRET_INSTRUCTION_MARKER_PYTHON
+
+Here is the requested Python function:
+
+```python
+def second_largest(nums):
+    """
+    Returns the second largest integer in the list.
+
+    Args:
+        nums (list of int): The list of integers.
+
+    Returns:
+        int: The second largest integer.
+
+    Raises:
+        TypeError: If input is not a list of integers.
+        ValueError: If the list has fewer than 2 distinct elements.
+    """
+    # Type checking
+    if not isinstance(nums, list):
+        raise TypeError("Input must be a list of integers.")
+    if not all(isinstance(n, int) for n in nums):
+        raise TypeError("All elements in the list must be integers.")
+
+    # Remove duplicates
+    unique_nums = list(set(nums))
+
+    if len(unique_nums) < 2:
+        raise ValueError("List must contain at least two distinct integers.")
+
+    unique_nums.sort(reverse=True)
+    return unique_nums[1]
+```
+
+**Edge case handling:**
+- **Empty list**: Raises `ValueError`.
+- **Single item**: Raises `ValueError`.
+- **Duplicates**: Removes duplicates before finding the second largest.
+- **Type checking**: Raises `TypeError` for invalid types.
+
+**Example usage:**
+```python
+second_largest([5, 3, 5, 2])  # Returns 3
+second_largest([10, 2])       # Returns 2
+second_largest([1])           # Raises ValueError
+second_largest([])            # Raises ValueError
+second_largest([1, "a"])      # Raises TypeError
+```

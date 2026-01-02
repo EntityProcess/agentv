@@ -449,20 +449,21 @@ export class CodeEvaluator implements Evaluator {
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
+    // Transform to snake_case for Python/language-agnostic scripts
     const inputPayload = JSON.stringify(
       {
         question: context.evalCase.question,
-        expectedOutcome: context.evalCase.expected_outcome,
-        expectedMessages: context.evalCase.expected_messages,
-        referenceAnswer: context.evalCase.reference_answer,
-        candidateAnswer: context.candidate,
-        outputMessages: context.outputMessages ?? null,
-        guidelineFiles: context.evalCase.guideline_paths,
-        inputFiles: context.evalCase.file_paths.filter(
+        expected_outcome: context.evalCase.expected_outcome,
+        expected_messages: context.evalCase.expected_messages,
+        reference_answer: context.evalCase.reference_answer,
+        candidate_answer: context.candidate,
+        output_messages: context.outputMessages ?? null,
+        guideline_files: context.evalCase.guideline_paths,
+        input_files: context.evalCase.file_paths.filter(
           (path) => !context.evalCase.guideline_paths.includes(path),
         ),
-        inputMessages: context.evalCase.input_messages,
-        traceSummary: context.traceSummary ?? null,
+        input_messages: context.evalCase.input_messages,
+        trace_summary: context.traceSummary ?? null,
       },
       null,
       2,

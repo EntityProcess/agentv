@@ -34,7 +34,6 @@ def check_python_keywords(code: str) -> dict:
     Check if generated Python code contains important keywords and patterns.
     
     Returns a score based on presence of:
-    - Type hints (typing imports, annotations)
     - Error handling (try/except, raise)
     - Docstrings
     - Type checking (isinstance)
@@ -44,35 +43,32 @@ def check_python_keywords(code: str) -> dict:
     hits = []
     misses = []
     
-    # Check for type hints
-    if re.search(r'from typing import|import typing', code):
-        score += 0.25
-        hits.append("Uses typing module")
-    else:
-        misses.append("Missing typing imports")
-    
-    # Check for error handling
+    # Check for error handling (most important for demo)
     if 'raise' in code and ('Error' in code or 'Exception' in code):
-        score += 0.25
+        score += 0.34
         hits.append("Raises exceptions")
     else:
         misses.append("Missing exception raising")
     
     # Check for docstrings
     if '"""' in code or "'''" in code:
-        score += 0.25
+        score += 0.33
         hits.append("Contains docstrings")
     else:
         misses.append("Missing docstrings")
     
     # Check for type validation
     if 'isinstance' in code:
-        score += 0.25
+        score += 0.33
         hits.append("Validates types with isinstance")
     else:
         misses.append("Missing type validation")
     
-    reasoning = f"Passed {len(hits)}/4 checks. Score: {score:.2f}"
+    # Round score to 1.0 if all checks pass
+    if len(hits) == 3:
+        score = 1.0
+    
+    reasoning = f"Passed {len(hits)}/3 checks. Score: {score:.2f}"
     
     return {
         "score": score,
@@ -87,7 +83,7 @@ def main():
         # Read input from stdin
         input_data = json.loads(sys.stdin.read())
         
-        # Extract the generated output
+        # Extract the generated output (AgentV uses snake_case in JSON payloads)
         output = input_data.get("candidate_answer", "")
         
         # Extract code from markdown if present

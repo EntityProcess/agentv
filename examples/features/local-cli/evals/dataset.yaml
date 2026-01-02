@@ -14,14 +14,14 @@ evalcases:
       - role: system
         content:
           - type: file
-            value: ../../prompts/python.instructions.md
+            value: python.instructions.md
       - role: user
         content:
           - type: text
             value: |-
               Please echo this request in one short sentence and mention all attached files by name.
           - type: file
-            value: ./attachments/example.txt
+            value: example.txt
 
     expected_messages:
       - role: assistant
