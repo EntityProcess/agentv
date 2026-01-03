@@ -103,9 +103,7 @@ function checkEfficiency(input: EvalInput): EvalOutput {
       hits.push(`Duration (${summary.duration_ms}ms) within limit`);
       checks.push(true);
     } else {
-      misses.push(
-        `Slow execution: ${summary.duration_ms}ms (max: ${THRESHOLDS.maxDurationMs}ms)`,
-      );
+      misses.push(`Slow execution: ${summary.duration_ms}ms (max: ${THRESHOLDS.maxDurationMs}ms)`);
       checks.push(false);
     }
   }

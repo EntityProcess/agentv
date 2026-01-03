@@ -100,6 +100,7 @@ evalcases:
   # Demonstrates: combining rubric evaluator with other evaluators
   # ==========================================
   - id: code-quality-multi-eval
+    # Baseline note: candidates without type hints/edge handling often score lower (~0.75).
 
     expected_outcome: |-
       Python function that validates email addresses with proper error handling

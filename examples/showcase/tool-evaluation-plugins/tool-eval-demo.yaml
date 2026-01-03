@@ -48,6 +48,7 @@ evalcases:
   # Use case: Evaluate resource efficiency of agent execution
   # ==========================================
   - id: efficiency-demo
+    # Baseline note: exploration ratio can flag this as slightly suboptimal (~0.93).
 
     expected_outcome: |-
       Agent efficiently processes the request with minimal redundant operations.
@@ -69,6 +70,7 @@ evalcases:
   # Use case: Comprehensive tool usage assessment
   # ==========================================
   - id: combined-evaluation
+    # Baseline note: selection + efficiency checks are strict; partial failures yield lower score (~0.78).
 
     expected_outcome: |-
       Agent performs comprehensive data analysis:

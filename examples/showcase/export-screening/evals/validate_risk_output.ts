@@ -170,10 +170,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const result = validateRiskOutput(
-    evalData.candidate_answer ?? '',
-    evalData.expected_messages,
-  );
+  const result = validateRiskOutput(evalData.candidate_answer ?? '', evalData.expected_messages);
 
   console.log(JSON.stringify(result, null, 2));
 }

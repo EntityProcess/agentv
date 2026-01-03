@@ -52,17 +52,15 @@ export function loadJsonlResults(filePath: string): EvalResult[] {
     .filter((line) => line.trim());
 
   return lines.map((line) => {
-    const record = JSON.parse(line) as {
-      eval_id?: string;
-      score?: number;
-    };
-    if (typeof record.eval_id !== 'string') {
-      throw new Error(`Missing eval_id in result: ${line}`);
+    const record = JSON.parse(line) as { evalId?: string; eval_id?: string; score?: number };
+    const evalId = record.evalId ?? record.eval_id;
+    if (typeof evalId !== 'string') {
+      throw new Error(`Missing evalId/eval_id in result: ${line}`);
     }
     if (typeof record.score !== 'number') {
       throw new Error(`Missing or invalid score in result: ${line}`);
     }
-    return { evalId: record.eval_id, score: record.score };
+    return { evalId, score: record.score };
   });
 }
 
