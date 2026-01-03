@@ -19,9 +19,9 @@
  *
  * Input (stdin JSON):
  *   - question: The user's task/question
- *   - expectedOutcome: Description of expected behavior
- *   - outputMessages: Array of messages including tool calls
- *   - traceSummary: Summary of tool usage
+ *   - expected_outcome: Description of expected behavior
+ *   - output_messages: Array of messages including tool_calls
+ *   - trace_summary: Summary of tool usage
  *
  * Output (stdout JSON):
  *   - score: 0.0-1.0 (1.0 = all tools appropriate, 0.0 = all inappropriate)
@@ -41,25 +41,23 @@ interface ToolCall {
 interface OutputMessage {
   role: string;
   content?: unknown;
-  toolCalls?: ToolCall[];
+  tool_calls?: ToolCall[];
   timestamp?: string;
-}
-
-interface TraceSummary {
-  eventCount: number;
-  toolNames: string[];
-  toolCallsByName: Record<string, number>;
-  errorCount: number;
-  tokenUsage?: { input: number; output: number; cached?: number };
-  costUsd?: number;
-  durationMs?: number;
 }
 
 interface EvalInput {
   question?: string;
-  expectedOutcome?: string;
-  outputMessages?: OutputMessage[];
-  traceSummary?: TraceSummary;
+  expected_outcome?: string;
+  output_messages?: OutputMessage[];
+  trace_summary?: {
+    event_count: number;
+    tool_names: string[];
+    tool_calls_by_name: Record<string, number>;
+    error_count: number;
+    token_usage?: { input: number; output: number; cached?: number };
+    cost_usd?: number;
+    duration_ms?: number;
+  };
 }
 
 interface EvalOutput {
@@ -77,8 +75,8 @@ interface ExtractedToolCall {
 function extractToolCalls(messages: OutputMessage[]): ExtractedToolCall[] {
   const toolCalls: ExtractedToolCall[] = [];
   for (const msg of messages) {
-    if (msg.role === 'assistant' && msg.toolCalls) {
-      for (const call of msg.toolCalls) {
+    if (msg.role === 'assistant' && msg.tool_calls) {
+      for (const call of msg.tool_calls) {
         toolCalls.push({
           tool: call.tool,
           input: (call.input as Record<string, unknown>) ?? {},
@@ -173,8 +171,8 @@ async function main(): Promise<void> {
     const inputData = JSON.parse(stdin) as EvalInput;
 
     const question = inputData.question ?? '';
-    const expectedOutcome = inputData.expectedOutcome ?? '';
-    const outputMessages = inputData.outputMessages ?? [];
+    const expectedOutcome = inputData.expected_outcome ?? '';
+    const outputMessages = inputData.output_messages ?? [];
 
     const toolCalls = extractToolCalls(outputMessages);
 

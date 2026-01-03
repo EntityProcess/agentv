@@ -48,8 +48,8 @@ async function main(): Promise<void> {
         JSON.stringify({
           score: 0,
           hits: [],
-          misses: ['No traceSummary provided'],
-          reasoning: 'Execution metrics collection failed - no traceSummary',
+          misses: ['No trace_summary provided'],
+          reasoning: 'Execution metrics collection failed - no trace_summary',
         }),
       );
       return;

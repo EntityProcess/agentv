@@ -20,8 +20,8 @@
  *       script: ["bun", "run", "scripts/efficiency-scorer.ts"]
  *
  * Input (stdin JSON):
- *   - traceSummary: Tool call statistics
- *   - expectedOutcome: Task description (for complexity estimation)
+ *   - trace_summary: Tool call statistics
+ *   - expected_outcome: Task description (for complexity estimation)
  *
  * Output (stdout JSON):
  *   - score: 0.0-1.0 efficiency score
@@ -31,19 +31,19 @@
  */
 
 interface TraceSummary {
-  eventCount: number;
-  toolNames: string[];
-  toolCallsByName: Record<string, number>;
-  errorCount: number;
-  tokenUsage?: { input: number; output: number; cached?: number };
-  costUsd?: number;
-  durationMs?: number;
-  toolDurations?: Record<string, number[]>;
+  event_count: number;
+  tool_names: string[];
+  tool_calls_by_name: Record<string, number>;
+  error_count: number;
+  token_usage?: { input: number; output: number; cached?: number };
+  cost_usd?: number;
+  duration_ms?: number;
+  tool_durations?: Record<string, number[]>;
 }
 
 interface EvalInput {
-  traceSummary?: TraceSummary;
-  expectedOutcome?: string;
+  trace_summary?: TraceSummary;
+  expected_outcome?: string;
 }
 
 interface EvalOutput {
@@ -102,7 +102,7 @@ function estimateTaskComplexity(expectedOutcome: string): 'simple' | 'complex' {
 }
 
 function calculateExplorationRatio(traceSummary: TraceSummary): number {
-  const toolCalls = traceSummary.toolCallsByName;
+  const toolCalls = traceSummary.tool_calls_by_name;
   const total = Object.values(toolCalls).reduce((sum, count) => sum + count, 0);
   if (total === 0) {
     return 0;
@@ -130,7 +130,7 @@ function evaluateEfficiency(
 
   // 1. Tool call count evaluation
   if (traceSummary) {
-    const toolCount = traceSummary.eventCount;
+    const toolCount = traceSummary.event_count;
     const maxCalls = THRESHOLDS.maxToolCalls;
 
     if (toolCount <= maxCalls) {
@@ -159,8 +159,8 @@ function evaluateEfficiency(
     }
 
     // 3. Token usage evaluation
-    if (traceSummary.tokenUsage) {
-      const tokens = traceSummary.tokenUsage;
+    if (traceSummary.token_usage) {
+      const tokens = traceSummary.token_usage;
       const totalTokens = tokens.input + tokens.output;
       const maxTokens =
         complexity === 'complex' ? THRESHOLDS.maxTokensComplex : THRESHOLDS.maxTokensSimple;
@@ -176,8 +176,8 @@ function evaluateEfficiency(
     }
 
     // 4. Cost evaluation
-    if (traceSummary.costUsd !== undefined) {
-      const cost = traceSummary.costUsd;
+    if (traceSummary.cost_usd !== undefined) {
+      const cost = traceSummary.cost_usd;
       const maxCost =
         complexity === 'complex' ? THRESHOLDS.maxCostComplex : THRESHOLDS.maxCostSimple;
 
@@ -221,8 +221,8 @@ async function main(): Promise<void> {
     const stdin = await Bun.stdin.text();
     const inputData = JSON.parse(stdin) as EvalInput;
 
-    const traceSummary = inputData.traceSummary;
-    const expectedOutcome = inputData.expectedOutcome ?? '';
+    const traceSummary = inputData.trace_summary;
+    const expectedOutcome = inputData.expected_outcome ?? '';
 
     const result = evaluateEfficiency(traceSummary, expectedOutcome);
 

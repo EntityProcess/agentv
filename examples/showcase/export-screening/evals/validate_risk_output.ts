@@ -12,8 +12,8 @@ const VALID_RISK_LEVELS = new Set(['High', 'Medium', 'Low']);
 const REQUIRED_KEYS = ['riskLevel', 'reasoning'];
 
 interface EvalInput {
-  candidateAnswer: string;
-  expectedMessages?: Array<{
+  candidate_answer: string;
+  expected_messages?: Array<{
     role: string;
     content: unknown;
   }>;
@@ -170,7 +170,10 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const result = validateRiskOutput(evalData.candidateAnswer ?? '', evalData.expectedMessages);
+  const result = validateRiskOutput(
+    evalData.candidate_answer ?? '',
+    evalData.expected_messages,
+  );
 
   console.log(JSON.stringify(result, null, 2));
 }

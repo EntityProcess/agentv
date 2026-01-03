@@ -18,10 +18,10 @@
  *       script: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
  *
  * Input (stdin JSON):
- *   - candidateAnswer: Agent's response (Response A)
- *   - referenceAnswer: Reference/baseline response (Response B)
- *   - outputMessages: Tool calls from candidate
- *   - expectedOutcome: Task description
+ *   - candidate_answer: Agent's response (Response A)
+ *   - reference_answer: Reference/baseline response (Response B)
+ *   - output_messages: Tool calls from candidate
+ *   - expected_outcome: Task description
  *
  * Output (stdout JSON):
  *   - score: 0.0-1.0 (1.0 = candidate wins, 0.5 = tie, 0.0 = reference wins)
@@ -41,16 +41,16 @@ interface ToolCall {
 interface OutputMessage {
   role: string;
   content?: unknown;
-  toolCalls?: ToolCall[];
+  tool_calls?: ToolCall[];
   timestamp?: string;
 }
 
 interface EvalInput {
-  candidateAnswer?: string;
-  referenceAnswer?: string;
-  outputMessages?: OutputMessage[];
-  referenceOutputMessages?: OutputMessage[];
-  expectedOutcome?: string;
+  candidate_answer?: string;
+  reference_answer?: string;
+  output_messages?: OutputMessage[];
+  reference_output_messages?: OutputMessage[];
+  expected_outcome?: string;
 }
 
 interface EvalOutput {
@@ -79,8 +79,8 @@ function extractToolSummary(messages: OutputMessage[] | undefined): ToolSummary 
 
   const tools: string[] = [];
   for (const msg of messages) {
-    if (msg.role === 'assistant' && msg.toolCalls) {
-      for (const call of msg.toolCalls) {
+    if (msg.role === 'assistant' && msg.tool_calls) {
+      for (const call of msg.tool_calls) {
         tools.push(call.tool ?? 'unknown');
       }
     }
@@ -206,9 +206,9 @@ async function main(): Promise<void> {
     const stdin = await Bun.stdin.text();
     const inputData = JSON.parse(stdin) as EvalInput;
 
-    const candidate = inputData.candidateAnswer ?? '';
-    const reference = inputData.referenceAnswer ?? '';
-    const outputMessages = inputData.outputMessages ?? [];
+    const candidate = inputData.candidate_answer ?? '';
+    const reference = inputData.reference_answer ?? '';
+    const outputMessages = inputData.output_messages ?? [];
 
     // If no reference, we can't do pairwise comparison
     if (!reference) {
@@ -218,7 +218,7 @@ async function main(): Promise<void> {
             score: 0.5,
             hits: ['Candidate response provided'],
             misses: ['No reference for comparison'],
-            reasoning: 'Pairwise comparison requires referenceAnswer field',
+            reasoning: 'Pairwise comparison requires reference_answer field',
           },
           null,
           2,
@@ -232,7 +232,7 @@ async function main(): Promise<void> {
 
     // For reference, we'd need referenceOutputMessages
     // In practice, this would come from a baseline run
-    const referenceMessages = inputData.referenceOutputMessages ?? [];
+    const referenceMessages = inputData.reference_output_messages ?? [];
     const referenceTools = extractToolSummary(referenceMessages);
 
     const result = pairwiseWithBiasMitigation(candidate, reference, candidateTools, referenceTools);

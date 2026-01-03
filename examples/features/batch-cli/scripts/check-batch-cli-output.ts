@@ -76,7 +76,7 @@ function main(): void {
   const misses: string[] = [];
 
   if (!expectedDecision) {
-    misses.push('Missing expected decision (expectedMessages[].content.decision)');
+    misses.push('Missing expected decision (expected_messages[].content.decision)');
   } else {
     hits.push(`expected.decision present: ${expectedDecision}`);
   }

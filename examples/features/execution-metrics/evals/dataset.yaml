@@ -38,7 +38,7 @@ evalcases:
 
     execution:
       evaluators:
-        # Verify that execution metrics are present in traceSummary
+        # Verify that execution metrics are present in trace_summary
         - name: metrics-present
           type: code_judge
           script: ["bun", "run", "../scripts/check-metrics-present.ts"]

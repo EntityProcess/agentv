@@ -66,14 +66,14 @@ All code judges receive a JSON object on stdin with:
 ```json
 {
   "question": "User's question/task",
-  "expectedOutcome": "Expected behavior description",
-  "referenceAnswer": "Gold standard answer (from expected_messages)",
-  "candidateAnswer": "Agent's final response",
-  "outputMessages": [
+  "expected_outcome": "Expected behavior description",
+  "reference_answer": "Gold standard answer (from expected_messages)",
+  "candidate_answer": "Agent's final response",
+  "output_messages": [
     {
       "role": "assistant",
       "content": "...",
-      "toolCalls": [
+      "tool_calls": [
         {
           "tool": "search",
           "input": { "query": "..." },
@@ -84,19 +84,19 @@ All code judges receive a JSON object on stdin with:
       ]
     }
   ],
-  "traceSummary": {
-    "eventCount": 5,
-    "toolNames": ["fetch", "search"],
-    "toolCallsByName": { "search": 2, "fetch": 1 },
-    "errorCount": 0,
-    "tokenUsage": { "input": 1000, "output": 500 },
-    "costUsd": 0.0015,
-    "durationMs": 3500
+  "trace_summary": {
+    "event_count": 5,
+    "tool_names": ["fetch", "search"],
+    "tool_calls_by_name": { "search": 2, "fetch": 1 },
+    "error_count": 0,
+    "token_usage": { "input": 1000, "output": 500 },
+    "cost_usd": 0.0015,
+    "duration_ms": 3500
   }
 }
 ```
 
-**Note:** `traceSummary` is a lightweight summary (just counts). To access tool call arguments, use `outputMessages[].toolCalls[].input`.
+**Note:** `trace_summary` is a lightweight summary (just counts). To access tool call arguments, use `output_messages[].tool_calls[].input`.
 
 ## Output Contract
 
