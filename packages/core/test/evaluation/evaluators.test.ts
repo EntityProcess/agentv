@@ -451,7 +451,7 @@ describe('CodeEvaluator', () => {
 
     // Use external script file for cross-platform compatibility
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const script = `node ${join(__dirname, '../fixtures/test-judge.cjs')}`;
+    const script = ['node', join(__dirname, '../fixtures/test-judge.cjs')];
 
     const evaluator = new CodeEvaluator({ script });
 
@@ -470,6 +470,29 @@ describe('CodeEvaluator', () => {
     expect(result.hits).toContain('expected_messages present');
     expect(result.hits).toContain('candidate_answer present');
     expect(result.hits).toContain('candidate_answer parses');
+  });
+
+  it('surfaces stderr and exit code on failure', async () => {
+    const judgeProvider = new StubProvider(textResponse('{}'));
+
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const script = ['node', join(__dirname, '../fixtures/test-judge-error.cjs')];
+
+    const evaluator = new CodeEvaluator({ script });
+
+    const result = await evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Candidate answer',
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('exited with code');
+    expect(result.misses[0]).toContain('test-error');
   });
 });
 

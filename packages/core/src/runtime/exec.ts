@@ -13,6 +13,67 @@ function shellEscapePath(value: string): string {
   return `'${value.replaceAll("'", `'\"'\"'`)}'`;
 }
 
+export async function execFileWithStdin(
+  argv: readonly string[],
+  stdinPayload: string,
+  options: ExecOptions = {},
+): Promise<{
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly exitCode: number;
+}> {
+  if (argv.length === 0) {
+    throw new Error('Executable argv must include at least one entry');
+  }
+
+  const command = [...argv];
+  const encoder = new TextEncoder();
+  const process = Bun.spawn(command, {
+    cwd: options.cwd,
+    stdin: encoder.encode(stdinPayload),
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+
+  let timedOut = false;
+  const timeout =
+    options.timeoutMs !== undefined
+      ? setTimeout(() => {
+          timedOut = true;
+          process.kill('SIGKILL');
+        }, options.timeoutMs)
+      : undefined;
+
+  try {
+    const stdoutPromise = process.stdout
+      ? new Response(process.stdout).text()
+      : Promise.resolve('');
+    const stderrPromise = process.stderr
+      ? new Response(process.stderr).text()
+      : Promise.resolve('');
+
+    const [stdout, stderr, exitCode] = await Promise.all([
+      stdoutPromise,
+      stderrPromise,
+      process.exited,
+    ]);
+
+    if (timedOut) {
+      throw new Error(`Process timed out after ${options.timeoutMs}ms`);
+    }
+
+    return {
+      stdout: stdout.replace(/\r\n/g, '\n'),
+      stderr: stderr.replace(/\r\n/g, '\n'),
+      exitCode,
+    };
+  } finally {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
 /**
  * Execute a shell command with the given stdin payload.
  *

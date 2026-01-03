@@ -15,7 +15,7 @@
  *   evaluators:
  *     - name: pairwise-compare
  *       type: code_judge
- *       script: bun run scripts/pairwise-tool-compare.ts
+ *       script: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
  *
  * Input (stdin JSON):
  *   - candidateAnswer: Agent's response (Response A)

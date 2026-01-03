@@ -277,7 +277,7 @@ describe('Code Judge Metrics Integration', () => {
   it('passes traceSummary to code_judge scripts', async () => {
     // Use external script file for cross-platform compatibility
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const script = `node ${join(__dirname, '../fixtures/test-trace-summary.cjs')}`;
+    const script = ['node', join(__dirname, '../fixtures/test-trace-summary.cjs')];
 
     const evaluator = new CodeEvaluator({ script });
 
@@ -311,7 +311,7 @@ describe('Code Judge Metrics Integration', () => {
   it('handles missing traceSummary gracefully', async () => {
     // Use external script file for cross-platform compatibility
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const script = `node ${join(__dirname, '../fixtures/test-no-trace-summary.cjs')}`;
+    const script = ['node', join(__dirname, '../fixtures/test-no-trace-summary.cjs')];
 
     const evaluator = new CodeEvaluator({ script });
 

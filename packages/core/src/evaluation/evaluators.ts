@@ -1,7 +1,7 @@
 import { generateText } from 'ai';
 import { z } from 'zod';
 
-import { execShellWithStdin } from '../runtime/exec.js';
+import { execFileWithStdin, execShellWithStdin } from '../runtime/exec.js';
 import { toSnakeCaseDeep } from './case-conversion.js';
 import type { ResolvedTarget } from './providers/targets.js';
 import {
@@ -435,7 +435,7 @@ function isNonEmptyString(value: unknown): value is string {
 // Code Evaluator
 
 export interface CodeEvaluatorOptions {
-  readonly script: string;
+  readonly script: readonly string[];
   readonly cwd?: string;
   readonly agentTimeoutMs?: number;
   /** Pass-through configuration from YAML (any unrecognized properties) */
@@ -445,7 +445,7 @@ export interface CodeEvaluatorOptions {
 export class CodeEvaluator implements Evaluator {
   readonly kind = 'code';
 
-  private readonly script: string;
+  private readonly script: readonly string[];
   private readonly cwd?: string;
   private readonly agentTimeoutMs?: number;
   private readonly config?: Record<string, unknown>;
@@ -561,18 +561,18 @@ function calculateRubricScore(
 // Helper functions for CodeEvaluator
 
 async function executeScript(
-  scriptPath: string,
+  scriptPath: readonly string[] | string,
   input: string,
   agentTimeoutMs?: number,
   cwd?: string,
 ): Promise<string> {
-  const { stdout, stderr, exitCode } = await execShellWithStdin(scriptPath, input, {
-    cwd,
-    timeoutMs: agentTimeoutMs,
-  });
+  const { stdout, stderr, exitCode } =
+    typeof scriptPath === 'string'
+      ? await execShellWithStdin(scriptPath, input, { cwd, timeoutMs: agentTimeoutMs })
+      : await execFileWithStdin(scriptPath, input, { cwd, timeoutMs: agentTimeoutMs });
 
   if (exitCode !== 0) {
-    const trimmedErr = stderr.trim();
+    const trimmedErr = formatStderr(stderr);
     throw new Error(
       trimmedErr.length > 0
         ? `Code evaluator exited with code ${exitCode}: ${trimmedErr}`
@@ -581,6 +581,16 @@ async function executeScript(
   }
 
   return stdout.trim();
+}
+
+function formatStderr(stderr: string): string {
+  const trimmed = stderr.trim();
+  const maxLength = 2000;
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
+  const tail = trimmed.slice(-maxLength);
+  return `...(truncated, last ${maxLength} chars)\n${tail}`;
 }
 
 function parseJsonSafe(payload: string): Record<string, unknown> | undefined {

@@ -76,7 +76,7 @@ evalcases:
       evaluators:
         - name: keyword_check
           type: code_judge  # Code evaluators handle regex, keywords, linting, etc.
-          script: uv run check_python_keywords.py
+          script: ["uv", "run", "check_python_keywords.py"]
           cwd: .  # Working directory for script execution
         - name: code_correctness
           type: llm_judge  # LLM-based evaluation

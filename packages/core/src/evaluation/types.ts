@@ -170,7 +170,7 @@ export function isEvaluatorKind(value: unknown): value is EvaluatorKind {
 export type CodeEvaluatorConfig = {
   readonly name: string;
   readonly type: 'code';
-  readonly script: string;
+  readonly script: readonly string[];
   readonly resolvedScriptPath?: string;
   readonly cwd?: string;
   readonly resolvedCwd?: string;

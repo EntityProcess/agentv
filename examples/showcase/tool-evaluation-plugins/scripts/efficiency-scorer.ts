@@ -17,7 +17,7 @@
  *   evaluators:
  *     - name: efficiency
  *       type: code_judge
- *       script: bun run scripts/efficiency-scorer.ts
+ *       script: ["bun", "run", "scripts/efficiency-scorer.ts"]
  *
  * Input (stdin JSON):
  *   - traceSummary: Tool call statistics

@@ -221,7 +221,7 @@ describe('parseEvaluators - code_judge config pass-through', () => {
         {
           name: 'fuzzy-matcher',
           type: 'code_judge',
-          script: './test_script.ts',
+          script: ['bun', 'run', './test_script.ts'],
           fields: [
             { path: 'supplier.name', threshold: 0.85 },
             { path: 'importer.name', threshold: 0.9 },
@@ -254,7 +254,7 @@ describe('parseEvaluators - code_judge config pass-through', () => {
         {
           name: 'simple-judge',
           type: 'code_judge',
-          script: './test_script.ts',
+          script: ['bun', 'run', './test_script.ts'],
         },
       ],
     };
@@ -273,7 +273,7 @@ describe('parseEvaluators - code_judge config pass-through', () => {
         {
           name: 'with-weight',
           type: 'code_judge',
-          script: './test_script.ts',
+          script: ['bun', 'run', './test_script.ts'],
           cwd: tempDir,
           weight: 2.0,
           threshold: 0.85, // This should go to config
@@ -287,6 +287,28 @@ describe('parseEvaluators - code_judge config pass-through', () => {
     const config = evaluators?.[0] as CodeEvaluatorConfig;
     expect(config.weight).toBe(2.0);
     expect(config.config).toEqual({ threshold: 0.85 });
+  });
+
+  it('converts string scripts into argv using a shell', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'legacy-script',
+          type: 'code_judge',
+          script: './test_script.ts',
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as CodeEvaluatorConfig;
+    if (process.platform === 'win32') {
+      expect(config.script).toEqual(['cmd.exe', '/c', './test_script.ts']);
+    } else {
+      expect(config.script).toEqual(['sh', '-lc', './test_script.ts']);
+    }
   });
 });
 

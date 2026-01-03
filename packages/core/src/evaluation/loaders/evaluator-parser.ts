@@ -52,7 +52,24 @@ export async function parseEvaluators(
     }
 
     if (typeValue === 'code_judge') {
-      const script = asString(rawEvaluator.script);
+      let script: string[] | undefined;
+      const rawScript = rawEvaluator.script;
+
+      if (typeof rawScript === 'string') {
+        const trimmed = rawScript.trim();
+        if (trimmed.length === 0) {
+          throw new Error(
+            `Invalid code_judge script for evaluator '${name}' in '${evalId}': script cannot be empty`,
+          );
+        }
+        script = parseCommandToArgv(trimmed);
+      } else {
+        script = asStringArray(
+          rawScript,
+          `code_judge script for evaluator '${name}' in '${evalId}'`,
+        );
+      }
+
       if (!script) {
         logWarning(`Skipping code_judge evaluator '${name}' in '${evalId}': missing script`);
         continue;
@@ -569,6 +586,40 @@ export function coerceEvaluator(
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
+}
+
+function asStringArray(value: unknown, description: string): string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value)) {
+    throw new Error(`${description} must be an array of strings (argv tokens)`);
+  }
+
+  if (value.length === 0) {
+    throw new Error(`${description} cannot be empty`);
+  }
+
+  const result: string[] = [];
+  for (const [index, entry] of value.entries()) {
+    if (typeof entry !== 'string') {
+      throw new Error(`${description}[${index}] must be a string`);
+    }
+    if (entry.trim().length === 0) {
+      throw new Error(`${description}[${index}] cannot be empty`);
+    }
+    result.push(entry);
+  }
+
+  return result;
+}
+
+function parseCommandToArgv(command: string): string[] {
+  if (process.platform === 'win32') {
+    return ['cmd.exe', '/c', command];
+  }
+  return ['sh', '-lc', command];
 }
 
 function isJsonObject(value: unknown): value is JsonObject {

@@ -10,7 +10,7 @@
  * evaluators:
  *   - name: party_names_fuzzy
  *     type: code_judge
- *     script: ../multi_field_fuzzy.ts
+ *     script: ["bun", "run", "../multi_field_fuzzy.ts"]
  *     fields:
  *       - path: supplier.name
  *         threshold: 0.85

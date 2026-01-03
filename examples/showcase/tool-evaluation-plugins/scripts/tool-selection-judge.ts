@@ -15,7 +15,7 @@
  *   evaluators:
  *     - name: tool-selection
  *       type: code_judge
- *       script: bun run scripts/tool-selection-judge.ts
+ *       script: ["bun", "run", "scripts/tool-selection-judge.ts"]
  *
  * Input (stdin JSON):
  *   - question: The user's task/question

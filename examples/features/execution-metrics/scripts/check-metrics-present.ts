@@ -9,7 +9,7 @@
  *   evaluators:
  *     - name: metrics-present
  *       type: code_judge
- *       script: bun run scripts/check-metrics-present.ts
+ *       script: ["bun", "run", "scripts/check-metrics-present.ts"]
  */
 
 interface TraceSummary {

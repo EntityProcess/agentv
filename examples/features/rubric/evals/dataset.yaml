@@ -144,7 +144,7 @@ evalcases:
         # Additional code evaluator for syntax checking
         - name: python_syntax
           type: code_judge
-          script: uv run python check_syntax.py
+          script: ["uv", "run", "python", "check_syntax.py"]
 
   # ==========================================
   # Example 4: Using expected_outcome without rubrics

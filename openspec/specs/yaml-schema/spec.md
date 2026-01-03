@@ -175,3 +175,30 @@ The YAML schema SHALL support an optional `weight` field on each entry in an eva
 - **WHEN** the YAML is parsed
 - **THEN** schema validation SHALL fail
 
+### Requirement: Code judge scripts MUST use argv arrays
+
+The YAML schema SHALL accept `code_judge` evaluators with `script` defined as an array of argv tokens.
+
+#### Scenario: Configure code_judge with argv script
+- **GIVEN** a YAML eval case with:
+  ```yaml
+  evaluators:
+    - name: my_code_check
+      type: code_judge
+      script: ["bun", "run", "validate_risk_output.ts"]
+  ```
+- **WHEN** the YAML is parsed
+- **THEN** schema validation succeeds
+- **AND** the evaluator configuration preserves the argv tokens.
+
+#### Scenario: Convert string scripts for backward compatibility
+- **GIVEN** a YAML eval case with:
+  ```yaml
+  evaluators:
+    - name: my_code_check
+      type: code_judge
+      script: bun run validate_risk_output.ts
+  ```
+- **WHEN** the YAML is parsed
+- **THEN** schema validation succeeds
+- **AND** the system converts the string to a shell argv appropriate for the current platform.

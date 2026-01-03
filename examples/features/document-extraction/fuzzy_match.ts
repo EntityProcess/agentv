@@ -11,7 +11,7 @@
  * evaluators:
  *   - name: vendor_name_fuzzy
  *     type: code_judge
- *     script: ./fuzzy_match.ts
+ *     script: ["bun", "run", "./fuzzy_match.ts"]
  * ```
  *
  * The script reads evaluation context from stdin and outputs a JSON result.
