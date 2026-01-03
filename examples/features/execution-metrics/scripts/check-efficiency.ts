@@ -19,7 +19,7 @@
  *   - reasoning: Explanation
  */
 
-interface SnakeTraceSummary {
+interface TraceSummary {
   event_count: number;
   tool_names: string[];
   tool_calls_by_name: Record<string, number>;
@@ -30,7 +30,7 @@ interface SnakeTraceSummary {
 }
 
 interface EvalInput {
-  trace_summary?: SnakeTraceSummary;
+  trace_summary?: TraceSummary;
   expected_outcome?: string;
 }
 
