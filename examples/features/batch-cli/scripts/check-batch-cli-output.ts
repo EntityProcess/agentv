@@ -5,9 +5,9 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 type EvalInput = {
-  readonly inputMessages?: unknown;
-  readonly expectedMessages?: unknown;
-  readonly candidateAnswer?: unknown;
+  readonly input_messages?: unknown;
+  readonly expected_messages?: unknown;
+  readonly candidate_answer?: unknown;
 };
 
 function findExpectedDecisionFromExpectedMessages(expectedMessages: unknown): string | undefined {
@@ -52,10 +52,13 @@ function main(): void {
   const stdin = fs.readFileSync(0, 'utf8');
   const input = JSON.parse(stdin) as EvalInput;
 
+  const expectedMessages = input.expected_messages;
+  const inputMessages = input.input_messages;
   const expectedDecision =
-    findExpectedDecisionFromExpectedMessages(input.expectedMessages) ??
-    findExpectedDecision(input.inputMessages);
-  const candidate = typeof input.candidateAnswer === 'string' ? input.candidateAnswer : '';
+    findExpectedDecisionFromExpectedMessages(expectedMessages) ??
+    findExpectedDecision(inputMessages);
+  const rawCandidate = input.candidate_answer;
+  const candidate = typeof rawCandidate === 'string' ? rawCandidate : '';
 
   let candidateObj: unknown;
   try {

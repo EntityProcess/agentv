@@ -2,28 +2,28 @@
 /**
  * Check Metrics Present - Code Judge Plugin
  *
- * Verifies that execution metrics are present in the traceSummary.
+ * Verifies that execution metrics are present in the trace_summary payload.
  * This is a simple sanity check that metrics collection is working.
  *
  * Usage in eval YAML:
  *   evaluators:
  *     - name: metrics-present
  *       type: code_judge
- *       script: ["bun", "run", "scripts/check-metrics-present.ts"]
+ *       script: ["bun", "run", "../scripts/check-metrics-present.ts"]
  */
 
-interface TraceSummary {
-  eventCount: number;
-  toolNames: string[];
-  toolCallsByName: Record<string, number>;
-  errorCount: number;
-  tokenUsage?: { input: number; output: number; cached?: number };
-  costUsd?: number;
-  durationMs?: number;
+interface SnakeTraceSummary {
+  event_count: number;
+  tool_names: string[];
+  tool_calls_by_name: Record<string, number>;
+  error_count: number;
+  token_usage?: { input: number; output: number; cached?: number };
+  cost_usd?: number;
+  duration_ms?: number;
 }
 
 interface EvalInput {
-  traceSummary?: TraceSummary;
+  trace_summary?: SnakeTraceSummary;
 }
 
 interface EvalOutput {
@@ -41,7 +41,7 @@ async function main(): Promise<void> {
     const hits: string[] = [];
     const misses: string[] = [];
 
-    const summary = input.traceSummary;
+    const summary = input.trace_summary;
 
     if (!summary) {
       console.log(
@@ -56,22 +56,22 @@ async function main(): Promise<void> {
     }
 
     // Check for tokenUsage
-    if (summary.tokenUsage) {
-      hits.push(`tokenUsage present: ${summary.tokenUsage.input}/${summary.tokenUsage.output}`);
+    if (summary.token_usage) {
+      hits.push(`tokenUsage present: ${summary.token_usage.input}/${summary.token_usage.output}`);
     } else {
       misses.push('tokenUsage not present');
     }
 
     // Check for costUsd
-    if (summary.costUsd !== undefined) {
-      hits.push(`costUsd present: $${summary.costUsd.toFixed(4)}`);
+    if (summary.cost_usd !== undefined) {
+      hits.push(`costUsd present: $${summary.cost_usd.toFixed(4)}`);
     } else {
       misses.push('costUsd not present');
     }
 
     // Check for durationMs
-    if (summary.durationMs !== undefined) {
-      hits.push(`durationMs present: ${summary.durationMs}ms`);
+    if (summary.duration_ms !== undefined) {
+      hits.push(`durationMs present: ${summary.duration_ms}ms`);
     } else {
       misses.push('durationMs not present');
     }

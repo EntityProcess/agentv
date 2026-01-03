@@ -46,7 +46,7 @@ evalcases:
       evaluators:
         - name: decision-check
           type: code_judge
-          script: ["bun", "run", "./scripts/check-batch-cli-output.ts"]
+          script: ["bun", "run", "../scripts/check-batch-cli-output.ts"]
           cwd: .
         # Verify the aml_screening tool was called using trace extracted from output_messages
         - name: tool-trajectory-check
@@ -86,7 +86,7 @@ evalcases:
       evaluators:
         - name: decision-check
           type: code_judge
-          script: ["bun", "run", "./scripts/check-batch-cli-output.ts"]
+          script: ["bun", "run", "../scripts/check-batch-cli-output.ts"]
           cwd: .
         # Verify the aml_screening tool was called using trace extracted from output_messages
         - name: tool-trajectory-check
@@ -126,7 +126,7 @@ evalcases:
       evaluators:
         - name: decision-check
           type: code_judge
-          script: ["bun", "run", "./scripts/check-batch-cli-output.ts"]
+          script: ["bun", "run", "../scripts/check-batch-cli-output.ts"]
           cwd: .
         # Verify the aml_screening tool was called using trace extracted from output_messages
         - name: tool-trajectory-check
