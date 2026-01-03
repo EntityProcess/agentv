@@ -1,0 +1,19 @@
+targets:
+  - name: azure_base
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    version: ${{ AZURE_OPENAI_API_VERSION }}
+
+  - name: local_cli
+    provider: cli
+    judge_target: azure_base
+    command_template: uv run ./mock_cli.py --prompt {PROMPT} {FILES} --output {OUTPUT_FILE}
+    files_format: --file {path}
+    cwd: ..
+    timeout_seconds: 30
+    healthcheck:
+      type: command
+      command_template: uv run ./mock_cli.py --healthcheck
+      cwd: ..

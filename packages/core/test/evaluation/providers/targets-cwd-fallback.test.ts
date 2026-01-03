@@ -99,4 +99,28 @@ describe('CLI cwd fallback to eval directory', () => {
       expect(resolved.config.cwd).toBe(path.resolve('/path/to/evals/my-test'));
     }
   });
+
+  it('falls back to eval directory for healthcheck cwd when unset', () => {
+    const definition = {
+      name: 'test-cli',
+      provider: 'cli',
+      command_template: 'echo {PROMPT}',
+      healthcheck: {
+        type: 'command',
+        command_template: 'echo healthy',
+      },
+    };
+
+    const env = {};
+    const evalFilePath = '/path/to/evals/my-test/test.yaml';
+    const resolved = resolveTargetDefinition(definition, env, evalFilePath);
+
+    expect(resolved.kind).toBe('cli');
+    if (resolved.kind === 'cli') {
+      expect(resolved.config.healthcheck?.type).toBe('command');
+      if (resolved.config.healthcheck?.type === 'command') {
+        expect(resolved.config.healthcheck.cwd).toBe(path.resolve('/path/to/evals/my-test'));
+      }
+    }
+  });
 });
