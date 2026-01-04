@@ -21,7 +21,7 @@
     },
     "apps/cli": {
       "name": "agentv",
-      "version": "1.2.0",
+      "version": "1.6.0",
       "bin": {
         "agentv": "./dist/cli.js",
       },
@@ -39,7 +39,7 @@
     },
     "packages/core": {
       "name": "@agentv/core",
-      "version": "1.2.0",
+      "version": "1.5.0",
       "dependencies": {
         "@ai-sdk/anthropic": "^2.0.53",
         "@ai-sdk/azure": "^2.0.78",

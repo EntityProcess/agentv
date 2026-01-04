@@ -268,6 +268,10 @@ export function normalizeCliHealthcheck(
   if (cwd && evalFilePath && !path.isAbsolute(cwd)) {
     cwd = path.resolve(path.dirname(path.resolve(evalFilePath)), cwd);
   }
+  // Fallback: if cwd is not set and we have an eval file path, use the eval directory
+  if (!cwd && evalFilePath) {
+    cwd = path.dirname(path.resolve(evalFilePath));
+  }
 
   return {
     type: 'command',

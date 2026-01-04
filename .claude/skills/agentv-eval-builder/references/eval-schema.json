@@ -4,11 +4,6 @@
   "description": "Schema for YAML evaluation files with conversation flows, multiple evaluators, and execution configuration",
   "type": "object",
   "properties": {
-    "$schema": {
-      "type": "string",
-      "description": "Schema identifier",
-      "enum": ["agentv-eval-v2"]
-    },
     "description": {
       "type": "string",
       "description": "Description of what this eval suite covers"
@@ -37,7 +32,16 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["code", "llm_judge"],
+                "enum": [
+                  "code",
+                  "llm_judge",
+                  "composite",
+                  "tool_trajectory",
+                  "field_accuracy",
+                  "latency",
+                  "cost",
+                  "token_usage"
+                ],
                 "description": "Evaluator type: 'code' for scripts/regex/keywords, 'llm_judge' for LLM-based evaluation"
               },
               "script": {

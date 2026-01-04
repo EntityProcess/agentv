@@ -52,10 +52,7 @@ export function loadJsonlResults(filePath: string): EvalResult[] {
     .filter((line) => line.trim());
 
   return lines.map((line) => {
-    const record = JSON.parse(line) as {
-      eval_id?: string;
-      score?: number;
-    };
+    const record = JSON.parse(line) as { eval_id?: string; score?: number };
     if (typeof record.eval_id !== 'string') {
       throw new Error(`Missing eval_id in result: ${line}`);
     }

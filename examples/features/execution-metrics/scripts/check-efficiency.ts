@@ -3,14 +3,14 @@
  * Efficiency Check - Code Judge for Execution Metrics
  *
  * Demonstrates how to evaluate agent efficiency using execution metrics
- * available in the TraceSummary.
+ * available in the trace_summary payload.
  *
  * Input (stdin JSON):
- *   - traceSummary: Contains execution metrics when available
- *     - eventCount: Number of tool calls
- *     - tokenUsage?: { input, output, cached? }
- *     - costUsd?: API cost
- *     - durationMs?: Execution time
+ *   - trace_summary: Contains execution metrics when available
+ *     - event_count: Number of tool calls
+ *     - token_usage?: { input, output, cached? }
+ *     - cost_usd?: API cost
+ *     - duration_ms?: Execution time
  *
  * Output (stdout JSON):
  *   - score: 0.0-1.0
@@ -20,18 +20,18 @@
  */
 
 interface TraceSummary {
-  eventCount: number;
-  toolNames: string[];
-  toolCallsByName: Record<string, number>;
-  errorCount: number;
-  tokenUsage?: { input: number; output: number; cached?: number };
-  costUsd?: number;
-  durationMs?: number;
+  event_count: number;
+  tool_names: string[];
+  tool_calls_by_name: Record<string, number>;
+  error_count: number;
+  token_usage?: { input: number; output: number; cached?: number };
+  cost_usd?: number;
+  duration_ms?: number;
 }
 
 interface EvalInput {
-  traceSummary?: TraceSummary;
-  expectedOutcome?: string;
+  trace_summary?: TraceSummary;
+  expected_outcome?: string;
 }
 
 interface EvalOutput {
@@ -54,7 +54,7 @@ function checkEfficiency(input: EvalInput): EvalOutput {
   const misses: string[] = [];
   const checks: boolean[] = [];
 
-  const summary = input.traceSummary;
+  const summary = input.trace_summary;
 
   if (!summary) {
     return {
@@ -66,17 +66,17 @@ function checkEfficiency(input: EvalInput): EvalOutput {
   }
 
   // Check tool call count
-  if (summary.eventCount <= THRESHOLDS.maxToolCalls) {
-    hits.push(`Tool calls (${summary.eventCount}) within limit (${THRESHOLDS.maxToolCalls})`);
+  if (summary.event_count <= THRESHOLDS.maxToolCalls) {
+    hits.push(`Tool calls (${summary.event_count}) within limit (${THRESHOLDS.maxToolCalls})`);
     checks.push(true);
   } else {
-    misses.push(`Too many tool calls: ${summary.eventCount} (max: ${THRESHOLDS.maxToolCalls})`);
+    misses.push(`Too many tool calls: ${summary.event_count} (max: ${THRESHOLDS.maxToolCalls})`);
     checks.push(false);
   }
 
   // Check token usage if available
-  if (summary.tokenUsage) {
-    const totalTokens = summary.tokenUsage.input + summary.tokenUsage.output;
+  if (summary.token_usage) {
+    const totalTokens = summary.token_usage.input + summary.token_usage.output;
     if (totalTokens <= THRESHOLDS.maxTokens) {
       hits.push(`Token usage (${totalTokens}) within limit`);
       checks.push(true);
@@ -87,23 +87,23 @@ function checkEfficiency(input: EvalInput): EvalOutput {
   }
 
   // Check cost if available
-  if (summary.costUsd !== undefined) {
-    if (summary.costUsd <= THRESHOLDS.maxCostUsd) {
-      hits.push(`Cost ($${summary.costUsd.toFixed(4)}) within budget`);
+  if (summary.cost_usd !== undefined) {
+    if (summary.cost_usd <= THRESHOLDS.maxCostUsd) {
+      hits.push(`Cost ($${summary.cost_usd.toFixed(4)}) within budget`);
       checks.push(true);
     } else {
-      misses.push(`High cost: $${summary.costUsd.toFixed(4)} (max: $${THRESHOLDS.maxCostUsd})`);
+      misses.push(`High cost: $${summary.cost_usd.toFixed(4)} (max: $${THRESHOLDS.maxCostUsd})`);
       checks.push(false);
     }
   }
 
   // Check duration if available
-  if (summary.durationMs !== undefined) {
-    if (summary.durationMs <= THRESHOLDS.maxDurationMs) {
-      hits.push(`Duration (${summary.durationMs}ms) within limit`);
+  if (summary.duration_ms !== undefined) {
+    if (summary.duration_ms <= THRESHOLDS.maxDurationMs) {
+      hits.push(`Duration (${summary.duration_ms}ms) within limit`);
       checks.push(true);
     } else {
-      misses.push(`Slow execution: ${summary.durationMs}ms (max: ${THRESHOLDS.maxDurationMs}ms)`);
+      misses.push(`Slow execution: ${summary.duration_ms}ms (max: ${THRESHOLDS.maxDurationMs}ms)`);
       checks.push(false);
     }
   }

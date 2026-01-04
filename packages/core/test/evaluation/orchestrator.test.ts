@@ -86,6 +86,26 @@ class CapturingProvider implements Provider {
   }
 }
 
+class CapturingCliProvider implements Provider {
+  readonly id: string;
+  readonly kind = 'cli' as const;
+  readonly targetName: string;
+  lastRequest?: ProviderRequest;
+
+  constructor(
+    targetName: string,
+    private readonly response: ProviderResponse,
+  ) {
+    this.id = `cli:${targetName}`;
+    this.targetName = targetName;
+  }
+
+  async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+    this.lastRequest = request;
+    return this.response;
+  }
+}
+
 const baseTestCase: EvalCase = {
   id: 'case-1',
   dataset: 'test-dataset',
@@ -433,6 +453,40 @@ describe('runTestCase', () => {
     expect(result.lmProviderRequest).toBeUndefined();
     expect(result.agentProviderRequest?.question).toBe('Explain logging improvements');
   });
+
+  it('uses file references (not embedded contents) for cli providers', async () => {
+    const provider = new CapturingCliProvider('cli', {
+      outputMessages: [{ role: 'assistant', content: 'ok' }],
+    });
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...baseTestCase,
+        input_messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'file', value: 'input.json' },
+              { type: 'text', value: 'Summarize the file.' },
+            ],
+          },
+        ],
+        input_segments: [
+          { type: 'file', path: 'input.json', text: '{"secret":true}' },
+          { type: 'text', value: 'Summarize the file.' },
+        ],
+        file_paths: ['/abs/path/input.json'],
+      },
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.lmProviderRequest).toBeDefined();
+    expect(result.lmProviderRequest?.question).toContain('<file: path="input.json">');
+    expect(result.lmProviderRequest?.question).not.toContain('<file path="input.json">');
+    expect(result.lmProviderRequest?.question).not.toContain('{"secret":true}');
+  });
 });
 
 // Provider that returns outputMessages with tool calls
@@ -524,6 +578,32 @@ describe('runEvalCase trace integration', () => {
     });
 
     expect(result.traceSummary).toBeUndefined();
+  });
+
+  it('includes traceSummary when provider reports tokenUsage without outputMessages', async () => {
+    const provider = new TraceProvider('mock', {
+      tokenUsage: { input: 10, output: 20, cached: 5 },
+    });
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...traceTestCase,
+        evaluators: [
+          {
+            name: 'token-budget',
+            type: 'token_usage',
+            max_total: 1000,
+          },
+        ],
+      },
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.traceSummary).toBeDefined();
+    expect(result.traceSummary?.tokenUsage).toEqual({ input: 10, output: 20, cached: 5 });
+    expect(result.score).toBe(1);
   });
 
   it('runs tool_trajectory evaluator with outputMessages', async () => {
@@ -628,6 +708,44 @@ describe('runEvalCase trace integration', () => {
     expect(result.score).toBe(0);
     expect(result.evaluatorResults?.[0]?.verdict).toBe('fail');
     expect(result.evaluatorResults?.[0]?.misses).toContain('No trace available for evaluation');
+  });
+
+  it('runs latency/cost evaluators inside composite using traceSummary', async () => {
+    const outputMessages: OutputMessage[] = [{ role: 'assistant', content: 'Done' }];
+
+    const provider = new TraceProvider('mock', { costUsd: 0.05, durationMs: 1200 }, outputMessages);
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...traceTestCase,
+        evaluators: [
+          {
+            name: 'metrics',
+            type: 'composite',
+            evaluators: [
+              { name: 'latency', type: 'latency', threshold: 1500 },
+              { name: 'cost', type: 'cost', budget: 0.1 },
+            ],
+            aggregator: { type: 'weighted_average' },
+          },
+        ],
+      },
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.evaluatorResults).toHaveLength(1);
+    expect(result.evaluatorResults?.[0]?.name).toBe('metrics');
+    expect(result.evaluatorResults?.[0]?.verdict).toBe('pass');
+    expect(result.evaluatorResults?.[0]?.evaluatorResults).toHaveLength(2);
+    const childNames = result.evaluatorResults?.[0]?.evaluatorResults?.map((child) => child.name);
+    expect(childNames).toEqual(['latency', 'cost']);
+    const childVerdicts = result.evaluatorResults?.[0]?.evaluatorResults?.map(
+      (child) => child.verdict,
+    );
+    expect(childVerdicts).toEqual(['pass', 'pass']);
   });
 
   it('computes correct trace summary with multiple tool calls', async () => {

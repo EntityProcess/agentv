@@ -1,0 +1,10 @@
+{
+  "name": "@agentv-examples/document-extraction",
+  "version": "0.0.0",
+  "description": "Document extraction evaluation example for AgentV",
+  "private": true,
+  "scripts": {
+    "extract": "bun run mock_extractor.ts"
+  },
+  "type": "module"
+}

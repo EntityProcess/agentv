@@ -52,7 +52,24 @@ export async function parseEvaluators(
     }
 
     if (typeValue === 'code_judge') {
-      const script = asString(rawEvaluator.script);
+      let script: string[] | undefined;
+      const rawScript = rawEvaluator.script;
+
+      if (typeof rawScript === 'string') {
+        const trimmed = rawScript.trim();
+        if (trimmed.length === 0) {
+          throw new Error(
+            `Invalid code_judge script for evaluator '${name}' in '${evalId}': script cannot be empty`,
+          );
+        }
+        script = parseCommandToArgv(trimmed);
+      } else {
+        script = asStringArray(
+          rawScript,
+          `code_judge script for evaluator '${name}' in '${evalId}'`,
+        );
+      }
+
       if (!script) {
         logWarning(`Skipping code_judge evaluator '${name}' in '${evalId}': missing script`);
         continue;
@@ -79,6 +96,15 @@ export async function parseEvaluators(
         resolvedCwd = searchRoots[0];
       }
 
+      // Collect unrecognized properties as pass-through config
+      const knownProps = new Set(['name', 'type', 'script', 'cwd', 'weight']);
+      const config: Record<string, JsonValue> = {};
+      for (const [key, value] of Object.entries(rawEvaluator)) {
+        if (!knownProps.has(key) && value !== undefined) {
+          config[key] = value as JsonValue;
+        }
+      }
+
       evaluators.push({
         name,
         type: 'code',
@@ -86,6 +112,7 @@ export async function parseEvaluators(
         cwd,
         resolvedCwd,
         ...(weight !== undefined ? { weight } : {}),
+        ...(Object.keys(config).length > 0 ? { config } : {}),
       });
       continue;
     }
@@ -299,6 +326,171 @@ export async function parseEvaluators(
       continue;
     }
 
+    if (typeValue === 'field_accuracy') {
+      const rawFields = rawEvaluator.fields;
+      if (!Array.isArray(rawFields)) {
+        logWarning(
+          `Skipping field_accuracy evaluator '${name}' in '${evalId}': missing fields array`,
+        );
+        continue;
+      }
+
+      if (rawFields.length === 0) {
+        logWarning(
+          `Skipping field_accuracy evaluator '${name}' in '${evalId}': fields array is empty`,
+        );
+        continue;
+      }
+
+      const fields: import('../types.js').FieldConfig[] = [];
+      for (const rawField of rawFields) {
+        if (!isJsonObject(rawField)) {
+          logWarning(
+            `Skipping invalid field entry in field_accuracy evaluator '${name}' (expected object)`,
+          );
+          continue;
+        }
+
+        const fieldPath = asString(rawField.path);
+        const match = asString(rawField.match);
+
+        if (!fieldPath) {
+          logWarning(
+            `Skipping field without path in field_accuracy evaluator '${name}' in '${evalId}'`,
+          );
+          continue;
+        }
+
+        if (!match || !isValidFieldMatchType(match)) {
+          logWarning(
+            `Skipping field '${fieldPath}' with invalid match type '${match}' in evaluator '${name}' (must be exact, numeric_tolerance, or date). For fuzzy matching, use a code_judge evaluator.`,
+          );
+          continue;
+        }
+
+        const fieldConfig: import('../types.js').FieldConfig = {
+          path: fieldPath,
+          match,
+          ...(typeof rawField.required === 'boolean' ? { required: rawField.required } : {}),
+          ...(typeof rawField.weight === 'number' ? { weight: rawField.weight } : {}),
+          ...(typeof rawField.tolerance === 'number' ? { tolerance: rawField.tolerance } : {}),
+          ...(typeof rawField.relative === 'boolean' ? { relative: rawField.relative } : {}),
+          ...(Array.isArray(rawField.formats)
+            ? { formats: rawField.formats.filter((f): f is string => typeof f === 'string') }
+            : {}),
+        };
+
+        fields.push(fieldConfig);
+      }
+
+      if (fields.length === 0) {
+        logWarning(
+          `Skipping field_accuracy evaluator '${name}' in '${evalId}': no valid fields found`,
+        );
+        continue;
+      }
+
+      const aggregation = asString(rawEvaluator.aggregation);
+      const validAggregation = isValidFieldAggregationType(aggregation) ? aggregation : undefined;
+
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
+      evaluators.push({
+        name,
+        type: 'field_accuracy',
+        fields,
+        ...(validAggregation ? { aggregation: validAggregation } : {}),
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'latency') {
+      const threshold = rawEvaluator.threshold;
+      if (typeof threshold !== 'number' || threshold < 0) {
+        logWarning(
+          `Skipping latency evaluator '${name}' in '${evalId}': threshold must be a non-negative number`,
+        );
+        continue;
+      }
+
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
+      evaluators.push({
+        name,
+        type: 'latency',
+        threshold,
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'cost') {
+      const budget = rawEvaluator.budget;
+      if (typeof budget !== 'number' || budget < 0) {
+        logWarning(
+          `Skipping cost evaluator '${name}' in '${evalId}': budget must be a non-negative number`,
+        );
+        continue;
+      }
+
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
+      evaluators.push({
+        name,
+        type: 'cost',
+        budget,
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'token_usage') {
+      const maxTotal = rawEvaluator.max_total ?? rawEvaluator.maxTotal;
+      const maxInput = rawEvaluator.max_input ?? rawEvaluator.maxInput;
+      const maxOutput = rawEvaluator.max_output ?? rawEvaluator.maxOutput;
+
+      const limits = [
+        ['max_total', maxTotal],
+        ['max_input', maxInput],
+        ['max_output', maxOutput],
+      ] as const;
+
+      const validLimits: Partial<Record<'max_total' | 'max_input' | 'max_output', number>> = {};
+
+      for (const [key, raw] of limits) {
+        if (raw === undefined) continue;
+        if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0) {
+          logWarning(
+            `Skipping token_usage evaluator '${name}' in '${evalId}': ${key} must be a non-negative finite number`,
+          );
+          continue;
+        }
+        validLimits[key] = raw;
+      }
+
+      if (
+        validLimits.max_total === undefined &&
+        validLimits.max_input === undefined &&
+        validLimits.max_output === undefined
+      ) {
+        logWarning(
+          `Skipping token_usage evaluator '${name}' in '${evalId}': must set at least one of max_total, max_input, max_output`,
+        );
+        continue;
+      }
+
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
+      evaluators.push({
+        name,
+        type: 'token_usage',
+        ...validLimits,
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
     const prompt = asString(rawEvaluator.prompt);
     let promptPath: string | undefined;
     if (prompt) {
@@ -396,6 +588,40 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+function asStringArray(value: unknown, description: string): string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value)) {
+    throw new Error(`${description} must be an array of strings (argv tokens)`);
+  }
+
+  if (value.length === 0) {
+    throw new Error(`${description} cannot be empty`);
+  }
+
+  const result: string[] = [];
+  for (const [index, entry] of value.entries()) {
+    if (typeof entry !== 'string') {
+      throw new Error(`${description}[${index}] must be a string`);
+    }
+    if (entry.trim().length === 0) {
+      throw new Error(`${description}[${index}] cannot be empty`);
+    }
+    result.push(entry);
+  }
+
+  return result;
+}
+
+function parseCommandToArgv(command: string): string[] {
+  if (process.platform === 'win32') {
+    return ['cmd.exe', '/c', command];
+  }
+  return ['sh', '-lc', command];
+}
+
 function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -442,4 +668,18 @@ function validateWeight(
   }
 
   return rawWeight;
+}
+
+const VALID_FIELD_MATCH_TYPES = new Set(['exact', 'numeric_tolerance', 'date']);
+
+function isValidFieldMatchType(value: unknown): value is import('../types.js').FieldMatchType {
+  return typeof value === 'string' && VALID_FIELD_MATCH_TYPES.has(value);
+}
+
+const VALID_FIELD_AGGREGATION_TYPES = new Set(['weighted_average', 'all_or_nothing']);
+
+function isValidFieldAggregationType(
+  value: unknown,
+): value is import('../types.js').FieldAggregationType {
+  return typeof value === 'string' && VALID_FIELD_AGGREGATION_TYPES.has(value);
 }

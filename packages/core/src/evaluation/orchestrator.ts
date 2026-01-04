@@ -7,9 +7,13 @@ import {
   type ChildEvaluatorResult,
   CodeEvaluator,
   CompositeEvaluator,
+  CostEvaluator,
   type EvaluationScore,
   type Evaluator,
+  FieldAccuracyEvaluator,
+  LatencyEvaluator,
   LlmJudgeEvaluator,
+  TokenUsageEvaluator,
   ToolTrajectoryEvaluator,
 } from './evaluators.js';
 import { readJsonFile, readTextFile } from './file-utils.js';
@@ -31,18 +35,26 @@ import {
   mergeExecutionMetrics,
 } from './trace.js';
 import type {
+  CostEvaluatorConfig,
   EvalCase,
   EvaluationResult,
   EvaluationVerdict,
   EvaluatorConfig,
   EvaluatorKind,
   EvaluatorResult,
+  FieldAccuracyEvaluatorConfig,
   JsonObject,
   JsonValue,
+  LatencyEvaluatorConfig,
+  TokenUsageEvaluatorConfig,
 } from './types.js';
 import { type PromptInputs, buildPromptInputs, loadEvalCases } from './yaml-parser.js';
 
 type MaybePromise<T> = T | Promise<T>;
+
+function usesFileReferencePrompt(provider: Provider): boolean {
+  return isAgentProvider(provider) || provider.kind === 'cli';
+}
 
 export interface EvaluationCache {
   get(key: string): MaybePromise<ProviderResponse | undefined>;
@@ -309,7 +321,8 @@ export async function runEvaluation(
     } else {
       // Build error result for rejected promise
       const evalCase = filteredEvalCases[i];
-      const promptInputs = await buildPromptInputs(evalCase);
+      const formattingMode = usesFileReferencePrompt(primaryProvider) ? 'agent' : 'lm';
+      const promptInputs = await buildPromptInputs(evalCase, formattingMode);
       const errorResult = buildErrorResult(
         evalCase,
         target.name,
@@ -358,7 +371,7 @@ async function runBatchEvaluation(options: {
 
   // Prepare prompt inputs up front so we can reuse them for grading.
   const promptInputsList: PromptInputs[] = [];
-  const formattingMode = isAgentProvider(provider) ? 'agent' : 'lm';
+  const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
 
   for (const evalCase of evalCases) {
     const promptInputs = await buildPromptInputs(evalCase, formattingMode);
@@ -412,7 +425,21 @@ async function runBatchEvaluation(options: {
 
     // Extract outputMessages from batch response
     const outputMessages = providerResponse.outputMessages;
-    const baseSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+    const hasExecutionMetrics =
+      providerResponse.tokenUsage !== undefined ||
+      providerResponse.costUsd !== undefined ||
+      providerResponse.durationMs !== undefined;
+
+    const baseSummary = outputMessages
+      ? computeTraceSummary(outputMessages)
+      : hasExecutionMetrics
+        ? {
+            eventCount: 0,
+            toolNames: [],
+            toolCallsByName: {},
+            errorCount: 0,
+          }
+        : undefined;
     // Merge execution metrics from provider response
     const traceSummary = baseSummary
       ? mergeExecutionMetrics(baseSummary, {
@@ -501,7 +528,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     judgeProvider,
   } = options;
 
-  const formattingMode = isAgentProvider(provider) ? 'agent' : 'lm';
+  const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
   const promptInputs = await buildPromptInputs(evalCase, formattingMode);
   if (promptDumpDir) {
     await dumpPrompt(promptDumpDir, evalCase, promptInputs);
@@ -558,8 +585,22 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   // Extract outputMessages from provider response
   const outputMessages = providerResponse.outputMessages;
 
-  // Compute trace summary if outputMessages available
-  const baseSummary = outputMessages ? computeTraceSummary(outputMessages) : undefined;
+  const hasExecutionMetrics =
+    providerResponse.tokenUsage !== undefined ||
+    providerResponse.costUsd !== undefined ||
+    providerResponse.durationMs !== undefined;
+
+  // Compute trace summary if outputMessages available. If not, still preserve execution metrics.
+  const baseSummary = outputMessages
+    ? computeTraceSummary(outputMessages)
+    : hasExecutionMetrics
+      ? {
+          eventCount: 0,
+          toolNames: [],
+          toolCallsByName: {},
+          errorCount: 0,
+        }
+      : undefined;
   // Merge execution metrics from provider response
   const traceSummary = baseSummary
     ? mergeExecutionMetrics(baseSummary, {
@@ -824,6 +865,7 @@ async function runEvaluatorList(options: {
           script: evaluator.script,
           cwd: evaluator.resolvedCwd ?? evaluator.cwd,
           agentTimeoutMs,
+          config: evaluator.config,
         });
         const score = await codeEvaluator.evaluate({
           evalCase,
@@ -865,6 +907,7 @@ async function runEvaluatorList(options: {
                 script: memberConfig.script,
                 cwd: memberConfig.resolvedCwd ?? memberConfig.cwd,
                 agentTimeoutMs,
+                config: memberConfig.config,
               });
             case 'composite':
               return new CompositeEvaluator({
@@ -875,6 +918,22 @@ async function runEvaluatorList(options: {
             case 'tool_trajectory':
               return new ToolTrajectoryEvaluator({
                 config: memberConfig as ToolTrajectoryEvaluatorConfig,
+              });
+            case 'field_accuracy':
+              return new FieldAccuracyEvaluator({
+                config: memberConfig as FieldAccuracyEvaluatorConfig,
+              });
+            case 'latency':
+              return new LatencyEvaluator({
+                config: memberConfig as LatencyEvaluatorConfig,
+              });
+            case 'cost':
+              return new CostEvaluator({
+                config: memberConfig as CostEvaluatorConfig,
+              });
+            case 'token_usage':
+              return new TokenUsageEvaluator({
+                config: memberConfig as TokenUsageEvaluatorConfig,
               });
             default: {
               const unknownConfig = memberConfig as { type: string };
@@ -897,6 +956,8 @@ async function runEvaluatorList(options: {
           promptInputs,
           now,
           judgeProvider,
+          outputMessages,
+          traceSummary,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
@@ -919,6 +980,122 @@ async function runEvaluatorList(options: {
           config: evaluator as ToolTrajectoryEvaluatorConfig,
         });
         const score = trajectoryEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+          outputMessages,
+          traceSummary,
+        });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+        });
+      }
+
+      if (evaluator.type === 'field_accuracy') {
+        const fieldAccuracyEvaluator = new FieldAccuracyEvaluator({
+          config: evaluator as FieldAccuracyEvaluatorConfig,
+        });
+        const score = fieldAccuracyEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+          outputMessages,
+          traceSummary,
+        });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+        });
+      }
+
+      if (evaluator.type === 'latency') {
+        const latencyEvaluator = new LatencyEvaluator({
+          config: evaluator as LatencyEvaluatorConfig,
+        });
+        const score = latencyEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+          outputMessages,
+          traceSummary,
+        });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+        });
+      }
+
+      if (evaluator.type === 'cost') {
+        const costEvaluator = new CostEvaluator({
+          config: evaluator as CostEvaluatorConfig,
+        });
+        const score = costEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+          outputMessages,
+          traceSummary,
+        });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+        });
+      }
+
+      if (evaluator.type === 'token_usage') {
+        const tokenUsageEvaluator = new TokenUsageEvaluator({
+          config: evaluator as TokenUsageEvaluatorConfig,
+        });
+        const score = tokenUsageEvaluator.evaluate({
           evalCase,
           candidate,
           target,

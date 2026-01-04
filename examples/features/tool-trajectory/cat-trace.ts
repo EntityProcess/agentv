@@ -12,6 +12,15 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 
+type TraceEvent = {
+  type?: string;
+  id?: string;
+  name?: string;
+  input?: unknown;
+  output?: unknown;
+  timestamp?: string;
+};
+
 function main(): void {
   const { values } = parseArgs({
     options: {
@@ -44,19 +53,75 @@ function main(): void {
   try {
     // Read the static trace file
     const content = readFileSync(values.trace, 'utf8');
+    const parsed = JSON.parse(content) as { text?: unknown; trace?: TraceEvent[] };
+    const outputPayload = buildOutputPayload(parsed);
 
     // Write to output file
-    writeFileSync(values.output, content);
+    writeFileSync(values.output, JSON.stringify(outputPayload, null, 2));
 
     // Log text to stdout (optional)
-    const parsed = JSON.parse(content);
-    if (parsed.text) {
-      console.log(parsed.text);
+    if (outputPayload.text) {
+      console.log(outputPayload.text);
     }
   } catch (error) {
     console.error(`Error processing trace file: ${error}`);
     process.exit(1);
   }
+}
+
+function buildOutputPayload(parsed: {
+  text?: unknown;
+  trace?: TraceEvent[];
+}): {
+  text?: string;
+  output_messages?: Array<{
+    role: string;
+    content?: string;
+    tool_calls?: Array<{
+      tool: string;
+      input?: unknown;
+      output?: unknown;
+      id?: string;
+      timestamp?: string;
+    }>;
+  }>;
+} {
+  const text = typeof parsed.text === 'string' ? parsed.text : undefined;
+
+  if (!Array.isArray(parsed.trace) || parsed.trace.length === 0) {
+    return { ...(text ? { text } : {}) };
+  }
+
+  const toolResults = new Map<string, TraceEvent>();
+  for (const event of parsed.trace) {
+    if (event?.type === 'tool_result' && event.id) {
+      toolResults.set(event.id, event);
+    }
+  }
+
+  const toolCalls = parsed.trace
+    .filter((event) => event?.type === 'tool_call' && event.name)
+    .map((event) => {
+      const output = event.id ? toolResults.get(event.id)?.output : undefined;
+      return {
+        tool: event.name as string,
+        ...(event.input !== undefined ? { input: event.input } : {}),
+        ...(output !== undefined ? { output } : {}),
+        ...(event.id ? { id: event.id } : {}),
+        ...(event.timestamp ? { timestamp: event.timestamp } : {}),
+      };
+    });
+
+  return {
+    ...(text ? { text } : {}),
+    output_messages: [
+      {
+        role: 'assistant',
+        ...(text ? { content: text } : {}),
+        ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
+      },
+    ],
+  };
 }
 
 main();

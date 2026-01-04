@@ -1,0 +1,82 @@
+{
+  "invoice_number": "INV-2025-001234",
+  "invoice_date": "15-JAN-2025",
+  "incoterm": null,
+  "currency": "USD",
+  "net_total": 1889,
+  "gross_total": 1889,
+  "supplier": {
+    "name": "Acme Shipping",
+    "address": "Acme - Shipping\n123 Harbor Boulevard\nSuite 400\n90001  Los Angeles\nUSA"
+  },
+  "importer": {
+    "name": "Global Trade Co",
+    "address": "Global Trade Co\n456 Commerce Street\n10001  New York\nUSA"
+  },
+  "line_items": [
+    {
+      "description": "OCEAN FREIGHT",
+      "quantity": 1,
+      "unit_price": 1370,
+      "line_total": 1370,
+      "unit_type": "C2 1 USD",
+      "hs_code": "853720"
+    },
+    {
+      "description": "Bunker Adjustment Factor",
+      "quantity": 1,
+      "unit_price": 262,
+      "line_total": 262,
+      "unit_type": "C2 1 TEU",
+      "hs_code": "853720"
+    },
+    {
+      "description": "Container maintenance Fee at destination",
+      "quantity": 1,
+      "unit_price": 20,
+      "line_total": 20,
+      "unit_type": "C2 1 TEU",
+      "hs_code": "853720"
+    },
+    {
+      "description": "Advanced Manifest Declaration Fee",
+      "quantity": 1,
+      "unit_price": 32,
+      "line_total": 32,
+      "unit_type": "C2 1 FIX",
+      "hs_code": "853720"
+    },
+    {
+      "description": "Energy Transition Surcharge",
+      "quantity": 1,
+      "unit_price": 68,
+      "line_total": 68,
+      "unit_type": "C2 1 TEU",
+      "hs_code": "853720"
+    },
+    {
+      "description": "Emergency Operational Recovery",
+      "quantity": 1,
+      "unit_price": 75,
+      "line_total": 75,
+      "unit_type": "C2 1 UNI",
+      "hs_code": "853720"
+    },
+    {
+      "description": "On carriage chassis admin fees",
+      "quantity": 1,
+      "unit_price": 12,
+      "line_total": 12,
+      "unit_type": "C2 1 UNI",
+      "hs_code": "853720"
+    },
+    {
+      "description": "On Carriage Additional - Emergency Fuel Surch.",
+      "quantity": 1,
+      "unit_price": 50,
+      "line_total": 50,
+      "unit_type": "C2 1 UNI",
+      "hs_code": "853720"
+    }
+  ]
+}

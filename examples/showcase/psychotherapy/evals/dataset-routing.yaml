@@ -6,7 +6,7 @@ execution:
   evaluators:
     - name: json_schema_validator
       type: code_judge
-      script: uv run validate_output.py
+      script: ["uv", "run", "validate_output.py"]
     - name: content_evaluator
       type: llm_judge
 
@@ -155,6 +155,7 @@ evalcases:
   # Case 4: Routing to Listening (Gatekeeper)
   # Rationale: Client presents a distorted reality ("I am doing good") that hides dysfunction. Needs Process Analysis, not Encouragement (which would enable the dysfunction).
   - id: route-to-listening-gatekeeper
+    # Baseline note: intended failure if model selects encouragement (score ~0.5).
     outcome: |-
       Must select 'three_levels_listening'.
       Rationale should mention "dysfunctional dynamic", "lack of insight", or "need to analyze the process". Encouragement here would likely reinforce the triangulation.

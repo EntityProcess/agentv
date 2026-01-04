@@ -1,0 +1,16 @@
+targets:
+  - name: mock_extractor
+    provider: cli
+    provider_batching: false
+    verbose: true
+    
+    # Runs the mock invoice extractor for each evalcase individually
+    # {FILES} is replaced with the input file paths from the evalcase
+    # {OUTPUT_FILE} is the temporary file path where output should be written
+    command_template: bun run ../mock_extractor.ts {FILES} {OUTPUT_FILE}
+    
+    timeout_seconds: 30
+    
+    healthcheck:
+      type: command
+      command_template: bun --version

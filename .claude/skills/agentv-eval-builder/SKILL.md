@@ -14,6 +14,7 @@ description: Create and maintain AgentV YAML evaluation files for testing AI age
 - Rubrics: `references/rubric-evaluator.md` - Structured criteria-based evaluation
 - Composite Evaluators: `references/composite-evaluator.md` - Combine multiple evaluators
 - Tool Trajectory: `references/tool-trajectory-evaluator.md` - Validate agent tool usage
+- Structured Data + Metrics: `references/structured-data-evaluators.md` - `field_accuracy`, `latency`, `cost`
 - Custom Evaluators: `references/custom-evaluators.md` - Code and LLM judge templates
 - Batch CLI: `references/batch-cli-evaluator.md` - Evaluate batch runner output (JSONL)
 - Compare: `references/compare-command.md` - Compare evaluation results between runs

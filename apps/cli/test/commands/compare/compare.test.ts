@@ -22,7 +22,7 @@ describe('compare command', () => {
   });
 
   describe('loadJsonlResults', () => {
-    it('should load valid JSONL file with snake_case eval results', () => {
+    it('should load valid JSONL file with eval_id results', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(
         filePath,

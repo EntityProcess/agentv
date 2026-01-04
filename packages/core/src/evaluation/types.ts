@@ -153,6 +153,10 @@ const EVALUATOR_KIND_VALUES = [
   'rubric',
   'composite',
   'tool_trajectory',
+  'field_accuracy',
+  'latency',
+  'cost',
+  'token_usage',
 ] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
@@ -166,11 +170,13 @@ export function isEvaluatorKind(value: unknown): value is EvaluatorKind {
 export type CodeEvaluatorConfig = {
   readonly name: string;
   readonly type: 'code';
-  readonly script: string;
+  readonly script: readonly string[];
   readonly resolvedScriptPath?: string;
   readonly cwd?: string;
   readonly resolvedCwd?: string;
   readonly weight?: number;
+  /** Pass-through configuration for the code_judge script (any unrecognized YAML properties) */
+  readonly config?: JsonObject;
 };
 
 export type LlmJudgeEvaluatorConfig = {
@@ -207,11 +213,100 @@ export type CompositeEvaluatorConfig = {
   readonly weight?: number;
 };
 
+/**
+ * Match type for field accuracy evaluation.
+ * Note: For fuzzy string matching (Levenshtein, Jaro-Winkler, etc.), use a code_judge evaluator.
+ * See examples/features/document-extraction/fuzzy_match.ts for an example.
+ */
+export type FieldMatchType = 'exact' | 'numeric_tolerance' | 'date';
+
+/**
+ * Aggregation strategy for combining field scores.
+ */
+export type FieldAggregationType = 'weighted_average' | 'all_or_nothing';
+
+/**
+ * Configuration for a single field to evaluate.
+ */
+export type FieldConfig = {
+  /** Dot-notation path to the field (e.g., "invoice.vendor.name" or "items[0].amount") */
+  readonly path: string;
+  /** Match strategy for this field */
+  readonly match: FieldMatchType;
+  /** Whether this field is required (missing required fields count as failures) */
+  readonly required?: boolean;
+  /** Weight for aggregation (default: 1.0) */
+  readonly weight?: number;
+  /** Tolerance for numeric matching (absolute value unless relative is true) */
+  readonly tolerance?: number;
+  /** Whether tolerance is relative (percentage) vs absolute */
+  readonly relative?: boolean;
+  /** Date formats to try when parsing (default: common formats) */
+  readonly formats?: readonly string[];
+};
+
+/**
+ * Configuration for the field_accuracy evaluator.
+ */
+export type FieldAccuracyEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'field_accuracy';
+  /** Fields to compare between candidate and expected */
+  readonly fields: readonly FieldConfig[];
+  /** Strategy for combining field scores (default: weighted_average) */
+  readonly aggregation?: FieldAggregationType;
+  readonly weight?: number;
+};
+
+/**
+ * Configuration for the latency evaluator.
+ * Checks execution duration against a threshold.
+ */
+export type LatencyEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'latency';
+  /** Maximum allowed duration in milliseconds */
+  readonly threshold: number;
+  readonly weight?: number;
+};
+
+/**
+ * Configuration for the cost evaluator.
+ * Checks execution cost against a budget.
+ */
+export type CostEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'cost';
+  /** Maximum allowed cost in USD */
+  readonly budget: number;
+  readonly weight?: number;
+};
+
+/**
+ * Configuration for the token_usage evaluator.
+ * Checks provider-reported token usage against configured limits.
+ */
+export type TokenUsageEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'token_usage';
+  /** Maximum allowed total tokens (input + output + cached, when present) */
+  readonly max_total?: number;
+  /** Maximum allowed input tokens (prompt) */
+  readonly max_input?: number;
+  /** Maximum allowed output tokens (completion) */
+  readonly max_output?: number;
+  readonly weight?: number;
+};
+
 export type EvaluatorConfig =
   | CodeEvaluatorConfig
   | LlmJudgeEvaluatorConfig
   | CompositeEvaluatorConfig
-  | ToolTrajectoryEvaluatorConfig;
+  | ToolTrajectoryEvaluatorConfig
+  | FieldAccuracyEvaluatorConfig
+  | LatencyEvaluatorConfig
+  | CostEvaluatorConfig
+  | TokenUsageEvaluatorConfig;
 
 /**
  * Eval case definition sourced from AgentV specs.

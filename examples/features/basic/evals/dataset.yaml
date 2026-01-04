@@ -61,6 +61,7 @@ evalcases:
   # Note: Optimization (ACE, etc.) is configured separately in opts/*.yaml files
   # ==========================================
   - id: code-gen-python-comprehensive
+    # Baseline note: type hints are required; missing them typically drops score (~0.95).
     
     # conversation_id represents the full conversation that may be split into multiple eval cases
     # Most commonly, eval cases test the final response, but could also test intermediate turns
@@ -76,7 +77,7 @@ evalcases:
       evaluators:
         - name: keyword_check
           type: code_judge  # Code evaluators handle regex, keywords, linting, etc.
-          script: uv run check_python_keywords.py
+          script: ["uv", "run", "check_python_keywords.py"]
           cwd: .  # Working directory for script execution
         - name: code_correctness
           type: llm_judge  # LLM-based evaluation

@@ -62,6 +62,7 @@ evalcases:
 
   # Example 3: LLM Judge Aggregator
   - id: llm-judge-conflict-resolution
+    # Baseline note: aggregator may report minor omissions (score ~0.9).
     input_messages:
       - role: user
         content: "Write a product description that is both brief and comprehensive."

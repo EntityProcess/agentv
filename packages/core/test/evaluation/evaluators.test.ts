@@ -2,7 +2,14 @@ import { describe, expect, it } from 'bun:test';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { CodeEvaluator, LlmJudgeEvaluator } from '../../src/evaluation/evaluators.js';
+import {
+  CodeEvaluator,
+  CostEvaluator,
+  FieldAccuracyEvaluator,
+  LatencyEvaluator,
+  LlmJudgeEvaluator,
+  TokenUsageEvaluator,
+} from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type {
   Provider,
@@ -444,7 +451,7 @@ describe('CodeEvaluator', () => {
 
     // Use external script file for cross-platform compatibility
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const script = `node ${join(__dirname, '../fixtures/test-judge.cjs')}`;
+    const script = ['node', join(__dirname, '../fixtures/test-judge.cjs')];
 
     const evaluator = new CodeEvaluator({ script });
 
@@ -463,5 +470,671 @@ describe('CodeEvaluator', () => {
     expect(result.hits).toContain('expected_messages present');
     expect(result.hits).toContain('candidate_answer present');
     expect(result.hits).toContain('candidate_answer parses');
+  });
+
+  it('surfaces stderr and exit code on failure', async () => {
+    const judgeProvider = new StubProvider(textResponse('{}'));
+
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const script = ['node', join(__dirname, '../fixtures/test-judge-error.cjs')];
+
+    const evaluator = new CodeEvaluator({ script });
+
+    const result = await evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Candidate answer',
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('exited with code');
+    expect(result.misses[0]).toContain('test-error');
+  });
+});
+
+describe('FieldAccuracyEvaluator', () => {
+  const baseTestCaseWithExpected: EvalCase = {
+    ...baseTestCase,
+    expected_messages: [
+      {
+        role: 'assistant',
+        content: {
+          invoice_number: 'INV-001',
+          amount: 1500,
+          date: '15-JAN-2025',
+          vendor: { name: 'Acme Shipping', address: '123 Main St' },
+        },
+      },
+    ],
+  };
+
+  const judgeProvider = new StubProvider(textResponse('{}'));
+
+  it('evaluates exact match fields correctly', () => {
+    const evaluator = new FieldAccuracyEvaluator({
+      config: {
+        name: 'test',
+        type: 'field_accuracy',
+        fields: [
+          { path: 'invoice_number', match: 'exact', required: true, weight: 1.0 },
+          { path: 'amount', match: 'exact', required: true, weight: 1.0 },
+        ],
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCaseWithExpected,
+      candidate: JSON.stringify({ invoice_number: 'INV-001', amount: 1500 }),
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(1.0);
+    expect(result.verdict).toBe('pass');
+    expect(result.hits).toHaveLength(2);
+    expect(result.misses).toHaveLength(0);
+  });
+
+  it('handles missing required fields', () => {
+    const evaluator = new FieldAccuracyEvaluator({
+      config: {
+        name: 'test',
+        type: 'field_accuracy',
+        fields: [
+          { path: 'invoice_number', match: 'exact', required: true, weight: 1.0 },
+          { path: 'amount', match: 'exact', required: true, weight: 1.0 },
+        ],
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCaseWithExpected,
+      candidate: JSON.stringify({ invoice_number: 'INV-001' }), // Missing amount
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(0.5);
+    expect(result.verdict).toBe('fail');
+    expect(result.hits).toHaveLength(1);
+    expect(result.misses).toHaveLength(1);
+    expect(result.misses[0]).toContain('amount');
+    expect(result.misses[0]).toContain('required');
+  });
+
+  it('applies numeric tolerance matching', () => {
+    const evaluator = new FieldAccuracyEvaluator({
+      config: {
+        name: 'test',
+        type: 'field_accuracy',
+        fields: [
+          {
+            path: 'amount',
+            match: 'numeric_tolerance',
+            tolerance: 1.0,
+            relative: false,
+            required: true,
+            weight: 1.0,
+          },
+        ],
+      },
+    });
+
+    // 1500.5 vs 1500 - within tolerance of 1.0
+    const result = evaluator.evaluate({
+      evalCase: baseTestCaseWithExpected,
+      candidate: JSON.stringify({ amount: 1500.5 }),
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(1.0);
+    expect(result.verdict).toBe('pass');
+  });
+
+  it('fails numeric tolerance when outside range', () => {
+    const evaluator = new FieldAccuracyEvaluator({
+      config: {
+        name: 'test',
+        type: 'field_accuracy',
+        fields: [
+          {
+            path: 'amount',
+            match: 'numeric_tolerance',
+            tolerance: 1.0,
+            relative: false,
+            required: true,
+            weight: 1.0,
+          },
+        ],
+      },
+    });
+
+    // 1502 vs 1500 - outside tolerance of 1.0
+    const result = evaluator.evaluate({
+      evalCase: baseTestCaseWithExpected,
+      candidate: JSON.stringify({ amount: 1502 }),
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('outside tolerance');
+  });
+
+  it('applies date matching with format normalization', () => {
+    const evaluator = new FieldAccuracyEvaluator({
+      config: {
+        name: 'test',
+        type: 'field_accuracy',
+        fields: [
+          {
+            path: 'date',
+            match: 'date',
+            formats: ['DD-MMM-YYYY', 'YYYY-MM-DD'],
+            required: true,
+            weight: 1.0,
+          },
+        ],
+      },
+    });
+
+    // "2025-01-15" vs "15-JAN-2025" - same date, different formats
+    const result = evaluator.evaluate({
+      evalCase: baseTestCaseWithExpected,
+      candidate: JSON.stringify({ date: '2025-01-15' }),
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(1.0);
+    expect(result.verdict).toBe('pass');
+  });
+
+  it('respects weighted averaging', () => {
+    const evaluator = new FieldAccuracyEvaluator({
+      config: {
+        name: 'test',
+        type: 'field_accuracy',
+        fields: [
+          { path: 'invoice_number', match: 'exact', required: true, weight: 2.0 }, // 2x weight
+          { path: 'amount', match: 'exact', required: true, weight: 1.0 },
+        ],
+        aggregation: 'weighted_average',
+      },
+    });
+
+    // Correct invoice_number (weight 2), wrong amount (weight 1)
+    const result = evaluator.evaluate({
+      evalCase: baseTestCaseWithExpected,
+      candidate: JSON.stringify({ invoice_number: 'INV-001', amount: 9999 }),
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    // Score should be (1.0 * 2.0 + 0.0 * 1.0) / (2.0 + 1.0) = 2/3 ≈ 0.667
+    expect(result.score).toBeCloseTo(0.667, 2);
+    expect(result.verdict).toBe('borderline');
+  });
+
+  it('supports all_or_nothing aggregation', () => {
+    const evaluator = new FieldAccuracyEvaluator({
+      config: {
+        name: 'test',
+        type: 'field_accuracy',
+        fields: [
+          { path: 'invoice_number', match: 'exact', required: true, weight: 1.0 },
+          { path: 'amount', match: 'exact', required: true, weight: 1.0 },
+        ],
+        aggregation: 'all_or_nothing',
+      },
+    });
+
+    // Correct invoice_number, wrong amount - should fail completely
+    const result = evaluator.evaluate({
+      evalCase: baseTestCaseWithExpected,
+      candidate: JSON.stringify({ invoice_number: 'INV-001', amount: 9999 }),
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+  });
+
+  it('handles nested field paths', () => {
+    const evaluator = new FieldAccuracyEvaluator({
+      config: {
+        name: 'test',
+        type: 'field_accuracy',
+        fields: [
+          { path: 'vendor.name', match: 'exact', required: true, weight: 1.0 },
+          { path: 'vendor.address', match: 'exact', required: true, weight: 1.0 },
+        ],
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCaseWithExpected,
+      candidate: JSON.stringify({ vendor: { name: 'Acme Shipping', address: '123 Main St' } }),
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(1.0);
+    expect(result.verdict).toBe('pass');
+  });
+
+  it('handles array index paths', () => {
+    const evalCaseWithArray: EvalCase = {
+      ...baseTestCase,
+      expected_messages: [
+        {
+          role: 'assistant',
+          content: {
+            items: [
+              { name: 'Item A', price: 100 },
+              { name: 'Item B', price: 200 },
+            ],
+          },
+        },
+      ],
+    };
+
+    const evaluator = new FieldAccuracyEvaluator({
+      config: {
+        name: 'test',
+        type: 'field_accuracy',
+        fields: [
+          { path: 'items[0].name', match: 'exact', required: true, weight: 1.0 },
+          { path: 'items[1].price', match: 'exact', required: true, weight: 1.0 },
+        ],
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: evalCaseWithArray,
+      candidate: JSON.stringify({
+        items: [
+          { name: 'Item A', price: 100 },
+          { name: 'Item B', price: 200 },
+        ],
+      }),
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(1.0);
+    expect(result.verdict).toBe('pass');
+  });
+
+  it('returns failure for invalid JSON candidate', () => {
+    const evaluator = new FieldAccuracyEvaluator({
+      config: {
+        name: 'test',
+        type: 'field_accuracy',
+        fields: [{ path: 'invoice_number', match: 'exact', required: true, weight: 1.0 }],
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCaseWithExpected,
+      candidate: 'This is not valid JSON',
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('parse');
+  });
+});
+
+describe('LatencyEvaluator', () => {
+  it('passes when duration is under threshold', () => {
+    const evaluator = new LatencyEvaluator({
+      config: {
+        name: 'latency_check',
+        type: 'latency',
+        threshold: 2000,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 1,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        durationMs: 1500,
+      },
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+    expect(result.hits[0]).toContain('1500ms');
+  });
+
+  it('fails when duration exceeds threshold', () => {
+    const evaluator = new LatencyEvaluator({
+      config: {
+        name: 'latency_check',
+        type: 'latency',
+        threshold: 1000,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 1,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        durationMs: 2500,
+      },
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('2500ms');
+  });
+
+  it('fails when no duration data available', () => {
+    const evaluator = new LatencyEvaluator({
+      config: {
+        name: 'latency_check',
+        type: 'latency',
+        threshold: 2000,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      // No traceSummary
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('No duration data');
+  });
+
+  it('passes when duration equals threshold exactly', () => {
+    const evaluator = new LatencyEvaluator({
+      config: {
+        name: 'latency_check',
+        type: 'latency',
+        threshold: 1000,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 1,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        durationMs: 1000,
+      },
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+  });
+});
+
+describe('CostEvaluator', () => {
+  it('passes when cost is under budget', () => {
+    const evaluator = new CostEvaluator({
+      config: {
+        name: 'cost_check',
+        type: 'cost',
+        budget: 0.1,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 1,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        costUsd: 0.05,
+      },
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+    expect(result.hits[0]).toContain('$0.0500');
+  });
+
+  it('fails when cost exceeds budget', () => {
+    const evaluator = new CostEvaluator({
+      config: {
+        name: 'cost_check',
+        type: 'cost',
+        budget: 0.05,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 1,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        costUsd: 0.15,
+      },
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('$0.1500');
+  });
+
+  it('fails when no cost data available', () => {
+    const evaluator = new CostEvaluator({
+      config: {
+        name: 'cost_check',
+        type: 'cost',
+        budget: 0.1,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      // No traceSummary
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('No cost data');
+  });
+
+  it('passes when cost equals budget exactly', () => {
+    const evaluator = new CostEvaluator({
+      config: {
+        name: 'cost_check',
+        type: 'cost',
+        budget: 0.1,
+      },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 1,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        costUsd: 0.1,
+      },
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+  });
+});
+
+describe('TokenUsageEvaluator', () => {
+  it('passes when total tokens are under max_total', () => {
+    const evaluator = new TokenUsageEvaluator({
+      config: { name: 'token_budget', type: 'token_usage', max_total: 1000 },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 0,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        tokenUsage: { input: 400, output: 500, cached: 0 },
+      },
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+    expect(result.hits.join(' ')).toContain('Total tokens');
+  });
+
+  it('fails when output tokens exceed max_output', () => {
+    const evaluator = new TokenUsageEvaluator({
+      config: { name: 'token_budget', type: 'token_usage', max_output: 100 },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      traceSummary: {
+        eventCount: 0,
+        toolNames: [],
+        toolCallsByName: {},
+        errorCount: 0,
+        tokenUsage: { input: 10, output: 150 },
+      },
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses.join(' ')).toContain('Output tokens');
+  });
+
+  it('fails when no token usage data available', () => {
+    const evaluator = new TokenUsageEvaluator({
+      config: { name: 'token_budget', type: 'token_usage', max_total: 1000 },
+    });
+
+    const result = evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: new StubProvider(textResponse('ok')),
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.misses[0]).toContain('token usage');
   });
 });

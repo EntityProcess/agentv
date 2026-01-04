@@ -38,10 +38,10 @@ evalcases:
 
     execution:
       evaluators:
-        # Verify that execution metrics are present in traceSummary
+        # Verify that execution metrics are present in trace_summary
         - name: metrics-present
           type: code_judge
-          script: bun run scripts/check-metrics-present.ts
+          script: ["bun", "run", "../scripts/check-metrics-present.ts"]
 
   # ==========================================
   # Example 2: Metric-aware code judge
@@ -62,7 +62,7 @@ evalcases:
         # Custom code judge that evaluates efficiency metrics
         - name: efficiency-check
           type: code_judge
-          script: bun run scripts/check-efficiency.ts
+          script: ["bun", "run", "../scripts/check-efficiency.ts"]
 
   # ==========================================
   # Example 3: Research task with higher metrics
@@ -90,7 +90,7 @@ evalcases:
         # Check efficiency metrics
         - name: metrics-check
           type: code_judge
-          script: bun run scripts/check-efficiency.ts
+          script: ["bun", "run", "../scripts/check-efficiency.ts"]
 
   # ==========================================
   # Example 4: Inefficient agent detection
@@ -111,4 +111,4 @@ evalcases:
         # This should fail - agent uses too many tools
         - name: efficiency-check
           type: code_judge
-          script: bun run scripts/check-efficiency.ts
+          script: ["bun", "run", "../scripts/check-efficiency.ts"]
