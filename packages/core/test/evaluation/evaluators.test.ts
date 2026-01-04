@@ -494,6 +494,29 @@ describe('CodeEvaluator', () => {
     expect(result.misses[0]).toContain('exited with code');
     expect(result.misses[0]).toContain('test-error');
   });
+
+  it('works with TypeScript SDK-based code judge', async () => {
+    const judgeProvider = new StubProvider(textResponse('Logging improvements applied'));
+
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const script = ['bun', 'run', join(__dirname, '../fixtures/test-sdk-judge.ts')];
+
+    const evaluator = new CodeEvaluator({ script });
+
+    const result = await evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Logging improvements applied',
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+    expect(result.hits).toContain('Answer matches expected outcome');
+  });
 });
 
 describe('FieldAccuracyEvaluator', () => {

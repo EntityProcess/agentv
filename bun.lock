@@ -21,7 +21,7 @@
     },
     "apps/cli": {
       "name": "agentv",
-      "version": "1.6.0",
+      "version": "1.6.1",
       "bin": {
         "agentv": "./dist/cli.js",
       },
@@ -36,6 +36,17 @@
       "devDependencies": {
         "execa": "^9.3.0",
       },
+    },
+    "examples/features/code-judge-sdk": {
+      "name": "@agentv-examples/code-judge-sdk",
+      "version": "0.0.0",
+      "dependencies": {
+        "@agentv/core": "workspace:*",
+      },
+    },
+    "examples/features/document-extraction": {
+      "name": "@agentv-examples/document-extraction",
+      "version": "0.0.0",
     },
     "packages/core": {
       "name": "@agentv/core",
@@ -56,6 +67,10 @@
     },
   },
   "packages": {
+    "@agentv-examples/code-judge-sdk": ["@agentv-examples/code-judge-sdk@workspace:examples/features/code-judge-sdk"],
+
+    "@agentv-examples/document-extraction": ["@agentv-examples/document-extraction@workspace:examples/features/document-extraction"],
+
     "@agentv/core": ["@agentv/core@workspace:packages/core"],
 
     "@ai-sdk/anthropic": ["@ai-sdk/anthropic@2.0.56", "", { "dependencies": { "@ai-sdk/provider": "2.0.0", "@ai-sdk/provider-utils": "3.0.19" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-XHJKu0Yvfu9SPzRfsAFESa+9T7f2YJY6TxykKMfRsAwpeWAiX/Gbx5J5uM15AzYC3Rw8tVP3oH+j7jEivENirQ=="],

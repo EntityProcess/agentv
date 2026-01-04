@@ -96,6 +96,32 @@ Shows how to invoke a CLI target with file attachments using the template-based 
 
 **Eval file:** [local-cli/evals/dataset.yaml](local-cli/evals/dataset.yaml)
 
+### Code Judge SDK Helper (`code-judge-sdk/`)
+
+Demonstrates using the optional TypeScript SDK from `@agentv/core` to write code judges with:
+- Type-safe camelCase properties (`candidateAnswer`, `expectedOutcome`, etc.)
+- Automatic conversion from snake_case wire format
+- Access to all payload fields: attachments (`guidelineFiles`, `inputFiles`), messages, trace data
+
+**Key files:**
+- **SDK script:** [code-judge-sdk/scripts/verify-attachments.ts](code-judge-sdk/scripts/verify-attachments.ts) - Uses `readCodeJudgePayload()` from `@agentv/core`
+- **Eval file:** [code-judge-sdk/evals/dataset.yaml](code-judge-sdk/evals/dataset.yaml)
+- **README:** [code-judge-sdk/README.md](code-judge-sdk/README.md) - Setup and standalone testing
+
+**Setup:**
+```bash
+bun install  # Links workspace dependencies
+bun run build  # Builds @agentv/core
+```
+
+**Standalone test:**
+```bash
+cd code-judge-sdk
+cat << 'EOF' | bun run scripts/verify-attachments.ts
+{"question":"Test","expected_outcome":"Pass","expected_messages":[],"candidate_answer":"Pass","guideline_files":[],"input_files":[],"input_messages":[]}
+EOF
+```
+
 ### Batch CLI (`batch-cli/`)
 
 Demonstrates batch evaluation using CLI targets.
@@ -107,4 +133,3 @@ Demonstrates batch evaluation using CLI targets.
 Invoice data extraction evaluation (see dedicated README in that folder).
 
 **Eval file:** [document-extraction/evals/dataset.yaml](document-extraction/evals/dataset.yaml)
-

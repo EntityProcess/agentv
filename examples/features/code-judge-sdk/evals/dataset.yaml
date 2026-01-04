@@ -1,0 +1,36 @@
+# Code Judge SDK Helper Demo
+# Demonstrates using the optional TypeScript helper to parse code_judge stdin.
+
+description: Demonstrates TypeScript helpers for code_judge payloads
+
+# Uses the CLI target defined in .agentv/targets.yaml
+execution:
+  target: local_cli
+
+evalcases:
+  - id: code-judge-sdk-attachments
+    expected_outcome: The CLI echoes the prompt and lists attachment names.
+
+    input_messages:
+      - role: system
+        content:
+          - type: file
+            value: python.instructions.md
+      - role: user
+        content:
+          - type: text
+            value: |-
+              Please echo this request in one short sentence and mention all attached files by name.
+          - type: file
+            value: example.txt
+
+    expected_messages:
+      - role: assistant
+        content: |-
+          Attachments detected (2): example.txt, python.instructions.md.
+
+    execution:
+      evaluators:
+        - name: attachment-check
+          type: code_judge
+          script: ["bun", "run", "../scripts/verify-attachments.ts"]

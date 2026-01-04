@@ -8,20 +8,22 @@ Code evaluators receive input via stdin and write output to stdout, both as JSON
 
 ### Input Format (via stdin)
 
+Wire format uses snake_case for cross-language compatibility:
+
 ```json
 {
   "question": "string describing the task/question",
-  "expectedOutcome": "expected outcome description",
-  "referenceAnswer": "gold standard answer (optional)",
-  "candidateAnswer": "generated code/text from the agent",
-  "guidelineFiles": ["path1", "path2"],
-  "inputFiles": ["file1", "file2"],
-  "inputMessages": [{"role": "user", "content": "..."}],
-  "outputMessages": [
+  "expected_outcome": "expected outcome description",
+  "reference_answer": "gold standard answer (optional)",
+  "candidate_answer": "generated code/text from the agent",
+  "guideline_files": ["path1", "path2"],
+  "input_files": ["file1", "file2"],
+  "input_messages": [{"role": "user", "content": "..."}],
+  "output_messages": [
     {
       "role": "assistant",
       "content": "...",
-      "toolCalls": [
+      "tool_calls": [
         {
           "tool": "search",
           "input": { "query": "..." },
@@ -32,21 +34,21 @@ Code evaluators receive input via stdin and write output to stdout, both as JSON
       ]
     }
   ],
-  "traceSummary": {
-    "eventCount": 5,
-    "toolNames": ["fetch", "search"],
-    "toolCallsByName": { "search": 2, "fetch": 1 },
-    "errorCount": 0,
-    "tokenUsage": { "input": 1000, "output": 500 },
-    "costUsd": 0.0015,
-    "durationMs": 3500
+  "trace_summary": {
+    "event_count": 5,
+    "tool_names": ["fetch", "search"],
+    "tool_calls_by_name": { "search": 2, "fetch": 1 },
+    "error_count": 0,
+    "token_usage": { "input": 1000, "output": 500 },
+    "cost_usd": 0.0015,
+    "duration_ms": 3500
   }
 }
 ```
 
 **Key fields:**
-- `outputMessages` - Full agent execution trace with tool calls (use `toolCalls[].input` for arguments)
-- `traceSummary` - Lightweight summary with execution metrics (counts only, no tool arguments)
+- `output_messages` - Full agent execution trace with tool calls (use `tool_calls[].input` for arguments)
+- `trace_summary` - Lightweight summary with execution metrics (counts only, no tool arguments)
 
 ### Output Format (to stdout)
 
@@ -149,6 +151,91 @@ def main():
 if __name__ == "__main__":
     main()
 ```
+
+## TypeScript Code Evaluator Template (with SDK)
+
+For TypeScript code evaluators, use the optional SDK from `@agentv/core` for type-safe camelCase API:
+
+```typescript
+#!/usr/bin/env bun
+/**
+ * Example TypeScript code evaluator using the AgentV SDK
+ *
+ * The SDK provides:
+ * - Type-safe CodeJudgePayload interface with all fields
+ * - camelCase properties (candidateAnswer, expectedOutcome, etc.)
+ * - Automatic conversion from snake_case wire format
+ */
+
+import { readCodeJudgePayload } from '@agentv/core';
+
+try {
+  // Read and parse stdin with automatic snake_case → camelCase conversion
+  const payload = readCodeJudgePayload();
+
+  // Type-safe camelCase access to all fields
+  const { candidateAnswer, expectedOutcome, inputFiles, guidelineFiles } = payload;
+
+  // Your validation logic here
+  const hits: string[] = [];
+  const misses: string[] = [];
+
+  // Example: Check if answer contains expected outcome
+  if (candidateAnswer.includes(expectedOutcome)) {
+    hits.push('Answer matches expected outcome');
+  } else {
+    misses.push('Answer does not match expected outcome');
+  }
+
+  // Example: Check attachment mentions
+  const attachments = [...guidelineFiles, ...inputFiles];
+  for (const filePath of attachments) {
+    const fileName = filePath.split('/').pop() ?? filePath;
+    if (candidateAnswer.includes(fileName)) {
+      hits.push(`Mentions attachment: ${fileName}`);
+    } else {
+      misses.push(`Missing attachment: ${fileName}`);
+    }
+  }
+
+  // Calculate score
+  const totalChecks = hits.length + misses.length;
+  const score = totalChecks === 0 ? 0 : hits.length / totalChecks;
+
+  // Build result
+  const result = {
+    score,
+    hits,
+    misses,
+    reasoning: `Passed ${hits.length}/${totalChecks} checks`
+  };
+
+  console.log(JSON.stringify(result, null, 2));
+
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.log(JSON.stringify({
+    score: 0,
+    hits: [],
+    misses: [`Error: ${message}`],
+    reasoning: 'Evaluator error'
+  }, null, 2));
+  process.exit(1);
+}
+```
+
+**TypeScript SDK Benefits:**
+- **Type-safe**: `CodeJudgePayload` interface with all fields typed
+- **camelCase**: Idiomatic TypeScript naming (`candidateAnswer` vs `candidate_answer`)
+- **Automatic conversion**: Handles snake_case wire format → camelCase objects
+- **Compile-time safety**: Catch typos and missing fields before runtime
+
+**Available in SDK:**
+- `readCodeJudgePayload()`: Read stdin and convert to camelCase (recommended)
+- `parseCodeJudgePayload(jsonString)`: Parse JSON string and convert to camelCase
+- `CodeJudgePayload`: TypeScript interface for type safety
+
+**See also:** `examples/features/code-judge-sdk/` for complete working examples
 
 ## LLM Judge Prompt Template
 

@@ -297,45 +297,13 @@ Code evaluators receive input via stdin and write output to stdout as JSON.
 - Score range: `0.0` to `1.0` (float)
 - `hits` and `misses` are optional but recommended for debugging
 
-### Code Evaluator Script Template
+### Code Evaluator Templates
 
-```python
-#!/usr/bin/env python3
-import json
-import sys
+Custom evaluators can be written in any language. For complete templates and examples:
 
-def evaluate(input_data):
-    # Extract only the fields you need
-    candidate_answer = input_data.get("candidate_answer", "")
-    
-    # Your validation logic here
-    score = 0.0  # to 1.0
-    hits = ["successful check 1", "successful check 2"]
-    misses = ["failed check 1"]
-    reasoning = "Explanation of score"
-    
-    return {
-        "score": score,
-        "hits": hits,
-        "misses": misses,
-        "reasoning": reasoning
-    }
-
-if __name__ == "__main__":
-    try:
-        input_data = json.loads(sys.stdin.read())
-        result = evaluate(input_data)
-        print(json.dumps(result, indent=2))
-    except Exception as e:
-        error_result = {
-            "score": 0.0,
-            "hits": [],
-            "misses": [f"Evaluator error: {str(e)}"],
-            "reasoning": f"Evaluator error: {str(e)}"
-        }
-        print(json.dumps(error_result, indent=2))
-        sys.exit(1)
-```
+- **Python template**: See `.claude/skills/agentv-eval-builder/references/custom-evaluators.md`
+- **TypeScript template (with SDK)**: See `.claude/skills/agentv-eval-builder/references/custom-evaluators.md`
+- **Working examples**: See [examples/features/code-judge-sdk](examples/features/code-judge-sdk)
 
 ### LLM Judge Template Structure
 
