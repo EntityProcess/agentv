@@ -63,6 +63,18 @@ After making any significant changes (refactoring, new features, bug fixes), alw
 
 Only consider the work complete when all four steps pass successfully. This ensures code quality, prevents regressions, and maintains the integrity of the codebase.
 
+## Documentation Updates
+
+When making changes to functionality (new features, modified behavior, new evaluator types, etc.), **always update the skill files and references** in the templates directory:
+
+- **Source of truth**: `apps/cli/src/templates/.claude/skills/agentv-eval-builder/`
+  - `skill.md` - Main skill instructions for AI agents
+  - `references/*.md` - Detailed reference documentation (e.g., `custom-evaluators.md`, `structured-data-evaluators.md`)
+
+These files are copied to the user's workspace when they run `agentv init`. They serve as the authoritative guide for AI agents helping users build evaluations.
+
+**Do NOT duplicate content in README.md** - keep the README minimal and reference the skill files instead.
+
 ## Functional Testing
 
 When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` directly as it may run the globally installed npm version. Instead:
