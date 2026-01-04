@@ -1,6 +1,6 @@
 {
   "name": "@agentv-examples/code-judge-sdk",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Code Judge SDK example for AgentV",
   "private": true,
   "type": "module",

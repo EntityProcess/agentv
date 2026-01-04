@@ -1,5 +1,44 @@
 # @agentv/core
 
+## 2.0.0
+
+### Major Changes
+
+- 7fa51c2: All JSONL output keys are now in snake_case instead of camelCase (e.g., `eval_id` instead of `evalId`, `candidate_answer` instead of `candidateAnswer`). This aligns with Python ecosystem standards used by OpenAI Evals, MLflow, and HuggingFace.
+
+### Minor Changes
+
+- ab325ed: Add Claude Code CLI provider for agent evaluations
+
+  - New `claude-code` provider type for running evaluations with Claude Code CLI
+  - Supports model, system prompt, cwd, timeout, and custom args configuration
+  - Parses JSONL streaming output with tool calls and usage metrics
+  - Stream logging to `.agentv/logs/claude-code/` directory
+  - Detects nested Claude Code sessions with helpful error message
+
+- 5276006: Add `field_accuracy`, `latency`, and `cost` evaluators
+
+  - `field_accuracy`: Compare structured data fields with exact, numeric_tolerance, or date matching
+  - `latency`: Check execution duration against threshold (uses traceSummary.durationMs)
+  - `cost`: Check execution cost against budget (uses traceSummary.costUsd)
+
+  See `examples/features/document-extraction/README.md` for usage examples.
+
+- 5276006: Add structured data and execution-metrics evaluators, normalize code-judge payloads, and ship refreshed eval examples with CI baselines.
+- 5276006: Add `token_usage` evaluator to gate on provider-reported token budgets.
+- 428e15d: Add TypeScript SDK for code judge evaluators with type-safe camelCase API. The SDK provides `readCodeJudgePayload()` and `parseCodeJudgePayload()` functions that automatically convert snake_case wire format to idiomatic camelCase TypeScript, along with a `CodeJudgePayload` interface for compile-time type safety.
+
+### Patch Changes
+
+- c850805: refactor: use Zod schemas for CLI provider JSON parsing
+
+  Replace manual type assertions and field validation with Zod schema definitions
+  in the CLI provider's `parseOutputContent()` and `parseJsonlBatchOutput()` methods.
+  This provides a single source of truth for data validation, clearer error messages,
+  and aligns with the project's established Zod validation patterns.
+
+- 5276006: Fix composite evaluators to pass through trace and output message context so trace-dependent evaluators (e.g. latency/cost/tool_trajectory) work when nested.
+
 ## 1.5.0
 
 ### Minor Changes

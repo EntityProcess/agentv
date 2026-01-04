@@ -1,5 +1,44 @@
 # agentv
 
+## 2.0.0
+
+### Major Changes
+
+- 7fa51c2: All JSONL output keys are now in snake_case instead of camelCase (e.g., `eval_id` instead of `evalId`, `candidate_answer` instead of `candidateAnswer`). This aligns with Python ecosystem standards used by OpenAI Evals, MLflow, and HuggingFace.
+
+### Minor Changes
+
+- 5276006: Add `field_accuracy`, `latency`, and `cost` evaluators
+
+  - `field_accuracy`: Compare structured data fields with exact, numeric_tolerance, or date matching
+  - `latency`: Check execution duration against threshold (uses traceSummary.durationMs)
+  - `cost`: Check execution cost against budget (uses traceSummary.costUsd)
+
+  See `examples/features/document-extraction/README.md` for usage examples.
+
+- 5276006: Add structured data and execution-metrics evaluators, normalize code-judge payloads, and ship refreshed eval examples with CI baselines.
+- 5276006: Add `token_usage` evaluator to gate on provider-reported token budgets.
+- 428e15d: Add TypeScript SDK for code judge evaluators with type-safe camelCase API. The SDK provides `readCodeJudgePayload()` and `parseCodeJudgePayload()` functions that automatically convert snake_case wire format to idiomatic camelCase TypeScript, along with a `CodeJudgePayload` interface for compile-time type safety.
+- f5150c8: Add human-readable table output to compare command
+
+  - Table format with colored deltas (green=win, red=loss, gray=tie) is now the default output
+  - Add `--format` option to choose between `table` (default) and `json`
+  - Add `--json` flag as shorthand for machine-readable output
+  - JSON output now uses snake_case for Python ecosystem compatibility
+  - Respects `NO_COLOR` env var and non-TTY detection
+
+### Patch Changes
+
+- Updated dependencies [ab325ed]
+- Updated dependencies [5276006]
+- Updated dependencies [5276006]
+- Updated dependencies [5276006]
+- Updated dependencies [428e15d]
+- Updated dependencies [c850805]
+- Updated dependencies [5276006]
+- Updated dependencies [7fa51c2]
+  - @agentv/core@2.0.0
+
 ## 1.6.1
 
 ### Patch Changes
