@@ -4,7 +4,7 @@
   "private": true,
   "description": "AgentV monorepo workspace",
   "packageManager": "bun@1.3.3",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": ["apps/*", "packages/*", "examples/features/*", "examples/showcase/*"],
   "scripts": {
     "build": "bun --filter @agentv/core build && bun --filter agentv build",
     "verify": "bun run build && bun run typecheck && bun run lint && bun run test",
