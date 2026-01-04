@@ -110,30 +110,11 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const skipEvalFiles = new Set<string>();
-  if (process.env.CI) {
-    skipEvalFiles.add(
-      path.join(
-        repoRoot,
-        'examples',
-        'showcase',
-        'psychotherapy',
-        'evals',
-        'dataset-encouragement.yaml',
-      ),
-    );
-  }
-
   let failures = 0;
 
   for (const baselinePath of baselineFiles.sort()) {
     const { candidatePath, relativePath } = candidatePathFor(baselinePath, options.candidateRoot);
     const evalFile = resolveEvalFile(baselinePath);
-
-    if (skipEvalFiles.has(evalFile)) {
-      console.log(`Skipping eval in CI for ${relativePath}`);
-      continue;
-    }
 
     console.log(`Running eval for ${relativePath}`);
     const evalExitCode = await runEval(evalFile, candidatePath);
