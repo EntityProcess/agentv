@@ -95,6 +95,21 @@ When making changes that should be included in the next release:
 3. Commit the version bump and changelog updates
 4. Create a git tag and push to trigger release workflow
 
+## Git Workflow
+
+### Pull Requests
+**Always use squash merge** when merging PRs to main. This keeps the commit history clean with one commit per feature/fix.
+
+```bash
+# Using GitHub CLI to squash merge a PR
+gh pr merge <PR_NUMBER> --squash
+
+# Or with auto-merge enabled
+gh pr merge <PR_NUMBER> --squash --auto
+```
+
+Do NOT use regular merge or rebase merge, as these create noisy commit history with intermediate commits.
+
 ## Package Publishing
 - Core package (`packages/core/`) - Core evaluation engine and grading logic (published as `@agentv/core`)
 - CLI package (`apps/cli/`) is published as `agentv` on npm
