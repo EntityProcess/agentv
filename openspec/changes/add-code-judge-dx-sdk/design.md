@@ -47,19 +47,19 @@ The current SDK provides `readCodeJudgePayload()` which handles stdin parsing an
 - Familiar to TypeScript developers
 - Enables typed custom config via `z.infer<>`
 
-### Decision: Separate `@agentv/core/judge` entrypoint
+### Decision: Separate `@agentv/eval` entrypoint
 
 **Rationale**:
 - Keeps judge-specific code isolated
 - Smaller bundle for evaluators that only need judge utilities
-- Clear import path: `import { defineCodeJudge } from '@agentv/core/judge'`
+- Clear import path: `import { defineCodeJudge } from '@agentv/eval'`
 
 ## API Design
 
 ### Primary API: `defineCodeJudge(handler)`
 
 ```typescript
-import { defineCodeJudge } from '@agentv/core/judge';
+import { defineCodeJudge } from '@agentv/eval';
 
 export default defineCodeJudge(({ traceSummary, candidateAnswer }) => {
   if (!traceSummary) {
@@ -77,7 +77,7 @@ export default defineCodeJudge(({ traceSummary, candidateAnswer }) => {
 ### With Typed Config
 
 ```typescript
-import { defineCodeJudge, z } from '@agentv/core/judge';
+import { defineCodeJudge, z } from '@agentv/eval';
 
 const ConfigSchema = z.object({
   maxToolCalls: z.number().default(10),

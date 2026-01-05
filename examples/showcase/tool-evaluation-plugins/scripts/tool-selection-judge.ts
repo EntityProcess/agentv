@@ -17,7 +17,7 @@
  *       type: code_judge
  *       script: ["bun", "run", "scripts/tool-selection-judge.ts"]
  */
-import { type OutputMessage, defineCodeJudge } from '@agentv/core/judge';
+import { type OutputMessage, defineCodeJudge } from '@agentv/eval';
 
 interface ExtractedToolCall {
   tool: string;

@@ -1,6 +1,6 @@
 # Code Judge SDK Helper
 
-Demonstrates how a TypeScript code_judge evaluator can use `defineCodeJudge` from `@agentv/core/judge` for a declarative, zero-boilerplate approach.
+Demonstrates how a TypeScript code_judge evaluator can use `defineCodeJudge` from `@agentv/eval` for a declarative, zero-boilerplate approach.
 
 ## Files
 
@@ -58,7 +58,7 @@ The `defineCodeJudge` helper:
 - Handles errors gracefully
 
 ```typescript
-import { defineCodeJudge } from '@agentv/core/judge';
+import { defineCodeJudge } from '@agentv/eval';
 
 export default defineCodeJudge(({ candidateAnswer, expectedOutcome }) => ({
   score: candidateAnswer.includes(expectedOutcome) ? 1.0 : 0.0,

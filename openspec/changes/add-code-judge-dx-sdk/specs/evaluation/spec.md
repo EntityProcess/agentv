@@ -2,15 +2,15 @@
 
 ### Requirement: Optional TypeScript SDK
 **Reason**: Replaced by new declarative `defineCodeJudge` API with better DX
-**Migration**: Use `defineCodeJudge()` from `@agentv/core/judge` instead of `readCodeJudgePayload()` from `@agentv/core`
+**Migration**: Use `defineCodeJudge()` from `@agentv/eval` instead of `readCodeJudgePayload()` from `@agentv/core`
 
 ## ADDED Requirements
 
 ### Requirement: Declarative Code Judge SDK
-The system SHALL provide a declarative TypeScript SDK for code_judge evaluator authors via the `@agentv/core/judge` entrypoint.
+The system SHALL provide a declarative TypeScript SDK for code_judge evaluator authors via the `@agentv/eval` entrypoint.
 
 #### Scenario: Define code judge with handler function
-- **WHEN** a TypeScript code_judge evaluator imports `defineCodeJudge` from `@agentv/core/judge`
+- **WHEN** a TypeScript code_judge evaluator imports `defineCodeJudge` from `@agentv/eval`
 - **THEN** it can define the evaluator by calling `defineCodeJudge(handler)`
 - **AND** the handler receives a typed `CodeJudgeInput` object with camelCase properties
 - **AND** the handler returns a `CodeJudgeResult` object
@@ -43,14 +43,14 @@ The system SHALL provide a declarative TypeScript SDK for code_judge evaluator a
 - **AND** the process exits with code 1
 
 #### Scenario: SDK provides separate package entrypoint
-- **WHEN** a code_judge evaluator imports from `@agentv/core/judge`
+- **WHEN** a code_judge evaluator imports from `@agentv/eval`
 - **THEN** only judge-specific utilities are imported
 - **AND** the package.json exports `./judge` as a separate entrypoint
 - **IMPLEMENTATION**:
   - Package export: `"./judge": { "import": "./dist/judge/index.js", "types": "./dist/judge/index.d.ts" }`
 
 #### Scenario: SDK re-exports canonical types
-- **WHEN** a code_judge evaluator imports from `@agentv/core/judge`
+- **WHEN** a code_judge evaluator imports from `@agentv/eval`
 - **THEN** it can import `TraceSummary`, `OutputMessage`, and other relevant types
 - **AND** these types match the canonical definitions in `@agentv/core`
 

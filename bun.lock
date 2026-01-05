@@ -51,12 +51,22 @@
         "zod": "^3.23.8",
       },
       "devDependencies": {
+        "@agentv/eval": "workspace:*",
         "@types/micromatch": "^4.0.10",
+      },
+    },
+    "packages/eval": {
+      "name": "@agentv/eval",
+      "version": "0.1.0",
+      "dependencies": {
+        "zod": "^3.23.8",
       },
     },
   },
   "packages": {
     "@agentv/core": ["@agentv/core@workspace:packages/core"],
+
+    "@agentv/eval": ["@agentv/eval@workspace:packages/eval"],
 
     "@ai-sdk/anthropic": ["@ai-sdk/anthropic@2.0.56", "", { "dependencies": { "@ai-sdk/provider": "2.0.0", "@ai-sdk/provider-utils": "3.0.19" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-XHJKu0Yvfu9SPzRfsAFESa+9T7f2YJY6TxykKMfRsAwpeWAiX/Gbx5J5uM15AzYC3Rw8tVP3oH+j7jEivENirQ=="],
 

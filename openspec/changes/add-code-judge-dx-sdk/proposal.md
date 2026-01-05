@@ -16,7 +16,7 @@ This creates friction for evaluator authors and leads to inconsistent implementa
 
 - **ADDED**: `defineCodeJudge()` function - Declarative evaluator definition with automatic stdin/stdout handling
 - **ADDED**: `CodeJudgeResult` schema with Zod validation - Compile-time + runtime safety for outputs
-- **ADDED**: Re-exported `TraceSummary` type from `@agentv/core/judge` entrypoint
+- **ADDED**: Re-exported `TraceSummary` type from `@agentv/eval` entrypoint
 - **ADDED**: Optional typed config support via Zod schema parameter
 - **REMOVED**: `readCodeJudgePayload()`, `parseCodeJudgePayload()`, `CodeJudgePayload` from `@agentv/core`
 - **REMOVED**: `packages/core/src/evaluation/code-judge-sdk.ts`

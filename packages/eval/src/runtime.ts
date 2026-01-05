@@ -4,7 +4,7 @@
  */
 import { readFileSync } from 'node:fs';
 
-import { toCamelCaseDeep } from '../evaluation/case-conversion.js';
+import { toCamelCaseDeep } from './case-conversion.js';
 import {
   type CodeJudgeInput,
   CodeJudgeInputSchema,

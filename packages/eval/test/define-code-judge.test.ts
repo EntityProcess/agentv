@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 
 import {
   type CodeJudgeInput,
   CodeJudgeInputSchema,
   type CodeJudgeResult,
   CodeJudgeResultSchema,
-} from '../../src/judge/schemas.js';
+} from '../src/schemas.js';
 
 describe('CodeJudgeInputSchema', () => {
   const validInput = {

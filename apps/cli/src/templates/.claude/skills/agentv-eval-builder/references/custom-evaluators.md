@@ -154,7 +154,7 @@ if __name__ == "__main__":
 
 ## TypeScript Code Evaluator Template (with SDK)
 
-The `@agentv/core/judge` SDK provides a declarative API for code evaluators with automatic stdin/stdout handling, validation, and error handling.
+The `@agentv/eval` SDK provides a declarative API for code evaluators with automatic stdin/stdout handling, validation, and error handling.
 
 **Execution:** Keep evaluators as `.ts` files and run via `bun run` or Node loaders like `npx --yes tsx ./evaluators/my-check.ts`.
 
@@ -172,7 +172,7 @@ The `@agentv/core/judge` SDK provides a declarative API for code evaluators with
  * - Validating input with Zod
  * - Error handling and output formatting
  */
-import { defineCodeJudge } from '@agentv/core/judge';
+import { defineCodeJudge } from '@agentv/eval';
 
 export default defineCodeJudge(({ candidateAnswer, expectedOutcome, inputFiles, guidelineFiles }) => {
   const hits: string[] = [];
@@ -216,7 +216,7 @@ export default defineCodeJudge(({ candidateAnswer, expectedOutcome, inputFiles, 
 - **Validation**: Zod schemas validate input and output at runtime
 - **Error handling**: Exceptions automatically produce valid failure results
 
-**Available exports from `@agentv/core/judge`:**
+**Available exports from `@agentv/eval`:**
 - `defineCodeJudge(handler)`: Define a code judge evaluator (recommended)
 - `CodeJudgeInput`: TypeScript type for input payload
 - `CodeJudgeResult`: TypeScript type for result
@@ -226,7 +226,7 @@ export default defineCodeJudge(({ candidateAnswer, expectedOutcome, inputFiles, 
 **Using execution metrics:**
 
 ```typescript
-import { defineCodeJudge } from '@agentv/core/judge';
+import { defineCodeJudge } from '@agentv/eval';
 
 export default defineCodeJudge(({ traceSummary }) => {
   if (!traceSummary) {

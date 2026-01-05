@@ -11,7 +11,7 @@
  *       type: code_judge
  *       script: ["bun", "run", "../scripts/check-metrics-present.ts"]
  */
-import { defineCodeJudge } from '@agentv/core/judge';
+import { defineCodeJudge } from '@agentv/eval';
 
 export default defineCodeJudge(({ traceSummary }) => {
   const hits: string[] = [];

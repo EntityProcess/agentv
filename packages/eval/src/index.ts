@@ -1,10 +1,12 @@
 /**
- * Declarative SDK for code judge evaluators.
+ * AgentV Evaluation SDK
+ *
+ * Build custom code judges for evaluating AI agent outputs.
  *
  * @example
  * ```typescript
  * #!/usr/bin/env bun
- * import { defineCodeJudge } from '@agentv/core/judge';
+ * import { defineCodeJudge } from '@agentv/eval';
  *
  * export default defineCodeJudge(({ traceSummary, candidateAnswer }) => ({
  *   score: traceSummary?.eventCount <= 5 ? 1.0 : 0.5,
@@ -16,7 +18,7 @@
  * @packageDocumentation
  */
 
-// Re-export schemas (for validation)
+// Re-export schemas and types
 export {
   CodeJudgeInputSchema,
   CodeJudgeResultSchema,
@@ -26,11 +28,11 @@ export {
   TokenUsageSchema,
   type CodeJudgeInput,
   type CodeJudgeResult,
+  type TraceSummary,
+  type OutputMessage,
+  type ToolCall,
+  type TokenUsage,
 } from './schemas.js';
-
-// Re-export canonical types from core (for type safety)
-export type { TraceSummary, TokenUsage } from '../evaluation/trace.js';
-export type { OutputMessage, ToolCall } from '../evaluation/providers/types.js';
 
 // Re-export Zod for typed config support
 export { z } from 'zod';
@@ -54,7 +56,7 @@ export type { CodeJudgeHandler };
  *
  * @example
  * ```typescript
- * import { defineCodeJudge } from '@agentv/core/judge';
+ * import { defineCodeJudge } from '@agentv/eval';
  *
  * export default defineCodeJudge(({ traceSummary }) => {
  *   if (!traceSummary) {
@@ -72,7 +74,7 @@ export type { CodeJudgeHandler };
  *
  * @example With typed config
  * ```typescript
- * import { defineCodeJudge, z } from '@agentv/core/judge';
+ * import { defineCodeJudge, z } from '@agentv/eval';
  *
  * const ConfigSchema = z.object({
  *   maxToolCalls: z.number().default(10),
