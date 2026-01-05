@@ -5,7 +5,7 @@
  * Demonstrates how to evaluate agent efficiency using execution metrics
  * available in the traceSummary payload.
  */
-import { defineCodeJudge } from '@agentv/core/judge';
+import { defineCodeJudge } from '../../../../packages/core/dist/judge/index.js';
 
 // Configurable thresholds
 const THRESHOLDS = {

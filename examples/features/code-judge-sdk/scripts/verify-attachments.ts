@@ -5,7 +5,7 @@
  * Uses the declarative defineCodeJudge helper to verify attachments
  * are referenced in the candidate answer.
  */
-import { defineCodeJudge } from '@agentv/core/judge';
+import { defineCodeJudge } from '../../../../packages/core/dist/judge/index.js';
 
 function fileName(path: string): string {
   const parts = path.split('/');

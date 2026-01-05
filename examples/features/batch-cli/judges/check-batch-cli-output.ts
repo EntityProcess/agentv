@@ -5,7 +5,7 @@
  * Validates that the batch CLI runner produces the expected decision
  * by comparing candidate output against expected_messages or input_messages.
  */
-import { defineCodeJudge } from '@agentv/core/judge';
+import { defineCodeJudge } from '../../../../packages/core/dist/judge/index.js';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
