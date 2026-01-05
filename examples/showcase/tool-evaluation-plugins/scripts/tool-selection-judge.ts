@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+export {};
 /**
  * Tool Selection Evaluator - Code Judge Plugin
  *
@@ -191,4 +192,4 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+await main();

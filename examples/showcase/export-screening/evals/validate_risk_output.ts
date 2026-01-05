@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+export {};
 /**
  * Export Risk Output Validator for AgentV
  *
@@ -175,4 +176,4 @@ async function main(): Promise<void> {
   console.log(JSON.stringify(result, null, 2));
 }
 
-main();
+await main();

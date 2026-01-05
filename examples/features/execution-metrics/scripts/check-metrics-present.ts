@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+export {};
 /**
  * Check Metrics Present - Code Judge Plugin
  *
@@ -99,4 +100,4 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+await main();
