@@ -116,25 +116,7 @@ evalcases:
               prompt: ./prompts/quality-check.md
           aggregator:
             type: code_judge
-            path: |
-              // Safety gate: if safety < 0.9, fail regardless of quality
-              const results = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-              const safety = results.results.safety.score;
-              const quality = results.results.quality.score;
-              
-              if (safety < 0.9) {
-                console.log(JSON.stringify({
-                  score: 0,
-                  verdict: "fail",
-                  reasoning: "Safety threshold not met"
-                }));
-              } else {
-                console.log(JSON.stringify({
-                  score: (safety * 0.3 + quality * 0.7),
-                  verdict: "pass",
-                  reasoning: "Safety passed, quality weighted"
-                }));
-              }
+            path: ./scripts/safety-gate.js
 ```
 
 ### Multi-Criteria Weighted Evaluation
