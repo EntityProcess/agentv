@@ -3,9 +3,6 @@ import path from 'node:path';
 
 import { parse } from 'yaml';
 
-type JsonValue = string | number | boolean | null | JsonObject | readonly JsonValue[];
-type JsonObject = { readonly [key: string]: JsonValue };
-
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -23,14 +20,7 @@ function csvEscape(value: string): string {
   return value;
 }
 
-function toStringValue(value: JsonValue | undefined): string {
-  if (value === undefined || value === null) return '';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  return JSON.stringify(value);
-}
-
-type RowRecord = {
+export type EvalRow = {
   readonly id: string;
   readonly customer_name: string;
   readonly origin_country: string;
@@ -42,36 +32,90 @@ type RowRecord = {
   readonly effective_date: string;
 };
 
-function extractRowFromEvalCase(evalCase: Record<string, unknown>): RowRecord | undefined {
-  const id = typeof evalCase.id === 'string' ? evalCase.id : undefined;
-  const inputMessages = Array.isArray(evalCase.input_messages)
-    ? evalCase.input_messages
-    : undefined;
-  if (!id || !inputMessages) return undefined;
+function findFirstUserContentObject(inputMessages: unknown): Record<string, unknown> | undefined {
+  if (!Array.isArray(inputMessages)) return undefined;
 
-  // Find the first user message with object content.
-  const userMessage = inputMessages.find(
-    (m) => isObject(m) && m.role === 'user' && isObject((m as Record<string, unknown>).content),
-  ) as Record<string, unknown> | undefined;
+  for (const msg of inputMessages) {
+    if (!isObject(msg)) continue;
+    if ((msg as Record<string, unknown>).role !== 'user') continue;
+    const content = (msg as Record<string, unknown>).content;
+    if (!isObject(content)) continue;
+    return content as Record<string, unknown>;
+  }
 
-  if (!userMessage) return undefined;
+  return undefined;
+}
 
-  const content = userMessage.content as Record<string, unknown>;
-  const request = isObject(content.request) ? (content.request as Record<string, unknown>) : {};
-  const row = isObject(content.row) ? (content.row as Record<string, unknown>) : {};
+export function extractRowsFromEvalYaml(yamlText: string): readonly EvalRow[] {
+  const parsed = parse(yamlText) as unknown;
+  if (!isObject(parsed)) return [];
 
-  return {
-    id,
-    customer_name: typeof row.customer_name === 'string' ? row.customer_name : '',
-    origin_country: typeof row.origin_country === 'string' ? row.origin_country : '',
-    destination_country: typeof row.destination_country === 'string' ? row.destination_country : '',
-    transaction_type: typeof row.transaction_type === 'string' ? row.transaction_type : '',
-    amount:
-      typeof row.amount === 'string' || typeof row.amount === 'number' ? String(row.amount) : '',
-    currency: typeof row.currency === 'string' ? row.currency : '',
-    jurisdiction: typeof request.jurisdiction === 'string' ? request.jurisdiction : '',
-    effective_date: typeof request.effective_date === 'string' ? request.effective_date : '',
-  };
+  const evalcases = (parsed as Record<string, unknown>).evalcases;
+  if (!Array.isArray(evalcases)) return [];
+
+  const rows: EvalRow[] = [];
+  for (const item of evalcases) {
+    if (!isObject(item)) continue;
+
+    const id = typeof item.id === 'string' ? item.id : '';
+    if (!id) continue;
+
+    const content = findFirstUserContentObject(item.input_messages);
+    if (!content) continue;
+
+    const request = isObject(content.request) ? (content.request as Record<string, unknown>) : {};
+    const row = isObject(content.row) ? (content.row as Record<string, unknown>) : {};
+
+    rows.push({
+      id,
+      customer_name: typeof row.customer_name === 'string' ? row.customer_name : '',
+      origin_country: typeof row.origin_country === 'string' ? row.origin_country : '',
+      destination_country:
+        typeof row.destination_country === 'string' ? row.destination_country : '',
+      transaction_type: typeof row.transaction_type === 'string' ? row.transaction_type : '',
+      amount:
+        typeof row.amount === 'string' || typeof row.amount === 'number' ? String(row.amount) : '',
+      currency: typeof row.currency === 'string' ? row.currency : '',
+      jurisdiction: typeof request.jurisdiction === 'string' ? request.jurisdiction : '',
+      effective_date: typeof request.effective_date === 'string' ? request.effective_date : '',
+    });
+  }
+
+  return rows;
+}
+
+export function buildCsv(rows: readonly EvalRow[]): string {
+  const headers = [
+    'id',
+    'customer_name',
+    'origin_country',
+    'destination_country',
+    'transaction_type',
+    'amount',
+    'currency',
+    'jurisdiction',
+    'effective_date',
+  ] as const;
+  const lines: string[] = [];
+  lines.push(headers.join(','));
+  for (const row of rows) {
+    lines.push(
+      [
+        row.id,
+        row.customer_name,
+        row.origin_country,
+        row.destination_country,
+        row.transaction_type,
+        row.amount,
+        row.currency,
+        row.jurisdiction,
+        row.effective_date,
+      ]
+        .map((v) => csvEscape(v ?? ''))
+        .join(','),
+    );
+  }
+  return `${lines.join('\n')}\n`;
 }
 
 async function main(): Promise<void> {
@@ -87,22 +131,7 @@ async function main(): Promise<void> {
   const outPath = path.resolve(outPathRaw);
 
   const yamlText = await fs.readFile(evalPath, 'utf8');
-  const parsed = parse(yamlText) as unknown;
-  if (!isObject(parsed)) {
-    throw new Error(`Invalid eval file: ${evalPathRaw}`);
-  }
-
-  const evalcases = (parsed as Record<string, unknown>).evalcases;
-  if (!Array.isArray(evalcases)) {
-    throw new Error(`Invalid eval file: missing evalcases array: ${evalPathRaw}`);
-  }
-
-  const rows: RowRecord[] = [];
-  for (const item of evalcases) {
-    if (!isObject(item)) continue;
-    const row = extractRowFromEvalCase(item);
-    if (row) rows.push(row);
-  }
+  const rows = extractRowsFromEvalYaml(yamlText);
 
   if (rows.length === 0) {
     throw new Error(
@@ -110,32 +139,16 @@ async function main(): Promise<void> {
     );
   }
 
-  const headers: (keyof RowRecord)[] = [
-    'id',
-    'customer_name',
-    'origin_country',
-    'destination_country',
-    'transaction_type',
-    'amount',
-    'currency',
-    'jurisdiction',
-    'effective_date',
-  ];
-
-  const lines: string[] = [];
-  lines.push(headers.join(','));
-
-  for (const row of rows) {
-    const line = headers.map((h) => csvEscape(toStringValue(row[h]))).join(',');
-    lines.push(line);
-  }
-
-  await fs.writeFile(outPath, `${lines.join('\n')}\n`, 'utf8');
+  const csvContent = buildCsv(rows);
+  await fs.writeFile(outPath, csvContent, 'utf8');
   console.log(`Wrote CSV (${rows.length} rows): ${outPath}`);
 }
 
-main().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(message);
-  process.exitCode = 1;
-});
+// Only run main when executed directly, not when imported
+if (import.meta.main) {
+  main().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(message);
+    process.exitCode = 1;
+  });
+}

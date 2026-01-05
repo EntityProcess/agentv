@@ -1,121 +1,14 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { parse } from 'yaml';
+import { buildCsv, extractRowsFromEvalYaml } from './build-csv-from-eval.ts';
+
+// Batch CLI runner that processes CSV files for AML screening and outputs JSONL with output_messages for trace extraction.
 
 function getFlag(args: readonly string[], name: string): string | undefined {
   const idx = args.indexOf(name);
   if (idx === -1) return undefined;
   return args[idx + 1];
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-type EvalRow = {
-  readonly id: string;
-  readonly customer_name: string;
-  readonly origin_country: string;
-  readonly destination_country: string;
-  readonly transaction_type: string;
-  readonly amount: string;
-  readonly currency: string;
-  readonly jurisdiction: string;
-  readonly effective_date: string;
-};
-
-function findFirstUserContentObject(inputMessages: unknown): Record<string, unknown> | undefined {
-  if (!Array.isArray(inputMessages)) return undefined;
-
-  for (const msg of inputMessages) {
-    if (!isObject(msg)) continue;
-    if ((msg as Record<string, unknown>).role !== 'user') continue;
-    const content = (msg as Record<string, unknown>).content;
-    if (!isObject(content)) continue;
-    return content as Record<string, unknown>;
-  }
-
-  return undefined;
-}
-
-function extractRowsFromEvalYaml(yamlText: string): readonly EvalRow[] {
-  const parsed = parse(yamlText) as unknown;
-  if (!isObject(parsed)) return [];
-
-  const evalcases = (parsed as Record<string, unknown>).evalcases;
-  if (!Array.isArray(evalcases)) return [];
-
-  const rows: EvalRow[] = [];
-  for (const item of evalcases) {
-    if (!isObject(item)) continue;
-
-    const id = typeof item.id === 'string' ? item.id : '';
-    if (!id) continue;
-
-    const content = findFirstUserContentObject(item.input_messages);
-    if (!content) continue;
-
-    const request = isObject(content.request) ? (content.request as Record<string, unknown>) : {};
-    const row = isObject(content.row) ? (content.row as Record<string, unknown>) : {};
-
-    rows.push({
-      id,
-      customer_name: typeof row.customer_name === 'string' ? row.customer_name : '',
-      origin_country: typeof row.origin_country === 'string' ? row.origin_country : '',
-      destination_country:
-        typeof row.destination_country === 'string' ? row.destination_country : '',
-      transaction_type: typeof row.transaction_type === 'string' ? row.transaction_type : '',
-      amount:
-        typeof row.amount === 'string' || typeof row.amount === 'number' ? String(row.amount) : '',
-      currency: typeof row.currency === 'string' ? row.currency : '',
-      jurisdiction: typeof request.jurisdiction === 'string' ? request.jurisdiction : '',
-      effective_date: typeof request.effective_date === 'string' ? request.effective_date : '',
-    });
-  }
-
-  return rows;
-}
-
-function csvEscape(value: string): string {
-  if (/[",\n\r]/.test(value)) {
-    return `"${value.replaceAll('"', '""')}"`;
-  }
-  return value;
-}
-
-function buildCsv(rows: readonly EvalRow[]): string {
-  const headers = [
-    'id',
-    'customer_name',
-    'origin_country',
-    'destination_country',
-    'transaction_type',
-    'amount',
-    'currency',
-    'jurisdiction',
-    'effective_date',
-  ] as const;
-  const lines: string[] = [];
-  lines.push(headers.join(','));
-  for (const row of rows) {
-    lines.push(
-      [
-        row.id,
-        row.customer_name,
-        row.origin_country,
-        row.destination_country,
-        row.transaction_type,
-        row.amount,
-        row.currency,
-        row.jurisdiction,
-        row.effective_date,
-      ]
-        .map((v) => csvEscape(v ?? ''))
-        .join(','),
-    );
-  }
-  return `${lines.join('\n')}\n`;
 }
 
 function parseCsvLine(line: string): string[] {
@@ -168,12 +61,12 @@ async function main(): Promise<void> {
     return;
   }
 
-  const evalPathRaw = getFlag(args, '--eval');
-  const csvPathRaw = getFlag(args, '--csv');
+  const evalPathRaw = getFlag(args, '--eval-input');
+  const csvPathRaw = getFlag(args, '--csv-input');
   const outPathRaw = getFlag(args, '--output');
   if (!csvPathRaw || !outPathRaw) {
     throw new Error(
-      'Usage: bun run batch-cli-runner.ts --csv <AmlScreeningInput.csv> --output <out.jsonl>',
+      'Usage: bun run batch-cli-runner.ts --csv-input <AmlScreeningInput.csv> --output <out.jsonl> [--eval-input <eval.yaml>]',
     );
   }
 
