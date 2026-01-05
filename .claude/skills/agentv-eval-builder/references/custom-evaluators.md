@@ -154,7 +154,11 @@ if __name__ == "__main__":
 
 ## TypeScript Code Evaluator Template (with SDK)
 
-Keep TypeScript evaluators as `.ts` files and execute them with Node tooling so end users who install `agentv` via `npm install -g agentv` do not need Bun. The most portable pattern is `npx --yes tsx ./evaluators/my-check.ts` (or an equivalent workspace-local command).
+The optional `@agentv/core` SDK provides type-safe payload parsing with camelCase properties (`candidateAnswer` vs `candidate_answer`).
+
+**Execution:** Keep evaluators as `.ts` files and run via Node loaders like `npx --yes tsx ./evaluators/my-check.ts` so users don't need Bun after `npm install -g agentv`.
+
+**Without SDK:** Skip the import and parse JSON from stdin directly (similar to the Python template above).
 
 ```typescript
 /**
