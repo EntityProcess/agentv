@@ -357,14 +357,6 @@ export class CliProvider implements Provider {
     const responseContent = await this.readAndCleanupOutputFile(outputFilePath);
     const recordsById = this.parseJsonlBatchOutput(responseContent);
 
-    const requestedIds = requests
-      .map((request) => request.evalCaseId)
-      .filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
-    const missingIds = requestedIds.filter((id) => !recordsById.has(id));
-    if (missingIds.length > 0) {
-      throw new Error(`CLI batch output missing ids: ${missingIds.join(', ')}`);
-    }
-
     // Calculate per-request fallback duration (total time / number of requests)
     const perRequestFallbackMs = Math.round(measuredDurationMs / requests.length);
 
@@ -386,8 +378,14 @@ export class CliProvider implements Provider {
 
       const parsed = recordsById.get(evalCaseId);
       if (!parsed) {
+        // Return error response for missing IDs instead of throwing.
+        // This allows other eval cases with matching IDs to be evaluated correctly.
+        const errorMessage = `Batch output missing id '${evalCaseId}'`;
+        if (this.verbose) {
+          console.warn(`[cli-provider:${this.targetName}] ${errorMessage}`);
+        }
         return {
-          outputMessages: [],
+          outputMessages: [{ role: 'assistant', content: `Error: ${errorMessage}` }],
           durationMs: perRequestFallbackMs,
           raw: {
             command: renderedCommand,
@@ -395,6 +393,7 @@ export class CliProvider implements Provider {
             exitCode: result.exitCode ?? 0,
             cwd: this.config.cwd,
             outputFile: outputFilePath,
+            error: errorMessage,
           },
         };
       }

@@ -137,7 +137,7 @@ describe('CliProvider', () => {
     expect(extractLastAssistantContent(responses[1]?.outputMessages)).toBe('Batch response 2');
   });
 
-  it('throws when batch output is missing requested ids', async () => {
+  it('returns error response for batch output missing requested ids', async () => {
     const runner = mock(async (command: string): Promise<CommandRunResult> => {
       const match = command.match(/agentv-batch-\d+-\w+\.jsonl/);
       if (match) {
@@ -162,7 +162,18 @@ describe('CliProvider', () => {
       evalCaseId: 'case-2',
     };
 
-    await expect(provider.invokeBatch([baseRequest, request2])).rejects.toThrow(/missing ids/i);
+    // Missing IDs now return error responses instead of throwing,
+    // allowing other eval cases with matching IDs to be evaluated correctly
+    const responses = await provider.invokeBatch([baseRequest, request2]);
+    expect(responses).toHaveLength(2);
+
+    // First request has matching ID - should succeed
+    expect(extractLastAssistantContent(responses[0]?.outputMessages)).toBe('Batch response 1');
+
+    // Second request has missing ID - should return error response
+    const errorContent = extractLastAssistantContent(responses[1]?.outputMessages);
+    expect(errorContent).toMatch(/Batch output missing id 'case-2'/);
+    expect(responses[1]?.raw?.error).toBe("Batch output missing id 'case-2'");
   });
 
   it('parses output_messages from single case JSON output', async () => {
