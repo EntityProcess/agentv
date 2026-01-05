@@ -7,7 +7,7 @@
  *
  * Returns structured output that enables post-processing for metrics.
  */
-import { defineCodeJudge } from '../../../../packages/core/dist/judge/index.js';
+import { defineCodeJudge } from '@agentv/core/judge';
 
 const VALID_RISK_LEVELS = new Set(['High', 'Medium', 'Low']);
 const REQUIRED_KEYS = ['riskLevel', 'reasoning'];

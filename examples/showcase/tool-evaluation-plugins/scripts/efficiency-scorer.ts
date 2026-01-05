@@ -19,7 +19,7 @@
  *       type: code_judge
  *       script: ["bun", "run", "scripts/efficiency-scorer.ts"]
  */
-import { type TraceSummary, defineCodeJudge } from '../../../../packages/core/dist/judge/index.js';
+import { type TraceSummary, defineCodeJudge } from '@agentv/core/judge';
 
 // Configurable thresholds (customize for your domain)
 const THRESHOLDS = {

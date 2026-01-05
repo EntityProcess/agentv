@@ -1,0 +1,8 @@
+{
+  "name": "agentv-example-execution-metrics",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agentv/core": "file:../../../packages/core"
+  }
+}

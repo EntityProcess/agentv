@@ -1,0 +1,8 @@
+{
+  "name": "agentv-example-code-judge-sdk",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agentv/core": "file:../../../packages/core"
+  }
+}
