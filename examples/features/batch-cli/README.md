@@ -1,14 +1,26 @@
 # Batch CLI example (AML screening, CSV → JSONL)
 
-This example demonstrates an **external batch runner** pattern for a (synthetic) AML screening use-case:
+This example demonstrates an **external batch runner** pattern for a (synthetic) AML screening use-case.
 
-1. AgentV eval cases use `input_messages` with **structured (object) content** containing multiple fields.
-2. Expected outputs live in `expected_messages` (schema-aligned), e.g. `content.decision`.
-3. A helper script converts those `input_messages` into a CSV file (`AmlScreeningInput.csv`).
-4. A batch CLI tool reads the CSV once and writes a JSONL file containing one record per eval case.
-5. The batch runner outputs `output_messages` with `tool_calls` in the JSONL, enabling `tool_trajectory` evaluation directly from the message format.
+## How it works
 
-Important: the CSV intentionally does **not** include the expected decision to avoid leaking answers to the provider.
+1. **Ground truth**: `evals/dataset.yaml` contains eval cases with `input_messages` (structured object content) and `expected_messages` (e.g., `content.decision`).
+
+2. **CSV conversion**: `batch-cli-runner.ts` imports functions from `build-csv-from-eval.ts` to convert `input_messages` into CSV format. The CSV contains only inputs (customer data, transaction details) - no expected decisions.
+
+3. **Batch processing**: `batch-cli-runner.ts` reads the CSV and applies synthetic AML screening rules, writing **actual responses** as JSONL to a temporary file. Each JSONL record includes `output_messages` with `tool_calls` for trace extraction.
+
+4. **Evaluation**: AgentV compares the actual JSONL output against the ground truth in `evals/dataset.yaml` using evaluators like `code_judge` and `tool_trajectory`.
+
+## Batch error handling (missing JSONL id)
+
+This example intentionally includes an eval case (`aml-004-not-exist`) that is **not written into the CSV input** by `scripts/build-csv-from-eval.ts`.
+
+That means the batch runner never emits a JSONL record for that `eval_id`, and the CLI provider surfaces a provider-side error:
+
+- `error: "Batch output missing id 'aml-004-not-exist'"`
+
+AgentV then reports that eval case as failed (with `error` populated), while still evaluating the other items in the batch.
 
 ## Tool Trajectory via output_messages
 
@@ -37,9 +49,9 @@ The `tool_trajectory` evaluator extracts tool calls directly from `output_messag
 
 ## Files
 
-- `batch-cli-demo.yaml` — Eval cases with multi-field `input_messages`
-- `scripts/build-csv-from-eval.ts` — Converts eval YAML → `AmlScreeningInput.csv`
-- `scripts/batch-cli-runner.ts` — Reads CSV → writes JSONL (also copies to `agentv-evalresult.jsonl`)
+- `batch-cli-demo.yaml` — Ground truth: eval cases with inputs and expected outputs
+- `scripts/build-csv-from-eval.ts` — Utilities to convert YAML eval cases to CSV format (imported by batch-cli-runner.ts)
+- `scripts/batch-cli-runner.ts` — Main batch runner: converts inputs to CSV, processes them, writes actual responses as JSONL
 - `.agentv/targets.yaml` — Defines the `batch_cli` CLI target with provider batching enabled
 
 ## Run
@@ -47,18 +59,9 @@ The `tool_trajectory` evaluator extracts tool calls directly from `output_messag
 From the repo root:
 
 ```bash
-cd examples/features/evals/batch-cli
+cd examples/features/batch-cli
 
 # Run AgentV against the batch CLI target
 # NOTE: This requires the CLI provider to support batching + JSONL batch output.
-bun agentv eval ./batch-cli-demo.yaml --target batch_cli
+bun agentv eval ./evals/dataset.yaml --target batch_cli
 ```
-
-Optional (manual CSV build):
-
-```bash
-bun run ./scripts/build-csv-from-eval.ts --eval ./batch-cli-demo.yaml --out ./AmlScreeningInput.csv
-```
-
-After running:
-- The batch runner will write a copy of the produced records to `agentv-evalresult.jsonl` in this directory.

@@ -6,7 +6,7 @@ targets:
     # Runs once for the whole panel.
     # The runner reads ./AmlScreeningInput.csv and writes JSONL to {OUTPUT_FILE}.
     # NOTE: Do not add quotes around {OUTPUT_FILE}; it is already shell-escaped.
-    command_template: bun run ./scripts/batch-cli-runner.ts --eval ./evals/dataset.yaml --csv ./AmlScreeningInput.csv --output {OUTPUT_FILE}
+    command_template: bun run ./scripts/batch-cli-runner.ts --eval-input ./evals/dataset.yaml --csv-input ./AmlScreeningInput.csv --output {OUTPUT_FILE}
     cwd: ..
     timeout_seconds: 30
     healthcheck:

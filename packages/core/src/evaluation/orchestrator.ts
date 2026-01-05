@@ -441,6 +441,8 @@ async function runBatchEvaluation(options: {
     // Extract candidate from last assistant message in output_messages
     const candidate = extractLastAssistantContent(outputMessages);
 
+    const providerError = extractProviderError(providerResponse);
+
     let result: EvaluationResult;
     try {
       result = await evaluateCandidate({
@@ -457,6 +459,10 @@ async function runBatchEvaluation(options: {
         outputMessages,
         traceSummary,
       });
+
+      if (providerError) {
+        result = { ...result, error: providerError };
+      }
     } catch (error) {
       const errorResult = buildErrorResult(
         evalCase,
@@ -491,9 +497,10 @@ async function runBatchEvaluation(options: {
       await onProgress({
         workerId: 1,
         evalId: evalCase.id,
-        status: 'completed',
+        status: result.error ? 'failed' : 'completed',
         startedAt: 0,
         completedAt: Date.now(),
+        error: result.error,
       });
     }
   }
@@ -598,8 +605,10 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   // Extract candidate from last assistant message in output_messages
   const candidate = extractLastAssistantContent(outputMessages);
 
+  const providerError = extractProviderError(providerResponse);
+
   try {
-    return await evaluateCandidate({
+    const result = await evaluateCandidate({
       evalCase,
       candidate,
       target,
@@ -613,6 +622,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       outputMessages,
       traceSummary,
     });
+
+    return providerError ? { ...result, error: providerError } : result;
   } catch (error) {
     return buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs, provider);
   }
@@ -1355,6 +1366,21 @@ function buildErrorResult(
     lmProviderRequest: lmProviderRequest,
     error: message,
   } satisfies EvaluationResult;
+}
+
+function extractProviderError(response: ProviderResponse): string | undefined {
+  const raw = response.raw;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return undefined;
+  }
+
+  const error = (raw as Record<string, unknown>).error;
+  if (typeof error !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = error.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function createCacheKey(
