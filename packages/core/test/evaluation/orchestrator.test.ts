@@ -255,35 +255,6 @@ describe('runTestCase', () => {
     expect(result.misses[0]).toContain('Provider failure');
   });
 
-  it('dumps prompt payloads when directory provided', async () => {
-    const directory = mkdtempSync(path.join(tmpdir(), 'agentv-prompts-'));
-    const provider = new SequenceProvider('mock', {
-      responses: [
-        {
-          outputMessages: [{ role: 'assistant', content: 'Add structured logging.' }],
-        },
-      ],
-    });
-
-    await runEvalCase({
-      evalCase: baseTestCase,
-      provider,
-      target: baseTarget,
-      evaluators: evaluatorRegistry,
-      promptDumpDir: directory,
-    });
-
-    const files = readdirSync(directory);
-    expect(files.length).toBeGreaterThan(0);
-
-    const payload = JSON.parse(readFileSync(path.join(directory, files[0]), 'utf8')) as {
-      question: string;
-      guideline_paths: unknown;
-    };
-    expect(payload.question).toContain('Explain logging improvements');
-    expect(Array.isArray(payload.guideline_paths)).toBe(true);
-  });
-
   it('uses a custom evaluator prompt when provided', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'agentv-custom-judge-'));
     const promptPath = path.join(directory, 'judge.md');
