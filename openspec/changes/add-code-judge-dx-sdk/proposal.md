@@ -1,4 +1,4 @@
-# Change: Add `defineCodeJudge` SDK for improved code evaluator DX
+# Change: Replace code judge SDK with `defineCodeJudge` API
 
 ## Why
 
@@ -18,14 +18,16 @@ This creates friction for evaluator authors and leads to inconsistent implementa
 - **ADDED**: `CodeJudgeResult` schema with Zod validation - Compile-time + runtime safety for outputs
 - **ADDED**: Re-exported `TraceSummary` type from `@agentv/core/judge` entrypoint
 - **ADDED**: Optional typed config support via Zod schema parameter
-- **MODIFIED**: Existing SDK remains backward-compatible (`readCodeJudgePayload` still works)
+- **REMOVED**: `readCodeJudgePayload()`, `parseCodeJudgePayload()`, `CodeJudgePayload` from `@agentv/core`
+- **REMOVED**: `packages/core/src/evaluation/code-judge-sdk.ts`
 
 ## Impact
 
-- **Affected specs**: `evaluation` (existing "Optional TypeScript SDK" requirement extended)
+- **Affected specs**: `evaluation` (existing "Optional TypeScript SDK" requirement replaced)
 - **Affected code**:
   - `packages/core/src/judge/` (new directory)
-  - `packages/core/src/index.ts` (add export)
+  - `packages/core/src/evaluation/code-judge-sdk.ts` (deleted)
+  - `packages/core/src/index.ts` (remove old export, add new)
   - `packages/core/package.json` (add `./judge` export)
   - `examples/` (update to use new API)
-- **Breaking changes**: None - existing API preserved
+- **Breaking changes**: Old SDK removed (no users yet)

@@ -18,7 +18,6 @@ The current SDK provides `readCodeJudgePayload()` which handles stdin parsing an
 - Provide compile-time type safety for inputs and outputs
 - Validate output schema at runtime to catch errors early
 - Support typed custom config with Zod schemas
-- Maintain backward compatibility with existing `readCodeJudgePayload()` API
 
 ### Non-Goals
 - Change the wire format (snake_case JSON contract is preserved)
@@ -154,9 +153,9 @@ packages/core/src/
 │   ├── schemas.ts     # Zod schemas for input/output validation
 │   └── runtime.ts     # Internal: stdin handling, validation, error formatting
 ├── evaluation/
-│   ├── code-judge-sdk.ts  # Existing (preserved for backward compatibility)
+│   ├── code-judge-sdk.ts  # DELETED (replaced by judge/)
 │   └── ...
-└── index.ts           # Add: export * from './judge/index.js'
+└── index.ts           # Remove old export, add: export * from './judge/index.js'
 ```
 
 ### Package.json Export
@@ -192,10 +191,13 @@ packages/core/src/
 
 ## Migration Plan
 
-1. **Phase 1**: Add new API alongside existing SDK (backward compatible)
-2. **Phase 2**: Update examples to use `defineCodeJudge`
-3. **Phase 3**: Document migration path in changelog
-4. **No deprecation planned**: `readCodeJudgePayload()` remains available
+1. **Delete** `packages/core/src/evaluation/code-judge-sdk.ts`
+2. **Remove** export from `packages/core/src/index.ts`
+3. **Add** new `judge/` module with `defineCodeJudge` API
+4. **Update** all examples to use new API
+5. **Update** documentation and skill references
+
+No backward compatibility needed - no external users yet.
 
 ## Open Questions
 
