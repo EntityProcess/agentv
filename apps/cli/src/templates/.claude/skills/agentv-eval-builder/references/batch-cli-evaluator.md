@@ -17,6 +17,18 @@ Batch CLI evaluation is used when:
 3. **AgentV** parses JSONL, routes each record to its matching evalcase by `id`
 4. **Per-case evaluator** validates the output for each evalcase independently
 
+## Error Handling
+
+### Missing IDs / Per-item Failures
+
+In batch mode, a runner can succeed overall while still failing to produce an output record for a specific evalcase `id`.
+
+- When an output record is missing, AgentV treats this as a per-item error.
+- The evaluation result will include an `error` field describing the issue.
+- The CLI progress display will show that evalcase as failed (❌) while still continuing to evaluate other cases.
+
+This behavior is intentional so one bad/missing record does not discard the entire batch.
+
 ## Eval File Structure
 
 ```yaml

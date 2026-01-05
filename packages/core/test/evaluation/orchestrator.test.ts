@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { LlmJudgeEvaluator, ToolTrajectoryEvaluator } from '../../src/evaluation/evaluators.js';
-import { type EvaluationCache, runEvalCase } from '../../src/evaluation/orchestrator.js';
+import { type EvaluationCache, runEvalCase, runEvaluation } from '../../src/evaluation/orchestrator.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type {
   OutputMessage,
@@ -253,6 +253,85 @@ describe('runTestCase', () => {
 
     expect(result.score).toBe(0);
     expect(result.misses[0]).toContain('Provider failure');
+  });
+
+  it('surfaces provider raw.error as evaluation error', async () => {
+    const provider = new SequenceProvider('mock', {
+      responses: [
+        {
+          outputMessages: [{ role: 'assistant', content: 'Some response text.' }],
+          raw: { error: "Batch output missing id 'case-1'" },
+        },
+      ],
+    });
+
+    const result = await runEvalCase({
+      evalCase: baseTestCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.error).toBe("Batch output missing id 'case-1'");
+  });
+
+  it('reports failed progress status for batch item errors', async () => {
+    class BatchProvider implements Provider {
+      readonly id = 'batch:mock';
+      readonly kind = 'mock' as const;
+      readonly targetName = 'mock';
+      readonly supportsBatch = true;
+
+      async invoke(): Promise<ProviderResponse> {
+        throw new Error('invoke not used');
+      }
+
+      async invokeBatch(requests: readonly ProviderRequest[]): Promise<readonly ProviderResponse[]> {
+        return requests.map((request) => {
+          if (request.evalCaseId === 'case-2') {
+            return {
+              outputMessages: [{ role: 'assistant', content: "Error: Batch output missing id 'case-2'" }],
+              raw: { error: "Batch output missing id 'case-2'" },
+            };
+          }
+
+          return {
+            outputMessages: [{ role: 'assistant', content: 'OK' }],
+          };
+        });
+      }
+    }
+
+    const events: Array<{ evalId: string; status: string; error?: string }> = [];
+
+    const evalCases: EvalCase[] = [
+      { ...baseTestCase, id: 'case-1' },
+      { ...baseTestCase, id: 'case-2' },
+    ];
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: {
+        ...baseTarget,
+        providerBatching: true,
+        workers: 1,
+      },
+      providerFactory: () => new BatchProvider(),
+      evaluators: evaluatorRegistry,
+      evalCases,
+      onProgress: async (event) => {
+        if (event.status === 'completed' || event.status === 'failed') {
+          events.push({ evalId: event.evalId, status: event.status, error: event.error });
+        }
+      },
+    });
+
+    expect(results).toHaveLength(2);
+    expect(events.find((e) => e.evalId === 'case-1')?.status).toBe('completed');
+    const case2 = events.find((e) => e.evalId === 'case-2');
+    expect(case2?.status).toBe('failed');
+    expect(case2?.error).toBe("Batch output missing id 'case-2'");
   });
 
   it('uses a custom evaluator prompt when provided', async () => {
