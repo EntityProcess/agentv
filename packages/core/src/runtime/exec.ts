@@ -26,9 +26,28 @@ export async function execFileWithStdin(
     throw new Error('Executable argv must include at least one entry');
   }
 
+  // Use Bun.spawn if available, otherwise fall back to Node.js child_process
+  if (typeof Bun !== 'undefined') {
+    return execFileWithStdinBun(argv, stdinPayload, options);
+  }
+  return execFileWithStdinNode(argv, stdinPayload, options);
+}
+
+/**
+ * Bun implementation using Bun.spawn
+ */
+async function execFileWithStdinBun(
+  argv: readonly string[],
+  stdinPayload: string,
+  options: ExecOptions,
+): Promise<{
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly exitCode: number;
+}> {
   const command = [...argv];
   const encoder = new TextEncoder();
-  const process = Bun.spawn(command, {
+  const proc = Bun.spawn(command, {
     cwd: options.cwd,
     stdin: encoder.encode(stdinPayload),
     stdout: 'pipe',
@@ -40,22 +59,18 @@ export async function execFileWithStdin(
     options.timeoutMs !== undefined
       ? setTimeout(() => {
           timedOut = true;
-          process.kill('SIGKILL');
+          proc.kill('SIGKILL');
         }, options.timeoutMs)
       : undefined;
 
   try {
-    const stdoutPromise = process.stdout
-      ? new Response(process.stdout).text()
-      : Promise.resolve('');
-    const stderrPromise = process.stderr
-      ? new Response(process.stderr).text()
-      : Promise.resolve('');
+    const stdoutPromise = proc.stdout ? new Response(proc.stdout).text() : Promise.resolve('');
+    const stderrPromise = proc.stderr ? new Response(proc.stderr).text() : Promise.resolve('');
 
     const [stdout, stderr, exitCode] = await Promise.all([
       stdoutPromise,
       stderrPromise,
-      process.exited,
+      proc.exited,
     ]);
 
     if (timedOut) {
@@ -72,6 +87,73 @@ export async function execFileWithStdin(
       clearTimeout(timeout);
     }
   }
+}
+
+/**
+ * Node.js implementation using child_process.spawn
+ */
+async function execFileWithStdinNode(
+  argv: readonly string[],
+  stdinPayload: string,
+  options: ExecOptions,
+): Promise<{
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly exitCode: number;
+}> {
+  const { spawn } = await import('node:child_process');
+
+  return new Promise((resolve, reject) => {
+    const [cmd, ...args] = argv;
+    const child = spawn(cmd, args, {
+      cwd: options.cwd,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+
+    child.stdout?.on('data', (chunk: Buffer) => stdoutChunks.push(chunk));
+    child.stderr?.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
+
+    let timedOut = false;
+    const timeout =
+      options.timeoutMs !== undefined
+        ? setTimeout(() => {
+            timedOut = true;
+            child.kill('SIGKILL');
+          }, options.timeoutMs)
+        : undefined;
+
+    child.on('error', (error) => {
+      if (timeout !== undefined) clearTimeout(timeout);
+      reject(error);
+    });
+
+    child.on('close', (code) => {
+      if (timeout !== undefined) clearTimeout(timeout);
+
+      if (timedOut) {
+        reject(new Error(`Process timed out after ${options.timeoutMs}ms`));
+        return;
+      }
+
+      const stdout = Buffer.concat(stdoutChunks).toString('utf8').replace(/\r\n/g, '\n');
+      const stderr = Buffer.concat(stderrChunks).toString('utf8').replace(/\r\n/g, '\n');
+
+      resolve({
+        stdout,
+        stderr,
+        exitCode: code ?? 0,
+      });
+    });
+
+    // Write stdin and close
+    if (child.stdin) {
+      child.stdin.write(stdinPayload);
+      child.stdin.end();
+    }
+  });
 }
 
 /**
