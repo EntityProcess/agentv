@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-export {};
 /**
  * Tool Selection Evaluator - Code Judge Plugin
  *
@@ -17,67 +16,19 @@ export {};
  *     - name: tool-selection
  *       type: code_judge
  *       script: ["bun", "run", "scripts/tool-selection-judge.ts"]
- *
- * Input (stdin JSON):
- *   - question: The user's task/question
- *   - expected_outcome: Description of expected behavior
- *   - output_messages: Array of messages including tool_calls
- *   - trace_summary: Summary of tool usage
- *
- * Output (stdout JSON):
- *   - score: 0.0-1.0 (1.0 = all tools appropriate, 0.0 = all inappropriate)
- *   - hits: List of appropriate tool selections
- *   - misses: List of missing or inappropriate tools
- *   - reasoning: Explanation of the evaluation
  */
-
-interface ToolCall {
-  tool: string;
-  input?: unknown; // Tool input arguments
-  output?: unknown; // Tool output result
-  id?: string;
-  timestamp?: string;
-}
-
-interface OutputMessage {
-  role: string;
-  content?: unknown;
-  tool_calls?: ToolCall[];
-  timestamp?: string;
-}
-
-interface EvalInput {
-  question?: string;
-  expected_outcome?: string;
-  output_messages?: OutputMessage[];
-  trace_summary?: {
-    event_count: number;
-    tool_names: string[];
-    tool_calls_by_name: Record<string, number>;
-    error_count: number;
-    token_usage?: { input: number; output: number; cached?: number };
-    cost_usd?: number;
-    duration_ms?: number;
-  };
-}
-
-interface EvalOutput {
-  score: number;
-  hits: string[];
-  misses: string[];
-  reasoning: string;
-}
+import { type OutputMessage, defineCodeJudge } from '@agentv/core/judge';
 
 interface ExtractedToolCall {
   tool: string;
   input: Record<string, unknown>;
 }
 
-function extractToolCalls(messages: OutputMessage[]): ExtractedToolCall[] {
+function extractToolCalls(messages: readonly OutputMessage[]): ExtractedToolCall[] {
   const toolCalls: ExtractedToolCall[] = [];
   for (const msg of messages) {
-    if (msg.role === 'assistant' && msg.tool_calls) {
-      for (const call of msg.tool_calls) {
+    if (msg.role === 'assistant' && msg.toolCalls) {
+      for (const call of msg.toolCalls) {
         toolCalls.push({
           tool: call.tool,
           input: (call.input as Record<string, unknown>) ?? {},
@@ -88,26 +39,24 @@ function extractToolCalls(messages: OutputMessage[]): ExtractedToolCall[] {
   return toolCalls;
 }
 
-function evaluateToolSelection(
-  question: string,
-  expectedOutcome: string,
-  toolCalls: ExtractedToolCall[],
-): EvalOutput {
+// Define tool-to-task mappings (customize for your domain)
+const toolTaskMappings: Record<string, string[]> = {
+  search: ['find', 'search', 'look', 'query', 'discover'],
+  fetch: ['get', 'retrieve', 'fetch', 'download', 'load'],
+  read: ['read', 'open', 'view', 'examine', 'inspect'],
+  write: ['write', 'save', 'create', 'output', 'generate'],
+  analyze: ['analyze', 'process', 'compute', 'calculate'],
+  validate: ['check', 'validate', 'verify', 'confirm'],
+};
+
+export default defineCodeJudge(({ question, expectedOutcome, outputMessages }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
+  const toolCalls = extractToolCalls(outputMessages ?? []);
+
   // Extract keywords from question and expected outcome
   const taskText = `${question} ${expectedOutcome}`.toLowerCase();
-
-  // Define tool-to-task mappings (customize for your domain)
-  const toolTaskMappings: Record<string, string[]> = {
-    search: ['find', 'search', 'look', 'query', 'discover'],
-    fetch: ['get', 'retrieve', 'fetch', 'download', 'load'],
-    read: ['read', 'open', 'view', 'examine', 'inspect'],
-    write: ['write', 'save', 'create', 'output', 'generate'],
-    analyze: ['analyze', 'process', 'compute', 'calculate'],
-    validate: ['check', 'validate', 'verify', 'confirm'],
-  };
 
   // Determine expected tools based on task keywords
   const expectedTools = new Set<string>();
@@ -154,42 +103,10 @@ function evaluateToolSelection(
   const totalChecks = hits.length + misses.length;
   const score = totalChecks > 0 ? hits.length / totalChecks : 0.5;
 
-  const reasoning =
-    `Evaluated ${actualTools.size} tool(s) against task requirements. ` +
-    `${hits.length} appropriate, ${misses.length} issues found.`;
-
   return {
     score: Math.round(score * 100) / 100,
-    hits: hits.slice(0, 4), // Cap at 4 per contract
+    hits: hits.slice(0, 4),
     misses: misses.slice(0, 4),
-    reasoning,
+    reasoning: `Evaluated ${actualTools.size} tool(s) against task requirements. ${hits.length} appropriate, ${misses.length} issues found.`,
   };
-}
-
-async function main(): Promise<void> {
-  try {
-    const stdin = await Bun.stdin.text();
-    const inputData = JSON.parse(stdin) as EvalInput;
-
-    const question = inputData.question ?? '';
-    const expectedOutcome = inputData.expected_outcome ?? '';
-    const outputMessages = inputData.output_messages ?? [];
-
-    const toolCalls = extractToolCalls(outputMessages);
-
-    const result = evaluateToolSelection(question, expectedOutcome, toolCalls);
-
-    console.log(JSON.stringify(result, null, 2));
-  } catch (error) {
-    const errorResult: EvalOutput = {
-      score: 0,
-      hits: [],
-      misses: [`Evaluator error: ${error instanceof Error ? error.message : String(error)}`],
-      reasoning: `Evaluation failed: ${error instanceof Error ? error.message : String(error)}`,
-    };
-    console.log(JSON.stringify(errorResult, null, 2));
-    process.exit(1);
-  }
-}
-
-await main();
+});

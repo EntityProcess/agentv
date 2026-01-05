@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-export {};
 /**
  * Export Risk Output Validator for AgentV
  *
@@ -8,24 +7,10 @@ export {};
  *
  * Returns structured output that enables post-processing for metrics.
  */
+import { defineCodeJudge } from '@agentv/core/judge';
 
 const VALID_RISK_LEVELS = new Set(['High', 'Medium', 'Low']);
 const REQUIRED_KEYS = ['riskLevel', 'reasoning'];
-
-interface EvalInput {
-  candidate_answer: string;
-  expected_messages?: Array<{
-    role: string;
-    content: unknown;
-  }>;
-}
-
-interface EvalResult {
-  score: number;
-  hits: string[];
-  misses: string[];
-  reasoning: string;
-}
 
 function extractJsonFromResponse(content: string): Record<string, unknown> | null {
   let trimmed = content.trim();
@@ -49,7 +34,7 @@ function extractJsonFromResponse(content: string): Record<string, unknown> | nul
 }
 
 function extractExpectedRiskLevel(
-  expectedMessages: Array<{ role: string; content: unknown }> | undefined,
+  expectedMessages: readonly Record<string, unknown>[] | undefined,
 ): string | null {
   if (!expectedMessages) return null;
 
@@ -74,10 +59,7 @@ function extractExpectedRiskLevel(
   return null;
 }
 
-function validateRiskOutput(
-  candidateAnswer: string,
-  expectedMessages?: Array<{ role: string; content: unknown }>,
-): EvalResult {
+export default defineCodeJudge(({ candidateAnswer, expectedMessages }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
@@ -151,29 +133,4 @@ function validateRiskOutput(
     misses,
     reasoning: `Misclassified: AI=${candidateRisk}, Expected=${expectedRisk}`,
   };
-}
-
-async function main(): Promise<void> {
-  let evalData: EvalInput;
-
-  try {
-    const input = await Bun.stdin.text();
-    evalData = JSON.parse(input);
-  } catch (e) {
-    console.log(
-      JSON.stringify({
-        score: 0.0,
-        hits: [],
-        misses: [`Failed to parse evaluator input: ${e}`],
-        reasoning: 'Internal error parsing eval input',
-      }),
-    );
-    process.exit(1);
-  }
-
-  const result = validateRiskOutput(evalData.candidate_answer ?? '', evalData.expected_messages);
-
-  console.log(JSON.stringify(result, null, 2));
-}
-
-await main();
+});

@@ -1,12 +1,11 @@
 # Code Judge SDK Helper
 
-Demonstrates how a TypeScript code_judge evaluator can use the optional helper
-from `@agentv/core` to parse the snake_case stdin payload into camelCase types.
+Demonstrates how a TypeScript code_judge evaluator can use `defineCodeJudge` from `@agentv/core/judge` for a declarative, zero-boilerplate approach.
 
 ## Files
 
 - `evals/dataset.yaml`: Example eval case that uses a code_judge evaluator.
-- `scripts/verify-attachments.ts`: Code judge script using `readCodeJudgePayload`.
+- `scripts/verify-attachments.ts`: Code judge script using `defineCodeJudge`.
 - `evals/example.txt`, `evals/python.instructions.md`: Attachment fixtures.
 
 ## Setup
@@ -49,3 +48,21 @@ bun agentv eval code-judge-sdk/evals/dataset.yaml --target local_cli
 ```
 
 This requires a CLI target named `local_cli` configured in `.agentv/targets.yaml`.
+
+## API
+
+The `defineCodeJudge` helper:
+- Reads JSON from stdin automatically
+- Converts snake_case to camelCase
+- Validates input and output with Zod schemas
+- Handles errors gracefully
+
+```typescript
+import { defineCodeJudge } from '@agentv/core/judge';
+
+export default defineCodeJudge(({ candidateAnswer, expectedOutcome }) => ({
+  score: candidateAnswer.includes(expectedOutcome) ? 1.0 : 0.0,
+  hits: ['Check passed'],
+  misses: [],
+}));
+```

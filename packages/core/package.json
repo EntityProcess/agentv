@@ -19,6 +19,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./judge": {
+      "types": "./dist/judge/index.d.ts",
+      "import": "./dist/judge/index.js",
+      "require": "./dist/judge/index.cjs"
+    },
     "./evaluation/validation": {
       "types": "./dist/evaluation/validation/index.d.ts",
       "import": "./dist/evaluation/validation/index.js",
@@ -36,10 +41,7 @@
     "test:watch": "bun test --watch",
     "diagnostics:azure": "bun src/diagnostics/azure-deployment-diag.ts"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.53",
     "@ai-sdk/azure": "^2.0.78",

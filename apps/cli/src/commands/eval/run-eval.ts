@@ -11,7 +11,7 @@ import {
   ensureVSCodeSubagents,
   loadEvalCases,
   subscribeToCodexLogEntries,
-  subscribeToPiLogEntries
+  subscribeToPiLogEntries,
 } from '@agentv/core';
 
 import { loadEnvFromHierarchy } from './env.js';

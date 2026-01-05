@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-export {};
 /**
  * Pairwise Tool Comparison - Code Judge Plugin
  *
@@ -17,49 +16,8 @@ export {};
  *     - name: pairwise-compare
  *       type: code_judge
  *       script: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
- *
- * Input (stdin JSON):
- *   - candidate_answer: Agent's response (Response A)
- *   - reference_answer: Reference/baseline response (Response B)
- *   - output_messages: Tool calls from candidate
- *   - expected_outcome: Task description
- *
- * Output (stdout JSON):
- *   - score: 0.0-1.0 (1.0 = candidate wins, 0.5 = tie, 0.0 = reference wins)
- *   - hits: Candidate advantages
- *   - misses: Reference advantages
- *   - reasoning: Comparison explanation with bias check result
  */
-
-interface ToolCall {
-  tool: string;
-  input?: unknown; // Tool input arguments
-  output?: unknown; // Tool output result
-  id?: string;
-  timestamp?: string;
-}
-
-interface OutputMessage {
-  role: string;
-  content?: unknown;
-  tool_calls?: ToolCall[];
-  timestamp?: string;
-}
-
-interface EvalInput {
-  candidate_answer?: string;
-  reference_answer?: string;
-  output_messages?: OutputMessage[];
-  reference_output_messages?: OutputMessage[];
-  expected_outcome?: string;
-}
-
-interface EvalOutput {
-  score: number;
-  hits: string[];
-  misses: string[];
-  reasoning: string;
-}
+import { type OutputMessage, defineCodeJudge } from '@agentv/core/judge';
 
 interface ToolSummary {
   tools: string[];
@@ -73,15 +31,15 @@ interface CompareResult {
   bAdvantages: string[];
 }
 
-function extractToolSummary(messages: OutputMessage[] | undefined): ToolSummary {
+function extractToolSummary(messages: readonly OutputMessage[] | undefined): ToolSummary {
   if (!messages) {
     return { tools: [], count: 0, unique: [] };
   }
 
   const tools: string[] = [];
   for (const msg of messages) {
-    if (msg.role === 'assistant' && msg.tool_calls) {
-      for (const call of msg.tool_calls) {
+    if (msg.role === 'assistant' && msg.toolCalls) {
+      for (const call of msg.toolCalls) {
         tools.push(call.tool ?? 'unknown');
       }
     }
@@ -137,21 +95,30 @@ function compareResponses(
   const aScore = aAdvantages.length;
   const bScore = bAdvantages.length;
 
-  if (aScore > bScore) {
-    return { winner: 'A', aAdvantages, bAdvantages };
-  }
-  if (bScore > aScore) {
-    return { winner: 'B', aAdvantages, bAdvantages };
-  }
+  if (aScore > bScore) return { winner: 'A', aAdvantages, bAdvantages };
+  if (bScore > aScore) return { winner: 'B', aAdvantages, bAdvantages };
   return { winner: 'TIE', aAdvantages, bAdvantages };
 }
 
-function pairwiseWithBiasMitigation(
-  candidate: string,
-  reference: string,
-  candidateTools: ToolSummary,
-  referenceTools: ToolSummary,
-): EvalOutput {
+export default defineCodeJudge((input) => {
+  const candidate = input.candidateAnswer;
+  const reference = input.referenceAnswer ?? '';
+
+  // If no reference, we can't do pairwise comparison
+  if (!reference) {
+    return {
+      score: 0.5,
+      hits: ['Candidate response provided'],
+      misses: ['No reference for comparison'],
+      reasoning: 'Pairwise comparison requires referenceAnswer field',
+    };
+  }
+
+  // Extract tool summaries
+  const candidateTools = extractToolSummary(input.outputMessages ?? undefined);
+  // For reference, we'd need referenceOutputMessages (not in standard payload)
+  const referenceTools: ToolSummary = { tools: [], count: 0, unique: [] };
+
   // Pass 1: Candidate as A, Reference as B
   const pass1 = compareResponses(candidate, reference, candidateTools, referenceTools);
 
@@ -172,83 +139,17 @@ function pairwiseWithBiasMitigation(
     finalWinner = pass1.winner;
     confidence = 'high';
   } else {
-    // Inconsistent results indicate position bias - return TIE
     finalWinner = 'TIE';
     confidence = 'low (position bias detected)';
   }
 
   // Convert to score (candidate perspective)
-  let score: number;
-  if (finalWinner === 'A') {
-    // Candidate wins
-    score = 1.0;
-  } else if (finalWinner === 'B') {
-    // Reference wins
-    score = 0.0;
-  } else {
-    // TIE
-    score = 0.5;
-  }
+  const score = finalWinner === 'A' ? 1.0 : finalWinner === 'B' ? 0.0 : 0.5;
 
-  const hits = pass1.aAdvantages.slice(0, 4); // Candidate advantages
-  const misses = pass1.bAdvantages.slice(0, 4); // Reference advantages
-
-  const reasoning =
-    `Pass 1: ${pass1.winner} wins. ` +
-    `Pass 2 (swapped): ${pass2.winner} wins (maps to ${pass2Mapped}). ` +
-    `Consistency: ${consistent}. ` +
-    `Final: ${finalWinner} (${confidence} confidence)`;
-
-  return { score, hits, misses, reasoning };
-}
-
-async function main(): Promise<void> {
-  try {
-    const stdin = await Bun.stdin.text();
-    const inputData = JSON.parse(stdin) as EvalInput;
-
-    const candidate = inputData.candidate_answer ?? '';
-    const reference = inputData.reference_answer ?? '';
-    const outputMessages = inputData.output_messages ?? [];
-
-    // If no reference, we can't do pairwise comparison
-    if (!reference) {
-      console.log(
-        JSON.stringify(
-          {
-            score: 0.5,
-            hits: ['Candidate response provided'],
-            misses: ['No reference for comparison'],
-            reasoning: 'Pairwise comparison requires reference_answer field',
-          },
-          null,
-          2,
-        ),
-      );
-      return;
-    }
-
-    // Extract tool summaries
-    const candidateTools = extractToolSummary(outputMessages);
-
-    // For reference, we'd need referenceOutputMessages
-    // In practice, this would come from a baseline run
-    const referenceMessages = inputData.reference_output_messages ?? [];
-    const referenceTools = extractToolSummary(referenceMessages);
-
-    const result = pairwiseWithBiasMitigation(candidate, reference, candidateTools, referenceTools);
-
-    console.log(JSON.stringify(result, null, 2));
-  } catch (error) {
-    const errorResult: EvalOutput = {
-      score: 0,
-      hits: [],
-      misses: [`Evaluator error: ${error instanceof Error ? error.message : String(error)}`],
-      reasoning: `Evaluation failed: ${error instanceof Error ? error.message : String(error)}`,
-    };
-    console.log(JSON.stringify(errorResult, null, 2));
-    process.exit(1);
-  }
-}
-
-await main();
+  return {
+    score,
+    hits: pass1.aAdvantages.slice(0, 4),
+    misses: pass1.bAdvantages.slice(0, 4),
+    reasoning: `Pass 1: ${pass1.winner} wins. Pass 2 (swapped): ${pass2.winner} wins (maps to ${pass2Mapped}). Consistency: ${consistent}. Final: ${finalWinner} (${confidence} confidence)`,
+  };
+});
