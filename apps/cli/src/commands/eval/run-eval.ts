@@ -1,5 +1,5 @@
 import { constants } from 'node:fs';
-import { access, mkdir } from 'node:fs/promises';
+import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
@@ -11,7 +11,7 @@ import {
   ensureVSCodeSubagents,
   loadEvalCases,
   subscribeToCodexLogEntries,
-  subscribeToPiLogEntries,
+  subscribeToPiLogEntries
 } from '@agentv/core';
 
 import { loadEnvFromHierarchy } from './env.js';
@@ -47,9 +47,6 @@ interface NormalizedOptions {
   readonly maxRetries: number;
   readonly cache: boolean;
   readonly verbose: boolean;
-  readonly dumpPrompts?: string | boolean;
-  readonly dumpTraces: boolean;
-  readonly includeTrace: boolean;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -98,9 +95,6 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     maxRetries: normalizeNumber(rawOptions.maxRetries, 2),
     cache: normalizeBoolean(rawOptions.cache),
     verbose: normalizeBoolean(rawOptions.verbose),
-    dumpPrompts: rawOptions.dumpPrompts as string | boolean | undefined,
-    dumpTraces: normalizeBoolean(rawOptions.dumpTraces),
-    includeTrace: normalizeBoolean(rawOptions.includeTrace),
   } satisfies NormalizedOptions;
 }
 
@@ -138,19 +132,6 @@ function buildDefaultOutputPath(cwd: string, format: OutputFormat): string {
   const baseName = 'eval';
   const extension = getDefaultExtension(format);
   return path.join(cwd, '.agentv', 'results', `${baseName}_${timestamp}${extension}`);
-}
-
-function resolvePromptDirectory(
-  option: string | boolean | undefined,
-  cwd: string,
-): string | undefined {
-  if (option === undefined) {
-    return undefined;
-  }
-  if (typeof option === 'string' && option.trim().length > 0) {
-    return path.resolve(cwd, option);
-  }
-  return path.join(cwd, '.agentv', 'prompts');
 }
 
 function createEvaluationCache(): EvaluationCache {
@@ -319,7 +300,7 @@ async function runSingleEvalFile(params: {
   readonly selection: TargetSelection;
   readonly inlineTargetLabel: string;
   readonly evalCases: readonly EvalCase[];
-}): Promise<{ results: EvaluationResult[]; promptDumpDir?: string }> {
+}): Promise<{ results: EvaluationResult[] }> {
   const {
     testFilePath,
     cwd,
@@ -349,14 +330,6 @@ async function runSingleEvalFile(params: {
     : `Using target: ${inlineTargetLabel}`;
   if (!progressReporter.isInteractive || options.verbose) {
     console.log(targetMessage);
-  }
-
-  const promptDumpDir = resolvePromptDirectory(options.dumpPrompts, cwd);
-  if (promptDumpDir) {
-    await mkdir(promptDumpDir, { recursive: true });
-    if (options.verbose) {
-      console.log(`Prompt dumps enabled at: ${promptDumpDir}`);
-    }
   }
 
   const agentTimeoutMs = Math.max(0, options.agentTimeoutSeconds) * 1000;
@@ -397,7 +370,6 @@ async function runSingleEvalFile(params: {
     env: process.env,
     maxRetries: Math.max(0, options.maxRetries),
     agentTimeoutMs,
-    promptDumpDir,
     cache,
     useCache: options.cache,
     evalId: options.evalId,
@@ -427,7 +399,7 @@ async function runSingleEvalFile(params: {
     },
   });
 
-  return { results: [...results], promptDumpDir };
+  return { results: [...results] };
 }
 
 export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> {
@@ -448,7 +420,6 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const cache = options.cache ? createEvaluationCache() : undefined;
   const evaluationRunner = await resolveEvaluationRunner();
   const allResults: EvaluationResult[] = [];
-  let lastPromptDumpDir: string | undefined;
   const seenEvalCases = new Set<string>();
   const resolvedTestFiles = input.testFiles.map((file) => path.resolve(file));
   const displayIdTracker = createDisplayIdTracker();
@@ -544,9 +515,6 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       });
 
       allResults.push(...result.results);
-      if (result.promptDumpDir) {
-        lastPromptDumpDir = result.promptDumpDir;
-      }
     });
 
     progressReporter.finish();
@@ -556,10 +524,6 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
 
     if (allResults.length > 0) {
       console.log(`\nResults written to: ${outputPath}`);
-    }
-
-    if (lastPromptDumpDir && allResults.length > 0) {
-      console.log(`Prompt payloads saved to: ${lastPromptDumpDir}`);
     }
   } finally {
     unsubscribeCodexLogs();

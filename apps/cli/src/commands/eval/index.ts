@@ -101,29 +101,9 @@ export const evalCommand = command({
       long: 'verbose',
       description: 'Enable verbose logging',
     }),
-    dumpPrompts: option({
-      type: optional(string),
-      long: 'dump-prompts',
-      description: 'Directory path for persisting prompt payloads for debugging',
-    }),
-    dumpTraces: flag({
-      long: 'dump-traces',
-      description: 'Write trace files to .agentv/traces/',
-    }),
-    includeTrace: flag({
-      long: 'include-trace',
-      description: 'Include full trace in result output (verbose)',
-    }),
   },
   handler: async (args) => {
     const resolvedPaths = await resolveEvalPaths(args.evalPaths, process.cwd());
-    // dumpPrompts: if specified, use true for default behavior (even if value is '.'); otherwise undefined
-    const dumpPrompts =
-      args.dumpPrompts !== undefined
-        ? args.dumpPrompts === '.'
-          ? true
-          : args.dumpPrompts
-        : undefined;
     const rawOptions: Record<string, unknown> = {
       target: args.target,
       targets: args.targets,
@@ -139,9 +119,6 @@ export const evalCommand = command({
       maxRetries: args.maxRetries,
       cache: args.cache,
       verbose: args.verbose,
-      dumpPrompts,
-      dumpTraces: args.dumpTraces,
-      includeTrace: args.includeTrace,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },

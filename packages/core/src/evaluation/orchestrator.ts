@@ -1,5 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import pLimit from 'p-limit';
 
@@ -69,7 +68,6 @@ export interface RunEvalCaseOptions {
   readonly now?: () => Date;
   readonly maxRetries?: number;
   readonly agentTimeoutMs?: number;
-  readonly promptDumpDir?: string;
   readonly cache?: EvaluationCache;
   readonly useCache?: boolean;
   readonly signal?: AbortSignal;
@@ -95,7 +93,6 @@ export interface RunEvaluationOptions {
   readonly evaluators?: Partial<Record<string, Evaluator>>;
   readonly maxRetries?: number;
   readonly agentTimeoutMs?: number;
-  readonly promptDumpDir?: string;
   readonly cache?: EvaluationCache;
   readonly useCache?: boolean;
   readonly now?: () => Date;
@@ -120,7 +117,6 @@ export async function runEvaluation(
     evaluators,
     maxRetries,
     agentTimeoutMs,
-    promptDumpDir,
     cache,
     useCache,
     now,
@@ -221,7 +217,6 @@ export async function runEvaluation(
         provider: primaryProvider,
         target,
         evaluatorRegistry,
-        promptDumpDir,
         nowFn: now ?? (() => new Date()),
         onProgress,
         onResult,
@@ -272,7 +267,6 @@ export async function runEvaluation(
           evaluators: evaluatorRegistry,
           maxRetries,
           agentTimeoutMs,
-          promptDumpDir,
           cache,
           useCache,
           now,
@@ -348,7 +342,6 @@ async function runBatchEvaluation(options: {
   readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
     readonly llm_judge: Evaluator;
   };
-  readonly promptDumpDir?: string;
   readonly nowFn: () => Date;
   readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
   readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
@@ -361,7 +354,6 @@ async function runBatchEvaluation(options: {
     provider,
     target,
     evaluatorRegistry,
-    promptDumpDir,
     nowFn,
     onProgress,
     onResult,
@@ -375,9 +367,6 @@ async function runBatchEvaluation(options: {
 
   for (const evalCase of evalCases) {
     const promptInputs = await buildPromptInputs(evalCase, formattingMode);
-    if (promptDumpDir) {
-      await dumpPrompt(promptDumpDir, evalCase, promptInputs);
-    }
     promptInputsList.push(promptInputs);
   }
 
@@ -521,7 +510,6 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     now,
     maxRetries,
     agentTimeoutMs,
-    promptDumpDir,
     cache,
     useCache,
     signal,
@@ -530,9 +518,6 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
   const promptInputs = await buildPromptInputs(evalCase, formattingMode);
-  if (promptDumpDir) {
-    await dumpPrompt(promptDumpDir, evalCase, promptInputs);
-  }
 
   const cacheKey = useCache ? createCacheKey(provider, target, evalCase, promptInputs) : undefined;
   let cachedResponse: ProviderResponse | undefined;
@@ -1277,34 +1262,6 @@ function buildEvaluatorRegistry(
     ...overrides,
     llm_judge: llmJudge,
   };
-}
-
-async function dumpPrompt(
-  directory: string,
-  evalCase: EvalCase,
-  promptInputs: PromptInputs,
-): Promise<void> {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filename = `${timestamp}_${sanitizeFilename(evalCase.id)}.json`;
-  const filePath = path.resolve(directory, filename);
-
-  await mkdir(path.dirname(filePath), { recursive: true });
-  const payload = {
-    eval_id: evalCase.id,
-    question: promptInputs.question,
-    guidelines: promptInputs.guidelines,
-    guideline_paths: evalCase.guideline_paths,
-  } satisfies Record<string, unknown>;
-
-  await writeFile(filePath, JSON.stringify(payload, null, 2), 'utf8');
-}
-
-function sanitizeFilename(value: string): string {
-  if (!value) {
-    return 'prompt';
-  }
-  const sanitized = value.replace(/[^A-Za-z0-9._-]+/g, '_');
-  return sanitized.length > 0 ? sanitized : randomUUID();
 }
 
 async function invokeProvider(

@@ -151,8 +151,6 @@ describe('agentv eval CLI', () => {
       'eval',
       fixture.testFilePath,
       '--verbose',
-      '--dump-prompts',
-      '.',
     ]);
 
     // Don't check stderr - it may contain stack traces or other diagnostics
@@ -176,12 +174,6 @@ describe('agentv eval CLI', () => {
       resultCount: 2,
     });
 
-    expect(diagnostics.promptDumpDir).toBeDefined();
-    expect(typeof diagnostics.promptDumpDir).toBe('string');
-    const promptsDir = diagnostics.promptDumpDir as string;
-    expect(promptsDir).toContain(`${path.sep}.agentv${path.sep}prompts`);
-
-    const promptFiles = await readdir(promptsDir);
-    expect(new Set(promptFiles)).toEqual(new Set(['case-alpha.json', 'case-beta.json']));
+    // Prompt dump feature has been removed, so we no longer check for it
   });
 });

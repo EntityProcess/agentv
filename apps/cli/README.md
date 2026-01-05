@@ -129,9 +129,6 @@ agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --eval-id 
 - `--agent-timeout SECONDS`: Timeout in seconds for agent response polling (default: 120)
 - `--max-retries COUNT`: Maximum number of retries for timeout cases (default: 2)
 - `--cache`: Enable caching of LLM responses (default: disabled)
-- `--dump-prompts`: Save all prompts to `.agentv/prompts/` directory
-- `--dump-traces`: Write trace files to `.agentv/traces/` directory
-- `--include-trace`: Include full trace in result output (verbose)
 - `--workers COUNT`: Parallel workers for eval cases (default: 3; target `workers` setting used when provided)
 - `--verbose`: Verbose output
 
