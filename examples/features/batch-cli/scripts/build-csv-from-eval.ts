@@ -59,6 +59,10 @@ export function extractRowsFromEvalYaml(yamlText: string): readonly EvalRow[] {
 
     const id = typeof item.id === 'string' ? item.id : '';
     if (!id) continue;
+    if (id.includes('not-exist')) {
+      // Skip placeholder evalcases that should not reach the CSV artifact.
+      continue;
+    }
 
     const content = findFirstUserContentObject(item.input_messages);
     if (!content) continue;

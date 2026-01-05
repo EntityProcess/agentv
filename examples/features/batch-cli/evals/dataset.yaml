@@ -46,7 +46,7 @@ evalcases:
       evaluators:
         - name: decision-check
           type: code_judge
-          script: ["bun", "run", "../scripts/check-batch-cli-output.ts"]
+          script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
           cwd: .
         # Verify the aml_screening tool was called using trace extracted from output_messages
         - name: tool-trajectory-check
@@ -86,7 +86,7 @@ evalcases:
       evaluators:
         - name: decision-check
           type: code_judge
-          script: ["bun", "run", "../scripts/check-batch-cli-output.ts"]
+          script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
           cwd: .
         # Verify the aml_screening tool was called using trace extracted from output_messages
         - name: tool-trajectory-check
@@ -126,7 +126,47 @@ evalcases:
       evaluators:
         - name: decision-check
           type: code_judge
-          script: ["bun", "run", "../scripts/check-batch-cli-output.ts"]
+          script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
+          cwd: .
+        # Verify the aml_screening tool was called using trace extracted from output_messages
+        - name: tool-trajectory-check
+          type: tool_trajectory
+          mode: any_order
+          minimums:
+            aml_screening: 1
+
+  - id: aml-004-not-exist
+    expected_outcome: |-
+      Batch runner returns a JSON object with decision=REVIEW.
+
+    expected_messages:
+      - role: assistant
+        content:
+          decision: REVIEW
+
+    input_messages:
+      - role: system
+        content: You are a deterministic AML screening batch checker.
+      - role: user
+        content:
+          request:
+            type: aml_screening_check
+            jurisdiction: AU
+            effective_date: 2025-01-01
+          row:
+            id: aml-003
+            customer_name: Example Customer C
+            origin_country: US
+            destination_country: AU
+            transaction_type: INTERNATIONAL_TRANSFER
+            amount: 25000
+            currency: USD
+
+    execution:
+      evaluators:
+        - name: decision-check
+          type: code_judge
+          script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
           cwd: .
         # Verify the aml_screening tool was called using trace extracted from output_messages
         - name: tool-trajectory-check
