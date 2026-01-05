@@ -154,12 +154,17 @@ if __name__ == "__main__":
 
 ## TypeScript Code Evaluator Template (with SDK)
 
-For TypeScript code evaluators, use the optional SDK from `@agentv/core` for type-safe camelCase API:
+The optional `@agentv/core` SDK provides type-safe payload parsing with camelCase properties (`candidateAnswer` vs `candidate_answer`).
+
+**Execution:** Keep evaluators as `.ts` files and run via Node loaders like `npx --yes tsx ./evaluators/my-check.ts` so users don't need Bun after `npm install -g agentv`.
+
+**Without SDK:** Skip the import and parse JSON from stdin directly (similar to the Python template above).
 
 ```typescript
-#!/usr/bin/env bun
 /**
  * Example TypeScript code evaluator using the AgentV SDK
+ *
+ * Run with: npx --yes tsx ./evaluators/example-check.ts
  *
  * The SDK provides:
  * - Type-safe CodeJudgePayload interface with all fields
@@ -306,6 +311,17 @@ execution:
       cwd: ./evaluators
 ```
 
+TypeScript evaluators use the same structure but invoke `tsx` (or another Node-compatible loader) so they work everywhere:
+
+```yaml
+execution:
+  evaluators:
+    - name: csv_guardrail
+      type: code_judge
+      script: npx --yes tsx ./evaluators/check-csv.ts
+      cwd: ./evaluators
+```
+
 ### Command Line Testing
 
 Test your evaluator locally:
@@ -325,4 +341,13 @@ echo '{
 #   "misses": ["check 2 failed"],
 #   "reasoning": "..."
 # }
+```
+
+```bash
+# TypeScript (uses tsx loader under Node)
+echo '{
+  "candidate_answer": "test output here",
+  "question": "test task",
+  "expected_outcome": "expected result"
+}' | npx --yes tsx ./evaluators/check-csv.ts
 ```

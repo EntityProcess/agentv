@@ -50,7 +50,9 @@ execution:
 - Input (stdin): JSON with `question`, `expected_outcome`, `reference_answer`, `candidate_answer`, `guideline_files` (file paths), `input_files` (file paths, excludes guidelines), `input_messages`
 - Output (stdout): JSON with `score` (0.0-1.0), `hits`, `misses`, `reasoning`
 
-**Template:** See `references/custom-evaluators.md` for Python code evaluator template
+**TypeScript evaluators:** Keep `.ts` source files and run them via Node-compatible loaders such as `npx --yes tsx` so global `agentv` installs stay portable. See `references/custom-evaluators.md` for complete templates and command examples.
+
+**Template:** See `references/custom-evaluators.md` for Python and TypeScript templates
 
 ### LLM Judges
 Language models evaluate response quality:

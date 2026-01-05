@@ -5,7 +5,7 @@ Compare evaluation results between two runs to measure performance differences.
 ## Usage
 
 ```bash
-agentv compare <baseline.jsonl> <candidate.jsonl> [--threshold <value>]
+agentv compare <baseline.jsonl> <candidate.jsonl> [options]
 ```
 
 ## Arguments
@@ -15,6 +15,8 @@ agentv compare <baseline.jsonl> <candidate.jsonl> [--threshold <value>]
 | `result1` | Path to baseline JSONL result file |
 | `result2` | Path to candidate JSONL result file |
 | `--threshold`, `-t` | Score delta threshold for win/loss classification (default: 0.1) |
+| `--format`, `-f` | Output format: `table` (default) or `json` |
+| `--json` | Shorthand for `--format=json` |
 
 ## How It Works
 
@@ -25,9 +27,29 @@ agentv compare <baseline.jsonl> <candidate.jsonl> [--threshold <value>]
    - `win`: delta >= threshold (candidate better)
    - `loss`: delta <= -threshold (baseline better)
    - `tie`: |delta| < threshold (no significant difference)
-5. **Output Summary**: JSON with matched results, unmatched counts, and statistics
+5. **Output Summary**: Human-readable table (default) or JSON
 
 ## Output Format
+
+### Table Format (default)
+
+```
+Comparing: baseline.jsonl → candidate.jsonl
+
+  Eval ID        Baseline  Candidate     Delta  Result
+  ─────────────  ────────  ─────────  ────────  ────────
+  safety-check       0.70       0.90     +0.20  ✓ win
+  accuracy-test      0.85       0.80     -0.05  = tie
+  latency-eval       0.90       0.75     -0.15  ✗ loss
+
+Summary: 1 win, 1 loss, 1 tie | Mean Δ: +0.000 | Status: neutral
+```
+
+Colors are used to highlight wins (green), losses (red), and ties (gray). Colors are automatically disabled when output is piped or `NO_COLOR` is set.
+
+### JSON Format (`--json`)
+
+Output uses snake_case for Python ecosystem compatibility:
 
 ```json
 {
@@ -50,7 +72,7 @@ agentv compare <baseline.jsonl> <candidate.jsonl> [--threshold <value>]
     "wins": 1,
     "losses": 0,
     "ties": 0,
-    "meanDelta": 0.2
+    "mean_delta": 0.2
   }
 }
 ```
