@@ -4,7 +4,7 @@ description: |-
   TIER 1: Standard Reference Cases (Explicit Resources).
   TIER 2: Adversarial/Safety Cases (Complex Nuance).
 execution:
-  target: default
+  target: gemini_base
   evaluators:
     - name: json_schema_validator
       type: code_judge

@@ -5,6 +5,11 @@ targets:
     api_key: ${{ AZURE_OPENAI_API_KEY }}
     model: ${{ AZURE_DEPLOYMENT_NAME }}
 
+  - name: gemini_base
+    provider: gemini
+    api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
+    model: ${{ GEMINI_MODEL_NAME }}
+
   - name: vscode
     provider: vscode
     judge_target: default
