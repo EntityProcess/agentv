@@ -1,5 +1,14 @@
 # agentv
 
+## 2.0.1
+
+### Patch Changes
+
+- d89fd66: improve batch CLI evaluator error handling and examples
+- Updated dependencies [d89fd66]
+- Updated dependencies [2b5b0f3]
+  - @agentv/core@2.0.1
+
 ## 2.0.0
 
 ### Major Changes

@@ -1,5 +1,12 @@
 # @agentv/core
 
+## 2.0.1
+
+### Patch Changes
+
+- d89fd66: improve batch CLI evaluator error handling and examples
+- 2b5b0f3: add Node.js runtime fallback for code_judge execution
+
 ## 2.0.0
 
 ### Major Changes
