@@ -2,7 +2,7 @@ description: |-
   Evaluation suite for 'Psychology Router'.
   Verifies correct selection of therapeutic framework based on client needs.
 execution:
-  target: default
+  target: gemini_base
   evaluators:
     - name: json_schema_validator
       type: code_judge

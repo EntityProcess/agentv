@@ -301,8 +301,8 @@ Code evaluators receive input via stdin and write output to stdout as JSON.
 
 Custom evaluators can be written in any language. For complete templates and examples:
 
-- **Python template**: See `.claude/skills/agentv-eval-builder/references/custom-evaluators.md`
-- **TypeScript template (with SDK)**: See `.claude/skills/agentv-eval-builder/references/custom-evaluators.md`
+- **Python template**: See `apps/cli/src/templates/.claude/skills/agentv-eval-builder/references/custom-evaluators.md`
+- **TypeScript template (with SDK)**: See `apps/cli/src/templates/.claude/skills/agentv-eval-builder/references/custom-evaluators.md`
 - **Working examples**: See [examples/features/code-judge-sdk](examples/features/code-judge-sdk)
 
 ### LLM Judge Template Structure

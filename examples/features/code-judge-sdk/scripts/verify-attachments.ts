@@ -40,7 +40,8 @@ async function main(): Promise<void> {
       }
     }
 
-    const score = hits.length + misses.length === 0 ? 0 : hits.length / (hits.length + misses.length);
+    const score =
+      hits.length + misses.length === 0 ? 0 : hits.length / (hits.length + misses.length);
 
     const result = {
       score,
@@ -64,4 +65,4 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+await main();

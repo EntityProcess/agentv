@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+export {};
 /**
  * Pairwise Tool Comparison - Code Judge Plugin
  *
@@ -250,4 +251,4 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+await main();

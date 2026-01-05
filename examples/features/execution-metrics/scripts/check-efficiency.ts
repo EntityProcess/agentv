@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+export {};
 /**
  * Efficiency Check - Code Judge for Execution Metrics
  *
@@ -138,4 +139,4 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+await main();

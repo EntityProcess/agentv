@@ -560,4 +560,4 @@ async function main(): Promise<void> {
   process.exit(result.result === 'pass' ? 0 : 1);
 }
 
-main();
+await main();
