@@ -21,7 +21,7 @@
     },
     "apps/cli": {
       "name": "agentv",
-      "version": "1.6.1",
+      "version": "2.0.1",
       "bin": {
         "agentv": "./dist/cli.js",
       },
@@ -37,9 +37,16 @@
         "execa": "^9.3.0",
       },
     },
+    "examples/features/batch-cli": {
+      "name": "@agentv-examples/batch-cli",
+      "version": "0.0.1",
+      "dependencies": {
+        "@agentv/core": "workspace:*",
+      },
+    },
     "examples/features/code-judge-sdk": {
       "name": "@agentv-examples/code-judge-sdk",
-      "version": "0.0.0",
+      "version": "0.0.2",
       "dependencies": {
         "@agentv/core": "workspace:*",
       },
@@ -48,9 +55,30 @@
       "name": "@agentv-examples/document-extraction",
       "version": "0.0.0",
     },
+    "examples/features/execution-metrics": {
+      "name": "@agentv-examples/execution-metrics",
+      "version": "0.0.1",
+      "dependencies": {
+        "@agentv/core": "workspace:*",
+      },
+    },
+    "examples/showcase/export-screening": {
+      "name": "@agentv-examples/export-screening",
+      "version": "0.0.1",
+      "dependencies": {
+        "@agentv/core": "workspace:*",
+      },
+    },
+    "examples/showcase/tool-evaluation-plugins": {
+      "name": "@agentv-examples/tool-evaluation-plugins",
+      "version": "0.0.1",
+      "dependencies": {
+        "@agentv/core": "workspace:*",
+      },
+    },
     "packages/core": {
       "name": "@agentv/core",
-      "version": "1.5.0",
+      "version": "2.0.1",
       "dependencies": {
         "@ai-sdk/anthropic": "^2.0.53",
         "@ai-sdk/azure": "^2.0.78",
@@ -67,9 +95,17 @@
     },
   },
   "packages": {
+    "@agentv-examples/batch-cli": ["@agentv-examples/batch-cli@workspace:examples/features/batch-cli"],
+
     "@agentv-examples/code-judge-sdk": ["@agentv-examples/code-judge-sdk@workspace:examples/features/code-judge-sdk"],
 
     "@agentv-examples/document-extraction": ["@agentv-examples/document-extraction@workspace:examples/features/document-extraction"],
+
+    "@agentv-examples/execution-metrics": ["@agentv-examples/execution-metrics@workspace:examples/features/execution-metrics"],
+
+    "@agentv-examples/export-screening": ["@agentv-examples/export-screening@workspace:examples/showcase/export-screening"],
+
+    "@agentv-examples/tool-evaluation-plugins": ["@agentv-examples/tool-evaluation-plugins@workspace:examples/showcase/tool-evaluation-plugins"],
 
     "@agentv/core": ["@agentv/core@workspace:packages/core"],
 

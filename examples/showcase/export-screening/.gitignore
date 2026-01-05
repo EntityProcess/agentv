@@ -2,3 +2,4 @@
 results.jsonl
 metrics.json
 *.jsonl
+!*.baseline.jsonl

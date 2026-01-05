@@ -1,0 +1,10 @@
+{
+  "name": "@agentv-examples/export-screening",
+  "version": "0.0.1",
+  "description": "Export screening example for AgentV",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agentv/core": "workspace:*"
+  }
+}

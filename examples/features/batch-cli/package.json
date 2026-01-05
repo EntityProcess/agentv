@@ -1,0 +1,10 @@
+{
+  "name": "@agentv-examples/batch-cli",
+  "version": "0.0.1",
+  "description": "Batch CLI example for AgentV",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agentv/core": "workspace:*"
+  }
+}
