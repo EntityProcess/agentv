@@ -9,7 +9,7 @@ AgentV aims to provide a robust, declarative framework for evaluating AI agents.
 - **Multi-Objective Scoring**: Measure correctness, latency, cost, and safety in a single run.
 - **Optimization Ready**: Designed to support future automated hyperparameter tuning and candidate generation.
 
-## IMPORTANT: Design Principles
+## Design Principles
 
 These principles guide all feature decisions. **Follow these when proposing or implementing changes.**
 
