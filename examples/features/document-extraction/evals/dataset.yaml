@@ -203,7 +203,7 @@ evalcases:
       # Multi-field fuzzy match with config pass-through
       - name: party_names_fuzzy
         type: code_judge
-        script: ["bun", "run", "../multi_field_fuzzy.ts"]
+        script: ["bun", "run", "../judges/multi_field_fuzzy.ts"]
         # These properties are passed to the script via stdin config
         fields:
           - path: supplier.name

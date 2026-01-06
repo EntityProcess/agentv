@@ -10,7 +10,7 @@
  * evaluators:
  *   - name: party_names_fuzzy
  *     type: code_judge
- *     script: ["bun", "run", "../multi_field_fuzzy.ts"]
+ *     script: ["bun", "run", "../judges/multi_field_fuzzy.ts"]
  *     fields:
  *       - path: supplier.name
  *         threshold: 0.85
@@ -19,6 +19,8 @@
  *     algorithm: levenshtein  # or jaro_winkler
  * ```
  */
+
+import { levenshteinSimilarity, jaroWinklerSimilarity } from '../lib/fuzzy_utils';
 
 interface FieldConfig {
   path: string;
@@ -44,84 +46,6 @@ interface EvalOutput {
   reasoning: string;
 }
 
-function levenshteinDistance(a: string, b: string): number {
-  if (a.length === 0) return b.length;
-  if (b.length === 0) return a.length;
-
-  const matrix: number[][] = [];
-  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      const cost = a[j - 1] === b[i - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,
-        matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + cost,
-      );
-    }
-  }
-  return matrix[b.length][a.length];
-}
-
-function levenshteinSimilarity(a: string, b: string): number {
-  const maxLen = Math.max(a.length, b.length);
-  if (maxLen === 0) return 1.0;
-  return 1.0 - levenshteinDistance(a, b) / maxLen;
-}
-
-function jaroSimilarity(s1: string, s2: string): number {
-  if (s1 === s2) return 1.0;
-  if (s1.length === 0 || s2.length === 0) return 0.0;
-
-  const matchDistance = Math.floor(Math.max(s1.length, s2.length) / 2) - 1;
-  const s1Matches = new Array<boolean>(s1.length).fill(false);
-  const s2Matches = new Array<boolean>(s2.length).fill(false);
-
-  let matches = 0;
-  let transpositions = 0;
-
-  for (let i = 0; i < s1.length; i++) {
-    const start = Math.max(0, i - matchDistance);
-    const end = Math.min(i + matchDistance + 1, s2.length);
-
-    for (let j = start; j < end; j++) {
-      if (s2Matches[j] || s1[i] !== s2[j]) continue;
-      s1Matches[i] = true;
-      s2Matches[j] = true;
-      matches++;
-      break;
-    }
-  }
-
-  if (matches === 0) return 0.0;
-
-  let k = 0;
-  for (let i = 0; i < s1.length; i++) {
-    if (!s1Matches[i]) continue;
-    while (!s2Matches[k]) k++;
-    if (s1[i] !== s2[k]) transpositions++;
-    k++;
-  }
-
-  return (matches / s1.length + matches / s2.length + (matches - transpositions / 2) / matches) / 3;
-}
-
-function jaroWinklerSimilarity(s1: string, s2: string): number {
-  const jaro = jaroSimilarity(s1, s2);
-  let prefixLength = 0;
-  const maxPrefix = Math.min(4, Math.min(s1.length, s2.length));
-  for (let i = 0; i < maxPrefix; i++) {
-    if (s1[i] === s2[i]) {
-      prefixLength++;
-    } else {
-      break;
-    }
-  }
-  return jaro + prefixLength * 0.1 * (1 - jaro);
-}
-
 function getFieldValue(obj: unknown, path: string): unknown {
   const parts = path.replace(/\[(\d+)\]/g, '.$1').split('.');
   let current: unknown = obj;
@@ -133,7 +57,7 @@ function getFieldValue(obj: unknown, path: string): unknown {
 }
 
 async function main(): Promise<void> {
-  const chunks: Buffer[] = [];
+  const chunks: Uint8Array[] = [];
   for await (const chunk of Bun.stdin.stream()) {
     chunks.push(chunk);
   }
