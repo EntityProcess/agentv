@@ -39,6 +39,8 @@
     "yaml": "^2.6.1"
   },
   "dependencies": {
+    "@mariozechner/pi-agent": "^0.9.0",
+    "@mariozechner/pi-ai": "^0.37.2",
     "subagent": "^0.5.6"
   }
 }
