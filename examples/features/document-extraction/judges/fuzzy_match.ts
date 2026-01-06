@@ -17,7 +17,7 @@
  * The script reads evaluation context from stdin and outputs a JSON result.
  */
 
-import { levenshteinSimilarity, jaroWinklerSimilarity } from '../lib/fuzzy_utils';
+import { jaroWinklerSimilarity, levenshteinSimilarity } from '../lib/fuzzy_utils';
 
 interface EvalInput {
   candidate_answer: string;

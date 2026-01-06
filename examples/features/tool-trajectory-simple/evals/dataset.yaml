@@ -19,8 +19,8 @@
 #
 # Setup:
 #   1. Create examples/features/.env with:
-#      TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/tool-trajectory
-#   2. Run: cd examples/features && npx agentv eval tool-trajectory/evals/dataset.yaml --target mock_agent
+#      TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/tool-trajectory-simple
+#   2. Run: cd examples/features && npx agentv eval tool-trajectory-simple/evals/dataset.yaml --target mock_agent
 
 description: Tool trajectory evaluator examples for agent execution validation
 

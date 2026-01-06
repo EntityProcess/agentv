@@ -32,53 +32,31 @@ examples/
 
 ## Features
 
-Focused demonstrations of specific AgentV capabilities.
+Focused demonstrations of specific AgentV capabilities. Each example includes its own README with details.
 
-| Example | Description |
-|---------|-------------|
-| [basic](features/basic/) | Core schema: `input_messages`, `expected_messages`, file references, conversation threading |
-| [rubric](features/rubric/) | Rubric-based evaluation with weights, required flags, and auto-generation |
-| [tool-trajectory](features/tool-trajectory/) | Tool trajectory validation: `any_order`, `in_order`, `exact` modes |
-| [composite](features/composite/) | Composite evaluator patterns |
-| [weighted-evaluators](features/weighted-evaluators/) | Weighted evaluator configurations |
-| [execution-metrics](features/execution-metrics/) | Execution metrics tracking (tokens, cost, latency) |
-| [code-judge-sdk](features/code-judge-sdk/) | TypeScript SDK for writing code judges with `@agentv/eval` |
-| [batch-cli](features/batch-cli/) | Batch evaluation with CLI targets |
-| [document-extraction](features/document-extraction/) | Invoice data extraction with field accuracy evaluation |
-| [local-cli](features/local-cli/) | CLI target with file attachments |
-| [compare](features/compare/) | Baseline vs candidate comparison |
-
-### Running Feature Examples
-
-```bash
-# From repository root
-bun agentv eval examples/features/basic/evals/dataset.yaml
-
-# With a specific target
-bun agentv eval examples/features/rubric/evals/dataset.yaml --target mock
-```
+- [basic](features/basic/) - Core schema features
+- [rubric](features/rubric/) - Rubric-based evaluation
+- [tool-trajectory-simple](features/tool-trajectory-simple/) - Tool trajectory validation
+- [tool-trajectory-advanced](features/tool-trajectory-advanced/) - Advanced tool trajectory with expected_messages
+- [composite](features/composite/) - Composite evaluator patterns
+- [weighted-evaluators](features/weighted-evaluators/) - Weighted evaluators
+- [execution-metrics](features/execution-metrics/) - Metrics tracking (tokens, cost, latency)
+- [code-judge-sdk](features/code-judge-sdk/) - TypeScript SDK for code judges
+- [batch-cli](features/batch-cli/) - Batch CLI evaluation
+- [document-extraction](features/document-extraction/) - Document data extraction
+- [local-cli](features/local-cli/) - Local CLI targets
+- [compare](features/compare/) - Baseline comparison
 
 ---
 
 ## Showcase
 
-Real-world evaluation scenarios demonstrating end-to-end patterns.
+Real-world evaluation scenarios. Each example includes its own README with setup instructions.
 
-| Example | Description |
-|---------|-------------|
-| [export-screening](showcase/export-screening/) | Export control risk classification with confusion matrix metrics and CI/CD integration |
-| [tool-evaluation-plugins](showcase/tool-evaluation-plugins/) | Plugin patterns for tool selection, efficiency scoring, and pairwise comparison |
-| [cw-incident-triage](showcase/cw-incident-triage/) | Incident triage classification |
-| [psychotherapy](showcase/psychotherapy/) | Therapeutic dialogue evaluation |
-
-### Running Showcase Examples
-
-Each showcase has its own README with specific setup instructions. Generally:
-
-```bash
-cd examples/showcase/export-screening
-bun agentv eval ./evals/dataset.yaml --out results.jsonl
-```
+- [export-screening](showcase/export-screening/) - Export control risk classification
+- [tool-evaluation-plugins](showcase/tool-evaluation-plugins/) - Tool selection and efficiency patterns
+- [cw-incident-triage](showcase/cw-incident-triage/) - Incident triage classification
+- [psychotherapy](showcase/psychotherapy/) - Therapeutic dialogue evaluation
 
 ---
 

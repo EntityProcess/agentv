@@ -20,7 +20,7 @@
  * ```
  */
 
-import { levenshteinSimilarity, jaroWinklerSimilarity } from '../lib/fuzzy_utils';
+import { jaroWinklerSimilarity, levenshteinSimilarity } from '../lib/fuzzy_utils';
 
 interface FieldConfig {
   path: string;
