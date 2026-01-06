@@ -43,6 +43,8 @@ export const ToolCallSchema = z.object({
  */
 export const OutputMessageSchema = z.object({
   role: z.enum(['assistant', 'user', 'system', 'tool']),
+  // Optional message name (e.g., agent name) used by some providers for multi-agent transcripts.
+  name: z.string().optional(),
   content: z.union([z.string(), z.record(z.unknown()), z.array(z.record(z.unknown()))]).optional(),
   toolCalls: z.array(ToolCallSchema).optional(),
   timestamp: z.string().optional(),
