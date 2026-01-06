@@ -38,18 +38,18 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   const agentvTemplates = getAgentvTemplates();
   const claudeTemplates = getClaudeTemplates();
 
-  // Separate .env.template from other .agentv templates
-  const envTemplate = agentvTemplates.find((t) => t.path === '.env.template');
-  const otherAgentvTemplates = agentvTemplates.filter((t) => t.path !== '.env.template');
+  // Separate .env.example from other .agentv templates
+  const envTemplate = agentvTemplates.find((t) => t.path === '.env.example');
+  const otherAgentvTemplates = agentvTemplates.filter((t) => t.path !== '.env.example');
 
   // Check if any files already exist
   const existingFiles: string[] = [];
 
-  // Check for .env.template in root
+  // Check for .env.example in root
   if (envTemplate) {
-    const envFilePath = path.join(targetPath, '.env.template');
+    const envFilePath = path.join(targetPath, '.env.example');
     if (existsSync(envFilePath)) {
-      existingFiles.push('.env.template');
+      existingFiles.push('.env.example');
     }
   }
 
@@ -109,11 +109,11 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     mkdirSync(claudeDir, { recursive: true });
   }
 
-  // Create .env.template in the current working directory
+  // Create .env.example in the current working directory
   if (envTemplate) {
-    const envFilePath = path.join(targetPath, '.env.template');
+    const envFilePath = path.join(targetPath, '.env.example');
     writeFileSync(envFilePath, envTemplate.content, 'utf-8');
-    console.log('Created .env.template');
+    console.log('Created .env.example');
   }
 
   // Copy each .github template
@@ -131,7 +131,7 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     console.log(`Created ${path.relative(targetPath, targetFilePath)}`);
   }
 
-  // Copy remaining .agentv templates (excluding .env.template)
+  // Copy remaining .agentv templates (excluding .env.example)
   for (const template of otherAgentvTemplates) {
     const targetFilePath = path.join(agentvDir, template.path);
     const targetDirPath = path.dirname(targetFilePath);
@@ -164,7 +164,7 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   console.log('\nAgentV initialized successfully!');
   console.log('\nFiles installed to root:');
   if (envTemplate) {
-    console.log('  - .env.template');
+    console.log('  - .env.example');
   }
   console.log(`\nFiles installed to ${path.relative(targetPath, githubDir)}:`);
   for (const t of githubTemplates) {
@@ -179,7 +179,7 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     console.log(`  - ${t.path}`);
   }
   console.log('\nYou can now:');
-  console.log('  1. Copy .env.template to .env and add your API credentials');
+  console.log('  1. Copy .env.example to .env and add your API credentials');
   console.log('  2. Configure targets in .agentv/targets.yaml');
   console.log('  3. Create eval files using the schema and prompt templates');
 }

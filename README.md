@@ -16,7 +16,12 @@ npm install -g agentv
 agentv init
 ```
 
-**3. Create an eval** (`./evals/example.yaml`):
+**3. Configure environment variables:**
+- The init command creates a `.env.example` file in your project root
+- Copy `.env.example` to `.env` and fill in your API keys, endpoints, and other configuration values
+- Update the environment variable names in `.agentv/targets.yaml` to match those defined in your `.env` file
+
+**4. Create an eval** (`./evals/example.yaml`):
 ```yaml
 description: Math problem solving evaluation
 execution:
@@ -41,7 +46,7 @@ evalcases:
           script: ./validators/check_math.py
 ```
 
-**4. Run the eval:**
+**5. Run the eval:**
 ```bash
 agentv eval ./evals/example.yaml
 ```
