@@ -1,404 +1,182 @@
 # AgentV
 
-A TypeScript-based AI agent evaluation and optimization framework using YAML specifications to score task completion. Built for modern development workflows with first-class support for VS Code Copilot, OpenAI Codex CLI, Pi Coding Agent, and Azure OpenAI.
+**CLI-first AI agent evaluation. No server. No signup. No overhead.**
 
-## Installation and Setup
+AgentV evaluates your agents locally with multi-objective scoring (correctness, latency, cost, safety) from YAML specifications. Deterministic code judges + customizable LLM judges, all version-controlled in Git.
 
-### Installation for End Users
+## Installation
 
-This is the recommended method for users who want to use `agentv` as a command-line tool.
-
-1. Install via npm:
-
+**1. Install:**
 ```bash
-# Install globally
 npm install -g agentv
-
-# Or use npx to run without installing
-npx agentv --help
 ```
 
-2. Verify the installation:
-
+**2. Initialize your workspace:**
 ```bash
-agentv --help
+agentv init
 ```
 
-### Local Development Setup
+**3. Create an eval** (`./evals/example.yaml`):
+```yaml
+description: Math problem solving evaluation
+execution:
+  target: default
 
-Follow these steps if you want to contribute to the `agentv` project itself. This workflow uses Bun workspaces for fast, efficient dependency management.
+evalcases:
+  - id: addition
+    expected_outcome: Correctly calculates 15 + 27 = 42
 
-1. Clone the repository and navigate into it:
+    input_messages:
+      - role: user
+        content: What is 15 + 27?
+
+    expected_messages:
+      - role: assistant
+        content: "42"
+
+    execution:
+      evaluators:
+        - name: math_check
+          type: code_judge
+          script: ./validators/check_math.py
+```
+
+**4. Run the eval:**
+```bash
+agentv eval ./evals/example.yaml
+```
+
+Results appear in `.agentv/results/eval_<timestamp>.jsonl` with scores, reasoning, and execution traces.
+
+Learn more in the [examples/](examples/README.md) directory. For a detailed comparison with other frameworks, see [docs/COMPARISON.md](docs/COMPARISON.md).
+
+## Why AgentV?
+
+| Feature | AgentV | [LangWatch](https://github.com/langwatch/langwatch) | [LangSmith](https://github.com/langchain-ai/langsmith-sdk) | [LangFuse](https://github.com/langfuse/langfuse) |
+|---------|--------|-----------|-----------|----------|
+| **Setup** | `npm install` | Cloud account + API key | Cloud account + API key | Cloud account + API key |
+| **Server** | None (local) | Managed cloud | Managed cloud | Managed cloud |
+| **Privacy** | All local | Cloud-hosted | Cloud-hosted | Cloud-hosted |
+| **CLI-first** | ✓ | ✗ | Limited | Limited |
+| **CI/CD ready** | ✓ | Requires API calls | Requires API calls | Requires API calls |
+| **Version control** | ✓ (YAML in Git) | ✗ | ✗ | ✗ |
+| **Evaluators** | Code + LLM + Custom | LLM only | LLM + Code | LLM only |
+
+**Best for:** Developers who want evaluation in their workflow, not a separate dashboard. Teams prioritizing privacy and reproducibility.
+
+## Features
+
+- **Multi-objective scoring**: Correctness, latency, cost, safety in one run
+- **Multiple evaluator types**: Code validators, LLM judges, custom Python/TypeScript
+- **Built-in targets**: VS Code Copilot, Codex CLI, Pi Coding Agent, Azure OpenAI, local CLI agents
+- **Structured evaluation**: Rubric-based grading with weights and requirements
+- **Batch evaluation**: Run hundreds of test cases in parallel
+- **Export**: JSON, JSONL, YAML formats
+- **Compare results**: Compute deltas between evaluation runs for A/B testing
+
+## Development
+
+Contributing to AgentV? Clone and set up the repository:
 
 ```bash
 git clone https://github.com/EntityProcess/agentv.git
 cd agentv
-```
 
-2. Install dependencies:
-
-```bash
 # Install Bun if you don't have it
-curl -fsSL https://bun.sh/install | bash  # macOS/Linux
-# or
-powershell -c "irm bun.sh/install.ps1 | iex"  # Windows
+curl -fsSL https://bun.sh/install | bash
 
-# Install all workspace dependencies
-bun install
-```
+# Install dependencies and build
+bun install && bun run build
 
-3. Build the project:
-
-```bash
-bun run build
-```
-
-4. Run tests:
-
-```bash
+# Run tests
 bun test
 ```
 
-5. (Optional) Install example dependencies:
+See [AGENTS.md](AGENTS.md) for development guidelines and design principles.
+
+## Core Concepts
+
+**Evaluation files** (`.yaml`) define test cases with expected outcomes. **Targets** specify which agent/provider to evaluate. **Judges** (code or LLM) score results. **Results** are written as JSONL/YAML for analysis and comparison.
+
+## Usage
+
+### Running Evaluations
 
 ```bash
-bun run examples:install
-```
-
-This step is required if you want to run the examples in the `examples/` directory, as they are self-contained packages with their own dependencies.
-
-You are now ready to start development. The monorepo contains:
-
-- `packages/core/` - Core evaluation engine
-- `apps/cli/` - Command-line interface
-
-### Environment Setup
-
-1. Initialize your workspace:
-   - Run `agentv init` at the root of your repository
-   - This command automatically sets up the `.agentv/` directory structure and configuration files
-
-2. Configure environment variables:
-   - The init command creates a `.env.template` file in your project root
-   - Copy `.env.template` to `.env` and fill in your API keys, endpoints, and other configuration values
-   - Update the environment variable names in `.agentv/targets.yaml` to match those defined in your `.env` file
-
-## Quick Start
-
-You can use the following examples as a starting point:
-- [Examples](examples/README.md): Feature demonstrations and real-world showcase examples
-
-### Validating Eval Files
-
-Validate your eval and targets files before running them:
-
-```bash
-# Validate a single file
+# Validate evals
 agentv validate evals/my-eval.yaml
 
-# Validate multiple files
-agentv validate evals/eval1.yaml evals/eval2.yaml
+# Run an eval with default target (from eval file or targets.yaml)
+agentv eval evals/my-eval.yaml
 
-# Validate entire directory (recursively finds all YAML files)
-agentv validate evals/
+# Override target
+agentv eval --target azure_base evals/**/*.yaml
+
+# Run specific eval case
+agentv eval --eval-id case-123 evals/my-eval.yaml
+
+# Dry-run with mock provider
+agentv eval --dry-run evals/my-eval.yaml
 ```
 
-### Running Evals
+See `agentv eval --help` for all options: workers, timeouts, output formats, trace dumping, and more.
 
-Run eval (target auto-selected from eval file or CLI override):
+### Create Custom Evaluators
+
+Write code judges in Python or TypeScript:
+
+```python
+# validators/check_answer.py
+import json, sys
+data = json.load(sys.stdin)
+candidate_answer = data.get("candidate_answer", "")
+
+hits = []
+misses = []
+
+if "42" in candidate_answer:
+    hits.append("Answer contains correct value (42)")
+else:
+    misses.append("Answer does not contain expected value (42)")
+
+score = 1.0 if hits else 0.0
+
+print(json.dumps({
+    "score": score,
+    "hits": hits,
+    "misses": misses,
+    "reasoning": f"Passed {len(hits)} check(s)"
+}))
+```
+
+Reference evaluators in your eval file:
+
+```yaml
+execution:
+  evaluators:
+    - name: my_validator
+      type: code_judge
+      script: ./validators/check_answer.py
+```
+
+For complete templates, examples, and evaluator patterns, see: [custom-evaluators.md](apps/cli/src/templates/.claude/skills/agentv-eval-builder/references/custom-evaluators.md)
+
+### Compare Evaluation Results
+
+Run two evaluations and compare them:
 
 ```bash
-# If your eval.yaml contains "target: azure_base", it will be used automatically
-agentv eval "path/to/eval.yaml"
-
-# Override the eval file's target with CLI flag
-agentv eval --target vscode_projectx "path/to/eval.yaml"
-
-# Run multiple evals via glob
-agentv eval "path/to/evals/**/*.yaml"
+agentv eval evals/my-eval.yaml --out before.jsonl
+# ... make changes to your agent ...
+agentv eval evals/my-eval.yaml --out after.jsonl
+agentv compare before.jsonl after.jsonl --threshold 0.1
 ```
 
-Run a specific eval case with custom targets path:
+Output shows wins, losses, ties, and mean delta to identify improvements.
 
-```bash
-agentv eval --target vscode_projectx --targets "path/to/targets.yaml" --eval-id "my-eval-case" "path/to/eval.yaml"
-```
+## Targets Configuration
 
-### Command Line Options
-
-- `eval_paths...`: Path(s) or glob(s) to eval YAML files (required; e.g., `evals/**/*.yaml`)
-- `--target TARGET`: Execution target name from targets.yaml (overrides target specified in eval file)
-- `--targets TARGETS`: Path to targets.yaml file (default: ./.agentv/targets.yaml)
-- `--eval-id EVAL_ID`: Run only the eval case with this specific ID
-- `--out OUTPUT_FILE`: Output file path (default: .agentv/results/eval_<timestamp>.jsonl)
-- `--output-format FORMAT`: Output format: 'jsonl' or 'yaml' (default: jsonl)
-- `--dry-run`: Run with mock model for testing
-- `--agent-timeout SECONDS`: Timeout in seconds for agent response polling (default: 120)
-- `--max-retries COUNT`: Maximum number of retries for timeout cases (default: 2)
-- `--cache`: Enable caching of LLM responses (default: disabled)
-- `--workers COUNT`: Parallel workers for eval cases (default: 3; target `workers` setting used when provided)
-- `--verbose`: Verbose output
-
-### Target Selection Priority
-
-The CLI determines which execution target to use with the following precedence:
-
-1. CLI flag override: `--target my_target` (when provided and not 'default')
-2. Eval file specification: `target: my_target` key in the .eval.yaml file
-3. Default fallback: Uses the 'default' target (original behavior)
-
-This allows eval files to specify their preferred target while still allowing command-line overrides for flexibility, and maintains backward compatibility with existing workflows.
-
-Output goes to `.agentv/results/eval_<timestamp>.jsonl` (or `.yaml`) unless `--out` is provided.
-
-### Tips for VS Code Copilot Evals
-
-**Workspace Switching:** The runner automatically switches to the target workspace when running evals. Make sure you're not actively using another VS Code instance, as this could cause prompts to be injected into the wrong workspace.
-
-**Recommended Models:** Use Claude Sonnet 4.5 or Grok Code Fast 1 for best results, as these models are more consistent in following instruction chains.
-
-## Targets and Environment Variables
-
-Execution targets in `.agentv/targets.yaml` decouple evals from providers/settings and provide flexible environment variable mapping.
-
-### Target Configuration Structure
-
-Each target specifies:
-
-- `name`: Unique identifier for the target
-- `provider`: The model provider (`azure`, `anthropic`, `gemini`, `codex`, `pi-coding-agent`, `vscode`, `vscode-insiders`, `cli`, or `mock`)
-- Provider-specific configuration fields at the top level (no `settings` wrapper needed)
-- Optional fields: `judge_target`, `workers`, `provider_batching`
-
-### Examples
-
-**Azure OpenAI targets:**
-
-```yaml
-- name: azure_base
-  provider: azure
-  endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-  api_key: ${{ AZURE_OPENAI_API_KEY }}
-  model: ${{ AZURE_DEPLOYMENT_NAME }}
-  version: ${{ AZURE_OPENAI_API_VERSION }}  # Optional: defaults to 2024-12-01-preview
-```
-
-Note: Environment variables are referenced using `${{ VARIABLE_NAME }}` syntax. The actual values are resolved from your `.env` file at runtime.
-
-**VS Code targets:**
-
-```yaml
-- name: vscode_projectx
-  provider: vscode
-  workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
-  provider_batching: false
-  judge_target: azure_base
-
-- name: vscode_insiders_projectx
-  provider: vscode-insiders
-  workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
-  provider_batching: false
-  judge_target: azure_base
-```
-
-**CLI targets (template-based):**
-
-```yaml
-- name: local_cli
-  provider: cli
-  judge_target: azure_base
-  command_template: 'uv run ./my_agent.py --prompt {PROMPT} {FILES}'
-  files_format: '--file {path}'
-  cwd: ${{ CLI_EVALS_DIR }}       # optional working directory
-  timeout_seconds: 30             # optional per-command timeout
-  healthcheck:
-    type: command                 # or http
-    command_template: uv run ./my_agent.py --healthcheck
-```
-
-**Supported placeholders in CLI commands:**
-- `{PROMPT}` - The rendered prompt text (shell-escaped)
-- `{FILES}` - Expands to multiple file arguments using `files_format` template
-- `{GUIDELINES}` - Guidelines content
-- `{EVAL_ID}` - Current eval case ID
-- `{ATTEMPT}` - Retry attempt number
-- `{OUTPUT_FILE}` - Path to output file (for agents that write responses to disk)
-
-**Codex CLI targets:**
-
-```yaml
-- name: codex_cli
-  provider: codex
-  judge_target: azure_base
-  executable: ${{ CODEX_CLI_PATH }}     # defaults to `codex` if omitted
-  args:                                 # optional CLI arguments
-    - --profile
-    - ${{ CODEX_PROFILE }}
-    - --model
-    - ${{ CODEX_MODEL }}
-  timeout_seconds: 180
-  cwd: ${{ CODEX_WORKSPACE_DIR }}
-  log_format: json                      # 'summary' or 'json'
-```
-
-Codex targets require the standalone `codex` CLI and a configured profile (via `codex configure`) so credentials are stored in `~/.codex/config` (or whatever path the CLI already uses). AgentV mirrors all guideline and attachment files into a fresh scratch workspace, so the `file://` preread links remain valid even when the CLI runs outside your repo tree.
-Confirm the CLI works by running `codex exec --json --profile <name> "ping"` (or any supported dry run) before starting an eval. This prints JSONL events; seeing `item.completed` messages indicates the CLI is healthy.
-
-**Pi Coding Agent targets:**
-
-```yaml
-- name: pi
-  provider: pi-coding-agent
-  judge_target: gemini_base
-  executable: ${{ PI_CLI_PATH }}            # Optional: defaults to `pi` if omitted
-  pi_provider: google                       # google, anthropic, openai, groq, xai, openrouter
-  model: ${{ GEMINI_MODEL_NAME }}
-  api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
-  tools: read,bash,edit,write               # Available tools for the agent
-  timeout_seconds: 180
-  cwd: ${{ PI_WORKSPACE_DIR }}              # Optional: run in specific directory
-  log_format: json                          # 'summary' (default) or 'json' for full logs
-  # system_prompt: optional override for the default system prompt
-```
-
-Pi Coding Agent is an autonomous coding CLI from [pi-mono](https://github.com/badlogic/pi-mono). Install it globally with `npm install -g @mariozechner/pi-coding-agent` (or use a local path via `executable`). It supports multiple LLM providers and outputs JSONL events. AgentV extracts tool trajectories from the output for trace-based evaluation. File attachments are passed using Pi's native `@path` syntax.
-
-By default, a system prompt instructs the agent to include code in its response (required for evaluation scoring). Use `system_prompt` to override this behavior.
-
-## Writing Custom Evaluators
-
-### Code Evaluator I/O Contract
-
-Code evaluators receive input via stdin and write output to stdout as JSON.
-
-**Input Format (via stdin):**
-```json
-{
-  "question": "string describing the task/question",
-  "expected_outcome": "expected outcome description",
-  "reference_answer": "gold standard answer (optional)",
-  "candidate_answer": "generated code/text from the agent",
-  "guideline_files": ["path/to/guideline1.md", "path/to/guideline2.md"],
-  "input_files": ["path/to/data.json", "path/to/config.yaml"],
-  "input_messages": [{"role": "user", "content": "..."}]
-}
-```
-
-**Output Format (to stdout):**
-```json
-{
-  "score": 0.85,
-  "hits": ["list of successful checks"],
-  "misses": ["list of failed checks"],
-  "reasoning": "explanation of the score"
-}
-```
-
-**Key Points:**
-- Evaluators receive **full context** but should select only relevant fields
-- Most evaluators only need `candidate_answer` field - ignore the rest to avoid false positives
-- Complex evaluators can use `question`, `reference_answer`, or `guideline_paths` for context-aware validation
-- Score range: `0.0` to `1.0` (float)
-- `hits` and `misses` are optional but recommended for debugging
-
-### Code Evaluator Templates
-
-Custom evaluators can be written in any language. For complete templates and examples:
-
-- **Python template**: See `apps/cli/src/templates/.claude/skills/agentv-eval-builder/references/custom-evaluators.md`
-- **TypeScript template (with SDK)**: See `apps/cli/src/templates/.claude/skills/agentv-eval-builder/references/custom-evaluators.md`
-- **Working examples**: See [examples/features/code-judge-sdk](examples/features/code-judge-sdk)
-
-### LLM Judge Template Structure
-
-```markdown
-# Judge Name
-
-Evaluation criteria and guidelines...
-
-## Scoring Guidelines
-0.9-1.0: Excellent
-0.7-0.8: Good
-...
-
-## Output Format
-{
-  "score": 0.85,
-  "passed": true,
-  "reasoning": "..."
-}
-```
-
-## Rubric-Based Evaluation
-
-AgentV supports structured evaluation through rubrics - lists of criteria that define what makes a good response. Rubrics are checked by an LLM judge and scored based on weights and requirements.
-
-### Basic Usage
-
-Define rubrics inline using simple strings:
-
-```yaml
-- id: example-1
-  expected_outcome: Explain quicksort algorithm
-  rubrics:
-    - Mentions divide-and-conquer approach
-    - Explains the partition step
-    - States time complexity correctly
-```
-
-Or use detailed objects for fine-grained control:
-
-```yaml
-rubrics:
-  - id: structure
-    description: Has clear headings and organization
-    weight: 1.0
-    required: true
-  - id: examples
-    description: Includes practical examples
-    weight: 0.5
-    required: false
-```
-
-### Generate Rubrics
-
-Automatically generate rubrics from `expected_outcome` fields:
-
-```bash
-# Generate rubrics for all eval cases without rubrics
-agentv generate rubrics evals/my-eval.yaml
-
-# Use a specific LLM target for generation
-agentv generate rubrics evals/my-eval.yaml --target openai:gpt-4o
-```
-
-### Scoring and Verdicts
-
-- **Score**: (sum of satisfied weights) / (total weights)
-- **Verdicts**:
-  - `pass`: Score ≥ 0.8 and all required rubrics met
-  - `borderline`: Score ≥ 0.6 and all required rubrics met
-  - `fail`: Score < 0.6 or any required rubric failed
-
-For complete examples and detailed patterns, see [examples/features/rubric/](examples/features/rubric/).
-
-## Advanced Configuration
-
-### Retry Configuration
-
-AgentV supports automatic retry with exponential backoff for handling rate limiting (HTTP 429) and transient errors. All retry configuration fields are optional and work with Azure, Anthropic, and Gemini providers.
-
-**Available retry fields:**
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `max_retries` | number | 3 | Maximum number of retry attempts |
-| `retry_initial_delay_ms` | number | 1000 | Initial delay in milliseconds before first retry |
-| `retry_max_delay_ms` | number | 60000 | Maximum delay cap in milliseconds |
-| `retry_backoff_factor` | number | 2 | Exponential backoff multiplier |
-| `retry_status_codes` | number[] | [500, 408, 429, 502, 503, 504] | HTTP status codes to retry |
-
-**Example configuration:**
+Define execution targets in `.agentv/targets.yaml` to decouple evals from providers:
 
 ```yaml
 targets:
@@ -406,26 +184,117 @@ targets:
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
-    model: gpt-4
-    version: ${{ AZURE_OPENAI_API_VERSION }}                # Optional: API version (defaults to 2024-12-01-preview)
-    max_retries: 5                                          # Maximum retry attempts
-    retry_initial_delay_ms: 2000                            # Initial delay before first retry
-    retry_max_delay_ms: 120000                              # Maximum delay cap
-    retry_backoff_factor: 2                                 # Exponential backoff multiplier
-    retry_status_codes: [500, 408, 429, 502, 503, 504]     # HTTP status codes to retry
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+
+  - name: vscode_dev
+    provider: vscode
+    workspace_template: ${{ WORKSPACE_PATH }}
+    judge_target: azure_base
+
+  - name: local_agent
+    provider: cli
+    command_template: 'python agent.py --prompt {PROMPT}'
+    judge_target: azure_base
 ```
 
-**Retry behavior:**
-- Exponential backoff with jitter (0.75-1.25x) to avoid thundering herd
-- Automatically retries on HTTP 429 (rate limiting), 5xx errors, and network failures
-- Respects abort signals for cancellation
-- If no retry config is specified, uses sensible defaults
+Supports: `azure`, `anthropic`, `gemini`, `codex`, `pi-coding-agent`, `claude-code`, `vscode`, `vscode-insiders`, `cli`, and `mock`.
 
-## Related Projects
+Use `${{ VARIABLE_NAME }}` syntax to reference your `.env` file. See `.agentv/targets.yaml` after `agentv init` for detailed examples and all provider-specific fields.
 
-- [subagent](https://github.com/EntityProcess/subagent) - VS Code Copilot programmatic interface
-- [ai-sdk](https://github.com/vercel/ai) - Vercel AI SDK
-- [Agentic Context Engineering (ACE)](https://github.com/ax-llm/ax/blob/main/docs/ACE.md)
+## Evaluation Features
+
+### Code Judges
+
+Write validators in any language (Python, TypeScript, Node, etc.):
+
+```bash
+# Input: stdin JSON with question, expected_outcome, candidate_answer
+# Output: stdout JSON with score (0-1), hits, misses, reasoning
+```
+
+For complete examples and patterns, see:
+- [custom-evaluators skill](apps/cli/src/templates/.claude/skills/agentv-eval-builder/references/custom-evaluators.md)
+- [code-judge-sdk example](examples/features/code-judge-sdk)
+
+### LLM Judges
+
+Create markdown judge files with evaluation criteria and scoring guidelines:
+
+```yaml
+execution:
+  evaluators:
+    - name: semantic_check
+      type: llm_judge
+      prompt: ./judges/correctness.md
+```
+
+Your judge prompt file defines criteria and scoring guidelines.
+
+### Rubric-Based Evaluation
+
+Define structured criteria directly in your eval case:
+
+```yaml
+evalcases:
+  - id: quicksort-explain
+    expected_outcome: Explain how quicksort works
+
+    input_messages:
+      - role: user
+        content: Explain quicksort algorithm
+
+    rubrics:
+      - Mentions divide-and-conquer approach
+      - Explains partition step
+      - States time complexity
+```
+
+Scoring: `(satisfied weights) / (total weights)` → verdicts: `pass` (≥0.8), `borderline` (≥0.6), `fail`
+
+Auto-generate rubrics from expected outcomes:
+```bash
+agentv generate rubrics evals/my-eval.yaml
+```
+
+See [rubric-evaluator skill](apps/cli/src/templates/.claude/skills/agentv-eval-builder/references/rubric-evaluator.md) for detailed patterns.
+
+## Advanced Configuration
+
+### Retry Behavior
+
+Configure automatic retry with exponential backoff:
+
+```yaml
+targets:
+  - name: azure_base
+    provider: azure
+    max_retries: 5
+    retry_initial_delay_ms: 2000
+    retry_max_delay_ms: 120000
+    retry_backoff_factor: 2
+    retry_status_codes: [500, 408, 429, 502, 503, 504]
+```
+
+Automatically retries on rate limits, transient 5xx errors, and network failures with jitter.
+
+## Documentation & Learning
+
+**Getting Started:**
+- Run `agentv init` to set up your first evaluation workspace
+- Check [examples/README.md](examples/README.md) for demos (math, code generation, tool use)
+- AI agents: Ask Claude Code to `/agentv-eval-builder` to create and iterate on evals
+
+**Detailed Guides:**
+- [Evaluation format and structure](apps/cli/src/templates/.claude/skills/agentv-eval-builder/SKILL.md)
+- [Custom evaluators](apps/cli/src/templates/.claude/skills/agentv-eval-builder/references/custom-evaluators.md)
+- [Structured data evaluation](apps/cli/src/templates/.claude/skills/agentv-eval-builder/references/structured-data-evaluators.md)
+
+**Reference:**
+- Monorepo structure: `packages/core/` (engine), `packages/eval/` (evaluation logic), `apps/cli/` (commands)
+
+## Contributing
+
+See [AGENTS.md](AGENTS.md) for development guidelines, design principles, and quality assurance workflow.
 
 ## License
 
