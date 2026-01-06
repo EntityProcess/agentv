@@ -1,0 +1,17 @@
+# AgentV Self-Evaluation Targets
+# Used to evaluate proposed changes against AGENTS.md design principles
+
+targets:
+  - name: default
+    provider: pi-agent-sdk
+    pi_provider: openrouter
+    model: z-ai/glm-4.7
+    api_key: ${{ OPENROUTER_API_KEY }}
+    timeout_seconds: 300
+    system_prompt: "Answer directly based on the information provided."
+    judge_target: judge
+
+  - name: judge
+    provider: gemini
+    model: gemini-2.5-flash
+    api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
