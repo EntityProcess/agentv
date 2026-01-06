@@ -18,7 +18,7 @@ evalcases:
 
   # Case 1: The Overwhelmed Wife (Passive Resignation)
   - id: listening-basic-overwhelmed-wife
-    outcome: |-
+    expected_outcome: |-
       Must identify 'level_2_emotion' as Resentment/Despair (not just anger).
       Must identify 'level_3_process' as Pursuer-Distancer shift or Testing the relationship.
     input_messages:
@@ -49,7 +49,7 @@ evalcases:
 
   # Case 2: The Traditional Mother (Guilt & Reframing)
   - id: listening-basic-traditional-mother
-    outcome: |-
+    expected_outcome: |-
       Must identify Patriarchal values (Financial exploitation framed as help) and Gaslighting/Enmeshment in 'level_3_process'.
     input_messages:
       - role: system
@@ -79,7 +79,7 @@ evalcases:
 
   # Case 3: The Returning Mother (Explicit Distress)
   - id: listening-basic-returning-mother
-    outcome: |-
+    expected_outcome: |-
       Must identify Internalizing rejection as worthlessness in 'level_3_process'.
     input_messages:
       - role: system
@@ -113,7 +113,7 @@ evalcases:
 
   # Case 4: The Alexithymic Executive (Denial of Distress)
   - id: listening-adv-somatic-mask
-    outcome: |-
+    expected_outcome: |-
       Must identify Alexithymia and Somatic Displacement (Stress -> Throat) in 'level_3_process'.
     input_messages:
       - role: system
@@ -143,7 +143,7 @@ evalcases:
 
   # Case 5: The Benevolent Gatekeeper (Dysfunctional Helping)
   - id: listening-adv-gatekeeper
-    outcome: |-
+    expected_outcome: |-
       Must identify Gatekeeping/Triangulation in 'level_3_process'.
       Must identify the distinction between 'Helping' vs 'Blocking Intimacy'.
     input_messages:
@@ -174,7 +174,7 @@ evalcases:
 
   # Case 6: The Intellectualizer (Resistance)
   - id: listening-adv-intellectualizer
-    outcome: |-
+    expected_outcome: |-
       Must identify Intellectualization as a defense mechanism in 'level_3_process'.
     input_messages:
       - role: system

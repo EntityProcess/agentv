@@ -97,7 +97,7 @@ Add cases to `dataset.yaml` following the existing pattern:
 ```yaml
 - id: exp-custom-001
   conversation_id: export-screening
-  outcome: |
+  expected_outcome: |
     Description of expected behavior for reviewers.
   expected_messages:
     - role: assistant
