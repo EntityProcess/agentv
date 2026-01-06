@@ -1,4 +1,4 @@
-# AgentV vs. Competing Frameworks
+# AgentV vs. Related Frameworks
 
 ## Quick Comparison
 
@@ -7,12 +7,11 @@
 | **Primary Focus** | Agent evaluation & testing | Observability + evaluation | Observability + evaluation | LLM ops & evaluation | Agent development | Agent/workflow development | Coding agent benchmarking |
 | **Language** | TypeScript/CLI | Python/JavaScript | Python/JavaScript | Python/JavaScript | Python | TypeScript | Python/CLI |
 | **Deployment** | Local (CLI-first) | Cloud/self-hosted | Cloud only | Cloud/self-hosted/hybrid | Local/Cloud Run | Local/server | Benchmarking service |
-| **Server Required** | ❌ No | ✓ Yes | ✓ Yes | ✓ Yes | ❌ No | ❌ No (optional) | ✓ Yes (GitHub repos) |
+| **Self-contained** | ✓ Yes | ✗ Requires server | ✗ Cloud-only | ✗ Requires server | ✓ Yes | ✓ Yes (optional) | ✗ Requires service |
 | **Evaluation Focus** | ✓ Core feature | ✓ Yes | ✓ Yes | ✓ Core feature | ✗ Minimal | ✗ Secondary | ✓ Core feature |
 | **Judge Types** | Code + LLM (custom prompts) | LLM-as-judge only | LLM-based + custom | LLM + real-time | Built-in metrics | Built-in (minimal) | Multi-judge LLM (3 judges) |
 | **CLI-First** | ✓ Yes | ❌ Dashboard-first | ❌ Dashboard-first | ❌ Dashboard-first | ❌ Code-first | ❌ Code-first | ❌ Service-based |
 | **Open Source** | ✓ MIT | ✓ Apache 2.0 | ❌ Closed | ❌ Closed | ✓ Apache 2.0 | ✓ MIT | ✓ Open source |
-| **Cost** | Free | Free/$299+/mo | $0-500+/mo | $20-200/mo | Free | Free | Free (benchmarking) |
 | **Setup Time** | < 2 min | 15+ min | 10+ min | 20+ min | 30+ min | 10+ min | 5-10 min (CLI) |
 | **Local Iteration Speed** | ⚡ Instant (evals) | ⚠️ UI-mediated | ⚠️ API calls | ⚠️ UI-mediated | ⚡ Instant (agents) | ⚡ Instant (code) | ⚠️ 30+ min per run |
 | **Deterministic Evaluation** | ✓ Code judges | ✗ (LLM-biased) | ✗ (LLM-biased) | ✗ (LLM-biased) | ✓ Built-in | ~ (Custom code) | ✗ (LLM-based) |
@@ -20,25 +19,28 @@
 
 ---
 
-## Detailed Positioning
+## Technical Differences
 
-### AgentV's Unique Strengths
+### How AgentV Works
 
 **1. Hybrid Judge System (Code + LLM with Custom Prompts)**
 ```yaml
-judges:
-  - type: code          # Deterministic: checks for concrete outputs
-    command: "python validators.py"
+execution:
+  evaluators:
+    - name: format_check
+      type: code_judge           # Deterministic: checks concrete outputs
+      script: ./validators/check_format.py
 
-  - type: llm           # Subjective: uses customizable judge prompt
-    judge_file: "judges/correctness.md"  # Edit the prompt, not the code
+    - name: correctness
+      type: llm_judge            # Subjective: uses customizable judge prompt
+      prompt: ./judges/correctness.md  # Edit the prompt, not the code
 ```
 
 This is more powerful than:
 - **Langfuse**: LLM judges only, limited prompt customization via API
 - **LangSmith**: LLM-biased, requires SDK modifications for custom logic
 - **LangWatch**: UI-driven prompt customization (not version-controlled)
-- **Google ADK**: No subjective evaluation capability
+- **Google ADK**: Not focused on evaluation (agent development framework)
 
 **Why this matters:**
 - Code judges catch objective failures (syntax errors, missing fields, wrong format)
@@ -94,10 +96,9 @@ docker-compose up -d  # Spin up managed infrastructure
 
 ---
 
-## Where AgentV Excels vs. Competitors
+## Practical Use Cases
 
-### Scenario 1: "I'm Iterating on Eval Criteria"
-**Winner: AgentV**
+### Scenario: Iterating on Eval Criteria
 
 ```markdown
 # judges/correctness.md (edit locally, version in Git)
@@ -112,13 +113,12 @@ Evaluate if the answer is mathematically correct.
 
 Then re-run: `agentv eval evals/math.yaml`
 
-Competitors require:
+Alternative approaches:
 - Langfuse/LangWatch: Go to UI, modify prompt, save, re-run
 - LangSmith: Modify SDK code, redeploy
 - Google ADK: Modify Python code, rerun framework
 
-### Scenario 2: "I Want Deterministic + Subjective Evals Together"
-**Winner: AgentV**
+### Scenario: Deterministic + Subjective Evaluation
 
 ```yaml
 judges:
@@ -133,13 +133,12 @@ judges:
     judge_file: "judges/explanation.md"
 ```
 
-Single eval run scores all three dimensions. Competitors:
+Single eval run scores all three dimensions. Other approaches:
 - Langfuse: LLM judges only (no deterministic checks)
 - LangSmith: Requires custom evaluation SDK calls
 - LangWatch: UI judges only (mixing code + UI-driven)
 
-### Scenario 3: "I Need Reproducible Local Evals in CI/CD"
-**Winner: AgentV**
+### Scenario: Reproducible Local Evals in CI/CD
 
 ```yaml
 # .github/workflows/eval.yml
@@ -148,13 +147,12 @@ Single eval run scores all three dimensions. Competitors:
   # Fail if performance drops > 5%
 ```
 
-Competitors struggle because:
+Other tools face challenges here:
 - Langfuse/LangWatch: Require external service (not CI-friendly)
 - LangSmith: Cloud-only, no local execution
 - Google ADK: Not designed for evals
 
-### Scenario 4: "I Want Fast Iteration (Dev Loop)"
-**Winner: AgentV**
+### Scenario: Fast Iteration Feedback Loop
 
 ```
 Edit eval → Save → agentv eval (1-2 sec) → Review results
@@ -162,7 +160,7 @@ vs
 Edit in UI → Click Save → Wait for backend → Refresh dashboard (10-20 sec)
 ```
 
-Competitors:
+Other tools:
 - Langfuse: UI-mediated (slower feedback loop)
 - LangSmith: SDK calls + cloud latency
 - LangWatch: UI-mediated (slower)
@@ -170,7 +168,7 @@ Competitors:
 
 ---
 
-## Where AgentV *Doesn't* Win
+## Trade-offs and Alternatives
 
 ### Production Monitoring & Observability
 **Use Langfuse, LangSmith, or LangWatch instead**
@@ -192,12 +190,16 @@ AgentV is single-developer focused:
 - ✗ No annotation/review workflows
 - ✗ No role-based access control
 
-### Automated Prompt Optimization
-**Use LangWatch instead**
+### Prompt Optimization
 
-LangWatch includes MIPROv2 for automatic prompt tuning. AgentV:
-- ✓ Can evaluate optimized prompts
-- ✗ Doesn't optimize them automatically
+**AgentV approach:**
+- ✓ Has a prompt optimization skill that leverages coding agents
+- ✓ Agents iteratively improve prompts based on eval results
+- ✓ Lightweight and integrated with your eval workflow
+
+**LangWatch approach:**
+- ✓ Built-in MIPROv2 automatic optimization
+- Requires team collaboration features and managed service
 
 ### Prompt Version Control & Management
 **Use Langfuse instead**
@@ -240,14 +242,13 @@ AgentV approach: Store judge prompts in Git, manage manually
 | **Execution** | Local | Cloud/self-hosted server |
 | **Custom judge prompts** | ✓ Markdown files (Git) | ✓ UI-based |
 | **Code judges** | ✓ Yes | ✗ LLM-focused |
+| **Prompt optimization** | ✓ Via skill + agents | ✓ Built-in MIPROv2 |
 | **Setup** | < 2 min | 20+ min |
 | **Iteration speed** | ⚡ Instant | ⚠️ UI-mediated |
 | **Team features** | ✗ No | ✓ Annotation, roles, review |
-| **Auto-optimization** | ✗ No | ✓ MIPROv2 |
-| **Cost** | Free | $20-200/mo |
 
-**Choose AgentV if:** You develop locally, want fast iteration, prefer code judges
-**Choose LangWatch if:** You need team collaboration, prompt optimization, on-prem deployment
+**Choose AgentV if:** You develop locally, want fast iteration, prefer code judges, need lightweight optimization
+**Choose LangWatch if:** You need team collaboration, managed optimization, on-prem deployment
 
 ---
 
@@ -333,7 +334,6 @@ Mastra (deploy agents in production)
 | **Execution** | Local (seconds) | Remote (30+ min per run) |
 | **Variance Handling** | Single run | 3 runs per task (episode isolation) + variance penalties |
 | **Setup** | < 2 min | 5-10 min CLI setup |
-| **Cost** | Free | Free (benchmarking service) |
 | **Customization** | High (custom judges, prompts, metrics) | Low (fixed benchmark) |
 | **Use Case** | Develop & iterate on evals | Compare agents against standard benchmark |
 
@@ -396,8 +396,7 @@ Then use Langfuse/LangWatch in production for observability.
 
 ✗ **Don't use AgentV for:**
 - Production observability → Use Langfuse or LangWatch
-- Team collaboration → Use LangWatch or Langfuse
-- Auto prompt optimization → Use LangWatch
+- Team collaboration dashboards → Use LangWatch or Langfuse
 - Building agents → Use Mastra (TypeScript) or Google ADK (Python)
 - Intricate production tracing → Use LangSmith
 - Standardized benchmarking → Use OpenCode Bench
