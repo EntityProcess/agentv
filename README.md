@@ -57,7 +57,6 @@ Learn more in the [examples/](examples/README.md) directory.
 | **Setup** | `npm install` | Cloud account + API key | Cloud account + API key | Cloud account + API key |
 | **Server** | None (local) | Managed cloud | Managed cloud | Managed cloud |
 | **Privacy** | All local | Cloud-hosted | Cloud-hosted | Cloud-hosted |
-| **Cost** | Free (open source) | $20-200/mo | $0-500+/mo | $0-500+/mo |
 | **CLI-first** | ✓ | ✗ | Limited | Limited |
 | **CI/CD ready** | ✓ | Requires API calls | Requires API calls | Requires API calls |
 | **Version control** | ✓ (YAML in Git) | ✗ | ✗ | ✗ |
@@ -131,8 +130,23 @@ Write code judges in Python or TypeScript:
 import json, sys
 data = json.load(sys.stdin)
 candidate_answer = data.get("candidate_answer", "")
-score = 1.0 if "42" in candidate_answer else 0.0
-print(json.dumps({"score": score, "reasoning": "Checks if answer contains expected value"}))
+
+hits = []
+misses = []
+
+if "42" in candidate_answer:
+    hits.append("Answer contains correct value (42)")
+else:
+    misses.append("Answer does not contain expected value (42)")
+
+score = 1.0 if hits else 0.0
+
+print(json.dumps({
+    "score": score,
+    "hits": hits,
+    "misses": misses,
+    "reasoning": f"Passed {len(hits)} check(s)"
+}))
 ```
 
 Reference evaluators in your eval file:
