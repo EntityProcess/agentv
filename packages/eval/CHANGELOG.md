@@ -1,5 +1,11 @@
 # @agentv/eval
 
+## 0.2.1
+
+### Patch Changes
+
+- 5f074d0: add optional message name (e.g., agent name) used by some providers for multi-agent transcripts
+
 ## 0.2.0
 
 ### Minor Changes
