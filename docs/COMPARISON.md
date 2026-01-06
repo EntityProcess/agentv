@@ -10,14 +10,12 @@
 | **Self-contained** | ✓ Yes | ✗ Requires server | ✗ Cloud-only | ✗ Requires server | ✓ Yes | ✓ Yes (optional) | ✗ Requires service |
 | **Evaluation Focus** | ✓ Core feature | ✓ Yes | ✓ Yes | ✓ Core feature | ✗ Minimal | ✗ Secondary | ✓ Core feature |
 | **Judge Types** | Code + LLM (custom prompts) | LLM-as-judge only | LLM-based + custom | LLM + real-time | Built-in metrics | Built-in (minimal) | Multi-judge LLM (3 judges) |
-| **CLI-First** | ✓ Yes | ❌ Dashboard-first | ❌ Dashboard-first | ❌ Dashboard-first | ❌ Code-first | ❌ Code-first | ❌ Service-based |
-| **Open Source** | ✓ MIT | ✓ Apache 2.0 | ❌ Closed | ❌ Closed | ✓ Apache 2.0 | ✓ MIT | ✓ Open source |
+| **CLI-First** | ✓ Yes | ✓ Dashboard-first | ✓ Dashboard-first | ✓ Dashboard-first | ✓ Code-first | ✓ Code-first | ✓ Service-based |
+| **Open Source** | ✓ MIT | ✓ Apache 2.0 | ✓ Closed | ✓ Closed | ✓ Apache 2.0 | ✓ MIT | ✓ Open source |
 | **Setup Time** | < 2 min | 15+ min | 10+ min | 20+ min | 30+ min | 10+ min | 5-10 min (CLI) |
-| **Local Iteration Speed** | ⚡ Instant (evals) | ⚠️ UI-mediated | ⚠️ API calls | ⚠️ UI-mediated | ⚡ Instant (agents) | ⚡ Instant (code) | ⚠️ 30+ min per run |
+| **Local Iteration Speed** | ✓ Instant (evals) | ✗ UI-mediated | ✗ API calls | ✗ UI-mediated | ✓ Instant (agents) | ✓ Instant (code) | ✗ 30+ min per run |
 | **Deterministic Evaluation** | ✓ Code judges | ✗ (LLM-biased) | ✗ (LLM-biased) | ✗ (LLM-biased) | ✓ Built-in | ~ (Custom code) | ✗ (LLM-based) |
 | **Real-World Tasks** | ~ (Your data) | ~ (Your data) | ~ (Your data) | ~ (Your data) | ~ (Your design) | N/A (agent building) | ✓ GitHub commits |
-
----
 
 ## Technical Differences
 
@@ -94,8 +92,6 @@ docker-compose up -d  # Spin up managed infrastructure
 # ...
 ```
 
----
-
 ## Practical Use Cases
 
 ### Scenario: Iterating on Eval Criteria
@@ -121,16 +117,17 @@ Alternative approaches:
 ### Scenario: Deterministic + Subjective Evaluation
 
 ```yaml
-judges:
-  - type: code
-    name: syntax_check
-    command: "python check_syntax.py"
-  - type: code
-    name: logic_check
-    command: "python check_logic.py"
-  - type: llm
-    name: explanation_quality
-    judge_file: "judges/explanation.md"
+execution:
+  evaluators:
+    - name: syntax_check
+      type: code_judge
+      script: ["python", "check_syntax.py"]
+    - name: logic_check
+      type: code_judge
+      script: ["python", "check_logic.py"]
+    - name: explanation_quality
+      type: llm_judge
+      prompt: judges/explanation.md
 ```
 
 Single eval run scores all three dimensions. Other approaches:
@@ -164,9 +161,7 @@ Other tools:
 - Langfuse: UI-mediated (slower feedback loop)
 - LangSmith: SDK calls + cloud latency
 - LangWatch: UI-mediated (slower)
-- Google ADK: Code compilation/rerun
-
----
+- Google ADK: Code change + rerun
 
 ## Trade-offs and Alternatives
 
@@ -184,10 +179,12 @@ AgentV evaluates static test cases. It doesn't:
 ### Team Collaboration & Dashboards
 **Use LangWatch or Langfuse instead**
 
-AgentV is single-developer focused:
-- ✗ No web dashboard
-- ✗ No multi-user collaboration UI
-- ✗ No annotation/review workflows
+AgentV uses Git-based collaboration (like code), not web dashboards:
+- ✓ Git version control (evals, judges, results)
+- ✓ PR reviews for eval changes
+- ✓ Branch-based experimentation
+- ✗ No real-time web dashboard
+- ✗ No in-app annotation/review UI
 - ✗ No role-based access control
 
 ### Prompt Optimization
@@ -211,8 +208,6 @@ Langfuse has:
 
 AgentV approach: Store judge prompts in Git, manage manually
 
----
-
 ## Direct Comparisons
 
 ### AgentV vs. Langfuse
@@ -232,8 +227,6 @@ AgentV approach: Store judge prompts in Git, manage manually
 **Choose AgentV if:** You iterate locally on evals, need deterministic + subjective judges together
 **Choose Langfuse if:** You need production observability + team dashboards
 
----
-
 ### AgentV vs. LangWatch
 
 | Feature | AgentV | LangWatch |
@@ -244,13 +237,11 @@ AgentV approach: Store judge prompts in Git, manage manually
 | **Code judges** | ✓ Yes | ✗ LLM-focused |
 | **Prompt optimization** | ✓ Via skill + agents | ✓ Built-in MIPROv2 |
 | **Setup** | < 2 min | 20+ min |
-| **Iteration speed** | ⚡ Instant | ⚠️ UI-mediated |
+| **Iteration speed** | ✓ Instant | ~ UI-mediated |
 | **Team features** | ✗ No | ✓ Annotation, roles, review |
 
 **Choose AgentV if:** You develop locally, want fast iteration, prefer code judges, need lightweight optimization
 **Choose LangWatch if:** You need team collaboration, managed optimization, on-prem deployment
-
----
 
 ### AgentV vs. LangSmith
 
@@ -268,8 +259,6 @@ AgentV approach: Store judge prompts in Git, manage manually
 **Choose AgentV if:** You want local evaluation, deterministic judges, open source
 **Choose LangSmith if:** You're LangChain-heavy, need production tracing
 
----
-
 ### AgentV vs. Google ADK
 
 | Feature | AgentV | Google ADK |
@@ -286,8 +275,6 @@ AgentV approach: Store judge prompts in Git, manage manually
 **Choose AgentV if:** You need to evaluate agents (not build them)
 **Choose Google ADK if:** You're building multi-agent systems and need development framework
 
----
-
 ### AgentV vs. Mastra
 
 | Feature | AgentV | Mastra |
@@ -302,7 +289,7 @@ AgentV approach: Store judge prompts in Git, manage manually
 | **Context Management** | ✗ No | ✓ (Memory, RAG, history) |
 | **Setup Time** | < 2 min | 10+ min |
 | **Setup Complexity** | Minimal | Medium (npm + TypeScript) |
-| **Evaluation Iteration Speed** | ⚡ Instant | ⚠️ Code change + rerun |
+| **Evaluation Iteration Speed** | ✓ Instant | ~ Code change + rerun |
 | **Open Source** | ✓ MIT | ✓ MIT |
 
 **Key Difference:**
@@ -320,8 +307,6 @@ Mastra (deploy agents in production)
 
 **Choose AgentV if:** You need to test/evaluate agents, fast iteration on metrics, mix of deterministic + subjective scoring
 **Choose Mastra if:** You're building TypeScript AI agents and need orchestration, context management, multiple LLM providers
-
----
 
 ### AgentV vs. OpenCode Bench
 
@@ -350,51 +335,22 @@ OpenCode Bench → When ready, submit to public benchmark for objective ranking
 **Choose AgentV if:** You need custom evaluation criteria, fast iteration, control over tasks
 **Choose OpenCode Bench if:** You want standard benchmark ranking, reproducible comparison, real-world GitHub tasks
 
----
+## Key Characteristics
 
-## Recommended Marketing Message
+AgentV is designed for developers who prefer working in code and version control over UI-driven workflows:
 
-### For Developers
-> **"Evaluate your agents like you write code. No dashboards. No infrastructure. Just YAML + judges you version control."**
+- **Local-first execution**: Evaluations run entirely on your machine without external services
+- **Version-controlled criteria**: Judge prompts and evaluation configs live in Git alongside your code
+- **Hybrid evaluation**: Supports both deterministic code judges and LLM-based subjective judges
+- **CI/CD integration**: Designed to run in automated pipelines with exit codes and diff comparisons
+- **No infrastructure**: Single npm package, no databases or servers to manage
+- **MIT licensed**: Fork, modify, and distribute without restrictions
 
-- Fast local iteration on eval criteria
-- Code judges for deterministic checks + LLM judges for subjective scoring
-- All evals in Git, every change traceable
-- Integrates with CI/CD pipelines naturally
+This makes AgentV most useful during development and testing phases. For production observability and team collaboration, consider pairing it with tools like Langfuse or LangWatch that specialize in those areas.
 
-### For Teams
-> **"AgentV for local development, Langfuse for production monitoring."**
+## When to Use AgentV
 
-Use AgentV to:
-- Iterate on evaluations fast
-- Run tests in CI/CD
-- Maintain eval criteria in Git
-- Catch regressions before deploy
-
-Then use Langfuse/LangWatch in production for observability.
-
-### For Open-Source Projects
-> **"Evaluation infrastructure without vendor lock-in. Free, open source, zero infrastructure."**
-
-- No managed service dependencies
-- Fork-friendly (self-contained)
-- Contribute evaluation criteria to your project
-- MIT licensed
-
----
-
-## Summary: When to Use AgentV
-
-✓ **Use AgentV if you:**
-- Iterate on evals locally
-- Want deterministic + subjective judges together
-- Prefer code judges over LLM-only
-- Need version-controlled eval criteria
-- Integrate evals into CI/CD
-- Dislike managed infrastructure
-- Want reproducible, Git-friendly evaluations
-
-✗ **Don't use AgentV for:**
+**Don't use AgentV for:**
 - Production observability → Use Langfuse or LangWatch
 - Team collaboration dashboards → Use LangWatch or Langfuse
 - Building agents → Use Mastra (TypeScript) or Google ADK (Python)
@@ -402,8 +358,6 @@ Then use Langfuse/LangWatch in production for observability.
 - Standardized benchmarking → Use OpenCode Bench
 
 **Sweet spot:** Individual developers and teams that evaluate locally before deploying to production, and who need custom evaluation criteria tailored to their specific use case. Pairs naturally with Mastra and Google ADK for end-to-end development workflows.
-
----
 
 ## Ecosystem Recommendation
 
