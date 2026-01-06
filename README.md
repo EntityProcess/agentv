@@ -48,7 +48,7 @@ agentv eval ./evals/example.yaml
 
 Results appear in `.agentv/results/eval_<timestamp>.jsonl` with scores, reasoning, and execution traces.
 
-Learn more in the [examples/](examples/README.md) directory.
+Learn more in the [examples/](examples/README.md) directory. For a detailed comparison with other frameworks, see [docs/COMPARISON.md](docs/COMPARISON.md).
 
 ## Why AgentV?
 
