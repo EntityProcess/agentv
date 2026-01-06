@@ -1,26 +1,30 @@
 # Baseline vs Candidate Comparison
 
-Demonstrates comparing evaluation results between baseline and candidate versions.
+Demonstrates comparing evaluation results between baseline and candidate versions using the `agentv compare` command.
 
 ## What This Shows
 
-- Baseline result storage
-- Candidate evaluation
-- Diff generation and comparison
-- Regression detection
+- Comparing two evaluation result files
+- Score delta calculation and win/loss classification
+- Regression detection via exit codes
+- Human-readable and JSON output formats
 
 ## Running
 
 ```bash
 # From repository root
-# First run creates baseline
-bun agentv eval examples/features/compare/evals/dataset.yaml
+# Compare baseline vs candidate results
+bun agentv compare examples/features/compare/evals/baseline-results.jsonl examples/features/compare/evals/candidate-results.jsonl
 
-# Subsequent runs compare against baseline
-bun agentv eval examples/features/compare/evals/dataset.yaml --compare
+# With custom threshold for win/loss classification
+bun agentv compare examples/features/compare/evals/baseline-results.jsonl examples/features/compare/evals/candidate-results.jsonl --threshold 0.05
+
+# JSON output for CI pipelines
+bun agentv compare examples/features/compare/evals/baseline-results.jsonl examples/features/compare/evals/candidate-results.jsonl --json
 ```
 
 ## Key Files
 
-- `evals/dataset.yaml` - Comparison test cases
-- `evals/*.baseline.jsonl` - Stored baseline results
+- `evals/baseline-results.jsonl` - Results from baseline configuration
+- `evals/candidate-results.jsonl` - Results from candidate configuration
+- `evals/README.md` - Detailed usage documentation
