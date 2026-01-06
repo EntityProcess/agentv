@@ -38,6 +38,21 @@ Before adding features, research how peer frameworks solve the problem. Prefer t
 ### 4. Non-Breaking Extensions
 New fields should be optional. Existing configurations must continue working unchanged.
 
+### 5. AI-First Design
+AI agents are the primary users of AgentV—not humans reading docs. Design for AI comprehension and composability.
+
+**Skills over rigid commands:**
+- Use Claude Code skills (or agent skill standards) to teach AI *how* to create evals, not step-by-step CLI instructions
+- Skills should cover most use cases; rigid commands trade off AI intelligence
+- Only prescribe exact steps where there's an established best practice
+
+**Intuitive primitives:**
+- Expose simple, single-purpose primitives that AI can combine flexibly
+- Avoid monolithic commands that do multiple things
+- SDK internals should be intuitive enough for AI to modify when needed
+
+**Scope:** Applies primarily to skills, but also to repo structure, documentation, and SDK design—anything AI might need to reason about or extend.
+
 ## Tech Stack & Tools
 - **Language:** TypeScript 5.x targeting ES2022
 - **Runtime:** Bun (use `bun` for all package and script operations)

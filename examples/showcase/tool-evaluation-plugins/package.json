@@ -1,0 +1,8 @@
+{
+  "name": "agentv-example-tool-evaluation-plugins",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agentv/eval": "file:../../../packages/eval"
+  }
+}

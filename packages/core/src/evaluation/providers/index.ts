@@ -3,6 +3,7 @@ import { ClaudeCodeProvider } from './claude-code.js';
 import { CliProvider } from './cli.js';
 import { CodexProvider } from './codex.js';
 import { MockProvider } from './mock.js';
+import { PiAgentSdkProvider } from './pi-agent-sdk.js';
 import { PiCodingAgentProvider } from './pi-coding-agent.js';
 import type { ResolvedTarget } from './targets.js';
 import { resolveTargetDefinition } from './targets.js';
@@ -26,6 +27,7 @@ export type {
   CliResolvedConfig,
   GeminiResolvedConfig,
   MockResolvedConfig,
+  PiAgentSdkResolvedConfig,
   PiCodingAgentResolvedConfig,
   ResolvedTarget,
   VSCodeResolvedConfig,
@@ -59,6 +61,8 @@ export function createProvider(target: ResolvedTarget): Provider {
       return new CodexProvider(target.name, target.config);
     case 'pi-coding-agent':
       return new PiCodingAgentProvider(target.name, target.config);
+    case 'pi-agent-sdk':
+      return new PiAgentSdkProvider(target.name, target.config);
     case 'claude-code':
       return new ClaudeCodeProvider(target.name, target.config);
     case 'mock':

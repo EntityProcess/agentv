@@ -4,7 +4,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { LlmJudgeEvaluator, ToolTrajectoryEvaluator } from '../../src/evaluation/evaluators.js';
-import { type EvaluationCache, runEvalCase, runEvaluation } from '../../src/evaluation/orchestrator.js';
+import {
+  type EvaluationCache,
+  runEvalCase,
+  runEvaluation,
+} from '../../src/evaluation/orchestrator.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type {
   OutputMessage,
@@ -286,11 +290,15 @@ describe('runTestCase', () => {
         throw new Error('invoke not used');
       }
 
-      async invokeBatch(requests: readonly ProviderRequest[]): Promise<readonly ProviderResponse[]> {
+      async invokeBatch(
+        requests: readonly ProviderRequest[],
+      ): Promise<readonly ProviderResponse[]> {
         return requests.map((request) => {
           if (request.evalCaseId === 'case-2') {
             return {
-              outputMessages: [{ role: 'assistant', content: "Error: Batch output missing id 'case-2'" }],
+              outputMessages: [
+                { role: 'assistant', content: "Error: Batch output missing id 'case-2'" },
+              ],
               raw: { error: "Batch output missing id 'case-2'" },
             };
           }

@@ -147,11 +147,7 @@ describe('agentv eval CLI', () => {
     const fixture = await createFixture();
     fixtures.push(fixture.baseDir);
 
-    const { stdout } = await runCli(fixture, [
-      'eval',
-      fixture.testFilePath,
-      '--verbose',
-    ]);
+    const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath, '--verbose']);
 
     // Don't check stderr - it may contain stack traces or other diagnostics
     expect(stdout).toContain('Using target (test-file): file-target [provider=mock]');

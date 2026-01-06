@@ -1,42 +1,16 @@
-#!/usr/bin/env bun
 /**
- * Fuzzy String Matching code_judge Example
+ * Shared fuzzy string matching utilities
  *
- * This script demonstrates how to implement fuzzy string matching as a code_judge
- * evaluator. Use this approach for comparing extracted text that may have OCR errors,
- * formatting variations, or minor typos.
- *
- * Usage in dataset.yaml:
- * ```yaml
- * evaluators:
- *   - name: vendor_name_fuzzy
- *     type: code_judge
- *     script: ["bun", "run", "./fuzzy_match.ts"]
- * ```
- *
- * The script reads evaluation context from stdin and outputs a JSON result.
+ * This module provides various string similarity algorithms for comparing
+ * text that may have OCR errors, formatting variations, or minor typos.
  */
-
-interface EvalInput {
-  candidate_answer: string;
-  reference_answer: string;
-  expected_outcome: string;
-  question: string;
-}
-
-interface EvalOutput {
-  score: number;
-  hits: string[];
-  misses: string[];
-  reasoning: string;
-}
 
 /**
  * Calculate Levenshtein distance between two strings.
  * This is the number of single-character edits (insertions, deletions, substitutions)
  * required to change one string into the other.
  */
-function levenshteinDistance(a: string, b: string): number {
+export function levenshteinDistance(a: string, b: string): number {
   if (a.length === 0) return b.length;
   if (b.length === 0) return a.length;
 
@@ -71,7 +45,7 @@ function levenshteinDistance(a: string, b: string): number {
  * Calculate Levenshtein similarity (0.0 to 1.0).
  * Returns 1.0 for identical strings, 0.0 for completely different strings.
  */
-function levenshteinSimilarity(a: string, b: string): number {
+export function levenshteinSimilarity(a: string, b: string): number {
   const maxLen = Math.max(a.length, b.length);
   if (maxLen === 0) return 1.0;
   const distance = levenshteinDistance(a, b);
@@ -81,7 +55,7 @@ function levenshteinSimilarity(a: string, b: string): number {
 /**
  * Calculate Jaro similarity between two strings.
  */
-function jaroSimilarity(s1: string, s2: string): number {
+export function jaroSimilarity(s1: string, s2: string): number {
   if (s1 === s2) return 1.0;
   if (s1.length === 0 || s2.length === 0) return 0.0;
 
@@ -124,7 +98,7 @@ function jaroSimilarity(s1: string, s2: string): number {
  * Calculate Jaro-Winkler similarity (0.0 to 1.0).
  * Gives bonus weight to common prefixes, useful for names and addresses.
  */
-function jaroWinklerSimilarity(s1: string, s2: string): number {
+export function jaroWinklerSimilarity(s1: string, s2: string): number {
   const jaro = jaroSimilarity(s1, s2);
 
   // Find common prefix (up to 4 characters)
@@ -141,65 +115,3 @@ function jaroWinklerSimilarity(s1: string, s2: string): number {
   // Jaro-Winkler with scaling factor 0.1
   return jaro + prefixLength * 0.1 * (1 - jaro);
 }
-
-// Configuration - adjust these for your use case
-const SIMILARITY_THRESHOLD = 0.85;
-const ALGORITHM: 'levenshtein' | 'jaro_winkler' = 'levenshtein';
-
-async function main(): Promise<void> {
-  // Read input from stdin
-  const chunks: Buffer[] = [];
-  for await (const chunk of Bun.stdin.stream()) {
-    chunks.push(chunk);
-  }
-  const inputText = Buffer.concat(chunks).toString('utf-8');
-  const input: EvalInput = JSON.parse(inputText);
-
-  // Extract and normalize strings for comparison
-  const candidate = String(input.candidate_answer || '')
-    .trim()
-    .toLowerCase();
-  const expected = String(input.reference_answer || '')
-    .trim()
-    .toLowerCase();
-
-  // Calculate similarity
-  let similarity: number;
-  if (ALGORITHM === 'jaro_winkler') {
-    similarity = jaroWinklerSimilarity(candidate, expected);
-  } else {
-    similarity = levenshteinSimilarity(candidate, expected);
-  }
-
-  // Determine pass/fail based on threshold
-  const passed = similarity >= SIMILARITY_THRESHOLD;
-
-  const output: EvalOutput = {
-    score: similarity,
-    hits: passed
-      ? [
-          `Similarity: ${(similarity * 100).toFixed(1)}% (threshold: ${SIMILARITY_THRESHOLD * 100}%)`,
-        ]
-      : [],
-    misses: passed
-      ? []
-      : [
-          `Similarity: ${(similarity * 100).toFixed(1)}% < ${SIMILARITY_THRESHOLD * 100}% threshold`,
-        ],
-    reasoning: `${ALGORITHM} similarity between "${input.candidate_answer}" and "${input.reference_answer}": ${(similarity * 100).toFixed(1)}%`,
-  };
-
-  console.log(JSON.stringify(output));
-}
-
-main().catch((error) => {
-  console.error(
-    JSON.stringify({
-      score: 0,
-      hits: [],
-      misses: [`Error: ${error.message}`],
-      reasoning: `Evaluation failed: ${error.message}`,
-    }),
-  );
-  process.exit(1);
-});

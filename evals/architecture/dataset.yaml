@@ -1,0 +1,90 @@
+description: Evaluates whether proposed changes follow AGENTS.md design principles
+
+execution:
+  target: default
+
+evalcases:
+  - id: violates-lightweight-core
+    expected_outcome: |
+      The proposed change violates the "Lightweight Core, Plugin Extensibility" principle.
+
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../AGENTS.md
+          - type: text
+            value: |
+              ---
+
+              **Proposed change**: Add a built-in `markdown_report` evaluator that generates formatted markdown reports with charts, tables, and executive summaries directly in the core package.
+
+              **Question**: Does this follow the design principles? Answer with:
+              - follows_principles: true or false
+              - violated_principle: name of violated principle, or null
+              - reasoning: one sentence
+
+    expected_messages:
+      - role: assistant
+        content: |
+          follows_principles: false
+          violated_principle: Lightweight Core, Plugin Extensibility
+          reasoning: Complex reporting features belong in plugins, not the core package.
+
+  - id: violates-ai-first-design
+    expected_outcome: |
+      The proposed change violates the "AI-First Design" principle.
+
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../AGENTS.md
+          - type: text
+            value: |
+              ---
+
+              **Proposed change**: Update the skill to include these exact steps:
+              1. Run `agentv init`
+              2. Run `agentv run --file evals/test.yaml --output json`
+              3. Run `agentv report --input results.json --format html`
+              4. Open the generated report in your browser
+
+              **Question**: Does this follow the design principles? Answer with:
+              - follows_principles: true or false
+              - violated_principle: name of violated principle, or null
+              - reasoning: one sentence
+
+    expected_messages:
+      - role: assistant
+        content: |
+          follows_principles: false
+          violated_principle: AI-First Design
+          reasoning: Rigid step-by-step instructions constrain AI reasoning; skills should teach concepts and let AI compose flexibly.
+
+  - id: follows-principles
+    expected_outcome: |
+      The proposed change follows the design principles.
+
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../AGENTS.md
+          - type: text
+            value: |
+              ---
+
+              **Proposed change**: Add a `code_judge` example that shows how to write a custom Python script for domain-specific validation, keeping the core evaluator interface minimal.
+
+              **Question**: Does this follow the design principles? Answer with:
+              - follows_principles: true or false
+              - violated_principle: name of violated principle, or null
+              - reasoning: one sentence
+
+    expected_messages:
+      - role: assistant
+        content: |
+          follows_principles: true
+          violated_principle: null
+          reasoning: Custom code judges exemplify plugin extensibility while keeping the core minimal.

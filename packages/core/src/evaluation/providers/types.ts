@@ -16,6 +16,7 @@ export type ProviderKind =
   | 'gemini'
   | 'codex'
   | 'pi-coding-agent'
+  | 'pi-agent-sdk'
   | 'claude-code'
   | 'cli'
   | 'mock'
@@ -44,6 +45,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'gemini',
   'codex',
   'pi-coding-agent',
+  'pi-agent-sdk',
   'claude-code',
   'cli',
   'mock',

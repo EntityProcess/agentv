@@ -1,0 +1,273 @@
+# AgentV Static Trace File Demo
+# Demonstrates how to evaluate a pre-existing static trace file.
+#
+# This is useful when you have captured traces from production or other systems
+# and want to run AgentV evaluators against them offline.
+#
+# Setup:
+#   1. Create examples/features/.env with:
+#      TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/tool-trajectory-full
+#   2. Run: cd examples/features && npx agentv eval tool-trajectory-full/evals/trace-file-demo.yaml --target static_trace
+
+description: Static trace file evaluation demo - Product Research Agent
+
+# Use static_trace target that reads from a file
+execution:
+  target: static_trace
+
+evalcases:
+  # =============================================================================
+  # Example 1: In-Order Validation
+  # Use case: Ensure tools are called in the expected sequence (allows gaps)
+  # The trace contains: webSearch -> fetchPage -> webSearch -> summarize
+  # Expected score: 1.0 (webSearch before fetchPage is satisfied)
+  # =============================================================================
+  - id: in-order-validation
+    description: |-
+      Validates that the agent performs web search before fetching page details.
+      Mode 'in_order' allows other tool calls between expected tools.
+
+    expected_outcome: |-
+      Agent searches for product information, then fetches detailed specs.
+
+    # Input messages are ignored by the static trace provider but required by schema
+    input_messages:
+      - role: user
+        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
+
+    execution:
+      evaluators:
+        - name: search-then-fetch
+          type: tool_trajectory
+          mode: in_order
+          expected:
+            - tool: webSearch
+            - tool: fetchPage
+
+  # =============================================================================
+  # Example 2: Exact Sequence Validation
+  # Use case: Validate the complete tool sequence with no gaps
+  # Expected score: 1.0 (matches full trace exactly)
+  # =============================================================================
+  - id: exact-sequence-validation
+    description: |-
+      Validates the exact sequence of all tool calls in the trace.
+      Mode 'exact' requires the trace to match precisely.
+
+    expected_outcome: |-
+      Agent follows the exact research workflow: search, fetch, search reviews, summarize.
+
+    input_messages:
+      - role: user
+        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
+
+    execution:
+      evaluators:
+        - name: exact-workflow
+          type: tool_trajectory
+          mode: exact
+          expected:
+            - tool: webSearch
+            - tool: fetchPage
+            - tool: webSearch
+            - tool: summarize
+
+  # =============================================================================
+  # Example 3: Any-Order with Minimums
+  # Use case: Ensure minimum tool usage regardless of order
+  # Expected score: 1.0 (meets all minimums)
+  # =============================================================================
+  - id: any-order-with-minimums
+    description: |-
+      Validates that the agent performs adequate research by checking minimum
+      tool call counts. Mode 'any_order' with minimums is flexible on sequence.
+
+    expected_outcome: |-
+      Agent performs at least 2 web searches and 1 page fetch for thorough research.
+
+    input_messages:
+      - role: user
+        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
+
+    execution:
+      evaluators:
+        - name: research-depth
+          type: tool_trajectory
+          mode: any_order
+          minimums:
+            webSearch: 2
+            fetchPage: 1
+
+  # =============================================================================
+  # Example 4: Tool Input Validation
+  # Use case: Verify tools are called with correct parameters
+  # Expected score: 1.0 (inputs match expected patterns)
+  # =============================================================================
+  - id: tool-input-validation
+    description: |-
+      Validates that tool calls include appropriate input parameters.
+      Useful for ensuring the agent provides correct context to tools.
+
+    expected_outcome: |-
+      Agent searches with relevant product keywords and fetches from authoritative source.
+
+    input_messages:
+      - role: user
+        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
+
+    execution:
+      evaluators:
+        - name: input-validator
+          type: tool_trajectory
+          mode: in_order
+          expected:
+            - tool: webSearch
+              input:
+                query: "ThinkPad X1 Carbon Gen 11 specifications"
+            - tool: fetchPage
+              input:
+                url: "https://www.lenovo.com/thinkpad-x1-carbon-gen11"
+
+  # =============================================================================
+  # Example 5: Tool Output Validation
+  # Use case: Verify tools return expected data structures
+  # Expected score: 1.0 (outputs contain expected fields)
+  # =============================================================================
+  - id: tool-output-validation
+    description: |-
+      Validates that tool outputs contain expected data.
+      Useful for regression testing when tool behavior changes.
+
+    expected_outcome: |-
+      Web search returns results with links and snippets; fetch returns product specs.
+
+    input_messages:
+      - role: user
+        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
+
+    execution:
+      evaluators:
+        - name: output-validator
+          type: tool_trajectory
+          mode: in_order
+          expected:
+            - tool: webSearch
+              output:
+                results:
+                  - link: "https://www.lenovo.com/thinkpad-x1-carbon-gen11"
+                    snippet: "14-inch business ultrabook with Intel Core processors"
+            - tool: fetchPage
+              output:
+                title: "ThinkPad X1 Carbon Gen 11 | Premium Business Laptop"
+
+  # =============================================================================
+  # Example 6: Combined Validation (Real-World Pattern)
+  # Use case: Production-grade evaluation combining multiple checks
+  # This mirrors patterns used in complex agent pipelines
+  # =============================================================================
+  - id: combined-validation
+    description: |-
+      Production-style evaluation combining sequence validation with input/output
+      checks. Demonstrates a realistic multi-turn agent workflow.
+
+    expected_outcome: |-
+      Agent performs comprehensive product research:
+      1. Initial web search for product specs
+      2. Fetches detailed information from manufacturer
+      3. Searches for user reviews
+      4. Summarizes findings with recommendation
+
+    input_messages:
+      - role: user
+        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
+
+    # Expected messages show the full agent conversation pattern
+    # (Similar to golden dataset format for reference)
+    expected_messages:
+      # Step 1: Initial product search
+      - name: ProductResearchAgent
+        role: assistant
+        tool_calls:
+          - tool: webSearch
+            input:
+              query: "ThinkPad X1 Carbon Gen 11 specifications"
+              num: 5
+            output:
+              results:
+                - link: "https://www.lenovo.com/thinkpad-x1-carbon-gen11"
+                  title: "ThinkPad X1 Carbon Gen 11 | Lenovo US"
+                  snippet: "14-inch business ultrabook with Intel Core processors"
+                - link: "https://www.notebookcheck.net/ThinkPad-X1-Carbon-review"
+                  title: "Lenovo ThinkPad X1 Carbon Gen 11 Review"
+                  snippet: "Premium build quality with excellent keyboard..."
+
+      # Step 2: Fetch detailed specs
+      - name: ProductResearchAgent
+        role: assistant
+        tool_calls:
+          - tool: fetchPage
+            input:
+              url: "https://www.lenovo.com/thinkpad-x1-carbon-gen11"
+            output:
+              title: "ThinkPad X1 Carbon Gen 11 | Premium Business Laptop"
+              text: |
+                Display: 14" 2.8K OLED or 14" 2K IPS
+                Processor: Up to Intel Core i7-1365U
+                Memory: Up to 64GB LPDDR5
+                Storage: Up to 2TB PCIe Gen 4 SSD
+                Weight: Starting at 2.48 lbs (1.12 kg)
+                Battery: Up to 15 hours
+
+      # Step 3: Search for reviews
+      - name: ProductResearchAgent
+        role: assistant
+        tool_calls:
+          - tool: webSearch
+            input:
+              query: "ThinkPad X1 Carbon Gen 11 user reviews pros cons"
+              num: 3
+            output:
+              results:
+                - link: "https://www.reddit.com/r/thinkpad/comments/x1carbon11"
+                  title: "X1 Carbon Gen 11 - 6 months later"
+                  snippet: "Still loving it. Battery life and keyboard are stellar..."
+
+      # Step 4: Final summary
+      - name: ProductResearchAgent
+        role: assistant
+        content:
+          recommendation: "Highly Recommended"
+          summary: |-
+            The ThinkPad X1 Carbon Gen 11 is an excellent choice for business professionals
+            seeking a lightweight, powerful ultrabook. Key strengths include the legendary
+            ThinkPad keyboard, premium OLED display option, and strong battery life.
+          pros:
+            - "Exceptional keyboard quality"
+            - "Lightweight at 2.48 lbs"
+            - "Bright OLED display option"
+            - "Strong battery life (up to 15 hours)"
+          cons:
+            - "Premium pricing"
+            - "Limited port selection"
+            - "No discrete GPU option"
+          confidence: "High"
+
+    execution:
+      evaluators:
+        # Validate the research workflow sequence
+        - name: workflow-validator
+          type: tool_trajectory
+          mode: exact
+          expected:
+            - tool: webSearch
+            - tool: fetchPage
+            - tool: webSearch
+            - tool: summarize
+
+        # Ensure adequate research depth
+        - name: research-depth
+          type: tool_trajectory
+          mode: any_order
+          minimums:
+            webSearch: 2
+            fetchPage: 1

@@ -1,10 +1,8 @@
 {
-  "name": "@agentv-examples/code-judge-sdk",
-  "version": "0.0.2",
-  "description": "Code Judge SDK example for AgentV",
+  "name": "agentv-example-code-judge-sdk",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@agentv/core": "workspace:*"
+    "@agentv/eval": "file:../../../packages/eval"
   }
 }

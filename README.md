@@ -59,6 +59,14 @@ bun run build
 bun test
 ```
 
+5. (Optional) Install example dependencies:
+
+```bash
+bun run examples:install
+```
+
+This step is required if you want to run the examples in the `examples/` directory, as they are self-contained packages with their own dependencies.
+
 You are now ready to start development. The monorepo contains:
 
 - `packages/core/` - Core evaluation engine
@@ -77,9 +85,8 @@ You are now ready to start development. The monorepo contains:
 
 ## Quick Start
 
-You can use the following examples as a starting point.
-- [Simple Example](docs/examples/simple/README.md): A minimal working example to help you get started fast.
-- [Showcase](docs/examples/showcase/README.md): A collection of advanced use cases and real-world agent evaluation scenarios.
+You can use the following examples as a starting point:
+- [Examples](examples/README.md): Feature demonstrations and real-world showcase examples
 
 ### Validating Eval Files
 
@@ -373,7 +380,7 @@ agentv generate rubrics evals/my-eval.yaml --target openai:gpt-4o
   - `borderline`: Score ≥ 0.6 and all required rubrics met
   - `fail`: Score < 0.6 or any required rubric failed
 
-For complete examples and detailed patterns, see [examples/features/evals/rubric/](examples/features/evals/rubric/).
+For complete examples and detailed patterns, see [examples/features/rubric/](examples/features/rubric/).
 
 ## Advanced Configuration
 

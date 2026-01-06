@@ -1,0 +1,36 @@
+{
+  "name": "@agentv/eval",
+  "version": "0.1.0",
+  "description": "Evaluation SDK for AgentV - build custom code judges",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EntityProcess/agentv.git"
+  },
+  "homepage": "https://github.com/EntityProcess/agentv#readme",
+  "bugs": {
+    "url": "https://github.com/EntityProcess/agentv/issues"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "fix": "biome check --write .",
+    "test": "bun test"
+  },
+  "files": ["dist", "README.md"],
+  "dependencies": {
+    "zod": "^3.23.8"
+  }
+}

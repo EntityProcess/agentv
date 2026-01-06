@@ -1,35 +1,35 @@
-import fs from 'node:fs';
+#!/usr/bin/env bun
+/**
+ * Batch CLI Output Evaluator - Code Judge
+ *
+ * Validates that the batch CLI runner produces the expected decision
+ * by comparing candidate output against expected_messages or input_messages.
+ */
+import { defineCodeJudge } from '@agentv/eval';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-type EvalInput = {
-  readonly input_messages?: unknown;
-  readonly expected_messages?: unknown;
-  readonly candidate_answer?: unknown;
-};
-
-function findExpectedDecisionFromExpectedMessages(expectedMessages: unknown): string | undefined {
-  if (!Array.isArray(expectedMessages)) return undefined;
-
+function findExpectedDecisionFromExpectedMessages(
+  expectedMessages: readonly Record<string, unknown>[],
+): string | undefined {
   for (const msg of expectedMessages) {
     if (!isObject(msg)) continue;
-    const content = (msg as Record<string, unknown>).content;
+    const content = msg.content;
     if (!isObject(content)) continue;
 
-    const decision = (content as Record<string, unknown>).decision;
+    const decision = content.decision;
     if (typeof decision === 'string' && decision.trim().length > 0) {
       return decision.trim();
     }
   }
-
   return undefined;
 }
 
-function findExpectedDecision(inputMessages: unknown): string | undefined {
-  if (!Array.isArray(inputMessages)) return undefined;
-
+function findExpectedDecisionFromInputMessages(
+  inputMessages: readonly Record<string, unknown>[],
+): string | undefined {
   for (const msg of inputMessages) {
     if (!isObject(msg)) continue;
     if (msg.role !== 'user') continue;
@@ -44,25 +44,17 @@ function findExpectedDecision(inputMessages: unknown): string | undefined {
       return decision.trim();
     }
   }
-
   return undefined;
 }
 
-function main(): void {
-  const stdin = fs.readFileSync(0, 'utf8');
-  const input = JSON.parse(stdin) as EvalInput;
-
-  const expectedMessages = input.expected_messages;
-  const inputMessages = input.input_messages;
+export default defineCodeJudge(({ expectedMessages, inputMessages, candidateAnswer }) => {
   const expectedDecision =
     findExpectedDecisionFromExpectedMessages(expectedMessages) ??
-    findExpectedDecision(inputMessages);
-  const rawCandidate = input.candidate_answer;
-  const candidate = typeof rawCandidate === 'string' ? rawCandidate : '';
+    findExpectedDecisionFromInputMessages(inputMessages);
 
   let candidateObj: unknown;
   try {
-    candidateObj = JSON.parse(candidate);
+    candidateObj = JSON.parse(candidateAnswer);
   } catch {
     candidateObj = undefined;
   }
@@ -98,18 +90,12 @@ function main(): void {
     );
   }
 
-  const score = ok ? 1 : 0;
-
-  process.stdout.write(
-    JSON.stringify({
-      score,
-      hits,
-      misses,
-      reasoning: ok
-        ? 'Batch runner decision matches the expected decision.'
-        : 'Batch runner decision did not match expected decision.',
-    }),
-  );
-}
-
-main();
+  return {
+    score: ok ? 1 : 0,
+    hits,
+    misses,
+    reasoning: ok
+      ? 'Batch runner decision matches the expected decision.'
+      : 'Batch runner decision did not match expected decision.',
+  };
+});

@@ -14,10 +14,7 @@
   "bin": {
     "agentv": "./dist/cli.js"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "build": "tsup && bun run copy-readme",
@@ -32,6 +29,8 @@
   },
   "dependencies": {
     "@agentv/core": "workspace:*",
+    "@mariozechner/pi-agent": "^0.9.0",
+    "@mariozechner/pi-ai": "^0.37.2",
     "cmd-ts": "^0.14.3",
     "dotenv": "^16.4.5",
     "fast-glob": "^3.3.3",
