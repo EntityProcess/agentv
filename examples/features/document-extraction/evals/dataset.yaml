@@ -108,7 +108,7 @@ evalcases:
   # ============================================
   - id: invoice-001
     conversation_id: document-extraction
-    outcome: |
+    expected_outcome: |
       Extractor produces clean data matching expected ground truth.
       Mock extractor rounds supplier name from "Acme - Shipping" to "Acme Shipping" in HTML.
       All numeric values rounded to integers (1889 not 1889.00).
@@ -193,7 +193,7 @@ evalcases:
   # ============================================
   - id: invoice-002
     conversation_id: document-extraction
-    outcome: |
+    expected_outcome: |
       ACTUAL EXTRACTOR OUTPUT: supplier.name = "Acme - Shipping" (preserves document punctuation)
       EXPECTED GROUND TRUTH: supplier.name = "Acme Shipping" (normalized)
 
@@ -252,7 +252,7 @@ evalcases:
   # ============================================
   - id: invoice-003
     conversation_id: document-extraction
-    outcome: |
+    expected_outcome: |
       ACTUAL EXTRACTOR OUTPUT: net_total = 1889.5, gross_total = 1889.5
       EXPECTED GROUND TRUTH: net_total = 1889, gross_total = 1889
       
@@ -284,7 +284,7 @@ evalcases:
   # ============================================
   - id: invoice-004
     conversation_id: document-extraction
-    outcome: |
+    expected_outcome: |
       ACTUAL EXTRACTOR OUTPUT: invoice_number = undefined (field missing in fixture)
       EXPECTED GROUND TRUTH: invoice_number = "INV-2025-001234"
 
@@ -316,7 +316,7 @@ evalcases:
   # ============================================
   - id: invoice-005
     conversation_id: document-extraction
-    outcome: |
+    expected_outcome: |
       Extractor correctly extracts first two line items with proper array structure.
       Field paths like line_items[0].description should resolve correctly.
     evaluators:
