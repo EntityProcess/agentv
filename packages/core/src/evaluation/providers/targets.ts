@@ -449,6 +449,14 @@ export interface PiCodingAgentResolvedConfig {
   readonly systemPrompt?: string;
 }
 
+export interface PiAgentSdkResolvedConfig {
+  readonly provider?: string;
+  readonly model?: string;
+  readonly apiKey?: string;
+  readonly timeoutMs?: number;
+  readonly systemPrompt?: string;
+}
+
 export interface ClaudeCodeResolvedConfig {
   readonly executable: string;
   readonly model?: string;
@@ -524,6 +532,14 @@ export type ResolvedTarget =
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: PiCodingAgentResolvedConfig;
+    }
+  | {
+      readonly kind: 'pi-agent-sdk';
+      readonly name: string;
+      readonly judgeTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: PiAgentSdkResolvedConfig;
     }
   | {
       readonly kind: 'claude-code';
@@ -686,6 +702,15 @@ export function resolveTargetDefinition(
         workers: parsed.workers,
         providerBatching,
         config: resolvePiCodingAgentConfig(parsed, env),
+      };
+    case 'pi-agent-sdk':
+      return {
+        kind: 'pi-agent-sdk',
+        name: parsed.name,
+        judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolvePiAgentSdkConfig(parsed, env),
       };
     case 'claude-code':
       return {
@@ -967,6 +992,52 @@ function resolvePiCodingAgentConfig(
     timeoutMs,
     logDir,
     logFormat,
+    systemPrompt,
+  };
+}
+
+function resolvePiAgentSdkConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): PiAgentSdkResolvedConfig {
+  const providerSource = target.pi_provider ?? target.piProvider ?? target.llm_provider;
+  const modelSource = target.model ?? target.pi_model ?? target.piModel;
+  const apiKeySource = target.api_key ?? target.apiKey;
+  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
+  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
+
+  const provider = resolveOptionalString(
+    providerSource,
+    env,
+    `${target.name} pi-agent-sdk provider`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
+
+  const model = resolveOptionalString(modelSource, env, `${target.name} pi-agent-sdk model`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const apiKey = resolveOptionalString(apiKeySource, env, `${target.name} pi-agent-sdk api key`, {
+    allowLiteral: false,
+    optionalEnv: true,
+  });
+
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} pi-agent-sdk timeout`);
+
+  const systemPrompt =
+    typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
+      ? systemPromptSource.trim()
+      : undefined;
+
+  return {
+    provider,
+    model,
+    apiKey,
+    timeoutMs,
     systemPrompt,
   };
 }
