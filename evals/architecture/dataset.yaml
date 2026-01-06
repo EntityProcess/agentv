@@ -2,15 +2,11 @@ description: Evaluates whether proposed changes follow AGENTS.md design principl
 
 execution:
   target: default
-  evaluators:
-    - name: design_principles_judge
-      type: llm_judge
-      prompt: ./design-principles-judge.md
 
 evalcases:
   - id: violates-lightweight-core
     expected_outcome: |
-      The proposed change violates "Lightweight Core, Plugin Extensibility" principle.
+      The proposed change violates the "Lightweight Core, Plugin Extensibility" principle.
 
     input_messages:
       - role: user
@@ -33,10 +29,11 @@ evalcases:
         content: |
           follows_principles: false
           violated_principle: Lightweight Core, Plugin Extensibility
+          reasoning: Complex reporting features belong in plugins, not the core package.
 
   - id: violates-ai-first-design
     expected_outcome: |
-      The proposed change violates "AI-First Design" principle.
+      The proposed change violates the "AI-First Design" principle.
 
     input_messages:
       - role: user
@@ -63,10 +60,11 @@ evalcases:
         content: |
           follows_principles: false
           violated_principle: AI-First Design
+          reasoning: Rigid step-by-step instructions constrain AI reasoning; skills should teach concepts and let AI compose flexibly.
 
   - id: follows-principles
     expected_outcome: |
-      The proposed change follows design principles correctly.
+      The proposed change follows the design principles.
 
     input_messages:
       - role: user
@@ -89,3 +87,4 @@ evalcases:
         content: |
           follows_principles: true
           violated_principle: null
+          reasoning: Custom code judges exemplify plugin extensibility while keeping the core minimal.
