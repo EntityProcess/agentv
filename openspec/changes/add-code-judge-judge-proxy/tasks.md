@@ -16,7 +16,7 @@
 
 ## 3. SDK: @agentv/eval
 
-- [x] 3.1 Add `createJudgeProxyClientFromEnv()` (or `useJudgeProvider()` implemented via proxy env vars)
+- [x] 3.1 Add `createJudgeProxyClient()` (reads proxy URL/token from env vars)
 - [x] 3.2 Expose a minimal API for scripts: `invoke({ systemPrompt, question })` and optional `invokeBatch([...])`
 - [x] 3.3 Add unit tests for env parsing + error cases
 

@@ -71,10 +71,10 @@ evaluators:
 ## Usage in Code
 
 ```typescript
-import { createJudgeProxyClientFromEnv, defineCodeJudge } from '@agentv/eval';
+import { createJudgeProxyClient, defineCodeJudge } from '@agentv/eval';
 
 export default defineCodeJudge(async ({ question, config }) => {
-  const judge = createJudgeProxyClientFromEnv();
+  const judge = createJudgeProxyClient();
   const retrievalContext = config?.retrieval_context ?? [];
 
   // Batch evaluation of all nodes
@@ -95,7 +95,7 @@ When `judge` is configured, these environment variables are automatically set:
 - `AGENTV_JUDGE_PROXY_URL` - Local proxy URL (e.g., `http://127.0.0.1:45123`)
 - `AGENTV_JUDGE_PROXY_TOKEN` - Bearer token for authentication
 
-The `createJudgeProxyClientFromEnv()` function reads these automatically.
+The `createJudgeProxyClient()` function reads these automatically.
 
 ## Running
 

@@ -79,10 +79,10 @@ export class JudgeInvocationError extends Error {
  *
  * @example
  * ```typescript
- * import { createJudgeProxyClientFromEnv, defineCodeJudge } from '@agentv/eval';
+ * import { createJudgeProxyClient, defineCodeJudge } from '@agentv/eval';
  *
  * export default defineCodeJudge(async ({ question, expectedOutcome }) => {
- *   const judge = createJudgeProxyClientFromEnv();
+ *   const judge = createJudgeProxyClient();
  *
  *   if (!judge) {
  *     // Judge proxy not available - no judge config on this evaluator
@@ -99,7 +99,7 @@ export class JudgeInvocationError extends Error {
  * });
  * ```
  */
-export function createJudgeProxyClientFromEnv(): JudgeProxyClient | undefined {
+export function createJudgeProxyClient(): JudgeProxyClient | undefined {
   const proxyUrl = process.env.AGENTV_JUDGE_PROXY_URL;
   const proxyToken = process.env.AGENTV_JUDGE_PROXY_TOKEN;
 
@@ -113,14 +113,14 @@ export function createJudgeProxyClientFromEnv(): JudgeProxyClient | undefined {
     );
   }
 
-  return createJudgeProxyClient(proxyUrl, proxyToken);
+  return createJudgeProxyClientInternal(proxyUrl, proxyToken);
 }
 
 /**
- * Create a judge proxy client with explicit URL and token.
- * Prefer using createJudgeProxyClientFromEnv() instead.
+ * Internal: Create a judge proxy client with explicit URL and token.
+ * Exported for testing only - use createJudgeProxyClient() in production.
  */
-export function createJudgeProxyClient(url: string, token: string): JudgeProxyClient {
+export function createJudgeProxyClientInternal(url: string, token: string): JudgeProxyClient {
   const headers = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,

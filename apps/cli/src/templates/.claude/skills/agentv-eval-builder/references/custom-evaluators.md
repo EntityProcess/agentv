@@ -287,10 +287,10 @@ evaluators:
 
 ```typescript
 #!/usr/bin/env bun
-import { createJudgeProxyClientFromEnv, defineCodeJudge } from '@agentv/eval';
+import { createJudgeProxyClient, defineCodeJudge } from '@agentv/eval';
 
 export default defineCodeJudge(async ({ question, candidateAnswer }) => {
-  const judge = createJudgeProxyClientFromEnv();
+  const judge = createJudgeProxyClient();
 
   if (!judge) {
     // Proxy not available - likely missing `judge` config
@@ -316,12 +316,12 @@ export default defineCodeJudge(async ({ question, candidateAnswer }) => {
 
 ```typescript
 #!/usr/bin/env bun
-import { createJudgeProxyClientFromEnv, defineCodeJudge } from '@agentv/eval';
+import { createJudgeProxyClient, defineCodeJudge } from '@agentv/eval';
 
 // Contextual Precision: evaluates retrieval ranking quality
 // Retrieval context is extracted from expected_messages.tool_calls
 export default defineCodeJudge(async ({ question, expectedMessages }) => {
-  const judge = createJudgeProxyClientFromEnv();
+  const judge = createJudgeProxyClient();
 
   // Extract retrieval results from expected tool calls
   const retrievalContext: string[] = [];

@@ -18,10 +18,10 @@
  * @example Code judge with judge proxy (requires `judge` config in YAML)
  * ```typescript
  * #!/usr/bin/env bun
- * import { defineCodeJudge, createJudgeProxyClientFromEnv } from '@agentv/eval';
+ * import { defineCodeJudge, createJudgeProxyClient } from '@agentv/eval';
  *
  * export default defineCodeJudge(async ({ question }) => {
- *   const judge = createJudgeProxyClientFromEnv();
+ *   const judge = createJudgeProxyClient();
  *   if (!judge) {
  *     return { score: 0, misses: ['Judge proxy not available'] };
  *   }
@@ -57,7 +57,6 @@ export {
 
 // Re-export judge proxy client
 export {
-  createJudgeProxyClientFromEnv,
   createJudgeProxyClient,
   JudgeProxyNotAvailableError,
   JudgeInvocationError,

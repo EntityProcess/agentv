@@ -16,7 +16,7 @@
  * where N >= number of retrieval context nodes to evaluate.
  */
 import {
-  createJudgeProxyClientFromEnv,
+  createJudgeProxyClient,
   defineCodeJudge,
 } from '@agentv/eval';
 
@@ -83,7 +83,7 @@ export default defineCodeJudge(async (input) => {
     };
   }
 
-  const judge = createJudgeProxyClientFromEnv();
+  const judge = createJudgeProxyClient();
 
   if (!judge) {
     return {
