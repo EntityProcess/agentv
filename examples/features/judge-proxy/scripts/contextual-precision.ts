@@ -2,30 +2,47 @@
 /**
  * Contextual Precision Evaluator
  *
- * This code judge uses the judge proxy to evaluate contextual precision -
- * whether the agent's response is relevant to the original question.
+ * Implements the Contextual Precision metric for RAG systems.
+ * This metric evaluates whether relevant retrieval nodes are ranked higher
+ * than irrelevant ones, rewarding retrievers that surface relevant content first.
  *
- * Requires `judge: { max_calls: 10 }` in the evaluator YAML config.
+ * Formula: (1/R) * Σ(Precision@k * r_k) for k=1 to n
+ * where R = total relevant nodes, r_k = binary relevance at position k
  *
- * The proxy allows code judges to make LLM calls without direct API access.
+ * Requires `judge: { max_calls: N }` in the evaluator YAML config,
+ * where N >= number of retrieval context nodes to evaluate.
  */
-// NOTE: In a real project, use: import { ... } from '@agentv/eval';
-// This example uses a relative path for testing within the monorepo.
-import {
-  createJudgeProxyClientFromEnv,
-  defineCodeJudge,
-} from '../../../../packages/eval/src/index.js';
+import { createJudgeProxyClientFromEnv, defineCodeJudge } from '@agentv/eval';
 
 interface RelevanceResult {
   relevant: boolean;
   reasoning: string;
 }
 
-export default defineCodeJudge(async ({ question, candidateAnswer, expectedOutcome }) => {
+interface ContextualPrecisionInput {
+  question: string;
+  expectedOutcome?: string;
+  config?: {
+    retrieval_context?: string[];
+  };
+}
+
+export default defineCodeJudge(async (input: ContextualPrecisionInput) => {
+  const { question, expectedOutcome, config } = input;
+  const retrievalContext = config?.retrieval_context ?? [];
+
+  if (retrievalContext.length === 0) {
+    return {
+      score: 0,
+      hits: [],
+      misses: ['No retrieval_context provided in config'],
+      reasoning: 'Contextual Precision requires retrieval_context array in config',
+    };
+  }
+
   const judge = createJudgeProxyClientFromEnv();
 
   if (!judge) {
-    // Proxy not available - likely missing `judge` config in YAML
     return {
       score: 0,
       hits: [],
@@ -34,49 +51,100 @@ export default defineCodeJudge(async ({ question, candidateAnswer, expectedOutco
     };
   }
 
-  // Use the judge to evaluate relevance
-  const response = await judge.invoke({
-    question: `Evaluate if this response is contextually relevant to the question.
+  // Step 1: Use batch invocation to determine relevance of each node
+  const requests = retrievalContext.map((node, index) => ({
+    question: `Determine if this retrieved context node is relevant to answering the question.
 
 Question: ${question}
-Expected outcome: ${expectedOutcome}
-Response: ${candidateAnswer}
+${expectedOutcome ? `Expected Answer: ${expectedOutcome}` : ''}
 
-Respond with JSON only:
+Retrieved Node (Rank ${index + 1}):
+${node}
+
+Is this node relevant to answering the question? Respond with JSON only:
 {
-  "relevant": true/false,
+  "relevant": true or false,
   "reasoning": "brief explanation"
 }`,
     systemPrompt:
-      'You are a precise evaluator. Assess if the response addresses the question contextually. Output valid JSON only.',
-  });
+      'You are a precise relevance evaluator for RAG systems. Determine if a retrieved node contains information useful for answering the given question. Output valid JSON only.',
+  }));
 
-  // Parse the judge response
-  const rawText = response.rawText ?? '';
-  let result: RelevanceResult;
+  const responses = await judge.invokeBatch(requests);
 
-  try {
-    // Try to extract JSON from the response
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in response');
+  // Step 2: Parse relevance scores for each node
+  const relevanceScores: boolean[] = [];
+  const nodeResults: Array<{ rank: number; relevant: boolean; reasoning: string }> = [];
+
+  for (let i = 0; i < responses.length; i++) {
+    const rawText = responses[i].rawText ?? '';
+    let result: RelevanceResult = { relevant: false, reasoning: 'Failed to parse' };
+
+    try {
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0]) as RelevanceResult;
+      }
+    } catch {
+      // Keep default false
     }
-    result = JSON.parse(jsonMatch[0]) as RelevanceResult;
-  } catch (error) {
+
+    relevanceScores.push(result.relevant);
+    nodeResults.push({
+      rank: i + 1,
+      relevant: result.relevant,
+      reasoning: result.reasoning,
+    });
+  }
+
+  // Step 3: Calculate Contextual Precision score
+  const totalRelevant = relevanceScores.filter(Boolean).length;
+
+  if (totalRelevant === 0) {
     return {
-      score: 0.5,
+      score: 0,
       hits: [],
-      misses: ['Could not parse judge response'],
-      reasoning: `Parse error: ${error instanceof Error ? error.message : String(error)}. Raw: ${rawText.slice(0, 200)}`,
+      misses: ['No relevant nodes found in retrieval context'],
+      reasoning: `Evaluated ${retrievalContext.length} nodes, none were relevant to the question.`,
     };
   }
 
-  const score = result.relevant ? 1.0 : 0.0;
+  // Weighted precision: sum of (precision@k) for each relevant position
+  let weightedPrecisionSum = 0;
+  let relevantFoundSoFar = 0;
+
+  for (let k = 0; k < relevanceScores.length; k++) {
+    if (relevanceScores[k]) {
+      relevantFoundSoFar++;
+      const precisionAtK = relevantFoundSoFar / (k + 1);
+      weightedPrecisionSum += precisionAtK;
+    }
+  }
+
+  const score = weightedPrecisionSum / totalRelevant;
+
+  // Build detailed hits/misses
+  const hits: string[] = [];
+  const misses: string[] = [];
+
+  for (const node of nodeResults) {
+    if (node.relevant) {
+      hits.push(`Node ${node.rank}: relevant - ${node.reasoning}`);
+    } else {
+      misses.push(`Node ${node.rank}: irrelevant - ${node.reasoning}`);
+    }
+  }
+
+  // Perfect score = 1.0 means all relevant nodes are ranked before irrelevant ones
+  const isPerfect = score === 1.0;
+  const reasoning = isPerfect
+    ? `Perfect precision: all ${totalRelevant} relevant nodes ranked optimally.`
+    : `${totalRelevant}/${retrievalContext.length} nodes relevant. Score penalized because relevant nodes are not all ranked first.`;
 
   return {
     score,
-    hits: result.relevant ? ['Response is contextually relevant'] : [],
-    misses: result.relevant ? [] : ['Response lacks contextual relevance'],
-    reasoning: result.reasoning,
+    hits,
+    misses,
+    reasoning,
   };
 });

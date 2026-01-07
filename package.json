@@ -30,6 +30,7 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@changesets/cli": "^2.29.8",
+    "@agentv/eval": "workspace:*",
     "@types/bun": "latest",
     "@types/node": "24.1.0",
     "async-mutex": "^0.5.0",

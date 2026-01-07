@@ -2,12 +2,43 @@
 
 This example demonstrates the **judge proxy** feature, which allows code judge evaluators to make LLM calls through a secure local proxy without needing direct API credentials.
 
-## Overview
+## Contextual Precision Metric
 
-The judge proxy enables sophisticated evaluation patterns like:
-- **Contextual precision** - Is the response relevant to the question?
-- **Semantic similarity** - Does the response match the expected meaning?
-- **Multi-step reasoning** - Break down complex evaluations into multiple LLM calls
+This example implements the **Contextual Precision** metric for RAG (Retrieval Augmented Generation) systems. This metric evaluates whether your retriever ranks relevant documents higher than irrelevant ones.
+
+### How It Works
+
+1. **Multiple Judge Calls**: For each retrieval node, the evaluator makes an LLM call to determine binary relevance (relevant=1, irrelevant=0)
+2. **Weighted Precision**: Calculates precision at each rank position, rewarding relevant nodes that appear earlier
+3. **Final Score**: Average of precision values at relevant positions
+
+### Formula
+
+```
+Contextual Precision = (1/R) × Σ(Precision@k × r_k) for k=1 to n
+
+where:
+- R = total number of relevant nodes
+- r_k = binary relevance at position k (1 if relevant, 0 otherwise)
+- Precision@k = (relevant nodes up to k) / k
+```
+
+### Example Calculation
+
+**Question**: "What is the capital of France?"
+**Retrieval Context**:
+1. "Paris is the capital and most populous city of France." (**Relevant**)
+2. "The Eiffel Tower was built in 1887." (**Irrelevant**)
+3. "Paris is often referred to as the City of Light." (**Relevant**)
+
+**Calculation**:
+- Node 1 (Relevant): Precision@1 = 1/1 = 1.0
+- Node 2 (Irrelevant): skipped
+- Node 3 (Relevant): Precision@3 = 2/3 = 0.667
+
+**Final Score** = (1/2) × (1.0 + 0.667) = **0.833**
+
+If both relevant nodes were ranked first (before the irrelevant one), the score would be 1.0.
 
 ## Security
 
@@ -19,22 +50,15 @@ The judge proxy is designed with security in mind:
 
 ## Configuration
 
-Enable judge proxy access by adding a `judge` block to your `code_judge` evaluator:
+Enable judge proxy access by adding a `judge` block to your `code` evaluator:
 
 ```yaml
 evaluators:
-  - name: contextual-precision
-    type: code_judge
-    script: bun scripts/contextual-precision.ts
-    # Enable with defaults (max_calls: 50)
-    judge: {}
-
-  # Or with custom settings
-  - name: custom-judge
-    type: code_judge
-    script: bun scripts/custom.ts
+  - name: contextual_precision
+    type: code
+    script: [bun, run, scripts/contextual-precision.ts]
     judge:
-      max_calls: 10  # Limit proxy calls
+      max_calls: 10  # At least N nodes to evaluate
 ```
 
 ## Usage in Code
@@ -42,20 +66,19 @@ evaluators:
 ```typescript
 import { createJudgeProxyClientFromEnv, defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(async ({ question, candidateAnswer }) => {
+export default defineCodeJudge(async ({ question, config }) => {
   const judge = createJudgeProxyClientFromEnv();
+  const retrievalContext = config?.retrieval_context ?? [];
 
-  if (!judge) {
-    return { score: 0, misses: ['Judge proxy not available'] };
-  }
-
-  const response = await judge.invoke({
-    question: `Is this relevant? ${candidateAnswer}`,
+  // Batch evaluation of all nodes
+  const requests = retrievalContext.map((node, i) => ({
+    question: `Is this node relevant to: ${question}\n\nNode: ${node}`,
     systemPrompt: 'Respond with JSON: { "relevant": true/false }'
-  });
+  }));
 
-  const result = JSON.parse(response.rawText ?? '{}');
-  return { score: result.relevant ? 1.0 : 0.0 };
+  const responses = await judge.invokeBatch(requests);
+
+  // Calculate weighted precision score...
 });
 ```
 
@@ -74,6 +97,7 @@ The `createJudgeProxyClientFromEnv()` function reads these automatically.
 bun run agentv eval examples/features/judge-proxy/evals/contextual-precision.yaml --target gemini_base
 ```
 
-The example eval file configures:
-- A `code_judge` evaluator with `judge: {}` to enable proxy access
-- The script runs from the monorepo root with access to `@agentv/eval`
+Expected output shows varying scores based on retrieval ranking:
+- **perfect-ranking**: ~1.0 (relevant nodes ranked first)
+- **buried-relevant-node**: ~0.833 (relevant node buried at rank 3)
+- **relevant-node-last**: ~0.333 (only relevant node is last)

@@ -1,41 +1,76 @@
-# Contextual Precision Evaluation
+# Contextual Precision Evaluator Example
 #
-# Demonstrates the judge proxy feature that allows code judges
-# to make LLM calls through a secure proxy.
+# Demonstrates the judge proxy feature with a real RAG metric.
+# The evaluator makes multiple judge calls (one per retrieval node)
+# to calculate weighted precision based on relevance ranking.
+#
+# Formula: (1/R) * Σ(Precision@k * r_k) for k=1 to n
+# where R = total relevant nodes, r_k = binary relevance at position k
 
 execution:
   evaluators:
-    - name: contextual-precision
-      type: code_judge
-      script: ["bun", "run", "examples/features/judge-proxy/scripts/contextual-precision.ts"]
-      cwd: /root/projects/agentv
-      # Enable judge proxy access with default max_calls (50)
-      judge: {}
+    - name: contextual_precision
+      type: code
+      script: [bun, run, ../scripts/contextual-precision.ts]
+      # Judge proxy config - allows script to make LLM calls
+      # max_calls should be >= number of retrieval context nodes
+      judge:
+        max_calls: 10
 
 evalcases:
-  - id: relevant-response
-    expected_outcome: The response should be contextually relevant to the question about the capital of France
+  # Test case 1: Perfect ranking - all relevant nodes first
+  # Node 1: Relevant, Node 2: Relevant, Node 3: Irrelevant
+  # Precision@1 = 1/1 = 1.0, Precision@2 = 2/2 = 1.0
+  # Score = (1/2) * (1.0 + 1.0) = 1.0 (perfect)
+  - id: perfect-ranking
+    question: What programming language is TypeScript based on?
+    expected_outcome: TypeScript is based on JavaScript
+    input_messages:
+      - role: user
+        content: What programming language is TypeScript based on?
+    expected_messages:
+      - role: assistant
+        content: TypeScript is a superset of JavaScript.
+    config:
+      retrieval_context:
+        - "TypeScript is a strongly typed programming language that builds on JavaScript."
+        - "TypeScript was developed by Microsoft and first released in 2012."
+        - "Python is a high-level programming language known for its readability."
+
+  # Test case 2: Imperfect ranking - relevant node buried behind irrelevant
+  # Node 1: Relevant (Paris is capital), Node 2: Irrelevant (Eiffel Tower), Node 3: Relevant (City of Light)
+  # Precision@1 = 1/1 = 1.0, Precision@3 = 2/3 = 0.667
+  # Score = (1/2) * (1.0 + 0.667) = 0.833
+  - id: buried-relevant-node
+    question: What is the capital of France?
+    expected_outcome: The capital of France is Paris.
     input_messages:
       - role: user
         content: What is the capital of France?
     expected_messages:
       - role: assistant
         content: Paris is the capital of France.
+    config:
+      retrieval_context:
+        - "Paris is the capital and most populous city of France."
+        - "The Eiffel Tower was built in 1887."
+        - "Paris is often referred to as the City of Light."
 
-  - id: irrelevant-response
-    expected_outcome: The response should be contextually relevant to the question about the capital of France
+  # Test case 3: Worst case - only relevant node is last
+  # Node 1: Irrelevant, Node 2: Irrelevant, Node 3: Relevant
+  # Precision@3 = 1/3 = 0.333
+  # Score = (1/1) * 0.333 = 0.333
+  - id: relevant-node-last
+    question: What color is the sky?
+    expected_outcome: The sky is blue
     input_messages:
       - role: user
-        content: What is the capital of France?
+        content: What color is the sky?
     expected_messages:
       - role: assistant
-        content: I like pizza. It's delicious.
-
-  - id: partial-relevance
-    expected_outcome: The response should explain how photosynthesis works in detail
-    input_messages:
-      - role: user
-        content: Explain how photosynthesis works
-    expected_messages:
-      - role: assistant
-        content: Plants use sunlight to make food. The process involves chlorophyll.
+        content: The sky appears blue during the day.
+    config:
+      retrieval_context:
+        - "Grass is typically green in color."
+        - "Roses can be red, pink, or white."
+        - "The sky appears blue due to Rayleigh scattering of sunlight."

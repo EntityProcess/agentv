@@ -10,6 +10,7 @@
         "subagent": "^0.5.6",
       },
       "devDependencies": {
+        "@agentv/eval": "workspace:*",
         "@biomejs/biome": "^1.9.4",
         "@changesets/cli": "^2.29.8",
         "@types/bun": "latest",
@@ -23,7 +24,7 @@
     },
     "apps/cli": {
       "name": "agentv",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "bin": {
         "agentv": "./dist/cli.js",
       },
@@ -43,7 +44,7 @@
     },
     "packages/core": {
       "name": "@agentv/core",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "dependencies": {
         "@ai-sdk/anthropic": "^2.0.53",
         "@ai-sdk/azure": "^2.0.78",
@@ -63,7 +64,7 @@
     },
     "packages/eval": {
       "name": "@agentv/eval",
-      "version": "0.1.0",
+      "version": "0.2.1",
       "dependencies": {
         "zod": "^3.23.8",
       },
