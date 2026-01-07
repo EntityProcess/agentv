@@ -50,7 +50,6 @@ export class CodeEvaluator implements Evaluator {
         (path) => !context.evalCase.guideline_paths.includes(path),
       ),
       inputMessages: context.evalCase.input_messages,
-      codeSnippets: context.evalCase.code_snippets,
       traceSummary: context.traceSummary ?? null,
       config: this.config ?? null,
     };

@@ -181,10 +181,6 @@ export async function buildPromptInputs(
       }
     }
 
-    if (testCase.code_snippets.length > 0) {
-      questionParts.push(testCase.code_snippets.join('\n'));
-    }
-
     question = questionParts
       .map((part) => part.trim())
       .filter((part) => part.length > 0)

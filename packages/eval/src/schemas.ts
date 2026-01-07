@@ -72,7 +72,6 @@ export const CodeJudgeInputSchema = z.object({
   guidelineFiles: z.array(z.string()),
   inputFiles: z.array(z.string()),
   inputMessages: z.array(TestMessageSchema),
-  codeSnippets: z.array(z.string()).optional().default([]),
   traceSummary: TraceSummarySchema.nullable().optional(),
   config: z.record(z.unknown()).nullable().optional(),
 });

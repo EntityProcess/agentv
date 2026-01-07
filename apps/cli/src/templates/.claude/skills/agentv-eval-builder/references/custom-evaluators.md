@@ -38,7 +38,6 @@ Wire format uses snake_case for cross-language compatibility:
       "tool_calls": [...]
     }
   ],
-  "code_snippets": ["extracted from code blocks in input_messages"],
   "trace_summary": {
     "event_count": 5,
     "tool_names": ["fetch", "search"],
@@ -55,7 +54,6 @@ Wire format uses snake_case for cross-language compatibility:
 - `expected_messages` - Expected agent behavior from YAML, including expected tool calls with outputs (use for retrieval context in RAG evals)
 - `output_messages` - Actual agent execution trace with tool calls (from live agent runs)
 - `trace_summary` - Lightweight summary with execution metrics (counts only, no tool arguments)
-- `code_snippets` - Auto-extracted code blocks from input_messages (for code validation)
 
 ### Output Format (to stdout)
 

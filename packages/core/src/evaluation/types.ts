@@ -335,7 +335,6 @@ export interface EvalCase {
   readonly guideline_paths: readonly string[];
   readonly guideline_patterns?: readonly string[];
   readonly file_paths: readonly string[];
-  readonly code_snippets: readonly string[];
   readonly expected_outcome: string;
   readonly evaluator?: EvaluatorKind;
   readonly evaluators?: readonly EvaluatorConfig[];
