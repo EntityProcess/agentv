@@ -1,6 +1,6 @@
 # Custom Evaluators Guide
 
-Guide for writing custom code evaluators and LLM judges for AgentV eval files.
+Templates and best practices for code evaluators and LLM judges. For YAML configuration, see `SKILL.md`.
 
 ## Code Evaluator Contract
 
@@ -71,176 +71,69 @@ Wire format uses snake_case for cross-language compatibility:
 
 ```python
 #!/usr/bin/env python3
-"""
-Example code evaluator for AgentV
-
-This evaluator checks for specific keywords in the output.
-Replace validation logic as needed.
-"""
-
 import json
 import sys
-from typing import Any
 
+def evaluate(data: dict) -> dict:
+    candidate = data.get("candidate_answer", "")
+    hits, misses = [], []
 
-def evaluate(input_data: dict[str, Any]) -> dict[str, Any]:
-    """
-    Evaluate the agent output.
-    
-    Args:
-        input_data: Full input context from AgentV
-    
-    Returns:
-        Evaluation result with score, hits, misses, reasoning
-    """
-    # Extract only the fields you need
-    # Most evaluators only need 'candidate_answer' - avoid using unnecessary fields
-    candidate_answer = input_data.get("candidate_answer", "")
-    
     # Your validation logic here
-    hits = []
-    misses = []
-    
-    # Example: Check for keywords
-    required_keywords = ["async", "await"]
-    for keyword in required_keywords:
-        if keyword in candidate_answer:
-            hits.append(f"Contains required keyword: {keyword}")
-        else:
-            misses.append(f"Missing required keyword: {keyword}")
-    
-    # Calculate score
-    if not required_keywords:
-        score = 1.0
-    else:
-        score = len(hits) / len(required_keywords)
-    
-    # Build result
+    keywords = ["async", "await"]
+    for kw in keywords:
+        (hits if kw in candidate else misses).append(f"Keyword '{kw}'")
+
     return {
-        "score": score,
+        "score": len(hits) / len(keywords) if keywords else 1.0,
         "hits": hits,
         "misses": misses,
-        "reasoning": f"Found {len(hits)}/{len(required_keywords)} required keywords"
+        "reasoning": f"Found {len(hits)}/{len(keywords)} keywords"
     }
 
-
-def main():
-    """Main entry point for AgentV code evaluator."""
-    try:
-        # Read input from stdin
-        input_data = json.loads(sys.stdin.read())
-        
-        # Run evaluation
-        result = evaluate(input_data)
-        
-        # Write result to stdout
-        print(json.dumps(result, indent=2))
-        
-    except Exception as e:
-        # Error handling: return zero score with error message
-        error_result = {
-            "score": 0.0,
-            "hits": [],
-            "misses": [f"Evaluator error: {str(e)}"],
-            "reasoning": f"Evaluator error: {str(e)}"
-        }
-        print(json.dumps(error_result, indent=2))
-        sys.exit(1)
-
-
 if __name__ == "__main__":
-    main()
+    try:
+        result = evaluate(json.loads(sys.stdin.read()))
+        print(json.dumps(result, indent=2))
+    except Exception as e:
+        print(json.dumps({"score": 0, "hits": [], "misses": [str(e)], "reasoning": "Error"}))
+        sys.exit(1)
 ```
 
-## TypeScript Code Evaluator Template (with SDK)
+## TypeScript Code Evaluator Template
 
-The optional `@agentv/core` SDK provides type-safe payload parsing with camelCase properties (`candidateAnswer` vs `candidate_answer`).
-
-**Execution:** Keep evaluators as `.ts` files and run via Node loaders like `npx --yes tsx ./evaluators/my-check.ts` so users don't need Bun after `npm install -g agentv`.
-
-**Without SDK:** Skip the import and parse JSON from stdin directly (similar to the Python template above).
+Run via `npx --yes tsx ./evaluator.ts`. The optional `@agentv/core` SDK provides type-safe camelCase payload parsing.
 
 ```typescript
-/**
- * Example TypeScript code evaluator using the AgentV SDK
- *
- * Run with: npx --yes tsx ./evaluators/example-check.ts
- *
- * The SDK provides:
- * - Type-safe CodeJudgePayload interface with all fields
- * - camelCase properties (candidateAnswer, expectedOutcome, etc.)
- * - Automatic conversion from snake_case wire format
- */
-
+// With SDK (recommended)
 import { readCodeJudgePayload } from '@agentv/core';
 
 try {
-  // Read and parse stdin with automatic snake_case → camelCase conversion
-  const payload = readCodeJudgePayload();
-
-  // Type-safe camelCase access to all fields
-  const { candidateAnswer, expectedOutcome, inputFiles, guidelineFiles } = payload;
-
-  // Your validation logic here
+  const { candidateAnswer, expectedOutcome } = readCodeJudgePayload();
   const hits: string[] = [];
   const misses: string[] = [];
 
-  // Example: Check if answer contains expected outcome
+  // Your validation logic here
   if (candidateAnswer.includes(expectedOutcome)) {
     hits.push('Answer matches expected outcome');
   } else {
     misses.push('Answer does not match expected outcome');
   }
 
-  // Example: Check attachment mentions
-  const attachments = [...guidelineFiles, ...inputFiles];
-  for (const filePath of attachments) {
-    const fileName = filePath.split('/').pop() ?? filePath;
-    if (candidateAnswer.includes(fileName)) {
-      hits.push(`Mentions attachment: ${fileName}`);
-    } else {
-      misses.push(`Missing attachment: ${fileName}`);
-    }
-  }
-
-  // Calculate score
-  const totalChecks = hits.length + misses.length;
-  const score = totalChecks === 0 ? 0 : hits.length / totalChecks;
-
-  // Build result
-  const result = {
-    score,
-    hits,
-    misses,
-    reasoning: `Passed ${hits.length}/${totalChecks} checks`
-  };
-
-  console.log(JSON.stringify(result, null, 2));
-
-} catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
+  const total = hits.length + misses.length;
   console.log(JSON.stringify({
-    score: 0,
-    hits: [],
-    misses: [`Error: ${message}`],
-    reasoning: 'Evaluator error'
+    score: total === 0 ? 0 : hits.length / total,
+    hits, misses,
+    reasoning: `Passed ${hits.length}/${total} checks`
   }, null, 2));
+} catch (e) {
+  console.log(JSON.stringify({ score: 0, hits: [], misses: [String(e)], reasoning: 'Error' }));
   process.exit(1);
 }
 ```
 
-**TypeScript SDK Benefits:**
-- **Type-safe**: `CodeJudgePayload` interface with all fields typed
-- **camelCase**: Idiomatic TypeScript naming (`candidateAnswer` vs `candidate_answer`)
-- **Automatic conversion**: Handles snake_case wire format → camelCase objects
-- **Compile-time safety**: Catch typos and missing fields before runtime
+**Without SDK:** Parse stdin JSON directly (see Python template).
 
-**Available in SDK:**
-- `readCodeJudgePayload()`: Read stdin and convert to camelCase (recommended)
-- `parseCodeJudgePayload(jsonString)`: Parse JSON string and convert to camelCase
-- `CodeJudgePayload`: TypeScript interface for type safety
-
-**See also:** `examples/features/code-judge-sdk/` for complete working examples
+**SDK exports:** `readCodeJudgePayload()`, `parseCodeJudgePayload(json)`, `CodeJudgePayload` type
 
 ## LLM Judge Prompt Template
 
@@ -298,56 +191,12 @@ You can customize this template in your eval file using the `evaluatorTemplate` 
 4. **Examples** - Show what good/bad looks like
 5. **Concise prompts** - Keep instructions focused
 
-## Running Code Evaluators
-
-### In Eval Files
-
-```yaml
-execution:
-  evaluators:
-    - name: my_validator
-      type: code_judge
-      script: uv run my_validator.py
-      cwd: ./evaluators
-```
-
-TypeScript evaluators use the same structure but invoke `tsx` (or another Node-compatible loader) so they work everywhere:
-
-```yaml
-execution:
-  evaluators:
-    - name: csv_guardrail
-      type: code_judge
-      script: npx --yes tsx ./evaluators/check-csv.ts
-      cwd: ./evaluators
-```
-
-### Command Line Testing
-
-Test your evaluator locally:
+## Testing Evaluators Locally
 
 ```bash
-# Create test input
-echo '{
-  "candidate_answer": "test output here",
-  "question": "test task",
-  "expected_outcome": "expected result"
-}' | uv run my_validator.py
+# Python
+echo '{"candidate_answer": "test", "question": "task", "expected_outcome": "result"}' | uv run my_validator.py
 
-# Should output:
-# {
-#   "score": 0.8,
-#   "hits": ["check 1 passed"],
-#   "misses": ["check 2 failed"],
-#   "reasoning": "..."
-# }
-```
-
-```bash
-# TypeScript (uses tsx loader under Node)
-echo '{
-  "candidate_answer": "test output here",
-  "question": "test task",
-  "expected_outcome": "expected result"
-}' | npx --yes tsx ./evaluators/check-csv.ts
+# TypeScript
+echo '{"candidate_answer": "test", "question": "task", "expected_outcome": "result"}' | npx --yes tsx ./check.ts
 ```

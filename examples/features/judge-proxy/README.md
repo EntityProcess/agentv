@@ -40,6 +40,13 @@ where:
 
 If both relevant nodes were ranked first (before the irrelevant one), the score would be 1.0.
 
+### Understanding the Output
+
+Results show `hits` (relevant nodes) and `misses` (irrelevant nodes) for transparency. However, **misses don't penalize the score** - only the ranking of relevant nodes matters.
+
+- If all relevant nodes are ranked first → score = 1.0 (even with irrelevant nodes after)
+- If relevant nodes are buried below irrelevant ones → score decreases proportionally
+
 ## Security
 
 The judge proxy is designed with security in mind:
