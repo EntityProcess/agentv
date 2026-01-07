@@ -14,6 +14,8 @@ import {
   LlmJudgeEvaluator,
   TokenUsageEvaluator,
   ToolTrajectoryEvaluator,
+  isNonEmptyString,
+  scoreToVerdict,
 } from './evaluators.js';
 import { readJsonFile, readTextFile } from './file-utils.js';
 import { createProvider } from './providers/index.js';
@@ -1231,20 +1233,6 @@ async function resolveCustomPrompt(config: {
     }
   }
   return config.prompt;
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-function scoreToVerdict(score: number): EvaluationVerdict {
-  if (score >= 0.8) {
-    return 'pass';
-  }
-  if (score >= 0.6) {
-    return 'borderline';
-  }
-  return 'fail';
 }
 
 function filterEvalCases(evalCases: readonly EvalCase[], evalId?: string): readonly EvalCase[] {
