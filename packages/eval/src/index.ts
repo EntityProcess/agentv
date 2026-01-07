@@ -3,7 +3,7 @@
  *
  * Build custom code judges for evaluating AI agent outputs.
  *
- * @example
+ * @example Basic code judge
  * ```typescript
  * #!/usr/bin/env bun
  * import { defineCodeJudge } from '@agentv/eval';
@@ -13,6 +13,27 @@
  *   hits: ['Efficient tool usage'],
  *   misses: [],
  * }));
+ * ```
+ *
+ * @example Code judge with judge proxy (requires `judge` config in YAML)
+ * ```typescript
+ * #!/usr/bin/env bun
+ * import { defineCodeJudge, createJudgeProxyClientFromEnv } from '@agentv/eval';
+ *
+ * export default defineCodeJudge(async ({ question }) => {
+ *   const judge = createJudgeProxyClientFromEnv();
+ *   if (!judge) {
+ *     return { score: 0, misses: ['Judge proxy not available'] };
+ *   }
+ *
+ *   const response = await judge.invoke({
+ *     question: `Evaluate: ${question}`,
+ *     systemPrompt: 'Respond with JSON: { "score": 0-1 }'
+ *   });
+ *
+ *   const result = JSON.parse(response.rawText ?? '{}');
+ *   return { score: result.score ?? 0 };
+ * });
  * ```
  *
  * @packageDocumentation
@@ -33,6 +54,17 @@ export {
   type ToolCall,
   type TokenUsage,
 } from './schemas.js';
+
+// Re-export judge proxy client
+export {
+  createJudgeProxyClientFromEnv,
+  createJudgeProxyClient,
+  JudgeProxyNotAvailableError,
+  JudgeInvocationError,
+  type JudgeProxyClient,
+  type JudgeInvokeRequest,
+  type JudgeInvokeResponse,
+} from './judge-proxy-client.js';
 
 // Re-export Zod for typed config support
 export { z } from 'zod';

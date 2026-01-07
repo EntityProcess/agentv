@@ -1,0 +1,8 @@
+{
+  "name": "judge-proxy-example",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@agentv/eval": "workspace:*"
+  }
+}

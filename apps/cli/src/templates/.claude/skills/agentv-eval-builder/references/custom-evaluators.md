@@ -244,6 +244,152 @@ export default defineCodeJudge(({ traceSummary }) => {
 
 **See also:** `examples/features/code-judge-sdk/` for complete working examples
 
+## Judge Proxy for Code Evaluators
+
+Code judges can access an LLM through the **judge proxy** when sophisticated evaluation logic requires multiple LLM calls. This is useful for metrics like contextual precision, semantic similarity, or multi-step reasoning evaluation.
+
+### Security
+
+The judge proxy is designed with security in mind:
+- **Loopback only** - Binds to 127.0.0.1, not accessible from network
+- **Bearer token auth** - Unique cryptographic token per execution
+- **Call limits** - Enforces `max_calls` to prevent runaway costs
+- **Auto-shutdown** - Proxy terminates when evaluator completes
+
+### Configuration
+
+Enable the judge proxy by adding a `judge` block to your `code_judge` evaluator:
+
+```yaml
+evaluators:
+  - name: contextual-precision
+    type: code_judge
+    script: bun scripts/contextual-precision.ts
+    # Enable with defaults (max_calls: 50)
+    judge: {}
+
+  - name: semantic-check
+    type: code_judge
+    script: bun scripts/semantic-check.ts
+    # Custom call limit
+    judge:
+      max_calls: 10
+```
+
+### Usage in TypeScript
+
+```typescript
+#!/usr/bin/env bun
+import { createJudgeProxyClientFromEnv, defineCodeJudge } from '@agentv/eval';
+
+export default defineCodeJudge(async ({ question, candidateAnswer }) => {
+  const judge = createJudgeProxyClientFromEnv();
+
+  if (!judge) {
+    // Proxy not available - likely missing `judge` config
+    return { score: 0, misses: ['Judge proxy not configured'] };
+  }
+
+  // Make an LLM call through the proxy
+  const response = await judge.invoke({
+    question: `Is this response relevant to: ${question}? Response: ${candidateAnswer}`,
+    systemPrompt: 'Respond with JSON: { "relevant": true/false, "reasoning": "..." }'
+  });
+
+  // Parse the response
+  const result = JSON.parse(response.rawText ?? '{}');
+  return {
+    score: result.relevant ? 1.0 : 0.0,
+    reasoning: result.reasoning
+  };
+});
+```
+
+### Usage in Python
+
+```python
+#!/usr/bin/env python3
+import json
+import os
+import sys
+import requests
+
+def create_judge_client():
+    """Create judge proxy client from environment variables."""
+    url = os.environ.get('AGENTV_JUDGE_PROXY_URL')
+    token = os.environ.get('AGENTV_JUDGE_PROXY_TOKEN')
+    if not url or not token:
+        return None
+    return {'url': url, 'token': token}
+
+def invoke_judge(client, question, system_prompt=None):
+    """Invoke the judge proxy."""
+    response = requests.post(
+        f"{client['url']}/invoke",
+        headers={
+            'Authorization': f"Bearer {client['token']}",
+            'Content-Type': 'application/json'
+        },
+        json={
+            'question': question,
+            'systemPrompt': system_prompt
+        }
+    )
+    response.raise_for_status()
+    return response.json()
+
+def main():
+    input_data = json.loads(sys.stdin.read())
+    judge = create_judge_client()
+
+    if not judge:
+        print(json.dumps({
+            'score': 0,
+            'misses': ['Judge proxy not configured']
+        }))
+        sys.exit(0)
+
+    result = invoke_judge(
+        judge,
+        f"Is this relevant? {input_data['candidate_answer']}",
+        'Respond with JSON: { "relevant": true/false }'
+    )
+
+    parsed = json.loads(result.get('rawText', '{}'))
+    print(json.dumps({
+        'score': 1.0 if parsed.get('relevant') else 0.0,
+        'reasoning': parsed.get('reasoning', '')
+    }))
+
+if __name__ == '__main__':
+    main()
+```
+
+### Environment Variables
+
+When `judge` is configured, these environment variables are set automatically:
+- `AGENTV_JUDGE_PROXY_URL` - Local proxy URL (e.g., `http://127.0.0.1:45123`)
+- `AGENTV_JUDGE_PROXY_TOKEN` - Bearer token for authentication
+
+### Metadata
+
+Judge proxy usage is recorded in the evaluator output:
+
+```json
+{
+  "evaluatorProviderRequest": {
+    "script": ["bun", "scripts/contextual-precision.ts"],
+    "judgeProxy": {
+      "targetName": "claude-sonnet-4-20250514",
+      "callCount": 3,
+      "maxCalls": 50
+    }
+  }
+}
+```
+
+**See also:** `examples/features/judge-proxy/` for complete working examples
+
 ## LLM Judge Prompt Template
 
 LLM judges use markdown prompts to guide evaluation. AgentV automatically handles the output format, so focus your prompt on evaluation criteria and guidelines.

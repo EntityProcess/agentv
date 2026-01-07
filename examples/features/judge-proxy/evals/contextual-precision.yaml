@@ -1,0 +1,41 @@
+# Contextual Precision Evaluation
+#
+# Demonstrates the judge proxy feature that allows code judges
+# to make LLM calls through a secure proxy.
+
+execution:
+  evaluators:
+    - name: contextual-precision
+      type: code_judge
+      script: ["bun", "run", "examples/features/judge-proxy/scripts/contextual-precision.ts"]
+      cwd: /root/projects/agentv
+      # Enable judge proxy access with default max_calls (50)
+      judge: {}
+
+evalcases:
+  - id: relevant-response
+    expected_outcome: The response should be contextually relevant to the question about the capital of France
+    input_messages:
+      - role: user
+        content: What is the capital of France?
+    expected_messages:
+      - role: assistant
+        content: Paris is the capital of France.
+
+  - id: irrelevant-response
+    expected_outcome: The response should be contextually relevant to the question about the capital of France
+    input_messages:
+      - role: user
+        content: What is the capital of France?
+    expected_messages:
+      - role: assistant
+        content: I like pizza. It's delicious.
+
+  - id: partial-relevance
+    expected_outcome: The response should explain how photosynthesis works in detail
+    input_messages:
+      - role: user
+        content: Explain how photosynthesis works
+    expected_messages:
+      - role: assistant
+        content: Plants use sunlight to make food. The process involves chlorophyll.

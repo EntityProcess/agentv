@@ -167,6 +167,16 @@ export function isEvaluatorKind(value: unknown): value is EvaluatorKind {
   return typeof value === 'string' && EVALUATOR_KIND_SET.has(value);
 }
 
+/**
+ * Configuration for enabling judge proxy access in code_judge evaluators.
+ * When present, the runtime will start a local proxy server that allows
+ * the script to invoke the configured judge target without direct credential access.
+ */
+export type CodeJudgeConfig = {
+  /** Maximum number of proxy invocations allowed per execution (default: 50) */
+  readonly max_calls?: number;
+};
+
 export type CodeEvaluatorConfig = {
   readonly name: string;
   readonly type: 'code';
@@ -177,6 +187,8 @@ export type CodeEvaluatorConfig = {
   readonly weight?: number;
   /** Pass-through configuration for the code_judge script (any unrecognized YAML properties) */
   readonly config?: JsonObject;
+  /** When present, enables judge proxy access for the script */
+  readonly judge?: CodeJudgeConfig;
 };
 
 export type LlmJudgeEvaluatorConfig = {

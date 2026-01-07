@@ -96,8 +96,33 @@ export async function parseEvaluators(
         resolvedCwd = searchRoots[0];
       }
 
+      // Parse optional judge config (enables judge proxy access)
+      const rawJudge = rawEvaluator.judge;
+      let judgeConfig: import('../types.js').CodeJudgeConfig | undefined;
+      if (rawJudge !== undefined) {
+        if (isJsonObject(rawJudge)) {
+          const maxCalls = rawJudge.max_calls;
+          if (maxCalls !== undefined && (typeof maxCalls !== 'number' || maxCalls < 0)) {
+            logWarning(
+              `Invalid judge.max_calls for evaluator '${name}' in '${evalId}': must be a non-negative number`,
+            );
+          } else {
+            judgeConfig = {
+              ...(typeof maxCalls === 'number' ? { max_calls: maxCalls } : {}),
+            };
+          }
+        } else if (rawJudge === true) {
+          // Support shorthand: `judge: true` to enable with defaults
+          judgeConfig = {};
+        } else {
+          logWarning(
+            `Invalid judge config for evaluator '${name}' in '${evalId}': expected object or true`,
+          );
+        }
+      }
+
       // Collect unrecognized properties as pass-through config
-      const knownProps = new Set(['name', 'type', 'script', 'cwd', 'weight']);
+      const knownProps = new Set(['name', 'type', 'script', 'cwd', 'weight', 'judge']);
       const config: Record<string, JsonValue> = {};
       for (const [key, value] of Object.entries(rawEvaluator)) {
         if (!knownProps.has(key) && value !== undefined) {
@@ -113,6 +138,7 @@ export async function parseEvaluators(
         resolvedCwd,
         ...(weight !== undefined ? { weight } : {}),
         ...(Object.keys(config).length > 0 ? { config } : {}),
+        ...(judgeConfig !== undefined ? { judge: judgeConfig } : {}),
       });
       continue;
     }
