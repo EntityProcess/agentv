@@ -28,6 +28,7 @@ export default defineCodeJudge(async ({ question, candidateAnswer, expectedOutco
     // Proxy not available - likely missing `judge` config in YAML
     return {
       score: 0,
+      hits: [],
       misses: ['Judge proxy not available - ensure `judge` block is configured in evaluator YAML'],
       reasoning: 'Cannot evaluate without judge proxy access',
     };
@@ -64,6 +65,7 @@ Respond with JSON only:
   } catch (error) {
     return {
       score: 0.5,
+      hits: [],
       misses: ['Could not parse judge response'],
       reasoning: `Parse error: ${error instanceof Error ? error.message : String(error)}. Raw: ${rawText.slice(0, 200)}`,
     };
