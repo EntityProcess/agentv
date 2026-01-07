@@ -7,7 +7,7 @@ Today `code_judge` runs as an external script (stdin/stdout) and cannot reuse Ag
 
 ## What Changes
 
-- **ADDED**: Optional `use_judge: true` for `code_judge` evaluators.
+- **ADDED**: Optional `judge` config block for `code_judge` evaluators (presence enables judge access).
 - **ADDED**: A local, per-invocation **judge proxy** that allows a `code_judge` script to request judge invocations without receiving provider credentials.
 - **ADDED**: `@agentv/eval` helper to create a judge client from environment (`AGENTV_JUDGE_PROXY_URL`, `AGENTV_JUDGE_PROXY_TOKEN`).
 - **ADDED**: Basic safety controls (auth token, loopback-only binding, max call limit).

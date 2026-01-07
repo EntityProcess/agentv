@@ -4,9 +4,8 @@
 
 The YAML schema SHALL accept `code_judge` evaluators with `script` defined as an array of argv tokens.
 
-The YAML schema SHALL also accept the following optional fields on `code_judge` evaluators:
-- `use_judge?: boolean`
-- `judge?: { max_calls?: number }`
+The YAML schema SHALL also accept the following optional field on `code_judge` evaluators:
+- `judge?: { max_calls?: number }` — presence enables judge proxy access
 
 #### Scenario: Configure code_judge with argv script
 - **GIVEN** a YAML eval case with:
@@ -27,12 +26,24 @@ The YAML schema SHALL also accept the following optional fields on `code_judge` 
     - name: contextual_precision
       type: code_judge
       script: ["bun", "run", "contextual-precision.ts"]
-      use_judge: true
       judge:
         max_calls: 25
   ```
 - **WHEN** the YAML is parsed
 - **THEN** schema validation succeeds
+
+#### Scenario: Enable judge access with defaults
+- **GIVEN** a YAML eval case with:
+  ```yaml
+  evaluators:
+    - name: simple_judge
+      type: code_judge
+      script: ["bun", "run", "check.ts"]
+      judge: {}
+  ```
+- **WHEN** the YAML is parsed
+- **THEN** schema validation succeeds
+- **AND** judge proxy is enabled with default settings
 
 #### Scenario: Reject invalid max_calls
 - **GIVEN** a YAML eval case with:
@@ -41,7 +52,6 @@ The YAML schema SHALL also accept the following optional fields on `code_judge` 
     - name: bad_config
       type: code_judge
       script: ["bun", "run", "x.ts"]
-      use_judge: true
       judge:
         max_calls: -1
   ```

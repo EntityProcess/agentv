@@ -39,7 +39,7 @@ Non-Goals:
 
 ### Decision: Use a local judge proxy (recommended)
 
-When `use_judge: true` is enabled, the runtime starts a local HTTP server bound to `127.0.0.1` (or `localhost`) and generates a random bearer token.
+When a `judge` config block is present on a `code_judge` evaluator, the runtime starts a local HTTP server bound to `127.0.0.1` (or `localhost`) and generates a random bearer token.
 
 The runtime passes only:
 - `AGENTV_JUDGE_PROXY_URL`
