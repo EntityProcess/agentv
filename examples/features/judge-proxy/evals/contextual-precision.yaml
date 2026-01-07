@@ -6,11 +6,14 @@
 #
 # Formula: (1/R) * Σ(Precision@k * r_k) for k=1 to n
 # where R = total relevant nodes, r_k = binary relevance at position k
+#
+# NOTE: We use code_snippets to pass retrieval context (workaround for demo).
+# In production, retrieval context would come from agent trace/output.
 
 execution:
   evaluators:
     - name: contextual_precision
-      type: code
+      type: code_judge
       script: [bun, run, ../scripts/contextual-precision.ts]
       # Judge proxy config - allows script to make LLM calls
       # max_calls should be >= number of retrieval context nodes
@@ -31,11 +34,11 @@ evalcases:
     expected_messages:
       - role: assistant
         content: TypeScript is a superset of JavaScript.
-    config:
-      retrieval_context:
-        - "TypeScript is a strongly typed programming language that builds on JavaScript."
-        - "TypeScript was developed by Microsoft and first released in 2012."
-        - "Python is a high-level programming language known for its readability."
+    # Retrieval context nodes (passed via code_snippets)
+    code_snippets:
+      - "TypeScript is a strongly typed programming language that builds on JavaScript."
+      - "TypeScript was developed by Microsoft and first released in 2012."
+      - "Python is a high-level programming language known for its readability."
 
   # Test case 2: Imperfect ranking - relevant node buried behind irrelevant
   # Node 1: Relevant (Paris is capital), Node 2: Irrelevant (Eiffel Tower), Node 3: Relevant (City of Light)
@@ -50,11 +53,10 @@ evalcases:
     expected_messages:
       - role: assistant
         content: Paris is the capital of France.
-    config:
-      retrieval_context:
-        - "Paris is the capital and most populous city of France."
-        - "The Eiffel Tower was built in 1887."
-        - "Paris is often referred to as the City of Light."
+    code_snippets:
+      - "Paris is the capital and most populous city of France."
+      - "The Eiffel Tower was built in 1887."
+      - "Paris is often referred to as the City of Light."
 
   # Test case 3: Worst case - only relevant node is last
   # Node 1: Irrelevant, Node 2: Irrelevant, Node 3: Relevant
@@ -69,8 +71,7 @@ evalcases:
     expected_messages:
       - role: assistant
         content: The sky appears blue during the day.
-    config:
-      retrieval_context:
-        - "Grass is typically green in color."
-        - "Roses can be red, pink, or white."
-        - "The sky appears blue due to Rayleigh scattering of sunlight."
+    code_snippets:
+      - "Grass is typically green in color."
+      - "Roses can be red, pink, or white."
+      - "The sky appears blue due to Rayleigh scattering of sunlight."

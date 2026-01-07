@@ -55,7 +55,7 @@ Enable judge proxy access by adding a `judge` block to your `code` evaluator:
 ```yaml
 evaluators:
   - name: contextual_precision
-    type: code
+    type: code_judge
     script: [bun, run, scripts/contextual-precision.ts]
     judge:
       max_calls: 10  # At least N nodes to evaluate
