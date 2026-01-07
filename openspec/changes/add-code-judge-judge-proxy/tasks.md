@@ -29,9 +29,15 @@
   - Shows `@agentv/eval` client usage
 - [x] 4.2 Update the custom evaluator docs to describe `judge` config and security constraints
 
-## 5. Verification
+## 5. Cleanup
 
-- [x] 5.1 `bun run build`
-- [x] 5.2 `bun run typecheck`
-- [x] 5.3 `bun run lint`
-- [x] 5.4 `bun test`
+- [x] 5.1 Remove `code_snippets` field (domain-specific, unused)
+  - Use `expected_messages.tool_calls` for retrieval context instead
+  - Removed from: yaml-parser, types, code-evaluator, prompt-builder, schemas
+
+## 6. Verification
+
+- [x] 6.1 `bun run build`
+- [x] 6.2 `bun run typecheck`
+- [x] 6.3 `bun run lint`
+- [x] 6.4 `bun test`
