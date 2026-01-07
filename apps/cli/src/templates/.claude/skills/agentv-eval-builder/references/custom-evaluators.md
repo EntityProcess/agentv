@@ -19,21 +19,26 @@ Wire format uses snake_case for cross-language compatibility:
   "guideline_files": ["path1", "path2"],
   "input_files": ["file1", "file2"],
   "input_messages": [{"role": "user", "content": "..."}],
-  "output_messages": [
+  "expected_messages": [
     {
       "role": "assistant",
-      "content": "...",
       "tool_calls": [
         {
-          "tool": "search",
+          "tool": "vector_search",
           "input": { "query": "..." },
-          "output": { "results": [...] },
-          "id": "call_123",
-          "timestamp": "2024-01-15T10:30:00Z"
+          "output": { "results": ["doc1", "doc2"] }
         }
       ]
     }
   ],
+  "output_messages": [
+    {
+      "role": "assistant",
+      "content": "...",
+      "tool_calls": [...]
+    }
+  ],
+  "code_snippets": ["extracted from code blocks in input_messages"],
   "trace_summary": {
     "event_count": 5,
     "tool_names": ["fetch", "search"],
@@ -47,8 +52,10 @@ Wire format uses snake_case for cross-language compatibility:
 ```
 
 **Key fields:**
-- `output_messages` - Full agent execution trace with tool calls (use `tool_calls[].input` for arguments)
+- `expected_messages` - Expected agent behavior from YAML, including expected tool calls with outputs (use for retrieval context in RAG evals)
+- `output_messages` - Actual agent execution trace with tool calls (from live agent runs)
 - `trace_summary` - Lightweight summary with execution metrics (counts only, no tool arguments)
+- `code_snippets` - Auto-extracted code blocks from input_messages (for code validation)
 
 ### Output Format (to stdout)
 
@@ -278,6 +285,8 @@ evaluators:
 
 ### Usage in TypeScript
 
+**Single invocation:**
+
 ```typescript
 #!/usr/bin/env bun
 import { createJudgeProxyClientFromEnv, defineCodeJudge } from '@agentv/eval';
@@ -303,6 +312,88 @@ export default defineCodeJudge(async ({ question, candidateAnswer }) => {
     reasoning: result.reasoning
   };
 });
+```
+
+**Batch invocation (for metrics like Contextual Precision):**
+
+```typescript
+#!/usr/bin/env bun
+import { createJudgeProxyClientFromEnv, defineCodeJudge } from '@agentv/eval';
+
+// Contextual Precision: evaluates retrieval ranking quality
+// Retrieval context is extracted from expected_messages.tool_calls
+export default defineCodeJudge(async ({ question, expectedMessages }) => {
+  const judge = createJudgeProxyClientFromEnv();
+
+  // Extract retrieval results from expected tool calls
+  const retrievalContext: string[] = [];
+  for (const msg of expectedMessages ?? []) {
+    for (const tc of (msg as any).toolCalls ?? []) {
+      const results = (tc.output as any)?.results;
+      if (Array.isArray(results)) {
+        retrievalContext.push(...results.filter((r: unknown) => typeof r === 'string'));
+      }
+    }
+  }
+
+  if (!judge || retrievalContext.length === 0) {
+    return { score: 0, misses: ['Judge proxy or retrieval context not available'] };
+  }
+
+  // Evaluate each retrieval node in batch
+  const requests = retrievalContext.map((node) => ({
+    question: `Is this node relevant to: ${question}\n\nNode: ${node}`,
+    systemPrompt: 'Respond with JSON: { "relevant": true/false }'
+  }));
+
+  const responses = await judge.invokeBatch(requests);
+
+  // Parse relevance for each node
+  const relevance = responses.map(r => {
+    try {
+      return JSON.parse(r.rawText ?? '{}').relevant === true;
+    } catch { return false; }
+  });
+
+  // Calculate weighted precision (relevant nodes ranked higher = better score)
+  const totalRelevant = relevance.filter(Boolean).length;
+  if (totalRelevant === 0) return { score: 0, misses: ['No relevant nodes found'] };
+
+  let precisionSum = 0, relevantSoFar = 0;
+  for (let k = 0; k < relevance.length; k++) {
+    if (relevance[k]) {
+      relevantSoFar++;
+      precisionSum += relevantSoFar / (k + 1);
+    }
+  }
+
+  return { score: precisionSum / totalRelevant };
+});
+```
+
+**YAML for batch example:**
+
+```yaml
+evalcases:
+  - id: retrieval-ranking
+    question: What is the capital of France?
+    expected_outcome: Paris is the capital
+    input_messages:
+      - role: user
+        content: What is the capital of France?
+    # Retrieval context via expected tool calls
+    expected_messages:
+      - role: assistant
+        tool_calls:
+          - tool: vector_search
+            input: { query: "capital of France" }
+            output:
+              results:
+                - "Paris is the capital of France."
+                - "The Eiffel Tower is in Paris."
+                - "France is a European country."
+      - role: assistant
+        content: Paris is the capital of France.
 ```
 
 ### Usage in Python

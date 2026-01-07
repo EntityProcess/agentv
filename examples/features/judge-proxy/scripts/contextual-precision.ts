@@ -9,6 +9,9 @@
  * Formula: (1/R) * Σ(Precision@k * r_k) for k=1 to n
  * where R = total relevant nodes, r_k = binary relevance at position k
  *
+ * Retrieval context is extracted from expected_messages.tool_calls output,
+ * which represents the expected agent behavior (calling a retrieval tool).
+ *
  * Requires `judge: { max_calls: N }` in the evaluator YAML config,
  * where N >= number of retrieval context nodes to evaluate.
  */
@@ -24,24 +27,61 @@ interface RelevanceResult {
   reasoning: string;
 }
 
-interface ContextualPrecisionInput {
-  question: string;
-  expectedOutcome?: string;
-  // codeSnippets is used to pass retrieval context (repurposed for this example)
-  codeSnippets?: string[];
+interface ToolCall {
+  tool?: string;
+  input?: unknown;
+  output?: unknown;
 }
 
-export default defineCodeJudge(async (input: ContextualPrecisionInput) => {
-  const { question, expectedOutcome, codeSnippets } = input;
-  // Use codeSnippets field to pass retrieval context nodes
-  const retrievalContext = codeSnippets ?? [];
+interface ExpectedMessage {
+  role?: string;
+  content?: unknown;
+  toolCalls?: ToolCall[]; // camelCase after SDK conversion
+}
+
+/**
+ * Extract retrieval context from expectedMessages tool calls.
+ * Looks for tool calls with an output.results array (common pattern for search tools).
+ * Note: SDK converts snake_case to camelCase, so tool_calls becomes toolCalls.
+ */
+function extractRetrievalContext(expectedMessages?: unknown[]): string[] {
+  if (!expectedMessages || !Array.isArray(expectedMessages)) return [];
+
+  const results: string[] = [];
+
+  for (const message of expectedMessages) {
+    const msg = message as ExpectedMessage;
+    if (!msg.toolCalls) continue;
+
+    for (const toolCall of msg.toolCalls) {
+      // Look for output.results array (common for search/retrieval tools)
+      const output = toolCall.output as Record<string, unknown> | undefined;
+      if (output && Array.isArray(output.results)) {
+        for (const result of output.results) {
+          if (typeof result === 'string') {
+            results.push(result);
+          }
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
+export default defineCodeJudge(async (input) => {
+  const { question, expectedOutcome, expectedMessages } = input;
+
+  // Extract retrieval context from expected_messages tool_calls
+  const retrievalContext = extractRetrievalContext(expectedMessages);
 
   if (retrievalContext.length === 0) {
     return {
       score: 0,
       hits: [],
-      misses: ['No retrieval context provided (use code_snippets field)'],
-      reasoning: 'Contextual Precision requires retrieval context nodes in code_snippets',
+      misses: ['No retrieval context found in expected_messages.tool_calls'],
+      reasoning:
+        'Contextual Precision requires retrieval context in expected_messages[].tool_calls[].output.results',
     };
   }
 

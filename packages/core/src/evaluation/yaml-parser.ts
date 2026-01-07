@@ -180,11 +180,8 @@ export async function loadEvalCases(
         })
       : [];
 
-    // Use explicit code_snippets from YAML if provided, otherwise extract from input_messages
-    const rawCodeSnippets = evalcase.code_snippets;
-    const codeSnippets = Array.isArray(rawCodeSnippets)
-      ? rawCodeSnippets.filter((s): s is string => typeof s === 'string')
-      : extractCodeBlocks(inputSegments);
+    // Extract code blocks from input_messages (useful for code validation evaluators)
+    const codeSnippets = extractCodeBlocks(inputSegments);
 
     // Build reference_answer:
     // Extract the content from the last message in expected_messages (similar to candidate_answer)
