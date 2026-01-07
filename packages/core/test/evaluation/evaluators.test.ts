@@ -517,6 +517,62 @@ describe('CodeEvaluator', () => {
     expect(result.hits.length).toBeGreaterThan(0);
     expect(result.reasoning).toContain('matching keywords');
   });
+
+  it('captures optional details from code judge output', async () => {
+    const judgeProvider = new StubProvider(textResponse('{}'));
+
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const script = ['node', join(__dirname, '../fixtures/test-judge-with-details.cjs')];
+
+    const evaluator = new CodeEvaluator({ script });
+
+    const result = await evaluator.evaluate({
+      evalCase: {
+        ...baseTestCase,
+        expected_messages: [{ role: 'assistant', content: 'test' }],
+      },
+      candidate: 'Test candidate',
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBeCloseTo(0.75);
+    expect(result.reasoning).toBe('Testing details passthrough');
+    expect(result.details).toBeDefined();
+    expect(result.details?.metrics).toEqual({ tp: 5, tn: 2, fp: 1, fn: 2 });
+    expect(result.details?.alignment).toHaveLength(2);
+    expect(result.details?.precision).toBeCloseTo(0.833);
+    expect(result.details?.recall).toBeCloseTo(0.714);
+    expect(result.details?.f1).toBeCloseTo(0.769);
+  });
+
+  it('omits details when not returned by code judge', async () => {
+    const judgeProvider = new StubProvider(textResponse('{}'));
+
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const script = ['node', join(__dirname, '../fixtures/test-judge.cjs')];
+
+    const evaluator = new CodeEvaluator({ script });
+
+    const result = await evaluator.evaluate({
+      evalCase: {
+        ...baseTestCase,
+        expected_messages: [{ role: 'assistant', content: { decision: 'ACCEPT' } }],
+      },
+      candidate: '{"decision":"ACCEPT"}',
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.details).toBeUndefined();
+  });
 });
 
 describe('FieldAccuracyEvaluator', () => {

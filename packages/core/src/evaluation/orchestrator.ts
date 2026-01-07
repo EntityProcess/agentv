@@ -890,6 +890,7 @@ async function runEvaluatorList(options: {
           misses: score.misses,
           reasoning: score.reasoning,
           evaluatorProviderRequest: score.evaluatorRawRequest,
+          details: score.details,
         });
       }
 
@@ -1431,6 +1432,7 @@ function mapChildResults(
     reasoning: child.reasoning,
     evaluatorProviderRequest: child.evaluatorRawRequest,
     evaluatorResults: mapChildResults(child.evaluatorResults),
+    details: child.details,
   }));
 }
 

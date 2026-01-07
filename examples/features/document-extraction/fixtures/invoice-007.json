@@ -1,0 +1,14 @@
+{
+  "invoice_number": "INV-2025-001234",
+  "invoice_date": "15-JAN-2025",
+  "currency": "EUR",
+  "net_total": 1889,
+  "supplier": {
+    "name": "Beta Corp",
+    "address": ""
+  },
+  "importer": {
+    "name": "Global Trade Co"
+  },
+  "po_number": "PO-HALLUCINATED-123"
+}

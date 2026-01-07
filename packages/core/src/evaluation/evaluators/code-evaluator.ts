@@ -88,6 +88,11 @@ export class CodeEvaluator implements Evaluator {
       const hits = Array.isArray(parsed?.hits) ? parsed.hits.filter(isNonEmptyString) : [];
       const misses = Array.isArray(parsed?.misses) ? parsed.misses.filter(isNonEmptyString) : [];
       const reasoning = typeof parsed?.reasoning === 'string' ? parsed.reasoning : undefined;
+      // Capture optional structured details from code judge output
+      const details =
+        parsed?.details && typeof parsed.details === 'object' && !Array.isArray(parsed.details)
+          ? (parsed.details as JsonObject)
+          : undefined;
 
       // Build evaluator raw request with proxy metadata if used
       const proxyUsage = getProxyUsage?.();
@@ -113,6 +118,7 @@ export class CodeEvaluator implements Evaluator {
         expectedAspectCount: hits.length + misses.length || 1,
         reasoning,
         evaluatorRawRequest,
+        ...(details ? { details } : {}),
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

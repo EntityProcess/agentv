@@ -1,0 +1,25 @@
+{
+  "invoice_number": "INV-2025-001234",
+  "invoice_date": "15-JAN-2025",
+  "currency": "USD",
+  "net_total": 200,
+  "gross_total": 200,
+  "supplier": {
+    "name": "Acme Shipping"
+  },
+  "importer": {
+    "name": "Global Trade Co"
+  },
+  "line_items": [
+    {
+      "description": "Bunker Adjustment Factor",
+      "quantity": 1,
+      "line_total": 80
+    },
+    {
+      "description": "OCEAN FREIGHT",
+      "quantity": 1,
+      "line_total": 120
+    }
+  ]
+}

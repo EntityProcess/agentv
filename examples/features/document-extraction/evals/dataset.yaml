@@ -357,3 +357,91 @@ evalcases:
             value: ../fixtures/invoice-005.json
           - type: text
             value: "Extract first two line items from invoice."
+
+  # ============================================
+  # Test Case 6: Line Item Reorder (Greedy Matching)
+  # Demonstrates line-item matching where order differs
+  # ============================================
+  - id: invoice-006
+    conversation_id: document-extraction
+    expected_outcome: |
+      ACTUAL EXTRACTOR OUTPUT: line_items in different order than expected
+      EXPECTED GROUND TRUTH: line_items in original order
+
+      This test demonstrates greedy matching for line items.
+      Index-based comparison would incorrectly penalize the extractor,
+      but greedy matching correctly aligns items by description similarity.
+    evaluators:
+      - name: line_items_matched
+        type: code_judge
+        script: ["bun", "run", "../judges/line_item_matching.ts"]
+        match_fields: ["description"]
+        score_fields: ["description", "quantity", "line_total"]
+        threshold: 0.8
+        line_items_path: line_items
+    expected_messages:
+      - role: assistant
+        content:
+          line_items:
+            - description: "OCEAN FREIGHT"
+              quantity: 1
+              line_total: 120
+            - description: "Bunker Adjustment Factor"
+              quantity: 1
+              line_total: 80
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../fixtures/invoice-006.json
+          - type: text
+            value: "Extract line items from invoice (may be reordered)."
+
+  # ============================================
+  # Test Case 7: Header Field Confusion Metrics
+  # Demonstrates TP/TN/FP/FN classification for headers
+  # ============================================
+  - id: invoice-007
+    conversation_id: document-extraction
+    expected_outcome: |
+      This test demonstrates header field confusion metrics:
+      - invoice_number: TP (correct non-empty match)
+      - invoice_date: TP (correct non-empty match)
+      - currency: FP+FN (wrong non-empty value: EUR vs USD)
+      - supplier.name: FP+FN (wrong non-empty value: Beta Corp vs Acme Shipping)
+      - supplier.address: TN (both empty)
+      - importer.name: TP (correct non-empty match)
+      - po_number: FP (hallucinated value, expected empty)
+      - gross_total: FN (missing, expected non-empty)
+    evaluators:
+      - name: header_confusion
+        type: code_judge
+        script: ["bun", "run", "../judges/header_confusion_metrics.ts"]
+        fields:
+          - path: invoice_number
+          - path: invoice_date
+          - path: currency
+          - path: supplier.name
+          - path: supplier.address
+          - path: importer.name
+          - path: po_number
+          - path: gross_total
+    expected_messages:
+      - role: assistant
+        content:
+          invoice_number: "INV-2025-001234"
+          invoice_date: "15-JAN-2025"
+          currency: "USD"
+          supplier:
+            name: "Acme Shipping"
+            address: ""
+          importer:
+            name: "Global Trade Co"
+          gross_total: 1889
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../fixtures/invoice-007.json
+          - type: text
+            value: "Extract header fields (testing confusion metrics)."

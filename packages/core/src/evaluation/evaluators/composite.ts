@@ -116,6 +116,7 @@ export class CompositeEvaluator implements Evaluator {
         reasoning: member.result.reasoning,
         evaluatorRawRequest: member.result.evaluatorRawRequest,
         evaluatorResults: member.result.evaluatorResults,
+        details: member.result.details,
       });
     }
 
@@ -157,6 +158,7 @@ export class CompositeEvaluator implements Evaluator {
       reasoning: member.result.reasoning,
       evaluatorRawRequest: member.result.evaluatorRawRequest,
       evaluatorResults: member.result.evaluatorResults,
+      details: member.result.details,
     }));
 
     try {
@@ -228,6 +230,7 @@ export class CompositeEvaluator implements Evaluator {
       reasoning: member.result.reasoning,
       evaluatorRawRequest: member.result.evaluatorRawRequest,
       evaluatorResults: member.result.evaluatorResults,
+      details: member.result.details,
     }));
 
     // Use custom prompt if provided, otherwise use default
