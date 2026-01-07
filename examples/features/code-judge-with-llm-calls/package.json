@@ -1,5 +1,5 @@
 {
-  "name": "judge-proxy-example",
+  "name": "code-judge-with-llm-calls-example",
   "type": "module",
   "private": true,
   "dependencies": {

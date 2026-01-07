@@ -1,6 +1,6 @@
-# Judge Proxy Example
+# Code Judge with LLM Calls
 
-This example demonstrates the **judge proxy** feature, which allows code judge evaluators to make LLM calls through a secure local proxy without needing direct API credentials.
+This example demonstrates how code judge evaluators can make LLM calls through a secure local proxy without needing direct API credentials.
 
 ## Contextual Precision Metric
 
@@ -101,7 +101,7 @@ The `createJudgeProxyClientFromEnv()` function reads these automatically.
 
 ```bash
 # From the agentv monorepo root:
-bun run agentv eval examples/features/judge-proxy/evals/contextual-precision.yaml --target gemini_base
+bun run agentv eval examples/features/code-judge-with-llm-calls/evals/contextual-precision.yaml --target gemini_base
 ```
 
 Expected output shows varying scores based on retrieval ranking:

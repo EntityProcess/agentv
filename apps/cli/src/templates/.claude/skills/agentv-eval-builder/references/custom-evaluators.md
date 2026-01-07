@@ -477,7 +477,7 @@ Judge proxy usage is recorded in the evaluator output:
 }
 ```
 
-**See also:** `examples/features/judge-proxy/` for complete working examples
+**See also:** `examples/features/code-judge-with-llm-calls/` for complete working examples
 
 ## LLM Judge Prompt Template
 

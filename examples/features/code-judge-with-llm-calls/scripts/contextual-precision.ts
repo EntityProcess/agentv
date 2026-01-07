@@ -15,12 +15,10 @@
  * Requires `judge: { max_calls: N }` in the evaluator YAML config,
  * where N >= number of retrieval context nodes to evaluate.
  */
-// NOTE: In a real project, use: import { ... } from '@agentv/eval';
-// This example uses a relative path for testing within the monorepo.
 import {
   createJudgeProxyClientFromEnv,
   defineCodeJudge,
-} from '../../../../packages/eval/src/index.js';
+} from '@agentv/eval';
 
 interface RelevanceResult {
   relevant: boolean;
