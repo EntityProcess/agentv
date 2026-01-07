@@ -22,7 +22,11 @@
 
 ## 4. Examples + Docs
 
-- [ ] 4.1 Add a TypeScript example showing multi-call code_judge using proxy client
+- [ ] 4.1 Add a TypeScript example: `contextual-precision.ts`
+  - Demonstrates RAG retrieval ranking evaluation
+  - Uses single batch prompt returning JSON array of verdicts (efficient pattern)
+  - Calculates weighted cumulative precision score
+  - Shows `@agentv/eval` client usage
 - [ ] 4.2 Update the custom evaluator docs to describe `judge` config and security constraints
 
 ## 5. Verification

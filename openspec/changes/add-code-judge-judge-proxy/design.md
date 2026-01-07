@@ -59,6 +59,16 @@ This makes it feasible to implement, as `code_judge` scripts:
 - Hybrid evaluators (deterministic checks + 1..N judge calls)
 - Multi-aspect scoring (several judge prompts, combined/weighted)
 
+### Efficiency: Prefer batch prompts over N calls
+
+Deepeval's contextual precision implementation uses a **single LLM call** that returns an array of verdicts (one per retrieval context node), rather than N separate calls. This is significantly more efficient.
+
+Scripts can achieve this pattern by:
+1. Constructing a batch prompt that asks for all verdicts in one response
+2. Using structured output (JSON array) to parse multiple verdicts
+
+The proxy's `/invokeBatch` endpoint is optional but recommended for scripts that need to make multiple independent judge calls. For the common case of "evaluate N items and return verdicts," a single well-crafted prompt is preferred.
+
 ### Rejected: Passing provider credentials via env vars
 
 Passing API keys to arbitrary scripts is high risk:
@@ -133,7 +143,7 @@ Response:
 ## Limits / Guardrails
 
 - `judge.max_calls` limits the number of proxy invocations per `code_judge` execution.
-- Default limit SHOULD be enforced even when not configured.
+- **Default `max_calls`: 50** — enforced even when not configured.
 - The proxy MUST bind to loopback only.
 - The proxy MUST be shut down after the evaluator finishes.
 
