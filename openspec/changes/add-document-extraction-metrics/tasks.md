@@ -14,7 +14,15 @@
 ## 3. Example: Document Extraction Metrics Judges
 
 - [ ] 3.1 Add `code_judge` example for header-field confusion metrics (TP/TN/FP/FN + precision/recall/F1 per configured field path)
+  - [ ] 3.1.1 Implement classification logic: TP (match + non-empty), TN (match + empty), FP+FN (mismatch + both non-empty), FP (empty expected + non-empty parsed), FN (non-empty expected + empty parsed)
+  - [ ] 3.1.2 Use deep-equality for non-string types (numbers, dates)
+  - [ ] 3.1.3 Compute macro-F1 as default `score`
 - [ ] 3.2 Add `code_judge` example for line-item matching (greedy matching) and scoring for a set of line-item fields
+  - [ ] 3.2.1 Implement configurable match fields (default: `["description"]`)
+  - [ ] 3.2.2 Implement configurable similarity threshold (default: `0.8`)
+  - [ ] 3.2.3 Use normalized Levenshtein distance for string similarity
+  - [ ] 3.2.4 Handle duplicates via greedy 1:1 matching (descending similarity order)
+  - [ ] 3.2.5 Unmatched expected items → FN; unmatched parsed items → FP
 - [ ] 3.3 Ensure both judges emit compact, machine-readable `details` suitable for dataset aggregation
 
 ## 4. Example: Aggregated Reporting Script
@@ -27,11 +35,13 @@
   - [ ] 4.2.2 precision/recall/F1 (handle zero-denominators deterministically)
 - [ ] 4.3 Document how to run the report in the example README
 
-## 5. Demo Eval Case
+## 5. Demo Eval Cases
 
-- [ ] 5.1 Add one new eval case to `examples/features/document-extraction/evals/dataset.yaml` that demonstrates line-item reorder/mismatch where index-based comparison is misleading
-- [ ] 5.2 Add/adjust a fixture JSON where parsed line items are in a different order than expected
-- [ ] 5.3 Update the example baseline JSONL for deterministic CI (if the repo uses baselines for examples)
+- [ ] 5.1 Add eval case demonstrating line-item reorder where index-based comparison would fail
+  - [ ] 5.1.1 Add/adjust a fixture JSON where parsed line items are in a different order than expected
+- [ ] 5.2 Add eval case demonstrating duplicate line items and greedy matching behavior
+- [ ] 5.3 Add eval case demonstrating header field confusion metrics (TP/TN/FP/FN scenarios)
+- [ ] 5.4 Update the example baseline JSONL for deterministic CI (if the repo uses baselines for examples)
 
 ## 6. Verification
 

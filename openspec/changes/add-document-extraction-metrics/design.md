@@ -54,7 +54,7 @@ Define `isEmpty(x)` as: `x === null || x === undefined || (typeof x === 'string'
 
 - **TP**: `expected` equals `parsed` AND `expected` is non-empty
 - **TN**: `expected` equals `parsed` AND `expected` is empty
-- **FP+FN**: `expected` not equal `parsed` AND both are non-empty
+- **FP+FN**: `expected` not equal `parsed` AND both are non-empty — increment **both** FP and FN by 1 (the model produced a wrong value instead of the correct one)
 - **FP**: `expected` is empty AND `parsed` is non-empty
 - **FN**: `expected` is non-empty AND `parsed` is empty
 
@@ -94,6 +94,19 @@ Use deterministic greedy matching:
 3. Repeatedly take the best remaining match above a threshold and remove the matched items.
 4. Unmatched expected items count toward FN; unmatched parsed items count toward FP.
 
+### Default configuration
+
+- **Default match fields**: `["description"]` — line items are matched primarily by description. Users can override via judge config to include additional fields (e.g., `["description", "hs_code"]`).
+- **Similarity threshold**: `0.8` (80%) — pairs below this threshold are not matched. Configurable per judge.
+- **Similarity function**: Normalized Levenshtein distance for strings; exact equality for numbers/dates.
+
+### Duplicate handling
+
+When multiple expected or parsed items could match the same counterpart:
+- The greedy algorithm processes matches in descending similarity order
+- Once an item is matched, it is removed from further consideration
+- This ensures 1:1 matching; remaining unmatched items contribute to FP/FN counts
+
 ### Scoring
 
 After matching, compute per-attribute TP/TN/FP/FN across matched pairs + unmatched penalties, then derive precision/recall/F1 per attribute across the dataset.
@@ -110,7 +123,7 @@ The judge emits:
 - Greedy matching can be suboptimal vs Hungarian; acceptable for a first iteration and keeps dependencies minimal.
 - Details payload size can grow; examples must bound `details` (limit mismatches and alignment rows).
 
-## Open Questions
+## Resolved Questions
 
-- Should equality for non-string types (numbers/dates) use existing `field_accuracy` match rules, or remain simple deep-equality in the judge?
-- What is the default `score` for these judges (macro-F1 vs micro-F1 vs weighted)?
+- **Equality for non-string types**: Use simple deep-equality in the judge for header fields. For line-item matching similarity, use exact equality for numbers and dates (no fuzzy matching on numeric/date types). This keeps the judge logic simple and predictable; users needing custom tolerance can write their own judge.
+- **Default `score`**: Use macro-F1 (unweighted average of per-attribute F1 scores) as the default. This treats all attributes equally regardless of frequency.
