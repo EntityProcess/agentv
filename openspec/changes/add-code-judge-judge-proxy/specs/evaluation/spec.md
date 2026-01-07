@@ -5,7 +5,7 @@
 The system SHALL allow a `code_judge` evaluator to invoke the configured judge provider **without exposing provider credentials to the external script**, when explicitly enabled.
 
 #### Scenario: Enable judge access for a code_judge evaluator
-- **GIVEN** an eval case with a `code_judge` evaluator configured with `use_judge_provider: true`
+- **GIVEN** an eval case with a `code_judge` evaluator configured with `use_judge: true`
 - **AND** a judge provider is available in the evaluation context
 - **WHEN** the runtime invokes the code judge script
 - **THEN** the script is provided a loopback proxy URL and short-lived auth token via environment variables
@@ -13,12 +13,12 @@ The system SHALL allow a `code_judge` evaluator to invoke the configured judge p
 
 #### Scenario: Disabled by default
 - **GIVEN** an eval case with a `code_judge` evaluator
-- **WHEN** `use_judge_provider` is not set (or is `false`)
+- **WHEN** `use_judge` is not set (or is `false`)
 - **THEN** no judge proxy environment variables are provided
 - **AND** existing code judges continue to function unchanged
 
 #### Scenario: No judge provider available
-- **GIVEN** an eval case with a `code_judge` evaluator configured with `use_judge_provider: true`
+- **GIVEN** an eval case with a `code_judge` evaluator configured with `use_judge: true`
 - **AND** no judge provider is available in the evaluation context
 - **WHEN** the runtime invokes the code judge script
 - **THEN** the runtime SHALL fail the evaluator (score 0) with an actionable error message
@@ -42,14 +42,14 @@ The system SHALL expose judge invocations to code_judge scripts only via an auth
 The system SHALL enforce a maximum number of judge invocations per `code_judge` execution.
 
 #### Scenario: Default call limit
-- **GIVEN** `use_judge_provider: true`
-- **AND** no `judge_provider.max_calls` is configured
+- **GIVEN** `use_judge: true`
+- **AND** no `judge.max_calls` is configured
 - **WHEN** the code judge invokes the proxy repeatedly
 - **THEN** the runtime enforces a default maximum call count
 
 #### Scenario: Configured call limit
-- **GIVEN** `use_judge_provider: true`
-- **AND** `judge_provider.max_calls: 10` is configured
+- **GIVEN** `use_judge: true`
+- **AND** `judge.max_calls: 10` is configured
 - **WHEN** the script attempts an 11th judge invocation
 - **THEN** the proxy rejects the request with an actionable error
 - **AND** the evaluator run fails with score 0

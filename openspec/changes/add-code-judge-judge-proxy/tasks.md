@@ -1,14 +1,14 @@
 ## 1. Schema + Loader
 
-- [ ] 1.1 Extend YAML schema to accept `use_judge_provider?: boolean` on `code_judge`
-- [ ] 1.2 Extend YAML schema to accept `judge_provider?: { max_calls?: number }` on `code_judge`
+- [ ] 1.1 Extend YAML schema to accept `use_judge?: boolean` on `code_judge`
+- [ ] 1.2 Extend YAML schema to accept `judge?: { max_calls?: number }` on `code_judge`
 - [ ] 1.3 Update evaluator parsing/types to plumb these fields into the runtime
 
 ## 2. Core: Judge Proxy
 
 - [ ] 2.1 Add env injection support for subprocess execution (pass `env` into spawn)
 - [ ] 2.2 Implement a loopback-only HTTP judge proxy server with bearer token auth
-- [ ] 2.3 In `CodeEvaluator`, when `use_judge_provider` is enabled and a judge provider is available:
+- [ ] 2.3 In `CodeEvaluator`, when `use_judge` is enabled and a judge provider is available:
   - start proxy
   - set `AGENTV_JUDGE_PROXY_URL` + `AGENTV_JUDGE_PROXY_TOKEN` for the child process
   - enforce `max_calls` (default limit)
@@ -24,7 +24,7 @@
 ## 4. Examples + Docs
 
 - [ ] 4.1 Add a TypeScript example showing multi-call code_judge using proxy client
-- [ ] 4.2 Update the custom evaluator docs to describe `use_judge_provider` and security constraints
+- [ ] 4.2 Update the custom evaluator docs to describe `use_judge` and security constraints
 
 ## 5. Verification
 

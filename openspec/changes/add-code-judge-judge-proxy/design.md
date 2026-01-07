@@ -39,7 +39,7 @@ Non-Goals:
 
 ### Decision: Use a local judge proxy (recommended)
 
-When `use_judge_provider: true` is enabled, the runtime starts a local HTTP server bound to `127.0.0.1` (or `localhost`) and generates a random bearer token.
+When `use_judge: true` is enabled, the runtime starts a local HTTP server bound to `127.0.0.1` (or `localhost`) and generates a random bearer token.
 
 The runtime passes only:
 - `AGENTV_JUDGE_PROXY_URL`
@@ -132,7 +132,7 @@ Response:
 
 ## Limits / Guardrails
 
-- `judge_provider.max_calls` limits the number of proxy invocations per `code_judge` execution.
+- `judge.max_calls` limits the number of proxy invocations per `code_judge` execution.
 - Default limit SHOULD be enforced even when not configured.
 - The proxy MUST bind to loopback only.
 - The proxy MUST be shut down after the evaluator finishes.
