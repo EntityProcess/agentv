@@ -7,6 +7,7 @@ Returns score 0.0 if not valid JSON, otherwise passes to next evaluator.
 """
 
 import json
+import re
 import sys
 from typing import Any
 
@@ -72,7 +73,10 @@ def validate_json_format(candidate_answer: str, required_keys: list[str]) -> dic
     if content.endswith("```"):
         content = content[:-3]  # Remove trailing ```
     content = content.strip()
-    
+
+    # Fix trailing commas (common LLM output issue)
+    content = re.sub(r',(\s*[}\]])', r'\1', content)
+
     # Try to parse as JSON
     try:
         parsed = json.loads(content)
