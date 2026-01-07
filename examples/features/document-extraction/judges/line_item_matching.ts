@@ -410,13 +410,21 @@ async function main(): Promise<void> {
   // Compute derived metrics for each field
   const f1Scores: number[] = [];
   for (const field of scoreFields) {
-    fieldMetrics[field] = computeDerivedMetrics(fieldMetrics[field]);
+    const m = fieldMetrics[field];
+    fieldMetrics[field] = computeDerivedMetrics(m);
+    // Include in macro-F1 calculation:
+    // - Use actual F1 if defined (TP > 0)
+    // - Use 0 if errors occurred (FP > 0 or FN > 0) but F1 undefined
+    // - Exclude TN-only fields (TP=0, FP=0, FN=0) from average
+    const hasErrors = m.fp > 0 || m.fn > 0;
     if (fieldMetrics[field].f1 !== undefined) {
       f1Scores.push(fieldMetrics[field].f1!);
+    } else if (hasErrors) {
+      f1Scores.push(0);
     }
   }
 
-  // Compute macro-F1
+  // Compute macro-F1 (treating undefined as 0 when errors occurred)
   const macroF1 = f1Scores.length > 0 ? f1Scores.reduce((a, b) => a + b, 0) / f1Scores.length : 0;
 
   const output: EvalOutput = {

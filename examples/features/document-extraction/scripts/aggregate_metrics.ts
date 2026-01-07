@@ -187,10 +187,19 @@ function printTable(aggregated: Record<string, AggregatedMetrics>): void {
     console.log(`Micro-F1: ${totalMetrics.f1.toFixed(3)}`);
   }
 
-  // Compute macro-F1
-  const f1Scores = Object.values(aggregated)
-    .map((m) => computeDerivedMetrics(m).f1)
-    .filter((f1): f1 is number => f1 !== undefined);
+  // Compute macro-F1 (treating undefined as 0 when errors occurred, excluding TN-only fields)
+  const f1Scores: number[] = [];
+  for (const m of Object.values(aggregated)) {
+    const derived = computeDerivedMetrics(m);
+    const hasErrors = m.fp > 0 || m.fn > 0;
+    if (derived.f1 !== undefined) {
+      f1Scores.push(derived.f1);
+    } else if (hasErrors) {
+      // Treat undefined F1 as 0 when errors occurred (wrong/hallucinated/missing)
+      f1Scores.push(0);
+    }
+    // Exclude TN-only fields (TP=0, FP=0, FN=0) from macro-F1
+  }
   if (f1Scores.length > 0) {
     const macroF1 = f1Scores.reduce((a, b) => a + b, 0) / f1Scores.length;
     console.log(`Macro-F1: ${macroF1.toFixed(3)}`);

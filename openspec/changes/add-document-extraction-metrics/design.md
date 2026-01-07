@@ -127,3 +127,9 @@ The judge emits:
 
 - **Equality for non-string types**: Use simple deep-equality in the judge for header fields. For line-item matching similarity, use exact equality for numbers and dates (no fuzzy matching on numeric/date types). This keeps the judge logic simple and predictable; users needing custom tolerance can write their own judge.
 - **Default `score`**: Use macro-F1 (unweighted average of per-attribute F1 scores) as the default. This treats all attributes equally regardless of frequency.
+- **Handling undefined F1 in macro-F1 calculation**: Following sklearn best practices (`zero_division=0`), treat undefined F1 as 0 when errors occurred, and exclude TN-only fields:
+  - If F1 is defined (TP > 0): include actual F1 in the average
+  - If F1 is undefined AND errors occurred (FP > 0 or FN > 0): include 0 in the average (penalizes complete misses)
+  - If F1 is undefined AND no errors (TN-only, both expected and parsed empty): exclude from average (correct empty fields don't affect score)
+
+  This prevents misleading scores where macro-F1=1.0 despite significant FP/FN errors (which would happen if undefined F1 values were simply excluded).

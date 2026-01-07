@@ -240,12 +240,19 @@ async function main(): Promise<void> {
     const metrics = computeDerivedMetrics({ tp, tn, fp, fn });
     fieldMetrics[field.path] = metrics;
 
+    // Include in macro-F1 calculation:
+    // - Use actual F1 if defined (TP > 0)
+    // - Use 0 if errors occurred (FP > 0 or FN > 0) but F1 undefined
+    // - Exclude TN-only fields (TP=0, FP=0, FN=0) from average
+    const hasErrors = fp > 0 || fn > 0;
     if (metrics.f1 !== undefined) {
       f1Scores.push(metrics.f1);
+    } else if (hasErrors) {
+      f1Scores.push(0);
     }
   }
 
-  // Compute macro-F1 (unweighted average of per-attribute F1 scores)
+  // Compute macro-F1 (unweighted average of per-attribute F1 scores, treating undefined as 0 when errors occurred)
   const macroF1 = f1Scores.length > 0 ? f1Scores.reduce((a, b) => a + b, 0) / f1Scores.length : 0;
 
   const summaryMetrics = computeDerivedMetrics({
