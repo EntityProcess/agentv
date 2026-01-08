@@ -19,7 +19,7 @@
 - [x] 0.3.2 Implement YAML loader with identical resolution order
   - [x] 0.3.2.1 Search path priority: test file dir → ancestors → repo root → `cwd`
   - [x] 0.3.2.2 Distinguish guideline files (`*.instructions.md`, `/instructions/` paths, etc.)
-  - [x] 0.3.2.3 Maintain `code_snippets` extraction from fenced blocks
+  - [x] 0.3.2.3 ~~Maintain `code_snippets` extraction from fenced blocks~~ (removed in 2026-01 - domain-specific, unused)
 - [x] 0.3.3 Build prompt assembly helpers returning `{ request, guidelines }` payloads
 
 ### Phase 4 – Provider Layer (✓ Completed)

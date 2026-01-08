@@ -96,8 +96,33 @@ export async function parseEvaluators(
         resolvedCwd = searchRoots[0];
       }
 
+      // Parse optional target config (enables target proxy access)
+      const rawTarget = rawEvaluator.target;
+      let targetConfig: import('../types.js').TargetAccessConfig | undefined;
+      if (rawTarget !== undefined) {
+        if (isJsonObject(rawTarget)) {
+          const maxCalls = rawTarget.max_calls;
+          if (maxCalls !== undefined && (typeof maxCalls !== 'number' || maxCalls < 0)) {
+            logWarning(
+              `Invalid target.max_calls for evaluator '${name}' in '${evalId}': must be a non-negative number`,
+            );
+          } else {
+            targetConfig = {
+              ...(typeof maxCalls === 'number' ? { max_calls: maxCalls } : {}),
+            };
+          }
+        } else if (rawTarget === true) {
+          // Support shorthand: `target: true` to enable with defaults
+          targetConfig = {};
+        } else {
+          logWarning(
+            `Invalid target config for evaluator '${name}' in '${evalId}': expected object or true`,
+          );
+        }
+      }
+
       // Collect unrecognized properties as pass-through config
-      const knownProps = new Set(['name', 'type', 'script', 'cwd', 'weight']);
+      const knownProps = new Set(['name', 'type', 'script', 'cwd', 'weight', 'target']);
       const config: Record<string, JsonValue> = {};
       for (const [key, value] of Object.entries(rawEvaluator)) {
         if (!knownProps.has(key) && value !== undefined) {
@@ -113,6 +138,7 @@ export async function parseEvaluators(
         resolvedCwd,
         ...(weight !== undefined ? { weight } : {}),
         ...(Object.keys(config).length > 0 ? { config } : {}),
+        ...(targetConfig !== undefined ? { target: targetConfig } : {}),
       });
       continue;
     }

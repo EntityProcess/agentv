@@ -61,7 +61,6 @@ const baseTestCase: EvalCase = {
   reference_answer: '- add structured logging\n- avoid global state',
   guideline_paths: [],
   file_paths: [],
-  code_snippets: [],
   expected_outcome: 'Logging improvements applied',
   evaluator: 'llm_judge',
 };

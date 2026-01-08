@@ -3,7 +3,7 @@
  *
  * Build custom code judges for evaluating AI agent outputs.
  *
- * @example
+ * @example Basic code judge
  * ```typescript
  * #!/usr/bin/env bun
  * import { defineCodeJudge } from '@agentv/eval';
@@ -15,6 +15,27 @@
  * }));
  * ```
  *
+ * @example Code judge with target access (requires `target` config in YAML)
+ * ```typescript
+ * #!/usr/bin/env bun
+ * import { defineCodeJudge, createTargetClient } from '@agentv/eval';
+ *
+ * export default defineCodeJudge(async ({ question }) => {
+ *   const target = createTargetClient();
+ *   if (!target) {
+ *     return { score: 0, misses: ['Target not available'] };
+ *   }
+ *
+ *   const response = await target.invoke({
+ *     question: `Evaluate: ${question}`,
+ *     systemPrompt: 'Respond with JSON: { "score": 0-1 }'
+ *   });
+ *
+ *   const result = JSON.parse(response.rawText ?? '{}');
+ *   return { score: result.score ?? 0 };
+ * });
+ * ```
+ *
  * @packageDocumentation
  */
 
@@ -23,16 +44,26 @@ export {
   CodeJudgeInputSchema,
   CodeJudgeResultSchema,
   TraceSummarySchema,
-  OutputMessageSchema,
+  MessageSchema,
   ToolCallSchema,
   TokenUsageSchema,
   type CodeJudgeInput,
   type CodeJudgeResult,
   type TraceSummary,
-  type OutputMessage,
+  type Message,
   type ToolCall,
   type TokenUsage,
 } from './schemas.js';
+
+// Re-export target client
+export {
+  createTargetClient,
+  TargetNotAvailableError,
+  TargetInvocationError,
+  type TargetClient,
+  type TargetInvokeRequest,
+  type TargetInvokeResponse,
+} from './target-client.js';
 
 // Re-export Zod for typed config support
 export { z } from 'zod';

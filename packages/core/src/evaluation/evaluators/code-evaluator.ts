@@ -1,5 +1,11 @@
 import { execFileWithStdin, execShellWithStdin } from '../../runtime/exec.js';
+import {
+  DEFAULT_MAX_CALLS,
+  type TargetProxyUsageMetadata,
+  createTargetProxy,
+} from '../../runtime/target-proxy.js';
 import { toSnakeCaseDeep } from '../case-conversion.js';
+import type { JsonObject, TargetAccessConfig } from '../types.js';
 import { clampScore, isNonEmptyString, parseJsonSafe, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
@@ -9,6 +15,8 @@ export interface CodeEvaluatorOptions {
   readonly agentTimeoutMs?: number;
   /** Pass-through configuration from YAML (any unrecognized properties) */
   readonly config?: Record<string, unknown>;
+  /** Target access config - when present, enables target invocation for the script */
+  readonly target?: TargetAccessConfig;
 }
 
 export class CodeEvaluator implements Evaluator {
@@ -18,12 +26,14 @@ export class CodeEvaluator implements Evaluator {
   private readonly cwd?: string;
   private readonly agentTimeoutMs?: number;
   private readonly config?: Record<string, unknown>;
+  private readonly target?: TargetAccessConfig;
 
   constructor(options: CodeEvaluatorOptions) {
     this.script = options.script;
     this.cwd = options.cwd;
     this.agentTimeoutMs = options.agentTimeoutMs;
     this.config = options.config;
+    this.target = options.target;
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
@@ -46,13 +56,54 @@ export class CodeEvaluator implements Evaluator {
 
     const inputPayload = JSON.stringify(toSnakeCaseDeep(payload), null, 2);
 
+    // Set up target proxy if configured and judge provider is available
+    let proxyEnv: Record<string, string> | undefined;
+    let proxyShutdown: (() => Promise<void>) | undefined;
+    let getProxyUsage: (() => TargetProxyUsageMetadata) | undefined;
+
+    if (this.target !== undefined && context.judgeProvider) {
+      const maxCalls = this.target.max_calls ?? DEFAULT_MAX_CALLS;
+      const proxy = await createTargetProxy({
+        targetProvider: context.judgeProvider,
+        maxCalls,
+      });
+      proxyEnv = {
+        AGENTV_TARGET_PROXY_URL: proxy.url,
+        AGENTV_TARGET_PROXY_TOKEN: proxy.token,
+      };
+      proxyShutdown = proxy.shutdown;
+      getProxyUsage = proxy.getUsageMetadata;
+    }
+
     try {
-      const stdout = await executeScript(this.script, inputPayload, this.agentTimeoutMs, this.cwd);
+      const stdout = await executeScript(
+        this.script,
+        inputPayload,
+        this.agentTimeoutMs,
+        this.cwd,
+        proxyEnv,
+      );
       const parsed = parseJsonSafe(stdout);
       const score = clampScore(typeof parsed?.score === 'number' ? parsed.score : 0);
       const hits = Array.isArray(parsed?.hits) ? parsed.hits.filter(isNonEmptyString) : [];
       const misses = Array.isArray(parsed?.misses) ? parsed.misses.filter(isNonEmptyString) : [];
       const reasoning = typeof parsed?.reasoning === 'string' ? parsed.reasoning : undefined;
+
+      // Build evaluator raw request with proxy metadata if used
+      const proxyUsage = getProxyUsage?.();
+      const evaluatorRawRequest: JsonObject = {
+        script: this.script,
+        ...(this.cwd ? { cwd: this.cwd } : {}),
+        ...(proxyUsage
+          ? {
+              target_proxy: {
+                target_name: proxyUsage.targetName,
+                call_count: proxyUsage.callCount,
+                max_calls: proxyUsage.maxCalls,
+              },
+            }
+          : {}),
+      };
 
       return {
         score,
@@ -61,13 +112,11 @@ export class CodeEvaluator implements Evaluator {
         misses,
         expectedAspectCount: hits.length + misses.length || 1,
         reasoning,
-        evaluatorRawRequest: {
-          script: this.script,
-          ...(this.cwd ? { cwd: this.cwd } : {}),
-        },
+        evaluatorRawRequest,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const proxyUsage = getProxyUsage?.();
       return {
         score: 0,
         verdict: 'fail',
@@ -78,9 +127,23 @@ export class CodeEvaluator implements Evaluator {
         evaluatorRawRequest: {
           script: this.script,
           ...(this.cwd ? { cwd: this.cwd } : {}),
+          ...(proxyUsage
+            ? {
+                target_proxy: {
+                  target_name: proxyUsage.targetName,
+                  call_count: proxyUsage.callCount,
+                  max_calls: proxyUsage.maxCalls,
+                },
+              }
+            : {}),
           error: message,
         },
       };
+    } finally {
+      // Always shut down the proxy when done
+      if (proxyShutdown) {
+        await proxyShutdown();
+      }
     }
   }
 }
@@ -90,11 +153,12 @@ export async function executeScript(
   input: string,
   agentTimeoutMs?: number,
   cwd?: string,
+  env?: Record<string, string>,
 ): Promise<string> {
   const { stdout, stderr, exitCode } =
     typeof scriptPath === 'string'
-      ? await execShellWithStdin(scriptPath, input, { cwd, timeoutMs: agentTimeoutMs })
-      : await execFileWithStdin(scriptPath, input, { cwd, timeoutMs: agentTimeoutMs });
+      ? await execShellWithStdin(scriptPath, input, { cwd, timeoutMs: agentTimeoutMs, env })
+      : await execFileWithStdin(scriptPath, input, { cwd, timeoutMs: agentTimeoutMs, env });
 
   if (exitCode !== 0) {
     const trimmedErr = formatStderr(stderr);

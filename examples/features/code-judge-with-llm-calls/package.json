@@ -1,0 +1,8 @@
+{
+  "name": "code-judge-with-llm-calls-example",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@agentv/eval": "workspace:*"
+  }
+}

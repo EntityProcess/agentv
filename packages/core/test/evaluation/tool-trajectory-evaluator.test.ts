@@ -32,7 +32,6 @@ const mockEvalCase: EvalCase = {
   expected_messages: [],
   guideline_paths: [],
   file_paths: [],
-  code_snippets: [],
   expected_outcome: 'Expected outcome',
 };
 

@@ -8,29 +8,6 @@ import type { JsonObject } from '../types.js';
 export type FormattingMode = 'agent' | 'lm';
 
 /**
- * Extract fenced code blocks from AgentV user segments.
- */
-export function extractCodeBlocks(segments: readonly JsonObject[]): readonly string[] {
-  const CODE_BLOCK_PATTERN = /```[\s\S]*?```/g;
-  const codeBlocks: string[] = [];
-  for (const segment of segments) {
-    const typeValue = segment.type;
-    if (typeof typeValue !== 'string' || typeValue !== 'text') {
-      continue;
-    }
-    const textValue = segment.value;
-    if (typeof textValue !== 'string') {
-      continue;
-    }
-    const matches = textValue.match(CODE_BLOCK_PATTERN);
-    if (matches) {
-      codeBlocks.push(...matches);
-    }
-  }
-  return codeBlocks;
-}
-
-/**
  * Format file contents with XML tags for all files.
  */
 export function formatFileContents(

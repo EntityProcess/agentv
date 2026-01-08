@@ -1,6 +1,8 @@
 interface ExecOptions {
   readonly cwd?: string;
   readonly timeoutMs?: number;
+  /** Additional environment variables to pass to the subprocess */
+  readonly env?: Record<string, string>;
 }
 
 function shellEscapePath(value: string): string {
@@ -52,6 +54,8 @@ async function execFileWithStdinBun(
     stdin: encoder.encode(stdinPayload),
     stdout: 'pipe',
     stderr: 'pipe',
+    // Merge additional env vars with process.env
+    env: options.env ? { ...process.env, ...options.env } : process.env,
   });
 
   let timedOut = false;
@@ -108,6 +112,8 @@ async function execFileWithStdinNode(
     const child = spawn(cmd, args, {
       cwd: options.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
+      // Merge additional env vars with process.env
+      env: options.env ? { ...process.env, ...options.env } : process.env,
     });
 
     const stdoutChunks: Buffer[] = [];
@@ -199,6 +205,8 @@ export async function execShellWithStdin(
         shell: true,
         cwd: options.cwd,
         stdio: ['ignore', 'ignore', 'ignore'],
+        // Merge additional env vars with process.env
+        env: options.env ? { ...process.env, ...options.env } : process.env,
       });
 
       const timeout = options.timeoutMs

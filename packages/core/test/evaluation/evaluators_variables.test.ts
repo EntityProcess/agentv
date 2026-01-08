@@ -33,7 +33,6 @@ const baseTestCase: EvalCase = {
   reference_answer: 'Reference Answer Text',
   guideline_paths: [],
   file_paths: [],
-  code_snippets: [],
   expected_outcome: 'Expected Outcome Text',
   evaluator: 'llm_judge',
 };

@@ -2,7 +2,6 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 
-import { extractCodeBlocks } from './formatting/segment-formatter.js';
 import { extractTargetFromSuite, loadConfig } from './loaders/config-loader.js';
 import { coerceEvaluator, parseEvaluators } from './loaders/evaluator-parser.js';
 import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
@@ -12,7 +11,6 @@ import { isJsonObject, isTestMessage } from './types.js';
 
 // Re-export public APIs from modules
 export { buildPromptInputs, type PromptInputs } from './formatting/prompt-builder.js';
-export { extractCodeBlocks } from './formatting/segment-formatter.js';
 export { isGuidelineFile } from './loaders/config-loader.js';
 
 const ANSI_YELLOW = '\u001b[33m';
@@ -180,8 +178,6 @@ export async function loadEvalCases(
         })
       : [];
 
-    const codeSnippets = extractCodeBlocks(inputSegments);
-
     // Build reference_answer:
     // Extract the content from the last message in expected_messages (similar to candidate_answer)
     let referenceAnswer = '';
@@ -277,7 +273,6 @@ export async function loadEvalCases(
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
       guideline_patterns: guidelinePatterns,
       file_paths: allFilePaths,
-      code_snippets: codeSnippets,
       expected_outcome: outcome,
       evaluator: evalCaseEvaluatorKind,
       evaluators,

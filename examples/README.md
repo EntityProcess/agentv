@@ -42,6 +42,7 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 - [weighted-evaluators](features/weighted-evaluators/) - Weighted evaluators
 - [execution-metrics](features/execution-metrics/) - Metrics tracking (tokens, cost, latency)
 - [code-judge-sdk](features/code-judge-sdk/) - TypeScript SDK for code judges
+- [code-judge-with-llm-calls](features/code-judge-with-llm-calls/) - Code judges with target proxy for LLM calls
 - [batch-cli](features/batch-cli/) - Batch CLI evaluation
 - [document-extraction](features/document-extraction/) - Document data extraction
 - [local-cli](features/local-cli/) - Local CLI targets

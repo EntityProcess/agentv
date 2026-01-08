@@ -167,6 +167,16 @@ export function isEvaluatorKind(value: unknown): value is EvaluatorKind {
   return typeof value === 'string' && EVALUATOR_KIND_SET.has(value);
 }
 
+/**
+ * Configuration for enabling target access in code_judge evaluators.
+ * When present, the runtime will start a local proxy server that allows
+ * the script to invoke configured targets without direct credential access.
+ */
+export type TargetAccessConfig = {
+  /** Maximum number of target invocations allowed per execution (default: 50) */
+  readonly max_calls?: number;
+};
+
 export type CodeEvaluatorConfig = {
   readonly name: string;
   readonly type: 'code';
@@ -177,6 +187,8 @@ export type CodeEvaluatorConfig = {
   readonly weight?: number;
   /** Pass-through configuration for the code_judge script (any unrecognized YAML properties) */
   readonly config?: JsonObject;
+  /** When present, enables target access for the script via local proxy */
+  readonly target?: TargetAccessConfig;
 };
 
 export type LlmJudgeEvaluatorConfig = {
@@ -323,7 +335,6 @@ export interface EvalCase {
   readonly guideline_paths: readonly string[];
   readonly guideline_patterns?: readonly string[];
   readonly file_paths: readonly string[];
-  readonly code_snippets: readonly string[];
   readonly expected_outcome: string;
   readonly evaluator?: EvaluatorKind;
   readonly evaluators?: readonly EvaluatorConfig[];
