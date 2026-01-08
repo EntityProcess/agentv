@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
 
 import {
-  JudgeInvocationError,
-  JudgeProxyNotAvailableError,
-  createJudgeProxyClient,
-  createJudgeProxyClientInternal,
-} from '../src/judge-proxy-client.js';
+  TargetInvocationError,
+  TargetNotAvailableError,
+  createTargetClient,
+  createTargetClientInternal,
+} from '../src/target-client.js';
 
-describe('createJudgeProxyClient', () => {
+describe('createTargetClient', () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
     // Clear relevant env vars before each test
-    process.env.AGENTV_JUDGE_PROXY_URL = undefined;
-    process.env.AGENTV_JUDGE_PROXY_TOKEN = undefined;
+    process.env.AGENTV_TARGET_PROXY_URL = undefined;
+    process.env.AGENTV_TARGET_PROXY_TOKEN = undefined;
   });
 
   afterEach(() => {
@@ -22,43 +22,43 @@ describe('createJudgeProxyClient', () => {
   });
 
   it('returns undefined when no env vars are set', () => {
-    const client = createJudgeProxyClient();
+    const client = createTargetClient();
     expect(client).toBeUndefined();
   });
 
-  it('throws JudgeProxyNotAvailableError when URL is set but token is missing', () => {
-    process.env.AGENTV_JUDGE_PROXY_URL = 'http://127.0.0.1:3000';
+  it('throws TargetNotAvailableError when URL is set but token is missing', () => {
+    process.env.AGENTV_TARGET_PROXY_URL = 'http://127.0.0.1:3000';
 
-    expect(() => createJudgeProxyClient()).toThrow(JudgeProxyNotAvailableError);
-    expect(() => createJudgeProxyClient()).toThrow(
-      'AGENTV_JUDGE_PROXY_URL is set but AGENTV_JUDGE_PROXY_TOKEN is missing',
+    expect(() => createTargetClient()).toThrow(TargetNotAvailableError);
+    expect(() => createTargetClient()).toThrow(
+      'AGENTV_TARGET_PROXY_URL is set but AGENTV_TARGET_PROXY_TOKEN is missing',
     );
   });
 
   it('returns client when both env vars are set', () => {
-    process.env.AGENTV_JUDGE_PROXY_URL = 'http://127.0.0.1:3000';
-    process.env.AGENTV_JUDGE_PROXY_TOKEN = 'test-token-123';
+    process.env.AGENTV_TARGET_PROXY_URL = 'http://127.0.0.1:3000';
+    process.env.AGENTV_TARGET_PROXY_TOKEN = 'test-token-123';
 
-    const client = createJudgeProxyClient();
+    const client = createTargetClient();
     expect(client).toBeDefined();
     expect(typeof client?.invoke).toBe('function');
     expect(typeof client?.invokeBatch).toBe('function');
   });
 });
 
-describe('createJudgeProxyClientInternal', () => {
+describe('createTargetClientInternal', () => {
   it('creates client with invoke method', () => {
-    const client = createJudgeProxyClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
     expect(typeof client.invoke).toBe('function');
   });
 
   it('creates client with invokeBatch method', () => {
-    const client = createJudgeProxyClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
     expect(typeof client.invokeBatch).toBe('function');
   });
 });
 
-describe('JudgeProxyClient.invoke', () => {
+describe('TargetClient.invoke', () => {
   it('makes POST request with correct headers', async () => {
     const mockResponse = {
       outputMessages: [{ role: 'assistant', content: 'test response' }],
@@ -70,7 +70,7 @@ describe('JudgeProxyClient.invoke', () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const client = createJudgeProxyClientInternal('http://127.0.0.1:3000', 'secret-token');
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'secret-token');
     await client.invoke({ question: 'test question' });
 
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -98,7 +98,7 @@ describe('JudgeProxyClient.invoke', () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const client = createJudgeProxyClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
     const response = await client.invoke({ question: 'test' });
 
     expect(response.outputMessages).toEqual([{ role: 'assistant', content: 'test' }]);
@@ -107,23 +107,23 @@ describe('JudgeProxyClient.invoke', () => {
     fetchSpy.mockRestore();
   });
 
-  it('throws JudgeInvocationError on non-ok response', async () => {
+  it('throws TargetInvocationError on non-ok response', async () => {
     const fetchSpy = spyOn(global, 'fetch').mockResolvedValue({
       ok: false,
       status: 429,
       text: () => Promise.resolve('{"error":"Max calls exceeded"}'),
     } as Response);
 
-    const client = createJudgeProxyClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
 
-    let error: JudgeInvocationError | undefined;
+    let error: TargetInvocationError | undefined;
     try {
       await client.invoke({ question: 'test' });
     } catch (e) {
-      error = e as JudgeInvocationError;
+      error = e as TargetInvocationError;
     }
 
-    expect(error).toBeInstanceOf(JudgeInvocationError);
+    expect(error).toBeInstanceOf(TargetInvocationError);
     expect(error?.message).toBe('Max calls exceeded');
     expect(error?.statusCode).toBe(429);
 
@@ -137,16 +137,16 @@ describe('JudgeProxyClient.invoke', () => {
       text: () => Promise.resolve('Internal Server Error'),
     } as Response);
 
-    const client = createJudgeProxyClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
 
-    let error: JudgeInvocationError | undefined;
+    let error: TargetInvocationError | undefined;
     try {
       await client.invoke({ question: 'test' });
     } catch (e) {
-      error = e as JudgeInvocationError;
+      error = e as TargetInvocationError;
     }
 
-    expect(error).toBeInstanceOf(JudgeInvocationError);
+    expect(error).toBeInstanceOf(TargetInvocationError);
     expect(error?.message).toBe('Internal Server Error');
     expect(error?.statusCode).toBe(500);
 
@@ -154,7 +154,7 @@ describe('JudgeProxyClient.invoke', () => {
   });
 });
 
-describe('JudgeProxyClient.invokeBatch', () => {
+describe('TargetClient.invokeBatch', () => {
   it('makes POST request to /invokeBatch endpoint', async () => {
     const mockResponse = {
       responses: [
@@ -168,7 +168,7 @@ describe('JudgeProxyClient.invokeBatch', () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const client = createJudgeProxyClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
     await client.invokeBatch([{ question: 'q1' }, { question: 'q2' }]);
 
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -194,7 +194,7 @@ describe('JudgeProxyClient.invokeBatch', () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const client = createJudgeProxyClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
     const responses = await client.invokeBatch([{ question: 'q1' }, { question: 'q2' }]);
 
     expect(responses).toHaveLength(2);
@@ -204,7 +204,7 @@ describe('JudgeProxyClient.invokeBatch', () => {
     fetchSpy.mockRestore();
   });
 
-  it('throws JudgeInvocationError on batch limit exceeded', async () => {
+  it('throws TargetInvocationError on batch limit exceeded', async () => {
     const fetchSpy = spyOn(global, 'fetch').mockResolvedValue({
       ok: false,
       status: 429,
@@ -214,16 +214,16 @@ describe('JudgeProxyClient.invokeBatch', () => {
         ),
     } as Response);
 
-    const client = createJudgeProxyClientInternal('http://127.0.0.1:3000', 'token');
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
 
-    let error: JudgeInvocationError | undefined;
+    let error: TargetInvocationError | undefined;
     try {
       await client.invokeBatch([{ question: 'q1' }]);
     } catch (e) {
-      error = e as JudgeInvocationError;
+      error = e as TargetInvocationError;
     }
 
-    expect(error).toBeInstanceOf(JudgeInvocationError);
+    expect(error).toBeInstanceOf(TargetInvocationError);
     expect(error?.message).toContain('Batch would exceed max calls');
     expect(error?.statusCode).toBe(429);
 
@@ -232,21 +232,21 @@ describe('JudgeProxyClient.invokeBatch', () => {
 });
 
 describe('Error classes', () => {
-  it('JudgeProxyNotAvailableError has correct name', () => {
-    const error = new JudgeProxyNotAvailableError('test');
-    expect(error.name).toBe('JudgeProxyNotAvailableError');
+  it('TargetNotAvailableError has correct name', () => {
+    const error = new TargetNotAvailableError('test');
+    expect(error.name).toBe('TargetNotAvailableError');
     expect(error.message).toBe('test');
   });
 
-  it('JudgeInvocationError has correct name and statusCode', () => {
-    const error = new JudgeInvocationError('test', 429);
-    expect(error.name).toBe('JudgeInvocationError');
+  it('TargetInvocationError has correct name and statusCode', () => {
+    const error = new TargetInvocationError('test', 429);
+    expect(error.name).toBe('TargetInvocationError');
     expect(error.message).toBe('test');
     expect(error.statusCode).toBe(429);
   });
 
-  it('JudgeInvocationError works without statusCode', () => {
-    const error = new JudgeInvocationError('test');
+  it('TargetInvocationError works without statusCode', () => {
+    const error = new TargetInvocationError('test');
     expect(error.statusCode).toBeUndefined();
   });
 });

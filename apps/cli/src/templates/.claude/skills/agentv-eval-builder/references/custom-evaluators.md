@@ -249,13 +249,13 @@ export default defineCodeJudge(({ traceSummary }) => {
 
 **See also:** `examples/features/code-judge-sdk/` for complete working examples
 
-## Judge Proxy for Code Evaluators
+## Target Access for Code Evaluators
 
-Code judges can access an LLM through the **judge proxy** when sophisticated evaluation logic requires multiple LLM calls. This is useful for metrics like contextual precision, semantic similarity, or multi-step reasoning evaluation.
+Code judges can access an LLM through a **target proxy** when sophisticated evaluation logic requires multiple LLM calls. This is useful for metrics like contextual precision, semantic similarity, or multi-step reasoning evaluation.
 
 ### Security
 
-The judge proxy is designed with security in mind:
+The target proxy is designed with security in mind:
 - **Loopback only** - Binds to 127.0.0.1, not accessible from network
 - **Bearer token auth** - Unique cryptographic token per execution
 - **Call limits** - Enforces `max_calls` to prevent runaway costs
@@ -263,7 +263,7 @@ The judge proxy is designed with security in mind:
 
 ### Configuration
 
-Enable the judge proxy by adding a `judge` block to your `code_judge` evaluator:
+Enable target access by adding a `target` block to your `code_judge` evaluator:
 
 ```yaml
 evaluators:
@@ -271,13 +271,13 @@ evaluators:
     type: code_judge
     script: bun scripts/contextual-precision.ts
     # Enable with defaults (max_calls: 50)
-    judge: {}
+    target: {}
 
   - name: semantic-check
     type: code_judge
     script: bun scripts/semantic-check.ts
     # Custom call limit
-    judge:
+    target:
       max_calls: 10
 ```
 
@@ -287,18 +287,18 @@ evaluators:
 
 ```typescript
 #!/usr/bin/env bun
-import { createJudgeProxyClient, defineCodeJudge } from '@agentv/eval';
+import { createTargetClient, defineCodeJudge } from '@agentv/eval';
 
 export default defineCodeJudge(async ({ question, candidateAnswer }) => {
-  const judge = createJudgeProxyClient();
+  const target = createTargetClient();
 
-  if (!judge) {
-    // Proxy not available - likely missing `judge` config
-    return { score: 0, misses: ['Judge proxy not configured'] };
+  if (!target) {
+    // Target not available - likely missing `target` config
+    return { score: 0, misses: ['Target not configured'] };
   }
 
-  // Make an LLM call through the proxy
-  const response = await judge.invoke({
+  // Make an LLM call through the target proxy
+  const response = await target.invoke({
     question: `Is this response relevant to: ${question}? Response: ${candidateAnswer}`,
     systemPrompt: 'Respond with JSON: { "relevant": true/false, "reasoning": "..." }'
   });
@@ -316,12 +316,12 @@ export default defineCodeJudge(async ({ question, candidateAnswer }) => {
 
 ```typescript
 #!/usr/bin/env bun
-import { createJudgeProxyClient, defineCodeJudge } from '@agentv/eval';
+import { createTargetClient, defineCodeJudge } from '@agentv/eval';
 
 // Contextual Precision: evaluates retrieval ranking quality
 // Retrieval context is extracted from expected_messages.tool_calls
 export default defineCodeJudge(async ({ question, expectedMessages }) => {
-  const judge = createJudgeProxyClient();
+  const target = createTargetClient();
 
   // Extract retrieval results from expected tool calls
   const retrievalContext: string[] = [];
@@ -334,8 +334,8 @@ export default defineCodeJudge(async ({ question, expectedMessages }) => {
     }
   }
 
-  if (!judge || retrievalContext.length === 0) {
-    return { score: 0, misses: ['Judge proxy or retrieval context not available'] };
+  if (!target || retrievalContext.length === 0) {
+    return { score: 0, misses: ['Target or retrieval context not available'] };
   }
 
   // Evaluate each retrieval node in batch
@@ -344,7 +344,7 @@ export default defineCodeJudge(async ({ question, expectedMessages }) => {
     systemPrompt: 'Respond with JSON: { "relevant": true/false }'
   }));
 
-  const responses = await judge.invokeBatch(requests);
+  const responses = await target.invokeBatch(requests);
 
   // Parse relevance for each node
   const relevance = responses.map(r => {
@@ -403,16 +403,16 @@ import os
 import sys
 import requests
 
-def create_judge_client():
-    """Create judge proxy client from environment variables."""
-    url = os.environ.get('AGENTV_JUDGE_PROXY_URL')
-    token = os.environ.get('AGENTV_JUDGE_PROXY_TOKEN')
+def create_target_client():
+    """Create target client from environment variables."""
+    url = os.environ.get('AGENTV_TARGET_PROXY_URL')
+    token = os.environ.get('AGENTV_TARGET_PROXY_TOKEN')
     if not url or not token:
         return None
     return {'url': url, 'token': token}
 
-def invoke_judge(client, question, system_prompt=None):
-    """Invoke the judge proxy."""
+def invoke_target(client, question, system_prompt=None):
+    """Invoke the target proxy."""
     response = requests.post(
         f"{client['url']}/invoke",
         headers={
@@ -429,17 +429,17 @@ def invoke_judge(client, question, system_prompt=None):
 
 def main():
     input_data = json.loads(sys.stdin.read())
-    judge = create_judge_client()
+    target = create_target_client()
 
-    if not judge:
+    if not target:
         print(json.dumps({
             'score': 0,
-            'misses': ['Judge proxy not configured']
+            'misses': ['Target not configured']
         }))
         sys.exit(0)
 
-    result = invoke_judge(
-        judge,
+    result = invoke_target(
+        target,
         f"Is this relevant? {input_data['candidate_answer']}",
         'Respond with JSON: { "relevant": true/false }'
     )
@@ -456,19 +456,19 @@ if __name__ == '__main__':
 
 ### Environment Variables
 
-When `judge` is configured, these environment variables are set automatically:
-- `AGENTV_JUDGE_PROXY_URL` - Local proxy URL (e.g., `http://127.0.0.1:45123`)
-- `AGENTV_JUDGE_PROXY_TOKEN` - Bearer token for authentication
+When `target` is configured, these environment variables are set automatically:
+- `AGENTV_TARGET_PROXY_URL` - Local proxy URL (e.g., `http://127.0.0.1:45123`)
+- `AGENTV_TARGET_PROXY_TOKEN` - Bearer token for authentication
 
 ### Metadata
 
-Judge proxy usage is recorded in the evaluator output:
+Target proxy usage is recorded in the evaluator output:
 
 ```json
 {
   "evaluatorProviderRequest": {
     "script": ["bun", "scripts/contextual-precision.ts"],
-    "judgeProxy": {
+    "targetProxy": {
       "targetName": "claude-sonnet-4-20250514",
       "callCount": 3,
       "maxCalls": 50

@@ -864,7 +864,7 @@ async function runEvaluatorList(options: {
           cwd: evaluator.resolvedCwd ?? evaluator.cwd,
           agentTimeoutMs,
           config: evaluator.config,
-          judge: evaluator.judge,
+          target: evaluator.target,
         });
         const score = await codeEvaluator.evaluate({
           evalCase,
@@ -908,7 +908,7 @@ async function runEvaluatorList(options: {
                 cwd: memberConfig.resolvedCwd ?? memberConfig.cwd,
                 agentTimeoutMs,
                 config: memberConfig.config,
-                judge: memberConfig.judge,
+                target: memberConfig.target,
               });
             case 'composite':
               return new CompositeEvaluator({

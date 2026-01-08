@@ -15,18 +15,18 @@
  * }));
  * ```
  *
- * @example Code judge with judge proxy (requires `judge` config in YAML)
+ * @example Code judge with target access (requires `target` config in YAML)
  * ```typescript
  * #!/usr/bin/env bun
- * import { defineCodeJudge, createJudgeProxyClient } from '@agentv/eval';
+ * import { defineCodeJudge, createTargetClient } from '@agentv/eval';
  *
  * export default defineCodeJudge(async ({ question }) => {
- *   const judge = createJudgeProxyClient();
- *   if (!judge) {
- *     return { score: 0, misses: ['Judge proxy not available'] };
+ *   const target = createTargetClient();
+ *   if (!target) {
+ *     return { score: 0, misses: ['Target not available'] };
  *   }
  *
- *   const response = await judge.invoke({
+ *   const response = await target.invoke({
  *     question: `Evaluate: ${question}`,
  *     systemPrompt: 'Respond with JSON: { "score": 0-1 }'
  *   });
@@ -55,15 +55,15 @@ export {
   type TokenUsage,
 } from './schemas.js';
 
-// Re-export judge proxy client
+// Re-export target client
 export {
-  createJudgeProxyClient,
-  JudgeProxyNotAvailableError,
-  JudgeInvocationError,
-  type JudgeProxyClient,
-  type JudgeInvokeRequest,
-  type JudgeInvokeResponse,
-} from './judge-proxy-client.js';
+  createTargetClient,
+  TargetNotAvailableError,
+  TargetInvocationError,
+  type TargetClient,
+  type TargetInvokeRequest,
+  type TargetInvokeResponse,
+} from './target-client.js';
 
 // Re-export Zod for typed config support
 export { z } from 'zod';

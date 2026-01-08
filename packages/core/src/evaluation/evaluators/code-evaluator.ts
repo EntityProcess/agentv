@@ -1,11 +1,11 @@
 import { execFileWithStdin, execShellWithStdin } from '../../runtime/exec.js';
 import {
   DEFAULT_MAX_CALLS,
-  type JudgeProxyUsageMetadata,
-  createJudgeProxy,
-} from '../../runtime/judge-proxy.js';
+  type TargetProxyUsageMetadata,
+  createTargetProxy,
+} from '../../runtime/target-proxy.js';
 import { toSnakeCaseDeep } from '../case-conversion.js';
-import type { CodeJudgeConfig, JsonObject } from '../types.js';
+import type { JsonObject, TargetAccessConfig } from '../types.js';
 import { clampScore, isNonEmptyString, parseJsonSafe, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
@@ -15,8 +15,8 @@ export interface CodeEvaluatorOptions {
   readonly agentTimeoutMs?: number;
   /** Pass-through configuration from YAML (any unrecognized properties) */
   readonly config?: Record<string, unknown>;
-  /** Judge proxy config - when present, enables judge access for the script */
-  readonly judge?: CodeJudgeConfig;
+  /** Target access config - when present, enables target invocation for the script */
+  readonly target?: TargetAccessConfig;
 }
 
 export class CodeEvaluator implements Evaluator {
@@ -26,14 +26,14 @@ export class CodeEvaluator implements Evaluator {
   private readonly cwd?: string;
   private readonly agentTimeoutMs?: number;
   private readonly config?: Record<string, unknown>;
-  private readonly judge?: CodeJudgeConfig;
+  private readonly target?: TargetAccessConfig;
 
   constructor(options: CodeEvaluatorOptions) {
     this.script = options.script;
     this.cwd = options.cwd;
     this.agentTimeoutMs = options.agentTimeoutMs;
     this.config = options.config;
-    this.judge = options.judge;
+    this.target = options.target;
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
@@ -56,20 +56,20 @@ export class CodeEvaluator implements Evaluator {
 
     const inputPayload = JSON.stringify(toSnakeCaseDeep(payload), null, 2);
 
-    // Set up judge proxy if configured and judge provider is available
+    // Set up target proxy if configured and judge provider is available
     let proxyEnv: Record<string, string> | undefined;
     let proxyShutdown: (() => Promise<void>) | undefined;
-    let getProxyUsage: (() => JudgeProxyUsageMetadata) | undefined;
+    let getProxyUsage: (() => TargetProxyUsageMetadata) | undefined;
 
-    if (this.judge !== undefined && context.judgeProvider) {
-      const maxCalls = this.judge.max_calls ?? DEFAULT_MAX_CALLS;
-      const proxy = await createJudgeProxy({
-        judgeProvider: context.judgeProvider,
+    if (this.target !== undefined && context.judgeProvider) {
+      const maxCalls = this.target.max_calls ?? DEFAULT_MAX_CALLS;
+      const proxy = await createTargetProxy({
+        targetProvider: context.judgeProvider,
         maxCalls,
       });
       proxyEnv = {
-        AGENTV_JUDGE_PROXY_URL: proxy.url,
-        AGENTV_JUDGE_PROXY_TOKEN: proxy.token,
+        AGENTV_TARGET_PROXY_URL: proxy.url,
+        AGENTV_TARGET_PROXY_TOKEN: proxy.token,
       };
       proxyShutdown = proxy.shutdown;
       getProxyUsage = proxy.getUsageMetadata;
@@ -96,10 +96,10 @@ export class CodeEvaluator implements Evaluator {
         ...(this.cwd ? { cwd: this.cwd } : {}),
         ...(proxyUsage
           ? {
-              judgeProxy: {
-                targetName: proxyUsage.targetName,
-                callCount: proxyUsage.callCount,
-                maxCalls: proxyUsage.maxCalls,
+              target_proxy: {
+                target_name: proxyUsage.targetName,
+                call_count: proxyUsage.callCount,
+                max_calls: proxyUsage.maxCalls,
               },
             }
           : {}),
@@ -129,10 +129,10 @@ export class CodeEvaluator implements Evaluator {
           ...(this.cwd ? { cwd: this.cwd } : {}),
           ...(proxyUsage
             ? {
-                judgeProxy: {
-                  targetName: proxyUsage.targetName,
-                  callCount: proxyUsage.callCount,
-                  maxCalls: proxyUsage.maxCalls,
+                target_proxy: {
+                  target_name: proxyUsage.targetName,
+                  call_count: proxyUsage.callCount,
+                  max_calls: proxyUsage.maxCalls,
                 },
               }
             : {}),

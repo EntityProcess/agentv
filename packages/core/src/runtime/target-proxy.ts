@@ -1,5 +1,5 @@
 /**
- * Local HTTP proxy server for judge invocations from code_judge scripts.
+ * Local HTTP proxy server for target invocations from code_judge scripts.
  *
  * Security properties:
  * - Binds to loopback only (127.0.0.1)
@@ -17,7 +17,7 @@ import type { Provider } from '../evaluation/providers/types.js';
 /**
  * Request body for /invoke endpoint
  */
-export interface JudgeProxyInvokeRequest {
+export interface TargetProxyInvokeRequest {
   readonly evalCaseId: string;
   readonly attempt: number;
   readonly question: string;
@@ -27,7 +27,7 @@ export interface JudgeProxyInvokeRequest {
 /**
  * Response body for /invoke endpoint
  */
-export interface JudgeProxyInvokeResponse {
+export interface TargetProxyInvokeResponse {
   readonly outputMessages: readonly unknown[];
   readonly rawText?: string;
 }
@@ -35,38 +35,38 @@ export interface JudgeProxyInvokeResponse {
 /**
  * Proxy usage metadata recorded after execution
  */
-export interface JudgeProxyUsageMetadata {
+export interface TargetProxyUsageMetadata {
   readonly targetName: string;
   readonly callCount: number;
   readonly maxCalls: number;
 }
 
 /**
- * Options for creating a judge proxy
+ * Options for creating a target proxy
  */
-export interface JudgeProxyOptions {
-  readonly judgeProvider: Provider;
+export interface TargetProxyOptions {
+  readonly targetProvider: Provider;
   readonly maxCalls: number;
 }
 
 /**
- * Active judge proxy instance
+ * Active target proxy instance
  */
-export interface JudgeProxyInstance {
+export interface TargetProxyInstance {
   readonly url: string;
   readonly token: string;
   readonly shutdown: () => Promise<void>;
-  readonly getUsageMetadata: () => JudgeProxyUsageMetadata;
+  readonly getUsageMetadata: () => TargetProxyUsageMetadata;
 }
 
 /** Default max calls if not specified */
 export const DEFAULT_MAX_CALLS = 50;
 
 /**
- * Create and start a judge proxy server.
+ * Create and start a target proxy server.
  */
-export async function createJudgeProxy(options: JudgeProxyOptions): Promise<JudgeProxyInstance> {
-  const { judgeProvider, maxCalls } = options;
+export async function createTargetProxy(options: TargetProxyOptions): Promise<TargetProxyInstance> {
+  const { targetProvider, maxCalls } = options;
 
   // Generate unique token for this invocation
   const token = randomBytes(32).toString('hex');
@@ -123,7 +123,7 @@ export async function createJudgeProxy(options: JudgeProxyOptions): Promise<Judg
 
     try {
       const body = await readBody(req);
-      const request = JSON.parse(body) as JudgeProxyInvokeRequest;
+      const request = JSON.parse(body) as TargetProxyInvokeRequest;
 
       // Validate required fields
       if (!request.question || typeof request.question !== 'string') {
@@ -133,7 +133,7 @@ export async function createJudgeProxy(options: JudgeProxyOptions): Promise<Judg
 
       callCount++;
 
-      const response = await judgeProvider.invoke({
+      const response = await targetProvider.invoke({
         question: request.question,
         systemPrompt: request.systemPrompt,
         evalCaseId: request.evalCaseId ?? 'proxy',
@@ -144,7 +144,7 @@ export async function createJudgeProxy(options: JudgeProxyOptions): Promise<Judg
       const outputMessages = response.outputMessages ?? [];
       const rawText = extractLastAssistantContent(outputMessages);
 
-      const result: JudgeProxyInvokeResponse = {
+      const result: TargetProxyInvokeResponse = {
         outputMessages,
         rawText,
       };
@@ -159,7 +159,7 @@ export async function createJudgeProxy(options: JudgeProxyOptions): Promise<Judg
   async function handleInvokeBatch(req: IncomingMessage, res: ServerResponse): Promise<void> {
     try {
       const body = await readBody(req);
-      const { requests } = JSON.parse(body) as { requests: JudgeProxyInvokeRequest[] };
+      const { requests } = JSON.parse(body) as { requests: TargetProxyInvokeRequest[] };
 
       if (!Array.isArray(requests)) {
         sendJson(res, 400, { error: 'Missing required field: requests (array)' });
@@ -174,7 +174,7 @@ export async function createJudgeProxy(options: JudgeProxyOptions): Promise<Judg
         return;
       }
 
-      const responses: JudgeProxyInvokeResponse[] = [];
+      const responses: TargetProxyInvokeResponse[] = [];
 
       for (const request of requests) {
         if (!request.question || typeof request.question !== 'string') {
@@ -188,7 +188,7 @@ export async function createJudgeProxy(options: JudgeProxyOptions): Promise<Judg
         callCount++;
 
         try {
-          const response = await judgeProvider.invoke({
+          const response = await targetProvider.invoke({
             question: request.question,
             systemPrompt: request.systemPrompt,
             evalCaseId: request.evalCaseId ?? 'proxy',
@@ -241,7 +241,7 @@ export async function createJudgeProxy(options: JudgeProxyOptions): Promise<Judg
       });
     },
     getUsageMetadata: () => ({
-      targetName: judgeProvider.targetName,
+      targetName: targetProvider.targetName,
       callCount,
       maxCalls,
     }),

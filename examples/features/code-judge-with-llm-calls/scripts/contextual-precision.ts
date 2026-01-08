@@ -12,11 +12,11 @@
  * Retrieval context is extracted from expected_messages.tool_calls output,
  * which represents the expected agent behavior (calling a retrieval tool).
  *
- * Requires `judge: { max_calls: N }` in the evaluator YAML config,
+ * Requires `target: { max_calls: N }` in the evaluator YAML config,
  * where N >= number of retrieval context nodes to evaluate.
  */
 import {
-  createJudgeProxyClient,
+  createTargetClient,
   defineCodeJudge,
 } from '@agentv/eval';
 
@@ -83,14 +83,14 @@ export default defineCodeJudge(async (input) => {
     };
   }
 
-  const judge = createJudgeProxyClient();
+  const target = createTargetClient();
 
-  if (!judge) {
+  if (!target) {
     return {
       score: 0,
       hits: [],
-      misses: ['Judge proxy not available - ensure `judge` block is configured in evaluator YAML'],
-      reasoning: 'Cannot evaluate without judge proxy access',
+      misses: ['Target not available - ensure `target` block is configured in evaluator YAML'],
+      reasoning: 'Cannot evaluate without target access',
     };
   }
 
@@ -113,7 +113,7 @@ Is this node relevant to answering the question? Respond with JSON only:
       'You are a precise relevance evaluator for RAG systems. Determine if a retrieved node contains information useful for answering the given question. Output valid JSON only.',
   }));
 
-  const responses = await judge.invokeBatch(requests);
+  const responses = await target.invokeBatch(requests);
 
   // Step 2: Parse relevance scores for each node
   const relevanceScores: boolean[] = [];

@@ -1,7 +1,7 @@
 # Contextual Precision Evaluator Example
 #
-# Demonstrates the judge proxy feature with a real RAG metric.
-# The evaluator makes multiple judge calls (one per retrieval node)
+# Demonstrates target access for code judges with a real RAG metric.
+# The evaluator makes multiple target calls (one per retrieval node)
 # to calculate weighted precision based on relevance ranking.
 #
 # Formula: (1/R) * Σ(Precision@k * r_k) for k=1 to n
@@ -15,9 +15,9 @@ execution:
     - name: contextual_precision
       type: code_judge
       script: [bun, run, ../scripts/contextual-precision.ts]
-      # Judge proxy config - allows script to make LLM calls
+      # Target access config - allows script to invoke configured targets
       # max_calls should be >= number of retrieval context nodes
-      judge:
+      target:
         max_calls: 10
 
 evalcases:

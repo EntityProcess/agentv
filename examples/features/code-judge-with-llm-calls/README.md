@@ -49,7 +49,7 @@ Results show `hits` (relevant nodes) and `misses` (irrelevant nodes) for transpa
 
 ## Security
 
-The judge proxy is designed with security in mind:
+The target proxy is designed with security in mind:
 - Binds to **loopback only** (127.0.0.1) - not accessible from network
 - Uses **bearer token authentication** - unique per execution
 - Enforces **max_calls limit** - prevents runaway costs
@@ -57,24 +57,24 @@ The judge proxy is designed with security in mind:
 
 ## Configuration
 
-Enable judge proxy access by adding a `judge` block to your `code` evaluator:
+Enable target access by adding a `target` block to your `code_judge` evaluator:
 
 ```yaml
 evaluators:
   - name: contextual_precision
     type: code_judge
     script: [bun, run, scripts/contextual-precision.ts]
-    judge:
+    target:
       max_calls: 10  # At least N nodes to evaluate
 ```
 
 ## Usage in Code
 
 ```typescript
-import { createJudgeProxyClient, defineCodeJudge } from '@agentv/eval';
+import { createTargetClient, defineCodeJudge } from '@agentv/eval';
 
 export default defineCodeJudge(async ({ question, config }) => {
-  const judge = createJudgeProxyClient();
+  const target = createTargetClient();
   const retrievalContext = config?.retrieval_context ?? [];
 
   // Batch evaluation of all nodes
@@ -83,7 +83,7 @@ export default defineCodeJudge(async ({ question, config }) => {
     systemPrompt: 'Respond with JSON: { "relevant": true/false }'
   }));
 
-  const responses = await judge.invokeBatch(requests);
+  const responses = await target.invokeBatch(requests);
 
   // Calculate weighted precision score...
 });
@@ -91,11 +91,11 @@ export default defineCodeJudge(async ({ question, config }) => {
 
 ## Environment Variables
 
-When `judge` is configured, these environment variables are automatically set:
-- `AGENTV_JUDGE_PROXY_URL` - Local proxy URL (e.g., `http://127.0.0.1:45123`)
-- `AGENTV_JUDGE_PROXY_TOKEN` - Bearer token for authentication
+When `target` is configured, these environment variables are automatically set:
+- `AGENTV_TARGET_PROXY_URL` - Local proxy URL (e.g., `http://127.0.0.1:45123`)
+- `AGENTV_TARGET_PROXY_TOKEN` - Bearer token for authentication
 
-The `createJudgeProxyClient()` function reads these automatically.
+The `createTargetClient()` function reads these automatically.
 
 ## Running
 
