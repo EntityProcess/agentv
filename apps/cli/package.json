@@ -17,8 +17,7 @@
   "files": ["dist", "README.md"],
   "scripts": {
     "dev": "bun --watch src/index.ts",
-    "build": "bun run sync-skills && tsup && bun run copy-readme",
-    "sync-skills": "bun scripts/sync-skills.ts",
+    "build": "tsup && bun run copy-readme",
     "copy-readme": "bun -e \"import { cpSync } from 'fs'; cpSync('../../README.md', 'README.md')\"",
     "prepublishOnly": "bun run copy-readme",
     "typecheck": "tsc --noEmit",
