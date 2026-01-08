@@ -52,6 +52,7 @@ describe('createTargetClient', () => {
     expect(client).toBeDefined();
     expect(typeof client?.invoke).toBe('function');
     expect(typeof client?.invokeBatch).toBe('function');
+    expect(typeof client?.getInfo).toBe('function');
   });
 });
 
@@ -64,6 +65,11 @@ describe('createTargetClientInternal', () => {
   it('creates client with invokeBatch method', () => {
     const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
     expect(typeof client.invokeBatch).toBe('function');
+  });
+
+  it('creates client with getInfo method', () => {
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    expect(typeof client.getInfo).toBe('function');
   });
 });
 
@@ -235,6 +241,162 @@ describe('TargetClient.invokeBatch', () => {
     expect(error).toBeInstanceOf(TargetInvocationError);
     expect(error?.message).toContain('Batch would exceed max calls');
     expect(error?.statusCode).toBe(429);
+
+    fetchSpy.mockRestore();
+  });
+});
+
+describe('TargetClient.getInfo', () => {
+  it('makes GET request to /info endpoint', async () => {
+    const mockResponse = {
+      targetName: 'default-target',
+      maxCalls: 50,
+      callCount: 5,
+      availableTargets: ['default-target', 'alt-target'],
+    };
+
+    const fetchSpy = spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    } as Response);
+
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'secret-token');
+    await client.getInfo();
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://127.0.0.1:3000/info',
+      expect.objectContaining({
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer secret-token',
+        },
+      }),
+    );
+
+    fetchSpy.mockRestore();
+  });
+
+  it('returns target info', async () => {
+    const mockResponse = {
+      targetName: 'default-target',
+      maxCalls: 50,
+      callCount: 5,
+      availableTargets: ['default-target', 'alt-target'],
+    };
+
+    const fetchSpy = spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    } as Response);
+
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    const info = await client.getInfo();
+
+    expect(info.targetName).toBe('default-target');
+    expect(info.maxCalls).toBe(50);
+    expect(info.callCount).toBe(5);
+    expect(info.availableTargets).toEqual(['default-target', 'alt-target']);
+
+    fetchSpy.mockRestore();
+  });
+
+  it('throws TargetInvocationError on non-ok response', async () => {
+    const fetchSpy = spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve('{"error":"Unauthorized"}'),
+    } as Response);
+
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+
+    let error: TargetInvocationError | undefined;
+    try {
+      await client.getInfo();
+    } catch (e) {
+      error = e as TargetInvocationError;
+    }
+
+    expect(error).toBeInstanceOf(TargetInvocationError);
+    expect(error?.message).toBe('Unauthorized');
+    expect(error?.statusCode).toBe(401);
+
+    fetchSpy.mockRestore();
+  });
+});
+
+describe('TargetClient.invoke with target override', () => {
+  it('includes target in request body when specified', async () => {
+    const mockResponse = {
+      outputMessages: [{ role: 'assistant', content: 'test response' }],
+      rawText: 'test response',
+    };
+
+    const fetchSpy = spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    } as Response);
+
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    await client.invoke({ question: 'test', target: 'alt-target' });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://127.0.0.1:3000/invoke',
+      expect.objectContaining({
+        body: JSON.stringify({
+          question: 'test',
+          systemPrompt: undefined,
+          evalCaseId: undefined,
+          attempt: undefined,
+          target: 'alt-target',
+        }),
+      }),
+    );
+
+    fetchSpy.mockRestore();
+  });
+});
+
+describe('TargetClient.invokeBatch with target override', () => {
+  it('includes target in each request when specified', async () => {
+    const mockResponse = {
+      responses: [
+        { outputMessages: [], rawText: 'response 1' },
+        { outputMessages: [], rawText: 'response 2' },
+      ],
+    };
+
+    const fetchSpy = spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    } as Response);
+
+    const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
+    await client.invokeBatch([{ question: 'q1' }, { question: 'q2', target: 'alt-target' }]);
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://127.0.0.1:3000/invokeBatch',
+      expect.objectContaining({
+        body: JSON.stringify({
+          requests: [
+            {
+              question: 'q1',
+              systemPrompt: undefined,
+              evalCaseId: undefined,
+              attempt: undefined,
+              target: undefined,
+            },
+            {
+              question: 'q2',
+              systemPrompt: undefined,
+              evalCaseId: undefined,
+              attempt: undefined,
+              target: 'alt-target',
+            },
+          ],
+        }),
+      }),
+    );
 
     fetchSpy.mockRestore();
   });

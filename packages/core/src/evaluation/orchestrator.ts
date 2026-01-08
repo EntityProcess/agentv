@@ -74,6 +74,10 @@ export interface RunEvalCaseOptions {
   readonly useCache?: boolean;
   readonly signal?: AbortSignal;
   readonly judgeProvider?: Provider;
+  /** Resolver for target override in code judges */
+  readonly targetResolver?: (name: string) => Provider | undefined;
+  /** List of available target names for code judges */
+  readonly availableTargets?: readonly string[];
 }
 
 export interface ProgressEvent {
@@ -187,6 +191,21 @@ export async function runEvaluation(
     return getOrCreateProvider(resolvedJudge);
   };
 
+  // Create a target resolver for code judges to support target override
+  const targetResolver = (name: string): Provider | undefined => {
+    const resolved = resolveTargetByName(name);
+    if (!resolved) {
+      return undefined;
+    }
+    return getOrCreateProvider(resolved);
+  };
+
+  // Build list of available targets for /info endpoint
+  const availableTargets: readonly string[] = [
+    target.name,
+    ...Array.from(targetDefinitions.keys()),
+  ];
+
   const evaluatorRegistry = buildEvaluatorRegistry(evaluators, resolveJudgeProvider);
 
   const primaryProvider = getOrCreateProvider(target);
@@ -225,6 +244,8 @@ export async function runEvaluation(
         verbose,
         resolveJudgeProvider,
         agentTimeoutMs,
+        targetResolver,
+        availableTargets,
       });
     } catch (error) {
       if (verbose) {
@@ -273,6 +294,8 @@ export async function runEvaluation(
           useCache,
           now,
           judgeProvider,
+          targetResolver,
+          availableTargets,
         });
 
         if (onProgress) {
@@ -350,6 +373,8 @@ async function runBatchEvaluation(options: {
   readonly verbose?: boolean;
   readonly resolveJudgeProvider: (target: ResolvedTarget) => Promise<Provider | undefined>;
   readonly agentTimeoutMs?: number;
+  readonly targetResolver?: (name: string) => Provider | undefined;
+  readonly availableTargets?: readonly string[];
 }): Promise<readonly EvaluationResult[]> {
   const {
     evalCases,
@@ -361,6 +386,8 @@ async function runBatchEvaluation(options: {
     onResult,
     resolveJudgeProvider,
     agentTimeoutMs,
+    targetResolver,
+    availableTargets,
   } = options;
 
   // Prepare prompt inputs up front so we can reuse them for grading.
@@ -460,6 +487,8 @@ async function runBatchEvaluation(options: {
         agentTimeoutMs,
         outputMessages,
         traceSummary,
+        targetResolver,
+        availableTargets,
       });
 
       if (providerError) {
@@ -523,6 +552,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     useCache,
     signal,
     judgeProvider,
+    targetResolver,
+    availableTargets,
   } = options;
 
   const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
@@ -623,6 +654,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       agentTimeoutMs,
       outputMessages,
       traceSummary,
+      targetResolver,
+      availableTargets,
     });
 
     return providerError ? { ...result, error: providerError } : result;
@@ -644,6 +677,8 @@ async function evaluateCandidate(options: {
   readonly agentTimeoutMs?: number;
   readonly outputMessages?: readonly OutputMessage[];
   readonly traceSummary?: TraceSummary;
+  readonly targetResolver?: (name: string) => Provider | undefined;
+  readonly availableTargets?: readonly string[];
 }): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -658,6 +693,8 @@ async function evaluateCandidate(options: {
     agentTimeoutMs,
     outputMessages,
     traceSummary,
+    targetResolver,
+    availableTargets,
   } = options;
 
   const gradeTimestamp = nowFn();
@@ -674,6 +711,8 @@ async function evaluateCandidate(options: {
     agentTimeoutMs,
     outputMessages,
     traceSummary,
+    targetResolver,
+    availableTargets,
   });
 
   const completedAt = nowFn();
@@ -731,6 +770,8 @@ async function runEvaluatorsForCase(options: {
   readonly agentTimeoutMs?: number;
   readonly outputMessages?: readonly OutputMessage[];
   readonly traceSummary?: TraceSummary;
+  readonly targetResolver?: (name: string) => Provider | undefined;
+  readonly availableTargets?: readonly string[];
 }): Promise<{ score: EvaluationScore; evaluatorResults?: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -745,6 +786,8 @@ async function runEvaluatorsForCase(options: {
     agentTimeoutMs,
     outputMessages,
     traceSummary,
+    targetResolver,
+    availableTargets,
   } = options;
 
   if (evalCase.evaluators && evalCase.evaluators.length > 0) {
@@ -762,6 +805,8 @@ async function runEvaluatorsForCase(options: {
       agentTimeoutMs,
       outputMessages,
       traceSummary,
+      targetResolver,
+      availableTargets,
     });
   }
 
@@ -782,6 +827,8 @@ async function runEvaluatorsForCase(options: {
     judgeProvider,
     outputMessages,
     traceSummary,
+    targetResolver,
+    availableTargets,
   });
 
   return { score };
@@ -803,6 +850,8 @@ async function runEvaluatorList(options: {
   readonly agentTimeoutMs?: number;
   readonly outputMessages?: readonly OutputMessage[];
   readonly traceSummary?: TraceSummary;
+  readonly targetResolver?: (name: string) => Provider | undefined;
+  readonly availableTargets?: readonly string[];
 }): Promise<{ score: EvaluationScore; evaluatorResults: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -818,6 +867,8 @@ async function runEvaluatorList(options: {
     agentTimeoutMs,
     outputMessages,
     traceSummary,
+    targetResolver,
+    availableTargets,
   } = options;
 
   const scored: Array<{
@@ -877,6 +928,8 @@ async function runEvaluatorList(options: {
           judgeProvider,
           outputMessages,
           traceSummary,
+          targetResolver,
+          availableTargets,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: 'code_judge', weight });
@@ -960,6 +1013,8 @@ async function runEvaluatorList(options: {
           judgeProvider,
           outputMessages,
           traceSummary,
+          targetResolver,
+          availableTargets,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });

@@ -89,6 +89,37 @@ export default defineCodeJudge(async ({ question, config }) => {
 });
 ```
 
+## Querying Proxy Info
+
+You can query information about the target proxy:
+
+```typescript
+const info = await target.getInfo();
+console.log(`Target: ${info.targetName}`);
+console.log(`Calls: ${info.callCount}/${info.maxCalls}`);
+console.log(`Available targets: ${info.availableTargets.join(', ')}`);
+```
+
+## Target Override
+
+Use different targets for different purposes within the same evaluator:
+
+```typescript
+// Use a coding agent for complex tasks
+const agentResponses = await target.invokeBatch(
+  nodes.map(node => ({
+    question: `Is this relevant? ${node}`,
+    target: 'pi'  // Override default target
+  }))
+);
+
+// Use a base LLM for simple evaluation
+const response = await target.invoke({
+  question: complexAnalysisPrompt,
+  target: 'gemini_base'  // Use different target
+});
+```
+
 ## Environment Variables
 
 When `target` is configured, these environment variables are automatically set:

@@ -61,6 +61,7 @@ export {
   TargetNotAvailableError,
   TargetInvocationError,
   type TargetClient,
+  type TargetInfo,
   type TargetInvokeRequest,
   type TargetInvokeResponse,
 } from './target-client.js';
