@@ -1,6 +1,6 @@
 {
   "name": "agentv",
-  "version": "2.0.2",
+  "version": "2.1.0",
   "description": "CLI entry point for AgentV",
   "type": "module",
   "repository": {
@@ -14,7 +14,10 @@
   "bin": {
     "agentv": "./dist/cli.js"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "build": "tsup && bun run copy-readme",
