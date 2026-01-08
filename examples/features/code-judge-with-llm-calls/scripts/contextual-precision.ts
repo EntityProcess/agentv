@@ -15,11 +15,7 @@
  * Requires `target: { max_calls: N }` in the evaluator YAML config,
  * where N >= number of retrieval context nodes to evaluate.
  */
-import {
-  createTargetClient,
-  defineCodeJudge,
-  type Message,
-} from '@agentv/eval';
+import { type Message, createTargetClient, defineCodeJudge } from '@agentv/eval';
 
 interface RelevanceResult {
   relevant: boolean;
