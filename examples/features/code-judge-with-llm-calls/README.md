@@ -101,7 +101,7 @@ The `createTargetClient()` function reads these automatically.
 
 ```bash
 # From the agentv monorepo root:
-bun run agentv eval examples/features/code-judge-with-llm-calls/evals/contextual-precision.yaml --target gemini_base
+bun run agentv eval examples/features/code-judge-with-llm-calls/evals/dataset.yaml --target gemini_base
 ```
 
 Expected output shows varying scores based on retrieval ranking:
