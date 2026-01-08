@@ -8,17 +8,26 @@ import {
 } from '../src/target-client.js';
 
 describe('createTargetClient', () => {
-  const originalEnv = { ...process.env };
+  const originalUrl = process.env.AGENTV_TARGET_PROXY_URL;
+  const originalToken = process.env.AGENTV_TARGET_PROXY_TOKEN;
 
   beforeEach(() => {
-    // Clear relevant env vars before each test
-    process.env.AGENTV_TARGET_PROXY_URL = undefined;
-    process.env.AGENTV_TARGET_PROXY_TOKEN = undefined;
+    process.env.AGENTV_TARGET_PROXY_URL = '';
+    process.env.AGENTV_TARGET_PROXY_TOKEN = '';
   });
 
   afterEach(() => {
-    // Restore original env
-    process.env = originalEnv;
+    if (originalUrl === undefined) {
+      process.env.AGENTV_TARGET_PROXY_URL = '';
+    } else {
+      process.env.AGENTV_TARGET_PROXY_URL = originalUrl;
+    }
+
+    if (originalToken === undefined) {
+      process.env.AGENTV_TARGET_PROXY_TOKEN = '';
+    } else {
+      process.env.AGENTV_TARGET_PROXY_TOKEN = originalToken;
+    }
   });
 
   it('returns undefined when no env vars are set', () => {
