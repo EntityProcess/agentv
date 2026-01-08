@@ -50,7 +50,7 @@ execution:
 - Input (stdin): JSON with `question`, `expected_outcome`, `reference_answer`, `candidate_answer`, `guideline_files`, `input_files`, `input_messages`, `expected_messages`, `output_messages`, `trace_summary`
 - Output (stdout): JSON with `score` (0.0-1.0), `hits`, `misses`, `reasoning`
 
-**Judge Proxy:** Code evaluators can access an LLM through the judge proxy for sophisticated evaluation logic (e.g., Contextual Precision, semantic similarity). Enable with `judge: {}`:
+**Target Proxy:** Code evaluators can access an LLM through the target proxy for sophisticated evaluation logic (e.g., Contextual Precision, semantic similarity). Enable with `target: {}`:
 
 ```yaml
 execution:
@@ -58,7 +58,7 @@ execution:
     - name: contextual_precision
       type: code_judge
       script: bun run evaluate.ts
-      judge: {}           # Enable judge proxy (max_calls: 50 default)
+      target: {}           # Enable target proxy (max_calls: 50 default)
 ```
 
 **RAG Evaluation Pattern:** For retrieval-based evals, pass retrieval context via `expected_messages.tool_calls`:
@@ -72,7 +72,7 @@ expected_messages:
           results: ["doc1", "doc2", "doc3"]
 ```
 
-**TypeScript evaluators:** Keep `.ts` source files and run them via Node-compatible loaders such as `npx --yes tsx` so global `agentv` installs stay portable. See `references/custom-evaluators.md` for complete templates, judge proxy usage, and command examples.
+**TypeScript evaluators:** Keep `.ts` source files and run them via Node-compatible loaders such as `npx --yes tsx` so global `agentv` installs stay portable. See `references/custom-evaluators.md` for complete templates, target proxy usage, and command examples.
 
 **Template:** See `references/custom-evaluators.md` for Python and TypeScript templates
 
