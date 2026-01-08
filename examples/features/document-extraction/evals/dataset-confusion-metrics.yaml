@@ -1,0 +1,158 @@
+# Confusion Metrics Dataset
+#
+# This dataset demonstrates aggregatable TP/TN/FP/FN metrics across multiple documents.
+# All evalcases use the SAME header_confusion evaluator with the SAME fields,
+# enabling cross-document aggregation with fractional precision/recall.
+#
+# Use case: Measuring field-level extraction accuracy across a document corpus.
+#
+# Run:
+#   bun agentv eval examples/features/document-extraction/evals/confusion-metrics.yaml
+#
+# Aggregate:
+#   bun run examples/features/document-extraction/scripts/aggregate_metrics.ts \
+#     .agentv/results/eval_<timestamp>.jsonl
+#
+description: Header field confusion metrics (TP/TN/FP/FN aggregation)
+
+execution:
+  target: mock_extractor
+  evaluators:
+    - name: header_confusion
+      type: code_judge
+      script: ["bun", "run", "../judges/header_confusion_metrics.ts"]
+      fields:
+        - path: invoice_number
+        - path: invoice_date
+        - path: currency
+        - path: supplier.name
+        - path: importer.name
+        - path: gross_total
+
+evalcases:
+  # ============================================
+  # Case 1: Perfect extraction
+  # Expected: All TP
+  # ============================================
+  - id: metrics-001
+    expected_outcome: All fields extracted correctly (all TP)
+    expected_messages:
+      - role: assistant
+        content:
+          invoice_number: "INV-2025-001234"
+          invoice_date: "15-JAN-2025"
+          currency: "USD"
+          supplier:
+            name: "Acme Shipping"
+          importer:
+            name: "Global Trade Co"
+          gross_total: 1889
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../fixtures/invoice-001.json
+          - type: text
+            value: "Extract header fields."
+
+  # ============================================
+  # Case 2: Supplier name variation ("Acme - Shipping" vs "Acme Shipping")
+  # Expected: supplier.name = FP+FN (wrong value)
+  # ============================================
+  - id: metrics-002
+    expected_outcome: Supplier name has dash variation (FP+FN)
+    expected_messages:
+      - role: assistant
+        content:
+          invoice_number: "INV-2025-001234"
+          invoice_date: "15-JAN-2025"
+          currency: "USD"
+          supplier:
+            name: "Acme Shipping"
+          importer:
+            name: "Global Trade Co"
+          gross_total: 1889
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../fixtures/invoice-002.json
+          - type: text
+            value: "Extract header fields."
+
+  # ============================================
+  # Case 3: Same as case 2 (supplier name variation)
+  # Expected: supplier.name = FP+FN
+  # ============================================
+  - id: metrics-003
+    expected_outcome: Supplier name has dash variation (FP+FN)
+    expected_messages:
+      - role: assistant
+        content:
+          invoice_number: "INV-2025-001234"
+          invoice_date: "15-JAN-2025"
+          currency: "USD"
+          supplier:
+            name: "Acme Shipping"
+          importer:
+            name: "Global Trade Co"
+          gross_total: 1889
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../fixtures/invoice-003.json
+          - type: text
+            value: "Extract header fields."
+
+  # ============================================
+  # Case 4: Missing invoice_number
+  # Expected: invoice_number = FN (missing)
+  # ============================================
+  - id: metrics-004
+    expected_outcome: Invoice number missing (FN)
+    expected_messages:
+      - role: assistant
+        content:
+          invoice_number: "INV-2025-001234"
+          invoice_date: "15-JAN-2025"
+          currency: "USD"
+          supplier:
+            name: "Acme Shipping"
+          importer:
+            name: "Global Trade Co"
+          gross_total: 1889
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../fixtures/invoice-004.json
+          - type: text
+            value: "Extract header fields."
+
+  # ============================================
+  # Case 5: Multiple errors
+  # - currency: EUR vs USD (FP+FN)
+  # - supplier.name: Beta Corp vs Acme Shipping (FP+FN)
+  # - gross_total: missing (FN)
+  # ============================================
+  - id: metrics-005
+    expected_outcome: Multiple field errors (currency, supplier, gross_total)
+    expected_messages:
+      - role: assistant
+        content:
+          invoice_number: "INV-2025-001234"
+          invoice_date: "15-JAN-2025"
+          currency: "USD"
+          supplier:
+            name: "Acme Shipping"
+          importer:
+            name: "Global Trade Co"
+          gross_total: 1889
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../fixtures/invoice-007.json
+          - type: text
+            value: "Extract header fields."
