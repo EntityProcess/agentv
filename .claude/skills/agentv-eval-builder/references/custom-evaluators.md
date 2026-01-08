@@ -19,19 +19,23 @@ Wire format uses snake_case for cross-language compatibility:
   "guideline_files": ["path1", "path2"],
   "input_files": ["file1", "file2"],
   "input_messages": [{"role": "user", "content": "..."}],
+  "expected_messages": [
+    {
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "tool": "vector_search",
+          "input": { "query": "..." },
+          "output": { "results": ["doc1", "doc2"] }
+        }
+      ]
+    }
+  ],
   "output_messages": [
     {
       "role": "assistant",
       "content": "...",
-      "tool_calls": [
-        {
-          "tool": "search",
-          "input": { "query": "..." },
-          "output": { "results": [...] },
-          "id": "call_123",
-          "timestamp": "2024-01-15T10:30:00Z"
-        }
-      ]
+      "tool_calls": [...]
     }
   ],
   "trace_summary": {
@@ -47,7 +51,8 @@ Wire format uses snake_case for cross-language compatibility:
 ```
 
 **Key fields:**
-- `output_messages` - Full agent execution trace with tool calls (use `tool_calls[].input` for arguments)
+- `expected_messages` - Expected agent behavior from YAML, including tool calls with outputs (use for retrieval context in RAG evals)
+- `output_messages` - Actual agent execution trace with tool calls (from live agent runs)
 - `trace_summary` - Lightweight summary with execution metrics (counts only, no tool arguments)
 
 ### Output Format (to stdout)
@@ -101,14 +106,13 @@ if __name__ == "__main__":
 
 ## TypeScript Code Evaluator Template
 
-Run via `npx --yes tsx ./evaluator.ts`. The optional `@agentv/core` SDK provides type-safe camelCase payload parsing.
+The `@agentv/eval` SDK provides a declarative API with automatic stdin/stdout handling.
 
 ```typescript
-// With SDK (recommended)
-import { readCodeJudgePayload } from '@agentv/core';
+#!/usr/bin/env bun
+import { defineCodeJudge } from '@agentv/eval';
 
-try {
-  const { candidateAnswer, expectedOutcome } = readCodeJudgePayload();
+export default defineCodeJudge(({ candidateAnswer, expectedOutcome }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
@@ -120,43 +124,80 @@ try {
   }
 
   const total = hits.length + misses.length;
-  console.log(JSON.stringify({
+  return {
     score: total === 0 ? 0 : hits.length / total,
-    hits, misses,
-    reasoning: `Passed ${hits.length}/${total} checks`
-  }, null, 2));
-} catch (e) {
-  console.log(JSON.stringify({ score: 0, hits: [], misses: [String(e)], reasoning: 'Error' }));
-  process.exit(1);
-}
+    hits,
+    misses,
+    reasoning: `Passed ${hits.length}/${total} checks`,
+  };
+});
 ```
 
-**Without SDK:** Parse stdin JSON directly (see Python template).
+**SDK exports:** `defineCodeJudge`, `Message`, `ToolCall`, `TraceSummary`, `CodeJudgeInput`, `CodeJudgeResult`
 
-**SDK exports:** `readCodeJudgePayload()`, `parseCodeJudgePayload(json)`, `CodeJudgePayload` type
+## Target Access for Code Evaluators
+
+Code judges can access an LLM through a **target proxy** for metrics requiring multiple LLM calls (contextual precision, semantic similarity, etc).
+
+### Configuration
+
+```yaml
+evaluators:
+  - name: contextual-precision
+    type: code_judge
+    script: bun scripts/contextual-precision.ts
+    target:
+      max_calls: 10  # Default: 50
+```
+
+### Usage
+
+```typescript
+#!/usr/bin/env bun
+import { createTargetClient, defineCodeJudge } from '@agentv/eval';
+
+export default defineCodeJudge(async ({ question, candidateAnswer }) => {
+  const target = createTargetClient();
+  if (!target) return { score: 0, misses: ['Target not configured'] };
+
+  const response = await target.invoke({
+    question: `Is this relevant to: ${question}? Response: ${candidateAnswer}`,
+    systemPrompt: 'Respond with JSON: { "relevant": true/false }'
+  });
+
+  const result = JSON.parse(response.rawText ?? '{}');
+  return { score: result.relevant ? 1.0 : 0.0 };
+});
+```
+
+**Batch invocation:** Use `target.invokeBatch(requests)` for multiple calls.
+
+**Environment variables** (set automatically when `target` is configured):
+- `AGENTV_TARGET_PROXY_URL` - Local proxy URL
+- `AGENTV_TARGET_PROXY_TOKEN` - Bearer token for authentication
+
+**See also:** `examples/features/code-judge-with-llm-calls/`
 
 ## LLM Judge Prompt Template
 
-LLM judges use markdown prompts to guide evaluation. AgentV automatically handles the output format, so focus your prompt on evaluation criteria and guidelines.
+LLM judges use markdown prompts. AgentV handles the output format automatically.
 
 **Available Template Variables:**
 - `{{question}}` - The original question/task
 - `{{expected_outcome}}` - What the answer should accomplish
 - `{{candidate_answer}}` - The actual output to evaluate
-- `{{reference_answer}}` - Gold standard answer (optional, may be empty)
-- `{{input_messages}}` - JSON stringified input message segments
-- `{{output_messages}}` - JSON stringified expected output segments
+- `{{reference_answer}}` - Gold standard answer (optional)
+- `{{input_messages}}` - JSON stringified input messages
+- `{{output_messages}}` - JSON stringified output messages
 
-**Default Evaluator Template:**
-
-If you don't specify a custom evaluator template, AgentV uses this default:
+**Default Template:**
 
 ```
-You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.
+You are an expert evaluator. Grade the candidate_answer based on how well it achieves the expected_outcome.
 
-Use the reference_answer as a gold standard for a high-quality response (if provided). The candidate_answer does not need to match it verbatim, but should capture the key points and follow the same spirit.
+Use reference_answer as a gold standard (if provided). The candidate_answer doesn't need to match verbatim, but should capture key points.
 
-Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.
+Be concise. Provide specific feedback rather than verbose explanations.
 
 [[ ## expected_outcome ## ]]
 {{expected_outcome}}
@@ -171,32 +212,25 @@ Be concise and focused in your evaluation. Provide succinct, specific feedback r
 {{candidate_answer}}
 ```
 
-You can customize this template in your eval file using the `evaluatorTemplate` field to add domain-specific criteria or scoring guidelines.
-
 ## Best Practices
 
-### For Code-based Evaluators
+### Code Evaluators
+1. **Focus on `candidate_answer`** - Most evaluators only need this field
+2. **Be deterministic** - Same input → same output
+3. **Handle errors gracefully** - Return valid result even on failure
+4. **Use `hits`/`misses`** - Explain the score clearly
 
-1. **Focus on relevant fields** - Most evaluators only need the `candidate_answer` field
-2. **Avoid false positives** - Don't check fields like `question` or `reference_answer` unless you specifically need context
-3. **Be deterministic** - Same input should always produce same output
-4. **Handle errors gracefully** - Return a valid result even when evaluation fails
-5. **Provide helpful feedback** - Use `hits` and `misses` to explain the score
-
-### For Prompt-based Evaluators (LLM Judges)
-
+### LLM Judges
 1. **Clear criteria** - Define what you're evaluating
-2. **Specific guidelines** - Provide scoring rubrics
-3. **JSON output** - Enforce structured output format
-4. **Examples** - Show what good/bad looks like
-5. **Concise prompts** - Keep instructions focused
+2. **Specific rubrics** - Provide scoring guidelines
+3. **Concise prompts** - Keep instructions focused
 
-## Testing Evaluators Locally
+## Testing Locally
 
 ```bash
 # Python
 echo '{"candidate_answer": "test", "question": "task", "expected_outcome": "result"}' | uv run my_validator.py
 
 # TypeScript
-echo '{"candidate_answer": "test", "question": "task", "expected_outcome": "result"}' | npx --yes tsx ./check.ts
+echo '{"candidate_answer": "test", "question": "task", "expected_outcome": "result"}' | bun run ./check.ts
 ```
