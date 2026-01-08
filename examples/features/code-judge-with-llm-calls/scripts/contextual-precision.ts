@@ -76,6 +76,7 @@ export default defineCodeJudge(async (input) => {
   }
 
   // Step 1: Use batch invocation to determine relevance of each node
+  // Demonstrates target override - uses gemini_base regardless of default target
   const requests = retrievalContext.map((node, index) => ({
     question: `Determine if this retrieved context node is relevant to answering the question.
 
@@ -92,6 +93,7 @@ Is this node relevant to answering the question? Respond with JSON only:
 }`,
     systemPrompt:
       'You are a precise relevance evaluator for RAG systems. Determine if a retrieved node contains information useful for answering the given question. Output valid JSON only.',
+    target: 'gemini_base', // Override: use gemini_base for relevance checks
   }));
 
   const responses = await target.invokeBatch(requests);

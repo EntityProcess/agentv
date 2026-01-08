@@ -105,18 +105,18 @@ console.log(`Available targets: ${info.availableTargets.join(', ')}`);
 Use different targets for different purposes within the same evaluator:
 
 ```typescript
-// Use cheap model for simple relevance checks
-const simpleResponses = await target.invokeBatch(
+// Use a coding agent for complex tasks
+const agentResponses = await target.invokeBatch(
   nodes.map(node => ({
     question: `Is this relevant? ${node}`,
-    target: 'gpt-4o-mini'  // Override default target
+    target: 'pi'  // Override default target
   }))
 );
 
-// Use powerful model for nuanced evaluation
+// Use a base LLM for simple evaluation
 const response = await target.invoke({
   question: complexAnalysisPrompt,
-  target: 'claude-sonnet'  // Use different target
+  target: 'gemini_base'  // Use different target
 });
 ```
 

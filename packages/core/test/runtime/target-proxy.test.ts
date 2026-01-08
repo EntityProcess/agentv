@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
+import type {
+  Provider,
+  ProviderRequest,
+  ProviderResponse,
+} from '../../src/evaluation/providers/types.js';
 import {
-  createTargetProxy,
   type TargetProxyInfoResponse,
   type TargetProxyInvokeResponse,
+  createTargetProxy,
 } from '../../src/runtime/target-proxy.js';
-import type { Provider, ProviderRequest, ProviderResponse } from '../../src/evaluation/providers/types.js';
 
 function createMockProvider(targetName: string): Provider {
   return {
@@ -200,10 +204,7 @@ describe('createTargetProxy', () => {
           Authorization: `Bearer ${proxy.token}`,
         },
         body: JSON.stringify({
-          requests: [
-            { question: 'q1' },
-            { question: 'q2', target: 'alt-target' },
-          ],
+          requests: [{ question: 'q1' }, { question: 'q2', target: 'alt-target' }],
         }),
       });
 
@@ -229,10 +230,7 @@ describe('createTargetProxy', () => {
           Authorization: `Bearer ${proxy.token}`,
         },
         body: JSON.stringify({
-          requests: [
-            { question: 'q1' },
-            { question: 'q2', target: 'unknown-target' },
-          ],
+          requests: [{ question: 'q1' }, { question: 'q2', target: 'unknown-target' }],
         }),
       });
 

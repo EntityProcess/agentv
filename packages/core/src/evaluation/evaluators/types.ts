@@ -5,6 +5,12 @@ import type { EvalCase, EvaluationVerdict, EvaluatorConfig, JsonObject } from '.
 
 export type { EvaluationVerdict };
 
+/**
+ * Function to resolve a target name to a provider.
+ * Used by code judges to support target override.
+ */
+export type TargetResolver = (targetName: string) => Provider | undefined;
+
 export interface EvaluationContext {
   readonly evalCase: EvalCase;
   readonly candidate: string;
@@ -25,6 +31,10 @@ export interface EvaluationContext {
   readonly outputMessages?: readonly OutputMessage[];
   /** Lightweight summary of trace events (if available) */
   readonly traceSummary?: TraceSummary;
+  /** Resolver for target override in code judges */
+  readonly targetResolver?: TargetResolver;
+  /** List of available target names for code judges */
+  readonly availableTargets?: readonly string[];
 }
 
 export interface EvaluationScore {

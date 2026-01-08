@@ -372,18 +372,27 @@ describe('TargetClient.invokeBatch with target override', () => {
     } as Response);
 
     const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
-    await client.invokeBatch([
-      { question: 'q1' },
-      { question: 'q2', target: 'alt-target' },
-    ]);
+    await client.invokeBatch([{ question: 'q1' }, { question: 'q2', target: 'alt-target' }]);
 
     expect(fetchSpy).toHaveBeenCalledWith(
       'http://127.0.0.1:3000/invokeBatch',
       expect.objectContaining({
         body: JSON.stringify({
           requests: [
-            { question: 'q1', systemPrompt: undefined, evalCaseId: undefined, attempt: undefined, target: undefined },
-            { question: 'q2', systemPrompt: undefined, evalCaseId: undefined, attempt: undefined, target: 'alt-target' },
+            {
+              question: 'q1',
+              systemPrompt: undefined,
+              evalCaseId: undefined,
+              attempt: undefined,
+              target: undefined,
+            },
+            {
+              question: 'q2',
+              systemPrompt: undefined,
+              evalCaseId: undefined,
+              attempt: undefined,
+              target: 'alt-target',
+            },
           ],
         }),
       }),
