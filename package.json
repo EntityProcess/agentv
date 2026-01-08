@@ -4,7 +4,10 @@
   "private": true,
   "description": "AgentV monorepo workspace",
   "packageManager": "bun@1.3.3",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "build": "bun --filter @agentv/core build && bun --filter @agentv/eval build && bun --filter agentv build",
     "verify": "bun run build && bun run typecheck && bun run lint && bun run test",
@@ -25,7 +28,7 @@
     "subagent:link": "bun scripts/link-subagent.ts",
     "subagent:unlink": "bun scripts/unlink-subagent.ts",
     "examples:install": "bun scripts/install-examples.ts",
-    "publish": "bun run build && changeset publish"
+    "publish": "bun run build && (cd packages/core && bun publish ; cd ../..) ; (cd packages/eval && bun publish ; cd ../..) ; (cd apps/cli && bun publish ; cd ../..)"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
