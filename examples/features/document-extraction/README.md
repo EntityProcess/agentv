@@ -18,7 +18,7 @@ From repo root:
 
 ```bash
 # Pattern 1: Field accuracy (per-evalcase scoring)
-bun agentv eval examples/features/document-extraction/evals/dataset.yaml
+bun agentv eval examples/features/document-extraction/evals/dataset-field-accuracy.yaml
 
 # Pattern 2: Confusion metrics (cross-document aggregation)
 bun agentv eval examples/features/document-extraction/evals/dataset-confusion-metrics.yaml
@@ -28,7 +28,7 @@ bun run examples/features/document-extraction/scripts/aggregate_metrics.ts \
   .agentv/results/eval_<timestamp>.jsonl
 ```
 
-## Pattern 1: Field Accuracy (`dataset.yaml`)
+## Pattern 1: Field Accuracy (`dataset-field-accuracy.yaml`)
 
 Uses the built-in `field_accuracy` evaluator for per-evalcase scoring:
 
@@ -106,7 +106,7 @@ Options:
 ## Where To Look
 
 - **Datasets**:
-  - `evals/dataset.yaml` - Field accuracy patterns
+  - `evals/dataset-field-accuracy.yaml` - Field accuracy patterns
   - `evals/dataset-confusion-metrics.yaml` - TP/TN/FP/FN aggregation
 - **Target**: `mock_extractor.ts`
 - **Fixtures**: `fixtures/`
