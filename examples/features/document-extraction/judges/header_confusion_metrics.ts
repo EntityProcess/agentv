@@ -190,10 +190,10 @@ async function main(): Promise<void> {
   const hits: string[] = [];
   const misses: string[] = [];
   const fieldMetrics: Record<string, FieldMetrics> = {};
-  let totalTp = 0,
-    totalTn = 0,
-    totalFp = 0,
-    totalFn = 0;
+  let totalTp = 0;
+  let totalTn = 0;
+  let totalFp = 0;
+  let totalFn = 0;
   const f1Scores: number[] = [];
 
   for (const field of fields) {
@@ -204,10 +204,10 @@ async function main(): Promise<void> {
     const parsedEmpty = isEmpty(parsedValue);
     const valuesEqual = deepEqual(expectedValue, parsedValue);
 
-    let tp = 0,
-      tn = 0,
-      fp = 0,
-      fn = 0;
+    let tp = 0;
+    let tn = 0;
+    let fp = 0;
+    let fn = 0;
 
     if (valuesEqual && !expectedEmpty) {
       // TP: expected == parsed AND expected is non-empty

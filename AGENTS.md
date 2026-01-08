@@ -69,7 +69,9 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ## Quality Assurance Workflow
 
-After making any significant changes (refactoring, new features, bug fixes), always run the following verification steps in order:
+After making any significant **code** changes (refactoring, new features, bug fixes), always run the following verification steps in order.
+
+For Markdown-only documentation edits (e.g. `*.md` changes that do not affect runtime behavior), this workflow does not apply.
 
 1. `bun run build` - Ensure code compiles without errors
 2. `bun run typecheck` - Verify TypeScript type safety across the monorepo
@@ -80,13 +82,14 @@ Only consider the work complete when all four steps pass successfully. This ensu
 
 ## Documentation Updates
 
-When making changes to functionality (new features, modified behavior, new evaluator types, etc.), **always update the skill files and references** in the templates directory:
+When making changes to functionality (new features, modified behavior, new evaluator types, etc.), **always update the AgentV skill files and references** under `.claude/skills/` (in the repository root):
 
-- **Source of truth**: `apps/cli/src/templates/.claude/skills/agentv-eval-builder/`
-  - `skill.md` - Main skill instructions for AI agents
-  - `references/*.md` - Detailed reference documentation (e.g., `custom-evaluators.md`, `structured-data-evaluators.md`)
+- **Source of truth**: `.claude/skills/agentv*`
+  - `.claude/skills/agentv-eval-builder/SKILL.md` - Main skill instructions for AI agents
+  - `.claude/skills/agentv-eval-builder/references/*.md` - Detailed reference documentation
+  - `.claude/skills/agentv-prompt-optimizer/SKILL.md` - Prompt optimizer skill
 
-These files are copied to the user's workspace when they run `agentv init`. They serve as the authoritative guide for AI agents helping users build evaluations.
+These files are the authoritative guide for AI agents helping users build evaluations.
 
 **Do NOT duplicate content in README.md** - keep the README minimal and reference the skill files instead.
 

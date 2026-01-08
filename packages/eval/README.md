@@ -37,7 +37,7 @@ For complete documentation including:
 - Execution metrics usage
 - Best practices
 
-See the [Custom Evaluators Guide](https://github.com/EntityProcess/agentv/blob/main/apps/cli/src/templates/.claude/skills/agentv-eval-builder/references/custom-evaluators.md) or run AgentV's `/agentv-eval-builder` skill.
+See the [Custom Evaluators Guide](../../.claude/skills/agentv-eval-builder/references/custom-evaluators.md) or run AgentV's `/agentv-eval-builder` skill.
 
 ## Repository
 

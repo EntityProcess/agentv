@@ -8,7 +8,19 @@ export interface Template {
 }
 
 export function getGithubTemplates(): Template[] {
-  return getTemplatesFromDir('.github');
+  if (isDistRuntime()) {
+    return getTemplatesFromDir('.github');
+  }
+
+  // Dev mode: use repo-root .github/prompts, but only include agentv-* prompts
+  const templatesDir = getRepoRootFromDev();
+  const promptsDir = path.join(templatesDir, '.github', 'prompts');
+
+  const promptFiles = readdirSync(promptsDir).filter((file) => file.startsWith('agentv-'));
+  return promptFiles.map((file) => ({
+    path: `prompts/${file}`,
+    content: readFileSync(path.join(promptsDir, file), 'utf-8'),
+  }));
 }
 
 export function getAgentvTemplates(): Template[] {
@@ -16,7 +28,24 @@ export function getAgentvTemplates(): Template[] {
 }
 
 export function getClaudeTemplates(): Template[] {
-  return getTemplatesFromDir('.claude');
+  if (isDistRuntime()) {
+    return getTemplatesFromDir('.claude');
+  }
+
+  // Dev mode: use repo-root .claude/skills, but only include AgentV skills
+  const repoRoot = getRepoRootFromDev();
+  const skillsRoot = path.join(repoRoot, '.claude', 'skills');
+
+  const skillsToInclude = ['agentv-eval-builder', 'agentv-prompt-optimizer'];
+
+  const templates: Template[] = [];
+  for (const skill of skillsToInclude) {
+    const skillDir = path.join(skillsRoot, skill);
+    const skillTemplates = readTemplatesRecursively(skillDir, path.join('skills', skill));
+    templates.push(...skillTemplates);
+  }
+
+  return templates;
 }
 
 function getTemplatesFromDir(subdir: string): Template[] {
@@ -33,6 +62,17 @@ function getTemplatesFromDir(subdir: string): Template[] {
   }
 
   return readTemplatesRecursively(templatesDir, '');
+}
+
+function isDistRuntime(): boolean {
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  return currentDir.includes(`${path.sep}dist`);
+}
+
+function getRepoRootFromDev(): string {
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  // currentDir is apps/cli/src/templates
+  return path.resolve(currentDir, '..', '..', '..', '..');
 }
 
 function readTemplatesRecursively(dir: string, relativePath: string): Template[] {

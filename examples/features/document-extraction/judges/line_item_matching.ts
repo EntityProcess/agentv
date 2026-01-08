@@ -338,12 +338,8 @@ async function main(): Promise<void> {
   const matchedExpected = new Set(alignment.map((a) => a.expectedIdx));
   const matchedParsed = new Set(alignment.map((a) => a.parsedIdx));
 
-  const unmatchedExpected = expectedItems
-    .map((_, i) => i)
-    .filter((i) => !matchedExpected.has(i));
-  const unmatchedParsed = parsedItems
-    .map((_, i) => i)
-    .filter((i) => !matchedParsed.has(i));
+  const unmatchedExpected = expectedItems.map((_, i) => i).filter((i) => !matchedExpected.has(i));
+  const unmatchedParsed = parsedItems.map((_, i) => i).filter((i) => !matchedParsed.has(i));
 
   const hits: string[] = [];
   const misses: string[] = [];
@@ -380,7 +376,9 @@ async function main(): Promise<void> {
       }
     }
 
-    hits.push(`Matched expected[${match.expectedIdx}] -> parsed[${match.parsedIdx}] (${(match.similarity * 100).toFixed(0)}%)`);
+    hits.push(
+      `Matched expected[${match.expectedIdx}] -> parsed[${match.parsedIdx}] (${(match.similarity * 100).toFixed(0)}%)`,
+    );
   }
 
   // Unmatched expected items contribute to FN
@@ -417,8 +415,9 @@ async function main(): Promise<void> {
     // - Use 0 if errors occurred (FP > 0 or FN > 0) but F1 undefined
     // - Exclude TN-only fields (TP=0, FP=0, FN=0) from average
     const hasErrors = m.fp > 0 || m.fn > 0;
-    if (fieldMetrics[field].f1 !== undefined) {
-      f1Scores.push(fieldMetrics[field].f1!);
+    const f1 = fieldMetrics[field].f1;
+    if (f1 !== undefined) {
+      f1Scores.push(f1);
     } else if (hasErrors) {
       f1Scores.push(0);
     }

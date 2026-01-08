@@ -269,7 +269,7 @@ Example:
   const fileStream = fs.createReadStream(inputFile);
   const rl = readline.createInterface({
     input: fileStream,
-    crlfDelay: Infinity,
+    crlfDelay: Number.POSITIVE_INFINITY,
   });
 
   for await (const line of rl) {
