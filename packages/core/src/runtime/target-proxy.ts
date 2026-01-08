@@ -38,7 +38,6 @@ export interface TargetProxyInvokeResponse {
  * Proxy usage metadata recorded after execution
  */
 export interface TargetProxyUsageMetadata {
-  readonly targetName: string;
   readonly callCount: number;
   readonly maxCalls: number;
 }
@@ -314,7 +313,6 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
       });
     },
     getUsageMetadata: () => ({
-      targetName: defaultProvider.targetName,
       callCount,
       maxCalls,
     }),

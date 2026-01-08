@@ -104,7 +104,6 @@ export class CodeEvaluator implements Evaluator {
         ...(proxyUsage
           ? {
               target_proxy: {
-                target_name: proxyUsage.targetName,
                 call_count: proxyUsage.callCount,
                 max_calls: proxyUsage.maxCalls,
               },
@@ -138,7 +137,6 @@ export class CodeEvaluator implements Evaluator {
           ...(proxyUsage
             ? {
                 target_proxy: {
-                  target_name: proxyUsage.targetName,
                   call_count: proxyUsage.callCount,
                   max_calls: proxyUsage.maxCalls,
                 },
