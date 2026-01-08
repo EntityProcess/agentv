@@ -14,6 +14,8 @@ export interface TargetInvokeRequest {
   readonly systemPrompt?: string;
   readonly evalCaseId?: string;
   readonly attempt?: number;
+  /** Optional target override - use a different target for this invocation */
+  readonly target?: string;
 }
 
 /**
@@ -22,6 +24,20 @@ export interface TargetInvokeRequest {
 export interface TargetInvokeResponse {
   readonly outputMessages: readonly unknown[];
   readonly rawText?: string;
+}
+
+/**
+ * Information about the target proxy configuration
+ */
+export interface TargetInfo {
+  /** Name of the default target being used */
+  readonly targetName: string;
+  /** Maximum number of calls allowed */
+  readonly maxCalls: number;
+  /** Current number of calls made */
+  readonly callCount: number;
+  /** List of all available target names */
+  readonly availableTargets: readonly string[];
 }
 
 /**
@@ -42,6 +58,12 @@ export interface TargetClient {
    * @returns Array of target responses
    */
   invokeBatch(requests: readonly TargetInvokeRequest[]): Promise<readonly TargetInvokeResponse[]>;
+
+  /**
+   * Get information about the target proxy configuration.
+   * Returns the default target name, max calls, current call count, and available targets.
+   */
+  getInfo(): Promise<TargetInfo>;
 }
 
 /**
@@ -136,6 +158,7 @@ export function createTargetClientInternal(url: string, token: string): TargetCl
           systemPrompt: request.systemPrompt,
           evalCaseId: request.evalCaseId,
           attempt: request.attempt,
+          target: request.target,
         }),
       });
 
@@ -166,6 +189,7 @@ export function createTargetClientInternal(url: string, token: string): TargetCl
             systemPrompt: r.systemPrompt,
             evalCaseId: r.evalCaseId,
             attempt: r.attempt,
+            target: r.target,
           })),
         }),
       });
@@ -184,6 +208,27 @@ export function createTargetClientInternal(url: string, token: string): TargetCl
 
       const result = (await response.json()) as { responses: TargetInvokeResponse[] };
       return result.responses;
+    },
+
+    async getInfo(): Promise<TargetInfo> {
+      const response = await fetch(`${url}/info`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        let errorMessage: string;
+        try {
+          const errorJson = JSON.parse(errorBody) as { error?: string };
+          errorMessage = errorJson.error ?? `HTTP ${response.status}`;
+        } catch {
+          errorMessage = errorBody || `HTTP ${response.status}`;
+        }
+        throw new TargetInvocationError(errorMessage, response.status);
+      }
+
+      return (await response.json()) as TargetInfo;
     },
   };
 }

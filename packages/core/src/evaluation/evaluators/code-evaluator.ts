@@ -64,7 +64,7 @@ export class CodeEvaluator implements Evaluator {
     if (this.target !== undefined && context.judgeProvider) {
       const maxCalls = this.target.max_calls ?? DEFAULT_MAX_CALLS;
       const proxy = await createTargetProxy({
-        targetProvider: context.judgeProvider,
+        defaultProvider: context.judgeProvider,
         maxCalls,
       });
       proxyEnv = {
