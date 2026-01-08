@@ -18,7 +18,7 @@
 import {
   createTargetClient,
   defineCodeJudge,
-  type OutputMessage,
+  type Message,
 } from '@agentv/eval';
 
 interface RelevanceResult {
@@ -29,14 +29,11 @@ interface RelevanceResult {
 /**
  * Extract retrieval context from expectedMessages tool calls.
  * Looks for tool calls with an output.results array (common pattern for search tools).
- * Note: SDK converts snake_case to camelCase, so tool_calls becomes toolCalls.
  */
-function extractRetrievalContext(expectedMessages?: unknown[]): string[] {
-  if (!expectedMessages || !Array.isArray(expectedMessages)) return [];
-
+function extractRetrievalContext(expectedMessages: Message[]): string[] {
   const results: string[] = [];
 
-  for (const message of expectedMessages as OutputMessage[]) {
+  for (const message of expectedMessages) {
     if (!message.toolCalls) continue;
 
     for (const toolCall of message.toolCalls) {

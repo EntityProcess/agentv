@@ -28,7 +28,7 @@ export const TraceSummarySchema = z.object({
 });
 
 /**
- * Tool call schema for output messages.
+ * Tool call schema.
  */
 export const ToolCallSchema = z.object({
   tool: z.string(),
@@ -39,24 +39,15 @@ export const ToolCallSchema = z.object({
 });
 
 /**
- * Output message schema.
+ * Unified message schema for input, expected, and output messages.
  */
-export const OutputMessageSchema = z.object({
+export const MessageSchema = z.object({
   role: z.enum(['assistant', 'user', 'system', 'tool']),
-  // Optional message name (e.g., agent name) used by some providers for multi-agent transcripts.
-  name: z.string().optional(),
   content: z.union([z.string(), z.record(z.unknown()), z.array(z.record(z.unknown()))]).optional(),
   toolCalls: z.array(ToolCallSchema).optional(),
+  name: z.string().optional(),
   timestamp: z.string().optional(),
   metadata: z.record(z.unknown()).optional(),
-});
-
-/**
- * Test message schema.
- */
-export const TestMessageSchema = z.object({
-  role: z.enum(['system', 'user', 'assistant', 'tool']),
-  content: z.union([z.string(), z.record(z.unknown()), z.array(z.record(z.unknown()))]),
 });
 
 /**
@@ -65,13 +56,13 @@ export const TestMessageSchema = z.object({
 export const CodeJudgeInputSchema = z.object({
   question: z.string(),
   expectedOutcome: z.string(),
-  expectedMessages: z.array(z.record(z.unknown())),
+  expectedMessages: z.array(MessageSchema),
   referenceAnswer: z.string().optional(),
   candidateAnswer: z.string(),
-  outputMessages: z.array(OutputMessageSchema).nullable().optional(),
+  outputMessages: z.array(MessageSchema).nullable().optional(),
   guidelineFiles: z.array(z.string()),
   inputFiles: z.array(z.string()),
-  inputMessages: z.array(TestMessageSchema),
+  inputMessages: z.array(MessageSchema),
   traceSummary: TraceSummarySchema.nullable().optional(),
   config: z.record(z.unknown()).nullable().optional(),
 });
@@ -92,6 +83,6 @@ export const CodeJudgeResultSchema = z.object({
 export type CodeJudgeInput = z.infer<typeof CodeJudgeInputSchema>;
 export type CodeJudgeResult = z.infer<typeof CodeJudgeResultSchema>;
 export type TraceSummary = z.infer<typeof TraceSummarySchema>;
-export type OutputMessage = z.infer<typeof OutputMessageSchema>;
+export type Message = z.infer<typeof MessageSchema>;
 export type ToolCall = z.infer<typeof ToolCallSchema>;
 export type TokenUsage = z.infer<typeof TokenUsageSchema>;
