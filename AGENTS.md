@@ -82,11 +82,12 @@ Only consider the work complete when all four steps pass successfully. This ensu
 
 When making changes to functionality (new features, modified behavior, new evaluator types, etc.), **always update the skill files and references** in the templates directory:
 
-- **Source of truth**: `apps/cli/src/templates/.claude/skills/agentv-eval-builder/`
-  - `skill.md` - Main skill instructions for AI agents
-  - `references/*.md` - Detailed reference documentation (e.g., `custom-evaluators.md`, `structured-data-evaluators.md`)
+- **Source of truth**: `.claude/skills/` (in the repository root)
+  - `agentv-eval-builder/SKILL.md` - Main skill instructions for AI agents
+  - `agentv-eval-builder/references/*.md` - Detailed reference documentation
+  - `agentv-prompt-optimizer/SKILL.md` - Prompt optimizer skill
 
-These files are copied to the user's workspace when they run `agentv init`. They serve as the authoritative guide for AI agents helping users build evaluations.
+These files are automatically synced to `apps/cli/src/templates/.claude/skills/` during the build process. When a user runs `agentv init`, they are copied to the user's workspace. They serve as the authoritative guide for AI agents helping users build evaluations.
 
 **Do NOT duplicate content in README.md** - keep the README minimal and reference the skill files instead.
 

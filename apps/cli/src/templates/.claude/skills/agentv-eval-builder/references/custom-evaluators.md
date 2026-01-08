@@ -106,13 +106,68 @@ if __name__ == "__main__":
 
 ## TypeScript Code Evaluator Template
 
+<<<<<<< HEAD
 The `@agentv/eval` SDK provides a declarative API with automatic stdin/stdout handling.
+||||||| parent of dfe8eaf (refactor: sync Claude skills from root to CLI templates)
+The `@agentv/eval` SDK provides a declarative API for code evaluators with automatic stdin/stdout handling, validation, and error handling.
+
+**Execution:** Keep evaluators as `.ts` files and run via `bun run` or Node loaders like `npx --yes tsx ./evaluators/my-check.ts`.
+=======
+The optional `@agentv/core` SDK provides type-safe payload parsing with camelCase properties (`candidateAnswer` vs `candidate_answer`).
+
+**Execution:** Keep evaluators as `.ts` files and run via Node loaders like `npx --yes tsx ./evaluators/my-check.ts` so users don't need Bun after `npm install -g agentv`.
+
+**Without SDK:** Skip the import and parse JSON from stdin directly (similar to the Python template above).
+>>>>>>> dfe8eaf (refactor: sync Claude skills from root to CLI templates)
 
 ```typescript
+<<<<<<< HEAD
 #!/usr/bin/env bun
 import { defineCodeJudge } from '@agentv/eval';
+||||||| parent of dfe8eaf (refactor: sync Claude skills from root to CLI templates)
+#!/usr/bin/env bun
+/**
+ * Example TypeScript code evaluator using defineCodeJudge
+ *
+ * Run with: bun run ./evaluators/example-check.ts
+ *        or: npx --yes tsx ./evaluators/example-check.ts
+ *
+ * The SDK handles:
+ * - Reading JSON from stdin
+ * - Converting snake_case to camelCase
+ * - Validating input with Zod
+ * - Error handling and output formatting
+ */
+import { defineCodeJudge } from '@agentv/eval';
+=======
+/**
+ * Example TypeScript code evaluator using the AgentV SDK
+ *
+ * Run with: npx --yes tsx ./evaluators/example-check.ts
+ *
+ * The SDK provides:
+ * - Type-safe CodeJudgePayload interface with all fields
+ * - camelCase properties (candidateAnswer, expectedOutcome, etc.)
+ * - Automatic conversion from snake_case wire format
+ */
+>>>>>>> dfe8eaf (refactor: sync Claude skills from root to CLI templates)
 
+<<<<<<< HEAD
 export default defineCodeJudge(({ candidateAnswer, expectedOutcome }) => {
+||||||| parent of dfe8eaf (refactor: sync Claude skills from root to CLI templates)
+export default defineCodeJudge(({ candidateAnswer, expectedOutcome, inputFiles, guidelineFiles }) => {
+=======
+import { readCodeJudgePayload } from '@agentv/core';
+
+try {
+  // Read and parse stdin with automatic snake_case → camelCase conversion
+  const payload = readCodeJudgePayload();
+
+  // Type-safe camelCase access to all fields
+  const { candidateAnswer, expectedOutcome, inputFiles, guidelineFiles } = payload;
+
+  // Your validation logic here
+>>>>>>> dfe8eaf (refactor: sync Claude skills from root to CLI templates)
   const hits: string[] = [];
   const misses: string[] = [];
 
@@ -123,18 +178,91 @@ export default defineCodeJudge(({ candidateAnswer, expectedOutcome }) => {
     misses.push('Answer does not match expected outcome');
   }
 
+<<<<<<< HEAD
   const total = hits.length + misses.length;
   return {
     score: total === 0 ? 0 : hits.length / total,
+||||||| parent of dfe8eaf (refactor: sync Claude skills from root to CLI templates)
+  // Example: Check attachment mentions
+  const attachments = [...guidelineFiles, ...inputFiles];
+  for (const filePath of attachments) {
+    const fileName = filePath.split('/').pop() ?? filePath;
+    if (candidateAnswer.includes(fileName)) {
+      hits.push(`Mentions attachment: ${fileName}`);
+    } else {
+      misses.push(`Missing attachment: ${fileName}`);
+    }
+  }
+
+  // Calculate score
+  const totalChecks = hits.length + misses.length;
+  const score = totalChecks === 0 ? 0 : hits.length / totalChecks;
+
+  return {
+    score,
+=======
+  // Example: Check attachment mentions
+  const attachments = [...guidelineFiles, ...inputFiles];
+  for (const filePath of attachments) {
+    const fileName = filePath.split('/').pop() ?? filePath;
+    if (candidateAnswer.includes(fileName)) {
+      hits.push(`Mentions attachment: ${fileName}`);
+    } else {
+      misses.push(`Missing attachment: ${fileName}`);
+    }
+  }
+
+  // Calculate score
+  const totalChecks = hits.length + misses.length;
+  const score = totalChecks === 0 ? 0 : hits.length / totalChecks;
+
+  // Build result
+  const result = {
+    score,
+>>>>>>> dfe8eaf (refactor: sync Claude skills from root to CLI templates)
     hits,
     misses,
+<<<<<<< HEAD
     reasoning: `Passed ${hits.length}/${total} checks`,
+||||||| parent of dfe8eaf (refactor: sync Claude skills from root to CLI templates)
+    reasoning: `Passed ${hits.length}/${totalChecks} checks`,
+=======
+    reasoning: `Passed ${hits.length}/${totalChecks} checks`
+>>>>>>> dfe8eaf (refactor: sync Claude skills from root to CLI templates)
   };
-});
+
+  console.log(JSON.stringify(result, null, 2));
+
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.log(JSON.stringify({
+    score: 0,
+    hits: [],
+    misses: [`Error: ${message}`],
+    reasoning: 'Evaluator error'
+  }, null, 2));
+  process.exit(1);
+}
 ```
 
+<<<<<<< HEAD
 **SDK exports:** `defineCodeJudge`, `Message`, `ToolCall`, `TraceSummary`, `CodeJudgeInput`, `CodeJudgeResult`
+||||||| parent of dfe8eaf (refactor: sync Claude skills from root to CLI templates)
+**TypeScript SDK Benefits:**
+- **Zero boilerplate**: No try/catch, stdin parsing, or JSON.stringify needed
+- **Type-safe**: `CodeJudgeInput` interface with all fields typed
+- **camelCase**: Idiomatic TypeScript naming (`candidateAnswer` vs `candidate_answer`)
+- **Validation**: Zod schemas validate input and output at runtime
+- **Error handling**: Exceptions automatically produce valid failure results
+=======
+**TypeScript SDK Benefits:**
+- **Type-safe**: `CodeJudgePayload` interface with all fields typed
+- **camelCase**: Idiomatic TypeScript naming (`candidateAnswer` vs `candidate_answer`)
+- **Automatic conversion**: Handles snake_case wire format → camelCase objects
+- **Compile-time safety**: Catch typos and missing fields before runtime
+>>>>>>> dfe8eaf (refactor: sync Claude skills from root to CLI templates)
 
+<<<<<<< HEAD
 ## Target Access for Code Evaluators
 
 Code judges can access an LLM through a **target proxy** for metrics requiring multiple LLM calls (contextual precision, semantic similarity, etc).
@@ -169,6 +297,38 @@ export default defineCodeJudge(async ({ question, candidateAnswer }) => {
   return { score: result.relevant ? 1.0 : 0.0 };
 });
 ```
+||||||| parent of dfe8eaf (refactor: sync Claude skills from root to CLI templates)
+**Available exports from `@agentv/eval`:**
+- `defineCodeJudge(handler)`: Define a code judge evaluator (recommended)
+- `CodeJudgeInput`: TypeScript type for input payload
+- `CodeJudgeResult`: TypeScript type for result
+- `TraceSummary`, `OutputMessage`: Types for trace data
+- `z`: Re-exported Zod for custom config schemas
+
+**Using execution metrics:**
+
+```typescript
+import { defineCodeJudge } from '@agentv/eval';
+
+export default defineCodeJudge(({ traceSummary }) => {
+  if (!traceSummary) {
+    return { score: 0.5, reasoning: 'No trace available' };
+  }
+
+  const efficient = traceSummary.eventCount <= 10;
+  return {
+    score: efficient ? 1.0 : 0.5,
+    hits: efficient ? ['Efficient execution'] : [],
+    misses: efficient ? [] : ['Too many tool calls'],
+  };
+});
+```
+=======
+**Available in SDK:**
+- `readCodeJudgePayload()`: Read stdin and convert to camelCase (recommended)
+- `parseCodeJudgePayload(jsonString)`: Parse JSON string and convert to camelCase
+- `CodeJudgePayload`: TypeScript interface for type safety
+>>>>>>> dfe8eaf (refactor: sync Claude skills from root to CLI templates)
 
 **Batch invocation:** Use `target.invokeBatch(requests)` for multiple calls.
 
