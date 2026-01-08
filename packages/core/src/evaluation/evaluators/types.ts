@@ -36,6 +36,8 @@ export interface EvaluationScore {
   readonly reasoning?: string;
   readonly evaluatorRawRequest?: JsonObject;
   readonly evaluatorResults?: readonly ChildEvaluatorResult[];
+  /** Optional structured details from code judges (e.g., TP/TN/FP/FN counts, alignments). */
+  readonly details?: JsonObject;
 }
 
 export interface ChildEvaluatorResult {
@@ -49,6 +51,8 @@ export interface ChildEvaluatorResult {
   readonly reasoning?: string;
   readonly evaluatorRawRequest?: JsonObject;
   readonly evaluatorResults?: readonly ChildEvaluatorResult[];
+  /** Optional structured details from code judges (e.g., TP/TN/FP/FN counts, alignments). */
+  readonly details?: JsonObject;
 }
 
 export interface Evaluator {

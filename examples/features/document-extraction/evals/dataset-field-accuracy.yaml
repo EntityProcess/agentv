@@ -1,18 +1,18 @@
-# Document Extraction Evaluation Dataset
+# Field Accuracy Evaluation Dataset
 #
-# This eval tests a mock invoice extractor's ability to extract structured trade data
-# from commercial invoices, including header fields, party details, line items, and totals.
+# This dataset demonstrates the built-in `field_accuracy` evaluator for per-evalcase scoring.
+# Use this pattern when you need simple pass/fail scoring per field.
 #
-# Use case: Document processing pipeline that ingests shipping invoices,
-# extracts structured data, and displays it in a web UI.
+# For aggregatable TP/TN/FP/FN metrics across documents, see confusion-metrics.yaml instead.
 #
-# Evaluation approach:
-# - Field-level accuracy with exact matching for invoice numbers and currency codes
-# - Date matching with format normalization (handles "15-JAN-2025" vs "2025-01-15")
-# - Numeric tolerance for currency amounts (handles rounding)
-# - For fuzzy matching (OCR variations), use code_judge with fuzzy_match.ts
+# Evaluation patterns demonstrated:
+# - Exact matching for invoice numbers and currency codes
+# - Date matching with format normalization
+# - Numeric tolerance for currency amounts
+# - Fuzzy matching via code_judge plugins
+# - Line item array validation
 #
-description: Commercial invoice data extraction evaluation
+description: Field accuracy evaluator patterns (per-evalcase scoring)
 
 execution:
   target: mock_extractor
@@ -357,3 +357,43 @@ evalcases:
             value: ../fixtures/invoice-005.json
           - type: text
             value: "Extract first two line items from invoice."
+
+  # ============================================
+  # Test Case 6: Line Item Reorder (Greedy Matching)
+  # Demonstrates line-item matching where order differs
+  # ============================================
+  - id: invoice-006
+    conversation_id: document-extraction
+    expected_outcome: |
+      ACTUAL EXTRACTOR OUTPUT: line_items in different order than expected
+      EXPECTED GROUND TRUTH: line_items in original order
+
+      This test demonstrates greedy matching for line items.
+      Index-based comparison would incorrectly penalize the extractor,
+      but greedy matching correctly aligns items by description similarity.
+    evaluators:
+      - name: line_items_matched
+        type: code_judge
+        script: ["bun", "run", "../judges/line_item_matching.ts"]
+        match_fields: ["description"]
+        score_fields: ["description", "quantity", "line_total"]
+        threshold: 0.8
+        line_items_path: line_items
+    expected_messages:
+      - role: assistant
+        content:
+          line_items:
+            - description: "OCEAN FREIGHT"
+              quantity: 1
+              line_total: 120
+            - description: "Bunker Adjustment Factor"
+              quantity: 1
+              line_total: 80
+    input_messages:
+      - role: user
+        content:
+          - type: file
+            value: ../fixtures/invoice-006.json
+          - type: text
+            value: "Extract line items from invoice (may be reordered)."
+

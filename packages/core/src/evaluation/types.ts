@@ -377,6 +377,8 @@ export interface EvaluatorResult {
   readonly rawRequest?: JsonObject;
   readonly evaluatorProviderRequest?: JsonObject;
   readonly evaluatorResults?: readonly EvaluatorResult[];
+  /** Optional structured details from code judges (e.g., TP/TN/FP/FN counts). */
+  readonly details?: JsonObject;
 }
 
 /**

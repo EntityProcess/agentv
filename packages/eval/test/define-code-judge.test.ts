@@ -114,6 +114,54 @@ describe('CodeJudgeResultSchema', () => {
     expect(CodeJudgeResultSchema.parse({ score: 0 }).score).toBe(0);
     expect(CodeJudgeResultSchema.parse({ score: 1 }).score).toBe(1);
   });
+
+  it('accepts optional details object', () => {
+    const result = {
+      score: 0.75,
+      details: {
+        tp: 5,
+        tn: 2,
+        fp: 1,
+        fn: 2,
+        precision: 0.833,
+        recall: 0.714,
+      },
+    };
+    const parsed = CodeJudgeResultSchema.parse(result);
+    expect(parsed.details).toEqual({
+      tp: 5,
+      tn: 2,
+      fp: 1,
+      fn: 2,
+      precision: 0.833,
+      recall: 0.714,
+    });
+  });
+
+  it('allows details to be omitted', () => {
+    const result = { score: 0.5 };
+    const parsed = CodeJudgeResultSchema.parse(result);
+    expect(parsed.details).toBeUndefined();
+  });
+
+  it('accepts nested details object', () => {
+    const result = {
+      score: 0.8,
+      details: {
+        alignment: [
+          { expectedIdx: 0, parsedIdx: 1, similarity: 0.95 },
+          { expectedIdx: 1, parsedIdx: 0, similarity: 0.88 },
+        ],
+        metrics: {
+          description: { tp: 2, fp: 0, fn: 0 },
+          quantity: { tp: 1, fp: 1, fn: 0 },
+        },
+      },
+    };
+    const parsed = CodeJudgeResultSchema.parse(result);
+    expect(parsed.details?.alignment).toHaveLength(2);
+    expect(parsed.details?.metrics).toBeDefined();
+  });
 });
 
 describe('Schema type inference', () => {
@@ -150,5 +198,17 @@ describe('Schema type inference', () => {
     const _reasoning: string | undefined = result.reasoning;
 
     expect(result.score).toBe(0.5);
+  });
+
+  it('CodeJudgeResult supports optional details', () => {
+    const resultWithDetails: CodeJudgeResult = {
+      score: 0.8,
+      hits: ['match'],
+      misses: [],
+      details: { tp: 1, fp: 0, fn: 0 },
+    };
+
+    const _details: Record<string, unknown> | undefined = resultWithDetails.details;
+    expect(resultWithDetails.details?.tp).toBe(1);
   });
 });

@@ -75,6 +75,8 @@ export const CodeJudgeResultSchema = z.object({
   hits: z.array(z.string()).optional().default([]),
   misses: z.array(z.string()).optional().default([]),
   reasoning: z.string().optional(),
+  /** Optional structured details for domain-specific metrics (e.g., TP/TN/FP/FN counts, alignments). */
+  details: z.record(z.unknown()).optional(),
 });
 
 /**
