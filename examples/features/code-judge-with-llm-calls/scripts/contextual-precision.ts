@@ -18,23 +18,12 @@
 import {
   createTargetClient,
   defineCodeJudge,
+  type OutputMessage,
 } from '@agentv/eval';
 
 interface RelevanceResult {
   relevant: boolean;
   reasoning: string;
-}
-
-interface ToolCall {
-  tool?: string;
-  input?: unknown;
-  output?: unknown;
-}
-
-interface ExpectedMessage {
-  role?: string;
-  content?: unknown;
-  toolCalls?: ToolCall[]; // camelCase after SDK conversion
 }
 
 /**
@@ -47,11 +36,10 @@ function extractRetrievalContext(expectedMessages?: unknown[]): string[] {
 
   const results: string[] = [];
 
-  for (const message of expectedMessages) {
-    const msg = message as ExpectedMessage;
-    if (!msg.toolCalls) continue;
+  for (const message of expectedMessages as OutputMessage[]) {
+    if (!message.toolCalls) continue;
 
-    for (const toolCall of msg.toolCalls) {
+    for (const toolCall of message.toolCalls) {
       // Look for output.results array (common for search/retrieval tools)
       const output = toolCall.output as Record<string, unknown> | undefined;
       if (output && Array.isArray(output.results)) {
