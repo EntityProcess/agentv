@@ -19,7 +19,8 @@
  * Requires `target: { max_calls: N }` in the evaluator YAML config,
  * where N >= 2 (one for statement extraction + one for attribution check).
  */
-import { type Message, createTargetClient, defineCodeJudge } from '@agentv/eval';
+import { createTargetClient, defineCodeJudge } from '@agentv/eval';
+import { extractRetrievalContext } from './utils.js';
 
 interface StatementExtractionResult {
   statements: string[];
@@ -29,32 +30,6 @@ interface AttributionResult {
   attributable: boolean;
   reasoning: string;
   supporting_node?: number;
-}
-
-/**
- * Extract retrieval context from expectedMessages tool calls.
- * Looks for tool calls with an output.results array (common pattern for search tools).
- */
-function extractRetrievalContext(expectedMessages: Message[]): string[] {
-  const results: string[] = [];
-
-  for (const message of expectedMessages) {
-    if (!message.toolCalls) continue;
-
-    for (const toolCall of message.toolCalls) {
-      // Look for output.results array (common for search/retrieval tools)
-      const output = toolCall.output as Record<string, unknown> | undefined;
-      if (output && Array.isArray(output.results)) {
-        for (const result of output.results) {
-          if (typeof result === 'string') {
-            results.push(result);
-          }
-        }
-      }
-    }
-  }
-
-  return results;
 }
 
 export default defineCodeJudge(async (input) => {

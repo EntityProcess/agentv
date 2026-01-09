@@ -3,6 +3,6 @@
   "type": "module",
   "private": true,
   "dependencies": {
-    "@agentv/eval": "file:../../../packages/eval"
+    "@agentv/eval": "workspace:*"
   }
 }
