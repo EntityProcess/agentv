@@ -71,27 +71,27 @@ evalcases:
     # Detailed rubric objects with weights and required flags
     rubrics:
       - id: structure
-        description: Has clear headings and organization
+        expected_outcome: Has clear headings and organization
         weight: 1.0
         required: true
 
       - id: success-codes
-        description: Covers 2xx success codes with examples
+        expected_outcome: Covers 2xx success codes with examples
         weight: 2.0
         required: true
 
       - id: client-errors
-        description: Explains 4xx client error codes
+        expected_outcome: Explains 4xx client error codes
         weight: 2.0
         required: true
 
       - id: server-errors
-        description: Explains 5xx server error codes
+        expected_outcome: Explains 5xx server error codes
         weight: 1.5
         required: false
 
       - id: practical-examples
-        description: Includes practical use case examples
+        expected_outcome: Includes practical use case examples
         weight: 1.0
         required: false
 
@@ -177,3 +177,34 @@ evalcases:
 
     # No rubrics defined - will use default llm_judge evaluator
     # To generate rubrics: agentv generate rubrics evals/rubric-examples.yaml
+
+  # ==========================================
+  # Example 5: Score-range rubrics (PROPOSED)
+  # Demonstrates: proposed 0–10 score_range rubrics with expected_outcome per range
+  # Status: This example matches the OpenSpec change proposal `add-rubric-score-ranges`.
+  #         It is NOT supported by the current runtime until that change is implemented.
+  # ==========================================
+  - id: correctness-score-range-proposed
+
+    expected_outcome: |-
+      Answer the question correctly and completely.
+
+    input_messages:
+      - role: user
+        content: What is 15 + 27?
+
+    expected_messages:
+      - role: assistant
+        content: 42
+
+    # Proposed polymorphic `rubrics` entries.
+    # Each entry defines an inclusive integer score range (0..10) with a concrete expected outcome.
+    rubrics:
+      - score_range: [0, 2]
+        expected_outcome: Incorrect or nonsensical answer.
+      - score_range: [3, 6]
+        expected_outcome: Partially correct but has clear errors or missing reasoning.
+      - score_range: [7, 9]
+        expected_outcome: Correct answer with minor issues (e.g., unclear explanation).
+      - score_range: [10, 10]
+        expected_outcome: Fully correct and clear.

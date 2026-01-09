@@ -202,7 +202,7 @@ export type LlmJudgeEvaluatorConfig = {
 
 export type RubricItem = {
   readonly id: string;
-  readonly description: string;
+  readonly expected_outcome: string;
   readonly weight: number;
   readonly required: boolean;
 };

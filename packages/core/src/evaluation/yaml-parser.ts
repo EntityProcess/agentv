@@ -224,19 +224,19 @@ export async function loadEvalCases(
           if (typeof rubric === 'string') {
             return {
               id: `rubric-${index + 1}`,
-              description: rubric,
+              expected_outcome: rubric,
               weight: 1.0,
               required: true,
             };
           }
           return {
             id: asString(rubric.id) ?? `rubric-${index + 1}`,
-            description: asString(rubric.description) ?? '',
+            expected_outcome: asString(rubric.expected_outcome) ?? '',
             weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
             required: typeof rubric.required === 'boolean' ? rubric.required : true,
           };
         })
-        .filter((r) => r.description.length > 0);
+        .filter((r) => r.expected_outcome.length > 0);
 
       if (rubricItems.length > 0) {
         const rubricEvaluator: import('./types.js').LlmJudgeEvaluatorConfig = {

@@ -554,11 +554,11 @@ export async function parseEvaluators(
           .filter((r): r is JsonObject => isJsonObject(r))
           .map((rubric, index) => ({
             id: asString(rubric.id) ?? `rubric-${index + 1}`,
-            description: asString(rubric.description) ?? '',
+            expected_outcome: asString(rubric.expected_outcome) ?? '',
             weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
             required: typeof rubric.required === 'boolean' ? rubric.required : true,
           }))
-          .filter((r) => r.description.length > 0)
+          .filter((r) => r.expected_outcome.length > 0)
       : undefined;
 
     if (typeValue === 'rubric') {

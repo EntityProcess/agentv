@@ -231,7 +231,7 @@ export class LlmJudgeEvaluator implements Evaluator {
     for (const rubric of rubrics) {
       const requiredLabel = rubric.required ? ' (REQUIRED)' : '';
       const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
-      parts.push(`- [${rubric.id}]${requiredLabel}${weightLabel}: ${rubric.description}`);
+      parts.push(`- [${rubric.id}]${requiredLabel}${weightLabel}: ${rubric.expected_outcome}`);
     }
 
     parts.push('', 'For each rubric, determine if it is satisfied and provide brief reasoning.');
@@ -353,9 +353,9 @@ function calculateRubricScore(
 
     if (check.satisfied) {
       earnedWeight += rubric.weight;
-      hits.push(`[${rubric.id}] ${rubric.description}: ${check.reasoning}`);
+      hits.push(`[${rubric.id}] ${rubric.expected_outcome}: ${check.reasoning}`);
     } else {
-      misses.push(`[${rubric.id}] ${rubric.description}: ${check.reasoning}`);
+      misses.push(`[${rubric.id}] ${rubric.expected_outcome}: ${check.reasoning}`);
       if (rubric.required) {
         failedRequired = true;
       }
