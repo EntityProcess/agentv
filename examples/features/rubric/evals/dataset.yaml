@@ -179,43 +179,7 @@ evalcases:
     # To generate rubrics: agentv generate rubrics evals/rubric-examples.yaml
 
   # ==========================================
-  # Example 5: Score-range rubrics (PROPOSED)
-  # Demonstrates: proposed per-criterion 0–10 score_ranges with required_min_score gating
-  # Status: This example matches the OpenSpec change proposal `add-rubric-score-ranges`.
-  #         It is NOT supported by the current runtime until that change is implemented.
-  # ==========================================
-  - id: correctness-score-range-proposed
-
-    expected_outcome: |-
-      Answer the question correctly and completely.
-
-    input_messages:
-      - role: user
-        content: What is 15 + 27?
-
-    expected_messages:
-      - role: assistant
-        content: 42
-
-    # Proposed rubric criterion with score_ranges.
-    # The judge assigns an integer score 0..10 for each criterion id.
-    # AgentV normalizes each criterion score to 0..1 and aggregates deterministically.
-    rubrics:
-      - id: correctness
-        weight: 1.0
-        required_min_score: 10
-        score_ranges:
-          - score_range: [0, 2]
-            expected_outcome: Incorrect or nonsensical answer.
-          - score_range: [3, 6]
-            expected_outcome: Partially correct but has clear errors or missing reasoning.
-          - score_range: [7, 9]
-            expected_outcome: Correct answer with minor issues (e.g., unclear explanation).
-          - score_range: [10, 10]
-            expected_outcome: Fully correct and clear.
-
-  # ==========================================
-  # Example 6: Multi-criteria score_ranges (PROPOSED)
+  # Example 5: Multi-criteria score_ranges (PROPOSED)
   # Demonstrates: multiple rubric ids, each with 0–10 score_ranges, then weighted aggregation.
   # Real-world intent: grading a summary on both factual accuracy and brevity.
   # Status: Proposed only; not supported until `add-rubric-score-ranges` is implemented.
