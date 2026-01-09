@@ -179,17 +179,22 @@ The `createTargetClient()` function reads these automatically.
 
 ```bash
 # From the agentv monorepo root:
-bun run agentv eval examples/features/code-judge-with-llm-calls/evals/dataset.yaml --target gemini_base
+
+# Run contextual precision evaluation
+bun run agentv eval examples/features/code-judge-with-llm-calls/evals/contextual-precision.yaml --target gemini_base
+
+# Run contextual recall evaluation
+bun run agentv eval examples/features/code-judge-with-llm-calls/evals/contextual-recall.yaml --target gemini_base
 ```
 
 ### Expected Results
 
-**Contextual Precision** (ranking quality):
-- **perfect-ranking**: ~1.0 (relevant nodes ranked first)
-- **buried-relevant-node**: ~1.0 (relevant node is first)
+**Contextual Precision** (`contextual-precision.yaml`):
+- **perfect-ranking**: ~1.0 (relevant node ranked first)
+- **mixed-ranking**: ~0.833 (relevant nodes at positions 1 and 3)
 - **relevant-node-last**: ~0.333 (only relevant node is last)
 
-**Contextual Recall** (coverage):
-- **recall-perfect**: ~1.0 (all expected statements attributable)
-- **recall-partial**: ~0.5 (some statements missing from retrieval)
-- **recall-zero**: ~0.0 (retrieval doesn't support expected answer)
+**Contextual Recall** (`contextual-recall.yaml`):
+- **perfect-recall**: ~1.0 (all expected statements attributable)
+- **partial-recall**: ~0.33 (some statements missing from retrieval)
+- **zero-recall**: ~0.0 (retrieval doesn't support expected answer)
