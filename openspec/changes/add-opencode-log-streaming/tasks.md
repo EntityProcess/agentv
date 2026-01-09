@@ -1,13 +1,18 @@
 ## 1. Implementation
-- [ ] 1.1 Add `opencode-log-tracker` module (record/consume/subscribe)
-- [ ] 1.2 Export OpenCode log tracker functions from provider index
-- [ ] 1.3 Update `agentv eval` CLI to subscribe and print OpenCode log paths
-- [ ] 1.4 Update progress display labels to include OpenCode
-- [ ] 1.5 Wire OpenCode provider (future PR) to call `recordOpencodeLogEntry()` and write log lines
+- [ ] 1.1 Add new provider kind `opencode` (core provider registry + aliases)
+- [ ] 1.2 Extend targets schema to support `provider: opencode` and validate settings
+- [ ] 1.3 Implement OpenCode provider invocation (server lifecycle, per-eval-case directory, prompt execution)
+- [ ] 1.4 Map OpenCode `tool` parts into AgentV `outputMessages/toolCalls` for trace-based evaluators
+- [ ] 1.5 Add OpenCode stream log writer (JSONL) and log path tracker (record/consume/subscribe)
+- [ ] 1.6 Export OpenCode log tracker functions from provider index
+- [ ] 1.7 Update `agentv eval` CLI to subscribe and print OpenCode log paths (no duplicates)
 
 ## 2. Validation
 - [ ] 2.1 Run `openspec validate add-opencode-log-streaming --strict`
-- [ ] 2.2 Add/update unit tests if new runtime logic is introduced
+- [ ] 2.2 Add/update unit tests for:
+	- [ ] targets schema parsing for `opencode` targets
+	- [ ] tool-call mapping from OpenCode parts → AgentV `ToolCall`
+	- [ ] log tracker dedupe behavior (CLI subscriber)
 
 ## 3. Documentation
 - [ ] 3.1 Update any relevant skill/docs (if the project uses them for provider setup)
