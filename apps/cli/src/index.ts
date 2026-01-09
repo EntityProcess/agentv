@@ -7,6 +7,7 @@ import { evalCommand } from './commands/eval/index.js';
 import { generateCommand } from './commands/generate/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
 import { validateCommand } from './commands/validate/index.js';
+import { workspaceCommand } from './commands/workspace/index.js';
 
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
@@ -21,6 +22,7 @@ export const app = subcommands({
     generate: generateCommand,
     init: initCmdTsCommand,
     validate: validateCommand,
+    workspace: workspaceCommand,
   },
 });
 

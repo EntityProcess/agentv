@@ -19,6 +19,14 @@ description: Create and maintain AgentV YAML evaluation files for testing AI age
 - Batch CLI: `references/batch-cli-evaluator.md` - Evaluate batch runner output (JSONL)
 - Compare: `references/compare-command.md` - Compare evaluation results between runs
 
+## Workspace-Aware Runs
+
+If your target provider needs a consistent working directory (e.g., prompt files, skills, fixtures), create and sync a workspace folder and then run evals with `--workspace-root`.
+
+- `agentv workspace create --out <dir>` writes `<dir>/.agentv/workspace.yaml` (`--workspace-root` is an alias)
+- `agentv workspace sync --config <dir>/.agentv/workspace.yaml` refreshes all configured sources
+- `agentv eval --workspace-root <dir> ...` defaults target `cwd` for `cli`, `codex`, `claude-code`, `pi-coding-agent` and defaults `workspaceTemplate` for `vscode`/`vscode-insiders` when not set in `targets.yaml`
+
 ## Structure Requirements
 - Root level: `description` (optional), `execution` (with `target`), `evalcases` (required)
 - Eval case fields: `id` (required), `expected_outcome` (required), `input_messages` (required)
