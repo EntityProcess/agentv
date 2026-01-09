@@ -1,8 +1,7 @@
-# Contextual Precision Evaluator Example
+# Contextual Precision Evaluator
 #
-# Demonstrates target access for code judges with a real RAG metric.
-# The evaluator makes multiple target calls (one per retrieval node)
-# to calculate weighted precision based on relevance ranking.
+# Evaluates whether relevant retrieval nodes are ranked higher than irrelevant ones.
+# This metric rewards retrievers that surface relevant content first.
 #
 # Formula: (1/R) * Σ(Precision@k * r_k) for k=1 to n
 # where R = total relevant nodes, r_k = binary relevance at position k
@@ -27,7 +26,6 @@ evalcases:
   # Node 3: Irrelevant (Python)
   # Score = 1.0 (perfect - only relevant node is ranked first)
   - id: perfect-ranking
-    question: What programming language is TypeScript based on?
     expected_outcome: TypeScript is based on JavaScript
     input_messages:
       - role: user
@@ -46,13 +44,13 @@ evalcases:
       - role: assistant
         content: TypeScript is a superset of JavaScript.
 
-  # Test case 2: Good ranking - relevant node first, others mixed
+  # Test case 2: Multiple relevant nodes ranked first
   # Node 1: Relevant (Paris is capital)
   # Node 2: Irrelevant (Eiffel Tower)
-  # Node 3: Irrelevant (City of Light nickname)
-  # Score = 1.0 (relevant node is ranked first)
-  - id: buried-relevant-node
-    question: What is the capital of France?
+  # Node 3: Relevant (City of Light = Paris)
+  # Precision@1 = 1/1 = 1.0, Precision@3 = 2/3 = 0.667
+  # Score = (1/2) * (1.0 + 0.667) = 0.833
+  - id: mixed-ranking
     expected_outcome: The capital of France is Paris.
     input_messages:
       - role: user
@@ -78,7 +76,6 @@ evalcases:
   # Precision@3 = 1/3 = 0.333
   # Score = (1/1) * 0.333 = 0.333
   - id: relevant-node-last
-    question: What color is the sky?
     expected_outcome: The sky is blue
     input_messages:
       - role: user
