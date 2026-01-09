@@ -117,13 +117,27 @@ This produces: `["Node A", "Node B", "Node C"]`
 
 **Potential Solutions:**
 
-1. **Per-tool-call scoring**: Evaluate precision separately for each tool call, then aggregate (average, weighted by result count, etc.)
+All solutions below can be implemented entirely in the code judge - no core AgentV changes required. The code judge receives the full `expectedMessages` structure:
 
-2. **Tool call metadata**: Add a `tool_call_id` or `search_query` field to track which results came from which retrieval operation
+```typescript
+// Available in input.expectedMessages
+{
+  role: 'assistant',
+  toolCalls: [{
+    tool: 'vector_search',
+    input: { query: 'capital of France' },  // query metadata available
+    output: { results: ['Paris is...', '...'] }
+  }]
+}
+```
 
-3. **Nested structure**: Change the extraction to return `string[][]` (array of arrays) preserving tool call boundaries, then adapt scoring logic
+1. **Per-tool-call scoring**: Rewrite extraction to return `Array<{ query: string, results: string[] }>`, evaluate precision separately for each tool call, then aggregate (average, weighted by result count, etc.)
 
-For most single-query RAG evaluations, the current flat approach works well. Consider the alternatives if your retrieval involves multiple independent searches per turn.
+2. **Tool call metadata**: The query is already available via `toolCall.input.query`. Use this to group or label results by their source query.
+
+3. **Nested structure**: Change the extraction to return `string[][]` (array of arrays) preserving tool call boundaries, then adapt scoring logic.
+
+The current `extractRetrievalContext()` in `utils.ts` flattens for simplicity. For most single-query RAG evaluations, this works well. Consider the alternatives if your retrieval involves multiple independent searches per turn.
 
 ## Security
 
