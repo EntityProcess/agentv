@@ -1,11 +1,12 @@
-# Contextual Precision Evaluator Example
+# RAG Metrics Evaluator Example
 #
-# Demonstrates target access for code judges with a real RAG metric.
-# The evaluator makes multiple target calls (one per retrieval node)
-# to calculate weighted precision based on relevance ranking.
+# Demonstrates target access for code judges with real RAG metrics.
 #
+# Contextual Precision: Evaluates whether relevant retrieval nodes are ranked higher.
 # Formula: (1/R) * Σ(Precision@k * r_k) for k=1 to n
-# where R = total relevant nodes, r_k = binary relevance at position k
+#
+# Contextual Recall: Evaluates whether retrieval context covers all expected statements.
+# Formula: Attributable Statements / Total Statements
 #
 # Retrieval context is passed via expected_messages.tool_calls, which
 # represents the expected agent behavior (calling a retrieval tool).
@@ -19,6 +20,12 @@ execution:
       # max_calls should be >= number of retrieval context nodes
       target:
         max_calls: 10
+    - name: contextual_recall
+      type: code_judge
+      script: [bun, run, ../scripts/contextual-recall.ts]
+      # max_calls: 1 for statement extraction + 1 per statement for attribution
+      target:
+        max_calls: 15
 
 evalcases:
   # Test case 1: Perfect ranking - relevant node first
@@ -96,3 +103,82 @@ evalcases:
                 - "The sky appears blue due to Rayleigh scattering of sunlight."
       - role: assistant
         content: The sky appears blue during the day.
+
+  # ============================================================
+  # CONTEXTUAL RECALL TEST CASES
+  # These test cases focus on whether retrieval covers expected statements
+  # ============================================================
+
+  # Test case 4: Perfect recall - all statements supported by retrieval
+  # Expected: "Python was created by Guido van Rossum and first released in 1991"
+  # Statements: (1) Created by Guido van Rossum, (2) First released in 1991
+  # Both statements are covered by retrieval context
+  # Recall score = 2/2 = 1.0
+  - id: recall-perfect
+    question: Who created Python and when was it released?
+    expected_outcome: Python was created by Guido van Rossum and first released in 1991.
+    input_messages:
+      - role: user
+        content: Who created Python and when was it released?
+    expected_messages:
+      - role: assistant
+        tool_calls:
+          - tool: vector_search
+            input:
+              query: Python creator release date
+            output:
+              results:
+                - "Python was created by Guido van Rossum while working at CWI in the Netherlands."
+                - "Python was first released in 1991 as version 0.9.0."
+                - "Guido van Rossum remained Python's lead developer until 2018."
+      - role: assistant
+        content: Python was created by Guido van Rossum and first released in 1991.
+
+  # Test case 5: Partial recall - some statements missing
+  # Expected: "The Great Wall of China is over 13,000 miles long and was built over centuries"
+  # Statements: (1) Over 13,000 miles long, (2) Built over centuries
+  # Only length is mentioned in retrieval, construction timespan is missing
+  # Recall score = 1/2 = 0.5
+  - id: recall-partial
+    question: How long is the Great Wall of China and how was it built?
+    expected_outcome: The Great Wall of China is over 13,000 miles long and was built over many centuries by multiple dynasties.
+    input_messages:
+      - role: user
+        content: How long is the Great Wall of China and how was it built?
+    expected_messages:
+      - role: assistant
+        tool_calls:
+          - tool: vector_search
+            input:
+              query: Great Wall of China length construction
+            output:
+              results:
+                - "The Great Wall of China stretches over 13,000 miles (21,000 km)."
+                - "The wall was designated a UNESCO World Heritage Site in 1987."
+                - "Parts of the wall are now in ruins due to erosion and lack of maintenance."
+      - role: assistant
+        content: The Great Wall of China is over 13,000 miles long and was built over centuries.
+
+  # Test case 6: Zero recall - retrieval doesn't support expected answer
+  # Expected: "Mount Everest is 29,032 feet tall and located in the Himalayas"
+  # Retrieval only contains info about K2, not Everest
+  # Recall score = 0/2 = 0.0
+  - id: recall-zero
+    question: How tall is Mount Everest and where is it located?
+    expected_outcome: Mount Everest is 29,032 feet tall and located in the Himalayas on the border of Nepal and Tibet.
+    input_messages:
+      - role: user
+        content: How tall is Mount Everest and where is it located?
+    expected_messages:
+      - role: assistant
+        tool_calls:
+          - tool: vector_search
+            input:
+              query: Mount Everest height location
+            output:
+              results:
+                - "K2 is the second highest mountain in the world at 28,251 feet."
+                - "Mount Kilimanjaro is the highest peak in Africa at 19,341 feet."
+                - "The Alps are a mountain range in Europe spanning multiple countries."
+      - role: assistant
+        content: Mount Everest is 29,032 feet tall and is in the Himalayas.
