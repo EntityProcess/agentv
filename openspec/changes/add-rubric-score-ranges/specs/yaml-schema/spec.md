@@ -10,13 +10,28 @@ rubrics:
   - id: structure
     expected_outcome: Has clear headings and organization
     weight: 1.0
-    required: true
+    required_min_score: 10
 ```
 - **WHEN** the YAML is parsed
 - **THEN** schema validation succeeds
 
-### Requirement: Score-range rubrics MUST be supported for LLM judging
-The YAML schema SHALL support configuring score-range rubrics for `llm_judge` evaluators via the existing `rubrics` field.
+### Requirement: Rubric gating MUST support required_min_score
+The YAML schema SHALL support `required_min_score` (0..10) on rubric criteria to enforce hard-gating.
+
+#### Scenario: required_min_score gates rubric criteria
+- **GIVEN** a YAML eval case with:
+```yaml
+rubrics:
+  - id: correctness
+    weight: 2.0
+    required_min_score: 10
+    expected_outcome: Must be fully correct.
+```
+- **WHEN** the YAML is parsed
+- **THEN** schema validation succeeds
+
+### Requirement: Per-criterion score_ranges rubrics MUST be supported for LLM judging
+The YAML schema SHALL support configuring per-criterion `score_ranges` for `llm_judge` evaluators via the existing `rubrics` field.
 
 #### Scenario: Configure score_rubric
 - **GIVEN** a YAML eval case with:
@@ -25,14 +40,18 @@ evaluators:
   - name: correctness
     type: llm_judge
     rubrics:
-      - score_range: [0, 2]
-        expected_outcome: Factually incorrect.
-      - score_range: [3, 6]
-        expected_outcome: Mostly correct.
-      - score_range: [7, 9]
-        expected_outcome: Correct but missing minor details.
-      - score_range: [10, 10]
-        expected_outcome: Fully correct.
+      - id: correctness
+        weight: 1.0
+        required_min_score: 10
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Factually incorrect.
+          - score_range: [3, 6]
+            expected_outcome: Mostly correct.
+          - score_range: [7, 9]
+            expected_outcome: Correct but missing minor details.
+          - score_range: [10, 10]
+            expected_outcome: Fully correct.
 ```
 - **WHEN** the YAML is parsed
 - **THEN** the evaluator configuration SHALL include the provided score ranges

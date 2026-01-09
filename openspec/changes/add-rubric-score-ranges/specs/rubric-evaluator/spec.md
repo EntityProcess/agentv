@@ -1,14 +1,14 @@
 ## MODIFIED Requirements
 
 ### Requirement: Static Rubric Evaluation MUST support checklist and score-range rubrics
-The evaluator SHALL support rubric-based grading using a single `rubrics` field in one of two shapes:
+The evaluator SHALL support rubric-based grading using rubric criteria entries. Each criterion may be:
 
-1) **Checklist rubrics** (BREAKING rename): per-item boolean checks with weighted aggregation, using `expected_outcome` (formerly `description`).
-2) **Score-range rubrics** (new, optional): a set of non-overlapping integer score ranges over 0–10 inclusive, each with an explicit `expected_outcome`.
+1) **Checklist-style** (legacy): boolean checks per criterion using `expected_outcome` text.
+2) **Score-range per criterion** (new): each criterion contains `score_ranges` defining non-overlapping integer ranges over 0–10 inclusive, each with an explicit `expected_outcome`.
 
-If score-range rubrics are configured, the evaluator SHALL instruct the judge to output a **single integer score** in 0..10 and then normalize it to 0..1 for the reported evaluation score.
+When score-ranges are present for a criterion, the evaluator SHALL instruct the judge to output an **integer score 0..10 for that criterion** and then normalize it to 0..1 for aggregation.
 
-The system SHALL reject ambiguous configurations where `rubrics` mixes checklist and score-range entries.
+The evaluator SHALL support `required_min_score` gating: if a criterion specifies `required_min_score` and the returned score is below it, the overall verdict SHALL be `fail`.
 
 #### Scenario: Checklist rubrics continue to work
 - **GIVEN** an eval case with `rubrics` (id/description/weight/required)
@@ -17,10 +17,10 @@ The system SHALL reject ambiguous configurations where `rubrics` mixes checklist
 - **AND** the reported score SHALL be in 0..1
 
 #### Scenario: Range rubrics constrain scoring
-- **GIVEN** an eval case with `rubrics` consisting of multiple `score_range` entries and `expected_outcome` text
+- **GIVEN** an eval case with `rubrics` where a criterion contains `score_ranges` entries and `expected_outcome` text
 - **WHEN** the rubric evaluator runs
-- **THEN** the judge SHALL be constrained to output an integer score in 0..10
-- **AND** the system SHALL normalize the score to 0..1 by dividing by 10
+- **THEN** the judge SHALL be constrained to output an integer score in 0..10 for that criterion
+- **AND** the system SHALL normalize each criterion score to 0..1 by dividing by 10
 
 #### Scenario: Invalid range rubrics are rejected
 - **GIVEN** a `score_rubric` with overlapping ranges or missing coverage of 0..10
@@ -37,8 +37,12 @@ The evaluator SHALL validate judge output against a schema appropriate to the co
 - **THEN** the evaluator SHALL accept a JSON object matching:
 ```typescript
 z.object({
-  score: z.number().int().min(0).max(10),
-  reasoning: z.string().optional(),
+  checks: z.array(z.object({
+    id: z.string(),
+    score: z.number().int().min(0).max(10),
+    reasoning: z.string().optional(),
+  })),
+  overall_reasoning: z.string().optional(),
 })
 ```
-- **AND** AgentV SHALL normalize `score / 10` into the standard 0..1 result.
+- **AND** AgentV SHALL normalize per-criterion `score / 10` into the standard 0..1 result and aggregate.

@@ -12,23 +12,23 @@ Best-practice literature for LLM-as-a-judge rubric scoring (e.g., DeepEval/Confi
 Adding this as an **optional, backwards-compatible** scoring mode gives AgentV users a deterministic way to express custom metrics while keeping existing rubrics intact.
 
 ## What Changes
-- Extend the existing `rubrics` concept to support **two rubric shapes** under a single field:
-  - **Checklist rubrics** (breaking rename): `{ id, expected_outcome, weight, required }`
-  - **Score-range rubrics** (new, optional): `{ score_range: [start, end], expected_outcome }` over **0–10 inclusive**
+- Extend the existing `rubrics` concept to support **per-criterion score ranges** (analytic rubric scoring):
+  - Each rubric entry represents a criterion with an `id` and optional aggregation `weight`.
+  - Each criterion can include `score_ranges` (0–10 inclusive integer bands) with explicit `expected_outcome` text.
+  - The judge returns an integer score **0–10 per criterion**, which AgentV normalizes to **0–1** (divide by 10) and aggregates (weighted average).
 
-  This keeps a single rubric system and a single evaluator implementation while covering both use cases.
+- Replace `required: boolean` with `required_min_score: int` (0–10) for gating.
+  - If a criterion has `required_min_score`, the overall verdict MUST be `fail` when the criterion score is below that threshold.
 
-- When the evaluator is configured with score-range rubrics, it:
-  - Constrains the judge to output an integer **raw score 0–10**
-  - Normalizes to **0–1** (divide by 10) for the existing `EvaluationScore.score`
-- Add validation rules:
+- Add validation rules (for per-criterion score ranges):
   - Ranges MUST be integers within **0..10**
-  - Ranges MUST NOT overlap
-  - Ranges MUST cover **0..10** (inclusive)
+  - Ranges MUST NOT overlap within a criterion
+  - Ranges SHOULD cover **0..10** (inclusive) within a criterion (strict coverage is preferred for determinism)
   - Each range MUST include a non-empty `expected_outcome`
-- Preserve the current behavior:
-  - Existing `llm_judge` freeform scoring (0–1) unchanged
-  - Existing `llm_judge` rubric checklist scoring logic unchanged (only the field name changes)
+
+- Backwards compatibility:
+  - Existing checklist rubrics remain supported during migration.
+  - `required` is treated as a deprecated alias for `required_min_score: 10`.
 
 ## Breaking Changes
 - **BREAKING**: Rename checklist rubric field `description` → `expected_outcome`.
@@ -37,6 +37,9 @@ Adding this as an **optional, backwards-compatible** scoring mode gives AgentV u
   - YAML after:
     - `rubrics: [{ id: "x", expected_outcome: "...", weight: 1, required: true }]`
   - CLI `generate rubrics` output changes accordingly.
+
+- **BREAKING (proposed new primary shape)**: Prefer `required_min_score` over `required`.
+  - `required` remains accepted as a deprecated alias during migration.
 
 ## Impact
 - Affected specs: `rubric-evaluator`, `yaml-schema`.
