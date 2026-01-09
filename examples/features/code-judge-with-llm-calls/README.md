@@ -89,6 +89,42 @@ Contextual Recall = Attributable Statements / Total Statements
 
 A perfect score (1.0) means the retrieval context fully covers the expected answer. A low score indicates gaps in retrieval - information that should have been retrieved but wasn't.
 
+## Limitations
+
+### Multiple Tool Calls Are Flattened
+
+The current implementation extracts retrieval context by iterating through **all** `expected_messages` and **all** `tool_calls`, flattening results into a single ordered list:
+
+```yaml
+expected_messages:
+  - role: assistant
+    tool_calls:
+      - tool: vector_search
+        output:
+          results: ["Node A", "Node B"]
+  - role: assistant
+    tool_calls:
+      - tool: vector_search
+        output:
+          results: ["Node C"]
+```
+
+This produces: `["Node A", "Node B", "Node C"]`
+
+**Implications:**
+- **Contextual Precision**: Ranking is evaluated across the flattened list. If tool calls represent independent searches (e.g., different queries), their rankings are conflated, which may not reflect true retrieval quality.
+- **Contextual Recall**: Attribution checks against the combined context, which is generally fine since recall measures coverage, not ranking.
+
+**Potential Solutions:**
+
+1. **Per-tool-call scoring**: Evaluate precision separately for each tool call, then aggregate (average, weighted by result count, etc.)
+
+2. **Tool call metadata**: Add a `tool_call_id` or `search_query` field to track which results came from which retrieval operation
+
+3. **Nested structure**: Change the extraction to return `string[][]` (array of arrays) preserving tool call boundaries, then adapt scoring logic
+
+For most single-query RAG evaluations, the current flat approach works well. Consider the alternatives if your retrieval involves multiple independent searches per turn.
+
 ## Security
 
 The target proxy is designed with security in mind:
