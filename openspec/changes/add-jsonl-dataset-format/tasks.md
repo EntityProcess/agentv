@@ -76,20 +76,16 @@
 
 ### Phase 5: Documentation
 - [x] Update README with JSONL examples
-- [x] Create JSONL tutorial in docs
+- [x] Document JSONL in eval-builder skill (SKILL.md)
   - [x] Basic JSONL structure
   - [x] Sidecar metadata usage
   - [x] Per-case overrides
   - [x] File reference examples
-  - [x] Migration tips from YAML
-- [x] Update skill files if applicable
-  - [x] Update eval-builder skill with JSONL info
-  - [x] Include JSONL schema examples
 - [x] Add JSONL examples to `examples/` directory
-  - [x] Basic JSONL dataset
+  - [x] `examples/features/basic-jsonl/` - JSONL version of basic example
   - [x] With sidecar metadata
-  - [x] With per-case overrides
-  - [x] With file references
+  - [x] With per-case execution overrides
+  - [x] With file references (points to basic example files)
 
 ### Phase 6: Error Messages & DX
 - [x] Improve error messages for JSONL
