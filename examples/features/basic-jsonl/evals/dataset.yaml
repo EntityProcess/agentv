@@ -1,0 +1,8 @@
+# Sidecar metadata for dataset.jsonl
+# Provides default values for all eval cases
+
+description: JSONL version of the basic example - demonstrates file references, multi-turn, and per-case overrides
+dataset: basic-jsonl
+execution:
+  target: default
+evaluator: llm_judge

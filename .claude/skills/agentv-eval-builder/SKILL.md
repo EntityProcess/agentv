@@ -7,7 +7,7 @@ description: Create and maintain AgentV YAML evaluation files for testing AI age
 
 ## Schema Reference
 - Schema: `references/eval-schema.json` (JSON Schema for validation and tooling)
-- Format: YAML with structured content arrays
+- Format: YAML or JSONL (see below)
 - Examples: `references/example-evals.md`
 
 ## Feature Reference
@@ -29,6 +29,28 @@ description: Create and maintain AgentV YAML evaluation files for testing AI age
 - Content types: `text` (inline), `file` (relative or absolute path)
 - Attachments (type: `file`) should default to the `user` role
 - File paths: Relative (from eval file dir) or absolute with "/" prefix (from repo root)
+
+## JSONL Format
+
+For large-scale evaluations, use JSONL (one eval case per line) instead of YAML:
+
+**dataset.jsonl:**
+```jsonl
+{"id": "test-1", "expected_outcome": "Correct answer", "input_messages": [{"role": "user", "content": "What is 2+2?"}]}
+{"id": "test-2", "expected_outcome": "Clear explanation", "input_messages": [{"role": "user", "content": [{"type": "text", "value": "Review this"}, {"type": "file", "value": "./code.py"}]}]}
+```
+
+**dataset.yaml (optional sidecar for defaults):**
+```yaml
+description: My dataset
+dataset: my-tests
+execution:
+  target: azure_base
+evaluator: llm_judge
+```
+
+Benefits: Git-friendly diffs, streaming-compatible, easy programmatic generation.
+Per-case fields override sidecar defaults. See `examples/features/basic-jsonl/` for complete example.
 
 ## Custom Evaluators
 
