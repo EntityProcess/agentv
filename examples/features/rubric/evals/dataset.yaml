@@ -180,7 +180,7 @@ evalcases:
 
   # ==========================================
   # Example 5: Score-range rubrics (PROPOSED)
-  # Demonstrates: proposed 0–10 score_range rubrics with expected_outcome per range
+  # Demonstrates: proposed per-criterion 0–10 score_ranges with required_min_score gating
   # Status: This example matches the OpenSpec change proposal `add-rubric-score-ranges`.
   #         It is NOT supported by the current runtime until that change is implemented.
   # ==========================================
@@ -197,14 +197,19 @@ evalcases:
       - role: assistant
         content: 42
 
-    # Proposed polymorphic `rubrics` entries.
-    # Each entry defines an inclusive integer score range (0..10) with a concrete expected outcome.
+    # Proposed rubric criterion with score_ranges.
+    # The judge assigns an integer score 0..10 for each criterion id.
+    # AgentV normalizes each criterion score to 0..1 and aggregates deterministically.
     rubrics:
-      - score_range: [0, 2]
-        expected_outcome: Incorrect or nonsensical answer.
-      - score_range: [3, 6]
-        expected_outcome: Partially correct but has clear errors or missing reasoning.
-      - score_range: [7, 9]
-        expected_outcome: Correct answer with minor issues (e.g., unclear explanation).
-      - score_range: [10, 10]
-        expected_outcome: Fully correct and clear.
+      - id: correctness
+        weight: 1.0
+        required_min_score: 10
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Incorrect or nonsensical answer.
+          - score_range: [3, 6]
+            expected_outcome: Partially correct but has clear errors or missing reasoning.
+          - score_range: [7, 9]
+            expected_outcome: Correct answer with minor issues (e.g., unclear explanation).
+          - score_range: [10, 10]
+            expected_outcome: Fully correct and clear.
