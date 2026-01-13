@@ -335,4 +335,35 @@ describe('parseEvaluators - token_usage', () => {
       max_output: 200,
     });
   });
+
+  it('inherits suite-level execution.evaluators when case has execution object without evaluators', async () => {
+    const rawEvalCase = {
+      execution: {
+        constraints: {
+          max_total_tokens: 123,
+        },
+      },
+    };
+
+    const globalExecution = {
+      evaluators: [
+        {
+          name: 'token-budget',
+          type: 'token_usage',
+          max_total: 1000,
+          max_output: 200,
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, globalExecution, [process.cwd()], 'test');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toEqual({
+      name: 'token-budget',
+      type: 'token_usage',
+      max_total: 1000,
+      max_output: 200,
+    });
+  });
 });

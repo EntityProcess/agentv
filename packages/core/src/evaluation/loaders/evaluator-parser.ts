@@ -22,10 +22,15 @@ export async function parseEvaluators(
   evalId: string,
 ): Promise<readonly EvaluatorConfig[] | undefined> {
   const execution = rawEvalCase.execution;
+  const executionObject = isJsonObject(execution) ? execution : undefined;
+
   // Priority: case-level execution.evaluators > case-level evaluators > global execution.evaluators
-  const candidateEvaluators = isJsonObject(execution)
-    ? (execution.evaluators ?? rawEvalCase.evaluators)
-    : (rawEvalCase.evaluators ?? globalExecution?.evaluators);
+  // Note: If a case has an execution object but omits evaluators, we MUST still fall back to the
+  // suite-level execution.evaluators (otherwise adding constraints at case-level disables inheritance).
+  const candidateEvaluators =
+    (executionObject ? executionObject.evaluators : undefined) ??
+    rawEvalCase.evaluators ??
+    globalExecution?.evaluators;
   if (candidateEvaluators === undefined) {
     return undefined;
   }
