@@ -22,10 +22,75 @@ export async function parseEvaluators(
   evalId: string,
 ): Promise<readonly EvaluatorConfig[] | undefined> {
   const execution = rawEvalCase.execution;
-  // Priority: case-level execution.evaluators > case-level evaluators > global execution.evaluators
-  const candidateEvaluators = isJsonObject(execution)
-    ? (execution.evaluators ?? rawEvalCase.evaluators)
-    : (rawEvalCase.evaluators ?? globalExecution?.evaluators);
+  const executionObject = isJsonObject(execution) ? execution : undefined;
+
+  const evaluatorsMode =
+    typeof executionObject?.evaluators_mode === 'string'
+      ? executionObject.evaluators_mode.trim().toLowerCase()
+      : typeof globalExecution?.evaluators_mode === 'string'
+        ? (globalExecution.evaluators_mode as string).trim().toLowerCase()
+        : undefined;
+
+  const shouldAppendEvaluators = evaluatorsMode === 'append';
+
+  // Priority (default): case-level execution.evaluators > case-level evaluators > global execution.evaluators
+  // Note: If a case has an execution object but omits evaluators, we MUST still fall back to the
+  // suite-level execution.evaluators (otherwise adding constraints at case-level disables inheritance).
+  let candidateEvaluators: JsonValue | undefined;
+
+  if (shouldAppendEvaluators) {
+    const globalRaw = globalExecution?.evaluators;
+    const caseRaw = executionObject?.evaluators ?? rawEvalCase.evaluators;
+
+    if (caseRaw === undefined) {
+      candidateEvaluators = globalRaw;
+    } else if (globalRaw === undefined) {
+      candidateEvaluators = caseRaw;
+    } else if (Array.isArray(globalRaw) && Array.isArray(caseRaw)) {
+      const combined = [...globalRaw];
+      const indexByName = new Map<string, number>();
+
+      for (let i = 0; i < combined.length; i++) {
+        const item = combined[i];
+        if (isJsonObject(item)) {
+          const name = asString(item.name);
+          if (name) {
+            indexByName.set(name, i);
+          }
+        }
+      }
+
+      for (const item of caseRaw) {
+        if (isJsonObject(item)) {
+          const name = asString(item.name);
+          const existingIndex = name ? indexByName.get(name) : undefined;
+          if (existingIndex !== undefined) {
+            combined[existingIndex] = item;
+            continue;
+          }
+        }
+
+        combined.push(item);
+        if (isJsonObject(item)) {
+          const name = asString(item.name);
+          if (name) {
+            indexByName.set(name, combined.length - 1);
+          }
+        }
+      }
+
+      candidateEvaluators = combined;
+    } else {
+      // Let the normal validation below emit the warning for invalid array types.
+      candidateEvaluators = caseRaw;
+    }
+  } else {
+    candidateEvaluators =
+      (executionObject ? executionObject.evaluators : undefined) ??
+      rawEvalCase.evaluators ??
+      globalExecution?.evaluators;
+  }
+
   if (candidateEvaluators === undefined) {
     return undefined;
   }

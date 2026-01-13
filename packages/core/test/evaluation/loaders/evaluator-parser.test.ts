@@ -336,3 +336,123 @@ describe('parseEvaluators - token_usage', () => {
     });
   });
 });
+
+describe('parseEvaluators - suite execution inheritance', () => {
+  it('falls back to suite execution.evaluators when case has execution without evaluators', async () => {
+    const rawEvalCase = {
+      execution: {
+        constraints: {
+          max_total_tokens: 123,
+        },
+      },
+    };
+
+    const globalExecution = {
+      evaluators: [
+        {
+          name: 'token-budget',
+          type: 'token_usage',
+          max_total: 1000,
+          max_output: 200,
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, globalExecution, [process.cwd()], 'test');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toEqual({
+      name: 'token-budget',
+      type: 'token_usage',
+      max_total: 1000,
+      max_output: 200,
+    });
+  });
+
+  it("appends case evaluators to suite evaluators when execution.evaluators_mode is 'append' (case wins by name)", async () => {
+    const rawEvalCase = {
+      execution: {
+        evaluators_mode: 'append',
+        evaluators: [
+          {
+            name: 'case-budget',
+            type: 'token_usage',
+            max_total: 500,
+            max_output: 100,
+          },
+          {
+            // override the suite evaluator by name
+            name: 'token-budget',
+            type: 'token_usage',
+            max_total: 2000,
+            max_output: 300,
+          },
+        ],
+      },
+    };
+
+    const globalExecution = {
+      evaluators: [
+        {
+          name: 'token-budget',
+          type: 'token_usage',
+          max_total: 1000,
+          max_output: 200,
+        },
+        {
+          name: 'suite-only',
+          type: 'token_usage',
+          max_total: 999,
+          max_output: 99,
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, globalExecution, [process.cwd()], 'test');
+
+    expect(evaluators).toHaveLength(3);
+    expect(evaluators).toEqual([
+      // token-budget overridden in-place
+      { name: 'token-budget', type: 'token_usage', max_total: 2000, max_output: 300 },
+      // suite evaluator preserved
+      { name: 'suite-only', type: 'token_usage', max_total: 999, max_output: 99 },
+      // case-only appended
+      { name: 'case-budget', type: 'token_usage', max_total: 500, max_output: 100 },
+    ]);
+  });
+
+  it('inherits suite-level evaluators_mode when case does not specify it', async () => {
+    const rawEvalCase = {
+      execution: {
+        evaluators: [
+          {
+            name: 'case-budget',
+            type: 'token_usage',
+            max_total: 500,
+            max_output: 100,
+          },
+        ],
+      },
+    };
+
+    const globalExecution = {
+      evaluators_mode: 'append',
+      evaluators: [
+        {
+          name: 'suite-budget',
+          type: 'token_usage',
+          max_total: 1000,
+          max_output: 200,
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, globalExecution, [process.cwd()], 'test');
+
+    expect(evaluators).toHaveLength(2);
+    expect(evaluators).toEqual([
+      { name: 'suite-budget', type: 'token_usage', max_total: 1000, max_output: 200 },
+      { name: 'case-budget', type: 'token_usage', max_total: 500, max_output: 100 },
+    ]);
+  });
+});
