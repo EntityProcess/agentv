@@ -45,6 +45,7 @@ interface NormalizedOptions {
   readonly dryRunDelayMax: number;
   readonly agentTimeoutSeconds: number;
   readonly maxRetries: number;
+  readonly workspaceRoot?: string;
   readonly cache: boolean;
   readonly verbose: boolean;
 }
@@ -93,6 +94,7 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     dryRunDelayMax: normalizeNumber(rawOptions.dryRunDelayMax, 0),
     agentTimeoutSeconds: normalizeNumber(rawOptions.agentTimeout, 120),
     maxRetries: normalizeNumber(rawOptions.maxRetries, 2),
+    workspaceRoot: normalizeString(rawOptions.workspaceRoot),
     cache: normalizeBoolean(rawOptions.cache),
     verbose: normalizeBoolean(rawOptions.verbose),
   } satisfies NormalizedOptions;
@@ -217,10 +219,111 @@ function applyVerboseOverride(selection: TargetSelection, cliVerbose: boolean): 
   };
 }
 
+export function applyWorkspaceRootOverride(
+  selection: TargetSelection,
+  workspaceRoot?: string,
+): TargetSelection {
+  const root = workspaceRoot?.trim();
+  if (!root) {
+    return selection;
+  }
+
+  const { resolvedTarget } = selection;
+
+  if (resolvedTarget.kind === 'vscode' || resolvedTarget.kind === 'vscode-insiders') {
+    const current = resolvedTarget.config.workspaceTemplate;
+    if (typeof current === 'string' && current.trim().length > 0) {
+      return selection;
+    }
+
+    return {
+      ...selection,
+      resolvedTarget: {
+        ...resolvedTarget,
+        config: {
+          ...resolvedTarget.config,
+          workspaceTemplate: root,
+        },
+      },
+    };
+  }
+
+  if (resolvedTarget.kind === 'cli') {
+    const current = resolvedTarget.config.cwd;
+    if (typeof current === 'string' && current.trim().length > 0) {
+      return selection;
+    }
+    return {
+      ...selection,
+      resolvedTarget: {
+        ...resolvedTarget,
+        config: {
+          ...resolvedTarget.config,
+          cwd: root,
+        },
+      },
+    };
+  }
+
+  if (resolvedTarget.kind === 'codex') {
+    const current = resolvedTarget.config.cwd;
+    if (typeof current === 'string' && current.trim().length > 0) {
+      return selection;
+    }
+    return {
+      ...selection,
+      resolvedTarget: {
+        ...resolvedTarget,
+        config: {
+          ...resolvedTarget.config,
+          cwd: root,
+        },
+      },
+    };
+  }
+
+  if (resolvedTarget.kind === 'pi-coding-agent') {
+    const current = resolvedTarget.config.cwd;
+    if (typeof current === 'string' && current.trim().length > 0) {
+      return selection;
+    }
+    return {
+      ...selection,
+      resolvedTarget: {
+        ...resolvedTarget,
+        config: {
+          ...resolvedTarget.config,
+          cwd: root,
+        },
+      },
+    };
+  }
+
+  if (resolvedTarget.kind === 'claude-code') {
+    const current = resolvedTarget.config.cwd;
+    if (typeof current === 'string' && current.trim().length > 0) {
+      return selection;
+    }
+    return {
+      ...selection,
+      resolvedTarget: {
+        ...resolvedTarget,
+        config: {
+          ...resolvedTarget.config,
+          cwd: root,
+        },
+      },
+    };
+  }
+
+  return selection;
+}
+
 async function prepareFileMetadata(params: {
   readonly testFilePath: string;
   readonly repoRoot: string;
   readonly cwd: string;
+  readonly workspaceRoot?: string;
   readonly options: NormalizedOptions;
 }): Promise<{
   readonly evalIds: readonly string[];
@@ -228,7 +331,7 @@ async function prepareFileMetadata(params: {
   readonly selection: TargetSelection;
   readonly inlineTargetLabel: string;
 }> {
-  const { testFilePath, repoRoot, cwd, options } = params;
+  const { testFilePath, repoRoot, cwd, options, workspaceRoot } = params;
 
   await ensureFileExists(testFilePath, 'Test file');
   await loadEnvFromHierarchy({
@@ -250,10 +353,12 @@ async function prepareFileMetadata(params: {
     env: process.env,
   });
 
+  const selectionWithWorkspaceRoot = applyWorkspaceRootOverride(selection, workspaceRoot);
+
   const providerLabel = options.dryRun
-    ? `${selection.resolvedTarget.kind} (dry-run)`
-    : selection.resolvedTarget.kind;
-  const inlineTargetLabel = `${selection.targetName} [provider=${providerLabel}]`;
+    ? `${selectionWithWorkspaceRoot.resolvedTarget.kind} (dry-run)`
+    : selectionWithWorkspaceRoot.resolvedTarget.kind;
+  const inlineTargetLabel = `${selectionWithWorkspaceRoot.targetName} [provider=${providerLabel}]`;
 
   const evalCases = await loadEvalCases(testFilePath, repoRoot, {
     verbose: options.verbose,
@@ -404,6 +509,7 @@ async function runSingleEvalFile(params: {
 
 export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> {
   const options = normalizeOptions(input.rawOptions);
+  const workspaceRoot = options.workspaceRoot ? path.resolve(options.workspaceRoot) : undefined;
   const cwd = process.cwd();
   const repoRoot = await findRepoRoot(cwd);
 
@@ -447,6 +553,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       testFilePath,
       repoRoot,
       cwd,
+      workspaceRoot,
       options,
     });
     fileMetadata.set(testFilePath, meta);

@@ -122,9 +122,24 @@ agentv eval --eval-id case-123 evals/my-eval.yaml
 
 # Dry-run with mock provider
 agentv eval --dry-run evals/my-eval.yaml
+
+# Default agentic provider workspace (cwd/workspace template)
+agentv eval --workspace-root ./agent-workspace evals/my-eval.yaml
 ```
 
 See `agentv eval --help` for all options: workers, timeouts, output formats, trace dumping, and more.
+
+### Workspace Sync
+
+Use `agentv workspace` to build and refresh a local working folder from multiple sources (local folders or git repos). This is useful for agentic targets that need a consistent working directory.
+
+```bash
+# Create a new workspace config
+agentv workspace create --out ./agent-workspace
+
+# Edit ./agent-workspace/.agentv/workspace.yaml to add sources, then sync
+agentv workspace sync --config ./agent-workspace/.agentv/workspace.yaml
+```
 
 ### Create Custom Evaluators
 
