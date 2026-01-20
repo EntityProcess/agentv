@@ -3,16 +3,14 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import { parse } from 'yaml';
 
-import type { JsonObject, JsonValue } from '../types.js';
+import type { JsonObject } from '../types.js';
 import { isJsonObject } from '../types.js';
 import { buildDirectoryChain, fileExists } from './file-resolver.js';
 
-const SCHEMA_CONFIG_V2 = 'agentv-config-v2';
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RESET = '\u001b[0m';
 
 export type AgentVConfig = {
-  readonly $schema?: JsonValue;
   readonly guideline_patterns?: readonly string[];
 };
 
@@ -43,18 +41,6 @@ export async function loadConfig(
       }
 
       const config = parsed as AgentVConfig;
-
-      // Check $schema field to ensure V2 format
-      const schema = config.$schema;
-
-      if (schema !== SCHEMA_CONFIG_V2) {
-        const message =
-          typeof schema === 'string'
-            ? `Invalid $schema value '${schema}' in ${configPath}. Expected '${SCHEMA_CONFIG_V2}'`
-            : `Missing required field '$schema' in ${configPath}.\nPlease add '$schema: ${SCHEMA_CONFIG_V2}' at the top of the file.`;
-        logWarning(message);
-        continue;
-      }
 
       const guidelinePatterns = config.guideline_patterns;
       if (guidelinePatterns !== undefined && !Array.isArray(guidelinePatterns)) {

@@ -3,8 +3,6 @@ import { parse } from 'yaml';
 
 import type { ValidationError, ValidationResult } from './types.js';
 
-const SCHEMA_CONFIG_V2 = 'agentv-config-v2';
-
 /**
  * Validate a config.yaml file for schema compliance and structural correctness.
  */
@@ -26,18 +24,6 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
     }
 
     const config = parsed as Record<string, unknown>;
-
-    // Validate $schema field (optional, but if present must be correct)
-    const schema = config.$schema;
-    if (schema !== undefined && schema !== SCHEMA_CONFIG_V2) {
-      const message = `Invalid $schema value '${schema}'. Expected '${SCHEMA_CONFIG_V2}' or omit the field.`;
-      errors.push({
-        severity: 'error',
-        filePath,
-        location: '$schema',
-        message,
-      });
-    }
 
     // Validate guideline_patterns if present
     const guidelinePatterns = config.guideline_patterns;
