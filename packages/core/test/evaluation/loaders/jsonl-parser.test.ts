@@ -1,0 +1,396 @@
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+import {
+  detectFormat,
+  loadEvalCasesFromJsonl,
+} from '../../../src/evaluation/loaders/jsonl-parser.js';
+import { loadEvalCases } from '../../../src/evaluation/yaml-parser.js';
+
+describe('detectFormat', () => {
+  it('returns jsonl for .jsonl extension', () => {
+    expect(detectFormat('test.jsonl')).toBe('jsonl');
+    expect(detectFormat('/path/to/dataset.jsonl')).toBe('jsonl');
+  });
+
+  it('returns yaml for .yaml extension', () => {
+    expect(detectFormat('test.yaml')).toBe('yaml');
+    expect(detectFormat('/path/to/config.yaml')).toBe('yaml');
+  });
+
+  it('returns yaml for .yml extension', () => {
+    expect(detectFormat('test.yml')).toBe('yaml');
+    expect(detectFormat('/path/to/config.yml')).toBe('yaml');
+  });
+
+  it('throws for unsupported extensions', () => {
+    expect(() => detectFormat('test.json')).toThrow('Unsupported file format');
+    expect(() => detectFormat('test.txt')).toThrow('Unsupported file format');
+    expect(() => detectFormat('test')).toThrow('Unsupported file format');
+  });
+});
+
+describe('loadEvalCasesFromJsonl', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-jsonl-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('parses valid single-line JSONL', async () => {
+    const jsonlPath = path.join(tempDir, 'single.jsonl');
+    await writeFile(
+      jsonlPath,
+      '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+    );
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].id).toBe('test-1');
+    expect(cases[0].expected_outcome).toBe('Goal');
+    expect(cases[0].input_messages).toHaveLength(1);
+    expect(cases[0].input_messages[0].role).toBe('user');
+    expect(cases[0].input_messages[0].content).toBe('Query');
+  });
+
+  it('parses multi-line JSONL', async () => {
+    const jsonlPath = path.join(tempDir, 'multi.jsonl');
+    await writeFile(
+      jsonlPath,
+      [
+        '{"id": "test-1", "expected_outcome": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-2", "expected_outcome": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "test-3", "expected_outcome": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
+      ].join('\n'),
+    );
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(3);
+    expect(cases[0].id).toBe('test-1');
+    expect(cases[1].id).toBe('test-2');
+    expect(cases[2].id).toBe('test-3');
+    expect(cases[0].expected_outcome).toBe('Goal 1');
+    expect(cases[1].expected_outcome).toBe('Goal 2');
+    expect(cases[2].expected_outcome).toBe('Goal 3');
+  });
+
+  it('skips empty lines and whitespace-only lines', async () => {
+    const jsonlPath = path.join(tempDir, 'empty-lines.jsonl');
+    await writeFile(
+      jsonlPath,
+      [
+        '{"id": "test-1", "expected_outcome": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
+        '',
+        '{"id": "test-2", "expected_outcome": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
+        '   ',
+        '{"id": "test-3", "expected_outcome": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
+        '',
+      ].join('\n'),
+    );
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(3);
+    expect(cases[0].id).toBe('test-1');
+    expect(cases[1].id).toBe('test-2');
+    expect(cases[2].id).toBe('test-3');
+  });
+
+  it('throws error on malformed JSON with line number', async () => {
+    const jsonlPath = path.join(tempDir, 'malformed.jsonl');
+    await writeFile(
+      jsonlPath,
+      [
+        '{"id": "test-1", "expected_outcome": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-2", "expected_outcome": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "test-3", "expected_outcome": "Goal 3" "input_messages": []}', // Missing comma
+      ].join('\n'),
+    );
+
+    await expect(loadEvalCasesFromJsonl(jsonlPath, tempDir)).rejects.toThrow(/Line 3/);
+  });
+
+  it('skips cases with missing required fields', async () => {
+    const jsonlPath = path.join(tempDir, 'missing-fields.jsonl');
+    await writeFile(
+      jsonlPath,
+      [
+        '{"id": "test-1", "expected_outcome": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-2", "input_messages": [{"role": "user", "content": "Query 2"}]}', // Missing expected_outcome
+        '{"expected_outcome": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}', // Missing id
+        '{"id": "test-4", "expected_outcome": "Goal 4"}', // Missing input_messages
+        '{"id": "test-5", "expected_outcome": "Goal 5", "input_messages": [{"role": "user", "content": "Query 5"}]}',
+      ].join('\n'),
+    );
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(2);
+    expect(cases[0].id).toBe('test-1');
+    expect(cases[1].id).toBe('test-5');
+  });
+
+  it('loads sidecar YAML metadata', async () => {
+    const jsonlPath = path.join(tempDir, 'with-sidecar.jsonl');
+    const sidecarPath = path.join(tempDir, 'with-sidecar.yaml');
+
+    await writeFile(
+      jsonlPath,
+      '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+    );
+    await writeFile(
+      sidecarPath,
+      'description: Test dataset\ndataset: my-tests\nevaluator: llm_judge\n',
+    );
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].dataset).toBe('my-tests');
+    expect(cases[0].evaluator).toBe('llm_judge');
+  });
+
+  it('uses default dataset name from filename when no sidecar', async () => {
+    const jsonlPath = path.join(tempDir, 'my-dataset.jsonl');
+    await writeFile(
+      jsonlPath,
+      '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+    );
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].dataset).toBe('my-dataset');
+  });
+
+  it('supports per-case evaluators override', async () => {
+    const jsonlPath = path.join(tempDir, 'with-evaluators.jsonl');
+    await writeFile(
+      jsonlPath,
+      '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "evaluators": [{"name": "rubric-check", "type": "llm_judge", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
+    );
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].evaluators).toHaveLength(1);
+    expect(cases[0].evaluators?.[0].name).toBe('rubric-check');
+  });
+
+  it('supports inline rubrics field', async () => {
+    const jsonlPath = path.join(tempDir, 'with-rubrics.jsonl');
+    await writeFile(
+      jsonlPath,
+      '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "rubrics": ["Must be polite", "Must be helpful"]}\n',
+    );
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].evaluators).toHaveLength(1);
+    expect(cases[0].evaluators?.[0].type).toBe('llm_judge');
+    const rubricEvaluator = cases[0].evaluators?.[0] as { type: string; rubrics?: unknown[] };
+    expect(rubricEvaluator.rubrics).toHaveLength(2);
+  });
+
+  it('filters by evalId', async () => {
+    const jsonlPath = path.join(tempDir, 'filter.jsonl');
+    await writeFile(
+      jsonlPath,
+      [
+        '{"id": "test-1", "expected_outcome": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-2", "expected_outcome": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "test-3", "expected_outcome": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
+      ].join('\n'),
+    );
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir, { evalId: 'test-2' });
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].id).toBe('test-2');
+  });
+
+  it('supports conversation_id field', async () => {
+    const jsonlPath = path.join(tempDir, 'with-conv-id.jsonl');
+    await writeFile(
+      jsonlPath,
+      '{"id": "test-1", "conversation_id": "conv-123", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+    );
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].conversation_id).toBe('conv-123');
+  });
+
+  it('supports expected_messages field', async () => {
+    const jsonlPath = path.join(tempDir, 'with-expected.jsonl');
+    await writeFile(
+      jsonlPath,
+      '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "expected_messages": [{"role": "assistant", "content": "Response"}]}\n',
+    );
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].expected_messages).toHaveLength(1);
+    expect(cases[0].reference_answer).toBe('Response');
+  });
+
+  it('handles empty JSONL file', async () => {
+    const jsonlPath = path.join(tempDir, 'empty.jsonl');
+    await writeFile(jsonlPath, '');
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(0);
+  });
+
+  it('supports backward-compatible outcome field', async () => {
+    const jsonlPath = path.join(tempDir, 'outcome-field.jsonl');
+    await writeFile(
+      jsonlPath,
+      '{"id": "test-1", "outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+    );
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].expected_outcome).toBe('Goal');
+  });
+});
+
+describe('loadEvalCases with format detection', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-loadEvalCases-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('routes .jsonl to JSONL parser', async () => {
+    const jsonlPath = path.join(tempDir, 'test.jsonl');
+    await writeFile(
+      jsonlPath,
+      '{"id": "jsonl-test", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+    );
+
+    const cases = await loadEvalCases(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].id).toBe('jsonl-test');
+  });
+
+  it('routes .yaml to YAML parser', async () => {
+    const yamlPath = path.join(tempDir, 'test.yaml');
+    await writeFile(
+      yamlPath,
+      `evalcases:
+  - id: yaml-test
+    expected_outcome: Goal
+    input_messages:
+      - role: user
+        content: Query
+`,
+    );
+
+    const cases = await loadEvalCases(yamlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].id).toBe('yaml-test');
+  });
+
+  it('routes .yml to YAML parser', async () => {
+    const ymlPath = path.join(tempDir, 'test.yml');
+    await writeFile(
+      ymlPath,
+      `evalcases:
+  - id: yml-test
+    expected_outcome: Goal
+    input_messages:
+      - role: user
+        content: Query
+`,
+    );
+
+    const cases = await loadEvalCases(ymlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].id).toBe('yml-test');
+  });
+
+  it('throws for unsupported extensions via loadEvalCases', async () => {
+    const txtPath = path.join(tempDir, 'test.txt');
+    await writeFile(txtPath, '{}');
+
+    await expect(loadEvalCases(txtPath, tempDir)).rejects.toThrow('Unsupported file format');
+  });
+});
+
+describe('JSONL and YAML produce equivalent EvalCases', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-equivalence-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('produces identical EvalCase structure from both formats', async () => {
+    // Create equivalent YAML and JSONL files
+    const yamlPath = path.join(tempDir, 'equiv.yaml');
+    const jsonlPath = path.join(tempDir, 'equiv.jsonl');
+
+    await writeFile(
+      yamlPath,
+      `dataset: my-dataset
+evalcases:
+  - id: test-1
+    expected_outcome: "The agent should respond with a helpful answer"
+    input_messages:
+      - role: user
+        content: "What is 2+2?"
+`,
+    );
+
+    // JSONL with equivalent sidecar
+    const sidecarPath = path.join(tempDir, 'equiv-sidecar.yaml');
+    await writeFile(sidecarPath, 'dataset: my-dataset\n');
+
+    const jsonlPath2 = path.join(tempDir, 'equiv-sidecar.jsonl');
+    await writeFile(
+      jsonlPath2,
+      '{"id": "test-1", "expected_outcome": "The agent should respond with a helpful answer", "input_messages": [{"role": "user", "content": "What is 2+2?"}]}\n',
+    );
+
+    const yamlCases = await loadEvalCases(yamlPath, tempDir);
+    const jsonlCases = await loadEvalCases(jsonlPath2, tempDir);
+
+    expect(yamlCases).toHaveLength(1);
+    expect(jsonlCases).toHaveLength(1);
+
+    // Core fields should match
+    expect(jsonlCases[0].id).toBe(yamlCases[0].id);
+    expect(jsonlCases[0].expected_outcome).toBe(yamlCases[0].expected_outcome);
+    expect(jsonlCases[0].dataset).toBe(yamlCases[0].dataset);
+    expect(jsonlCases[0].input_messages.length).toBe(yamlCases[0].input_messages.length);
+    expect(jsonlCases[0].input_messages[0].role).toBe(yamlCases[0].input_messages[0].role);
+    expect(jsonlCases[0].input_messages[0].content).toBe(yamlCases[0].input_messages[0].content);
+  });
+});

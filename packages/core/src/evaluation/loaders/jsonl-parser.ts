@@ -1,19 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { parse } from 'yaml';
+import { parse as parseYaml } from 'yaml';
 
-import { extractTargetFromSuite, loadConfig } from './loaders/config-loader.js';
-import { coerceEvaluator, parseEvaluators } from './loaders/evaluator-parser.js';
-import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
-import { detectFormat, loadEvalCasesFromJsonl } from './loaders/jsonl-parser.js';
-import { processExpectedMessages, processMessages } from './loaders/message-processor.js';
-import type { EvalCase, JsonObject, JsonValue, TestMessage } from './types.js';
-import { isJsonObject, isTestMessage } from './types.js';
-
-// Re-export public APIs from modules
-export { buildPromptInputs, type PromptInputs } from './formatting/prompt-builder.js';
-export { isGuidelineFile } from './loaders/config-loader.js';
-export { detectFormat } from './loaders/jsonl-parser.js';
+import type { EvalCase, JsonObject, JsonValue, TestMessage } from '../types.js';
+import { isJsonObject, isTestMessage } from '../types.js';
+import { loadConfig } from './config-loader.js';
+import { coerceEvaluator, parseEvaluators } from './evaluator-parser.js';
+import { buildSearchRoots, fileExists, resolveToAbsolutePath } from './file-resolver.js';
+import { processExpectedMessages, processMessages } from './message-processor.js';
 
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RED = '\u001b[31m';
@@ -24,14 +18,20 @@ type LoadOptions = {
   readonly evalId?: string;
 };
 
-type RawTestSuite = JsonObject & {
-  readonly evalcases?: JsonValue;
-  readonly target?: JsonValue;
-  readonly execution?: JsonValue;
-  readonly dataset?: JsonValue;
+/**
+ * Sidecar metadata structure for JSONL datasets.
+ */
+type SidecarMetadata = {
+  readonly description?: string;
+  readonly dataset?: string;
+  readonly execution?: JsonObject;
+  readonly evaluator?: JsonValue;
 };
 
-type RawEvalCase = JsonObject & {
+/**
+ * Raw eval case from JSONL line.
+ */
+type RawJsonlEvalCase = JsonObject & {
   readonly id?: JsonValue;
   readonly conversation_id?: JsonValue;
   readonly outcome?: JsonValue;
@@ -44,41 +44,85 @@ type RawEvalCase = JsonObject & {
 };
 
 /**
- * Read metadata from a test suite file (like target name).
- * This is a convenience function for CLI tools that need metadata without loading all eval cases.
+ * Detect file format by extension.
  */
-export async function readTestSuiteMetadata(testFilePath: string): Promise<{ target?: string }> {
+export function detectFormat(filePath: string): 'yaml' | 'jsonl' {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.jsonl') return 'jsonl';
+  if (ext === '.yaml' || ext === '.yml') return 'yaml';
+  throw new Error(`Unsupported file format: '${ext}'. Supported formats: .yaml, .yml, .jsonl`);
+}
+
+/**
+ * Load sidecar YAML metadata file for a JSONL dataset.
+ */
+async function loadSidecarMetadata(jsonlPath: string, verbose: boolean): Promise<SidecarMetadata> {
+  const dir = path.dirname(jsonlPath);
+  const base = path.basename(jsonlPath, '.jsonl');
+  const sidecarPath = path.join(dir, `${base}.yaml`);
+
+  if (!(await fileExists(sidecarPath))) {
+    if (verbose) {
+      logWarning(`Sidecar metadata file not found: ${sidecarPath} (using defaults)`);
+    }
+    return {};
+  }
+
   try {
-    const absolutePath = path.resolve(testFilePath);
-    const content = await readFile(absolutePath, 'utf8');
-    const parsed = parse(content) as unknown;
+    const content = await readFile(sidecarPath, 'utf8');
+    const parsed = parseYaml(content) as unknown;
 
     if (!isJsonObject(parsed)) {
+      logWarning(`Invalid sidecar metadata format in ${sidecarPath}`);
       return {};
     }
 
-    return { target: extractTargetFromSuite(parsed) };
-  } catch {
+    return {
+      description: asString(parsed.description),
+      dataset: asString(parsed.dataset),
+      execution: isJsonObject(parsed.execution) ? parsed.execution : undefined,
+      evaluator: parsed.evaluator,
+    };
+  } catch (error) {
+    logWarning(`Could not read sidecar metadata from ${sidecarPath}: ${(error as Error).message}`);
     return {};
   }
 }
 
 /**
- * Load eval cases from a AgentV specification file (YAML or JSONL).
- * Format is detected by file extension: .yaml/.yml for YAML, .jsonl for JSONL.
+ * Parse JSONL file content into raw eval cases.
  */
-export async function loadEvalCases(
+function parseJsonlContent(content: string, filePath: string): RawJsonlEvalCase[] {
+  const lines = content.split('\n');
+  const cases: RawJsonlEvalCase[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line === '') continue; // Skip empty lines
+
+    try {
+      const parsed = JSON.parse(line) as unknown;
+      if (!isJsonObject(parsed)) {
+        throw new Error('Expected JSON object');
+      }
+      cases.push(parsed as RawJsonlEvalCase);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Line ${i + 1}: Invalid JSON - ${message}\n  File: ${filePath}`);
+    }
+  }
+
+  return cases;
+}
+
+/**
+ * Load eval cases from a JSONL file with optional sidecar YAML metadata.
+ */
+export async function loadEvalCasesFromJsonl(
   evalFilePath: string,
   repoRoot: URL | string,
   options?: LoadOptions,
 ): Promise<readonly EvalCase[]> {
-  // Detect format and route to appropriate parser
-  const format = detectFormat(evalFilePath);
-  if (format === 'jsonl') {
-    return loadEvalCasesFromJsonl(evalFilePath, repoRoot, options);
-  }
-
-  // YAML parsing (existing implementation)
   const verbose = options?.verbose ?? false;
   const evalIdFilter = options?.evalId;
   const absoluteTestPath = path.resolve(evalFilePath);
@@ -90,40 +134,36 @@ export async function loadEvalCases(
   const config = await loadConfig(absoluteTestPath, repoRootPath);
   const guidelinePatterns = config?.guideline_patterns;
 
+  // Load sidecar metadata
+  const sidecar = await loadSidecarMetadata(absoluteTestPath, verbose);
+
+  // Parse JSONL content
   const rawFile = await readFile(absoluteTestPath, 'utf8');
-  const parsed = parse(rawFile) as unknown;
-  if (!isJsonObject(parsed)) {
-    throw new Error(`Invalid test file format: ${evalFilePath}`);
-  }
+  const rawCases = parseJsonlContent(rawFile, evalFilePath);
 
-  const suite = parsed as RawTestSuite;
-  const datasetNameFromSuite = asString(suite.dataset)?.trim();
-  const fallbackDataset = path.basename(absoluteTestPath).replace(/\.ya?ml$/i, '') || 'eval';
+  // Derive dataset name: sidecar > filename
+  const fallbackDataset = path.basename(absoluteTestPath, '.jsonl') || 'eval';
   const datasetName =
-    datasetNameFromSuite && datasetNameFromSuite.length > 0
-      ? datasetNameFromSuite
-      : fallbackDataset;
+    sidecar.dataset && sidecar.dataset.trim().length > 0 ? sidecar.dataset : fallbackDataset;
 
-  const rawTestcases = suite.evalcases;
-  if (!Array.isArray(rawTestcases)) {
-    throw new Error(`Invalid test file format: ${evalFilePath} - missing 'evalcases' field`);
+  // Global defaults from sidecar
+  const globalEvaluator = coerceEvaluator(sidecar.evaluator, 'sidecar') ?? 'llm_judge';
+  const globalExecution = sidecar.execution;
+
+  if (verbose) {
+    console.log(`\n[JSONL Dataset: ${evalFilePath}]`);
+    console.log(`  Cases: ${rawCases.length}`);
+    console.log(`  Dataset name: ${datasetName}`);
+    if (sidecar.description) {
+      console.log(`  Description: ${sidecar.description}`);
+    }
   }
-
-  const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm_judge';
-
-  // Extract global target from execution.target (or legacy root-level target)
-  const globalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
-  const _globalTarget = asString(globalExecution?.target) ?? asString(suite.target);
 
   const results: EvalCase[] = [];
 
-  for (const rawEvalcase of rawTestcases) {
-    if (!isJsonObject(rawEvalcase)) {
-      logWarning('Skipping invalid eval case entry (expected object)');
-      continue;
-    }
-
-    const evalcase = rawEvalcase as RawEvalCase;
+  for (let lineIndex = 0; lineIndex < rawCases.length; lineIndex++) {
+    const evalcase = rawCases[lineIndex];
+    const lineNumber = lineIndex + 1; // 1-based for user-facing messages
     const id = asString(evalcase.id);
 
     // Skip eval cases that don't match the filter
@@ -140,7 +180,7 @@ export async function loadEvalCases(
 
     if (!id || !outcome || !Array.isArray(inputMessagesValue)) {
       logError(
-        `Skipping incomplete eval case: ${id ?? 'unknown'}. Missing required fields: id, outcome, and/or input_messages`,
+        `Skipping incomplete eval case at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, expected_outcome, and/or input_messages`,
       );
       continue;
     }
@@ -158,7 +198,7 @@ export async function loadEvalCases(
       : [];
 
     if (hasExpectedMessages && expectedMessages.length === 0) {
-      logError(`No valid expected message found for eval case: ${id}`);
+      logError(`Line ${lineNumber}: No valid expected message found for eval case: ${id}`);
       continue;
     }
 
@@ -212,14 +252,18 @@ export async function loadEvalCases(
       .filter((part) => part.length > 0)
       .join(' ');
 
+    // Merge execution config: per-case overrides sidecar
+    const caseExecution = isJsonObject(evalcase.execution) ? evalcase.execution : undefined;
+    const mergedExecution = caseExecution ?? globalExecution;
+
     const evalCaseEvaluatorKind = coerceEvaluator(evalcase.evaluator, id) ?? globalEvaluator;
     let evaluators: Awaited<ReturnType<typeof parseEvaluators>>;
     try {
-      evaluators = await parseEvaluators(evalcase, globalExecution, searchRoots, id ?? 'unknown');
+      evaluators = await parseEvaluators(evalcase, mergedExecution, searchRoots, id ?? 'unknown');
     } catch (error) {
       // Skip entire eval case if evaluator validation fails
       const message = error instanceof Error ? error.message : String(error);
-      logError(`Skipping eval case '${id}': ${message}`);
+      logError(`Skipping eval case '${id}' at line ${lineNumber}: ${message}`);
       continue;
     }
 
@@ -247,7 +291,7 @@ export async function loadEvalCases(
         .filter((r) => r.description.length > 0);
 
       if (rubricItems.length > 0) {
-        const rubricEvaluator: import('./types.js').LlmJudgeEvaluatorConfig = {
+        const rubricEvaluator: import('../types.js').LlmJudgeEvaluatorConfig = {
           name: 'rubric',
           type: 'llm_judge',
           rubrics: rubricItems,

@@ -101,7 +101,27 @@ See [AGENTS.md](AGENTS.md) for development guidelines and design principles.
 
 ## Core Concepts
 
-**Evaluation files** (`.yaml`) define test cases with expected outcomes. **Targets** specify which agent/provider to evaluate. **Judges** (code or LLM) score results. **Results** are written as JSONL/YAML for analysis and comparison.
+**Evaluation files** (`.yaml` or `.jsonl`) define test cases with expected outcomes. **Targets** specify which agent/provider to evaluate. **Judges** (code or LLM) score results. **Results** are written as JSONL/YAML for analysis and comparison.
+
+### JSONL Format Support
+
+For large-scale evaluations, AgentV supports JSONL (JSON Lines) format as an alternative to YAML:
+
+```jsonl
+{"id": "test-1", "expected_outcome": "Calculates correctly", "input_messages": [{"role": "user", "content": "What is 2+2?"}]}
+{"id": "test-2", "expected_outcome": "Provides explanation", "input_messages": [{"role": "user", "content": "Explain variables"}]}
+```
+
+Optional sidecar YAML metadata file (`dataset.yaml` alongside `dataset.jsonl`):
+```yaml
+description: Math evaluation dataset
+dataset: math-tests
+execution:
+  target: azure_base
+evaluator: llm_judge
+```
+
+Benefits: Streaming-friendly, Git-friendly diffs, programmatic generation, industry standard (DeepEval, LangWatch, Hugging Face).
 
 ## Usage
 

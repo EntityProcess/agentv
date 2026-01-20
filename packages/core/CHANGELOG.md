@@ -1,12 +1,10 @@
 # @agentv/core
 
-## 2.1.1
+## 2.2.0
 
-### Patch Changes
+### Minor Changes
 
-- 6c560d5: Fix suite-level evaluators inheritance when case has execution object
-
-  Cases with an execution object (e.g., for constraints) but no evaluators now correctly inherit suite-level execution.evaluators. Previously, the presence of any case-level execution object would prevent fallback to suite evaluators.
+- 736a47e: Add JSONL dataset format support for large-scale evaluation workflows
 
 ## 2.1.0
 

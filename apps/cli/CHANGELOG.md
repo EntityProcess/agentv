@@ -1,11 +1,15 @@
 # agentv
 
-## 2.1.1
+## 2.2.0
+
+### Minor Changes
+
+- 736a47e: Add JSONL dataset format support for large-scale evaluation workflows
 
 ### Patch Changes
 
-- Updated dependencies [6c560d5]
-  - @agentv/core@2.1.1
+- Updated dependencies [736a47e]
+  - @agentv/core@2.2.0
 
 ## 2.1.0
 
