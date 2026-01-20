@@ -40,8 +40,7 @@ export default defineCodeJudge(async (input) => {
       score: 0,
       hits: [],
       misses: ['No expected_outcome provided'],
-      reasoning:
-        'Contextual Recall requires expected_outcome to extract statements from.',
+      reasoning: 'Contextual Recall requires expected_outcome to extract statements from.',
     };
   }
 
