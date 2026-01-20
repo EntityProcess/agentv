@@ -1,108 +1,88 @@
-# Design: Rename Input/Output Fields
+# Design: Input/Output Field Aliases and Shorthand
 
 ## Context
 
-AgentV uses `input_messages` and `expected_messages` for eval case definitions. These names are verbose and the "messages" suffix is misleading since:
-- `input` can be a simple string query
-- `expected_output` can be a structured object, not just messages
+AgentV uses `input_messages` and `expected_messages` for eval case definitions. These names are accurate but verbose. Rather than renaming (which would break code judges), we add aliases and shorthand syntax.
 
 ## Decision
 
-Rename fields for clarity:
+Add parser-level aliases and shorthand expansion:
 
-| Old Name | New Name | Rationale |
-|----------|----------|-----------|
-| `input_messages` | `input` | Shorter, clearer |
-| `expected_messages` | `expected_output` | Describes what it is - the expected output |
+| Canonical Name | Alias | Shorthand |
+|----------------|-------|-----------|
+| `input_messages` | `input` | String → single user message |
+| `expected_messages` | `expected_output` | Object → single assistant message |
 
-## Field Formats
+Internal types and code judge payload unchanged.
 
-### `input`
-
-```yaml
-# String shorthand (common case)
-input: "What is 2+2?"
-
-# Full message array
-input:
-  - role: system
-    content: "You are a calculator"
-  - role: user
-    content: "What is 2+2?"
-
-# With file references
-input:
-  - role: user
-    content:
-      - type: file
-        value: ./prompt.md
-      - type: text
-        value: "Process this"
-```
-
-### `expected_output`
-
-```yaml
-# String shorthand
-expected_output: "4"
-
-# Structured object (export-screening style)
-expected_output:
-  riskLevel: High
-  reasoning: "..."
-
-# Full message array with tool calls
-expected_output:
-  - role: assistant
-    tool_calls:
-      - tool: webSearch
-        input: { query: "..." }
-        output: { results: [...] }
-  - role: assistant
-    content:
-      recommendation: "Highly Recommended"
-
-# File reference
-expected_output:
-  - role: assistant
-    content:
-      type: file
-      value: ./expected-answer.json
-```
-
-## Code Judge Payload
-
-Update field names in code judge stdin payload:
-
-```json
-{
-  "question": "...",
-  "expected_outcome": "Goal description",
-  "expected_output": [...],
-  "input": [...],
-  "actual_output": "...",
-  "output_messages": [...],
-  "trace_summary": {...}
-}
-```
-
-| Old Field | New Field |
-|-----------|-----------|
-| `input_messages` | `input` |
-| `expected_messages` | `expected_output` |
-| `candidate_answer` | `actual_output` |
-
-## Backward Compatibility
-
-Parser accepts both old and new names:
+## Alias Resolution
 
 ```typescript
-const input = raw.input ?? raw.input_messages;
-const expectedOutput = raw.expected_output ?? raw.expected_messages;
+// Parser logic
+const inputMessages = raw.input_messages ?? expandShorthand(raw.input);
+const expectedMessages = raw.expected_messages ?? expandShorthand(raw.expected_output);
+```
 
-if (raw.input_messages) {
-  logger.warn("'input_messages' is deprecated, use 'input'");
+Canonical name takes precedence if both specified.
+
+## Shorthand Expansion
+
+### `input` shorthand
+
+```yaml
+# String input
+input: "What is 2+2?"
+
+# Expands to
+input_messages:
+  - role: user
+    content: "What is 2+2?"
+```
+
+### `expected_output` shorthand
+
+```yaml
+# String
+expected_output: "The answer is 4"
+
+# Expands to
+expected_messages:
+  - role: assistant
+    content: "The answer is 4"
+
+# Object (structured output)
+expected_output:
+  riskLevel: High
+
+# Expands to
+expected_messages:
+  - role: assistant
+    content:
+      riskLevel: High
+```
+
+### Detection logic
+
+For `expected_output`, detect format by checking for `role` key:
+
+```typescript
+function expandExpectedOutput(value: unknown): Message[] {
+  if (typeof value === 'string') {
+    return [{ role: 'assistant', content: value }];
+  }
+  if (Array.isArray(value) && value[0]?.role) {
+    return value; // Already message array
+  }
+  if (typeof value === 'object' && !value.role) {
+    return [{ role: 'assistant', content: value }]; // Structured object
+  }
+  return value;
 }
 ```
 
-New name takes precedence if both specified.
+## What Stays The Same
+
+- `EvalCase` type uses `input_messages` and `expected_messages`
+- Code judge payload uses `input_messages`, `expected_messages`, `candidate_answer`
+- All existing eval files work unchanged
+- Internal processing unchanged

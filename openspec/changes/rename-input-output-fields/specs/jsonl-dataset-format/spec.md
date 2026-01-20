@@ -2,97 +2,59 @@
 
 ## ADDED Requirements
 
-### Requirement: Input field support in JSONL
+### Requirement: Input alias with shorthand support in JSONL
 
-The JSONL parser SHALL support `input` as the primary field name.
+The JSONL parser SHALL support `input` as an alias for `input_messages` with shorthand expansion.
 
-#### Scenario: String input in JSONL
+#### Scenario: String shorthand in JSONL
 - **GIVEN** a JSONL line with:
   ```jsonl
   {"id": "test", "expected_outcome": "Goal", "input": "What is 2+2?"}
   ```
 - **WHEN** the line is parsed
-- **THEN** `input` SHALL be converted to message array:
+- **THEN** `input_messages` SHALL be set to:
   ```json
   [{"role": "user", "content": "What is 2+2?"}]
   ```
 
-#### Scenario: Array input in JSONL
+#### Scenario: Array input via alias in JSONL
 - **GIVEN** a JSONL line with:
   ```jsonl
   {"id": "test", "expected_outcome": "Goal", "input": [{"role": "user", "content": "Query"}]}
   ```
 - **WHEN** the line is parsed
-- **THEN** `input` SHALL preserve the message array
+- **THEN** `input_messages` SHALL be set to the array
 
-#### Scenario: input_messages alias in JSONL
-- **GIVEN** a JSONL line with:
-  ```jsonl
-  {"id": "test", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}
-  ```
-- **WHEN** the line is parsed
-- **THEN** the eval case SHALL have input populated from `input_messages`
+### Requirement: Expected output alias with shorthand support in JSONL
 
-### Requirement: Expected output field support in JSONL
+The JSONL parser SHALL support `expected_output` as an alias for `expected_messages` with shorthand expansion.
 
-The JSONL parser SHALL support `expected_output` as the primary field name.
-
-#### Scenario: String expected_output in JSONL
+#### Scenario: String shorthand in JSONL
 - **GIVEN** a JSONL line with:
   ```jsonl
   {"id": "test", "expected_outcome": "Goal", "input": "Query", "expected_output": "Answer"}
   ```
 - **WHEN** the line is parsed
-- **THEN** `expected_output` SHALL be converted to message array:
+- **THEN** `expected_messages` SHALL be set to:
   ```json
   [{"role": "assistant", "content": "Answer"}]
   ```
 
-#### Scenario: Object expected_output in JSONL
+#### Scenario: Object shorthand in JSONL
 - **GIVEN** a JSONL line with:
   ```jsonl
   {"id": "test", "expected_outcome": "Goal", "input": "Query", "expected_output": {"riskLevel": "High"}}
   ```
 - **WHEN** the line is parsed
-- **THEN** `expected_output` SHALL be converted to message array:
+- **THEN** `expected_messages` SHALL be set to:
   ```json
   [{"role": "assistant", "content": {"riskLevel": "High"}}]
   ```
 
-#### Scenario: Array expected_output in JSONL
+#### Scenario: Array with tool calls via alias in JSONL
 - **GIVEN** a JSONL line with:
   ```jsonl
-  {"id": "test", "expected_outcome": "Goal", "input": "Query", "expected_output": [{"role": "assistant", "tool_calls": [...]}]}
+  {"id": "test", "expected_outcome": "Goal", "input": "Query", "expected_output": [{"role": "assistant", "tool_calls": [{"tool": "Read"}]}]}
   ```
 - **WHEN** the line is parsed
-- **THEN** `expected_output` SHALL preserve the message array with tool calls
-
-#### Scenario: expected_messages alias in JSONL
-- **GIVEN** a JSONL line with:
-  ```jsonl
-  {"id": "test", "expected_outcome": "Goal", "input": "Query", "expected_messages": [{"role": "assistant", "content": "Answer"}]}
-  ```
-- **WHEN** the line is parsed
-- **THEN** the eval case SHALL have expected_output populated from `expected_messages`
-
-## MODIFIED Requirements
-
-### Requirement: Schema Compatibility
-
-The system SHALL produce identical `EvalCase` objects from JSONL and YAML formats.
-
-#### Scenario: JSONL and YAML produce same EvalCase with new fields
-- **GIVEN** a YAML file with:
-  ```yaml
-  evalcases:
-    - id: test-1
-      expected_outcome: Goal
-      input: "Query"
-      expected_output: { riskLevel: High }
-  ```
-- **AND** a JSONL file with:
-  ```jsonl
-  {"id": "test-1", "expected_outcome": "Goal", "input": "Query", "expected_output": {"riskLevel": "High"}}
-  ```
-- **WHEN** both files are parsed
-- **THEN** both SHALL produce identical `EvalCase` objects
+- **THEN** `expected_messages` SHALL preserve the full message array with tool calls

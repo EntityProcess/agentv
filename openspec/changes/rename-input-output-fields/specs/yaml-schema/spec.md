@@ -2,9 +2,9 @@
 
 ## ADDED Requirements
 
-### Requirement: Input field with shorthand support
+### Requirement: Input alias with shorthand support
 
-The YAML schema SHALL support `input` as the primary field name for eval case input.
+The YAML schema SHALL support `input` as an alias for `input_messages` with shorthand expansion.
 
 #### Scenario: String shorthand for single user query
 - **GIVEN** a YAML eval case with:
@@ -12,12 +12,12 @@ The YAML schema SHALL support `input` as the primary field name for eval case in
   input: "What is 2+2?"
   ```
 - **WHEN** the YAML is parsed
-- **THEN** the eval case SHALL have input as an array:
+- **THEN** `input_messages` SHALL be set to:
   ```json
   [{"role": "user", "content": "What is 2+2?"}]
   ```
 
-#### Scenario: Full message array
+#### Scenario: Array input via alias
 - **GIVEN** a YAML eval case with:
   ```yaml
   input:
@@ -27,22 +27,23 @@ The YAML schema SHALL support `input` as the primary field name for eval case in
       content: "What is 2+2?"
   ```
 - **WHEN** the YAML is parsed
-- **THEN** the eval case SHALL preserve the full message array
+- **THEN** `input_messages` SHALL be set to the array
 
-#### Scenario: input_messages alias
-- **GIVEN** a YAML eval case with:
+#### Scenario: Canonical name takes precedence
+- **GIVEN** a YAML eval case with both:
   ```yaml
+  input: "Alias query"
   input_messages:
     - role: user
-      content: "Query"
+      content: "Canonical query"
   ```
 - **WHEN** the YAML is parsed
-- **THEN** the eval case SHALL have input populated from `input_messages`
-- **AND** a deprecation warning MAY be logged
+- **THEN** `input_messages` SHALL use the canonical value
+- **AND** `input` alias SHALL be ignored
 
-### Requirement: Expected output field with flexible format
+### Requirement: Expected output alias with shorthand support
 
-The YAML schema SHALL support `expected_output` as the primary field name for expected results.
+The YAML schema SHALL support `expected_output` as an alias for `expected_messages` with shorthand expansion.
 
 #### Scenario: String shorthand
 - **GIVEN** a YAML eval case with:
@@ -50,12 +51,12 @@ The YAML schema SHALL support `expected_output` as the primary field name for ex
   expected_output: "The answer is 4"
   ```
 - **WHEN** the YAML is parsed
-- **THEN** the eval case SHALL have expected_output as:
+- **THEN** `expected_messages` SHALL be set to:
   ```json
   [{"role": "assistant", "content": "The answer is 4"}]
   ```
 
-#### Scenario: Structured object
+#### Scenario: Object shorthand for structured output
 - **GIVEN** a YAML eval case with:
   ```yaml
   expected_output:
@@ -63,12 +64,12 @@ The YAML schema SHALL support `expected_output` as the primary field name for ex
     reasoning: "Explanation"
   ```
 - **WHEN** the YAML is parsed
-- **THEN** the eval case SHALL have expected_output as:
+- **THEN** `expected_messages` SHALL be set to:
   ```json
   [{"role": "assistant", "content": {"riskLevel": "High", "reasoning": "Explanation"}}]
   ```
 
-#### Scenario: Full message array with tool calls
+#### Scenario: Array with tool calls via alias
 - **GIVEN** a YAML eval case with:
   ```yaml
   expected_output:
@@ -80,43 +81,16 @@ The YAML schema SHALL support `expected_output` as the primary field name for ex
       content: { status: "done" }
   ```
 - **WHEN** the YAML is parsed
-- **THEN** the eval case SHALL preserve the full message array with tool calls
+- **THEN** `expected_messages` SHALL preserve the full message array with tool calls
 
-#### Scenario: expected_messages alias
-- **GIVEN** a YAML eval case with:
-  ```yaml
-  expected_messages:
-    - role: assistant
-      content: "Answer"
-  ```
-- **WHEN** the YAML is parsed
-- **THEN** the eval case SHALL have expected_output populated from `expected_messages`
-- **AND** a deprecation warning MAY be logged
-
-### Requirement: New field takes precedence over alias
-
-The YAML schema SHALL prefer new field names over deprecated aliases when both are present.
-
-#### Scenario: Both input and input_messages specified
-- **GIVEN** a YAML eval case with:
-  ```yaml
-  input: "New query"
-  input_messages:
-    - role: user
-      content: "Old query"
-  ```
-- **WHEN** the YAML is parsed
-- **THEN** the eval case SHALL use `input: "New query"`
-- **AND** `input_messages` SHALL be ignored
-
-#### Scenario: Both expected_output and expected_messages specified
-- **GIVEN** a YAML eval case with:
+#### Scenario: Canonical name takes precedence
+- **GIVEN** a YAML eval case with both:
   ```yaml
   expected_output: { riskLevel: High }
   expected_messages:
     - role: assistant
-      content: "Old answer"
+      content: "Canonical answer"
   ```
 - **WHEN** the YAML is parsed
-- **THEN** the eval case SHALL use `expected_output`
-- **AND** `expected_messages` SHALL be ignored
+- **THEN** `expected_messages` SHALL use the canonical value
+- **AND** `expected_output` alias SHALL be ignored

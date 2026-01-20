@@ -1,37 +1,42 @@
-# Change: Rename Input/Output Fields
+# Change: Add Input/Output Field Aliases and Shorthand
 
 ## Why
 
-The current field names `input_messages` and `expected_messages` are verbose and don't clearly convey their purpose:
-- `input_messages` → what goes into the agent
-- `expected_messages` → what should come out
-
-Simpler names improve developer experience and align with common terminology.
+The current field names `input_messages` and `expected_messages` are verbose. Adding aliases and shorthand syntax improves developer experience without breaking changes.
 
 ## What Changes
 
-- **Rename** `input_messages` to `input` (with backward-compatible alias)
-- **Rename** `expected_messages` to `expected_output` (with backward-compatible alias)
-- **Update** code judge payload to use new field names
-- **Update** all examples to use new field names
+- **Add alias** `input` for `input_messages` in YAML/JSONL
+- **Add alias** `expected_output` for `expected_messages` in YAML/JSONL
+- **Add shorthand** string syntax for single user query
+- **Add shorthand** object syntax for structured output
+
+No changes to internal types or code judge payload.
 
 ## Schema
 
 ```yaml
-# Before
+# New: Aliases with shorthand
+input: "What is 2+2?"
+expected_output:
+  riskLevel: High
+
+# Equivalent to existing syntax
 input_messages:
   - role: user
-    content: "Query"
+    content: "What is 2+2?"
 expected_messages:
   - role: assistant
-    content: { riskLevel: High }
+    content:
+      riskLevel: High
 
-# After
-input: "Query"  # String shorthand supported
-expected_output:
-  riskLevel: High  # Object shorthand for simple cases
+# Full message array still works with aliases
+input:
+  - role: system
+    content: "You are a calculator"
+  - role: user
+    content: "What is 2+2?"
 
-# Full trace still supported
 expected_output:
   - role: assistant
     tool_calls:
@@ -43,18 +48,15 @@ expected_output:
 
 ## Impact
 
-- Affected specs: `yaml-schema`, `jsonl-dataset-format`, `evaluation`
+- Affected specs: `yaml-schema`, `jsonl-dataset-format`
 - Affected code:
-  - `packages/core/src/evaluation/types.ts`
   - `packages/core/src/evaluation/yaml-parser.ts`
   - `packages/core/src/evaluation/loaders/jsonl-parser.ts`
-  - `packages/core/src/evaluation/evaluators/code-evaluator.ts`
-  - All examples
+- No changes to:
+  - Internal types (`EvalCase`)
+  - Code judge payload
+  - Existing examples (still work)
 
 ## Backward Compatibility
 
-Aliases ensure existing eval files continue to work:
-- `input_messages` → `input`
-- `expected_messages` → `expected_output`
-
-Deprecation warnings logged when old names used.
+Fully backward compatible. Existing `input_messages` and `expected_messages` continue to work unchanged.
