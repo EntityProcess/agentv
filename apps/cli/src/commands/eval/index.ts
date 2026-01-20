@@ -140,7 +140,7 @@ async function resolveEvalPaths(evalPaths: string[], cwd: string): Promise<strin
       : path.resolve(cwd, pattern);
     try {
       const stats = await stat(candidatePath);
-      if (stats.isFile() && /\.ya?ml$/i.test(candidatePath)) {
+      if (stats.isFile() && /\.(ya?ml|jsonl)$/i.test(candidatePath)) {
         results.add(candidatePath);
         continue;
       }
@@ -158,7 +158,7 @@ async function resolveEvalPaths(evalPaths: string[], cwd: string): Promise<strin
       followSymbolicLinks: true,
     });
 
-    const yamlMatches = matches.filter((filePath) => /\.ya?ml$/i.test(filePath));
+    const yamlMatches = matches.filter((filePath) => /\.(ya?ml|jsonl)$/i.test(filePath));
     if (yamlMatches.length === 0) {
       unmatched.push(pattern);
       continue;
@@ -173,7 +173,7 @@ async function resolveEvalPaths(evalPaths: string[], cwd: string): Promise<strin
     throw new Error(
       `No eval files matched: ${unmatched.join(
         ', ',
-      )}. Provide YAML paths or globs (e.g., "evals/**/*.yaml").`,
+      )}. Provide YAML or JSONL paths or globs (e.g., "evals/**/*.yaml", "evals/**/*.jsonl").`,
     );
   }
 
