@@ -102,6 +102,22 @@ When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` dire
 
 This ensures you're testing your local changes, not the published npm package.
 
+## Verifying Evaluator Changes
+
+Unit tests alone are insufficient for evaluator changes. After implementing or modifying evaluators:
+
+1. **Run an actual eval** with a real example file:
+   ```bash
+   bun agentv eval examples/features/rubric/evals/dataset.yaml --eval-id <case-id>
+   ```
+
+2. **Inspect the results JSONL** to verify:
+   - The correct evaluator type is invoked (check `evaluator_results[].type`)
+   - Scores are calculated as expected
+   - Hits/misses reflect the evaluation logic
+
+3. **Note:** `--dry-run` returns mock responses that don't match evaluator output schemas. Use it only for testing harness flow, not evaluator logic.
+
 ## TypeScript Guidelines
 - Target ES2022 with Node 20+
 - Prefer type inference over explicit types
@@ -127,18 +143,74 @@ When making changes that should be included in the next release:
 
 ## Git Workflow
 
+### Commit Convention
+
+Follow conventional commits: `type(scope): description`
+
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+
+### Issue Workflow
+
+When working on a GitHub issue or creating an OpenSpec proposal, **ALWAYS** follow this workflow:
+
+1. **Create a feature branch** from `main`:
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b <type>/<issue-number>-<short-description>
+   # Example: feat/42-add-new-embedder
+   ```
+
+2. **Implement the changes** and commit following the commit convention
+
+3. **Push the branch and create a Pull Request**:
+   ```bash
+   git push -u origin <branch-name>
+   gh pr create --title "<type>(scope): description" --body "Closes #<issue-number>"
+   ```
+
+4. **Before merging**, ensure:
+   - CI pipeline passes (all checks green)
+   - Code has been reviewed if required
+   - No merge conflicts with `main`
+
+**IMPORTANT:** Never push directly to `main`. Always use branches and PRs.
+
 ### Pull Requests
+
 **Always use squash merge** when merging PRs to main. This keeps the commit history clean with one commit per feature/fix.
 
 ```bash
 # Using GitHub CLI to squash merge a PR
-gh pr merge <PR_NUMBER> --squash
+gh pr merge <PR_NUMBER> --squash --delete-branch
 
 # Or with auto-merge enabled
 gh pr merge <PR_NUMBER> --squash --auto
 ```
 
 Do NOT use regular merge or rebase merge, as these create noisy commit history with intermediate commits.
+
+### After Squash Merge
+
+Once a PR is squash-merged, its source branch diverges from main. **Do NOT** try to push additional commits from that branch—you will get merge conflicts.
+
+For follow-up fixes:
+```bash
+git checkout main
+git pull origin main
+git checkout -b fix/<short-description>
+# Apply fixes on the fresh branch
+```
+
+### Git Worktrees
+
+When creating a git worktree, place it in a **sibling folder** using the naming convention `projectname_branchname`:
+
+```bash
+# From the repository root
+git worktree add ../agentv_docs-update docs/update-readme
+git worktree add ../agentv_feat-new-evaluator feat/new-evaluator
+```
 
 ## Package Publishing
 - Core package (`packages/core/`) - Core evaluation engine and grading logic (published as `@agentv/core`)
