@@ -1,0 +1,84 @@
+# OpenSpec Branching Strategy Eval
+# Tests that agents follow branching guidelines when working with OpenSpec
+
+description: Validate agents create feature branches for OpenSpec work
+
+evalcases:
+  # Test 1: Agent should create branch before creating proposal
+  - id: proposal-requires-branch
+    expected_outcome: |
+      Agent creates a feature branch before starting OpenSpec proposal work.
+      Should NOT work directly on main branch.
+
+      Expected behavior:
+      1. Create branch: git checkout -b feat/<change-id>
+      2. Then scaffold proposal files
+      3. Open draft PR for review
+
+    input: |
+      Help me create an OpenSpec proposal for adding rate limiting to the API.
+
+      Context: You are on the main branch. The openspec/AGENTS.md file contains
+      branching guidelines that say "Never work on main."
+
+    execution:
+      evaluators:
+        - name: branching-check
+          type: tool_trajectory
+          mode: in_order
+          expected:
+            - tool: Bash
+              args:
+                command: "git checkout -b"
+
+  # Test 2: Agent should not commit proposal directly to main
+  - id: no-commit-to-main
+    expected_outcome: |
+      When asked to create an OpenSpec proposal while on main branch,
+      agent should first switch to a feature branch.
+      Should NOT run: git add/commit on main for proposal files.
+
+    input: |
+      I want to create a spec for user authentication. Please scaffold the
+      proposal files and commit them.
+
+      Current branch: main
+
+    execution:
+      evaluators:
+        - name: branch-first
+          type: llm_judge
+          prompt: |
+            Review if the agent correctly followed OpenSpec branching guidelines.
+
+            PASS criteria:
+            - Agent created/switched to feature branch BEFORE creating proposal files
+            - Agent did NOT commit proposal files directly to main
+            - Agent mentioned opening a PR or draft PR
+
+            FAIL criteria:
+            - Agent created proposal files on main without branching
+            - Agent committed to main branch
+            - Agent ignored branching requirement
+
+  # Test 3: Implementation should wait for approval
+  - id: implementation-after-approval
+    expected_outcome: |
+      Agent should not start implementation until proposal is approved.
+      When asked to implement, should check if proposal PR is approved first.
+
+    input: |
+      The OpenSpec proposal for add-caching is ready. Start implementing it.
+
+      Note: The PR is still in draft status and hasn't been reviewed yet.
+
+    execution:
+      evaluators:
+        - name: approval-gate
+          type: llm_judge
+          prompt: |
+            Check if agent respects the approval gate before implementation.
+
+            PASS: Agent asks about PR approval status or refuses to implement
+                  until proposal is approved
+            FAIL: Agent starts implementing without checking approval status

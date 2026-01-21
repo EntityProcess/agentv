@@ -8,26 +8,11 @@ If the `openspec` command is not available, use `npx @fission-ai/openspec <comma
 
 ## Branching Strategy
 
-**IMPORTANT: Never create or implement OpenSpec proposals directly on main.**
-
-All OpenSpec work must be done on feature branches with pull requests:
-
-1. **Create feature branch**: `git checkout -b feat/<change-id>` (e.g., `feat/add-latency-assertions`)
-2. **Create proposal** on the feature branch
-3. **Open draft PR** for proposal review
-4. **Implement** on the same branch after proposal approval
-5. **Squash merge** PR when complete
-6. **Archive** the proposal (can be done on main after merge, or as separate PR)
-
-This ensures:
-- Proposals are reviewed before implementation
-- Changes can be reverted cleanly
-- Main branch stays stable
-- Implementation is tied to approved proposals
+**Never work on main.** Create `feat/<change-id>` branch → open PR → implement → squash merge. Archive can be done on main after merge.
 
 ## TL;DR Quick Checklist
 
-- **Create feature branch first**: `git checkout -b feat/<change-id>`
+- **Branch first**: `git checkout -b feat/<change-id>` then open draft PR
 - Search existing work: `openspec spec list --long`, `openspec list` (use `rg` only for full-text search)
 - Decide scope: new capability vs modify existing capability
 - Pick a unique `change-id`: kebab-case, verb-led (`add-`, `update-`, `remove-`, `refactor-`)
@@ -66,33 +51,20 @@ Skip proposal for:
 - Tests for existing behavior
 
 **Workflow**
-1. **Create feature branch**: `git checkout -b feat/<change-id>`
-2. Review `openspec/project.md`, `openspec list`, and `openspec list --specs` to understand current context.
-3. Choose a unique verb-led `change-id` and scaffold `proposal.md`, `tasks.md`, optional `design.md`, and spec deltas under `openspec/changes/<id>/`.
-4. Draft spec deltas using `## ADDED|MODIFIED|REMOVED Requirements` with at least one `#### Scenario:` per requirement.
-5. Run `openspec validate <id> --strict` and resolve any issues.
-6. **Open draft PR** for proposal review before implementation.
+1. `git checkout -b feat/<change-id>` - never work on main
+2. Review `openspec/project.md`, `openspec list`, and `openspec list --specs`
+3. Scaffold `proposal.md`, `tasks.md`, optional `design.md`, and delta specs under `openspec/changes/<id>/`
+4. Run `openspec validate <id> --strict`
+5. Open draft PR for review
 
 ### Stage 2: Implementing Changes
-Track these steps as TODOs and complete them one by one.
-1. **Ensure on feature branch** - Never implement on main; use the branch from Stage 1
-2. **Approval gate** - Do not start implementation until the proposal PR is reviewed and approved
-3. **Read proposal.md** - Understand what's being built
-4. **Read design.md** (if exists) - Review technical decisions
-5. **Read tasks.md** - Get implementation checklist
-6. **Implement tasks sequentially** - Complete in order
-7. **Confirm completion** - Ensure every item in `tasks.md` is finished before updating statuses
-8. **Update checklist** - After all work is done, set every task to `- [x]` so the list reflects reality
-9. **Mark PR ready for review** - Request final review and squash merge
+1. Wait for proposal PR approval before implementing
+2. Read `proposal.md`, `design.md` (if exists), `tasks.md`
+3. Implement tasks sequentially, mark complete in `tasks.md`
+4. Mark PR ready, squash merge
 
 ### Stage 3: Archiving Changes
-After the PR is merged to main:
-- Archive can be done directly on main (small, safe change) or via separate PR
-- Move `changes/[name]/` → `changes/archive/YYYY-MM-DD-[name]/`
-- Update `specs/` if capabilities changed
-- Use `openspec archive <change-id> --skip-specs --yes` for tooling-only changes (always pass the change ID explicitly)
-- Run `openspec validate --strict` to confirm the archived change passes checks
-- Commit and push the archive
+After PR merged: `openspec archive <change-id> --yes` (can be done on main). Use `--skip-specs` for tooling-only changes.
 
 ## Before Any Task
 
@@ -349,46 +321,16 @@ openspec show [spec] --json -r 1
 ## Happy Path Script
 
 ```bash
-# 1) Create feature branch first (NEVER work on main)
 CHANGE=add-two-factor-auth
-git checkout -b feat/$CHANGE
-
-# 2) Explore current state
-openspec spec list --long
-openspec list
-# Optional full-text search:
-# rg -n "Requirement:|Scenario:" openspec/specs
-# rg -n "^#|Requirement:" openspec/changes
-
-# 3) Scaffold proposal
-mkdir -p openspec/changes/$CHANGE/{specs/auth}
-printf "## Why\n...\n\n## What Changes\n- ...\n\n## Impact\n- ...\n" > openspec/changes/$CHANGE/proposal.md
-printf "## 1. Implementation\n- [ ] 1.1 ...\n" > openspec/changes/$CHANGE/tasks.md
-
-# 4) Add deltas (example)
-cat > openspec/changes/$CHANGE/specs/auth/spec.md << 'EOF'
-## ADDED Requirements
-### Requirement: Two-Factor Authentication
-Users MUST provide a second factor during login.
-
-#### Scenario: OTP required
-- **WHEN** valid credentials are provided
-- **THEN** an OTP challenge is required
-EOF
-
-# 5) Validate
-openspec validate $CHANGE --strict
-
-# 6) Commit and open draft PR for proposal review
+git checkout -b feat/$CHANGE                    # 1. Branch (never main)
+openspec list && openspec spec list --long      # 2. Explore
+mkdir -p openspec/changes/$CHANGE/specs/auth    # 3. Scaffold
+# ... create proposal.md, tasks.md, specs/*/spec.md
+openspec validate $CHANGE --strict              # 4. Validate
 git add . && git commit -m "feat(openspec): $CHANGE proposal"
-git push -u origin feat/$CHANGE
-gh pr create --draft --title "feat(openspec): $CHANGE" --body "## Proposal for $CHANGE"
-
-# 7) After approval, implement on same branch, then mark PR ready
-# 8) After merge, archive on main:
-#    git checkout main && git pull
-#    openspec archive $CHANGE --yes
-#    git add . && git commit -m "chore(openspec): archive $CHANGE" && git push
+gh pr create --draft                            # 5. Open PR
+# After approval: implement, mark PR ready, squash merge
+# After merge: openspec archive $CHANGE --yes
 ```
 
 ## Multi-Capability Example
