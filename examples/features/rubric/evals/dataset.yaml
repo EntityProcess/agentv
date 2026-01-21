@@ -71,27 +71,27 @@ evalcases:
     # Detailed rubric objects with weights and required flags
     rubrics:
       - id: structure
-        description: Has clear headings and organization
+        expected_outcome: Has clear headings and organization
         weight: 1.0
         required: true
 
       - id: success-codes
-        description: Covers 2xx success codes with examples
+        expected_outcome: Covers 2xx success codes with examples
         weight: 2.0
         required: true
 
       - id: client-errors
-        description: Explains 4xx client error codes
+        expected_outcome: Explains 4xx client error codes
         weight: 2.0
         required: true
 
       - id: server-errors
-        description: Explains 5xx server error codes
+        expected_outcome: Explains 5xx server error codes
         weight: 1.5
         required: false
 
       - id: practical-examples
-        description: Includes practical use case examples
+        expected_outcome: Includes practical use case examples
         weight: 1.0
         required: false
 
@@ -177,3 +177,61 @@ evalcases:
 
     # No rubrics defined - will use default llm_judge evaluator
     # To generate rubrics: agentv generate rubrics evals/rubric-examples.yaml
+
+  # ==========================================
+  # Example 5: Multi-criteria score_ranges (PROPOSED)
+  # Demonstrates: multiple rubric ids, each with 0–10 score_ranges, then weighted aggregation.
+  # Real-world intent: grading a summary on both factual accuracy and brevity.
+  # Status: Proposed only; not supported until `add-rubric-score-ranges` is implemented.
+  # ==========================================
+  - id: summary-multi-criteria-score-ranges-proposed
+
+    expected_outcome: |-
+      Provide an accurate summary in under 50 words.
+
+    input_messages:
+      - role: user
+        content: |-
+          Summarize this article in under 50 words:
+
+          Climate change is accelerating faster than predicted. Recent studies show
+          Arctic ice melting at unprecedented rates, sea levels rising, and extreme
+          weather events becoming more frequent. Scientists urge immediate action to
+          reduce carbon emissions and transition to renewable energy sources.
+
+    expected_messages:
+      - role: assistant
+        content: |-
+          Climate change is accelerating with rapid Arctic ice loss, rising seas, and
+          more extreme weather. Scientists urge urgent emissions cuts and a transition
+          to renewable energy.
+
+    rubrics:
+      - id: factual_accuracy
+        weight: 2.0
+        required_min_score: 8
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Contains major factual errors or contradicts the article.
+          - score_range: [3, 5]
+            expected_outcome: Mostly on-topic but includes at least one clear factual error or misstates a key claim.
+          - score_range: [6, 7]
+            expected_outcome: Generally accurate but misses an important point or slightly distorts emphasis.
+          - score_range: [8, 9]
+            expected_outcome: Accurate and covers the key points with only minor omissions.
+          - score_range: [10, 10]
+            expected_outcome: Fully accurate, captures all key points with no distortions.
+
+      - id: brevity_and_clarity
+        weight: 1.0
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Exceeds 50 words or is hard to understand.
+          - score_range: [3, 5]
+            expected_outcome: Under 50 words but unclear, repetitive, or poorly structured.
+          - score_range: [6, 7]
+            expected_outcome: Under 50 words and mostly clear, but could be more concise or better phrased.
+          - score_range: [8, 9]
+            expected_outcome: Under 50 words, clear and concise.
+          - score_range: [10, 10]
+            expected_outcome: Under 50 words, exceptionally clear, concise, and well phrased.

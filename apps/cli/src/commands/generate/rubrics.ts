@@ -160,9 +160,9 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
       caseNode.set(
         'rubrics',
         rubrics.map(
-          (r: { id: string; description: string; weight: number; required: boolean }) => ({
+          (r: { id: string; expected_outcome: string; weight: number; required: boolean }) => ({
             id: r.id,
-            description: r.description,
+            expected_outcome: r.expected_outcome,
             weight: r.weight,
             required: r.required,
           }),

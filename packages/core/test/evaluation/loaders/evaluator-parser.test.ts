@@ -312,6 +312,121 @@ describe('parseEvaluators - code_judge config pass-through', () => {
   });
 });
 
+describe('parseEvaluators - score_ranges rubrics', () => {
+  it('parses valid score_ranges with required_min_score', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'correctness',
+          type: 'llm_judge',
+          rubrics: [
+            {
+              id: 'accuracy',
+              weight: 2.0,
+              required_min_score: 7,
+              score_ranges: [
+                { score_range: [0, 3], expected_outcome: 'Incorrect' },
+                { score_range: [4, 6], expected_outcome: 'Partially correct' },
+                { score_range: [7, 9], expected_outcome: 'Mostly correct' },
+                { score_range: [10, 10], expected_outcome: 'Fully correct' },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0];
+    expect(config?.type).toBe('llm_judge');
+    if (config?.type === 'llm_judge') {
+      expect(config.rubrics).toHaveLength(1);
+      const rubric = config.rubrics?.[0];
+      expect(rubric?.id).toBe('accuracy');
+      expect(rubric?.weight).toBe(2.0);
+      expect(rubric?.required_min_score).toBe(7);
+      expect(rubric?.score_ranges).toHaveLength(4);
+    }
+  });
+
+  it('throws on overlapping score_ranges', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'overlapping',
+          type: 'llm_judge',
+          rubrics: [
+            {
+              id: 'test',
+              score_ranges: [
+                { score_range: [0, 5], expected_outcome: 'Low' },
+                { score_range: [4, 10], expected_outcome: 'High' }, // Overlaps at 4-5
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    await expect(
+      parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case'),
+    ).rejects.toThrow(/overlapping/i);
+  });
+
+  it('throws on incomplete score_ranges coverage', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'incomplete',
+          type: 'llm_judge',
+          rubrics: [
+            {
+              id: 'test',
+              score_ranges: [
+                { score_range: [0, 3], expected_outcome: 'Low' },
+                { score_range: [7, 10], expected_outcome: 'High' }, // Missing 4-6
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    await expect(
+      parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case'),
+    ).rejects.toThrow(/coverage/i);
+  });
+
+  it('supports description as backward-compatible alias for expected_outcome', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'legacy',
+          type: 'llm_judge',
+          rubrics: [
+            {
+              id: 'r1',
+              description: 'Must be polite', // Legacy field name
+              weight: 1.0,
+              required: true,
+            },
+          ],
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0];
+    if (config?.type === 'llm_judge') {
+      expect(config.rubrics?.[0]?.expected_outcome).toBe('Must be polite');
+    }
+  });
+});
+
 describe('parseEvaluators - token_usage', () => {
   it('parses token_usage evaluator with limits', async () => {
     const rawEvalCase = {

@@ -23,7 +23,7 @@ evalcases:
       - States time complexity correctly
 ```
 
-### Detailed Rubric Objects
+### Detailed Rubric Objects (Checklist Mode)
 
 Use objects for fine-grained control over weights and requirements:
 
@@ -31,58 +31,125 @@ Use objects for fine-grained control over weights and requirements:
 evalcases:
   - id: technical-guide
     expected_outcome: Write a comprehensive HTTP status codes guide
-    
+
     input_messages:
       - role: user
         content: Write a guide explaining HTTP status codes
-    
+
     rubrics:
       - id: structure
-        description: Has clear headings and organization
+        expected_outcome: Has clear headings and organization
         weight: 1.0
         required: true
-        
+
       - id: success-codes
-        description: Covers 2xx success codes with examples
+        expected_outcome: Covers 2xx success codes with examples
         weight: 2.0
         required: true
-        
+
       - id: client-errors
-        description: Explains 4xx client error codes
+        expected_outcome: Explains 4xx client error codes
         weight: 2.0
         required: true
-        
+
       - id: server-errors
-        description: Explains 5xx server error codes
+        expected_outcome: Explains 5xx server error codes
         weight: 1.5
         required: false
-        
+
       - id: practical-examples
-        description: Includes practical use case examples
+        expected_outcome: Includes practical use case examples
         weight: 1.0
         required: false
 ```
+
+### Score-Range Rubrics (Analytic Mode)
+
+For more granular scoring, use `score_ranges` to define 0-10 integer scoring per criterion:
+
+```yaml
+evalcases:
+  - id: code-review
+    expected_outcome: Review the code for correctness and style
+
+    input_messages:
+      - role: user
+        content: Review this Python function for issues
+
+    rubrics:
+      - id: correctness
+        weight: 2.0
+        required_min_score: 7  # Fail if score < 7
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Contains critical bugs or errors
+          - score_range: [3, 5]
+            expected_outcome: Has minor bugs or edge case issues
+          - score_range: [6, 8]
+            expected_outcome: Functionally correct with minor issues
+          - score_range: [9, 10]
+            expected_outcome: Fully correct implementation
+
+      - id: style
+        weight: 1.0
+        score_ranges:
+          - score_range: [0, 3]
+            expected_outcome: Poor style, hard to read
+          - score_range: [4, 6]
+            expected_outcome: Acceptable style with issues
+          - score_range: [7, 10]
+            expected_outcome: Clean, idiomatic code
+```
+
+**Score-range validation rules:**
+- Ranges must be integers within 0-10
+- Ranges must not overlap
+- Ranges must cover all values 0-10 (no gaps)
+- Each range must have a non-empty `expected_outcome`
 
 ## Rubric Object Fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `id` | string | auto-generated | Unique identifier for the rubric |
-| `description` | string | required | The criterion being evaluated |
+| `expected_outcome` | string | required* | The criterion being evaluated (*optional if `score_ranges` used) |
 | `weight` | number | 1.0 | Relative importance (higher = more impact on score) |
-| `required` | boolean | true | If true, failing this rubric forces verdict to 'fail' |
+| `required` | boolean | true | If true, failing this rubric forces verdict to 'fail' (checklist mode) |
+| `required_min_score` | integer | - | Minimum 0-10 score required to pass (score-range mode) |
+| `score_ranges` | array | - | Score range definitions for analytic rubric scoring |
+
+> **Note:** `description` is supported as a backward-compatible alias for `expected_outcome`.
 
 ## Scoring and Verdicts
 
-**Score Calculation:**
+### Checklist Mode (boolean)
 ```
 score = (sum of satisfied weights) / (total weights)
 ```
 
+### Score-Range Mode (0-10 integers)
+```
+normalized_score = raw_score / 10  # Convert 0-10 to 0-1
+final_score = weighted_average(normalized_scores)
+```
+
 **Verdict Rules:**
-- `pass`: Score ≥ 0.8 AND all required rubrics satisfied
-- `borderline`: Score ≥ 0.6 AND all required rubrics satisfied  
-- `fail`: Score < 0.6 OR any required rubric failed
+- `pass`: Score ≥ 0.8 AND all gating criteria satisfied
+- `borderline`: Score ≥ 0.6 AND all gating criteria satisfied
+- `fail`: Score < 0.6 OR any gating criterion failed
+
+**Gating:**
+- Checklist mode: `required: true` means must be satisfied
+- Score-range mode: `required_min_score: N` means score must be ≥ N
+
+## When to Use Each Mode
+
+| Use Case | Mode | Why |
+|----------|------|-----|
+| Binary pass/fail criteria | Checklist | Simple yes/no evaluation |
+| Quality gradient | Score-range | Captures nuance (poor → excellent) |
+| Critical requirements | Checklist + `required: true` | Hard gating on must-haves |
+| Minimum quality bar | Score-range + `required_min_score` | Flexible threshold gating |
 
 ## Combining Rubrics with Other Evaluators
 
