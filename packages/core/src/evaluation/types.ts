@@ -200,11 +200,47 @@ export type LlmJudgeEvaluatorConfig = {
   readonly weight?: number;
 };
 
+/**
+ * Score range definition for analytic rubric scoring.
+ * Each range maps an integer score band (0-10) to an expected outcome description.
+ */
+export type ScoreRange = {
+  /** Inclusive integer range [min, max] within 0-10 */
+  readonly score_range: readonly [number, number];
+  /** Description of what this score range represents */
+  readonly expected_outcome: string;
+};
+
+/**
+ * Rubric item for LLM judge evaluation.
+ * Supports two modes:
+ * - Checklist mode: boolean satisfied/not-satisfied with `expected_outcome`
+ * - Score-range mode: 0-10 integer scoring with `score_ranges`
+ */
 export type RubricItem = {
   readonly id: string;
-  readonly expected_outcome: string;
+  /**
+   * For checklist rubrics: the expected outcome text (required).
+   * For score-range rubrics: optional overall criterion description.
+   */
+  readonly expected_outcome?: string;
   readonly weight: number;
-  readonly required: boolean;
+  /**
+   * Legacy boolean gating (deprecated, treated as required_min_score: 10).
+   * Use required_min_score instead for finer control.
+   */
+  readonly required?: boolean;
+  /**
+   * Minimum score (0-10) required to pass this criterion.
+   * If the criterion score is below this threshold, the overall verdict is 'fail'.
+   */
+  readonly required_min_score?: number;
+  /**
+   * Score range definitions for analytic rubric scoring.
+   * When present, the judge outputs an integer 0-10 score per criterion.
+   * Ranges must be non-overlapping and cover 0-10 inclusive.
+   */
+  readonly score_ranges?: readonly ScoreRange[];
 };
 
 export type CompositeAggregatorConfig =

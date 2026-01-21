@@ -229,9 +229,12 @@ export async function loadEvalCases(
               required: true,
             };
           }
+          // Support both expected_outcome and description (backward compatibility)
+          const expectedOutcome =
+            asString(rubric.expected_outcome) ?? asString(rubric.description) ?? '';
           return {
             id: asString(rubric.id) ?? `rubric-${index + 1}`,
-            expected_outcome: asString(rubric.expected_outcome) ?? '',
+            expected_outcome: expectedOutcome,
             weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
             required: typeof rubric.required === 'boolean' ? rubric.required : true,
           };

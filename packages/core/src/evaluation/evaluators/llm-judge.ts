@@ -57,6 +57,21 @@ const rubricEvaluationSchema = z.object({
   overall_reasoning: z.string().describe('Overall assessment summary (1-2 sentences)'),
 });
 
+/**
+ * Schema for score-range rubric evaluation.
+ * Each check returns an integer score 0-10 instead of boolean satisfied.
+ */
+const scoreRangeCheckResultSchema = z.object({
+  id: z.string().describe('The ID of the rubric criterion being scored'),
+  score: z.number().int().min(0).max(10).describe('Integer score 0-10 for this criterion'),
+  reasoning: z.string().describe('Brief explanation (1-2 sentences) for this score').optional(),
+});
+
+const scoreRangeEvaluationSchema = z.object({
+  checks: z.array(scoreRangeCheckResultSchema).describe('Scores for each rubric criterion'),
+  overall_reasoning: z.string().describe('Overall assessment summary (1-2 sentences)').optional(),
+});
+
 export { freeformEvaluationSchema };
 
 export class LlmJudgeEvaluator implements Evaluator {
@@ -175,6 +190,13 @@ export class LlmJudgeEvaluator implements Evaluator {
       );
     }
 
+    // Detect if any rubric uses score_ranges (analytic rubric mode)
+    const hasScoreRanges = rubrics.some((r) => r.score_ranges && r.score_ranges.length > 0);
+
+    if (hasScoreRanges) {
+      return this.evaluateWithScoreRanges(context, judgeProvider, rubrics);
+    }
+
     const prompt = this.buildRubricPrompt(context, rubrics);
     const systemPrompt = buildRubricOutputSchema();
 
@@ -203,6 +225,112 @@ export class LlmJudgeEvaluator implements Evaluator {
       reasoning: data.overall_reasoning,
       evaluatorRawRequest,
     };
+  }
+
+  /**
+   * Evaluate using score-range rubrics (analytic rubric scoring).
+   * Each criterion is scored 0-10 and normalized to 0-1.
+   */
+  private async evaluateWithScoreRanges(
+    context: EvaluationContext,
+    judgeProvider: Provider,
+    rubrics: readonly RubricItem[],
+  ): Promise<EvaluationScore> {
+    const prompt = this.buildScoreRangePrompt(context, rubrics);
+    const systemPrompt = buildScoreRangeOutputSchema();
+
+    const evaluatorRawRequest: JsonObject = {
+      userPrompt: prompt,
+      systemPrompt,
+      target: judgeProvider.targetName,
+    };
+
+    const { data } = await this.runWithRetry({
+      context,
+      judgeProvider,
+      systemPrompt,
+      userPrompt: prompt,
+      schema: scoreRangeEvaluationSchema,
+    });
+
+    const { score, verdict, hits, misses, details } = calculateScoreRangeResult(data, rubrics);
+
+    return {
+      score,
+      verdict,
+      hits,
+      misses,
+      expectedAspectCount: rubrics.length,
+      reasoning: data.overall_reasoning,
+      evaluatorRawRequest,
+      details,
+    };
+  }
+
+  /**
+   * Build prompt for score-range rubric evaluation.
+   */
+  private buildScoreRangePrompt(
+    context: EvaluationContext,
+    rubrics: readonly RubricItem[],
+  ): string {
+    const formattedQuestion =
+      context.promptInputs.question && context.promptInputs.question.trim().length > 0
+        ? context.promptInputs.question
+        : context.evalCase.question;
+
+    const parts: string[] = [
+      'You are an expert evaluator. Score the candidate answer on each criterion below using the provided score ranges.',
+      'For each criterion, output an integer score from 0 to 10 based on which score range best matches the answer.',
+      '',
+      '[[ ## question ## ]]',
+      formattedQuestion,
+      '',
+      '[[ ## expected_outcome ## ]]',
+      context.evalCase.expected_outcome,
+      '',
+    ];
+
+    if (context.evalCase.reference_answer && context.evalCase.reference_answer.trim().length > 0) {
+      parts.push('[[ ## reference_answer ## ]]', context.evalCase.reference_answer, '');
+    }
+
+    parts.push(
+      '[[ ## candidate_answer ## ]]',
+      context.candidate,
+      '',
+      '[[ ## scoring_criteria ## ]]',
+    );
+
+    for (const rubric of rubrics) {
+      const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
+      const minScoreLabel =
+        rubric.required_min_score !== undefined
+          ? ` [REQUIRED: min score ${rubric.required_min_score}]`
+          : '';
+
+      parts.push('', `### Criterion: ${rubric.id}${weightLabel}${minScoreLabel}`);
+
+      if (rubric.expected_outcome) {
+        parts.push(`Description: ${rubric.expected_outcome}`);
+      }
+
+      if (rubric.score_ranges && rubric.score_ranges.length > 0) {
+        parts.push('Score ranges:');
+        for (const range of rubric.score_ranges) {
+          const [min, max] = range.score_range;
+          const rangeLabel = min === max ? `${min}` : `${min}-${max}`;
+          parts.push(`  - Score ${rangeLabel}: ${range.expected_outcome}`);
+        }
+      }
+    }
+
+    parts.push(
+      '',
+      'For each criterion, provide an integer score 0-10 that matches one of its defined score ranges.',
+    );
+
+    return parts.join('\n');
   }
 
   private buildRubricPrompt(context: EvaluationContext, rubrics: readonly RubricItem[]): string {
@@ -365,4 +493,109 @@ function calculateRubricScore(
   const score = totalWeight > 0 ? Math.min(1, Math.max(0, earnedWeight / totalWeight)) : 0;
   const verdict = failedRequired ? 'fail' : scoreToVerdict(score);
   return { score, verdict, hits, misses };
+}
+
+/**
+ * Build the output schema for score-range rubric evaluation.
+ */
+function buildScoreRangeOutputSchema(): string {
+  return `You are an expert evaluator. Score the candidate answer on each criterion.
+You must return a valid JSON object matching this schema:
+{
+  "checks": [
+    {
+      "id": "string (criterion id)",
+      "score": integer (0-10),
+      "reasoning": "string (brief explanation for score)"
+    }
+  ],
+  "overall_reasoning": "string (summary, optional)"
+}
+
+Important: The "score" must be an integer from 0 to 10 that falls within one of the defined score ranges for that criterion.`;
+}
+
+/**
+ * Calculate score from score-range rubric evaluation results.
+ * - Normalizes each criterion score (0-10) to 0-1 by dividing by 10
+ * - Computes weighted average across criteria
+ * - Applies required_min_score gating (force fail if below threshold)
+ */
+function calculateScoreRangeResult(
+  result: z.infer<typeof scoreRangeEvaluationSchema>,
+  rubrics: readonly RubricItem[],
+): {
+  score: number;
+  verdict: 'pass' | 'fail' | 'borderline';
+  hits: string[];
+  misses: string[];
+  details: JsonObject;
+} {
+  const rubricMap = new Map(rubrics.map((rubric) => [rubric.id, rubric]));
+  const hits: string[] = [];
+  const misses: string[] = [];
+  const rawScores: Record<string, number> = {};
+  let totalWeight = 0;
+  let weightedScoreSum = 0;
+  let failedRequired = false;
+
+  for (const check of result.checks) {
+    const rubric = rubricMap.get(check.id);
+    if (!rubric) {
+      continue;
+    }
+
+    const rawScore = Math.max(0, Math.min(10, check.score)); // Clamp to 0-10
+    const normalizedScore = rawScore / 10; // Normalize to 0-1
+    rawScores[rubric.id] = rawScore;
+
+    totalWeight += rubric.weight;
+    weightedScoreSum += normalizedScore * rubric.weight;
+
+    // Determine required minimum score:
+    // - If required_min_score is set, use it directly
+    // - If required is true (legacy), treat as required_min_score: 10
+    // - Otherwise, no gating
+    let requiredMinScore: number | undefined;
+    if (rubric.required_min_score !== undefined) {
+      requiredMinScore = rubric.required_min_score;
+    } else if (rubric.required === true) {
+      requiredMinScore = 10; // Legacy: required: true means must score 10/10
+    }
+
+    // Find the matching score range description for reporting
+    const matchingRange = rubric.score_ranges?.find(
+      (r) => rawScore >= r.score_range[0] && rawScore <= r.score_range[1],
+    );
+    const rangeDescription = matchingRange?.expected_outcome ?? '';
+    const criterionLabel = rubric.expected_outcome ?? rubric.id;
+
+    const reasoningText = check.reasoning ? `: ${check.reasoning}` : '';
+    const scoreInfo = `[${rubric.id}] ${criterionLabel} - Score: ${rawScore}/10 (${rangeDescription})${reasoningText}`;
+
+    // Check gating
+    if (requiredMinScore !== undefined && rawScore < requiredMinScore) {
+      failedRequired = true;
+      misses.push(scoreInfo);
+    } else if (rawScore >= 7) {
+      hits.push(scoreInfo);
+    } else {
+      misses.push(scoreInfo);
+    }
+  }
+
+  const score = totalWeight > 0 ? Math.min(1, Math.max(0, weightedScoreSum / totalWeight)) : 0;
+  const verdict = failedRequired ? 'fail' : scoreToVerdict(score);
+
+  return {
+    score,
+    verdict,
+    hits,
+    misses,
+    details: {
+      raw_scores: rawScores,
+      normalization: 'score / 10',
+      aggregation: 'weighted_average',
+    },
+  };
 }

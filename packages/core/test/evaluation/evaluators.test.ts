@@ -367,8 +367,8 @@ describe('LlmJudgeEvaluator', () => {
         name: 'rubric',
         type: 'llm_judge',
         rubrics: [
-          { id: 'r1', description: 'Mentions logging', weight: 1.0, required: true },
-          { id: 'r2', description: 'Mentions tests', weight: 1.0, required: false },
+          { id: 'r1', expected_outcome: 'Mentions logging', weight: 1.0, required: true },
+          { id: 'r2', expected_outcome: 'Mentions tests', weight: 1.0, required: false },
         ],
       },
     });

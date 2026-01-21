@@ -550,15 +550,7 @@ export async function parseEvaluators(
 
     const rawRubrics = rawEvaluator.rubrics;
     const parsedRubrics = Array.isArray(rawRubrics)
-      ? rawRubrics
-          .filter((r): r is JsonObject => isJsonObject(r))
-          .map((rubric, index) => ({
-            id: asString(rubric.id) ?? `rubric-${index + 1}`,
-            expected_outcome: asString(rubric.expected_outcome) ?? '',
-            weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
-            required: typeof rubric.required === 'boolean' ? rubric.required : true,
-          }))
-          .filter((r) => r.expected_outcome.length > 0)
+      ? parseRubricItems(rawRubrics, name, evalId)
       : undefined;
 
     if (typeValue === 'rubric') {
@@ -713,4 +705,202 @@ function isValidFieldAggregationType(
   value: unknown,
 ): value is import('../types.js').FieldAggregationType {
   return typeof value === 'string' && VALID_FIELD_AGGREGATION_TYPES.has(value);
+}
+
+/**
+ * Parse rubric items from raw YAML/JSON data.
+ * Supports both checklist rubrics and score-range rubrics.
+ */
+function parseRubricItems(
+  rawRubrics: readonly unknown[],
+  evaluatorName: string,
+  evalId: string,
+): import('../types.js').RubricItem[] | undefined {
+  const items: import('../types.js').RubricItem[] = [];
+
+  for (const [index, rawRubric] of rawRubrics.entries()) {
+    if (!isJsonObject(rawRubric)) {
+      logWarning(
+        `Skipping invalid rubric entry at index ${index} in evaluator '${evaluatorName}' (expected object)`,
+      );
+      continue;
+    }
+
+    const id = asString(rawRubric.id) ?? `rubric-${index + 1}`;
+    // Support both expected_outcome and description (backward compatibility)
+    const expectedOutcome =
+      asString(rawRubric.expected_outcome) ?? asString(rawRubric.description) ?? '';
+    const weight = typeof rawRubric.weight === 'number' ? rawRubric.weight : 1.0;
+
+    // Parse required_min_score (new) or required (legacy backward compat)
+    let requiredMinScore: number | undefined;
+    let required: boolean | undefined;
+
+    if (typeof rawRubric.required_min_score === 'number') {
+      const minScore = rawRubric.required_min_score;
+      if (!Number.isInteger(minScore) || minScore < 0 || minScore > 10) {
+        throw new Error(
+          `Invalid required_min_score for rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': must be an integer 0-10 (got ${minScore})`,
+        );
+      }
+      requiredMinScore = minScore;
+    }
+
+    if (typeof rawRubric.required === 'boolean') {
+      required = rawRubric.required;
+    }
+
+    // Parse score_ranges if present
+    let scoreRanges: import('../types.js').ScoreRange[] | undefined;
+    const rawScoreRanges = rawRubric.score_ranges;
+
+    if (rawScoreRanges !== undefined) {
+      if (!Array.isArray(rawScoreRanges)) {
+        throw new Error(
+          `Invalid score_ranges for rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': must be an array`,
+        );
+      }
+
+      scoreRanges = parseScoreRanges(rawScoreRanges, id, evaluatorName, evalId);
+
+      // For score-range rubrics, expected_outcome at rubric level is optional
+      items.push({
+        id,
+        weight,
+        ...(expectedOutcome.length > 0 ? { expected_outcome: expectedOutcome } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(requiredMinScore !== undefined ? { required_min_score: requiredMinScore } : {}),
+        score_ranges: scoreRanges,
+      });
+    } else {
+      // Checklist rubric: expected_outcome is required
+      if (expectedOutcome.length === 0) {
+        logWarning(
+          `Skipping rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': missing expected_outcome`,
+        );
+        continue;
+      }
+
+      items.push({
+        id,
+        expected_outcome: expectedOutcome,
+        weight,
+        // Default to required: true if not specified (backward compatibility)
+        required: required ?? true,
+        ...(requiredMinScore !== undefined ? { required_min_score: requiredMinScore } : {}),
+      });
+    }
+  }
+
+  return items.length > 0 ? items : undefined;
+}
+
+/**
+ * Parse and validate score ranges for a rubric criterion.
+ * Validates:
+ * - Ranges are [min, max] with integers 0-10
+ * - min <= max
+ * - Non-overlapping ranges
+ * - Full coverage of 0-10 (warning if not covered)
+ * - Each range has non-empty expected_outcome
+ */
+function parseScoreRanges(
+  rawRanges: readonly unknown[],
+  rubricId: string,
+  evaluatorName: string,
+  evalId: string,
+): import('../types.js').ScoreRange[] {
+  const ranges: import('../types.js').ScoreRange[] = [];
+
+  for (const [index, rawRange] of rawRanges.entries()) {
+    if (!isJsonObject(rawRange)) {
+      throw new Error(
+        `Invalid score_range entry at index ${index} for rubric '${rubricId}' in evaluator '${evaluatorName}' in '${evalId}': expected object`,
+      );
+    }
+
+    const scoreRangeValue = rawRange.score_range;
+    if (
+      !Array.isArray(scoreRangeValue) ||
+      scoreRangeValue.length !== 2 ||
+      typeof scoreRangeValue[0] !== 'number' ||
+      typeof scoreRangeValue[1] !== 'number'
+    ) {
+      throw new Error(
+        `Invalid score_range at index ${index} for rubric '${rubricId}' in evaluator '${evaluatorName}' in '${evalId}': must be [min, max] array of two numbers`,
+      );
+    }
+
+    const [min, max] = scoreRangeValue;
+
+    // Validate integers in 0-10 range
+    if (!Number.isInteger(min) || !Number.isInteger(max)) {
+      throw new Error(
+        `Invalid score_range at index ${index} for rubric '${rubricId}' in evaluator '${evaluatorName}' in '${evalId}': values must be integers (got [${min}, ${max}])`,
+      );
+    }
+
+    if (min < 0 || min > 10 || max < 0 || max > 10) {
+      throw new Error(
+        `Invalid score_range at index ${index} for rubric '${rubricId}' in evaluator '${evaluatorName}' in '${evalId}': values must be 0-10 (got [${min}, ${max}])`,
+      );
+    }
+
+    if (min > max) {
+      throw new Error(
+        `Invalid score_range at index ${index} for rubric '${rubricId}' in evaluator '${evaluatorName}' in '${evalId}': min must be <= max (got [${min}, ${max}])`,
+      );
+    }
+
+    // Validate expected_outcome
+    const expectedOutcome =
+      asString(rawRange.expected_outcome) ?? asString(rawRange.description) ?? '';
+    if (expectedOutcome.length === 0) {
+      throw new Error(
+        `Missing expected_outcome for score_range [${min}, ${max}] in rubric '${rubricId}' in evaluator '${evaluatorName}' in '${evalId}'`,
+      );
+    }
+
+    ranges.push({
+      score_range: [min, max] as const,
+      expected_outcome: expectedOutcome,
+    });
+  }
+
+  // Validate non-overlapping ranges
+  const sortedRanges = [...ranges].sort((a, b) => a.score_range[0] - b.score_range[0]);
+  for (let i = 1; i < sortedRanges.length; i++) {
+    const prev = sortedRanges[i - 1];
+    const curr = sortedRanges[i];
+    if (curr.score_range[0] <= prev.score_range[1]) {
+      throw new Error(
+        `Overlapping score_ranges in rubric '${rubricId}' in evaluator '${evaluatorName}' in '${evalId}': ` +
+          `[${prev.score_range[0]}, ${prev.score_range[1]}] overlaps with [${curr.score_range[0]}, ${curr.score_range[1]}]`,
+      );
+    }
+  }
+
+  // Validate full coverage of 0-10 (strict requirement per spec)
+  const covered = new Set<number>();
+  for (const range of ranges) {
+    for (let i = range.score_range[0]; i <= range.score_range[1]; i++) {
+      covered.add(i);
+    }
+  }
+
+  const missing: number[] = [];
+  for (let i = 0; i <= 10; i++) {
+    if (!covered.has(i)) {
+      missing.push(i);
+    }
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Incomplete score_ranges coverage in rubric '${rubricId}' in evaluator '${evaluatorName}' in '${evalId}': ` +
+        `missing coverage for scores: ${missing.join(', ')}. Ranges must cover all integers 0-10.`,
+    );
+  }
+
+  return ranges;
 }
