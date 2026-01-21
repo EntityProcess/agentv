@@ -181,7 +181,7 @@ evalcases:
           To include all items, you can either:
           - Use `range(len(items))`, or
           - Iterate directly over the list: `for item in items:`
-          
+
           Here's a corrected version:
 
           ```python
@@ -191,3 +191,55 @@ evalcases:
                   result.append(item)
               return result
           ```
+
+  # ==========================================
+  # Example 5: String shorthand aliases
+  # Demonstrates: input/expected_output aliases with string shorthand
+  # These expand automatically to single user/assistant messages
+  # ==========================================
+  - id: shorthand-string-example
+
+    expected_outcome: Assistant correctly answers the math question
+
+    # String shorthand: expands to [{role: user, content: "What is 2+2?"}]
+    input: "What is 2+2?"
+
+    # String shorthand: expands to [{role: assistant, content: "..."}]
+    expected_output: "The answer is 4."
+
+  # ==========================================
+  # Example 6: Object shorthand for structured output
+  # Demonstrates: expected_output with object for structured data validation
+  # Use case: Testing agents that return structured JSON responses
+  # ==========================================
+  - id: shorthand-structured-output
+
+    expected_outcome: Agent returns properly structured risk assessment
+
+    input: "Analyze transaction ID 12345 for fraud risk"
+
+    # Object shorthand: expands to [{role: assistant, content: {riskLevel: "Low", ...}}]
+    expected_output:
+      riskLevel: Low
+      confidence: 0.95
+      reasoning: Transaction amount and pattern are within normal bounds
+
+  # ==========================================
+  # Example 7: Array syntax with alias names
+  # Demonstrates: Using input/expected_output with full message arrays
+  # Shows that aliases work with arrays too, not just shorthand
+  # ==========================================
+  - id: shorthand-array-syntax
+
+    expected_outcome: Assistant provides a greeting response
+
+    # Array syntax still works with alias names
+    input:
+      - role: system
+        content: You are a friendly assistant.
+      - role: user
+        content: Hello!
+
+    expected_output:
+      - role: assistant
+        content: Hello! How can I help you today?

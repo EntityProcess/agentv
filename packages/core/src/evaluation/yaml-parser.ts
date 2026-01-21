@@ -154,11 +154,6 @@ export async function loadEvalCases(
     // expected_messages is optional - for outcome-only evaluation
     const hasExpectedMessages = expectedMessages.length > 0;
 
-    if (hasExpectedMessages && expectedMessages.length === 0) {
-      logError(`No valid expected message found for eval case: ${id}`);
-      continue;
-    }
-
     const guidelinePaths: string[] = [];
     const inputTextParts: string[] = [];
 
