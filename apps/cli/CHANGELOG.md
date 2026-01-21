@@ -1,5 +1,43 @@
 # agentv
 
+## 2.4.0
+
+### Minor Changes
+
+- feat: add per-step latency assertions to tool_trajectory evaluator
+
+  - Add `max_duration_ms` field to tool trajectory expected items for timing validation
+  - Parse `duration_ms` from provider output (snake_case → camelCase)
+  - Scoring: pass counts as hit, fail counts as miss, missing data is neutral
+
+### Patch Changes
+
+- Updated dependencies
+  - @agentv/core@2.4.0
+
+## 2.3.0
+
+### Minor Changes
+
+- feat: add per-step latency assertions to tool_trajectory evaluator
+
+  - Add `max_duration_ms` field to tool trajectory expected items for timing validation
+  - Parse `duration_ms` from provider output (snake_case → camelCase)
+  - Scoring: pass counts as hit, fail counts as miss, missing data is neutral
+
+- 7df7ab3: feat: add input/expected_output field aliases with shorthand syntax
+
+  - `input` alias for `input_messages` (string shorthand expands to single user message)
+  - `expected_output` alias for `expected_messages` (string/object shorthand expands to single assistant message)
+  - Canonical names take precedence when both specified
+  - Full backward compatibility maintained
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [7df7ab3]
+  - @agentv/core@2.3.0
+
 ## 2.2.0
 
 ### Minor Changes
