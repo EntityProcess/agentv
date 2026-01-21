@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import micromatch from 'micromatch';
 import { parse as parseYaml } from 'yaml';
 
 import type { EvalCase, JsonObject, JsonValue, TestMessage } from '../types.js';
@@ -16,7 +17,8 @@ const ANSI_RESET = '\u001b[0m';
 
 type LoadOptions = {
   readonly verbose?: boolean;
-  readonly evalId?: string;
+  /** Filter eval cases by ID pattern (glob supported, e.g., "summary-*") */
+  readonly filter?: string;
 };
 
 /**
@@ -128,7 +130,7 @@ export async function loadEvalCasesFromJsonl(
   options?: LoadOptions,
 ): Promise<readonly EvalCase[]> {
   const verbose = options?.verbose ?? false;
-  const evalIdFilter = options?.evalId;
+  const filterPattern = options?.filter;
   const absoluteTestPath = path.resolve(evalFilePath);
 
   const repoRootPath = resolveToAbsolutePath(repoRoot);
@@ -170,8 +172,8 @@ export async function loadEvalCasesFromJsonl(
     const lineNumber = lineIndex + 1; // 1-based for user-facing messages
     const id = asString(evalcase.id);
 
-    // Skip eval cases that don't match the filter
-    if (evalIdFilter && id !== evalIdFilter) {
+    // Skip eval cases that don't match the filter pattern (glob supported)
+    if (filterPattern && (!id || !micromatch.isMatch(id, filterPattern))) {
       continue;
     }
 

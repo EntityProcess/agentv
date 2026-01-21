@@ -159,14 +159,14 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
     if (caseNode && isMap(caseNode)) {
       caseNode.set(
         'rubrics',
-        rubrics.map(
-          (r: { id: string; expected_outcome: string; weight: number; required: boolean }) => ({
+        rubrics
+          .filter((r) => r.expected_outcome !== undefined)
+          .map((r) => ({
             id: r.id,
             expected_outcome: r.expected_outcome,
             weight: r.weight,
-            required: r.required,
-          }),
-        ),
+            required: r.required ?? true,
+          })),
       );
     }
 
