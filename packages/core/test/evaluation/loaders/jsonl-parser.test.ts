@@ -394,3 +394,282 @@ evalcases:
     expect(jsonlCases[0].input_messages[0].content).toBe(yamlCases[0].input_messages[0].content);
   });
 });
+
+describe('Input/expected_output aliases and shorthand', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-aliases-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  describe('JSONL aliases', () => {
+    it('supports input string shorthand', async () => {
+      const jsonlPath = path.join(tempDir, 'input-shorthand.jsonl');
+      await writeFile(
+        jsonlPath,
+        '{"id": "test-1", "expected_outcome": "Goal", "input": "What is 2+2?"}\n',
+      );
+
+      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].input_messages).toHaveLength(1);
+      expect(cases[0].input_messages[0].role).toBe('user');
+      expect(cases[0].input_messages[0].content).toBe('What is 2+2?');
+    });
+
+    it('supports input as message array', async () => {
+      const jsonlPath = path.join(tempDir, 'input-array.jsonl');
+      await writeFile(
+        jsonlPath,
+        '{"id": "test-1", "expected_outcome": "Goal", "input": [{"role": "system", "content": "Be helpful"}, {"role": "user", "content": "Hello"}]}\n',
+      );
+
+      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].input_messages).toHaveLength(2);
+      expect(cases[0].input_messages[0].role).toBe('system');
+      expect(cases[0].input_messages[1].role).toBe('user');
+    });
+
+    it('supports expected_output string shorthand', async () => {
+      const jsonlPath = path.join(tempDir, 'expected-string.jsonl');
+      await writeFile(
+        jsonlPath,
+        '{"id": "test-1", "expected_outcome": "Goal", "input": "Query", "expected_output": "The answer is 4"}\n',
+      );
+
+      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].expected_messages).toHaveLength(1);
+      expect(cases[0].expected_messages[0].role).toBe('assistant');
+      expect(cases[0].expected_messages[0].content).toBe('The answer is 4');
+      expect(cases[0].reference_answer).toBe('The answer is 4');
+    });
+
+    it('supports expected_output object shorthand', async () => {
+      const jsonlPath = path.join(tempDir, 'expected-object.jsonl');
+      await writeFile(
+        jsonlPath,
+        '{"id": "test-1", "expected_outcome": "Goal", "input": "Query", "expected_output": {"riskLevel": "High", "confidence": 0.95}}\n',
+      );
+
+      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].expected_messages).toHaveLength(1);
+      expect(cases[0].expected_messages[0].role).toBe('assistant');
+      const content = cases[0].expected_messages[0].content as { riskLevel: string };
+      expect(content.riskLevel).toBe('High');
+    });
+
+    it('canonical input_messages takes precedence over input alias', async () => {
+      const jsonlPath = path.join(tempDir, 'canonical-precedence.jsonl');
+      await writeFile(
+        jsonlPath,
+        '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Canonical"}], "input": "Should be ignored"}\n',
+      );
+
+      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].input_messages[0].content).toBe('Canonical');
+    });
+
+    it('canonical expected_messages takes precedence over expected_output alias', async () => {
+      const jsonlPath = path.join(tempDir, 'canonical-expected-precedence.jsonl');
+      await writeFile(
+        jsonlPath,
+        '{"id": "test-1", "expected_outcome": "Goal", "input": "Query", "expected_messages": [{"role": "assistant", "content": "Canonical"}], "expected_output": "Should be ignored"}\n',
+      );
+
+      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].expected_messages[0].content).toBe('Canonical');
+    });
+  });
+
+  describe('YAML aliases', () => {
+    it('supports input string shorthand', async () => {
+      const yamlPath = path.join(tempDir, 'input-shorthand.yaml');
+      await writeFile(
+        yamlPath,
+        `evalcases:
+  - id: test-1
+    expected_outcome: Goal
+    input: "What is 2+2?"
+`,
+      );
+
+      const cases = await loadEvalCases(yamlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].input_messages).toHaveLength(1);
+      expect(cases[0].input_messages[0].role).toBe('user');
+      expect(cases[0].input_messages[0].content).toBe('What is 2+2?');
+    });
+
+    it('supports input as message array', async () => {
+      const yamlPath = path.join(tempDir, 'input-array.yaml');
+      await writeFile(
+        yamlPath,
+        `evalcases:
+  - id: test-1
+    expected_outcome: Goal
+    input:
+      - role: system
+        content: Be helpful
+      - role: user
+        content: Hello
+`,
+      );
+
+      const cases = await loadEvalCases(yamlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].input_messages).toHaveLength(2);
+      expect(cases[0].input_messages[0].role).toBe('system');
+      expect(cases[0].input_messages[1].role).toBe('user');
+    });
+
+    it('supports expected_output string shorthand', async () => {
+      const yamlPath = path.join(tempDir, 'expected-string.yaml');
+      await writeFile(
+        yamlPath,
+        `evalcases:
+  - id: test-1
+    expected_outcome: Goal
+    input: Query
+    expected_output: "The answer is 4"
+`,
+      );
+
+      const cases = await loadEvalCases(yamlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].expected_messages).toHaveLength(1);
+      expect(cases[0].expected_messages[0].role).toBe('assistant');
+      expect(cases[0].expected_messages[0].content).toBe('The answer is 4');
+    });
+
+    it('supports expected_output object shorthand', async () => {
+      const yamlPath = path.join(tempDir, 'expected-object.yaml');
+      await writeFile(
+        yamlPath,
+        `evalcases:
+  - id: test-1
+    expected_outcome: Goal
+    input: Query
+    expected_output:
+      riskLevel: High
+      confidence: 0.95
+`,
+      );
+
+      const cases = await loadEvalCases(yamlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].expected_messages).toHaveLength(1);
+      expect(cases[0].expected_messages[0].role).toBe('assistant');
+      const content = cases[0].expected_messages[0].content as { riskLevel: string };
+      expect(content.riskLevel).toBe('High');
+    });
+
+    it('canonical input_messages takes precedence over input alias', async () => {
+      const yamlPath = path.join(tempDir, 'canonical-precedence.yaml');
+      await writeFile(
+        yamlPath,
+        `evalcases:
+  - id: test-1
+    expected_outcome: Goal
+    input_messages:
+      - role: user
+        content: Canonical
+    input: Should be ignored
+`,
+      );
+
+      const cases = await loadEvalCases(yamlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].input_messages[0].content).toBe('Canonical');
+    });
+  });
+
+  describe('Mixed canonical and alias usage', () => {
+    it('allows mixing canonical and alias in same file', async () => {
+      const yamlPath = path.join(tempDir, 'mixed.yaml');
+      await writeFile(
+        yamlPath,
+        `evalcases:
+  - id: test-canonical
+    expected_outcome: Goal
+    input_messages:
+      - role: user
+        content: Using canonical
+    expected_messages:
+      - role: assistant
+        content: Canonical response
+  - id: test-alias
+    expected_outcome: Goal
+    input: "Using alias shorthand"
+    expected_output: "Alias response"
+`,
+      );
+
+      const cases = await loadEvalCases(yamlPath, tempDir);
+
+      expect(cases).toHaveLength(2);
+      expect(cases[0].id).toBe('test-canonical');
+      expect(cases[0].input_messages[0].content).toBe('Using canonical');
+      expect(cases[1].id).toBe('test-alias');
+      expect(cases[1].input_messages[0].content).toBe('Using alias shorthand');
+      expect(cases[1].expected_messages[0].content).toBe('Alias response');
+    });
+
+    it('YAML and JSONL aliases produce equivalent results', async () => {
+      const yamlPath = path.join(tempDir, 'equiv-alias.yaml');
+      const jsonlPath = path.join(tempDir, 'equiv-alias.jsonl');
+
+      await writeFile(
+        yamlPath,
+        `evalcases:
+  - id: test-1
+    expected_outcome: Goal
+    input: "What is 2+2?"
+    expected_output:
+      answer: 4
+`,
+      );
+
+      await writeFile(
+        jsonlPath,
+        '{"id": "test-1", "expected_outcome": "Goal", "input": "What is 2+2?", "expected_output": {"answer": 4}}\n',
+      );
+
+      const yamlCases = await loadEvalCases(yamlPath, tempDir);
+      const jsonlCases = await loadEvalCases(jsonlPath, tempDir);
+
+      expect(yamlCases).toHaveLength(1);
+      expect(jsonlCases).toHaveLength(1);
+
+      // Input should match
+      expect(jsonlCases[0].input_messages[0].role).toBe(yamlCases[0].input_messages[0].role);
+      expect(jsonlCases[0].input_messages[0].content).toBe(yamlCases[0].input_messages[0].content);
+
+      // Expected output should match
+      expect(jsonlCases[0].expected_messages[0].role).toBe(yamlCases[0].expected_messages[0].role);
+      const yamlContent = yamlCases[0].expected_messages[0].content as { answer: number };
+      const jsonlContent = jsonlCases[0].expected_messages[0].content as { answer: number };
+      expect(jsonlContent.answer).toBe(yamlContent.answer);
+    });
+  });
+});

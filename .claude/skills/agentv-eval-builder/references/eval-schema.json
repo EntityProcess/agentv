@@ -128,6 +128,32 @@
               "additionalProperties": false
             }
           },
+          "input": {
+            "description": "Alias for input_messages with shorthand support. String expands to single user message, array of messages passes through.",
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Shorthand: single user message content"
+              },
+              {
+                "type": "array",
+                "description": "Array of messages (same format as input_messages)",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "enum": ["system", "user", "assistant", "tool"]
+                    },
+                    "content": {
+                      "oneOf": [{ "type": "string" }, { "type": "array" }]
+                    }
+                  },
+                  "required": ["role", "content"]
+                }
+              }
+            ]
+          },
           "expected_messages": {
             "type": "array",
             "description": "Expected response messages",
@@ -171,6 +197,36 @@
               "additionalProperties": false
             }
           },
+          "expected_output": {
+            "description": "Alias for expected_messages with shorthand support. String expands to single assistant message, object wraps as assistant message content.",
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Shorthand: single assistant message content"
+              },
+              {
+                "type": "object",
+                "description": "Shorthand: structured content wraps as assistant message"
+              },
+              {
+                "type": "array",
+                "description": "Array of messages (same format as expected_messages)",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "enum": ["system", "user", "assistant", "tool"]
+                    },
+                    "content": {
+                      "oneOf": [{ "type": "string" }, { "type": "object" }, { "type": "array" }]
+                    }
+                  },
+                  "required": ["role", "content"]
+                }
+              }
+            ]
+          },
           "execution": {
             "type": "object",
             "description": "Per-case execution configuration",
@@ -211,8 +267,8 @@
             "additionalProperties": true
           }
         },
-        "required": ["id", "expected_outcome", "input_messages", "expected_messages"],
-        "additionalProperties": false
+        "required": ["id", "expected_outcome"],
+        "additionalProperties": true
       }
     }
   },

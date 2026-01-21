@@ -109,20 +109,37 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       });
     }
 
+    // input_messages or input alias (string shorthand or message array)
     const inputMessages = evalCase.input_messages;
-    if (!Array.isArray(inputMessages)) {
+    const inputAlias = evalCase.input;
+    if (Array.isArray(inputMessages)) {
+      validateMessages(inputMessages, `${location}.input_messages`, absolutePath, errors);
+    } else if (inputAlias !== undefined) {
+      // Validate input alias - can be string (shorthand) or message array
+      if (typeof inputAlias === 'string') {
+        // String shorthand is valid - no further validation needed
+      } else if (Array.isArray(inputAlias)) {
+        validateMessages(inputAlias, `${location}.input`, absolutePath, errors);
+      } else {
+        errors.push({
+          severity: 'error',
+          filePath: absolutePath,
+          location: `${location}.input`,
+          message: "Invalid 'input' field (must be a string or array of messages)",
+        });
+      }
+    } else {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
         location: `${location}.input_messages`,
-        message: "Missing or invalid 'input_messages' field (must be an array)",
+        message: "Missing 'input_messages' or 'input' field (must provide one)",
       });
-    } else {
-      validateMessages(inputMessages, `${location}.input_messages`, absolutePath, errors);
     }
 
-    // expected_messages is optional - for outcome-only evaluation
+    // expected_messages or expected_output alias (string/object shorthand or message array)
     const expectedMessages = evalCase.expected_messages;
+    const expectedOutputAlias = evalCase.expected_output;
     if (expectedMessages !== undefined && !Array.isArray(expectedMessages)) {
       errors.push({
         severity: 'error',
@@ -132,6 +149,35 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       });
     } else if (Array.isArray(expectedMessages)) {
       validateMessages(expectedMessages, `${location}.expected_messages`, absolutePath, errors);
+    } else if (expectedOutputAlias !== undefined) {
+      // Validate expected_output alias - can be string, object (structured), or message array
+      if (typeof expectedOutputAlias === 'string') {
+        // String shorthand is valid - no further validation needed
+      } else if (Array.isArray(expectedOutputAlias)) {
+        // Check if it looks like a message array (first element has 'role')
+        if (
+          expectedOutputAlias.length > 0 &&
+          isObject(expectedOutputAlias[0]) &&
+          'role' in expectedOutputAlias[0]
+        ) {
+          validateMessages(
+            expectedOutputAlias,
+            `${location}.expected_output`,
+            absolutePath,
+            errors,
+          );
+        }
+        // Otherwise it's treated as structured array content - valid
+      } else if (isObject(expectedOutputAlias)) {
+        // Object shorthand or single message - both are valid
+      } else {
+        errors.push({
+          severity: 'error',
+          filePath: absolutePath,
+          location: `${location}.expected_output`,
+          message: "Invalid 'expected_output' field (must be a string, object, or array)",
+        });
+      }
     }
   }
 
