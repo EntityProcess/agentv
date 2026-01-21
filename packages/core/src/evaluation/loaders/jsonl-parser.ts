@@ -276,14 +276,57 @@ export async function loadEvalCasesFromJsonl(
           // Support both expected_outcome and description (backward compatibility)
           const expectedOutcome =
             asString(rubric.expected_outcome) ?? asString(rubric.description) ?? '';
-          return {
+
+          // Parse score_ranges if present
+          const rawScoreRanges = rubric.score_ranges;
+          const scoreRanges =
+            Array.isArray(rawScoreRanges) && rawScoreRanges.length > 0
+              ? rawScoreRanges
+                  .filter((r): r is JsonObject => isJsonObject(r))
+                  .map((range) => ({
+                    score_range: Array.isArray(range.score_range)
+                      ? (range.score_range as unknown as readonly [number, number])
+                      : ([0, 10] as const),
+                    expected_outcome:
+                      asString(range.expected_outcome) ?? asString(range.description) ?? '',
+                  }))
+                  .filter((r) => r.expected_outcome.length > 0)
+              : undefined;
+
+          const baseRubric = {
             id: asString(rubric.id) ?? `rubric-${index + 1}`,
-            expected_outcome: expectedOutcome,
             weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
+          };
+
+          // For score_ranges rubrics, expected_outcome at rubric level is optional
+          if (scoreRanges && scoreRanges.length > 0) {
+            return {
+              ...baseRubric,
+              ...(expectedOutcome.length > 0 ? { expected_outcome: expectedOutcome } : {}),
+              ...(typeof rubric.required === 'boolean' ? { required: rubric.required } : {}),
+              ...(typeof rubric.required_min_score === 'number'
+                ? { required_min_score: rubric.required_min_score }
+                : {}),
+              score_ranges: scoreRanges,
+            };
+          }
+
+          // Checklist rubric: expected_outcome is required
+          return {
+            ...baseRubric,
+            expected_outcome: expectedOutcome,
             required: typeof rubric.required === 'boolean' ? rubric.required : true,
+            ...(typeof rubric.required_min_score === 'number'
+              ? { required_min_score: rubric.required_min_score }
+              : {}),
           };
         })
-        .filter((r) => r.expected_outcome.length > 0);
+        // Filter: must have expected_outcome OR score_ranges
+        .filter(
+          (r) =>
+            (r.expected_outcome && r.expected_outcome.length > 0) ||
+            ('score_ranges' in r && r.score_ranges),
+        );
 
       if (rubricItems.length > 0) {
         const rubricEvaluator: import('../types.js').LlmJudgeEvaluatorConfig = {
