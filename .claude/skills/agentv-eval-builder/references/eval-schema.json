@@ -268,10 +268,7 @@
           }
         },
         "required": ["id", "expected_outcome"],
-        "anyOf": [
-          { "required": ["input_messages"] },
-          { "required": ["input"] }
-        ],
+        "anyOf": [{ "required": ["input_messages"] }, { "required": ["input"] }],
         "additionalProperties": true
       }
     }

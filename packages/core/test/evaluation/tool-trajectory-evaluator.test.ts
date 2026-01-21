@@ -503,4 +503,245 @@ describe('ToolTrajectoryEvaluator', () => {
       });
     });
   });
+
+  describe('latency assertions', () => {
+    describe('in_order mode with latency', () => {
+      it('passes when latency is within limit', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'Read', input: { file_path: 'config.json' }, durationMs: 45 }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'in_order',
+          expected: [{ tool: 'Read', maxDurationMs: 100 }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+        expect(result.hits.some((h) => h.includes('45ms (max: 100ms)'))).toBe(true);
+      });
+
+      it('fails when latency exceeds limit', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'Read', input: { file_path: 'config.json' }, durationMs: 120 }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'in_order',
+          expected: [{ tool: 'Read', maxDurationMs: 50 }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        expect(result.score).toBe(0.5); // 1 sequence hit, 0 latency hits out of 2 total assertions
+        expect(result.verdict).toBe('fail');
+        expect(result.misses.some((m) => m.includes('120ms (max: 50ms)'))).toBe(true);
+      });
+
+      it('skips latency check when no duration data available', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'Read', input: { file_path: 'config.json' } }], // No durationMs
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'in_order',
+          expected: [{ tool: 'Read', maxDurationMs: 100 }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        // Sequence hit counts, latency skipped - neutral (doesn't count against score)
+        // 1 sequence assertion, latency assertion skipped = 1 total effective assertion
+        expect(result.score).toBe(1); // 1 hit out of 1 effective assertion (skipped latency is neutral)
+        expect(result.hits.some((h) => h.includes('Found Read'))).toBe(true);
+        // Latency result should not appear in hits or misses
+        expect(result.hits.some((h) => h.includes('ms (max:'))).toBe(false);
+        expect(result.misses.some((m) => m.includes('ms (max:'))).toBe(false);
+      });
+
+      it('handles mixed latency assertions', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [
+              { tool: 'Read', durationMs: 45 },
+              { tool: 'Edit' }, // No timing
+              { tool: 'Write', durationMs: 600 },
+            ],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'in_order',
+          expected: [
+            { tool: 'Read', maxDurationMs: 100 },
+            { tool: 'Edit' }, // No latency assertion
+            { tool: 'Write', maxDurationMs: 500 },
+          ],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        // 3 sequence assertions + 2 latency assertions = 5 total
+        // 3 sequence hits + 1 latency hit (Read) = 4 hits
+        // 1 latency miss (Write)
+        expect(result.expectedAspectCount).toBe(5);
+        expect(result.hits.some((h) => h.includes('Read completed in 45ms'))).toBe(true);
+        expect(result.misses.some((m) => m.includes('Write took 600ms'))).toBe(true);
+      });
+    });
+
+    describe('exact mode with latency', () => {
+      it('passes when all latency assertions pass', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [
+              { tool: 'Read', durationMs: 30 },
+              { tool: 'Edit', durationMs: 200 },
+            ],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [
+            { tool: 'Read', maxDurationMs: 100 },
+            { tool: 'Edit', maxDurationMs: 500 },
+          ],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+        expect(result.hits.filter((h) => h.includes('ms (max:')).length).toBe(2);
+      });
+
+      it('fails when latency exceeds limit in exact mode', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'Read', durationMs: 150 }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'Read', maxDurationMs: 100 }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        expect(result.score).toBe(0.5); // 1 sequence hit out of 2 total assertions
+        expect(result.verdict).toBe('fail');
+        expect(result.misses.some((m) => m.includes('150ms (max: 100ms)'))).toBe(true);
+      });
+
+      it('does not check latency when sequence does not match', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'Write', durationMs: 10 }], // Wrong tool
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'Read', maxDurationMs: 100 }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        // Sequence mismatch - latency is not checked
+        expect(result.score).toBe(0);
+        expect(result.verdict).toBe('fail');
+        expect(result.misses.some((m) => m.includes('expected Read, got Write'))).toBe(true);
+        // No latency result in hits or misses
+        expect(result.hits.some((h) => h.includes('ms (max:'))).toBe(false);
+        expect(result.misses.some((m) => m.includes('ms (max:'))).toBe(false);
+      });
+
+      it('handles exact boundary condition', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'Read', durationMs: 100 }], // Exactly at limit
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'Read', maxDurationMs: 100 }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        // Exactly at limit should pass (<=)
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+        expect(result.hits.some((h) => h.includes('100ms (max: 100ms)'))).toBe(true);
+      });
+    });
+
+    describe('latency with args', () => {
+      it('checks latency only when args match', () => {
+        const outputMessages: OutputMessage[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'Read', input: { file_path: 'config.json' }, durationMs: 45 }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'Read', args: { file_path: 'config.json' }, maxDurationMs: 100 }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ outputMessages }));
+
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+        expect(result.hits.some((h) => h.includes('45ms (max: 100ms)'))).toBe(true);
+      });
+    });
+  });
 });

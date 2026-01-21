@@ -30,6 +30,7 @@ const ToolCallSchema = z.object({
   output: z.unknown().optional(),
   id: z.string().optional(),
   timestamp: z.string().optional(),
+  duration_ms: z.number().optional(),
 });
 
 /**
@@ -43,6 +44,7 @@ const OutputMessageInputSchema = z.object({
   content: z.unknown().optional(),
   tool_calls: z.array(ToolCallSchema).optional(),
   timestamp: z.string().optional(),
+  duration_ms: z.number().optional(),
   metadata: z.record(z.unknown()).optional(),
 });
 
@@ -107,7 +109,7 @@ function validateMetrics(
 
 /**
  * Converts Zod-parsed output messages to internal OutputMessage format.
- * Handles snake_case to camelCase conversion for toolCalls.
+ * Handles snake_case to camelCase conversion for toolCalls and durationMs.
  */
 function convertOutputMessages(
   messages: readonly ParsedOutputMessage[] | undefined,
@@ -120,8 +122,16 @@ function convertOutputMessages(
     role: msg.role,
     name: msg.name,
     content: msg.content,
-    toolCalls: msg.tool_calls,
+    toolCalls: msg.tool_calls?.map((tc) => ({
+      tool: tc.tool,
+      input: tc.input,
+      output: tc.output,
+      id: tc.id,
+      timestamp: tc.timestamp,
+      durationMs: tc.duration_ms,
+    })),
     timestamp: msg.timestamp,
+    durationMs: msg.duration_ms,
     metadata: msg.metadata,
   }));
 }

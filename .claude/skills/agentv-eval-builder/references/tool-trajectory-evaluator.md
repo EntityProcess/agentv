@@ -76,6 +76,46 @@ execution:
 - `args: any` - Skip argument validation
 - No `args` field - Same as `args: any`
 
+### Latency Assertions
+
+For `in_order` and `exact` modes, you can optionally validate per-tool timing with `max_duration_ms`:
+
+```yaml
+execution:
+  evaluators:
+    - name: perf-check
+      type: tool_trajectory
+      mode: in_order
+      expected:
+        - tool: Read
+          max_duration_ms: 100    # Must complete within 100ms
+        - tool: Edit
+          max_duration_ms: 500    # Allow 500ms for edits
+        - tool: Write             # No timing requirement
+```
+
+**Latency assertion behavior:**
+- **Pass**: `actual_duration <= max_duration_ms` → counts as hit
+- **Fail**: `actual_duration > max_duration_ms` → counts as miss
+- **Skip**: No `duration_ms` in output → warning logged, neutral (neither hit nor miss)
+
+**Provider requirements:**
+Providers must include `duration_ms` in tool calls for latency checks:
+
+```json
+{
+  "tool_calls": [{
+    "tool": "Read",
+    "duration_ms": 45
+  }]
+}
+```
+
+**Best practices for latency assertions:**
+- Set generous thresholds to avoid flaky tests from timing variance
+- Only add latency assertions where timing matters (critical paths)
+- Combine with sequence checks for comprehensive validation
+
 #### 3. `exact` - Strict Sequence Match
 
 Validates the exact tool sequence with no gaps or extra tools:
@@ -104,8 +144,13 @@ execution:
 | Mode | Score Calculation |
 |------|------------------|
 | `any_order` | (tools meeting minimum) / (total tools with minimums) |
-| `in_order` | (matched tools in sequence) / (expected tools count) |
-| `exact` | (correctly positioned tools) / (expected tools count) |
+| `in_order` | (sequence hits + latency hits) / (expected tools + latency assertions) |
+| `exact` | (sequence hits + latency hits) / (expected tools + latency assertions) |
+
+**With latency assertions:**
+- Each `max_duration_ms` assertion counts as a separate aspect
+- Latency checks only run when the sequence/position matches
+- Example: 3 expected tools + 2 latency assertions = 5 total aspects
 
 ## Trace Data Requirements
 
@@ -128,7 +173,8 @@ Providers return `output_messages` with `tool_calls` in the JSONL output:
           "input": { "query": "REST vs GraphQL" },
           "output": { "results": [...] },
           "id": "call_123",
-          "timestamp": "2024-01-15T10:30:00Z"
+          "timestamp": "2024-01-15T10:30:00Z",
+          "duration_ms": 45
         }
       ]
     }
@@ -136,7 +182,9 @@ Providers return `output_messages` with `tool_calls` in the JSONL output:
 }
 ```
 
-The evaluator extracts tool calls from `output_messages[].tool_calls[]`. Optional fields `id` and `timestamp` can be included for debugging.
+The evaluator extracts tool calls from `output_messages[].tool_calls[]`. Optional fields:
+- `id` and `timestamp` - for debugging
+- `duration_ms` - for latency assertions (required if using `max_duration_ms`)
 
 ### Supported Providers
 
@@ -203,6 +251,32 @@ evalcases:
             - tool: validate
             - tool: transform
             - tool: export
+```
+
+### Pipeline with Latency Assertions
+
+```yaml
+evalcases:
+  - id: data-pipeline-perf
+    expected_outcome: Process data within timing budgets
+
+    input_messages:
+      - role: user
+        content: Process the customer dataset quickly
+
+    execution:
+      evaluators:
+        - name: pipeline-perf
+          type: tool_trajectory
+          mode: in_order
+          expected:
+            - tool: loadData
+              max_duration_ms: 1000   # Network fetch within 1s
+            - tool: validate           # No timing requirement
+            - tool: transform
+              max_duration_ms: 500    # Transform must be fast
+            - tool: export
+              max_duration_ms: 200    # Export should be quick
 ```
 
 ## CLI Options for Traces

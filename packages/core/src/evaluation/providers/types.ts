@@ -103,6 +103,8 @@ export interface ToolCall {
   readonly id?: string;
   /** ISO 8601 timestamp */
   readonly timestamp?: string;
+  /** Duration of the tool call in milliseconds */
+  readonly durationMs?: number;
 }
 
 /**
@@ -120,6 +122,8 @@ export interface OutputMessage {
   readonly toolCalls?: readonly ToolCall[];
   /** ISO 8601 timestamp */
   readonly timestamp?: string;
+  /** Duration of the message in milliseconds */
+  readonly durationMs?: number;
   /** Provider-specific metadata */
   readonly metadata?: Record<string, unknown>;
 }

@@ -61,6 +61,8 @@ export interface ToolTrajectoryExpectedItem {
   readonly tool: string;
   /** Optional argument matching: 'any' skips validation, object performs partial deep equality */
   readonly args?: 'any' | Record<string, unknown>;
+  /** Optional maximum duration in milliseconds for latency assertions */
+  readonly maxDurationMs?: number;
 }
 
 /**

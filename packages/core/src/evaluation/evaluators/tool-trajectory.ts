@@ -7,10 +7,11 @@ import type {
 import { deepEqual, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
-/** Extracted tool call with optional arguments */
+/** Extracted tool call with optional arguments and timing */
 interface ExtractedToolCall {
   readonly name: string;
   readonly args?: Record<string, unknown>;
+  readonly durationMs?: number;
 }
 
 /**
@@ -33,6 +34,50 @@ function argsMatch(
     if (!deepEqual(expected[key], actual[key])) return false;
   }
   return true;
+}
+
+/** Result of checking latency assertion */
+interface LatencyCheckResult {
+  /** Whether the check passed, failed, or was skipped */
+  readonly status: 'pass' | 'fail' | 'skip';
+  /** Message describing the result */
+  readonly message: string;
+}
+
+/**
+ * Check latency assertion for a tool call.
+ * Returns pass/fail/skip status and a descriptive message.
+ */
+function checkLatency(
+  toolName: string,
+  maxDurationMs: number | undefined,
+  actualDurationMs: number | undefined,
+): LatencyCheckResult {
+  // No latency assertion specified - nothing to check
+  if (maxDurationMs === undefined) {
+    return { status: 'skip', message: '' };
+  }
+
+  // Latency assertion specified but no timing data available
+  if (actualDurationMs === undefined) {
+    return {
+      status: 'skip',
+      message: `No duration data for ${toolName}; latency assertion skipped`,
+    };
+  }
+
+  // Check the assertion
+  if (actualDurationMs <= maxDurationMs) {
+    return {
+      status: 'pass',
+      message: `${toolName} completed in ${actualDurationMs}ms (max: ${maxDurationMs}ms)`,
+    };
+  }
+
+  return {
+    status: 'fail',
+    message: `${toolName} took ${actualDurationMs}ms (max: ${maxDurationMs}ms)`,
+  };
 }
 
 export interface ToolTrajectoryEvaluatorOptions {
@@ -113,6 +158,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
           toolCalls.push({
             name: call.tool,
             args: call.input as Record<string, unknown> | undefined,
+            durationMs: call.durationMs,
           });
         }
       }
@@ -190,13 +236,25 @@ export class ToolTrajectoryEvaluator implements Evaluator {
 
     const hits: string[] = [];
     const misses: string[] = [];
+    const warnings: string[] = [];
     let actualIndex = 0;
+
+    // Track latency assertion results separately for accurate scoring
+    let sequenceHits = 0;
+    let latencyHits = 0;
+    let latencySkips = 0;
+
+    // Count latency assertions specified in expected items
+    const latencyAssertionCount = expected.filter(
+      (item) => item.maxDurationMs !== undefined,
+    ).length;
 
     for (let i = 0; i < expected.length; i++) {
       const expectedItem = expected[i];
       const expectedTool = expectedItem.tool;
       let found = false;
       let argsMismatch = false;
+      let matchedCall: ExtractedToolCall | undefined;
 
       while (actualIndex < toolCalls.length) {
         const actualCall = toolCalls[actualIndex];
@@ -204,6 +262,8 @@ export class ToolTrajectoryEvaluator implements Evaluator {
           // Tool name matches, check args if specified
           if (argsMatch(expectedItem.args, actualCall.args)) {
             hits.push(`Found ${expectedTool} at position ${actualIndex}`);
+            sequenceHits++;
+            matchedCall = actualCall;
             actualIndex++;
             found = true;
             break;
@@ -222,16 +282,43 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       if (!found && !argsMismatch) {
         misses.push(`Expected ${expectedTool} at position ${i}, not found in remaining trace`);
       }
+
+      // Check latency assertion if tool was found and latency assertion is specified
+      if (found && matchedCall) {
+        const latencyResult = checkLatency(
+          expectedTool,
+          expectedItem.maxDurationMs,
+          matchedCall.durationMs,
+        );
+        if (latencyResult.status === 'pass') {
+          hits.push(latencyResult.message);
+          latencyHits++;
+        } else if (latencyResult.status === 'fail') {
+          misses.push(latencyResult.message);
+        } else if (latencyResult.message) {
+          // Skip with warning message (missing duration data) - neutral, don't count
+          warnings.push(latencyResult.message);
+          latencySkips++;
+        }
+      }
     }
 
-    const score = hits.length / expected.length;
+    // Log warnings for missing duration data
+    for (const warning of warnings) {
+      console.warn(`[tool_trajectory] ${warning}`);
+    }
+
+    // Calculate score: sequence assertions + effective latency assertions (excluding skipped)
+    const effectiveLatencyAssertions = latencyAssertionCount - latencySkips;
+    const totalAssertions = expected.length + effectiveLatencyAssertions;
+    const score = totalAssertions > 0 ? (sequenceHits + latencyHits) / totalAssertions : 1;
 
     return {
       score,
       verdict: scoreToVerdict(score),
       hits,
       misses,
-      expectedAspectCount: expected.length,
+      expectedAspectCount: totalAssertions,
     };
   }
 
@@ -250,6 +337,17 @@ export class ToolTrajectoryEvaluator implements Evaluator {
 
     const hits: string[] = [];
     const misses: string[] = [];
+    const warnings: string[] = [];
+
+    // Track latency assertion results separately for accurate scoring
+    let sequenceHits = 0;
+    let latencyHits = 0;
+    let latencySkips = 0;
+
+    // Count latency assertions specified in expected items
+    const latencyAssertionCount = expected.filter(
+      (item) => item.maxDurationMs !== undefined,
+    ).length;
 
     if (toolCalls.length !== expected.length) {
       misses.push(`Expected ${expected.length} tool calls, got ${toolCalls.length}`);
@@ -261,15 +359,38 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       const expectedTool = expectedItem.tool;
       const actualCall = toolCalls[i];
       const actualTool = actualCall.name;
+      let sequenceMatched = false;
+
       if (actualTool === expectedTool) {
         // Tool name matches, check args if specified
         if (argsMatch(expectedItem.args, actualCall.args)) {
           hits.push(`Position ${i}: ${expectedTool}`);
+          sequenceHits++;
+          sequenceMatched = true;
         } else {
           misses.push(`Position ${i}: ${expectedTool} args mismatch`);
         }
       } else {
         misses.push(`Position ${i}: expected ${expectedTool}, got ${actualTool}`);
+      }
+
+      // Check latency assertion if sequence matched and latency assertion is specified
+      if (sequenceMatched) {
+        const latencyResult = checkLatency(
+          expectedTool,
+          expectedItem.maxDurationMs,
+          actualCall.durationMs,
+        );
+        if (latencyResult.status === 'pass') {
+          hits.push(latencyResult.message);
+          latencyHits++;
+        } else if (latencyResult.status === 'fail') {
+          misses.push(latencyResult.message);
+        } else if (latencyResult.message) {
+          // Skip with warning message (missing duration data) - neutral, don't count
+          warnings.push(latencyResult.message);
+          latencySkips++;
+        }
       }
     }
 
@@ -277,14 +398,22 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       misses.push(`Position ${i}: expected ${expected[i].tool}, got nothing`);
     }
 
-    const score = hits.length / expected.length;
+    // Log warnings for missing duration data
+    for (const warning of warnings) {
+      console.warn(`[tool_trajectory] ${warning}`);
+    }
+
+    // Calculate score: sequence assertions + effective latency assertions (excluding skipped)
+    const effectiveLatencyAssertions = latencyAssertionCount - latencySkips;
+    const totalAssertions = expected.length + effectiveLatencyAssertions;
+    const score = totalAssertions > 0 ? (sequenceHits + latencyHits) / totalAssertions : 1;
 
     return {
       score,
       verdict: scoreToVerdict(score),
       hits,
       misses,
-      expectedAspectCount: expected.length,
+      expectedAspectCount: totalAssertions,
     };
   }
 }
