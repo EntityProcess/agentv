@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import micromatch from 'micromatch';
 import pLimit from 'p-limit';
 
 import {
@@ -102,7 +103,8 @@ export interface RunEvaluationOptions {
   readonly cache?: EvaluationCache;
   readonly useCache?: boolean;
   readonly now?: () => Date;
-  readonly evalId?: string;
+  /** Filter eval cases by ID pattern (glob supported, e.g., "summary-*") */
+  readonly filter?: string;
   readonly verbose?: boolean;
   readonly maxConcurrency?: number;
   readonly evalCases?: readonly EvalCase[];
@@ -126,7 +128,7 @@ export async function runEvaluation(
     cache,
     useCache,
     now,
-    evalId,
+    filter,
     verbose,
     evalCases: preloadedEvalCases,
     onResult,
@@ -135,12 +137,12 @@ export async function runEvaluation(
 
   // Use pre-loaded eval cases if provided, otherwise load them
   const evalCases =
-    preloadedEvalCases ?? (await loadEvalCases(evalFilePath, repoRoot, { verbose, evalId }));
+    preloadedEvalCases ?? (await loadEvalCases(evalFilePath, repoRoot, { verbose, filter }));
 
-  const filteredEvalCases = filterEvalCases(evalCases, evalId);
+  const filteredEvalCases = filterEvalCases(evalCases, filter);
   if (filteredEvalCases.length === 0) {
-    if (evalId) {
-      throw new Error(`Eval case with id '${evalId}' not found in ${evalFilePath}`);
+    if (filter) {
+      throw new Error(`No eval cases matched filter '${filter}' in ${evalFilePath}`);
     }
     return [];
   }
@@ -1294,11 +1296,11 @@ async function resolveCustomPrompt(config: {
   return config.prompt;
 }
 
-function filterEvalCases(evalCases: readonly EvalCase[], evalId?: string): readonly EvalCase[] {
-  if (!evalId) {
+function filterEvalCases(evalCases: readonly EvalCase[], filter?: string): readonly EvalCase[] {
+  if (!filter) {
     return evalCases;
   }
-  return evalCases.filter((evalCase) => evalCase.id === evalId);
+  return evalCases.filter((evalCase) => micromatch.isMatch(evalCase.id, filter));
 }
 
 function buildEvaluatorRegistry(

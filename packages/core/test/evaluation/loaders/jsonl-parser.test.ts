@@ -202,7 +202,7 @@ describe('loadEvalCasesFromJsonl', () => {
     expect(rubricEvaluator.rubrics).toHaveLength(2);
   });
 
-  it('filters by evalId', async () => {
+  it('filters by pattern (exact match)', async () => {
     const jsonlPath = path.join(tempDir, 'filter.jsonl');
     await writeFile(
       jsonlPath,
@@ -213,10 +213,27 @@ describe('loadEvalCasesFromJsonl', () => {
       ].join('\n'),
     );
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir, { evalId: 'test-2' });
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir, { filter: 'test-2' });
 
     expect(cases).toHaveLength(1);
     expect(cases[0].id).toBe('test-2');
+  });
+
+  it('filters by glob pattern', async () => {
+    const jsonlPath = path.join(tempDir, 'filter-glob.jsonl');
+    await writeFile(
+      jsonlPath,
+      [
+        '{"id": "summary-basic", "expected_outcome": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "summary-advanced", "expected_outcome": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "code-review", "expected_outcome": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
+      ].join('\n'),
+    );
+
+    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir, { filter: 'summary-*' });
+
+    expect(cases).toHaveLength(2);
+    expect(cases.map((c) => c.id)).toEqual(['summary-basic', 'summary-advanced']);
   });
 
   it('supports conversation_id field', async () => {

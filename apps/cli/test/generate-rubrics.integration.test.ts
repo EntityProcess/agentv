@@ -142,7 +142,7 @@ describe('generate rubrics integration', () => {
     // Check that rubrics were added
     expect(content).toContain('rubrics:');
     expect(content).toContain('id:');
-    expect(content).toContain('description:');
+    expect(content).toContain('expected_outcome:');
     expect(content).toContain('weight:');
     expect(content).toContain('required:');
 

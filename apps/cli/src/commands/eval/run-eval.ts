@@ -35,7 +35,7 @@ interface RunEvalCommandInput {
 interface NormalizedOptions {
   readonly target?: string;
   readonly targetsPath?: string;
-  readonly evalId?: string;
+  readonly filter?: string;
   readonly workers?: number;
   readonly outPath?: string;
   readonly format: OutputFormat;
@@ -83,7 +83,7 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
   return {
     target: normalizeString(rawOptions.target),
     targetsPath: normalizeString(rawOptions.targets),
-    evalId: normalizeString(rawOptions.evalId),
+    filter: normalizeString(rawOptions.filter),
     workers: workers > 0 ? workers : undefined,
     outPath: normalizeString(rawOptions.out),
     format,
@@ -257,11 +257,9 @@ async function prepareFileMetadata(params: {
 
   const evalCases = await loadEvalCases(testFilePath, repoRoot, {
     verbose: options.verbose,
-    evalId: options.evalId,
+    filter: options.filter,
   });
-  const filteredIds = options.evalId
-    ? evalCases.filter((value) => value.id === options.evalId).map((value) => value.id)
-    : evalCases.map((value) => value.id);
+  const filteredIds = evalCases.map((value) => value.id);
 
   return { evalIds: filteredIds, evalCases, selection, inlineTargetLabel };
 }
@@ -372,7 +370,6 @@ async function runSingleEvalFile(params: {
     agentTimeoutMs,
     cache,
     useCache: options.cache,
-    evalId: options.evalId,
     evalCases,
     verbose: options.verbose,
     maxConcurrency: resolvedWorkers,
