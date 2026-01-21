@@ -151,7 +151,7 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ### Issue Workflow
 
-When working on a GitHub issue, **ALWAYS** follow this workflow:
+When working on a GitHub issue or creating an OpenSpec proposal, **ALWAYS** follow this workflow:
 
 1. **Create a feature branch** from `main`:
    ```bash
@@ -200,6 +200,16 @@ git checkout main
 git pull origin main
 git checkout -b fix/<short-description>
 # Apply fixes on the fresh branch
+```
+
+### Git Worktrees
+
+When creating a git worktree, place it in a **sibling folder** using the naming convention `projectname_branchname`:
+
+```bash
+# From the repository root
+git worktree add ../agentv_docs-update docs/update-readme
+git worktree add ../agentv_feat-new-evaluator feat/new-evaluator
 ```
 
 ## Package Publishing
