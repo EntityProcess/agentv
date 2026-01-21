@@ -8,6 +8,7 @@ import { loadConfig } from './config-loader.js';
 import { coerceEvaluator, parseEvaluators } from './evaluator-parser.js';
 import { buildSearchRoots, fileExists, resolveToAbsolutePath } from './file-resolver.js';
 import { processExpectedMessages, processMessages } from './message-processor.js';
+import { resolveExpectedMessages, resolveInputMessages } from './shorthand-expansion.js';
 
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RED = '\u001b[31m';
@@ -38,6 +39,9 @@ type RawJsonlEvalCase = JsonObject & {
   readonly expected_outcome?: JsonValue;
   readonly input_messages?: JsonValue;
   readonly expected_messages?: JsonValue;
+  // Aliases for input_messages/expected_messages
+  readonly input?: JsonValue;
+  readonly expected_output?: JsonValue;
   readonly execution?: JsonValue;
   readonly evaluators?: JsonValue;
   readonly rubrics?: JsonValue;
@@ -175,32 +179,20 @@ export async function loadEvalCasesFromJsonl(
     // Support both expected_outcome and outcome (backward compatibility)
     const outcome = asString(evalcase.expected_outcome) ?? asString(evalcase.outcome);
 
-    const inputMessagesValue = evalcase.input_messages;
-    const expectedMessagesValue = evalcase.expected_messages;
+    // Resolve input_messages with alias/shorthand support (canonical takes precedence)
+    const inputMessages = resolveInputMessages(evalcase);
+    // Resolve expected_messages with alias/shorthand support (canonical takes precedence)
+    const expectedMessages = resolveExpectedMessages(evalcase) ?? [];
 
-    if (!id || !outcome || !Array.isArray(inputMessagesValue)) {
+    if (!id || !outcome || !inputMessages || inputMessages.length === 0) {
       logError(
-        `Skipping incomplete eval case at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, expected_outcome, and/or input_messages`,
+        `Skipping incomplete eval case at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, expected_outcome, and/or input_messages (or input)`,
       );
       continue;
     }
 
     // expected_messages is optional - for outcome-only evaluation
-    const hasExpectedMessages =
-      Array.isArray(expectedMessagesValue) && expectedMessagesValue.length > 0;
-
-    // V2 format: input_messages vs expected_messages
-    const inputMessages = inputMessagesValue.filter((msg): msg is TestMessage =>
-      isTestMessage(msg),
-    );
-    const expectedMessages = hasExpectedMessages
-      ? expectedMessagesValue.filter((msg): msg is TestMessage => isTestMessage(msg))
-      : [];
-
-    if (hasExpectedMessages && expectedMessages.length === 0) {
-      logError(`Line ${lineNumber}: No valid expected message found for eval case: ${id}`);
-      continue;
-    }
+    const hasExpectedMessages = expectedMessages.length > 0;
 
     const guidelinePaths: string[] = [];
     const inputTextParts: string[] = [];

@@ -21,11 +21,51 @@ description: Create and maintain AgentV YAML evaluation files for testing AI age
 
 ## Structure Requirements
 - Root level: `description` (optional), `execution` (with `target`), `evalcases` (required)
-- Eval case fields: `id` (required), `expected_outcome` (required), `input_messages` (required)
-- Optional fields: `expected_messages`, `conversation_id`, `rubrics`, `execution`
+- Eval case fields: `id` (required), `expected_outcome` (required), `input_messages` or `input` (required)
+- Optional fields: `expected_messages` (or `expected_output`), `conversation_id`, `rubrics`, `execution`
 - `expected_messages` is optional - omit for outcome-only evaluation where the LLM judge evaluates based on `expected_outcome` criteria alone
 - Message fields: `role` (required), `content` (required)
 - Message roles: `system`, `user`, `assistant`, `tool`
+
+## Input/Output Shorthand (Aliases)
+
+For simpler eval cases, use shorthand aliases instead of the verbose `input_messages` and `expected_messages`:
+
+| Alias | Canonical | Description |
+|-------|-----------|-------------|
+| `input` | `input_messages` | String expands to single user message |
+| `expected_output` | `expected_messages` | String/object expands to single assistant message |
+
+**String shorthand:**
+```yaml
+evalcases:
+  - id: simple-test
+    expected_outcome: Correct answer
+    input: "What is 2+2?"                    # Expands to [{role: user, content: "..."}]
+    expected_output: "The answer is 4"       # Expands to [{role: assistant, content: "..."}]
+```
+
+**Object shorthand** (for structured output validation):
+```yaml
+evalcases:
+  - id: structured-output
+    expected_outcome: Risk assessment
+    input: "Analyze this transaction"
+    expected_output:                          # Expands to assistant message with object content
+      riskLevel: High
+      confidence: 0.95
+```
+
+**Array syntax** still works for multi-message conversations:
+```yaml
+input:
+  - role: system
+    content: "You are a calculator"
+  - role: user
+    content: "What is 2+2?"
+```
+
+**Precedence:** Canonical names (`input_messages`, `expected_messages`) take precedence when both are specified.
 - Content types: `text` (inline), `file` (relative or absolute path)
 - Attachments (type: `file`) should default to the `user` role
 - File paths: Relative (from eval file dir) or absolute with "/" prefix (from repo root)
