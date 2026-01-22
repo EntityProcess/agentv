@@ -216,7 +216,16 @@ evalcases:
 
     expected_outcome: Agent returns properly structured risk assessment
 
-    input: "Analyze transaction ID 12345 for fraud risk"
+    input_messages:
+      - role: system
+        content: |
+          You are a fraud detection API. Always respond with valid JSON only, no other text.
+          Response format: {"riskLevel": "Low"|"Medium"|"High", "confidence": 0.0-1.0, "reasoning": "..."}
+
+          Transaction database:
+          - ID 12345: amount=$47.99, merchant=Amazon, location=Seattle, user_history=normal, velocity=low
+      - role: user
+        content: "Analyze transaction ID 12345 for fraud risk"
 
     # Object shorthand: expands to [{role: assistant, content: {riskLevel: "Low", ...}}]
     expected_output:
