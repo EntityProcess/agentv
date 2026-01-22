@@ -1,4 +1,5 @@
 ---
+name: agentv-prompt-optimizer
 description: Iteratively optimize prompt files against AgentV evaluation datasets by analyzing failures and refining instructions.
 ---
 
