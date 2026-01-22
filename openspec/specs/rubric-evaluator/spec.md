@@ -3,38 +3,52 @@
 ## Purpose
 TBD - created by archiving change implement-rubric-evaluator. Update Purpose after archive.
 ## Requirements
-### Requirement: Static Rubric Evaluation MUST be supported
-The evaluator SHALL accept a list of pre-defined rubrics and use them for grading.
+### Requirement: Static Rubric Evaluation MUST support checklist and score-range rubrics
+The evaluator SHALL support rubric-based grading using rubric criteria entries. Each criterion may be:
 
-#### Scenario: Explicit Rubrics
-Given an eval case with `rubrics` defined in YAML
-When the `RubricEvaluator` runs
-Then it should use the provided rubrics to grade the answer.
+1) **Checklist-style** (legacy): boolean checks per criterion using `expected_outcome` text.
+2) **Score-range per criterion** (new): each criterion contains `score_ranges` defining non-overlapping integer ranges over 0–10 inclusive, each with an explicit `expected_outcome`.
 
-#### Scenario: Missing Rubrics Error
-Given an eval case with no `rubrics`
-When the `RubricEvaluator` runs
-Then it should fail with an error message instructing the user to run `agentv generate-rubrics`.
+When score-ranges are present for a criterion, the evaluator SHALL instruct the judge to output an **integer score 0..10 for that criterion** and then normalize it to 0..1 for aggregation.
+
+The evaluator SHALL support `required_min_score` gating: if a criterion specifies `required_min_score` and the returned score is below it, the overall verdict SHALL be `fail`.
+
+#### Scenario: Checklist rubrics continue to work
+- **GIVEN** an eval case with `rubrics` (id/description/weight/required)
+- **WHEN** the rubric evaluator runs
+- **THEN** it SHALL grade using per-item boolean checks
+- **AND** the reported score SHALL be in 0..1
+
+#### Scenario: Range rubrics constrain scoring
+- **GIVEN** an eval case with `rubrics` where a criterion contains `score_ranges` entries and `expected_outcome` text
+- **WHEN** the rubric evaluator runs
+- **THEN** the judge SHALL be constrained to output an integer score in 0..10 for that criterion
+- **AND** the system SHALL normalize each criterion score to 0..1 by dividing by 10
+
+#### Scenario: Invalid range rubrics are rejected
+- **GIVEN** a `score_rubric` with overlapping ranges or missing coverage of 0..10
+- **WHEN** the eval suite is loaded
+- **THEN** validation SHALL fail
+- **AND** the error message SHALL indicate the violated rule (overlap, bounds, or coverage)
 
 ### Requirement: Structured Grading MUST produce validated results
-The evaluator SHALL produce a structured evaluation result containing a score and a verdict, validated against a Zod schema.
+The evaluator SHALL validate judge output against a schema appropriate to the configured mode.
 
-#### Scenario: Grading Output Schema
-Given a candidate answer and a rubric
-When the evaluator grades the answer
-Then it should return a JSON object matching the following schema:
+#### Scenario: Range rubric output schema
+- **GIVEN** a range-rubric configuration
+- **WHEN** the judge responds
+- **THEN** the evaluator SHALL accept a JSON object matching:
 ```typescript
 z.object({
-  overallScore: z.number().min(0).max(1),
-  verdict: z.enum(["pass", "borderline", "fail"]),
-  details: z.array(z.object({
+  checks: z.array(z.object({
     id: z.string(),
-    met: z.boolean(),
-    notes: z.string().optional(),
-    score: z.number().min(0).max(1),
+    score: z.number().int().min(0).max(10),
+    reasoning: z.string().optional(),
   })),
+  overall_reasoning: z.string().optional(),
 })
 ```
+- **AND** AgentV SHALL normalize per-criterion `score / 10` into the standard 0..1 result and aggregate.
 
 ### Requirement: Verdict Logic MUST be applied
 The evaluator SHALL calculate the verdict based on the score and required items.

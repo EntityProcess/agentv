@@ -1,5 +1,22 @@
 # @agentv/core
 
+## 2.5.0
+
+### Minor Changes
+
+- 8862fe3: Add `--filter` CLI flag with glob pattern support for selecting specific eval cases.
+
+  Run evaluations against multiple cases using glob patterns (e.g., `--filter "summary-*"`) or exact case IDs. Replaces `--eval-id` flag.
+
+- 55d627b: Support 0-10 integer score ranges for analytic rubric evaluation.
+
+  Rubric criteria can now define `score_ranges` (0-10 integer bands) with explicit outcomes for more nuanced grading. Use `required_min_score` to gate verdicts on specific criteria scores. Legacy boolean `required` field remains backward-compatible.
+
+### Patch Changes
+
+- 147bd9f: Fix inline rubrics to support score_ranges and required_min_score fields.
+- ecfa618: Improve inline rubrics parsing consistency across evaluators.
+
 ## 2.4.0
 
 ### Minor Changes
