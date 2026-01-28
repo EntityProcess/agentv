@@ -40,6 +40,12 @@ export const evalCommand = command({
       long: 'filter',
       description: 'Filter eval cases by ID pattern (glob supported, e.g., "summary-*")',
     }),
+    // Deprecated alias for --filter (backward compatibility)
+    evalId: option({
+      type: optional(string),
+      long: 'eval-id',
+      description: '[Deprecated: use --filter] Filter eval cases by ID pattern',
+    }),
     workers: option({
       type: number,
       long: 'workers',
@@ -103,11 +109,17 @@ export const evalCommand = command({
     }),
   },
   handler: async (args) => {
+    // Support deprecated --eval-id as alias for --filter
+    const filter = args.filter ?? args.evalId;
+    if (args.evalId && !args.filter) {
+      console.warn('Warning: --eval-id is deprecated, use --filter instead');
+    }
+
     const resolvedPaths = await resolveEvalPaths(args.evalPaths, process.cwd());
     const rawOptions: Record<string, unknown> = {
       target: args.target,
       targets: args.targets,
-      filter: args.filter,
+      filter,
       workers: args.workers,
       out: args.out,
       outputFormat: args.outputFormat,
