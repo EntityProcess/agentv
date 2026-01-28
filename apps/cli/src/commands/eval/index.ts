@@ -35,9 +35,9 @@ export const evalCommand = command({
       long: 'targets',
       description: 'Path to targets.yaml (overrides discovery)',
     }),
-    filter: option({
+    evalId: option({
       type: optional(string),
-      long: 'filter',
+      long: 'eval-id',
       description: 'Filter eval cases by ID pattern (glob supported, e.g., "summary-*")',
     }),
     workers: option({
@@ -107,7 +107,7 @@ export const evalCommand = command({
     const rawOptions: Record<string, unknown> = {
       target: args.target,
       targets: args.targets,
-      filter: args.filter,
+      filter: args.evalId,
       workers: args.workers,
       out: args.out,
       outputFormat: args.outputFormat,

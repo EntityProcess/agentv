@@ -88,3 +88,11 @@ export type TraceSummary = z.infer<typeof TraceSummarySchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type ToolCall = z.infer<typeof ToolCallSchema>;
 export type TokenUsage = z.infer<typeof TokenUsageSchema>;
+
+/**
+ * Prompt template input schema (camelCase, converted from snake_case wire format).
+ * Uses the same schema as CodeJudgeInput since the orchestrator sends identical payloads.
+ */
+export const PromptTemplateInputSchema = CodeJudgeInputSchema;
+
+export type PromptTemplateInput = CodeJudgeInput;

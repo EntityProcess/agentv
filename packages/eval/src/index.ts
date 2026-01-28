@@ -47,12 +47,14 @@ export {
   MessageSchema,
   ToolCallSchema,
   TokenUsageSchema,
+  PromptTemplateInputSchema,
   type CodeJudgeInput,
   type CodeJudgeResult,
   type TraceSummary,
   type Message,
   type ToolCall,
   type TokenUsage,
+  type PromptTemplateInput,
 } from './schemas.js';
 
 // Re-export target client
@@ -69,10 +71,12 @@ export {
 // Re-export Zod for typed config support
 export { z } from 'zod';
 
+import { type PromptTemplateHandler, runPromptTemplate } from './prompt-template.js';
 // Import runtime
 import { type CodeJudgeHandler, runCodeJudge } from './runtime.js';
 
 export type { CodeJudgeHandler };
+export type { PromptTemplateHandler };
 
 /**
  * Define a code judge evaluator with automatic stdin/stdout handling.
@@ -121,4 +125,47 @@ export type { CodeJudgeHandler };
 export function defineCodeJudge(handler: CodeJudgeHandler): void {
   // Run immediately when module is loaded
   runCodeJudge(handler);
+}
+
+/**
+ * Define a prompt template with automatic stdin/stdout handling.
+ *
+ * This function:
+ * 1. Reads JSON from stdin (snake_case format)
+ * 2. Converts to camelCase and validates with Zod
+ * 3. Calls your handler with typed input
+ * 4. Outputs the generated prompt string to stdout
+ * 5. Handles errors gracefully with proper exit codes
+ *
+ * @param handler - Function that generates the prompt string from input
+ *
+ * @example
+ * ```typescript
+ * import { definePromptTemplate } from '@agentv/eval';
+ *
+ * export default definePromptTemplate((ctx) => `
+ *   Question: ${ctx.question}
+ *   Answer: ${ctx.candidateAnswer}
+ *
+ *   ${ctx.referenceAnswer ? `Reference: ${ctx.referenceAnswer}` : ''}
+ * `);
+ * ```
+ *
+ * @example With conditional logic
+ * ```typescript
+ * import { definePromptTemplate } from '@agentv/eval';
+ *
+ * export default definePromptTemplate((ctx) => {
+ *   const rubric = ctx.config?.rubric as string | undefined;
+ *   return `
+ *     Question: ${ctx.question}
+ *     Candidate Answer: ${ctx.candidateAnswer}
+ *     ${rubric ? `\nEvaluation Criteria:\n${rubric}` : ''}
+ *   `;
+ * });
+ * ```
+ */
+export function definePromptTemplate(handler: PromptTemplateHandler): void {
+  // Run immediately when module is loaded
+  runPromptTemplate(handler);
 }
