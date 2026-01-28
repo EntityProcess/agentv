@@ -1,0 +1,34 @@
+# Pre-push validation hooks
+# Install with: pre-commit install --hook-type pre-push
+# See: https://pre-commit.com
+
+repos:
+  - repo: local
+    hooks:
+      - id: build
+        name: Build
+        entry: bun run build
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: typecheck
+        name: Typecheck
+        entry: bun run typecheck
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: lint
+        name: Lint
+        entry: bun run lint
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: test
+        name: Test
+        entry: bun run test
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
