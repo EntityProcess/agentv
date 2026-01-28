@@ -178,11 +178,65 @@ export default defineCodeJudge(async ({ question, candidateAnswer }) => {
 
 **See also:** `examples/features/code-judge-with-llm-calls/`
 
-## LLM Judge Prompt Template
+## LLM Judge Prompt Templates
 
-LLM judges use markdown prompts. AgentV handles the output format automatically.
+LLM judges support two types of prompt templates:
 
-**Available Template Variables:**
+### Text Templates (Markdown)
+
+Simple markdown files with variable substitution. AgentV handles the output format automatically.
+
+### TypeScript/JavaScript Templates
+
+For dynamic prompt generation with full programming capabilities. Uses the same subprocess pattern as code evaluators.
+
+**YAML Configuration:**
+
+```yaml
+evaluators:
+  - name: custom-eval
+    type: llm_judge
+    prompt:
+      script: [bun, run, ../prompts/custom-evaluator.ts]
+      config:  # Optional, passed to script
+        rubric: "Your rubric here"
+        strictMode: true
+```
+
+**TypeScript Template:**
+
+```typescript
+#!/usr/bin/env bun
+import { definePromptTemplate } from '@agentv/eval';
+
+export default definePromptTemplate((ctx) => {
+  const rubric = ctx.config?.rubric as string | undefined;
+
+  return `You are evaluating an AI assistant's response.
+
+## Question
+${ctx.question}
+
+## Candidate Answer
+${ctx.candidateAnswer}
+
+${ctx.referenceAnswer ? `## Reference Answer\n${ctx.referenceAnswer}` : ''}
+
+${rubric ? `## Evaluation Criteria\n${rubric}` : ''}
+
+Evaluate and provide a score from 0 to 1.`;
+});
+```
+
+**Available context fields:** `question`, `candidateAnswer`, `referenceAnswer`, `expectedOutcome`, `expectedMessages`, `outputMessages`, `config`, `traceSummary`
+
+**See also:** `examples/features/prompt-template-sdk/`
+
+---
+
+## Text Template Variables
+
+**Available variables for markdown templates:**
 - `{{question}}` - The original question/task
 - `{{expected_outcome}}` - What the answer should accomplish
 - `{{candidate_answer}}` - The actual output to evaluate
