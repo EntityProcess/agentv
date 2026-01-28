@@ -88,3 +88,23 @@ export type TraceSummary = z.infer<typeof TraceSummarySchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type ToolCall = z.infer<typeof ToolCallSchema>;
 export type TokenUsage = z.infer<typeof TokenUsageSchema>;
+
+/**
+ * Prompt template input schema (camelCase, converted from snake_case wire format).
+ * Uses the same fields as CodeJudgeInput for consistency.
+ */
+export const PromptTemplateInputSchema = z.object({
+  question: z.string(),
+  expectedOutcome: z.string().optional(),
+  expectedMessages: z.array(MessageSchema).optional(),
+  referenceAnswer: z.string().optional(),
+  candidateAnswer: z.string(),
+  outputMessages: z.array(MessageSchema).nullable().optional(),
+  guidelineFiles: z.array(z.string()).optional(),
+  inputFiles: z.array(z.string()).optional(),
+  inputMessages: z.array(MessageSchema).optional(),
+  traceSummary: TraceSummarySchema.nullable().optional(),
+  config: z.record(z.unknown()).nullable().optional(),
+});
+
+export type PromptTemplateInput = z.infer<typeof PromptTemplateInputSchema>;

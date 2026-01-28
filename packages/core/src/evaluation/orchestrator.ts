@@ -3,6 +3,7 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
 
+import { toSnakeCaseDeep } from './case-conversion.js';
 import {
   type ChildEvaluatorResult,
   CodeEvaluator,
@@ -15,6 +16,7 @@ import {
   LlmJudgeEvaluator,
   TokenUsageEvaluator,
   ToolTrajectoryEvaluator,
+  executeScript,
   isNonEmptyString,
   scoreToVerdict,
 } from './evaluators.js';
@@ -895,6 +897,8 @@ async function runEvaluatorList(options: {
           promptInputs,
           now,
           judgeProvider,
+          outputMessages,
+          traceSummary,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
@@ -1251,6 +1255,8 @@ async function runLlmJudgeEvaluator(options: {
   readonly promptInputs: PromptInputs;
   readonly now: Date;
   readonly judgeProvider?: Provider;
+  readonly outputMessages?: readonly OutputMessage[];
+  readonly traceSummary?: TraceSummary;
 }): Promise<EvaluationScore> {
   const {
     config,
@@ -1263,8 +1269,16 @@ async function runLlmJudgeEvaluator(options: {
     promptInputs,
     now,
     judgeProvider,
+    outputMessages,
+    traceSummary,
   } = options;
-  const customPrompt = await resolveCustomPrompt(config);
+  const customPrompt = await resolveCustomPrompt(config, {
+    evalCase,
+    candidate,
+    outputMessages,
+    traceSummary,
+    config: config.config,
+  });
 
   return evaluatorRegistry.llm_judge.evaluate({
     evalCase,
@@ -1280,20 +1294,80 @@ async function runLlmJudgeEvaluator(options: {
   });
 }
 
-async function resolveCustomPrompt(config: {
-  readonly prompt?: string;
-  readonly promptPath?: string;
-}): Promise<string | undefined> {
-  if (config.promptPath) {
+interface ResolveCustomPromptContext {
+  readonly evalCase: EvalCase;
+  readonly candidate: string;
+  readonly outputMessages?: readonly OutputMessage[];
+  readonly traceSummary?: TraceSummary;
+  readonly config?: Record<string, unknown>;
+}
+
+async function resolveCustomPrompt(
+  promptConfig: {
+    readonly prompt?: string;
+    readonly promptPath?: string;
+    readonly resolvedPromptPath?: string;
+    readonly config?: Record<string, unknown>;
+  },
+  context?: ResolveCustomPromptContext,
+): Promise<string | undefined> {
+  const promptPath = promptConfig.resolvedPromptPath ?? promptConfig.promptPath;
+
+  if (promptPath) {
+    const ext = path.extname(promptPath).toLowerCase();
+
+    // Executable prompt template (same pattern as code judges)
+    if (ext === '.ts' || ext === '.js') {
+      if (!context) {
+        throw new Error('Context required for executable prompt templates (.ts/.js files)');
+      }
+      return executePromptTemplate(promptPath, context, promptConfig.config);
+    }
+
+    // Static text file (existing behavior)
     try {
-      const content = await readTextFile(config.promptPath);
+      const content = await readTextFile(promptPath);
       return content;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(`Could not read custom prompt at ${config.promptPath}: ${message}`);
+      console.warn(`Could not read custom prompt at ${promptPath}: ${message}`);
     }
   }
-  return config.prompt;
+  return promptConfig.prompt;
+}
+
+async function executePromptTemplate(
+  scriptPath: string,
+  context: ResolveCustomPromptContext,
+  config?: Record<string, unknown>,
+): Promise<string> {
+  // Build payload matching code judge input format for consistency
+  const payload = {
+    question: context.evalCase.question,
+    expectedOutcome: context.evalCase.expected_outcome,
+    expectedMessages: context.evalCase.expected_messages,
+    referenceAnswer: context.evalCase.reference_answer,
+    candidateAnswer: context.candidate,
+    outputMessages: context.outputMessages ?? null,
+    guidelineFiles: context.evalCase.guideline_paths,
+    inputFiles: context.evalCase.file_paths.filter(
+      (p) => !context.evalCase.guideline_paths.includes(p),
+    ),
+    inputMessages: context.evalCase.input_messages,
+    traceSummary: context.traceSummary ?? null,
+    config: config ?? context.config ?? null,
+  };
+
+  const inputJson = JSON.stringify(toSnakeCaseDeep(payload), null, 2);
+  const cwd = path.dirname(scriptPath);
+
+  try {
+    const stdout = await executeScript(['bun', 'run', scriptPath], inputJson, undefined, cwd);
+    return stdout.trim();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Prompt template execution failed: ${message}`);
+  }
 }
 
 function filterEvalCases(evalCases: readonly EvalCase[], filter?: string): readonly EvalCase[] {

@@ -1,0 +1,51 @@
+# Prompt Template SDK Demo
+# Demonstrates using TypeScript/JavaScript files for custom evaluator prompts.
+
+description: Demonstrates TypeScript prompt templates for custom LLM judge prompts
+
+# Uses the CLI target defined in .agentv/targets.yaml
+execution:
+  target: local_cli
+
+evalcases:
+  - id: prompt-template-basic
+    expected_outcome: The CLI provides a clear answer about TypeScript benefits.
+
+    input_messages:
+      - role: user
+        content:
+          - type: text
+            value: What are the main benefits of TypeScript over JavaScript?
+
+    reference_answer: |-
+      TypeScript provides static type checking, better IDE support, and improved maintainability.
+
+    execution:
+      evaluators:
+        - name: custom-prompt-eval
+          type: llm_judge
+          prompt: ../prompts/custom-evaluator.ts
+
+  - id: prompt-template-with-config
+    expected_outcome: The CLI explains async/await correctly.
+
+    input_messages:
+      - role: user
+        content:
+          - type: text
+            value: Explain async/await in JavaScript.
+
+    reference_answer: |-
+      Async/await is syntactic sugar over Promises that makes asynchronous code look synchronous.
+
+    execution:
+      evaluators:
+        - name: strict-eval
+          type: llm_judge
+          prompt: ../prompts/custom-evaluator.ts
+          config:
+            rubric: |-
+              - Must mention Promises
+              - Must explain the synchronous-looking syntax
+              - Should provide an example or use case
+            strictMode: true

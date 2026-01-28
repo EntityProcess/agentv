@@ -196,8 +196,12 @@ export type LlmJudgeEvaluatorConfig = {
   readonly type: 'llm_judge';
   readonly prompt?: string;
   readonly promptPath?: string;
+  /** Resolved absolute path for prompt file (used by executable .ts/.js prompts) */
+  readonly resolvedPromptPath?: string;
   readonly rubrics?: readonly RubricItem[];
   readonly weight?: number;
+  /** Pass-through configuration for custom evaluator prompts */
+  readonly config?: Record<string, unknown>;
 };
 
 /**

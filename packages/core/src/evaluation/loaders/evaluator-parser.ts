@@ -528,13 +528,18 @@ export async function parseEvaluators(
       const resolved = await resolveFileReference(prompt, searchRoots);
       if (resolved.resolvedPath) {
         promptPath = path.resolve(resolved.resolvedPath);
-        // Validate custom prompt content upfront - throws error if validation fails
-        try {
-          await validateCustomPromptContent(promptPath);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          // Add context and re-throw for the caller to handle
-          throw new Error(`Evaluator '${name}' template (${promptPath}): ${message}`);
+        // Skip validation for executable prompt templates (.ts/.js files)
+        // These are executed as subprocesses, not parsed as text templates
+        const ext = path.extname(promptPath).toLowerCase();
+        if (ext !== '.ts' && ext !== '.js') {
+          // Validate custom prompt content upfront - throws error if validation fails
+          try {
+            await validateCustomPromptContent(promptPath);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            // Add context and re-throw for the caller to handle
+            throw new Error(`Evaluator '${name}' template (${promptPath}): ${message}`);
+          }
         }
       } else {
         logWarning(
@@ -577,13 +582,24 @@ export async function parseEvaluators(
 
     const weight = validateWeight(rawEvaluator.weight, name, evalId);
 
+    // Collect unrecognized properties as pass-through config (for executable prompt templates)
+    const knownProps = new Set(['name', 'type', 'prompt', 'model', 'rubrics', 'weight']);
+    const config: Record<string, JsonValue> = {};
+    for (const [key, value] of Object.entries(rawEvaluator)) {
+      if (!knownProps.has(key) && value !== undefined) {
+        config[key] = value as JsonValue;
+      }
+    }
+
     evaluators.push({
       name,
       type: 'llm_judge',
       prompt,
       promptPath,
+      ...(promptPath ? { resolvedPromptPath: promptPath } : {}),
       ...(parsedRubrics && parsedRubrics.length > 0 ? { rubrics: parsedRubrics } : {}),
       ...(weight !== undefined ? { weight } : {}),
+      ...(Object.keys(config).length > 0 ? { config } : {}),
     });
   }
 

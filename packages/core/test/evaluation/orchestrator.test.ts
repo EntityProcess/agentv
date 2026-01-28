@@ -957,4 +957,184 @@ describe('runEvalCase trace integration', () => {
       expect(result.score).toBe(0);
     });
   });
+
+  describe('executable prompt templates', () => {
+    it('executes TypeScript prompt template and uses output as custom prompt', async () => {
+      const tmpDir = mkdtempSync(path.join(tmpdir(), 'prompt-template-'));
+      const promptPath = path.join(tmpDir, 'my-prompt.ts');
+
+      // Write a simple TypeScript prompt template that reads stdin manually
+      // (avoiding dependency on @agentv/eval which won't resolve from temp dir)
+      writeFileSync(
+        promptPath,
+        `import { readFileSync } from 'fs';
+const stdin = readFileSync(0, 'utf8');
+const input = JSON.parse(stdin);
+console.log(\`Question: \${input.question}
+Candidate: \${input.candidate_answer}
+Reference: \${input.reference_answer ?? 'none'}\`);
+`,
+      );
+
+      // Custom judge that captures the prompt it receives
+      let receivedQuestion = '';
+      const captureJudge = {
+        kind: 'llm_judge' as const,
+        async evaluate(context: { evalCase: EvalCase; evaluatorTemplateOverride?: string }) {
+          // The evaluatorTemplateOverride should contain our custom prompt
+          receivedQuestion = context.evaluatorTemplateOverride ?? '';
+          return {
+            score: 1.0,
+            verdict: 'pass' as const,
+            hits: ['Test passed'],
+            misses: [],
+            expectedAspectCount: 1,
+          };
+        },
+      };
+
+      const provider = new SequenceProvider('mock', {
+        responses: [
+          {
+            outputMessages: [{ role: 'assistant', content: 'The answer is 4' }],
+          },
+        ],
+      });
+
+      const result = await runEvalCase({
+        evalCase: {
+          ...baseTestCase,
+          question: 'What is 2+2?',
+          reference_answer: 'The sum is 4',
+          evaluators: [
+            {
+              name: 'ts-prompt-eval',
+              type: 'llm_judge',
+              promptPath: promptPath,
+              resolvedPromptPath: promptPath,
+            },
+          ],
+        },
+        provider,
+        target: baseTarget,
+        evaluators: { llm_judge: captureJudge },
+      });
+
+      expect(result.score).toBe(1.0);
+      expect(receivedQuestion).toContain('Question: What is 2+2?');
+      expect(receivedQuestion).toContain('Candidate: The answer is 4');
+      expect(receivedQuestion).toContain('Reference: The sum is 4');
+    });
+
+    it('executes JavaScript prompt template', async () => {
+      const tmpDir = mkdtempSync(path.join(tmpdir(), 'prompt-template-js-'));
+      const promptPath = path.join(tmpDir, 'my-prompt.js');
+
+      // Write a simple JS prompt template that reads stdin manually
+      writeFileSync(
+        promptPath,
+        `const fs = require('fs');
+const stdin = fs.readFileSync(0, 'utf8');
+const input = JSON.parse(stdin);
+console.log('Question: ' + input.question + '\\nAnswer: ' + input.candidate_answer);
+`,
+      );
+
+      let receivedPrompt = '';
+      const captureJudge = {
+        kind: 'llm_judge' as const,
+        async evaluate(context: { evaluatorTemplateOverride?: string }) {
+          receivedPrompt = context.evaluatorTemplateOverride ?? '';
+          return {
+            score: 1.0,
+            verdict: 'pass' as const,
+            hits: [],
+            misses: [],
+            expectedAspectCount: 1,
+          };
+        },
+      };
+
+      const provider = new SequenceProvider('mock', {
+        responses: [
+          {
+            outputMessages: [{ role: 'assistant', content: 'Test response' }],
+          },
+        ],
+      });
+
+      const result = await runEvalCase({
+        evalCase: {
+          ...baseTestCase,
+          question: 'Test question',
+          evaluators: [
+            {
+              name: 'js-prompt-eval',
+              type: 'llm_judge',
+              promptPath: promptPath,
+              resolvedPromptPath: promptPath,
+            },
+          ],
+        },
+        provider,
+        target: baseTarget,
+        evaluators: { llm_judge: captureJudge },
+      });
+
+      expect(result.score).toBe(1.0);
+      expect(receivedPrompt).toContain('Question: Test question');
+      expect(receivedPrompt).toContain('Answer: Test response');
+    });
+
+    it('falls back to text file reading for .txt files', async () => {
+      const tmpDir = mkdtempSync(path.join(tmpdir(), 'prompt-txt-'));
+      const promptPath = path.join(tmpDir, 'my-prompt.txt');
+
+      // Write a static text prompt
+      writeFileSync(promptPath, 'Static prompt content from text file');
+
+      let receivedPrompt = '';
+      const captureJudge = {
+        kind: 'llm_judge' as const,
+        async evaluate(context: { evaluatorTemplateOverride?: string }) {
+          receivedPrompt = context.evaluatorTemplateOverride ?? '';
+          return {
+            score: 1.0,
+            verdict: 'pass' as const,
+            hits: [],
+            misses: [],
+            expectedAspectCount: 1,
+          };
+        },
+      };
+
+      const provider = new SequenceProvider('mock', {
+        responses: [
+          {
+            outputMessages: [{ role: 'assistant', content: 'Response' }],
+          },
+        ],
+      });
+
+      const result = await runEvalCase({
+        evalCase: {
+          ...baseTestCase,
+          evaluators: [
+            {
+              name: 'txt-prompt-eval',
+              type: 'llm_judge',
+              promptPath: promptPath,
+              resolvedPromptPath: promptPath,
+            },
+          ],
+        },
+        provider,
+        target: baseTarget,
+        evaluators: { llm_judge: captureJudge },
+      });
+
+      expect(result.score).toBe(1.0);
+      expect(receivedPrompt).toBe('Static prompt content from text file');
+    });
+  });
 });
