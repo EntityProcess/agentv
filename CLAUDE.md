@@ -80,6 +80,29 @@ For Markdown-only documentation edits (e.g. `*.md` changes that do not affect ru
 
 Only consider the work complete when all four steps pass successfully. This ensures code quality, prevents regressions, and maintains the integrity of the codebase.
 
+### Pre-Push Validation
+
+The repository uses [prek](https://github.com/nickel-lang/prek) (`@j178/prek`) for pre-push hooks to automatically run validation before pushing code. This prevents broken code from being pushed to the repository.
+
+**Setup (automatic):**
+The hooks are installed automatically when you run `bun install` via the `prepare` script. To manually install:
+```bash
+bunx prek install -t pre-push
+```
+
+**What runs on push:**
+- `bun run build` - Build all packages
+- `bun run typecheck` - TypeScript type checking
+- `bun run lint` - Biome linting
+- `bun run test` - All tests
+
+If any check fails, the push is blocked until the issues are fixed.
+
+**Manual run (without pushing):**
+```bash
+bunx prek run --all-files --hook-stage pre-push
+```
+
 ## Documentation Updates
 
 When making changes to functionality (new features, modified behavior, new evaluator types, etc.), **always update the AgentV skill files and references** under `.claude/skills/` (in the repository root):
