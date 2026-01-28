@@ -3,9 +3,9 @@
 
 description: Demonstrates TypeScript prompt templates for custom LLM judge prompts
 
-# Uses the CLI target defined in .agentv/targets.yaml
+# Uses the default target defined in .agentv/targets.yaml
 execution:
-  target: local_cli
+  target: default
 
 evalcases:
   - id: prompt-template-basic
