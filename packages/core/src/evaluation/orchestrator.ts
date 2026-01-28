@@ -1311,27 +1311,31 @@ interface ResolveCustomPromptContext {
 
 async function resolveCustomPrompt(
   promptConfig: {
-    readonly prompt?: string;
+    readonly prompt?: string | import('./types.js').PromptScriptConfig;
     readonly promptPath?: string;
     readonly resolvedPromptPath?: string;
+    readonly resolvedPromptScript?: readonly string[];
     readonly config?: Record<string, unknown>;
   },
   context?: ResolveCustomPromptContext,
   timeoutMs?: number,
 ): Promise<string | undefined> {
+  // Executable prompt template using script array (matches code_judge pattern)
+  if (promptConfig.resolvedPromptScript && promptConfig.resolvedPromptScript.length > 0) {
+    if (!context) {
+      throw new Error('Context required for executable prompt templates');
+    }
+    return executePromptTemplate(
+      promptConfig.resolvedPromptScript,
+      context,
+      promptConfig.config,
+      timeoutMs,
+    );
+  }
+
   const promptPath = promptConfig.resolvedPromptPath ?? promptConfig.promptPath;
 
   if (promptPath) {
-    const ext = path.extname(promptPath).toLowerCase();
-
-    // Executable prompt template (same pattern as code judges)
-    if (ext === '.ts' || ext === '.js') {
-      if (!context) {
-        throw new Error('Context required for executable prompt templates (.ts/.js files)');
-      }
-      return executePromptTemplate(promptPath, context, promptConfig.config, timeoutMs);
-    }
-
     // Static text file (existing behavior)
     try {
       const content = await readTextFile(promptPath);
@@ -1341,11 +1345,18 @@ async function resolveCustomPrompt(
       console.warn(`Could not read custom prompt at ${promptPath}: ${message}`);
     }
   }
-  return promptConfig.prompt;
+
+  // Handle prompt as string - could be inline or the original prompt value
+  const promptValue = promptConfig.prompt;
+  if (typeof promptValue === 'string') {
+    return promptValue;
+  }
+
+  return undefined;
 }
 
 async function executePromptTemplate(
-  scriptPath: string,
+  script: readonly string[],
   context: ResolveCustomPromptContext,
   config?: Record<string, unknown>,
   timeoutMs?: number,
@@ -1368,10 +1379,13 @@ async function executePromptTemplate(
   };
 
   const inputJson = JSON.stringify(toSnakeCaseDeep(payload), null, 2);
+
+  // Derive cwd from the last element of the script array (the script file path)
+  const scriptPath = script[script.length - 1];
   const cwd = path.dirname(scriptPath);
 
   try {
-    const stdout = await executeScript(['bun', 'run', scriptPath], inputJson, timeoutMs, cwd);
+    const stdout = await executeScript(script, inputJson, timeoutMs, cwd);
     const prompt = stdout.trim();
 
     if (!prompt) {

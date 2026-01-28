@@ -1,5 +1,6 @@
 # Prompt Template SDK Demo
 # Demonstrates using TypeScript/JavaScript files for custom evaluator prompts.
+# Uses the same explicit script pattern as code_judge for consistency.
 
 description: Demonstrates TypeScript prompt templates for custom LLM judge prompts
 
@@ -24,7 +25,9 @@ evalcases:
       evaluators:
         - name: custom-prompt-eval
           type: llm_judge
-          prompt: ../prompts/custom-evaluator.ts
+          # Executable prompt template using explicit script array (matches code_judge pattern)
+          prompt:
+            script: [bun, run, ../prompts/custom-evaluator.ts]
 
   - id: prompt-template-with-config
     expected_outcome: The CLI explains async/await correctly.
@@ -42,10 +45,12 @@ evalcases:
       evaluators:
         - name: strict-eval
           type: llm_judge
-          prompt: ../prompts/custom-evaluator.ts
-          config:
-            rubric: |-
-              - Must mention Promises
-              - Must explain the synchronous-looking syntax
-              - Should provide an example or use case
-            strictMode: true
+          # Executable prompt template with config
+          prompt:
+            script: [bun, run, ../prompts/custom-evaluator.ts]
+            config:
+              rubric: |-
+                - Must mention Promises
+                - Must explain the synchronous-looking syntax
+                - Should provide an example or use case
+              strictMode: true

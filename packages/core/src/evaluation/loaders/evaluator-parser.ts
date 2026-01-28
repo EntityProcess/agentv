@@ -522,34 +522,56 @@ export async function parseEvaluators(
       continue;
     }
 
-    const prompt = asString(rawEvaluator.prompt);
+    // Parse prompt field - can be string (text template) or object (executable script)
+    const rawPrompt = rawEvaluator.prompt;
+    let prompt: string | undefined;
     let promptPath: string | undefined;
-    if (prompt) {
+    let resolvedPromptScript: string[] | undefined;
+    let promptScriptConfig: Record<string, unknown> | undefined;
+
+    if (isJsonObject(rawPrompt)) {
+      // Executable prompt template: { script: [...], config: {...} }
+      const scriptArray = asStringArray(
+        rawPrompt.script,
+        `prompt.script for evaluator '${name}' in '${evalId}'`,
+      );
+
+      if (!scriptArray) {
+        throw new Error(`Evaluator '${name}' in '${evalId}': prompt object requires script array`);
+      }
+
+      // Resolve the script path (last element is typically the file path)
+      const scriptPath = scriptArray[scriptArray.length - 1];
+      const resolved = await resolveFileReference(scriptPath, searchRoots);
+
+      if (resolved.resolvedPath) {
+        // Replace the last element with the resolved path
+        resolvedPromptScript = [...scriptArray.slice(0, -1), path.resolve(resolved.resolvedPath)];
+      } else {
+        throw new Error(
+          `Evaluator '${name}' in '${evalId}': prompt script file not found: ${resolved.displayPath}`,
+        );
+      }
+
+      // Extract config from prompt object
+      if (isJsonObject(rawPrompt.config)) {
+        promptScriptConfig = rawPrompt.config as Record<string, unknown>;
+      }
+    } else if (typeof rawPrompt === 'string') {
+      // Text template prompt (existing behavior)
+      prompt = rawPrompt;
       const resolved = await resolveFileReference(prompt, searchRoots);
       if (resolved.resolvedPath) {
         promptPath = path.resolve(resolved.resolvedPath);
-        // Skip validation for executable prompt templates (.ts/.js files)
-        // These are executed as subprocesses, not parsed as text templates
-        const ext = path.extname(promptPath).toLowerCase();
-        if (ext !== '.ts' && ext !== '.js') {
-          // Validate custom prompt content upfront - throws error if validation fails
-          try {
-            await validateCustomPromptContent(promptPath);
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            // Add context and re-throw for the caller to handle
-            throw new Error(`Evaluator '${name}' template (${promptPath}): ${message}`);
-          }
+        // Validate custom prompt content upfront - throws error if validation fails
+        try {
+          await validateCustomPromptContent(promptPath);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          // Add context and re-throw for the caller to handle
+          throw new Error(`Evaluator '${name}' template (${promptPath}): ${message}`);
         }
       } else {
-        // Check if the prompt looks like an executable template path (.ts/.js)
-        // These must exist as files - don't fall back to inline prompt
-        const promptExt = path.extname(prompt).toLowerCase();
-        if (promptExt === '.ts' || promptExt === '.js') {
-          throw new Error(
-            `Evaluator '${name}' in '${evalId}': prompt template file not found: ${resolved.displayPath}`,
-          );
-        }
         logWarning(
           `Inline prompt used for evaluator '${name}' in '${evalId}' (file not found: ${resolved.displayPath})`,
           resolved.attempted.length > 0
@@ -590,8 +612,9 @@ export async function parseEvaluators(
 
     const weight = validateWeight(rawEvaluator.weight, name, evalId);
 
-    // Collect unrecognized properties as pass-through config (for executable prompt templates)
-    const knownProps = new Set(['name', 'type', 'prompt', 'model', 'rubrics', 'weight']);
+    // Collect unrecognized properties as pass-through config (for text prompt templates)
+    // Note: For script prompts, config comes from prompt.config instead
+    const knownProps = new Set(['name', 'type', 'prompt', 'model', 'rubrics', 'weight', 'config']);
     const config: Record<string, JsonValue> = {};
     for (const [key, value] of Object.entries(rawEvaluator)) {
       if (!knownProps.has(key) && value !== undefined) {
@@ -599,15 +622,26 @@ export async function parseEvaluators(
       }
     }
 
+    // Merge top-level config with any extra properties (top-level config takes precedence)
+    const topLevelConfig = isJsonObject(rawEvaluator.config)
+      ? (rawEvaluator.config as Record<string, JsonValue>)
+      : {};
+    const mergedConfig = { ...config, ...topLevelConfig };
+
+    // Determine final config: prompt.config for script prompts, merged config for text prompts
+    const finalConfig =
+      promptScriptConfig ?? (Object.keys(mergedConfig).length > 0 ? mergedConfig : undefined);
+
     evaluators.push({
       name,
       type: 'llm_judge',
       prompt,
       promptPath,
       ...(promptPath ? { resolvedPromptPath: promptPath } : {}),
+      ...(resolvedPromptScript ? { resolvedPromptScript } : {}),
       ...(parsedRubrics && parsedRubrics.length > 0 ? { rubrics: parsedRubrics } : {}),
       ...(weight !== undefined ? { weight } : {}),
-      ...(Object.keys(config).length > 0 ? { config } : {}),
+      ...(finalConfig ? { config: finalConfig } : {}),
     });
   }
 

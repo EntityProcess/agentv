@@ -1010,8 +1010,8 @@ Reference: \${input.reference_answer ?? 'none'}\`);
             {
               name: 'ts-prompt-eval',
               type: 'llm_judge',
-              promptPath: promptPath,
-              resolvedPromptPath: promptPath,
+              // Use explicit script array (matches code_judge pattern)
+              resolvedPromptScript: ['bun', 'run', promptPath],
             },
           ],
         },
@@ -1071,8 +1071,8 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.candidate_answ
             {
               name: 'js-prompt-eval',
               type: 'llm_judge',
-              promptPath: promptPath,
-              resolvedPromptPath: promptPath,
+              // Use explicit script array - node for JavaScript files
+              resolvedPromptScript: ['node', promptPath],
             },
           ],
         },

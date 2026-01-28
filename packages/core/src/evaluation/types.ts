@@ -191,16 +191,30 @@ export type CodeEvaluatorConfig = {
   readonly target?: TargetAccessConfig;
 };
 
+/**
+ * Executable prompt template configuration.
+ * Matches code_judge pattern for consistency.
+ */
+export type PromptScriptConfig = {
+  /** Command array to execute (e.g., ["bun", "run", "template.ts"]) */
+  readonly script: readonly string[];
+  /** Pass-through configuration for the prompt template */
+  readonly config?: Record<string, unknown>;
+};
+
 export type LlmJudgeEvaluatorConfig = {
   readonly name: string;
   readonly type: 'llm_judge';
-  readonly prompt?: string;
+  /** Text prompt (inline or file path) or executable script config */
+  readonly prompt?: string | PromptScriptConfig;
   readonly promptPath?: string;
-  /** Resolved absolute path for prompt file (used by executable .ts/.js prompts) */
+  /** Resolved absolute path for prompt file (used for text template prompts) */
   readonly resolvedPromptPath?: string;
+  /** Resolved script array for executable prompts (matches code_judge pattern) */
+  readonly resolvedPromptScript?: readonly string[];
   readonly rubrics?: readonly RubricItem[];
   readonly weight?: number;
-  /** Pass-through configuration for custom evaluator prompts */
+  /** Pass-through configuration for custom evaluator prompts (legacy, prefer prompt.config) */
   readonly config?: Record<string, unknown>;
 };
 
