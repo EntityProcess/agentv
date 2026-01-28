@@ -126,20 +126,30 @@ Unit tests alone are insufficient for evaluator changes. After implementing or m
 - Keep modules cohesive
 
 ## Version Management
-This project uses [Changesets](https://github.com/changesets/changesets) for automated versioning and changelog generation.
 
-### Creating a changeset
-When making changes that should be included in the next release:
-1. Run `bun changeset` to create a new changeset file
-2. Select the semver bump type (patch, minor, or major)
-3. Write a summary of the changes for the changelog
-4. Commit the generated `.changeset/*.md` file with your changes
+This project uses a simple release script for version bumping. The git commit history serves as the changelog.
 
 ### Releasing a new version
-1. Run `bun version` to consume changesets and update package.json version
-2. Review the updated CHANGELOG.md
-3. Commit the version bump and changelog updates
-4. Create a git tag and push to trigger release workflow
+
+Run the release script with the desired bump type:
+
+```bash
+bun run release          # patch bump (default)
+bun run release minor    # minor bump
+bun run release major    # major bump
+```
+
+The script will:
+1. Validate you're on the `main` branch with no uncommitted changes
+2. Pull latest changes from origin
+3. Bump version in all package.json files
+4. Commit the version bump
+5. Create and push a git tag
+
+After the release script completes, publish to npm:
+```bash
+bun run publish
+```
 
 ## Git Workflow
 
