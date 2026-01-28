@@ -542,6 +542,14 @@ export async function parseEvaluators(
           }
         }
       } else {
+        // Check if the prompt looks like an executable template path (.ts/.js)
+        // These must exist as files - don't fall back to inline prompt
+        const promptExt = path.extname(prompt).toLowerCase();
+        if (promptExt === '.ts' || promptExt === '.js') {
+          throw new Error(
+            `Evaluator '${name}' in '${evalId}': prompt template file not found: ${resolved.displayPath}`,
+          );
+        }
         logWarning(
           `Inline prompt used for evaluator '${name}' in '${evalId}' (file not found: ${resolved.displayPath})`,
           resolved.attempted.length > 0

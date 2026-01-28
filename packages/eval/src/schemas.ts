@@ -91,20 +91,8 @@ export type TokenUsage = z.infer<typeof TokenUsageSchema>;
 
 /**
  * Prompt template input schema (camelCase, converted from snake_case wire format).
- * Uses the same fields as CodeJudgeInput for consistency.
+ * Uses the same schema as CodeJudgeInput since the orchestrator sends identical payloads.
  */
-export const PromptTemplateInputSchema = z.object({
-  question: z.string(),
-  expectedOutcome: z.string().optional(),
-  expectedMessages: z.array(MessageSchema).optional(),
-  referenceAnswer: z.string().optional(),
-  candidateAnswer: z.string(),
-  outputMessages: z.array(MessageSchema).nullable().optional(),
-  guidelineFiles: z.array(z.string()).optional(),
-  inputFiles: z.array(z.string()).optional(),
-  inputMessages: z.array(MessageSchema).optional(),
-  traceSummary: TraceSummarySchema.nullable().optional(),
-  config: z.record(z.unknown()).nullable().optional(),
-});
+export const PromptTemplateInputSchema = CodeJudgeInputSchema;
 
-export type PromptTemplateInput = z.infer<typeof PromptTemplateInputSchema>;
+export type PromptTemplateInput = CodeJudgeInput;

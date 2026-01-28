@@ -899,6 +899,7 @@ async function runEvaluatorList(options: {
           judgeProvider,
           outputMessages,
           traceSummary,
+          agentTimeoutMs,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
@@ -1257,6 +1258,7 @@ async function runLlmJudgeEvaluator(options: {
   readonly judgeProvider?: Provider;
   readonly outputMessages?: readonly OutputMessage[];
   readonly traceSummary?: TraceSummary;
+  readonly agentTimeoutMs?: number;
 }): Promise<EvaluationScore> {
   const {
     config,
@@ -1271,14 +1273,19 @@ async function runLlmJudgeEvaluator(options: {
     judgeProvider,
     outputMessages,
     traceSummary,
+    agentTimeoutMs,
   } = options;
-  const customPrompt = await resolveCustomPrompt(config, {
-    evalCase,
-    candidate,
-    outputMessages,
-    traceSummary,
-    config: config.config,
-  });
+  const customPrompt = await resolveCustomPrompt(
+    config,
+    {
+      evalCase,
+      candidate,
+      outputMessages,
+      traceSummary,
+      config: config.config,
+    },
+    agentTimeoutMs,
+  );
 
   return evaluatorRegistry.llm_judge.evaluate({
     evalCase,
@@ -1310,6 +1317,7 @@ async function resolveCustomPrompt(
     readonly config?: Record<string, unknown>;
   },
   context?: ResolveCustomPromptContext,
+  timeoutMs?: number,
 ): Promise<string | undefined> {
   const promptPath = promptConfig.resolvedPromptPath ?? promptConfig.promptPath;
 
@@ -1321,7 +1329,7 @@ async function resolveCustomPrompt(
       if (!context) {
         throw new Error('Context required for executable prompt templates (.ts/.js files)');
       }
-      return executePromptTemplate(promptPath, context, promptConfig.config);
+      return executePromptTemplate(promptPath, context, promptConfig.config, timeoutMs);
     }
 
     // Static text file (existing behavior)
@@ -1340,6 +1348,7 @@ async function executePromptTemplate(
   scriptPath: string,
   context: ResolveCustomPromptContext,
   config?: Record<string, unknown>,
+  timeoutMs?: number,
 ): Promise<string> {
   // Build payload matching code judge input format for consistency
   const payload = {
@@ -1362,8 +1371,14 @@ async function executePromptTemplate(
   const cwd = path.dirname(scriptPath);
 
   try {
-    const stdout = await executeScript(['bun', 'run', scriptPath], inputJson, undefined, cwd);
-    return stdout.trim();
+    const stdout = await executeScript(['bun', 'run', scriptPath], inputJson, timeoutMs, cwd);
+    const prompt = stdout.trim();
+
+    if (!prompt) {
+      throw new Error('Prompt template produced empty output');
+    }
+
+    return prompt;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Prompt template execution failed: ${message}`);
