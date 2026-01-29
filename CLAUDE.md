@@ -69,20 +69,7 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ## Quality Assurance Workflow
 
-After making any significant **code** changes (refactoring, new features, bug fixes), always run the following verification steps in order.
-
-For Markdown-only documentation edits (e.g. `*.md` changes that do not affect runtime behavior), this workflow does not apply.
-
-1. `bun run build` - Ensure code compiles without errors
-2. `bun run typecheck` - Verify TypeScript type safety across the monorepo
-3. `bun run lint` - Check code style and catch potential issues with Biome
-4. `bun test` - Run all tests to verify functionality
-
-Only consider the work complete when all four steps pass successfully. This ensures code quality, prevents regressions, and maintains the integrity of the codebase.
-
-### Pre-Push Validation
-
-The repository uses [prek](https://github.com/nickel-lang/prek) (`@j178/prek`) for pre-push hooks to automatically run validation before pushing code. This prevents broken code from being pushed to the repository.
+The repository uses [prek](https://github.com/nickel-lang/prek) (`@j178/prek`) for pre-push hooks that automatically run build, typecheck, lint, and tests before pushing. **Do not manually run these checks before pushing**—just push to the feature branch and let the pre-push hook validate.
 
 **Setup (automatic):**
 The hooks are installed automatically when you run `bun install` via the `prepare` script. To manually install:
