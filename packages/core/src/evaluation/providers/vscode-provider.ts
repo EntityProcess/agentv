@@ -4,7 +4,7 @@ import {
   dispatchBatchAgent,
   getSubagentRoot,
   provisionSubagents,
-} from 'subagent';
+} from './vscode/index.js';
 
 import { readTextFile } from '../file-utils.js';
 import { isGuidelineFile } from '../yaml-parser.js';

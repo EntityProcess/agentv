@@ -8,7 +8,7 @@ import { PiCodingAgentProvider } from './pi-coding-agent.js';
 import type { ResolvedTarget } from './targets.js';
 import { resolveTargetDefinition } from './targets.js';
 import type { EnvLookup, Provider, TargetDefinition } from './types.js';
-import { VSCodeProvider } from './vscode.js';
+import { VSCodeProvider } from './vscode-provider.js';
 
 export type {
   EnvLookup,
@@ -39,7 +39,7 @@ export {
   ensureVSCodeSubagents,
   type EnsureSubagentsOptions,
   type EnsureSubagentsResult,
-} from './vscode.js';
+} from './vscode-provider.js';
 export { consumeCodexLogEntries, subscribeToCodexLogEntries } from './codex-log-tracker.js';
 export { consumePiLogEntries, subscribeToPiLogEntries } from './pi-log-tracker.js';
 export {
