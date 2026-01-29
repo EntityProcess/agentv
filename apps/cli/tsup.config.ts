@@ -16,6 +16,10 @@ export default defineConfig({
   // Bundle @agentv/core but keep micromatch and pi-agent packages external (they have dynamic requires)
   noExternal: [/^@agentv\//, 'cmd-ts'],
   external: ['micromatch', '@mariozechner/pi-agent', '@mariozechner/pi-ai'],
+  // Provide a real require() for bundled CJS modules (e.g. debug) that need Node.js builtins like tty
+  banner: {
+    js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
+  },
   // Copy template files after build
   onSuccess: async () => {
     const srcTemplatesDir = path.join('src', 'templates');
