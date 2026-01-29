@@ -156,7 +156,7 @@
           },
           "expected_messages": {
             "type": "array",
-            "description": "Expected response messages",
+            "description": "Expected response messages. Canonical form — use this or expected_output (alias). The content of the last entry is derived as the template variable 'reference_answer' for evaluator prompts.",
             "minItems": 1,
             "items": {
               "type": "object",
@@ -198,7 +198,7 @@
             }
           },
           "expected_output": {
-            "description": "Alias for expected_messages with shorthand support. String expands to single assistant message, object wraps as assistant message content.",
+            "description": "Alias for expected_messages with shorthand support. String expands to single assistant message, object wraps as assistant message content. Resolves to expected_messages internally — the content of the last resolved entry becomes the template variable 'reference_answer'.",
             "oneOf": [
               {
                 "type": "string",

@@ -961,3 +961,66 @@ The system SHALL support `max_duration_ms` assertions on tool calls within the `
 - **AND** latency is checked against each matching call
 - **AND** at least one latency failure is reported for the 150ms call
 
+### Requirement: Evaluator Template Variable Derivation
+
+The system SHALL derive template variables from resolved eval case data for use in `llm_judge` and `code_judge` evaluator prompts. These variables are internal — they are not authored by users.
+
+The data flows through three layers:
+
+1. **Authoring layer** — user writes `expected_output` (shorthand) or `expected_messages` (canonical) in YAML/JSONL. These are two syntaxes for the same data; `expected_output` expands into `expected_messages` via shorthand expansion. If both are present, `expected_messages` takes precedence.
+
+2. **Resolved layer** — the parser produces a `ResolvedEvalCase` with `expected_messages: TestMessage[]` and `input_messages: TestMessage[]`. At this layer, `expected_output` no longer exists as a separate field.
+
+3. **Template variable layer** — derived string values injected into evaluator prompts:
+   - `reference_answer`: extracted from the `content` of the last entry in `expected_messages`. Represents the gold-standard answer for grading.
+   - `candidate_answer`: extracted from the `content` of the last entry in `output_messages` (the provider's actual response). Represents the answer being graded.
+   - `question`: extracted from the `content` of the first `user` role entry in `input_messages`.
+   - `expected_outcome`: passed through from the eval case field of the same name.
+   - `expected_messages`: the full resolved message array, JSON-serialized.
+   - `input_messages`: the full resolved input message array, JSON-serialized.
+   - `output_messages`: the full provider output message array, JSON-serialized.
+
+#### Scenario: reference_answer derived from expected_messages
+- **GIVEN** an eval case with:
+  ```yaml
+  expected_output: "The answer is 4"
+  ```
+- **WHEN** the eval case is resolved
+- **THEN** `expected_messages` is `[{ role: "assistant", content: "The answer is 4" }]`
+- **AND** the template variable `reference_answer` is `"The answer is 4"`
+
+#### Scenario: reference_answer from multi-message expected
+- **GIVEN** an eval case with:
+  ```yaml
+  expected_messages:
+    - role: assistant
+      tool_calls:
+        - tool: webSearch
+          input: { query: "weather" }
+    - role: assistant
+      content: "The weather is sunny"
+  ```
+- **WHEN** the eval case is resolved
+- **THEN** the template variable `reference_answer` is `"The weather is sunny"` (last message content)
+
+#### Scenario: candidate_answer derived from output_messages
+- **GIVEN** a provider returns output messages:
+  ```json
+  [
+    { "role": "assistant", "tool_calls": [{ "tool": "search" }] },
+    { "role": "assistant", "content": "Here are the results" }
+  ]
+  ```
+- **WHEN** the candidate answer is extracted
+- **THEN** the template variable `candidate_answer` is `"Here are the results"` (last message content)
+
+#### Scenario: Template variables available in llm_judge prompts
+- **WHEN** an `llm_judge` evaluator builds its prompt
+- **THEN** the prompt template can reference `{{reference_answer}}`, `{{candidate_answer}}`, `{{question}}`, `{{expected_outcome}}`, `{{expected_messages}}`, `{{input_messages}}`, and `{{output_messages}}`
+- **AND** the default template uses `reference_answer` as a gold standard for grading (not an exact match target)
+
+#### Scenario: Template variables available in code_judge context
+- **WHEN** a `code_judge` evaluator is invoked
+- **THEN** the stdin JSON payload includes `reference_answer`, `candidate_answer`, `expected_outcome`, `expected_messages`, and `output_messages`
+- **AND** field names use snake_case in the wire format
+

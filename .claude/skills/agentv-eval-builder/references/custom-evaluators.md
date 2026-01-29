@@ -234,15 +234,55 @@ Evaluate and provide a score from 0 to 1.`;
 
 ---
 
+## Template Variable Derivation
+
+Template variables are **derived internally** — users never author them directly. They flow through three layers:
+
+1. **Authoring layer** (what users write in YAML/JSONL):
+   - `input` or `input_messages` — two syntaxes for the same data. `input: "What is 2+2?"` expands to `[{ role: "user", content: "What is 2+2?" }]`. If both are present, `input_messages` takes precedence.
+   - `expected_output` or `expected_messages` — two syntaxes for the same data. `expected_output: "4"` expands to `[{ role: "assistant", content: "4" }]`. Structured objects and message arrays are also supported. If both are present, `expected_messages` takes precedence.
+
+2. **Resolved layer** (after parsing):
+   - `input_messages: TestMessage[]` — canonical resolved input
+   - `expected_messages: TestMessage[]` — canonical resolved expected output
+   - At this layer, `input` and `expected_output` no longer exist as separate fields.
+
+3. **Template variable layer** (derived strings injected into evaluator prompts):
+   - `question` — content of the first `user` role entry in `input_messages`
+   - `expected_outcome` — passed through from the eval case field
+   - `reference_answer` — content of the **last** entry in `expected_messages` (the gold-standard answer for grading, not an exact-match target)
+   - `candidate_answer` — content of the **last** entry in `output_messages` (the provider's actual response being graded)
+   - `input_messages` — full resolved input array, JSON-serialized
+   - `expected_messages` — full resolved expected array, JSON-serialized
+   - `output_messages` — full provider output array, JSON-serialized
+
+**Example flow:**
+```yaml
+# User writes:
+input: "What is 2+2?"
+expected_output: "The answer is 4"
+```
+```
+# Resolved:
+input_messages:    [{ role: "user", content: "What is 2+2?" }]
+expected_messages: [{ role: "assistant", content: "The answer is 4" }]
+
+# Derived template variables:
+question:         "What is 2+2?"
+reference_answer: "The answer is 4"
+candidate_answer: (extracted from provider output at runtime)
+```
+
 ## Text Template Variables
 
 **Available variables for markdown templates:**
-- `{{question}}` - The original question/task
-- `{{expected_outcome}}` - What the answer should accomplish
-- `{{candidate_answer}}` - The actual output to evaluate
-- `{{reference_answer}}` - Gold standard answer (optional)
-- `{{input_messages}}` - JSON stringified input messages
-- `{{output_messages}}` - JSON stringified output messages
+- `{{question}}` - Derived from first user message in `input_messages`
+- `{{expected_outcome}}` - What the answer should accomplish (from eval case field)
+- `{{candidate_answer}}` - Derived from last entry in `output_messages` (provider response)
+- `{{reference_answer}}` - Derived from last entry in `expected_messages` (gold standard)
+- `{{input_messages}}` - Full resolved input messages, JSON-serialized
+- `{{expected_messages}}` - Full resolved expected messages, JSON-serialized
+- `{{output_messages}}` - Full provider output messages, JSON-serialized
 
 **Default Template:**
 
