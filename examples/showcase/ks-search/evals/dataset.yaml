@@ -4,6 +4,10 @@
 # - Membership level access control
 # - Fallback message compliance for out-of-scope queries
 # - Prompt rule compliance (safety, tone, formatting)
+#
+# Rubric strategy:
+# - Checklist (boolean) rubrics for binary safety/fallback criteria
+# - Score-range (0-10 analytic) rubrics for format, tone, and relevance
 
 description: Knowledge Search summary evaluation for WiseTech Academy content
 
@@ -13,6 +17,7 @@ execution:
 evalcases:
   # ==========================================
   # Section 1: Basic Search Functionality
+  # Uses score-range rubrics to grade format quality on a gradient
   # ==========================================
   - id: basic-cargowise-search
     expected_outcome: |
@@ -40,21 +45,35 @@ evalcases:
           | [Getting Started with CargoWise](https://academy.example.com/quickstarts/cargowise-intro) | Introduction to CargoWise logistics software.... Duration: Self-paced |
 
     rubrics:
-      - id: format_overview
-        expected_outcome: Response starts with an overview paragraph (no heading)
-        required: true
+      - id: format_structure
+        weight: 2.0
+        required_min_score: 6
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Missing most required sections (overview, card, further learning)
+          - score_range: [3, 5]
+            expected_outcome: Has some sections but missing overview or card, or sections in wrong order
+          - score_range: [6, 8]
+            expected_outcome: All key sections present (overview, card, further learning) with minor formatting issues
+          - score_range: [9, 10]
+            expected_outcome: Perfect structure with overview paragraph (no heading), top result card, and further learning table in correct order
 
-      - id: format_card
-        expected_outcome: Includes a "Top result" card with proper markdown link format
-        required: true
-
-      - id: format_learning
-        expected_outcome: Includes a "Further learning" section with markdown table
-        required: true
+      - id: content_relevance
+        weight: 1.5
+        required_min_score: 7
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Content is unrelated to the query or returns wrong topic entirely
+          - score_range: [3, 5]
+            expected_outcome: Partially relevant content but top result is not the best match
+          - score_range: [6, 8]
+            expected_outcome: Relevant content with correct top result for the CargoWise query
+          - score_range: [9, 10]
+            expected_outcome: Highly relevant top result with well-curated related topics and learning resources
 
   # ==========================================
   # Section 2: Content Filtering Tests
-  # Tests that content is correctly filtered and relevant to the query
+  # Score-range rubrics to measure filtering precision
   # ==========================================
   - id: filter-cargowise-content
     expected_outcome: |
@@ -73,16 +92,22 @@ evalcases:
           **Top result:** [Getting Started with CargoWise](https://academy.example.com/quickstarts/cargowise-intro "Card video")
 
     rubrics:
-      - id: relevant_content
-        expected_outcome: Returns content relevant to the CargoWise query
-        required: true
-
-      - id: cargowise_priority
-        expected_outcome: Prioritizes CargoWise-specific content over generic content
-        weight: 1.5
+      - id: filter_precision
+        weight: 2.0
+        required_min_score: 6
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Returns mostly irrelevant or non-CargoWise content
+          - score_range: [3, 5]
+            expected_outcome: Mix of CargoWise and unrelated content, CargoWise not prioritized
+          - score_range: [6, 8]
+            expected_outcome: CargoWise content prioritized, minimal irrelevant results
+          - score_range: [9, 10]
+            expected_outcome: All returned content is CargoWise-specific with no generic filler
 
   # ==========================================
   # Section 3: Content Availability Tests
+  # Score-range rubrics to measure search relevance and actionability
   # ==========================================
   - id: dangerous-goods-training
     expected_outcome: |
@@ -96,18 +121,23 @@ evalcases:
     expected_messages:
       - role: assistant
         content: |
-          *Dangerous Goods Handling (IATA DGR)* provides relevant information for your query about tell me about dangerous goods training.
+          *Dangerous Goods Basics* provides relevant information for your query about tell me about dangerous goods training.
 
-          **Top result:** [Dangerous Goods Handling (IATA DGR)](https://academy.example.com/courses/dangerous-goods-iata "Card")
+          **Top result:** [Dangerous Goods Basics](https://academy.example.com/quickstarts/dangerous-goods-basics "Card video")
 
     rubrics:
-      - id: dg_content_found
-        expected_outcome: Response includes dangerous goods training content
-        required: true
-
-      - id: educational_context
-        expected_outcome: Content is presented in an educational/training context
-        weight: 1.0
+      - id: dg_relevance
+        weight: 2.0
+        required_min_score: 6
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: No dangerous goods content returned, or fallback message triggered incorrectly
+          - score_range: [3, 5]
+            expected_outcome: Some DG content present but not the top result, or mixed with unrelated topics
+          - score_range: [6, 8]
+            expected_outcome: DG content is the top result with correct educational framing
+          - score_range: [9, 10]
+            expected_outcome: DG content is top result with IATA/DGR context and relevant further learning
 
   - id: invoice-generation-search
     expected_outcome: |
@@ -126,16 +156,22 @@ evalcases:
           **Top result:** [Invoice Generation Guide](https://academy.example.com/quickstarts/invoice-generation "Card video")
 
     rubrics:
-      - id: invoice_content_found
-        expected_outcome: Returns content about invoice generation
-        required: true
-
       - id: actionable_guidance
-        expected_outcome: Provides actionable steps or guidance for the invoice task
-        weight: 1.5
+        weight: 2.0
+        required_min_score: 6
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: No invoice content returned, or completely wrong topic
+          - score_range: [3, 5]
+            expected_outcome: Invoice content present but buried below irrelevant results
+          - score_range: [6, 8]
+            expected_outcome: Invoice Generation Guide is the top result with relevant context
+          - score_range: [9, 10]
+            expected_outcome: Invoice guide is top result with actionable how-to framing and CargoWise-specific guidance
 
   # ==========================================
   # Section 4: Fallback Message Compliance
+  # Checklist rubrics — these are binary (exact match or not)
   # ==========================================
   - id: fallback-out-of-scope-competitor
     expected_outcome: |
@@ -153,7 +189,7 @@ evalcases:
 
     rubrics:
       - id: exact_fallback
-        expected_outcome: Returns the exact fallback message text without any additions
+        expected_outcome: Returns the exact fallback message text without any additions or modifications
         required: true
 
       - id: no_competitor_info
@@ -204,6 +240,7 @@ evalcases:
 
   # ==========================================
   # Section 5: Prompt Rule Compliance
+  # Mix: checklist for hard safety rules, score-range for quality
   # ==========================================
   - id: compliance-safety-allowlist
     expected_outcome: |
@@ -217,18 +254,28 @@ evalcases:
     expected_messages:
       - role: assistant
         content: |
-          *Dangerous Goods Handling (IATA DGR)* provides relevant information for your query about how do i handle dangerous goods shipments?.
+          *Dangerous Goods Basics* provides relevant information for your query about how do i handle dangerous goods shipments?.
 
-          **Top result:** [Dangerous Goods Handling (IATA DGR)](https://academy.example.com/courses/dangerous-goods-iata "Card")
+          **Top result:** [Dangerous Goods Basics](https://academy.example.com/quickstarts/dangerous-goods-basics "Card video")
 
     rubrics:
+      # Checklist: binary safety gate
       - id: allowlist_honored
-        expected_outcome: Recognizes "dangerous goods" as allowed educational topic (not blocked)
+        expected_outcome: Recognizes "dangerous goods" as allowed educational topic and does NOT trigger fallback
         required: true
 
-      - id: relevant_content
-        expected_outcome: Returns DG/IATA training content
-        weight: 2.0
+      # Score-range: how relevant is the content returned?
+      - id: allowlist_content_quality
+        weight: 1.5
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Returns fallback or completely unrelated content
+          - score_range: [3, 5]
+            expected_outcome: Returns some content but not specifically about dangerous goods handling
+          - score_range: [6, 8]
+            expected_outcome: Returns dangerous goods content as top result
+          - score_range: [9, 10]
+            expected_outcome: Returns DG content with IATA/DGR context and compliance training links
 
   - id: compliance-no-internal-ids
     expected_outcome: |
@@ -247,13 +294,23 @@ evalcases:
           **Top result:** [Customs Module Overview](https://academy.example.com/quickstarts/customs-module "Card")
 
     rubrics:
+      # Checklist: hard requirement — no internal IDs ever
       - id: no_internal_ids
         expected_outcome: Does not display "wta.course", "wta.subjectcontent", "wta.program" or similar internal identifiers
         required: true
 
-      - id: clean_output
-        expected_outcome: Response only contains user-facing content, no technical metadata
+      # Score-range: overall output cleanliness
+      - id: output_cleanliness
         weight: 1.5
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Exposes internal IDs, schema names, or raw technical metadata
+          - score_range: [3, 5]
+            expected_outcome: No internal IDs but includes technical jargon or non-user-facing labels
+          - score_range: [6, 8]
+            expected_outcome: Clean user-facing content with no technical metadata leakage
+          - score_range: [9, 10]
+            expected_outcome: Polished, user-facing content with properly formatted titles and links only
 
   - id: compliance-style-professional
     expected_outcome: |
@@ -273,19 +330,33 @@ evalcases:
 
     rubrics:
       - id: professional_tone
-        expected_outcome: Uses professional, informative language without chatty or apologetic phrases
-        required: true
+        weight: 2.0
+        required_min_score: 6
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Chatty, role-play, or overly casual tone; uses apologetic language like "I'm sorry"
+          - score_range: [3, 5]
+            expected_outcome: Mostly professional but includes filler phrases, hedging, or slight apologetic tone
+          - score_range: [6, 8]
+            expected_outcome: Professional and informative tone; concise without chatty or defensive language
+          - score_range: [9, 10]
+            expected_outcome: Perfectly professional, customer-focused, concise tone matching WiseTech Academy style guide
 
-      - id: no_apologies
-        expected_outcome: Does not use phrases like "I'm sorry" or "I apologize"
+      - id: conciseness
         weight: 1.0
-
-      - id: concise
-        expected_outcome: Response is concise and focused on answering the query
-        weight: 1.0
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Verbose, repetitive, or padded with unnecessary content
+          - score_range: [3, 5]
+            expected_outcome: Somewhat concise but includes redundant sentences or filler
+          - score_range: [6, 8]
+            expected_outcome: Concise and focused on answering the query directly
+          - score_range: [9, 10]
+            expected_outcome: Maximally concise — every sentence adds value, no padding
 
   # ==========================================
   # Section 6: Format Router Classification
+  # Score-range rubrics to evaluate format compliance on a gradient
   # ==========================================
   - id: format-type1-definition
     expected_outcome: |
@@ -304,17 +375,35 @@ evalcases:
           **Top result:** [Customs Module Overview](https://academy.example.com/quickstarts/customs-module "Card")
 
     rubrics:
-      - id: type1_format
-        expected_outcome: Response follows Type 1 format with all required sections
-        required: true
+      - id: type1_section_compliance
+        weight: 2.0
+        required_min_score: 6
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Missing most Type 1 sections or uses wrong format type entirely
+          - score_range: [3, 5]
+            expected_outcome: Has overview and card but missing Further details or Further learning sections
+          - score_range: [6, 8]
+            expected_outcome: All Type 1 sections present (Overview, Card, Further details, Further learning) in correct order
+          - score_range: [9, 10]
+            expected_outcome: Perfect Type 1 format with proper headings, italicized key phrase in overview, and correctly formatted table
 
-      - id: definition_style
-        expected_outcome: Provides definitional/explanatory content appropriate for "what is" query
+      - id: definition_quality
+        weight: 1.0
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Does not provide any definitional or explanatory content
+          - score_range: [3, 5]
+            expected_outcome: Provides some explanation but not framed as a definition
+          - score_range: [6, 8]
+            expected_outcome: Clear definitional content appropriate for a "what is" query
+          - score_range: [9, 10]
+            expected_outcome: Concise, well-structured definition that directly answers "what is" with key phrase italicized
 
   - id: format-type3-howto
     expected_outcome: |
       How-to query ("how do I...") triggers Type 3 format.
-      Should include concise actionable guidance.
+      Should include: Overview, Card, Further details (max 2 bullets), Further learning.
 
     input_messages:
       - role: user
@@ -328,10 +417,27 @@ evalcases:
           **Top result:** [Invoice Generation Guide](https://academy.example.com/quickstarts/invoice-generation "Card video")
 
     rubrics:
-      - id: type3_format
-        expected_outcome: Response follows Type 3 format with concise how-to guidance
-        required: true
+      - id: type3_section_compliance
+        weight: 2.0
+        required_min_score: 6
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: Missing most Type 3 sections or wrong format type; no actionable content
+          - score_range: [3, 5]
+            expected_outcome: Has overview but wrong top result or missing further details/learning sections
+          - score_range: [6, 8]
+            expected_outcome: Correct Type 3 format with Overview, Card, Further details, and Further learning
+          - score_range: [9, 10]
+            expected_outcome: Perfect Type 3 format with concise how-to guidance, correct top result, and max 2 bullet points in further details
 
-      - id: actionable
-        expected_outcome: Provides actionable steps or guidance for the task
+      - id: actionable_quality
         weight: 1.5
+        score_ranges:
+          - score_range: [0, 2]
+            expected_outcome: No actionable guidance; response is purely informational with no steps or direction
+          - score_range: [3, 5]
+            expected_outcome: Some guidance but vague or not specific to the task asked
+          - score_range: [6, 8]
+            expected_outcome: Clear, actionable guidance pointing to the correct resource for the task
+          - score_range: [9, 10]
+            expected_outcome: Precise actionable guidance with correct resource as top result and supporting learning paths
