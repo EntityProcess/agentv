@@ -38,7 +38,7 @@ import { createProvider, runEvaluation } from '@agentv/core';
 - **Azure OpenAI**: Enterprise-grade deployment support
 - **Anthropic Claude**: Latest Claude models including Sonnet 4.5
 - **Google Gemini**: Gemini 2.0 Flash and other models
-- **VS Code Copilot**: Programmatic integration via subagent
+- **VS Code Copilot**: Programmatic integration via @agentv/vscode
 - **Mock Provider**: Testing without API calls
 
 ### Evaluation Framework

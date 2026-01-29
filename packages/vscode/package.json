@@ -1,0 +1,24 @@
+{
+  "name": "@agentv/vscode",
+  "version": "2.5.2",
+  "private": true,
+  "description": "VS Code subagent dispatch for AgentV",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "json5": "^2.2.3"
+  }
+}
