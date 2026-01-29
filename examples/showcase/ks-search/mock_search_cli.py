@@ -179,10 +179,28 @@ def filter_by_params(results: list[dict], filters: list[str]) -> list[dict]:
     return filtered
 
 
+STOP_WORDS = {"a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
+               "have", "has", "had", "do", "does", "did", "will", "would", "could",
+               "should", "may", "might", "must", "shall", "can", "need", "dare",
+               "ought", "used", "to", "of", "in", "for", "on", "with", "at", "by",
+               "from", "as", "into", "through", "during", "before", "after",
+               "above", "below", "between", "under", "again", "further", "then",
+               "once", "here", "there", "when", "where", "why", "how", "all",
+               "each", "few", "more", "most", "other", "some", "such", "no", "nor",
+               "not", "only", "own", "same", "so", "than", "too", "very", "just",
+               "also", "now", "i", "me", "my", "we", "our", "you", "your", "he",
+               "him", "his", "she", "her", "it", "its", "they", "them", "their",
+               "what", "which", "who", "whom", "this", "that", "these", "those",
+               "am", "about", "tell"}
+
+
 def search_content(prompt: str, limit: int, datasource: str) -> list[dict]:
     """Simple keyword search in mock database."""
+    import re
     prompt_lower = prompt.lower()
-    keywords = prompt_lower.split()
+    # Extract words, strip punctuation, filter stop words and short words
+    raw_keywords = re.findall(r'\b\w+\b', prompt_lower)
+    keywords = [kw for kw in raw_keywords if kw not in STOP_WORDS and len(kw) > 2]
 
     # Filter by datasource type
     type_map = {
