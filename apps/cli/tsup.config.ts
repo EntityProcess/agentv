@@ -14,7 +14,7 @@ export default defineConfig({
   platform: 'node',
   tsconfig: './tsconfig.build.json',
   // Bundle @agentv/core but keep micromatch and pi-agent packages external (they have dynamic requires)
-  noExternal: [/^@agentv\//],
+  noExternal: [/^@agentv\//, 'cmd-ts'],
   external: ['micromatch', '@mariozechner/pi-agent', '@mariozechner/pi-ai'],
   // Copy template files after build
   onSuccess: async () => {
