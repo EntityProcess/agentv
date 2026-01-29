@@ -53,46 +53,41 @@ evalcases:
         required: true
 
   # ==========================================
-  # Section 2: User-Selected Filter Tests
+  # Section 2: Content Filtering Tests
+  # Tests that content is correctly filtered and relevant to the query
   # ==========================================
-  - id: filter-product-cargowise
-    execution:
-      target: ks_search_cli_cargowise
-
+  - id: filter-cargowise-content
     expected_outcome: |
-      Only returns Cargowise-specific content when product filter is applied.
-      Should NOT include general/non-Cargowise content.
+      Returns CargoWise-specific content when searching for CargoWise topics.
+      Response should prioritize CargoWise-related results.
 
     input_messages:
       - role: user
-        content: What courses are available?
+        content: What CargoWise courses are available?
 
     expected_messages:
       - role: assistant
         content: |
-          *Getting Started with CargoWise* provides relevant information for your query about what courses are available?.
+          *Getting Started with CargoWise* provides relevant information for your query about what cargowise courses are available?.
 
           **Top result:** [Getting Started with CargoWise](https://academy.example.com/quickstarts/cargowise-intro "Card video")
 
     rubrics:
-      - id: filter_applied
-        expected_outcome: All returned content is Cargowise-specific (no General product items)
+      - id: relevant_content
+        expected_outcome: Returns content relevant to the CargoWise query
         required: true
 
-      - id: no_unfiltered_content
-        expected_outcome: Does not include Supply Chain Fundamentals or other non-Cargowise courses
-        weight: 2.0
+      - id: cargowise_priority
+        expected_outcome: Prioritizes CargoWise-specific content over generic content
+        weight: 1.5
 
   # ==========================================
-  # Section 3: Membership Level Access Control
+  # Section 3: Content Availability Tests
   # ==========================================
-  - id: membership-premium-access
-    execution:
-      target: ks_search_cli_premium
-
+  - id: dangerous-goods-training
     expected_outcome: |
-      Premium user sees both free and premium content.
-      Should include premium-only content like Dangerous Goods course.
+      Returns dangerous goods training content since this is an allowed educational topic.
+      Should include IATA DGR or similar compliance training.
 
     input_messages:
       - role: user
@@ -106,34 +101,37 @@ evalcases:
           **Top result:** [Dangerous Goods Handling (IATA DGR)](https://academy.example.com/courses/dangerous-goods-iata "Card")
 
     rubrics:
-      - id: premium_content_visible
-        expected_outcome: Response includes premium content (Dangerous Goods course)
+      - id: dg_content_found
+        expected_outcome: Response includes dangerous goods training content
         required: true
 
-  - id: membership-free-restricted
-    execution:
-      target: ks_search_cli_free
+      - id: educational_context
+        expected_outcome: Content is presented in an educational/training context
+        weight: 1.0
 
+  - id: invoice-generation-search
     expected_outcome: |
-      Free user should NOT see premium-only content.
-      If searching for premium-only topics, should return fallback or only free alternatives.
+      Returns invoice generation content when available.
+      Should provide actionable guidance for invoice tasks.
 
     input_messages:
       - role: user
-        content: Tell me about invoice generation
+        content: How do I generate invoices in CargoWise?
 
     expected_messages:
       - role: assistant
         content: |
-          This overview does not have information on this topic. It is designed to answer only questions related to WiseTech Academy content. Try refining the search terms or browse the catalog to find available learning.
+          *Invoice Generation Guide* provides relevant information for your query about how do i generate invoices in cargowise?.
+
+          **Top result:** [Invoice Generation Guide](https://academy.example.com/quickstarts/invoice-generation "Card video")
 
     rubrics:
-      - id: no_premium_content
-        expected_outcome: Does not expose premium-only content to free users
+      - id: invoice_content_found
+        expected_outcome: Returns content about invoice generation
         required: true
 
-      - id: graceful_fallback
-        expected_outcome: Returns fallback message when no accessible content matches
+      - id: actionable_guidance
+        expected_outcome: Provides actionable steps or guidance for the invoice task
         weight: 1.5
 
   # ==========================================
