@@ -1,0 +1,42 @@
+targets:
+  - name: azure_base
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    version: ${{ AZURE_OPENAI_API_VERSION }}
+
+  - name: ks_search_cli
+    provider: cli
+    judge_target: azure_base
+    command_template: uv run ./mock_search_cli.py --prompt {PROMPT} --limit 10 --datasource wta.subjectcontent --output-file {OUTPUT_FILE}
+    cwd: ..
+    timeout_seconds: 30
+    healthcheck:
+      type: command
+      command_template: uv run ./mock_search_cli.py --healthcheck
+      cwd: ..
+
+  # CLI target with product filter (Cargowise)
+  - name: ks_search_cli_cargowise
+    provider: cli
+    judge_target: azure_base
+    command_template: uv run ./mock_search_cli.py --prompt {PROMPT} --limit 10 --datasource wta.subjectcontent --filter product=Cargowise --output-file {OUTPUT_FILE}
+    cwd: ..
+    timeout_seconds: 30
+
+  # CLI target with premium membership level
+  - name: ks_search_cli_premium
+    provider: cli
+    judge_target: azure_base
+    command_template: uv run ./mock_search_cli.py --prompt {PROMPT} --limit 10 --datasource wta.subjectcontent --membership-level premium --output-file {OUTPUT_FILE}
+    cwd: ..
+    timeout_seconds: 30
+
+  # CLI target with free membership (restricted access)
+  - name: ks_search_cli_free
+    provider: cli
+    judge_target: azure_base
+    command_template: uv run ./mock_search_cli.py --prompt {PROMPT} --limit 10 --datasource wta.subjectcontent --membership-level free --output-file {OUTPUT_FILE}
+    cwd: ..
+    timeout_seconds: 30
