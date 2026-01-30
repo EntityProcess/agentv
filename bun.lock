@@ -23,7 +23,7 @@
     },
     "apps/cli": {
       "name": "agentv",
-      "version": "2.5.2",
+      "version": "2.5.4",
       "bin": {
         "agentv": "./dist/cli.js",
       },
@@ -34,6 +34,7 @@
         "cmd-ts": "^0.14.3",
         "dotenv": "^16.4.5",
         "fast-glob": "^3.3.3",
+        "json5": "^2.2.3",
         "micromatch": "^4.0.8",
         "yaml": "^2.6.1",
       },
@@ -43,7 +44,7 @@
     },
     "packages/core": {
       "name": "@agentv/core",
-      "version": "2.5.2",
+      "version": "2.5.4",
       "dependencies": {
         "@ai-sdk/anthropic": "^2.0.53",
         "@ai-sdk/azure": "^2.0.78",
@@ -63,7 +64,7 @@
     },
     "packages/eval": {
       "name": "@agentv/eval",
-      "version": "2.5.2",
+      "version": "2.5.4",
       "dependencies": {
         "zod": "^3.23.8",
       },

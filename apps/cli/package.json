@@ -14,10 +14,7 @@
   "bin": {
     "agentv": "./dist/cli.js"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "build": "tsup && bun run copy-readme",
@@ -37,6 +34,7 @@
     "cmd-ts": "^0.14.3",
     "dotenv": "^16.4.5",
     "fast-glob": "^3.3.3",
+    "json5": "^2.2.3",
     "micromatch": "^4.0.8",
     "yaml": "^2.6.1"
   },
