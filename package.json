@@ -21,8 +21,6 @@
     "agentv:buildrun": "bun run build && bun apps/cli/dist/cli.js",
     "eval:baseline-check": "bun scripts/check-eval-baselines.ts",
     "release": "bun scripts/release.ts",
-    "subagent:link": "bun scripts/link-subagent.ts",
-    "subagent:unlink": "bun scripts/unlink-subagent.ts",
     "examples:install": "bun scripts/install-examples.ts",
     "publish": "bun run build && (cd packages/core && bun publish ; cd ../..) ; (cd packages/eval && bun publish ; cd ../..) ; (cd apps/cli && bun publish ; cd ../..)",
     "prepare": "test -d .git && bunx prek install -t pre-push || true"
@@ -41,7 +39,6 @@
   },
   "dependencies": {
     "@mariozechner/pi-agent": "^0.9.0",
-    "@mariozechner/pi-ai": "^0.37.2",
-    "subagent": "^0.5.6"
+    "@mariozechner/pi-ai": "^0.37.2"
   }
 }
