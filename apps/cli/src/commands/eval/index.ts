@@ -93,6 +93,12 @@ export const evalCommand = command({
       description: 'Retry count for timeout recoveries (default: 2)',
       defaultValue: () => 2,
     }),
+    workspaceRoot: option({
+      type: optional(string),
+      long: 'workspace-root',
+      description:
+        'Default workspace root for agentic providers (applied as target cwd/workspaceTemplate when not set in targets.yaml)',
+    }),
     cache: flag({
       long: 'cache',
       description: 'Enable in-memory provider response cache',
@@ -117,6 +123,7 @@ export const evalCommand = command({
       dryRunDelayMax: args.dryRunDelayMax,
       agentTimeout: args.agentTimeout,
       maxRetries: args.maxRetries,
+      workspaceRoot: args.workspaceRoot,
       cache: args.cache,
       verbose: args.verbose,
     };

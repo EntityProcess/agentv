@@ -1,0 +1,27 @@
+# Tasks: Add agent workspace sync for agentic targets
+
+- [ ] Define `.agentv/workspace.yaml` schema (versioned) supporting:
+  - [ ] `workspace_root`, `mode: copy|symlink`
+  - [ ] multiple `sources` with `type: local|git`, `include` paths, and `dest` mapping
+- [ ] Implement `agentv workspace create` command
+  - [ ] Accept `--out <dir>` and optional `--config <path>`, `--force`
+  - [ ] Create workspace root directory and write default config YAML
+  - [ ] Print workspace root + config path
+- [ ] Implement `agentv workspace sync` command
+  - [ ] Accept `--config <path>` and optional `--mode copy|symlink`
+  - [ ] For `local` sources: copy/symlink configured folders into destination
+  - [ ] For `git` sources: clone/update using `git` and sparse checkout of configured folders
+- [ ] Add `agentv eval --workspace-root <dir>` flag
+  - [ ] When set, inject workspace root as default for agentic targets where not explicitly configured:
+    - [ ] `codex`: `config.cwd`
+    - [ ] `claude-code`: `config.cwd`
+    - [ ] `pi-coding-agent`: `config.cwd`
+    - [ ] `cli`: `config.cwd`
+    - [ ] `vscode`/`vscode-insiders`: `config.workspaceTemplate` (set root folder to workspace dir)
+  - [ ] Preserve explicit per-target settings as highest precedence
+- [ ] Add docs
+  - [ ] Update `README.md` with a short “Workspace sync” section and example commands
+- [ ] Add tests
+  - [ ] Unit test for workspace sync planner (sources → destination mapping)
+  - [ ] Unit test for `--workspace-root` injection logic
+- [ ] Run verification: `bun run build`, `bun run typecheck`, `bun run lint`, `bun test`
