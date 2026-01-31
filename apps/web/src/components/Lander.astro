@@ -1008,8 +1008,10 @@ td code {
 
 /* ============================================
    Reveal animation (scroll-triggered)
+   Progressive enhancement: visible by default,
+   hidden only when JS activates the observer.
    ============================================ */
-.av-reveal {
+.av-reveal.av-observe {
   opacity: 0;
   transform: translateY(16px);
   transition: opacity 0.5s ease, transform 0.5s ease;
@@ -1080,18 +1082,51 @@ td code {
 
 <style is:global>
 :root[data-has-hero] {
+  --sl-color-bg: hsl(240, 10%, 8%);
+
   header.header {
+    display: none;
+  }
+  nav.sidebar {
     display: none;
   }
   .main-frame {
     padding-top: 0;
+    background: hsl(240, 10%, 8%);
+
+    .main-pane {
+      --sl-content-width: 100%;
+      max-width: 100%;
+    }
 
     .main-pane > main {
       padding: 0;
     }
   }
+  .right-sidebar-container {
+    display: none;
+  }
   main > .content-panel .sl-markdown-content {
     margin-top: 0;
+  }
+  .content-panel {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .sl-markdown-content {
+    max-width: 100% !important;
+  }
+  .meta.sl-flex {
+    display: none;
+  }
+  .right-sidebar {
+    display: none;
+  }
+  footer.starlight-aside,
+  .pagination-links,
+  starlight-edit-link,
+  .sl-flex.pad-bottom {
+    display: none;
   }
 }
 </style>
@@ -1118,7 +1153,7 @@ td code {
 
   // Scroll-triggered reveal with IntersectionObserver
   const reveals = document.querySelectorAll(".av-reveal");
-  if (reveals.length > 0) {
+  if (reveals.length > 0 && "IntersectionObserver" in window) {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -1130,6 +1165,9 @@ td code {
       },
       { threshold: 0.15, rootMargin: "0px 0px -40px 0px" }
     );
-    reveals.forEach((el) => observer.observe(el));
+    reveals.forEach((el) => {
+      el.classList.add("av-observe");
+      observer.observe(el);
+    });
   }
 </script>
