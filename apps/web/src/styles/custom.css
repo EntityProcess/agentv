@@ -1,27 +1,78 @@
-/* Color overrides */
+/* ============================================
+   AgentV Design Tokens & Starlight Overrides
+   ============================================ */
+
+/* Design tokens */
 :root {
-  --sl-color-bg: hsl(0, 0%, 98%);
-  --sl-color-gray-5: hsl(0, 0%, 85%);
-  --sl-border-color: hsl(0, 0%, 85%);
+  --av-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  --av-indigo: #6366f1;
+  --av-indigo-dark: #4f46e5;
+  --av-violet: #7c3aed;
+  --av-gradient: linear-gradient(135deg, #4f46e5, #7c3aed);
+  --av-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+  --av-glow-strong: 0 0 40px rgba(99, 102, 241, 0.25);
+  --av-surface: rgba(255, 255, 255, 0.03);
+  --av-surface-border: rgba(0, 0, 0, 0.08);
+  --av-radius: 4px;
 }
 
+/* Light mode */
+:root {
+  --sl-color-accent-low: hsl(245, 60%, 94%);
+  --sl-color-accent: hsl(245, 82%, 60%);
+  --sl-color-accent-high: hsl(245, 60%, 30%);
+  --sl-color-bg: hsl(240, 5%, 97%);
+  --sl-color-gray-5: hsl(240, 5%, 85%);
+  --sl-border-color: hsl(240, 5%, 85%);
+}
+
+/* Dark mode */
 :root[data-theme="dark"] {
-  --sl-color-bg: hsl(0, 0%, 7%);
-  --sl-color-gray-5: hsl(0, 0%, 20%);
-  --sl-border-color: hsl(0, 0%, 20%);
+  --sl-color-accent-low: hsl(245, 40%, 16%);
+  --sl-color-accent: hsl(245, 82%, 67%);
+  --sl-color-accent-high: hsl(245, 60%, 88%);
+  --sl-color-bg: hsl(240, 10%, 8%);
+  --sl-color-gray-5: hsl(240, 5%, 18%);
+  --sl-border-color: hsl(240, 5%, 18%);
+  --av-surface: rgba(255, 255, 255, 0.03);
+  --av-surface-border: rgba(255, 255, 255, 0.06);
 }
 
-/* Sidebar styling */
+/* ============================================
+   Typography - Monospace headings
+   ============================================ */
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4,
+.sl-markdown-content h5,
+.sl-markdown-content h6 {
+  font-family: var(--av-font-mono);
+  letter-spacing: -0.02em;
+}
+
+/* ============================================
+   Sidebar styling
+   ============================================ */
+
 .sidebar-content {
   padding: 1.5rem 0 !important;
 }
 
 a[aria-current="page"] {
-  border-left: 2px solid var(--sl-color-text-accent);
+  border-left: 2px solid var(--av-indigo);
   font-weight: 600 !important;
 }
 
-/* Content area */
+:root[data-theme="dark"] nav.sidebar a:hover {
+  background: var(--av-surface);
+}
+
+/* ============================================
+   Content area
+   ============================================ */
+
 .content-panel {
   padding: 2rem 3rem !important;
 }
@@ -32,7 +83,40 @@ a[aria-current="page"] {
   }
 }
 
-/* Code blocks */
+/* ============================================
+   Code blocks - accent top border
+   ============================================ */
+
 .expressive-code {
   margin: 0.75rem 0 1.5rem 0 !important;
+}
+
+:root[data-theme="dark"] .expressive-code .frame {
+  border-top: 2px solid var(--av-indigo);
+}
+
+/* ============================================
+   Custom scrollbar (dark mode)
+   ============================================ */
+
+:root[data-theme="dark"] {
+  scrollbar-color: hsl(240, 5%, 22%) transparent;
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: hsl(240, 5%, 22%);
+  border-radius: 4px;
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: hsl(240, 5%, 30%);
 }
