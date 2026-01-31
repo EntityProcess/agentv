@@ -4,7 +4,7 @@
 
 /* Design tokens */
 :root {
-  --av-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  --av-font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "Fira Code", monospace;
   --av-indigo: #6366f1;
   --av-indigo-dark: #4f46e5;
   --av-violet: #7c3aed;
