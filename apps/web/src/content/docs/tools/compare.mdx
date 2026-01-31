@@ -32,9 +32,9 @@ agentv compare before.jsonl after.jsonl
 2. **Match by eval_id** -- pairs results with matching `eval_id` fields
 3. **Compute Deltas** -- calculates `delta = score2 - score1` for each pair
 4. **Classify Outcomes**:
-   - **win**: delta >= threshold (candidate better)
-   - **loss**: delta <= -threshold (baseline better)
-   - **tie**: |delta| < threshold (no significant difference)
+   - **win**: delta &gt;= threshold (candidate better)
+   - **loss**: delta &lt;= -threshold (baseline better)
+   - **tie**: |delta| &lt; threshold (no significant difference)
 5. **Output Summary** -- human-readable table or JSON
 
 ## Output Formats
