@@ -1,13 +1,18 @@
-# Structured Data + Metrics Evaluators
+---
+title: Structured Data & Metrics Evaluators
+description: Built-in evaluators for JSON field comparison and performance gates (latency, cost, token usage).
+sidebar:
+  order: 6
+---
 
-This reference covers the built-in evaluators used for grading structured outputs and gating on execution metrics:
+Built-in evaluators for grading structured outputs and gating on execution metrics:
 
-- `field_accuracy`
-- `latency`
-- `cost`
-- `token_usage`
+- `field_accuracy` -- compare JSON fields against ground truth
+- `latency` -- gate on response time
+- `cost` -- gate on monetary cost
+- `token_usage` -- gate on token consumption
 
-## Ground Truth (`expected_messages`)
+## Ground Truth
 
 Put the expected structured output in the evalcase `expected_messages` (typically as the last `assistant` message with `content` as an object). Evaluators read expected values from there.
 
@@ -21,7 +26,7 @@ evalcases:
           net_total: 1889
 ```
 
-## `field_accuracy`
+## Field Accuracy
 
 Use `field_accuracy` to compare fields in the candidate JSON against the ground-truth object in `expected_messages`.
 
@@ -44,22 +49,26 @@ execution:
           tolerance: 1.0
 ```
 
-### Match types
+### Match Types
 
-- `exact`: strict equality
-- `date`: compares dates after parsing; optionally provide `formats`
-- `numeric_tolerance`: numeric compare within `tolerance` (set `relative: true` for relative tolerance)
+| Match Type | Description | Options |
+|-----------|-------------|---------|
+| `exact` | Strict equality | -- |
+| `date` | Compares dates after parsing | `formats` -- list of accepted date formats |
+| `numeric_tolerance` | Numeric compare within tolerance | `tolerance` -- absolute threshold; `relative: true` for relative tolerance |
 
-For fuzzy string matching, use a `code_judge` evaluator (e.g. Levenshtein) instead of adding a fuzzy mode to `field_accuracy`.
+For fuzzy string matching, use a `code_judge` evaluator (e.g. Levenshtein distance) instead of adding a fuzzy mode to `field_accuracy`.
 
 ### Aggregation
 
-- `weighted_average` (default): weighted mean of field scores
-- `all_or_nothing`: score 1.0 only if all graded fields pass
+| Strategy | Description |
+|----------|-------------|
+| `weighted_average` (default) | Weighted mean of field scores |
+| `all_or_nothing` | Score 1.0 only if all graded fields pass |
 
-## `latency` and `cost`
+## Latency
 
-These evaluators gate on execution metrics reported by the provider (via `traceSummary`).
+Gate on execution time (in milliseconds) reported by the provider via `traceSummary`.
 
 ```yaml
 execution:
@@ -67,14 +76,23 @@ execution:
     - name: performance
       type: latency
       threshold: 2000
+```
+
+## Cost
+
+Gate on monetary cost reported by the provider via `traceSummary`.
+
+```yaml
+execution:
+  evaluators:
     - name: budget
       type: cost
       budget: 0.10
 ```
 
-## `token_usage`
+## Token Usage
 
-Gate on provider-reported token usage (useful when cost is unavailable or model pricing differs).
+Gate on provider-reported token usage. Useful when cost is unavailable or model pricing differs.
 
 ```yaml
 execution:
@@ -87,9 +105,9 @@ execution:
       # max_output: 2000
 ```
 
-## Common pattern: combine correctness + gates
+## Combining with Composite Evaluators
 
-Use a `composite` evaluator if you want a single “release gate” score/verdict from multiple checks:
+Use a `composite` evaluator to produce a single "release gate" score from multiple checks:
 
 ```yaml
 execution:

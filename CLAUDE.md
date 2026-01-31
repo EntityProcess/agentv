@@ -92,16 +92,13 @@ bunx prek run --all-files --hook-stage pre-push
 
 ## Documentation Updates
 
-When making changes to functionality (new features, modified behavior, new evaluator types, etc.), **always update the AgentV skill files and references** under `.claude/skills/` (in the repository root):
+When making changes to functionality:
 
-- **Source of truth**: `.claude/skills/agentv*`
-  - `.claude/skills/agentv-eval-builder/SKILL.md` - Main skill instructions for AI agents
-  - `.claude/skills/agentv-eval-builder/references/*.md` - Detailed reference documentation
-  - `.claude/skills/agentv-prompt-optimizer/SKILL.md` - Prompt optimizer skill
+1. **Docs site** (`apps/web/src/content/docs/`): Update human-readable documentation on agentv.dev. This is the comprehensive reference.
 
-These files are the authoritative guide for AI agents helping users build evaluations.
+2. **Skill files** (`.claude/skills/agentv-eval-builder/`): Update the AI-focused reference card if the change affects YAML schema, evaluator types, or CLI commands. Keep concise — link to docs site for details.
 
-**Do NOT duplicate content in README.md** - keep the README minimal and reference the skill files instead.
+3. **README.md**: Keep minimal. Links point to agentv.dev.
 
 ## Functional Testing
 

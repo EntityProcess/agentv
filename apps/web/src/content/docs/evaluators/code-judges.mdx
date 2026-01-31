@@ -101,6 +101,113 @@ execution:
       script: ./validators/check_answer.py
 ```
 
+## @agentv/eval SDK
+
+The `@agentv/eval` package provides a declarative API with automatic stdin/stdout handling. Use `defineCodeJudge` to skip boilerplate:
+
+```typescript
+#!/usr/bin/env bun
+import { defineCodeJudge } from '@agentv/eval';
+
+export default defineCodeJudge(({ candidateAnswer, expectedOutcome }) => {
+  const hits: string[] = [];
+  const misses: string[] = [];
+
+  if (candidateAnswer.includes(expectedOutcome)) {
+    hits.push('Answer matches expected outcome');
+  } else {
+    misses.push('Answer does not match expected outcome');
+  }
+
+  const total = hits.length + misses.length;
+  return {
+    score: total === 0 ? 0 : hits.length / total,
+    hits,
+    misses,
+    reasoning: `Passed ${hits.length}/${total} checks`,
+  };
+});
+```
+
+**SDK exports:** `defineCodeJudge`, `Message`, `ToolCall`, `TraceSummary`, `CodeJudgeInput`, `CodeJudgeResult`
+
+## Target Access
+
+Code judges can call an LLM through a target proxy for metrics that require multiple LLM calls (contextual precision, semantic similarity, etc.).
+
+### Configuration
+
+Add a `target` block to the evaluator config:
+
+```yaml
+evaluators:
+  - name: contextual-precision
+    type: code_judge
+    script: bun scripts/contextual-precision.ts
+    target:
+      max_calls: 10  # Default: 50
+```
+
+### Usage
+
+Use `createTargetClient` from the SDK:
+
+```typescript
+#!/usr/bin/env bun
+import { createTargetClient, defineCodeJudge } from '@agentv/eval';
+
+export default defineCodeJudge(async ({ question, candidateAnswer }) => {
+  const target = createTargetClient();
+  if (!target) return { score: 0, misses: ['Target not configured'] };
+
+  const response = await target.invoke({
+    question: `Is this relevant to: ${question}? Response: ${candidateAnswer}`,
+    systemPrompt: 'Respond with JSON: { "relevant": true/false }'
+  });
+
+  const result = JSON.parse(response.rawText ?? '{}');
+  return { score: result.relevant ? 1.0 : 0.0 };
+});
+```
+
+Use `target.invokeBatch(requests)` for multiple calls in parallel.
+
+**Environment variables** (set automatically when `target` is configured):
+
+| Variable | Description |
+|----------|-------------|
+| `AGENTV_TARGET_PROXY_URL` | Local proxy URL |
+| `AGENTV_TARGET_PROXY_TOKEN` | Bearer token for authentication |
+
+## Advanced Input Fields
+
+Beyond the basic `question`, `expected_outcome`, `candidate_answer`, and `reference_answer` fields, code judges receive additional context:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `guideline_files` | `string[]` | Paths to guideline files referenced in the eval |
+| `input_files` | `string[]` | Paths to input files referenced in the eval |
+| `input_messages` | `Message[]` | Full resolved input message array |
+| `expected_messages` | `Message[]` | Expected agent behavior including tool calls |
+| `output_messages` | `Message[]` | Actual agent execution trace with tool calls |
+| `trace_summary` | `TraceSummary` | Lightweight execution metrics |
+
+### trace_summary structure
+
+```json
+{
+  "event_count": 5,
+  "tool_names": ["fetch", "search"],
+  "tool_calls_by_name": { "search": 2, "fetch": 1 },
+  "error_count": 0,
+  "token_usage": { "input": 1000, "output": 500 },
+  "cost_usd": 0.0015,
+  "duration_ms": 3500
+}
+```
+
+Use `expected_messages` for retrieval context in RAG evals (tool calls with outputs) and `output_messages` for the actual agent execution trace from live runs.
+
 ## Testing Locally
 
 Test a code judge by piping JSON to stdin:

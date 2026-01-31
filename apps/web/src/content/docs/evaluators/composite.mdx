@@ -1,8 +1,15 @@
-# Composite Evaluator Guide
+---
+title: Composite Evaluators
+description: Combine multiple evaluators with aggregation strategies for multi-criteria evaluation.
+sidebar:
+  order: 4
+---
 
-Composite evaluators combine multiple evaluators and aggregate their results. This enables sophisticated evaluation patterns like safety gates, weighted scoring, and conflict resolution.
+Composite evaluators combine multiple evaluators and aggregate their results into a single score. This enables sophisticated evaluation patterns like safety gates, weighted scoring, and conflict resolution.
 
 ## Basic Structure
+
+A composite evaluator wraps two or more sub-evaluators and an aggregator that determines the final score:
 
 ```yaml
 execution:
@@ -23,11 +30,13 @@ execution:
           evaluator_2: 0.4
 ```
 
+Each sub-evaluator runs independently, then the aggregator combines their results.
+
 ## Aggregator Types
 
-### 1. Weighted Average (Default)
+### Weighted Average (Default)
 
-Combines scores using weighted arithmetic mean:
+Combines scores using a weighted arithmetic mean:
 
 ```yaml
 aggregator:
@@ -37,16 +46,17 @@ aggregator:
     quality: 0.7     # 70% weight
 ```
 
-If weights are omitted, all evaluators have equal weight (1.0).
+If weights are omitted, all evaluators receive equal weight (1.0).
 
-**Score calculation:**
+The score is calculated as:
+
 ```
-final_score = Σ(score_i × weight_i) / Σ(weight_i)
+final_score = sum(score_i * weight_i) / sum(weight_i)
 ```
 
-### 2. Code Judge Aggregator
+### Code Judge Aggregator
 
-Run custom code to decide final score based on all evaluator results:
+Run a custom script to decide the final score based on all evaluator results:
 
 ```yaml
 aggregator:
@@ -55,12 +65,14 @@ aggregator:
   cwd: ./evaluators  # optional working directory
 ```
 
+The script receives the evaluator results on stdin and must print a result to stdout.
+
 **Input (stdin):**
 ```json
 {
   "results": {
-    "safety": { "score": 0.9, "hits": [...], "misses": [...] },
-    "quality": { "score": 0.85, "hits": [...], "misses": [...] }
+    "safety": { "score": 0.9, "hits": ["..."], "misses": ["..."] },
+    "quality": { "score": 0.85, "hits": ["..."], "misses": ["..."] }
   }
 }
 ```
@@ -76,9 +88,9 @@ aggregator:
 }
 ```
 
-### 3. LLM Judge Aggregator
+### LLM Judge Aggregator
 
-Use an LLM to resolve conflicts or make nuanced decisions:
+Use an LLM to resolve conflicts or make nuanced decisions across evaluator results:
 
 ```yaml
 aggregator:
@@ -86,23 +98,23 @@ aggregator:
   prompt: ./prompts/conflict-resolution.md
 ```
 
-The `{{EVALUATOR_RESULTS_JSON}}` variable is replaced with the JSON results from all child evaluators.
+Inside the prompt file, use the `{{EVALUATOR_RESULTS_JSON}}` variable to inject the JSON results from all child evaluators.
 
-## Example Patterns
+## Patterns
 
-### Safety Gate Pattern
+### Safety Gate
 
-Block outputs that fail safety even if quality is high:
+Block outputs that fail safety even if quality is high. A code judge aggregator can enforce hard gates:
 
 ```yaml
 evalcases:
   - id: safety-gated-response
     expected_outcome: Safe and accurate response
-    
+
     input_messages:
       - role: user
         content: Explain quantum computing
-    
+
     execution:
       evaluators:
         - name: safety_gate
@@ -119,7 +131,11 @@ evalcases:
             path: ./scripts/safety-gate.js
 ```
 
-### Multi-Criteria Weighted Evaluation
+The `safety-gate.js` script can return a score of 0.0 whenever the safety evaluator fails, regardless of the quality score.
+
+### Multi-Criteria Weighted
+
+Assign different importance to each evaluation dimension:
 
 ```yaml
 - name: release_readiness
@@ -144,7 +160,7 @@ evalcases:
 
 ### Nested Composites
 
-Composites can contain other composites for complex hierarchies:
+Composites can contain other composites for hierarchical evaluation:
 
 ```yaml
 - name: comprehensive_eval
@@ -176,7 +192,7 @@ Composites can contain other composites for complex hierarchies:
 
 ## Result Structure
 
-Composite evaluators return nested `evaluator_results`:
+Composite evaluators return nested `evaluator_results`, giving full visibility into each sub-evaluator:
 
 ```json
 {
@@ -195,7 +211,7 @@ Composite evaluators return nested `evaluator_results`:
       "misses": []
     },
     {
-      "name": "quality", 
+      "name": "quality",
       "type": "llm_judge",
       "score": 0.8,
       "verdict": "pass",
@@ -206,10 +222,12 @@ Composite evaluators return nested `evaluator_results`:
 }
 ```
 
+Hits and misses from sub-evaluators are prefixed with the evaluator name (e.g., `[safety]`) in the top-level arrays.
+
 ## Best Practices
 
-1. **Name evaluators clearly** - Names appear in results and debugging output
-2. **Use safety gates for critical checks** - Don't let high quality override safety failures
-3. **Balance weights thoughtfully** - Consider which aspects matter most for your use case
-4. **Keep nesting shallow** - Deep nesting makes debugging harder
-5. **Test aggregators independently** - Verify your custom aggregation logic with unit tests
+1. **Name evaluators clearly** -- names appear in results and debugging output, so use descriptive labels like `safety` or `correctness` rather than `eval_1`.
+2. **Use safety gates for critical checks** -- do not let high quality scores override safety failures. A code judge aggregator can enforce hard gates.
+3. **Balance weights thoughtfully** -- consider which aspects matter most for your use case and assign weights accordingly.
+4. **Keep nesting shallow** -- deep nesting makes debugging harder. Two levels of composites is usually sufficient.
+5. **Test aggregators independently** -- verify custom aggregation logic with unit tests before wiring it into a composite evaluator.
