@@ -19,6 +19,9 @@ export default defineConfig({
         { label: "Targets", autogenerate: { directory: "targets" } },
         { label: "Tools", autogenerate: { directory: "tools" } },
       ],
+      editLink: {
+        baseUrl: "https://github.com/EntityProcess/agentv/edit/main/apps/web/",
+      },
       customCss: ["./src/styles/custom.css"],
       components: {
         Hero: "./src/components/Hero.astro",
