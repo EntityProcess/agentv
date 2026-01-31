@@ -612,11 +612,18 @@ evalcases:
 }
 
 /* Typing animation for command lines */
+.av-line-cmd {
+  white-space: nowrap;
+  overflow: hidden;
+}
+
 .av-line-cmd .av-typing {
   display: inline-block;
   overflow: hidden;
   white-space: nowrap;
-  width: 0;
+  vertical-align: bottom;
+  width: fit-content;
+  max-width: 0;
   animation: av-type 1.2s steps(40, end) forwards;
 }
 
@@ -629,8 +636,8 @@ evalcases:
 }
 
 @keyframes av-type {
-  from { width: 0; }
-  to { width: 100%; }
+  from { max-width: 0; }
+  to { max-width: 100%; }
 }
 
 /* Output lines fade in with stagger */
