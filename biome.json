@@ -35,6 +35,7 @@
       "**/generated/**",
       "**/__generated__/**",
       "**/test-output/**",
+      "**/.astro/**",
       "**/*.tsbuildinfo",
       "logs",
       "*.log"
