@@ -1,112 +1,83 @@
-# Custom Evaluators Guide
+# Custom Evaluators
 
-Templates and best practices for code evaluators and LLM judges. For YAML configuration, see `SKILL.md`.
+## Wire Format
 
-## Code Evaluator Contract
-
-Code evaluators receive input via stdin and write output to stdout, both as JSON.
-
-### Input Format (via stdin)
-
-Wire format uses snake_case for cross-language compatibility:
+### Input (stdin JSON)
 
 ```json
 {
-  "question": "string describing the task/question",
-  "expected_outcome": "expected outcome description",
-  "reference_answer": "gold standard answer (optional)",
-  "candidate_answer": "generated code/text from the agent",
-  "guideline_files": ["path1", "path2"],
-  "input_files": ["file1", "file2"],
+  "question": "string",
+  "expected_outcome": "string",
+  "reference_answer": "string",
+  "candidate_answer": "string",
+  "guideline_files": ["path"],
+  "input_files": ["path"],
   "input_messages": [{"role": "user", "content": "..."}],
-  "expected_messages": [
-    {
-      "role": "assistant",
-      "tool_calls": [
-        {
-          "tool": "vector_search",
-          "input": { "query": "..." },
-          "output": { "results": ["doc1", "doc2"] }
-        }
-      ]
-    }
-  ],
-  "output_messages": [
-    {
-      "role": "assistant",
-      "content": "...",
-      "tool_calls": [...]
-    }
-  ],
+  "expected_messages": [{"role": "assistant", "content": "..."}],
+  "output_messages": [{"role": "assistant", "content": "..."}],
   "trace_summary": {
     "event_count": 5,
-    "tool_names": ["fetch", "search"],
-    "tool_calls_by_name": { "search": 2, "fetch": 1 },
+    "tool_names": ["fetch"],
+    "tool_calls_by_name": {"fetch": 1},
     "error_count": 0,
-    "token_usage": { "input": 1000, "output": 500 },
+    "token_usage": {"input": 1000, "output": 500},
     "cost_usd": 0.0015,
     "duration_ms": 3500
   }
 }
 ```
 
-**Key fields:**
-- `expected_messages` - Expected agent behavior from YAML, including tool calls with outputs (use for retrieval context in RAG evals)
-- `output_messages` - Actual agent execution trace with tool calls (from live agent runs)
-- `trace_summary` - Lightweight summary with execution metrics (counts only, no tool arguments)
-
-### Output Format (to stdout)
+### Output (stdout JSON)
 
 ```json
 {
   "score": 0.85,
-  "hits": ["successful check 1", "successful check 2"],
-  "misses": ["failed check 1"],
-  "reasoning": "Brief explanation of the score"
+  "hits": ["passed check"],
+  "misses": ["failed check"],
+  "reasoning": "explanation"
 }
 ```
 
-**Field Requirements:**
-- `score`: Float between 0.0 and 1.0 (required)
-- `hits`: Array of strings describing what passed (optional but recommended)
-- `misses`: Array of strings describing what failed (optional but recommended)
-- `reasoning`: String explaining the score (optional but recommended)
+`score` (0.0-1.0) required. `hits`, `misses`, `reasoning` optional.
 
-## Python Code Evaluator Template
+## SDK Functions
+
+```typescript
+import { defineCodeJudge, createTargetClient, definePromptTemplate } from '@agentv/eval';
+```
+
+- `defineCodeJudge(fn)` - Wraps evaluation function with stdin/stdout handling
+- `createTargetClient()` - Returns LLM proxy client (when `target: {}` configured)
+  - `.invoke({question, systemPrompt})` - Single LLM call
+  - `.invokeBatch(requests)` - Batch LLM calls
+- `definePromptTemplate(fn)` - Wraps prompt generation function
+  - Context fields: `question`, `candidateAnswer`, `referenceAnswer`, `expectedOutcome`, `expectedMessages`, `outputMessages`, `config`, `traceSummary`
+
+## Python Example
 
 ```python
 #!/usr/bin/env python3
-import json
-import sys
+import json, sys
 
 def evaluate(data: dict) -> dict:
     candidate = data.get("candidate_answer", "")
     hits, misses = [], []
-
-    # Your validation logic here
-    keywords = ["async", "await"]
-    for kw in keywords:
+    for kw in ["async", "await"]:
         (hits if kw in candidate else misses).append(f"Keyword '{kw}'")
-
     return {
-        "score": len(hits) / len(keywords) if keywords else 1.0,
-        "hits": hits,
-        "misses": misses,
-        "reasoning": f"Found {len(hits)}/{len(keywords)} keywords"
+        "score": len(hits) / max(len(hits) + len(misses), 1),
+        "hits": hits, "misses": misses
     }
 
 if __name__ == "__main__":
     try:
-        result = evaluate(json.loads(sys.stdin.read()))
-        print(json.dumps(result, indent=2))
+        print(json.dumps(evaluate(json.loads(sys.stdin.read()))))
     except Exception as e:
-        print(json.dumps({"score": 0, "hits": [], "misses": [str(e)], "reasoning": "Error"}))
+        print(json.dumps({"score": 0, "misses": [str(e)]}))
         sys.exit(1)
 ```
 
-## TypeScript Code Evaluator Template
-
-The `@agentv/eval` SDK provides a declarative API with automatic stdin/stdout handling.
+## TypeScript Example
 
 ```typescript
 #!/usr/bin/env bun
@@ -115,216 +86,30 @@ import { defineCodeJudge } from '@agentv/eval';
 export default defineCodeJudge(({ candidateAnswer, expectedOutcome }) => {
   const hits: string[] = [];
   const misses: string[] = [];
-
-  // Your validation logic here
   if (candidateAnswer.includes(expectedOutcome)) {
-    hits.push('Answer matches expected outcome');
+    hits.push('Matches expected outcome');
   } else {
-    misses.push('Answer does not match expected outcome');
+    misses.push('Does not match expected outcome');
   }
-
-  const total = hits.length + misses.length;
   return {
-    score: total === 0 ? 0 : hits.length / total,
-    hits,
-    misses,
-    reasoning: `Passed ${hits.length}/${total} checks`,
+    score: hits.length / Math.max(hits.length + misses.length, 1),
+    hits, misses,
   };
 });
 ```
 
-**SDK exports:** `defineCodeJudge`, `Message`, `ToolCall`, `TraceSummary`, `CodeJudgeInput`, `CodeJudgeResult`
+## Template Variables
 
-## Target Access for Code Evaluators
+Derived from eval case fields (users never author these directly):
 
-Code judges can access an LLM through a **target proxy** for metrics requiring multiple LLM calls (contextual precision, semantic similarity, etc).
+| Variable | Source |
+|----------|--------|
+| `question` | First user message in `input_messages` |
+| `expected_outcome` | Eval case `expected_outcome` field |
+| `reference_answer` | Last entry in `expected_messages` |
+| `candidate_answer` | Last entry in `output_messages` (runtime) |
+| `input_messages` | Full resolved input array (JSON) |
+| `expected_messages` | Full resolved expected array (JSON) |
+| `output_messages` | Full provider output array (JSON) |
 
-### Configuration
-
-```yaml
-evaluators:
-  - name: contextual-precision
-    type: code_judge
-    script: bun scripts/contextual-precision.ts
-    target:
-      max_calls: 10  # Default: 50
-```
-
-### Usage
-
-```typescript
-#!/usr/bin/env bun
-import { createTargetClient, defineCodeJudge } from '@agentv/eval';
-
-export default defineCodeJudge(async ({ question, candidateAnswer }) => {
-  const target = createTargetClient();
-  if (!target) return { score: 0, misses: ['Target not configured'] };
-
-  const response = await target.invoke({
-    question: `Is this relevant to: ${question}? Response: ${candidateAnswer}`,
-    systemPrompt: 'Respond with JSON: { "relevant": true/false }'
-  });
-
-  const result = JSON.parse(response.rawText ?? '{}');
-  return { score: result.relevant ? 1.0 : 0.0 };
-});
-```
-
-**Batch invocation:** Use `target.invokeBatch(requests)` for multiple calls.
-
-**Environment variables** (set automatically when `target` is configured):
-- `AGENTV_TARGET_PROXY_URL` - Local proxy URL
-- `AGENTV_TARGET_PROXY_TOKEN` - Bearer token for authentication
-
-**See also:** `examples/features/code-judge-with-llm-calls/`
-
-## LLM Judge Prompt Templates
-
-LLM judges support two types of prompt templates:
-
-### Text Templates (Markdown)
-
-Simple markdown files with variable substitution. AgentV handles the output format automatically.
-
-### TypeScript/JavaScript Templates
-
-For dynamic prompt generation with full programming capabilities. Uses the same subprocess pattern as code evaluators.
-
-**YAML Configuration:**
-
-```yaml
-evaluators:
-  - name: custom-eval
-    type: llm_judge
-    prompt:
-      script: [bun, run, ../prompts/custom-evaluator.ts]
-      config:  # Optional, passed to script
-        rubric: "Your rubric here"
-        strictMode: true
-```
-
-**TypeScript Template:**
-
-```typescript
-#!/usr/bin/env bun
-import { definePromptTemplate } from '@agentv/eval';
-
-export default definePromptTemplate((ctx) => {
-  const rubric = ctx.config?.rubric as string | undefined;
-
-  return `You are evaluating an AI assistant's response.
-
-## Question
-${ctx.question}
-
-## Candidate Answer
-${ctx.candidateAnswer}
-
-${ctx.referenceAnswer ? `## Reference Answer\n${ctx.referenceAnswer}` : ''}
-
-${rubric ? `## Evaluation Criteria\n${rubric}` : ''}
-
-Evaluate and provide a score from 0 to 1.`;
-});
-```
-
-**Available context fields:** `question`, `candidateAnswer`, `referenceAnswer`, `expectedOutcome`, `expectedMessages`, `outputMessages`, `config`, `traceSummary`
-
-**See also:** `examples/features/prompt-template-sdk/`
-
----
-
-## Template Variable Derivation
-
-Template variables are **derived internally** — users never author them directly. They flow through three layers:
-
-1. **Authoring layer** (what users write in YAML/JSONL):
-   - `input` or `input_messages` — two syntaxes for the same data. `input: "What is 2+2?"` expands to `[{ role: "user", content: "What is 2+2?" }]`. If both are present, `input_messages` takes precedence.
-   - `expected_output` or `expected_messages` — two syntaxes for the same data. `expected_output: "4"` expands to `[{ role: "assistant", content: "4" }]`. Structured objects and message arrays are also supported. If both are present, `expected_messages` takes precedence.
-
-2. **Resolved layer** (after parsing):
-   - `input_messages: TestMessage[]` — canonical resolved input
-   - `expected_messages: TestMessage[]` — canonical resolved expected output
-   - At this layer, `input` and `expected_output` no longer exist as separate fields.
-
-3. **Template variable layer** (derived strings injected into evaluator prompts):
-   - `question` — content of the first `user` role entry in `input_messages`
-   - `expected_outcome` — passed through from the eval case field
-   - `reference_answer` — content of the **last** entry in `expected_messages` (the gold-standard answer for grading, not an exact-match target)
-   - `candidate_answer` — content of the **last** entry in `output_messages` (the provider's actual response being graded)
-   - `input_messages` — full resolved input array, JSON-serialized
-   - `expected_messages` — full resolved expected array, JSON-serialized
-   - `output_messages` — full provider output array, JSON-serialized
-
-**Example flow:**
-```yaml
-# User writes:
-input: "What is 2+2?"
-expected_output: "The answer is 4"
-```
-```
-# Resolved:
-input_messages:    [{ role: "user", content: "What is 2+2?" }]
-expected_messages: [{ role: "assistant", content: "The answer is 4" }]
-
-# Derived template variables:
-question:         "What is 2+2?"
-reference_answer: "The answer is 4"
-candidate_answer: (extracted from provider output at runtime)
-```
-
-## Text Template Variables
-
-**Available variables for markdown templates:**
-- `{{question}}` - Derived from first user message in `input_messages`
-- `{{expected_outcome}}` - What the answer should accomplish (from eval case field)
-- `{{candidate_answer}}` - Derived from last entry in `output_messages` (provider response)
-- `{{reference_answer}}` - Derived from last entry in `expected_messages` (gold standard)
-- `{{input_messages}}` - Full resolved input messages, JSON-serialized
-- `{{expected_messages}}` - Full resolved expected messages, JSON-serialized
-- `{{output_messages}}` - Full provider output messages, JSON-serialized
-
-**Default Template:**
-
-```
-You are an expert evaluator. Grade the candidate_answer based on how well it achieves the expected_outcome.
-
-Use reference_answer as a gold standard (if provided). The candidate_answer doesn't need to match verbatim, but should capture key points.
-
-Be concise. Provide specific feedback rather than verbose explanations.
-
-[[ ## expected_outcome ## ]]
-{{expected_outcome}}
-
-[[ ## question ## ]]
-{{question}}
-
-[[ ## reference_answer ## ]]
-{{reference_answer}}
-
-[[ ## candidate_answer ## ]]
-{{candidate_answer}}
-```
-
-## Best Practices
-
-### Code Evaluators
-1. **Focus on `candidate_answer`** - Most evaluators only need this field
-2. **Be deterministic** - Same input → same output
-3. **Handle errors gracefully** - Return valid result even on failure
-4. **Use `hits`/`misses`** - Explain the score clearly
-
-### LLM Judges
-1. **Clear criteria** - Define what you're evaluating
-2. **Specific rubrics** - Provide scoring guidelines
-3. **Concise prompts** - Keep instructions focused
-
-## Testing Locally
-
-```bash
-# Python
-echo '{"candidate_answer": "test", "question": "task", "expected_outcome": "result"}' | uv run my_validator.py
-
-# TypeScript
-echo '{"candidate_answer": "test", "question": "task", "expected_outcome": "result"}' | bun run ./check.ts
-```
+Markdown templates use `{{variable}}` syntax. TypeScript templates receive context object.
