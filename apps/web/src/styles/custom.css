@@ -65,6 +65,13 @@ a[aria-current="page"] {
   font-weight: 600 !important;
 }
 
+/* Light mode: use dark text on cyan accent backgrounds for contrast */
+:root[data-theme="light"] a[aria-current="page"],
+:root[data-theme="light"] a[aria-current="page"]:hover,
+:root[data-theme="light"] a[aria-current="page"]:focus {
+  color: hsl(185, 60%, 10%);
+}
+
 :root[data-theme="dark"] nav.sidebar a:hover {
   background: var(--av-surface);
 }
