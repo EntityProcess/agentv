@@ -7,11 +7,10 @@ import type { Props } from '@astrojs/starlight/props';
   <div class="av-nav-inner">
     <a href="/" class="av-nav-logo">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" width="28" height="28">
-        <defs><linearGradient id="logo-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0e7490"/><stop offset="100%" stop-color="#065f71"/></linearGradient></defs>
-        <rect width="120" height="120" rx="24" fill="url(#logo-grad)"/>
-        <text x="60" y="82" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-weight="bold" font-size="64" fill="white">V</text>
+        <rect width="120" height="120" rx="24" fill="#06b6d4"/>
+        <text x="60" y="82" text-anchor="middle" font-family="'Space Mono', 'JetBrains Mono', monospace" font-weight="bold" font-size="64" fill="#0a2a30">v</text>
       </svg>
-      <span>AgentV</span>
+      <span class="av-wordmark">agent<span class="av-wordmark-v">v</span></span>
     </a>
     <div class="av-nav-links">
       <a href="/getting-started/introduction/">Docs</a>
@@ -354,10 +353,19 @@ evalcases:
   gap: 0.625rem;
   text-decoration: none;
   color: var(--av-text);
-  font-family: var(--av-font-mono);
+  font-family: 'Space Mono', var(--av-font-mono);
   font-weight: 700;
   font-size: 1.05rem;
   letter-spacing: -0.02em;
+}
+
+.av-wordmark {
+  text-transform: lowercase;
+}
+
+.av-wordmark-v {
+  margin-left: 0.12em;
+  color: #06b6d4;
 }
 
 .av-nav-links {
