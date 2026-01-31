@@ -1,0 +1,80 @@
+---
+title: Eval Files
+description: YAML and JSONL evaluation file formats
+sidebar:
+  order: 1
+---
+
+Evaluation files define the test cases, targets, and evaluators for an evaluation run. AgentV supports two formats: YAML and JSONL.
+
+## YAML Format
+
+The primary format. A single file contains metadata, execution config, and eval cases:
+
+```yaml
+description: Math problem solving evaluation
+execution:
+  target: default
+  evaluators:
+    - name: correctness
+      type: llm_judge
+      prompt: ./judges/correctness.md
+
+evalcases:
+  - id: addition
+    expected_outcome: Correctly calculates 15 + 27 = 42
+    input_messages:
+      - role: user
+        content: What is 15 + 27?
+    expected_messages:
+      - role: assistant
+        content: "42"
+```
+
+### Top-level Fields
+
+| Field | Description |
+|-------|-------------|
+| `description` | Human-readable description of the evaluation |
+| `dataset` | Optional dataset identifier |
+| `execution` | Default execution config (target, evaluators) |
+| `evalcases` | Array of individual test cases |
+
+## JSONL Format
+
+For large-scale evaluations, AgentV supports JSONL (JSON Lines) format. Each line is a single eval case:
+
+```jsonl
+{"id": "test-1", "expected_outcome": "Calculates correctly", "input_messages": [{"role": "user", "content": "What is 2+2?"}]}
+{"id": "test-2", "expected_outcome": "Provides explanation", "input_messages": [{"role": "user", "content": "Explain variables"}]}
+```
+
+### Sidecar Metadata
+
+An optional YAML sidecar file provides metadata and execution config. Place it alongside the JSONL file with the same base name:
+
+`dataset.jsonl` + `dataset.yaml`:
+
+```yaml
+description: Math evaluation dataset
+dataset: math-tests
+execution:
+  target: azure_base
+evaluator: llm_judge
+```
+
+### Benefits of JSONL
+
+- **Streaming-friendly** — process line by line
+- **Git-friendly** — diffs show individual case changes
+- **Programmatic generation** — easy to create from scripts
+- **Industry standard** — compatible with DeepEval, LangWatch, Hugging Face datasets
+
+## Converting Between Formats
+
+Use the `convert` command to switch between YAML and JSONL:
+
+```bash
+agentv convert evals/dataset.yaml --format jsonl
+agentv convert evals/dataset.jsonl --format yaml
+```

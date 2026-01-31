@@ -1,0 +1,81 @@
+---
+title: LLM Judges
+description: Customizable LLM-based evaluation
+sidebar:
+  order: 2
+---
+
+LLM judges use a language model to evaluate agent responses against custom criteria defined in a prompt file.
+
+## Configuration
+
+Reference an LLM judge in your eval file:
+
+```yaml
+execution:
+  evaluators:
+    - name: semantic_check
+      type: llm_judge
+      prompt: ./judges/correctness.md
+```
+
+## Prompt Files
+
+The prompt file defines evaluation criteria and scoring guidelines. It can be a markdown text template or a TypeScript/JavaScript dynamic template.
+
+### Markdown Template
+
+Write evaluation instructions as markdown. Template variables are interpolated:
+
+```markdown
+# Evaluation Criteria
+
+Evaluate the candidate's response to the following question:
+
+**Question:** {{question}}
+**Expected Outcome:** {{expected_outcome}}
+**Reference Answer:** {{reference_answer}}
+**Candidate Answer:** {{candidate_answer}}
+
+## Scoring
+
+Score the response from 0.0 to 1.0 based on:
+1. Correctness — does the answer match the expected outcome?
+2. Completeness — does it address all parts of the question?
+3. Clarity — is the response clear and well-structured?
+```
+
+### Available Template Variables
+
+| Variable | Source |
+|----------|--------|
+| `question` | First user message content |
+| `expected_outcome` | Eval case `expected_outcome` field |
+| `reference_answer` | Last expected message content |
+| `candidate_answer` | Last candidate response content |
+| `sidecar` | Eval case `sidecar` metadata |
+| `rubrics` | Eval case `rubrics` (if defined) |
+
+### TypeScript Template
+
+For dynamic prompt generation:
+
+```typescript
+// judges/correctness.ts
+export default function({ question, expected_outcome, candidate_answer }) {
+  return `Evaluate whether this response correctly answers the question.
+
+Question: ${question}
+Expected: ${expected_outcome}
+Response: ${candidate_answer}
+
+Score 1.0 if correct, 0.0 if incorrect.`;
+}
+```
+
+## How It Works
+
+1. AgentV renders the prompt template with variables from the eval case
+2. The rendered prompt is sent to the judge target (configured in targets.yaml)
+3. The LLM returns a structured evaluation with score, hits, misses, and reasoning
+4. Results are recorded in the output JSONL

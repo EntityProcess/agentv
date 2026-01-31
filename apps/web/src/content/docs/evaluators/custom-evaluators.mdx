@@ -1,0 +1,87 @@
+---
+title: Custom Evaluators
+description: Patterns for building custom evaluation logic
+sidebar:
+  order: 3
+---
+
+AgentV supports multiple evaluator types that can be combined for comprehensive evaluation.
+
+## Evaluator Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `code_judge` | Deterministic script (Python/TS/any) | Exact matching, format validation, programmatic checks |
+| `llm_judge` | LLM-based evaluation with custom prompt | Semantic evaluation, nuance, subjective quality |
+| Rubrics | Structured criteria in eval case | Multi-criterion grading with weights |
+
+## Referencing Evaluators
+
+Evaluators are configured at the execution level — either top-level (applies to all cases) or per-case:
+
+### Top-Level (Default for All Cases)
+
+```yaml
+description: My evaluation
+execution:
+  evaluators:
+    - name: correctness
+      type: llm_judge
+      prompt: ./judges/correctness.md
+
+evalcases:
+  - id: test-1
+    # Uses the top-level evaluator
+    ...
+```
+
+### Per-Case Override
+
+```yaml
+evalcases:
+  - id: test-1
+    expected_outcome: Returns valid JSON
+    input_messages:
+      - role: user
+        content: Generate a JSON config
+    execution:
+      evaluators:
+        - name: json_check
+          type: code_judge
+          script: ./validators/check_json.py
+```
+
+## Combining Evaluators
+
+Use multiple evaluators on the same case for comprehensive scoring:
+
+```yaml
+evalcases:
+  - id: code-generation
+    expected_outcome: Generates correct Python code
+    input_messages:
+      - role: user
+        content: Write a sorting function
+    rubrics:
+      - Code is syntactically valid
+      - Handles edge cases (empty list, single element)
+      - Uses appropriate algorithm
+    execution:
+      evaluators:
+        - name: syntax_check
+          type: code_judge
+          script: ./validators/check_syntax.py
+        - name: quality_review
+          type: llm_judge
+          prompt: ./judges/code_quality.md
+```
+
+Each evaluator produces its own score. Results appear in `evaluator_results[]` in the output JSONL.
+
+## Best Practices
+
+- **Use code judges for deterministic checks** — exact value matching, format validation, schema compliance
+- **Use LLM judges for semantic evaluation** — meaning, quality, helpfulness
+- **Use rubrics for structured multi-criteria grading** — when you need weighted, itemized scoring
+- **Combine evaluator types** for comprehensive coverage
+- **Test code judges locally** before running full evaluations

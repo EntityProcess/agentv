@@ -1,0 +1,87 @@
+---
+title: Targets Configuration
+description: Configure execution targets for providers and agents
+sidebar:
+  order: 1
+---
+
+Targets define which agent or LLM provider to evaluate. They are configured in `.agentv/targets.yaml` to decouple eval files from provider details.
+
+## Structure
+
+```yaml
+targets:
+  - name: azure_base
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+
+  - name: vscode_dev
+    provider: vscode
+    workspace_template: ${{ WORKSPACE_PATH }}
+    judge_target: azure_base
+
+  - name: local_agent
+    provider: cli
+    command_template: 'python agent.py --prompt {PROMPT}'
+    judge_target: azure_base
+```
+
+## Environment Variables
+
+Use `${{ VARIABLE_NAME }}` syntax to reference values from your `.env` file:
+
+```yaml
+targets:
+  - name: my_target
+    provider: anthropic
+    api_key: ${{ ANTHROPIC_API_KEY }}
+    model: ${{ ANTHROPIC_MODEL }}
+```
+
+This keeps secrets out of version-controlled files.
+
+## Supported Providers
+
+| Provider | Type | Description |
+|----------|------|-------------|
+| `azure` | LLM | Azure OpenAI |
+| `anthropic` | LLM | Anthropic Claude API |
+| `gemini` | LLM | Google Gemini |
+| `claude-code` | Agent | Claude Code CLI |
+| `codex` | Agent | Codex CLI |
+| `pi-coding-agent` | Agent | Pi Coding Agent |
+| `vscode` | Agent | VS Code with Copilot |
+| `vscode-insiders` | Agent | VS Code Insiders |
+| `cli` | Agent | Any CLI command |
+| `mock` | Testing | Mock provider for dry runs |
+
+## Referencing Targets in Evals
+
+Set the default target at the top level or override per case:
+
+```yaml
+# Top-level default
+execution:
+  target: azure_base
+
+evalcases:
+  - id: test-1
+    # Uses azure_base
+
+  - id: test-2
+    execution:
+      target: vscode_dev  # Override for this case
+```
+
+## Judge Target
+
+Agent targets that need LLM-based evaluation specify a `judge_target` — the LLM used to run LLM judge evaluators:
+
+```yaml
+targets:
+  - name: codex_target
+    provider: codex
+    judge_target: azure_base  # LLM used for judging
+```

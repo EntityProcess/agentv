@@ -1,0 +1,37 @@
+---
+title: Installation
+description: Install AgentV CLI
+sidebar:
+  order: 2
+---
+
+## Prerequisites
+
+- **Node.js** 20 or later
+
+## Install
+
+Install AgentV globally via npm:
+
+```bash
+npm install -g agentv
+```
+
+Verify the installation:
+
+```bash
+agentv --version
+```
+
+## Initialize a Workspace
+
+Set up your first evaluation workspace:
+
+```bash
+agentv init
+```
+
+This creates:
+
+- `.agentv/targets.yaml` — target configurations for providers and agents
+- `.env.example` — template for environment variables (API keys, endpoints)

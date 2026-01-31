@@ -1,0 +1,43 @@
+---
+title: Retry Configuration
+description: Configure automatic retry with exponential backoff
+sidebar:
+  order: 4
+---
+
+Configure automatic retry with exponential backoff for transient failures.
+
+## Configuration
+
+Add retry fields to any target:
+
+```yaml
+targets:
+  - name: azure_base
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    max_retries: 5
+    retry_initial_delay_ms: 2000
+    retry_max_delay_ms: 120000
+    retry_backoff_factor: 2
+    retry_status_codes: [500, 408, 429, 502, 503, 504]
+```
+
+## Fields
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `max_retries` | — | Maximum number of retry attempts |
+| `retry_initial_delay_ms` | — | Initial delay before first retry (milliseconds) |
+| `retry_max_delay_ms` | — | Maximum delay between retries (milliseconds) |
+| `retry_backoff_factor` | — | Multiplier for exponential backoff |
+| `retry_status_codes` | — | HTTP status codes that trigger a retry |
+
+## Behavior
+
+- Retries use exponential backoff with jitter to avoid thundering herd
+- Rate limit errors (429) and transient server errors (5xx) are automatically retried
+- Network failures trigger retries
+- The delay between retries doubles each attempt (up to `retry_max_delay_ms`)

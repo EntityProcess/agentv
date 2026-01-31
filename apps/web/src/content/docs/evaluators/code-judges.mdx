@@ -1,0 +1,110 @@
+---
+title: Code Judges
+description: Deterministic code evaluators in Python or TypeScript
+sidebar:
+  order: 1
+---
+
+Code judges are scripts that evaluate agent responses deterministically. Write them in any language — Python, TypeScript, Node, or any executable.
+
+## Contract
+
+Code judges communicate via stdin/stdout JSON:
+
+**Input (stdin):**
+```json
+{
+  "question": "What is 15 + 27?",
+  "expected_outcome": "Correctly calculates 15 + 27 = 42",
+  "candidate_answer": "The answer is 42.",
+  "reference_answer": "42",
+  "sidecar": {}
+}
+```
+
+**Output (stdout):**
+```json
+{
+  "score": 1.0,
+  "hits": ["Answer contains correct value (42)"],
+  "misses": [],
+  "reasoning": "Passed 1 check(s)"
+}
+```
+
+| Output Field | Type | Description |
+|-------------|------|-------------|
+| `score` | `number` | 0.0 to 1.0 |
+| `hits` | `string[]` | Criteria that passed |
+| `misses` | `string[]` | Criteria that failed |
+| `reasoning` | `string` | Explanation of the score |
+
+## Python Example
+
+```python
+# validators/check_answer.py
+import json, sys
+data = json.load(sys.stdin)
+candidate_answer = data.get("candidate_answer", "")
+
+hits = []
+misses = []
+
+if "42" in candidate_answer:
+    hits.append("Answer contains correct value (42)")
+else:
+    misses.append("Answer does not contain expected value (42)")
+
+score = 1.0 if hits else 0.0
+
+print(json.dumps({
+    "score": score,
+    "hits": hits,
+    "misses": misses,
+    "reasoning": f"Passed {len(hits)} check(s)"
+}))
+```
+
+## TypeScript Example
+
+```typescript
+// validators/check_answer.ts
+import { readFileSync } from "fs";
+
+const data = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
+const candidateAnswer: string = data.candidate_answer ?? "";
+
+const hits: string[] = [];
+const misses: string[] = [];
+
+if (candidateAnswer.includes("42")) {
+  hits.push("Answer contains correct value (42)");
+} else {
+  misses.push("Answer does not contain expected value (42)");
+}
+
+console.log(JSON.stringify({
+  score: hits.length > 0 ? 1.0 : 0.0,
+  hits,
+  misses,
+  reasoning: `Passed ${hits.length} check(s)`,
+}));
+```
+
+## Referencing in Eval Files
+
+```yaml
+execution:
+  evaluators:
+    - name: my_validator
+      type: code_judge
+      script: ./validators/check_answer.py
+```
+
+## Testing Locally
+
+Test a code judge by piping JSON to stdin:
+
+```bash
+echo '{"question":"What is 2+2?","expected_outcome":"4","candidate_answer":"4","reference_answer":"4","sidecar":{}}' | python validators/check_answer.py
+```

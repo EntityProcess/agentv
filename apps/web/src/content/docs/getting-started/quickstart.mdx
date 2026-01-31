@@ -1,0 +1,70 @@
+---
+title: Quick Start
+description: Create and run your first evaluation
+sidebar:
+  order: 3
+---
+
+Follow these steps to create and run your first evaluation.
+
+## 1. Install AgentV
+
+```bash
+npm install -g agentv
+```
+
+## 2. Initialize your workspace
+
+```bash
+agentv init
+```
+
+## 3. Configure environment variables
+
+The init command creates a `.env.example` file in your project root.
+
+1. Copy `.env.example` to `.env`
+2. Fill in your API keys, endpoints, and other configuration values
+3. Update the environment variable names in `.agentv/targets.yaml` to match those defined in your `.env` file
+
+## 4. Create an eval
+
+Create `./evals/example.yaml`:
+
+```yaml
+description: Math problem solving evaluation
+execution:
+  target: default
+
+evalcases:
+  - id: addition
+    expected_outcome: Correctly calculates 15 + 27 = 42
+
+    input_messages:
+      - role: user
+        content: What is 15 + 27?
+
+    expected_messages:
+      - role: assistant
+        content: "42"
+
+    execution:
+      evaluators:
+        - name: math_check
+          type: code_judge
+          script: ./validators/check_math.py
+```
+
+## 5. Run the eval
+
+```bash
+agentv eval ./evals/example.yaml
+```
+
+Results appear in `.agentv/results/eval_<timestamp>.jsonl` with scores, reasoning, and execution traces.
+
+## Next Steps
+
+- Learn about [eval file formats](/evaluation/eval-files/)
+- Configure [targets](/targets/configuration/) for different providers
+- Create [custom evaluators](/evaluators/custom-evaluators/)

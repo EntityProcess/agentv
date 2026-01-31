@@ -1,0 +1,127 @@
+---
+title: Rubrics
+description: Structured evaluation criteria with weights
+sidebar:
+  order: 3
+---
+
+Rubrics define structured evaluation criteria directly in your eval cases. They support binary checklist grading and score-range analytic grading.
+
+## Basic Usage
+
+The simplest form — each string becomes a required criterion:
+
+```yaml
+evalcases:
+  - id: quicksort-explain
+    expected_outcome: Explain how quicksort works
+    input_messages:
+      - role: user
+        content: Explain quicksort algorithm
+    rubrics:
+      - Mentions divide-and-conquer approach
+      - Explains partition step
+      - States time complexity
+```
+
+## Checklist Mode
+
+For fine-grained control, use rubric objects with weights and requirements:
+
+```yaml
+rubrics:
+  - id: core-concept
+    expected_outcome: Explains divide-and-conquer
+    weight: 2.0
+    required: true
+  - id: partition
+    expected_outcome: Describes partition step
+    weight: 1.5
+  - id: complexity
+    expected_outcome: States O(n log n) average time
+    weight: 1.0
+```
+
+### Rubric Object Fields
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `id` | Auto-generated | Unique identifier for the criterion |
+| `expected_outcome` | — | Description of what to check |
+| `weight` | `1.0` | Relative importance for scoring |
+| `required` | `false` | If true, failing this criterion fails the entire eval |
+| `required_min_score` | — | Minimum score threshold (score-range mode) |
+| `score_ranges` | — | Score range definitions (analytic mode) |
+
+## Score-Range Mode (Analytic)
+
+For quality gradients instead of binary pass/fail, use score ranges:
+
+```yaml
+rubrics:
+  - id: accuracy
+    expected_outcome: Provides correct answer
+    weight: 2.0
+    score_ranges:
+      0: Completely wrong
+      3: Partially correct with major errors
+      5: Mostly correct with minor issues
+      7: Correct with minor omissions
+      10: Perfectly accurate and complete
+```
+
+Each criterion is scored 0–10 by the LLM judge with granular feedback.
+
+## Scoring
+
+### Checklist Mode
+
+```
+score = sum(satisfied_weights) / sum(total_weights)
+```
+
+### Score-Range Mode
+
+```
+score = sum(criterion_score / 10 * weight) / sum(total_weights)
+```
+
+### Verdicts
+
+| Verdict | Score |
+|---------|-------|
+| `pass` | ≥ 0.8 |
+| `borderline` | ≥ 0.6 |
+| `fail` | < 0.6 |
+
+## Auto-Generate Rubrics
+
+Generate rubrics from expected outcomes:
+
+```bash
+agentv generate rubrics evals/my-eval.yaml
+```
+
+This analyzes each eval case's `expected_outcome` and creates structured rubric criteria.
+
+## Combining with Other Evaluators
+
+Rubrics work alongside code and LLM judges:
+
+```yaml
+evalcases:
+  - id: code-quality
+    expected_outcome: Generates correct, clean Python code
+    input_messages:
+      - role: user
+        content: Write a fibonacci function
+    rubrics:
+      - Returns correct values for n=0,1,2,10
+      - Uses meaningful variable names
+      - Includes docstring
+    execution:
+      evaluators:
+        - name: syntax_check
+          type: code_judge
+          script: ./validators/check_python.py
+```

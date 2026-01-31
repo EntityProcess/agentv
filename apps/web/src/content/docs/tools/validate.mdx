@@ -1,0 +1,34 @@
+---
+title: Validate
+description: Validate evaluation file definitions
+sidebar:
+  order: 4
+---
+
+The `validate` command checks evaluation files for schema errors without running them.
+
+## Usage
+
+```bash
+agentv validate evals/my-eval.yaml
+```
+
+Validate multiple files:
+
+```bash
+agentv validate evals/**/*.yaml
+```
+
+## What It Checks
+
+- YAML/JSONL syntax
+- Required fields (id, input_messages, expected_outcome)
+- Evaluator references (script paths, prompt files)
+- Target references match entries in `targets.yaml`
+- Rubric structure and field types
+
+## When to Use
+
+- Before running evaluations to catch config errors early
+- In CI/CD pipelines as a pre-check
+- After editing eval files to verify correctness

@@ -1,0 +1,53 @@
+---
+title: Introduction
+description: What AgentV is and why it exists
+sidebar:
+  order: 1
+---
+
+AgentV is a CLI-first AI agent evaluation framework. It evaluates your agents locally with multi-objective scoring (correctness, latency, cost, safety) from YAML specifications. Deterministic code judges + customizable LLM judges, all version-controlled in Git.
+
+## Why AgentV?
+
+**Best for:** Developers who want evaluation in their workflow, not a separate dashboard. Teams prioritizing privacy and reproducibility.
+
+- **No cloud dependency** — everything runs locally
+- **No server** — just install and run
+- **Version-controlled** — YAML evaluation files live in Git alongside your code
+- **CI/CD ready** — run evaluations in your pipeline without external API calls
+- **Multiple evaluator types** — code validators, LLM judges, custom Python/TypeScript
+
+## How AgentV Compares
+
+| Feature | AgentV | LangWatch | LangSmith | LangFuse |
+|---------|--------|-----------|-----------|----------|
+| **Setup** | `npm install` | Cloud account + API key | Cloud account + API key | Cloud account + API key |
+| **Server** | None (local) | Managed cloud | Managed cloud | Managed cloud |
+| **Privacy** | All local | Cloud-hosted | Cloud-hosted | Cloud-hosted |
+| **CLI-first** | Yes | No | Limited | Limited |
+| **CI/CD ready** | Yes | Requires API calls | Requires API calls | Requires API calls |
+| **Version control** | Yes (YAML in Git) | No | No | No |
+| **Evaluators** | Code + LLM + Custom | LLM only | LLM + Code | LLM only |
+
+## Core Concepts
+
+**Evaluation files** (`.yaml` or `.jsonl`) define test cases with expected outcomes. **Targets** specify which agent or provider to evaluate. **Judges** (code or LLM) score results. **Results** are written as JSONL/YAML for analysis and comparison.
+
+### Key Components
+
+- **Eval files** — YAML or JSONL definitions of test cases
+- **Eval cases** — Individual test cases with input messages and expected outcomes
+- **Targets** — The agent or LLM provider being evaluated
+- **Evaluators** — Code judges (Python/TypeScript) or LLM judges that score responses
+- **Rubrics** — Structured criteria with weights for grading
+- **Results** — JSONL output with scores, reasoning, and execution traces
+
+## Features
+
+- **Multi-objective scoring**: Correctness, latency, cost, safety in one run
+- **Multiple evaluator types**: Code validators, LLM judges, custom Python/TypeScript
+- **Built-in targets**: VS Code Copilot, Codex CLI, Pi Coding Agent, Azure OpenAI, local CLI agents
+- **Structured evaluation**: Rubric-based grading with weights and requirements
+- **Batch evaluation**: Run hundreds of test cases in parallel
+- **Export**: JSON, JSONL, YAML formats
+- **Compare results**: Compute deltas between evaluation runs for A/B testing

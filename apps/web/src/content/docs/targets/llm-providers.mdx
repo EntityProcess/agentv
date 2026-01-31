@@ -1,0 +1,55 @@
+---
+title: LLM Providers
+description: Direct LLM API provider targets
+sidebar:
+  order: 2
+---
+
+LLM provider targets call language model APIs directly. These are used both as evaluation targets and as judge targets for scoring.
+
+## Azure OpenAI
+
+```yaml
+targets:
+  - name: azure_base
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `endpoint` | Yes | Azure OpenAI endpoint URL |
+| `api_key` | Yes | API key |
+| `model` | Yes | Deployment name |
+
+## Anthropic
+
+```yaml
+targets:
+  - name: claude_target
+    provider: anthropic
+    api_key: ${{ ANTHROPIC_API_KEY }}
+    model: claude-sonnet-4-20250514
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `api_key` | Yes | Anthropic API key |
+| `model` | Yes | Model identifier |
+
+## Google Gemini
+
+```yaml
+targets:
+  - name: gemini_target
+    provider: gemini
+    api_key: ${{ GEMINI_API_KEY }}
+    model: gemini-2.0-flash
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `api_key` | Yes | Google AI API key |
+| `model` | Yes | Model identifier |

@@ -1,0 +1,27 @@
+---
+title: Convert
+description: Convert between YAML and JSONL formats
+sidebar:
+  order: 2
+---
+
+The `convert` command converts evaluation files between YAML and JSONL formats.
+
+## Usage
+
+### YAML to JSONL
+
+```bash
+agentv convert evals/dataset.yaml --format jsonl
+```
+
+### JSONL to YAML
+
+```bash
+agentv convert evals/dataset.jsonl --format yaml
+```
+
+## When to Use
+
+- **YAML → JSONL** for large-scale evaluations, programmatic processing, or compatibility with other tools
+- **JSONL → YAML** for human editing, adding execution config, or better readability
