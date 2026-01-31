@@ -427,6 +427,116 @@ describe('parseEvaluators - score_ranges rubrics', () => {
   });
 });
 
+describe('parseEvaluators - score_ranges shorthand map', () => {
+  it('normalizes shorthand map to correct array format', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'shorthand-test',
+          type: 'llm_judge',
+          rubrics: [
+            {
+              id: 'accuracy',
+              weight: 2.0,
+              required_min_score: 7,
+              score_ranges: {
+                0: 'Completely wrong',
+                3: 'Partially correct',
+                7: 'Correct with minor issues',
+                10: 'Perfectly accurate',
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0];
+    expect(config?.type).toBe('llm_judge');
+    if (config?.type === 'llm_judge') {
+      expect(config.rubrics).toHaveLength(1);
+      const rubric = config.rubrics?.[0];
+      expect(rubric?.id).toBe('accuracy');
+      expect(rubric?.required_min_score).toBe(7);
+      expect(rubric?.score_ranges).toHaveLength(4);
+      expect(rubric?.score_ranges?.[0]).toEqual({
+        score_range: [0, 2],
+        expected_outcome: 'Completely wrong',
+      });
+      expect(rubric?.score_ranges?.[1]).toEqual({
+        score_range: [3, 6],
+        expected_outcome: 'Partially correct',
+      });
+      expect(rubric?.score_ranges?.[2]).toEqual({
+        score_range: [7, 9],
+        expected_outcome: 'Correct with minor issues',
+      });
+      expect(rubric?.score_ranges?.[3]).toEqual({
+        score_range: [10, 10],
+        expected_outcome: 'Perfectly accurate',
+      });
+    }
+  });
+
+  it('throws when shorthand map does not start at 0', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'bad-start',
+          type: 'llm_judge',
+          rubrics: [
+            {
+              id: 'test',
+              score_ranges: {
+                3: 'Partially correct',
+                7: 'Good',
+                10: 'Perfect',
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    await expect(
+      parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case'),
+    ).rejects.toThrow(/must start at 0/);
+  });
+
+  it('passes through existing array format unchanged', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'array-format',
+          type: 'llm_judge',
+          rubrics: [
+            {
+              id: 'accuracy',
+              score_ranges: [
+                { score_range: [0, 3], expected_outcome: 'Bad' },
+                { score_range: [4, 6], expected_outcome: 'OK' },
+                { score_range: [7, 9], expected_outcome: 'Good' },
+                { score_range: [10, 10], expected_outcome: 'Perfect' },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0];
+    if (config?.type === 'llm_judge') {
+      expect(config.rubrics?.[0]?.score_ranges).toHaveLength(4);
+    }
+  });
+});
+
 describe('parseEvaluators - token_usage', () => {
   it('parses token_usage evaluator with limits', async () => {
     const rawEvalCase = {

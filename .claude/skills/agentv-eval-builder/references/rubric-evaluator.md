@@ -9,7 +9,7 @@
 | `weight` | number | 1.0 | Relative importance |
 | `required` | boolean | true | Failing forces verdict to 'fail' (checklist mode) |
 | `required_min_score` | integer | - | Minimum 0-10 score to pass (score-range mode) |
-| `score_ranges` | array | - | Score range definitions for analytic scoring |
+| `score_ranges` | map or array | - | Score range definitions for analytic scoring |
 
 `description` is a backward-compatible alias for `expected_outcome`.
 
@@ -30,11 +30,25 @@ rubrics:
 
 ## Score-Range Mode
 
+Shorthand map format (recommended):
+
 ```yaml
 rubrics:
   - id: correctness
     weight: 2.0
     required_min_score: 7
+    score_ranges:
+      0: Critical bugs
+      3: Minor bugs
+      6: Correct with minor issues
+      9: Fully correct
+```
+
+Map keys are lower bounds (0-10). Each range extends from its key to (next key - 1), with the last extending to 10. Must start at 0.
+
+Array format is also accepted:
+
+```yaml
     score_ranges:
       - score_range: [0, 2]
         expected_outcome: Critical bugs

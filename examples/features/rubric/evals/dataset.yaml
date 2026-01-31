@@ -179,10 +179,9 @@ evalcases:
     # To generate rubrics: agentv generate rubrics evals/rubric-examples.yaml
 
   # ==========================================
-  # Example 5: Multi-criteria score_ranges (PROPOSED)
-  # Demonstrates: multiple rubric ids, each with 0–10 score_ranges, then weighted aggregation.
-  # Real-world intent: grading a summary on both factual accuracy and brevity.
-  # Status: Proposed only; not supported until `add-rubric-score-ranges` is implemented.
+  # Example 5: Multi-criteria score_ranges
+  # Demonstrates: multiple rubric ids, each with 0–10 score_ranges using shorthand map format,
+  # then weighted aggregation. Real-world intent: grading a summary on both factual accuracy and brevity.
   # ==========================================
   - id: summary-multi-criteria-score-ranges-proposed
 
@@ -211,27 +210,17 @@ evalcases:
         weight: 2.0
         required_min_score: 8
         score_ranges:
-          - score_range: [0, 2]
-            expected_outcome: Contains major factual errors or contradicts the article.
-          - score_range: [3, 5]
-            expected_outcome: Mostly on-topic but includes at least one clear factual error or misstates a key claim.
-          - score_range: [6, 7]
-            expected_outcome: Generally accurate but misses an important point or slightly distorts emphasis.
-          - score_range: [8, 9]
-            expected_outcome: Accurate and covers the key points with only minor omissions.
-          - score_range: [10, 10]
-            expected_outcome: Fully accurate, captures all key points with no distortions.
+          0: Contains major factual errors or contradicts the article.
+          3: Mostly on-topic but includes at least one clear factual error or misstates a key claim.
+          6: Generally accurate but misses an important point or slightly distorts emphasis.
+          8: Accurate and covers the key points with only minor omissions.
+          10: Fully accurate, captures all key points with no distortions.
 
       - id: brevity_and_clarity
         weight: 1.0
         score_ranges:
-          - score_range: [0, 2]
-            expected_outcome: Exceeds 50 words or is hard to understand.
-          - score_range: [3, 5]
-            expected_outcome: Under 50 words but unclear, repetitive, or poorly structured.
-          - score_range: [6, 7]
-            expected_outcome: Under 50 words and mostly clear, but could be more concise or better phrased.
-          - score_range: [8, 9]
-            expected_outcome: Under 50 words, clear and concise.
-          - score_range: [10, 10]
-            expected_outcome: Under 50 words, exceptionally clear, concise, and well phrased.
+          0: Exceeds 50 words or is hard to understand.
+          3: Under 50 words but unclear, repetitive, or poorly structured.
+          6: Under 50 words and mostly clear, but could be more concise or better phrased.
+          8: Under 50 words, clear and concise.
+          10: Under 50 words, exceptionally clear, concise, and well phrased.
