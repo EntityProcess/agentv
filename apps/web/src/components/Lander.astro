@@ -2,91 +2,166 @@
 import type { Props } from '@astrojs/starlight/props';
 ---
 
-<div class="lander">
-  <section class="hero-section">
-    <div class="hero-content">
-      <h1>CLI-first AI agent evaluation</h1>
-      <p class="tagline">No server. No signup. No overhead.</p>
-      <p class="description">
-        Evaluate your AI agents locally with multi-objective scoring from YAML specifications.
-        Deterministic code judges + customizable LLM judges, all version-controlled in Git.
-      </p>
-      <div class="install-command">
-        <button class="command" data-command="npm install -g agentv">
-          <code>
-            <span>npm install -g </span><span class="highlight">agentv</span>
-          </code>
-          <span class="copy">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          </span>
-        </button>
+<!-- Floating Nav -->
+<nav class="av-nav" id="av-nav">
+  <div class="av-nav-inner">
+    <a href="/" class="av-nav-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" width="28" height="28">
+        <rect width="120" height="120" rx="24" fill="#4f46e5"/>
+        <text x="60" y="82" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-weight="bold" font-size="64" fill="white">V</text>
+      </svg>
+      <span>AgentV</span>
+    </a>
+    <div class="av-nav-links">
+      <a href="/getting-started/introduction/">Docs</a>
+      <a href="https://github.com/EntityProcess/agentv" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <button class="av-nav-pill" data-command="npm install -g agentv">
+        <code>npm install -g agentv</code>
+        <span class="av-copy-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="av-check-icon"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="av-lander">
+  <!-- Hero Section -->
+  <section class="av-hero">
+    <div class="av-hero-bg"></div>
+    <div class="av-hero-inner">
+      <div class="av-hero-text">
+        <span class="av-hero-label">&gt; AI agent evaluation framework</span>
+        <h1>Evaluate agents with<br/><span class="av-gradient-text">terminal precision</span></h1>
+        <p class="av-hero-sub">
+          No server. No signup. Multi-objective scoring from YAML specs.
+          Deterministic code judges + customizable LLM judges, version-controlled in Git.
+        </p>
+        <div class="av-hero-cta">
+          <a href="/getting-started/introduction/" class="av-btn-primary">Get Started</a>
+          <a href="https://github.com/EntityProcess/agentv" class="av-btn-ghost" target="_blank" rel="noopener noreferrer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+            GitHub
+          </a>
+        </div>
       </div>
-      <div class="cta-buttons">
-        <a href="/getting-started/introduction/" class="btn-primary">Get Started</a>
-        <a href="https://github.com/EntityProcess/agentv" class="btn-secondary" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <div class="av-hero-terminal">
+        <div class="av-terminal">
+          <div class="av-terminal-bar">
+            <span class="av-terminal-dot av-dot-red"></span>
+            <span class="av-terminal-dot av-dot-yellow"></span>
+            <span class="av-terminal-dot av-dot-green"></span>
+            <span class="av-terminal-title">agentv</span>
+          </div>
+          <div class="av-terminal-body">
+            <!-- Scene 1: agentv eval -->
+            <div class="av-scene av-scene-1">
+              <div class="av-line av-line-cmd"><span class="av-prompt">$</span> <span class="av-typing">agentv eval ./evals/math.yaml</span></div>
+              <div class="av-line av-line-out av-line-delay-1"><span class="av-dim">Running 3 eval cases...</span></div>
+              <div class="av-line av-line-out av-line-delay-2"><span class="av-pass">PASS</span> addition <span class="av-dim">score: 1.0</span></div>
+              <div class="av-line av-line-out av-line-delay-3"><span class="av-pass">PASS</span> multiplication <span class="av-dim">score: 1.0</span></div>
+              <div class="av-line av-line-out av-line-delay-4"><span class="av-fail">FAIL</span> division <span class="av-dim">score: 0.4</span></div>
+              <div class="av-line av-line-out av-line-delay-5"><span class="av-dim">Results:</span> <span class="av-pass">2 passed</span> <span class="av-fail">1 failed</span></div>
+            </div>
+            <!-- Scene 2: agentv compare -->
+            <div class="av-scene av-scene-2">
+              <div class="av-line av-line-cmd"><span class="av-prompt">$</span> <span class="av-typing">agentv compare run-a run-b</span></div>
+              <div class="av-line av-line-out av-line-delay-1"><span class="av-dim">Comparing 2 runs...</span></div>
+              <div class="av-line av-line-out av-line-delay-2">correctness <span class="av-pass">+12.5%</span> <span class="av-dim">(0.72 -> 0.81)</span></div>
+              <div class="av-line av-line-out av-line-delay-3">latency     <span class="av-pass"> -340ms</span> <span class="av-dim">(1.2s -> 0.86s)</span></div>
+              <div class="av-line av-line-out av-line-delay-4">cost        <span class="av-fail"> +$0.02</span> <span class="av-dim">($0.05 -> $0.07)</span></div>
+              <div class="av-line av-line-out av-line-delay-5"><span class="av-dim">Overall:</span> <span class="av-pass">improved</span></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="features">
-    <div class="features-grid">
-      <div class="feature-card">
-        <h3>Local Execution</h3>
-        <p>No cloud dependency. All data stays on your machine.</p>
-      </div>
-      <div class="feature-card">
-        <h3>Multi-Objective Scoring</h3>
-        <p>Correctness, latency, cost, and safety in one run.</p>
-      </div>
-      <div class="feature-card">
-        <h3>Code + LLM Judges</h3>
-        <p>Deterministic code validators and customizable LLM judges.</p>
-      </div>
-      <div class="feature-card">
-        <h3>LLM & Agent Targets</h3>
-        <p>Direct LLM providers plus Claude Code, Codex, Pi, Copilot, OpenCode.</p>
-      </div>
-      <div class="feature-card">
-        <h3>Rubric Grading</h3>
-        <p>Structured criteria with weights and auto-generation.</p>
-      </div>
-      <div class="feature-card">
-        <h3>A/B Comparison</h3>
-        <p>Compare evaluation runs with statistical deltas.</p>
+  <!-- Features Section -->
+  <section class="av-features">
+    <div class="av-container">
+      <h2 class="av-section-heading">Built for your workflow</h2>
+      <div class="av-features-grid">
+        <div class="av-feature-card av-reveal">
+          <span class="av-feature-icon">&gt;_</span>
+          <h3>Local Execution</h3>
+          <p>No cloud dependency. All data stays on your machine. Zero overhead to get started.</p>
+        </div>
+        <div class="av-feature-card av-reveal">
+          <span class="av-feature-icon">[~]</span>
+          <h3>Multi-Objective Scoring</h3>
+          <p>Correctness, latency, cost, and safety measured in a single evaluation run.</p>
+        </div>
+        <div class="av-feature-card av-reveal">
+          <span class="av-feature-icon">{"{f}"}</span>
+          <h3>Code + LLM Judges</h3>
+          <p>Deterministic code validators and customizable LLM judges, composable and extensible.</p>
+        </div>
+        <div class="av-feature-card av-reveal">
+          <span class="av-feature-icon">@&gt;</span>
+          <h3>LLM & Agent Targets</h3>
+          <p>Direct LLM providers plus Claude Code, Codex, Pi, Copilot, OpenCode agent targets.</p>
+        </div>
+        <div class="av-feature-card av-reveal">
+          <span class="av-feature-icon">##</span>
+          <h3>Rubric Grading</h3>
+          <p>Structured criteria with weights and auto-generation. Google ADK-style object rubrics.</p>
+        </div>
+        <div class="av-feature-card av-reveal">
+          <span class="av-feature-icon">&lt;=&gt;</span>
+          <h3>A/B Comparison</h3>
+          <p>Compare evaluation runs side-by-side with statistical deltas and regression detection.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="quickstart">
-    <h2>Quick Start</h2>
-    <div class="steps">
-      <div class="step">
-        <span class="step-number">1</span>
-        <div class="step-content">
-          <h3>Install</h3>
-          <pre><code>npm install -g agentv</code></pre>
+  <!-- Quick Start Section -->
+  <section class="av-quickstart">
+    <div class="av-container">
+      <h2 class="av-section-heading">Quick Start</h2>
+      <div class="av-timeline">
+        <div class="av-timeline-line"></div>
+
+        <div class="av-timeline-step av-reveal">
+          <span class="av-step-num">1</span>
+          <div class="av-step-body">
+            <h3>Install</h3>
+            <div class="av-mini-terminal">
+              <div class="av-mini-bar"><span class="av-mini-dots"></span></div>
+              <pre><code>npm install -g agentv</code></pre>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="step">
-        <span class="step-number">2</span>
-        <div class="step-content">
-          <h3>Initialize</h3>
-          <pre><code>agentv init</code></pre>
+
+        <div class="av-timeline-step av-reveal">
+          <span class="av-step-num">2</span>
+          <div class="av-step-body">
+            <h3>Initialize</h3>
+            <div class="av-mini-terminal">
+              <div class="av-mini-bar"><span class="av-mini-dots"></span></div>
+              <pre><code>agentv init</code></pre>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="step">
-        <span class="step-number">3</span>
-        <div class="step-content">
-          <h3>Configure</h3>
-          <p>Copy <code>.env.example</code> to <code>.env</code> and add your API keys.</p>
+
+        <div class="av-timeline-step av-reveal">
+          <span class="av-step-num">3</span>
+          <div class="av-step-body">
+            <h3>Configure</h3>
+            <p>Copy <code>.env.example</code> to <code>.env</code> and add your API keys.</p>
+          </div>
         </div>
-      </div>
-      <div class="step">
-        <span class="step-number">4</span>
-        <div class="step-content">
-          <h3>Create an eval</h3>
-          <pre><code>{`description: Math evaluation
+
+        <div class="av-timeline-step av-reveal">
+          <span class="av-step-num">4</span>
+          <div class="av-step-body">
+            <h3>Create an eval</h3>
+            <div class="av-mini-terminal">
+              <div class="av-mini-bar"><span class="av-mini-dots"></span></div>
+              <pre><code>{`description: Math evaluation
 execution:
   target: default
 
@@ -96,503 +171,1003 @@ evalcases:
     input_messages:
       - role: user
         content: What is 15 + 27?`}</code></pre>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="step">
-        <span class="step-number">5</span>
-        <div class="step-content">
-          <h3>Run</h3>
-          <pre><code>agentv eval ./evals/example.yaml</code></pre>
+
+        <div class="av-timeline-step av-reveal">
+          <span class="av-step-num">5</span>
+          <div class="av-step-body">
+            <h3>Run</h3>
+            <div class="av-mini-terminal">
+              <div class="av-mini-bar"><span class="av-mini-dots"></span></div>
+              <pre><code>agentv eval ./evals/example.yaml</code></pre>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="comparison">
-    <h2>How AgentV Compares</h2>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Feature</th>
-            <th>AgentV</th>
-            <th>LangWatch</th>
-            <th>LangSmith</th>
-            <th>LangFuse</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Setup</td>
-            <td><code>npm install</code></td>
-            <td>Cloud account + API key</td>
-            <td>Cloud account + API key</td>
-            <td>Cloud account + API key</td>
-          </tr>
-          <tr>
-            <td>Server</td>
-            <td>None (local)</td>
-            <td>Managed cloud</td>
-            <td>Managed cloud</td>
-            <td>Managed cloud</td>
-          </tr>
-          <tr>
-            <td>Privacy</td>
-            <td>All local</td>
-            <td>Cloud-hosted</td>
-            <td>Cloud-hosted</td>
-            <td>Cloud-hosted</td>
-          </tr>
-          <tr>
-            <td>CLI-first</td>
-            <td class="check">&#10003;</td>
-            <td class="cross">&#10007;</td>
-            <td>Limited</td>
-            <td>Limited</td>
-          </tr>
-          <tr>
-            <td>CI/CD ready</td>
-            <td class="check">&#10003;</td>
-            <td>Requires API calls</td>
-            <td>Requires API calls</td>
-            <td>Requires API calls</td>
-          </tr>
-          <tr>
-            <td>Version control</td>
-            <td class="check">&#10003; (YAML in Git)</td>
-            <td class="cross">&#10007;</td>
-            <td class="cross">&#10007;</td>
-            <td class="cross">&#10007;</td>
-          </tr>
-          <tr>
-            <td>Evaluators</td>
-            <td>Code + LLM + Custom</td>
-            <td>LLM only</td>
-            <td>LLM + Code</td>
-            <td>LLM only</td>
-          </tr>
-        </tbody>
-      </table>
+  <!-- Comparison Section -->
+  <section class="av-comparison">
+    <div class="av-container">
+      <h2 class="av-section-heading">How AgentV Compares</h2>
+      <div class="av-table-card av-reveal">
+        <div class="av-table-scroll">
+          <div class="av-table-fade"></div>
+          <table>
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th class="av-col-highlight">AgentV</th>
+                <th>LangWatch</th>
+                <th>LangSmith</th>
+                <th>LangFuse</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Setup</td>
+                <td class="av-col-highlight"><code>npm install</code></td>
+                <td>Cloud account + API key</td>
+                <td>Cloud account + API key</td>
+                <td>Cloud account + API key</td>
+              </tr>
+              <tr>
+                <td>Server</td>
+                <td class="av-col-highlight">None (local)</td>
+                <td>Managed cloud</td>
+                <td>Managed cloud</td>
+                <td>Managed cloud</td>
+              </tr>
+              <tr>
+                <td>Privacy</td>
+                <td class="av-col-highlight">All local</td>
+                <td>Cloud-hosted</td>
+                <td>Cloud-hosted</td>
+                <td>Cloud-hosted</td>
+              </tr>
+              <tr>
+                <td>CLI-first</td>
+                <td class="av-col-highlight"><span class="av-check-badge">&#10003;</span></td>
+                <td><span class="av-cross">&#10007;</span></td>
+                <td>Limited</td>
+                <td>Limited</td>
+              </tr>
+              <tr>
+                <td>CI/CD ready</td>
+                <td class="av-col-highlight"><span class="av-check-badge">&#10003;</span></td>
+                <td>Requires API calls</td>
+                <td>Requires API calls</td>
+                <td>Requires API calls</td>
+              </tr>
+              <tr>
+                <td>Version control</td>
+                <td class="av-col-highlight"><span class="av-check-badge">&#10003;</span> YAML in Git</td>
+                <td><span class="av-cross">&#10007;</span></td>
+                <td><span class="av-cross">&#10007;</span></td>
+                <td><span class="av-cross">&#10007;</span></td>
+              </tr>
+              <tr>
+                <td>Evaluators</td>
+                <td class="av-col-highlight">Code + LLM + Custom</td>
+                <td>LLM only</td>
+                <td>LLM + Code</td>
+                <td>LLM only</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section class="footer-cta">
-    <h2>Start evaluating your agents</h2>
-    <div class="cta-buttons">
-      <a href="/getting-started/introduction/" class="btn-primary">Read the docs</a>
-      <a href="https://github.com/EntityProcess/agentv" class="btn-secondary" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+  <!-- Footer CTA -->
+  <section class="av-footer-cta">
+    <div class="av-footer-bg"></div>
+    <div class="av-container av-footer-inner">
+      <h2 class="av-gradient-text">Start evaluating your agents</h2>
+      <p class="av-footer-sub">Open source. Local-first. MIT Licensed.</p>
+      <div class="av-footer-actions">
+        <a href="/getting-started/introduction/" class="av-btn-primary">Read the docs</a>
+        <button class="av-footer-install" data-command="npm install -g agentv">
+          <code>$ npm install -g agentv</code>
+          <span class="av-copy-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="av-check-icon"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+        </button>
+      </div>
+      <span class="av-mit-badge">MIT Licensed</span>
     </div>
   </section>
 </div>
 
 <style>
-.lander {
-  --padding: 3rem;
-  --vertical-padding: 1.5rem;
-  --heading-font-size: var(--sl-text-4xl);
-  --border: 1px solid var(--sl-color-gray-5);
+/* ============================================
+   Variables & Foundations
+   ============================================ */
+.av-lander {
+  --av-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  --av-bg: hsl(240, 10%, 8%);
+  --av-surface: hsl(240, 8%, 11%);
+  --av-surface-border: hsl(240, 5%, 16%);
+  --av-text: hsl(240, 5%, 90%);
+  --av-text-muted: hsl(240, 5%, 55%);
+  --av-indigo: #6366f1;
+  --av-indigo-dark: #4f46e5;
+  --av-violet: #7c3aed;
+  --av-gradient: linear-gradient(135deg, #4f46e5, #7c3aed);
+  --av-green: #22c55e;
+  --av-red: #ef4444;
+  --av-glow: 0 0 30px rgba(99, 102, 241, 0.15);
+  --av-glow-strong: 0 0 60px rgba(99, 102, 241, 0.2);
 
-  margin: 0 auto;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--av-text);
+  background: var(--av-bg);
+  overflow-x: hidden;
+}
+
+.av-container {
   max-width: 72rem;
-}
-
-@media (max-width: 30rem) {
-  .lander {
-    --padding: 1.25rem;
-    --vertical-padding: 1rem;
-    --heading-font-size: var(--sl-text-2xl);
-  }
-}
-
-/* Hero Section */
-.hero-section {
-  padding: calc(var(--padding) * 2) var(--padding);
-  text-align: center;
-  border-bottom: var(--border);
-}
-
-.hero-content {
-  max-width: 40rem;
   margin: 0 auto;
+  padding: 0 2rem;
 }
 
-.hero-section h1 {
-  font-size: var(--heading-font-size);
-  line-height: 1.15;
-  margin: 0 0 0.75rem;
-  color: var(--sl-color-white);
+/* ============================================
+   Navigation
+   ============================================ */
+.av-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 0.75rem 2rem;
+  background: rgba(14, 14, 20, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid transparent;
+  transition: background 0.3s, border-color 0.3s;
 }
 
-.tagline {
-  font-size: var(--sl-text-xl);
-  color: var(--sl-color-gray-2);
-  margin: 0 0 1.5rem;
+.av-nav.scrolled {
+  background: rgba(14, 14, 20, 0.92);
+  border-bottom-color: var(--av-surface-border);
 }
 
-.description {
-  font-size: var(--sl-text-base);
-  color: var(--sl-color-gray-3);
-  line-height: 1.6;
-  margin: 0 0 2rem;
-}
-
-.install-command {
-  margin: 0 0 2rem;
-  display: flex;
-  justify-content: center;
-}
-
-.command {
-  all: unset;
+.av-nav-inner {
+  max-width: 72rem;
+  margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  cursor: pointer;
-  padding: 0.75rem 1.25rem;
-  border: var(--border);
-  border-radius: 0.5rem;
-  background: var(--sl-color-gray-6);
-  transition: border-color 0.15s;
-}
-
-.command:hover {
-  border-color: var(--sl-color-gray-3);
-}
-
-.command code {
-  font-size: var(--sl-text-base);
-  color: var(--sl-color-gray-3);
-}
-
-.command code .highlight {
-  color: var(--sl-color-white);
-  font-weight: 600;
-}
-
-.command .copy {
-  line-height: 1;
-}
-
-.command .copy svg {
-  width: 1rem;
-  height: 1rem;
-  vertical-align: middle;
-}
-
-.command .copy svg:first-child {
-  color: var(--sl-color-gray-3);
-}
-
-.command .copy svg:last-child {
-  color: var(--sl-color-white);
-  display: none;
-}
-
-.command.success .copy svg:first-child {
-  display: none;
-}
-
-.command.success .copy svg:last-child {
-  display: inline;
-}
-
-.cta-buttons {
-  display: flex;
+  justify-content: space-between;
   gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
 }
 
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.75rem 1.5rem;
-  background: var(--sl-color-white);
-  color: var(--sl-color-black);
-  border-radius: 0.5rem;
-  font-weight: 600;
-  font-size: var(--sl-text-base);
-  text-decoration: none;
-  transition: opacity 0.15s;
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-}
-
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.75rem 1.5rem;
-  border: var(--border);
-  color: var(--sl-color-gray-2);
-  border-radius: 0.5rem;
-  font-weight: 500;
-  font-size: var(--sl-text-base);
-  text-decoration: none;
-  transition: border-color 0.15s;
-}
-
-.btn-secondary:hover {
-  border-color: var(--sl-color-gray-3);
-}
-
-/* Features Section */
-.features {
-  border-bottom: var(--border);
-}
-
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-}
-
-@media (max-width: 50rem) {
-  .features-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 30rem) {
-  .features-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.feature-card {
-  padding: var(--padding);
-  border-right: var(--border);
-  border-bottom: var(--border);
-}
-
-.feature-card:nth-child(3n) {
-  border-right: none;
-}
-
-.feature-card:nth-last-child(-n+3) {
-  border-bottom: none;
-}
-
-@media (max-width: 50rem) {
-  .feature-card:nth-child(3n) {
-    border-right: var(--border);
-  }
-  .feature-card:nth-child(2n) {
-    border-right: none;
-  }
-  .feature-card:nth-last-child(-n+3) {
-    border-bottom: var(--border);
-  }
-  .feature-card:nth-last-child(-n+2) {
-    border-bottom: none;
-  }
-}
-
-@media (max-width: 30rem) {
-  .feature-card {
-    border-right: none;
-    border-bottom: var(--border);
-  }
-  .feature-card:last-child {
-    border-bottom: none;
-  }
-}
-
-.feature-card h3 {
-  font-size: var(--sl-text-base);
-  font-weight: 600;
-  color: var(--sl-color-white);
-  margin: 0 0 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.feature-card p {
-  font-size: var(--sl-text-sm);
-  color: var(--sl-color-gray-3);
-  margin: 0;
-  line-height: 1.5;
-}
-
-/* Quick Start Section */
-.quickstart {
-  padding: var(--padding);
-  border-bottom: var(--border);
-}
-
-.quickstart h2 {
-  font-size: var(--sl-text-2xl);
-  color: var(--sl-color-white);
-  margin: 0 0 2rem;
-  text-transform: uppercase;
-}
-
-.steps {
+.av-nav-logo {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  text-decoration: none;
+  color: var(--av-text);
+  font-family: var(--av-font-mono);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.av-nav-links {
+  display: flex;
+  align-items: center;
   gap: 1.5rem;
 }
 
-.step {
-  display: flex;
-  gap: 1.25rem;
-  align-items: flex-start;
+.av-nav-links > a {
+  color: var(--av-text-muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.15s;
 }
 
-.step-number {
+.av-nav-links > a:hover {
+  color: var(--av-text);
+}
+
+.av-nav-pill {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.4rem 0.75rem;
+  background: var(--av-surface);
+  border: 1px solid var(--av-surface-border);
+  border-radius: 6px;
+  font-family: var(--av-font-mono);
+  font-size: 0.75rem;
+  color: var(--av-text-muted);
+  transition: border-color 0.15s;
+}
+
+.av-nav-pill:hover {
+  border-color: var(--av-indigo);
+}
+
+.av-nav-pill code {
+  font-family: inherit;
+}
+
+/* Copy icon states */
+.av-copy-icon {
+  display: inline-flex;
+  line-height: 1;
+}
+
+.av-copy-icon .av-check-icon {
+  display: none;
+}
+
+.av-copied .av-copy-icon svg:first-child {
+  display: none;
+}
+
+.av-copied .av-copy-icon .av-check-icon {
+  display: inline;
+  color: var(--av-green);
+}
+
+/* ============================================
+   Hero Section
+   ============================================ */
+.av-hero {
+  position: relative;
+  padding: 8rem 2rem 5rem;
+  overflow: hidden;
+}
+
+.av-hero-bg {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, hsl(240, 5%, 18%) 1px, transparent 0);
+  background-size: 32px 32px;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.av-hero-inner {
+  max-width: 72rem;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+  position: relative;
+}
+
+.av-hero-label {
+  display: inline-block;
+  font-family: var(--av-font-mono);
+  font-size: 0.875rem;
+  color: var(--av-indigo);
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.01em;
+}
+
+.av-hero-text h1 {
+  font-family: var(--av-font-mono);
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--av-text);
+  margin: 0 0 1.25rem;
+}
+
+.av-gradient-text {
+  background: var(--av-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.av-hero-sub {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--av-text-muted);
+  margin: 0 0 2rem;
+  max-width: 32rem;
+}
+
+.av-hero-cta {
+  display: flex;
+  gap: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.av-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.5rem;
+  background: var(--av-gradient);
+  color: #fff;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  transition: box-shadow 0.2s, transform 0.15s;
+  box-shadow: var(--av-glow);
+}
+
+.av-btn-primary:hover {
+  box-shadow: var(--av-glow-strong);
+  transform: translateY(-1px);
+}
+
+.av-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.5rem;
+  border: 1px solid var(--av-surface-border);
+  color: var(--av-text-muted);
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.av-btn-ghost:hover {
+  border-color: var(--av-text-muted);
+  color: var(--av-text);
+}
+
+/* ============================================
+   Terminal Animation
+   ============================================ */
+.av-terminal {
+  background: hsl(240, 10%, 6%);
+  border: 1px solid var(--av-surface-border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--av-glow);
+  font-family: var(--av-font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+
+.av-terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.625rem 1rem;
+  background: hsl(240, 8%, 10%);
+  border-bottom: 1px solid var(--av-surface-border);
+}
+
+.av-terminal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.av-dot-red { background: #ff5f57; }
+.av-dot-yellow { background: #febc2e; }
+.av-dot-green { background: #28c840; }
+
+.av-terminal-title {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  color: var(--av-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.av-terminal-body {
+  padding: 1rem 1.25rem;
+  min-height: 12rem;
+  position: relative;
+}
+
+.av-prompt {
+  color: var(--av-indigo);
+  font-weight: 600;
+}
+
+.av-dim { color: var(--av-text-muted); }
+.av-pass { color: var(--av-green); font-weight: 600; }
+.av-fail { color: var(--av-red); font-weight: 600; }
+
+/* Scene visibility and cycling */
+.av-scene {
+  position: absolute;
+  inset: 1rem 1.25rem;
+  opacity: 0;
+  animation: av-scene-cycle 24s infinite;
+}
+
+.av-scene-2 {
+  animation-delay: 12s;
+}
+
+@keyframes av-scene-cycle {
+  0% { opacity: 0; }
+  2% { opacity: 1; }
+  46% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* Typing animation for command lines */
+.av-line-cmd .av-typing {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
+  animation: av-type 1.2s steps(40, end) forwards;
+}
+
+.av-scene-1 .av-line-cmd .av-typing {
+  animation-delay: 0.5s;
+}
+
+.av-scene-2 .av-line-cmd .av-typing {
+  animation-delay: 12.5s;
+}
+
+@keyframes av-type {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+/* Output lines fade in with stagger */
+.av-line-out {
+  opacity: 0;
+  animation: av-line-in 0.3s ease forwards;
+}
+
+.av-scene-1 .av-line-delay-1 { animation-delay: 2.0s; }
+.av-scene-1 .av-line-delay-2 { animation-delay: 3.0s; }
+.av-scene-1 .av-line-delay-3 { animation-delay: 4.0s; }
+.av-scene-1 .av-line-delay-4 { animation-delay: 5.0s; }
+.av-scene-1 .av-line-delay-5 { animation-delay: 6.5s; }
+
+.av-scene-2 .av-line-delay-1 { animation-delay: 14.0s; }
+.av-scene-2 .av-line-delay-2 { animation-delay: 15.0s; }
+.av-scene-2 .av-line-delay-3 { animation-delay: 16.0s; }
+.av-scene-2 .av-line-delay-4 { animation-delay: 17.0s; }
+.av-scene-2 .av-line-delay-5 { animation-delay: 18.5s; }
+
+@keyframes av-line-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   Features Section
+   ============================================ */
+.av-features {
+  padding: 5rem 0;
+  border-top: 1px solid var(--av-surface-border);
+}
+
+.av-section-heading {
+  font-family: var(--av-font-mono);
+  font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+  font-weight: 700;
+  color: var(--av-text);
+  letter-spacing: -0.02em;
+  margin: 0 0 3rem;
+}
+
+.av-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.av-feature-card {
+  padding: 1.75rem;
+  background: var(--av-surface);
+  border: 1px solid var(--av-surface-border);
+  border-radius: 8px;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+.av-feature-card:hover {
+  border-color: var(--av-indigo);
+  transform: translateY(-2px);
+  box-shadow: var(--av-glow);
+}
+
+.av-feature-icon {
+  display: inline-block;
+  font-family: var(--av-font-mono);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--av-indigo);
+  margin-bottom: 0.75rem;
+}
+
+.av-feature-card h3 {
+  font-family: var(--av-font-mono);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--av-indigo);
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.01em;
+}
+
+.av-feature-card p {
+  font-size: 0.875rem;
+  color: var(--av-text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ============================================
+   Quick Start Timeline
+   ============================================ */
+.av-quickstart {
+  padding: 5rem 0;
+  border-top: 1px solid var(--av-surface-border);
+}
+
+.av-timeline {
+  position: relative;
+  max-width: 40rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.av-timeline-line {
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--av-indigo), var(--av-violet), transparent);
+}
+
+.av-timeline-step {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  position: relative;
+}
+
+.av-step-num {
   flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: var(--border);
+  background: var(--av-gradient);
+  color: #fff;
+  font-family: var(--av-font-mono);
+  font-size: 0.8125rem;
+  font-weight: 700;
   border-radius: 50%;
-  font-size: var(--sl-text-sm);
-  font-weight: 600;
-  color: var(--sl-color-gray-2);
+  position: relative;
+  z-index: 1;
 }
 
-.step-content {
+.av-step-body {
   flex: 1;
   min-width: 0;
+  padding-top: 0.25rem;
 }
 
-.step-content h3 {
-  font-size: var(--sl-text-base);
+.av-step-body h3 {
+  font-family: var(--av-font-mono);
+  font-size: 1rem;
   font-weight: 600;
-  color: var(--sl-color-white);
-  margin: 0.25rem 0 0.5rem;
+  color: var(--av-text);
+  margin: 0 0 0.625rem;
 }
 
-.step-content p {
-  font-size: var(--sl-text-sm);
-  color: var(--sl-color-gray-3);
+.av-step-body p {
+  font-size: 0.875rem;
+  color: var(--av-text-muted);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
-.step-content p code {
-  background: var(--sl-color-gray-6);
+.av-step-body p code {
+  background: var(--av-surface);
+  border: 1px solid var(--av-surface-border);
   padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
-  font-size: 0.875em;
+  border-radius: 4px;
+  font-family: var(--av-font-mono);
+  font-size: 0.8125rem;
 }
 
-.step-content pre {
+/* Mini terminal blocks */
+.av-mini-terminal {
+  border: 1px solid var(--av-surface-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: hsl(240, 10%, 6%);
+}
+
+.av-mini-bar {
+  padding: 0.375rem 0.75rem;
+  background: hsl(240, 8%, 10%);
+  border-bottom: 1px solid var(--av-surface-border);
+}
+
+.av-mini-dots::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--av-text-muted);
+  opacity: 0.3;
+  box-shadow: 10px 0 0 rgba(140, 140, 160, 0.3), 20px 0 0 rgba(140, 140, 160, 0.3);
+}
+
+.av-mini-terminal pre {
   margin: 0;
   padding: 0.75rem 1rem;
-  background: var(--sl-color-gray-6);
-  border: var(--border);
-  border-radius: 0.5rem;
   overflow-x: auto;
 }
 
-.step-content pre code {
-  font-size: var(--sl-text-sm);
-  color: var(--sl-color-gray-2);
+.av-mini-terminal code {
+  font-family: var(--av-font-mono);
+  font-size: 0.8125rem;
+  color: var(--av-text-muted);
   white-space: pre;
 }
 
-/* Comparison Section */
-.comparison {
-  padding: var(--padding);
-  border-bottom: var(--border);
+/* ============================================
+   Comparison Table
+   ============================================ */
+.av-comparison {
+  padding: 5rem 0;
+  border-top: 1px solid var(--av-surface-border);
 }
 
-.comparison h2 {
-  font-size: var(--sl-text-2xl);
-  color: var(--sl-color-white);
-  margin: 0 0 2rem;
-  text-transform: uppercase;
+.av-table-card {
+  background: var(--av-surface);
+  border: 1px solid var(--av-surface-border);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.table-wrapper {
+.av-table-scroll {
   overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+.av-table-fade {
+  display: none;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--sl-text-sm);
+  font-size: 0.875rem;
 }
 
 thead th {
   text-align: left;
-  padding: 0.75rem 1rem;
-  border-bottom: 2px solid var(--sl-color-gray-5);
-  color: var(--sl-color-white);
+  padding: 0.875rem 1.25rem;
+  font-family: var(--av-font-mono);
   font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--av-text);
+  border-bottom: 1px solid var(--av-surface-border);
   white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+th.av-col-highlight {
+  color: var(--av-indigo);
+  border-bottom: 2px solid var(--av-indigo);
 }
 
 tbody td {
-  padding: 0.75rem 1rem;
-  border-bottom: var(--border);
-  color: var(--sl-color-gray-3);
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--av-surface-border);
+  color: var(--av-text-muted);
+}
+
+td.av-col-highlight {
+  color: var(--av-text);
+  background: rgba(99, 102, 241, 0.04);
 }
 
 tbody tr:last-child td {
   border-bottom: none;
 }
 
-td.check {
-  color: var(--sl-color-green);
+tbody tr {
+  transition: background 0.15s;
 }
 
-td.cross {
-  color: var(--sl-color-gray-4);
+tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
 }
 
 td code {
-  background: var(--sl-color-gray-6);
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.15);
   padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
-  font-size: 0.875em;
+  border-radius: 4px;
+  font-family: var(--av-font-mono);
+  font-size: 0.8125rem;
+  color: var(--av-indigo);
 }
 
-/* Footer CTA */
-.footer-cta {
-  padding: calc(var(--padding) * 2) var(--padding);
+.av-check-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--av-green);
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.av-cross {
+  color: hsl(240, 5%, 35%);
+  font-size: 0.875rem;
+}
+
+/* ============================================
+   Footer CTA
+   ============================================ */
+.av-footer-cta {
+  position: relative;
+  padding: 5rem 0 3rem;
   text-align: center;
+  border-top: 1px solid var(--av-surface-border);
 }
 
-.footer-cta h2 {
-  font-size: var(--sl-text-2xl);
-  color: var(--sl-color-white);
-  margin: 0 0 1.5rem;
+.av-footer-bg {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, hsl(240, 5%, 18%) 1px, transparent 0);
+  background-size: 32px 32px;
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.av-footer-inner {
+  position: relative;
+}
+
+.av-footer-cta h2 {
+  font-family: var(--av-font-mono);
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0 0 0.75rem;
+}
+
+.av-footer-sub {
+  color: var(--av-text-muted);
+  font-size: 1rem;
+  margin: 0 0 2rem;
+}
+
+.av-footer-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.av-footer-install {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  cursor: pointer;
+  padding: 0.625rem 1rem;
+  background: var(--av-surface);
+  border: 1px solid var(--av-surface-border);
+  border-radius: 6px;
+  font-family: var(--av-font-mono);
+  font-size: 0.8125rem;
+  color: var(--av-text-muted);
+  transition: border-color 0.15s;
+}
+
+.av-footer-install:hover {
+  border-color: var(--av-indigo);
+}
+
+.av-footer-install code {
+  font-family: inherit;
+}
+
+.av-mit-badge {
+  display: inline-block;
+  font-family: var(--av-font-mono);
+  font-size: 0.6875rem;
+  color: var(--av-text-muted);
+  padding: 0.25rem 0.625rem;
+  border: 1px solid var(--av-surface-border);
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* ============================================
+   Reveal animation (scroll-triggered)
+   Progressive enhancement: visible by default,
+   hidden only when JS activates the observer.
+   ============================================ */
+.av-reveal.av-observe {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.av-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 768px) {
+  .av-hero {
+    padding: 6rem 1.25rem 3rem;
+  }
+
+  .av-hero-inner {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+
+  .av-features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .av-nav-pill {
+    display: none;
+  }
+
+  .av-table-fade {
+    display: block;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 3rem;
+    background: linear-gradient(to right, transparent, var(--av-surface));
+    pointer-events: none;
+    z-index: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .av-hero-text h1 {
+    font-size: 1.75rem;
+  }
+
+  .av-container {
+    padding: 0 1.25rem;
+  }
+
+  .av-features,
+  .av-quickstart,
+  .av-comparison,
+  .av-footer-cta {
+    padding: 3rem 0;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .av-features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 </style>
 
 <style is:global>
 :root[data-has-hero] {
+  --sl-color-bg: hsl(240, 10%, 8%);
+
   header.header {
+    display: none;
+  }
+  nav.sidebar {
     display: none;
   }
   .main-frame {
     padding-top: 0;
+    background: hsl(240, 10%, 8%);
+
+    .main-pane {
+      --sl-content-width: 100%;
+      max-width: 100%;
+    }
 
     .main-pane > main {
       padding: 0;
     }
   }
+  .right-sidebar-container {
+    display: none;
+  }
   main > .content-panel .sl-markdown-content {
     margin-top: 0;
+  }
+  .content-panel {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .sl-markdown-content {
+    max-width: 100% !important;
+  }
+  .meta.sl-flex {
+    display: none;
+  }
+  .right-sidebar {
+    display: none;
+  }
+  footer.starlight-aside,
+  .pagination-links,
+  starlight-edit-link,
+  .sl-flex.pad-bottom {
+    display: none;
   }
 }
 </style>
 
 <script>
-  const buttons = document.querySelectorAll("button.command") as NodeListOf<HTMLButtonElement>
+  // Copy-to-clipboard for all command buttons
+  document.querySelectorAll("[data-command]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      navigator.clipboard.writeText(btn.dataset.command!);
+      btn.classList.add("av-copied");
+      setTimeout(() => btn.classList.remove("av-copied"), 1500);
+    });
+  });
 
-  buttons.forEach(button => {
-    button.addEventListener("click", () => {
-      navigator.clipboard.writeText(button.dataset.command!)
-      button.classList.toggle("success")
-      setTimeout(() => {
-        button.classList.toggle("success");
-      }, 1500)
-    })
-  })
+  // Nav scroll detection
+  const nav = document.getElementById("av-nav");
+  if (nav) {
+    const onScroll = () => {
+      nav.classList.toggle("scrolled", window.scrollY > 40);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+  }
+
+  // Scroll-triggered reveal with IntersectionObserver
+  const reveals = document.querySelectorAll(".av-reveal");
+  if (reveals.length > 0 && "IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -40px 0px" }
+    );
+    reveals.forEach((el) => {
+      el.classList.add("av-observe");
+      observer.observe(el);
+    });
+  }
 </script>
