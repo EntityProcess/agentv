@@ -1,0 +1,89 @@
+---
+title: Coding Agents
+description: Evaluate coding agent targets
+sidebar:
+  order: 3
+---
+
+Coding agent targets evaluate AI coding assistants and CLI-based agents. These targets require a `judge_target` to run LLM-based evaluators.
+
+## Claude Code
+
+```yaml
+targets:
+  - name: claude_code
+    provider: claude-code
+    judge_target: azure_base
+```
+
+## Codex CLI
+
+```yaml
+targets:
+  - name: codex_target
+    provider: codex
+    judge_target: azure_base
+```
+
+## Pi Coding Agent
+
+```yaml
+targets:
+  - name: pi_target
+    provider: pi-coding-agent
+    judge_target: azure_base
+```
+
+## VS Code / Copilot
+
+```yaml
+targets:
+  - name: vscode_dev
+    provider: vscode
+    workspace_template: ${{ WORKSPACE_PATH }}
+    judge_target: azure_base
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `workspace_template` | Yes | Path to workspace template directory |
+| `judge_target` | Yes | LLM target for evaluation |
+
+## VS Code Insiders
+
+```yaml
+targets:
+  - name: vscode_insiders
+    provider: vscode-insiders
+    workspace_template: ${{ WORKSPACE_PATH }}
+    judge_target: azure_base
+```
+
+Same configuration as VS Code.
+
+## Custom CLI Agent
+
+Evaluate any command-line agent:
+
+```yaml
+targets:
+  - name: local_agent
+    provider: cli
+    command_template: 'python agent.py --prompt {PROMPT}'
+    judge_target: azure_base
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `command_template` | Yes | Command to run. `{PROMPT}` is replaced with the input. |
+| `judge_target` | Yes | LLM target for evaluation |
+
+## Mock Provider
+
+For testing the evaluation harness without calling real providers:
+
+```yaml
+targets:
+  - name: mock_target
+    provider: mock
+```

@@ -1,0 +1,40 @@
+---
+title: Compare
+description: Compare evaluation results between runs
+sidebar:
+  order: 1
+---
+
+The `compare` command computes deltas between two evaluation runs for A/B testing.
+
+## Usage
+
+Run two evaluations and compare them:
+
+```bash
+agentv eval evals/my-eval.yaml --out before.jsonl
+# ... make changes to your agent ...
+agentv eval evals/my-eval.yaml --out after.jsonl
+agentv compare before.jsonl after.jsonl
+```
+
+## Options
+
+### Threshold
+
+Set a minimum delta to highlight significant changes:
+
+```bash
+agentv compare before.jsonl after.jsonl --threshold 0.1
+```
+
+## Output
+
+The comparison shows:
+
+- **Wins** — cases where scores improved
+- **Losses** — cases where scores regressed
+- **Ties** — cases with no significant change
+- **Mean delta** — average score change across all cases
+
+This helps identify whether changes to your agent or prompts improved or regressed performance.

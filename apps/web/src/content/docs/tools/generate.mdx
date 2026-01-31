@@ -1,0 +1,54 @@
+---
+title: Generate
+description: Auto-generate rubrics from expected outcomes
+sidebar:
+  order: 3
+---
+
+The `generate` command creates structured evaluation criteria from your eval cases.
+
+## Generate Rubrics
+
+Auto-generate rubrics from expected outcomes:
+
+```bash
+agentv generate rubrics evals/my-eval.yaml
+```
+
+This analyzes each eval case's `expected_outcome` field and creates structured rubric criteria with appropriate weights.
+
+## How It Works
+
+1. Reads each eval case's `expected_outcome`
+2. Uses an LLM to decompose the expected outcome into individual checkable criteria
+3. Assigns weights based on importance
+4. Writes the rubrics back to the eval file
+
+## Example
+
+Before:
+
+```yaml
+evalcases:
+  - id: quicksort
+    expected_outcome: Explains quicksort with time complexity and examples
+    input_messages:
+      - role: user
+        content: Explain quicksort
+```
+
+After running `agentv generate rubrics`:
+
+```yaml
+evalcases:
+  - id: quicksort
+    expected_outcome: Explains quicksort with time complexity and examples
+    input_messages:
+      - role: user
+        content: Explain quicksort
+    rubrics:
+      - Explains divide-and-conquer approach
+      - Describes partition step
+      - States O(n log n) average time complexity
+      - Provides a concrete example
+```
