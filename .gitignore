@@ -8,6 +8,7 @@ coverage/
 *.tsbuildinfo
 *.tsbuildinfo.*
 .DS_Store
+.astro/
 **/.agentv/results/
 **/.agentv/logs/
 .env
