@@ -73,8 +73,12 @@ See `references/custom-evaluators.md` for templates.
   type: llm_judge
   prompt: ./prompts/eval.md     # markdown template or script config
   model: gpt-5-chat            # optional model override
+  config:                       # passed to script templates as context.config
+    strictness: high
 ```
 Variables: `{{question}}`, `{{expected_outcome}}`, `{{candidate_answer}}`, `{{reference_answer}}`, `{{input_messages}}`, `{{expected_messages}}`, `{{output_messages}}`
+- Markdown templates: use `{{variable}}` syntax
+- TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/eval`, receives context object with all variables + `config`
 
 ### composite
 ```yaml
@@ -90,6 +94,8 @@ Variables: `{{question}}`, `{{expected_outcome}}`, `{{candidate_answer}}`, `{{re
     type: weighted_average
     weights: { safety: 0.3, quality: 0.7 }
 ```
+Aggregator types: `weighted_average`, `all_or_nothing`, `minimum`, `maximum`, `safety_gate`
+- `safety_gate`: fails immediately if the named gate evaluator scores below threshold (default 1.0)
 
 ### tool_trajectory
 ```yaml
@@ -100,13 +106,20 @@ Variables: `{{question}}`, `{{expected_outcome}}`, `{{candidate_answer}}`, `{{re
     knowledgeSearch: 2
   expected:                  # for in_order/exact
     - tool: knowledgeSearch
+      args: { query: "search term" }   # partial deep equality match
     - tool: documentRetrieve
+      args: any                        # any arguments accepted
+      max_duration_ms: 5000            # per-tool latency assertion
+    - tool: summarize                  # omit args to skip argument checking
 ```
 
 ### field_accuracy
 ```yaml
 - name: fields
   type: field_accuracy
+  match_type: exact          # exact | date | numeric_tolerance
+  numeric_tolerance: 0.01    # for numeric_tolerance match_type
+  aggregation: weighted_average  # weighted_average | all_or_nothing
 ```
 Compares `output_messages` fields against `expected_messages` fields.
 
