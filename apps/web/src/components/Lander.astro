@@ -86,7 +86,16 @@ import type { Props } from '@astrojs/starlight/props';
         <span class="step-number">4</span>
         <div class="step-content">
           <h3>Create an eval</h3>
-          <pre><code>description: Math evaluation{"\n"}execution:{"\n"}  target: default{"\n"}{"\n"}evalcases:{"\n"}  - id: addition{"\n"}    expected_outcome: Correctly calculates 15 + 27 = 42{"\n"}    input_messages:{"\n"}      - role: user{"\n"}        content: What is 15 + 27?</code></pre>
+          <pre><code>{`description: Math evaluation
+execution:
+  target: default
+
+evalcases:
+  - id: addition
+    expected_outcome: Correctly calculates 15 + 27 = 42
+    input_messages:
+      - role: user
+        content: What is 15 + 27?`}</code></pre>
         </div>
       </div>
       <div class="step">
