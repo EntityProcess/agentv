@@ -58,19 +58,29 @@ Score the response from 0.0 to 1.0 based on:
 
 ### TypeScript Template
 
-For dynamic prompt generation:
+For dynamic prompt generation, use the `definePromptTemplate` function from `@agentv/eval`:
 
 ```typescript
-// judges/correctness.ts
-export default function({ question, expected_outcome, candidate_answer }) {
-  return `Evaluate whether this response correctly answers the question.
+#!/usr/bin/env bun
+import { definePromptTemplate } from '@agentv/eval';
 
-Question: ${question}
-Expected: ${expected_outcome}
-Response: ${candidate_answer}
+export default definePromptTemplate((ctx) => {
+  const rubric = ctx.config?.rubric as string | undefined;
 
-Score 1.0 if correct, 0.0 if incorrect.`;
-}
+  return `You are evaluating an AI assistant's response.
+
+## Question
+${ctx.question}
+
+## Candidate Answer
+${ctx.candidateAnswer}
+
+${ctx.referenceAnswer ? `## Reference Answer\n${ctx.referenceAnswer}` : ''}
+
+${rubric ? `## Evaluation Criteria\n${rubric}` : ''}
+
+Evaluate and provide a score from 0 to 1.`;
+});
 ```
 
 ## How It Works
@@ -79,3 +89,88 @@ Score 1.0 if correct, 0.0 if incorrect.`;
 2. The rendered prompt is sent to the judge target (configured in targets.yaml)
 3. The LLM returns a structured evaluation with score, hits, misses, and reasoning
 4. Results are recorded in the output JSONL
+
+## Script Configuration
+
+When using TypeScript templates, configure them in YAML with optional `config` data passed to the script:
+
+```yaml
+evaluators:
+  - name: custom-eval
+    type: llm_judge
+    prompt:
+      script: [bun, run, ../prompts/custom-evaluator.ts]
+      config:
+        rubric: "Your rubric here"
+        strictMode: true
+```
+
+The `config` object is available as `ctx.config` inside the template function.
+
+## Available Context Fields
+
+TypeScript templates receive a context object with these fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `question` | `string` | First user message content |
+| `candidateAnswer` | `string` | Last entry in `output_messages` |
+| `referenceAnswer` | `string` | Last entry in `expected_messages` |
+| `expectedOutcome` | `string` | Eval case `expected_outcome` field |
+| `expectedMessages` | `Message[]` | Full resolved expected messages |
+| `outputMessages` | `Message[]` | Full provider output messages |
+| `traceSummary` | `TraceSummary` | Execution metrics summary |
+| `config` | `object` | Custom config from YAML |
+
+## Template Variable Derivation
+
+Template variables are derived internally through three layers:
+
+### 1. Authoring Layer
+
+What users write in YAML or JSONL:
+
+- `input` or `input_messages` -- two syntaxes for the same data. `input: "What is 2+2?"` expands to `[{ role: "user", content: "What is 2+2?" }]`. If both are present, `input_messages` takes precedence.
+- `expected_output` or `expected_messages` -- two syntaxes for the same data. `expected_output: "4"` expands to `[{ role: "assistant", content: "4" }]`. If both are present, `expected_messages` takes precedence.
+
+### 2. Resolved Layer
+
+After parsing, canonical message arrays replace the shorthand fields:
+
+- `input_messages: TestMessage[]` -- canonical resolved input
+- `expected_messages: TestMessage[]` -- canonical resolved expected output
+
+At this layer, `input` and `expected_output` no longer exist as separate fields.
+
+### 3. Template Variable Layer
+
+Derived strings injected into evaluator prompts:
+
+| Variable | Derivation |
+|----------|------------|
+| `question` | Content of the first `user` role entry in `input_messages` |
+| `expected_outcome` | Passed through from the eval case field |
+| `reference_answer` | Content of the last entry in `expected_messages` |
+| `candidate_answer` | Content of the last entry in `output_messages` |
+| `input_messages` | Full resolved input array, JSON-serialized |
+| `expected_messages` | Full resolved expected array, JSON-serialized |
+| `output_messages` | Full provider output array, JSON-serialized |
+
+**Example flow:**
+
+```yaml
+# User writes:
+input: "What is 2+2?"
+expected_output: "The answer is 4"
+```
+
+```
+# Resolved:
+input_messages:    [{ role: "user", content: "What is 2+2?" }]
+expected_messages: [{ role: "assistant", content: "The answer is 4" }]
+
+# Derived template variables:
+question:         "What is 2+2?"
+reference_answer: "The answer is 4"
+candidate_answer: (extracted from provider output at runtime)
+```
