@@ -184,7 +184,7 @@ execution:
       script: ./validators/check_answer.py
 ```
 
-For complete templates, examples, and evaluator patterns, see: [custom-evaluators.md](.claude/skills/agentv-eval-builder/references/custom-evaluators.md)
+For complete templates, examples, and evaluator patterns, see: [custom-evaluators](https://agentv.dev/evaluators/custom-evaluators/)
 
 ### Compare Evaluation Results
 
@@ -238,7 +238,7 @@ Write validators in any language (Python, TypeScript, Node, etc.):
 ```
 
 For complete examples and patterns, see:
-- [custom-evaluators skill](.claude/skills/agentv-eval-builder/references/custom-evaluators.md)
+- [custom-evaluators](https://agentv.dev/evaluators/custom-evaluators/)
 - [code-judge-sdk example](examples/features/code-judge-sdk)
 
 ### LLM Judges
@@ -281,7 +281,7 @@ Auto-generate rubrics from expected outcomes:
 agentv generate rubrics evals/my-eval.yaml
 ```
 
-See [rubric-evaluator skill](.claude/skills/agentv-eval-builder/references/rubric-evaluator.md) for detailed patterns.
+See [rubric evaluator](https://agentv.dev/evaluation/rubrics/) for detailed patterns.
 
 ## Advanced Configuration
 
@@ -310,9 +310,15 @@ Automatically retries on rate limits, transient 5xx errors, and network failures
 - AI agents: Ask Claude Code to `/agentv-eval-builder` to create and iterate on evals
 
 **Detailed Guides:**
-- [Evaluation format and structure](.claude/skills/agentv-eval-builder/SKILL.md)
-- [Custom evaluators](.claude/skills/agentv-eval-builder/references/custom-evaluators.md)
-- [Structured data evaluation](.claude/skills/agentv-eval-builder/references/structured-data-evaluators.md)
+- [Evaluation format and structure](https://agentv.dev/evaluation/eval-files/)
+- [Custom evaluators](https://agentv.dev/evaluators/custom-evaluators/)
+- [Rubric evaluator](https://agentv.dev/evaluation/rubrics/)
+- [Composite evaluator](https://agentv.dev/evaluators/composite/)
+- [Tool trajectory evaluator](https://agentv.dev/evaluators/tool-trajectory/)
+- [Structured data evaluators](https://agentv.dev/evaluators/structured-data/)
+- [Batch CLI evaluation](https://agentv.dev/evaluation/batch-cli/)
+- [Compare results](https://agentv.dev/tools/compare/)
+- [Example evaluations](https://agentv.dev/evaluation/examples/)
 
 **Reference:**
 - Monorepo structure: `packages/core/` (engine), `packages/eval/` (evaluation logic), `apps/cli/` (commands)
