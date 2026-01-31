@@ -1,0 +1,233 @@
+---
+title: Composite Evaluators
+description: Combine multiple evaluators with aggregation strategies for multi-criteria evaluation.
+sidebar:
+  order: 4
+---
+
+Composite evaluators combine multiple evaluators and aggregate their results into a single score. This enables sophisticated evaluation patterns like safety gates, weighted scoring, and conflict resolution.
+
+## Basic Structure
+
+A composite evaluator wraps two or more sub-evaluators and an aggregator that determines the final score:
+
+```yaml
+execution:
+  evaluators:
+    - name: my_composite
+      type: composite
+      evaluators:
+        - name: evaluator_1
+          type: llm_judge
+          prompt: ./prompts/check1.md
+        - name: evaluator_2
+          type: code_judge
+          script: uv run check2.py
+      aggregator:
+        type: weighted_average
+        weights:
+          evaluator_1: 0.6
+          evaluator_2: 0.4
+```
+
+Each sub-evaluator runs independently, then the aggregator combines their results.
+
+## Aggregator Types
+
+### Weighted Average (Default)
+
+Combines scores using a weighted arithmetic mean:
+
+```yaml
+aggregator:
+  type: weighted_average
+  weights:
+    safety: 0.3      # 30% weight
+    quality: 0.7     # 70% weight
+```
+
+If weights are omitted, all evaluators receive equal weight (1.0).
+
+The score is calculated as:
+
+```
+final_score = sum(score_i * weight_i) / sum(weight_i)
+```
+
+### Code Judge Aggregator
+
+Run a custom script to decide the final score based on all evaluator results:
+
+```yaml
+aggregator:
+  type: code_judge
+  path: node ./scripts/safety-gate.js
+  cwd: ./evaluators  # optional working directory
+```
+
+The script receives the evaluator results on stdin and must print a result to stdout.
+
+**Input (stdin):**
+```json
+{
+  "results": {
+    "safety": { "score": 0.9, "hits": ["..."], "misses": ["..."] },
+    "quality": { "score": 0.85, "hits": ["..."], "misses": ["..."] }
+  }
+}
+```
+
+**Output (stdout):**
+```json
+{
+  "score": 0.87,
+  "verdict": "pass",
+  "hits": ["Combined check passed"],
+  "misses": [],
+  "reasoning": "Safety gate passed, quality acceptable"
+}
+```
+
+### LLM Judge Aggregator
+
+Use an LLM to resolve conflicts or make nuanced decisions across evaluator results:
+
+```yaml
+aggregator:
+  type: llm_judge
+  prompt: ./prompts/conflict-resolution.md
+```
+
+Inside the prompt file, use the `{{EVALUATOR_RESULTS_JSON}}` variable to inject the JSON results from all child evaluators.
+
+## Patterns
+
+### Safety Gate
+
+Block outputs that fail safety even if quality is high. A code judge aggregator can enforce hard gates:
+
+```yaml
+evalcases:
+  - id: safety-gated-response
+    expected_outcome: Safe and accurate response
+
+    input_messages:
+      - role: user
+        content: Explain quantum computing
+
+    execution:
+      evaluators:
+        - name: safety_gate
+          type: composite
+          evaluators:
+            - name: safety
+              type: llm_judge
+              prompt: ./prompts/safety-check.md
+            - name: quality
+              type: llm_judge
+              prompt: ./prompts/quality-check.md
+          aggregator:
+            type: code_judge
+            path: ./scripts/safety-gate.js
+```
+
+The `safety-gate.js` script can return a score of 0.0 whenever the safety evaluator fails, regardless of the quality score.
+
+### Multi-Criteria Weighted
+
+Assign different importance to each evaluation dimension:
+
+```yaml
+- name: release_readiness
+  type: composite
+  evaluators:
+    - name: correctness
+      type: llm_judge
+      prompt: ./prompts/correctness.md
+    - name: style
+      type: code_judge
+      script: uv run style_checker.py
+    - name: security
+      type: llm_judge
+      prompt: ./prompts/security.md
+  aggregator:
+    type: weighted_average
+    weights:
+      correctness: 0.5
+      style: 0.2
+      security: 0.3
+```
+
+### Nested Composites
+
+Composites can contain other composites for hierarchical evaluation:
+
+```yaml
+- name: comprehensive_eval
+  type: composite
+  evaluators:
+    - name: content_quality
+      type: composite
+      evaluators:
+        - name: accuracy
+          type: llm_judge
+          prompt: ./prompts/accuracy.md
+        - name: clarity
+          type: llm_judge
+          prompt: ./prompts/clarity.md
+      aggregator:
+        type: weighted_average
+        weights:
+          accuracy: 0.6
+          clarity: 0.4
+    - name: safety
+      type: llm_judge
+      prompt: ./prompts/safety.md
+  aggregator:
+    type: weighted_average
+    weights:
+      content_quality: 0.7
+      safety: 0.3
+```
+
+## Result Structure
+
+Composite evaluators return nested `evaluator_results`, giving full visibility into each sub-evaluator:
+
+```json
+{
+  "score": 0.85,
+  "verdict": "pass",
+  "hits": ["[safety] No harmful content", "[quality] Clear explanation"],
+  "misses": ["[quality] Could use more examples"],
+  "reasoning": "safety: Passed all checks; quality: Good but could improve",
+  "evaluator_results": [
+    {
+      "name": "safety",
+      "type": "llm_judge",
+      "score": 0.95,
+      "verdict": "pass",
+      "hits": ["No harmful content"],
+      "misses": []
+    },
+    {
+      "name": "quality",
+      "type": "llm_judge",
+      "score": 0.8,
+      "verdict": "pass",
+      "hits": ["Clear explanation"],
+      "misses": ["Could use more examples"]
+    }
+  ]
+}
+```
+
+Hits and misses from sub-evaluators are prefixed with the evaluator name (e.g., `[safety]`) in the top-level arrays.
+
+## Best Practices
+
+1. **Name evaluators clearly** -- names appear in results and debugging output, so use descriptive labels like `safety` or `correctness` rather than `eval_1`.
+2. **Use safety gates for critical checks** -- do not let high quality scores override safety failures. A code judge aggregator can enforce hard gates.
+3. **Balance weights thoughtfully** -- consider which aspects matter most for your use case and assign weights accordingly.
+4. **Keep nesting shallow** -- deep nesting makes debugging harder. Two levels of composites is usually sufficient.
+5. **Test aggregators independently** -- verify custom aggregation logic with unit tests before wiring it into a composite evaluator.
