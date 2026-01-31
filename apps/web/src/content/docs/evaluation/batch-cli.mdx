@@ -1,0 +1,275 @@
+---
+title: Batch CLI Evaluation
+description: Evaluate external tools that process all eval cases in a single invocation
+sidebar:
+  order: 5
+---
+
+Batch CLI evaluation handles tools that process multiple inputs at once — bulk classifiers, screening engines, or any runner that reads all eval cases and outputs results in one pass.
+
+## Overview
+
+Use batch CLI evaluation when:
+
+- An external tool processes multiple inputs in a single invocation (e.g., AML screening, bulk classification)
+- The runner reads the eval YAML directly to extract all eval cases
+- Output is JSONL with records keyed by eval case `id`
+- Each eval case has its own evaluator to validate its corresponding output record
+
+## Execution Flow
+
+1. **AgentV** invokes the batch runner once, passing `--eval <yaml-path>` and `--output <jsonl-path>`
+2. **Batch runner** reads the eval YAML, extracts all eval cases, processes them, and writes JSONL output keyed by `id`
+3. **AgentV** parses the JSONL and routes each record to its matching eval case by `id`
+4. **Per-case evaluators** validate the output for each eval case independently
+
+## Eval File Structure
+
+```yaml
+description: Batch CLI demo using structured input_messages
+execution:
+  target: batch_cli
+
+evalcases:
+  - id: case-001
+    expected_outcome: |-
+      Batch runner returns JSON with decision=CLEAR.
+
+    expected_messages:
+      - role: assistant
+        content:
+          decision: CLEAR
+
+    input_messages:
+      - role: system
+        content: You are a batch processor.
+      - role: user
+        content:
+          request:
+            type: screening_check
+            jurisdiction: AU
+          row:
+            id: case-001
+            name: Example A
+            amount: 5000
+
+    execution:
+      evaluators:
+        - name: decision-check
+          type: code_judge
+          script: bun run ./scripts/check-output.ts
+          cwd: .
+
+  - id: case-002
+    expected_outcome: |-
+      Batch runner returns JSON with decision=REVIEW.
+
+    expected_messages:
+      - role: assistant
+        content:
+          decision: REVIEW
+
+    input_messages:
+      - role: system
+        content: You are a batch processor.
+      - role: user
+        content:
+          request:
+            type: screening_check
+            jurisdiction: AU
+          row:
+            id: case-002
+            name: Example B
+            amount: 25000
+
+    execution:
+      evaluators:
+        - name: decision-check
+          type: code_judge
+          script: bun run ./scripts/check-output.ts
+          cwd: .
+```
+
+## Batch Runner Contract
+
+The batch runner reads the eval YAML directly and processes all eval cases in one invocation.
+
+### Input
+
+The runner receives the eval file path via `--eval` and an output path via `--output`:
+
+```bash
+bun run batch-runner.ts --eval ./my-eval.yaml --output ./results.jsonl
+```
+
+### Output
+
+JSONL where each line is a JSON object with an `id` matching an eval case:
+
+```json
+{"id": "case-001", "text": "{\"decision\": \"CLEAR\", ...}"}
+{"id": "case-002", "text": "{\"decision\": \"REVIEW\", ...}"}
+```
+
+The `id` field must match the eval case `id` for AgentV to route output to the correct evaluator.
+
+### Output with Tool Trajectory
+
+To enable `tool_trajectory` evaluation, include `output_messages` with `tool_calls`:
+
+```json
+{
+  "id": "case-001",
+  "text": "{\"decision\": \"CLEAR\", ...}",
+  "output_messages": [
+    {
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "tool": "screening_check",
+          "input": { "origin_country": "NZ", "amount": 5000 },
+          "output": { "decision": "CLEAR", "reasons": [] }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": { "decision": "CLEAR" }
+    }
+  ]
+}
+```
+
+AgentV extracts tool calls directly from `output_messages[].tool_calls[]` for `tool_trajectory` evaluators.
+
+## Evaluator Implementation
+
+Each eval case has its own evaluator that validates the batch runner output. The evaluator receives the standard `code_judge` input via stdin.
+
+**Input (stdin):**
+```json
+{
+  "candidate_answer": "{\"id\":\"case-001\",\"decision\":\"CLEAR\",...}",
+  "expected_messages": [{"role": "assistant", "content": {"decision": "CLEAR"}}],
+  "input_messages": [...]
+}
+```
+
+**Output (stdout):**
+```json
+{
+  "score": 1.0,
+  "hits": ["decision matches: CLEAR"],
+  "misses": [],
+  "reasoning": "Batch runner decision matches expected."
+}
+```
+
+### Example Evaluator
+
+```typescript
+import fs from 'node:fs';
+
+type EvalInput = {
+  candidate_answer?: string;
+  expected_messages?: Array<{ role: string; content: unknown }>;
+};
+
+function main() {
+  const stdin = fs.readFileSync(0, 'utf8');
+  const input = JSON.parse(stdin) as EvalInput;
+
+  const expectedDecision = findExpectedDecision(input.expected_messages);
+
+  let candidateDecision: string | undefined;
+  try {
+    const parsed = JSON.parse(input.candidate_answer ?? '');
+    candidateDecision = parsed.decision;
+  } catch {
+    candidateDecision = undefined;
+  }
+
+  const hits: string[] = [];
+  const misses: string[] = [];
+
+  if (expectedDecision === candidateDecision) {
+    hits.push(`decision matches: ${expectedDecision}`);
+  } else {
+    misses.push(`mismatch: expected=${expectedDecision} actual=${candidateDecision}`);
+  }
+
+  const score = misses.length === 0 ? 1 : 0;
+
+  process.stdout.write(JSON.stringify({
+    score,
+    hits,
+    misses,
+    reasoning: score === 1
+      ? 'Batch runner output matches expected.'
+      : 'Batch runner output did not match expected.',
+  }));
+}
+
+function findExpectedDecision(messages?: Array<{ role: string; content: unknown }>) {
+  if (!messages) return undefined;
+  for (const msg of messages) {
+    if (typeof msg.content === 'object' && msg.content !== null) {
+      return (msg.content as Record<string, unknown>).decision as string;
+    }
+  }
+  return undefined;
+}
+
+main();
+```
+
+## Structured Content
+
+Use structured objects in `expected_messages.content` to define expected output fields for easy validation:
+
+```yaml
+expected_messages:
+  - role: assistant
+    content:
+      decision: CLEAR
+      confidence: high
+      reasons: []
+```
+
+The evaluator extracts these fields and compares them against the parsed candidate output.
+
+## Target Configuration
+
+Configure the batch CLI provider in your targets file or eval file:
+
+```yaml
+# In agentv-targets.yaml or eval file
+targets:
+  batch_cli:
+    provider: cli
+    commandTemplate: bun run ./scripts/batch-runner.ts --eval {EVAL_FILE} --output {OUTPUT_FILE}
+    provider_batching: true
+```
+
+Key settings:
+
+| Setting | Description |
+|---------|-------------|
+| `provider: cli` | Use the CLI provider |
+| `provider_batching: true` | Run once for all eval cases instead of per-case |
+| `{EVAL_FILE}` | Placeholder replaced with the eval file path |
+| `{OUTPUT_FILE}` | Placeholder replaced with the JSONL output path |
+
+## Best Practices
+
+1. **Use unique eval case IDs** -- the batch runner and AgentV use `id` to route outputs to the correct evaluator
+2. **Structured input_messages** -- put structured data in `user.content` for the runner to extract
+3. **Structured expected_messages** -- define expected output as objects for easy comparison
+4. **Deterministic runners** -- batch runners should produce consistent output for reliable testing
+5. **Healthcheck support** -- add a `--healthcheck` flag for runner validation:
+   ```typescript
+   if (args.includes('--healthcheck')) {
+     console.log('batch-runner: healthy');
+     return;
+   }
+   ```
