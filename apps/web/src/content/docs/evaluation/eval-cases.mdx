@@ -1,0 +1,94 @@
+---
+title: Eval Cases
+description: Defining individual test cases
+sidebar:
+  order: 2
+---
+
+Eval cases are individual test cases within an evaluation file. Each case defines input messages, expected outcomes, and optional evaluator overrides.
+
+## Basic Structure
+
+```yaml
+evalcases:
+  - id: addition
+    expected_outcome: Correctly calculates 15 + 27 = 42
+
+    input_messages:
+      - role: user
+        content: What is 15 + 27?
+
+    expected_messages:
+      - role: assistant
+        content: "42"
+```
+
+## Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique identifier for the eval case |
+| `expected_outcome` | Yes | Description of what a correct response should contain |
+| `input_messages` | Yes | Array of input messages sent to the target |
+| `expected_messages` | No | Expected response messages for comparison |
+| `execution` | No | Per-case execution overrides (target, evaluators) |
+| `rubrics` | No | Structured evaluation criteria |
+| `sidecar` | No | Additional metadata passed to evaluators |
+
+## Input Messages
+
+Messages follow the standard chat format:
+
+```yaml
+input_messages:
+  - role: system
+    content: You are a helpful math tutor.
+  - role: user
+    content: What is 15 + 27?
+```
+
+## Expected Messages
+
+Optional reference responses for comparison by evaluators:
+
+```yaml
+expected_messages:
+  - role: assistant
+    content: "42"
+```
+
+## Per-Case Execution Overrides
+
+Override the default target or evaluators for specific cases:
+
+```yaml
+evalcases:
+  - id: complex-case
+    expected_outcome: Provides detailed explanation
+    input_messages:
+      - role: user
+        content: Explain quicksort algorithm
+
+    execution:
+      target: gpt4_target
+      evaluators:
+        - name: depth_check
+          type: llm_judge
+          prompt: ./judges/depth.md
+```
+
+## Sidecar Metadata
+
+Pass additional context to evaluators via the `sidecar` field:
+
+```yaml
+evalcases:
+  - id: code-gen
+    expected_outcome: Generates valid Python
+    sidecar:
+      language: python
+      difficulty: medium
+    input_messages:
+      - role: user
+        content: Write a function to sort a list
+```

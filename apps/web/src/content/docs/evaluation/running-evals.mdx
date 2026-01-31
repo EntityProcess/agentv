@@ -1,0 +1,62 @@
+---
+title: Running Evaluations
+description: CLI commands for running and managing evaluations
+sidebar:
+  order: 4
+---
+
+## Run an Evaluation
+
+```bash
+agentv eval evals/my-eval.yaml
+```
+
+Results are written to `.agentv/results/eval_<timestamp>.jsonl`.
+
+## Common Options
+
+### Override Target
+
+Run against a different target than specified in the eval file:
+
+```bash
+agentv eval --target azure_base evals/**/*.yaml
+```
+
+### Run Specific Eval Case
+
+Run a single eval case by ID:
+
+```bash
+agentv eval --eval-id case-123 evals/my-eval.yaml
+```
+
+### Dry Run
+
+Test the harness flow with mock responses (does not call real providers):
+
+```bash
+agentv eval --dry-run evals/my-eval.yaml
+```
+
+:::note
+Dry-run returns mock responses that don't match evaluator output schemas. Use it only for testing harness flow, not evaluator logic.
+:::
+
+### Output to Specific File
+
+```bash
+agentv eval evals/my-eval.yaml --out results/baseline.jsonl
+```
+
+## Validate Before Running
+
+Check eval files for schema errors without executing:
+
+```bash
+agentv validate evals/my-eval.yaml
+```
+
+## All Options
+
+Run `agentv eval --help` for the full list of options including workers, timeouts, output formats, and trace dumping.
