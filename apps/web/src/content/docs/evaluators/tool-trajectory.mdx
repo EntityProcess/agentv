@@ -1,0 +1,275 @@
+---
+title: Tool Trajectory Evaluators
+description: Validate that agents use the right tools in the right order with argument matching and latency assertions.
+sidebar:
+  order: 5
+---
+
+Tool trajectory evaluators validate that an agent used the expected tools during execution. They work with trace data returned by agent providers (codex, vscode, cli with trace support).
+
+## Modes
+
+### `any_order` — Minimum Tool Counts
+
+Validates that each tool was called at least N times, regardless of order:
+
+```yaml
+execution:
+  evaluators:
+    - name: tool-usage
+      type: tool_trajectory
+      mode: any_order
+      minimums:
+        knowledgeSearch: 2    # Must be called at least twice
+        documentRetrieve: 1   # Must be called at least once
+```
+
+Use `any_order` when you want to ensure required tools are used but don't care about execution order.
+
+### `in_order` — Sequential Matching
+
+Validates tools appear in the expected sequence, but allows gaps (other tools can appear between expected ones):
+
+```yaml
+execution:
+  evaluators:
+    - name: workflow-sequence
+      type: tool_trajectory
+      mode: in_order
+      expected:
+        - tool: fetchData
+        - tool: validateSchema
+        - tool: transformData
+        - tool: saveResults
+```
+
+Use `in_order` when you need to verify logical workflow order while allowing the agent to use additional helper tools between steps.
+
+### `exact` — Strict Sequence Match
+
+Validates the exact tool sequence with no gaps or extra tools:
+
+```yaml
+execution:
+  evaluators:
+    - name: auth-sequence
+      type: tool_trajectory
+      mode: exact
+      expected:
+        - tool: checkCredentials
+        - tool: generateToken
+        - tool: auditLog
+```
+
+Use `exact` for security-critical workflows, strict protocol validation, or regression testing specific behavior.
+
+## Argument Matching
+
+For `in_order` and `exact` modes, you can optionally validate tool arguments:
+
+```yaml
+execution:
+  evaluators:
+    - name: search-validation
+      type: tool_trajectory
+      mode: in_order
+      expected:
+        # Partial match — only specified keys are checked
+        - tool: search
+          args: { query: "machine learning" }
+
+        # Skip argument validation for this tool
+        - tool: process
+          args: any
+
+        # No args field = no argument validation (same as args: any)
+        - tool: saveResults
+```
+
+| Syntax | Behavior |
+|--------|----------|
+| `args: { key: value }` | Partial deep equality — only specified keys are checked |
+| `args: any` | Skip argument validation |
+| No `args` field | Same as `args: any` |
+
+## Latency Assertions
+
+For `in_order` and `exact` modes, you can validate per-tool timing with `max_duration_ms`:
+
+```yaml
+execution:
+  evaluators:
+    - name: perf-check
+      type: tool_trajectory
+      mode: in_order
+      expected:
+        - tool: Read
+          max_duration_ms: 100    # Must complete within 100ms
+        - tool: Edit
+          max_duration_ms: 500    # Allow 500ms for edits
+        - tool: Write             # No timing requirement
+```
+
+Each `max_duration_ms` assertion counts as a separate scoring aspect. The rules:
+
+| Condition | Result |
+|-----------|--------|
+| `actual_duration <= max_duration_ms` | Pass (counts as hit) |
+| `actual_duration > max_duration_ms` | Fail (counts as miss) |
+| No `duration_ms` in trace output | Warning logged, neutral (neither hit nor miss) |
+
+Set generous thresholds to avoid flaky tests from timing variance. Only add latency assertions where timing matters on critical paths.
+
+## Scoring
+
+| Mode | Score Calculation |
+|------|------------------|
+| `any_order` | (tools meeting minimum) / (total tools with minimums) |
+| `in_order` | (sequence hits + latency hits) / (expected tools + latency assertions) |
+| `exact` | (sequence hits + latency hits) / (expected tools + latency assertions) |
+
+Example: 3 expected tools with 2 latency assertions = 5 total aspects scored.
+
+## Trace Data Format
+
+Tool trajectory evaluators require trace data from the agent provider. Providers return `output_messages` containing `tool_calls`:
+
+```json
+{
+  "id": "eval-001",
+  "output_messages": [
+    {
+      "role": "assistant",
+      "content": "I'll search for information about this topic.",
+      "tool_calls": [
+        {
+          "tool": "knowledgeSearch",
+          "input": { "query": "REST vs GraphQL" },
+          "output": { "results": [] },
+          "id": "call_123",
+          "timestamp": "2024-01-15T10:30:00Z",
+          "duration_ms": 45
+        }
+      ]
+    }
+  ]
+}
+```
+
+The evaluator extracts tool calls from `output_messages[].tool_calls[]`. The `tool` and `input` fields are required. Optional fields:
+
+- `id` and `timestamp` — for debugging
+- `duration_ms` — required if using `max_duration_ms` latency assertions
+
+### Supported Providers
+
+- **codex** — returns `output_messages` via JSONL log events
+- **vscode / vscode-insiders** — returns `output_messages` from Copilot execution
+- **cli** — returns `output_messages` with `tool_calls`
+
+## CLI Options
+
+```bash
+# Write trace files to disk
+agentv eval evals/test.yaml --dump-traces
+
+# Include full trace in result output
+agentv eval evals/test.yaml --include-trace
+```
+
+Use `--dump-traces` to inspect actual traces and understand agent behavior before writing evaluators.
+
+## Complete Examples
+
+### Research Agent Validation
+
+```yaml
+description: Validate research agent tool usage
+execution:
+  target: codex_agent
+
+evalcases:
+  - id: comprehensive-research
+    expected_outcome: Agent thoroughly researches the topic
+
+    input_messages:
+      - role: user
+        content: Research machine learning frameworks
+
+    execution:
+      evaluators:
+        # Check minimum tool usage
+        - name: coverage
+          type: tool_trajectory
+          mode: any_order
+          minimums:
+            webSearch: 1
+            documentRead: 2
+            noteTaking: 1
+
+        # Check workflow order
+        - name: workflow
+          type: tool_trajectory
+          mode: in_order
+          expected:
+            - tool: webSearch
+            - tool: documentRead
+            - tool: summarize
+```
+
+### Multi-Step Pipeline
+
+```yaml
+evalcases:
+  - id: data-pipeline
+    expected_outcome: Process data through complete pipeline
+
+    input_messages:
+      - role: user
+        content: Process the customer dataset
+
+    execution:
+      evaluators:
+        - name: pipeline-check
+          type: tool_trajectory
+          mode: exact
+          expected:
+            - tool: loadData
+            - tool: validate
+            - tool: transform
+            - tool: export
+```
+
+### Pipeline with Latency Assertions
+
+```yaml
+evalcases:
+  - id: data-pipeline-perf
+    expected_outcome: Process data within timing budgets
+
+    input_messages:
+      - role: user
+        content: Process the customer dataset quickly
+
+    execution:
+      evaluators:
+        - name: pipeline-perf
+          type: tool_trajectory
+          mode: in_order
+          expected:
+            - tool: loadData
+              max_duration_ms: 1000   # Network fetch within 1s
+            - tool: validate           # No timing requirement
+            - tool: transform
+              max_duration_ms: 500    # Transform must be fast
+            - tool: export
+              max_duration_ms: 200    # Export should be quick
+```
+
+## Best Practices
+
+1. **Start with `any_order`**, then tighten to `in_order` or `exact` as needed.
+2. **Combine with other evaluators** — use tool trajectory for execution validation and LLM judges for output quality.
+3. **Inspect traces first** with `--dump-traces` to understand agent behavior before writing evaluators.
+4. **Use generous latency thresholds** to avoid flaky tests from timing variance.
+5. **Use code judges for custom validation** — write custom tool validation scripts when built-in modes are insufficient.
