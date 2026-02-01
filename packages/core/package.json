@@ -1,6 +1,6 @@
 {
   "name": "@agentv/core",
-  "version": "2.5.8",
+  "version": "2.6.0",
   "description": "Primitive runtime components for AgentV",
   "type": "module",
   "repository": {
@@ -41,8 +41,8 @@
     "@ai-sdk/anthropic": "^2.0.53",
     "@ai-sdk/azure": "^2.0.78",
     "@ai-sdk/google": "^2.0.44",
-    "@mariozechner/pi-agent": "^0.9.0",
-    "@mariozechner/pi-ai": "^0.37.2",
+    "@mariozechner/pi-agent-core": "^0.50.9",
+    "@mariozechner/pi-ai": "^0.50.9",
     "ai": "^5.0.106",
     "micromatch": "^4.0.8",
     "json5": "^2.2.3",
