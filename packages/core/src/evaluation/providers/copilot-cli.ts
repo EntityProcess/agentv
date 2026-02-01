@@ -2,13 +2,13 @@ import { exec as execCallback, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { constants, createWriteStream } from 'node:fs';
 import type { WriteStream } from 'node:fs';
-import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { access, copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { recordCopilotCliLogEntry } from './copilot-cli-log-tracker.js';
-import { buildPromptDocument, normalizeInputFiles } from './preread.js';
+import { collectGuidelineFiles, normalizeInputFiles } from './preread.js';
 import type { CopilotResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 
@@ -47,6 +47,67 @@ interface CopilotCliRunResult {
 
 type CopilotCliRunner = (options: CopilotCliRunOptions) => Promise<CopilotCliRunResult>;
 
+interface CopiedFileMapping {
+  readonly originalPath: string;
+  readonly workspaceRelativePath: string;
+}
+
+async function copyInputFilesToWorkspace(
+  workspaceRoot: string,
+  inputFiles: readonly string[],
+): Promise<CopiedFileMapping[]> {
+  const usedNames = new Map<string, number>();
+  const mappings: CopiedFileMapping[] = [];
+
+  for (const originalPath of inputFiles) {
+    const ext = path.extname(originalPath);
+    const stem = path.basename(originalPath, ext);
+    let relativeName: string;
+
+    const baseKey = `${stem}${ext}`;
+    const count = usedNames.get(baseKey) ?? 0;
+    if (count === 0) {
+      relativeName = baseKey;
+    } else {
+      relativeName = `${stem}_${count}${ext}`;
+    }
+    usedNames.set(baseKey, count + 1);
+
+    const dest = path.join(workspaceRoot, relativeName);
+    await copyFile(originalPath, dest);
+    mappings.push({ originalPath, workspaceRelativePath: relativeName });
+  }
+
+  return mappings;
+}
+
+function buildCopilotFilePrereadBlock(
+  guidelineMappings: readonly CopiedFileMapping[],
+  inputMappings: readonly CopiedFileMapping[],
+): string {
+  if (guidelineMappings.length === 0 && inputMappings.length === 0) {
+    return '';
+  }
+
+  const buildList = (mappings: readonly CopiedFileMapping[]): string =>
+    mappings.map((m) => `* ${m.workspaceRelativePath}`).join('\n');
+
+  const sections: string[] = [];
+  if (guidelineMappings.length > 0) {
+    sections.push(`Read all guideline files:\n${buildList(guidelineMappings)}.`);
+  }
+  if (inputMappings.length > 0) {
+    sections.push(`Read all input files:\n${buildList(inputMappings)}.`);
+  }
+
+  sections.push(
+    'If any file is missing, fail with ERROR: missing-file <filename> and stop.',
+    'Then apply system_instructions on the user query below.',
+  );
+
+  return sections.join('\n');
+}
+
 export class CopilotCliProvider implements Provider {
   readonly id: string;
   readonly kind = 'copilot-cli' as const;
@@ -81,9 +142,27 @@ export class CopilotCliProvider implements Provider {
     const workspaceRoot = await this.createWorkspace();
     const logger = await this.createStreamLogger(request).catch(() => undefined);
     try {
-      const basePrompt = buildPromptDocument(request, inputFiles);
+      // Copy input files into workspace and build prompt with relative paths
+      const copiedFiles = inputFiles
+        ? await copyInputFilesToWorkspace(workspaceRoot, inputFiles)
+        : [];
+
+      const guidelineFileSet = new Set(
+        collectGuidelineFiles(inputFiles, request.guideline_patterns),
+      );
+      const guidelineMappings = copiedFiles.filter((m) => guidelineFileSet.has(m.originalPath));
+      const nonGuidelineMappings = copiedFiles.filter((m) => !guidelineFileSet.has(m.originalPath));
+
+      const prereadBlock = buildCopilotFilePrereadBlock(guidelineMappings, nonGuidelineMappings);
       const systemPrompt = this.config.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
-      const promptContent = `${systemPrompt}\n\n${basePrompt}`;
+
+      const promptParts: string[] = [systemPrompt];
+      if (prereadBlock.length > 0) {
+        promptParts.push('', prereadBlock);
+      }
+      promptParts.push('', '[[ ## user_query ## ]]', request.question.trim());
+
+      const promptContent = promptParts.join('\n');
       const promptFile = path.join(workspaceRoot, PROMPT_FILENAME);
       await writeFile(promptFile, promptContent, 'utf8');
 
@@ -116,6 +195,7 @@ export class CopilotCliProvider implements Provider {
           promptFile,
           workspace: workspaceRoot,
           inputFiles,
+          copiedFiles,
           logFile: logger?.filePath,
         },
         outputMessages: [{ role: 'assistant' as const, content: assistantText }],

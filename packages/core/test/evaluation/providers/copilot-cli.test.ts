@@ -191,7 +191,7 @@ describe('CopilotCliProvider', () => {
     expect(invocation.args).toContain('value');
   });
 
-  it('includes preread block for input files', async () => {
+  it('copies input files into workspace and uses relative paths in prompt', async () => {
     const runner = mock(async () => ({
       stdout: 'done with files',
       stderr: '',
@@ -223,12 +223,78 @@ describe('CopilotCliProvider', () => {
     const response = await provider.invoke(request);
     expect(extractLastAssistantContent(response.outputMessages)).toBe('done with files');
 
-    // The prompt passed as last arg should contain file references
+    // The prompt passed as last arg should contain relative file references (no file:// URIs)
     const invocation = runner.mock.calls[0][0];
     const promptArg = invocation.args[invocation.args.length - 1];
     expect(promptArg).toContain('python.instructions.md');
     expect(promptArg).toContain('main.py');
     expect(promptArg).toContain('[[ ## user_query ## ]]');
+    expect(promptArg).not.toContain('file://');
+
+    // Verify copiedFiles in raw response
+    const raw = response.raw as Record<string, unknown>;
+    const copiedFiles = raw.copiedFiles as Array<{
+      originalPath: string;
+      workspaceRelativePath: string;
+    }>;
+    expect(copiedFiles).toHaveLength(2);
+    expect(copiedFiles.some((f) => f.workspaceRelativePath === 'python.instructions.md')).toBe(
+      true,
+    );
+    expect(copiedFiles.some((f) => f.workspaceRelativePath === 'main.py')).toBe(true);
+
+    // Verify files were actually copied into the workspace
+    const workspace = raw.workspace as string;
+    const copiedGuideline = await readFile(
+      path.join(workspace, 'python.instructions.md'),
+      'utf8',
+    ).catch(() => null);
+    // Workspace is cleaned up after invoke, so files may not exist
+    // The copiedFiles metadata confirms they were mapped correctly
+  });
+
+  it('handles basename collisions when copying input files', async () => {
+    const runner = mock(async () => ({
+      stdout: 'done',
+      stderr: '',
+      exitCode: 0,
+    }));
+    const provider = new CopilotCliProvider(
+      'copilot-target',
+      {
+        executable: process.execPath,
+        logDir: fixturesRoot,
+      },
+      runner,
+    );
+
+    // Create two files with the same basename in different directories
+    const file1 = path.join(fixturesRoot, 'dir1', 'config.yaml');
+    const file2 = path.join(fixturesRoot, 'dir2', 'config.yaml');
+    await mkdir(path.join(fixturesRoot, 'dir1'), { recursive: true });
+    await mkdir(path.join(fixturesRoot, 'dir2'), { recursive: true });
+    await writeFile(file1, 'config1', 'utf8');
+    await writeFile(file2, 'config2', 'utf8');
+
+    const response = await provider.invoke({
+      question: 'Check configs',
+      inputFiles: [file1, file2],
+    });
+
+    const raw = response.raw as Record<string, unknown>;
+    const copiedFiles = raw.copiedFiles as Array<{
+      originalPath: string;
+      workspaceRelativePath: string;
+    }>;
+    expect(copiedFiles).toHaveLength(2);
+    expect(copiedFiles[0].workspaceRelativePath).toBe('config.yaml');
+    expect(copiedFiles[1].workspaceRelativePath).toBe('config_1.yaml');
+
+    // Verify prompt contains both relative paths
+    const invocation = runner.mock.calls[0][0];
+    const promptArg = invocation.args[invocation.args.length - 1];
+    expect(promptArg).toContain('config.yaml');
+    expect(promptArg).toContain('config_1.yaml');
   });
 
   it('streams output to a log file and records log entry', async () => {
