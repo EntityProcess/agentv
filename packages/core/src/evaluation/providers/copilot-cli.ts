@@ -147,9 +147,6 @@ export class CopilotCliProvider implements Provider {
   private buildCopilotArgs(prompt: string): string[] {
     const args: string[] = [];
 
-    // Non-interactive prompt mode
-    args.push('-p');
-
     // Silent mode - only output agent response
     args.push('-s');
 
@@ -169,8 +166,8 @@ export class CopilotCliProvider implements Provider {
       args.push(...this.config.args);
     }
 
-    // Prompt is passed as the final argument after -p
-    args.push(prompt);
+    // Non-interactive prompt mode: -p <text> must be last (flag + value pair)
+    args.push('-p', prompt);
 
     return args;
   }
