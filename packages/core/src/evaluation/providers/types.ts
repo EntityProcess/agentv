@@ -15,6 +15,7 @@ export type ProviderKind =
   | 'anthropic'
   | 'gemini'
   | 'codex'
+  | 'copilot-cli'
   | 'pi-coding-agent'
   | 'pi-agent-sdk'
   | 'claude-code'
@@ -29,6 +30,7 @@ export type ProviderKind =
  */
 export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'codex',
+  'copilot-cli',
   'pi-coding-agent',
   'claude-code',
   'vscode',
@@ -44,6 +46,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'anthropic',
   'gemini',
   'codex',
+  'copilot-cli',
   'pi-coding-agent',
   'pi-agent-sdk',
   'claude-code',
@@ -253,6 +256,9 @@ export interface TargetDefinition {
   readonly logFormat?: string | unknown | undefined;
   readonly log_output_format?: string | unknown | undefined;
   readonly logOutputFormat?: string | unknown | undefined;
+  // System prompt (codex, copilot-cli, claude-code, pi-coding-agent)
+  readonly system_prompt?: string | unknown | undefined;
+  readonly systemPrompt?: string | unknown | undefined;
   // Mock fields
   readonly response?: string | unknown | undefined;
   readonly delayMs?: number | unknown | undefined;

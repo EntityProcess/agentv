@@ -434,6 +434,17 @@ export interface CodexResolvedConfig {
   readonly systemPrompt?: string;
 }
 
+export interface CopilotResolvedConfig {
+  readonly executable: string;
+  readonly model?: string;
+  readonly args?: readonly string[];
+  readonly cwd?: string;
+  readonly timeoutMs?: number;
+  readonly logDir?: string;
+  readonly logFormat?: 'summary' | 'json';
+  readonly systemPrompt?: string;
+}
+
 export interface PiCodingAgentResolvedConfig {
   readonly executable: string;
   readonly provider?: string;
@@ -524,6 +535,14 @@ export type ResolvedTarget =
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: CodexResolvedConfig;
+    }
+  | {
+      readonly kind: 'copilot-cli';
+      readonly name: string;
+      readonly judgeTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: CopilotResolvedConfig;
     }
   | {
       readonly kind: 'pi-coding-agent';
@@ -692,6 +711,15 @@ export function resolveTargetDefinition(
         workers: parsed.workers,
         providerBatching,
         config: resolveCodexConfig(parsed, env),
+      };
+    case 'copilot-cli':
+      return {
+        kind: 'copilot-cli',
+        name: parsed.name,
+        judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolveCopilotConfig(parsed, env),
       };
     case 'pi':
     case 'pi-coding-agent':
@@ -907,6 +935,64 @@ function normalizeCodexLogFormat(value: unknown): 'summary' | 'json' | undefined
     return normalized;
   }
   throw new Error("codex log format must be 'summary' or 'json'");
+}
+
+function resolveCopilotConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): CopilotResolvedConfig {
+  const executableSource = target.executable ?? target.command ?? target.binary;
+  const modelSource = target.model;
+  const argsSource = target.args ?? target.arguments;
+  const cwdSource = target.cwd;
+  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
+  const logDirSource =
+    target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
+  const logFormatSource =
+    target.log_format ?? target.logFormat ?? target.log_output_format ?? target.logOutputFormat;
+  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
+
+  const executable =
+    resolveOptionalString(executableSource, env, `${target.name} copilot executable`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }) ?? 'copilot';
+
+  const model = resolveOptionalString(modelSource, env, `${target.name} copilot model`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const args = resolveOptionalStringArray(argsSource, env, `${target.name} copilot args`);
+
+  const cwd = resolveOptionalString(cwdSource, env, `${target.name} copilot cwd`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} copilot timeout`);
+
+  const logDir = resolveOptionalString(logDirSource, env, `${target.name} copilot log directory`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const logFormat = normalizeCopilotLogFormat(logFormatSource);
+
+  const systemPrompt =
+    typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
+      ? systemPromptSource.trim()
+      : undefined;
+
+  return { executable, model, args, cwd, timeoutMs, logDir, logFormat, systemPrompt };
+}
+
+function normalizeCopilotLogFormat(value: unknown): 'summary' | 'json' | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string') throw new Error("copilot log format must be 'summary' or 'json'");
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'json' || normalized === 'summary') return normalized;
+  throw new Error("copilot log format must be 'summary' or 'json'");
 }
 
 function resolvePiCodingAgentConfig(

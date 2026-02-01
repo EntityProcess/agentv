@@ -11,6 +11,7 @@ import {
   ensureVSCodeSubagents,
   loadEvalCases,
   subscribeToCodexLogEntries,
+  subscribeToCopilotCliLogEntries,
   subscribeToPiLogEntries,
 } from '@agentv/core';
 
@@ -152,7 +153,7 @@ type ProgressReporter = {
   setTotal(total: number): void;
   update(workerId: number, progress: WorkerProgress): void;
   finish(): void;
-  addLogPaths(paths: readonly string[], provider?: 'codex' | 'pi'): void;
+  addLogPaths(paths: readonly string[], provider?: 'codex' | 'pi' | 'copilot'): void;
 };
 
 function createProgressReporter(
@@ -167,7 +168,7 @@ function createProgressReporter(
     update: (workerId: number, progress: WorkerProgress) =>
       display.updateWorker({ ...progress, workerId }),
     finish: () => display.finish(),
-    addLogPaths: (paths: readonly string[], provider?: 'codex' | 'pi') =>
+    addLogPaths: (paths: readonly string[], provider?: 'codex' | 'pi' | 'copilot') =>
       display.addLogPaths(paths, provider),
   };
 }
@@ -474,6 +475,14 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     seenPiLogPaths.add(entry.filePath);
     progressReporter.addLogPaths([entry.filePath], 'pi');
   });
+  const seenCopilotLogPaths = new Set<string>();
+  const unsubscribeCopilotLogs = subscribeToCopilotCliLogEntries((entry) => {
+    if (!entry.filePath || seenCopilotLogPaths.has(entry.filePath)) {
+      return;
+    }
+    seenCopilotLogPaths.add(entry.filePath);
+    progressReporter.addLogPaths([entry.filePath], 'copilot');
+  });
   for (const [testFilePath, meta] of fileMetadata.entries()) {
     for (const evalId of meta.evalIds) {
       const evalKey = makeEvalKey(testFilePath, evalId);
@@ -525,6 +534,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   } finally {
     unsubscribeCodexLogs();
     unsubscribePiLogs();
+    unsubscribeCopilotLogs();
     await outputWriter.close().catch(() => undefined);
   }
 }

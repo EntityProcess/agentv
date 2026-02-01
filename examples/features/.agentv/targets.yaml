@@ -68,6 +68,16 @@ targets:
     log_format: json  # 'summary' (default) or 'json' for raw event logs
     # system_prompt: optional override (default instructs agent to include code in response)
 
+  # GitHub Copilot CLI
+  - name: copilot
+    provider: copilot-cli
+    judge_target: azure_base
+    # executable: copilot                     # Optional: defaults to `copilot` on PATH
+    # model: gpt-5                            # Optional: override model
+    timeout_seconds: 180
+    log_format: json                          # Optional: 'summary' (default) or 'json'
+    # system_prompt: optional override (default instructs agent to include code in response)
+
   # Claude Code - Anthropic's autonomous coding CLI
   - name: claude-code
     provider: claude-code
