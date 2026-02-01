@@ -1,10 +1,6 @@
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { command, flag, subcommands } from 'cmd-ts';
-
-const packageJson = JSON.parse(
-  readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'),
-);
+import packageJson from '../../../package.json' with { type: 'json' };
 
 /**
  * Detect package manager from the script path.
