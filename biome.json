@@ -37,8 +37,6 @@
       "**/test-output/**",
       "**/.agentv/**",
       "**/.astro/**",
-      "apps/web/**/*.astro",
-      "apps/web/**/*.css",
       "**/*.tsbuildinfo",
       "logs",
       "*.log"

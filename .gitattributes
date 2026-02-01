@@ -1,17 +1,4 @@
 # Ensure a consistent checkout across platforms.
 # This repo uses LF line endings; Biome assumes LF.
 
-* text=auto
-
-*.ts  text eol=lf
-*.tsx text eol=lf
-*.js  text eol=lf
-*.cjs text eol=lf
-*.mjs text eol=lf
-*.json text eol=lf
-*.md  text eol=lf
-*.yaml text eol=lf
-*.yml  text eol=lf
-*.toml text eol=lf
-*.txt  text eol=lf
-*.sh   text eol=lf
+* text=auto eol=lf
