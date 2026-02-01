@@ -16,12 +16,12 @@ evalcases:
     expected_outcome: |-
       Batch runner returns a JSON object with decision=CLEAR.
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           decision: CLEAR
 
-    input_messages:
+    input:
       - role: system
         content: |-
           You are a deterministic AML screening batch checker. Do not use external network calls.
@@ -59,12 +59,12 @@ evalcases:
     expected_outcome: |-
       Batch runner returns a JSON object with decision=REVIEW.
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           decision: REVIEW
 
-    input_messages:
+    input:
       - role: system
         content: You are a deterministic AML screening batch checker.
       - role: user
@@ -99,12 +99,12 @@ evalcases:
     expected_outcome: |-
       Batch runner returns a JSON object with decision=REVIEW.
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           decision: REVIEW
 
-    input_messages:
+    input:
       - role: system
         content: You are a deterministic AML screening batch checker.
       - role: user
@@ -139,12 +139,12 @@ evalcases:
     expected_outcome: |-
       Batch runner returns a JSON object with decision=REVIEW.
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           decision: REVIEW
 
-    input_messages:
+    input:
       - role: system
         content: You are a deterministic AML screening batch checker.
       - role: user

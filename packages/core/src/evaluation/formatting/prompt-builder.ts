@@ -197,6 +197,8 @@ export async function buildPromptInputs(
       })
     : undefined;
 
+  // Both question (flat string) and chatPrompt (structured messages) are returned:
+  // chatPrompt is used for the API call, question is retained for logging/debugging.
   return { question, guidelines, chatPrompt };
 }
 

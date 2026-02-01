@@ -41,7 +41,7 @@ evalcases:
       Agent successfully researches the topic by searching knowledge base multiple times
       and retrieving relevant documents.
 
-    input_messages:
+    input:
       - role: user
         content: Research the key differences between REST and GraphQL APIs.
 
@@ -65,7 +65,7 @@ evalcases:
     expected_outcome: |-
       Agent follows the correct data processing workflow.
 
-    input_messages:
+    input:
       - role: user
         content: Process the customer data from the API endpoint.
 
@@ -91,7 +91,7 @@ evalcases:
     expected_outcome: |-
       Agent performs authentication in the exact required sequence.
 
-    input_messages:
+    input:
       - role: user
         content: Authenticate the user with provided credentials.
 
@@ -116,7 +116,7 @@ evalcases:
     expected_outcome: |-
       Agent uses the metrics tools to check CPU and memory.
 
-    input_messages:
+    input:
       - role: user
         content: What are the current system metrics for CPU and memory?
 
@@ -140,7 +140,7 @@ evalcases:
     expected_outcome: |-
       Agent should use search, retrieve, and report tools.
 
-    input_messages:
+    input:
       - role: user
         content: Search for information and generate a report.
 
@@ -167,7 +167,7 @@ evalcases:
     expected_outcome: |-
       Agent searches for weather and retrieves forecast for the correct city.
 
-    input_messages:
+    input:
       - role: user
         content: What's the weather like in Paris?
 
@@ -193,7 +193,7 @@ evalcases:
     expected_outcome: |-
       Agent loads data, transforms it, and saves. Arguments don't matter.
 
-    input_messages:
+    input:
       - role: user
         content: Load customer data, normalize it, and save
 

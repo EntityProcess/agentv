@@ -1,14 +1,13 @@
-import { readFileSync } from 'node:fs';
 import { binary, run, subcommands } from 'cmd-ts';
 
+import packageJson from '../package.json' with { type: 'json' };
 import { compareCommand } from './commands/compare/index.js';
 import { convertCommand } from './commands/convert/index.js';
 import { evalCommand } from './commands/eval/index.js';
 import { generateCommand } from './commands/generate/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
+import { selfCommand } from './commands/self/index.js';
 import { validateCommand } from './commands/validate/index.js';
-
-const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 export const app = subcommands({
   name: 'agentv',
@@ -20,6 +19,7 @@ export const app = subcommands({
     eval: evalCommand,
     generate: generateCommand,
     init: initCmdTsCommand,
+    self: selfCommand,
     validate: validateCommand,
   },
 });

@@ -15,6 +15,10 @@ function shellEscapePath(value: string): string {
   return `'${value.replaceAll("'", `'\"'\"'`)}'`;
 }
 
+// IPC protocol: stdin/stdout JSON was chosen over JSON-RPC (overkill for one-shot eval),
+// HTTP (unnecessary network overhead for local scripts), and in-process (no isolation,
+// single-language only). Each evaluation is isolated by design for reproducibility and
+// safe parallelization. Process spawn overhead (~10-50ms) is acceptable for eval workloads.
 export async function execFileWithStdin(
   argv: readonly string[],
   stdinPayload: string,

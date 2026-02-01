@@ -415,7 +415,7 @@ export class FieldAccuracyEvaluator implements Evaluator {
     return {
       score: clampScore(score),
       verdict: scoreToVerdict(score),
-      hits: hits.slice(0, 4),
+      hits: hits.slice(0, 4), // Cap at 4 to keep output concise
       misses: misses.slice(0, 4),
       expectedAspectCount: results.length,
       reasoning,

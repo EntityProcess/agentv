@@ -42,7 +42,7 @@ evalcases:
     expected_outcome: |-
       Agent reads the config file quickly.
 
-    input_messages:
+    input:
       - role: user
         content: Read the config.json file.
 
@@ -63,7 +63,7 @@ evalcases:
     expected_outcome: |-
       Agent reads the file but takes too long.
 
-    input_messages:
+    input:
       - role: user
         content: Read the large-file.json.
 
@@ -85,7 +85,7 @@ evalcases:
       Agent performs data processing workflow with timing constraints
       on critical operations.
 
-    input_messages:
+    input:
       - role: user
         content: Process the customer data from the API.
 
@@ -111,7 +111,7 @@ evalcases:
     expected_outcome: |-
       Agent authenticates user with performance requirements.
 
-    input_messages:
+    input:
       - role: user
         content: Authenticate the user with provided credentials.
 
@@ -136,7 +136,7 @@ evalcases:
     expected_outcome: |-
       Agent searches for weather with specific query and responds quickly.
 
-    input_messages:
+    input:
       - role: user
         content: What's the weather like in Paris?
 

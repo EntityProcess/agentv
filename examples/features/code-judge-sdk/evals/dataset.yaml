@@ -11,7 +11,7 @@ evalcases:
   - id: code-judge-sdk-attachments
     expected_outcome: The CLI echoes the prompt and lists attachment names.
 
-    input_messages:
+    input:
       - role: system
         content:
           - type: file
@@ -24,7 +24,7 @@ evalcases:
           - type: file
             value: example.txt
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           Attachments detected (2): example.txt, python.instructions.md.

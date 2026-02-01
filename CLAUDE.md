@@ -109,11 +109,23 @@ When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` dire
 
 This ensures you're testing your local changes, not the published npm package.
 
+## Browser E2E Testing (Docs Site)
+
+Use `agent-browser` for visual verification of docs site changes. Environment-specific rules:
+
+- **Always use `--session <name>`** — isolates browser instances; close with `agent-browser --session <name> close` when done
+- **Never use `--headed`** — no display server available; headless (default) works correctly
+
 ## Verifying Evaluator Changes
 
 Unit tests alone are insufficient for evaluator changes. After implementing or modifying evaluators:
 
-1. **Run an actual eval** with a real example file:
+1. **Copy `.env` to the worktree** if running in a git worktree (e2e tests need environment variables):
+   ```bash
+   cp /path/to/main/.env .env
+   ```
+
+2. **Run an actual eval** with a real example file:
    ```bash
    bun agentv eval examples/features/rubric/evals/dataset.yaml --eval-id <case-id>
    ```
@@ -168,7 +180,7 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ### Issue Workflow
 
-When working on a GitHub issue or creating an OpenSpec proposal, **ALWAYS** follow this workflow:
+When working on a GitHub issue, **ALWAYS** follow this workflow:
 
 1. **Create a feature branch** from `main`:
    ```bash
@@ -244,21 +256,3 @@ git worktree add ../agentv_feat-new-evaluator feat/new-evaluator
 ## Python Scripts
 When running Python scripts, always use: `uv run <script.py>`
 
-<!-- OPENSPEC:START -->
-# OpenSpec Instructions
-
-These instructions are for AI assistants working in this project.
-
-Always open `@/openspec/AGENTS.md` when the request:
-- Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
-
-Use `@/openspec/AGENTS.md` to learn:
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
-
-Keep this managed block so 'openspec update' can refresh the instructions.
-
-<!-- OPENSPEC:END -->

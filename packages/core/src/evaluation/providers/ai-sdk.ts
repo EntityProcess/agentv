@@ -194,6 +194,8 @@ function buildAnthropicProviderOptions(
   };
 }
 
+// When chatPrompt is provided, guidelines are intentionally excluded (includeGuidelines: false)
+// because they've already been merged into the system message during prompt building.
 function buildChatPrompt(request: ProviderRequest): ChatPrompt {
   const provided = request.chatPrompt?.length ? request.chatPrompt : undefined;
   if (provided) {

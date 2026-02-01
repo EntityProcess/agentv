@@ -41,9 +41,7 @@ evalcases:
 evalcases:
   - id: test-1
     expected_outcome: Returns valid JSON
-    input_messages:
-      - role: user
-        content: Generate a JSON config
+    input: Generate a JSON config
     execution:
       evaluators:
         - name: json_check
@@ -59,9 +57,7 @@ Use multiple evaluators on the same case for comprehensive scoring:
 evalcases:
   - id: code-generation
     expected_outcome: Generates correct Python code
-    input_messages:
-      - role: user
-        content: Write a sorting function
+    input: Write a sorting function
     rubrics:
       - Code is syntactically valid
       - Handles edge cases (empty list, single element)

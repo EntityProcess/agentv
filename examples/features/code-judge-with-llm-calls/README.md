@@ -93,10 +93,10 @@ A perfect score (1.0) means the retrieval context fully covers the expected answ
 
 ### Multiple Tool Calls Are Flattened
 
-The current implementation extracts retrieval context by iterating through **all** `expected_messages` and **all** `tool_calls`, flattening results into a single ordered list:
+The current implementation extracts retrieval context by iterating through **all** `expected_output` messages and **all** `tool_calls`, flattening results into a single ordered list:
 
 ```yaml
-expected_messages:
+expected_output:
   - role: assistant
     tool_calls:
       - tool: vector_search

@@ -23,7 +23,7 @@ evalcases:
     expected_outcome: |-
       Must use keys: validation_point, resource_identified, reframe_angle.
       Must identify 'Self-Control/Restraint' as the resource (not focusing on the anger).
-    input_messages:
+    input:
       - role: user
         content:
           - type: text
@@ -34,7 +34,7 @@ evalcases:
               "My son hasn't gone to school for days. He plays on his phone all day. I saw it and got so angry I cut the internet cable. He started arguing and even rushed at me to hit me. I was going to explode, I really wanted to hit him! But... in the end, I didn't raise my hand. I feel like I raised this son for nothing."
           - type: file
             value: ../skills/encouragement.md
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           {
@@ -55,7 +55,7 @@ evalcases:
     expected_outcome: |-
       Must reframe Guilt as Evidence of Love/Bond.
       Must Validate that feeling guilty is "normal" (Normalization).
-    input_messages:
+    input:
       - role: user
         content:
           - type: text
@@ -66,7 +66,7 @@ evalcases:
               "My sister is only 21, but I just found out she has uremia. She needs dialysis every week. I'm her older sister, only two years older. Seeing her suffer while I am so healthy... I feel so guilty. I can't do anything for her."
           - type: file
             value: ../skills/encouragement.md
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           {
@@ -87,7 +87,7 @@ evalcases:
     expected_outcome: |-
       Must identify the act of 'dressing up/grooming' as a resource (Desire for life/dignity).
       Must not dismiss it as superficial; must validate the effort.
-    input_messages:
+    input:
       - role: user
         content:
           - type: text
@@ -99,7 +99,7 @@ evalcases:
               "I don't know... I just felt like washing my hair today. I put on a little makeup. It feels kind of pointless since I'm still just as sad inside, but I did it."
           - type: file
             value: ../skills/encouragement.md
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           {
@@ -120,7 +120,7 @@ evalcases:
     expected_outcome: |-
       Must identify the 'Fighting' as a resource (Fighting for the relationship).
       Must identify 'Enduring in-laws' as a resource (Commitment to husband).
-    input_messages:
+    input:
       - role: user
         content:
           - type: text
@@ -131,7 +131,7 @@ evalcases:
               "I put up with his parents criticizing me for years! And when I try to talk to him, he ignores me. So yes, I scream at him. I fight with him every day because I can't stand that he doesn't care! I'm the only one trying to fix this!"
           - type: file
             value: ../skills/encouragement.md
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           {
@@ -152,7 +152,7 @@ evalcases:
     expected_outcome: |-
       Must identify 'Completing the test' and 'calming down' as the resource.
       Must NOT focus on the embarrassment or the clumsiness.
-    input_messages:
+    input:
       - role: user
         content:
           - type: text
@@ -163,7 +163,7 @@ evalcases:
               "It was so humiliating. Everyone saw me trip during the warm-up. My face was burning. I was so nervous I was shaking. But... I didn't run away. I finished the test. I passed, barely. But I just want to hide."
           - type: file
             value: ../skills/encouragement.md
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           {
@@ -188,7 +188,7 @@ evalcases:
     expected_outcome: |-
       Must identify 'Survival Strategy' or 'Desire to Breathe' as the positive intent.
       Must maintain clinical detachment (no judgment).
-    input_messages:
+    input:
       - role: user
         content:
           - type: text
@@ -199,7 +199,7 @@ evalcases:
               "When the noise in my head gets too loud, and the panic feels like it's going to explode my chest... I cut. Just a little. And suddenly, everything goes quiet. The blood makes it real. It's the only way I can breathe again."
           - type: file
             value: ../skills/encouragement.md
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           {
@@ -220,7 +220,7 @@ evalcases:
     expected_outcome: |-
       Must identify 'validation_point' that acknowledges the depth of pain (not minimizing it).
       Failure: Using clichés like "Time heals all wounds" or "Stay positive."
-    input_messages:
+    input:
       - role: user
         content:
           - type: text
@@ -231,7 +231,7 @@ evalcases:
               "My husband died three months ago. Everyone tells me I'm doing so well, that I'm so strong. But inside, I'm dead. I wake up and I just wish I hadn't. I'm not strong. I'm just faking it so people stop worrying."
           - type: file
             value: ../skills/encouragement.md
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           {
@@ -253,7 +253,7 @@ evalcases:
     expected_outcome: |-
       Must identify 'resource_identified' as the *Desire for Connection/Safety*, NOT the act of checking.
       Failure: Praising the "diligence" of checking the phone.
-    input_messages:
+    input:
       - role: user
         content:
           - type: text
@@ -264,7 +264,7 @@ evalcases:
               "I check his phone every night when he sleeps. I go through his messages, his location history, everything. I just love him so much, I have to make sure he isn't being tricked by other women. I'm fighting for our marriage every single night."
           - type: file
             value: ../skills/encouragement.md
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           {

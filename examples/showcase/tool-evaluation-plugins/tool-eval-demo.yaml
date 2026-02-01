@@ -24,7 +24,7 @@ evalcases:
       Agent should search for relevant information and fetch data from APIs.
       Uses search and fetch tools appropriately for the research task.
 
-    input_messages:
+    input:
       - role: user
         content: Find information about the current weather in Tokyo and fetch the detailed forecast.
 
@@ -54,7 +54,7 @@ evalcases:
       Agent efficiently processes the request with minimal redundant operations.
       Simple task requiring straightforward tool usage.
 
-    input_messages:
+    input:
       - role: user
         content: Get the current time.
 
@@ -79,7 +79,7 @@ evalcases:
       3. Process and transform results
       4. Output formatted report
 
-    input_messages:
+    input:
       - role: user
         content: Analyze the quarterly sales data and generate a summary report.
 
@@ -114,13 +114,13 @@ evalcases:
     expected_outcome: |-
       Agent should retrieve and summarize the document efficiently.
 
-    input_messages:
+    input:
       - role: user
         content: Summarize the main points of the user manual.
 
     # Reference answer for comparison (from a baseline agent)
     # Note: reference_answer is constructed from expected_messages content
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           Here is a summary of the user manual:

@@ -31,13 +31,9 @@ evalcases:
   - id: addition
     expected_outcome: Correctly calculates 15 + 27 = 42
 
-    input_messages:
-      - role: user
-        content: What is 15 + 27?
+    input: What is 15 + 27?
 
-    expected_messages:
-      - role: assistant
-        content: "42"
+    expected_output: "42"
 
     execution:
       evaluators:
@@ -108,8 +104,8 @@ See [AGENTS.md](AGENTS.md) for development guidelines and design principles.
 For large-scale evaluations, AgentV supports JSONL (JSON Lines) format as an alternative to YAML:
 
 ```jsonl
-{"id": "test-1", "expected_outcome": "Calculates correctly", "input_messages": [{"role": "user", "content": "What is 2+2?"}]}
-{"id": "test-2", "expected_outcome": "Provides explanation", "input_messages": [{"role": "user", "content": "Explain variables"}]}
+{"id": "test-1", "expected_outcome": "Calculates correctly", "input": "What is 2+2?"}
+{"id": "test-2", "expected_outcome": "Provides explanation", "input": "Explain variables"}
 ```
 
 Optional sidecar YAML metadata file (`dataset.yaml` alongside `dataset.jsonl`):
@@ -264,9 +260,7 @@ evalcases:
   - id: quicksort-explain
     expected_outcome: Explain how quicksort works
 
-    input_messages:
-      - role: user
-        content: Explain quicksort algorithm
+    input: Explain quicksort algorithm
 
     rubrics:
       - Mentions divide-and-conquer approach

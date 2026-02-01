@@ -14,21 +14,19 @@ Built-in evaluators for grading structured outputs and gating on execution metri
 
 ## Ground Truth
 
-Put the expected structured output in the evalcase `expected_messages` (typically as the last `assistant` message with `content` as an object). Evaluators read expected values from there.
+Put the expected structured output in the evalcase `expected_output` (as an object or message array). Evaluators read expected values from there.
 
 ```yaml
 evalcases:
   - id: invoice-001
-    expected_messages:
-      - role: assistant
-        content:
-          invoice_number: "INV-2025-001234"
-          net_total: 1889
+    expected_output:
+      invoice_number: "INV-2025-001234"
+      net_total: 1889
 ```
 
 ## Field Accuracy
 
-Use `field_accuracy` to compare fields in the candidate JSON against the ground-truth object in `expected_messages`.
+Use `field_accuracy` to compare fields in the candidate JSON against the ground-truth object in `expected_output`.
 
 ```yaml
 execution:

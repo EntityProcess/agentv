@@ -12,7 +12,7 @@ evalcases:
   - id: prompt-template-basic
     expected_outcome: The CLI provides a clear answer about TypeScript benefits.
 
-    input_messages:
+    input:
       - role: user
         content:
           - type: text
@@ -32,7 +32,7 @@ evalcases:
   - id: prompt-template-with-config
     expected_outcome: The CLI explains async/await correctly.
 
-    input_messages:
+    input:
       - role: user
         content:
           - type: text
