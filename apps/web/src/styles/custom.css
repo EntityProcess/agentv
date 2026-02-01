@@ -72,7 +72,7 @@ a[aria-current="page"] {
   color: hsl(185, 60%, 10%);
 }
 
-:root[data-theme="dark"] nav.sidebar a:hover {
+:root[data-theme="dark"] nav.sidebar a:not([aria-current="page"]):hover {
   background: var(--av-surface);
 }
 
