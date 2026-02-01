@@ -1,6 +1,6 @@
 {
   "name": "@agentv/core",
-  "version": "2.5.7",
+  "version": "2.5.8",
   "description": "Primitive runtime components for AgentV",
   "type": "module",
   "repository": {
