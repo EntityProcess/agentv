@@ -1,6 +1,6 @@
 {
   "name": "agentv",
-  "version": "2.5.5",
+  "version": "2.6.0",
   "description": "CLI entry point for AgentV",
   "type": "module",
   "repository": {
@@ -29,8 +29,8 @@
   },
   "dependencies": {
     "@agentv/core": "workspace:*",
-    "@mariozechner/pi-agent": "^0.9.0",
-    "@mariozechner/pi-ai": "^0.37.2",
+    "@mariozechner/pi-agent-core": "^0.50.9",
+    "@mariozechner/pi-ai": "^0.50.9",
     "cmd-ts": "^0.14.3",
     "dotenv": "^16.4.5",
     "fast-glob": "^3.3.3",

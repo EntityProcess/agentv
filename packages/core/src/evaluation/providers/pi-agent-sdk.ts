@@ -18,41 +18,39 @@ type PiProvider =
   | 'openrouter';
 
 // Lazy-loaded modules to avoid bundling issues with dynamic requires
-let piAgentModule: typeof import('@mariozechner/pi-agent') | null = null;
+let piAgentModule: typeof import('@mariozechner/pi-agent-core') | null = null;
 let piAiModule: typeof import('@mariozechner/pi-ai') | null = null;
 
 async function loadPiModules(): Promise<{
-  Agent: typeof import('@mariozechner/pi-agent').Agent;
-  ProviderTransport: typeof import('@mariozechner/pi-agent').ProviderTransport;
+  Agent: typeof import('@mariozechner/pi-agent-core').Agent;
   getModel: typeof import('@mariozechner/pi-ai').getModel;
   getEnvApiKey: typeof import('@mariozechner/pi-ai').getEnvApiKey;
 }> {
   if (!piAgentModule || !piAiModule) {
     try {
       [piAgentModule, piAiModule] = await Promise.all([
-        import('@mariozechner/pi-agent'),
+        import('@mariozechner/pi-agent-core'),
         import('@mariozechner/pi-ai'),
       ]);
     } catch (error) {
       throw new Error(
-        `Failed to load pi-agent-sdk dependencies. Please install them:\n  npm install @mariozechner/pi-agent @mariozechner/pi-ai\n\nOriginal error: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to load pi-agent-sdk dependencies. Please install them:\n  npm install @mariozechner/pi-agent-core @mariozechner/pi-ai\n\nOriginal error: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
   return {
     Agent: piAgentModule.Agent,
-    ProviderTransport: piAgentModule.ProviderTransport,
     getModel: piAiModule.getModel,
     getEnvApiKey: piAiModule.getEnvApiKey,
   };
 }
 
 /**
- * Pi Agent SDK provider using the @mariozechner/pi-agent library directly.
+ * Pi Agent SDK provider using the @mariozechner/pi-agent-core library directly.
  * This avoids CLI argument-passing issues (especially on Windows) by using the SDK.
  *
  * Note: Dependencies are loaded lazily on first use to avoid bundling issues.
- * Users must install @mariozechner/pi-agent and @mariozechner/pi-ai separately.
+ * Users must install @mariozechner/pi-agent-core and @mariozechner/pi-ai separately.
  */
 export class PiAgentSdkProvider implements Provider {
   readonly id: string;
@@ -74,7 +72,7 @@ export class PiAgentSdkProvider implements Provider {
     }
 
     // Lazy load the pi-agent modules
-    const { Agent, ProviderTransport, getModel, getEnvApiKey } = await loadPiModules();
+    const { Agent, getModel, getEnvApiKey } = await loadPiModules();
 
     const startTime = Date.now();
     const providerName = this.config.provider ?? 'anthropic';
@@ -87,14 +85,6 @@ export class PiAgentSdkProvider implements Provider {
     // Build system prompt
     const systemPrompt = this.config.systemPrompt ?? 'Answer directly and concisely.';
 
-    // Create transport with API key getter
-    const transport = new ProviderTransport({
-      getApiKey: async (provider) => {
-        // Use config apiKey if provided, otherwise try environment
-        return this.config.apiKey ?? getEnvApiKey(provider as PiProvider) ?? undefined;
-      },
-    });
-
     const agent = new Agent({
       initialState: {
         systemPrompt,
@@ -102,7 +92,10 @@ export class PiAgentSdkProvider implements Provider {
         tools: [], // No tools for simple Q&A
         messages: [],
       },
-      transport,
+      getApiKey: async (provider) => {
+        // Use config apiKey if provided, otherwise try environment
+        return this.config.apiKey ?? getEnvApiKey(provider as PiProvider) ?? undefined;
+      },
     });
 
     // Collect events for output messages
@@ -229,10 +222,10 @@ function extractToolCalls(content: unknown): readonly ToolCall[] {
       continue;
     }
     const p = part as Record<string, unknown>;
-    if (p.type === 'tool_use' && typeof p.name === 'string') {
+    if (p.type === 'toolCall' && typeof p.name === 'string') {
       toolCalls.push({
         tool: p.name,
-        input: p.input,
+        input: p.arguments,
         id: typeof p.id === 'string' ? p.id : undefined,
       });
     }
