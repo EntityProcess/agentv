@@ -813,13 +813,14 @@ function parseRubricItems(
     const rawScoreRanges = rawRubric.score_ranges;
 
     if (rawScoreRanges !== undefined) {
-      if (!Array.isArray(rawScoreRanges)) {
+      const normalized = normalizeScoreRangesShorthand(rawScoreRanges);
+      if (!Array.isArray(normalized)) {
         throw new Error(
-          `Invalid score_ranges for rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': must be an array`,
+          `Invalid score_ranges for rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': must be an array or shorthand map`,
         );
       }
 
-      scoreRanges = parseScoreRanges(rawScoreRanges, id, evaluatorName, evalId);
+      scoreRanges = parseScoreRanges(normalized, id, evaluatorName, evalId);
 
       // For score-range rubrics, expected_outcome at rubric level is optional
       items.push({
@@ -851,6 +852,63 @@ function parseRubricItems(
   }
 
   return items.length > 0 ? items : undefined;
+}
+
+/**
+ * Normalize score_ranges shorthand map format to the canonical array format.
+ *
+ * Shorthand (map keys are lower bounds 0-10, values are descriptions):
+ *   { 0: "Bad", 3: "OK", 7: "Good", 10: "Perfect" }
+ *
+ * Normalizes to:
+ *   [ { score_range: [0, 2], expected_outcome: "Bad" },
+ *     { score_range: [3, 6], expected_outcome: "OK" },
+ *     { score_range: [7, 9], expected_outcome: "Good" },
+ *     { score_range: [10, 10], expected_outcome: "Perfect" } ]
+ *
+ * If input is already an array, returns it unchanged.
+ */
+function normalizeScoreRangesShorthand(raw: unknown): unknown {
+  if (Array.isArray(raw)) return raw;
+  if (!isJsonObject(raw)) return raw;
+
+  // Check if this looks like a shorthand map (all keys are numeric strings)
+  const keys = Object.keys(raw);
+  if (keys.length === 0) return raw;
+
+  const numericKeys: number[] = [];
+  for (const key of keys) {
+    const num = Number(key);
+    if (!Number.isInteger(num) || num < 0 || num > 10) {
+      // Not a shorthand map — could be array-of-objects format parsed as object
+      return raw;
+    }
+    if (typeof raw[key] !== 'string' || (raw[key] as string).length === 0) {
+      return raw;
+    }
+    numericKeys.push(num);
+  }
+
+  // Sort keys numerically
+  numericKeys.sort((a, b) => a - b);
+
+  // Validate starts at 0
+  if (numericKeys[0] !== 0) {
+    throw new Error(`score_ranges shorthand map must start at 0 (got ${numericKeys[0]})`);
+  }
+
+  // Derive ranges: each key is a lower bound, upper bound is (next key - 1) or 10 for the last
+  const result: Array<{ score_range: readonly [number, number]; expected_outcome: string }> = [];
+  for (let i = 0; i < numericKeys.length; i++) {
+    const min = numericKeys[i];
+    const max = i < numericKeys.length - 1 ? numericKeys[i + 1] - 1 : 10;
+    result.push({
+      score_range: [min, max],
+      expected_outcome: raw[String(min)] as string,
+    });
+  }
+
+  return result;
 }
 
 /**
@@ -990,11 +1048,13 @@ export function parseInlineRubrics(
       const expectedOutcome =
         asString(rubric.expected_outcome) ?? asString(rubric.description) ?? '';
 
-      // Parse score_ranges if present
+      // Parse score_ranges if present (supports shorthand map format)
       const rawScoreRanges = rubric.score_ranges;
+      const normalizedScoreRanges =
+        rawScoreRanges !== undefined ? normalizeScoreRangesShorthand(rawScoreRanges) : undefined;
       const scoreRanges =
-        Array.isArray(rawScoreRanges) && rawScoreRanges.length > 0
-          ? rawScoreRanges
+        Array.isArray(normalizedScoreRanges) && normalizedScoreRanges.length > 0
+          ? normalizedScoreRanges
               .filter((r): r is JsonObject => isJsonObject(r))
               .map((range) => ({
                 score_range: Array.isArray(range.score_range)
