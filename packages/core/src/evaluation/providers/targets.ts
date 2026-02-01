@@ -713,8 +713,6 @@ export function resolveTargetDefinition(
         config: resolveCodexConfig(parsed, env),
       };
     case 'copilot-cli':
-    case 'copilot':
-    case 'github-copilot':
       return {
         kind: 'copilot-cli',
         name: parsed.name,

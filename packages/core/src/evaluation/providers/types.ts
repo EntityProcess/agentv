@@ -65,8 +65,6 @@ export const PROVIDER_ALIASES: readonly string[] = [
   'google', // alias for "gemini"
   'google-gemini', // alias for "gemini"
   'codex-cli', // alias for "codex"
-  'copilot', // alias for "copilot-cli"
-  'github-copilot', // alias for "copilot-cli"
   'pi', // alias for "pi-coding-agent"
   'openai', // legacy/future support
   'bedrock', // legacy/future support

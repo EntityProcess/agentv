@@ -160,8 +160,6 @@ function getKnownSettings(provider: string): Set<string> | null {
     case 'codex-cli':
       return CODEX_SETTINGS;
     case 'copilot-cli':
-    case 'copilot':
-    case 'github-copilot':
       return COPILOT_SETTINGS;
     case 'vscode':
     case 'vscode-insiders':
