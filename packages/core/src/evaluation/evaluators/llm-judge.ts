@@ -151,6 +151,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       });
 
       const score = clampScore(data.score);
+      // Cap hits/misses at 4 items to keep LLM judge output concise and focused
       const hits = Array.isArray(data.hits) ? data.hits.filter(isNonEmptyString).slice(0, 4) : [];
       const misses = Array.isArray(data.misses)
         ? data.misses.filter(isNonEmptyString).slice(0, 4)
@@ -168,6 +169,8 @@ export class LlmJudgeEvaluator implements Evaluator {
         evaluatorRawRequest,
       };
     } catch {
+      // Deliberate: parse failures yield score 0 silently — no warning emitted,
+      // the zeroed score itself signals the failure to downstream consumers.
       return {
         score: 0,
         verdict: 'fail',

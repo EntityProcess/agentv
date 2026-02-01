@@ -180,7 +180,7 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ### Issue Workflow
 
-When working on a GitHub issue or creating an OpenSpec proposal, **ALWAYS** follow this workflow:
+When working on a GitHub issue, **ALWAYS** follow this workflow:
 
 1. **Create a feature branch** from `main`:
    ```bash
@@ -256,21 +256,3 @@ git worktree add ../agentv_feat-new-evaluator feat/new-evaluator
 ## Python Scripts
 When running Python scripts, always use: `uv run <script.py>`
 
-<!-- OPENSPEC:START -->
-# OpenSpec Instructions
-
-These instructions are for AI assistants working in this project.
-
-Always open `@/openspec/AGENTS.md` when the request:
-- Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
-
-Use `@/openspec/AGENTS.md` to learn:
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
-
-Keep this managed block so 'openspec update' can refresh the instructions.
-
-<!-- OPENSPEC:END -->

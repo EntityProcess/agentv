@@ -146,6 +146,8 @@ export class VSCodeProvider implements Provider {
   }
 }
 
+// VS Code provider uses request.question (not chatPrompt) because VS Code handles
+// conversation structure via workspace attachments, making structured chat prompts redundant.
 function buildPromptDocument(
   request: ProviderRequest,
   attachments: readonly string[] | undefined,

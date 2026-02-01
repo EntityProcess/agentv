@@ -287,6 +287,7 @@ export function normalizeCliHealthcheck(
  *
  * This function coalesces snake_case/camelCase variants and resolves
  * environment variable references using ${{ VAR_NAME }} syntax.
+ * snake_case takes precedence over camelCase when both are present (matching YAML convention).
  *
  * @param input - The loose CLI target input from YAML
  * @param env - Environment variable lookup

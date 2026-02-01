@@ -257,6 +257,7 @@ export class CompositeEvaluator implements Evaluator {
 
         const data = freeformEvaluationSchema.parse(parseJsonFromText(text));
         const score = clampScore(data.score);
+        // Cap hits/misses at 4 items to keep LLM judge output concise and focused
         const hits = Array.isArray(data.hits) ? data.hits.filter(isNonEmptyString).slice(0, 4) : [];
         const misses = Array.isArray(data.misses)
           ? data.misses.filter(isNonEmptyString).slice(0, 4)
