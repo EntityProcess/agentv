@@ -4,7 +4,7 @@ Demonstrates core AgentV schema features with minimal setup.
 
 ## What This Shows
 
-- Core schema: `input_messages`, `expected_messages`
+- Core schema: `input`, `expected_output`
 - File references for content
 - Conversation threading with multiple messages
 - Array content format (text + file references)

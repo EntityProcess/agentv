@@ -14,13 +14,9 @@ evalcases:
   - id: addition
     expected_outcome: Correctly calculates 15 + 27 = 42
 
-    input_messages:
-      - role: user
-        content: What is 15 + 27?
+    input: What is 15 + 27?
 
-    expected_messages:
-      - role: assistant
-        content: "42"
+    expected_output: "42"
 ```
 
 ## Fields
@@ -29,30 +25,42 @@ evalcases:
 |-------|----------|-------------|
 | `id` | Yes | Unique identifier for the eval case |
 | `expected_outcome` | Yes | Description of what a correct response should contain |
-| `input_messages` | Yes | Array of input messages sent to the target |
-| `expected_messages` | No | Expected response messages for comparison |
+| `input` | Yes | Input sent to the target (string, object, or message array). Alias: `input_messages` |
+| `expected_output` | No | Expected response for comparison (string, object, or message array). Alias: `expected_messages` |
 | `execution` | No | Per-case execution overrides (target, evaluators) |
 | `rubrics` | No | Structured evaluation criteria |
 | `sidecar` | No | Additional metadata passed to evaluators |
 
-## Input Messages
+## Input
 
-Messages follow the standard chat format:
+The simplest form is a string, which expands to a single user message:
 
 ```yaml
-input_messages:
+input: What is 15 + 27?
+```
+
+For multi-turn or system messages, use a message array:
+
+```yaml
+input:
   - role: system
     content: You are a helpful math tutor.
   - role: user
     content: What is 15 + 27?
 ```
 
-## Expected Messages
+## Expected Output
 
-Optional reference responses for comparison by evaluators:
+Optional reference response for comparison by evaluators. A string expands to a single assistant message:
 
 ```yaml
-expected_messages:
+expected_output: "42"
+```
+
+For structured or multi-message expected output, use a message array:
+
+```yaml
+expected_output:
   - role: assistant
     content: "42"
 ```
@@ -65,9 +73,7 @@ Override the default target or evaluators for specific cases:
 evalcases:
   - id: complex-case
     expected_outcome: Provides detailed explanation
-    input_messages:
-      - role: user
-        content: Explain quicksort algorithm
+    input: Explain quicksort algorithm
 
     execution:
       target: gpt4_target
@@ -88,7 +94,5 @@ evalcases:
     sidecar:
       language: python
       difficulty: medium
-    input_messages:
-      - role: user
-        content: Write a function to sort a list
+    input: Write a function to sort a list
 ```

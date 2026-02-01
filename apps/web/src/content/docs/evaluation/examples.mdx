@@ -20,13 +20,9 @@ evalcases:
   - id: simple-addition
     expected_outcome: Correctly calculates 2+2
 
-    input_messages:
-      - role: user
-        content: What is 2 + 2?
+    input: What is 2 + 2?
 
-    expected_messages:
-      - role: assistant
-        content: "4"
+    expected_output: "4"
 ```
 
 ## Code Review with File References
@@ -42,7 +38,7 @@ evalcases:
   - id: code-review-basic
     expected_outcome: Assistant provides helpful code analysis with security considerations
 
-    input_messages:
+    input:
       - role: system
         content: You are an expert code reviewer.
       - role: user
@@ -59,7 +55,7 @@ evalcases:
           - type: file
             value: /prompts/security-guidelines.md
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           This code has a critical SQL injection vulnerability. The user_id is directly
@@ -96,20 +92,16 @@ evalcases:
           type: llm_judge
           prompt: ./judges/semantic_correctness.md
 
-    input_messages:
-      - role: user
-        content: |-
-          Generate a JSON object for a user with name "Alice",
-          email "alice@example.com", and role "admin".
+    input: |-
+      Generate a JSON object for a user with name "Alice",
+      email "alice@example.com", and role "admin".
 
-    expected_messages:
-      - role: assistant
-        content: |-
-          {
-            "name": "Alice",
-            "email": "alice@example.com",
-            "role": "admin"
-          }
+    expected_output: |-
+      {
+        "name": "Alice",
+        "email": "alice@example.com",
+        "role": "admin"
+      }
 ```
 
 ## Tool Trajectory
@@ -125,9 +117,7 @@ evalcases:
   # Validate minimum tool usage (order doesn't matter)
   - id: research-depth
     expected_outcome: Agent researches thoroughly
-    input_messages:
-      - role: user
-        content: Research REST vs GraphQL
+    input: Research REST vs GraphQL
     execution:
       evaluators:
         - name: research-check
@@ -140,9 +130,7 @@ evalcases:
   # Validate exact tool sequence
   - id: auth-flow
     expected_outcome: Agent follows auth sequence
-    input_messages:
-      - role: user
-        content: Authenticate user
+    input: Authenticate user
     execution:
       evaluators:
         - name: auth-sequence
@@ -165,9 +153,7 @@ execution:
 evalcases:
   - id: validate-trace-file
     expected_outcome: Trace contains required steps
-    input_messages:
-      - role: user
-        content: Analyze trace
+    input: Analyze trace
     execution:
       evaluators:
         - name: trace-check
@@ -194,7 +180,7 @@ evalcases:
       questions when needed, correctly diagnosing the bug, and proposing a clear
       fix with rationale.
 
-    input_messages:
+    input:
       - role: system
         content: You are an expert debugging assistant who reasons step by step, asks clarifying questions, and explains fixes clearly.
       - role: user
@@ -219,7 +205,7 @@ evalcases:
         content: |-
           For `[1, 2, 3, 4]` I expect `[1, 2, 3, 4]`, but I get `[1, 2, 3]`.
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           You have an off-by-one error in your loop bounds.
@@ -253,12 +239,12 @@ evalcases:
     expected_outcome: |-
       Batch runner returns JSON with decision=CLEAR.
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           decision: CLEAR
 
-    input_messages:
+    input:
       - role: system
         content: You are a deterministic AML screening batch checker.
       - role: user
@@ -287,12 +273,12 @@ evalcases:
     expected_outcome: |-
       Batch runner returns JSON with decision=REVIEW.
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           decision: REVIEW
 
-    input_messages:
+    input:
       - role: system
         content: You are a deterministic AML screening batch checker.
       - role: user
@@ -323,7 +309,7 @@ evalcases:
 - `execution.target: batch_cli` -- configure CLI provider with `provider_batching: true`
 - The batch runner reads the eval YAML via `--eval` flag and outputs JSONL keyed by `id`
 - Put structured data in `user.content` as objects for the runner to extract
-- Use `expected_messages.content` with object fields for structured expected output
+- Use `expected_output` with object fields for structured expected output
 - Each eval case has its own evaluator to validate its portion of the output
 
 ## File Path Conventions
@@ -340,7 +326,7 @@ evalcases:
 - For classification tasks, specify the expected category
 - For reasoning tasks, describe the thought process expected
 
-## Tips for Writing expected_messages
+## Tips for Writing expected_output
 
 - Show the pattern, not rigid templates
 - Allow for natural language variation

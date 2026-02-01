@@ -32,7 +32,7 @@ evalcases:
       Agent responds to a simple query. Execution metrics are captured
       automatically and included in the evaluation result.
 
-    input_messages:
+    input:
       - role: user
         content: Hello, this is a simple question.
 
@@ -53,7 +53,7 @@ evalcases:
       Agent efficiently answers a simple question without excessive
       token usage or tool calls.
 
-    input_messages:
+    input:
       - role: user
         content: Hello, give me a simple response.
 
@@ -74,7 +74,7 @@ evalcases:
       Agent performs research and uses tools. Metrics reflect
       higher token usage and multiple tool calls.
 
-    input_messages:
+    input:
       - role: user
         content: Research and analyze the topic of machine learning.
 
@@ -102,7 +102,7 @@ evalcases:
       Agent uses excessive resources. Efficiency check should fail
       due to too many tool calls and high token usage.
 
-    input_messages:
+    input:
       - role: user
         content: Do something inefficient and wasteful.
 

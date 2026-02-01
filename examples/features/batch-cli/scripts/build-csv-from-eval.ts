@@ -64,7 +64,7 @@ export function extractRowsFromEvalYaml(yamlText: string): readonly EvalRow[] {
       continue;
     }
 
-    const content = findFirstUserContentObject(item.input_messages);
+    const content = findFirstUserContentObject(item.input_messages ?? item.input);
     if (!content) continue;
 
     const request = isObject(content.request) ? (content.request as Record<string, unknown>) : {};

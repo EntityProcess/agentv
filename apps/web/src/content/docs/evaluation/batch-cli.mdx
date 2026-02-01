@@ -26,7 +26,7 @@ Use batch CLI evaluation when:
 ## Eval File Structure
 
 ```yaml
-description: Batch CLI demo using structured input_messages
+description: Batch CLI demo using structured input
 execution:
   target: batch_cli
 
@@ -35,12 +35,12 @@ evalcases:
     expected_outcome: |-
       Batch runner returns JSON with decision=CLEAR.
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           decision: CLEAR
 
-    input_messages:
+    input:
       - role: system
         content: You are a batch processor.
       - role: user
@@ -64,12 +64,12 @@ evalcases:
     expected_outcome: |-
       Batch runner returns JSON with decision=REVIEW.
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           decision: REVIEW
 
-    input_messages:
+    input:
       - role: system
         content: You are a batch processor.
       - role: user
@@ -225,10 +225,10 @@ main();
 
 ## Structured Content
 
-Use structured objects in `expected_messages.content` to define expected output fields for easy validation:
+Use structured objects in `expected_output` to define expected output fields for easy validation:
 
 ```yaml
-expected_messages:
+expected_output:
   - role: assistant
     content:
       decision: CLEAR
@@ -263,8 +263,8 @@ Key settings:
 ## Best Practices
 
 1. **Use unique eval case IDs** -- the batch runner and AgentV use `id` to route outputs to the correct evaluator
-2. **Structured input_messages** -- put structured data in `user.content` for the runner to extract
-3. **Structured expected_messages** -- define expected output as objects for easy comparison
+2. **Structured input** -- put structured data in `user.content` for the runner to extract
+3. **Structured expected_output** -- define expected output as objects for easy comparison
 4. **Deterministic runners** -- batch runners should produce consistent output for reliable testing
 5. **Healthcheck support** -- add a `--healthcheck` flag for runner validation:
    ```typescript

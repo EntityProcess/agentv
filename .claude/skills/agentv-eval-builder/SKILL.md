@@ -35,8 +35,8 @@ evalcases:
 |-------|----------|-------------|
 | `id` | yes | Unique identifier |
 | `expected_outcome` | yes | What the response should accomplish |
-| `input_messages` / `input` | yes | Input to the agent |
-| `expected_messages` / `expected_output` | no | Gold-standard reference answer |
+| `input` / `input_messages` | yes | Input to the agent |
+| `expected_output` / `expected_messages` | no | Gold-standard reference answer |
 | `rubrics` | no | Inline evaluation criteria |
 | `execution` | no | Per-case execution overrides |
 | `conversation_id` | no | Thread grouping |

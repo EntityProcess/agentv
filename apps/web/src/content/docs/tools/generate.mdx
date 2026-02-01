@@ -32,9 +32,7 @@ Before:
 evalcases:
   - id: quicksort
     expected_outcome: Explains quicksort with time complexity and examples
-    input_messages:
-      - role: user
-        content: Explain quicksort
+    input: Explain quicksort
 ```
 
 After running `agentv generate rubrics`:
@@ -43,9 +41,7 @@ After running `agentv generate rubrics`:
 evalcases:
   - id: quicksort
     expected_outcome: Explains quicksort with time complexity and examples
-    input_messages:
-      - role: user
-        content: Explain quicksort
+    input: Explain quicksort
     rubrics:
       - Explains divide-and-conquer approach
       - Describes partition step

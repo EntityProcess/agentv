@@ -113,7 +113,7 @@ evalcases:
       Mock extractor rounds supplier name from "Acme - Shipping" to "Acme Shipping" in HTML.
       All numeric values rounded to integers (1889 not 1889.00).
       Tests that exact matching passes when extractor normalizes data correctly.
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           invoice_number: "INV-2025-001234"
@@ -177,7 +177,7 @@ evalcases:
               line_total: 50
               unit_type: "C2 1 UNI"
               hs_code: "853720"
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -226,7 +226,7 @@ evalcases:
           - path: net_total
             match: numeric_tolerance
             tolerance: 1.0
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           invoice_number: "INV-2025-001234"
@@ -238,7 +238,7 @@ evalcases:
             name: "Acme Shipping"
           importer:
             name: "Global Trade Co"
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -258,7 +258,7 @@ evalcases:
       
       Mock extractor output sample (`invoice-003.json`) contains 1889.5 USD (preserved decimals).
       Numeric tolerance (±1.0) should accept 0.5 difference and pass.
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           invoice_number: "INV-2025-001234"
@@ -270,7 +270,7 @@ evalcases:
             name: "Acme - Shipping"
           importer:
             name: "Global Trade Co"
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -290,7 +290,7 @@ evalcases:
 
       Tests required field validation. Score should drop significantly due to
       missing critical field (weight 2.0). Expected score ~0.85 (lose 2/13 weight).
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           invoice_number: "INV-2025-001234"  # Expected but missing in candidate
@@ -302,7 +302,7 @@ evalcases:
             name: "Acme - Shipping"
           importer:
             name: "Global Trade Co"
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -342,7 +342,7 @@ evalcases:
             required: true
             weight: 1.0
         aggregation: weighted_average
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           line_items:
@@ -350,7 +350,7 @@ evalcases:
               line_total: 1370
             - description: "Bunker Adjustment Factor"
               line_total: 262
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -379,7 +379,7 @@ evalcases:
         score_fields: ["description", "quantity", "line_total"]
         threshold: 0.8
         line_items_path: line_items
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           line_items:
@@ -389,7 +389,7 @@ evalcases:
             - description: "Bunker Adjustment Factor"
               quantity: 1
               line_total: 80
-    input_messages:
+    input:
       - role: user
         content:
           - type: file

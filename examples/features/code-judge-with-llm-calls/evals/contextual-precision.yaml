@@ -27,10 +27,10 @@ evalcases:
   # Score = 1.0 (perfect - only relevant node is ranked first)
   - id: perfect-ranking
     expected_outcome: TypeScript is based on JavaScript
-    input_messages:
+    input:
       - role: user
         content: What programming language is TypeScript based on?
-    expected_messages:
+    expected_output:
       - role: assistant
         tool_calls:
           - tool: vector_search
@@ -52,10 +52,10 @@ evalcases:
   # Score = (1/2) * (1.0 + 0.667) = 0.833
   - id: mixed-ranking
     expected_outcome: The capital of France is Paris.
-    input_messages:
+    input:
       - role: user
         content: What is the capital of France?
-    expected_messages:
+    expected_output:
       - role: assistant
         tool_calls:
           - tool: vector_search
@@ -77,10 +77,10 @@ evalcases:
   # Score = (1/1) * 0.333 = 0.333
   - id: relevant-node-last
     expected_outcome: The sky is blue
-    input_messages:
+    input:
       - role: user
         content: What color is the sky?
-    expected_messages:
+    expected_output:
       - role: assistant
         tool_calls:
           - tool: vector_search

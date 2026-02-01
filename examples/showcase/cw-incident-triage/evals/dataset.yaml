@@ -26,7 +26,7 @@ evalcases:
       Assistant correctly classifies as 'CR1' for complete system inaccessibility.
       Reasoning should emphasize 'any user on any workstation' and lack of access to the entire suite.
     
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -40,7 +40,7 @@ evalcases:
               Scope: Global
               Signals: Error: "Server unreachable", no recent changes reported
     
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           {
@@ -55,7 +55,7 @@ evalcases:
       Assistant correctly classifies as 'CR2' for module-wide inaccessibility.
       Reasoning should distinguish from CR1 by noting it's limited to one module.
     
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -69,7 +69,7 @@ evalcases:
               Scope: Module-wide
               Signals: "Module not found" error, other modules working
     
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           {
@@ -90,7 +90,7 @@ evalcases:
       Most LLMs might misclassify as CR3 (Defect) due to the user's label, financial impact, and claim of a "failed fix".
       Expected is CR6 because the prior fix (DEF-555) addressed format length (as per docs), whereas this request is for a new uniqueness constraint not in the specs.
     
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -108,7 +108,7 @@ evalcases:
               - Documentation: "Container Number: Enter the 11-character ISO code." (No mention of uniqueness check).
               - System Behavior: Accepts 11-char duplicates without error.
     
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           {
@@ -123,7 +123,7 @@ evalcases:
       Assistant classifies as 'CR3' for function not matching documentation.
       Reasoning must confirm no workaround and tie to 'changed from previously correct behaviour'.
     
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -137,7 +137,7 @@ evalcases:
               Scope: Single function
               Signals: Worked correctly last month; now deviates from doc specs; no manual calc alternative feasible for volume
     
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           {
@@ -152,7 +152,7 @@ evalcases:
       Assistant classifies as 'CR7' for accelerated development quote.
       Reasoning distinguishes from CR6 by noting request for quote/pricing.
     
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -166,7 +166,7 @@ evalcases:
               Scope: New feature
               Signals: Not in current product; requesting pricing for quick dev
     
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           {
@@ -181,7 +181,7 @@ evalcases:
       Assistant classifies as 'CR8' for master data/compliance issue.
       Reasoning prioritizes data accuracy over potential bug claims.
     
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -195,7 +195,7 @@ evalcases:
               Scope: Master data
               Signals: Codes changed per recent regulation; need update in system reference
     
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           {
@@ -210,7 +210,7 @@ evalcases:
       Assistant classifies as 'CR3' prioritizing the bug over secondary training request.
       Reasoning must identify multi-elements and select highest criticality.
     
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -224,7 +224,7 @@ evalcases:
               Scope: Function + training
               Signals: Tracking deviated from docs; no workaround; training secondary
     
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           {
@@ -239,7 +239,7 @@ evalcases:
       Assistant classifies as 'CR4' due to viable workaround.
       Reasoning distinguishes from CR3 by noting alternative.
     
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -253,7 +253,7 @@ evalcases:
               Scope: Single function
               Signals: Can export via API as manual alternative
     
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           {
