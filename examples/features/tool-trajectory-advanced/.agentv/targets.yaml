@@ -1,0 +1,18 @@
+targets:
+  - name: azure_base
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    version: ${{ AZURE_OPENAI_API_VERSION }}
+
+  - name: static_trace
+    provider: cli
+    judge_target: azure_base
+    command_template: bun run ./cat-trace.ts --trace ./static-trace.json --prompt {PROMPT} --output {OUTPUT_FILE}
+    cwd: ..
+    timeout_seconds: 30
+    healthcheck:
+      type: command
+      command_template: bun run ./cat-trace.ts --healthcheck
+      cwd: ..
