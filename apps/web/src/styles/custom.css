@@ -72,16 +72,8 @@ a[aria-current="page"] {
   color: hsl(185, 60%, 10%);
 }
 
-:root[data-theme="dark"] nav.sidebar a:hover {
+:root[data-theme="dark"] nav.sidebar a:not([aria-current="page"]):hover {
   background: var(--av-surface);
-}
-
-/* Dark mode: preserve contrast on selected item hover/focus */
-:root[data-theme="dark"] a[aria-current="page"],
-:root[data-theme="dark"] a[aria-current="page"]:hover,
-:root[data-theme="dark"] a[aria-current="page"]:focus {
-  color: var(--sl-color-text-invert);
-  background-color: var(--sl-color-text-accent);
 }
 
 /* ============================================
