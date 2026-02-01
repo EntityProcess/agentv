@@ -410,8 +410,13 @@ function formatElapsed(startedAt: number): string {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape stripping requires matching control characters
+const ANSI_ESCAPE_RE = /\x1B\[[0-9;]*[A-Za-z]/g;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: OSC sequence stripping requires matching control characters
+const ANSI_OSC_RE = /\x1B\][^\x07]*\x07/g;
+
 function stripAnsiEscapes(text: string): string {
-  return text.replace(/\x1B\[[0-9;]*[A-Za-z]/g, '').replace(/\x1B\][^\x07]*\x07/g, '');
+  return text.replace(ANSI_ESCAPE_RE, '').replace(ANSI_OSC_RE, '');
 }
 
 function extractCopilotResponse(stdout: string): string {

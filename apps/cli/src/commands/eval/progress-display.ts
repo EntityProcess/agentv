@@ -97,9 +97,11 @@ export class ProgressDisplay {
     if (!this.hasPrintedLogHeader) {
       console.log('');
       const label =
-        provider === 'pi' ? 'Pi Coding Agent' :
-        provider === 'copilot' ? 'Copilot CLI' :
-        'Codex CLI';
+        provider === 'pi'
+          ? 'Pi Coding Agent'
+          : provider === 'copilot'
+            ? 'Copilot CLI'
+            : 'Codex CLI';
       console.log(`${label} logs:`);
       this.hasPrintedLogHeader = true;
     }

@@ -62,9 +62,7 @@ export function consumeCopilotCliLogEntries(): CopilotCliLogEntry[] {
   return store.splice(0, store.length);
 }
 
-export function subscribeToCopilotCliLogEntries(
-  listener: CopilotCliLogListener,
-): () => void {
+export function subscribeToCopilotCliLogEntries(listener: CopilotCliLogListener): () => void {
   const store = getSubscriberStore();
   store.add(listener);
   return () => {

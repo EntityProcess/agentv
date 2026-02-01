@@ -126,9 +126,7 @@ describe('CopilotCliProvider', () => {
       runner,
     );
 
-    await expect(provider.invoke({ question: 'Timeout' })).rejects.toThrow(
-      /timed out.*after 5s/,
-    );
+    await expect(provider.invoke({ question: 'Timeout' })).rejects.toThrow(/timed out.*after 5s/);
   });
 
   it('fails when copilot produces empty output', async () => {
