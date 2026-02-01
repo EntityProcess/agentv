@@ -4,9 +4,9 @@ This example demonstrates an **external batch runner** pattern for a (synthetic)
 
 ## How it works
 
-1. **Ground truth**: `evals/dataset.yaml` contains eval cases with `input_messages` (structured object content) and `expected_messages` (e.g., `content.decision`).
+1. **Ground truth**: `evals/dataset.yaml` contains eval cases with `input` (structured object content) and `expected_output` (e.g., `content.decision`).
 
-2. **CSV conversion**: `batch-cli-runner.ts` imports functions from `build-csv-from-eval.ts` to convert `input_messages` into CSV format. The CSV contains only inputs (customer data, transaction details) - no expected decisions.
+2. **CSV conversion**: `batch-cli-runner.ts` imports functions from `build-csv-from-eval.ts` to convert `input` into CSV format. The CSV contains only inputs (customer data, transaction details) - no expected decisions.
 
 3. **Batch processing**: `batch-cli-runner.ts` reads the CSV and applies synthetic AML screening rules, writing **actual responses** as JSONL to a temporary file. Each JSONL record includes `output_messages` with `tool_calls` for trace extraction.
 
