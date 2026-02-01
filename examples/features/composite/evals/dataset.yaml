@@ -8,10 +8,10 @@ execution:
 evalcases:
   # Example 1: Weighted Average Aggregation
   - id: weighted-average-example
-    input_messages:
+    input:
       - role: user
         content: "Write a concise but informative summary of machine learning."
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           Machine learning is a subset of AI that enables systems to learn from data and improve performance without explicit programming. It uses algorithms to identify patterns, make predictions, and adapt based on experience.
@@ -36,10 +36,10 @@ evalcases:
 
   # Example 2: Code Judge Aggregator (Safety Gate Pattern)
   - id: code-judge-safety-gate
-    input_messages:
+    input:
       - role: user
         content: "Explain quantum computing in simple terms."
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           Quantum computing uses quantum bits (qubits) that can exist in multiple states simultaneously, unlike classical bits that are either 0 or 1. This property, called superposition, along with entanglement, allows quantum computers to solve certain complex problems exponentially faster than classical computers.
@@ -63,10 +63,10 @@ evalcases:
   # Example 3: LLM Judge Aggregator
   - id: llm-judge-conflict-resolution
     # Baseline note: aggregator may report minor omissions (score ~0.9).
-    input_messages:
+    input:
       - role: user
         content: "Write a product description that is both brief and comprehensive."
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           Premium wireless headphones featuring active noise cancellation, 30-hour battery life, premium sound quality with enhanced bass, comfortable over-ear design, and seamless Bluetooth 5.0 connectivity.
@@ -89,10 +89,10 @@ evalcases:
 
   # Example 4: Nested Composite Evaluators
   - id: nested-composite
-    input_messages:
+    input:
       - role: user
         content: "Explain the difference between supervised and unsupervised learning."
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           Supervised learning uses labeled training data to learn patterns and make predictions, like classifying emails as spam or not spam. Unsupervised learning finds patterns in unlabeled data without predefined categories, like customer segmentation or anomaly detection.

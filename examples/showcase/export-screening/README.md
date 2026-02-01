@@ -74,7 +74,7 @@ Each case contains:
 The evaluator:
 1. Validates JSON format and required fields
 2. Extracts AI's `riskLevel` prediction
-3. Compares to expected `riskLevel` from `expected_messages`
+3. Compares to expected `riskLevel` from `expected_output`
 4. Outputs structured hits/misses for downstream wrappers:
    - Hit: `"Correct: AI=High, Expected=High"`
    - Miss: `"Mismatch: AI=Low, Expected=High"`
@@ -99,11 +99,11 @@ Add cases to `dataset.yaml` following the existing pattern:
   conversation_id: export-screening
   expected_outcome: |
     Description of expected behavior for reviewers.
-  expected_messages:
+  expected_output:
     - role: assistant
       content:
         riskLevel: High  # Expert assessment (ground truth)
-  input_messages:
+  input:
     - role: user
       content:
         - type: file

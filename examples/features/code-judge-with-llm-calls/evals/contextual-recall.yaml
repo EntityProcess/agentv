@@ -30,10 +30,10 @@ evalcases:
   # Score = 2/2 = 1.0
   - id: perfect-recall
     expected_outcome: Python was created by Guido van Rossum and first released in 1991.
-    input_messages:
+    input:
       - role: user
         content: Who created Python and when was it released?
-    expected_messages:
+    expected_output:
       - role: assistant
         tool_calls:
           - tool: vector_search
@@ -54,10 +54,10 @@ evalcases:
   # Score ~ 0.33 (1 of 3 statements attributable)
   - id: partial-recall
     expected_outcome: The Great Wall of China is over 13,000 miles long and was built over many centuries by multiple dynasties.
-    input_messages:
+    input:
       - role: user
         content: How long is the Great Wall of China and how was it built?
-    expected_messages:
+    expected_output:
       - role: assistant
         tool_calls:
           - tool: vector_search
@@ -77,10 +77,10 @@ evalcases:
   # Score = 0/N = 0.0
   - id: zero-recall
     expected_outcome: Mount Everest is 29,032 feet tall and located in the Himalayas on the border of Nepal and Tibet.
-    input_messages:
+    input:
       - role: user
         content: How tall is Mount Everest and where is it located?
-    expected_messages:
+    expected_output:
       - role: assistant
         tool_calls:
           - tool: vector_search

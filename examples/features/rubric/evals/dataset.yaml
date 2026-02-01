@@ -16,11 +16,11 @@ evalcases:
     expected_outcome: |-
       Provide a clear explanation of how quicksort works, including time complexity
 
-    input_messages:
+    input:
       - role: user
         content: Explain how the quicksort algorithm works
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           Quicksort is a divide-and-conquer sorting algorithm:
@@ -48,11 +48,11 @@ evalcases:
     expected_outcome: |-
       Write a comprehensive guide on HTTP status codes with examples
 
-    input_messages:
+    input:
       - role: user
         content: Write a guide explaining HTTP status codes
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           # HTTP Status Codes Guide
@@ -105,11 +105,11 @@ evalcases:
     expected_outcome: |-
       Python function that validates email addresses with proper error handling
 
-    input_messages:
+    input:
       - role: user
         content: Write a Python function to validate email addresses
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           import re
@@ -158,7 +158,7 @@ evalcases:
     expected_outcome: |-
       Provide a concise summary of the key points in under 50 words
 
-    input_messages:
+    input:
       - role: user
         content: |-
           Summarize this article:
@@ -168,7 +168,7 @@ evalcases:
           weather events becoming more frequent. Scientists urge immediate action to
           reduce carbon emissions and transition to renewable energy sources.
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           Climate change accelerates with rapid Arctic ice loss and rising seas.
@@ -188,7 +188,7 @@ evalcases:
     expected_outcome: |-
       Provide an accurate summary in under 50 words.
 
-    input_messages:
+    input:
       - role: user
         content: |-
           Summarize this article in under 50 words:
@@ -198,7 +198,7 @@ evalcases:
           weather events becoming more frequent. Scientists urge immediate action to
           reduce carbon emissions and transition to renewable energy sources.
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           Climate change is accelerating with rapid Arctic ice loss, rising seas, and

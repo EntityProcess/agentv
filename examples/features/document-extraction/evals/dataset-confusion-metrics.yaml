@@ -36,7 +36,7 @@ evalcases:
   # ============================================
   - id: metrics-001
     expected_outcome: All fields extracted correctly (all TP)
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           invoice_number: "INV-2025-001234"
@@ -47,7 +47,7 @@ evalcases:
           importer:
             name: "Global Trade Co"
           gross_total: 1889
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -61,7 +61,7 @@ evalcases:
   # ============================================
   - id: metrics-002
     expected_outcome: Supplier name has dash variation (FP+FN)
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           invoice_number: "INV-2025-001234"
@@ -72,7 +72,7 @@ evalcases:
           importer:
             name: "Global Trade Co"
           gross_total: 1889
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -86,7 +86,7 @@ evalcases:
   # ============================================
   - id: metrics-003
     expected_outcome: Supplier name has dash variation (FP+FN)
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           invoice_number: "INV-2025-001234"
@@ -97,7 +97,7 @@ evalcases:
           importer:
             name: "Global Trade Co"
           gross_total: 1889
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -111,7 +111,7 @@ evalcases:
   # ============================================
   - id: metrics-004
     expected_outcome: Invoice number missing (FN)
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           invoice_number: "INV-2025-001234"
@@ -122,7 +122,7 @@ evalcases:
           importer:
             name: "Global Trade Co"
           gross_total: 1889
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -138,7 +138,7 @@ evalcases:
   # ============================================
   - id: metrics-005
     expected_outcome: Multiple field errors (currency, supplier, gross_total)
-    expected_messages:
+    expected_output:
       - role: assistant
         content:
           invoice_number: "INV-2025-001234"
@@ -149,7 +149,7 @@ evalcases:
           importer:
             name: "Global Trade Co"
           gross_total: 1889
-    input_messages:
+    input:
       - role: user
         content:
           - type: file

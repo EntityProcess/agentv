@@ -10,7 +10,7 @@ evalcases:
   - id: cli-provider-echo
     expected_outcome: CLI echoes the prompt and mentions all attachment names
 
-    input_messages:
+    input:
       - role: system
         content:
           - type: file
@@ -23,7 +23,7 @@ evalcases:
           - type: file
             value: example.txt
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |-
           Attachments detected (2): python.instructions.md, example.txt.

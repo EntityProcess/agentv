@@ -31,7 +31,7 @@ evalcases:
       Agent searches for product information, then fetches detailed specs.
 
     # Input messages are ignored by the static trace provider but required by schema
-    input_messages:
+    input:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
@@ -57,7 +57,7 @@ evalcases:
     expected_outcome: |-
       Agent follows the exact research workflow: search, fetch, search reviews, summarize.
 
-    input_messages:
+    input:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
@@ -85,7 +85,7 @@ evalcases:
     expected_outcome: |-
       Agent performs at least 2 web searches and 1 page fetch for thorough research.
 
-    input_messages:
+    input:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
@@ -111,7 +111,7 @@ evalcases:
     expected_outcome: |-
       Agent searches with relevant product keywords and fetches from authoritative source.
 
-    input_messages:
+    input:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
@@ -141,7 +141,7 @@ evalcases:
     expected_outcome: |-
       Web search returns results with links and snippets; fetch returns product specs.
 
-    input_messages:
+    input:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
@@ -177,13 +177,13 @@ evalcases:
       3. Searches for user reviews
       4. Summarizes findings with recommendation
 
-    input_messages:
+    input:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
     # Expected messages show the full agent conversation pattern
     # (Similar to golden dataset format for reference)
-    expected_messages:
+    expected_output:
       # Step 1: Initial product search
       - name: ProductResearchAgent
         role: assistant

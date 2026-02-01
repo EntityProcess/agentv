@@ -15,9 +15,7 @@ The simplest form — each string becomes a required criterion:
 evalcases:
   - id: quicksort-explain
     expected_outcome: Explain how quicksort works
-    input_messages:
-      - role: user
-        content: Explain quicksort algorithm
+    input: Explain quicksort algorithm
     rubrics:
       - Mentions divide-and-conquer approach
       - Explains partition step
@@ -112,9 +110,7 @@ Rubrics work alongside code and LLM judges:
 evalcases:
   - id: code-quality
     expected_outcome: Generates correct, clean Python code
-    input_messages:
-      - role: user
-        content: Write a fibonacci function
+    input: Write a fibonacci function
     rubrics:
       - Returns correct values for n=0,1,2,10
       - Uses meaningful variable names

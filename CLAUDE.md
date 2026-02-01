@@ -113,7 +113,12 @@ This ensures you're testing your local changes, not the published npm package.
 
 Unit tests alone are insufficient for evaluator changes. After implementing or modifying evaluators:
 
-1. **Run an actual eval** with a real example file:
+1. **Copy `.env` to the worktree** if running in a git worktree (e2e tests need environment variables):
+   ```bash
+   cp /path/to/main/.env .env
+   ```
+
+2. **Run an actual eval** with a real example file:
    ```bash
    bun agentv eval examples/features/rubric/evals/dataset.yaml --eval-id <case-id>
    ```
