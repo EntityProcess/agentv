@@ -109,6 +109,13 @@ When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` dire
 
 This ensures you're testing your local changes, not the published npm package.
 
+## Browser E2E Testing (Docs Site)
+
+Use `agent-browser` for visual verification of docs site changes. Environment-specific rules:
+
+- **Always use `--session <name>`** — isolates browser instances; close with `agent-browser --session <name> close` when done
+- **Never use `--headed`** — no display server available; headless (default) works correctly
+
 ## Verifying Evaluator Changes
 
 Unit tests alone are insufficient for evaluator changes. After implementing or modifying evaluators:
