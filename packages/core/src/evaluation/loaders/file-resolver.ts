@@ -1,6 +1,8 @@
 import { constants } from 'node:fs';
 import { access } from 'node:fs/promises';
 import path from 'node:path';
+import { resolveGitFile } from './git-cache-manager.js';
+import { parseGitUrl } from './git-url-parser.js';
 
 /**
  * Check if a file exists on disk.
@@ -102,6 +104,7 @@ function trimLeadingSeparators(value: string): string {
 
 /**
  * Resolve a file reference using search roots.
+ * Supports both local file paths and git URLs (GitHub, GitLab, Bitbucket).
  */
 export async function resolveFileReference(
   rawValue: string,
@@ -111,6 +114,25 @@ export async function resolveFileReference(
   readonly resolvedPath?: string;
   readonly attempted: readonly string[];
 }> {
+  // Check if this is a git URL
+  const gitInfo = parseGitUrl(rawValue);
+  if (gitInfo) {
+    try {
+      const resolvedPath = await resolveGitFile(gitInfo);
+      return {
+        displayPath: rawValue, // Preserve original URL for JSONL output
+        resolvedPath,
+        attempted: [],
+      };
+    } catch (error) {
+      return {
+        displayPath: rawValue,
+        attempted: [`git: ${(error as Error).message}`],
+      };
+    }
+  }
+
+  // Local file resolution
   const displayPath = trimLeadingSeparators(rawValue);
   const potentialPaths: string[] = [];
 
