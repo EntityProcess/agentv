@@ -1,0 +1,240 @@
+# Basic Image Analysis Evaluation
+# Demonstrates image input handling and vision-capable model evaluation
+
+$schema: agentv-eval-v2
+description: Basic image understanding with single image inputs
+
+target: default
+
+evalcases:
+  # ==========================================
+  # Example 1: Simple Image Description
+  # Tests basic image captioning capabilities
+  # ==========================================
+  - id: simple-image-description
+    
+    expected_outcome: Assistant provides accurate description of image content including main objects and scene context
+    
+    input_messages:
+      - role: system
+        content: You are a helpful AI assistant that can analyze images and provide detailed descriptions.
+      
+      - role: user
+        content:
+          - type: text
+            value: "Describe what you see in this image in detail."
+          - type: image
+            value: ./test-images/sample-office.jpg
+            detail: high  # Options: low, high, auto
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          The image shows an office workspace with the following elements:
+          - A desk with a computer monitor
+          - Office chair
+          - Keyboard and mouse
+          - Natural lighting from a window
+          - Professional/clean environment
+    
+    execution:
+      evaluators:
+        - name: content_accuracy
+          type: llm_judge
+          prompt: ../evaluators/llm-judges/image-description-judge.md
+
+  # ==========================================
+  # Example 2: Object Detection
+  # Tests ability to identify specific objects
+  # ==========================================
+  - id: object-detection-simple
+    
+    expected_outcome: Assistant correctly identifies and counts specific objects in the image
+    
+    input_messages:
+      - role: system
+        content: You are an AI that can identify and count objects in images accurately.
+      
+      - role: user
+        content:
+          - type: text
+            value: "How many people are in this image? Describe what they are doing."
+          - type: image
+            value: ./test-images/team-meeting.jpg
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          There are 4 people in the image. They appear to be in a meeting:
+          - 2 people are seated at a table
+          - 1 person is standing and presenting
+          - 1 person is taking notes
+    
+    execution:
+      evaluators:
+        - name: object_count
+          type: code_judge
+          script: uv run count_validator.py
+          cwd: ../evaluators/code-validators
+        - name: activity_accuracy
+          type: llm_judge
+          prompt: ../evaluators/llm-judges/activity-judge.md
+
+  # ==========================================
+  # Example 3: Spatial Reasoning
+  # Tests understanding of spatial relationships
+  # ==========================================
+  - id: spatial-relationships
+    
+    expected_outcome: Assistant correctly describes spatial relationships and positions of objects
+    
+    input_messages:
+      - role: system
+        content: You analyze images with focus on spatial relationships between objects.
+      
+      - role: user
+        content:
+          - type: text
+            value: "Describe the position of objects in this image. What is on the left, right, center?"
+          - type: image
+            value: ./test-images/desk-arrangement.jpg
+            detail: high
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          Spatial layout:
+          - Left side: Lamp and notebook
+          - Center: Laptop computer (main focus)
+          - Right side: Coffee mug and phone
+          - Background: Wall with framed picture
+
+  # ==========================================
+  # Example 4: Text Extraction (OCR)
+  # Tests ability to read text from images
+  # ==========================================
+  - id: text-extraction-ocr
+    
+    expected_outcome: Assistant accurately extracts and reports text visible in the image
+    
+    input_messages:
+      - role: system
+        content: You can read and extract text from images accurately.
+      
+      - role: user
+        content:
+          - type: text
+            value: "What text do you see in this image? Extract all visible text."
+          - type: image
+            value: ./test-images/document-scan.jpg
+            detail: high
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          Extracted text:
+          - Title: "Project Proposal"
+          - Subtitle: "Q1 2026 Initiative"
+          - Section heading: "Executive Summary"
+          - Body text includes keywords: budget, timeline, deliverables
+    
+    execution:
+      evaluators:
+        - name: text_accuracy
+          type: code_judge
+          script: uv run ocr_validator.py
+          cwd: ../evaluators/code-validators
+
+  # ==========================================
+  # Example 5: Image Comparison
+  # Tests ability to compare multiple images
+  # ==========================================
+  - id: multi-image-comparison
+    
+    expected_outcome: Assistant identifies similarities and differences between two images
+    
+    input_messages:
+      - role: system
+        content: You can compare multiple images and identify similarities and differences.
+      
+      - role: user
+        content:
+          - type: text
+            value: "Compare these two images. What changed between them?"
+          - type: image
+            value: ./test-images/before-office.jpg
+          - type: image
+            value: ./test-images/after-office.jpg
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          Changes between images:
+          - New desk lamp added in second image
+          - Chair moved to different position
+          - Additional monitor on desk
+          - Wall color remains the same
+          - Overall layout similar
+    
+    execution:
+      evaluators:
+        - name: change_detection
+          type: llm_judge
+          prompt: ../evaluators/llm-judges/comparison-judge.md
+
+  # ==========================================
+  # Example 6: Color Analysis
+  # Tests color identification and description
+  # ==========================================
+  - id: color-identification
+    
+    expected_outcome: Assistant accurately identifies and describes colors in the image
+    
+    input_messages:
+      - role: system
+        content: You can identify and describe colors accurately in images.
+      
+      - role: user
+        content:
+          - type: text
+            value: "What are the dominant colors in this image? Describe the color scheme."
+          - type: image
+            value: ./test-images/color-palette.jpg
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          Dominant colors:
+          - Primary: Deep blue (#2E5090)
+          - Secondary: Warm orange (#FF8C42)
+          - Accent: Light gray (#E8E8E8)
+          Color scheme: Complementary (blue-orange)
+          Overall mood: Professional and energetic
+
+  # ==========================================
+  # Example 7: Image with URL (not file path)
+  # Tests image loading from URLs
+  # ==========================================
+  - id: image-from-url
+    
+    expected_outcome: Assistant analyzes image loaded from URL successfully
+    
+    input_messages:
+      - role: system
+        content: You can analyze images from various sources.
+      
+      - role: user
+        content:
+          - type: text
+            value: "Describe this sample image."
+          - type: image_url
+            value: https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/481px-Cat03.jpg
+    
+    expected_messages:
+      - role: assistant
+        content: |-
+          The image shows a cat with the following characteristics:
+          - Orange/ginger colored fur
+          - Sitting position
+          - Looking directly at camera
+          - Indoor setting
