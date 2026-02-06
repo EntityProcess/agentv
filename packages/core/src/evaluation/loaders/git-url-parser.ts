@@ -12,10 +12,12 @@ export interface GitUrlInfo {
 const GITHUB_PATTERN = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+)$/;
 
 // GitLab: https://gitlab.com/{owner/group}/{repo}/-/blob/{ref}/{path}
-const GITLAB_PATTERN = /^https:\/\/gitlab\.com\/(.+?)\/([^/]+)\/-\/blob\/([^/]+)\/(.+)$/;
+// Capture everything after blob/ as refAndPath since ref can contain slashes
+const GITLAB_PATTERN = /^https:\/\/gitlab\.com\/(.+?)\/([^/]+)\/-\/blob\/(.+)$/;
 
 // Bitbucket: https://bitbucket.org/{owner}/{repo}/src/{ref}/{path}
-const BITBUCKET_PATTERN = /^https:\/\/bitbucket\.org\/([^/]+)\/([^/]+)\/src\/([^/]+)\/(.+)$/;
+// Capture everything after src/ as refAndPath since ref can contain slashes
+const BITBUCKET_PATTERN = /^https:\/\/bitbucket\.org\/([^/]+)\/([^/]+)\/src\/(.+)$/;
 
 /**
  * Parse a git host URL (GitHub, GitLab, Bitbucket) into components.
@@ -41,7 +43,8 @@ export function parseGitUrl(url: string): GitUrlInfo | null {
   // GitLab
   const gitlabMatch = url.match(GITLAB_PATTERN);
   if (gitlabMatch) {
-    const [, owner, repo, ref, path] = gitlabMatch;
+    const [, owner, repo, refAndPath] = gitlabMatch;
+    const { ref, path } = extractRefAndPath(refAndPath);
     return {
       host: 'gitlab.com',
       owner,
@@ -55,7 +58,8 @@ export function parseGitUrl(url: string): GitUrlInfo | null {
   // Bitbucket
   const bitbucketMatch = url.match(BITBUCKET_PATTERN);
   if (bitbucketMatch) {
-    const [, owner, repo, ref, path] = bitbucketMatch;
+    const [, owner, repo, refAndPath] = bitbucketMatch;
+    const { ref, path } = extractRefAndPath(refAndPath);
     return {
       host: 'bitbucket.org',
       owner,
@@ -71,61 +75,47 @@ export function parseGitUrl(url: string): GitUrlInfo | null {
 
 /**
  * Extract ref and path from combined string.
- * GitHub URLs combine ref and path: blob/{ref}/{path}
+ * Git host URLs combine ref and path: blob/{ref}/{path} or src/{ref}/{path}
  * When ref contains slashes (e.g., feature/foo), we need to find where ref ends and path begins.
  *
  * Strategy:
- * 1. Find the file (segment with extension or known filename)
- * 2. Determine if the first segment is a "branch prefix" that typically continues with slashes
- * 3. If it's a branch prefix (feature/, bugfix/, etc.), include the next segment in ref
- * 4. Otherwise, first segment is the ref, rest before file is the path
+ * 1. Default: first segment is the ref, rest is the path
+ * 2. If first segment is a known branch prefix (feature/, bugfix/, etc.), include the second segment in the ref
+ *
+ * This handles common branching conventions like feature/my-feature, bugfix/issue-123, etc.
  */
 function extractRefAndPath(refAndPath: string): { ref: string; path: string } {
   const segments = refAndPath.split('/');
 
-  // Find the index of the first segment that looks like a file
-  let fileIndex = -1;
-  for (let i = 0; i < segments.length; i++) {
-    if (looksLikeFile(segments[i])) {
-      fileIndex = i;
-      break;
-    }
+  if (segments.length <= 1) {
+    return { ref: segments[0] || '', path: '' };
   }
 
-  // If no file found, assume last segment is the file
-  if (fileIndex === -1) {
-    fileIndex = segments.length - 1;
-  }
+  // Known branch prefixes that typically continue with a slash
+  const branchPrefixes = [
+    'feature',
+    'bugfix',
+    'hotfix',
+    'release',
+    'fix',
+    'feat',
+    'chore',
+    'refactor',
+    'docs',
+    'test',
+    'ci',
+    'build',
+    'perf',
+    'style',
+  ];
 
-  // If only one segment before file, that's the ref
-  if (fileIndex <= 1) {
-    return {
-      ref: segments.slice(0, fileIndex).join('/') || segments[0],
-      path: segments.slice(fileIndex).join('/'),
-    };
-  }
-
-  // Check if first segment is a branch prefix that commonly has slashes
   const firstSegment = segments[0].toLowerCase();
-  const branchPrefixes = ['feature', 'bugfix', 'hotfix', 'release', 'fix', 'feat', 'chore', 'refactor', 'docs', 'test', 'ci', 'build', 'perf', 'style'];
 
-  if (branchPrefixes.includes(firstSegment)) {
-    // This is likely a branch like feature/my-feature, include next segment in ref
-    // Continue including segments until we hit something that looks like a path
-    let refEndIndex = 2; // At minimum include prefix/name
-
-    // Check if there are more segments that look like branch name continuation
-    for (let i = 2; i < fileIndex; i++) {
-      // Stop if this segment looks like a typical directory name
-      if (looksLikePathSegment(segments[i])) {
-        break;
-      }
-      refEndIndex = i + 1;
-    }
-
+  if (branchPrefixes.includes(firstSegment) && segments.length > 2) {
+    // Branch like feature/my-feature, include first two segments in ref
     return {
-      ref: segments.slice(0, refEndIndex).join('/'),
-      path: segments.slice(refEndIndex).join('/'),
+      ref: `${segments[0]}/${segments[1]}`,
+      path: segments.slice(2).join('/'),
     };
   }
 
@@ -134,84 +124,4 @@ function extractRefAndPath(refAndPath: string): { ref: string; path: string } {
     ref: segments[0],
     path: segments.slice(1).join('/'),
   };
-}
-
-/**
- * Check if a segment looks like a typical path/directory segment.
- * These are common directory names that indicate we've moved past the ref.
- */
-function looksLikePathSegment(segment: string): boolean {
-  const pathPatterns = [
-    'src',
-    'lib',
-    'test',
-    'tests',
-    'spec',
-    'docs',
-    'doc',
-    'examples',
-    'example',
-    'bin',
-    'scripts',
-    'config',
-    'configs',
-    'public',
-    'private',
-    'internal',
-    'pkg',
-    'packages',
-    'apps',
-    'cmd',
-    'api',
-    'web',
-    'app',
-    'assets',
-    'static',
-    'resources',
-    'dist',
-    'build',
-    'out',
-    'output',
-    'target',
-    'vendor',
-    'node_modules',
-    'components',
-    'utils',
-    'helpers',
-    'services',
-    'models',
-    'views',
-    'controllers',
-    'middleware',
-    'routes',
-    'handlers',
-    'core',
-    'common',
-    'shared',
-    'types',
-    'interfaces',
-    'schemas',
-    'migrations',
-    'fixtures',
-    'mocks',
-    '__tests__',
-    '__mocks__',
-    '.github',
-    '.vscode',
-    '.circleci',
-  ];
-  return pathPatterns.includes(segment.toLowerCase());
-}
-
-/**
- * Check if a path segment looks like a filename.
- */
-function looksLikeFile(segment: string): boolean {
-  // Has a file extension (must contain at least one letter to avoid matching version numbers like v1.0.0)
-  if (/\.[a-zA-Z][a-zA-Z0-9]*$/.test(segment)) {
-    return true;
-  }
-  // Known extensionless files
-  const knownFiles = ['Makefile', 'Dockerfile', 'LICENSE', 'README', 'CHANGELOG', 'Gemfile', 'Rakefile'];
-  return knownFiles.includes(segment);
 }

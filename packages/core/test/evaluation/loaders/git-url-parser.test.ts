@@ -76,6 +76,18 @@ describe('parseGitUrl', () => {
         cloneUrl: 'https://gitlab.com/group/subgroup/repo.git',
       });
     });
+
+    it('parses GitLab URL with branch containing slashes', () => {
+      const result = parseGitUrl('https://gitlab.com/owner/repo/-/blob/feature/my-feature/file.txt');
+      expect(result).toEqual({
+        host: 'gitlab.com',
+        owner: 'owner',
+        repo: 'repo',
+        ref: 'feature/my-feature',
+        path: 'file.txt',
+        cloneUrl: 'https://gitlab.com/owner/repo.git',
+      });
+    });
   });
 
   describe('Bitbucket URLs', () => {
@@ -87,6 +99,18 @@ describe('parseGitUrl', () => {
         repo: 'repo',
         ref: 'main',
         path: 'path/to/file.md',
+        cloneUrl: 'https://bitbucket.org/owner/repo.git',
+      });
+    });
+
+    it('parses Bitbucket URL with branch containing slashes', () => {
+      const result = parseGitUrl('https://bitbucket.org/owner/repo/src/feature/my-feature/file.txt');
+      expect(result).toEqual({
+        host: 'bitbucket.org',
+        owner: 'owner',
+        repo: 'repo',
+        ref: 'feature/my-feature',
+        path: 'file.txt',
         cloneUrl: 'https://bitbucket.org/owner/repo.git',
       });
     });
