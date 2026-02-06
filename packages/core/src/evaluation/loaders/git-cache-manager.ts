@@ -1,4 +1,4 @@
-import { exec } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { constants } from 'node:fs';
 import { access, mkdir, stat } from 'node:fs/promises';
 import os from 'node:os';
@@ -6,7 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import type { GitUrlInfo } from './git-url-parser.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 /**
  * Default cache root directory for cloned repositories.
@@ -22,6 +22,19 @@ const DEFAULT_CACHE_ROOT = path.join(os.homedir(), '.agentv', 'cache', 'repos');
  */
 function sanitizeRef(ref: string): string {
   return ref.replace(/\//g, '-');
+}
+
+/**
+ * Validate git URL info to prevent path traversal and other attacks.
+ * @throws Error if validation fails
+ */
+function validateGitUrlInfo(info: GitUrlInfo): void {
+  if (!info.ref) {
+    throw new Error('Invalid git ref: empty');
+  }
+  if (info.owner.includes('..') || info.repo.includes('..') || info.path.includes('..')) {
+    throw new Error('Path traversal detected in git URL');
+  }
 }
 
 /**
@@ -86,6 +99,9 @@ async function isGitRepo(dirPath: string): Promise<boolean> {
  * @throws Error if git operations fail
  */
 export async function ensureRepoCloned(info: GitUrlInfo, cacheRoot?: string): Promise<string> {
+  // Validate input to prevent path traversal attacks
+  validateGitUrlInfo(info);
+
   const repoDir = getCachePath(info, cacheRoot);
   const repoExists = await directoryExists(repoDir);
   const isRepo = repoExists && (await isGitRepo(repoDir));
@@ -96,21 +112,28 @@ export async function ensureRepoCloned(info: GitUrlInfo, cacheRoot?: string): Pr
     await mkdir(parentDir, { recursive: true });
 
     // Clone the repository with shallow clone for efficiency
-    const cloneCmd = `git clone --depth 1 --single-branch --branch "${info.ref}" "${info.cloneUrl}" "${repoDir}"`;
+    // Using execFile instead of exec to prevent command injection
     try {
-      await execAsync(cloneCmd);
+      await execFileAsync('git', [
+        'clone',
+        '--depth',
+        '1',
+        '--single-branch',
+        '--branch',
+        info.ref,
+        info.cloneUrl,
+        repoDir,
+      ]);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to clone repository ${info.cloneUrl}: ${errorMessage}`);
     }
   } else if (isRepo) {
     // Fetch latest changes and reset to FETCH_HEAD
-    const fetchCmd = `git -C "${repoDir}" fetch origin "${info.ref}" --depth=1`;
-    const resetCmd = `git -C "${repoDir}" reset --hard FETCH_HEAD`;
-
+    // Using execFile instead of exec to prevent command injection
     try {
-      await execAsync(fetchCmd);
-      await execAsync(resetCmd);
+      await execFileAsync('git', ['-C', repoDir, 'fetch', 'origin', info.ref, '--depth=1']);
+      await execFileAsync('git', ['-C', repoDir, 'reset', '--hard', 'FETCH_HEAD']);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to update repository ${info.cloneUrl}: ${errorMessage}`);
@@ -137,6 +160,9 @@ export async function ensureRepoCloned(info: GitUrlInfo, cacheRoot?: string): Pr
  * @throws Error if the file doesn't exist in the repository
  */
 export async function resolveGitFile(info: GitUrlInfo, cacheRoot?: string): Promise<string> {
+  // Validate input to prevent path traversal attacks
+  validateGitUrlInfo(info);
+
   const repoDir = await ensureRepoCloned(info, cacheRoot);
   const filePath = path.join(repoDir, info.path);
 

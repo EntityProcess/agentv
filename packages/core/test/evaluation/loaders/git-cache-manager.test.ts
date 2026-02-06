@@ -3,7 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  ensureRepoCloned,
   getCachePath,
+  resolveGitFile,
   resolveGitFileFromCache,
 } from '../../../src/evaluation/loaders/git-cache-manager.js';
 import type { GitUrlInfo } from '../../../src/evaluation/loaders/git-url-parser.js';
@@ -321,5 +323,92 @@ describe('resolveGitFileFromCache (integration)', () => {
 
     // Don't create any directories - cache doesn't exist
     await expect(resolveGitFileFromCache(info, tempDir)).rejects.toThrow(/not found|not cloned/i);
+  });
+});
+
+describe('security validation', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agentv-git-security-test-'));
+  });
+
+  afterEach(async () => {
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  it('rejects empty ref', async () => {
+    const info: GitUrlInfo = {
+      host: 'github.com',
+      owner: 'owner',
+      repo: 'repo',
+      ref: '',
+      path: 'file.txt',
+      cloneUrl: 'https://github.com/owner/repo.git',
+    };
+
+    await expect(ensureRepoCloned(info, tempDir)).rejects.toThrow(/invalid git ref.*empty/i);
+    await expect(resolveGitFile(info, tempDir)).rejects.toThrow(/invalid git ref.*empty/i);
+  });
+
+  it('rejects path traversal in owner', async () => {
+    const info: GitUrlInfo = {
+      host: 'github.com',
+      owner: '../malicious',
+      repo: 'repo',
+      ref: 'main',
+      path: 'file.txt',
+      cloneUrl: 'https://github.com/../malicious/repo.git',
+    };
+
+    await expect(ensureRepoCloned(info, tempDir)).rejects.toThrow(/path traversal/i);
+    await expect(resolveGitFile(info, tempDir)).rejects.toThrow(/path traversal/i);
+  });
+
+  it('rejects path traversal in repo', async () => {
+    const info: GitUrlInfo = {
+      host: 'github.com',
+      owner: 'owner',
+      repo: '../../../etc',
+      ref: 'main',
+      path: 'passwd',
+      cloneUrl: 'https://github.com/owner/../../../etc.git',
+    };
+
+    await expect(ensureRepoCloned(info, tempDir)).rejects.toThrow(/path traversal/i);
+    await expect(resolveGitFile(info, tempDir)).rejects.toThrow(/path traversal/i);
+  });
+
+  it('rejects path traversal in path', async () => {
+    const info: GitUrlInfo = {
+      host: 'github.com',
+      owner: 'owner',
+      repo: 'repo',
+      ref: 'main',
+      path: '../../etc/passwd',
+      cloneUrl: 'https://github.com/owner/repo.git',
+    };
+
+    await expect(ensureRepoCloned(info, tempDir)).rejects.toThrow(/path traversal/i);
+    await expect(resolveGitFile(info, tempDir)).rejects.toThrow(/path traversal/i);
+  });
+
+  it('allows legitimate nested paths without path traversal', async () => {
+    const info: GitUrlInfo = {
+      host: 'github.com',
+      owner: 'owner',
+      repo: 'repo',
+      ref: 'main',
+      path: 'src/deeply/nested/file.txt',
+      cloneUrl: 'https://github.com/owner/repo.git',
+    };
+
+    // This should not throw a path traversal error
+    // It will fail because the repo doesn't exist, but not due to validation
+    await expect(ensureRepoCloned(info, tempDir)).rejects.toThrow(/Failed to clone/i);
   });
 });
