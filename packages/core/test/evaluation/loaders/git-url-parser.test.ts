@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseGitUrl, type GitUrlInfo } from '../../../src/evaluation/loaders/git-url-parser.js';
+import { type GitUrlInfo, parseGitUrl } from '../../../src/evaluation/loaders/git-url-parser.js';
 
 describe('parseGitUrl', () => {
   describe('GitHub URLs', () => {
@@ -66,7 +66,9 @@ describe('parseGitUrl', () => {
     });
 
     it('parses GitLab URL with nested group', () => {
-      const result = parseGitUrl('https://gitlab.com/group/subgroup/repo/-/blob/develop/src/index.ts');
+      const result = parseGitUrl(
+        'https://gitlab.com/group/subgroup/repo/-/blob/develop/src/index.ts',
+      );
       expect(result).toEqual({
         host: 'gitlab.com',
         owner: 'group/subgroup',
@@ -78,7 +80,9 @@ describe('parseGitUrl', () => {
     });
 
     it('parses GitLab URL with branch containing slashes', () => {
-      const result = parseGitUrl('https://gitlab.com/owner/repo/-/blob/feature/my-feature/file.txt');
+      const result = parseGitUrl(
+        'https://gitlab.com/owner/repo/-/blob/feature/my-feature/file.txt',
+      );
       expect(result).toEqual({
         host: 'gitlab.com',
         owner: 'owner',
@@ -104,7 +108,9 @@ describe('parseGitUrl', () => {
     });
 
     it('parses Bitbucket URL with branch containing slashes', () => {
-      const result = parseGitUrl('https://bitbucket.org/owner/repo/src/feature/my-feature/file.txt');
+      const result = parseGitUrl(
+        'https://bitbucket.org/owner/repo/src/feature/my-feature/file.txt',
+      );
       expect(result).toEqual({
         host: 'bitbucket.org',
         owner: 'owner',
