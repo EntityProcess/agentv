@@ -69,6 +69,35 @@ evalcases:
           ```
 ```
 
+## Git URL File References
+
+Reference files from GitHub, GitLab, or Bitbucket repositories directly:
+
+```yaml
+description: Code review using external guidelines
+execution:
+  target: default
+
+evalcases:
+  - id: review-with-external-guidelines
+    expected_outcome: Code review follows external security guidelines
+
+    input:
+      - role: user
+        content:
+          - type: text
+            value: Review this code for security issues.
+          - type: file
+            value: https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.md
+```
+
+Supported URL formats:
+- GitHub: `https://github.com/{owner}/{repo}/blob/{ref}/{path}`
+- GitLab: `https://gitlab.com/{owner}/{repo}/-/blob/{ref}/{path}`
+- Bitbucket: `https://bitbucket.org/{owner}/{repo}/src/{ref}/{path}`
+
+Repositories are cloned once and cached in `~/.agentv/cache/repos/`.
+
 ## Multi-Evaluator
 
 Combine a code judge and an LLM judge on the same eval case:
@@ -318,6 +347,11 @@ evalcases:
   - Example: `/prompts/guidelines.md` resolves to `<repo_root>/prompts/guidelines.md`
 - **Relative paths** (start with `./` or `../`): resolved from the eval file directory
   - Example: `../../prompts/file.md` goes two directories up, then into `prompts/`
+- **Git URLs**: GitHub, GitLab, and Bitbucket blob/src URLs are supported
+  - Example: `https://github.com/org/repo/blob/main/docs/guidelines.md`
+  - Example: `https://gitlab.com/org/repo/-/blob/main/docs/file.md`
+  - Example: `https://bitbucket.org/org/repo/src/main/docs/file.md`
+  - Repositories are cloned and cached automatically in `~/.agentv/cache/repos/`
 
 ## Tips for Writing expected_outcome
 

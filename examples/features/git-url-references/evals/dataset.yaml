@@ -1,0 +1,58 @@
+# Git URL File References Example
+# Demonstrates referencing files from GitHub, GitLab, or Bitbucket repositories
+
+description: Git URL file reference examples
+
+execution:
+  target: default
+
+evalcases:
+  # ==========================================
+  # Example 1: Reference a file from GitHub
+  # The repository is cloned and cached automatically
+  # ==========================================
+  - id: github-readme-summary
+    expected_outcome: Assistant summarizes the README content accurately
+
+    input:
+      - role: system
+        content: You are a technical writer who summarizes documentation.
+      - role: user
+        content:
+          - type: text
+            value: Summarize the key points from this README file.
+          - type: file
+            value: https://github.com/EntityProcess/agentv/blob/main/README.md
+
+  # ==========================================
+  # Example 2: Cross-repository references
+  # Useful for testing against external guidelines or standards
+  # ==========================================
+  - id: security-guidelines-review
+    expected_outcome: Assistant identifies SQL injection vulnerability
+
+    input:
+      - role: system
+        content: You are a security code reviewer.
+      - role: user
+        content:
+          - type: text
+            value: |-
+              Review this code for SQL injection vulnerabilities:
+
+              ```python
+              def get_user(user_id):
+                  query = f"SELECT * FROM users WHERE id = {user_id}"
+                  return db.execute(query)
+              ```
+
+    expected_output: |-
+      This code has a SQL injection vulnerability. The user_id is directly
+      interpolated into the query string without sanitization.
+
+      Use parameterized queries instead:
+      ```python
+      def get_user(user_id):
+          query = "SELECT * FROM users WHERE id = ?"
+          return db.execute(query, (user_id,))
+      ```

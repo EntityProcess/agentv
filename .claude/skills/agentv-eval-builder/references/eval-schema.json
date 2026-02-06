@@ -114,7 +114,7 @@
                           },
                           "value": {
                             "type": "string",
-                            "description": "Text content or file path. Relative paths (e.g., ../prompts/file.md) are resolved from eval file directory. Absolute paths (e.g., /docs/examples/prompts/file.md) are resolved from repo root."
+                            "description": "Text content or file path. Relative paths (e.g., ../prompts/file.md) are resolved from eval file directory. Absolute paths (e.g., /docs/examples/prompts/file.md) are resolved from repo root. Git URLs (GitHub, GitLab, Bitbucket blob/src URLs) are also supported and will be cloned and cached automatically."
                           }
                         },
                         "required": ["type", "value"],
