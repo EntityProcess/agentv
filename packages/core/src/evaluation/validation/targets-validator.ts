@@ -94,6 +94,8 @@ const CODEX_SETTINGS = new Set([
   'logFormat',
   'log_output_format',
   'logOutputFormat',
+  'workspace_template',
+  'workspaceTemplate',
 ]);
 
 const COPILOT_SETTINGS = new Set([
@@ -117,6 +119,8 @@ const COPILOT_SETTINGS = new Set([
   'logOutputFormat',
   'system_prompt',
   'systemPrompt',
+  'workspace_template',
+  'workspaceTemplate',
 ]);
 
 const VSCODE_SETTINGS = new Set([

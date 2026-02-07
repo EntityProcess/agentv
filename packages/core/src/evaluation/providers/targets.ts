@@ -748,7 +748,7 @@ export function resolveTargetDefinition(
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
-        config: resolveCodexConfig(parsed, env),
+        config: resolveCodexConfig(parsed, env, evalFilePath),
       };
     case 'copilot-cli':
       return {
@@ -757,7 +757,7 @@ export function resolveTargetDefinition(
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
-        config: resolveCopilotConfig(parsed, env),
+        config: resolveCopilotConfig(parsed, env, evalFilePath),
       };
     case 'pi':
     case 'pi-coding-agent':
@@ -767,7 +767,7 @@ export function resolveTargetDefinition(
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
-        config: resolvePiCodingAgentConfig(parsed, env),
+        config: resolvePiCodingAgentConfig(parsed, env, evalFilePath),
       };
     case 'pi-agent-sdk':
       return {
@@ -785,7 +785,7 @@ export function resolveTargetDefinition(
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
-        config: resolveClaudeCodeConfig(parsed, env),
+        config: resolveClaudeCodeConfig(parsed, env, evalFilePath),
       };
     case 'mock':
       return {
@@ -804,7 +804,7 @@ export function resolveTargetDefinition(
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
-        config: resolveVSCodeConfig(parsed, env, provider === 'vscode-insiders'),
+        config: resolveVSCodeConfig(parsed, env, provider === 'vscode-insiders', evalFilePath),
       };
     case 'cli':
       return {
@@ -911,6 +911,7 @@ function resolveGeminiConfig(
 function resolveCodexConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
+  evalFilePath?: string,
 ): CodexResolvedConfig {
   const executableSource = target.executable ?? target.command ?? target.binary;
   const argsSource = target.args ?? target.arguments;
@@ -940,7 +941,7 @@ function resolveCodexConfig(
     optionalEnv: true,
   });
 
-  const workspaceTemplate = resolveOptionalString(
+  let workspaceTemplate = resolveOptionalString(
     workspaceTemplateSource,
     env,
     `${target.name} codex workspace template`,
@@ -949,6 +950,11 @@ function resolveCodexConfig(
       optionalEnv: true,
     },
   );
+
+  // Resolve relative workspace template paths against eval file directory
+  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
+    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
+  }
 
   // Validate mutual exclusivity of cwd and workspace_template
   if (cwd && workspaceTemplate) {
@@ -998,6 +1004,7 @@ function normalizeCodexLogFormat(value: unknown): 'summary' | 'json' | undefined
 function resolveCopilotConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
+  evalFilePath?: string,
 ): CopilotResolvedConfig {
   const executableSource = target.executable ?? target.command ?? target.binary;
   const modelSource = target.model;
@@ -1029,7 +1036,7 @@ function resolveCopilotConfig(
     optionalEnv: true,
   });
 
-  const workspaceTemplate = resolveOptionalString(
+  let workspaceTemplate = resolveOptionalString(
     workspaceTemplateSource,
     env,
     `${target.name} copilot workspace template`,
@@ -1038,6 +1045,11 @@ function resolveCopilotConfig(
       optionalEnv: true,
     },
   );
+
+  // Resolve relative workspace template paths against eval file directory
+  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
+    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
+  }
 
   // Validate mutual exclusivity of cwd and workspace_template
   if (cwd && workspaceTemplate) {
@@ -1084,6 +1096,7 @@ function normalizeCopilotLogFormat(value: unknown): 'summary' | 'json' | undefin
 function resolvePiCodingAgentConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
+  evalFilePath?: string,
 ): PiCodingAgentResolvedConfig {
   const executableSource = target.executable ?? target.command ?? target.binary;
   const providerSource = target.pi_provider ?? target.piProvider ?? target.llm_provider;
@@ -1138,7 +1151,7 @@ function resolvePiCodingAgentConfig(
     optionalEnv: true,
   });
 
-  const workspaceTemplate = resolveOptionalString(
+  let workspaceTemplate = resolveOptionalString(
     workspaceTemplateSource,
     env,
     `${target.name} pi workspace template`,
@@ -1147,6 +1160,11 @@ function resolvePiCodingAgentConfig(
       optionalEnv: true,
     },
   );
+
+  // Resolve relative workspace template paths against eval file directory
+  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
+    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
+  }
 
   // Validate mutual exclusivity of cwd and workspace_template
   if (cwd && workspaceTemplate) {
@@ -1236,6 +1254,7 @@ function resolvePiAgentSdkConfig(
 function resolveClaudeCodeConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
+  evalFilePath?: string,
 ): ClaudeCodeResolvedConfig {
   const executableSource = target.executable ?? target.command ?? target.binary;
   const modelSource = target.model;
@@ -1271,7 +1290,7 @@ function resolveClaudeCodeConfig(
     optionalEnv: true,
   });
 
-  const workspaceTemplate = resolveOptionalString(
+  let workspaceTemplate = resolveOptionalString(
     workspaceTemplateSource,
     env,
     `${target.name} claude-code workspace template`,
@@ -1280,6 +1299,11 @@ function resolveClaudeCodeConfig(
       optionalEnv: true,
     },
   );
+
+  // Resolve relative workspace template paths against eval file directory
+  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
+    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
+  }
 
   // Validate mutual exclusivity of cwd and workspace_template
   if (cwd && workspaceTemplate) {
@@ -1343,21 +1367,27 @@ function resolveVSCodeConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
   insiders: boolean,
+  evalFilePath?: string,
 ): VSCodeResolvedConfig {
   const workspaceTemplateEnvVar = resolveOptionalLiteralString(
     target.workspace_template ?? target.workspaceTemplate,
   );
-  const workspaceTemplate = workspaceTemplateEnvVar
+  let workspaceTemplate = workspaceTemplateEnvVar
     ? resolveOptionalString(
         workspaceTemplateEnvVar,
         env,
         `${target.name} workspace template path`,
         {
-          allowLiteral: false,
+          allowLiteral: true,
           optionalEnv: true,
         },
       )
     : undefined;
+
+  // Resolve relative workspace template paths against eval file directory
+  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
+    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
+  }
 
   const commandSource = target.vscode_cmd ?? target.command;
   const waitSource = target.wait;
