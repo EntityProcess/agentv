@@ -49,6 +49,20 @@ Dry-run returns mock responses that don't match evaluator output schemas. Use it
 agentv eval evals/my-eval.yaml --out results/baseline.jsonl
 ```
 
+### Workspace Cleanup
+
+When using `workspace_template`, temporary workspaces are created for each eval case. By default, workspaces are cleaned up on success and preserved on failure for debugging.
+
+```bash
+# Always keep workspaces (for debugging)
+agentv eval evals/my-eval.yaml --keep-workspaces
+
+# Always cleanup workspaces (even on failure)
+agentv eval evals/my-eval.yaml --cleanup-workspaces
+```
+
+Workspaces are stored at `~/.agentv/workspaces/<eval-run-id>/<case-id>/`.
+
 ## Validate Before Running
 
 Check eval files for schema errors without executing:
