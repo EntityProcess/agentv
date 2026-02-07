@@ -167,7 +167,7 @@ export class CopilotCliProvider implements Provider {
       await writeFile(promptFile, promptContent, 'utf8');
 
       const args = this.buildCopilotArgs(promptContent);
-      const cwd = this.resolveCwd(workspaceRoot);
+      const cwd = this.resolveCwd(workspaceRoot, request.cwd);
 
       const result = await this.executeCopilot(args, cwd, promptContent, request.signal, logger);
 
@@ -217,7 +217,11 @@ export class CopilotCliProvider implements Provider {
     this.resolvedExecutable = await locateExecutable(this.config.executable);
   }
 
-  private resolveCwd(workspaceRoot: string): string {
+  private resolveCwd(workspaceRoot: string, cwdOverride?: string): string {
+    // Request cwd override takes precedence (e.g., from workspace_template)
+    if (cwdOverride) {
+      return path.resolve(cwdOverride);
+    }
     if (!this.config.cwd) {
       return workspaceRoot;
     }

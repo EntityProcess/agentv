@@ -85,7 +85,7 @@ export class PiCodingAgentProvider implements Provider {
       await writeFile(promptFile, request.question, 'utf8');
 
       const args = this.buildPiArgs(request.question, inputFiles);
-      const cwd = this.resolveCwd(workspaceRoot);
+      const cwd = this.resolveCwd(workspaceRoot, request.cwd);
 
       const result = await this.executePi(args, cwd, request.signal, logger);
 
@@ -126,7 +126,11 @@ export class PiCodingAgentProvider implements Provider {
     }
   }
 
-  private resolveCwd(workspaceRoot: string): string {
+  private resolveCwd(workspaceRoot: string, cwdOverride?: string): string {
+    // Request cwd override takes precedence (e.g., from workspace_template)
+    if (cwdOverride) {
+      return path.resolve(cwdOverride);
+    }
     if (!this.config.cwd) {
       return workspaceRoot;
     }

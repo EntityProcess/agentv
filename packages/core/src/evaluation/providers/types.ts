@@ -89,6 +89,8 @@ export interface ProviderRequest {
   readonly temperature?: number;
   readonly metadata?: JsonObject;
   readonly signal?: AbortSignal;
+  /** Working directory override (e.g., from workspace_template) */
+  readonly cwd?: string;
 }
 
 /**

@@ -86,7 +86,7 @@ export class ClaudeCodeProvider implements Provider {
       await writeFile(promptFile, request.question, 'utf8');
 
       const args = this.buildClaudeCodeArgs(request.question, inputFiles);
-      const cwd = this.resolveCwd();
+      const cwd = this.resolveCwd(request.cwd);
 
       const result = await this.executeClaudeCode(args, cwd, request.signal, logger);
 
@@ -138,7 +138,11 @@ export class ClaudeCodeProvider implements Provider {
     }
   }
 
-  private resolveCwd(): string {
+  private resolveCwd(cwdOverride?: string): string {
+    // Request cwd override takes precedence (e.g., from workspace_template)
+    if (cwdOverride) {
+      return path.resolve(cwdOverride);
+    }
     if (!this.config.cwd) {
       // Default to process.cwd() to preserve Claude Code OAuth/local credentials
       // Claude Code stores credentials per-project, so running from a temp dir breaks auth
