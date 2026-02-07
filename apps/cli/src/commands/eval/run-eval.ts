@@ -411,6 +411,12 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const cwd = process.cwd();
   const repoRoot = await findRepoRoot(cwd);
 
+  if (options.keepWorkspaces && options.cleanupWorkspaces) {
+    console.warn(
+      'Warning: Both --keep-workspaces and --cleanup-workspaces specified. --cleanup-workspaces takes precedence.',
+    );
+  }
+
   if (options.verbose) {
     console.log(`Repository root: ${repoRoot}`);
   }
