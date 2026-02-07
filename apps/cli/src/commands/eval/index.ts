@@ -101,6 +101,15 @@ export const evalCommand = command({
       long: 'verbose',
       description: 'Enable verbose logging',
     }),
+    keepWorkspaces: flag({
+      long: 'keep-workspaces',
+      description:
+        'Always keep temporary workspaces after evaluation (default: keep on failure only)',
+    }),
+    cleanupWorkspaces: flag({
+      long: 'cleanup-workspaces',
+      description: 'Always cleanup temporary workspaces, even on failure',
+    }),
   },
   handler: async (args) => {
     const resolvedPaths = await resolveEvalPaths(args.evalPaths, process.cwd());
@@ -119,6 +128,8 @@ export const evalCommand = command({
       maxRetries: args.maxRetries,
       cache: args.cache,
       verbose: args.verbose,
+      keepWorkspaces: args.keepWorkspaces,
+      cleanupWorkspaces: args.cleanupWorkspaces,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },
