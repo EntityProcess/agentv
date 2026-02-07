@@ -1,7 +1,7 @@
-import { constants } from 'node:fs';
-import { access, cp, mkdir, readdir, rm, stat } from 'node:fs/promises';
+import { cp, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileExists } from '../file-utils.js';
 
 /**
  * Default workspace root directory for temporary eval workspaces.
@@ -39,18 +39,6 @@ export class WorkspaceCreationError extends Error {
   ) {
     super(message);
     this.name = 'WorkspaceCreationError';
-  }
-}
-
-/**
- * Check if a path exists.
- */
-async function pathExists(filePath: string): Promise<boolean> {
-  try {
-    await access(filePath, constants.F_OK);
-    return true;
-  } catch {
-    return false;
   }
 }
 
@@ -143,7 +131,7 @@ export async function createTempWorkspace(
   // Validate template path
   const resolvedTemplatePath = path.resolve(templatePath);
 
-  if (!(await pathExists(resolvedTemplatePath))) {
+  if (!(await fileExists(resolvedTemplatePath))) {
     throw new TemplateNotFoundError(resolvedTemplatePath);
   }
 
@@ -156,7 +144,7 @@ export async function createTempWorkspace(
 
   try {
     // Remove workspace if it already exists (clean slate)
-    if (await pathExists(workspacePath)) {
+    if (await fileExists(workspacePath)) {
       await rm(workspacePath, { recursive: true, force: true });
     }
 
@@ -211,7 +199,7 @@ export async function createTempWorkspace(
  * @throws Error if the cleanup fails
  */
 export async function cleanupWorkspace(workspacePath: string): Promise<void> {
-  if (await pathExists(workspacePath)) {
+  if (await fileExists(workspacePath)) {
     await rm(workspacePath, { recursive: true, force: true });
   }
 }
@@ -233,7 +221,7 @@ export async function cleanupEvalWorkspaces(
   const root = workspaceRoot ?? DEFAULT_WORKSPACE_ROOT;
   const evalDir = path.join(root, evalRunId);
 
-  if (await pathExists(evalDir)) {
+  if (await fileExists(evalDir)) {
     await rm(evalDir, { recursive: true, force: true });
   }
 }
