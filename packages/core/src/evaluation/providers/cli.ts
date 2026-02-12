@@ -235,20 +235,23 @@ export class CliProvider implements Provider {
 
     await this.ensureHealthy(request.signal);
 
+    // Use request.cwd (workspace override) if provided, otherwise fall back to config.cwd
+    const effectiveCwd = request.cwd ?? this.config.cwd;
+
     const outputFilePath = generateOutputFilePath(request.evalCaseId);
     const templateValues = buildTemplateValues(request, this.config, outputFilePath);
     const renderedCommand = renderTemplate(this.config.commandTemplate, templateValues);
 
     if (this.verbose) {
       console.log(
-        `[cli-provider:${this.targetName}] cwd=${this.config.cwd ?? ''} command=${renderedCommand}`,
+        `[cli-provider:${this.targetName}] cwd=${effectiveCwd ?? ''} command=${renderedCommand}`,
       );
     }
 
     // Measure wall-clock time as fallback for duration
     const startTime = Date.now();
     const result = await this.runCommand(renderedCommand, {
-      cwd: this.config.cwd,
+      cwd: effectiveCwd,
       env: process.env,
       timeoutMs: this.config.timeoutMs,
       signal: request.signal,
@@ -285,7 +288,7 @@ export class CliProvider implements Provider {
         command: renderedCommand,
         stderr: result.stderr,
         exitCode: result.exitCode ?? 0,
-        cwd: this.config.cwd,
+        cwd: effectiveCwd,
         outputFile: outputFilePath,
       },
     };

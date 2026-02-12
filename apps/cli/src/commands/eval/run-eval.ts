@@ -48,6 +48,8 @@ interface NormalizedOptions {
   readonly maxRetries: number;
   readonly cache: boolean;
   readonly verbose: boolean;
+  readonly keepWorkspaces: boolean;
+  readonly cleanupWorkspaces: boolean;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -96,6 +98,8 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     maxRetries: normalizeNumber(rawOptions.maxRetries, 2),
     cache: normalizeBoolean(rawOptions.cache),
     verbose: normalizeBoolean(rawOptions.verbose),
+    keepWorkspaces: normalizeBoolean(rawOptions.keepWorkspaces),
+    cleanupWorkspaces: normalizeBoolean(rawOptions.cleanupWorkspaces),
   } satisfies NormalizedOptions;
 }
 
@@ -374,6 +378,8 @@ async function runSingleEvalFile(params: {
     evalCases,
     verbose: options.verbose,
     maxConcurrency: resolvedWorkers,
+    keepWorkspaces: options.keepWorkspaces,
+    cleanupWorkspaces: options.cleanupWorkspaces,
     onResult: async (result: EvaluationResult) => {
       await outputWriter.append(result);
     },
@@ -404,6 +410,12 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const options = normalizeOptions(input.rawOptions);
   const cwd = process.cwd();
   const repoRoot = await findRepoRoot(cwd);
+
+  if (options.keepWorkspaces && options.cleanupWorkspaces) {
+    console.warn(
+      'Warning: Both --keep-workspaces and --cleanup-workspaces specified. --cleanup-workspaces takes precedence.',
+    );
+  }
 
   if (options.verbose) {
     console.log(`Repository root: ${repoRoot}`);
@@ -527,6 +539,17 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
 
     const summary = calculateEvaluationSummary(allResults);
     console.log(formatEvaluationSummary(summary));
+
+    // Print workspace paths for failed cases (when preserved for debugging)
+    const failedWithWorkspaces = allResults.filter(
+      (r) => r.workspacePath && (r.error || r.score < 0.5),
+    );
+    if (failedWithWorkspaces.length > 0) {
+      console.log('\nWorkspaces preserved for debugging:');
+      for (const result of failedWithWorkspaces) {
+        console.log(`  ${result.evalId}: ${result.workspacePath}`);
+      }
+    }
 
     if (allResults.length > 0) {
       console.log(`\nResults written to: ${outputPath}`);

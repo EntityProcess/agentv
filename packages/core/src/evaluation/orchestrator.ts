@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
@@ -52,12 +52,29 @@ import type {
   LatencyEvaluatorConfig,
   TokenUsageEvaluatorConfig,
 } from './types.js';
+import {
+  cleanupEvalWorkspaces,
+  cleanupWorkspace,
+  createTempWorkspace,
+} from './workspace/manager.js';
 import { type PromptInputs, buildPromptInputs, loadEvalCases } from './yaml-parser.js';
 
 type MaybePromise<T> = T | Promise<T>;
 
 function usesFileReferencePrompt(provider: Provider): boolean {
   return isAgentProvider(provider) || provider.kind === 'cli';
+}
+
+/**
+ * Extract workspaceTemplate from a resolved target's config.
+ * Returns undefined if the target doesn't support workspace templates.
+ */
+function getWorkspaceTemplate(target: ResolvedTarget): string | undefined {
+  const config = target.config as Record<string, unknown>;
+  if ('workspaceTemplate' in config && typeof config.workspaceTemplate === 'string') {
+    return config.workspaceTemplate;
+  }
+  return undefined;
 }
 
 export interface EvaluationCache {
@@ -81,6 +98,12 @@ export interface RunEvalCaseOptions {
   readonly targetResolver?: (name: string) => Provider | undefined;
   /** List of available target names for code judges */
   readonly availableTargets?: readonly string[];
+  /** Unique identifier for the evaluation run (used for workspace management) */
+  readonly evalRunId?: string;
+  /** Keep workspace on success (default: cleanup on success, keep on failure) */
+  readonly keepWorkspaces?: boolean;
+  /** Force cleanup of workspaces even on failure */
+  readonly cleanupWorkspaces?: boolean;
 }
 
 export interface ProgressEvent {
@@ -112,6 +135,10 @@ export interface RunEvaluationOptions {
   readonly evalCases?: readonly EvalCase[];
   readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
   readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
+  /** Keep workspace on success (default: cleanup on success, keep on failure) */
+  readonly keepWorkspaces?: boolean;
+  /** Force cleanup of workspaces even on failure */
+  readonly cleanupWorkspaces?: boolean;
 }
 
 export async function runEvaluation(
@@ -135,7 +162,12 @@ export async function runEvaluation(
     evalCases: preloadedEvalCases,
     onResult,
     onProgress,
+    keepWorkspaces,
+    cleanupWorkspaces,
   } = options;
+
+  // Generate unique eval run ID for workspace management
+  const evalRunId = randomUUID();
 
   // Use pre-loaded eval cases if provided, otherwise load them
   const evalCases =
@@ -300,6 +332,9 @@ export async function runEvaluation(
           judgeProvider,
           targetResolver,
           availableTargets,
+          evalRunId,
+          keepWorkspaces,
+          cleanupWorkspaces,
         });
 
         if (onProgress) {
@@ -359,6 +394,15 @@ export async function runEvaluation(
         await onResult(errorResult);
       }
     }
+  }
+
+  // Cleanup all eval workspaces if forceCleanup is set, or cleanup successful runs
+  // Failed runs keep their workspaces for debugging (handled per-case above)
+  // This is a fallback to ensure workspace directories are cleaned up
+  const workspaceTemplate = getWorkspaceTemplate(target);
+  if (workspaceTemplate && cleanupWorkspaces) {
+    // Force cleanup: remove all workspaces for this eval run
+    await cleanupEvalWorkspaces(evalRunId).catch(() => {});
   }
 
   return results;
@@ -558,6 +602,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     judgeProvider,
     targetResolver,
     availableTargets,
+    evalRunId,
+    keepWorkspaces,
+    cleanupWorkspaces: forceCleanup,
   } = options;
 
   const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
@@ -570,6 +617,27 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   const nowFn = now ?? (() => new Date());
+
+  // Check if workspace_template is configured for this target
+  const workspaceTemplate = getWorkspaceTemplate(target);
+  let workspacePath: string | undefined;
+
+  // Create temp workspace if template is configured and we have evalRunId
+  if (workspaceTemplate && evalRunId) {
+    try {
+      workspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, evalCase.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return buildErrorResult(
+        evalCase,
+        target.name,
+        nowFn(),
+        new Error(`Failed to create workspace: ${message}`),
+        promptInputs,
+        provider,
+      );
+    }
+  }
 
   const attemptBudget = (maxRetries ?? 0) + 1;
   let attempt = 0;
@@ -585,6 +653,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         attempt,
         agentTimeoutMs,
         signal,
+        cwd: workspacePath,
       });
     } catch (error) {
       lastError = error;
@@ -592,12 +661,27 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         attempt += 1;
         continue;
       }
-      return buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs, provider);
+      // On error, keep workspace for debugging (unless forceCleanup is set)
+      const errorResult = buildErrorResult(
+        evalCase,
+        target.name,
+        nowFn(),
+        error,
+        promptInputs,
+        provider,
+      );
+      if (workspacePath) {
+        if (forceCleanup) {
+          await cleanupWorkspace(workspacePath).catch(() => {});
+        }
+        return { ...errorResult, workspacePath };
+      }
+      return errorResult;
     }
   }
 
   if (!providerResponse) {
-    return buildErrorResult(
+    const errorResult = buildErrorResult(
       evalCase,
       target.name,
       nowFn(),
@@ -605,6 +689,14 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       promptInputs,
       provider,
     );
+    // On error, keep workspace for debugging (unless forceCleanup is set)
+    if (workspacePath) {
+      if (forceCleanup) {
+        await cleanupWorkspace(workspacePath).catch(() => {});
+      }
+      return { ...errorResult, workspacePath };
+    }
+    return errorResult;
   }
 
   if (cacheKey && cache && !cachedResponse) {
@@ -662,9 +754,43 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       availableTargets,
     });
 
-    return providerError ? { ...result, error: providerError } : result;
+    const finalResult = providerError ? { ...result, error: providerError } : result;
+
+    // Determine if this is a failure (has error or low score)
+    const isFailure = !!finalResult.error || finalResult.score < 0.5;
+
+    // Cleanup workspace based on result and flags
+    if (workspacePath) {
+      if (forceCleanup) {
+        // forceCleanup: always cleanup
+        await cleanupWorkspace(workspacePath).catch(() => {});
+      } else if (isFailure) {
+        // Failure: keep workspace, include path in result
+        return { ...finalResult, workspacePath };
+      } else if (!keepWorkspaces) {
+        // Success and not keeping: cleanup
+        await cleanupWorkspace(workspacePath).catch(() => {});
+      }
+    }
+
+    return finalResult;
   } catch (error) {
-    return buildErrorResult(evalCase, target.name, nowFn(), error, promptInputs, provider);
+    const errorResult = buildErrorResult(
+      evalCase,
+      target.name,
+      nowFn(),
+      error,
+      promptInputs,
+      provider,
+    );
+    // On error, keep workspace for debugging (unless forceCleanup is set)
+    if (workspacePath) {
+      if (forceCleanup) {
+        await cleanupWorkspace(workspacePath).catch(() => {});
+      }
+      return { ...errorResult, workspacePath };
+    }
+    return errorResult;
   }
 }
 
@@ -1436,9 +1562,11 @@ async function invokeProvider(
     readonly attempt: number;
     readonly agentTimeoutMs?: number;
     readonly signal?: AbortSignal;
+    /** Working directory override (e.g., from workspace_template) */
+    readonly cwd?: string;
   },
 ): Promise<ProviderResponse> {
-  const { evalCase, promptInputs, attempt, agentTimeoutMs, signal } = options;
+  const { evalCase, promptInputs, attempt, agentTimeoutMs, signal, cwd } = options;
 
   const controller = new AbortController();
   const timeout = agentTimeoutMs ? setTimeout(() => controller.abort(), agentTimeoutMs) : undefined;
@@ -1460,6 +1588,7 @@ async function invokeProvider(
         systemPrompt: promptInputs.systemMessage ?? '',
       },
       signal: controller.signal,
+      cwd,
     });
   } finally {
     if (timeout !== undefined) {

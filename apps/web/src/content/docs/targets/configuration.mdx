@@ -85,3 +85,39 @@ targets:
     provider: codex
     judge_target: azure_base  # LLM used for judging
 ```
+
+## Workspace Template
+
+For agent targets, `workspace_template` specifies a directory that gets copied to a temporary location before each eval case runs. This provides isolated, reproducible workspaces.
+
+```yaml
+targets:
+  - name: claude_code
+    provider: claude-code
+    workspace_template: ./workspace-templates/my-project
+    judge_target: azure_base
+```
+
+When `workspace_template` is set:
+- The template directory is copied to `~/.agentv/workspaces/<eval-run-id>/<case-id>/`
+- The `.git` directory is skipped during copy
+- Each eval case gets its own isolated copy
+
+### Cleanup Behavior
+
+By default:
+- **Success**: Workspace is cleaned up automatically
+- **Failure**: Workspace is preserved for debugging
+
+Override with CLI flags:
+- `--keep-workspaces`: Always preserve workspaces
+- `--cleanup-workspaces`: Always clean up, even on failure
+
+### cwd vs workspace_template
+
+| Option | Use Case |
+|--------|----------|
+| `cwd` | Run in an existing directory (shared across cases) |
+| `workspace_template` | Copy template to temp location (isolated per case) |
+
+These options are mutually exclusive. If neither is set, the eval file's directory is used as the working directory.

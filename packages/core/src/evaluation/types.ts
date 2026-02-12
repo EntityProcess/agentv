@@ -415,6 +415,8 @@ export interface EvaluationResult {
   readonly error?: string;
   /** Lightweight summary of the execution trace (always included when available) */
   readonly traceSummary?: TraceSummary;
+  /** Path to the temporary workspace directory (included on failure for debugging) */
+  readonly workspacePath?: string;
 }
 
 export type EvaluationVerdict = 'pass' | 'fail' | 'borderline';

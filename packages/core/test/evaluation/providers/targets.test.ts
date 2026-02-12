@@ -408,6 +408,212 @@ describe('resolveTargetDefinition', () => {
 
     expect(target.config.args).toEqual(['--profile', 'default', '--model', 'gpt-4']);
   });
+
+  it('resolves cli workspace_template with literal path', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'cli-with-template',
+        provider: 'cli',
+        command_template: 'echo {PROMPT}',
+        workspace_template: '/templates/my-workspace',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('cli');
+    if (target.kind !== 'cli') {
+      throw new Error('expected cli target');
+    }
+
+    expect(target.config.workspaceTemplate).toBe('/templates/my-workspace');
+    expect(target.config.cwd).toBeUndefined();
+  });
+
+  it('resolves cli workspace_template from environment variable', () => {
+    const env = {
+      WORKSPACE_DIR: '/path/to/workspace-template',
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: 'cli-with-env-template',
+        provider: 'cli',
+        command_template: 'echo {PROMPT}',
+        workspace_template: '${{ WORKSPACE_DIR }}',
+      },
+      env,
+    );
+
+    expect(target.kind).toBe('cli');
+    if (target.kind !== 'cli') {
+      throw new Error('expected cli target');
+    }
+
+    expect(target.config.workspaceTemplate).toBe('/path/to/workspace-template');
+  });
+
+  it('throws when both cwd and workspace_template are specified for cli', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'cli-both',
+          provider: 'cli',
+          command_template: 'echo {PROMPT}',
+          cwd: '/some/path',
+          workspace_template: '/templates/my-workspace',
+        },
+        {},
+      ),
+    ).toThrow(/mutually exclusive/i);
+  });
+
+  it('resolves claude-code workspace_template', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'claude-with-template',
+        provider: 'claude-code',
+        workspace_template: '/templates/claude-workspace',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('claude-code');
+    if (target.kind !== 'claude-code') {
+      throw new Error('expected claude-code target');
+    }
+
+    expect(target.config.workspaceTemplate).toBe('/templates/claude-workspace');
+    expect(target.config.cwd).toBeUndefined();
+  });
+
+  it('throws when both cwd and workspace_template are specified for claude-code', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'claude-both',
+          provider: 'claude-code',
+          cwd: '/some/path',
+          workspace_template: '/templates/workspace',
+        },
+        {},
+      ),
+    ).toThrow(/mutually exclusive/i);
+  });
+
+  it('resolves codex workspace_template', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'codex-with-template',
+        provider: 'codex',
+        workspace_template: '/templates/codex-workspace',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('codex');
+    if (target.kind !== 'codex') {
+      throw new Error('expected codex target');
+    }
+
+    expect(target.config.workspaceTemplate).toBe('/templates/codex-workspace');
+  });
+
+  it('throws when both cwd and workspace_template are specified for codex', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'codex-both',
+          provider: 'codex',
+          cwd: '/some/path',
+          workspace_template: '/templates/workspace',
+        },
+        {},
+      ),
+    ).toThrow(/mutually exclusive/i);
+  });
+
+  it('resolves copilot workspace_template', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'copilot-with-template',
+        provider: 'copilot-cli',
+        workspace_template: '/templates/copilot-workspace',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('copilot-cli');
+    if (target.kind !== 'copilot-cli') {
+      throw new Error('expected copilot-cli target');
+    }
+
+    expect(target.config.workspaceTemplate).toBe('/templates/copilot-workspace');
+  });
+
+  it('throws when both cwd and workspace_template are specified for copilot', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'copilot-both',
+          provider: 'copilot-cli',
+          cwd: '/some/path',
+          workspace_template: '/templates/workspace',
+        },
+        {},
+      ),
+    ).toThrow(/mutually exclusive/i);
+  });
+
+  it('resolves pi-coding-agent workspace_template', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'pi-with-template',
+        provider: 'pi-coding-agent',
+        workspace_template: '/templates/pi-workspace',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('pi-coding-agent');
+    if (target.kind !== 'pi-coding-agent') {
+      throw new Error('expected pi-coding-agent target');
+    }
+
+    expect(target.config.workspaceTemplate).toBe('/templates/pi-workspace');
+  });
+
+  it('throws when both cwd and workspace_template are specified for pi-coding-agent', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'pi-both',
+          provider: 'pi-coding-agent',
+          cwd: '/some/path',
+          workspace_template: '/templates/workspace',
+        },
+        {},
+      ),
+    ).toThrow(/mutually exclusive/i);
+  });
+
+  it('accepts workspaceTemplate camelCase variant', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'cli-camel-case',
+        provider: 'cli',
+        command_template: 'echo {PROMPT}',
+        workspaceTemplate: '/templates/camel-case-workspace',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('cli');
+    if (target.kind !== 'cli') {
+      throw new Error('expected cli target');
+    }
+
+    expect(target.config.workspaceTemplate).toBe('/templates/camel-case-workspace');
+  });
 });
 
 describe('createProvider', () => {
