@@ -200,11 +200,27 @@ Beyond the basic `question`, `expected_outcome`, `candidate_answer`, and `refere
   "tool_names": ["fetch", "search"],
   "tool_calls_by_name": { "search": 2, "fetch": 1 },
   "error_count": 0,
+  "llm_call_count": 2,
   "token_usage": { "input": 1000, "output": 500 },
   "cost_usd": 0.0015,
-  "duration_ms": 3500
+  "duration_ms": 3500,
+  "start_time": "2026-02-13T10:00:00.000Z",
+  "end_time": "2026-02-13T10:00:03.500Z"
 }
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `event_count` | `number` | Total tool invocations |
+| `tool_names` | `string[]` | Unique tool names used |
+| `tool_calls_by_name` | `Record<string, number>` | Count per tool |
+| `error_count` | `number` | Failed tool calls |
+| `llm_call_count` | `number` | Number of LLM calls (assistant messages) |
+| `token_usage` | `{input, output}` | Token consumption |
+| `cost_usd` | `number` | Estimated cost |
+| `duration_ms` | `number` | Total execution duration |
+| `start_time` | `string` | ISO timestamp of first event |
+| `end_time` | `string` | ISO timestamp of last event |
 
 Use `expected_messages` for retrieval context in RAG evals (tool calls with outputs) and `output_messages` for the actual agent execution trace from live runs.
 

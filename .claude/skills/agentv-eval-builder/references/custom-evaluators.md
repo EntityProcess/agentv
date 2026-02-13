@@ -20,9 +20,12 @@
     "tool_names": ["fetch"],
     "tool_calls_by_name": {"fetch": 1},
     "error_count": 0,
+    "llm_call_count": 2,
     "token_usage": {"input": 1000, "output": 500},
     "cost_usd": 0.0015,
-    "duration_ms": 3500
+    "duration_ms": 3500,
+    "start_time": "2026-02-13T10:00:00.000Z",
+    "end_time": "2026-02-13T10:00:03.500Z"
   }
 }
 ```

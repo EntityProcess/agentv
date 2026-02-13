@@ -49,6 +49,21 @@ Dry-run returns mock responses that don't match evaluator output schemas. Use it
 agentv eval evals/my-eval.yaml --out results/baseline.jsonl
 ```
 
+### Trace Persistence
+
+Persist full execution traces (tool calls, timing, spans) to disk for debugging and analysis:
+
+```bash
+agentv eval evals/my-eval.yaml --trace
+```
+
+Traces are written to `.agentv/traces/<timestamp>/<eval-file>.trace.jsonl` as JSONL records containing:
+- `evalId` - The eval case identifier
+- `startTime` / `endTime` - Execution boundaries
+- `durationMs` - Total execution duration
+- `spans` - Array of tool invocations with timing and input/output
+- `tokenUsage` / `costUsd` - Resource consumption
+
 ### Workspace Cleanup
 
 When using `workspace_template`, temporary workspaces are created for each eval case. By default, workspaces are cleaned up on success and preserved on failure for debugging.

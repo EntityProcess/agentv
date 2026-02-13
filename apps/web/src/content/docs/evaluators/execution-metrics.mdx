@@ -1,0 +1,139 @@
+---
+title: Execution Metrics
+description: Threshold-based checks on execution metrics
+sidebar:
+  order: 5
+---
+
+AgentV provides built-in evaluators for checking execution metrics against thresholds. These are useful for enforcing efficiency constraints without writing custom code.
+
+## execution_metrics
+
+The `execution_metrics` evaluator provides declarative threshold-based checks on multiple metrics in a single evaluator.
+
+```yaml
+evaluators:
+  - name: efficiency
+    type: execution_metrics
+    max_tool_calls: 10        # Maximum tool invocations
+    max_llm_calls: 5          # Maximum LLM calls (assistant messages)
+    max_tokens: 5000          # Maximum total tokens (input + output)
+    max_cost_usd: 0.05        # Maximum cost in USD
+    max_duration_ms: 30000    # Maximum execution duration in ms
+    target_exploration_ratio: 0.6   # Target ratio of read-only tool calls
+    exploration_tolerance: 0.2      # Tolerance for ratio check (default: 0.2)
+```
+
+### Behavior
+
+- **Only specified thresholds are checked** — omit fields you don't care about
+- **Score is proportional**: `hits / (hits + misses)`
+- **Missing data counts as a miss** — if you check `max_tokens` but no token data is available, it fails
+- **All thresholds are "max" constraints** — values must be ≤ the specified threshold
+
+### Threshold Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `max_tool_calls` | number | Maximum number of tool invocations |
+| `max_llm_calls` | number | Maximum LLM calls (counts assistant messages) |
+| `max_tokens` | number | Maximum total tokens (input + output combined) |
+| `max_cost_usd` | number | Maximum cost in USD |
+| `max_duration_ms` | number | Maximum execution duration in milliseconds |
+| `target_exploration_ratio` | number | Target ratio of read-only tool calls (0-1) |
+| `exploration_tolerance` | number | Tolerance around target ratio (default: 0.2) |
+
+### Example: Comprehensive Efficiency Check
+
+```yaml
+evalcases:
+  - id: efficient-research
+    expected_outcome: Agent researches and summarizes efficiently
+    input: Research the topic and provide a summary
+    execution:
+      evaluators:
+        - name: efficiency
+          type: execution_metrics
+          max_tool_calls: 15
+          max_llm_calls: 5
+          max_tokens: 8000
+          max_cost_usd: 0.10
+          max_duration_ms: 60000
+```
+
+### Example: Exploration Balance
+
+Check that an agent maintains a good balance between reading (exploration) and writing (action):
+
+```yaml
+evaluators:
+  - name: exploration-balance
+    type: execution_metrics
+    target_exploration_ratio: 0.6  # 60% should be read-only tools
+    exploration_tolerance: 0.2     # Allow ±20% variance
+```
+
+## Single-Metric Evaluators
+
+For simple single-threshold checks, AgentV also provides dedicated evaluators:
+
+### latency
+
+```yaml
+- name: speed
+  type: latency
+  max_ms: 5000
+```
+
+Fails if execution duration exceeds the threshold.
+
+### cost
+
+```yaml
+- name: budget
+  type: cost
+  max_usd: 0.10
+```
+
+Fails if execution cost exceeds the threshold.
+
+### token_usage
+
+```yaml
+- name: tokens
+  type: token_usage
+  max_total_tokens: 4000
+```
+
+Fails if total token usage exceeds the threshold.
+
+## When to Use Each
+
+| Scenario | Recommended Evaluator |
+|----------|----------------------|
+| Check multiple metrics at once | `execution_metrics` |
+| Simple single-threshold check | `latency`, `cost`, or `token_usage` |
+| Complex custom formulas | `code_judge` with custom script |
+
+## Combining with Other Evaluators
+
+Execution metrics work well alongside semantic evaluators:
+
+```yaml
+evalcases:
+  - id: code-generation
+    expected_outcome: Generates correct, efficient code
+    input: Write a sorting algorithm
+    execution:
+      evaluators:
+        # Semantic quality
+        - name: quality
+          type: llm_judge
+          prompt: ./prompts/code-quality.md
+
+        # Efficiency constraints
+        - name: efficiency
+          type: execution_metrics
+          max_tool_calls: 10
+          max_duration_ms: 30000
+```
