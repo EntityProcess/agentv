@@ -36,6 +36,12 @@ export interface TraceSummary {
   readonly durationMs?: number;
   /** Per-tool duration arrays in milliseconds (optional) */
   readonly toolDurations?: Readonly<Record<string, readonly number[]>>;
+  /** ISO 8601 timestamp when execution started (derived from earliest span) */
+  readonly startTime?: string;
+  /** ISO 8601 timestamp when execution ended (derived from latest span) */
+  readonly endTime?: string;
+  /** Number of LLM calls (assistant messages) */
+  readonly llmCallCount?: number;
 }
 
 /**
@@ -70,25 +76,91 @@ export interface ToolTrajectoryExpectedItem {
  * Matches OutputMessage structure without requiring full provider/types import.
  */
 interface OutputMessageLike {
+  readonly role?: string;
+  readonly startTime?: string;
+  readonly endTime?: string;
   readonly toolCalls?: readonly {
     readonly tool: string;
+    readonly startTime?: string;
+    readonly endTime?: string;
+    readonly durationMs?: number;
   }[];
 }
 
 /**
  * Compute a lightweight summary from output messages.
  * Used for default result persistence without payload bloat.
+ *
+ * Derives timing information from span boundaries:
+ * - startTime: earliest startTime across all messages and tool calls
+ * - endTime: latest endTime across all messages and tool calls
+ * - toolDurations: per-tool duration arrays (from durationMs or computed from start/end)
+ * - llmCallCount: count of assistant messages
  */
 export function computeTraceSummary(messages: readonly OutputMessageLike[]): TraceSummary {
   const toolCallCounts: Record<string, number> = {};
+  const toolDurations: Record<string, number[]> = {};
   let totalToolCalls = 0;
+  let llmCallCount = 0;
+  let earliestStart: Date | undefined;
+  let latestEnd: Date | undefined;
+  let hasAnyDuration = false;
 
   for (const message of messages) {
+    // Count assistant messages as LLM calls
+    if (message.role === 'assistant') {
+      llmCallCount++;
+    }
+
+    // Track message timing boundaries
+    if (message.startTime) {
+      const startDate = new Date(message.startTime);
+      if (!earliestStart || startDate < earliestStart) {
+        earliestStart = startDate;
+      }
+    }
+    if (message.endTime) {
+      const endDate = new Date(message.endTime);
+      if (!latestEnd || endDate > latestEnd) {
+        latestEnd = endDate;
+      }
+    }
+
     if (!message.toolCalls) continue;
 
     for (const toolCall of message.toolCalls) {
       toolCallCounts[toolCall.tool] = (toolCallCounts[toolCall.tool] ?? 0) + 1;
       totalToolCalls++;
+
+      // Track tool call timing boundaries
+      if (toolCall.startTime) {
+        const startDate = new Date(toolCall.startTime);
+        if (!earliestStart || startDate < earliestStart) {
+          earliestStart = startDate;
+        }
+      }
+      if (toolCall.endTime) {
+        const endDate = new Date(toolCall.endTime);
+        if (!latestEnd || endDate > latestEnd) {
+          latestEnd = endDate;
+        }
+      }
+
+      // Compute tool duration
+      let duration: number | undefined = toolCall.durationMs;
+      if (duration === undefined && toolCall.startTime && toolCall.endTime) {
+        const start = new Date(toolCall.startTime).getTime();
+        const end = new Date(toolCall.endTime).getTime();
+        duration = end - start;
+      }
+
+      if (duration !== undefined) {
+        hasAnyDuration = true;
+        if (!toolDurations[toolCall.tool]) {
+          toolDurations[toolCall.tool] = [];
+        }
+        toolDurations[toolCall.tool].push(duration);
+      }
     }
   }
 
@@ -99,6 +171,10 @@ export function computeTraceSummary(messages: readonly OutputMessageLike[]): Tra
     toolNames,
     toolCallsByName: toolCallCounts,
     errorCount: 0,
+    startTime: earliestStart?.toISOString(),
+    endTime: latestEnd?.toISOString(),
+    llmCallCount,
+    ...(hasAnyDuration ? { toolDurations } : {}),
   };
 }
 
@@ -186,11 +262,16 @@ export interface ExecutionMetrics {
   readonly tokenUsage?: TokenUsage;
   readonly costUsd?: number;
   readonly durationMs?: number;
+  /** ISO 8601 timestamp when execution started */
+  readonly startTime?: string;
+  /** ISO 8601 timestamp when execution ended */
+  readonly endTime?: string;
 }
 
 /**
  * Merge execution metrics from provider response into a trace summary.
  * Returns a new TraceSummary with metrics fields populated.
+ * Provider-level timing takes precedence over span-derived timing.
  *
  * @param summary - Base trace summary from computeTraceSummary
  * @param metrics - Optional execution metrics from provider
@@ -207,5 +288,8 @@ export function mergeExecutionMetrics(
     tokenUsage: metrics.tokenUsage,
     costUsd: metrics.costUsd,
     durationMs: metrics.durationMs,
+    // Provider-level timing takes precedence over span-derived timing
+    startTime: metrics.startTime ?? summary.startTime,
+    endTime: metrics.endTime ?? summary.endTime,
   };
 }
