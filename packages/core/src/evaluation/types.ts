@@ -417,6 +417,8 @@ export interface EvaluationResult {
   readonly traceSummary?: TraceSummary;
   /** Path to the temporary workspace directory (included on failure for debugging) */
   readonly workspacePath?: string;
+  /** Full output messages from agent execution (only included when --trace flag is set) */
+  readonly outputMessages?: readonly import('./providers/types.js').OutputMessage[];
 }
 
 export type EvaluationVerdict = 'pass' | 'fail' | 'borderline';

@@ -110,6 +110,10 @@ export const evalCommand = command({
       long: 'cleanup-workspaces',
       description: 'Always cleanup temporary workspaces, even on failure',
     }),
+    trace: flag({
+      long: 'trace',
+      description: 'Persist full execution traces to .agentv/traces/ as JSONL',
+    }),
   },
   handler: async (args) => {
     const resolvedPaths = await resolveEvalPaths(args.evalPaths, process.cwd());
@@ -130,6 +134,7 @@ export const evalCommand = command({
       verbose: args.verbose,
       keepWorkspaces: args.keepWorkspaces,
       cleanupWorkspaces: args.cleanupWorkspaces,
+      trace: args.trace,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },

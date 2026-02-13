@@ -25,6 +25,7 @@ import {
 import { ProgressDisplay, type WorkerProgress } from './progress-display.js';
 import { calculateEvaluationSummary, formatEvaluationSummary } from './statistics.js';
 import { type TargetSelection, selectTarget } from './targets.js';
+import { TraceWriter, buildTraceRecord } from './trace-writer.js';
 
 const DEFAULT_WORKERS = 3;
 
@@ -50,6 +51,7 @@ interface NormalizedOptions {
   readonly verbose: boolean;
   readonly keepWorkspaces: boolean;
   readonly cleanupWorkspaces: boolean;
+  readonly trace: boolean;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -100,6 +102,7 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     verbose: normalizeBoolean(rawOptions.verbose),
     keepWorkspaces: normalizeBoolean(rawOptions.keepWorkspaces),
     cleanupWorkspaces: normalizeBoolean(rawOptions.cleanupWorkspaces),
+    trace: normalizeBoolean(rawOptions.trace),
   } satisfies NormalizedOptions;
 }
 
@@ -137,6 +140,11 @@ function buildDefaultOutputPath(cwd: string, format: OutputFormat): string {
   const baseName = 'eval';
   const extension = getDefaultExtension(format);
   return path.join(cwd, '.agentv', 'results', `${baseName}_${timestamp}${extension}`);
+}
+
+function buildTraceOutputPath(cwd: string, evalFileBasename: string): string {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  return path.join(cwd, '.agentv', 'traces', timestamp, `${evalFileBasename}.trace.jsonl`);
 }
 
 function createEvaluationCache(): EvaluationCache {
@@ -294,6 +302,7 @@ async function runSingleEvalFile(params: {
   readonly repoRoot: string;
   readonly options: NormalizedOptions;
   readonly outputWriter: OutputWriter;
+  readonly traceWriter?: TraceWriter;
   readonly cache?: EvaluationCache;
   readonly evaluationRunner: typeof defaultRunEvaluation;
   readonly workersOverride?: number;
@@ -310,6 +319,7 @@ async function runSingleEvalFile(params: {
     repoRoot,
     options,
     outputWriter,
+    traceWriter,
     cache,
     evaluationRunner,
     workersOverride,
@@ -381,7 +391,19 @@ async function runSingleEvalFile(params: {
     keepWorkspaces: options.keepWorkspaces,
     cleanupWorkspaces: options.cleanupWorkspaces,
     onResult: async (result: EvaluationResult) => {
-      await outputWriter.append(result);
+      // Write trace if trace writer is available and outputMessages exist
+      if (traceWriter && result.outputMessages && result.outputMessages.length > 0) {
+        const traceRecord = buildTraceRecord(result.evalId, result.outputMessages, {
+          tokenUsage: result.traceSummary?.tokenUsage,
+          costUsd: result.traceSummary?.costUsd,
+          durationMs: result.traceSummary?.durationMs,
+        });
+        await traceWriter.append(traceRecord);
+      }
+
+      // Strip outputMessages from result before writing to avoid bloating results JSONL
+      const { outputMessages: _, ...resultWithoutTrace } = result;
+      await outputWriter.append(resultWithoutTrace as EvaluationResult);
     },
     onProgress: async (event) => {
       const evalKey = makeEvalKey(testFilePath, event.evalId);
@@ -427,11 +449,24 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   console.log(`Output path: ${outputPath}`);
 
   const outputWriter = await createOutputWriter(outputPath, options.format);
+
+  // Create trace writer if --trace flag is set
+  // Use the first eval file's basename for the trace file name
+  const resolvedTestFiles = input.testFiles.map((file) => path.resolve(file));
+  const evalFileBasename =
+    resolvedTestFiles.length > 0
+      ? path.basename(resolvedTestFiles[0], path.extname(resolvedTestFiles[0]))
+      : 'eval';
+  const tracePath = options.trace ? buildTraceOutputPath(cwd, evalFileBasename) : undefined;
+  const traceWriter = tracePath ? await TraceWriter.open(tracePath) : undefined;
+  if (tracePath) {
+    console.log(`Trace path: ${tracePath}`);
+  }
+
   const cache = options.cache ? createEvaluationCache() : undefined;
   const evaluationRunner = await resolveEvaluationRunner();
   const allResults: EvaluationResult[] = [];
   const seenEvalCases = new Set<string>();
-  const resolvedTestFiles = input.testFiles.map((file) => path.resolve(file));
   const displayIdTracker = createDisplayIdTracker();
 
   // Derive file-level concurrency from worker count (global) when provided
@@ -521,6 +556,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
         repoRoot,
         options,
         outputWriter,
+        traceWriter,
         cache,
         evaluationRunner,
         workersOverride: perFileWorkers,
@@ -559,6 +595,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     unsubscribePiLogs();
     unsubscribeCopilotLogs();
     await outputWriter.close().catch(() => undefined);
+    await traceWriter?.close().catch(() => undefined);
   }
 }
 

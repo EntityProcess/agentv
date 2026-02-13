@@ -884,6 +884,7 @@ async function evaluateCandidate(options: {
     evaluatorProviderRequest: evaluatorResults ? undefined : score.evaluatorRawRequest,
     evaluatorResults: evaluatorResults,
     traceSummary: traceSummary,
+    outputMessages: outputMessages,
   };
 }
 
