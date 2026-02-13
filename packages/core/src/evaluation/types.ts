@@ -157,6 +157,7 @@ const EVALUATOR_KIND_VALUES = [
   'latency',
   'cost',
   'token_usage',
+  'execution_metrics',
 ] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
@@ -364,6 +365,31 @@ export type TokenUsageEvaluatorConfig = {
   readonly weight?: number;
 };
 
+/**
+ * Configuration for the execution_metrics evaluator.
+ * Provides declarative threshold-based checks on execution metrics.
+ * Only specified thresholds are checked; omitted ones are ignored.
+ */
+export type ExecutionMetricsEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'execution_metrics';
+  /** Maximum allowed number of tool calls */
+  readonly max_tool_calls?: number;
+  /** Maximum allowed number of LLM calls (assistant messages) */
+  readonly max_llm_calls?: number;
+  /** Maximum allowed total tokens (input + output) */
+  readonly max_tokens?: number;
+  /** Maximum allowed cost in USD */
+  readonly max_cost_usd?: number;
+  /** Maximum allowed duration in milliseconds */
+  readonly max_duration_ms?: number;
+  /** Target exploration ratio (0-1, proportion of read-only tool calls) */
+  readonly target_exploration_ratio?: number;
+  /** Tolerance for exploration ratio check (default: 0.2) */
+  readonly exploration_tolerance?: number;
+  readonly weight?: number;
+};
+
 export type EvaluatorConfig =
   | CodeEvaluatorConfig
   | LlmJudgeEvaluatorConfig
@@ -372,7 +398,8 @@ export type EvaluatorConfig =
   | FieldAccuracyEvaluatorConfig
   | LatencyEvaluatorConfig
   | CostEvaluatorConfig
-  | TokenUsageEvaluatorConfig;
+  | TokenUsageEvaluatorConfig
+  | ExecutionMetricsEvaluatorConfig;
 
 /**
  * Eval case definition sourced from AgentV specs.

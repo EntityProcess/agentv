@@ -11,6 +11,7 @@ import {
   CostEvaluator,
   type EvaluationScore,
   type Evaluator,
+  ExecutionMetricsEvaluator,
   FieldAccuracyEvaluator,
   LatencyEvaluator,
   LlmJudgeEvaluator,
@@ -46,6 +47,7 @@ import type {
   EvaluatorConfig,
   EvaluatorKind,
   EvaluatorResult,
+  ExecutionMetricsEvaluatorConfig,
   FieldAccuracyEvaluatorConfig,
   JsonObject,
   JsonValue,
@@ -1124,6 +1126,10 @@ async function runEvaluatorList(options: {
               return new TokenUsageEvaluator({
                 config: memberConfig as TokenUsageEvaluatorConfig,
               });
+            case 'execution_metrics':
+              return new ExecutionMetricsEvaluator({
+                config: memberConfig as ExecutionMetricsEvaluatorConfig,
+              });
             default: {
               const unknownConfig = memberConfig as { type: string };
               throw new Error(`Unsupported evaluator type in composite: ${unknownConfig.type}`);
@@ -1287,6 +1293,35 @@ async function runEvaluatorList(options: {
           config: evaluator as TokenUsageEvaluatorConfig,
         });
         const score = tokenUsageEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+          outputMessages,
+          traceSummary,
+        });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+        });
+      }
+
+      if (evaluator.type === 'execution_metrics') {
+        const executionMetricsEvaluator = new ExecutionMetricsEvaluator({
+          config: evaluator as ExecutionMetricsEvaluatorConfig,
+        });
+        const score = executionMetricsEvaluator.evaluate({
           evalCase,
           candidate,
           target,

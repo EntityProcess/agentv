@@ -29,6 +29,9 @@ export type { CompositeEvaluatorOptions } from './composite.js';
 export { CostEvaluator } from './cost.js';
 export type { CostEvaluatorOptions } from './cost.js';
 
+export { ExecutionMetricsEvaluator } from './execution-metrics.js';
+export type { ExecutionMetricsEvaluatorOptions } from './execution-metrics.js';
+
 export { FieldAccuracyEvaluator } from './field-accuracy.js';
 export type { FieldAccuracyEvaluatorOptions } from './field-accuracy.js';
 

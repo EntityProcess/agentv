@@ -592,3 +592,190 @@ describe('parseEvaluators - token_usage', () => {
     });
   });
 });
+
+describe('parseEvaluators - execution_metrics', () => {
+  it('parses execution_metrics evaluator with all thresholds', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'efficiency-check',
+          type: 'execution_metrics',
+          max_tool_calls: 10,
+          max_llm_calls: 5,
+          max_tokens: 2000,
+          max_cost_usd: 0.1,
+          max_duration_ms: 5000,
+          target_exploration_ratio: 0.6,
+          exploration_tolerance: 0.15,
+          weight: 2.0,
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toEqual({
+      name: 'efficiency-check',
+      type: 'execution_metrics',
+      max_tool_calls: 10,
+      max_llm_calls: 5,
+      max_tokens: 2000,
+      max_cost_usd: 0.1,
+      max_duration_ms: 5000,
+      target_exploration_ratio: 0.6,
+      exploration_tolerance: 0.15,
+      weight: 2.0,
+    });
+  });
+
+  it('parses execution_metrics with only max_tool_calls', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'tool-limit',
+          type: 'execution_metrics',
+          max_tool_calls: 15,
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toEqual({
+      name: 'tool-limit',
+      type: 'execution_metrics',
+      max_tool_calls: 15,
+    });
+  });
+
+  it('parses execution_metrics with camelCase aliases', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'camel-case',
+          type: 'execution_metrics',
+          maxToolCalls: 10,
+          maxLlmCalls: 5,
+          maxTokens: 2000,
+          maxCostUsd: 0.1,
+          maxDurationMs: 5000,
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toEqual({
+      name: 'camel-case',
+      type: 'execution_metrics',
+      max_tool_calls: 10,
+      max_llm_calls: 5,
+      max_tokens: 2000,
+      max_cost_usd: 0.1,
+      max_duration_ms: 5000,
+    });
+  });
+
+  it('skips execution_metrics with no thresholds specified', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'no-thresholds',
+          type: 'execution_metrics',
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('skips execution_metrics when only exploration_tolerance is set (no threshold)', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'only-tolerance',
+          type: 'execution_metrics',
+          exploration_tolerance: 0.2,
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('skips execution_metrics with invalid threshold value (negative)', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'negative-threshold',
+          type: 'execution_metrics',
+          max_tool_calls: -5,
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('skips execution_metrics with invalid threshold value (non-number)', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'string-threshold',
+          type: 'execution_metrics',
+          max_tool_calls: 'ten',
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('skips execution_metrics with Infinity threshold value', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'infinity-threshold',
+          type: 'execution_metrics',
+          max_tokens: Number.POSITIVE_INFINITY,
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('parses execution_metrics with target_exploration_ratio', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'exploration-check',
+          type: 'execution_metrics',
+          target_exploration_ratio: 0.7,
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toEqual({
+      name: 'exploration-check',
+      type: 'execution_metrics',
+      target_exploration_ratio: 0.7,
+    });
+  });
+});

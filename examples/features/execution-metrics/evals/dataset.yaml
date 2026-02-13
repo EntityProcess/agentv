@@ -1,21 +1,21 @@
-# Execution Metrics Demo
-# Demonstrates how to use execution metrics in evaluation
+# Execution Metrics Evaluator Demo
+# Demonstrates the built-in execution_metrics evaluator for declarative threshold-based checks.
 #
-# Execution metrics capture runtime information from provider invocations:
-# - tokenUsage: { input, output, cached? } - token consumption
-# - costUsd: API cost in USD
-# - durationMs: execution time in milliseconds
+# The execution_metrics evaluator allows you to set limits on:
+# - max_tool_calls: Maximum number of tool invocations
+# - max_llm_calls: Maximum number of LLM calls (assistant messages)
+# - max_tokens: Maximum total tokens (input + output)
+# - max_cost_usd: Maximum cost in USD
+# - max_duration_ms: Maximum execution duration in milliseconds
+# - target_exploration_ratio: Target ratio of read-only tool calls (with tolerance)
 #
-# These metrics are available in:
-# 1. TraceSummary (included in evaluation results)
-# 2. Code judge stdin (for custom metric-based evaluation)
+# Only specified thresholds are checked; omitted ones are ignored.
+# Score is proportional: hits / (hits + misses)
 #
-# Setup:
-#   1. Add to examples/features/.env:
-#      EXECUTION_METRICS_DIR=/absolute/path/to/examples/features/evals/execution-metrics
-#   2. Run: cd examples/features && npx agentv eval evals/execution-metrics/execution-metrics-demo.yaml
+# Run with:
+#   bun agentv eval examples/features/execution-metrics/evals/dataset.yaml --dry-run
 
-description: Demonstrates execution metrics collection and evaluation
+description: Demonstrates the built-in execution_metrics evaluator
 
 # Mock agent that returns realistic execution metrics
 execution:
@@ -23,14 +23,13 @@ execution:
 
 evalcases:
   # ==========================================
-  # Example 1: Basic metrics collection
-  # Metrics are automatically included in results when available
+  # Example 1: Simple threshold check - PASS
+  # Check that an efficient agent stays within limits
   # ==========================================
-  - id: metrics-collection
+  - id: simple-thresholds-pass
 
     expected_outcome: |-
-      Agent responds to a simple query. Execution metrics are captured
-      automatically and included in the evaluation result.
+      Agent responds efficiently within all specified limits.
 
     input:
       - role: user
@@ -38,20 +37,20 @@ evalcases:
 
     execution:
       evaluators:
-        # Verify that execution metrics are present in trace_summary
-        - name: metrics-present
-          type: code_judge
-          script: ["bun", "run", "../scripts/check-metrics-present.ts"]
+        - name: efficiency-check
+          type: execution_metrics
+          max_tool_calls: 10
+          max_tokens: 2000
+          max_duration_ms: 10000
 
   # ==========================================
-  # Example 2: Metric-aware code judge
-  # Use custom thresholds to evaluate efficiency
+  # Example 2: Multiple thresholds - PASS
+  # Comprehensive check with all threshold types
   # ==========================================
-  - id: efficiency-evaluation
+  - id: comprehensive-thresholds
 
     expected_outcome: |-
-      Agent efficiently answers a simple question without excessive
-      token usage or tool calls.
+      Agent performs a task within all efficiency constraints.
 
     input:
       - role: user
@@ -59,20 +58,23 @@ evalcases:
 
     execution:
       evaluators:
-        # Custom code judge that evaluates efficiency metrics
-        - name: efficiency-check
-          type: code_judge
-          script: ["bun", "run", "../scripts/check-efficiency.ts"]
+        - name: full-efficiency-check
+          type: execution_metrics
+          max_tool_calls: 15
+          max_llm_calls: 5
+          max_tokens: 3000
+          max_cost_usd: 0.1
+          max_duration_ms: 30000
 
   # ==========================================
-  # Example 3: Research task with higher metrics
-  # Demonstrates metrics for more complex operations
+  # Example 3: Research task with tool trajectory + metrics
+  # Combines multiple evaluator types
   # ==========================================
-  - id: research-metrics
+  - id: research-with-metrics
 
     expected_outcome: |-
-      Agent performs research and uses tools. Metrics reflect
-      higher token usage and multiple tool calls.
+      Agent performs research and uses tools efficiently.
+      Metrics reflect reasonable token usage and tool calls.
 
     input:
       - role: user
@@ -87,28 +89,75 @@ evalcases:
           minimums:
             search: 1
 
-        # Check efficiency metrics
+        # Check execution efficiency
         - name: metrics-check
-          type: code_judge
-          script: ["bun", "run", "../scripts/check-efficiency.ts"]
+          type: execution_metrics
+          max_tool_calls: 20
+          max_tokens: 5000
 
   # ==========================================
-  # Example 4: Inefficient agent detection
-  # Demonstrates failing efficiency checks
+  # Example 4: Exploration ratio check
+  # Validates the balance between read-only and write operations
   # ==========================================
-  - id: inefficient-detection
+  - id: exploration-ratio-check
 
     expected_outcome: |-
-      Agent uses excessive resources. Efficiency check should fail
-      due to too many tool calls and high token usage.
+      Agent maintains a good balance of exploration (reading) vs
+      action (writing/editing) tool calls.
 
     input:
       - role: user
-        content: Do something inefficient and wasteful.
+        content: Read the documentation and make small improvements.
 
     execution:
       evaluators:
-        # This should fail - agent uses too many tools
-        - name: efficiency-check
+        - name: exploration-balance
+          type: execution_metrics
+          target_exploration_ratio: 0.6  # 60% should be read-only tools
+          exploration_tolerance: 0.2      # Allow +/- 20% variance
+
+  # ==========================================
+  # Example 5: Strict cost budget
+  # Useful for cost-sensitive applications
+  # ==========================================
+  - id: cost-budget-check
+
+    expected_outcome: |-
+      Agent completes the task within the specified cost budget.
+
+    input:
+      - role: user
+        content: Generate a brief summary.
+
+    execution:
+      evaluators:
+        - name: cost-check
+          type: execution_metrics
+          max_cost_usd: 0.05
+          weight: 2.0  # Double weight for cost compliance
+
+  # ==========================================
+  # Example 6: Combining with code_judge
+  # Use execution_metrics for thresholds, code_judge for custom logic
+  # ==========================================
+  - id: hybrid-evaluation
+
+    expected_outcome: |-
+      Agent passes both declarative thresholds and custom evaluation.
+
+    input:
+      - role: user
+        content: Process the data efficiently.
+
+    execution:
+      evaluators:
+        # Declarative threshold checks
+        - name: metric-thresholds
+          type: execution_metrics
+          max_tool_calls: 10
+          max_duration_ms: 5000
+
+        # Custom evaluation logic (for more complex checks)
+        - name: custom-check
           type: code_judge
-          script: ["bun", "run", "../scripts/check-efficiency.ts"]
+          script: ["bun", "run", "../scripts/check-metrics-present.ts"]

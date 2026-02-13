@@ -522,6 +522,82 @@ export async function parseEvaluators(
       continue;
     }
 
+    if (typeValue === 'execution_metrics') {
+      const maxToolCalls = rawEvaluator.max_tool_calls ?? rawEvaluator.maxToolCalls;
+      const maxLlmCalls = rawEvaluator.max_llm_calls ?? rawEvaluator.maxLlmCalls;
+      const maxTokens = rawEvaluator.max_tokens ?? rawEvaluator.maxTokens;
+      const maxCostUsd = rawEvaluator.max_cost_usd ?? rawEvaluator.maxCostUsd;
+      const maxDurationMs = rawEvaluator.max_duration_ms ?? rawEvaluator.maxDurationMs;
+      const targetExplorationRatio =
+        rawEvaluator.target_exploration_ratio ?? rawEvaluator.targetExplorationRatio;
+      const explorationTolerance =
+        rawEvaluator.exploration_tolerance ?? rawEvaluator.explorationTolerance;
+
+      const thresholds = [
+        ['max_tool_calls', maxToolCalls],
+        ['max_llm_calls', maxLlmCalls],
+        ['max_tokens', maxTokens],
+        ['max_cost_usd', maxCostUsd],
+        ['max_duration_ms', maxDurationMs],
+        ['target_exploration_ratio', targetExplorationRatio],
+        ['exploration_tolerance', explorationTolerance],
+      ] as const;
+
+      type ThresholdKey =
+        | 'max_tool_calls'
+        | 'max_llm_calls'
+        | 'max_tokens'
+        | 'max_cost_usd'
+        | 'max_duration_ms'
+        | 'target_exploration_ratio'
+        | 'exploration_tolerance';
+
+      const validThresholds: Partial<Record<ThresholdKey, number>> = {};
+      let hasError = false;
+
+      for (const [key, raw] of thresholds) {
+        if (raw === undefined) continue;
+        if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0) {
+          logWarning(
+            `Skipping execution_metrics evaluator '${name}' in '${evalId}': ${key} must be a non-negative finite number`,
+          );
+          hasError = true;
+          break;
+        }
+        validThresholds[key] = raw;
+      }
+
+      if (hasError) {
+        continue;
+      }
+
+      // Validate that at least one threshold is specified (excluding exploration_tolerance which is only a modifier)
+      const hasThreshold =
+        validThresholds.max_tool_calls !== undefined ||
+        validThresholds.max_llm_calls !== undefined ||
+        validThresholds.max_tokens !== undefined ||
+        validThresholds.max_cost_usd !== undefined ||
+        validThresholds.max_duration_ms !== undefined ||
+        validThresholds.target_exploration_ratio !== undefined;
+
+      if (!hasThreshold) {
+        logWarning(
+          `Skipping execution_metrics evaluator '${name}' in '${evalId}': must set at least one threshold (max_tool_calls, max_llm_calls, max_tokens, max_cost_usd, max_duration_ms, or target_exploration_ratio)`,
+        );
+        continue;
+      }
+
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
+      evaluators.push({
+        name,
+        type: 'execution_metrics',
+        ...validThresholds,
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
     // Parse prompt field - can be string (text template) or object (executable script)
     const rawPrompt = rawEvaluator.prompt;
     let prompt: string | undefined;
