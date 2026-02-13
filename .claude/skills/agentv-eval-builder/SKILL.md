@@ -147,6 +147,21 @@ Compares `output_messages` fields against `expected_messages` fields.
   max_total_tokens: 4000
 ```
 
+### execution_metrics
+```yaml
+- name: efficiency
+  type: execution_metrics
+  max_tool_calls: 10        # Maximum tool invocations
+  max_llm_calls: 5          # Maximum LLM calls (assistant messages)
+  max_tokens: 5000          # Maximum total tokens (input + output)
+  max_cost_usd: 0.05        # Maximum cost in USD
+  max_duration_ms: 30000    # Maximum execution duration
+  target_exploration_ratio: 0.6   # Target ratio of read-only tool calls
+  exploration_tolerance: 0.2      # Tolerance for ratio check (default: 0.2)
+```
+Declarative threshold-based checks on execution metrics. Only specified thresholds are checked.
+Score is proportional: `hits / (hits + misses)`. Missing data counts as a miss.
+
 ### rubric (inline)
 ```yaml
 rubrics:
@@ -163,6 +178,9 @@ See `references/rubric-evaluator.md` for score-range mode and scoring formula.
 ```bash
 # Run evaluation
 bun agentv eval <file.yaml> [--eval-id <id>] [--target <name>] [--dry-run]
+
+# Run with trace persistence (writes to .agentv/traces/)
+bun agentv eval <file.yaml> --trace
 
 # Validate eval file
 bun agentv validate <file.yaml>
