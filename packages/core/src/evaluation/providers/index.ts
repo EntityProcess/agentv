@@ -13,12 +13,14 @@ import { VSCodeProvider } from './vscode-provider.js';
 
 export type {
   EnvLookup,
+  OutputMessage,
   Provider,
   ProviderKind,
   ProviderRequest,
   ProviderResponse,
   ProviderTokenUsage,
   TargetDefinition,
+  ToolCall,
 } from './types.js';
 
 export type {
