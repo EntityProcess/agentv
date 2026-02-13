@@ -193,7 +193,7 @@ function convertAgentMessage(message: unknown): OutputMessage {
   const role = typeof msg.role === 'string' ? msg.role : 'unknown';
   const content = extractTextContent(msg.content);
   const toolCalls = extractToolCalls(msg.content);
-  const timestamp =
+  const startTime =
     typeof msg.timestamp === 'number'
       ? new Date(msg.timestamp).toISOString()
       : typeof msg.timestamp === 'string'
@@ -204,7 +204,7 @@ function convertAgentMessage(message: unknown): OutputMessage {
     role,
     content,
     toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-    timestamp,
+    startTime,
   };
 }
 

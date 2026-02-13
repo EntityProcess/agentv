@@ -619,8 +619,8 @@ function convertPiMessage(message: unknown): OutputMessage | undefined {
   // Extract tool calls if present
   const toolCalls = extractToolCalls(msg.content);
 
-  // Extract timestamp
-  const timestamp =
+  // Extract startTime (mapped from timestamp in raw message)
+  const startTime =
     typeof msg.timestamp === 'number'
       ? new Date(msg.timestamp).toISOString()
       : typeof msg.timestamp === 'string'
@@ -639,7 +639,7 @@ function convertPiMessage(message: unknown): OutputMessage | undefined {
     role,
     content,
     toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-    timestamp,
+    startTime,
     metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
   };
 }

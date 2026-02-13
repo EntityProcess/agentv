@@ -3,7 +3,7 @@
   "trace": [
     {
       "type": "tool_call",
-      "timestamp": "2024-01-15T09:00:00Z",
+      "startTime": "2024-01-15T09:00:00Z",
       "id": "call_1",
       "name": "webSearch",
       "input": {
@@ -13,7 +13,7 @@
     },
     {
       "type": "tool_result",
-      "timestamp": "2024-01-15T09:00:01Z",
+      "startTime": "2024-01-15T09:00:01Z",
       "id": "call_1",
       "name": "webSearch",
       "output": {
@@ -33,7 +33,7 @@
     },
     {
       "type": "tool_call",
-      "timestamp": "2024-01-15T09:00:02Z",
+      "startTime": "2024-01-15T09:00:02Z",
       "id": "call_2",
       "name": "fetchPage",
       "input": {
@@ -42,7 +42,7 @@
     },
     {
       "type": "tool_result",
-      "timestamp": "2024-01-15T09:00:03Z",
+      "startTime": "2024-01-15T09:00:03Z",
       "id": "call_2",
       "name": "fetchPage",
       "output": {
@@ -52,7 +52,7 @@
     },
     {
       "type": "tool_call",
-      "timestamp": "2024-01-15T09:00:04Z",
+      "startTime": "2024-01-15T09:00:04Z",
       "id": "call_3",
       "name": "webSearch",
       "input": {
@@ -62,7 +62,7 @@
     },
     {
       "type": "tool_result",
-      "timestamp": "2024-01-15T09:00:05Z",
+      "startTime": "2024-01-15T09:00:05Z",
       "id": "call_3",
       "name": "webSearch",
       "output": {
@@ -77,7 +77,7 @@
     },
     {
       "type": "tool_call",
-      "timestamp": "2024-01-15T09:00:06Z",
+      "startTime": "2024-01-15T09:00:06Z",
       "id": "call_4",
       "name": "summarize",
       "input": {
@@ -87,7 +87,7 @@
     },
     {
       "type": "tool_result",
-      "timestamp": "2024-01-15T09:00:07Z",
+      "startTime": "2024-01-15T09:00:07Z",
       "id": "call_4",
       "name": "summarize",
       "output": {

@@ -25,6 +25,9 @@ export const TraceSummarySchema = z.object({
   costUsd: z.number().optional(),
   durationMs: z.number().optional(),
   toolDurations: z.record(z.string(), z.array(z.number())).optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  llmCallCount: z.number().optional(),
 });
 
 /**
@@ -35,7 +38,9 @@ export const ToolCallSchema = z.object({
   input: z.unknown().optional(),
   output: z.unknown().optional(),
   id: z.string().optional(),
-  timestamp: z.string().optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  durationMs: z.number().optional(),
 });
 
 /**
@@ -46,7 +51,9 @@ export const MessageSchema = z.object({
   content: z.union([z.string(), z.record(z.unknown()), z.array(z.record(z.unknown()))]).optional(),
   toolCalls: z.array(ToolCallSchema).optional(),
   name: z.string().optional(),
-  timestamp: z.string().optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  durationMs: z.number().optional(),
   metadata: z.record(z.unknown()).optional(),
 });
 

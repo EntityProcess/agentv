@@ -18,7 +18,7 @@ type TraceEvent = {
   name?: string;
   input?: unknown;
   output?: unknown;
-  timestamp?: string;
+  startTime?: string;
 };
 
 function main(): void {
@@ -82,7 +82,7 @@ function buildOutputPayload(parsed: {
       input?: unknown;
       output?: unknown;
       id?: string;
-      timestamp?: string;
+      start_time?: string;
     }>;
   }>;
 } {
@@ -108,7 +108,7 @@ function buildOutputPayload(parsed: {
         ...(event.input !== undefined ? { input: event.input } : {}),
         ...(output !== undefined ? { output } : {}),
         ...(event.id ? { id: event.id } : {}),
-        ...(event.timestamp ? { timestamp: event.timestamp } : {}),
+        ...(event.startTime ? { start_time: event.startTime } : {}),
       };
     });
 

@@ -106,8 +106,10 @@ export interface ToolCall {
   readonly output?: unknown;
   /** Stable identifier for pairing tool calls */
   readonly id?: string;
-  /** ISO 8601 timestamp */
-  readonly timestamp?: string;
+  /** ISO 8601 timestamp when the tool call started */
+  readonly startTime?: string;
+  /** ISO 8601 timestamp when the tool call ended */
+  readonly endTime?: string;
   /** Duration of the tool call in milliseconds */
   readonly durationMs?: number;
 }
@@ -125,8 +127,10 @@ export interface OutputMessage {
   readonly content?: unknown;
   /** Tool calls made in this message */
   readonly toolCalls?: readonly ToolCall[];
-  /** ISO 8601 timestamp */
-  readonly timestamp?: string;
+  /** ISO 8601 timestamp when the message started */
+  readonly startTime?: string;
+  /** ISO 8601 timestamp when the message ended */
+  readonly endTime?: string;
   /** Duration of the message in milliseconds */
   readonly durationMs?: number;
   /** Provider-specific metadata */
@@ -156,6 +160,10 @@ export interface ProviderResponse {
   readonly costUsd?: number;
   /** Execution duration in milliseconds (optional) */
   readonly durationMs?: number;
+  /** ISO 8601 timestamp when execution started (optional) */
+  readonly startTime?: string;
+  /** ISO 8601 timestamp when execution ended (optional) */
+  readonly endTime?: string;
 }
 
 /**
