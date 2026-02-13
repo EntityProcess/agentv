@@ -43,6 +43,8 @@ export class VSCodeProvider implements Provider {
     // Otherwise fall back to config.workspaceTemplate for provider-managed workspace creation
     const effectiveWorkspaceTemplate = request.cwd ?? this.config.workspaceTemplate;
 
+    // Measure wall-clock time for duration
+    const startTime = Date.now();
     const session = await dispatchAgentSession({
       userQuery: promptContent,
       extraAttachments: inputFiles,
@@ -54,6 +56,7 @@ export class VSCodeProvider implements Provider {
       workspaceTemplate: effectiveWorkspaceTemplate,
       silent: true,
     });
+    const durationMs = Date.now() - startTime;
 
     if (session.exitCode !== 0 || !session.responseFile) {
       const failure = session.error ?? 'VS Code subagent did not produce a response';
@@ -63,6 +66,7 @@ export class VSCodeProvider implements Provider {
     if (this.config.dryRun) {
       return {
         outputMessages: [],
+        durationMs,
         raw: {
           session,
           inputFiles,
@@ -74,6 +78,7 @@ export class VSCodeProvider implements Provider {
 
     return {
       outputMessages: [{ role: 'assistant', content: responseText }],
+      durationMs,
       raw: {
         session,
         inputFiles,
@@ -100,6 +105,8 @@ export class VSCodeProvider implements Provider {
 
     // For batch, we don't support per-request cwd override (would need separate workspaces)
     // Use config.workspaceTemplate for batch operations
+    // Measure wall-clock time for batch duration
+    const startTime = Date.now();
     const session = await dispatchBatchAgent({
       userQueries,
       extraAttachments: combinedInputFiles,
@@ -111,6 +118,10 @@ export class VSCodeProvider implements Provider {
       workspaceTemplate: this.config.workspaceTemplate,
       silent: true,
     });
+    const totalDurationMs = Date.now() - startTime;
+
+    // Calculate per-request duration (total time / number of requests)
+    const perRequestDurationMs = Math.round(totalDurationMs / requests.length);
 
     if (session.exitCode !== 0 || !session.responseFiles) {
       const failure = session.error ?? 'VS Code subagent did not produce batch responses';
@@ -120,6 +131,7 @@ export class VSCodeProvider implements Provider {
     if (this.config.dryRun) {
       return normalizedRequests.map(({ inputFiles }) => ({
         outputMessages: [],
+        durationMs: perRequestDurationMs,
         raw: {
           session,
           inputFiles,
@@ -139,6 +151,7 @@ export class VSCodeProvider implements Provider {
       const responseText = await readTextFile(responseFile);
       responses.push({
         outputMessages: [{ role: 'assistant', content: responseText }],
+        durationMs: perRequestDurationMs,
         raw: {
           session,
           inputFiles: normalizedRequests[index]?.inputFiles,
