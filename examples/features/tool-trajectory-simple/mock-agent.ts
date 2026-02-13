@@ -19,7 +19,7 @@ interface ToolCall {
   input?: unknown;
   output?: unknown;
   id?: string;
-  timestamp?: string;
+  startTime?: string;
 }
 
 interface OutputMessage {

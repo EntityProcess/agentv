@@ -29,7 +29,8 @@ const ToolCallSchema = z.object({
   input: z.unknown().optional(),
   output: z.unknown().optional(),
   id: z.string().optional(),
-  timestamp: z.string().optional(),
+  start_time: z.string().optional(),
+  end_time: z.string().optional(),
   duration_ms: z.number().optional(),
 });
 
@@ -43,7 +44,8 @@ const OutputMessageInputSchema = z.object({
   name: z.string().optional(),
   content: z.unknown().optional(),
   tool_calls: z.array(ToolCallSchema).optional(),
-  timestamp: z.string().optional(),
+  start_time: z.string().optional(),
+  end_time: z.string().optional(),
   duration_ms: z.number().optional(),
   metadata: z.record(z.unknown()).optional(),
 });
@@ -127,10 +129,12 @@ function convertOutputMessages(
       input: tc.input,
       output: tc.output,
       id: tc.id,
-      timestamp: tc.timestamp,
+      startTime: tc.start_time,
+      endTime: tc.end_time,
       durationMs: tc.duration_ms,
     })),
-    timestamp: msg.timestamp,
+    startTime: msg.start_time,
+    endTime: msg.end_time,
     durationMs: msg.duration_ms,
     metadata: msg.metadata,
   }));
