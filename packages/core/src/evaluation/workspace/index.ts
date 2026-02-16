@@ -7,3 +7,8 @@ export {
   TemplateNotDirectoryError,
   WorkspaceCreationError,
 } from './manager.js';
+export {
+  executeWorkspaceSetup,
+  executeWorkspaceTeardown,
+  type ScriptExecutionContext,
+} from './script-executor.js';
