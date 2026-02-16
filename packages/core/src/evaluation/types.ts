@@ -178,6 +178,20 @@ export type TargetAccessConfig = {
   readonly max_calls?: number;
 };
 
+/**
+ * Configuration for workspace setup/teardown scripts.
+ * Scripts are executed with workspace context passed via stdin.
+ */
+export type WorkspaceScriptConfig = {
+  /** Command array to execute (e.g., ["bun", "run", "setup.ts"]) */
+  readonly script: readonly string[];
+  /** Optional timeout in milliseconds (default: 60000 for setup, 30000 for teardown) */
+  readonly timeout_ms?: number;
+  readonly timeoutMs?: number;
+  /** Optional working directory for script execution */
+  readonly cwd?: string;
+};
+
 export type CodeEvaluatorConfig = {
   readonly name: string;
   readonly type: 'code';
@@ -446,6 +460,10 @@ export interface EvaluationResult {
   readonly workspacePath?: string;
   /** Full output messages from agent execution (only included when --trace flag is set) */
   readonly outputMessages?: readonly import('./providers/types.js').OutputMessage[];
+  /** Captured output from workspace setup script */
+  readonly setupOutput?: string;
+  /** Captured output from workspace teardown script */
+  readonly teardownOutput?: string;
 }
 
 export type EvaluationVerdict = 'pass' | 'fail' | 'borderline';
