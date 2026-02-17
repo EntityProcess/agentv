@@ -48,10 +48,7 @@ evalcases:
 
 **Message format:** `{role, content}` where role is `system`, `user`, `assistant`, or `tool`
 **Content types:** inline text, `{type: "file", value: "./path.md"}`
-**File paths:**
-- Relative (`./path.md`, `../dir/file.md`) - resolved from eval file directory
-- Absolute (`/docs/file.md`) - resolved from repo root
-- Git URLs - GitHub, GitLab, Bitbucket blob/src URLs (cloned and cached automatically)
+**File paths:** relative from eval file dir, or absolute with `/` prefix from repo root
 
 **JSONL format:** One eval case per line as JSON. Optional `.yaml` sidecar for shared defaults. See `examples/features/basic-jsonl/`.
 
