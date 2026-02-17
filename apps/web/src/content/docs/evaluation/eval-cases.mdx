@@ -83,33 +83,6 @@ evalcases:
           prompt: ./judges/depth.md
 ```
 
-## File References
-
-Include external files in message content using array format:
-
-```yaml
-input:
-  - role: user
-    content:
-      - type: text
-        value: Review this code against our guidelines.
-      - type: file
-        value: ./guidelines.md
-```
-
-Supported file path formats:
-
-| Format | Resolution |
-|--------|------------|
-| `./path.md` | Relative to eval file directory |
-| `../dir/file.md` | Relative path with parent traversal |
-| `/docs/file.md` | Absolute from repository root |
-| `https://github.com/...` | GitHub blob URL (cloned and cached) |
-| `https://gitlab.com/...` | GitLab blob URL (cloned and cached) |
-| `https://bitbucket.org/...` | Bitbucket src URL (cloned and cached) |
-
-Git URLs are cloned once and cached in `~/.agentv/cache/repos/`.
-
 ## Sidecar Metadata
 
 Pass additional context to evaluators via the `sidecar` field:
