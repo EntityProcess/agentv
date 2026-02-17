@@ -83,8 +83,11 @@ export class CodexProvider implements Provider {
     const logger = await this.createStreamLogger(request).catch(() => undefined);
     try {
       const basePrompt = buildPromptDocument(request, inputFiles);
-      const systemPrompt = this.config.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
-      const promptContent = `${systemPrompt}\n\n${basePrompt}`;
+      // Skip forced diff prompt when AgentV captures file changes
+      const systemPrompt =
+        this.config.systemPrompt ??
+        (request.captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT);
+      const promptContent = systemPrompt ? `${systemPrompt}\n\n${basePrompt}` : basePrompt;
       const promptFile = path.join(workspaceRoot, PROMPT_FILENAME);
       await writeFile(promptFile, promptContent, 'utf8');
 

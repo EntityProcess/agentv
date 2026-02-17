@@ -28,7 +28,10 @@ Be concise and focused in your evaluation. Provide succinct, specific feedback r
 {{${TEMPLATE_VARIABLES.REFERENCE_ANSWER}}}
 
 [[ ## candidate_answer ## ]]
-{{${TEMPLATE_VARIABLES.CANDIDATE_ANSWER}}}`;
+{{${TEMPLATE_VARIABLES.CANDIDATE_ANSWER}}}
+
+[[ ## file_changes ## ]]
+{{${TEMPLATE_VARIABLES.FILE_CHANGES}}}`;
 
 type JudgeProviderResolver = (context: EvaluationContext) => Promise<Provider | undefined>;
 
@@ -125,6 +128,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.EXPECTED_OUTCOME]: context.evalCase.expected_outcome.trim(),
       [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
+      [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
     };
 
     // Build system prompt (only the mandatory output schema)

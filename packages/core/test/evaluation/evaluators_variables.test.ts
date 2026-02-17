@@ -53,6 +53,7 @@ Reference: {{reference_answer}}
 Candidate: {{candidate_answer}}
 Input Messages: {{input_messages}}
 Expected Messages: {{expected_messages}}
+File Changes: {{file_changes}}
 `;
 
     const judgeProvider = new CapturingProvider({
@@ -79,6 +80,7 @@ Expected Messages: {{expected_messages}}
       attempt: 0,
       promptInputs: { question: formattedQuestion, guidelines: '' },
       now: new Date(),
+      fileChanges: 'diff --git a/test.txt b/test.txt\n+added line',
     });
 
     const request = judgeProvider.lastRequest;
@@ -99,6 +101,10 @@ Expected Messages: {{expected_messages}}
     // Verify expected_messages JSON stringification
     expect(request?.question).toContain('Expected Messages: [');
     expect(request?.question).toContain('"value": "Expected Output Message"');
+
+    // Verify file_changes substitution
+    expect(request?.question).toContain('File Changes: diff --git a/test.txt b/test.txt');
+    expect(request?.question).toContain('+added line');
 
     // System prompt only has output schema, not custom template
     expect(request?.systemPrompt).toContain('You must respond with a single JSON object');

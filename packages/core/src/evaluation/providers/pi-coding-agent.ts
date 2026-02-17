@@ -84,7 +84,7 @@ export class PiCodingAgentProvider implements Provider {
       const promptFile = path.join(workspaceRoot, PROMPT_FILENAME);
       await writeFile(promptFile, request.question, 'utf8');
 
-      const args = this.buildPiArgs(request.question, inputFiles);
+      const args = this.buildPiArgs(request.question, inputFiles, request.captureFileChanges);
       const cwd = this.resolveCwd(workspaceRoot, request.cwd);
 
       const result = await this.executePi(args, cwd, request.signal, logger);
@@ -137,7 +137,11 @@ export class PiCodingAgentProvider implements Provider {
     return path.resolve(this.config.cwd);
   }
 
-  private buildPiArgs(prompt: string, inputFiles: readonly string[] | undefined): string[] {
+  private buildPiArgs(
+    prompt: string,
+    inputFiles: readonly string[] | undefined,
+    captureFileChanges?: boolean,
+  ): string[] {
     const args: string[] = [];
 
     // Provider and model configuration
@@ -182,9 +186,10 @@ export class PiCodingAgentProvider implements Provider {
       }
     }
 
-    // Prepend system prompt (use default if not configured)
-    const systemPrompt = this.config.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
-    const fullPrompt = `${systemPrompt}\n\n${prompt}`;
+    // Prepend system prompt (skip forced diff prompt when AgentV captures file changes)
+    const systemPrompt =
+      this.config.systemPrompt ?? (captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT);
+    const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 
     // Escape @ symbols in prompt that aren't file references
     // Pi CLI interprets @ as file prefix, but AgentV uses @[Role]: for multi-turn

@@ -51,6 +51,7 @@ export class CodeEvaluator implements Evaluator {
       ),
       inputMessages: context.evalCase.input_messages,
       traceSummary: context.traceSummary ?? null,
+      fileChanges: context.fileChanges ?? null,
       config: this.config ?? null,
     };
 

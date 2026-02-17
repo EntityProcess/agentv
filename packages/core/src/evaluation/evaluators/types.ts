@@ -35,6 +35,8 @@ export interface EvaluationContext {
   readonly targetResolver?: TargetResolver;
   /** List of available target names for code judges */
   readonly availableTargets?: readonly string[];
+  /** Unified diff of file changes from workspace (when workspace_template is configured) */
+  readonly fileChanges?: string;
 }
 
 export interface EvaluationScore {

@@ -91,6 +91,8 @@ export interface ProviderRequest {
   readonly signal?: AbortSignal;
   /** Working directory override (e.g., from workspace_template) */
   readonly cwd?: string;
+  /** When true, AgentV captures file changes from workspace — provider should skip forced diff prompt */
+  readonly captureFileChanges?: boolean;
 }
 
 /**
