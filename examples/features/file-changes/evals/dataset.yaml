@@ -1,0 +1,22 @@
+# File changes feature demonstration
+# Tests that AgentV captures workspace file changes and passes them to evaluators
+
+description: Verify file_changes are captured when workspace_template is configured
+
+execution:
+  target: mock_agent
+
+evalcases:
+  - id: file-changes-captured
+    expected_outcome: Agent modifies files in workspace and changes are captured
+
+    input:
+      - role: user
+        content:
+          - type: text
+            value: Modify hello.txt and create result.txt in the workspace.
+
+    evaluators:
+      - name: check-file-changes
+        type: code_judge
+        script: ["uv", "run", "../check_file_changes.py"]

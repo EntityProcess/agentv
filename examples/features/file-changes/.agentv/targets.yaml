@@ -1,0 +1,13 @@
+targets:
+  - name: mock_agent
+    provider: cli
+    command_template: bash -c 'echo "Hello, AgentV!\nThis file was modified by the agent." > hello.txt && echo "Agent completed the task successfully." > result.txt && echo "I modified hello.txt and created result.txt in the workspace." > {OUTPUT_FILE}'
+    workspace_template: ../workspace-template
+    timeout_seconds: 30
+
+  - name: judge
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    version: ${{ AZURE_OPENAI_API_VERSION }}
