@@ -1,50 +1,81 @@
 #!/usr/bin/env python3
 """
-Code judge that verifies file_changes are captured correctly.
-Reads the evaluation payload from stdin and checks that the unified diff
-contains the expected file modifications.
+Code judge that verifies file_changes captures edits, creates, and deletes.
+
+Reads the evaluation payload from stdin. Uses pass-through config properties
+to know which files to expect in each category:
+  - expect_edited:  files that should appear as modified (--- a/... +++ b/...)
+  - expect_created: files that should appear as new      (--- /dev/null +++ b/...)
+  - expect_deleted: files that should appear as removed  (--- a/... +++ /dev/null)
 """
 import json
+import re
 import sys
 
 
 def main() -> int:
     payload = json.load(sys.stdin)
+    config = payload.get("config", {}) or {}
+    file_changes = payload.get("file_changes") or ""
 
-    file_changes = payload.get("file_changes", None)
     hits = []
     misses = []
 
-    if file_changes is None or file_changes == "":
+    if not file_changes:
         misses.append("file_changes is empty or missing")
+        print(json.dumps({"score": 0, "hits": hits, "misses": misses, "reasoning": "No file changes captured"}))
+        return 0
+
+    # Check unified diff format
+    if "diff --git" in file_changes:
+        hits.append("file_changes contains unified diff format")
     else:
-        # Check that the diff mentions hello.txt modification
-        if "hello.txt" in file_changes:
-            hits.append("hello.txt modification detected in file_changes")
-        else:
-            misses.append("hello.txt modification NOT found in file_changes")
+        misses.append("file_changes does not contain unified diff markers")
 
-        # Check that the diff mentions result.txt creation
-        if "result.txt" in file_changes:
-            hits.append("result.txt creation detected in file_changes")
-        else:
-            misses.append("result.txt creation NOT found in file_changes")
+    # Split into individual diff blocks
+    diff_blocks = re.split(r"(?=^diff --git )", file_changes, flags=re.MULTILINE)
 
-        # Check it looks like a unified diff
-        if "diff --git" in file_changes or "+++" in file_changes:
-            hits.append("file_changes contains unified diff format")
+    for path in config.get("expect_edited", []):
+        found = any(
+            f"a/{path}" in block and f"b/{path}" in block
+            and "--- /dev/null" not in block
+            and "+++ /dev/null" not in block
+            for block in diff_blocks
+        )
+        if found:
+            hits.append(f"edit detected: {path}")
         else:
-            misses.append("file_changes does not look like a unified diff")
+            misses.append(f"edit NOT detected: {path}")
 
-    score = len(hits) / max(len(hits) + len(misses), 1)
+    for path in config.get("expect_created", []):
+        found = any(
+            f"b/{path}" in block and "--- /dev/null" in block
+            for block in diff_blocks
+        )
+        if found:
+            hits.append(f"create detected: {path}")
+        else:
+            misses.append(f"create NOT detected: {path}")
+
+    for path in config.get("expect_deleted", []):
+        found = any(
+            f"a/{path}" in block and "+++ /dev/null" in block
+            for block in diff_blocks
+        )
+        if found:
+            hits.append(f"delete detected: {path}")
+        else:
+            misses.append(f"delete NOT detected: {path}")
+
+    total = len(hits) + len(misses)
+    score = len(hits) / total if total > 0 else 0
 
     result = {
         "score": score,
         "hits": hits,
         "misses": misses,
-        "reasoning": f"file_changes captured: {file_changes is not None and len(file_changes) > 0}",
+        "reasoning": f"{len(hits)}/{total} checks passed",
     }
-
     print(json.dumps(result))
     return 0
 
