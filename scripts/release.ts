@@ -121,6 +121,11 @@ async function main() {
     console.log(`   ✓ ${pkg.name}: ${oldVersion} → ${newVersion}`);
   }
 
+  // Format modified files so they pass lint
+  for (const pkgPath of PACKAGE_PATHS) {
+    await $`bunx biome format --write ${pkgPath}`;
+  }
+
   // Stage changes
   console.log('\n📝 Committing version bump...');
   for (const pkgPath of PACKAGE_PATHS) {
