@@ -9,6 +9,12 @@ import type { GitUrlInfo } from './git-url-parser.js';
 const execFileAsync = promisify(execFile);
 
 /**
+ * Environment variables for git operations.
+ * GIT_TERMINAL_PROMPT=0 prevents git from hanging on auth prompts in non-interactive mode.
+ */
+const GIT_ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+
+/**
  * Default cache root directory for cloned repositories.
  * Located at ~/.agentv/cache/repos
  */
@@ -87,7 +93,26 @@ async function isGitRepo(dirPath: string): Promise<boolean> {
 }
 
 /**
+ * Check if a git error message indicates an authentication failure.
+ */
+function isAuthError(message: string): boolean {
+  const authPatterns = [
+    'Authentication failed',
+    'could not read Username',
+    'terminal prompts disabled',
+    'HTTP 401',
+    'HTTP 403',
+    'fatal: repository .* not found',
+    'Permission denied',
+  ];
+  return authPatterns.some((pattern) => new RegExp(pattern, 'i').test(message));
+}
+
+/**
  * Clone or fetch a repository to the cache.
+ *
+ * Relies on the user's existing git credentials (SSH keys, credential helpers, etc.).
+ * Sets GIT_TERMINAL_PROMPT=0 to prevent hanging on auth prompts.
  *
  * Behavior:
  * - If repo dir doesn't exist: clones with `git clone --depth 1 --single-branch --branch {ref} {cloneUrl} {path}`
@@ -114,29 +139,43 @@ export async function ensureRepoCloned(info: GitUrlInfo, cacheRoot?: string): Pr
     // Clone the repository with shallow clone for efficiency
     // Using execFile instead of exec to prevent command injection
     try {
-      await execFileAsync('git', [
-        'clone',
-        '--depth',
-        '1',
-        '--single-branch',
-        '--branch',
-        info.ref,
-        info.cloneUrl,
-        repoDir,
-      ]);
+      await execFileAsync(
+        'git',
+        [
+          'clone',
+          '--depth',
+          '1',
+          '--single-branch',
+          '--branch',
+          info.ref,
+          info.cloneUrl,
+          repoDir,
+        ],
+        { env: GIT_ENV },
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to clone repository ${info.cloneUrl}: ${errorMessage}`);
+      const hint = isAuthError(errorMessage)
+        ? '\nHint: Authenticate with your git host first (e.g., `gh auth login` for GitHub).'
+        : '';
+      throw new Error(`Failed to clone repository ${info.cloneUrl}: ${errorMessage}${hint}`);
     }
   } else if (isRepo) {
     // Fetch latest changes and reset to FETCH_HEAD
     // Using execFile instead of exec to prevent command injection
     try {
-      await execFileAsync('git', ['-C', repoDir, 'fetch', 'origin', info.ref, '--depth=1']);
-      await execFileAsync('git', ['-C', repoDir, 'reset', '--hard', 'FETCH_HEAD']);
+      await execFileAsync('git', ['-C', repoDir, 'fetch', 'origin', info.ref, '--depth=1'], {
+        env: GIT_ENV,
+      });
+      await execFileAsync('git', ['-C', repoDir, 'reset', '--hard', 'FETCH_HEAD'], {
+        env: GIT_ENV,
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to update repository ${info.cloneUrl}: ${errorMessage}`);
+      const hint = isAuthError(errorMessage)
+        ? '\nHint: Authenticate with your git host first (e.g., `gh auth login` for GitHub).'
+        : '';
+      throw new Error(`Failed to update repository ${info.cloneUrl}: ${errorMessage}${hint}`);
     }
   } else {
     // Directory exists but is not a git repo - this is unexpected
