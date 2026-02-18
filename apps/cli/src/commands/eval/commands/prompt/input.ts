@@ -1,4 +1,5 @@
-import { buildPromptInputs, loadEvalCaseById } from '@agentv/core';
+import type { JsonObject, TestMessage } from '@agentv/core';
+import { loadEvalCaseById } from '@agentv/core';
 import { command, option, positional, string } from 'cmd-ts';
 
 import { findRepoRoot } from '../../shared.js';
@@ -23,15 +24,19 @@ export const evalPromptInputCommand = command({
     const repoRoot = await findRepoRoot(cwd);
 
     const evalCase = await loadEvalCaseById(args.evalPath, repoRoot, args.evalId);
-    const promptInputs = await buildPromptInputs(evalCase);
+
+    // Build mapping from relative file names to resolved absolute paths.
+    // input_segments has resolvedPath for non-guideline files;
+    // file_paths (which includes guidelines) is used as a fallback.
+    const fileMap = buildFileMap(evalCase.input_segments, evalCase.file_paths);
+
+    // Resolve file references in input_messages to absolute paths
+    const resolvedMessages = resolveMessages(evalCase.input_messages, fileMap);
 
     const output = {
       eval_id: evalCase.id,
-      question: promptInputs.question,
-      system_message: promptInputs.systemMessage ?? null,
-      guidelines: promptInputs.guidelines || null,
-      input_messages: evalCase.input_messages,
-      file_paths: evalCase.file_paths,
+      input_messages: resolvedMessages,
+      guideline_paths: evalCase.guideline_paths,
       expected_outcome: evalCase.expected_outcome,
     };
 
@@ -39,3 +44,79 @@ export const evalPromptInputCommand = command({
     process.stdout.write('\n');
   },
 });
+
+/**
+ * Build a mapping from relative file names to resolved absolute paths.
+ * Uses input_segments (which have resolvedPath) as the primary source,
+ * then falls back to suffix-matching against all file_paths for
+ * guideline files (which are excluded from input_segments).
+ */
+function buildFileMap(
+  inputSegments: readonly JsonObject[],
+  allFilePaths: readonly string[],
+): Map<string, string> {
+  const map = new Map<string, string>();
+
+  for (const segment of inputSegments) {
+    if (
+      segment.type === 'file' &&
+      typeof segment.path === 'string' &&
+      typeof segment.resolvedPath === 'string'
+    ) {
+      map.set(segment.path, segment.resolvedPath);
+    }
+  }
+
+  // For guideline files not in input_segments, match by suffix against file_paths
+  return {
+    get(key: string): string | undefined {
+      const direct = map.get(key);
+      if (direct) return direct;
+      // Suffix match: "file.md" matches "/abs/path/to/file.md"
+      return allFilePaths.find((p) => p.endsWith(`/${key}`) || p === key);
+    },
+    has(key: string): boolean {
+      return this.get(key) !== undefined;
+    },
+  } as Map<string, string>;
+}
+
+/**
+ * Resolve file references in messages, replacing relative values with absolute paths.
+ * The agent can then read these files directly from the filesystem.
+ */
+function resolveMessages(
+  messages: readonly TestMessage[],
+  fileMap: Map<string, string>,
+): JsonObject[] {
+  return messages.map((message) => {
+    if (typeof message.content === 'string') {
+      return { role: message.role, content: message.content } as JsonObject;
+    }
+
+    if (!Array.isArray(message.content)) {
+      return { role: message.role, content: message.content } as JsonObject;
+    }
+
+    const resolvedContent: JsonObject[] = [];
+    for (const segment of message.content) {
+      if (typeof segment === 'string') {
+        resolvedContent.push({ type: 'text', value: segment } as JsonObject);
+        continue;
+      }
+
+      const obj = segment as JsonObject;
+      if (obj.type === 'file' && typeof obj.value === 'string') {
+        const resolved = fileMap.get(obj.value);
+        resolvedContent.push({
+          type: 'file',
+          path: resolved ?? obj.value,
+        } as JsonObject);
+      } else {
+        resolvedContent.push(obj);
+      }
+    }
+
+    return { role: message.role, content: resolvedContent } as JsonObject;
+  });
+}
