@@ -11,9 +11,9 @@ export function getAgentvTemplates(): Template[] {
   return getTemplatesFromDir('.agentv');
 }
 
-export function getClaudeTemplates(): Template[] {
+export function getAgentsTemplates(): Template[] {
   if (isDistRuntime()) {
-    return getTemplatesFromDir('.claude');
+    return getTemplatesFromDir('.agents');
   }
 
   // Dev mode: use repo-root skills/ folder (marketplace-compatible location)

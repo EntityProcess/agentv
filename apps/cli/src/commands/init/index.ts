@@ -3,7 +3,7 @@ import path from 'node:path';
 import * as readline from 'node:readline/promises';
 import { command, option, optional, string } from 'cmd-ts';
 
-import { getAgentvTemplates, getClaudeTemplates } from '../../templates/index.js';
+import { getAgentsTemplates, getAgentvTemplates } from '../../templates/index.js';
 
 export interface InitCommandOptions {
   targetPath?: string;
@@ -26,11 +26,11 @@ async function promptYesNo(message: string): Promise<boolean> {
 export async function initCommand(options: InitCommandOptions = {}): Promise<void> {
   const targetPath = path.resolve(options.targetPath ?? '.');
   const agentvDir = path.join(targetPath, '.agentv');
-  const claudeDir = path.join(targetPath, '.claude');
+  const agentsDir = path.join(targetPath, '.agents');
 
   // Get templates
   const agentvTemplates = getAgentvTemplates();
-  const claudeTemplates = getClaudeTemplates();
+  const agentsTemplates = getAgentsTemplates();
 
   // Separate .env.example from other .agentv templates
   const envTemplate = agentvTemplates.find((t) => t.path === '.env.example');
@@ -55,9 +55,9 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
       }
     }
   }
-  if (existsSync(claudeDir)) {
-    for (const template of claudeTemplates) {
-      const targetFilePath = path.join(claudeDir, template.path);
+  if (existsSync(agentsDir)) {
+    for (const template of agentsTemplates) {
+      const targetFilePath = path.join(agentsDir, template.path);
       if (existsSync(targetFilePath)) {
         existingFiles.push(path.relative(targetPath, targetFilePath));
       }
@@ -85,9 +85,9 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     mkdirSync(agentvDir, { recursive: true });
   }
 
-  // Create .claude directory if it doesn't exist
-  if (!existsSync(claudeDir)) {
-    mkdirSync(claudeDir, { recursive: true });
+  // Create .agents directory if it doesn't exist
+  if (!existsSync(agentsDir)) {
+    mkdirSync(agentsDir, { recursive: true });
   }
 
   // Create .env.example in the current working directory
@@ -112,9 +112,9 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     console.log(`Created ${path.relative(targetPath, targetFilePath)}`);
   }
 
-  // Copy each .claude template
-  for (const template of claudeTemplates) {
-    const targetFilePath = path.join(claudeDir, template.path);
+  // Copy each .agents template
+  for (const template of agentsTemplates) {
+    const targetFilePath = path.join(agentsDir, template.path);
     const targetDirPath = path.dirname(targetFilePath);
 
     // Create directory if needed
@@ -136,8 +136,8 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   for (const t of otherAgentvTemplates) {
     console.log(`  - ${t.path}`);
   }
-  console.log(`\nFiles installed to ${path.relative(targetPath, claudeDir)}:`);
-  for (const t of claudeTemplates) {
+  console.log(`\nFiles installed to ${path.relative(targetPath, agentsDir)}:`);
+  for (const t of agentsTemplates) {
     console.log(`  - ${t.path}`);
   }
   console.log('\nYou can now:');

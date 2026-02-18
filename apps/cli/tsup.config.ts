@@ -42,7 +42,7 @@ export default defineConfig({
     });
 
     // Also copy agentv skills from repo root (source of truth)
-    const distSkillsDir = path.join(distTemplatesDir, '.claude', 'skills');
+    const distSkillsDir = path.join(distTemplatesDir, '.agents', 'skills');
     for (const skill of SKILLS_TO_INCLUDE) {
       const source = path.join(rootSkillsDir, skill);
       const target = path.join(distSkillsDir, skill);
