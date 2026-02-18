@@ -1,4 +1,4 @@
-import { loadEvalCases } from '@agentv/core';
+import { type EvalCase, loadEvalCases } from '@agentv/core';
 import { command, restPositionals, string } from 'cmd-ts';
 
 import { findRepoRoot, resolveEvalPaths } from '../shared.js';
@@ -18,50 +18,75 @@ export const evalPromptCommand = command({
     const resolvedPaths = await resolveEvalPaths(args.evalPaths, cwd);
     const repoRoot = await findRepoRoot(cwd);
 
+    // Collect all cases upfront for the summary
+    const fileEntries: Array<{ path: string; cases: readonly EvalCase[] }> = [];
+    for (const evalPath of resolvedPaths) {
+      const cases = await loadEvalCases(evalPath, repoRoot);
+      fileEntries.push({ path: evalPath, cases });
+    }
+
+    const totalCases = fileEntries.reduce((sum, e) => sum + e.cases.length, 0);
+
     const lines: string[] = [
       '# AgentV Eval Orchestration',
       '',
-      'You are orchestrating AI agent evaluations. For each eval case below, follow this loop:',
+      `You are orchestrating ${totalCases} evaluation case${totalCases === 1 ? '' : 's'}. For each case: get the task input, execute it, then judge the result.`,
       '',
-      '## Workflow',
+      '## Step 1: Get Task Input',
       '',
-      '1. **Get input**: Run `agentv eval input <path> --eval-id <id>` to get the task as JSON',
-      '   - Use `question` (flat string) or `input_messages` (structured chat) as the prompt',
-      '   - Prepend `guidelines` to the system message if present',
-      '   - `expected_outcome` describes what a good answer should accomplish',
+      'Run `agentv eval input <path> --eval-id <id>` to get the task as JSON.',
       '',
-      '2. **Execute task**: Send the prompt to your LLM and collect the response',
+      'The output contains:',
+      '- `question` — flat string prompt (use for simple single-turn tasks)',
+      '- `input_messages` — structured `[{role, content}]` array (use for multi-turn or chat APIs)',
+      '- `guidelines` — additional context to prepend to the system message (may be null)',
+      '- `expected_outcome` — what a good answer should accomplish (for your reference, do not leak to the agent being tested)',
+      '- `file_paths` — referenced files (content is already embedded in `question`)',
       '',
-      '3. **Save output**: Write the LLM response to a text file',
+      '## Step 2: Execute the Task',
       '',
-      '4. **Judge**: Run `agentv eval judge <path> --eval-id <id> --output-file <file>`',
-      '   The judge returns JSON with an `evaluators` array. Each evaluator has a `status`:',
-      '   - `"completed"`: Deterministic result (code_judge). Read `result.score` directly.',
-      '   - `"prompt_ready"`: LLM grading needed. Send `prompt.system_prompt` and `prompt.user_prompt`',
-      '     to your LLM. The response will be a JSON object with `score` (0-1), `hits`, `misses`.',
+      'Send the prompt to the agent/LLM being evaluated. Save the complete response text to a file.',
+      '',
+      '## Step 3: Judge the Result',
+      '',
+      'Run `agentv eval judge <path> --eval-id <id> --output-file <response-file>`.',
+      '',
+      'The output contains an `evaluators` array. Each evaluator has a `status`:',
+      '',
+      '- **`"completed"`** — Score is final (code_judge ran deterministically). Read `result.score` (0.0–1.0).',
+      '- **`"prompt_ready"`** — LLM grading required. Send `prompt.system_prompt` as system and',
+      '  `prompt.user_prompt` as user to your LLM. Parse the JSON response to get `score`, `hits`, `misses`.',
       '',
     ];
 
-    for (const evalPath of resolvedPaths) {
-      const cases = await loadEvalCases(evalPath, repoRoot);
-      lines.push(`## Eval Cases: ${evalPath}`);
+    for (const { path: evalPath, cases } of fileEntries) {
+      lines.push(`## ${evalPath}`);
       lines.push('');
 
       for (const evalCase of cases) {
+        const evaluatorSummary = describeEvaluators(evalCase);
         lines.push(`### ${evalCase.id}`);
         lines.push(`Expected outcome: ${evalCase.expected_outcome}`);
+        if (evaluatorSummary) {
+          lines.push(`Evaluators: ${evaluatorSummary}`);
+        }
         lines.push('');
         lines.push('```bash');
         lines.push(`agentv eval input ${evalPath} --eval-id ${evalCase.id}`);
         lines.push(
-          `agentv eval judge ${evalPath} --eval-id ${evalCase.id} --output-file <output-file>`,
+          `agentv eval judge ${evalPath} --eval-id ${evalCase.id} --output-file <response-file>`,
         );
         lines.push('```');
         lines.push('');
       }
     }
 
-    // Write to stdout, warnings to stderr
     process.stdout.write(lines.join('\n'));
   },
 });
+
+function describeEvaluators(evalCase: EvalCase): string | undefined {
+  const configs = evalCase.evaluators;
+  if (!configs || configs.length === 0) return undefined;
+  return configs.map((c) => `${c.name} (${c.type})`).join(', ');
+}
