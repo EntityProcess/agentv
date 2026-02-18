@@ -44,7 +44,7 @@ cases:
 
 **5. Run the eval:**
 ```bash
-agentv eval ./evals/example.yaml
+agentv run ./evals/example.yaml
 ```
 
 Results appear in `.agentv/results/eval_<timestamp>.jsonl` with scores, reasoning, and execution traces.
@@ -128,19 +128,19 @@ Benefits: Streaming-friendly, Git-friendly diffs, programmatic generation, indus
 agentv validate evals/my-eval.yaml
 
 # Run an eval with default target (from eval file or targets.yaml)
-agentv eval evals/my-eval.yaml
+agentv run evals/my-eval.yaml
 
 # Override target
-agentv eval --target azure_base evals/**/*.yaml
+agentv run --target azure_base evals/**/*.yaml
 
 # Run specific eval case
-agentv eval --eval-id case-123 evals/my-eval.yaml
+agentv run --eval-id case-123 evals/my-eval.yaml
 
 # Dry-run with mock provider
-agentv eval --dry-run evals/my-eval.yaml
+agentv run --dry-run evals/my-eval.yaml
 ```
 
-See `agentv eval --help` for all options: workers, timeouts, output formats, trace dumping, and more.
+See `agentv run --help` for all options: workers, timeouts, output formats, trace dumping, and more.
 
 ### Create Custom Evaluators
 
@@ -187,9 +187,9 @@ For complete templates, examples, and evaluator patterns, see: [custom-evaluator
 Run two evaluations and compare them:
 
 ```bash
-agentv eval evals/my-eval.yaml --out before.jsonl
+agentv run evals/my-eval.yaml --out before.jsonl
 # ... make changes to your agent ...
-agentv eval evals/my-eval.yaml --out after.jsonl
+agentv run evals/my-eval.yaml --out after.jsonl
 agentv compare before.jsonl after.jsonl --threshold 0.1
 ```
 

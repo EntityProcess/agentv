@@ -3,7 +3,8 @@ import { binary, run, subcommands } from 'cmd-ts';
 import packageJson from '../package.json' with { type: 'json' };
 import { compareCommand } from './commands/compare/index.js';
 import { convertCommand } from './commands/convert/index.js';
-import { evalCommand } from './commands/eval/index.js';
+import { evalPromptCommand } from './commands/eval/commands/prompt/index.js';
+import { evalRunCommand } from './commands/eval/commands/run.js';
 import { generateCommand } from './commands/generate/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
 import { selfCommand } from './commands/self/index.js';
@@ -14,9 +15,10 @@ export const app = subcommands({
   description: 'AgentV CLI',
   version: packageJson.version,
   cmds: {
+    run: evalRunCommand,
+    prompt: evalPromptCommand,
     compare: compareCommand,
     convert: convertCommand,
-    eval: evalCommand,
     generate: generateCommand,
     init: initCmdTsCommand,
     self: selfCommand,
@@ -24,46 +26,60 @@ export const app = subcommands({
   },
 });
 
-/** Known eval subcommands used for backwards-compat detection. */
-const EVAL_SUBCOMMANDS = new Set(['run', 'prompt']);
-
 /** Known prompt subcommands used for default insertion. */
 const PROMPT_SUBCOMMANDS = new Set(['overview', 'input', 'judge']);
 
 /**
- * Preprocess argv for backwards compatibility:
- * 1. `agentv eval file.yaml` → `agentv eval run file.yaml`
- * 2. `agentv eval prompt file.yaml` → `agentv eval prompt overview file.yaml`
+ * Preprocess argv for backwards compatibility and default subcommand insertion:
+ * 1. `agentv eval ...` → `agentv run ...` (deprecated alias)
+ * 2. `agentv eval prompt ...` → `agentv prompt ...` (deprecated alias)
+ * 3. `agentv file.yaml` → `agentv run file.yaml` (bare file shorthand)
+ * 4. `agentv prompt file.yaml` → `agentv prompt overview file.yaml` (default subcommand)
  */
-export function preprocessEvalArgv(argv: string[]): string[] {
-  const evalIndex = argv.indexOf('eval');
-  if (evalIndex === -1) {
-    return argv;
-  }
-
+export function preprocessArgv(argv: string[]): string[] {
   const result = [...argv];
-  const nextArg = result[evalIndex + 1];
 
-  // If there's no arg after eval, or the arg isn't a known subcommand,
-  // insert 'run' to route to the default eval run command.
-  if (nextArg === undefined || !EVAL_SUBCOMMANDS.has(nextArg)) {
-    result.splice(evalIndex + 1, 0, 'run');
-    return result;
+  const evalIndex = result.indexOf('eval');
+  if (evalIndex !== -1) {
+    const nextArg = result[evalIndex + 1];
+
+    if (nextArg === 'prompt') {
+      // `agentv eval prompt ...` → `agentv prompt ...`
+      result.splice(evalIndex, 2, 'prompt');
+      printEvalDeprecation('prompt');
+    } else if (nextArg === 'run') {
+      // `agentv eval run ...` → `agentv run ...`
+      result.splice(evalIndex, 2, 'run');
+      printEvalDeprecation('run');
+    } else {
+      // `agentv eval file.yaml ...` → `agentv run file.yaml ...`
+      result.splice(evalIndex, 1, 'run');
+      printEvalDeprecation('run');
+    }
   }
 
-  // If `eval prompt` is followed by something that isn't a known prompt subcommand,
-  // insert 'overview' to default to the orchestration overview.
-  if (nextArg === 'prompt') {
-    const promptNextArg = result[evalIndex + 2];
+  // Insert default prompt subcommand: `agentv prompt file.yaml` → `agentv prompt overview file.yaml`
+  const promptIndex = result.indexOf('prompt');
+  if (promptIndex !== -1) {
+    const promptNextArg = result[promptIndex + 1];
     if (promptNextArg === undefined || !PROMPT_SUBCOMMANDS.has(promptNextArg)) {
-      result.splice(evalIndex + 2, 0, 'overview');
+      result.splice(promptIndex + 1, 0, 'overview');
     }
   }
 
   return result;
 }
 
+/** @deprecated Use {@link preprocessArgv} instead. */
+export const preprocessEvalArgv = preprocessArgv;
+
+function printEvalDeprecation(replacement: string): void {
+  console.error(
+    `⚠  \`agentv eval\` is deprecated. Use \`agentv ${replacement}\` instead.\n   This alias will be removed in v4.0.\n`,
+  );
+}
+
 export async function runCli(argv: string[] = process.argv): Promise<void> {
-  const processedArgv = preprocessEvalArgv(argv);
+  const processedArgv = preprocessArgv(argv);
   await run(binary(app), processedArgv);
 }

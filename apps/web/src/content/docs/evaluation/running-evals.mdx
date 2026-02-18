@@ -8,7 +8,7 @@ sidebar:
 ## Run an Evaluation
 
 ```bash
-agentv eval evals/my-eval.yaml
+agentv run evals/my-eval.yaml
 ```
 
 Results are written to `.agentv/results/eval_<timestamp>.jsonl`.
@@ -20,7 +20,7 @@ Results are written to `.agentv/results/eval_<timestamp>.jsonl`.
 Run against a different target than specified in the eval file:
 
 ```bash
-agentv eval --target azure_base evals/**/*.yaml
+agentv run --target azure_base evals/**/*.yaml
 ```
 
 ### Run Specific Eval Case
@@ -28,7 +28,7 @@ agentv eval --target azure_base evals/**/*.yaml
 Run a single eval case by ID:
 
 ```bash
-agentv eval --eval-id case-123 evals/my-eval.yaml
+agentv run --eval-id case-123 evals/my-eval.yaml
 ```
 
 ### Dry Run
@@ -36,7 +36,7 @@ agentv eval --eval-id case-123 evals/my-eval.yaml
 Test the harness flow with mock responses (does not call real providers):
 
 ```bash
-agentv eval --dry-run evals/my-eval.yaml
+agentv run --dry-run evals/my-eval.yaml
 ```
 
 :::note
@@ -46,7 +46,7 @@ Dry-run returns mock responses that don't match evaluator output schemas. Use it
 ### Output to Specific File
 
 ```bash
-agentv eval evals/my-eval.yaml --out results/baseline.jsonl
+agentv run evals/my-eval.yaml --out results/baseline.jsonl
 ```
 
 ### Trace Persistence
@@ -54,7 +54,7 @@ agentv eval evals/my-eval.yaml --out results/baseline.jsonl
 Persist full execution traces (tool calls, timing, spans) to disk for debugging and analysis:
 
 ```bash
-agentv eval evals/my-eval.yaml --trace
+agentv run evals/my-eval.yaml --trace
 ```
 
 Traces are written to `.agentv/traces/<timestamp>/<eval-file>.trace.jsonl` as JSONL records containing:
@@ -70,10 +70,10 @@ When using `workspace_template`, temporary workspaces are created for each eval 
 
 ```bash
 # Always keep workspaces (for debugging)
-agentv eval evals/my-eval.yaml --keep-workspaces
+agentv run evals/my-eval.yaml --keep-workspaces
 
 # Always cleanup workspaces (even on failure)
-agentv eval evals/my-eval.yaml --cleanup-workspaces
+agentv run evals/my-eval.yaml --cleanup-workspaces
 ```
 
 Workspaces are stored at `~/.agentv/workspaces/<eval-run-id>/<case-id>/`.
@@ -93,7 +93,7 @@ Run evaluations without API keys by letting an external agent (e.g., Claude Code
 ### Overview
 
 ```bash
-agentv eval prompt evals/my-eval.yaml
+agentv prompt evals/my-eval.yaml
 ```
 
 Outputs a step-by-step orchestration prompt listing all eval cases and the commands to run for each.
@@ -101,7 +101,7 @@ Outputs a step-by-step orchestration prompt listing all eval cases and the comma
 ### Get Task Input
 
 ```bash
-agentv eval prompt input evals/my-eval.yaml --eval-id case-123
+agentv prompt input evals/my-eval.yaml --eval-id case-123
 ```
 
 Returns JSON with:
@@ -112,7 +112,7 @@ Returns JSON with:
 ### Judge the Result
 
 ```bash
-agentv eval prompt judge evals/my-eval.yaml --eval-id case-123 --answer-file response.txt
+agentv prompt judge evals/my-eval.yaml --eval-id case-123 --answer-file response.txt
 ```
 
 Runs code judges deterministically and returns LLM judge prompts for the agent to execute. Each evaluator in the output has a `status`:
@@ -124,9 +124,9 @@ Runs code judges deterministically and returns LLM judge prompts for the agent t
 
 | Scenario | Command |
 |----------|---------|
-| Have API keys, want end-to-end automation | `agentv eval` (default `run`) |
-| No API keys, agent can act as the LLM | `agentv eval prompt` |
+| Have API keys, want end-to-end automation | `agentv run` |
+| No API keys, agent can act as the LLM | `agentv prompt` |
 
 ## All Options
 
-Run `agentv eval --help` for the full list of options including workers, timeouts, output formats, and trace dumping.
+Run `agentv run --help` for the full list of options including workers, timeouts, output formats, and trace dumping.

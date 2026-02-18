@@ -23,7 +23,7 @@ description: Iteratively optimize prompt files against AgentV evaluation dataset
     - Read content of the identified prompt file.
 
 2.  **Optimization Loop** (Max 10 iterations)
-    - **Execute (The Generator)**: Run `agentv eval <eval-path>`.
+    - **Execute (The Generator)**: Run `agentv run <eval-path>`.
         - *Targeted Run*: If iterating on specific stubborn failures, use `--eval-id <case_id>` to run only the relevant eval cases.
     - **Analyze (The Reflector)**:
         - Locate the results file path from the console output (e.g., `.agentv/results/eval_...jsonl`).

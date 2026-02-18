@@ -142,12 +142,12 @@ afterEach(async () => {
   }
 });
 
-describe('agentv eval CLI', () => {
+describe('agentv run CLI', () => {
   it('writes results, summary, and prompt dumps using default directories', async () => {
     const fixture = await createFixture();
     fixtures.push(fixture.baseDir);
 
-    const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath, '--verbose']);
+    const { stdout } = await runCli(fixture, ['run', fixture.testFilePath, '--verbose']);
 
     // Don't check stderr - it may contain stack traces or other diagnostics
     expect(stdout).toContain('Using target (test-file): file-target [provider=mock]');
@@ -171,5 +171,21 @@ describe('agentv eval CLI', () => {
     });
 
     // Prompt dump feature has been removed, so we no longer check for it
+  });
+});
+
+describe('agentv eval backward compatibility', () => {
+  it('`agentv eval` still works as deprecated alias for `agentv run`', async () => {
+    const fixture = await createFixture();
+    fixtures.push(fixture.baseDir);
+
+    const { stdout, stderr } = await runCli(fixture, ['eval', fixture.testFilePath, '--verbose']);
+
+    // Should print deprecation warning
+    expect(stderr).toContain('`agentv eval` is deprecated');
+    expect(stderr).toContain('Use `agentv run` instead');
+
+    // Should still work
+    expect(stdout).toContain('Mean score: 0.750');
   });
 });

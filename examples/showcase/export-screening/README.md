@@ -40,7 +40,7 @@ From the repository root:
 cd examples/showcase/export-screening
 
 # Run evaluation (produces per-case results)
-bun agentv eval ./evals/dataset.yaml --out results.jsonl
+bun agentv run ./evals/dataset.yaml --out results.jsonl
 ```
 
 ### Computing Metrics
@@ -55,7 +55,7 @@ bun run ./evals/ci_check.ts results.jsonl --threshold 0.95 --check-class High
 
 ```mermaid
 flowchart LR
-    A[dataset.yaml] --> B[bun agentv eval]
+    A[dataset.yaml] --> B[bun agentv run]
     B --> C[results.jsonl<br/>per-case scores]
     C --> D[ci_check.ts<br/>confusion matrix + P/R/F1 + policy-weighted overall]
 ```
@@ -143,7 +143,7 @@ bun run ./evals/ci_check.ts results.jsonl --threshold 0.95
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--eval` | - | Run agentv eval on this dataset first |
+| `--eval` | - | Run agentv run on this dataset first |
 | `--threshold` | `0.95` | F1 score threshold (0.0-1.0) |
 | `--check-class` | `High` | Risk class to validate (`Low`, `Medium`, `High`) |
 | `--output` | (auto) | Optional JSON output file |

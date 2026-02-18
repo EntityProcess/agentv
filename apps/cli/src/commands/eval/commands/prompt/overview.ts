@@ -34,7 +34,7 @@ export const evalPromptOverviewCommand = command({
       '',
       '## Step 1: Get Task Input',
       '',
-      'Run `agentv eval prompt input <path> --eval-id <id>` to get the task as JSON.',
+      'Run `agentv prompt input <path> --eval-id <id>` to get the task as JSON.',
       '',
       'The output contains:',
       '- `input_messages` — `[{role, content}]` array. Content segments are either `{type: "text", value: "..."}` or `{type: "file", path: "/absolute/path"}`. Read file segments from the filesystem.',
@@ -47,7 +47,7 @@ export const evalPromptOverviewCommand = command({
       '',
       '## Step 3: Judge the Result',
       '',
-      'Run `agentv eval prompt judge <path> --eval-id <id> --answer-file <response-file>`.',
+      'Run `agentv prompt judge <path> --eval-id <id> --answer-file <response-file>`.',
       '',
       'The output contains an `evaluators` array. Each evaluator has a `status`:',
       '',
@@ -70,9 +70,9 @@ export const evalPromptOverviewCommand = command({
         }
         lines.push('');
         lines.push('```bash');
-        lines.push(`agentv eval prompt input ${evalPath} --eval-id ${evalCase.id}`);
+        lines.push(`agentv prompt input ${evalPath} --eval-id ${evalCase.id}`);
         lines.push(
-          `agentv eval prompt judge ${evalPath} --eval-id ${evalCase.id} --answer-file <response-file>`,
+          `agentv prompt judge ${evalPath} --eval-id ${evalCase.id} --answer-file <response-file>`,
         );
         lines.push('```');
         lines.push('');

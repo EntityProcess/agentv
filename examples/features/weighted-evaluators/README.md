@@ -13,7 +13,7 @@ Demonstrates weighted evaluator configurations for prioritizing different evalua
 
 ```bash
 # From repository root
-bun agentv eval examples/features/weighted-evaluators/evals/dataset.yaml
+bun agentv run examples/features/weighted-evaluators/evals/dataset.yaml
 ```
 
 ## Key Files
