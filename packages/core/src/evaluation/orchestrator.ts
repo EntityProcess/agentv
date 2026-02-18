@@ -56,7 +56,6 @@ import type {
 } from './types.js';
 import {
   captureFileChanges as captureWorkspaceFileChanges,
-  cleanupBaseline,
   initializeBaseline,
 } from './workspace/file-changes.js';
 import {
@@ -647,10 +646,10 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   // Initialize git baseline for file change tracking when workspace is configured
-  let baselineInfo: { baselineCommit: string; gitDir: string } | undefined;
+  let baselineCommit: string | undefined;
   if (workspacePath) {
     try {
-      baselineInfo = await initializeBaseline(workspacePath);
+      baselineCommit = await initializeBaseline(workspacePath);
     } catch {
       // Non-fatal: file change tracking is best-effort
     }
@@ -671,7 +670,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         agentTimeoutMs,
         signal,
         cwd: workspacePath,
-        captureFileChanges: !!baselineInfo,
+        captureFileChanges: !!baselineCommit,
       });
     } catch (error) {
       lastError = error;
@@ -754,20 +753,14 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   // Capture file changes from workspace if baseline was initialized
   let fileChanges: string | undefined;
-  if (baselineInfo && workspacePath) {
+  if (baselineCommit && workspacePath) {
     try {
-      const diff = await captureWorkspaceFileChanges(
-        workspacePath,
-        baselineInfo.baselineCommit,
-        baselineInfo.gitDir,
-      );
+      const diff = await captureWorkspaceFileChanges(workspacePath, baselineCommit);
       if (diff.length > 0) {
         fileChanges = diff;
       }
     } catch {
       // Non-fatal: file change tracking is best-effort
-    } finally {
-      await cleanupBaseline(baselineInfo.gitDir).catch(() => {});
     }
   }
 
