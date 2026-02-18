@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agentv",
-  "description": "AI agent evaluation framework with declarative YAML configs",
+  "description": "Evaluate and optimize AI agents",
   "owner": {
     "name": "AgentV",
     "email": "support@agentv.dev"
