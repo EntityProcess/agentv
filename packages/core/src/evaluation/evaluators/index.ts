@@ -41,9 +41,16 @@ export type { LatencyEvaluatorOptions } from './latency.js';
 export {
   LlmJudgeEvaluator,
   buildOutputSchema,
+  buildRubricOutputSchema,
+  buildScoreRangeOutputSchema,
+  DEFAULT_EVALUATOR_TEMPLATE,
+  substituteVariables,
   freeformEvaluationSchema,
 } from './llm-judge.js';
 export type { LlmJudgeEvaluatorOptions } from './llm-judge.js';
+
+export { assembleLlmJudgePrompt } from './llm-judge-prompt.js';
+export type { LlmJudgePromptAssembly } from './llm-judge-prompt.js';
 
 export { TokenUsageEvaluator } from './token-usage.js';
 export type { TokenUsageEvaluatorOptions } from './token-usage.js';
