@@ -7,7 +7,7 @@
 ```json
 {
   "question": "string",
-  "expected_outcome": "string",
+  "criteria": "string",
   "reference_answer": "string",
   "candidate_answer": "string",
   "guideline_files": ["path"],
@@ -54,7 +54,7 @@ import { defineCodeJudge, createTargetClient, definePromptTemplate } from '@agen
   - `.invoke({question, systemPrompt})` - Single LLM call
   - `.invokeBatch(requests)` - Batch LLM calls
 - `definePromptTemplate(fn)` - Wraps prompt generation function
-  - Context fields: `question`, `candidateAnswer`, `referenceAnswer`, `expectedOutcome`, `expectedMessages`, `outputMessages`, `config`, `traceSummary`
+  - Context fields: `question`, `candidateAnswer`, `referenceAnswer`, `criteria`, `expectedMessages`, `outputMessages`, `config`, `traceSummary`
 
 ## Python Example
 
@@ -86,10 +86,10 @@ if __name__ == "__main__":
 #!/usr/bin/env bun
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, expectedOutcome }) => {
+export default defineCodeJudge(({ candidateAnswer, criteria }) => {
   const hits: string[] = [];
   const misses: string[] = [];
-  if (candidateAnswer.includes(expectedOutcome)) {
+  if (candidateAnswer.includes(criteria)) {
     hits.push('Matches expected outcome');
   } else {
     misses.push('Does not match expected outcome');
@@ -108,7 +108,7 @@ Derived from eval case fields (users never author these directly):
 | Variable | Source |
 |----------|--------|
 | `question` | First user message in `input_messages` |
-| `expected_outcome` | Eval case `expected_outcome` field |
+| `criteria` | Eval case `criteria` field |
 | `reference_answer` | Last entry in `expected_messages` |
 | `candidate_answer` | Last entry in `output_messages` (runtime) |
 | `input_messages` | Full resolved input array (JSON) |

@@ -37,7 +37,8 @@ type SidecarMetadata = {
 type RawJsonlEvalCase = JsonObject & {
   readonly id?: JsonValue;
   readonly conversation_id?: JsonValue;
-  readonly outcome?: JsonValue;
+  readonly criteria?: JsonValue;
+  /** @deprecated Use `criteria` instead */
   readonly expected_outcome?: JsonValue;
   readonly input_messages?: JsonValue;
   readonly expected_messages?: JsonValue;
@@ -178,8 +179,15 @@ export async function loadEvalCasesFromJsonl(
     }
 
     const conversationId = asString(evalcase.conversation_id);
-    // Support both expected_outcome and outcome (backward compatibility)
-    const outcome = asString(evalcase.expected_outcome) ?? asString(evalcase.outcome);
+    let outcome = asString(evalcase.criteria);
+    if (!outcome && evalcase.expected_outcome !== undefined) {
+      outcome = asString(evalcase.expected_outcome);
+      if (outcome) {
+        logWarning(
+          `Eval case '${asString(evalcase.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
+        );
+      }
+    }
 
     // Resolve input_messages with alias/shorthand support (canonical takes precedence)
     const inputMessages = resolveInputMessages(evalcase);
@@ -188,7 +196,7 @@ export async function loadEvalCasesFromJsonl(
 
     if (!id || !outcome || !inputMessages || inputMessages.length === 0) {
       logError(
-        `Skipping incomplete eval case at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, expected_outcome, and/or input_messages (or input)`,
+        `Skipping incomplete eval case at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, criteria, and/or input_messages (or input)`,
       );
       continue;
     }
@@ -297,7 +305,7 @@ export async function loadEvalCasesFromJsonl(
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
       guideline_patterns: guidelinePatterns,
       file_paths: allFilePaths,
-      expected_outcome: outcome,
+      criteria: outcome,
       evaluator: evalCaseEvaluatorKind,
       evaluators,
     };

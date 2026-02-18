@@ -14,9 +14,9 @@ description: Example eval
 execution:
   target: default
 
-eval_cases:
+cases:
   - id: greeting
-    expected_outcome: Friendly greeting
+    criteria: Friendly greeting
     input: "Say hello"
     expected_output: "Hello! How can I help you?"
     rubrics:
@@ -26,7 +26,7 @@ eval_cases:
 
 ## Eval File Structure
 
-**Required:** `eval_cases` (array)
+**Required:** `cases` (array)
 **Optional:** `description`, `execution`, `dataset`
 
 **Eval case fields:**
@@ -34,7 +34,7 @@ eval_cases:
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | yes | Unique identifier |
-| `expected_outcome` | yes | What the response should accomplish |
+| `criteria` | yes | What the response should accomplish |
 | `input` / `input_messages` | yes | Input to the agent |
 | `expected_output` / `expected_messages` | no | Gold-standard reference answer |
 | `rubrics` | no | Inline evaluation criteria |
@@ -65,7 +65,7 @@ Configure via `execution.evaluators` array. Multiple evaluators produce a weight
   target: {}              # optional: enable LLM target proxy (max_calls: 50)
 ```
 Contract: stdin JSON -> stdout JSON `{score, hits, misses, reasoning}`
-Input includes: `question`, `expected_outcome`, `candidate_answer`, `reference_answer`, `output_messages`, `trace_summary`, `file_changes`, `workspace_path`, `config`
+Input includes: `question`, `criteria`, `candidate_answer`, `reference_answer`, `output_messages`, `trace_summary`, `file_changes`, `workspace_path`, `config`
 When `workspace_template` is configured, `workspace_path` is the absolute path to the workspace dir (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the workspace).
 See docs at https://agentv.dev/evaluators/code-judges/
 
@@ -78,7 +78,7 @@ See docs at https://agentv.dev/evaluators/code-judges/
   config:                       # passed to script templates as context.config
     strictness: high
 ```
-Variables: `{{question}}`, `{{expected_outcome}}`, `{{candidate_answer}}`, `{{reference_answer}}`, `{{input_messages}}`, `{{expected_messages}}`, `{{output_messages}}`, `{{file_changes}}`
+Variables: `{{question}}`, `{{criteria}}`, `{{candidate_answer}}`, `{{reference_answer}}`, `{{input_messages}}`, `{{expected_messages}}`, `{{output_messages}}`, `{{file_changes}}`
 - Markdown templates: use `{{variable}}` syntax
 - TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/eval`, receives context object with all variables + `config`
 
@@ -166,7 +166,7 @@ Score is proportional: `hits / (hits + misses)`. Missing data counts as a miss.
 rubrics:
   - Simple string criterion
   - id: weighted
-    expected_outcome: Detailed criterion
+    criteria: Detailed criterion
     weight: 2.0
     required: true
 ```
@@ -192,7 +192,7 @@ agentv validate <file.yaml>
 # Compare results between runs
 agentv compare <results1.jsonl> <results2.jsonl>
 
-# Generate rubrics from expected_outcome
+# Generate rubrics from criteria
 agentv generate rubrics <file.yaml> [--target <name>]
 ```
 

@@ -1603,7 +1603,7 @@ async function executePromptTemplate(
   // Build payload matching code judge input format for consistency
   const payload = {
     question: context.evalCase.question,
-    expectedOutcome: context.evalCase.expected_outcome,
+    criteria: context.evalCase.criteria,
     expectedMessages: context.evalCase.expected_messages,
     referenceAnswer: context.evalCase.reference_answer,
     candidateAnswer: context.candidate,

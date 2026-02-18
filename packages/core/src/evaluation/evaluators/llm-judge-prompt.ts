@@ -73,7 +73,7 @@ function assembleFreeform(
     [TEMPLATE_VARIABLES.OUTPUT_MESSAGES]: JSON.stringify([], null, 2),
     [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: candidate.trim(),
     [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (evalCase.reference_answer ?? '').trim(),
-    [TEMPLATE_VARIABLES.EXPECTED_OUTCOME]: evalCase.expected_outcome.trim(),
+    [TEMPLATE_VARIABLES.CRITERIA]: evalCase.criteria.trim(),
     [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
     [TEMPLATE_VARIABLES.FILE_CHANGES]: fileChanges ?? '',
   };
@@ -112,8 +112,8 @@ function assembleChecklist(
     '[[ ## question ## ]]',
     formattedQuestion,
     '',
-    '[[ ## expected_outcome ## ]]',
-    evalCase.expected_outcome,
+    '[[ ## criteria ## ]]',
+    evalCase.criteria,
     '',
   ];
 
@@ -126,7 +126,7 @@ function assembleChecklist(
   for (const rubric of rubrics) {
     const requiredLabel = rubric.required ? ' (REQUIRED)' : '';
     const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
-    parts.push(`- [${rubric.id}]${requiredLabel}${weightLabel}: ${rubric.expected_outcome}`);
+    parts.push(`- [${rubric.id}]${requiredLabel}${weightLabel}: ${rubric.outcome}`);
   }
 
   parts.push('', 'For each rubric, determine if it is satisfied and provide brief reasoning.');
@@ -160,8 +160,8 @@ function assembleScoreRange(
     '[[ ## question ## ]]',
     formattedQuestion,
     '',
-    '[[ ## expected_outcome ## ]]',
-    evalCase.expected_outcome,
+    '[[ ## criteria ## ]]',
+    evalCase.criteria,
     '',
   ];
 
@@ -180,8 +180,8 @@ function assembleScoreRange(
 
     parts.push('', `### Criterion: ${rubric.id}${weightLabel}${minScoreLabel}`);
 
-    if (rubric.expected_outcome) {
-      parts.push(`Description: ${rubric.expected_outcome}`);
+    if (rubric.outcome) {
+      parts.push(`Description: ${rubric.outcome}`);
     }
 
     if (rubric.score_ranges && rubric.score_ranges.length > 0) {
@@ -189,7 +189,7 @@ function assembleScoreRange(
       for (const range of rubric.score_ranges) {
         const [min, max] = range.score_range;
         const rangeLabel = min === max ? `${min}` : `${min}-${max}`;
-        parts.push(`  - Score ${rangeLabel}: ${range.expected_outcome}`);
+        parts.push(`  - Score ${rangeLabel}: ${range.outcome}`);
       }
     }
   }

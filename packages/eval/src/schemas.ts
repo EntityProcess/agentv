@@ -62,7 +62,7 @@ export const MessageSchema = z.object({
  */
 export const CodeJudgeInputSchema = z.object({
   question: z.string(),
-  expectedOutcome: z.string(),
+  criteria: z.string(),
   expectedMessages: z.array(MessageSchema),
   referenceAnswer: z.string().optional(),
   candidateAnswer: z.string(),

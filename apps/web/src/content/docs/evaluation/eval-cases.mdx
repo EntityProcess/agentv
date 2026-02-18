@@ -10,9 +10,9 @@ Eval cases are individual test cases within an evaluation file. Each case define
 ## Basic Structure
 
 ```yaml
-eval_cases:
+cases:
   - id: addition
-    expected_outcome: Correctly calculates 15 + 27 = 42
+    criteria: Correctly calculates 15 + 27 = 42
 
     input: What is 15 + 27?
 
@@ -24,7 +24,7 @@ eval_cases:
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | Yes | Unique identifier for the eval case |
-| `expected_outcome` | Yes | Description of what a correct response should contain |
+| `criteria` | Yes | Description of what a correct response should contain |
 | `input` | Yes | Input sent to the target (string, object, or message array). Alias: `input_messages` |
 | `expected_output` | No | Expected response for comparison (string, object, or message array). Alias: `expected_messages` |
 | `execution` | No | Per-case execution overrides (target, evaluators) |
@@ -70,9 +70,9 @@ expected_output:
 Override the default target or evaluators for specific cases:
 
 ```yaml
-eval_cases:
+cases:
   - id: complex-case
-    expected_outcome: Provides detailed explanation
+    criteria: Provides detailed explanation
     input: Explain quicksort algorithm
 
     execution:
@@ -88,9 +88,9 @@ eval_cases:
 Pass additional context to evaluators via the `sidecar` field:
 
 ```yaml
-eval_cases:
+cases:
   - id: code-gen
-    expected_outcome: Generates valid Python
+    criteria: Generates valid Python
     sidecar:
       language: python
       difficulty: medium

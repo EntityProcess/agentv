@@ -20,9 +20,9 @@ execution:
       type: llm_judge
       prompt: ./judges/correctness.md
 
-eval_cases:
+cases:
   - id: addition
-    expected_outcome: Correctly calculates 15 + 27 = 42
+    criteria: Correctly calculates 15 + 27 = 42
     input: What is 15 + 27?
     expected_output: "42"
 ```
@@ -34,15 +34,15 @@ eval_cases:
 | `description` | Human-readable description of the evaluation |
 | `dataset` | Optional dataset identifier |
 | `execution` | Default execution config (target, evaluators) |
-| `eval_cases` | Array of individual test cases |
+| `cases` | Array of individual test cases |
 
 ## JSONL Format
 
 For large-scale evaluations, AgentV supports JSONL (JSON Lines) format. Each line is a single eval case:
 
 ```jsonl
-{"id": "test-1", "expected_outcome": "Calculates correctly", "input": "What is 2+2?"}
-{"id": "test-2", "expected_outcome": "Provides explanation", "input": "Explain variables"}
+{"id": "test-1", "criteria": "Calculates correctly", "input": "What is 2+2?"}
+{"id": "test-2", "criteria": "Provides explanation", "input": "Explain variables"}
 ```
 
 ### Sidecar Metadata

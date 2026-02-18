@@ -49,14 +49,14 @@ const toolTaskMappings: Record<string, string[]> = {
   validate: ['check', 'validate', 'verify', 'confirm'],
 };
 
-export default defineCodeJudge(({ question, expectedOutcome, outputMessages }) => {
+export default defineCodeJudge(({ question, criteria, outputMessages }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
   const toolCalls = extractToolCalls(outputMessages ?? []);
 
   // Extract keywords from question and expected outcome
-  const taskText = `${question} ${expectedOutcome}`.toLowerCase();
+  const taskText = `${question} ${criteria}`.toLowerCase();
 
   // Determine expected tools based on task keywords
   const expectedTools = new Set<string>();

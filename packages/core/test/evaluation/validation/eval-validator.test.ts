@@ -21,9 +21,9 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'input-alias.yaml');
     await writeFile(
       filePath,
-      `eval_cases:
+      `cases:
   - id: test-1
-    expected_outcome: Goal
+    criteria: Goal
     input: "What is 2+2?"
 `,
     );
@@ -38,9 +38,9 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'input-array.yaml');
     await writeFile(
       filePath,
-      `eval_cases:
+      `cases:
   - id: test-1
-    expected_outcome: Goal
+    criteria: Goal
     input:
       - role: system
         content: Be helpful
@@ -59,9 +59,9 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'output-string.yaml');
     await writeFile(
       filePath,
-      `eval_cases:
+      `cases:
   - id: test-1
-    expected_outcome: Goal
+    criteria: Goal
     input: Query
     expected_output: "The answer is 4"
 `,
@@ -77,9 +77,9 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'output-object.yaml');
     await writeFile(
       filePath,
-      `eval_cases:
+      `cases:
   - id: test-1
-    expected_outcome: Goal
+    criteria: Goal
     input: Query
     expected_output:
       riskLevel: High
@@ -97,9 +97,9 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'missing-input.yaml');
     await writeFile(
       filePath,
-      `eval_cases:
+      `cases:
   - id: test-1
-    expected_outcome: Goal
+    criteria: Goal
 `,
     );
 
@@ -113,9 +113,9 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'invalid-input.yaml');
     await writeFile(
       filePath,
-      `eval_cases:
+      `cases:
   - id: test-1
-    expected_outcome: Goal
+    criteria: Goal
     input: 123
 `,
     );
@@ -130,9 +130,9 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'canonical-precedence.yaml');
     await writeFile(
       filePath,
-      `eval_cases:
+      `cases:
   - id: test-1
-    expected_outcome: Goal
+    criteria: Goal
     input_messages:
       - role: user
         content: Canonical
@@ -146,24 +146,67 @@ describe('validateEvalFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it('accepts deprecated evalcases key with deprecation warning', async () => {
-    const filePath = path.join(tempDir, 'deprecated-evalcases.yaml');
-    await writeFile(
-      filePath,
-      `evalcases:
+  describe('backward-compat aliases', () => {
+    it('accepts eval_cases as deprecated alias for cases (with warning)', async () => {
+      const filePath = path.join(tempDir, 'eval-cases-alias.yaml');
+      await writeFile(
+        filePath,
+        `eval_cases:
+  - id: test-1
+    criteria: Goal
+    input:
+      - role: user
+        content: Query
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(true);
+      const warnings = result.errors.filter((e) => e.severity === 'warning');
+      expect(warnings.some((e) => e.message.includes("'eval_cases' is deprecated"))).toBe(true);
+    });
+
+    it('accepts evalcases as deprecated alias for cases (with warning)', async () => {
+      const filePath = path.join(tempDir, 'evalcases-alias.yaml');
+      await writeFile(
+        filePath,
+        `evalcases:
+  - id: test-1
+    criteria: Goal
+    input:
+      - role: user
+        content: Query
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(true);
+      const warnings = result.errors.filter((e) => e.severity === 'warning');
+      expect(warnings.some((e) => e.message.includes("'evalcases' is deprecated"))).toBe(true);
+    });
+
+    it('accepts expected_outcome as deprecated alias for criteria (with warning)', async () => {
+      const filePath = path.join(tempDir, 'expected-outcome-alias.yaml');
+      await writeFile(
+        filePath,
+        `cases:
   - id: test-1
     expected_outcome: Goal
-    input: "What is 2+2?"
+    input:
+      - role: user
+        content: Query
 `,
-    );
+      );
 
-    const result = await validateEvalFile(filePath);
+      const result = await validateEvalFile(filePath);
 
-    expect(result.valid).toBe(true);
-    expect(
-      result.errors.some(
-        (e) => e.severity === 'warning' && e.message.includes("'evalcases' is deprecated"),
-      ),
-    ).toBe(true);
+      expect(result.valid).toBe(true);
+      const warnings = result.errors.filter((e) => e.severity === 'warning');
+      expect(warnings.some((e) => e.message.includes("'expected_outcome' is deprecated"))).toBe(
+        true,
+      );
+    });
   });
 });

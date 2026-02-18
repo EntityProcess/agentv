@@ -104,7 +104,7 @@ async function processEvaluator(
 
       const payload = {
         question: evalCase.question,
-        expectedOutcome: evalCase.expected_outcome,
+        criteria: evalCase.criteria,
         expectedMessages: evalCase.expected_messages,
         referenceAnswer: evalCase.reference_answer,
         candidateAnswer: candidate,

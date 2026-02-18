@@ -60,7 +60,7 @@
       },
       "additionalProperties": true
     },
-    "eval_cases": {
+    "cases": {
       "type": "array",
       "description": "Array of evaluation cases",
       "minItems": 1,
@@ -75,7 +75,7 @@
             "type": "string",
             "description": "Optional conversation identifier for threading multiple eval cases together"
           },
-          "expected_outcome": {
+          "criteria": {
             "type": "string",
             "description": "Description of what the AI should accomplish in this eval"
           },
@@ -267,12 +267,12 @@
             "additionalProperties": true
           }
         },
-        "required": ["id", "expected_outcome"],
+        "required": ["id", "criteria"],
         "anyOf": [{ "required": ["input_messages"] }, { "required": ["input"] }],
         "additionalProperties": true
       }
     }
   },
-  "required": ["eval_cases"],
+  "required": ["cases"],
   "additionalProperties": false
 }

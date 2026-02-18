@@ -15,14 +15,14 @@ execution:
     - name: content_evaluator
       type: llm_judge
 
-eval_cases:
+cases:
   # ==========================================
   # Basic criticality rating classification with explicit reasoning
   # ==========================================
   - id: cr-global-outage
     conversation_id: cargowise-triage
     
-    expected_outcome: |
+    criteria: |
       Assistant correctly classifies as 'CR1' for complete system inaccessibility.
       Reasoning should emphasize 'any user on any workstation' and lack of access to the entire suite.
     
@@ -51,7 +51,7 @@ eval_cases:
   - id: cr-module-inaccessible
     conversation_id: cargowise-triage
     
-    expected_outcome: |
+    criteria: |
       Assistant correctly classifies as 'CR2' for module-wide inaccessibility.
       Reasoning should distinguish from CR1 by noting it's limited to one module.
     
@@ -85,7 +85,7 @@ eval_cases:
   - id: cr-missing-validation-disguised-as-defect
     conversation_id: cargowise-triage
     
-    expected_outcome: |
+    criteria: |
       Assistant classifies as 'CR6' (Enhancement) despite user claiming "Critical Bug" and citing a prior defect.
       Most LLMs might misclassify as CR3 (Defect) due to the user's label, financial impact, and claim of a "failed fix".
       Expected is CR6 because the prior fix (DEF-555) addressed format length (as per docs), whereas this request is for a new uniqueness constraint not in the specs.
@@ -119,7 +119,7 @@ eval_cases:
   - id: cr-function-bug-no-workaround
     conversation_id: cargowise-triage
     
-    expected_outcome: |
+    criteria: |
       Assistant classifies as 'CR3' for function not matching documentation.
       Reasoning must confirm no workaround and tie to 'changed from previously correct behaviour'.
     
@@ -148,7 +148,7 @@ eval_cases:
   - id: cr-feature-quote
     conversation_id: cargowise-triage
     
-    expected_outcome: |
+    criteria: |
       Assistant classifies as 'CR7' for accelerated development quote.
       Reasoning distinguishes from CR6 by noting request for quote/pricing.
     
@@ -177,7 +177,7 @@ eval_cases:
   - id: cr-compliance-data-update
     conversation_id: cargowise-triage
     
-    expected_outcome: |
+    criteria: |
       Assistant classifies as 'CR8' for master data/compliance issue.
       Reasoning prioritizes data accuracy over potential bug claims.
     
@@ -206,7 +206,7 @@ eval_cases:
   - id: cr-multi-part-blend
     conversation_id: cargowise-triage
     
-    expected_outcome: |
+    criteria: |
       Assistant classifies as 'CR3' prioritizing the bug over secondary training request.
       Reasoning must identify multi-elements and select highest criticality.
     
@@ -235,7 +235,7 @@ eval_cases:
   - id: cr-workaround-exists
     conversation_id: cargowise-triage
     
-    expected_outcome: |
+    criteria: |
       Assistant classifies as 'CR4' due to viable workaround.
       Reasoning distinguishes from CR3 by noting alternative.
     

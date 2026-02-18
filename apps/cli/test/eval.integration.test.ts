@@ -50,9 +50,9 @@ targets:
   const testFileContent = `description: CLI integration test
 target: file-target
 
-eval_cases:
+cases:
   - id: case-alpha
-    outcome: System responds with alpha
+    criteria: System responds with alpha
     input_messages:
       - role: user
         content: |
@@ -61,7 +61,7 @@ eval_cases:
       - role: assistant
         content: "Alpha"
   - id: case-beta
-    outcome: System responds with beta
+    criteria: System responds with beta
     input_messages:
       - role: user
         content: |

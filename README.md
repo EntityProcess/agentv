@@ -27,9 +27,9 @@ description: Math problem solving evaluation
 execution:
   target: default
 
-eval_cases:
+cases:
   - id: addition
-    expected_outcome: Correctly calculates 15 + 27 = 42
+    criteria: Correctly calculates 15 + 27 = 42
 
     input: What is 15 + 27?
 
@@ -104,8 +104,8 @@ See [AGENTS.md](AGENTS.md) for development guidelines and design principles.
 For large-scale evaluations, AgentV supports JSONL (JSON Lines) format as an alternative to YAML:
 
 ```jsonl
-{"id": "test-1", "expected_outcome": "Calculates correctly", "input": "What is 2+2?"}
-{"id": "test-2", "expected_outcome": "Provides explanation", "input": "Explain variables"}
+{"id": "test-1", "criteria": "Calculates correctly", "input": "What is 2+2?"}
+{"id": "test-2", "criteria": "Provides explanation", "input": "Explain variables"}
 ```
 
 Optional sidecar YAML metadata file (`dataset.yaml` alongside `dataset.jsonl`):
@@ -229,7 +229,7 @@ Use `${{ VARIABLE_NAME }}` syntax to reference your `.env` file. See `.agentv/ta
 Write validators in any language (Python, TypeScript, Node, etc.):
 
 ```bash
-# Input: stdin JSON with question, expected_outcome, candidate_answer
+# Input: stdin JSON with question, criteria, candidate_answer
 # Output: stdout JSON with score (0-1), hits, misses, reasoning
 ```
 
@@ -256,9 +256,9 @@ Your judge prompt file defines criteria and scoring guidelines.
 Define structured criteria directly in your eval case:
 
 ```yaml
-eval_cases:
+cases:
   - id: quicksort-explain
-    expected_outcome: Explain how quicksort works
+    criteria: Explain how quicksort works
 
     input: Explain quicksort algorithm
 

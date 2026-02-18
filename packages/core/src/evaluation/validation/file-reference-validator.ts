@@ -50,13 +50,19 @@ export async function validateFileReferences(
     return errors;
   }
 
-  const evalcases = parsed.eval_cases ?? parsed.evalcases;
-  if (!Array.isArray(evalcases)) {
+  let cases: JsonValue | undefined = parsed.cases;
+  if (cases === undefined && 'eval_cases' in parsed) {
+    cases = parsed.eval_cases;
+  }
+  if (cases === undefined && 'evalcases' in parsed) {
+    cases = parsed.evalcases;
+  }
+  if (!Array.isArray(cases)) {
     return errors;
   }
 
-  for (let i = 0; i < evalcases.length; i++) {
-    const evalCase = evalcases[i];
+  for (let i = 0; i < cases.length; i++) {
+    const evalCase = cases[i];
     if (!isObject(evalCase)) {
       continue;
     }
@@ -66,7 +72,7 @@ export async function validateFileReferences(
     if (Array.isArray(inputMessages)) {
       await validateMessagesFileRefs(
         inputMessages,
-        `eval_cases[${i}].input_messages`,
+        `cases[${i}].input_messages`,
         searchRoots,
         absolutePath,
         errors,
@@ -78,7 +84,7 @@ export async function validateFileReferences(
     if (Array.isArray(expectedMessages)) {
       await validateMessagesFileRefs(
         expectedMessages,
-        `eval_cases[${i}].expected_messages`,
+        `cases[${i}].expected_messages`,
         searchRoots,
         absolutePath,
         errors,

@@ -188,9 +188,9 @@ description: Validate research agent tool usage
 execution:
   target: codex_agent
 
-eval_cases:
+cases:
   - id: comprehensive-research
-    expected_outcome: Agent thoroughly researches the topic
+    criteria: Agent thoroughly researches the topic
 
     input: Research machine learning frameworks
 
@@ -218,9 +218,9 @@ eval_cases:
 ### Multi-Step Pipeline
 
 ```yaml
-eval_cases:
+cases:
   - id: data-pipeline
-    expected_outcome: Process data through complete pipeline
+    criteria: Process data through complete pipeline
 
     input: Process the customer dataset
 
@@ -239,9 +239,9 @@ eval_cases:
 ### Pipeline with Latency Assertions
 
 ```yaml
-eval_cases:
+cases:
   - id: data-pipeline-perf
-    expected_outcome: Process data within timing budgets
+    criteria: Process data within timing budgets
 
     input: Process the customer dataset quickly
 

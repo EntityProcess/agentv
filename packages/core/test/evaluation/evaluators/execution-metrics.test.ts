@@ -15,7 +15,7 @@ const baseTestCase: EvalCase = {
   reference_answer: '',
   guideline_paths: [],
   file_paths: [],
-  expected_outcome: 'Test outcome',
+  criteria: 'Test outcome',
 };
 
 const baseTarget: ResolvedTarget = {

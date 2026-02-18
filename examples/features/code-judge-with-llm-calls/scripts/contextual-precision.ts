@@ -24,7 +24,7 @@ interface RelevanceResult {
 }
 
 export default defineCodeJudge(async (input) => {
-  const { question, expectedOutcome, expectedMessages } = input;
+  const { question, criteria, expectedMessages } = input;
 
   // Extract retrieval context from expected_messages tool_calls
   const retrievalContext = extractRetrievalContext(expectedMessages);
@@ -56,7 +56,7 @@ export default defineCodeJudge(async (input) => {
     question: `Determine if this retrieved context node is relevant to answering the question.
 
 Question: ${question}
-${expectedOutcome ? `Expected Answer: ${expectedOutcome}` : ''}
+${criteria ? `Expected Answer: ${criteria}` : ''}
 
 Retrieved Node (Rank ${index + 1}):
 ${node}

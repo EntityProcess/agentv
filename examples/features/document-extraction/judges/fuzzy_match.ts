@@ -22,7 +22,7 @@ import { jaroWinklerSimilarity, levenshteinSimilarity } from '../lib/fuzzy_utils
 interface EvalInput {
   candidate_answer: string;
   reference_answer: string;
-  expected_outcome: string;
+  criteria: string;
   question: string;
 }
 

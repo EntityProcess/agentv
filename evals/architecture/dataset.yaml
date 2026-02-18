@@ -3,9 +3,9 @@ description: Evaluates whether proposed changes follow AGENTS.md design principl
 execution:
   target: default
 
-eval_cases:
+cases:
   - id: violates-lightweight-core
-    expected_outcome: |
+    criteria: |
       The proposed change violates the "Lightweight Core, Plugin Extensibility" principle.
 
     input_messages:
@@ -32,7 +32,7 @@ eval_cases:
           reasoning: Complex reporting features belong in plugins, not the core package.
 
   - id: violates-ai-first-design
-    expected_outcome: |
+    criteria: |
       The proposed change violates the "AI-First Design" principle.
 
     input_messages:
@@ -63,7 +63,7 @@ eval_cases:
           reasoning: Rigid step-by-step instructions constrain AI reasoning; skills should teach concepts and let AI compose flexibly.
 
   - id: follows-principles
-    expected_outcome: |
+    criteria: |
       The proposed change follows the design principles.
 
     input_messages:

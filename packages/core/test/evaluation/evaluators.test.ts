@@ -61,7 +61,7 @@ const baseTestCase: EvalCase = {
   reference_answer: '- add structured logging\n- avoid global state',
   guideline_paths: [],
   file_paths: [],
-  expected_outcome: 'Logging improvements applied',
+  criteria: 'Logging improvements applied',
   evaluator: 'llm_judge',
 };
 
@@ -367,8 +367,8 @@ describe('LlmJudgeEvaluator', () => {
         name: 'rubric',
         type: 'llm_judge',
         rubrics: [
-          { id: 'r1', expected_outcome: 'Mentions logging', weight: 1.0, required: true },
-          { id: 'r2', expected_outcome: 'Mentions tests', weight: 1.0, required: false },
+          { id: 'r1', outcome: 'Mentions logging', weight: 1.0, required: true },
+          { id: 'r2', outcome: 'Mentions tests', weight: 1.0, required: false },
         ],
       },
     });

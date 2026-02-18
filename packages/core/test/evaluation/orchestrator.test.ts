@@ -120,7 +120,7 @@ const baseTestCase: EvalCase = {
   reference_answer: '- add structured logging\n- avoid global state',
   guideline_paths: [],
   file_paths: [],
-  expected_outcome: 'Logging improved',
+  criteria: 'Logging improved',
   evaluator: 'llm_judge',
 };
 
@@ -433,7 +433,7 @@ describe('runTestCase', () => {
         reference_answer: '',
         guideline_paths: [],
         file_paths: [],
-        expected_outcome: '',
+        criteria: '',
         evaluator: 'llm_judge',
       },
       provider,
@@ -469,7 +469,7 @@ describe('runTestCase', () => {
         reference_answer: '',
         guideline_paths: [],
         file_paths: [],
-        expected_outcome: '',
+        criteria: '',
         evaluator: 'llm_judge',
       },
       provider,
@@ -578,7 +578,7 @@ describe('runEvalCase trace integration', () => {
     reference_answer: 'The weather is sunny',
     guideline_paths: [],
     file_paths: [],
-    expected_outcome: 'Weather information provided',
+    criteria: 'Weather information provided',
     evaluator: 'llm_judge',
   };
 

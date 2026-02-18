@@ -32,7 +32,7 @@ const mockEvalCase: EvalCase = {
   expected_messages: [],
   guideline_paths: [],
   file_paths: [],
-  expected_outcome: 'Expected outcome',
+  criteria: 'Expected outcome',
 };
 
 function createContext(options: {

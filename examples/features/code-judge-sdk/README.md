@@ -28,7 +28,7 @@ cd examples/features/code-judge-sdk
 cat << 'EOF' | bun run scripts/verify-attachments.ts
 {
   "question": "Please echo this request",
-  "expected_outcome": "The CLI echoes the prompt and lists attachment names.",
+  "criteria": "The CLI echoes the prompt and lists attachment names.",
   "expected_messages": [{"role": "assistant", "content": "Attachments detected (2): example.txt, python.instructions.md."}],
   "candidate_answer": "Attachments detected (2): example.txt, python.instructions.md.",
   "guideline_files": ["evals/python.instructions.md"],
@@ -60,8 +60,8 @@ The `defineCodeJudge` helper:
 ```typescript
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, expectedOutcome }) => ({
-  score: candidateAnswer.includes(expectedOutcome) ? 1.0 : 0.0,
+export default defineCodeJudge(({ candidateAnswer, criteria }) => ({
+  score: candidateAnswer.includes(criteria) ? 1.0 : 0.0,
   hits: ['Check passed'],
   misses: [],
 }));

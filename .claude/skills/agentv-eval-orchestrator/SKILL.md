@@ -25,13 +25,13 @@ For each eval case, run these three steps:
 agentv eval prompt input <path> --eval-id <id>
 ```
 
-Returns JSON with `input_messages`, `guideline_paths`, and `expected_outcome`. File references in messages use absolute paths — read them from the filesystem.
+Returns JSON with `input_messages`, `guideline_paths`, and `criteria`. File references in messages use absolute paths — read them from the filesystem.
 
 ### 2. Execute the Task
 
 You ARE the candidate LLM. Read `input_messages` from step 1, read any referenced files, and answer the task. Save your response to a temp file.
 
-**Important**: Do not leak `expected_outcome` into your answer — it's for your reference when judging, not part of the task.
+**Important**: Do not leak `criteria` into your answer — it's for your reference when judging, not part of the task.
 
 ### 3. Judge the Result
 

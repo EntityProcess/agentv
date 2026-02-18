@@ -101,14 +101,14 @@ execution:
     #   type: cost
     #   budget: 0.10  # max allowed cost in USD per eval case
 
-eval_cases:
+cases:
   # ============================================
   # Test Case 1: CMA CGM Shipping Invoice
   # Perfect extraction scenario
   # ============================================
   - id: invoice-001
     conversation_id: document-extraction
-    expected_outcome: |
+    criteria: |
       Extractor produces clean data matching expected ground truth.
       Mock extractor rounds supplier name from "Acme - Shipping" to "Acme Shipping" in HTML.
       All numeric values rounded to integers (1889 not 1889.00).
@@ -193,7 +193,7 @@ eval_cases:
   # ============================================
   - id: invoice-002
     conversation_id: document-extraction
-    expected_outcome: |
+    criteria: |
       ACTUAL EXTRACTOR OUTPUT: supplier.name = "Acme - Shipping" (preserves document punctuation)
       EXPECTED GROUND TRUTH: supplier.name = "Acme Shipping" (normalized)
 
@@ -252,7 +252,7 @@ eval_cases:
   # ============================================
   - id: invoice-003
     conversation_id: document-extraction
-    expected_outcome: |
+    criteria: |
       ACTUAL EXTRACTOR OUTPUT: net_total = 1889.5, gross_total = 1889.5
       EXPECTED GROUND TRUTH: net_total = 1889, gross_total = 1889
       
@@ -284,7 +284,7 @@ eval_cases:
   # ============================================
   - id: invoice-004
     conversation_id: document-extraction
-    expected_outcome: |
+    criteria: |
       ACTUAL EXTRACTOR OUTPUT: invoice_number = undefined (field missing in fixture)
       EXPECTED GROUND TRUTH: invoice_number = "INV-2025-001234"
 
@@ -316,7 +316,7 @@ eval_cases:
   # ============================================
   - id: invoice-005
     conversation_id: document-extraction
-    expected_outcome: |
+    criteria: |
       Extractor correctly extracts first two line items with proper array structure.
       Field paths like line_items[0].description should resolve correctly.
     evaluators:
@@ -364,7 +364,7 @@ eval_cases:
   # ============================================
   - id: invoice-006
     conversation_id: document-extraction
-    expected_outcome: |
+    criteria: |
       ACTUAL EXTRACTOR OUTPUT: line_items in different order than expected
       EXPECTED GROUND TRUTH: line_items in original order
 

@@ -7,7 +7,7 @@ Demonstrates rubric-based evaluation with weights, required flags, and auto-gene
 - Inline rubrics as strings
 - Rubric objects with weights
 - Required vs optional criteria
-- Auto-generating rubrics from expected_outcome
+- Auto-generating rubrics from criteria
 - Rubric file references
 
 ## Running

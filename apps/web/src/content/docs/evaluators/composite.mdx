@@ -107,9 +107,9 @@ Inside the prompt file, use the `{{EVALUATOR_RESULTS_JSON}}` variable to inject 
 Block outputs that fail safety even if quality is high. A code judge aggregator can enforce hard gates:
 
 ```yaml
-eval_cases:
+cases:
   - id: safety-gated-response
-    expected_outcome: Safe and accurate response
+    criteria: Safe and accurate response
 
     input: Explain quantum computing
 

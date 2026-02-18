@@ -9,7 +9,7 @@
  * Formula: Attributable Statements / Total Statements
  *
  * Process:
- * 1. Extract distinct statements/claims from the expected answer (expectedOutcome)
+ * 1. Extract distinct statements/claims from the criteria (criteria SDK field)
  * 2. For each statement, check if it can be attributed to the retrieval context
  * 3. Score = proportion of statements supported by retrieval
  *
@@ -33,14 +33,14 @@ interface AttributionResult {
 }
 
 export default defineCodeJudge(async (input) => {
-  const { question, expectedOutcome, expectedMessages } = input;
+  const { question, criteria, expectedMessages } = input;
 
-  if (!expectedOutcome) {
+  if (!criteria) {
     return {
       score: 0,
       hits: [],
-      misses: ['No expected_outcome provided'],
-      reasoning: 'Contextual Recall requires expected_outcome to extract statements from.',
+      misses: ['No criteria provided'],
+      reasoning: 'Contextual Recall requires criteria to extract statements from.',
     };
   }
 
@@ -68,7 +68,7 @@ export default defineCodeJudge(async (input) => {
     };
   }
 
-  // Step 1: Extract statements from the expected outcome
+  // Step 1: Extract statements from the criteria
   const extractionResponse = await target.invoke({
     question: `Extract all distinct factual statements or claims from the following expected answer.
 Each statement should be a self-contained claim that can be independently verified.
@@ -76,7 +76,7 @@ Each statement should be a self-contained claim that can be independently verifi
 Question: ${question}
 
 Expected Answer:
-${expectedOutcome}
+${criteria}
 
 Extract the statements and respond with JSON only:
 {
@@ -98,7 +98,7 @@ Extract the statements and respond with JSON only:
     return {
       score: 0,
       hits: [],
-      misses: ['Failed to extract statements from expected outcome'],
+      misses: ['Failed to extract statements from criteria'],
       reasoning: 'Statement extraction failed - unable to parse LLM response.',
     };
   }
@@ -107,7 +107,7 @@ Extract the statements and respond with JSON only:
     return {
       score: 0,
       hits: [],
-      misses: ['No statements extracted from expected outcome'],
+      misses: ['No statements extracted from criteria'],
       reasoning: 'Could not identify any distinct statements in the expected answer.',
     };
   }

@@ -30,9 +30,9 @@ description: Batch CLI demo using structured input
 execution:
   target: batch_cli
 
-eval_cases:
+cases:
   - id: case-001
-    expected_outcome: |-
+    criteria: |-
       Batch runner returns JSON with decision=CLEAR.
 
     expected_output:
@@ -61,7 +61,7 @@ eval_cases:
           cwd: .
 
   - id: case-002
-    expected_outcome: |-
+    criteria: |-
       Batch runner returns JSON with decision=REVIEW.
 
     expected_output:

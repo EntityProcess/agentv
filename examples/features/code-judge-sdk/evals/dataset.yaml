@@ -7,9 +7,9 @@ description: Demonstrates TypeScript helpers for code_judge payloads
 execution:
   target: local_cli
 
-eval_cases:
+cases:
   - id: code-judge-sdk-attachments
-    expected_outcome: The CLI echoes the prompt and lists attachment names.
+    criteria: The CLI echoes the prompt and lists attachment names.
 
     input:
       - role: system

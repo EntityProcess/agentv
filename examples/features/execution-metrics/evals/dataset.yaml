@@ -21,14 +21,14 @@ description: Demonstrates the built-in execution_metrics evaluator
 execution:
   target: mock_metrics_agent
 
-eval_cases:
+cases:
   # ==========================================
   # Example 1: Simple threshold check - PASS
   # Check that an efficient agent stays within limits
   # ==========================================
   - id: simple-thresholds-pass
 
-    expected_outcome: |-
+    criteria: |-
       Agent responds efficiently within all specified limits.
 
     input:
@@ -49,7 +49,7 @@ eval_cases:
   # ==========================================
   - id: comprehensive-thresholds
 
-    expected_outcome: |-
+    criteria: |-
       Agent performs a task within all efficiency constraints.
 
     input:
@@ -72,7 +72,7 @@ eval_cases:
   # ==========================================
   - id: research-with-metrics
 
-    expected_outcome: |-
+    criteria: |-
       Agent performs research and uses tools efficiently.
       Metrics reflect reasonable token usage and tool calls.
 
@@ -101,7 +101,7 @@ eval_cases:
   # ==========================================
   - id: exploration-ratio-check
 
-    expected_outcome: |-
+    criteria: |-
       Agent maintains a good balance of exploration (reading) vs
       action (writing/editing) tool calls.
 
@@ -122,7 +122,7 @@ eval_cases:
   # ==========================================
   - id: cost-budget-check
 
-    expected_outcome: |-
+    criteria: |-
       Agent completes the task within the specified cost budget.
 
     input:
@@ -142,7 +142,7 @@ eval_cases:
   # ==========================================
   - id: hybrid-evaluation
 
-    expected_outcome: |-
+    criteria: |-
       Agent passes both declarative thresholds and custom evaluation.
 
     input:

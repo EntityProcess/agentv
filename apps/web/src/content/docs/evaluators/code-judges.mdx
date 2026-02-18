@@ -15,7 +15,7 @@ Code judges communicate via stdin/stdout JSON:
 ```json
 {
   "question": "What is 15 + 27?",
-  "expected_outcome": "Correctly calculates 15 + 27 = 42",
+  "criteria": "Correctly calculates 15 + 27 = 42",
   "candidate_answer": "The answer is 42.",
   "reference_answer": "42",
   "sidecar": {}
@@ -109,11 +109,11 @@ The `@agentv/eval` package provides a declarative API with automatic stdin/stdou
 #!/usr/bin/env bun
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, expectedOutcome }) => {
+export default defineCodeJudge(({ candidateAnswer, criteria }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
-  if (candidateAnswer.includes(expectedOutcome)) {
+  if (candidateAnswer.includes(criteria)) {
     hits.push('Answer matches expected outcome');
   } else {
     misses.push('Answer does not match expected outcome');
@@ -181,7 +181,7 @@ Use `target.invokeBatch(requests)` for multiple calls in parallel.
 
 ## Advanced Input Fields
 
-Beyond the basic `question`, `expected_outcome`, `candidate_answer`, and `reference_answer` fields, code judges receive additional context:
+Beyond the basic `question`, `criteria`, `candidate_answer`, and `reference_answer` fields, code judges receive additional context:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -283,9 +283,9 @@ targets:
     workspace_template: ./workspace-template
 
 # dataset.yaml
-eval_cases:
+cases:
   - id: implement-feature
-    expected_outcome: Agent implements the feature correctly
+    criteria: Agent implements the feature correctly
     input: "Implement the TODO functions in src/index.ts"
     evaluators:
       - name: functional-check
@@ -300,5 +300,5 @@ See `examples/features/functional-grading/` for a complete working example.
 Test a code judge by piping JSON to stdin:
 
 ```bash
-echo '{"question":"What is 2+2?","expected_outcome":"4","candidate_answer":"4","reference_answer":"4","sidecar":{}}' | python validators/check_answer.py
+echo '{"question":"What is 2+2?","criteria":"4","candidate_answer":"4","reference_answer":"4","sidecar":{}}' | python validators/check_answer.py
 ```

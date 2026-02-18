@@ -8,9 +8,9 @@ description: Demonstrates TypeScript prompt templates for custom LLM judge promp
 execution:
   target: default
 
-eval_cases:
+cases:
   - id: prompt-template-basic
-    expected_outcome: The CLI provides a clear answer about TypeScript benefits.
+    criteria: The CLI provides a clear answer about TypeScript benefits.
 
     input:
       - role: user
@@ -30,7 +30,7 @@ eval_cases:
             script: [bun, run, ../prompts/custom-evaluator.ts]
 
   - id: prompt-template-with-config
-    expected_outcome: The CLI explains async/await correctly.
+    criteria: The CLI explains async/await correctly.
 
     input:
       - role: user
