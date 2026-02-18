@@ -220,7 +220,7 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'editor',
         provider: 'vscode',
-        vscode_cmd: 'code-insiders',
+        executable: 'code-insiders',
         wait: false,
         dry_run: true,
         workspace_template: '${{ WORKSPACE_TEMPLATE_PATH }}',
@@ -233,10 +233,71 @@ describe('resolveTargetDefinition', () => {
       throw new Error('expected vscode target');
     }
 
-    expect(target.config.command).toBe('code-insiders');
+    expect(target.config.executable).toBe('code-insiders');
     expect(target.config.waitForResponse).toBe(false);
     expect(target.config.dryRun).toBe(true);
     expect(target.config.workspaceTemplate).toBe('/path/to/workspace.code-workspace');
+  });
+
+  it('resolves vscode executable from env var', () => {
+    const env = {
+      VSCODE_CMD: '/custom/path/to/code',
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: 'editor',
+        provider: 'vscode',
+        executable: '${{ VSCODE_CMD }}',
+      },
+      env,
+    );
+
+    expect(target.kind).toBe('vscode');
+    if (target.kind !== 'vscode') {
+      throw new Error('expected vscode target');
+    }
+
+    expect(target.config.executable).toBe('/custom/path/to/code');
+  });
+
+  it('resolves vscode executable from literal path', () => {
+    const env = {} satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: 'editor',
+        provider: 'vscode',
+        executable: 'C:/Program Files/VSCode/code.cmd',
+      },
+      env,
+    );
+
+    expect(target.kind).toBe('vscode');
+    if (target.kind !== 'vscode') {
+      throw new Error('expected vscode target');
+    }
+
+    expect(target.config.executable).toBe('C:/Program Files/VSCode/code.cmd');
+  });
+
+  it('vscode defaults to code when no executable specified', () => {
+    const env = {} satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: 'editor',
+        provider: 'vscode',
+      },
+      env,
+    );
+
+    expect(target.kind).toBe('vscode');
+    if (target.kind !== 'vscode') {
+      throw new Error('expected vscode target');
+    }
+
+    expect(target.config.executable).toBe('code');
   });
 
   it('resolves gemini settings from environment with default model', () => {

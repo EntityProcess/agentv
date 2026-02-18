@@ -67,8 +67,20 @@ targets:
 
 | Field | Required | Description |
 |-------|----------|-------------|
+| `executable` | No | Path to VS Code binary. Supports `${{ ENV_VAR }}` syntax or literal paths. Defaults to `code` (or `code-insiders` for the insiders provider). |
 | `workspace_template` | Yes | Path to workspace template directory |
 | `judge_target` | Yes | LLM target for evaluation |
+
+Using a custom executable path:
+
+```yaml
+targets:
+  - name: vscode_dev
+    provider: vscode
+    executable: ${{ VSCODE_CMD }}
+    workspace_template: ${{ WORKSPACE_PATH }}
+    judge_target: azure_base
+```
 
 :::note
 VS Code provider requires `workspace_template` because it needs a workspace to open.

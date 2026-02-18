@@ -277,7 +277,6 @@ export interface TargetDefinition {
   readonly delayMinMs?: number | unknown | undefined;
   readonly delayMaxMs?: number | unknown | undefined;
   // VSCode fields
-  readonly vscode_cmd?: string | unknown | undefined;
   readonly wait?: boolean | unknown | undefined;
   readonly dry_run?: boolean | unknown | undefined;
   readonly dryRun?: boolean | unknown | undefined;
