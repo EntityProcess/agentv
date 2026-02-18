@@ -32,7 +32,8 @@ type LoadOptions = {
 };
 
 type RawTestSuite = JsonObject & {
-  readonly evalcases?: JsonValue;
+  readonly eval_cases?: JsonValue;
+  readonly evalcases?: JsonValue; // deprecated alias
   readonly target?: JsonValue;
   readonly execution?: JsonValue;
   readonly dataset?: JsonValue;
@@ -52,6 +53,15 @@ type RawEvalCase = JsonObject & {
   readonly evaluators?: JsonValue;
   readonly rubrics?: JsonValue;
 };
+
+function resolveEvalCases(suite: RawTestSuite): JsonValue | undefined {
+  if (suite.eval_cases !== undefined) return suite.eval_cases;
+  if (suite.evalcases !== undefined) {
+    logWarning("'evalcases' is deprecated, use 'eval_cases' instead");
+    return suite.evalcases;
+  }
+  return undefined;
+}
 
 /**
  * Read metadata from a test suite file (like target name).
@@ -114,9 +124,9 @@ export async function loadEvalCases(
       ? datasetNameFromSuite
       : fallbackDataset;
 
-  const rawTestcases = suite.evalcases;
+  const rawTestcases = resolveEvalCases(suite);
   if (!Array.isArray(rawTestcases)) {
-    throw new Error(`Invalid test file format: ${evalFilePath} - missing 'evalcases' field`);
+    throw new Error(`Invalid test file format: ${evalFilePath} - missing 'eval_cases' field`);
   }
 
   const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm_judge';

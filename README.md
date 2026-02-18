@@ -27,7 +27,7 @@ description: Math problem solving evaluation
 execution:
   target: default
 
-evalcases:
+eval_cases:
   - id: addition
     expected_outcome: Correctly calculates 15 + 27 = 42
 
@@ -256,7 +256,7 @@ Your judge prompt file defines criteria and scoring guidelines.
 Define structured criteria directly in your eval case:
 
 ```yaml
-evalcases:
+eval_cases:
   - id: quicksort-explain
     expected_outcome: Explain how quicksort works
 

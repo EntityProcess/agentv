@@ -315,7 +315,7 @@ describe('loadEvalCases with format detection', () => {
     const yamlPath = path.join(tempDir, 'test.yaml');
     await writeFile(
       yamlPath,
-      `evalcases:
+      `eval_cases:
   - id: yaml-test
     expected_outcome: Goal
     input_messages:
@@ -334,7 +334,7 @@ describe('loadEvalCases with format detection', () => {
     const ymlPath = path.join(tempDir, 'test.yml');
     await writeFile(
       ymlPath,
-      `evalcases:
+      `eval_cases:
   - id: yml-test
     expected_outcome: Goal
     input_messages:
@@ -377,7 +377,7 @@ describe('JSONL and YAML produce equivalent EvalCases', () => {
     await writeFile(
       yamlPath,
       `dataset: my-dataset
-evalcases:
+eval_cases:
   - id: test-1
     expected_outcome: "The agent should respond with a helpful answer"
     input_messages:
@@ -519,7 +519,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'input-shorthand.yaml');
       await writeFile(
         yamlPath,
-        `evalcases:
+        `eval_cases:
   - id: test-1
     expected_outcome: Goal
     input: "What is 2+2?"
@@ -538,7 +538,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'input-array.yaml');
       await writeFile(
         yamlPath,
-        `evalcases:
+        `eval_cases:
   - id: test-1
     expected_outcome: Goal
     input:
@@ -561,7 +561,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'expected-string.yaml');
       await writeFile(
         yamlPath,
-        `evalcases:
+        `eval_cases:
   - id: test-1
     expected_outcome: Goal
     input: Query
@@ -581,7 +581,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'expected-object.yaml');
       await writeFile(
         yamlPath,
-        `evalcases:
+        `eval_cases:
   - id: test-1
     expected_outcome: Goal
     input: Query
@@ -604,7 +604,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'canonical-precedence.yaml');
       await writeFile(
         yamlPath,
-        `evalcases:
+        `eval_cases:
   - id: test-1
     expected_outcome: Goal
     input_messages:
@@ -626,7 +626,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'mixed.yaml');
       await writeFile(
         yamlPath,
-        `evalcases:
+        `eval_cases:
   - id: test-canonical
     expected_outcome: Goal
     input_messages:
@@ -658,7 +658,7 @@ describe('Input/expected_output aliases and shorthand', () => {
 
       await writeFile(
         yamlPath,
-        `evalcases:
+        `eval_cases:
   - id: test-1
     expected_outcome: Goal
     input: "What is 2+2?"

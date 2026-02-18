@@ -14,7 +14,7 @@ description: Verify file_changes captures edits, creates, and deletes across mul
 execution:
   target: mock_agent
 
-evalcases:
+eval_cases:
   # Case 1: verify edits and creates
   - id: verify-edits-and-creates
     expected_outcome: >-

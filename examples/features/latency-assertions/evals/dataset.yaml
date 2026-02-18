@@ -33,7 +33,7 @@
 
 description: Latency assertions for per-step performance validation
 
-evalcases:
+eval_cases:
   # ==========================================
   # Example 1: Simple latency assertion - PASS
   # Validates a single tool completes within time budget

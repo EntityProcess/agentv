@@ -16,7 +16,7 @@ description: Basic arithmetic evaluation
 execution:
   target: default
 
-evalcases:
+eval_cases:
   - id: simple-addition
     expected_outcome: Correctly calculates 2+2
 
@@ -34,7 +34,7 @@ description: Code review with guidelines
 execution:
   target: azure_base
 
-evalcases:
+eval_cases:
   - id: code-review-basic
     expected_outcome: Assistant provides helpful code analysis with security considerations
 
@@ -78,7 +78,7 @@ description: JSON generation with validation
 execution:
   target: default
 
-evalcases:
+eval_cases:
   - id: json-generation-with-validation
     expected_outcome: Generates valid JSON with required fields
 
@@ -113,7 +113,7 @@ description: Tool usage validation
 execution:
   target: mock_agent
 
-evalcases:
+eval_cases:
   # Validate minimum tool usage (order doesn't matter)
   - id: research-depth
     expected_outcome: Agent researches thoroughly
@@ -150,7 +150,7 @@ description: Static trace evaluation
 execution:
   target: static_trace
 
-evalcases:
+eval_cases:
   - id: validate-trace-file
     expected_outcome: Trace contains required steps
     input: Analyze trace
@@ -173,7 +173,7 @@ description: Multi-turn debugging session with clarifying questions
 execution:
   target: default
 
-evalcases:
+eval_cases:
   - id: debug-with-clarification
     expected_outcome: |-
       Assistant conducts a multi-turn debugging session, asking clarification
@@ -234,7 +234,7 @@ description: Batch CLI demo (AML screening)
 execution:
   target: batch_cli
 
-evalcases:
+eval_cases:
   - id: aml-001
     expected_outcome: |-
       Batch runner returns JSON with decision=CLEAR.

@@ -14,7 +14,7 @@ description: Example eval
 execution:
   target: default
 
-evalcases:
+eval_cases:
   - id: greeting
     expected_outcome: Friendly greeting
     input: "Say hello"
@@ -26,7 +26,7 @@ evalcases:
 
 ## Eval File Structure
 
-**Required:** `evalcases` (array)
+**Required:** `eval_cases` (array)
 **Optional:** `description`, `execution`, `dataset`
 
 **Eval case fields:**

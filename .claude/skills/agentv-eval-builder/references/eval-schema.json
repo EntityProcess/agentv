@@ -60,7 +60,7 @@
       },
       "additionalProperties": true
     },
-    "evalcases": {
+    "eval_cases": {
       "type": "array",
       "description": "Array of evaluation cases",
       "minItems": 1,
@@ -273,6 +273,6 @@
       }
     }
   },
-  "required": ["evalcases"],
+  "required": ["eval_cases"],
   "additionalProperties": false
 }

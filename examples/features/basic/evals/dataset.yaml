@@ -7,7 +7,7 @@ description: Example showing basic features, conversation threading, multiple ev
 execution:
   target: default
 
-evalcases:
+eval_cases:
   # ==========================================
   # Example 1: Basic V2 features with file references
   # Demonstrates: input, expected_output, file references, array content format

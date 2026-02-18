@@ -51,14 +51,22 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     };
   }
 
-  // Validate evalcases array
-  const evalcases = parsed.evalcases;
+  // Validate eval_cases array (with deprecated evalcases fallback)
+  const evalcases = parsed.eval_cases ?? parsed.evalcases;
+  if (parsed.evalcases !== undefined && parsed.eval_cases === undefined) {
+    errors.push({
+      severity: 'warning',
+      filePath: absolutePath,
+      location: 'evalcases',
+      message: "'evalcases' is deprecated, use 'eval_cases' instead",
+    });
+  }
   if (!Array.isArray(evalcases)) {
     errors.push({
       severity: 'error',
       filePath: absolutePath,
-      location: 'evalcases',
-      message: "Missing or invalid 'evalcases' field (must be an array)",
+      location: 'eval_cases',
+      message: "Missing or invalid 'eval_cases' field (must be an array)",
     });
     return {
       valid: errors.length === 0,
@@ -71,7 +79,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   // Validate each eval case
   for (let i = 0; i < evalcases.length; i++) {
     const evalCase = evalcases[i];
-    const location = `evalcases[${i}]`;
+    const location = `eval_cases[${i}]`;
 
     if (!isObject(evalCase)) {
       errors.push({
@@ -182,7 +190,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   }
 
   return {
-    valid: errors.length === 0,
+    valid: errors.filter((e) => e.severity === 'error').length === 0,
     filePath: absolutePath,
     fileType: 'eval',
     errors,

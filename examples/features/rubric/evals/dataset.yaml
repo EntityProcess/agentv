@@ -6,7 +6,7 @@ description: Example showing rubric evaluator with inline rubrics and expected_o
 execution:
   target: default
 
-evalcases:
+eval_cases:
   # ==========================================
   # Example 1: Simple inline rubrics
   # Demonstrates: inline rubrics as strings, expected_outcome field

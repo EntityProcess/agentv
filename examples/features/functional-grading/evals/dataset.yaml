@@ -15,7 +15,7 @@ description: Functional grading with workspace_path — deploy-and-test pattern
 execution:
   target: mock_agent
 
-evalcases:
+eval_cases:
   - id: implement-math-functions
     expected_outcome: >-
       Agent implements add, multiply, and fibonacci functions

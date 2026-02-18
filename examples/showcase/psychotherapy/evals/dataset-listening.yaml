@@ -11,7 +11,7 @@ execution:
     - name: content_evaluator
       type: llm_judge
 
-evalcases:
+eval_cases:
   # ==============================================================================
   # TIER 1: BASIC BENCHMARKS (Explicit Text)
   # ==============================================================================

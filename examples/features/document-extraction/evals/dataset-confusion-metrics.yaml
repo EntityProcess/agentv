@@ -1,7 +1,7 @@
 # Confusion Metrics Dataset
 #
 # This dataset demonstrates aggregatable TP/TN/FP/FN metrics across multiple documents.
-# All evalcases use the SAME header_confusion evaluator with the SAME fields,
+# All eval_cases use the SAME header_confusion evaluator with the SAME fields,
 # enabling cross-document aggregation with fractional precision/recall.
 #
 # Use case: Measuring field-level extraction accuracy across a document corpus.
@@ -29,7 +29,7 @@ execution:
         - path: importer.name
         - path: gross_total
 
-evalcases:
+eval_cases:
   # ============================================
   # Case 1: Perfect extraction
   # Expected: All TP

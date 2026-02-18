@@ -22,7 +22,7 @@ execution:
       target:
         max_calls: 15
 
-evalcases:
+eval_cases:
   # Test case 1: Perfect recall - all statements supported by retrieval
   # Expected: "Python was created by Guido van Rossum and first released in 1991"
   # Statements: (1) Created by Guido van Rossum, (2) First released in 1991
