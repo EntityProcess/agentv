@@ -55,6 +55,10 @@ import type {
   TokenUsageEvaluatorConfig,
 } from './types.js';
 import {
+  captureFileChanges as captureWorkspaceFileChanges,
+  initializeBaseline,
+} from './workspace/file-changes.js';
+import {
   cleanupEvalWorkspaces,
   cleanupWorkspace,
   createTempWorkspace,
@@ -641,6 +645,16 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
   }
 
+  // Initialize git baseline for file change tracking when workspace is configured
+  let baselineCommit: string | undefined;
+  if (workspacePath) {
+    try {
+      baselineCommit = await initializeBaseline(workspacePath);
+    } catch {
+      // Non-fatal: file change tracking is best-effort
+    }
+  }
+
   const attemptBudget = (maxRetries ?? 0) + 1;
   let attempt = 0;
   let providerResponse: ProviderResponse | undefined = cachedResponse;
@@ -656,6 +670,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         agentTimeoutMs,
         signal,
         cwd: workspacePath,
+        captureFileChanges: !!baselineCommit,
       });
     } catch (error) {
       lastError = error;
@@ -736,6 +751,19 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   // Extract candidate from last assistant message in output_messages
   const candidate = extractLastAssistantContent(outputMessages);
 
+  // Capture file changes from workspace if baseline was initialized
+  let fileChanges: string | undefined;
+  if (baselineCommit && workspacePath) {
+    try {
+      const diff = await captureWorkspaceFileChanges(workspacePath, baselineCommit);
+      if (diff.length > 0) {
+        fileChanges = diff;
+      }
+    } catch {
+      // Non-fatal: file change tracking is best-effort
+    }
+  }
+
   const providerError = extractProviderError(providerResponse);
 
   try {
@@ -754,6 +782,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       traceSummary,
       targetResolver,
       availableTargets,
+      fileChanges,
     });
 
     const finalResult = providerError ? { ...result, error: providerError } : result;
@@ -811,6 +840,7 @@ async function evaluateCandidate(options: {
   readonly traceSummary?: TraceSummary;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
+  readonly fileChanges?: string;
 }): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -827,6 +857,7 @@ async function evaluateCandidate(options: {
     traceSummary,
     targetResolver,
     availableTargets,
+    fileChanges,
   } = options;
 
   const gradeTimestamp = nowFn();
@@ -845,6 +876,7 @@ async function evaluateCandidate(options: {
     traceSummary,
     targetResolver,
     availableTargets,
+    fileChanges,
   });
 
   const completedAt = nowFn();
@@ -887,6 +919,7 @@ async function evaluateCandidate(options: {
     evaluatorResults: evaluatorResults,
     traceSummary: traceSummary,
     outputMessages: outputMessages,
+    fileChanges,
   };
 }
 
@@ -905,6 +938,7 @@ async function runEvaluatorsForCase(options: {
   readonly traceSummary?: TraceSummary;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
+  readonly fileChanges?: string;
 }): Promise<{ score: EvaluationScore; evaluatorResults?: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -921,6 +955,7 @@ async function runEvaluatorsForCase(options: {
     traceSummary,
     targetResolver,
     availableTargets,
+    fileChanges,
   } = options;
 
   if (evalCase.evaluators && evalCase.evaluators.length > 0) {
@@ -940,6 +975,7 @@ async function runEvaluatorsForCase(options: {
       traceSummary,
       targetResolver,
       availableTargets,
+      fileChanges,
     });
   }
 
@@ -962,6 +998,7 @@ async function runEvaluatorsForCase(options: {
     traceSummary,
     targetResolver,
     availableTargets,
+    fileChanges,
   });
 
   return { score };
@@ -985,6 +1022,7 @@ async function runEvaluatorList(options: {
   readonly traceSummary?: TraceSummary;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
+  readonly fileChanges?: string;
 }): Promise<{ score: EvaluationScore; evaluatorResults: EvaluatorResult[] }> {
   const {
     evalCase,
@@ -1002,6 +1040,7 @@ async function runEvaluatorList(options: {
     traceSummary,
     targetResolver,
     availableTargets,
+    fileChanges,
   } = options;
 
   const scored: Array<{
@@ -1029,6 +1068,7 @@ async function runEvaluatorList(options: {
           outputMessages,
           traceSummary,
           agentTimeoutMs,
+          fileChanges,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
@@ -1066,6 +1106,7 @@ async function runEvaluatorList(options: {
           traceSummary,
           targetResolver,
           availableTargets,
+          fileChanges,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: 'code_judge', weight });
@@ -1155,6 +1196,7 @@ async function runEvaluatorList(options: {
           traceSummary,
           targetResolver,
           availableTargets,
+          fileChanges,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
@@ -1186,6 +1228,7 @@ async function runEvaluatorList(options: {
           now,
           outputMessages,
           traceSummary,
+          fileChanges,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
@@ -1215,6 +1258,7 @@ async function runEvaluatorList(options: {
           now,
           outputMessages,
           traceSummary,
+          fileChanges,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
@@ -1244,6 +1288,7 @@ async function runEvaluatorList(options: {
           now,
           outputMessages,
           traceSummary,
+          fileChanges,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
@@ -1273,6 +1318,7 @@ async function runEvaluatorList(options: {
           now,
           outputMessages,
           traceSummary,
+          fileChanges,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
@@ -1302,6 +1348,7 @@ async function runEvaluatorList(options: {
           now,
           outputMessages,
           traceSummary,
+          fileChanges,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
@@ -1331,6 +1378,7 @@ async function runEvaluatorList(options: {
           now,
           outputMessages,
           traceSummary,
+          fileChanges,
         });
         const weight = evaluator.weight ?? 1.0;
         scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
@@ -1421,6 +1469,7 @@ async function runLlmJudgeEvaluator(options: {
   readonly outputMessages?: readonly OutputMessage[];
   readonly traceSummary?: TraceSummary;
   readonly agentTimeoutMs?: number;
+  readonly fileChanges?: string;
 }): Promise<EvaluationScore> {
   const {
     config,
@@ -1436,6 +1485,7 @@ async function runLlmJudgeEvaluator(options: {
     outputMessages,
     traceSummary,
     agentTimeoutMs,
+    fileChanges,
   } = options;
   const customPrompt = await resolveCustomPrompt(
     config,
@@ -1445,6 +1495,7 @@ async function runLlmJudgeEvaluator(options: {
       outputMessages,
       traceSummary,
       config: config.config,
+      fileChanges,
     },
     agentTimeoutMs,
   );
@@ -1460,6 +1511,7 @@ async function runLlmJudgeEvaluator(options: {
     judgeProvider,
     evaluatorTemplateOverride: customPrompt,
     evaluator: config,
+    fileChanges,
   });
 }
 
@@ -1469,6 +1521,7 @@ interface ResolveCustomPromptContext {
   readonly outputMessages?: readonly OutputMessage[];
   readonly traceSummary?: TraceSummary;
   readonly config?: Record<string, unknown>;
+  readonly fileChanges?: string;
 }
 
 async function resolveCustomPrompt(
@@ -1537,6 +1590,7 @@ async function executePromptTemplate(
     ),
     inputMessages: context.evalCase.input_messages,
     traceSummary: context.traceSummary ?? null,
+    fileChanges: context.fileChanges ?? null,
     config: config ?? context.config ?? null,
   };
 
@@ -1600,9 +1654,12 @@ async function invokeProvider(
     readonly signal?: AbortSignal;
     /** Working directory override (e.g., from workspace_template) */
     readonly cwd?: string;
+    /** When true, AgentV captures file changes — provider should skip forced diff prompt */
+    readonly captureFileChanges?: boolean;
   },
 ): Promise<ProviderResponse> {
-  const { evalCase, promptInputs, attempt, agentTimeoutMs, signal, cwd } = options;
+  const { evalCase, promptInputs, attempt, agentTimeoutMs, signal, cwd, captureFileChanges } =
+    options;
 
   const controller = new AbortController();
   const timeout = agentTimeoutMs ? setTimeout(() => controller.abort(), agentTimeoutMs) : undefined;
@@ -1625,6 +1682,7 @@ async function invokeProvider(
       },
       signal: controller.signal,
       cwd,
+      captureFileChanges,
     });
   } finally {
     if (timeout !== undefined) {

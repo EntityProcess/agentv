@@ -12,3 +12,4 @@ export {
   executeWorkspaceTeardown,
   type ScriptExecutionContext,
 } from './script-executor.js';
+export { initializeBaseline, captureFileChanges } from './file-changes.js';

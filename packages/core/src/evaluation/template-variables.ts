@@ -10,6 +10,7 @@ export const TEMPLATE_VARIABLES = {
   REFERENCE_ANSWER: 'reference_answer',
   INPUT_MESSAGES: 'input_messages',
   OUTPUT_MESSAGES: 'output_messages',
+  FILE_CHANGES: 'file_changes',
 } as const;
 
 /**

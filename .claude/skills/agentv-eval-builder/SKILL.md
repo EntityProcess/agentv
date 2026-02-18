@@ -76,7 +76,7 @@ See `references/custom-evaluators.md` for templates.
   config:                       # passed to script templates as context.config
     strictness: high
 ```
-Variables: `{{question}}`, `{{expected_outcome}}`, `{{candidate_answer}}`, `{{reference_answer}}`, `{{input_messages}}`, `{{expected_messages}}`, `{{output_messages}}`
+Variables: `{{question}}`, `{{expected_outcome}}`, `{{candidate_answer}}`, `{{reference_answer}}`, `{{input_messages}}`, `{{expected_messages}}`, `{{output_messages}}`, `{{file_changes}}`
 - Markdown templates: use `{{variable}}` syntax
 - TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/eval`, receives context object with all variables + `config`
 

@@ -464,6 +464,8 @@ export interface EvaluationResult {
   readonly setupOutput?: string;
   /** Captured output from workspace teardown script */
   readonly teardownOutput?: string;
+  /** Unified diff of workspace file changes (when workspace_template is configured) */
+  readonly fileChanges?: string;
 }
 
 export type EvaluationVerdict = 'pass' | 'fail' | 'borderline';

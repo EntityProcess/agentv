@@ -154,9 +154,12 @@ export class CopilotCliProvider implements Provider {
       const nonGuidelineMappings = copiedFiles.filter((m) => !guidelineFileSet.has(m.originalPath));
 
       const prereadBlock = buildCopilotFilePrereadBlock(guidelineMappings, nonGuidelineMappings);
-      const systemPrompt = this.config.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
+      // Skip forced diff prompt when AgentV captures file changes
+      const systemPrompt =
+        this.config.systemPrompt ??
+        (request.captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT);
 
-      const promptParts: string[] = [systemPrompt];
+      const promptParts: string[] = systemPrompt ? [systemPrompt] : [];
       if (prereadBlock.length > 0) {
         promptParts.push('', prereadBlock);
       }

@@ -85,7 +85,11 @@ export class ClaudeCodeProvider implements Provider {
       const promptFile = path.join(workspaceRoot, PROMPT_FILENAME);
       await writeFile(promptFile, request.question, 'utf8');
 
-      const args = this.buildClaudeCodeArgs(request.question, inputFiles);
+      const args = this.buildClaudeCodeArgs(
+        request.question,
+        inputFiles,
+        request.captureFileChanges,
+      );
       const cwd = this.resolveCwd(request.cwd);
 
       const result = await this.executeClaudeCode(args, cwd, request.signal, logger);
@@ -151,7 +155,11 @@ export class ClaudeCodeProvider implements Provider {
     return path.resolve(this.config.cwd);
   }
 
-  private buildClaudeCodeArgs(prompt: string, inputFiles: readonly string[] | undefined): string[] {
+  private buildClaudeCodeArgs(
+    prompt: string,
+    inputFiles: readonly string[] | undefined,
+    captureFileChanges?: boolean,
+  ): string[] {
     const args: string[] = [];
 
     // Output mode - always use stream-json for structured output
@@ -173,9 +181,10 @@ export class ClaudeCodeProvider implements Provider {
       args.push(...this.config.args);
     }
 
-    // Prepend system prompt (use default if not configured)
-    const systemPrompt = this.config.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
-    const fullPrompt = `${systemPrompt}\n\n${prompt}`;
+    // Prepend system prompt (skip forced diff prompt when AgentV captures file changes)
+    const systemPrompt =
+      this.config.systemPrompt ?? (captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT);
+    const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 
     // Add input files as context if present
     let finalPrompt = fullPrompt;

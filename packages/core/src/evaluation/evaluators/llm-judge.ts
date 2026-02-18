@@ -125,6 +125,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.EXPECTED_OUTCOME]: context.evalCase.expected_outcome.trim(),
       [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
+      [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
     };
 
     // Build system prompt (only the mandatory output schema)
@@ -133,7 +134,12 @@ export class LlmJudgeEvaluator implements Evaluator {
     // Build user prompt based on custom template or default template
     const evaluatorTemplate =
       context.evaluatorTemplateOverride ?? this.evaluatorTemplate ?? DEFAULT_EVALUATOR_TEMPLATE;
-    const userPrompt = substituteVariables(evaluatorTemplate, variables);
+    let userPrompt = substituteVariables(evaluatorTemplate, variables);
+
+    // Append file_changes section to default template only when present
+    if (context.fileChanges && !context.evaluatorTemplateOverride && !this.evaluatorTemplate) {
+      userPrompt += `\n\n[[ ## file_changes ## ]]\n${context.fileChanges}`;
+    }
 
     const evaluatorRawRequest: JsonObject = {
       userPrompt,

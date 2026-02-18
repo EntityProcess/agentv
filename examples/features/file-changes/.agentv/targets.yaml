@@ -1,0 +1,17 @@
+targets:
+  # Mock agent that edits, creates, and deletes files in the workspace.
+  # Each eval case gets a fresh copy of workspace-template/ as its CWD.
+  - name: mock_agent
+    provider: cli
+    command_template: >-
+      bash -c '
+      printf "Hello, AgentV!\nUpdated by the agent.\n" > hello.txt &&
+      printf "{ \"version\": 2, \"debug\": true }\n" > config.json &&
+      mkdir -p src tests &&
+      printf "export const isEmpty = (s: string) => s.length === 0;\n" > src/utils.ts &&
+      printf "import { greet } from \"../src/main\";\nconsole.log(greet(\"World\"));\n" > tests/main.test.ts &&
+      rm obsolete.log &&
+      echo "Done: edited 2 files, created 2 files, deleted 1 file." > {OUTPUT_FILE}
+      '
+    workspace_template: ../workspace-template
+    timeout_seconds: 30

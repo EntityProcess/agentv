@@ -1,0 +1,56 @@
+# File changes feature demonstration
+# Tests that AgentV captures workspace file changes (edits, creates, deletes)
+# and passes them to evaluators via the file_changes field.
+#
+# The workspace-template/ contains: hello.txt, config.json, obsolete.log, src/main.ts
+# The mock agent: edits hello.txt + config.json, creates src/utils.ts + tests/main.test.ts,
+# and deletes obsolete.log.
+#
+# Two eval cases each get their own fresh workspace copy, proving the feature
+# works independently across parallel eval runs.
+
+description: Verify file_changes captures edits, creates, and deletes across multiple eval cases
+
+execution:
+  target: mock_agent
+
+evalcases:
+  # Case 1: verify edits and creates
+  - id: verify-edits-and-creates
+    expected_outcome: >-
+      file_changes diff shows hello.txt and config.json as edited,
+      src/utils.ts and tests/main.test.ts as newly created
+
+    input:
+      - role: user
+        content:
+          - type: text
+            value: Edit hello.txt and config.json, create src/utils.ts and tests/main.test.ts, delete obsolete.log.
+
+    evaluators:
+      - name: check-edits-and-creates
+        type: code_judge
+        script: ["uv", "run", "../check_file_changes.py"]
+        # Pass-through properties become config.expect_edited etc. in the payload
+        expect_edited: ["hello.txt", "config.json"]
+        expect_created: ["src/utils.ts", "tests/main.test.ts"]
+
+  # Case 2: verify deletes and overall diff structure
+  - id: verify-deletes-and-structure
+    expected_outcome: >-
+      file_changes diff shows obsolete.log as deleted and the overall diff
+      covers all 5 changed files in unified diff format
+
+    input:
+      - role: user
+        content:
+          - type: text
+            value: Edit hello.txt and config.json, create src/utils.ts and tests/main.test.ts, delete obsolete.log.
+
+    evaluators:
+      - name: check-deletes-and-structure
+        type: code_judge
+        script: ["uv", "run", "../check_file_changes.py"]
+        expect_deleted: ["obsolete.log"]
+        expect_edited: ["hello.txt", "config.json"]
+        expect_created: ["src/utils.ts", "tests/main.test.ts"]
