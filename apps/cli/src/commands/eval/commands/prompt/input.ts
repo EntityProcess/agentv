@@ -1,9 +1,9 @@
 import { buildPromptInputs, loadEvalCaseById } from '@agentv/core';
 import { command, option, positional, string } from 'cmd-ts';
 
-import { findRepoRoot } from '../shared.js';
+import { findRepoRoot } from '../../shared.js';
 
-export const evalInputCommand = command({
+export const evalPromptInputCommand = command({
   name: 'input',
   description: 'Output task input JSON for a single eval case',
   args: {

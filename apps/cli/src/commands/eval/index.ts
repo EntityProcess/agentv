@@ -1,8 +1,6 @@
 import { subcommands } from 'cmd-ts';
 
-import { evalInputCommand } from './commands/input.js';
-import { evalJudgeCommand } from './commands/judge.js';
-import { evalPromptCommand } from './commands/prompt.js';
+import { evalPromptCommand } from './commands/prompt/index.js';
 import { evalRunCommand } from './commands/run.js';
 
 export const evalCommand = subcommands({
@@ -11,7 +9,5 @@ export const evalCommand = subcommands({
   cmds: {
     run: evalRunCommand,
     prompt: evalPromptCommand,
-    input: evalInputCommand,
-    judge: evalJudgeCommand,
   },
 });

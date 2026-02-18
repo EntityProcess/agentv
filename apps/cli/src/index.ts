@@ -25,11 +25,15 @@ export const app = subcommands({
 });
 
 /** Known eval subcommands used for backwards-compat detection. */
-const EVAL_SUBCOMMANDS = new Set(['run', 'prompt', 'input', 'judge']);
+const EVAL_SUBCOMMANDS = new Set(['run', 'prompt']);
+
+/** Known prompt subcommands used for default insertion. */
+const PROMPT_SUBCOMMANDS = new Set(['overview', 'input', 'judge']);
 
 /**
- * Insert 'run' after 'eval' when the next arg isn't a known subcommand.
- * This preserves backwards compatibility: `agentv eval file.yaml` → `agentv eval run file.yaml`.
+ * Preprocess argv for backwards compatibility:
+ * 1. `agentv eval file.yaml` → `agentv eval run file.yaml`
+ * 2. `agentv eval prompt file.yaml` → `agentv eval prompt overview file.yaml`
  */
 export function preprocessEvalArgv(argv: string[]): string[] {
   const evalIndex = argv.indexOf('eval');
@@ -37,16 +41,26 @@ export function preprocessEvalArgv(argv: string[]): string[] {
     return argv;
   }
 
-  const nextArg = argv[evalIndex + 1];
+  const result = [...argv];
+  const nextArg = result[evalIndex + 1];
+
   // If there's no arg after eval, or the arg isn't a known subcommand,
   // insert 'run' to route to the default eval run command.
   if (nextArg === undefined || !EVAL_SUBCOMMANDS.has(nextArg)) {
-    const result = [...argv];
     result.splice(evalIndex + 1, 0, 'run');
     return result;
   }
 
-  return argv;
+  // If `eval prompt` is followed by something that isn't a known prompt subcommand,
+  // insert 'overview' to default to the orchestration overview.
+  if (nextArg === 'prompt') {
+    const promptNextArg = result[evalIndex + 2];
+    if (promptNextArg === undefined || !PROMPT_SUBCOMMANDS.has(promptNextArg)) {
+      result.splice(evalIndex + 2, 0, 'overview');
+    }
+  }
+
+  return result;
 }
 
 export async function runCli(argv: string[] = process.argv): Promise<void> {

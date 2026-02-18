@@ -1,10 +1,10 @@
 import { type EvalCase, loadEvalCases } from '@agentv/core';
 import { command, restPositionals, string } from 'cmd-ts';
 
-import { findRepoRoot, resolveEvalPaths } from '../shared.js';
+import { findRepoRoot, resolveEvalPaths } from '../../shared.js';
 
-export const evalPromptCommand = command({
-  name: 'prompt',
+export const evalPromptOverviewCommand = command({
+  name: 'overview',
   description: 'Output orchestration prompt for host agent to run evals',
   args: {
     evalPaths: restPositionals({
@@ -34,7 +34,7 @@ export const evalPromptCommand = command({
       '',
       '## Step 1: Get Task Input',
       '',
-      'Run `agentv eval input <path> --eval-id <id>` to get the task as JSON.',
+      'Run `agentv eval prompt input <path> --eval-id <id>` to get the task as JSON.',
       '',
       'The output contains:',
       '- `question` — flat string prompt (use for simple single-turn tasks)',
@@ -49,7 +49,7 @@ export const evalPromptCommand = command({
       '',
       '## Step 3: Judge the Result',
       '',
-      'Run `agentv eval judge <path> --eval-id <id> --output-file <response-file>`.',
+      'Run `agentv eval prompt judge <path> --eval-id <id> --answer-file <response-file>`.',
       '',
       'The output contains an `evaluators` array. Each evaluator has a `status`:',
       '',
@@ -72,9 +72,9 @@ export const evalPromptCommand = command({
         }
         lines.push('');
         lines.push('```bash');
-        lines.push(`agentv eval input ${evalPath} --eval-id ${evalCase.id}`);
+        lines.push(`agentv eval prompt input ${evalPath} --eval-id ${evalCase.id}`);
         lines.push(
-          `agentv eval judge ${evalPath} --eval-id ${evalCase.id} --output-file <response-file>`,
+          `agentv eval prompt judge ${evalPath} --eval-id ${evalCase.id} --answer-file <response-file>`,
         );
         lines.push('```');
         lines.push('');

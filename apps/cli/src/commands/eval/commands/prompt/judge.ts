@@ -10,7 +10,7 @@ import {
 } from '@agentv/core';
 import { command, option, positional, string } from 'cmd-ts';
 
-import { findRepoRoot } from '../shared.js';
+import { findRepoRoot } from '../../shared.js';
 
 interface JudgeResult {
   eval_id: string;
@@ -25,7 +25,7 @@ interface EvaluatorOutput {
   prompt?: { system_prompt: string; user_prompt: string };
 }
 
-export const evalJudgeCommand = command({
+export const evalPromptJudgeCommand = command({
   name: 'judge',
   description: 'Run code judges and output LLM judge prompts for a single eval case',
   args: {
@@ -39,9 +39,9 @@ export const evalJudgeCommand = command({
       long: 'eval-id',
       description: 'Eval case ID',
     }),
-    outputFile: option({
+    answerFile: option({
       type: string,
-      long: 'output-file',
+      long: 'answer-file',
       description: 'Path to file containing the candidate answer',
     }),
   },
@@ -50,7 +50,7 @@ export const evalJudgeCommand = command({
     const repoRoot = await findRepoRoot(cwd);
 
     const evalCase = await loadEvalCaseById(args.evalPath, repoRoot, args.evalId);
-    const candidate = (await readFile(args.outputFile, 'utf8')).trim();
+    const candidate = (await readFile(args.answerFile, 'utf8')).trim();
     const promptInputs = await buildPromptInputs(evalCase);
 
     const evaluators = evalCase.evaluators ?? [];
