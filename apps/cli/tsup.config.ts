@@ -2,7 +2,11 @@ import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'tsup';
 
-const SKILLS_TO_INCLUDE = ['agentv-eval-builder', 'agentv-prompt-optimizer'];
+const SKILLS_TO_INCLUDE = [
+  'agentv-eval-builder',
+  'agentv-eval-orchestrator',
+  'agentv-prompt-optimizer',
+];
 
 export default defineConfig({
   entry: ['src/index.ts', 'src/cli.ts'],
@@ -26,7 +30,7 @@ export default defineConfig({
     const distTemplatesDir = path.join('dist', 'templates');
 
     const repoRootDir = path.resolve('..', '..');
-    const rootSkillsDir = path.join(repoRootDir, '.claude', 'skills');
+    const rootSkillsDir = path.join(repoRootDir, 'skills');
     const rootPromptsDir = path.join(repoRootDir, '.github', 'prompts');
 
     // Copy entire templates directory structure recursively

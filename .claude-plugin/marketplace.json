@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agentv",
+  "description": "AI agent evaluation framework with declarative YAML configs",
+  "owner": {
+    "name": "AgentV",
+    "email": "support@agentv.dev"
+  },
+  "plugins": [
+    {
+      "name": "agentv",
+      "description": "Create, run, and optimize AI agent evaluations",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/agentv-eval-builder",
+        "./skills/agentv-eval-orchestrator",
+        "./skills/agentv-prompt-optimizer"
+      ],
+      "category": "development"
+    }
+  ]
+}

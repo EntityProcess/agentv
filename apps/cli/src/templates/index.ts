@@ -32,11 +32,15 @@ export function getClaudeTemplates(): Template[] {
     return getTemplatesFromDir('.claude');
   }
 
-  // Dev mode: use repo-root .claude/skills, but only include AgentV skills
+  // Dev mode: use repo-root skills/ folder (marketplace-compatible location)
   const repoRoot = getRepoRootFromDev();
-  const skillsRoot = path.join(repoRoot, '.claude', 'skills');
+  const skillsRoot = path.join(repoRoot, 'skills');
 
-  const skillsToInclude = ['agentv-eval-builder', 'agentv-prompt-optimizer'];
+  const skillsToInclude = [
+    'agentv-eval-builder',
+    'agentv-eval-orchestrator',
+    'agentv-prompt-optimizer',
+  ];
 
   const templates: Template[] = [];
   for (const skill of skillsToInclude) {
