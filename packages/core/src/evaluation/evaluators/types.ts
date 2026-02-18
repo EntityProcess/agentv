@@ -37,6 +37,8 @@ export interface EvaluationContext {
   readonly availableTargets?: readonly string[];
   /** Unified diff of file changes from workspace (when workspace_template is configured) */
   readonly fileChanges?: string;
+  /** Absolute path to the workspace directory (when workspace_template is configured) */
+  readonly workspacePath?: string;
 }
 
 export interface EvaluationScore {

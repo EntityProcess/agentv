@@ -52,6 +52,7 @@ export class CodeEvaluator implements Evaluator {
       inputMessages: context.evalCase.input_messages,
       traceSummary: context.traceSummary ?? null,
       fileChanges: context.fileChanges ?? null,
+      workspacePath: context.workspacePath ?? null,
       config: this.config ?? null,
     };
 
@@ -78,13 +79,21 @@ export class CodeEvaluator implements Evaluator {
       getProxyUsage = proxy.getUsageMetadata;
     }
 
+    // Build workspace env if workspace path is available
+    const workspaceEnv = context.workspacePath
+      ? { AGENTV_WORKSPACE_PATH: context.workspacePath }
+      : undefined;
+
+    // Merge proxy and workspace env vars
+    const env = proxyEnv || workspaceEnv ? { ...proxyEnv, ...workspaceEnv } : undefined;
+
     try {
       const stdout = await executeScript(
         this.script,
         inputPayload,
         this.agentTimeoutMs,
         this.cwd,
-        proxyEnv,
+        env,
       );
       const parsed = parseJsonSafe(stdout);
       const score = clampScore(typeof parsed?.score === 'number' ? parsed.score : 0);

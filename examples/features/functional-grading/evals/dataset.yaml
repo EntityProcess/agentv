@@ -1,0 +1,30 @@
+# Functional grading example
+# Demonstrates using workspace_path to run commands in the agent's workspace.
+#
+# The workspace-template/ contains a TypeScript project with stubs and pre-written tests.
+# The mock agent implements the functions, then the code judge:
+# 1. Installs dependencies (npm install)
+# 2. Runs typecheck (tsc --noEmit)
+# 3. Compiles (tsc)
+# 4. Runs tests (npm test)
+#
+# This pattern works for any language/framework: Python + pytest, Rust + cargo test, etc.
+
+description: Functional grading with workspace_path — deploy-and-test pattern
+
+execution:
+  target: mock_agent
+
+evalcases:
+  - id: implement-math-functions
+    expected_outcome: >-
+      Agent implements add, multiply, and fibonacci functions
+      that pass all pre-written tests
+    input: >-
+      Implement the add, multiply, and fibonacci functions in src/index.ts.
+      The function signatures are already defined — replace the throw statements
+      with working implementations.
+    evaluators:
+      - name: functional-check
+        type: code_judge
+        script: ["bun", "run", "../scripts/functional-check.ts"]

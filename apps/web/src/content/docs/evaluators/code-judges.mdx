@@ -192,6 +192,7 @@ Beyond the basic `question`, `expected_outcome`, `candidate_answer`, and `refere
 | `output_messages` | `Message[]` | Actual agent execution trace with tool calls |
 | `trace_summary` | `TraceSummary` | Lightweight execution metrics |
 | `file_changes` | `string \| null` | Unified diff of workspace file changes (when `workspace_template` is configured) |
+| `workspace_path` | `string \| null` | Absolute path to the workspace directory (when `workspace_template` is configured) |
 
 ### trace_summary structure
 
@@ -224,6 +225,75 @@ Beyond the basic `question`, `expected_outcome`, `candidate_answer`, and `refere
 | `end_time` | `string` | ISO timestamp of last event |
 
 Use `expected_messages` for retrieval context in RAG evals (tool calls with outputs) and `output_messages` for the actual agent execution trace from live runs.
+
+## Workspace Access
+
+When `workspace_template` is configured on a target, code judges receive the workspace path in two ways:
+
+1. **JSON payload**: `workspace_path` field in the stdin input
+2. **Environment variable**: `AGENTV_WORKSPACE_PATH`
+
+This enables **functional grading** — running commands like `npm test`, `pytest`, or `cargo test` directly in the agent's workspace.
+
+### Example: Deploy-and-Test Pattern
+
+```typescript
+#!/usr/bin/env bun
+import { readFileSync } from "fs";
+import { execFileSync } from "child_process";
+
+const input = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
+const cwd = input.workspace_path;
+
+const hits: string[] = [];
+const misses: string[] = [];
+
+// Stage 1: Install dependencies
+try {
+  execFileSync("npm", ["install"], { cwd, stdio: "pipe" });
+  hits.push("npm install passed");
+} catch { misses.push("npm install failed"); }
+
+// Stage 2: Typecheck
+try {
+  execFileSync("npx", ["tsc", "--noEmit"], { cwd, stdio: "pipe" });
+  hits.push("typecheck passed");
+} catch { misses.push("typecheck failed"); }
+
+// Stage 3: Run tests
+try {
+  execFileSync("npm", ["test"], { cwd, stdio: "pipe" });
+  hits.push("tests passed");
+} catch { misses.push("tests failed"); }
+
+const total = hits.length + misses.length;
+console.log(JSON.stringify({
+  score: total > 0 ? hits.length / total : 0,
+  hits,
+  misses,
+}));
+```
+
+```yaml
+# targets.yaml
+targets:
+  - name: my_agent
+    provider: cli
+    command_template: "my-agent --task {INPUT_FILE} --output {OUTPUT_FILE}"
+    workspace_template: ./workspace-template
+
+# dataset.yaml
+evalcases:
+  - id: implement-feature
+    expected_outcome: Agent implements the feature correctly
+    input: "Implement the TODO functions in src/index.ts"
+    evaluators:
+      - name: functional-check
+        type: code_judge
+        script: bun scripts/functional-check.ts
+```
+
+See `examples/features/functional-grading/` for a complete working example.
 
 ## Testing Locally
 
