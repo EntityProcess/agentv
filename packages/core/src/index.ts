@@ -7,6 +7,7 @@ export * from './evaluation/evaluators.js';
 export * from './evaluation/orchestrator.js';
 export * from './evaluation/generators/index.js';
 export * from './evaluation/workspace/index.js';
+export { toSnakeCaseDeep, toCamelCaseDeep } from './evaluation/case-conversion.js';
 
 export type AgentKernel = {
   status: string;

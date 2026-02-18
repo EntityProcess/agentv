@@ -12,7 +12,7 @@ import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
  * Default evaluator template for the user prompt (variables will be substituted).
  * Custom evaluators can override this via evaluatorTemplate option.
  */
-const DEFAULT_EVALUATOR_TEMPLATE = `You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.
+export const DEFAULT_EVALUATOR_TEMPLATE = `You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.
 
 Use the reference_answer as a gold standard for a high-quality response (if provided). The reference_answer may be a simple text response, or it may contain a sequence of expected agent messages including tool calls. When it contains multiple messages, the last message represents the final expected answer. The candidate_answer does not need to match it verbatim, but should capture the key points and follow the same spirit.
 
@@ -443,7 +443,7 @@ export function buildOutputSchema(): string {
   ].join('\n');
 }
 
-function buildRubricOutputSchema(): string {
+export function buildRubricOutputSchema(): string {
   return `You are an expert evaluator. Evaluate the candidate answer against each rubric item.
 You must return a valid JSON object matching this schema:
 {
@@ -458,7 +458,7 @@ You must return a valid JSON object matching this schema:
 }`;
 }
 
-function substituteVariables(template: string, variables: Record<string, string>): string {
+export function substituteVariables(template: string, variables: Record<string, string>): string {
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, varName) => {
     return variables[varName] ?? match;
   });
@@ -507,7 +507,7 @@ function calculateRubricScore(
 /**
  * Build the output schema for score-range rubric evaluation.
  */
-function buildScoreRangeOutputSchema(): string {
+export function buildScoreRangeOutputSchema(): string {
   return `You are an expert evaluator. Score the candidate answer on each criterion.
 You must return a valid JSON object matching this schema:
 {

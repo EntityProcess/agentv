@@ -280,6 +280,26 @@ export async function loadEvalCases(
   return results;
 }
 
+/**
+ * Load a single eval case by exact ID match.
+ * Throws if the ID is not found.
+ */
+export async function loadEvalCaseById(
+  evalFilePath: string,
+  repoRoot: URL | string,
+  evalId: string,
+): Promise<EvalCase> {
+  const cases = await loadEvalCases(evalFilePath, repoRoot);
+  const match = cases.find((c) => c.id === evalId);
+  if (!match) {
+    const available = cases.map((c) => c.id).join(', ');
+    throw new Error(
+      `Eval case "${evalId}" not found in ${evalFilePath}. Available IDs: ${available}`,
+    );
+  }
+  return match;
+}
+
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }

@@ -2,6 +2,7 @@ import { constants } from 'node:fs';
 import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+
 import {
   type EvalCase,
   type EvaluationCache,
@@ -23,6 +24,7 @@ import {
   getDefaultExtension,
 } from './output-writer.js';
 import { ProgressDisplay, type WorkerProgress } from './progress-display.js';
+import { findRepoRoot } from './shared.js';
 import { calculateEvaluationSummary, formatEvaluationSummary } from './statistics.js';
 import { type TargetSelection, selectTarget } from './targets.js';
 import { TraceWriter, buildTraceRecord } from './trace-writer.js';
@@ -112,27 +114,6 @@ async function ensureFileExists(filePath: string, description: string): Promise<
   } catch {
     throw new Error(`${description} not found: ${filePath}`);
   }
-}
-
-async function findRepoRoot(start: string): Promise<string> {
-  const fallback = path.resolve(start);
-  let current: string | undefined = fallback;
-
-  while (current !== undefined) {
-    const candidate = path.join(current, '.git');
-    try {
-      await access(candidate, constants.F_OK);
-      return current;
-    } catch {
-      const parent = path.dirname(current);
-      if (parent === current) {
-        break;
-      }
-      current = parent;
-    }
-  }
-
-  return fallback;
 }
 
 function buildDefaultOutputPath(cwd: string, format: OutputFormat): string {

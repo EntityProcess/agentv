@@ -175,20 +175,25 @@ See `references/rubric-evaluator.md` for score-range mode and scoring formula.
 ## CLI Commands
 
 ```bash
-# Run evaluation
-bun agentv eval <file.yaml> [--eval-id <id>] [--target <name>] [--dry-run]
+# Run evaluation (requires API keys)
+agentv eval <file.yaml> [--eval-id <id>] [--target <name>] [--dry-run]
 
 # Run with trace persistence (writes to .agentv/traces/)
-bun agentv eval <file.yaml> --trace
+agentv eval <file.yaml> --trace
+
+# Agent-orchestrated evals (no API keys needed)
+agentv eval prompt <file.yaml>                                      # orchestration overview
+agentv eval prompt input <file.yaml> --eval-id <id>                 # task input JSON (file paths, not embedded content)
+agentv eval prompt judge <file.yaml> --eval-id <id> --answer-file f # judge prompts / code judge results
 
 # Validate eval file
-bun agentv validate <file.yaml>
+agentv validate <file.yaml>
 
 # Compare results between runs
-bun agentv compare <results1.jsonl> <results2.jsonl>
+agentv compare <results1.jsonl> <results2.jsonl>
 
 # Generate rubrics from expected_outcome
-bun agentv generate rubrics <file.yaml> [--target <name>]
+agentv generate rubrics <file.yaml> [--target <name>]
 ```
 
 ## Schemas
