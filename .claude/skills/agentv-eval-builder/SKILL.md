@@ -65,7 +65,9 @@ Configure via `execution.evaluators` array. Multiple evaluators produce a weight
   target: {}              # optional: enable LLM target proxy (max_calls: 50)
 ```
 Contract: stdin JSON -> stdout JSON `{score, hits, misses, reasoning}`
-See `references/custom-evaluators.md` for templates.
+Input includes: `question`, `expected_outcome`, `candidate_answer`, `reference_answer`, `output_messages`, `trace_summary`, `file_changes`, `workspace_path`, `config`
+When `workspace_template` is configured, `workspace_path` is the absolute path to the workspace dir (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the workspace).
+See docs at https://agentv.dev/evaluators/code-judges/
 
 ### llm_judge
 ```yaml

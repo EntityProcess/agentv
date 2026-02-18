@@ -549,6 +549,32 @@ describe('CodeEvaluator', () => {
     expect(result.details?.f1).toBeCloseTo(0.769);
   });
 
+  it('passes workspace_path to code judge via payload and env var', async () => {
+    const judgeProvider = new StubProvider(textResponse('{}'));
+
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const script = ['node', join(__dirname, '../fixtures/test-judge-workspace.cjs')];
+
+    const evaluator = new CodeEvaluator({ script });
+
+    const result = await evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Test candidate',
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      workspacePath: '/tmp/test-workspace',
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+    expect(result.hits).toContain('workspace_path present in payload');
+    expect(result.hits).toContain('AGENTV_WORKSPACE_PATH env var set');
+    expect(result.hits).toContain('payload and env var match');
+  });
+
   it('omits details when not returned by code judge', async () => {
     const judgeProvider = new StubProvider(textResponse('{}'));
 

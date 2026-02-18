@@ -71,6 +71,8 @@ export const CodeJudgeInputSchema = z.object({
   inputFiles: z.array(z.string()),
   inputMessages: z.array(MessageSchema),
   traceSummary: TraceSummarySchema.nullable().optional(),
+  fileChanges: z.string().nullable().optional(),
+  workspacePath: z.string().nullable().optional(),
   config: z.record(z.unknown()).nullable().optional(),
 });
 

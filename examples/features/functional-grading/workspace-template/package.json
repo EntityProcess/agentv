@@ -1,0 +1,12 @@
+{
+  "name": "workspace-template",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node test/index.test.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

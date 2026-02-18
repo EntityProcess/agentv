@@ -1,0 +1,12 @@
+targets:
+  # Mock agent that implements the stub functions in src/index.ts.
+  # Each eval case gets a fresh copy of workspace-template/ as its CWD.
+  - name: mock_agent
+    provider: cli
+    command_template: >-
+      bash -c '
+      printf "export function add(a: number, b: number): number {\n  return a + b;\n}\n\nexport function multiply(a: number, b: number): number {\n  return a * b;\n}\n\nexport function fibonacci(n: number): number {\n  if (n <= 1) return n;\n  let a = 0, b = 1;\n  for (let i = 2; i <= n; i++) {\n    const tmp = a + b;\n    a = b;\n    b = tmp;\n  }\n  return b;\n}\n" > src/index.ts &&
+      echo "Implemented add, multiply, and fibonacci functions." > {OUTPUT_FILE}
+      '
+    workspace_template: ../workspace-template
+    timeout_seconds: 30
