@@ -7,36 +7,24 @@ export interface Template {
   content: string;
 }
 
-export function getGithubTemplates(): Template[] {
-  if (isDistRuntime()) {
-    return getTemplatesFromDir('.github');
-  }
-
-  // Dev mode: use repo-root .github/prompts, but only include agentv-* prompts
-  const templatesDir = getRepoRootFromDev();
-  const promptsDir = path.join(templatesDir, '.github', 'prompts');
-
-  const promptFiles = readdirSync(promptsDir).filter((file) => file.startsWith('agentv-'));
-  return promptFiles.map((file) => ({
-    path: `prompts/${file}`,
-    content: readFileSync(path.join(promptsDir, file), 'utf-8'),
-  }));
-}
-
 export function getAgentvTemplates(): Template[] {
   return getTemplatesFromDir('.agentv');
 }
 
-export function getClaudeTemplates(): Template[] {
+export function getAgentsTemplates(): Template[] {
   if (isDistRuntime()) {
-    return getTemplatesFromDir('.claude');
+    return getTemplatesFromDir('.agents');
   }
 
-  // Dev mode: use repo-root .claude/skills, but only include AgentV skills
+  // Dev mode: use repo-root skills/ folder (marketplace-compatible location)
   const repoRoot = getRepoRootFromDev();
-  const skillsRoot = path.join(repoRoot, '.claude', 'skills');
+  const skillsRoot = path.join(repoRoot, 'skills');
 
-  const skillsToInclude = ['agentv-eval-builder', 'agentv-prompt-optimizer'];
+  const skillsToInclude = [
+    'agentv-eval-builder',
+    'agentv-eval-orchestrator',
+    'agentv-prompt-optimizer',
+  ];
 
   const templates: Template[] = [];
   for (const skill of skillsToInclude) {
