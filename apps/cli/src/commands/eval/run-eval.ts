@@ -349,10 +349,12 @@ async function runSingleEvalFile(params: {
 
   // Auto-provision subagents for VSCode targets
   if (isVSCodeProvider && !options.dryRun) {
+    const vsConfig = resolvedTargetSelection.resolvedTarget.config as { executable?: string };
     await ensureVSCodeSubagents({
       kind: resolvedTargetSelection.resolvedTarget.kind as 'vscode' | 'vscode-insiders',
       count: resolvedWorkers,
       verbose: options.verbose,
+      vscodeCmd: vsConfig.executable,
     });
   }
 

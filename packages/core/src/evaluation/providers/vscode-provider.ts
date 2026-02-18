@@ -51,7 +51,7 @@ export class VSCodeProvider implements Provider {
       requestTemplate: AGENTV_REQUEST_TEMPLATE,
       wait: this.config.waitForResponse,
       dryRun: this.config.dryRun,
-      vscodeCmd: this.config.command,
+      vscodeCmd: this.config.executable,
       subagentRoot: this.config.subagentRoot,
       workspaceTemplate: effectiveWorkspaceTemplate,
       silent: true,
@@ -113,7 +113,7 @@ export class VSCodeProvider implements Provider {
       requestTemplate: AGENTV_BATCH_REQUEST_TEMPLATE,
       wait: this.config.waitForResponse,
       dryRun: this.config.dryRun,
-      vscodeCmd: this.config.command,
+      vscodeCmd: this.config.executable,
       subagentRoot: this.config.subagentRoot,
       workspaceTemplate: this.config.workspaceTemplate,
       silent: true,
@@ -311,6 +311,7 @@ export interface EnsureSubagentsOptions {
   readonly kind: 'vscode' | 'vscode-insiders';
   readonly count: number;
   readonly verbose?: boolean;
+  readonly vscodeCmd?: string;
 }
 
 export interface EnsureSubagentsResult {
@@ -328,8 +329,8 @@ export interface EnsureSubagentsResult {
 export async function ensureVSCodeSubagents(
   options: EnsureSubagentsOptions,
 ): Promise<EnsureSubagentsResult> {
-  const { kind, count, verbose = false } = options;
-  const vscodeCmd = kind === 'vscode-insiders' ? 'code-insiders' : 'code';
+  const { kind, count, verbose = false, vscodeCmd: customCmd } = options;
+  const vscodeCmd = customCmd ?? (kind === 'vscode-insiders' ? 'code-insiders' : 'code');
   const subagentRoot = getSubagentRoot(vscodeCmd);
 
   try {

@@ -523,7 +523,7 @@ export interface MockResolvedConfig {
 }
 
 export interface VSCodeResolvedConfig {
-  readonly command: string;
+  readonly executable: string;
   readonly waitForResponse: boolean;
   readonly dryRun: boolean;
   readonly subagentRoot?: string;
@@ -1389,16 +1389,20 @@ function resolveVSCodeConfig(
     workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
   }
 
-  const commandSource = target.vscode_cmd ?? target.command;
+  const executableSource = target.executable;
   const waitSource = target.wait;
   const dryRunSource = target.dry_run ?? target.dryRun;
   const subagentRootSource = target.subagent_root ?? target.subagentRoot;
 
   const defaultCommand = insiders ? 'code-insiders' : 'code';
-  const command = resolveOptionalLiteralString(commandSource) ?? defaultCommand;
+  const executable =
+    resolveOptionalString(executableSource, env, `${target.name} vscode executable`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }) ?? defaultCommand;
 
   return {
-    command,
+    executable,
     waitForResponse: resolveOptionalBoolean(waitSource) ?? true,
     dryRun: resolveOptionalBoolean(dryRunSource) ?? false,
     subagentRoot: resolveOptionalString(subagentRootSource, env, `${target.name} subagent root`, {

@@ -127,8 +127,6 @@ const VSCODE_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'workspace_template',
   'workspaceTemplate',
-  'vscode_cmd',
-  'command',
   'wait',
   'dry_run',
   'dryRun',
