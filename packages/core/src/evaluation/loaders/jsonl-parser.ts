@@ -38,6 +38,8 @@ type RawJsonlEvalCase = JsonObject & {
   readonly id?: JsonValue;
   readonly conversation_id?: JsonValue;
   readonly criteria?: JsonValue;
+  /** @deprecated Use `criteria` instead */
+  readonly expected_outcome?: JsonValue;
   readonly input_messages?: JsonValue;
   readonly expected_messages?: JsonValue;
   // Aliases for input_messages/expected_messages
@@ -177,7 +179,15 @@ export async function loadEvalCasesFromJsonl(
     }
 
     const conversationId = asString(evalcase.conversation_id);
-    const outcome = asString(evalcase.criteria);
+    let outcome = asString(evalcase.criteria);
+    if (!outcome && evalcase.expected_outcome !== undefined) {
+      outcome = asString(evalcase.expected_outcome);
+      if (outcome) {
+        logWarning(
+          `Eval case '${asString(evalcase.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
+        );
+      }
+    }
 
     // Resolve input_messages with alias/shorthand support (canonical takes precedence)
     const inputMessages = resolveInputMessages(evalcase);

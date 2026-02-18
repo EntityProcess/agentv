@@ -674,3 +674,153 @@ describe('Input/expected_output aliases and shorthand', () => {
     });
   });
 });
+
+describe('Backward-compat aliases', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-compat-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  describe('eval_cases → cases alias (YAML)', () => {
+    it('supports eval_cases as deprecated alias for cases', async () => {
+      const yamlPath = path.join(tempDir, 'eval-cases-alias.yaml');
+      await writeFile(
+        yamlPath,
+        `eval_cases:
+  - id: test-1
+    criteria: Goal
+    input_messages:
+      - role: user
+        content: Query
+`,
+      );
+
+      const cases = await loadEvalCases(yamlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].id).toBe('test-1');
+      expect(cases[0].criteria).toBe('Goal');
+    });
+
+    it('supports evalcases as deprecated alias for cases', async () => {
+      const yamlPath = path.join(tempDir, 'evalcases-alias.yaml');
+      await writeFile(
+        yamlPath,
+        `evalcases:
+  - id: test-1
+    criteria: Goal
+    input_messages:
+      - role: user
+        content: Query
+`,
+      );
+
+      const cases = await loadEvalCases(yamlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].id).toBe('test-1');
+    });
+
+    it('cases takes precedence over eval_cases', async () => {
+      const yamlPath = path.join(tempDir, 'cases-precedence.yaml');
+      await writeFile(
+        yamlPath,
+        `cases:
+  - id: canonical
+    criteria: Goal
+    input_messages:
+      - role: user
+        content: Query
+eval_cases:
+  - id: deprecated
+    criteria: Goal
+    input_messages:
+      - role: user
+        content: Query
+`,
+      );
+
+      const cases = await loadEvalCases(yamlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].id).toBe('canonical');
+    });
+  });
+
+  describe('expected_outcome → criteria alias (YAML)', () => {
+    it('supports expected_outcome as deprecated alias for criteria', async () => {
+      const yamlPath = path.join(tempDir, 'expected-outcome-alias.yaml');
+      await writeFile(
+        yamlPath,
+        `cases:
+  - id: test-1
+    expected_outcome: Goal
+    input_messages:
+      - role: user
+        content: Query
+`,
+      );
+
+      const cases = await loadEvalCases(yamlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].id).toBe('test-1');
+      expect(cases[0].criteria).toBe('Goal');
+    });
+
+    it('criteria takes precedence over expected_outcome', async () => {
+      const yamlPath = path.join(tempDir, 'criteria-precedence.yaml');
+      await writeFile(
+        yamlPath,
+        `cases:
+  - id: test-1
+    criteria: Canonical
+    expected_outcome: Deprecated
+    input_messages:
+      - role: user
+        content: Query
+`,
+      );
+
+      const cases = await loadEvalCases(yamlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].criteria).toBe('Canonical');
+    });
+  });
+
+  describe('expected_outcome → criteria alias (JSONL)', () => {
+    it('supports expected_outcome as deprecated alias for criteria', async () => {
+      const jsonlPath = path.join(tempDir, 'expected-outcome-alias.jsonl');
+      await writeFile(
+        jsonlPath,
+        '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+      );
+
+      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].id).toBe('test-1');
+      expect(cases[0].criteria).toBe('Goal');
+    });
+
+    it('criteria takes precedence over expected_outcome in JSONL', async () => {
+      const jsonlPath = path.join(tempDir, 'criteria-precedence.jsonl');
+      await writeFile(
+        jsonlPath,
+        '{"id": "test-1", "criteria": "Canonical", "expected_outcome": "Deprecated", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+      );
+
+      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].criteria).toBe('Canonical');
+    });
+  });
+});

@@ -51,8 +51,26 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     };
   }
 
-  // Validate cases array
-  const cases = parsed.cases;
+  // Resolve cases with backward-compat aliases
+  let cases: JsonValue | undefined = parsed.cases;
+  if (cases === undefined && 'eval_cases' in parsed) {
+    cases = parsed.eval_cases;
+    errors.push({
+      severity: 'warning',
+      filePath: absolutePath,
+      location: 'eval_cases',
+      message: "'eval_cases' is deprecated. Use 'cases' instead.",
+    });
+  }
+  if (cases === undefined && 'evalcases' in parsed) {
+    cases = parsed.evalcases;
+    errors.push({
+      severity: 'warning',
+      filePath: absolutePath,
+      location: 'evalcases',
+      message: "'evalcases' is deprecated. Use 'cases' instead.",
+    });
+  }
   if (!Array.isArray(cases)) {
     errors.push({
       severity: 'error',
@@ -94,8 +112,17 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       });
     }
 
-    // Optional: criteria
-    const criteria = evalCase.criteria;
+    // Optional: criteria (with backward-compat alias expected_outcome)
+    let criteria: JsonValue | undefined = evalCase.criteria;
+    if (criteria === undefined && 'expected_outcome' in evalCase) {
+      criteria = evalCase.expected_outcome;
+      errors.push({
+        severity: 'warning',
+        filePath: absolutePath,
+        location: `${location}.expected_outcome`,
+        message: "'expected_outcome' is deprecated. Use 'criteria' instead.",
+      });
+    }
     if (criteria !== undefined && (typeof criteria !== 'string' || criteria.trim().length === 0)) {
       errors.push({
         severity: 'error',

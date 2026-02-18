@@ -12,14 +12,14 @@ import type { RubricItem } from '@agentv/core';
 export async function generateRubrics(
   options: GenerateRubricsOptions,
 ): Promise<readonly RubricItem[]> {
-  // Return mock rubrics based on the expected outcome
-  const { expectedOutcome } = options;
+  // Return mock rubrics based on the criteria
+  const { criteria } = options;
 
   // Generate deterministic rubrics for testing
   return [
     {
       id: 'completeness',
-      outcome: `Answer must address all aspects of: ${expectedOutcome}`,
+      outcome: `Answer must address all aspects of: ${criteria}`,
       weight: 0.4,
       required: true,
     },

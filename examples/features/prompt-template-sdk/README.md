@@ -31,7 +31,7 @@ The template receives evaluation context via stdin (JSON) and outputs the prompt
 - `question` - The eval case question
 - `candidateAnswer` - The agent's response being evaluated
 - `referenceAnswer` - Optional reference answer
-- `expectedOutcome` - Optional expected outcome
+- `criteria` - Optional criteria / expected outcome
 - `expectedMessages` - Optional expected messages
 - `outputMessages` - Optional output messages from agent
 - `guidelineFiles` - Paths to guideline files

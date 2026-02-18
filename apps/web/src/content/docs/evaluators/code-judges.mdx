@@ -109,11 +109,11 @@ The `@agentv/eval` package provides a declarative API with automatic stdin/stdou
 #!/usr/bin/env bun
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, expectedOutcome }) => {
+export default defineCodeJudge(({ candidateAnswer, criteria }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
-  if (candidateAnswer.includes(expectedOutcome)) {
+  if (candidateAnswer.includes(criteria)) {
     hits.push('Answer matches expected outcome');
   } else {
     misses.push('Answer does not match expected outcome');

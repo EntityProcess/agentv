@@ -60,8 +60,8 @@ The `defineCodeJudge` helper:
 ```typescript
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, expectedOutcome }) => ({
-  score: candidateAnswer.includes(expectedOutcome) ? 1.0 : 0.0,
+export default defineCodeJudge(({ candidateAnswer, criteria }) => ({
+  score: candidateAnswer.includes(criteria) ? 1.0 : 0.0,
   hits: ['Check passed'],
   misses: [],
 }));

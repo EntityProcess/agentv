@@ -16,7 +16,7 @@ const rubricGenerationSchema = z.object({
 });
 
 export interface GenerateRubricsOptions {
-  readonly expectedOutcome: string;
+  readonly criteria: string;
   readonly question?: string;
   readonly referenceAnswer?: string;
   readonly provider: Provider;
@@ -28,9 +28,9 @@ export interface GenerateRubricsOptions {
 export async function generateRubrics(
   options: GenerateRubricsOptions,
 ): Promise<readonly RubricItem[]> {
-  const { expectedOutcome, question, referenceAnswer, provider } = options;
+  const { criteria, question, referenceAnswer, provider } = options;
 
-  const prompt = buildPrompt(expectedOutcome, question, referenceAnswer);
+  const prompt = buildPrompt(criteria, question, referenceAnswer);
 
   const model = provider.asLanguageModel?.();
   if (!model) {
@@ -77,7 +77,7 @@ You must return a valid JSON object matching this schema:
   return result.rubrics;
 }
 
-function buildPrompt(expectedOutcome: string, question?: string, referenceAnswer?: string): string {
+function buildPrompt(criteria: string, question?: string, referenceAnswer?: string): string {
   const parts: string[] = [
     'You are an expert at creating evaluation rubrics.',
     'Given the expected outcome (and optionally the question and reference answer),',
@@ -93,7 +93,7 @@ function buildPrompt(expectedOutcome: string, question?: string, referenceAnswer
     'Generate 3-7 rubric items that comprehensively cover the expected outcome.',
     '',
     '[[ ## criteria ## ]]',
-    expectedOutcome,
+    criteria,
     '',
   ];
 

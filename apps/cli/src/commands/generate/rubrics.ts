@@ -148,7 +148,7 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
     const referenceAnswer = asString(evalCase.reference_answer);
 
     const rubrics = await generateRubricsFunc({
-      expectedOutcome,
+      criteria: expectedOutcome,
       question,
       referenceAnswer,
       provider,

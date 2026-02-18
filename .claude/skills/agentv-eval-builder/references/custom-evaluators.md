@@ -54,7 +54,7 @@ import { defineCodeJudge, createTargetClient, definePromptTemplate } from '@agen
   - `.invoke({question, systemPrompt})` - Single LLM call
   - `.invokeBatch(requests)` - Batch LLM calls
 - `definePromptTemplate(fn)` - Wraps prompt generation function
-  - Context fields: `question`, `candidateAnswer`, `referenceAnswer`, `expectedOutcome`, `expectedMessages`, `outputMessages`, `config`, `traceSummary`
+  - Context fields: `question`, `candidateAnswer`, `referenceAnswer`, `criteria`, `expectedMessages`, `outputMessages`, `config`, `traceSummary`
 
 ## Python Example
 
@@ -86,10 +86,10 @@ if __name__ == "__main__":
 #!/usr/bin/env bun
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, expectedOutcome }) => {
+export default defineCodeJudge(({ candidateAnswer, criteria }) => {
   const hits: string[] = [];
   const misses: string[] = [];
-  if (candidateAnswer.includes(expectedOutcome)) {
+  if (candidateAnswer.includes(criteria)) {
     hits.push('Matches expected outcome');
   } else {
     misses.push('Does not match expected outcome');
