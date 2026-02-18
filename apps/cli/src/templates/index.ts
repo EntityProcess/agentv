@@ -7,22 +7,6 @@ export interface Template {
   content: string;
 }
 
-export function getGithubTemplates(): Template[] {
-  if (isDistRuntime()) {
-    return getTemplatesFromDir('.github');
-  }
-
-  // Dev mode: use repo-root .github/prompts, but only include agentv-* prompts
-  const templatesDir = getRepoRootFromDev();
-  const promptsDir = path.join(templatesDir, '.github', 'prompts');
-
-  const promptFiles = readdirSync(promptsDir).filter((file) => file.startsWith('agentv-'));
-  return promptFiles.map((file) => ({
-    path: `prompts/${file}`,
-    content: readFileSync(path.join(promptsDir, file), 'utf-8'),
-  }));
-}
-
 export function getAgentvTemplates(): Template[] {
   return getTemplatesFromDir('.agentv');
 }

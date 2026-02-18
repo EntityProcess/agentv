@@ -3,11 +3,7 @@ import path from 'node:path';
 import * as readline from 'node:readline/promises';
 import { command, option, optional, string } from 'cmd-ts';
 
-import {
-  getAgentvTemplates,
-  getClaudeTemplates,
-  getGithubTemplates,
-} from '../../templates/index.js';
+import { getAgentvTemplates, getClaudeTemplates } from '../../templates/index.js';
 
 export interface InitCommandOptions {
   targetPath?: string;
@@ -29,12 +25,10 @@ async function promptYesNo(message: string): Promise<boolean> {
 
 export async function initCommand(options: InitCommandOptions = {}): Promise<void> {
   const targetPath = path.resolve(options.targetPath ?? '.');
-  const githubDir = path.join(targetPath, '.github');
   const agentvDir = path.join(targetPath, '.agentv');
   const claudeDir = path.join(targetPath, '.claude');
 
   // Get templates
-  const githubTemplates = getGithubTemplates();
   const agentvTemplates = getAgentvTemplates();
   const claudeTemplates = getClaudeTemplates();
 
@@ -53,14 +47,6 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     }
   }
 
-  if (existsSync(githubDir)) {
-    for (const template of githubTemplates) {
-      const targetFilePath = path.join(githubDir, template.path);
-      if (existsSync(targetFilePath)) {
-        existingFiles.push(path.relative(targetPath, targetFilePath));
-      }
-    }
-  }
   if (existsSync(agentvDir)) {
     for (const template of otherAgentvTemplates) {
       const targetFilePath = path.join(agentvDir, template.path);
@@ -94,11 +80,6 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     console.log();
   }
 
-  // Create .github directory if it doesn't exist
-  if (!existsSync(githubDir)) {
-    mkdirSync(githubDir, { recursive: true });
-  }
-
   // Create .agentv directory if it doesn't exist
   if (!existsSync(agentvDir)) {
     mkdirSync(agentvDir, { recursive: true });
@@ -114,21 +95,6 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     const envFilePath = path.join(targetPath, '.env.example');
     writeFileSync(envFilePath, envTemplate.content, 'utf-8');
     console.log('Created .env.example');
-  }
-
-  // Copy each .github template
-  for (const template of githubTemplates) {
-    const targetFilePath = path.join(githubDir, template.path);
-    const targetDirPath = path.dirname(targetFilePath);
-
-    // Create directory if needed
-    if (!existsSync(targetDirPath)) {
-      mkdirSync(targetDirPath, { recursive: true });
-    }
-
-    // Write file
-    writeFileSync(targetFilePath, template.content, 'utf-8');
-    console.log(`Created ${path.relative(targetPath, targetFilePath)}`);
   }
 
   // Copy remaining .agentv templates (excluding .env.example)
@@ -166,10 +132,6 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   if (envTemplate) {
     console.log('  - .env.example');
   }
-  console.log(`\nFiles installed to ${path.relative(targetPath, githubDir)}:`);
-  for (const t of githubTemplates) {
-    console.log(`  - ${t.path}`);
-  }
   console.log(`\nFiles installed to ${path.relative(targetPath, agentvDir)}:`);
   for (const t of otherAgentvTemplates) {
     console.log(`  - ${t.path}`);
@@ -186,8 +148,7 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
 
 export const initCmdTsCommand = command({
   name: 'init',
-  description:
-    'Initialize AgentV in your project (installs prompt templates and schema to .github)',
+  description: 'Initialize AgentV in your project (installs config files and skills)',
   args: {
     path: option({
       type: optional(string),
