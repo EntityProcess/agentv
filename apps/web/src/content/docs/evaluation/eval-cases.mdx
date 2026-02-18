@@ -10,7 +10,7 @@ Eval cases are individual test cases within an evaluation file. Each case define
 ## Basic Structure
 
 ```yaml
-evalcases:
+eval_cases:
   - id: addition
     expected_outcome: Correctly calculates 15 + 27 = 42
 
@@ -70,7 +70,7 @@ expected_output:
 Override the default target or evaluators for specific cases:
 
 ```yaml
-evalcases:
+eval_cases:
   - id: complex-case
     expected_outcome: Provides detailed explanation
     input: Explain quicksort algorithm
@@ -88,7 +88,7 @@ evalcases:
 Pass additional context to evaluators via the `sidecar` field:
 
 ```yaml
-evalcases:
+eval_cases:
   - id: code-gen
     expected_outcome: Generates valid Python
     sidecar:

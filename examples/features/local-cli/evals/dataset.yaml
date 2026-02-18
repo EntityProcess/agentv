@@ -6,7 +6,7 @@ description: Minimal demo showing how to invoke a CLI target with file attachmen
 execution:
   target: local_cli
 
-evalcases:
+eval_cases:
   - id: cli-provider-echo
     expected_outcome: CLI echoes the prompt and mentions all attachment names
 

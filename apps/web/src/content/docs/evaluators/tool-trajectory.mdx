@@ -188,7 +188,7 @@ description: Validate research agent tool usage
 execution:
   target: codex_agent
 
-evalcases:
+eval_cases:
   - id: comprehensive-research
     expected_outcome: Agent thoroughly researches the topic
 
@@ -218,7 +218,7 @@ evalcases:
 ### Multi-Step Pipeline
 
 ```yaml
-evalcases:
+eval_cases:
   - id: data-pipeline
     expected_outcome: Process data through complete pipeline
 
@@ -239,7 +239,7 @@ evalcases:
 ### Pipeline with Latency Assertions
 
 ```yaml
-evalcases:
+eval_cases:
   - id: data-pipeline-perf
     expected_outcome: Process data within timing budgets
 

@@ -50,7 +50,8 @@ export function extractRowsFromEvalYaml(yamlText: string): readonly EvalRow[] {
   const parsed = parse(yamlText) as unknown;
   if (!isObject(parsed)) return [];
 
-  const evalcases = (parsed as Record<string, unknown>).evalcases;
+  const evalcases =
+    (parsed as Record<string, unknown>).eval_cases ?? (parsed as Record<string, unknown>).evalcases;
   if (!Array.isArray(evalcases)) return [];
 
   const rows: EvalRow[] = [];
@@ -60,7 +61,7 @@ export function extractRowsFromEvalYaml(yamlText: string): readonly EvalRow[] {
     const id = typeof item.id === 'string' ? item.id : '';
     if (!id) continue;
     if (id.includes('not-exist')) {
-      // Skip placeholder evalcases that should not reach the CSV artifact.
+      // Skip placeholder eval_cases that should not reach the CSV artifact.
       continue;
     }
 
@@ -139,7 +140,7 @@ async function main(): Promise<void> {
 
   if (rows.length === 0) {
     throw new Error(
-      'No rows extracted. Ensure evalcases have a user input_message with object content.request/content.row',
+      'No rows extracted. Ensure eval_cases have a user input_message with object content.request/content.row',
     );
   }
 

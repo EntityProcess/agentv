@@ -20,7 +20,7 @@ execution:
       type: llm_judge
       prompt: ./judges/correctness.md
 
-evalcases:
+eval_cases:
   - id: addition
     expected_outcome: Correctly calculates 15 + 27 = 42
     input: What is 15 + 27?
@@ -34,7 +34,7 @@ evalcases:
 | `description` | Human-readable description of the evaluation |
 | `dataset` | Optional dataset identifier |
 | `execution` | Default execution config (target, evaluators) |
-| `evalcases` | Array of individual test cases |
+| `eval_cases` | Array of individual test cases |
 
 ## JSONL Format
 

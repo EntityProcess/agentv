@@ -30,7 +30,8 @@ interface RawEvalCase {
 }
 
 interface RawTestSuite {
-  readonly evalcases?: readonly unknown[];
+  readonly eval_cases?: readonly unknown[];
+  readonly evalcases?: readonly unknown[]; // deprecated alias
   readonly target?: string;
   readonly execution?: {
     readonly target?: string;
@@ -77,10 +78,10 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
   }
 
   const suite = parsed as RawTestSuite;
-  const evalcases = suite.evalcases;
+  const evalcases = suite.eval_cases ?? suite.evalcases;
 
   if (!Array.isArray(evalcases)) {
-    throw new Error(`No evalcases found in ${file}`);
+    throw new Error(`No eval_cases found in ${file}`);
   }
 
   // Resolve target using the same logic as eval command
@@ -106,10 +107,10 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
   let updatedCount = 0;
   let skippedCount = 0;
 
-  // Get the evalcases node from the document for modification
-  const evalcasesNode = doc.getIn(['evalcases']);
+  // Get the eval_cases node from the document for modification (with deprecated evalcases fallback)
+  const evalcasesNode = doc.getIn(['eval_cases']) ?? doc.getIn(['evalcases']);
   if (!evalcasesNode || !isSeq(evalcasesNode)) {
-    throw new Error('evalcases must be a sequence');
+    throw new Error('eval_cases must be a sequence');
   }
 
   // Process each eval case

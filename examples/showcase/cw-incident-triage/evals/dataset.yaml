@@ -15,7 +15,7 @@ execution:
     - name: content_evaluator
       type: llm_judge
 
-evalcases:
+eval_cases:
   # ==========================================
   # Basic criticality rating classification with explicit reasoning
   # ==========================================

@@ -12,7 +12,7 @@ Rubrics define structured evaluation criteria directly in your eval cases. They 
 The simplest form — each string becomes a required criterion:
 
 ```yaml
-evalcases:
+eval_cases:
   - id: quicksort-explain
     expected_outcome: Explain how quicksort works
     input: Explain quicksort algorithm
@@ -107,7 +107,7 @@ This analyzes each eval case's `expected_outcome` and creates structured rubric 
 Rubrics work alongside code and LLM judges:
 
 ```yaml
-evalcases:
+eval_cases:
   - id: code-quality
     expected_outcome: Generates correct, clean Python code
     input: Write a fibonacci function

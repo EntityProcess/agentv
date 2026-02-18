@@ -101,7 +101,7 @@ execution:
     #   type: cost
     #   budget: 0.10  # max allowed cost in USD per eval case
 
-evalcases:
+eval_cases:
   # ============================================
   # Test Case 1: CMA CGM Shipping Invoice
   # Perfect extraction scenario

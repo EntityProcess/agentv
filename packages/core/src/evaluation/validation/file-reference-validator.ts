@@ -50,7 +50,7 @@ export async function validateFileReferences(
     return errors;
   }
 
-  const evalcases = parsed.evalcases;
+  const evalcases = parsed.eval_cases ?? parsed.evalcases;
   if (!Array.isArray(evalcases)) {
     return errors;
   }
@@ -66,7 +66,7 @@ export async function validateFileReferences(
     if (Array.isArray(inputMessages)) {
       await validateMessagesFileRefs(
         inputMessages,
-        `evalcases[${i}].input_messages`,
+        `eval_cases[${i}].input_messages`,
         searchRoots,
         absolutePath,
         errors,
@@ -78,7 +78,7 @@ export async function validateFileReferences(
     if (Array.isArray(expectedMessages)) {
       await validateMessagesFileRefs(
         expectedMessages,
-        `evalcases[${i}].expected_messages`,
+        `eval_cases[${i}].expected_messages`,
         searchRoots,
         absolutePath,
         errors,

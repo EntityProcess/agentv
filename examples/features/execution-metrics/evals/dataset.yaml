@@ -21,7 +21,7 @@ description: Demonstrates the built-in execution_metrics evaluator
 execution:
   target: mock_metrics_agent
 
-evalcases:
+eval_cases:
   # ==========================================
   # Example 1: Simple threshold check - PASS
   # Check that an efficient agent stays within limits

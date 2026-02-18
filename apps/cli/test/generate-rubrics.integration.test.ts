@@ -54,7 +54,7 @@ targets:
 execution:
   target: default
 
-evalcases:`;
+eval_cases:`;
 
   if (withComments) {
     testFileContent += '\n  # This is a test comment\n  # TODO: update this test case';
@@ -176,7 +176,7 @@ describe('generate rubrics integration', () => {
 
     // Check that structure is maintained (basic indentation check)
     const lines = updatedContent.split('\n');
-    const evalcasesLine = lines.findIndex((line) => line.includes('evalcases:'));
+    const evalcasesLine = lines.findIndex((line) => line.includes('eval_cases:'));
     const rubricsLine = lines.findIndex((line) => line.includes('rubrics:'));
 
     // rubrics should be indented more than evalcases

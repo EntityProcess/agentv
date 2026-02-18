@@ -29,7 +29,7 @@ execution:
       type: llm_judge
       prompt: ./judges/correctness.md
 
-evalcases:
+eval_cases:
   - id: test-1
     # Uses the top-level evaluator
     ...
@@ -38,7 +38,7 @@ evalcases:
 ### Per-Case Override
 
 ```yaml
-evalcases:
+eval_cases:
   - id: test-1
     expected_outcome: Returns valid JSON
     input: Generate a JSON config
@@ -54,7 +54,7 @@ evalcases:
 Use multiple evaluators on the same case for comprehensive scoring:
 
 ```yaml
-evalcases:
+eval_cases:
   - id: code-generation
     expected_outcome: Generates correct Python code
     input: Write a sorting function
