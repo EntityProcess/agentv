@@ -55,6 +55,7 @@ Score the response from 0.0 to 1.0 based on:
 | `candidate_answer` | Last candidate response content |
 | `sidecar` | Eval case `sidecar` metadata |
 | `rubrics` | Eval case `rubrics` (if defined) |
+| `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
 
 ### TypeScript Template
 
@@ -155,6 +156,7 @@ Derived strings injected into evaluator prompts:
 | `input_messages` | Full resolved input array, JSON-serialized |
 | `expected_messages` | Full resolved expected array, JSON-serialized |
 | `output_messages` | Full provider output array, JSON-serialized |
+| `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
 
 **Example flow:**
 
