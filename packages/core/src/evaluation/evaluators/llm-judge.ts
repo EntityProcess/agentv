@@ -28,10 +28,7 @@ Be concise and focused in your evaluation. Provide succinct, specific feedback r
 {{${TEMPLATE_VARIABLES.REFERENCE_ANSWER}}}
 
 [[ ## candidate_answer ## ]]
-{{${TEMPLATE_VARIABLES.CANDIDATE_ANSWER}}}
-
-[[ ## file_changes ## ]]
-{{${TEMPLATE_VARIABLES.FILE_CHANGES}}}`;
+{{${TEMPLATE_VARIABLES.CANDIDATE_ANSWER}}}`;
 
 type JudgeProviderResolver = (context: EvaluationContext) => Promise<Provider | undefined>;
 
@@ -137,7 +134,12 @@ export class LlmJudgeEvaluator implements Evaluator {
     // Build user prompt based on custom template or default template
     const evaluatorTemplate =
       context.evaluatorTemplateOverride ?? this.evaluatorTemplate ?? DEFAULT_EVALUATOR_TEMPLATE;
-    const userPrompt = substituteVariables(evaluatorTemplate, variables);
+    let userPrompt = substituteVariables(evaluatorTemplate, variables);
+
+    // Append file_changes section to default template only when present
+    if (context.fileChanges && !context.evaluatorTemplateOverride && !this.evaluatorTemplate) {
+      userPrompt += `\n\n[[ ## file_changes ## ]]\n${context.fileChanges}`;
+    }
 
     const evaluatorRawRequest: JsonObject = {
       userPrompt,

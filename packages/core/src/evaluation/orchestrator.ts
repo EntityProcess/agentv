@@ -1495,6 +1495,7 @@ async function runLlmJudgeEvaluator(options: {
       outputMessages,
       traceSummary,
       config: config.config,
+      fileChanges,
     },
     agentTimeoutMs,
   );
@@ -1520,6 +1521,7 @@ interface ResolveCustomPromptContext {
   readonly outputMessages?: readonly OutputMessage[];
   readonly traceSummary?: TraceSummary;
   readonly config?: Record<string, unknown>;
+  readonly fileChanges?: string;
 }
 
 async function resolveCustomPrompt(
@@ -1588,6 +1590,7 @@ async function executePromptTemplate(
     ),
     inputMessages: context.evalCase.input_messages,
     traceSummary: context.traceSummary ?? null,
+    fileChanges: context.fileChanges ?? null,
     config: config ?? context.config ?? null,
   };
 

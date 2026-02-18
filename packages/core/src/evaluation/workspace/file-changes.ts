@@ -24,7 +24,10 @@ export async function initializeBaseline(workspacePath: string): Promise<string>
 
   await execAsync('git init', opts);
   await execAsync('git add -A', opts);
-  await execAsync('git commit --allow-empty -m "agentv-baseline"', opts);
+  await execAsync(
+    'git -c user.email=agentv@localhost -c user.name=agentv commit --allow-empty -m "agentv-baseline"',
+    opts,
+  );
 
   const { stdout } = await execAsync('git rev-parse HEAD', opts);
   return stdout.trim();
