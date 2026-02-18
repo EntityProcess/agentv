@@ -21,29 +21,40 @@ export const evalPromptCommand = command({
     const lines: string[] = [
       '# AgentV Eval Orchestration',
       '',
-      'Run the following commands to evaluate each case. For each case:',
-      '1. Use `agentv eval input` to get the task input',
-      '2. Execute the task with your agent/LLM',
-      '3. Save the output to a file',
-      '4. Use `agentv eval judge` to grade the result',
+      'You are orchestrating AI agent evaluations. For each eval case below, follow this loop:',
+      '',
+      '## Workflow',
+      '',
+      '1. **Get input**: Run `agentv eval input <path> --eval-id <id>` to get the task as JSON',
+      '   - Use `question` (flat string) or `input_messages` (structured chat) as the prompt',
+      '   - Prepend `guidelines` to the system message if present',
+      '   - `expected_outcome` describes what a good answer should accomplish',
+      '',
+      '2. **Execute task**: Send the prompt to your LLM and collect the response',
+      '',
+      '3. **Save output**: Write the LLM response to a text file',
+      '',
+      '4. **Judge**: Run `agentv eval judge <path> --eval-id <id> --output-file <file>`',
+      '   The judge returns JSON with an `evaluators` array. Each evaluator has a `status`:',
+      '   - `"completed"`: Deterministic result (code_judge). Read `result.score` directly.',
+      '   - `"prompt_ready"`: LLM grading needed. Send `prompt.system_prompt` and `prompt.user_prompt`',
+      '     to your LLM. The response will be a JSON object with `score` (0-1), `hits`, `misses`.',
       '',
     ];
 
     for (const evalPath of resolvedPaths) {
       const cases = await loadEvalCases(evalPath, repoRoot);
-      lines.push(`## ${evalPath}`);
+      lines.push(`## Eval Cases: ${evalPath}`);
       lines.push('');
 
       for (const evalCase of cases) {
         lines.push(`### ${evalCase.id}`);
+        lines.push(`Expected outcome: ${evalCase.expected_outcome}`);
         lines.push('');
         lines.push('```bash');
-        lines.push('# Get task input');
         lines.push(`agentv eval input ${evalPath} --eval-id ${evalCase.id}`);
-        lines.push('');
-        lines.push('# After running the task and saving output to /tmp/output.txt:');
         lines.push(
-          `agentv eval judge ${evalPath} --eval-id ${evalCase.id} --output-file /tmp/output.txt`,
+          `agentv eval judge ${evalPath} --eval-id ${evalCase.id} --output-file <output-file>`,
         );
         lines.push('```');
         lines.push('');
