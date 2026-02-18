@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "agentv",
-      "description": "Create, run, and optimize AI agent evaluations",
+      "description": "Automates AI agent evaluations and prompt optimization",
       "source": "./",
       "strict": false,
       "skills": [
