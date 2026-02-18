@@ -28,7 +28,7 @@ description: Tool trajectory evaluator examples for agent execution validation
 execution:
   target: mock_agent
 
-eval_cases:
+cases:
   # ==========================================
   # Example 1: any_order mode - Validate minimum tool usage
   # Use case: Ensure agent uses required tools at least N times, regardless of order
@@ -37,7 +37,7 @@ eval_cases:
   # ==========================================
   - id: any-order-pass
 
-    expected_outcome: |-
+    criteria: |-
       Agent successfully researches the topic by searching knowledge base multiple times
       and retrieving relevant documents.
 
@@ -62,7 +62,7 @@ eval_cases:
   # ==========================================
   - id: in-order-pass
 
-    expected_outcome: |-
+    criteria: |-
       Agent follows the correct data processing workflow.
 
     input:
@@ -88,7 +88,7 @@ eval_cases:
   # ==========================================
   - id: exact-auth-flow
 
-    expected_outcome: |-
+    criteria: |-
       Agent performs authentication in the exact required sequence.
 
     input:
@@ -113,7 +113,7 @@ eval_cases:
   # ==========================================
   - id: metrics-check
 
-    expected_outcome: |-
+    criteria: |-
       Agent uses the metrics tools to check CPU and memory.
 
     input:
@@ -137,7 +137,7 @@ eval_cases:
   # ==========================================
   - id: partial-match
 
-    expected_outcome: |-
+    criteria: |-
       Agent should use search, retrieve, and report tools.
 
     input:
@@ -164,7 +164,7 @@ eval_cases:
   # ==========================================
   - id: exact-args-match
 
-    expected_outcome: |-
+    criteria: |-
       Agent searches for weather and retrieves forecast for the correct city.
 
     input:
@@ -190,7 +190,7 @@ eval_cases:
   # ==========================================
   - id: skip-args-validation
 
-    expected_outcome: |-
+    criteria: |-
       Agent loads data, transforms it, and saves. Arguments don't matter.
 
     input:

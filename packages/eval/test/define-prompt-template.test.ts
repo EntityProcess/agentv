@@ -6,7 +6,7 @@ describe('PromptTemplateInputSchema', () => {
   // Minimal valid input with all required fields
   const validInput = {
     question: 'What is 2+2?',
-    expectedOutcome: 'The answer should be 4',
+    criteria: 'The answer should be 4',
     expectedMessages: [],
     candidateAnswer: 'The answer is 4',
     guidelineFiles: [],
@@ -18,7 +18,7 @@ describe('PromptTemplateInputSchema', () => {
     const result = PromptTemplateInputSchema.parse(validInput);
     expect(result.question).toBe('What is 2+2?');
     expect(result.candidateAnswer).toBe('The answer is 4');
-    expect(result.expectedOutcome).toBe('The answer should be 4');
+    expect(result.criteria).toBe('The answer should be 4');
     expect(result.expectedMessages).toEqual([]);
     expect(result.guidelineFiles).toEqual([]);
     expect(result.inputFiles).toEqual([]);
@@ -129,7 +129,7 @@ describe('PromptTemplateInputSchema', () => {
   it('accepts full input with all fields', () => {
     const fullInput = {
       question: 'What is 2+2?',
-      expectedOutcome: 'The answer should be 4',
+      criteria: 'The answer should be 4',
       expectedMessages: [{ role: 'assistant', content: '4' }],
       referenceAnswer: 'The sum is 4',
       candidateAnswer: 'The answer is 4',
@@ -147,7 +147,7 @@ describe('PromptTemplateInputSchema', () => {
     };
     const result = PromptTemplateInputSchema.parse(fullInput);
     expect(result.question).toBe('What is 2+2?');
-    expect(result.expectedOutcome).toBe('The answer should be 4');
+    expect(result.criteria).toBe('The answer should be 4');
     expect(result.referenceAnswer).toBe('The sum is 4');
     expect(result.candidateAnswer).toBe('The answer is 4');
     expect(result.config).toEqual({ rubric: 'Check correctness' });
@@ -159,7 +159,7 @@ describe('Schema type inference', () => {
     // Type-level test: ensure inferred types have expected properties
     const input: PromptTemplateInput = {
       question: 'test',
-      expectedOutcome: 'expected',
+      criteria: 'expected',
       expectedMessages: [],
       candidateAnswer: 'test',
       guidelineFiles: [],
@@ -170,7 +170,7 @@ describe('Schema type inference', () => {
     // These should all type-check correctly
     const _q: string = input.question;
     const _c: string = input.candidateAnswer;
-    const _outcome: string = input.expectedOutcome;
+    const _outcome: string = input.criteria;
     const _trace: PromptTemplateInput['traceSummary'] = undefined;
     const _config: PromptTemplateInput['config'] = null;
     const _ref: PromptTemplateInput['referenceAnswer'] = undefined;
@@ -181,7 +181,7 @@ describe('Schema type inference', () => {
   it('PromptTemplateInput requires core fields', () => {
     const input: PromptTemplateInput = {
       question: 'test question',
-      expectedOutcome: 'expected outcome',
+      criteria: 'expected outcome',
       expectedMessages: [],
       candidateAnswer: 'test answer',
       guidelineFiles: [],
@@ -191,7 +191,7 @@ describe('Schema type inference', () => {
 
     // Required fields must be present
     expect(input.question).toBe('test question');
-    expect(input.expectedOutcome).toBe('expected outcome');
+    expect(input.criteria).toBe('expected outcome');
     expect(input.candidateAnswer).toBe('test answer');
     expect(input.expectedMessages).toEqual([]);
     expect(input.guidelineFiles).toEqual([]);

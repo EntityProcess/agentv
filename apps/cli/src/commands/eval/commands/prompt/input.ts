@@ -37,7 +37,7 @@ export const evalPromptInputCommand = command({
       eval_id: evalCase.id,
       input_messages: resolvedMessages,
       guideline_paths: evalCase.guideline_paths,
-      expected_outcome: evalCase.expected_outcome,
+      criteria: evalCase.criteria,
     };
 
     process.stdout.write(JSON.stringify(output, null, 2));

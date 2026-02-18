@@ -51,22 +51,14 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     };
   }
 
-  // Validate eval_cases array (with deprecated evalcases fallback)
-  const evalcases = parsed.eval_cases ?? parsed.evalcases;
-  if (parsed.evalcases !== undefined && parsed.eval_cases === undefined) {
-    errors.push({
-      severity: 'warning',
-      filePath: absolutePath,
-      location: 'evalcases',
-      message: "'evalcases' is deprecated, use 'eval_cases' instead",
-    });
-  }
-  if (!Array.isArray(evalcases)) {
+  // Validate cases array
+  const cases = parsed.cases;
+  if (!Array.isArray(cases)) {
     errors.push({
       severity: 'error',
       filePath: absolutePath,
-      location: 'eval_cases',
-      message: "Missing or invalid 'eval_cases' field (must be an array)",
+      location: 'cases',
+      message: "Missing or invalid 'cases' field (must be an array)",
     });
     return {
       valid: errors.length === 0,
@@ -77,9 +69,9 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   }
 
   // Validate each eval case
-  for (let i = 0; i < evalcases.length; i++) {
-    const evalCase = evalcases[i];
-    const location = `eval_cases[${i}]`;
+  for (let i = 0; i < cases.length; i++) {
+    const evalCase = cases[i];
+    const location = `cases[${i}]`;
 
     if (!isObject(evalCase)) {
       errors.push({
@@ -102,18 +94,14 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       });
     }
 
-    // Optional: expected_outcome or outcome for backward compatibility
-    const expectedOutcome = evalCase.expected_outcome ?? evalCase.outcome;
-    if (
-      expectedOutcome !== undefined &&
-      (typeof expectedOutcome !== 'string' || expectedOutcome.trim().length === 0)
-    ) {
+    // Optional: criteria
+    const criteria = evalCase.criteria;
+    if (criteria !== undefined && (typeof criteria !== 'string' || criteria.trim().length === 0)) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
-        location: `${location}.expected_outcome`,
-        message:
-          "Invalid 'expected_outcome' or 'outcome' field (must be a non-empty string if provided)",
+        location: `${location}.criteria`,
+        message: "Invalid 'criteria' field (must be a non-empty string if provided)",
       });
     }
 

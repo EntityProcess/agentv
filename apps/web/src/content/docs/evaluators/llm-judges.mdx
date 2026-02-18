@@ -33,7 +33,7 @@ Write evaluation instructions as markdown. Template variables are interpolated:
 Evaluate the candidate's response to the following question:
 
 **Question:** {{question}}
-**Expected Outcome:** {{expected_outcome}}
+**Criteria:** {{criteria}}
 **Reference Answer:** {{reference_answer}}
 **Candidate Answer:** {{candidate_answer}}
 
@@ -50,7 +50,7 @@ Score the response from 0.0 to 1.0 based on:
 | Variable | Source |
 |----------|--------|
 | `question` | First user message content |
-| `expected_outcome` | Eval case `expected_outcome` field |
+| `criteria` | Eval case `criteria` field |
 | `reference_answer` | Last expected message content |
 | `candidate_answer` | Last candidate response content |
 | `sidecar` | Eval case `sidecar` metadata |
@@ -117,7 +117,7 @@ TypeScript templates receive a context object with these fields:
 | `question` | `string` | First user message content |
 | `candidateAnswer` | `string` | Last entry in `output_messages` |
 | `referenceAnswer` | `string` | Last entry in `expected_messages` |
-| `expectedOutcome` | `string` | Eval case `expected_outcome` field |
+| `expectedOutcome` | `string` | Eval case `criteria` field |
 | `expectedMessages` | `Message[]` | Full resolved expected messages |
 | `outputMessages` | `Message[]` | Full provider output messages |
 | `traceSummary` | `TraceSummary` | Execution metrics summary |
@@ -150,7 +150,7 @@ Derived strings injected into evaluator prompts:
 | Variable | Derivation |
 |----------|------------|
 | `question` | Content of the first `user` role entry in `input_messages` |
-| `expected_outcome` | Passed through from the eval case field |
+| `criteria` | Passed through from the eval case field |
 | `reference_answer` | Content of the last entry in `expected_messages` |
 | `candidate_answer` | Content of the last entry in `output_messages` |
 | `input_messages` | Full resolved input array, JSON-serialized |

@@ -54,7 +54,7 @@ targets:
 execution:
   target: default
 
-eval_cases:`;
+cases:`;
 
   if (withComments) {
     testFileContent += '\n  # This is a test comment\n  # TODO: update this test case';
@@ -62,7 +62,7 @@ eval_cases:`;
 
   testFileContent += `
   - id: case-with-outcome
-    expected_outcome: System should respond politely and helpfully`;
+    criteria: System should respond politely and helpfully`;
 
   testFileContent += `
     input_messages:
@@ -127,7 +127,7 @@ describe('generate rubrics integration', () => {
     }
   });
 
-  it('should generate rubrics for cases with expected_outcome', async () => {
+  it('should generate rubrics for cases with criteria', async () => {
     fixture = await createFixture();
 
     const { stdout } = await runGenerateRubrics(fixture);
@@ -142,7 +142,7 @@ describe('generate rubrics integration', () => {
     // Check that rubrics were added
     expect(content).toContain('rubrics:');
     expect(content).toContain('id:');
-    expect(content).toContain('expected_outcome:');
+    expect(content).toContain('outcome:');
     expect(content).toContain('weight:');
     expect(content).toContain('required:');
 
@@ -176,14 +176,14 @@ describe('generate rubrics integration', () => {
 
     // Check that structure is maintained (basic indentation check)
     const lines = updatedContent.split('\n');
-    const evalcasesLine = lines.findIndex((line) => line.includes('eval_cases:'));
+    const casesLine = lines.findIndex((line) => line.includes('cases:'));
     const rubricsLine = lines.findIndex((line) => line.includes('rubrics:'));
 
-    // rubrics should be indented more than evalcases
-    if (evalcasesLine >= 0 && rubricsLine >= 0) {
-      const evalcasesIndent = lines[evalcasesLine].match(/^\s*/)?.[0].length ?? 0;
+    // rubrics should be indented more than cases
+    if (casesLine >= 0 && rubricsLine >= 0) {
+      const casesIndent = lines[casesLine].match(/^\s*/)?.[0].length ?? 0;
       const rubricsIndent = lines[rubricsLine].match(/^\s*/)?.[0].length ?? 0;
-      expect(rubricsIndent).toBeGreaterThan(evalcasesIndent);
+      expect(rubricsIndent).toBeGreaterThan(casesIndent);
     }
   }, 30000);
 });

@@ -33,7 +33,7 @@ const baseTestCase: EvalCase = {
   reference_answer: 'Reference Answer Text',
   guideline_paths: [],
   file_paths: [],
-  expected_outcome: 'Expected Outcome Text',
+  criteria: 'Expected Outcome Text',
   evaluator: 'llm_judge',
 };
 
@@ -48,7 +48,7 @@ describe('LlmJudgeEvaluator Variable Substitution', () => {
     const formattedQuestion = '@[User]: What is the status?\n\n@[Assistant]: Requesting more info.';
     const customPrompt = `
 Question: {{question}}
-Outcome: {{expected_outcome}}
+Outcome: {{criteria}}
 Reference: {{reference_answer}}
 Candidate: {{candidate_answer}}
 Input Messages: {{input_messages}}
@@ -148,7 +148,7 @@ File Changes: {{file_changes}}
     const formattedQuestion = 'What is the status?';
     const customPrompt = `
 Question: {{ question }}
-Outcome: {{ expected_outcome }}
+Outcome: {{ criteria }}
 Reference: {{ reference_answer }}
 Candidate: {{ candidate_answer }}
 Input Messages: {{ input_messages }}

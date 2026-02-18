@@ -861,9 +861,7 @@ function parseRubricItems(
     }
 
     const id = asString(rawRubric.id) ?? `rubric-${index + 1}`;
-    // Support both expected_outcome and description (backward compatibility)
-    const expectedOutcome =
-      asString(rawRubric.expected_outcome) ?? asString(rawRubric.description) ?? '';
+    const expectedOutcome = asString(rawRubric.outcome) ?? '';
     const weight = typeof rawRubric.weight === 'number' ? rawRubric.weight : 1.0;
 
     // Parse required_min_score (new) or required (legacy backward compat)
@@ -898,27 +896,27 @@ function parseRubricItems(
 
       scoreRanges = parseScoreRanges(normalized, id, evaluatorName, evalId);
 
-      // For score-range rubrics, expected_outcome at rubric level is optional
+      // For score-range rubrics, outcome at rubric level is optional
       items.push({
         id,
         weight,
-        ...(expectedOutcome.length > 0 ? { expected_outcome: expectedOutcome } : {}),
+        ...(expectedOutcome.length > 0 ? { outcome: expectedOutcome } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(requiredMinScore !== undefined ? { required_min_score: requiredMinScore } : {}),
         score_ranges: scoreRanges,
       });
     } else {
-      // Checklist rubric: expected_outcome is required
+      // Checklist rubric: outcome is required
       if (expectedOutcome.length === 0) {
         logWarning(
-          `Skipping rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': missing expected_outcome`,
+          `Skipping rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': missing outcome`,
         );
         continue;
       }
 
       items.push({
         id,
-        expected_outcome: expectedOutcome,
+        outcome: expectedOutcome,
         weight,
         // Default to required: true if not specified (backward compatibility)
         required: required ?? true,
@@ -937,10 +935,10 @@ function parseRubricItems(
  *   { 0: "Bad", 3: "OK", 7: "Good", 10: "Perfect" }
  *
  * Normalizes to:
- *   [ { score_range: [0, 2], expected_outcome: "Bad" },
- *     { score_range: [3, 6], expected_outcome: "OK" },
- *     { score_range: [7, 9], expected_outcome: "Good" },
- *     { score_range: [10, 10], expected_outcome: "Perfect" } ]
+ *   [ { score_range: [0, 2], outcome: "Bad" },
+ *     { score_range: [3, 6], outcome: "OK" },
+ *     { score_range: [7, 9], outcome: "Good" },
+ *     { score_range: [10, 10], outcome: "Perfect" } ]
  *
  * If input is already an array, returns it unchanged.
  */
@@ -974,13 +972,13 @@ function normalizeScoreRangesShorthand(raw: unknown): unknown {
   }
 
   // Derive ranges: each key is a lower bound, upper bound is (next key - 1) or 10 for the last
-  const result: Array<{ score_range: readonly [number, number]; expected_outcome: string }> = [];
+  const result: Array<{ score_range: readonly [number, number]; outcome: string }> = [];
   for (let i = 0; i < numericKeys.length; i++) {
     const min = numericKeys[i];
     const max = i < numericKeys.length - 1 ? numericKeys[i + 1] - 1 : 10;
     result.push({
       score_range: [min, max],
-      expected_outcome: raw[String(min)] as string,
+      outcome: raw[String(min)] as string,
     });
   }
 
@@ -994,7 +992,7 @@ function normalizeScoreRangesShorthand(raw: unknown): unknown {
  * - min <= max
  * - Non-overlapping ranges
  * - Full coverage of 0-10 (warning if not covered)
- * - Each range has non-empty expected_outcome
+ * - Each range has non-empty outcome
  */
 function parseScoreRanges(
   rawRanges: readonly unknown[],
@@ -1044,18 +1042,17 @@ function parseScoreRanges(
       );
     }
 
-    // Validate expected_outcome
-    const expectedOutcome =
-      asString(rawRange.expected_outcome) ?? asString(rawRange.description) ?? '';
+    // Validate outcome
+    const expectedOutcome = asString(rawRange.outcome) ?? '';
     if (expectedOutcome.length === 0) {
       throw new Error(
-        `Missing expected_outcome for score_range [${min}, ${max}] in rubric '${rubricId}' in evaluator '${evaluatorName}' in '${evalId}'`,
+        `Missing outcome for score_range [${min}, ${max}] in rubric '${rubricId}' in evaluator '${evaluatorName}' in '${evalId}'`,
       );
     }
 
     ranges.push({
       score_range: [min, max] as const,
-      expected_outcome: expectedOutcome,
+      outcome: expectedOutcome,
     });
   }
 
@@ -1100,8 +1097,8 @@ function parseScoreRanges(
 /**
  * Parse inline rubrics field (syntactic sugar at eval case level).
  * Supports:
- * - String shorthand: "Must be polite" -> { id: "rubric-1", expected_outcome: "Must be polite", weight: 1.0, required: true }
- * - Object form with expected_outcome, weight, required, score_ranges, required_min_score
+ * - String shorthand: "Must be polite" -> { id: "rubric-1", outcome: "Must be polite", weight: 1.0, required: true }
+ * - Object form with outcome, weight, required, score_ranges, required_min_score
  *
  * Returns an LlmJudgeEvaluatorConfig to prepend to evaluators, or undefined if no valid rubrics.
  */
@@ -1114,15 +1111,13 @@ export function parseInlineRubrics(
       if (typeof rubric === 'string') {
         return {
           id: `rubric-${index + 1}`,
-          expected_outcome: rubric,
+          outcome: rubric,
           weight: 1.0,
           required: true,
         };
       }
 
-      // Support both expected_outcome and description (backward compatibility)
-      const expectedOutcome =
-        asString(rubric.expected_outcome) ?? asString(rubric.description) ?? '';
+      const expectedOutcome = asString(rubric.outcome) ?? '';
 
       // Parse score_ranges if present (supports shorthand map format)
       const rawScoreRanges = rubric.score_ranges;
@@ -1136,10 +1131,9 @@ export function parseInlineRubrics(
                 score_range: Array.isArray(range.score_range)
                   ? (range.score_range as unknown as readonly [number, number])
                   : ([0, 10] as const),
-                expected_outcome:
-                  asString(range.expected_outcome) ?? asString(range.description) ?? '',
+                outcome: asString(range.outcome) ?? '',
               }))
-              .filter((r) => r.expected_outcome.length > 0)
+              .filter((r) => r.outcome.length > 0)
           : undefined;
 
       const baseRubric = {
@@ -1147,11 +1141,11 @@ export function parseInlineRubrics(
         weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
       };
 
-      // For score_ranges rubrics, expected_outcome at rubric level is optional
+      // For score_ranges rubrics, outcome at rubric level is optional
       if (scoreRanges && scoreRanges.length > 0) {
         return {
           ...baseRubric,
-          ...(expectedOutcome.length > 0 ? { expected_outcome: expectedOutcome } : {}),
+          ...(expectedOutcome.length > 0 ? { outcome: expectedOutcome } : {}),
           ...(typeof rubric.required === 'boolean' ? { required: rubric.required } : {}),
           ...(typeof rubric.required_min_score === 'number'
             ? { required_min_score: rubric.required_min_score }
@@ -1160,22 +1154,18 @@ export function parseInlineRubrics(
         };
       }
 
-      // Checklist rubric: expected_outcome is required
+      // Checklist rubric: outcome is required
       return {
         ...baseRubric,
-        expected_outcome: expectedOutcome,
+        outcome: expectedOutcome,
         required: typeof rubric.required === 'boolean' ? rubric.required : true,
         ...(typeof rubric.required_min_score === 'number'
           ? { required_min_score: rubric.required_min_score }
           : {}),
       };
     })
-    // Filter: must have expected_outcome OR score_ranges
-    .filter(
-      (r) =>
-        (r.expected_outcome && r.expected_outcome.length > 0) ||
-        ('score_ranges' in r && r.score_ranges),
-    );
+    // Filter: must have outcome OR score_ranges
+    .filter((r) => (r.outcome && r.outcome.length > 0) || ('score_ranges' in r && r.score_ranges));
 
   if (rubricItems.length === 0) {
     return undefined;

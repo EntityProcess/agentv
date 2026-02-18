@@ -1,19 +1,19 @@
 # AgentV Rubric Evaluator Example
 # Demonstrates the rubric-based evaluation feature
 
-description: Example showing rubric evaluator with inline rubrics and expected_outcome
+description: Example showing rubric evaluator with inline rubrics and criteria
 
 execution:
   target: default
 
-eval_cases:
+cases:
   # ==========================================
   # Example 1: Simple inline rubrics
-  # Demonstrates: inline rubrics as strings, expected_outcome field
+  # Demonstrates: inline rubrics as strings, criteria field
   # ==========================================
   - id: code-explanation-simple
 
-    expected_outcome: |-
+    criteria: |-
       Provide a clear explanation of how quicksort works, including time complexity
 
     input:
@@ -45,7 +45,7 @@ eval_cases:
   # ==========================================
   - id: technical-writing-detailed
 
-    expected_outcome: |-
+    criteria: |-
       Write a comprehensive guide on HTTP status codes with examples
 
     input:
@@ -71,27 +71,27 @@ eval_cases:
     # Detailed rubric objects with weights and required flags
     rubrics:
       - id: structure
-        expected_outcome: Has clear headings and organization
+        outcome: Has clear headings and organization
         weight: 1.0
         required: true
 
       - id: success-codes
-        expected_outcome: Covers 2xx success codes with examples
+        outcome: Covers 2xx success codes with examples
         weight: 2.0
         required: true
 
       - id: client-errors
-        expected_outcome: Explains 4xx client error codes
+        outcome: Explains 4xx client error codes
         weight: 2.0
         required: true
 
       - id: server-errors
-        expected_outcome: Explains 5xx server error codes
+        outcome: Explains 5xx server error codes
         weight: 1.5
         required: false
 
       - id: practical-examples
-        expected_outcome: Includes practical use case examples
+        outcome: Includes practical use case examples
         weight: 1.0
         required: false
 
@@ -102,7 +102,7 @@ eval_cases:
   - id: code-quality-multi-eval
     # Baseline note: candidates without type hints/edge handling often score lower (~0.75).
 
-    expected_outcome: |-
+    criteria: |-
       Python function that validates email addresses with proper error handling
 
     input:
@@ -148,14 +148,14 @@ eval_cases:
           script: ["uv", "run", "python", "check_syntax.py"]
 
   # ==========================================
-  # Example 4: Using expected_outcome without rubrics
-  # Demonstrates: expected_outcome as an alias for outcome
-  # Note: Use 'agentv generate rubrics' to create rubrics from expected_outcome
+  # Example 4: Using criteria without rubrics
+  # Demonstrates: criteria as the evaluation criteria field
+  # Note: Use 'agentv generate rubrics' to create rubrics from criteria
   # ==========================================
   - id: summary-task
 
-    # expected_outcome is the new preferred field name (outcome still works for backward compatibility)
-    expected_outcome: |-
+    # criteria defines evaluation criteria for this case
+    criteria: |-
       Provide a concise summary of the key points in under 50 words
 
     input:
@@ -176,7 +176,7 @@ eval_cases:
           cuts and renewable energy adoption.
 
     # No rubrics defined - will use default llm_judge evaluator
-    # To generate rubrics: agentv generate rubrics evals/rubric-examples.yaml
+    # To generate rubrics: agentv generate rubrics evals/dataset.yaml
 
   # ==========================================
   # Example 5: Multi-criteria score_ranges
@@ -185,7 +185,7 @@ eval_cases:
   # ==========================================
   - id: summary-multi-criteria-score-ranges-proposed
 
-    expected_outcome: |-
+    criteria: |-
       Provide an accurate summary in under 50 words.
 
     input:

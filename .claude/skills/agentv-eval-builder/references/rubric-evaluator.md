@@ -5,13 +5,11 @@
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `id` | string | auto-generated | Unique identifier |
-| `expected_outcome` | string | required* | Criterion being evaluated (*optional if `score_ranges` used) |
+| `outcome` | string | required* | Criterion being evaluated (*optional if `score_ranges` used) |
 | `weight` | number | 1.0 | Relative importance |
 | `required` | boolean | true | Failing forces verdict to 'fail' (checklist mode) |
 | `required_min_score` | integer | - | Minimum 0-10 score to pass (score-range mode) |
 | `score_ranges` | map or array | - | Score range definitions for analytic scoring |
-
-`description` is a backward-compatible alias for `expected_outcome`.
 
 ## Checklist Mode
 
@@ -19,11 +17,11 @@
 rubrics:
   - Mentions divide-and-conquer approach
   - id: complexity
-    expected_outcome: States time complexity correctly
+    outcome: States time complexity correctly
     weight: 2.0
     required: true
   - id: examples
-    expected_outcome: Includes code examples
+    outcome: Includes code examples
     weight: 1.0
     required: false
 ```
@@ -51,13 +49,13 @@ Array format is also accepted:
 ```yaml
     score_ranges:
       - score_range: [0, 2]
-        expected_outcome: Critical bugs
+        outcome: Critical bugs
       - score_range: [3, 5]
-        expected_outcome: Minor bugs
+        outcome: Minor bugs
       - score_range: [6, 8]
-        expected_outcome: Correct with minor issues
+        outcome: Correct with minor issues
       - score_range: [9, 10]
-        expected_outcome: Fully correct
+        outcome: Fully correct
 ```
 
 Ranges must be integers 0-10, non-overlapping, covering all values 0-10.

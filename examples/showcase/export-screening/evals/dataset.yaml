@@ -24,7 +24,7 @@ execution:
       type: code_judge
       script: ["bun", "run", "validate_risk_output.ts"]
 
-eval_cases:
+cases:
   # ============================================
   # HIGH RISK CASES (Expert Assessment: High)
   # Based on CHPL (Common High Priority List) codes
@@ -33,7 +33,7 @@ eval_cases:
   # Tier 1: Integrated Circuits (Highest Concern)
   - id: exp-high-001
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'High' risk. Electronic integrated circuits
       (processors/controllers) are Tier 1 CHPL items - highest concern for
       precision-guided weapons. Export to Russia is prohibited.
@@ -57,7 +57,7 @@ eval_cases:
 
   - id: exp-high-002
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'High' risk. Memory integrated circuits
       are Tier 1 CHPL items critical for military systems.
     expected_output:
@@ -81,7 +81,7 @@ eval_cases:
   # Tier 3.A: Electronic Components
   - id: exp-high-003
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'High' risk. Photosensitive semiconductor
       devices (excluding photovoltaic) are CHPL Tier 3.A items used in
       targeting and guidance systems.
@@ -105,7 +105,7 @@ eval_cases:
 
   - id: exp-high-004
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'High' risk. Static converters are CHPL
       Tier 3.A items used in power systems for military equipment.
     expected_output:
@@ -129,7 +129,7 @@ eval_cases:
   # Tier 3.B: Mechanical and Optical Components
   - id: exp-high-005
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'High' risk. Precision ball bearings are
       CHPL Tier 3.B items critical for missile guidance and UAV systems.
     expected_output:
@@ -152,7 +152,7 @@ eval_cases:
 
   - id: exp-high-006
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'High' risk. Aircraft/UAV parts are CHPL
       Tier 3.B items with direct military applications.
     expected_output:
@@ -175,7 +175,7 @@ eval_cases:
 
   - id: exp-high-007
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'High' risk. Telescopic sights and optical
       devices are CHPL Tier 3.B items used in weapons targeting systems.
     expected_output:
@@ -198,7 +198,7 @@ eval_cases:
 
   - id: exp-high-008
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'High' risk. Navigation instruments for
       aeronautical use are CHPL Tier 3.B items critical for missile guidance.
     expected_output:
@@ -223,7 +223,7 @@ eval_cases:
   # Tier 4.A: Manufacturing and Testing Equipment
   - id: exp-high-009
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'High' risk. Semiconductor manufacturing
       equipment is CHPL Tier 4.A - critical for chip production capability.
     expected_output:
@@ -246,7 +246,7 @@ eval_cases:
 
   - id: exp-high-010
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'High' risk. Oscilloscopes and test equipment
       are CHPL Tier 4.A items used for weapons development and testing.
     expected_output:
@@ -269,7 +269,7 @@ eval_cases:
 
   - id: exp-high-011
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'High' risk. Printed circuit boards are
       CHPL Tier 4.A items essential for electronics manufacturing.
     expected_output:
@@ -293,7 +293,7 @@ eval_cases:
   # Tier 4.B: CNC Machine Tools
   - id: exp-high-012
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'High' risk. CNC machining centers are
       CHPL Tier 4.B items used for precision weapons manufacturing.
     expected_output:
@@ -321,7 +321,7 @@ eval_cases:
 
   - id: exp-med-001
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'Medium' risk. Switching/routing apparatus
       is on CHPL (8517.62) but destination is low-risk allied nation.
       Requires verification of end-user and specifications.
@@ -345,7 +345,7 @@ eval_cases:
 
   - id: exp-med-002
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'Medium' risk. Tantalum capacitors are
       CHPL Tier 2 items but in small quantities for commercial repair.
       Low-risk destination but controlled item requires verification.
@@ -370,7 +370,7 @@ eval_cases:
 
   - id: exp-med-003
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'Medium' risk. Optical instruments may
       be controlled depending on specifications. Destination is moderate
       risk. Requires technical review.
@@ -394,7 +394,7 @@ eval_cases:
 
   - id: exp-med-004
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'Medium' risk. Radio navigation equipment
       is CHPL Tier 2 (8526.91) but for commercial aviation use in
       low-risk destination.
@@ -424,7 +424,7 @@ eval_cases:
 
   - id: exp-low-001
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'Low' risk. Consumer electronics displays
       are not on CHPL. Standard commercial trade between allied nations.
     expected_output:
@@ -447,7 +447,7 @@ eval_cases:
 
   - id: exp-low-002
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'Low' risk. Standard industrial motors
       (not high-performance/precision) are not controlled.
     expected_output:
@@ -470,7 +470,7 @@ eval_cases:
 
   - id: exp-low-003
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'Low' risk. Agricultural spraying equipment
       has no dual-use applications. Trade to allied nation.
     expected_output:
@@ -493,7 +493,7 @@ eval_cases:
 
   - id: exp-low-004
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'Low' risk. Medical diagnostic equipment
       for hospital use is not controlled. Standard healthcare trade.
     expected_output:
@@ -517,7 +517,7 @@ eval_cases:
 
   - id: exp-low-005
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'Low' risk. Household appliances have
       no dual-use concerns. Standard consumer goods trade.
     expected_output:
@@ -540,7 +540,7 @@ eval_cases:
 
   - id: exp-low-006
     conversation_id: export-screening
-    expected_outcome: |
+    criteria: |
       AI correctly classifies as 'Low' risk. Food processing equipment
       is not controlled. Standard industrial trade to allied nation.
     expected_output:

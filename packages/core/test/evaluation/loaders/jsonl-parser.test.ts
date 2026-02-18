@@ -48,14 +48,14 @@ describe('loadEvalCasesFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'single.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
     );
 
     const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
     expect(cases[0].id).toBe('test-1');
-    expect(cases[0].expected_outcome).toBe('Goal');
+    expect(cases[0].criteria).toBe('Goal');
     expect(cases[0].input_messages).toHaveLength(1);
     expect(cases[0].input_messages[0].role).toBe('user');
     expect(cases[0].input_messages[0].content).toBe('Query');
@@ -66,9 +66,9 @@ describe('loadEvalCasesFromJsonl', () => {
     await writeFile(
       jsonlPath,
       [
-        '{"id": "test-1", "expected_outcome": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
-        '{"id": "test-2", "expected_outcome": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
-        '{"id": "test-3", "expected_outcome": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
+        '{"id": "test-1", "criteria": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-2", "criteria": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "test-3", "criteria": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
       ].join('\n'),
     );
 
@@ -78,9 +78,9 @@ describe('loadEvalCasesFromJsonl', () => {
     expect(cases[0].id).toBe('test-1');
     expect(cases[1].id).toBe('test-2');
     expect(cases[2].id).toBe('test-3');
-    expect(cases[0].expected_outcome).toBe('Goal 1');
-    expect(cases[1].expected_outcome).toBe('Goal 2');
-    expect(cases[2].expected_outcome).toBe('Goal 3');
+    expect(cases[0].criteria).toBe('Goal 1');
+    expect(cases[1].criteria).toBe('Goal 2');
+    expect(cases[2].criteria).toBe('Goal 3');
   });
 
   it('skips empty lines and whitespace-only lines', async () => {
@@ -88,11 +88,11 @@ describe('loadEvalCasesFromJsonl', () => {
     await writeFile(
       jsonlPath,
       [
-        '{"id": "test-1", "expected_outcome": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-1", "criteria": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
         '',
-        '{"id": "test-2", "expected_outcome": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "test-2", "criteria": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
         '   ',
-        '{"id": "test-3", "expected_outcome": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
+        '{"id": "test-3", "criteria": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
         '',
       ].join('\n'),
     );
@@ -110,9 +110,9 @@ describe('loadEvalCasesFromJsonl', () => {
     await writeFile(
       jsonlPath,
       [
-        '{"id": "test-1", "expected_outcome": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
-        '{"id": "test-2", "expected_outcome": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
-        '{"id": "test-3", "expected_outcome": "Goal 3" "input_messages": []}', // Missing comma
+        '{"id": "test-1", "criteria": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-2", "criteria": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "test-3", "criteria": "Goal 3" "input_messages": []}', // Missing comma
       ].join('\n'),
     );
 
@@ -124,11 +124,11 @@ describe('loadEvalCasesFromJsonl', () => {
     await writeFile(
       jsonlPath,
       [
-        '{"id": "test-1", "expected_outcome": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
-        '{"id": "test-2", "input_messages": [{"role": "user", "content": "Query 2"}]}', // Missing expected_outcome
-        '{"expected_outcome": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}', // Missing id
-        '{"id": "test-4", "expected_outcome": "Goal 4"}', // Missing input_messages
-        '{"id": "test-5", "expected_outcome": "Goal 5", "input_messages": [{"role": "user", "content": "Query 5"}]}',
+        '{"id": "test-1", "criteria": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-2", "input_messages": [{"role": "user", "content": "Query 2"}]}', // Missing criteria
+        '{"criteria": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}', // Missing id
+        '{"id": "test-4", "criteria": "Goal 4"}', // Missing input_messages
+        '{"id": "test-5", "criteria": "Goal 5", "input_messages": [{"role": "user", "content": "Query 5"}]}',
       ].join('\n'),
     );
 
@@ -145,7 +145,7 @@ describe('loadEvalCasesFromJsonl', () => {
 
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
     );
     await writeFile(
       sidecarPath,
@@ -163,7 +163,7 @@ describe('loadEvalCasesFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'my-dataset.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
     );
 
     const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
@@ -176,7 +176,7 @@ describe('loadEvalCasesFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'with-evaluators.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "evaluators": [{"name": "rubric-check", "type": "llm_judge", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "evaluators": [{"name": "rubric-check", "type": "llm_judge", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
     );
 
     const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
@@ -190,7 +190,7 @@ describe('loadEvalCasesFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'with-rubrics.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "rubrics": ["Must be polite", "Must be helpful"]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "rubrics": ["Must be polite", "Must be helpful"]}\n',
     );
 
     const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
@@ -207,9 +207,9 @@ describe('loadEvalCasesFromJsonl', () => {
     await writeFile(
       jsonlPath,
       [
-        '{"id": "test-1", "expected_outcome": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
-        '{"id": "test-2", "expected_outcome": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
-        '{"id": "test-3", "expected_outcome": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
+        '{"id": "test-1", "criteria": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-2", "criteria": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "test-3", "criteria": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
       ].join('\n'),
     );
 
@@ -224,9 +224,9 @@ describe('loadEvalCasesFromJsonl', () => {
     await writeFile(
       jsonlPath,
       [
-        '{"id": "summary-basic", "expected_outcome": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
-        '{"id": "summary-advanced", "expected_outcome": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
-        '{"id": "code-review", "expected_outcome": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
+        '{"id": "summary-basic", "criteria": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "summary-advanced", "criteria": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "code-review", "criteria": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
       ].join('\n'),
     );
 
@@ -240,7 +240,7 @@ describe('loadEvalCasesFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'with-conv-id.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "conversation_id": "conv-123", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+      '{"id": "test-1", "conversation_id": "conv-123", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
     );
 
     const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
@@ -253,7 +253,7 @@ describe('loadEvalCasesFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'with-expected.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "expected_messages": [{"role": "assistant", "content": "Response"}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "expected_messages": [{"role": "assistant", "content": "Response"}]}\n',
     );
 
     const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
@@ -270,19 +270,6 @@ describe('loadEvalCasesFromJsonl', () => {
     const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(0);
-  });
-
-  it('supports backward-compatible outcome field', async () => {
-    const jsonlPath = path.join(tempDir, 'outcome-field.jsonl');
-    await writeFile(
-      jsonlPath,
-      '{"id": "test-1", "outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
-    );
-
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
-
-    expect(cases).toHaveLength(1);
-    expect(cases[0].expected_outcome).toBe('Goal');
   });
 });
 
@@ -302,7 +289,7 @@ describe('loadEvalCases with format detection', () => {
     const jsonlPath = path.join(tempDir, 'test.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "jsonl-test", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+      '{"id": "jsonl-test", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
     );
 
     const cases = await loadEvalCases(jsonlPath, tempDir);
@@ -315,9 +302,9 @@ describe('loadEvalCases with format detection', () => {
     const yamlPath = path.join(tempDir, 'test.yaml');
     await writeFile(
       yamlPath,
-      `eval_cases:
+      `cases:
   - id: yaml-test
-    expected_outcome: Goal
+    criteria: Goal
     input_messages:
       - role: user
         content: Query
@@ -334,9 +321,9 @@ describe('loadEvalCases with format detection', () => {
     const ymlPath = path.join(tempDir, 'test.yml');
     await writeFile(
       ymlPath,
-      `eval_cases:
+      `cases:
   - id: yml-test
-    expected_outcome: Goal
+    criteria: Goal
     input_messages:
       - role: user
         content: Query
@@ -377,9 +364,9 @@ describe('JSONL and YAML produce equivalent EvalCases', () => {
     await writeFile(
       yamlPath,
       `dataset: my-dataset
-eval_cases:
+cases:
   - id: test-1
-    expected_outcome: "The agent should respond with a helpful answer"
+    criteria: "The agent should respond with a helpful answer"
     input_messages:
       - role: user
         content: "What is 2+2?"
@@ -393,7 +380,7 @@ eval_cases:
     const jsonlPath2 = path.join(tempDir, 'equiv-sidecar.jsonl');
     await writeFile(
       jsonlPath2,
-      '{"id": "test-1", "expected_outcome": "The agent should respond with a helpful answer", "input_messages": [{"role": "user", "content": "What is 2+2?"}]}\n',
+      '{"id": "test-1", "criteria": "The agent should respond with a helpful answer", "input_messages": [{"role": "user", "content": "What is 2+2?"}]}\n',
     );
 
     const yamlCases = await loadEvalCases(yamlPath, tempDir);
@@ -404,7 +391,7 @@ eval_cases:
 
     // Core fields should match
     expect(jsonlCases[0].id).toBe(yamlCases[0].id);
-    expect(jsonlCases[0].expected_outcome).toBe(yamlCases[0].expected_outcome);
+    expect(jsonlCases[0].criteria).toBe(yamlCases[0].criteria);
     expect(jsonlCases[0].dataset).toBe(yamlCases[0].dataset);
     expect(jsonlCases[0].input_messages.length).toBe(yamlCases[0].input_messages.length);
     expect(jsonlCases[0].input_messages[0].role).toBe(yamlCases[0].input_messages[0].role);
@@ -427,10 +414,7 @@ describe('Input/expected_output aliases and shorthand', () => {
   describe('JSONL aliases', () => {
     it('supports input string shorthand', async () => {
       const jsonlPath = path.join(tempDir, 'input-shorthand.jsonl');
-      await writeFile(
-        jsonlPath,
-        '{"id": "test-1", "expected_outcome": "Goal", "input": "What is 2+2?"}\n',
-      );
+      await writeFile(jsonlPath, '{"id": "test-1", "criteria": "Goal", "input": "What is 2+2?"}\n');
 
       const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
 
@@ -444,7 +428,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const jsonlPath = path.join(tempDir, 'input-array.jsonl');
       await writeFile(
         jsonlPath,
-        '{"id": "test-1", "expected_outcome": "Goal", "input": [{"role": "system", "content": "Be helpful"}, {"role": "user", "content": "Hello"}]}\n',
+        '{"id": "test-1", "criteria": "Goal", "input": [{"role": "system", "content": "Be helpful"}, {"role": "user", "content": "Hello"}]}\n',
       );
 
       const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
@@ -459,7 +443,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const jsonlPath = path.join(tempDir, 'expected-string.jsonl');
       await writeFile(
         jsonlPath,
-        '{"id": "test-1", "expected_outcome": "Goal", "input": "Query", "expected_output": "The answer is 4"}\n',
+        '{"id": "test-1", "criteria": "Goal", "input": "Query", "expected_output": "The answer is 4"}\n',
       );
 
       const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
@@ -475,7 +459,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const jsonlPath = path.join(tempDir, 'expected-object.jsonl');
       await writeFile(
         jsonlPath,
-        '{"id": "test-1", "expected_outcome": "Goal", "input": "Query", "expected_output": {"riskLevel": "High", "confidence": 0.95}}\n',
+        '{"id": "test-1", "criteria": "Goal", "input": "Query", "expected_output": {"riskLevel": "High", "confidence": 0.95}}\n',
       );
 
       const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
@@ -491,7 +475,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const jsonlPath = path.join(tempDir, 'canonical-precedence.jsonl');
       await writeFile(
         jsonlPath,
-        '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Canonical"}], "input": "Should be ignored"}\n',
+        '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Canonical"}], "input": "Should be ignored"}\n',
       );
 
       const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
@@ -504,7 +488,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const jsonlPath = path.join(tempDir, 'canonical-expected-precedence.jsonl');
       await writeFile(
         jsonlPath,
-        '{"id": "test-1", "expected_outcome": "Goal", "input": "Query", "expected_messages": [{"role": "assistant", "content": "Canonical"}], "expected_output": "Should be ignored"}\n',
+        '{"id": "test-1", "criteria": "Goal", "input": "Query", "expected_messages": [{"role": "assistant", "content": "Canonical"}], "expected_output": "Should be ignored"}\n',
       );
 
       const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
@@ -519,9 +503,9 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'input-shorthand.yaml');
       await writeFile(
         yamlPath,
-        `eval_cases:
+        `cases:
   - id: test-1
-    expected_outcome: Goal
+    criteria: Goal
     input: "What is 2+2?"
 `,
       );
@@ -538,9 +522,9 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'input-array.yaml');
       await writeFile(
         yamlPath,
-        `eval_cases:
+        `cases:
   - id: test-1
-    expected_outcome: Goal
+    criteria: Goal
     input:
       - role: system
         content: Be helpful
@@ -561,9 +545,9 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'expected-string.yaml');
       await writeFile(
         yamlPath,
-        `eval_cases:
+        `cases:
   - id: test-1
-    expected_outcome: Goal
+    criteria: Goal
     input: Query
     expected_output: "The answer is 4"
 `,
@@ -581,9 +565,9 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'expected-object.yaml');
       await writeFile(
         yamlPath,
-        `eval_cases:
+        `cases:
   - id: test-1
-    expected_outcome: Goal
+    criteria: Goal
     input: Query
     expected_output:
       riskLevel: High
@@ -604,9 +588,9 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'canonical-precedence.yaml');
       await writeFile(
         yamlPath,
-        `eval_cases:
+        `cases:
   - id: test-1
-    expected_outcome: Goal
+    criteria: Goal
     input_messages:
       - role: user
         content: Canonical
@@ -626,9 +610,9 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'mixed.yaml');
       await writeFile(
         yamlPath,
-        `eval_cases:
+        `cases:
   - id: test-canonical
-    expected_outcome: Goal
+    criteria: Goal
     input_messages:
       - role: user
         content: Using canonical
@@ -636,7 +620,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       - role: assistant
         content: Canonical response
   - id: test-alias
-    expected_outcome: Goal
+    criteria: Goal
     input: "Using alias shorthand"
     expected_output: "Alias response"
 `,
@@ -658,9 +642,9 @@ describe('Input/expected_output aliases and shorthand', () => {
 
       await writeFile(
         yamlPath,
-        `eval_cases:
+        `cases:
   - id: test-1
-    expected_outcome: Goal
+    criteria: Goal
     input: "What is 2+2?"
     expected_output:
       answer: 4
@@ -669,7 +653,7 @@ describe('Input/expected_output aliases and shorthand', () => {
 
       await writeFile(
         jsonlPath,
-        '{"id": "test-1", "expected_outcome": "Goal", "input": "What is 2+2?", "expected_output": {"answer": 4}}\n',
+        '{"id": "test-1", "criteria": "Goal", "input": "What is 2+2?", "expected_output": {"answer": 4}}\n',
       );
 
       const yamlCases = await loadEvalCases(yamlPath, tempDir);

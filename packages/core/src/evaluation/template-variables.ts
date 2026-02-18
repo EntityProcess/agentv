@@ -6,7 +6,7 @@ export const TEMPLATE_VARIABLES = {
   CANDIDATE_ANSWER: 'candidate_answer',
   EXPECTED_MESSAGES: 'expected_messages',
   QUESTION: 'question',
-  EXPECTED_OUTCOME: 'expected_outcome',
+  CRITERIA: 'criteria',
   REFERENCE_ANSWER: 'reference_answer',
   INPUT_MESSAGES: 'input_messages',
   OUTPUT_MESSAGES: 'output_messages',

@@ -10,7 +10,7 @@ Evaluate the generated code against the requirements. Score from 0.0 to 1.0 base
 {{question}}
 
 ### Expected Outcome
-{{expected_outcome}}
+{{criteria}}
 
 ### Reference Answer
 {{reference_answer}}

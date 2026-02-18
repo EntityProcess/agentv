@@ -1,7 +1,7 @@
 # Confusion Metrics Dataset
 #
 # This dataset demonstrates aggregatable TP/TN/FP/FN metrics across multiple documents.
-# All eval_cases use the SAME header_confusion evaluator with the SAME fields,
+# All cases use the SAME header_confusion evaluator with the SAME fields,
 # enabling cross-document aggregation with fractional precision/recall.
 #
 # Use case: Measuring field-level extraction accuracy across a document corpus.
@@ -29,13 +29,13 @@ execution:
         - path: importer.name
         - path: gross_total
 
-eval_cases:
+cases:
   # ============================================
   # Case 1: Perfect extraction
   # Expected: All TP
   # ============================================
   - id: metrics-001
-    expected_outcome: All fields extracted correctly (all TP)
+    criteria: All fields extracted correctly (all TP)
     expected_output:
       - role: assistant
         content:
@@ -60,7 +60,7 @@ eval_cases:
   # Expected: supplier.name = FP+FN (wrong value)
   # ============================================
   - id: metrics-002
-    expected_outcome: Supplier name has dash variation (FP+FN)
+    criteria: Supplier name has dash variation (FP+FN)
     expected_output:
       - role: assistant
         content:
@@ -85,7 +85,7 @@ eval_cases:
   # Expected: supplier.name = FP+FN
   # ============================================
   - id: metrics-003
-    expected_outcome: Supplier name has dash variation (FP+FN)
+    criteria: Supplier name has dash variation (FP+FN)
     expected_output:
       - role: assistant
         content:
@@ -110,7 +110,7 @@ eval_cases:
   # Expected: invoice_number = FN (missing)
   # ============================================
   - id: metrics-004
-    expected_outcome: Invoice number missing (FN)
+    criteria: Invoice number missing (FN)
     expected_output:
       - role: assistant
         content:
@@ -137,7 +137,7 @@ eval_cases:
   # - gross_total: missing (FN)
   # ============================================
   - id: metrics-005
-    expected_outcome: Multiple field errors (currency, supplier, gross_total)
+    criteria: Multiple field errors (currency, supplier, gross_total)
     expected_output:
       - role: assistant
         content:

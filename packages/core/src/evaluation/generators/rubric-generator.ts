@@ -6,7 +6,7 @@ import type { RubricItem } from '../types.js';
 
 const rubricItemSchema = z.object({
   id: z.string().describe('Short identifier for this rubric (e.g., clarity, completeness)'),
-  expected_outcome: z.string().describe('Concrete expected outcome for this rubric item'),
+  outcome: z.string().describe('Concrete expected outcome for this rubric item'),
   weight: z.number().default(1.0).describe('Relative importance (default 1.0)'),
   required: z.boolean().default(true).describe('Whether this is a mandatory requirement'),
 });
@@ -43,7 +43,7 @@ You must return a valid JSON object matching this schema:
   "rubrics": [
     {
       "id": "string (short identifier)",
-      "expected_outcome": "string (concrete expected outcome for this rubric item)",
+      "outcome": "string (concrete expected outcome for this rubric item)",
       "weight": number (default 1.0),
       "required": boolean (default true)
     }
@@ -92,7 +92,7 @@ function buildPrompt(expectedOutcome: string, question?: string, referenceAnswer
     '',
     'Generate 3-7 rubric items that comprehensively cover the expected outcome.',
     '',
-    '[[ ## expected_outcome ## ]]',
+    '[[ ## criteria ## ]]',
     expectedOutcome,
     '',
   ];

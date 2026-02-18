@@ -16,9 +16,9 @@ description: Basic arithmetic evaluation
 execution:
   target: default
 
-eval_cases:
+cases:
   - id: simple-addition
-    expected_outcome: Correctly calculates 2+2
+    criteria: Correctly calculates 2+2
 
     input: What is 2 + 2?
 
@@ -34,9 +34,9 @@ description: Code review with guidelines
 execution:
   target: azure_base
 
-eval_cases:
+cases:
   - id: code-review-basic
-    expected_outcome: Assistant provides helpful code analysis with security considerations
+    criteria: Assistant provides helpful code analysis with security considerations
 
     input:
       - role: system
@@ -78,9 +78,9 @@ description: JSON generation with validation
 execution:
   target: default
 
-eval_cases:
+cases:
   - id: json-generation-with-validation
-    expected_outcome: Generates valid JSON with required fields
+    criteria: Generates valid JSON with required fields
 
     execution:
       evaluators:
@@ -113,10 +113,10 @@ description: Tool usage validation
 execution:
   target: mock_agent
 
-eval_cases:
+cases:
   # Validate minimum tool usage (order doesn't matter)
   - id: research-depth
-    expected_outcome: Agent researches thoroughly
+    criteria: Agent researches thoroughly
     input: Research REST vs GraphQL
     execution:
       evaluators:
@@ -129,7 +129,7 @@ eval_cases:
 
   # Validate exact tool sequence
   - id: auth-flow
-    expected_outcome: Agent follows auth sequence
+    criteria: Agent follows auth sequence
     input: Authenticate user
     execution:
       evaluators:
@@ -150,9 +150,9 @@ description: Static trace evaluation
 execution:
   target: static_trace
 
-eval_cases:
+cases:
   - id: validate-trace-file
-    expected_outcome: Trace contains required steps
+    criteria: Trace contains required steps
     input: Analyze trace
     execution:
       evaluators:
@@ -173,9 +173,9 @@ description: Multi-turn debugging session with clarifying questions
 execution:
   target: default
 
-eval_cases:
+cases:
   - id: debug-with-clarification
-    expected_outcome: |-
+    criteria: |-
       Assistant conducts a multi-turn debugging session, asking clarification
       questions when needed, correctly diagnosing the bug, and proposing a clear
       fix with rationale.
@@ -234,9 +234,9 @@ description: Batch CLI demo (AML screening)
 execution:
   target: batch_cli
 
-eval_cases:
+cases:
   - id: aml-001
-    expected_outcome: |-
+    criteria: |-
       Batch runner returns JSON with decision=CLEAR.
 
     expected_output:
@@ -270,7 +270,7 @@ eval_cases:
           cwd: .
 
   - id: aml-002
-    expected_outcome: |-
+    criteria: |-
       Batch runner returns JSON with decision=REVIEW.
 
     expected_output:
@@ -319,7 +319,7 @@ eval_cases:
 - **Relative paths** (start with `./` or `../`): resolved from the eval file directory
   - Example: `../../prompts/file.md` goes two directories up, then into `prompts/`
 
-## Tips for Writing expected_outcome
+## Tips for Writing criteria
 
 - Be specific about what success looks like
 - Mention key elements that must be present

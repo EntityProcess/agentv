@@ -7,7 +7,7 @@
 ```json
 {
   "question": "string",
-  "expected_outcome": "string",
+  "criteria": "string",
   "reference_answer": "string",
   "candidate_answer": "string",
   "guideline_files": ["path"],
@@ -108,7 +108,7 @@ Derived from eval case fields (users never author these directly):
 | Variable | Source |
 |----------|--------|
 | `question` | First user message in `input_messages` |
-| `expected_outcome` | Eval case `expected_outcome` field |
+| `criteria` | Eval case `criteria` field |
 | `reference_answer` | Last entry in `expected_messages` |
 | `candidate_answer` | Last entry in `output_messages` (runtime) |
 | `input_messages` | Full resolved input array (JSON) |

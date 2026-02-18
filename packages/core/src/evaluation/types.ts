@@ -235,28 +235,28 @@ export type LlmJudgeEvaluatorConfig = {
 
 /**
  * Score range definition for analytic rubric scoring.
- * Each range maps an integer score band (0-10) to an expected outcome description.
+ * Each range maps an integer score band (0-10) to an outcome description.
  */
 export type ScoreRange = {
   /** Inclusive integer range [min, max] within 0-10 */
   readonly score_range: readonly [number, number];
   /** Description of what this score range represents */
-  readonly expected_outcome: string;
+  readonly outcome: string;
 };
 
 /**
  * Rubric item for LLM judge evaluation.
  * Supports two modes:
- * - Checklist mode: boolean satisfied/not-satisfied with `expected_outcome`
+ * - Checklist mode: boolean satisfied/not-satisfied with `outcome`
  * - Score-range mode: 0-10 integer scoring with `score_ranges`
  */
 export type RubricItem = {
   readonly id: string;
   /**
-   * For checklist rubrics: the expected outcome text (required).
+   * For checklist rubrics: the outcome text (required).
    * For score-range rubrics: optional overall criterion description.
    */
-  readonly expected_outcome?: string;
+  readonly outcome?: string;
   readonly weight: number;
   /**
    * Legacy boolean gating (deprecated, treated as required_min_score: 10).
@@ -430,7 +430,7 @@ export interface EvalCase {
   readonly guideline_paths: readonly string[];
   readonly guideline_patterns?: readonly string[];
   readonly file_paths: readonly string[];
-  readonly expected_outcome: string;
+  readonly criteria: string;
   readonly evaluator?: EvaluatorKind;
   readonly evaluators?: readonly EvaluatorConfig[];
 }

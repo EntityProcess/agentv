@@ -13,14 +13,14 @@ description: Showcase of tool evaluation plugin patterns
 execution:
   target: mock_agent
 
-eval_cases:
+cases:
   # ==========================================
   # Example 1: Tool Selection Evaluation
   # Use case: Verify agent chose appropriate tools for the task
   # ==========================================
   - id: tool-selection-demo
 
-    expected_outcome: |-
+    criteria: |-
       Agent should search for relevant information and fetch data from APIs.
       Uses search and fetch tools appropriately for the research task.
 
@@ -50,7 +50,7 @@ eval_cases:
   - id: efficiency-demo
     # Baseline note: exploration ratio can flag this as slightly suboptimal (~0.93).
 
-    expected_outcome: |-
+    criteria: |-
       Agent efficiently processes the request with minimal redundant operations.
       Simple task requiring straightforward tool usage.
 
@@ -72,7 +72,7 @@ eval_cases:
   - id: combined-evaluation
     # Baseline note: selection + efficiency checks are strict; partial failures yield lower score (~0.78).
 
-    expected_outcome: |-
+    criteria: |-
       Agent performs comprehensive data analysis:
       1. Search multiple sources
       2. Validate data quality
@@ -111,7 +111,7 @@ eval_cases:
   # ==========================================
   - id: pairwise-demo
 
-    expected_outcome: |-
+    criteria: |-
       Agent should retrieve and summarize the document efficiently.
 
     input:

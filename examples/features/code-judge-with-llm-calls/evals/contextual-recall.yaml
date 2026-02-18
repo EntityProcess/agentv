@@ -6,7 +6,7 @@
 # Formula: Attributable Statements / Total Statements
 #
 # Process:
-# 1. Extract distinct statements from expected_outcome
+# 1. Extract distinct statements from criteria
 # 2. Check if each statement can be attributed to retrieval context
 # 3. Score = proportion of attributable statements
 #
@@ -22,14 +22,14 @@ execution:
       target:
         max_calls: 15
 
-eval_cases:
+cases:
   # Test case 1: Perfect recall - all statements supported by retrieval
   # Expected: "Python was created by Guido van Rossum and first released in 1991"
   # Statements: (1) Created by Guido van Rossum, (2) First released in 1991
   # Both statements are covered by retrieval context
   # Score = 2/2 = 1.0
   - id: perfect-recall
-    expected_outcome: Python was created by Guido van Rossum and first released in 1991.
+    criteria: Python was created by Guido van Rossum and first released in 1991.
     input:
       - role: user
         content: Who created Python and when was it released?
@@ -53,7 +53,7 @@ eval_cases:
   # Only length is mentioned in retrieval, construction info is missing
   # Score ~ 0.33 (1 of 3 statements attributable)
   - id: partial-recall
-    expected_outcome: The Great Wall of China is over 13,000 miles long and was built over many centuries by multiple dynasties.
+    criteria: The Great Wall of China is over 13,000 miles long and was built over many centuries by multiple dynasties.
     input:
       - role: user
         content: How long is the Great Wall of China and how was it built?
@@ -76,7 +76,7 @@ eval_cases:
   # Retrieval only contains info about K2, Kilimanjaro, Alps - not Everest
   # Score = 0/N = 0.0
   - id: zero-recall
-    expected_outcome: Mount Everest is 29,032 feet tall and located in the Himalayas on the border of Nepal and Tibet.
+    criteria: Mount Everest is 29,032 feet tall and located in the Himalayas on the border of Nepal and Tibet.
     input:
       - role: user
         content: How tall is Mount Everest and where is it located?

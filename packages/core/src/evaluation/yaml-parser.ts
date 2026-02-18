@@ -32,8 +32,7 @@ type LoadOptions = {
 };
 
 type RawTestSuite = JsonObject & {
-  readonly eval_cases?: JsonValue;
-  readonly evalcases?: JsonValue; // deprecated alias
+  readonly cases?: JsonValue;
   readonly target?: JsonValue;
   readonly execution?: JsonValue;
   readonly dataset?: JsonValue;
@@ -42,8 +41,7 @@ type RawTestSuite = JsonObject & {
 type RawEvalCase = JsonObject & {
   readonly id?: JsonValue;
   readonly conversation_id?: JsonValue;
-  readonly outcome?: JsonValue;
-  readonly expected_outcome?: JsonValue;
+  readonly criteria?: JsonValue;
   readonly input_messages?: JsonValue;
   readonly expected_messages?: JsonValue;
   // Aliases for input_messages/expected_messages
@@ -55,11 +53,7 @@ type RawEvalCase = JsonObject & {
 };
 
 function resolveEvalCases(suite: RawTestSuite): JsonValue | undefined {
-  if (suite.eval_cases !== undefined) return suite.eval_cases;
-  if (suite.evalcases !== undefined) {
-    logWarning("'evalcases' is deprecated, use 'eval_cases' instead");
-    return suite.evalcases;
-  }
+  if (suite.cases !== undefined) return suite.cases;
   return undefined;
 }
 
@@ -126,7 +120,7 @@ export async function loadEvalCases(
 
   const rawTestcases = resolveEvalCases(suite);
   if (!Array.isArray(rawTestcases)) {
-    throw new Error(`Invalid test file format: ${evalFilePath} - missing 'eval_cases' field`);
+    throw new Error(`Invalid test file format: ${evalFilePath} - missing 'cases' field`);
   }
 
   const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm_judge';
@@ -152,8 +146,7 @@ export async function loadEvalCases(
     }
 
     const conversationId = asString(evalcase.conversation_id);
-    // Support both expected_outcome and outcome (backward compatibility)
-    const outcome = asString(evalcase.expected_outcome) ?? asString(evalcase.outcome);
+    const outcome = asString(evalcase.criteria);
 
     // Resolve input_messages with alias/shorthand support (canonical takes precedence)
     const inputMessages = resolveInputMessages(evalcase);
@@ -162,7 +155,7 @@ export async function loadEvalCases(
 
     if (!id || !outcome || !inputMessages || inputMessages.length === 0) {
       logError(
-        `Skipping incomplete eval case: ${id ?? 'unknown'}. Missing required fields: id, outcome, and/or input_messages (or input)`,
+        `Skipping incomplete eval case: ${id ?? 'unknown'}. Missing required fields: id, criteria, and/or input_messages (or input)`,
       );
       continue;
     }
@@ -267,7 +260,7 @@ export async function loadEvalCases(
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
       guideline_patterns: guidelinePatterns,
       file_paths: allFilePaths,
-      expected_outcome: outcome,
+      criteria: outcome,
       evaluator: evalCaseEvaluatorKind,
       evaluators,
     };

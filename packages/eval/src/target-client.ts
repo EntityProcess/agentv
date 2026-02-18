@@ -103,7 +103,7 @@ export class TargetInvocationError extends Error {
  * ```typescript
  * import { createTargetClient, defineCodeJudge } from '@agentv/eval';
  *
- * export default defineCodeJudge(async ({ question, expectedOutcome }) => {
+ * export default defineCodeJudge(async ({ question, criteria }) => {
  *   const target = createTargetClient();
  *
  *   if (!target) {
@@ -112,7 +112,7 @@ export class TargetInvocationError extends Error {
  *   }
  *
  *   const response = await target.invoke({
- *     question: `Is this answer correct? Question: ${question}, Expected: ${expectedOutcome}`,
+ *     question: `Is this answer correct? Question: ${question}, Expected: ${criteria}`,
  *     systemPrompt: 'You are an expert evaluator. Respond with JSON: { "correct": true/false }'
  *   });
  *

@@ -263,7 +263,7 @@ describe('Code Judge Metrics Integration', () => {
     reference_answer: '',
     guideline_paths: [],
     file_paths: [],
-    expected_outcome: 'Test outcome',
+    criteria: 'Test outcome',
     evaluator: 'code_judge',
   };
 

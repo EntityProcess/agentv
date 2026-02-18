@@ -10,7 +10,7 @@ import {
 describe('CodeJudgeInputSchema', () => {
   const validInput = {
     question: 'What is 2+2?',
-    expectedOutcome: 'The answer should be 4',
+    criteria: 'The answer should be 4',
     expectedMessages: [{ role: 'assistant', content: '4' }],
     candidateAnswer: 'The answer is 4',
     guidelineFiles: [],
@@ -169,7 +169,7 @@ describe('Schema type inference', () => {
     // Type-level test: ensure inferred types have expected properties
     const input: CodeJudgeInput = {
       question: 'test',
-      expectedOutcome: 'test',
+      criteria: 'test',
       expectedMessages: [],
       candidateAnswer: 'test',
       guidelineFiles: [],

@@ -15,7 +15,7 @@ description: Static trace file evaluation demo - Product Research Agent
 execution:
   target: static_trace
 
-eval_cases:
+cases:
   # =============================================================================
   # Example 1: In-Order Validation
   # Use case: Ensure tools are called in the expected sequence (allows gaps)
@@ -27,7 +27,7 @@ eval_cases:
       Validates that the agent performs web search before fetching page details.
       Mode 'in_order' allows other tool calls between expected tools.
 
-    expected_outcome: |-
+    criteria: |-
       Agent searches for product information, then fetches detailed specs.
 
     # Input messages are ignored by the static trace provider but required by schema
@@ -54,7 +54,7 @@ eval_cases:
       Validates the exact sequence of all tool calls in the trace.
       Mode 'exact' requires the trace to match precisely.
 
-    expected_outcome: |-
+    criteria: |-
       Agent follows the exact research workflow: search, fetch, search reviews, summarize.
 
     input:
@@ -82,7 +82,7 @@ eval_cases:
       Validates that the agent performs adequate research by checking minimum
       tool call counts. Mode 'any_order' with minimums is flexible on sequence.
 
-    expected_outcome: |-
+    criteria: |-
       Agent performs at least 2 web searches and 1 page fetch for thorough research.
 
     input:
@@ -108,7 +108,7 @@ eval_cases:
       Validates that tool calls include appropriate input parameters.
       Useful for ensuring the agent provides correct context to tools.
 
-    expected_outcome: |-
+    criteria: |-
       Agent searches with relevant product keywords and fetches from authoritative source.
 
     input:
@@ -138,7 +138,7 @@ eval_cases:
       Validates that tool outputs contain expected data.
       Useful for regression testing when tool behavior changes.
 
-    expected_outcome: |-
+    criteria: |-
       Web search returns results with links and snippets; fetch returns product specs.
 
     input:
@@ -170,7 +170,7 @@ eval_cases:
       Production-style evaluation combining sequence validation with input/output
       checks. Demonstrates a realistic multi-turn agent workflow.
 
-    expected_outcome: |-
+    criteria: |-
       Agent performs comprehensive product research:
       1. Initial web search for product specs
       2. Fetches detailed information from manufacturer

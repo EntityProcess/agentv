@@ -12,9 +12,9 @@ Rubrics define structured evaluation criteria directly in your eval cases. They 
 The simplest form — each string becomes a required criterion:
 
 ```yaml
-eval_cases:
+cases:
   - id: quicksort-explain
-    expected_outcome: Explain how quicksort works
+    criteria: Explain how quicksort works
     input: Explain quicksort algorithm
     rubrics:
       - Mentions divide-and-conquer approach
@@ -29,14 +29,14 @@ For fine-grained control, use rubric objects with weights and requirements:
 ```yaml
 rubrics:
   - id: core-concept
-    expected_outcome: Explains divide-and-conquer
+    outcome: Explains divide-and-conquer
     weight: 2.0
     required: true
   - id: partition
-    expected_outcome: Describes partition step
+    outcome: Describes partition step
     weight: 1.5
   - id: complexity
-    expected_outcome: States O(n log n) average time
+    outcome: States O(n log n) average time
     weight: 1.0
 ```
 
@@ -45,7 +45,7 @@ rubrics:
 | Field | Default | Description |
 |-------|---------|-------------|
 | `id` | Auto-generated | Unique identifier for the criterion |
-| `expected_outcome` | — | Description of what to check |
+| `outcome` | — | Description of what to check |
 | `weight` | `1.0` | Relative importance for scoring |
 | `required` | `false` | If true, failing this criterion fails the entire eval |
 | `required_min_score` | — | Minimum score threshold (score-range mode) |
@@ -58,7 +58,7 @@ For quality gradients instead of binary pass/fail, use score ranges:
 ```yaml
 rubrics:
   - id: accuracy
-    expected_outcome: Provides correct answer
+    outcome: Provides correct answer
     weight: 2.0
     score_ranges:
       0: Completely wrong
@@ -100,16 +100,16 @@ Generate rubrics from expected outcomes:
 agentv generate rubrics evals/my-eval.yaml
 ```
 
-This analyzes each eval case's `expected_outcome` and creates structured rubric criteria.
+This analyzes each eval case's `criteria` and creates structured rubric criteria.
 
 ## Combining with Other Evaluators
 
 Rubrics work alongside code and LLM judges:
 
 ```yaml
-eval_cases:
+cases:
   - id: code-quality
-    expected_outcome: Generates correct, clean Python code
+    criteria: Generates correct, clean Python code
     input: Write a fibonacci function
     rubrics:
       - Returns correct values for n=0,1,2,10

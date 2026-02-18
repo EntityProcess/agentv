@@ -39,7 +39,7 @@ export const evalPromptOverviewCommand = command({
       'The output contains:',
       '- `input_messages` — `[{role, content}]` array. Content segments are either `{type: "text", value: "..."}` or `{type: "file", path: "/absolute/path"}`. Read file segments from the filesystem.',
       '- `guideline_paths` — files containing additional instructions to prepend to the system message (may be empty). Read these from the filesystem.',
-      '- `expected_outcome` — what a good answer should accomplish (for your reference, do not leak to the agent being tested)',
+      '- `criteria` — what a good answer should accomplish (for your reference, do not leak to the agent being tested)',
       '',
       '## Step 2: Execute the Task',
       '',
@@ -64,7 +64,7 @@ export const evalPromptOverviewCommand = command({
       for (const evalCase of cases) {
         const evaluatorSummary = describeEvaluators(evalCase);
         lines.push(`### ${evalCase.id}`);
-        lines.push(`Expected outcome: ${evalCase.expected_outcome}`);
+        lines.push(`Criteria: ${evalCase.criteria}`);
         if (evaluatorSummary) {
           lines.push(`Evaluators: ${evaluatorSummary}`);
         }

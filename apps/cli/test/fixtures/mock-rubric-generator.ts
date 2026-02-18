@@ -19,25 +19,25 @@ export async function generateRubrics(
   return [
     {
       id: 'completeness',
-      expected_outcome: `Answer must address all aspects of: ${expectedOutcome}`,
+      outcome: `Answer must address all aspects of: ${expectedOutcome}`,
       weight: 0.4,
       required: true,
     },
     {
       id: 'accuracy',
-      expected_outcome: 'Answer must be factually correct',
+      outcome: 'Answer must be factually correct',
       weight: 0.3,
       required: true,
     },
     {
       id: 'clarity',
-      expected_outcome: 'Answer must be clear and well-structured',
+      outcome: 'Answer must be clear and well-structured',
       weight: 0.2,
       required: false,
     },
     {
       id: 'conciseness',
-      expected_outcome: 'Answer must be concise without unnecessary details',
+      outcome: 'Answer must be concise without unnecessary details',
       weight: 0.1,
       required: false,
     },

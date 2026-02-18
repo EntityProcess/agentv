@@ -5,7 +5,7 @@ dataset: composite-evaluator-examples
 execution:
   target: default
 
-eval_cases:
+cases:
   # Example 1: Weighted Average Aggregation
   - id: weighted-average-example
     input:
@@ -15,7 +15,7 @@ eval_cases:
       - role: assistant
         content: |
           Machine learning is a subset of AI that enables systems to learn from data and improve performance without explicit programming. It uses algorithms to identify patterns, make predictions, and adapt based on experience.
-    expected_outcome: |
+    criteria: |
       The response should be both concise and detailed, balancing brevity with informative content.
     execution:
       evaluators:
@@ -43,7 +43,7 @@ eval_cases:
       - role: assistant
         content: |
           Quantum computing uses quantum bits (qubits) that can exist in multiple states simultaneously, unlike classical bits that are either 0 or 1. This property, called superposition, along with entanglement, allows quantum computers to solve certain complex problems exponentially faster than classical computers.
-    expected_outcome: |
+    criteria: |
       The response should be accurate, accessible to non-experts, and pass safety checks.
     execution:
       evaluators:
@@ -70,7 +70,7 @@ eval_cases:
       - role: assistant
         content: |
           Premium wireless headphones featuring active noise cancellation, 30-hour battery life, premium sound quality with enhanced bass, comfortable over-ear design, and seamless Bluetooth 5.0 connectivity.
-    expected_outcome: |
+    criteria: |
       The response should balance conciseness with detail effectively.
     execution:
       evaluators:
@@ -96,7 +96,7 @@ eval_cases:
       - role: assistant
         content: |
           Supervised learning uses labeled training data to learn patterns and make predictions, like classifying emails as spam or not spam. Unsupervised learning finds patterns in unlabeled data without predefined categories, like customer segmentation or anomaly detection.
-    expected_outcome: |
+    criteria: |
       The response should be accurate, clear, safe, and appropriately detailed.
     execution:
       evaluators:

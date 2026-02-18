@@ -66,7 +66,7 @@ evaluators:
       - path: supplier.name
 ```
 
-**Key requirement**: All eval_cases must use the **same evaluator** with the **same fields** to enable cross-document aggregation.
+**Key requirement**: All cases must use the **same evaluator** with the **same fields** to enable cross-document aggregation.
 
 **Output**: Aggregate metrics table with fractional precision/recall:
 

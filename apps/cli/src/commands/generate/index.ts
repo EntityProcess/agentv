@@ -4,7 +4,7 @@ import { generateRubricsCommand } from './rubrics.js';
 
 const rubricsCommand = command({
   name: 'rubrics',
-  description: 'Generate rubrics from expected_outcome in YAML eval file',
+  description: 'Generate rubrics from criteria in YAML eval file',
   args: {
     file: positional({
       type: string,

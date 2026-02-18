@@ -47,8 +47,8 @@ const EXPLORATION_TOOLS = new Set([
   'view',
 ]);
 
-function estimateTaskComplexity(expectedOutcome: string): 'simple' | 'complex' {
-  const text = expectedOutcome.toLowerCase();
+function estimateTaskComplexity(criteria: string): 'simple' | 'complex' {
+  const text = criteria.toLowerCase();
   const complexIndicators = [
     'multiple',
     'several',
@@ -77,12 +77,12 @@ function calculateExplorationRatio(traceSummary: TraceSummary): number {
   return explorationCount / total;
 }
 
-export default defineCodeJudge(({ traceSummary, expectedOutcome }) => {
+export default defineCodeJudge(({ traceSummary, criteria }) => {
   const hits: string[] = [];
   const misses: string[] = [];
   const scores: number[] = [];
 
-  const complexity = estimateTaskComplexity(expectedOutcome);
+  const complexity = estimateTaskComplexity(criteria);
 
   if (!traceSummary) {
     return {

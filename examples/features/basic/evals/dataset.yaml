@@ -7,14 +7,14 @@ description: Example showing basic features, conversation threading, multiple ev
 execution:
   target: default
 
-eval_cases:
+cases:
   # ==========================================
   # Example 1: Basic V2 features with file references
   # Demonstrates: input, expected_output, file references, array content format
   # ==========================================
   - id: code-review-javascript
     
-    expected_outcome: |-
+    criteria: |-
       Assistant provides helpful code analysis and mentions SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT
 
     input:
@@ -67,7 +67,7 @@ eval_cases:
     # Most commonly, eval cases test the final response, but could also test intermediate turns
     conversation_id: python-code-generation
     
-    expected_outcome: AI generates correct Python function with proper error handling, type hints, and mentions SUPERSECRET_INSTRUCTION_MARKER_PYTHON
+    criteria: AI generates correct Python function with proper error handling, type hints, and mentions SUPERSECRET_INSTRUCTION_MARKER_PYTHON
 
     execution:
       # Override file-level target for this specific eval case
@@ -108,15 +108,15 @@ eval_cases:
             value: ./snippets/python-second-largest-comments.md
 
   # ==========================================
-  # Example 3: expected_outcome-only evaluation (no reference answer)
+  # Example 3: criteria-only evaluation (no reference answer)
   # Demonstrates: Evaluating based on criteria alone, useful for creative/open-ended tasks
   # Use case: When there's no single "correct" answer, only quality criteria to meet
   # ==========================================
   - id: feature-proposal-brainstorm
     
-    # expected_outcome describes what makes a good response without providing a reference answer
+    # criteria describes what makes a good response without providing a reference answer
     # The LLM judge evaluates whether the response meets these criteria
-    expected_outcome: |-
+    criteria: |-
       Assistant generates 3-5 creative feature ideas for a mobile fitness app. Each idea should:
       1. Address a specific user pain point
       2. Be technically feasible with current mobile technology
@@ -134,7 +134,7 @@ eval_cases:
           
           Please brainstorm 3-5 innovative features we should consider building.
     
-    # Note: No expected_messages - evaluation is purely based on whether expected_outcome criteria are met
+    # Note: No expected_messages - evaluation is purely based on whether criteria are met
     # The LLM judge will assess: creativity, technical feasibility, value propositions, and distinctiveness
 
   # ==========================================
@@ -143,7 +143,7 @@ eval_cases:
   # ==========================================
   - id: coding-multiturn-debug-session
 
-    expected_outcome: |-
+    criteria: |-
       Assistant conducts a multi-turn debugging session, asking clarification
       questions when needed, correctly diagnosing the bug, and proposing a clear
       fix with rationale.
@@ -199,7 +199,7 @@ eval_cases:
   # ==========================================
   - id: shorthand-string-example
 
-    expected_outcome: Assistant correctly answers the math question
+    criteria: Assistant correctly answers the math question
 
     # String shorthand: expands to [{role: user, content: "What is 2+2?"}]
     input: "What is 2+2?"
@@ -214,7 +214,7 @@ eval_cases:
   # ==========================================
   - id: shorthand-structured-output
 
-    expected_outcome: Agent returns properly structured risk assessment
+    criteria: Agent returns properly structured risk assessment
 
     input:
       - role: system
@@ -240,7 +240,7 @@ eval_cases:
   # ==========================================
   - id: shorthand-array-syntax
 
-    expected_outcome: Assistant provides a greeting response
+    criteria: Assistant provides a greeting response
 
     # Array syntax still works with alias names
     input:

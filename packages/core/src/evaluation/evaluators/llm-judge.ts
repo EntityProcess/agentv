@@ -12,14 +12,14 @@ import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
  * Default evaluator template for the user prompt (variables will be substituted).
  * Custom evaluators can override this via evaluatorTemplate option.
  */
-export const DEFAULT_EVALUATOR_TEMPLATE = `You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the expected_outcome for the original task.
+export const DEFAULT_EVALUATOR_TEMPLATE = `You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the criteria for the original task.
 
 Use the reference_answer as a gold standard for a high-quality response (if provided). The reference_answer may be a simple text response, or it may contain a sequence of expected agent messages including tool calls. When it contains multiple messages, the last message represents the final expected answer. The candidate_answer does not need to match it verbatim, but should capture the key points and follow the same spirit.
 
 Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.
 
-[[ ## expected_outcome ## ]]
-{{${TEMPLATE_VARIABLES.EXPECTED_OUTCOME}}}
+[[ ## criteria ## ]]
+{{${TEMPLATE_VARIABLES.CRITERIA}}}
 
 [[ ## question ## ]]
 {{${TEMPLATE_VARIABLES.QUESTION}}}
@@ -123,7 +123,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       [TEMPLATE_VARIABLES.OUTPUT_MESSAGES]: JSON.stringify(context.outputMessages ?? [], null, 2),
       [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: context.candidate.trim(),
       [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
-      [TEMPLATE_VARIABLES.EXPECTED_OUTCOME]: context.evalCase.expected_outcome.trim(),
+      [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
       [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
       [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
     };
@@ -295,8 +295,8 @@ export class LlmJudgeEvaluator implements Evaluator {
       '[[ ## question ## ]]',
       formattedQuestion,
       '',
-      '[[ ## expected_outcome ## ]]',
-      context.evalCase.expected_outcome,
+      '[[ ## criteria ## ]]',
+      context.evalCase.criteria,
       '',
     ];
 
@@ -320,8 +320,8 @@ export class LlmJudgeEvaluator implements Evaluator {
 
       parts.push('', `### Criterion: ${rubric.id}${weightLabel}${minScoreLabel}`);
 
-      if (rubric.expected_outcome) {
-        parts.push(`Description: ${rubric.expected_outcome}`);
+      if (rubric.outcome) {
+        parts.push(`Description: ${rubric.outcome}`);
       }
 
       if (rubric.score_ranges && rubric.score_ranges.length > 0) {
@@ -329,7 +329,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         for (const range of rubric.score_ranges) {
           const [min, max] = range.score_range;
           const rangeLabel = min === max ? `${min}` : `${min}-${max}`;
-          parts.push(`  - Score ${rangeLabel}: ${range.expected_outcome}`);
+          parts.push(`  - Score ${rangeLabel}: ${range.outcome}`);
         }
       }
     }
@@ -354,8 +354,8 @@ export class LlmJudgeEvaluator implements Evaluator {
       '[[ ## question ## ]]',
       formattedQuestion,
       '',
-      '[[ ## expected_outcome ## ]]',
-      context.evalCase.expected_outcome,
+      '[[ ## criteria ## ]]',
+      context.evalCase.criteria,
       '',
     ];
 
@@ -368,7 +368,7 @@ export class LlmJudgeEvaluator implements Evaluator {
     for (const rubric of rubrics) {
       const requiredLabel = rubric.required ? ' (REQUIRED)' : '';
       const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
-      parts.push(`- [${rubric.id}]${requiredLabel}${weightLabel}: ${rubric.expected_outcome}`);
+      parts.push(`- [${rubric.id}]${requiredLabel}${weightLabel}: ${rubric.outcome}`);
     }
 
     parts.push('', 'For each rubric, determine if it is satisfied and provide brief reasoning.');
@@ -490,9 +490,9 @@ function calculateRubricScore(
 
     if (check.satisfied) {
       earnedWeight += rubric.weight;
-      hits.push(`[${rubric.id}] ${rubric.expected_outcome}: ${check.reasoning}`);
+      hits.push(`[${rubric.id}] ${rubric.outcome}: ${check.reasoning}`);
     } else {
-      misses.push(`[${rubric.id}] ${rubric.expected_outcome}: ${check.reasoning}`);
+      misses.push(`[${rubric.id}] ${rubric.outcome}: ${check.reasoning}`);
       if (rubric.required) {
         failedRequired = true;
       }
@@ -576,8 +576,8 @@ function calculateScoreRangeResult(
     const matchingRange = rubric.score_ranges?.find(
       (r) => rawScore >= r.score_range[0] && rawScore <= r.score_range[1],
     );
-    const rangeDescription = matchingRange?.expected_outcome ?? '';
-    const criterionLabel = rubric.expected_outcome ?? rubric.id;
+    const rangeDescription = matchingRange?.outcome ?? '';
+    const criterionLabel = rubric.outcome ?? rubric.id;
 
     const reasoningText = check.reasoning ? `: ${check.reasoning}` : '';
     const scoreInfo = `[${rubric.id}] ${criterionLabel} - Score: ${rawScore}/10 (${rangeDescription})${reasoningText}`;

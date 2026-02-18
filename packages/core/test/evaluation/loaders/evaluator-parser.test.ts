@@ -325,10 +325,10 @@ describe('parseEvaluators - score_ranges rubrics', () => {
               weight: 2.0,
               required_min_score: 7,
               score_ranges: [
-                { score_range: [0, 3], expected_outcome: 'Incorrect' },
-                { score_range: [4, 6], expected_outcome: 'Partially correct' },
-                { score_range: [7, 9], expected_outcome: 'Mostly correct' },
-                { score_range: [10, 10], expected_outcome: 'Fully correct' },
+                { score_range: [0, 3], outcome: 'Incorrect' },
+                { score_range: [4, 6], outcome: 'Partially correct' },
+                { score_range: [7, 9], outcome: 'Mostly correct' },
+                { score_range: [10, 10], outcome: 'Fully correct' },
               ],
             },
           ],
@@ -361,8 +361,8 @@ describe('parseEvaluators - score_ranges rubrics', () => {
             {
               id: 'test',
               score_ranges: [
-                { score_range: [0, 5], expected_outcome: 'Low' },
-                { score_range: [4, 10], expected_outcome: 'High' }, // Overlaps at 4-5
+                { score_range: [0, 5], outcome: 'Low' },
+                { score_range: [4, 10], outcome: 'High' }, // Overlaps at 4-5
               ],
             },
           ],
@@ -385,8 +385,8 @@ describe('parseEvaluators - score_ranges rubrics', () => {
             {
               id: 'test',
               score_ranges: [
-                { score_range: [0, 3], expected_outcome: 'Low' },
-                { score_range: [7, 10], expected_outcome: 'High' }, // Missing 4-6
+                { score_range: [0, 3], outcome: 'Low' },
+                { score_range: [7, 10], outcome: 'High' }, // Missing 4-6
               ],
             },
           ],
@@ -399,7 +399,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
     ).rejects.toThrow(/coverage/i);
   });
 
-  it('supports description as backward-compatible alias for expected_outcome', async () => {
+  it('skips rubric items that use legacy description field without outcome', async () => {
     const rawEvalCase = {
       evaluators: [
         {
@@ -408,7 +408,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
           rubrics: [
             {
               id: 'r1',
-              description: 'Must be polite', // Legacy field name
+              description: 'Must be polite', // Legacy field name — no longer supported
               weight: 1.0,
               required: true,
             },
@@ -422,7 +422,8 @@ describe('parseEvaluators - score_ranges rubrics', () => {
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0];
     if (config?.type === 'llm_judge') {
-      expect(config.rubrics?.[0]?.expected_outcome).toBe('Must be polite');
+      // Rubric should be skipped since it has no 'outcome' field
+      expect(config.rubrics ?? []).toHaveLength(0);
     }
   });
 });
@@ -464,19 +465,19 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
       expect(rubric?.score_ranges).toHaveLength(4);
       expect(rubric?.score_ranges?.[0]).toEqual({
         score_range: [0, 2],
-        expected_outcome: 'Completely wrong',
+        outcome: 'Completely wrong',
       });
       expect(rubric?.score_ranges?.[1]).toEqual({
         score_range: [3, 6],
-        expected_outcome: 'Partially correct',
+        outcome: 'Partially correct',
       });
       expect(rubric?.score_ranges?.[2]).toEqual({
         score_range: [7, 9],
-        expected_outcome: 'Correct with minor issues',
+        outcome: 'Correct with minor issues',
       });
       expect(rubric?.score_ranges?.[3]).toEqual({
         score_range: [10, 10],
-        expected_outcome: 'Perfectly accurate',
+        outcome: 'Perfectly accurate',
       });
     }
   });
@@ -516,10 +517,10 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
             {
               id: 'accuracy',
               score_ranges: [
-                { score_range: [0, 3], expected_outcome: 'Bad' },
-                { score_range: [4, 6], expected_outcome: 'OK' },
-                { score_range: [7, 9], expected_outcome: 'Good' },
-                { score_range: [10, 10], expected_outcome: 'Perfect' },
+                { score_range: [0, 3], outcome: 'Bad' },
+                { score_range: [4, 6], outcome: 'OK' },
+                { score_range: [7, 9], outcome: 'Good' },
+                { score_range: [10, 10], outcome: 'Perfect' },
               ],
             },
           ],

@@ -33,13 +33,13 @@
 
 description: Latency assertions for per-step performance validation
 
-eval_cases:
+cases:
   # ==========================================
   # Example 1: Simple latency assertion - PASS
   # Validates a single tool completes within time budget
   # ==========================================
   - id: latency-pass
-    expected_outcome: |-
+    criteria: |-
       Agent reads the config file quickly.
 
     input:
@@ -60,7 +60,7 @@ eval_cases:
   # Demonstrates score reduction when latency exceeds budget
   # ==========================================
   - id: latency-fail
-    expected_outcome: |-
+    criteria: |-
       Agent reads the file but takes too long.
 
     input:
@@ -81,7 +81,7 @@ eval_cases:
   # Some tools have latency assertions, some don't
   # ==========================================
   - id: mixed-latency
-    expected_outcome: |-
+    criteria: |-
       Agent performs data processing workflow with timing constraints
       on critical operations.
 
@@ -108,7 +108,7 @@ eval_cases:
   # Combines strict sequence matching with timing validation
   # ==========================================
   - id: exact-with-latency
-    expected_outcome: |-
+    criteria: |-
       Agent authenticates user with performance requirements.
 
     input:
@@ -133,7 +133,7 @@ eval_cases:
   # Latency assertions work alongside args validation
   # ==========================================
   - id: latency-with-args
-    expected_outcome: |-
+    criteria: |-
       Agent searches for weather with specific query and responds quickly.
 
     input:

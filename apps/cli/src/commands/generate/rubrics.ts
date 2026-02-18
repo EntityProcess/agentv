@@ -21,7 +21,7 @@ interface GenerateRubricsOptions {
 
 interface RawEvalCase {
   readonly id?: string;
-  readonly expected_outcome?: string;
+  readonly criteria?: string;
   readonly outcome?: string;
   readonly question?: string;
   readonly reference_answer?: string;
@@ -30,8 +30,7 @@ interface RawEvalCase {
 }
 
 interface RawTestSuite {
-  readonly eval_cases?: readonly unknown[];
-  readonly evalcases?: readonly unknown[]; // deprecated alias
+  readonly cases?: readonly unknown[];
   readonly target?: string;
   readonly execution?: {
     readonly target?: string;
@@ -78,10 +77,10 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
   }
 
   const suite = parsed as RawTestSuite;
-  const evalcases = suite.eval_cases ?? suite.evalcases;
+  const evalcases = suite.cases;
 
   if (!Array.isArray(evalcases)) {
-    throw new Error(`No eval_cases found in ${file}`);
+    throw new Error(`No cases found in ${file}`);
   }
 
   // Resolve target using the same logic as eval command
@@ -107,10 +106,10 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
   let updatedCount = 0;
   let skippedCount = 0;
 
-  // Get the eval_cases node from the document for modification (with deprecated evalcases fallback)
-  const evalcasesNode = doc.getIn(['eval_cases']) ?? doc.getIn(['evalcases']);
+  // Get the cases node from the document for modification
+  const evalcasesNode = doc.getIn(['cases']);
   if (!evalcasesNode || !isSeq(evalcasesNode)) {
-    throw new Error('eval_cases must be a sequence');
+    throw new Error('cases must be a sequence');
   }
 
   // Process each eval case
@@ -122,12 +121,12 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
 
     const evalCase = rawCase as RawEvalCase;
     const id = asString(evalCase.id) ?? 'unknown';
-    const expectedOutcome = asString(evalCase.expected_outcome) ?? asString(evalCase.outcome);
+    const expectedOutcome = asString(evalCase.criteria) ?? asString(evalCase.outcome);
 
     // Skip if no expected outcome
     if (!expectedOutcome) {
       if (verbose) {
-        console.log(`  Skipping ${id}: no expected_outcome`);
+        console.log(`  Skipping ${id}: no criteria`);
       }
       skippedCount++;
       continue;
@@ -161,10 +160,10 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
       caseNode.set(
         'rubrics',
         rubrics
-          .filter((r) => r.expected_outcome !== undefined)
+          .filter((r) => r.outcome !== undefined)
           .map((r) => ({
             id: r.id,
-            expected_outcome: r.expected_outcome,
+            outcome: r.outcome,
             weight: r.weight,
             required: r.required ?? true,
           })),
@@ -187,7 +186,7 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
       console.log(`Skipped ${skippedCount} eval case(s)`);
     }
   } else {
-    console.log('\nNo eval cases updated (all already have rubrics or missing expected_outcome)');
+    console.log('\nNo eval cases updated (all already have rubrics or missing criteria)');
   }
 }
 

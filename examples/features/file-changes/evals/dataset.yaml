@@ -14,10 +14,10 @@ description: Verify file_changes captures edits, creates, and deletes across mul
 execution:
   target: mock_agent
 
-eval_cases:
+cases:
   # Case 1: verify edits and creates
   - id: verify-edits-and-creates
-    expected_outcome: >-
+    criteria: >-
       file_changes diff shows hello.txt and config.json as edited,
       src/utils.ts and tests/main.test.ts as newly created
 
@@ -37,7 +37,7 @@ eval_cases:
 
   # Case 2: verify deletes and overall diff structure
   - id: verify-deletes-and-structure
-    expected_outcome: >-
+    criteria: >-
       file_changes diff shows obsolete.log as deleted and the overall diff
       covers all 5 changed files in unified diff format
 

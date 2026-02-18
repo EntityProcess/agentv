@@ -40,7 +40,7 @@ export class CodeEvaluator implements Evaluator {
     // Build payload (camelCase internally, converted to snake_case for judges)
     const payload = {
       question: context.evalCase.question,
-      expectedOutcome: context.evalCase.expected_outcome,
+      criteria: context.evalCase.criteria,
       expectedMessages: context.evalCase.expected_messages,
       referenceAnswer: context.evalCase.reference_answer,
       candidateAnswer: context.candidate,
