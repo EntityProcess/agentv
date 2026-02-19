@@ -5,6 +5,7 @@ import pLimit from 'p-limit';
 
 import { toSnakeCaseDeep } from './case-conversion.js';
 import {
+  AgentJudgeEvaluator,
   type ChildEvaluatorResult,
   CodeEvaluator,
   CompositeEvaluator,
@@ -40,6 +41,7 @@ import {
   mergeExecutionMetrics,
 } from './trace.js';
 import type {
+  AgentJudgeEvaluatorConfig,
   CostEvaluatorConfig,
   EvalCase,
   EvaluationResult,
@@ -1183,6 +1185,15 @@ async function runEvaluatorList(options: {
               return new ExecutionMetricsEvaluator({
                 config: memberConfig as ExecutionMetricsEvaluatorConfig,
               });
+            case 'agent_judge':
+              return new AgentJudgeEvaluator({
+                resolveJudgeProvider: async (ctx) => {
+                  if (ctx.judgeProvider) return ctx.judgeProvider;
+                  return judgeProvider;
+                },
+                maxSteps: (memberConfig as AgentJudgeEvaluatorConfig).max_steps,
+                temperature: (memberConfig as AgentJudgeEvaluatorConfig).temperature,
+              });
             default: {
               const unknownConfig = memberConfig as { type: string };
               throw new Error(`Unsupported evaluator type in composite: ${unknownConfig.type}`);
@@ -1410,6 +1421,77 @@ async function runEvaluatorList(options: {
           hits: score.hits,
           misses: score.misses,
           reasoning: score.reasoning,
+        });
+      }
+
+      if (evaluator.type === 'agent_judge') {
+        const agentJudgeConfig = evaluator as AgentJudgeEvaluatorConfig;
+
+        // Resolve custom prompt from file or inline
+        let customPrompt: string | undefined;
+        if (agentJudgeConfig.resolvedPromptPath) {
+          try {
+            customPrompt = await readTextFile(agentJudgeConfig.resolvedPromptPath);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.warn(
+              `Could not read agent_judge prompt at ${agentJudgeConfig.resolvedPromptPath}: ${message}`,
+            );
+          }
+        } else if (agentJudgeConfig.prompt) {
+          customPrompt = agentJudgeConfig.prompt;
+        }
+
+        // Resolve judge_target provider if specified
+        let judgeTargetProvider: Provider | undefined;
+        if (agentJudgeConfig.judge_target && targetResolver) {
+          judgeTargetProvider = targetResolver(agentJudgeConfig.judge_target);
+          if (!judgeTargetProvider) {
+            throw new Error(
+              `agent_judge evaluator '${evaluator.name}': judge_target '${agentJudgeConfig.judge_target}' not found in targets`,
+            );
+          }
+        }
+
+        const agentJudgeEvaluator = new AgentJudgeEvaluator({
+          resolveJudgeProvider: async (ctx) => {
+            if (ctx.judgeProvider) return ctx.judgeProvider;
+            return judgeProvider;
+          },
+          maxSteps: agentJudgeConfig.max_steps,
+          temperature: agentJudgeConfig.temperature,
+          evaluatorTemplate: customPrompt,
+          judgeTargetProvider,
+        });
+
+        const score = await agentJudgeEvaluator.evaluate({
+          evalCase,
+          candidate,
+          target,
+          provider,
+          attempt,
+          promptInputs,
+          now,
+          judgeProvider,
+          evaluator: agentJudgeConfig,
+          outputMessages,
+          traceSummary,
+          fileChanges,
+          workspacePath,
+        });
+        const weight = evaluator.weight ?? 1.0;
+        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+          evaluatorProviderRequest: score.evaluatorRawRequest,
+          details: score.details,
         });
       }
     } catch (error) {

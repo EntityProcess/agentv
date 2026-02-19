@@ -158,6 +158,7 @@ const EVALUATOR_KIND_VALUES = [
   'cost',
   'token_usage',
   'execution_metrics',
+  'agent_judge',
 ] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
@@ -404,6 +405,32 @@ export type ExecutionMetricsEvaluatorConfig = {
   readonly weight?: number;
 };
 
+/**
+ * Configuration for the agent_judge evaluator.
+ * Runs an agentic investigation loop to audit workspaces and verify criteria.
+ * Two modes:
+ * - Built-in: Uses AI SDK generateText() with sandboxed filesystem tools
+ * - Judge target: Delegates to an external agent provider via Provider.invoke()
+ */
+export type AgentJudgeEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'agent_judge';
+  /** Custom evaluation prompt (inline text or file path) */
+  readonly prompt?: string;
+  readonly promptPath?: string;
+  /** Resolved absolute path for prompt file */
+  readonly resolvedPromptPath?: string;
+  /** Rubric items for structured evaluation (reuses llm_judge rubric infra) */
+  readonly rubrics?: readonly RubricItem[];
+  /** Maximum agent steps for built-in mode (default 10, max 50) */
+  readonly max_steps?: number;
+  /** Temperature for built-in mode (default 0) */
+  readonly temperature?: number;
+  /** Target name — delegates agent loop to this provider instead of built-in mode */
+  readonly judge_target?: string;
+  readonly weight?: number;
+};
+
 export type EvaluatorConfig =
   | CodeEvaluatorConfig
   | LlmJudgeEvaluatorConfig
@@ -413,7 +440,8 @@ export type EvaluatorConfig =
   | LatencyEvaluatorConfig
   | CostEvaluatorConfig
   | TokenUsageEvaluatorConfig
-  | ExecutionMetricsEvaluatorConfig;
+  | ExecutionMetricsEvaluatorConfig
+  | AgentJudgeEvaluatorConfig;
 
 /**
  * Eval case definition sourced from AgentV specs.

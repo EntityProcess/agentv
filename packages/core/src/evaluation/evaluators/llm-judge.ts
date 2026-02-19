@@ -72,7 +72,7 @@ const scoreRangeEvaluationSchema = z.object({
   overall_reasoning: z.string().describe('Overall assessment summary (1-2 sentences)').optional(),
 });
 
-export { freeformEvaluationSchema };
+export { freeformEvaluationSchema, rubricEvaluationSchema };
 
 export class LlmJudgeEvaluator implements Evaluator {
   readonly kind = 'llm_judge';
@@ -464,7 +464,7 @@ export function substituteVariables(template: string, variables: Record<string, 
   });
 }
 
-function calculateRubricScore(
+export function calculateRubricScore(
   result: z.infer<typeof rubricEvaluationSchema>,
   rubrics: readonly RubricItem[],
 ): {
