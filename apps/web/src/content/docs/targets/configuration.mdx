@@ -103,6 +103,60 @@ When `workspace_template` is set:
 - The `.git` directory is skipped during copy
 - Each eval case gets its own isolated copy
 
+### Workspace Setup/Teardown
+
+Run scripts before and after each eval case using the `workspace` block. This can be defined at the suite level (applies to all cases) or per case (overrides suite-level).
+
+```yaml
+workspace:
+  template: ./workspace-templates/my-project
+  setup:
+    script: ["bun", "run", "setup.ts"]
+    timeout_ms: 120000
+    cwd: ./scripts
+  teardown:
+    script: ["bun", "run", "teardown.ts"]
+    timeout_ms: 30000
+```
+
+| Field | Description |
+|-------|-------------|
+| `template` | Directory to copy as workspace (alternative to target-level `workspace_template`) |
+| `setup` | Script to run after workspace creation, before the agent runs |
+| `teardown` | Script to run after evaluation, before cleanup |
+
+Each script config accepts:
+
+| Field | Description |
+|-------|-------------|
+| `script` | Command array (e.g., `["bun", "run", "setup.ts"]`) |
+| `timeout_ms` | Timeout in milliseconds (default: 60000 for setup, 30000 for teardown) |
+| `cwd` | Working directory (relative paths resolved against eval file directory) |
+
+**Lifecycle order:** template copy → setup script → git baseline → agent runs → file changes captured → teardown script → cleanup
+
+**Error handling:**
+- Setup failure aborts the eval case with an error result
+- Teardown failure is non-fatal (warning only)
+
+**Script context:** Both scripts receive a JSON object on stdin with case context:
+
+```json
+{
+  "workspace_path": "/home/user/.agentv/workspaces/run-123/case-01",
+  "eval_case_id": "case-01",
+  "eval_run_id": "run-123",
+  "case_input": "Fix the bug",
+  "case_metadata": { "repo": "sympy/sympy", "base_commit": "abc123" }
+}
+```
+
+**Suite vs per-case:** When both are defined, case-level fields replace suite-level fields. See [Per-Case Workspace Config](/evaluation/eval-cases/#per-case-workspace-config) for examples.
+
+### Workspace Fingerprinting
+
+After setup and git baseline initialization, AgentV computes a SHA-256 fingerprint of the workspace file tree. This fingerprint is included in the evaluation result as `workspaceFingerprint` and can be used to verify that workspaces are reproducible across runs.
+
 ### Cleanup Behavior
 
 By default:
