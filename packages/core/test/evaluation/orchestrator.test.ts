@@ -1357,3 +1357,169 @@ describe('runEvaluation with trials', () => {
     expect(results[0].trials).toHaveLength(2);
   });
 });
+
+describe('workspace setup/teardown', () => {
+  let testDir: string;
+
+  afterEach(async () => {
+    if (testDir) {
+      const { rm } = await import('node:fs/promises');
+      await rm(testDir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+
+  it('executes setup script and captures output in result', async () => {
+    const { mkdtemp, writeFile, mkdir } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-orch-ws-'));
+    const scriptsDir = path.join(testDir, 'scripts');
+    await mkdir(scriptsDir, { recursive: true });
+    const templateDir = path.join(testDir, 'template');
+    await mkdir(templateDir, { recursive: true });
+    await writeFile(path.join(templateDir, 'hello.txt'), 'hello');
+
+    // Create a setup script that outputs a message
+    const setupScript = path.join(scriptsDir, 'setup.js');
+    await writeFile(
+      setupScript,
+      `
+const readline = require('readline');
+const rl = readline.createInterface({ input: process.stdin });
+let data = '';
+rl.on('line', (line) => { data += line; });
+rl.on('close', () => {
+  const ctx = JSON.parse(data);
+  console.log('Setup done for ' + ctx.eval_case_id);
+  process.exit(0);
+});
+`,
+    );
+
+    const provider = new SequenceProvider('mock', {
+      responses: [
+        {
+          outputMessages: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
+        },
+      ],
+    });
+
+    const evalCase: EvalCase = {
+      ...baseTestCase,
+      workspace: {
+        template: templateDir,
+        setup_script: {
+          script: ['node', setupScript],
+          timeout_ms: 10000,
+        },
+      },
+    };
+
+    const result = await runEvalCase({
+      evalCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      evalRunId: 'test-run',
+      cleanupWorkspaces: true,
+    });
+
+    expect(result.setupOutput).toContain('Setup done for case-1');
+    expect(result.error).toBeUndefined();
+  });
+
+  it('returns error result when setup script fails', async () => {
+    const { mkdtemp, writeFile, mkdir } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-orch-ws-'));
+    const scriptsDir = path.join(testDir, 'scripts');
+    await mkdir(scriptsDir, { recursive: true });
+    const templateDir = path.join(testDir, 'template');
+    await mkdir(templateDir, { recursive: true });
+    await writeFile(path.join(templateDir, 'hello.txt'), 'hello');
+
+    const failingScript = path.join(scriptsDir, 'fail.js');
+    await writeFile(failingScript, 'console.error("setup boom"); process.exit(1);');
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ outputMessages: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    const evalCase: EvalCase = {
+      ...baseTestCase,
+      workspace: {
+        template: templateDir,
+        setup_script: {
+          script: ['node', failingScript],
+          timeout_ms: 5000,
+        },
+      },
+    };
+
+    const result = await runEvalCase({
+      evalCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      evalRunId: 'test-run-fail',
+      cleanupWorkspaces: true,
+    });
+
+    expect(result.error).toContain('Workspace setup failed');
+    expect(result.score).toBe(0);
+  });
+
+  it('executes teardown script and captures output in result', async () => {
+    const { mkdtemp, writeFile, mkdir } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-orch-ws-'));
+    const scriptsDir = path.join(testDir, 'scripts');
+    await mkdir(scriptsDir, { recursive: true });
+    const templateDir = path.join(testDir, 'template');
+    await mkdir(templateDir, { recursive: true });
+    await writeFile(path.join(templateDir, 'hello.txt'), 'hello');
+
+    const teardownScript = path.join(scriptsDir, 'teardown.js');
+    await writeFile(
+      teardownScript,
+      `
+const readline = require('readline');
+const rl = readline.createInterface({ input: process.stdin });
+let data = '';
+rl.on('line', (line) => { data += line; });
+rl.on('close', () => {
+  const ctx = JSON.parse(data);
+  console.log('Teardown done for ' + ctx.eval_case_id);
+  process.exit(0);
+});
+`,
+    );
+
+    const provider = new SequenceProvider('mock', {
+      responses: [
+        {
+          outputMessages: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
+        },
+      ],
+    });
+
+    const evalCase: EvalCase = {
+      ...baseTestCase,
+      workspace: {
+        template: templateDir,
+        teardown_script: {
+          script: ['node', teardownScript],
+          timeout_ms: 10000,
+        },
+      },
+    };
+
+    const result = await runEvalCase({
+      evalCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      evalRunId: 'test-run-td',
+      cleanupWorkspaces: true,
+    });
+
+    expect(result.teardownOutput).toContain('Teardown done for case-1');
+    expect(result.error).toBeUndefined();
+  });
+});

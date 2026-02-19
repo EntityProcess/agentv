@@ -70,6 +70,11 @@ import {
   cleanupWorkspace,
   createTempWorkspace,
 } from './workspace/manager.js';
+import {
+  type ScriptExecutionContext,
+  executeWorkspaceSetup,
+  executeWorkspaceTeardown,
+} from './workspace/script-executor.js';
 import { type PromptInputs, buildPromptInputs, loadEvalCases } from './yaml-parser.js';
 
 type MaybePromise<T> = T | Promise<T>;
@@ -653,9 +658,11 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   const nowFn = now ?? (() => new Date());
 
-  // Check if workspace_template is configured for this target
-  const workspaceTemplate = getWorkspaceTemplate(target);
+  // Check if workspace_template is configured for this target or eval case
+  const workspaceTemplate = evalCase.workspace?.template ?? getWorkspaceTemplate(target);
   let workspacePath: string | undefined;
+  let setupOutput: string | undefined;
+  let teardownOutput: string | undefined;
 
   // Create temp workspace if template is a directory and we have evalRunId.
   // File-based templates (e.g. .code-workspace) are passed through to the provider as-is.
@@ -677,6 +684,41 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           provider,
         );
       }
+    }
+  }
+
+  // If no template but setup_script is configured, create an empty workspace directory
+  if (!workspacePath && evalCase.workspace?.setup_script && evalRunId) {
+    const { mkdir } = await import('node:fs/promises');
+    const { getWorkspacePath } = await import('./workspace/manager.js');
+    workspacePath = getWorkspacePath(evalRunId, evalCase.id);
+    await mkdir(workspacePath, { recursive: true });
+  }
+
+  // Execute workspace setup script (runs before git baseline init so setup changes are part of baseline)
+  if (workspacePath && evalCase.workspace?.setup_script) {
+    const scriptContext: ScriptExecutionContext = {
+      workspacePath,
+      evalCaseId: evalCase.id,
+      evalRunId: evalRunId ?? '',
+      caseInput: evalCase.question,
+      caseMetadata: evalCase.metadata,
+    };
+    try {
+      setupOutput = await executeWorkspaceSetup(evalCase.workspace.setup_script, scriptContext);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (forceCleanup && workspacePath) {
+        await cleanupWorkspace(workspacePath).catch(() => {});
+      }
+      return buildErrorResult(
+        evalCase,
+        target.name,
+        nowFn(),
+        new Error(`Workspace setup failed: ${message}`),
+        promptInputs,
+        provider,
+      );
     }
   }
 
@@ -801,6 +843,25 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   const providerError = extractProviderError(providerResponse);
 
+  // Execute workspace teardown script (runs after evaluation, before cleanup)
+  if (workspacePath && evalCase.workspace?.teardown_script) {
+    const scriptContext: ScriptExecutionContext = {
+      workspacePath,
+      evalCaseId: evalCase.id,
+      evalRunId: evalRunId ?? '',
+      caseInput: evalCase.question,
+      caseMetadata: evalCase.metadata,
+    };
+    try {
+      teardownOutput = await executeWorkspaceTeardown(
+        evalCase.workspace.teardown_script,
+        scriptContext,
+      );
+    } catch {
+      // Teardown failures are non-fatal (warning already logged by executeWorkspaceTeardown)
+    }
+  }
+
   try {
     const result = await evaluateCandidate({
       evalCase,
@@ -821,7 +882,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       workspacePath,
     });
 
-    const finalResult = providerError ? { ...result, error: providerError } : result;
+    const finalResult = providerError
+      ? { ...result, error: providerError, setupOutput, teardownOutput }
+      : { ...result, setupOutput, teardownOutput };
 
     // Determine if this is a failure (has error or low score)
     const isFailure = !!finalResult.error || finalResult.score < 0.5;
@@ -855,9 +918,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       if (forceCleanup) {
         await cleanupWorkspace(workspacePath).catch(() => {});
       }
-      return { ...errorResult, workspacePath };
+      return { ...errorResult, workspacePath, setupOutput, teardownOutput };
     }
-    return errorResult;
+    return { ...errorResult, setupOutput, teardownOutput };
   }
 }
 
