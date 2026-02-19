@@ -856,34 +856,38 @@ async function runEvalCaseWithTrials(
   trialsConfig: TrialsConfig,
 ): Promise<EvaluationResult> {
   const trialResults: TrialResult[] = [];
+  const allResults: EvaluationResult[] = [];
   let cumulativeCost = 0;
   let costLimited = false;
   let costWarningEmitted = false;
-  let lastResult: EvaluationResult | undefined;
 
   for (let attempt = 0; attempt < trialsConfig.count; attempt++) {
-    // For intermediate trials, force workspace cleanup; for last trial, use normal behavior
-    const isLastTrial = attempt === trialsConfig.count - 1;
+    // For intermediate trials, force workspace cleanup.
+    // We don't know the declared count's last index because early exit may occur,
+    // so treat the current trial as "last" only if it's the final declared iteration.
+    // On early exit, the actual last trial gets intermediate cleanup — acceptable since
+    // the passing trial's workspace is less important to preserve.
+    const isLastDeclaredTrial = attempt === trialsConfig.count - 1;
     const trialOptions: RunEvalCaseOptions = {
       ...options,
       // Disable cache for individual trials (each should be a fresh invocation)
       useCache: false,
       // Force cleanup for intermediate trials
-      cleanupWorkspaces: isLastTrial ? options.cleanupWorkspaces : true,
-      keepWorkspaces: isLastTrial ? options.keepWorkspaces : false,
+      cleanupWorkspaces: isLastDeclaredTrial ? options.cleanupWorkspaces : true,
+      keepWorkspaces: isLastDeclaredTrial ? options.keepWorkspaces : false,
     };
 
     const result = await runEvalCase(trialOptions);
-    lastResult = result;
+    allResults.push(result);
 
     // Extract cost from trace summary if available
     const trialCost = result.traceSummary?.costUsd;
 
-    const verdict = scoreToVerdict(result.score);
+    const trialVerdict = scoreToVerdict(result.score);
     const trial: TrialResult = {
       attempt,
       score: result.score,
-      verdict,
+      verdict: trialVerdict,
       evaluatorResults: result.evaluatorResults,
       error: result.error,
       costUsd: trialCost,
@@ -907,7 +911,7 @@ async function runEvalCaseWithTrials(
     }
 
     // pass_at_k early exit: short-circuit after first passing trial
-    if (trialsConfig.strategy === 'pass_at_k' && verdict === 'pass') {
+    if (trialsConfig.strategy === 'pass_at_k' && trialVerdict === 'pass') {
       break;
     }
   }
@@ -915,13 +919,16 @@ async function runEvalCaseWithTrials(
   // Aggregate trial results
   const { score, aggregation } = aggregateTrials(trialResults, trialsConfig);
 
-  // lastResult is guaranteed to be set since trialsConfig.count >= 2
-  if (!lastResult) {
-    throw new Error('No trial results produced');
-  }
+  // Use the best-scoring trial's EvaluationResult for metadata (hits, misses, reasoning,
+  // candidateAnswer) so that the result's metadata corresponds to the aggregated score.
+  const bestTrialIndex = trialResults.reduce(
+    (bestIdx, t, idx) => (t.score > trialResults[bestIdx].score ? idx : bestIdx),
+    0,
+  );
+  const baseResult = allResults[bestTrialIndex];
 
   return {
-    ...lastResult,
+    ...baseResult,
     score,
     trials: trialResults,
     aggregation,

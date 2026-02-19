@@ -1,3 +1,4 @@
+import { scoreToVerdict } from './evaluators/scoring.js';
 import type {
   ConfidenceIntervalAggregation,
   EvaluationVerdict,
@@ -65,7 +66,7 @@ function aggregateMean(trials: readonly TrialResult[]): {
 
   return {
     score: mean,
-    verdict: meanToVerdict(mean),
+    verdict: scoreToVerdict(mean),
     aggregation,
   };
 }
@@ -88,7 +89,7 @@ function aggregateConfidenceInterval(trials: readonly TrialResult[]): {
       ci95Upper: clamp01(mean),
       stddev: 0,
     };
-    return { score: mean, verdict: meanToVerdict(mean), aggregation };
+    return { score: mean, verdict: scoreToVerdict(mean), aggregation };
   }
 
   const variance = scores.reduce((sum, s) => sum + (s - mean) ** 2, 0) / (n - 1);
@@ -108,15 +109,9 @@ function aggregateConfidenceInterval(trials: readonly TrialResult[]): {
   // Use the lower bound of the CI as the conservative score
   return {
     score: aggregation.ci95Lower,
-    verdict: meanToVerdict(aggregation.ci95Lower),
+    verdict: scoreToVerdict(aggregation.ci95Lower),
     aggregation,
   };
-}
-
-function meanToVerdict(score: number): EvaluationVerdict {
-  if (score >= 0.8) return 'pass';
-  if (score >= 0.6) return 'borderline';
-  return 'fail';
 }
 
 function clamp01(value: number): number {
