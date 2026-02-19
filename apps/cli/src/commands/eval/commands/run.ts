@@ -104,6 +104,13 @@ export const evalRunCommand = command({
     }),
   },
   handler: async (args) => {
+    // Launch interactive wizard when no eval paths and stdin is a TTY
+    if (args.evalPaths.length === 0 && process.stdin.isTTY) {
+      const { launchInteractiveWizard } = await import('../interactive.js');
+      await launchInteractiveWizard();
+      return;
+    }
+
     const resolvedPaths = await resolveEvalPaths(args.evalPaths, process.cwd());
     const rawOptions: Record<string, unknown> = {
       target: args.target,
