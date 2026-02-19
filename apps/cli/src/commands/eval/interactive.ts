@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { listTargetNames, readTargetDefinitions } from '@agentv/core';
 import { checkbox, confirm, number, search, select } from '@inquirer/prompts';
 
@@ -183,8 +184,8 @@ async function promptEvalSelection(
 async function promptTargetSelection(cwd: string, firstEvalPath: string): Promise<string> {
   const repoRoot = await findRepoRoot(cwd);
 
-  // Try to find targets.yaml
-  const targetsPath = await findTargetsFile(cwd, repoRoot);
+  // Try to find targets.yaml — search near the eval file first, then cwd/repoRoot
+  const targetsPath = await findTargetsFile(cwd, repoRoot, firstEvalPath);
 
   if (!targetsPath) {
     console.log(`${ANSI_DIM}No targets.yaml found. Using default target.${ANSI_RESET}`);
@@ -221,9 +222,26 @@ async function promptTargetSelection(cwd: string, firstEvalPath: string): Promis
   });
 }
 
-async function findTargetsFile(cwd: string, repoRoot: string): Promise<string | undefined> {
-  const dirsToSearch = [cwd];
-  if (repoRoot !== cwd) {
+async function findTargetsFile(
+  cwd: string,
+  repoRoot: string,
+  evalFilePath?: string,
+): Promise<string | undefined> {
+  // Build directory chain: eval file dir → cwd → repoRoot (mirrors discoverTargetsFile)
+  const dirsToSearch: string[] = [];
+
+  if (evalFilePath) {
+    const evalDir = path.dirname(evalFilePath);
+    if (!dirsToSearch.includes(evalDir)) {
+      dirsToSearch.push(evalDir);
+    }
+  }
+
+  if (!dirsToSearch.includes(cwd)) {
+    dirsToSearch.push(cwd);
+  }
+
+  if (repoRoot !== cwd && !dirsToSearch.includes(repoRoot)) {
     dirsToSearch.push(repoRoot);
   }
 

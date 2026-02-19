@@ -1,6 +1,5 @@
 import { command, flag, number, option, optional, restPositionals, string } from 'cmd-ts';
 
-import { launchInteractiveWizard } from '../interactive.js';
 import { runEvalCommand } from '../run-eval.js';
 import { resolveEvalPaths } from '../shared.js';
 
@@ -107,6 +106,7 @@ export const evalRunCommand = command({
   handler: async (args) => {
     // Launch interactive wizard when no eval paths and stdin is a TTY
     if (args.evalPaths.length === 0 && process.stdin.isTTY) {
+      const { launchInteractiveWizard } = await import('../interactive.js');
       await launchInteractiveWizard();
       return;
     }

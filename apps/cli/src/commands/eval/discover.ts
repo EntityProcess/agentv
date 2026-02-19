@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { detectFileType } from '@agentv/core/evaluation/validation';
 import fg from 'fast-glob';
 
 export interface DiscoveredEvalFile {
@@ -12,7 +13,13 @@ export interface DiscoveredEvalFile {
 
 /**
  * Discover eval files (.yaml, .yml, .jsonl) in the current directory tree.
- * Groups them by category based on their parent folder structure.
+ *
+ * Uses the core `detectFileType` function to classify each file:
+ * 1. Checks for `$schema: agentv-eval-v2` field (explicit marker)
+ * 2. Falls back to path-based inference (files under `.agentv/` as config/targets)
+ * 3. Defaults to 'eval' for unrecognized YAML files
+ *
+ * Groups results by category based on their parent folder structure.
  */
 export async function discoverEvalFiles(cwd: string): Promise<readonly DiscoveredEvalFile[]> {
   const patterns = ['**/*.yaml', '**/*.yml', '**/*.jsonl'];
@@ -35,6 +42,12 @@ export async function discoverEvalFiles(cwd: string): Promise<readonly Discovere
   const evalFiles: DiscoveredEvalFile[] = [];
 
   for (const absPath of matches) {
+    // Use core's detectFileType to check $schema field and path-based inference
+    const fileType = await detectFileType(absPath);
+    if (fileType !== 'eval') {
+      continue;
+    }
+
     const relativePath = path.relative(cwd, absPath);
     const category = deriveCategory(relativePath);
     evalFiles.push({ path: absPath, relativePath, category });
