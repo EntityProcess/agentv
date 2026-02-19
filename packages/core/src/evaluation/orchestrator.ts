@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
@@ -631,20 +632,26 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   const workspaceTemplate = getWorkspaceTemplate(target);
   let workspacePath: string | undefined;
 
-  // Create temp workspace if template is configured and we have evalRunId
+  // Create temp workspace if template is a directory and we have evalRunId.
+  // File-based templates (e.g. .code-workspace) are passed through to the provider as-is.
   if (workspaceTemplate && evalRunId) {
-    try {
-      workspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, evalCase.id);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return buildErrorResult(
-        evalCase,
-        target.name,
-        nowFn(),
-        new Error(`Failed to create workspace: ${message}`),
-        promptInputs,
-        provider,
-      );
+    const templateIsDir = await stat(path.resolve(workspaceTemplate))
+      .then((s) => s.isDirectory())
+      .catch(() => false);
+    if (templateIsDir) {
+      try {
+        workspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, evalCase.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return buildErrorResult(
+          evalCase,
+          target.name,
+          nowFn(),
+          new Error(`Failed to create workspace: ${message}`),
+          promptInputs,
+          provider,
+        );
+      }
     }
   }
 
