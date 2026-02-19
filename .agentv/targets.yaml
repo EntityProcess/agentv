@@ -24,6 +24,11 @@ targets:
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
     model: ${{ GEMINI_MODEL_NAME }}
 
+  - name: vscode
+    provider: vscode
+    executable: ${{ VSCODE_CMD }}
+    judge_target: judge
+
   - name: judge
     provider: gemini
     model: gemini-3-flash-preview

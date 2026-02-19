@@ -528,6 +528,7 @@ export interface VSCodeResolvedConfig {
   readonly dryRun: boolean;
   readonly subagentRoot?: string;
   readonly workspaceTemplate?: string;
+  readonly timeoutMs?: number;
 }
 
 /**
@@ -1393,6 +1394,7 @@ function resolveVSCodeConfig(
   const waitSource = target.wait;
   const dryRunSource = target.dry_run ?? target.dryRun;
   const subagentRootSource = target.subagent_root ?? target.subagentRoot;
+  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
 
   const defaultCommand = insiders ? 'code-insiders' : 'code';
   const executable =
@@ -1400,6 +1402,8 @@ function resolveVSCodeConfig(
       allowLiteral: true,
       optionalEnv: true,
     }) ?? defaultCommand;
+
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} vscode timeout`);
 
   return {
     executable,
@@ -1410,6 +1414,7 @@ function resolveVSCodeConfig(
       optionalEnv: true,
     }),
     workspaceTemplate,
+    timeoutMs,
   };
 }
 

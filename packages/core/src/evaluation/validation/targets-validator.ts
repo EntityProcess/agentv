@@ -125,6 +125,7 @@ const COPILOT_SETTINGS = new Set([
 
 const VSCODE_SETTINGS = new Set([
   ...COMMON_SETTINGS,
+  'executable',
   'workspace_template',
   'workspaceTemplate',
   'wait',
@@ -132,6 +133,8 @@ const VSCODE_SETTINGS = new Set([
   'dryRun',
   'subagent_root',
   'subagentRoot',
+  'timeout_seconds',
+  'timeoutSeconds',
 ]);
 
 const MOCK_SETTINGS = new Set([

@@ -74,6 +74,7 @@ export interface DispatchOptions {
   vscodeCmd?: string;
   subagentRoot?: string;
   silent?: boolean;
+  timeoutMs?: number;
 }
 
 export interface BatchDispatchOptions extends Omit<DispatchOptions, 'userQuery'> {
@@ -111,6 +112,7 @@ export async function dispatchAgentSession(
     vscodeCmd = 'code',
     subagentRoot,
     silent = false,
+    timeoutMs,
   } = options;
 
   try {
@@ -185,7 +187,7 @@ export async function dispatchAgentSession(
       };
     }
 
-    const launchSuccess = await launchVsCodeWithChat(
+    await launchVsCodeWithChat(
       subagentDir,
       chatId,
       attachments,
@@ -193,16 +195,6 @@ export async function dispatchAgentSession(
       timestamp,
       vscodeCmd,
     );
-
-    if (!launchSuccess) {
-      return {
-        exitCode: 1,
-        subagentName,
-        responseFile: responseFileFinal,
-        tempFile: responseFileTmp,
-        error: 'Failed to launch VS Code for subagent session',
-      };
-    }
 
     if (!wait) {
       return {
@@ -213,7 +205,7 @@ export async function dispatchAgentSession(
       };
     }
 
-    const received = await waitForResponseOutput(responseFileFinal, 1000, silent);
+    const received = await waitForResponseOutput(responseFileFinal, 1000, silent, timeoutMs);
     if (!received) {
       return {
         exitCode: 1,
@@ -254,6 +246,7 @@ export async function dispatchBatchAgent(
     vscodeCmd = 'code',
     subagentRoot,
     silent = false,
+    timeoutMs,
   } = options;
 
   if (!userQueries || userQueries.length === 0) {
@@ -381,23 +374,13 @@ export async function dispatchBatchAgent(
       };
     }
 
-    const launchSuccess = await launchVsCodeWithBatchChat(
+    await launchVsCodeWithBatchChat(
       subagentDir,
       chatId,
       chatAttachments,
       chatInstruction,
       vscodeCmd,
     );
-
-    if (!launchSuccess) {
-      return {
-        exitCode: 1,
-        subagentName,
-        requestFiles,
-        queryCount,
-        error: 'Failed to launch VS Code for batch dispatch',
-      };
-    }
 
     if (!wait) {
       return {
@@ -408,7 +391,12 @@ export async function dispatchBatchAgent(
       };
     }
 
-    const responsesCompleted = await waitForBatchResponses(responseFilesFinal, 1000, silent);
+    const responsesCompleted = await waitForBatchResponses(
+      responseFilesFinal,
+      1000,
+      silent,
+      timeoutMs,
+    );
     if (!responsesCompleted) {
       return {
         exitCode: 1,
