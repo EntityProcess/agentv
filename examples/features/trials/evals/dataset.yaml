@@ -1,0 +1,33 @@
+# AgentV Trial Strategy Example
+# Demonstrates execution.trials for handling LLM non-determinism
+
+description: Trial strategy example - pass@k with 2 trials
+
+execution:
+  target: default
+  trials:
+    count: 2
+    strategy: pass_at_k
+    cost_limit_usd: 1.00
+
+cases:
+  - id: math-basics
+    criteria: Assistant correctly answers the math question and shows reasoning
+
+    input:
+      - role: user
+        content: What is 15 * 7? Show your reasoning step by step.
+
+    expected_output:
+      - role: assistant
+        content: |-
+          15 * 7 = 105
+
+          Reasoning: 15 * 7 = (10 * 7) + (5 * 7) = 70 + 35 = 105
+
+  - id: capital-knowledge
+    criteria: Assistant correctly identifies the capital city
+
+    input: "What is the capital of Australia?"
+
+    expected_output: "The capital of Australia is Canberra."

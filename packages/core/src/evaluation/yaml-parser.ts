@@ -3,7 +3,11 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import { parse } from 'yaml';
 
-import { extractTargetFromSuite, loadConfig } from './loaders/config-loader.js';
+import {
+  extractTargetFromSuite,
+  extractTrialsConfig,
+  loadConfig,
+} from './loaders/config-loader.js';
 import {
   coerceEvaluator,
   parseEvaluators,
@@ -13,12 +17,17 @@ import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver
 import { detectFormat, loadEvalCasesFromJsonl } from './loaders/jsonl-parser.js';
 import { processExpectedMessages, processMessages } from './loaders/message-processor.js';
 import { resolveExpectedMessages, resolveInputMessages } from './loaders/shorthand-expansion.js';
-import type { EvalCase, JsonObject, JsonValue, TestMessage } from './types.js';
+import type { EvalCase, JsonObject, JsonValue, TestMessage, TrialsConfig } from './types.js';
 import { isJsonObject, isTestMessage } from './types.js';
 
 // Re-export public APIs from modules
 export { buildPromptInputs, type PromptInputs } from './formatting/prompt-builder.js';
-export { DEFAULT_EVAL_PATTERNS, isGuidelineFile, loadConfig } from './loaders/config-loader.js';
+export {
+  DEFAULT_EVAL_PATTERNS,
+  extractTrialsConfig,
+  isGuidelineFile,
+  loadConfig,
+} from './loaders/config-loader.js';
 export type { AgentVConfig } from './loaders/config-loader.js';
 export { detectFormat } from './loaders/jsonl-parser.js';
 
@@ -76,7 +85,9 @@ function resolveEvalCases(suite: RawTestSuite): JsonValue | undefined {
  * Read metadata from a test suite file (like target name).
  * This is a convenience function for CLI tools that need metadata without loading all eval cases.
  */
-export async function readTestSuiteMetadata(testFilePath: string): Promise<{ target?: string }> {
+export async function readTestSuiteMetadata(
+  testFilePath: string,
+): Promise<{ target?: string; trials?: TrialsConfig }> {
   try {
     const absolutePath = path.resolve(testFilePath);
     const content = await readFile(absolutePath, 'utf8');
@@ -86,7 +97,10 @@ export async function readTestSuiteMetadata(testFilePath: string): Promise<{ tar
       return {};
     }
 
-    return { target: extractTargetFromSuite(parsed) };
+    return {
+      target: extractTargetFromSuite(parsed),
+      trials: extractTrialsConfig(parsed),
+    };
   } catch {
     return {};
   }
@@ -96,6 +110,28 @@ export async function readTestSuiteMetadata(testFilePath: string): Promise<{ tar
  * Load eval cases from a AgentV specification file (YAML or JSONL).
  * Format is detected by file extension: .yaml/.yml for YAML, .jsonl for JSONL.
  */
+export type EvalSuiteResult = {
+  readonly cases: readonly EvalCase[];
+  readonly trials?: TrialsConfig;
+};
+
+/**
+ * Load eval cases and suite metadata from a single parse.
+ * Prefer this over calling loadEvalCases + readTestSuiteMetadata separately.
+ */
+export async function loadEvalSuite(
+  evalFilePath: string,
+  repoRoot: URL | string,
+  options?: LoadOptions,
+): Promise<EvalSuiteResult> {
+  const format = detectFormat(evalFilePath);
+  if (format === 'jsonl') {
+    return { cases: await loadEvalCasesFromJsonl(evalFilePath, repoRoot, options) };
+  }
+  const { cases, parsed } = await loadEvalCasesFromYaml(evalFilePath, repoRoot, options);
+  return { cases, trials: extractTrialsConfig(parsed) };
+}
+
 export async function loadEvalCases(
   evalFilePath: string,
   repoRoot: URL | string,
@@ -106,7 +142,15 @@ export async function loadEvalCases(
   if (format === 'jsonl') {
     return loadEvalCasesFromJsonl(evalFilePath, repoRoot, options);
   }
+  const { cases } = await loadEvalCasesFromYaml(evalFilePath, repoRoot, options);
+  return cases;
+}
 
+async function loadEvalCasesFromYaml(
+  evalFilePath: string,
+  repoRoot: URL | string,
+  options?: LoadOptions,
+): Promise<{ cases: readonly EvalCase[]; parsed: JsonObject }> {
   // YAML parsing (existing implementation)
   const verbose = options?.verbose ?? false;
   const filterPattern = options?.filter;
@@ -303,7 +347,7 @@ export async function loadEvalCases(
     results.push(testCase);
   }
 
-  return results;
+  return { cases: results, parsed: suite };
 }
 
 /**

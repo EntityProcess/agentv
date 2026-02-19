@@ -464,6 +464,67 @@ export interface EvalCase {
 }
 
 /**
+ * Supported trial aggregation strategies.
+ */
+export type TrialStrategy = 'pass_at_k' | 'mean' | 'confidence_interval';
+
+/**
+ * Configuration for running multiple trials per eval case.
+ */
+export interface TrialsConfig {
+  readonly count: number;
+  readonly strategy: TrialStrategy;
+  readonly costLimitUsd?: number;
+}
+
+/**
+ * Result of a single trial attempt.
+ */
+export interface TrialResult {
+  readonly attempt: number;
+  readonly score: number;
+  readonly verdict: EvaluationVerdict;
+  readonly evaluatorResults?: readonly EvaluatorResult[];
+  readonly error?: string;
+  readonly costUsd?: number;
+}
+
+/**
+ * Aggregation metadata for pass_at_k strategy.
+ */
+export interface PassAtKAggregation {
+  readonly strategy: 'pass_at_k';
+  readonly passedAttempts: number;
+  readonly totalAttempts: number;
+}
+
+/**
+ * Aggregation metadata for mean strategy.
+ */
+export interface MeanAggregation {
+  readonly strategy: 'mean';
+  readonly mean: number;
+  readonly min: number;
+  readonly max: number;
+}
+
+/**
+ * Aggregation metadata for confidence_interval strategy.
+ */
+export interface ConfidenceIntervalAggregation {
+  readonly strategy: 'confidence_interval';
+  readonly mean: number;
+  readonly ci95Lower: number;
+  readonly ci95Upper: number;
+  readonly stddev: number;
+}
+
+/**
+ * Discriminated union of trial aggregation results.
+ */
+export type TrialAggregation = PassAtKAggregation | MeanAggregation | ConfidenceIntervalAggregation;
+
+/**
  * Evaluator scorecard for a single eval case run.
  */
 export interface EvaluationResult {
@@ -494,6 +555,12 @@ export interface EvaluationResult {
   readonly teardownOutput?: string;
   /** Unified diff of workspace file changes (when workspace_template is configured) */
   readonly fileChanges?: string;
+  /** Individual trial results (only present when trials.count > 1) */
+  readonly trials?: readonly TrialResult[];
+  /** Aggregation metadata describing how the final score was computed from trials */
+  readonly aggregation?: TrialAggregation;
+  /** Whether the trial loop was terminated early due to cost limit */
+  readonly costLimited?: boolean;
 }
 
 export type EvaluationVerdict = 'pass' | 'fail' | 'borderline';
