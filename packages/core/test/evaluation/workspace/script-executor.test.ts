@@ -176,6 +176,51 @@ rl.on('close', () => {
     expect(output).toContain('Context validated successfully');
   });
 
+  it('should pass case metadata and input to setup script via stdin', async () => {
+    const metadataCheckScript = path.join(testDir, 'check-metadata.js');
+    await writeFile(
+      metadataCheckScript,
+      `
+const readline = require('readline');
+const rl = readline.createInterface({ input: process.stdin });
+let data = '';
+rl.on('line', (line) => { data += line; });
+rl.on('close', () => {
+  try {
+    const context = JSON.parse(data);
+    if (context.case_input && context.case_metadata && context.case_metadata.repo) {
+      console.log('Metadata received: ' + context.case_metadata.repo);
+      console.log('Input received: ' + context.case_input.substring(0, 20));
+      process.exit(0);
+    }
+    console.error('Missing fields');
+    process.exit(1);
+  } catch (e) {
+    console.error(e.message);
+    process.exit(2);
+  }
+});
+`,
+    );
+
+    const config: WorkspaceScriptConfig = {
+      script: ['node', metadataCheckScript],
+      timeout_ms: 5000,
+    };
+
+    const context: ScriptExecutionContext = {
+      workspacePath: '/tmp/workspace',
+      evalCaseId: 'sympy-20590',
+      evalRunId: 'run-123',
+      caseInput: 'Fix the bug in issue #20590...',
+      caseMetadata: { repo: 'sympy/sympy', base_commit: '9aabb237' },
+    };
+
+    const output = await executeWorkspaceSetup(config, context);
+    expect(output).toContain('Metadata received: sympy/sympy');
+    expect(output).toContain('Input received: Fix the bug in issue');
+  });
+
   it('should support optional timeout_ms (defaults apply)', async () => {
     const config: WorkspaceScriptConfig = {
       script: ['node', setupScript],
