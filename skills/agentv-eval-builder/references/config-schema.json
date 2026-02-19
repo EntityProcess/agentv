@@ -20,6 +20,15 @@
         ["**/*.instructions.md", "**/instructions/**", "**/*.prompt.md", "**/prompts/**"],
         ["**/*.guide.md", "**/guidelines/**", "docs/AGENTS.md"]
       ]
+    },
+    "eval_patterns": {
+      "type": "array",
+      "description": "Glob patterns for discovering eval files during interactive mode (`agentv run` with no args). Defaults to ['**/evals/**/dataset*.yaml', '**/evals/**/eval.yaml'] if not specified.",
+      "items": {
+        "type": "string",
+        "description": "Glob pattern (e.g., '**/evals/**/dataset*.yaml', '**/evals/**/eval.yaml')"
+      },
+      "examples": [["**/evals/**/dataset*.yaml", "**/evals/**/eval.yaml"], ["**/evals/**/*.yaml"]]
     }
   },
   "required": ["$schema"],

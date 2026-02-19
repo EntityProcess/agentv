@@ -11,8 +11,14 @@ guideline_patterns:
   - "**/*.prompt.md"
   - "**/SKILL.md"
 
+# Customize which YAML files are discovered as evals during interactive mode
+# (`agentv run` with no args). Defaults to dataset*.yaml and eval.yaml under evals/.
+eval_patterns:
+  - "**/evals/**/dataset*.yaml"
+  - "**/evals/**/eval.yaml"
+
 # Notes:
-# - Patterns use standard glob syntax (via micromatch library)
-# - Paths are normalized to forward slashes for cross-platform compatibility
-# - Only files matching these patterns are loaded as guidelines
+# - Patterns use standard glob syntax (via fast-glob)
+# - Matching is case-insensitive
+# - Only files matching these patterns are discovered in interactive mode
 # - All other files referenced in eval cases are treated as regular file content

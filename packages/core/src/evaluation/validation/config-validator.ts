@@ -52,8 +52,35 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
       }
     }
 
+    // Validate eval_patterns if present
+    const evalPatterns = config.eval_patterns;
+    if (evalPatterns !== undefined) {
+      if (!Array.isArray(evalPatterns)) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: 'eval_patterns',
+          message: "Field 'eval_patterns' must be an array",
+        });
+      } else if (!evalPatterns.every((p) => typeof p === 'string')) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: 'eval_patterns',
+          message: "All entries in 'eval_patterns' must be strings",
+        });
+      } else if (evalPatterns.length === 0) {
+        errors.push({
+          severity: 'warning',
+          filePath,
+          location: 'eval_patterns',
+          message: "Field 'eval_patterns' is empty. Consider removing it or adding patterns.",
+        });
+      }
+    }
+
     // Check for unexpected fields
-    const allowedFields = new Set(['$schema', 'guideline_patterns']);
+    const allowedFields = new Set(['$schema', 'guideline_patterns', 'eval_patterns']);
     const unexpectedFields = Object.keys(config).filter((key) => !allowedFields.has(key));
 
     if (unexpectedFields.length > 0) {

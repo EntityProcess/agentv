@@ -18,7 +18,8 @@ import { isJsonObject, isTestMessage } from './types.js';
 
 // Re-export public APIs from modules
 export { buildPromptInputs, type PromptInputs } from './formatting/prompt-builder.js';
-export { isGuidelineFile } from './loaders/config-loader.js';
+export { DEFAULT_EVAL_PATTERNS, isGuidelineFile, loadConfig } from './loaders/config-loader.js';
+export type { AgentVConfig } from './loaders/config-loader.js';
 export { detectFormat } from './loaders/jsonl-parser.js';
 
 const ANSI_YELLOW = '\u001b[33m';

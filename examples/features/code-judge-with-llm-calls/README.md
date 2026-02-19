@@ -231,20 +231,20 @@ The `createTargetClient()` function reads these automatically.
 # From the agentv monorepo root:
 
 # Run contextual precision evaluation
-bun run agentv run examples/features/code-judge-with-llm-calls/evals/contextual-precision.yaml --target gemini_base
+bun run agentv run examples/features/code-judge-with-llm-calls/evals/dataset-contextual-precision.yaml --target gemini_base
 
 # Run contextual recall evaluation
-bun run agentv run examples/features/code-judge-with-llm-calls/evals/contextual-recall.yaml --target gemini_base
+bun run agentv run examples/features/code-judge-with-llm-calls/evals/dataset-contextual-recall.yaml --target gemini_base
 ```
 
 ### Expected Results
 
-**Contextual Precision** (`contextual-precision.yaml`):
+**Contextual Precision** (`dataset-contextual-precision.yaml`):
 - **perfect-ranking**: ~1.0 (relevant node ranked first)
 - **mixed-ranking**: ~0.833 (relevant nodes at positions 1 and 3)
 - **relevant-node-last**: ~0.333 (only relevant node is last)
 
-**Contextual Recall** (`contextual-recall.yaml`):
+**Contextual Recall** (`dataset-contextual-recall.yaml`):
 - **perfect-recall**: ~1.0 (all expected statements attributable)
 - **partial-recall**: ~0.33 (some statements missing from retrieval)
 - **zero-recall**: ~0.0 (retrieval doesn't support expected answer)
