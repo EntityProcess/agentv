@@ -30,6 +30,7 @@
   "dependencies": {
     "@agentv/core": "workspace:*",
     "@inquirer/prompts": "^8.2.1",
+    "@github/copilot-sdk": "^0.1.25",
     "@mariozechner/pi-agent-core": "^0.50.9",
     "@mariozechner/pi-ai": "^0.50.9",
     "cmd-ts": "^0.14.3",

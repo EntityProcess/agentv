@@ -78,6 +78,15 @@ targets:
     log_format: json                          # Optional: 'summary' (default) or 'json'
     # system_prompt: optional override (default instructs agent to include code in response)
 
+  # GitHub Copilot SDK - typed SDK interface
+  - name: copilot-sdk
+    provider: copilot-sdk
+    judge_target: azure_base
+    # cli_path: /path/to/copilot  # Optional: defaults to bundled @github/copilot binary
+    # model: gpt-4.1                             # Optional: override model
+    timeout_seconds: 180
+    log_format: json                              # Optional: 'summary' (default) or 'json'
+
   # Claude Code - Anthropic's autonomous coding CLI
   - name: claude-code
     provider: claude-code

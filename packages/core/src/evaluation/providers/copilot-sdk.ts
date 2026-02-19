@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { createWriteStream } from 'node:fs';
+import { createWriteStream, existsSync, readdirSync } from 'node:fs';
 import type { WriteStream } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
+import { arch, platform } from 'node:os';
 import path from 'node:path';
 
 import { recordCopilotSdkLogEntry } from './copilot-sdk-log-tracker.js';
@@ -269,6 +270,14 @@ export class CopilotSdkProvider implements Provider {
       }
       if (this.config.cliPath) {
         clientOptions.cliPath = this.config.cliPath;
+      } else {
+        // The SDK default getBundledCliPath() resolves to a JS entry that requires
+        // node:sqlite (unavailable in Bun). Auto-resolve the platform-specific native
+        // binary from @github/copilot-{platform}-{arch} when available.
+        const nativePath = resolvePlatformCliPath();
+        if (nativePath) {
+          clientOptions.cliPath = nativePath;
+        }
       }
       if (this.config.githubToken) {
         clientOptions.githubToken = this.config.githubToken;
@@ -458,6 +467,94 @@ function buildLogFilename(request: ProviderRequest, targetName: string): string 
 function sanitizeForFilename(value: string): string {
   const sanitized = value.replace(/[^A-Za-z0-9._-]+/g, '_');
   return sanitized.length > 0 ? sanitized : 'copilot-sdk';
+}
+
+/**
+ * Resolve the platform-specific native Copilot CLI binary from the @github/copilot
+ * optional dependency. The SDK's default `getBundledCliPath()` points to a JS entry
+ * that imports `node:sqlite` (unsupported by Bun). This function locates the native
+ * binary directly.
+ */
+function resolvePlatformCliPath(): string | undefined {
+  const os = platform();
+  const cpu = arch();
+
+  // Map Node.js platform/arch to @github/copilot package naming
+  const platformMap: Record<string, string> = {
+    linux: 'linux',
+    darwin: 'darwin',
+    win32: 'win32',
+  };
+  const archMap: Record<string, string> = {
+    x64: 'x64',
+    arm64: 'arm64',
+  };
+
+  const osPart = platformMap[os];
+  const archPart = archMap[cpu];
+  if (!osPart || !archPart) {
+    return undefined;
+  }
+
+  const packageName = `@github/copilot-${osPart}-${archPart}`;
+  const binaryName = os === 'win32' ? 'copilot.exe' : 'copilot';
+
+  try {
+    // Try to resolve the platform package via import.meta.resolve
+    const resolved = import.meta.resolve(`${packageName}/package.json`);
+    const packageJsonPath = resolved.startsWith('file://') ? resolved.slice(7) : resolved;
+    const binaryPath = path.join(path.dirname(packageJsonPath), binaryName);
+    if (existsSync(binaryPath)) {
+      return binaryPath;
+    }
+  } catch {
+    // Not resolvable via import.meta.resolve
+  }
+
+  // Walk up from cwd looking for node_modules containing the package
+  let searchDir = process.cwd();
+  for (let i = 0; i < 10; i++) {
+    // Standard node_modules layout
+    const standardPath = path.join(
+      searchDir,
+      'node_modules',
+      ...packageName.split('/'),
+      binaryName,
+    );
+    if (existsSync(standardPath)) {
+      return standardPath;
+    }
+
+    // Bun's deduped .bun directory layout
+    const bunDir = path.join(searchDir, 'node_modules', '.bun');
+    const prefix = `@github+copilot-${osPart}-${archPart}@`;
+    try {
+      const entries = readdirSync(bunDir);
+      for (const entry of entries) {
+        if (entry.startsWith(prefix)) {
+          const candidate = path.join(
+            bunDir,
+            entry,
+            'node_modules',
+            '@github',
+            `copilot-${osPart}-${archPart}`,
+            binaryName,
+          );
+          if (existsSync(candidate)) {
+            return candidate;
+          }
+        }
+      }
+    } catch {
+      // .bun directory doesn't exist or can't be read
+    }
+
+    const parent = path.dirname(searchDir);
+    if (parent === searchDir) break;
+    searchDir = parent;
+  }
+
+  return undefined;
 }
 
 function formatElapsed(startedAt: number): string {
