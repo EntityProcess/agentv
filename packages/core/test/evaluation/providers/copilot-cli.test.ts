@@ -192,11 +192,18 @@ describe('CopilotCliProvider', () => {
   });
 
   it('copies input files into workspace and uses relative paths in prompt', async () => {
-    const runner = mock(async () => ({
-      stdout: 'done with files',
-      stderr: '',
-      exitCode: 0,
-    }));
+    let capturedPromptFileContent = '';
+    const runner = mock(async (options: { readonly cwd: string }) => {
+      capturedPromptFileContent = await readFile(
+        path.join(options.cwd, 'prompt.md'),
+        'utf8',
+      );
+      return {
+        stdout: 'done with files',
+        stderr: '',
+        exitCode: 0,
+      };
+    });
     const provider = new CopilotCliProvider(
       'copilot-target',
       {
@@ -223,13 +230,12 @@ describe('CopilotCliProvider', () => {
     const response = await provider.invoke(request);
     expect(extractLastAssistantContent(response.outputMessages)).toBe('done with files');
 
-    // The prompt passed as last arg should contain relative file references (no file:// URIs)
-    const invocation = runner.mock.calls[0][0];
-    const promptArg = invocation.args[invocation.args.length - 1];
-    expect(promptArg).toContain('python.instructions.md');
-    expect(promptArg).toContain('main.py');
-    expect(promptArg).toContain('[[ ## user_query ## ]]');
-    expect(promptArg).not.toContain('file://');
+    // The prompt file should contain relative file references (no file:// URIs).
+    // The -p CLI arg references the prompt file; the actual content lives there.
+    expect(capturedPromptFileContent).toContain('python.instructions.md');
+    expect(capturedPromptFileContent).toContain('main.py');
+    expect(capturedPromptFileContent).toContain('[[ ## user_query ## ]]');
+    expect(capturedPromptFileContent).not.toContain('file://');
 
     // Verify copiedFiles in raw response
     const raw = response.raw as Record<string, unknown>;
@@ -254,11 +260,18 @@ describe('CopilotCliProvider', () => {
   });
 
   it('handles basename collisions when copying input files', async () => {
-    const runner = mock(async () => ({
-      stdout: 'done',
-      stderr: '',
-      exitCode: 0,
-    }));
+    let capturedPromptFileContent = '';
+    const runner = mock(async (options: { readonly cwd: string }) => {
+      capturedPromptFileContent = await readFile(
+        path.join(options.cwd, 'prompt.md'),
+        'utf8',
+      );
+      return {
+        stdout: 'done',
+        stderr: '',
+        exitCode: 0,
+      };
+    });
     const provider = new CopilotCliProvider(
       'copilot-target',
       {
@@ -290,11 +303,9 @@ describe('CopilotCliProvider', () => {
     expect(copiedFiles[0].workspaceRelativePath).toBe('config.yaml');
     expect(copiedFiles[1].workspaceRelativePath).toBe('config_1.yaml');
 
-    // Verify prompt contains both relative paths
-    const invocation = runner.mock.calls[0][0];
-    const promptArg = invocation.args[invocation.args.length - 1];
-    expect(promptArg).toContain('config.yaml');
-    expect(promptArg).toContain('config_1.yaml');
+    // Verify prompt file contains both relative paths
+    expect(capturedPromptFileContent).toContain('config.yaml');
+    expect(capturedPromptFileContent).toContain('config_1.yaml');
   });
 
   it('streams output to a log file and records log entry', async () => {

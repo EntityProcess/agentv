@@ -169,7 +169,7 @@ export class CopilotCliProvider implements Provider {
       const promptFile = path.join(workspaceRoot, PROMPT_FILENAME);
       await writeFile(promptFile, promptContent, 'utf8');
 
-      const args = this.buildCopilotArgs(promptContent);
+      const args = this.buildCopilotArgs(PROMPT_FILENAME);
       const cwd = this.resolveCwd(workspaceRoot, request.cwd);
 
       const result = await this.executeCopilot(args, cwd, promptContent, request.signal, logger);
@@ -231,7 +231,7 @@ export class CopilotCliProvider implements Provider {
     return path.resolve(this.config.cwd);
   }
 
-  private buildCopilotArgs(prompt: string): string[] {
+  private buildCopilotArgs(promptFileName: string): string[] {
     const args: string[] = [];
 
     // Silent mode - only output agent response
@@ -253,8 +253,13 @@ export class CopilotCliProvider implements Provider {
       args.push(...this.config.args);
     }
 
-    // Non-interactive prompt mode: -p <text> must be last (flag + value pair)
-    args.push('-p', prompt);
+    // Non-interactive prompt mode.  The full prompt is written to a file in
+    // the workspace so we avoid OS command-line length limits and shell
+    // escaping issues (e.g. cmd.exe truncating multi-line arguments).
+    args.push(
+      '-p',
+      `Read the file ${promptFileName} in the current directory and follow all instructions in it exactly.`,
+    );
 
     return args;
   }
@@ -532,8 +537,9 @@ async function locateExecutable(candidate: string): Promise<string> {
   const includesPathSeparator = candidate.includes('/') || candidate.includes('\\');
   if (includesPathSeparator) {
     const resolved = path.isAbsolute(candidate) ? candidate : path.resolve(candidate);
-    await access(resolved, constants.F_OK);
-    return resolved;
+    const executablePath = await ensureWindowsExecutableVariant(resolved);
+    await access(executablePath, constants.F_OK);
+    return executablePath;
   }
 
   const locator = process.platform === 'win32' ? 'where' : 'which';
@@ -543,9 +549,11 @@ async function locateExecutable(candidate: string): Promise<string> {
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
-    if (lines.length > 0 && lines[0]) {
-      await access(lines[0], constants.F_OK);
-      return lines[0];
+    const preferred = selectExecutableCandidate(lines);
+    if (preferred) {
+      const executablePath = await ensureWindowsExecutableVariant(preferred);
+      await access(executablePath, constants.F_OK);
+      return executablePath;
     }
   } catch {
     // ignore and fall back to error below
@@ -554,23 +562,115 @@ async function locateExecutable(candidate: string): Promise<string> {
   throw new Error(`Copilot executable '${candidate}' was not found on PATH`);
 }
 
-function shouldShellExecute(executable: string): boolean {
+function selectExecutableCandidate(candidates: readonly string[]): string | undefined {
+  if (candidates.length === 0) {
+    return undefined;
+  }
+  if (process.platform !== 'win32') {
+    return candidates[0];
+  }
+  const extensions = getWindowsExecutableExtensions();
+  for (const ext of extensions) {
+    const match = candidates.find((candidate) => candidate.toLowerCase().endsWith(ext));
+    if (match) {
+      return match;
+    }
+  }
+  return candidates[0];
+}
+
+async function ensureWindowsExecutableVariant(candidate: string): Promise<string> {
+  if (process.platform !== 'win32') {
+    return candidate;
+  }
+  if (hasExecutableExtension(candidate)) {
+    return candidate;
+  }
+
+  const extensions = getWindowsExecutableExtensions();
+  for (const ext of extensions) {
+    const withExtension = `${candidate}${ext}`;
+    try {
+      await access(withExtension, constants.F_OK);
+      return withExtension;
+    } catch {
+      // keep searching
+    }
+  }
+  return candidate;
+}
+
+function hasExecutableExtension(candidate: string): boolean {
+  const lower = candidate.toLowerCase();
+  return getWindowsExecutableExtensions().some((ext) => lower.endsWith(ext));
+}
+
+const DEFAULT_WINDOWS_EXTENSIONS = ['.com', '.exe', '.bat', '.cmd', '.ps1'] as const;
+
+function getWindowsExecutableExtensions(): readonly string[] {
+  if (process.platform !== 'win32') {
+    return [];
+  }
+  const fromEnv = process.env.PATHEXT?.split(';')
+    .map((ext) => ext.trim().toLowerCase())
+    .filter((ext) => ext.length > 0);
+  return fromEnv && fromEnv.length > 0 ? fromEnv : DEFAULT_WINDOWS_EXTENSIONS;
+}
+
+function isCmdBatFile(executable: string): boolean {
   if (process.platform !== 'win32') {
     return false;
   }
   const lower = executable.toLowerCase();
-  return lower.endsWith('.cmd') || lower.endsWith('.bat') || lower.endsWith('.ps1');
+  return lower.endsWith('.cmd') || lower.endsWith('.bat');
+}
+
+/**
+ * Escape a single argument for cmd.exe + MSVC CRT parsing.
+ * The value is wrapped in double-quotes and internal double-quotes and
+ * trailing backslashes are escaped.  `%` is doubled to prevent cmd.exe
+ * environment-variable expansion.
+ */
+function escapeCmdArg(arg: string): string {
+  let escaped = arg
+    .replace(/(\\*)"/g, '$1$1\\"')
+    .replace(/(\\*)$/, '$1$1');
+  escaped = escaped.replace(/%/g, '%%');
+  return `"${escaped}"`;
 }
 
 async function defaultCopilotCliRunner(
   options: CopilotCliRunOptions,
 ): Promise<CopilotCliRunResult> {
   return await new Promise<CopilotCliRunResult>((resolve, reject) => {
-    const child = spawn(options.executable, options.args, {
+    let command: string;
+    let spawnArgs: string[];
+    let shell: boolean;
+    let verbatim: boolean;
+
+    if (isCmdBatFile(options.executable)) {
+      // On Windows, .cmd/.bat files require cmd.exe.  We invoke it
+      // directly with properly quoted arguments instead of relying on
+      // Node.js `shell: true` which mishandles quoting.
+      const parts = [options.executable, ...options.args].map(escapeCmdArg).join(' ');
+      const comSpec = process.env.ComSpec ?? 'cmd.exe';
+      command = comSpec;
+      spawnArgs = ['/d', '/s', '/c', `"${parts}"`];
+      shell = false;
+      verbatim = true;
+    } else {
+      command = options.executable;
+      spawnArgs = [...options.args];
+      shell = false;
+      verbatim = false;
+    }
+
+    const child = spawn(command, spawnArgs, {
       cwd: options.cwd,
       env: options.env,
       stdio: ['pipe', 'pipe', 'pipe'],
-      shell: shouldShellExecute(options.executable),
+      shell,
+      windowsVerbatimArguments: verbatim,
     });
 
     let stdout = '';
