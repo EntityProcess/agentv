@@ -169,7 +169,7 @@ async function processEvaluator(
         type: config.type,
         status: 'prompt_ready',
         result: {
-          message: `Evaluator type "${config.type}" requires the full eval pipeline. Use \`agentv eval run\` instead.`,
+          message: `Evaluator type "${config.type}" requires the full eval pipeline. Use \`agentv run\` instead.`,
         },
       };
     }

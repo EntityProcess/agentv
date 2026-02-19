@@ -23,10 +23,10 @@ The pi-coding-agent provider has issues passing multi-line prompts on Windows. W
 
 ```bash
 # Dry run to verify structure
-bun agentv eval evals/design-principles.yaml --targets evals/targets.yaml --dry-run
+bun agentv run evals/design-principles.yaml --targets evals/targets.yaml --dry-run
 
 # Full run (requires working pi-coding-agent or alternative target)
-bun agentv eval evals/design-principles.yaml --targets evals/targets.yaml
+bun agentv run evals/design-principles.yaml --targets evals/targets.yaml
 ```
 
 ## Test Cases

@@ -15,7 +15,7 @@ Demonstrates tool trajectory evaluation combined with expected output validation
 ```bash
 # From repository root
 cd examples/features
-bun agentv eval tool-trajectory-advanced/evals/trace-file-demo.yaml --target static_trace
+bun agentv run tool-trajectory-advanced/evals/trace-file-demo.yaml --target static_trace
 ```
 
 ## Setup

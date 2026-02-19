@@ -5,7 +5,7 @@
 # semantic evaluation capabilities that require domain-specific logic.
 #
 # Run: cd examples/showcase/tool-evaluation-plugins
-#      npx agentv eval tool-eval-demo.yaml --target mock_agent
+#      npx agentv run tool-eval-demo.yaml --target mock_agent
 
 description: Showcase of tool evaluation plugin patterns
 

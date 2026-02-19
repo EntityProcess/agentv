@@ -176,15 +176,15 @@ See `references/rubric-evaluator.md` for score-range mode and scoring formula.
 
 ```bash
 # Run evaluation (requires API keys)
-agentv eval <file.yaml> [--eval-id <id>] [--target <name>] [--dry-run]
+agentv run <file.yaml> [--eval-id <id>] [--target <name>] [--dry-run]
 
 # Run with trace persistence (writes to .agentv/traces/)
-agentv eval <file.yaml> --trace
+agentv run <file.yaml> --trace
 
 # Agent-orchestrated evals (no API keys needed)
-agentv eval prompt <file.yaml>                                      # orchestration overview
-agentv eval prompt input <file.yaml> --eval-id <id>                 # task input JSON (file paths, not embedded content)
-agentv eval prompt judge <file.yaml> --eval-id <id> --answer-file f # judge prompts / code judge results
+agentv prompt <file.yaml>                                      # orchestration overview
+agentv prompt input <file.yaml> --eval-id <id>                 # task input JSON (file paths, not embedded content)
+agentv prompt judge <file.yaml> --eval-id <id> --answer-file f # judge prompts / code judge results
 
 # Validate eval file
 agentv validate <file.yaml>

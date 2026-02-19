@@ -13,7 +13,7 @@ Demonstrates CLI target configuration with file attachments.
 
 ```bash
 # From repository root
-bun agentv eval examples/features/local-cli/evals/dataset.yaml
+bun agentv run examples/features/local-cli/evals/dataset.yaml
 ```
 
 ## Key Files
