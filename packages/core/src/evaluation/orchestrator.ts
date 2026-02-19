@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
@@ -65,11 +65,18 @@ import {
   captureFileChanges as captureWorkspaceFileChanges,
   initializeBaseline,
 } from './workspace/file-changes.js';
+import { computeWorkspaceFingerprint } from './workspace/fingerprint.js';
 import {
   cleanupEvalWorkspaces,
   cleanupWorkspace,
   createTempWorkspace,
+  getWorkspacePath,
 } from './workspace/manager.js';
+import {
+  type ScriptExecutionContext,
+  executeWorkspaceSetup,
+  executeWorkspaceTeardown,
+} from './workspace/script-executor.js';
 import { type PromptInputs, buildPromptInputs, loadEvalCases } from './yaml-parser.js';
 
 type MaybePromise<T> = T | Promise<T>;
@@ -434,8 +441,10 @@ export async function runEvaluation(
   // Cleanup all eval workspaces if forceCleanup is set, or cleanup successful runs
   // Failed runs keep their workspaces for debugging (handled per-case above)
   // This is a fallback to ensure workspace directories are cleaned up
-  const workspaceTemplate = getWorkspaceTemplate(target);
-  if (workspaceTemplate && cleanupWorkspaces) {
+  const hasAnyWorkspace =
+    getWorkspaceTemplate(target) ||
+    filteredEvalCases.some((c) => c.workspace?.template || c.workspace?.setup);
+  if (hasAnyWorkspace && cleanupWorkspaces) {
     // Force cleanup: remove all workspaces for this eval run
     await cleanupEvalWorkspaces(evalRunId).catch(() => {});
   }
@@ -653,9 +662,11 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   const nowFn = now ?? (() => new Date());
 
-  // Check if workspace_template is configured for this target
-  const workspaceTemplate = getWorkspaceTemplate(target);
+  // Check if workspace_template is configured for this target or eval case
+  const workspaceTemplate = evalCase.workspace?.template ?? getWorkspaceTemplate(target);
   let workspacePath: string | undefined;
+  let setupOutput: string | undefined;
+  let teardownOutput: string | undefined;
 
   // Create temp workspace if template is a directory and we have evalRunId.
   // File-based templates (e.g. .code-workspace) are passed through to the provider as-is.
@@ -680,6 +691,39 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
   }
 
+  // If no template but setup is configured, create an empty workspace directory
+  if (!workspacePath && evalCase.workspace?.setup && evalRunId) {
+    workspacePath = getWorkspacePath(evalRunId, evalCase.id);
+    await mkdir(workspacePath, { recursive: true });
+  }
+
+  // Execute workspace setup script (runs before git baseline init so setup changes are part of baseline)
+  if (workspacePath && evalCase.workspace?.setup) {
+    const scriptContext: ScriptExecutionContext = {
+      workspacePath,
+      evalCaseId: evalCase.id,
+      evalRunId: evalRunId ?? '',
+      caseInput: evalCase.question,
+      caseMetadata: evalCase.metadata,
+    };
+    try {
+      setupOutput = await executeWorkspaceSetup(evalCase.workspace.setup, scriptContext);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (forceCleanup && workspacePath) {
+        await cleanupWorkspace(workspacePath).catch(() => {});
+      }
+      return buildErrorResult(
+        evalCase,
+        target.name,
+        nowFn(),
+        new Error(`Workspace setup failed: ${message}`),
+        promptInputs,
+        provider,
+      );
+    }
+  }
+
   // Initialize git baseline for file change tracking when workspace is configured
   let baselineCommit: string | undefined;
   if (workspacePath) {
@@ -687,6 +731,16 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       baselineCommit = await initializeBaseline(workspacePath);
     } catch {
       // Non-fatal: file change tracking is best-effort
+    }
+  }
+
+  // Compute workspace fingerprint after setup + baseline init
+  let workspaceFingerprint: { hash: string; fileCount: number } | undefined;
+  if (workspacePath) {
+    try {
+      workspaceFingerprint = await computeWorkspaceFingerprint(workspacePath);
+    } catch {
+      // Non-fatal: fingerprinting is best-effort
     }
   }
 
@@ -801,6 +855,22 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   const providerError = extractProviderError(providerResponse);
 
+  // Execute workspace teardown script (runs after evaluation, before cleanup)
+  if (workspacePath && evalCase.workspace?.teardown) {
+    const scriptContext: ScriptExecutionContext = {
+      workspacePath,
+      evalCaseId: evalCase.id,
+      evalRunId: evalRunId ?? '',
+      caseInput: evalCase.question,
+      caseMetadata: evalCase.metadata,
+    };
+    try {
+      teardownOutput = await executeWorkspaceTeardown(evalCase.workspace.teardown, scriptContext);
+    } catch {
+      // Teardown failures are non-fatal (warning already logged by executeWorkspaceTeardown)
+    }
+  }
+
   try {
     const result = await evaluateCandidate({
       evalCase,
@@ -821,7 +891,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       workspacePath,
     });
 
-    const finalResult = providerError ? { ...result, error: providerError } : result;
+    const finalResult = providerError
+      ? { ...result, error: providerError, setupOutput, teardownOutput, workspaceFingerprint }
+      : { ...result, setupOutput, teardownOutput, workspaceFingerprint };
 
     // Determine if this is a failure (has error or low score)
     const isFailure = !!finalResult.error || finalResult.score < 0.5;
@@ -855,9 +927,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       if (forceCleanup) {
         await cleanupWorkspace(workspacePath).catch(() => {});
       }
-      return { ...errorResult, workspacePath };
+      return { ...errorResult, workspacePath, setupOutput, teardownOutput, workspaceFingerprint };
     }
-    return errorResult;
+    return { ...errorResult, setupOutput, teardownOutput, workspaceFingerprint };
   }
 }
 

@@ -27,7 +27,7 @@ cases:
 ## Eval File Structure
 
 **Required:** `cases` (array)
-**Optional:** `description`, `execution`, `dataset`
+**Optional:** `description`, `execution`, `dataset`, `workspace`
 
 **Eval case fields:**
 
@@ -39,6 +39,8 @@ cases:
 | `expected_output` / `expected_messages` | no | Gold-standard reference answer |
 | `rubrics` | no | Inline evaluation criteria |
 | `execution` | no | Per-case execution overrides |
+| `workspace` | no | Per-case workspace config (overrides suite-level) |
+| `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
 | `conversation_id` | no | Thread grouping |
 
 **Shorthand aliases:**
@@ -51,6 +53,37 @@ cases:
 **File paths:** relative from eval file dir, or absolute with `/` prefix from repo root
 
 **JSONL format:** One eval case per line as JSON. Optional `.yaml` sidecar for shared defaults. See `examples/features/basic-jsonl/`.
+
+## Workspace Setup/Teardown
+
+Run scripts before/after each eval case. Define at suite level or override per case:
+
+```yaml
+workspace:
+  template: ./workspace-templates/my-project
+  setup:
+    script: ["bun", "run", "setup.ts"]
+    timeout_ms: 120000
+  teardown:
+    script: ["bun", "run", "teardown.ts"]
+
+cases:
+  - id: case-1
+    input: Fix the bug
+    criteria: Bug is fixed
+    metadata:
+      repo: sympy/sympy
+      base_commit: "abc123"
+    workspace:
+      setup:
+        script: ["python", "custom-setup.py"]  # overrides suite-level
+```
+
+**Lifecycle:** template copy → setup → git baseline → agent → file changes → teardown → cleanup
+**Merge:** Case-level fields replace suite-level fields.
+**Scripts receive stdin JSON:** `{workspace_path, eval_case_id, eval_run_id, case_input, case_metadata}`
+**Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
+See https://agentv.dev/targets/configuration/#workspace-setupteardown
 
 ## Evaluator Types
 

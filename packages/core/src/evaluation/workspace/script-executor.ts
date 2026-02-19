@@ -8,6 +8,8 @@ export interface ScriptExecutionContext {
   readonly workspacePath: string;
   readonly evalCaseId: string;
   readonly evalRunId: string;
+  readonly caseInput?: string;
+  readonly caseMetadata?: Record<string, unknown>;
 }
 
 /**
@@ -27,6 +29,8 @@ export async function executeWorkspaceSetup(
     workspace_path: context.workspacePath,
     eval_case_id: context.evalCaseId,
     eval_run_id: context.evalRunId,
+    case_input: context.caseInput ?? null,
+    case_metadata: context.caseMetadata ?? null,
   });
 
   const timeoutMs = config.timeout_ms ?? 60000; // Default 60s for setup
@@ -63,6 +67,8 @@ export async function executeWorkspaceTeardown(
     workspace_path: context.workspacePath,
     eval_case_id: context.evalCaseId,
     eval_run_id: context.evalRunId,
+    case_input: context.caseInput ?? null,
+    case_metadata: context.caseMetadata ?? null,
   });
 
   const timeoutMs = config.timeout_ms ?? 30000; // Default 30s for teardown

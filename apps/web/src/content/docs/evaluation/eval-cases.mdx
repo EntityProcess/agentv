@@ -28,6 +28,8 @@ cases:
 | `input` | Yes | Input sent to the target (string, object, or message array). Alias: `input_messages` |
 | `expected_output` | No | Expected response for comparison (string, object, or message array). Alias: `expected_messages` |
 | `execution` | No | Per-case execution overrides (target, evaluators) |
+| `workspace` | No | Per-case workspace config (overrides suite-level) |
+| `metadata` | No | Arbitrary key-value pairs passed to setup/teardown scripts |
 | `rubrics` | No | Structured evaluation criteria |
 | `sidecar` | No | Additional metadata passed to evaluators |
 
@@ -82,6 +84,50 @@ cases:
           type: llm_judge
           prompt: ./judges/depth.md
 ```
+
+## Per-Case Workspace Config
+
+Override the suite-level workspace config for individual cases. Case-level fields replace suite-level fields:
+
+```yaml
+workspace:
+  setup:
+    script: ["bun", "run", "default-setup.ts"]
+
+cases:
+  - id: case-1
+    criteria: Should work
+    input: Do something
+    workspace:
+      setup:
+        script: ["bun", "run", "custom-setup.ts"]
+
+  - id: case-2
+    criteria: Should also work
+    input: Do something else
+    # Inherits suite-level setup
+```
+
+See [Workspace Setup/Teardown](/targets/configuration/#workspace-setupteardown) for the full workspace config reference.
+
+## Per-Case Metadata
+
+Pass arbitrary key-value pairs to setup/teardown scripts via the `metadata` field. This is useful for benchmark datasets where each case needs repo info, commit hashes, or other context:
+
+```yaml
+cases:
+  - id: sympy-20590
+    criteria: Bug should be fixed
+    input: Fix the diophantine equation bug
+    metadata:
+      repo: sympy/sympy
+      base_commit: "abc123def"
+    workspace:
+      setup:
+        script: ["python", "checkout_repo.py"]
+```
+
+The `metadata` field is included in the stdin JSON passed to setup and teardown scripts as `case_metadata`.
 
 ## Sidecar Metadata
 

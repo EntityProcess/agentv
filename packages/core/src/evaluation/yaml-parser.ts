@@ -17,7 +17,15 @@ import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver
 import { detectFormat, loadEvalCasesFromJsonl } from './loaders/jsonl-parser.js';
 import { processExpectedMessages, processMessages } from './loaders/message-processor.js';
 import { resolveExpectedMessages, resolveInputMessages } from './loaders/shorthand-expansion.js';
-import type { EvalCase, JsonObject, JsonValue, TestMessage, TrialsConfig } from './types.js';
+import type {
+  EvalCase,
+  JsonObject,
+  JsonValue,
+  TestMessage,
+  TrialsConfig,
+  WorkspaceConfig,
+  WorkspaceScriptConfig,
+} from './types.js';
 import { isJsonObject, isTestMessage } from './types.js';
 
 // Re-export public APIs from modules
@@ -50,6 +58,7 @@ type RawTestSuite = JsonObject & {
   readonly target?: JsonValue;
   readonly execution?: JsonValue;
   readonly dataset?: JsonValue;
+  readonly workspace?: JsonValue;
 };
 
 type RawEvalCase = JsonObject & {
@@ -66,6 +75,8 @@ type RawEvalCase = JsonObject & {
   readonly execution?: JsonValue;
   readonly evaluators?: JsonValue;
   readonly rubrics?: JsonValue;
+  readonly workspace?: JsonValue;
+  readonly metadata?: JsonValue;
 };
 
 function resolveEvalCases(suite: RawTestSuite): JsonValue | undefined {
@@ -183,6 +194,10 @@ async function loadEvalCasesFromYaml(
   }
 
   const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm_judge';
+
+  // Parse suite-level workspace config (default for all cases)
+  const evalFileDir = path.dirname(absoluteTestPath);
+  const suiteWorkspace = parseWorkspaceConfig(suite.workspace, evalFileDir);
 
   // Extract global target from execution.target (or legacy root-level target)
   const globalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
@@ -315,6 +330,15 @@ async function loadEvalCasesFromYaml(
       ...userFilePaths,
     ];
 
+    // Parse per-case workspace config and merge with suite-level
+    const caseWorkspace = parseWorkspaceConfig(evalcase.workspace, evalFileDir);
+    const mergedWorkspace = mergeWorkspaceConfigs(suiteWorkspace, caseWorkspace);
+
+    // Parse per-case metadata
+    const metadata = isJsonObject(evalcase.metadata)
+      ? (evalcase.metadata as Record<string, unknown>)
+      : undefined;
+
     const testCase: EvalCase = {
       id,
       dataset: datasetName,
@@ -330,6 +354,8 @@ async function loadEvalCasesFromYaml(
       criteria: outcome,
       evaluator: evalCaseEvaluatorKind,
       evaluators,
+      workspace: mergedWorkspace,
+      metadata,
     };
 
     if (verbose) {
@@ -368,6 +394,78 @@ export async function loadEvalCaseById(
     );
   }
   return match;
+}
+
+/**
+ * Parse a WorkspaceScriptConfig from raw YAML value.
+ */
+function parseWorkspaceScriptConfig(
+  raw: unknown,
+  evalFileDir: string,
+): WorkspaceScriptConfig | undefined {
+  if (!isJsonObject(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+  const script = obj.script;
+  if (!Array.isArray(script) || script.length === 0) return undefined;
+  const scriptArr = script.filter((s): s is string => typeof s === 'string');
+  if (scriptArr.length === 0) return undefined;
+
+  const timeoutMs = typeof obj.timeout_ms === 'number' ? obj.timeout_ms : undefined;
+  let cwd = typeof obj.cwd === 'string' ? obj.cwd : undefined;
+
+  // Resolve relative cwd against eval file directory
+  if (cwd && !path.isAbsolute(cwd)) {
+    cwd = path.resolve(evalFileDir, cwd);
+  }
+
+  const config: WorkspaceScriptConfig = { script: scriptArr };
+  if (timeoutMs !== undefined) {
+    return { ...config, timeout_ms: timeoutMs, ...(cwd !== undefined && { cwd }) };
+  }
+  return cwd ? { ...config, cwd } : config;
+}
+
+/**
+ * Parse a WorkspaceConfig from raw YAML value.
+ */
+function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfig | undefined {
+  if (!isJsonObject(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+
+  let template = typeof obj.template === 'string' ? obj.template : undefined;
+  if (template && !path.isAbsolute(template)) {
+    template = path.resolve(evalFileDir, template);
+  }
+
+  const setupScript = parseWorkspaceScriptConfig(obj.setup, evalFileDir);
+  const teardownScript = parseWorkspaceScriptConfig(obj.teardown, evalFileDir);
+
+  if (!template && !setupScript && !teardownScript) return undefined;
+
+  return {
+    ...(template !== undefined && { template }),
+    ...(setupScript !== undefined && { setup: setupScript }),
+    ...(teardownScript !== undefined && { teardown: teardownScript }),
+  };
+}
+
+/**
+ * Merge case-level workspace config with suite-level defaults.
+ * Strategy: case-level fields replace suite-level fields.
+ */
+function mergeWorkspaceConfigs(
+  suiteLevel: WorkspaceConfig | undefined,
+  caseLevel: WorkspaceConfig | undefined,
+): WorkspaceConfig | undefined {
+  if (!suiteLevel && !caseLevel) return undefined;
+  if (!suiteLevel) return caseLevel;
+  if (!caseLevel) return suiteLevel;
+
+  return {
+    template: caseLevel.template ?? suiteLevel.template,
+    setup: caseLevel.setup ?? suiteLevel.setup,
+    teardown: caseLevel.teardown ?? suiteLevel.teardown,
+  };
 }
 
 function asString(value: unknown): string | undefined {
