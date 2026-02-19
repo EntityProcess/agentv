@@ -15,6 +15,7 @@ const STRIPPED_TOP_LEVEL_FIELDS = new Set([
   'setupOutput',
   'teardownOutput',
   'fileChanges',
+  'workspaceFingerprint',
 ]);
 
 /**

@@ -75,6 +75,7 @@ import {
   executeWorkspaceSetup,
   executeWorkspaceTeardown,
 } from './workspace/script-executor.js';
+import { computeWorkspaceFingerprint } from './workspace/fingerprint.js';
 import { type PromptInputs, buildPromptInputs, loadEvalCases } from './yaml-parser.js';
 
 type MaybePromise<T> = T | Promise<T>;
@@ -732,6 +733,16 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
   }
 
+  // Compute workspace fingerprint after setup + baseline init
+  let workspaceFingerprint: { hash: string; fileCount: number } | undefined;
+  if (workspacePath) {
+    try {
+      workspaceFingerprint = await computeWorkspaceFingerprint(workspacePath);
+    } catch {
+      // Non-fatal: fingerprinting is best-effort
+    }
+  }
+
   const attemptBudget = (maxRetries ?? 0) + 1;
   let attempt = 0;
   let providerResponse: ProviderResponse | undefined = cachedResponse;
@@ -883,8 +894,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     });
 
     const finalResult = providerError
-      ? { ...result, error: providerError, setupOutput, teardownOutput }
-      : { ...result, setupOutput, teardownOutput };
+      ? { ...result, error: providerError, setupOutput, teardownOutput, workspaceFingerprint }
+      : { ...result, setupOutput, teardownOutput, workspaceFingerprint };
 
     // Determine if this is a failure (has error or low score)
     const isFailure = !!finalResult.error || finalResult.score < 0.5;
@@ -918,9 +929,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       if (forceCleanup) {
         await cleanupWorkspace(workspacePath).catch(() => {});
       }
-      return { ...errorResult, workspacePath, setupOutput, teardownOutput };
+      return { ...errorResult, workspacePath, setupOutput, teardownOutput, workspaceFingerprint };
     }
-    return { ...errorResult, setupOutput, teardownOutput };
+    return { ...errorResult, setupOutput, teardownOutput, workspaceFingerprint };
   }
 }
 

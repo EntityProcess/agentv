@@ -13,3 +13,4 @@ export {
   type ScriptExecutionContext,
 } from './script-executor.js';
 export { initializeBaseline, captureFileChanges } from './file-changes.js';
+export { computeWorkspaceFingerprint, type WorkspaceFingerprint } from './fingerprint.js';
