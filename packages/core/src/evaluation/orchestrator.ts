@@ -39,6 +39,7 @@ import {
   computeTraceSummary,
   mergeExecutionMetrics,
 } from './trace.js';
+import { aggregateTrials } from './trials.js';
 import type {
   CostEvaluatorConfig,
   EvalCase,
@@ -53,6 +54,8 @@ import type {
   JsonValue,
   LatencyEvaluatorConfig,
   TokenUsageEvaluatorConfig,
+  TrialResult,
+  TrialsConfig,
 } from './types.js';
 import {
   captureFileChanges as captureWorkspaceFileChanges,
@@ -145,6 +148,8 @@ export interface RunEvaluationOptions {
   readonly keepWorkspaces?: boolean;
   /** Force cleanup of workspaces even on failure */
   readonly cleanupWorkspaces?: boolean;
+  /** Trial configuration for running eval cases multiple times */
+  readonly trials?: TrialsConfig;
 }
 
 export async function runEvaluation(
@@ -161,7 +166,6 @@ export async function runEvaluation(
     maxRetries,
     agentTimeoutMs,
     cache,
-    useCache,
     now,
     filter,
     verbose,
@@ -170,7 +174,17 @@ export async function runEvaluation(
     onProgress,
     keepWorkspaces,
     cleanupWorkspaces,
+    trials,
   } = options;
+
+  // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
+  let useCache = options.useCache;
+  if (trials && trials.count > 1 && useCache) {
+    console.warn(
+      'Warning: Caching is disabled when trials.count > 1 (cached responses would make trials deterministic).',
+    );
+    useCache = false;
+  }
 
   // Generate unique eval run ID for workspace management
   const evalRunId = randomUUID();
@@ -251,10 +265,17 @@ export async function runEvaluation(
   const evaluatorRegistry = buildEvaluatorRegistry(evaluators, resolveJudgeProvider);
 
   const primaryProvider = getOrCreateProvider(target);
-  const providerSupportsBatch =
+  let providerSupportsBatch =
     target.providerBatching === true &&
     primaryProvider.supportsBatch === true &&
     typeof primaryProvider.invokeBatch === 'function';
+
+  // Disable batch mode when trials > 1 (batch processes all cases at once, incompatible with per-case retries)
+  if (trials && trials.count > 1 && providerSupportsBatch) {
+    console.warn('Warning: Batch mode is disabled when trials.count > 1. Using per-case dispatch.');
+    providerSupportsBatch = false;
+  }
+
   if (target.providerBatching && !providerSupportsBatch && verbose) {
     console.warn(
       `Provider batching requested for target '${target.name}', but provider does not advertise batch support. Using per-case dispatch.`,
@@ -325,7 +346,7 @@ export async function runEvaluation(
 
       try {
         const judgeProvider = await resolveJudgeProvider(target);
-        const result = await runEvalCase({
+        const runCaseOptions: RunEvalCaseOptions = {
           evalCase: evalCase,
           provider: primaryProvider,
           target,
@@ -341,7 +362,11 @@ export async function runEvaluation(
           evalRunId,
           keepWorkspaces,
           cleanupWorkspaces,
-        });
+        };
+        const result =
+          trials && trials.count > 1
+            ? await runEvalCaseWithTrials(runCaseOptions, trials)
+            : await runEvalCase(runCaseOptions);
 
         if (onProgress) {
           await onProgress({
@@ -824,6 +849,84 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
     return errorResult;
   }
+}
+
+async function runEvalCaseWithTrials(
+  options: RunEvalCaseOptions,
+  trialsConfig: TrialsConfig,
+): Promise<EvaluationResult> {
+  const trialResults: TrialResult[] = [];
+  let cumulativeCost = 0;
+  let costLimited = false;
+  let costWarningEmitted = false;
+  let lastResult: EvaluationResult | undefined;
+
+  for (let attempt = 0; attempt < trialsConfig.count; attempt++) {
+    // For intermediate trials, force workspace cleanup; for last trial, use normal behavior
+    const isLastTrial = attempt === trialsConfig.count - 1;
+    const trialOptions: RunEvalCaseOptions = {
+      ...options,
+      // Disable cache for individual trials (each should be a fresh invocation)
+      useCache: false,
+      // Force cleanup for intermediate trials
+      cleanupWorkspaces: isLastTrial ? options.cleanupWorkspaces : true,
+      keepWorkspaces: isLastTrial ? options.keepWorkspaces : false,
+    };
+
+    const result = await runEvalCase(trialOptions);
+    lastResult = result;
+
+    // Extract cost from trace summary if available
+    const trialCost = result.traceSummary?.costUsd;
+
+    const verdict = scoreToVerdict(result.score);
+    const trial: TrialResult = {
+      attempt,
+      score: result.score,
+      verdict,
+      evaluatorResults: result.evaluatorResults,
+      error: result.error,
+      costUsd: trialCost,
+    };
+    trialResults.push(trial);
+
+    // Track cumulative cost
+    if (trialCost !== undefined) {
+      cumulativeCost += trialCost;
+    } else if (trialsConfig.costLimitUsd && !costWarningEmitted) {
+      console.warn(
+        'Warning: cost_limit_usd is set but provider does not report cost. All trials will run.',
+      );
+      costWarningEmitted = true;
+    }
+
+    // Check cost limit
+    if (trialsConfig.costLimitUsd && cumulativeCost >= trialsConfig.costLimitUsd) {
+      costLimited = true;
+      break;
+    }
+
+    // pass_at_k early exit: short-circuit after first passing trial
+    if (trialsConfig.strategy === 'pass_at_k' && verdict === 'pass') {
+      break;
+    }
+  }
+
+  // Aggregate trial results
+  const { score, aggregation } = aggregateTrials(trialResults, trialsConfig);
+
+  // lastResult is guaranteed to be set since trialsConfig.count >= 2
+  if (!lastResult) {
+    throw new Error('No trial results produced');
+  }
+
+  return {
+    ...lastResult,
+    score,
+    trials: trialResults,
+    aggregation,
+    costLimited: costLimited || undefined,
+  };
 }
 
 async function evaluateCandidate(options: {

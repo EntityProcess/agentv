@@ -8,9 +8,11 @@ import {
   type EvaluationCache,
   type EvaluationResult,
   type ProviderResponse,
+  type TrialsConfig,
   runEvaluation as defaultRunEvaluation,
   ensureVSCodeSubagents,
   loadEvalCases,
+  readTestSuiteMetadata,
   subscribeToCodexLogEntries,
   subscribeToCopilotSdkLogEntries,
   subscribeToPiLogEntries,
@@ -221,6 +223,7 @@ async function prepareFileMetadata(params: {
   readonly evalCases: readonly EvalCase[];
   readonly selection: TargetSelection;
   readonly inlineTargetLabel: string;
+  readonly trialsConfig?: TrialsConfig;
 }> {
   const { testFilePath, repoRoot, cwd, options } = params;
 
@@ -255,7 +258,11 @@ async function prepareFileMetadata(params: {
   });
   const filteredIds = evalCases.map((value) => value.id);
 
-  return { evalIds: filteredIds, evalCases, selection, inlineTargetLabel };
+  // Extract trials config from the YAML execution block
+  const suiteMetadata = await readTestSuiteMetadata(testFilePath);
+  const trialsConfig = suiteMetadata.trials;
+
+  return { evalIds: filteredIds, evalCases, selection, inlineTargetLabel, trialsConfig };
 }
 
 async function runWithLimit<T>(
@@ -293,6 +300,7 @@ async function runSingleEvalFile(params: {
   readonly selection: TargetSelection;
   readonly inlineTargetLabel: string;
   readonly evalCases: readonly EvalCase[];
+  readonly trialsConfig?: TrialsConfig;
 }): Promise<{ results: EvaluationResult[] }> {
   const {
     testFilePath,
@@ -310,6 +318,7 @@ async function runSingleEvalFile(params: {
     selection,
     inlineTargetLabel,
     evalCases,
+    trialsConfig,
   } = params;
 
   await ensureFileExists(testFilePath, 'Test file');
@@ -373,6 +382,7 @@ async function runSingleEvalFile(params: {
     maxConcurrency: resolvedWorkers,
     keepWorkspaces: options.keepWorkspaces,
     cleanupWorkspaces: options.cleanupWorkspaces,
+    trials: trialsConfig,
     onResult: async (result: EvaluationResult) => {
       // Write trace if trace writer is available and outputMessages exist
       if (traceWriter && result.outputMessages && result.outputMessages.length > 0) {
@@ -468,6 +478,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       readonly evalCases: readonly EvalCase[];
       readonly selection: TargetSelection;
       readonly inlineTargetLabel: string;
+      readonly trialsConfig?: TrialsConfig;
     }
   >();
   for (const testFilePath of resolvedTestFiles) {
@@ -549,6 +560,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
         selection: targetPrep.selection,
         inlineTargetLabel: targetPrep.inlineTargetLabel,
         evalCases: targetPrep.evalCases,
+        trialsConfig: targetPrep.trialsConfig,
       });
 
       allResults.push(...result.results);

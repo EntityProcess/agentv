@@ -3,7 +3,7 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import { parse } from 'yaml';
 
-import type { JsonObject } from '../types.js';
+import type { JsonObject, TrialStrategy, TrialsConfig } from '../types.js';
 import { isJsonObject } from '../types.js';
 import { buildDirectoryChain, fileExists } from './file-resolver.js';
 
@@ -117,6 +117,74 @@ export function extractTargetFromSuite(suite: JsonObject): string | undefined {
   }
 
   return undefined;
+}
+
+const VALID_TRIAL_STRATEGIES: ReadonlySet<string> = new Set([
+  'pass_at_k',
+  'mean',
+  'confidence_interval',
+]);
+
+/**
+ * Extract trials configuration from parsed eval suite's execution block.
+ * Returns undefined when count is 1 or not specified (no-op).
+ */
+export function extractTrialsConfig(suite: JsonObject): TrialsConfig | undefined {
+  const execution = suite.execution;
+  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+    return undefined;
+  }
+
+  const trials = (execution as Record<string, unknown>).trials;
+  if (!trials || typeof trials !== 'object' || Array.isArray(trials)) {
+    return undefined;
+  }
+
+  const trialsObj = trials as Record<string, unknown>;
+  const count = trialsObj.count;
+
+  if (count === undefined || count === null) {
+    return undefined;
+  }
+
+  if (typeof count !== 'number' || !Number.isInteger(count) || count < 1) {
+    logWarning(
+      `Invalid trials.count: ${count}, must be a positive integer. Ignoring trials config.`,
+    );
+    return undefined;
+  }
+
+  if (count === 1) {
+    return undefined;
+  }
+
+  // Parse strategy (default: pass_at_k)
+  const rawStrategy = trialsObj.strategy;
+  let strategy: TrialStrategy = 'pass_at_k';
+  if (rawStrategy !== undefined && rawStrategy !== null) {
+    if (typeof rawStrategy !== 'string' || !VALID_TRIAL_STRATEGIES.has(rawStrategy)) {
+      logWarning(
+        `Invalid trials.strategy: '${rawStrategy}'. Must be one of: pass_at_k, mean, confidence_interval. Defaulting to pass_at_k.`,
+      );
+    } else {
+      strategy = rawStrategy as TrialStrategy;
+    }
+  }
+
+  // Parse cost_limit_usd (accepts both snake_case and camelCase)
+  const rawCostLimit = trialsObj.cost_limit_usd ?? trialsObj.costLimitUsd;
+  let costLimitUsd: number | undefined;
+  if (rawCostLimit !== undefined && rawCostLimit !== null) {
+    if (typeof rawCostLimit === 'number' && rawCostLimit > 0) {
+      costLimitUsd = rawCostLimit;
+    } else {
+      logWarning(
+        `Invalid trials.cost_limit_usd: ${rawCostLimit}. Must be a positive number. Ignoring.`,
+      );
+    }
+  }
+
+  return { count, strategy, costLimitUsd };
 }
 
 function logWarning(message: string): void {

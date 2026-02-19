@@ -17,7 +17,7 @@ import type {
   ProviderResponse,
   ToolCall,
 } from '../../src/evaluation/providers/types.js';
-import type { EvalCase } from '../../src/evaluation/types.js';
+import type { EvalCase, TrialsConfig } from '../../src/evaluation/types.js';
 
 class SequenceProvider implements Provider {
   readonly id: string;
@@ -1136,5 +1136,224 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.candidate_answ
       expect(result.score).toBe(1.0);
       expect(receivedPrompt).toBe('Static prompt content from text file');
     });
+  });
+});
+
+describe('runEvaluation with trials', () => {
+  // Provider that returns configurable scores via alternating evaluator results
+  class MultiCallProvider implements Provider {
+    readonly id = 'multi:mock';
+    readonly kind = 'mock' as const;
+    readonly targetName = 'mock';
+    callCount = 0;
+
+    async invoke(): Promise<ProviderResponse> {
+      this.callCount += 1;
+      return {
+        outputMessages: [{ role: 'assistant', content: `Response ${this.callCount}` }],
+      };
+    }
+  }
+
+  // Evaluator that returns different scores on successive calls
+  function createScoringEvaluator(scores: number[]) {
+    let callIndex = 0;
+    return {
+      llm_judge: {
+        kind: 'llm_judge' as const,
+        async evaluate() {
+          const score = scores[callIndex] ?? scores[scores.length - 1];
+          callIndex += 1;
+          return {
+            score,
+            verdict: (score >= 0.8 ? 'pass' : score >= 0.6 ? 'borderline' : 'fail') as const,
+            hits: score >= 0.8 ? ['passed'] : [],
+            misses: score < 0.8 ? ['failed'] : [],
+            expectedAspectCount: 1,
+          };
+        },
+      },
+    };
+  }
+
+  it('pass_at_k: passes on second trial and early exits', async () => {
+    const provider = new MultiCallProvider();
+    const evalRegistry = createScoringEvaluator([0.4, 0.9]);
+    const trials: TrialsConfig = { count: 5, strategy: 'pass_at_k' };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evalRegistry,
+      evalCases: [baseTestCase],
+      trials,
+    });
+
+    expect(results).toHaveLength(1);
+    const result = results[0];
+    expect(result.score).toBe(0.9);
+    expect(result.trials).toHaveLength(2); // Early exit after pass
+    expect(result.trials?.[0].verdict).toBe('fail');
+    expect(result.trials?.[1].verdict).toBe('pass');
+    expect(result.aggregation?.strategy).toBe('pass_at_k');
+    if (result.aggregation?.strategy === 'pass_at_k') {
+      expect(result.aggregation.passedAttempts).toBe(1);
+      expect(result.aggregation.totalAttempts).toBe(2);
+    }
+    // Provider should have been called exactly 2 times
+    expect(provider.callCount).toBe(2);
+  });
+
+  it('pass_at_k: all fail runs all trials', async () => {
+    const provider = new MultiCallProvider();
+    const evalRegistry = createScoringEvaluator([0.3, 0.4, 0.2]);
+    const trials: TrialsConfig = { count: 3, strategy: 'pass_at_k' };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evalRegistry,
+      evalCases: [baseTestCase],
+      trials,
+    });
+
+    const result = results[0];
+    expect(result.trials).toHaveLength(3);
+    expect(result.score).toBe(0.4); // Best score
+    expect(provider.callCount).toBe(3);
+  });
+
+  it('mean: averages scores correctly', async () => {
+    const provider = new MultiCallProvider();
+    const evalRegistry = createScoringEvaluator([0.6, 0.8, 1.0]);
+    const trials: TrialsConfig = { count: 3, strategy: 'mean' };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evalRegistry,
+      evalCases: [baseTestCase],
+      trials,
+    });
+
+    const result = results[0];
+    expect(result.score).toBeCloseTo(0.8);
+    expect(result.aggregation?.strategy).toBe('mean');
+    if (result.aggregation?.strategy === 'mean') {
+      expect(result.aggregation.mean).toBeCloseTo(0.8);
+      expect(result.aggregation.min).toBe(0.6);
+      expect(result.aggregation.max).toBe(1.0);
+    }
+  });
+
+  it('confidence_interval: computes CI bounds', async () => {
+    const provider = new MultiCallProvider();
+    const evalRegistry = createScoringEvaluator([0.7, 0.8, 0.9]);
+    const trials: TrialsConfig = { count: 3, strategy: 'confidence_interval' };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evalRegistry,
+      evalCases: [baseTestCase],
+      trials,
+    });
+
+    const result = results[0];
+    expect(result.aggregation?.strategy).toBe('confidence_interval');
+    if (result.aggregation?.strategy === 'confidence_interval') {
+      expect(result.aggregation.mean).toBeCloseTo(0.8);
+      expect(result.aggregation.ci95Lower).toBeLessThan(0.8);
+      expect(result.aggregation.ci95Upper).toBeGreaterThan(0.8);
+    }
+  });
+
+  it('cost_limit_usd: stops early and sets costLimited flag', async () => {
+    const provider: Provider = {
+      id: 'cost:mock',
+      kind: 'mock' as const,
+      targetName: 'mock',
+      async invoke(): Promise<ProviderResponse> {
+        return {
+          outputMessages: [{ role: 'assistant', content: 'response' }],
+          costUsd: 3.0, // Each call costs $3
+        };
+      },
+    };
+    const evalRegistry = createScoringEvaluator([0.5, 0.5, 0.5, 0.5, 0.5]);
+    const trials: TrialsConfig = { count: 5, strategy: 'pass_at_k', costLimitUsd: 5.0 };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evalRegistry,
+      evalCases: [baseTestCase],
+      trials,
+    });
+
+    const result = results[0];
+    expect(result.costLimited).toBe(true);
+    // Should have stopped after 2 trials ($3 + $3 = $6 >= $5 limit)
+    expect(result.trials?.length).toBeLessThanOrEqual(2);
+  });
+
+  it('count=1: no trial metadata in result (handled by orchestrator)', async () => {
+    const provider = new MultiCallProvider();
+
+    // count=1 should not produce trials metadata — extractTrialsConfig returns
+    // undefined for count=1, so trials option won't be set. Verify normal behavior.
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases: [baseTestCase],
+      // No trials option
+    });
+
+    const result = results[0];
+    expect(result.trials).toBeUndefined();
+    expect(result.aggregation).toBeUndefined();
+    expect(result.costLimited).toBeUndefined();
+  });
+
+  it('disables cache when trials > 1', async () => {
+    const provider = new MultiCallProvider();
+    const evalRegistry = createScoringEvaluator([0.5, 0.9]);
+    const trials: TrialsConfig = { count: 2, strategy: 'pass_at_k' };
+
+    const cache: EvaluationCache = {
+      async get() {
+        return undefined;
+      },
+      async set() {},
+    };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evalRegistry,
+      evalCases: [baseTestCase],
+      trials,
+      cache,
+      useCache: true, // Should be overridden to false
+    });
+
+    // Provider should have been called for each trial (cache disabled)
+    expect(provider.callCount).toBe(2);
+    expect(results[0].trials).toHaveLength(2);
   });
 });
