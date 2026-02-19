@@ -1406,7 +1406,7 @@ rl.on('close', () => {
       ...baseTestCase,
       workspace: {
         template: templateDir,
-        setup_script: {
+        setup: {
           script: ['node', setupScript],
           timeout_ms: 10000,
         },
@@ -1448,7 +1448,7 @@ rl.on('close', () => {
       ...baseTestCase,
       workspace: {
         template: templateDir,
-        setup_script: {
+        setup: {
           script: ['node', failingScript],
           timeout_ms: 5000,
         },
@@ -1505,7 +1505,7 @@ rl.on('close', () => {
       ...baseTestCase,
       workspace: {
         template: templateDir,
-        teardown_script: {
+        teardown: {
           script: ['node', teardownScript],
           timeout_ms: 10000,
         },

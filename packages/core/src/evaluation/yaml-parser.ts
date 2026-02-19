@@ -437,8 +437,8 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     template = path.resolve(evalFileDir, template);
   }
 
-  const setupScript = parseWorkspaceScriptConfig(obj.setup_script, evalFileDir);
-  const teardownScript = parseWorkspaceScriptConfig(obj.teardown_script, evalFileDir);
+  const setupScript = parseWorkspaceScriptConfig(obj.setup, evalFileDir);
+  const teardownScript = parseWorkspaceScriptConfig(obj.teardown, evalFileDir);
 
   let env: Record<string, string> | undefined;
   if (isJsonObject(obj.env)) {
@@ -452,8 +452,8 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
 
   return {
     ...(template !== undefined && { template }),
-    ...(setupScript !== undefined && { setup_script: setupScript }),
-    ...(teardownScript !== undefined && { teardown_script: teardownScript }),
+    ...(setupScript !== undefined && { setup: setupScript }),
+    ...(teardownScript !== undefined && { teardown: teardownScript }),
     ...(env !== undefined && { env }),
   };
 }
@@ -479,8 +479,8 @@ function mergeWorkspaceConfigs(
   return {
     // Case replaces suite for template, scripts
     template: caseLevel.template ?? suiteLevel.template,
-    setup_script: caseLevel.setup_script ?? suiteLevel.setup_script,
-    teardown_script: caseLevel.teardown_script ?? suiteLevel.teardown_script,
+    setup: caseLevel.setup ?? suiteLevel.setup,
+    teardown: caseLevel.teardown ?? suiteLevel.teardown,
     ...(mergedEnv !== undefined && { env: mergedEnv }),
   };
 }

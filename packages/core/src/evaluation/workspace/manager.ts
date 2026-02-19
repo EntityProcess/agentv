@@ -1,7 +1,6 @@
-import { cp, mkdir, readFile, readdir, rm, stat } from 'node:fs/promises';
+import { cp, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import micromatch from 'micromatch';
 import { fileExists } from '../file-utils.js';
 
 /**
@@ -79,44 +78,12 @@ export function getWorkspacePath(
 }
 
 /**
- * Parse .gitignore patterns from a template directory.
- * Returns an array of glob patterns to ignore during copy.
- */
-async function loadIgnorePatterns(templateRoot: string): Promise<string[]> {
-  const gitignorePath = path.join(templateRoot, '.gitignore');
-  try {
-    const content = await readFile(gitignorePath, 'utf-8');
-    return content
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0 && !line.startsWith('#'));
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Check if a relative path matches any ignore pattern.
- */
-function isIgnored(relativePath: string, ignorePatterns: readonly string[]): boolean {
-  if (ignorePatterns.length === 0) return false;
-  return micromatch.isMatch(relativePath, ignorePatterns as string[], { dot: true });
-}
-
-/**
- * Recursively copy a directory, skipping .git directories and .gitignore patterns.
+ * Recursively copy a directory, skipping .git directories.
  *
  * @param src - Source directory path
  * @param dest - Destination directory path
- * @param templateRoot - Root of the template (for computing relative paths)
- * @param ignorePatterns - Glob patterns from .gitignore to skip
  */
-async function copyDirectoryRecursive(
-  src: string,
-  dest: string,
-  templateRoot: string,
-  ignorePatterns: readonly string[],
-): Promise<void> {
+async function copyDirectoryRecursive(src: string, dest: string): Promise<void> {
   // Create destination directory
   await mkdir(dest, { recursive: true });
 
@@ -131,21 +98,9 @@ async function copyDirectoryRecursive(
       continue;
     }
 
-    // Check if entry matches .gitignore patterns
-    const relativePath = path.relative(templateRoot, srcPath);
-    // Check both with and without trailing slash for directories
     if (entry.isDirectory()) {
-      if (
-        isIgnored(relativePath, ignorePatterns) ||
-        isIgnored(`${relativePath}/`, ignorePatterns)
-      ) {
-        continue;
-      }
-      await copyDirectoryRecursive(srcPath, destPath, templateRoot, ignorePatterns);
+      await copyDirectoryRecursive(srcPath, destPath);
     } else {
-      if (isIgnored(relativePath, ignorePatterns)) {
-        continue;
-      }
       // Use cp to preserve permissions
       await cp(srcPath, destPath, { preserveTimestamps: true });
     }
@@ -193,16 +148,8 @@ export async function createTempWorkspace(
       await rm(workspacePath, { recursive: true, force: true });
     }
 
-    // Load .gitignore patterns from template
-    const ignorePatterns = await loadIgnorePatterns(resolvedTemplatePath);
-
-    // Copy template to workspace, skipping .git and .gitignore patterns
-    await copyDirectoryRecursive(
-      resolvedTemplatePath,
-      workspacePath,
-      resolvedTemplatePath,
-      ignorePatterns,
-    );
+    // Copy template to workspace, skipping .git
+    await copyDirectoryRecursive(resolvedTemplatePath, workspacePath);
 
     return workspacePath;
   } catch (error) {

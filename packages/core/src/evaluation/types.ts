@@ -202,9 +202,9 @@ export type WorkspaceConfig = {
   /** Template directory to copy */
   readonly template?: string;
   /** Script to run after workspace creation, before git baseline */
-  readonly setup_script?: WorkspaceScriptConfig;
+  readonly setup?: WorkspaceScriptConfig;
   /** Script to run after evaluation, before cleanup */
-  readonly teardown_script?: WorkspaceScriptConfig;
+  readonly teardown?: WorkspaceScriptConfig;
   /** Environment variables for workspace (deep-merged with suite-level) */
   readonly env?: Readonly<Record<string, string>>;
 };

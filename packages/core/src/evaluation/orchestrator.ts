@@ -688,8 +688,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
   }
 
-  // If no template but setup_script is configured, create an empty workspace directory
-  if (!workspacePath && evalCase.workspace?.setup_script && evalRunId) {
+  // If no template but setup is configured, create an empty workspace directory
+  if (!workspacePath && evalCase.workspace?.setup && evalRunId) {
     const { mkdir } = await import('node:fs/promises');
     const { getWorkspacePath } = await import('./workspace/manager.js');
     workspacePath = getWorkspacePath(evalRunId, evalCase.id);
@@ -697,7 +697,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   // Execute workspace setup script (runs before git baseline init so setup changes are part of baseline)
-  if (workspacePath && evalCase.workspace?.setup_script) {
+  if (workspacePath && evalCase.workspace?.setup) {
     const scriptContext: ScriptExecutionContext = {
       workspacePath,
       evalCaseId: evalCase.id,
@@ -706,7 +706,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       caseMetadata: evalCase.metadata,
     };
     try {
-      setupOutput = await executeWorkspaceSetup(evalCase.workspace.setup_script, scriptContext);
+      setupOutput = await executeWorkspaceSetup(evalCase.workspace.setup, scriptContext);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (forceCleanup && workspacePath) {
@@ -855,7 +855,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   const providerError = extractProviderError(providerResponse);
 
   // Execute workspace teardown script (runs after evaluation, before cleanup)
-  if (workspacePath && evalCase.workspace?.teardown_script) {
+  if (workspacePath && evalCase.workspace?.teardown) {
     const scriptContext: ScriptExecutionContext = {
       workspacePath,
       evalCaseId: evalCase.id,
@@ -864,10 +864,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       caseMetadata: evalCase.metadata,
     };
     try {
-      teardownOutput = await executeWorkspaceTeardown(
-        evalCase.workspace.teardown_script,
-        scriptContext,
-      );
+      teardownOutput = await executeWorkspaceTeardown(evalCase.workspace.teardown, scriptContext);
     } catch {
       // Teardown failures are non-fatal (warning already logged by executeWorkspaceTeardown)
     }

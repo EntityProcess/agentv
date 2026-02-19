@@ -27,10 +27,10 @@ cases:
     input: "Do something"
     criteria: "Should do the thing"
     workspace:
-      setup_script:
+      setup:
         script: ["bun", "run", "setup.ts"]
         timeout_ms: 120000
-      teardown_script:
+      teardown:
         script: ["bun", "run", "teardown.ts"]
         timeout_ms: 30000
       env:
@@ -41,11 +41,11 @@ cases:
     const cases = await loadEvalCases(evalFile, testDir);
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace).toBeDefined();
-    expect(cases[0].workspace?.setup_script).toEqual({
+    expect(cases[0].workspace?.setup).toEqual({
       script: ['bun', 'run', 'setup.ts'],
       timeout_ms: 120000,
     });
-    expect(cases[0].workspace?.teardown_script).toEqual({
+    expect(cases[0].workspace?.teardown).toEqual({
       script: ['bun', 'run', 'teardown.ts'],
       timeout_ms: 30000,
     });
@@ -81,7 +81,7 @@ cases:
       evalFile,
       `
 workspace:
-  setup_script:
+  setup:
     script: ["bun", "run", "default-setup.ts"]
   env:
     CI: "1"
@@ -99,11 +99,11 @@ cases:
     const cases = await loadEvalCases(evalFile, testDir);
     expect(cases).toHaveLength(2);
     // Both cases should inherit suite-level workspace
-    expect(cases[0].workspace?.setup_script).toEqual({
+    expect(cases[0].workspace?.setup).toEqual({
       script: ['bun', 'run', 'default-setup.ts'],
     });
     expect(cases[0].workspace?.env).toEqual({ CI: '1' });
-    expect(cases[1].workspace?.setup_script).toEqual({
+    expect(cases[1].workspace?.setup).toEqual({
       script: ['bun', 'run', 'default-setup.ts'],
     });
   });
@@ -114,7 +114,7 @@ cases:
       evalFile,
       `
 workspace:
-  setup_script:
+  setup:
     script: ["bun", "run", "default-setup.ts"]
   env:
     CI: "1"
@@ -125,7 +125,7 @@ cases:
     input: "Do something"
     criteria: "Should work"
     workspace:
-      setup_script:
+      setup:
         script: ["bun", "run", "custom-setup.ts"]
       env:
         PYTHON_VERSION: "3.9"
@@ -138,10 +138,10 @@ cases:
     const cases = await loadEvalCases(evalFile, testDir);
     expect(cases).toHaveLength(2);
 
-    // case-override: setup_script replaced, env deep-merged
+    // case-override: setup replaced, env deep-merged
     const overrideCase = cases.find((c) => c.id === 'case-override');
     expect(overrideCase).toBeDefined();
-    expect(overrideCase.workspace?.setup_script).toEqual({
+    expect(overrideCase.workspace?.setup).toEqual({
       script: ['bun', 'run', 'custom-setup.ts'],
     });
     expect(overrideCase.workspace?.env).toEqual({
@@ -153,12 +153,12 @@ cases:
     // case-default: inherits suite-level workspace entirely
     const defaultCase = cases.find((c) => c.id === 'case-default');
     expect(defaultCase).toBeDefined();
-    expect(defaultCase.workspace?.setup_script).toEqual({
+    expect(defaultCase.workspace?.setup).toEqual({
       script: ['bun', 'run', 'default-setup.ts'],
     });
   });
 
-  it('should resolve setup_script cwd relative to eval file directory', async () => {
+  it('should resolve setup cwd relative to eval file directory', async () => {
     const evalFile = path.join(testDir, 'workspace-cwd.yaml');
     await writeFile(
       evalFile,
@@ -168,7 +168,7 @@ cases:
     input: "Do something"
     criteria: "Should work"
     workspace:
-      setup_script:
+      setup:
         script: ["bun", "run", "setup.ts"]
         cwd: ./scripts
 `,
@@ -176,7 +176,7 @@ cases:
 
     const cases = await loadEvalCases(evalFile, testDir);
     expect(cases).toHaveLength(1);
-    expect(cases[0].workspace?.setup_script?.cwd).toBe(path.join(testDir, 'scripts'));
+    expect(cases[0].workspace?.setup?.cwd).toBe(path.join(testDir, 'scripts'));
   });
 
   it('should parse workspace template path', async () => {
