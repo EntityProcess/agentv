@@ -3,6 +3,7 @@ import { ClaudeCodeProvider } from './claude-code.js';
 import { CliProvider } from './cli.js';
 import { CodexProvider } from './codex.js';
 import { CopilotCliProvider } from './copilot-cli.js';
+import { CopilotSdkProvider } from './copilot-sdk.js';
 import { MockProvider } from './mock.js';
 import { PiAgentSdkProvider } from './pi-agent-sdk.js';
 import { PiCodingAgentProvider } from './pi-coding-agent.js';
@@ -29,6 +30,7 @@ export type {
   ClaudeCodeResolvedConfig,
   CliResolvedConfig,
   CopilotResolvedConfig,
+  CopilotSdkResolvedConfig,
   GeminiResolvedConfig,
   MockResolvedConfig,
   PiAgentSdkResolvedConfig,
@@ -54,6 +56,10 @@ export {
   consumeCopilotCliLogEntries,
   subscribeToCopilotCliLogEntries,
 } from './copilot-cli-log-tracker.js';
+export {
+  consumeCopilotSdkLogEntries,
+  subscribeToCopilotSdkLogEntries,
+} from './copilot-sdk-log-tracker.js';
 
 export function createProvider(target: ResolvedTarget): Provider {
   switch (target.kind) {
@@ -69,6 +75,8 @@ export function createProvider(target: ResolvedTarget): Provider {
       return new CodexProvider(target.name, target.config);
     case 'copilot-cli':
       return new CopilotCliProvider(target.name, target.config);
+    case 'copilot-sdk':
+      return new CopilotSdkProvider(target.name, target.config);
     case 'pi-coding-agent':
       return new PiCodingAgentProvider(target.name, target.config);
     case 'pi-agent-sdk':

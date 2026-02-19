@@ -479,6 +479,19 @@ export interface CopilotResolvedConfig {
   readonly systemPrompt?: string;
 }
 
+export interface CopilotSdkResolvedConfig {
+  readonly cliUrl?: string;
+  readonly cliPath?: string;
+  readonly githubToken?: string;
+  readonly model?: string;
+  readonly cwd?: string;
+  readonly workspaceTemplate?: string;
+  readonly timeoutMs?: number;
+  readonly logDir?: string;
+  readonly logFormat?: 'summary' | 'json';
+  readonly systemPrompt?: string;
+}
+
 export interface PiCodingAgentResolvedConfig {
   readonly executable: string;
   readonly provider?: string;
@@ -579,6 +592,14 @@ export type ResolvedTarget =
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: CopilotResolvedConfig;
+    }
+  | {
+      readonly kind: 'copilot-sdk';
+      readonly name: string;
+      readonly judgeTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: CopilotSdkResolvedConfig;
     }
   | {
       readonly kind: 'pi-coding-agent';
@@ -758,6 +779,16 @@ export function resolveTargetDefinition(
         workers: parsed.workers,
         providerBatching,
         config: resolveCopilotConfig(parsed, env, evalFilePath),
+      };
+    case 'copilot-sdk':
+    case 'copilot_sdk':
+      return {
+        kind: 'copilot-sdk',
+        name: parsed.name,
+        judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolveCopilotSdkConfig(parsed, env, evalFilePath),
       };
     case 'pi':
     case 'pi-coding-agent':
@@ -1076,6 +1107,108 @@ function resolveCopilotConfig(
     executable,
     model,
     args,
+    cwd,
+    workspaceTemplate,
+    timeoutMs,
+    logDir,
+    logFormat,
+    systemPrompt,
+  };
+}
+
+function resolveCopilotSdkConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+  evalFilePath?: string,
+): CopilotSdkResolvedConfig {
+  const cliUrlSource = target.cli_url ?? target.cliUrl;
+  const cliPathSource = target.cli_path ?? target.cliPath;
+  const githubTokenSource = target.github_token ?? target.githubToken;
+  const modelSource = target.model;
+  const cwdSource = target.cwd;
+  const workspaceTemplateSource = target.workspace_template ?? target.workspaceTemplate;
+  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
+  const logDirSource =
+    target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
+  const logFormatSource = target.log_format ?? target.logFormat;
+  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
+
+  const cliUrl = resolveOptionalString(cliUrlSource, env, `${target.name} copilot-sdk cli URL`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const cliPath = resolveOptionalString(cliPathSource, env, `${target.name} copilot-sdk cli path`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const githubToken = resolveOptionalString(
+    githubTokenSource,
+    env,
+    `${target.name} copilot-sdk github token`,
+    {
+      allowLiteral: false,
+      optionalEnv: true,
+    },
+  );
+
+  const model = resolveOptionalString(modelSource, env, `${target.name} copilot-sdk model`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const cwd = resolveOptionalString(cwdSource, env, `${target.name} copilot-sdk cwd`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  let workspaceTemplate = resolveOptionalString(
+    workspaceTemplateSource,
+    env,
+    `${target.name} copilot-sdk workspace template`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
+
+  // Resolve relative workspace template paths against eval file directory
+  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
+    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
+  }
+
+  // Validate mutual exclusivity of cwd and workspace_template
+  if (cwd && workspaceTemplate) {
+    throw new Error(
+      `${target.name}: 'cwd' and 'workspace_template' are mutually exclusive. Use 'cwd' to run in an existing directory, or 'workspace_template' to copy a template to a temp location.`,
+    );
+  }
+
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} copilot-sdk timeout`);
+
+  const logDir = resolveOptionalString(
+    logDirSource,
+    env,
+    `${target.name} copilot-sdk log directory`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
+
+  const logFormat = normalizeCopilotLogFormat(logFormatSource);
+
+  const systemPrompt =
+    typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
+      ? systemPromptSource.trim()
+      : undefined;
+
+  return {
+    cliUrl,
+    cliPath,
+    githubToken,
+    model,
     cwd,
     workspaceTemplate,
     timeoutMs,

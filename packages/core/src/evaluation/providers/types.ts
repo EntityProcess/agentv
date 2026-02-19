@@ -16,6 +16,7 @@ export type ProviderKind =
   | 'gemini'
   | 'codex'
   | 'copilot-cli'
+  | 'copilot-sdk'
   | 'pi-coding-agent'
   | 'pi-agent-sdk'
   | 'claude-code'
@@ -31,6 +32,7 @@ export type ProviderKind =
 export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'codex',
   'copilot-cli',
+  'copilot-sdk',
   'pi-coding-agent',
   'claude-code',
   'vscode',
@@ -47,6 +49,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'gemini',
   'codex',
   'copilot-cli',
+  'copilot-sdk',
   'pi-coding-agent',
   'pi-agent-sdk',
   'claude-code',
@@ -65,6 +68,7 @@ export const PROVIDER_ALIASES: readonly string[] = [
   'google', // alias for "gemini"
   'google-gemini', // alias for "gemini"
   'codex-cli', // alias for "codex"
+  'copilot_sdk', // alias for "copilot-sdk" (underscore variant)
   'pi', // alias for "pi-coding-agent"
   'openai', // legacy/future support
   'bedrock', // legacy/future support
@@ -293,6 +297,13 @@ export interface TargetDefinition {
   readonly attachmentsFormat?: string | unknown | undefined;
   readonly env?: unknown | undefined;
   readonly healthcheck?: unknown | undefined;
+  // Copilot SDK fields
+  readonly cli_url?: string | unknown | undefined;
+  readonly cliUrl?: string | unknown | undefined;
+  readonly cli_path?: string | unknown | undefined;
+  readonly cliPath?: string | unknown | undefined;
+  readonly github_token?: string | unknown | undefined;
+  readonly githubToken?: string | unknown | undefined;
   // Retry configuration fields
   readonly max_retries?: number | unknown | undefined;
   readonly maxRetries?: number | unknown | undefined;

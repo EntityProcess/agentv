@@ -123,6 +123,28 @@ const COPILOT_SETTINGS = new Set([
   'workspaceTemplate',
 ]);
 
+const COPILOT_SDK_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  'cli_url',
+  'cliUrl',
+  'cli_path',
+  'cliPath',
+  'github_token',
+  'githubToken',
+  'model',
+  'cwd',
+  'timeout_seconds',
+  'timeoutSeconds',
+  'log_dir',
+  'logDir',
+  'log_format',
+  'logFormat',
+  'system_prompt',
+  'systemPrompt',
+  'workspace_template',
+  'workspaceTemplate',
+]);
+
 const VSCODE_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'workspace_template',
@@ -163,6 +185,9 @@ function getKnownSettings(provider: string): Set<string> | null {
       return CODEX_SETTINGS;
     case 'copilot-cli':
       return COPILOT_SETTINGS;
+    case 'copilot-sdk':
+    case 'copilot_sdk':
+      return COPILOT_SDK_SETTINGS;
     case 'vscode':
     case 'vscode-insiders':
       return VSCODE_SETTINGS;
