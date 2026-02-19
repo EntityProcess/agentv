@@ -193,6 +193,22 @@ export type WorkspaceScriptConfig = {
   readonly cwd?: string;
 };
 
+/**
+ * Workspace configuration for eval cases.
+ * Can be specified at suite level and overridden per-case.
+ * Merge strategy: template/scripts replaced, env deep-merged.
+ */
+export type WorkspaceConfig = {
+  /** Template directory to copy */
+  readonly template?: string;
+  /** Script to run after workspace creation, before git baseline */
+  readonly setup_script?: WorkspaceScriptConfig;
+  /** Script to run after evaluation, before cleanup */
+  readonly teardown_script?: WorkspaceScriptConfig;
+  /** Environment variables for workspace (deep-merged with suite-level) */
+  readonly env?: Readonly<Record<string, string>>;
+};
+
 export type CodeEvaluatorConfig = {
   readonly name: string;
   readonly type: 'code';
@@ -461,6 +477,10 @@ export interface EvalCase {
   readonly criteria: string;
   readonly evaluator?: EvaluatorKind;
   readonly evaluators?: readonly EvaluatorConfig[];
+  /** Workspace configuration (merged from suite-level and case-level) */
+  readonly workspace?: WorkspaceConfig;
+  /** Arbitrary metadata passed to workspace scripts via stdin */
+  readonly metadata?: Record<string, unknown>;
 }
 
 /**
@@ -555,6 +575,8 @@ export interface EvaluationResult {
   readonly teardownOutput?: string;
   /** Unified diff of workspace file changes (when workspace_template is configured) */
   readonly fileChanges?: string;
+  /** SHA-256 fingerprint of workspace state after setup */
+  readonly workspaceFingerprint?: { readonly hash: string; readonly fileCount: number };
   /** Individual trial results (only present when trials.count > 1) */
   readonly trials?: readonly TrialResult[];
   /** Aggregation metadata describing how the final score was computed from trials */
