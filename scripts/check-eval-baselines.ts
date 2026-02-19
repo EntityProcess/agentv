@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { readdir, rename } from 'node:fs/promises';
 import path from 'node:path';
+import { toCamelCaseDeep, toSnakeCaseDeep, trimBaselineResult } from '@agentv/core';
+import type { EvaluationResult } from '@agentv/core';
 
 type CliOptions = {
   threshold?: string;
@@ -107,6 +109,25 @@ async function runEval(evalFile: string, candidatePath: string): Promise<number>
   return await proc.exited;
 }
 
+/** Read a JSONL file, trim each record for baseline storage, and write back. */
+function trimBaselineFile(filePath: string): void {
+  const content = readFileSync(filePath, 'utf8');
+  const lines = content
+    .trim()
+    .split('\n')
+    .filter((line) => line.trim());
+
+  const trimmedLines = lines.map((line) => {
+    const record = JSON.parse(line);
+    const camel = toCamelCaseDeep(record) as EvaluationResult;
+    const trimmed = trimBaselineResult(camel);
+    const snake = toSnakeCaseDeep(trimmed);
+    return JSON.stringify(snake);
+  });
+
+  writeFileSync(filePath, `${trimmedLines.join('\n')}\n`, 'utf8');
+}
+
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
 
@@ -157,7 +178,8 @@ async function main(): Promise<void> {
         updatedFiles.push(relativePath);
       } else {
         await rename(candidatePath, baselinePath);
-        console.log(`Updated: ${relativePath}`);
+        trimBaselineFile(baselinePath);
+        console.log(`Updated (trimmed): ${relativePath}`);
         updatedFiles.push(relativePath);
       }
     } else {
