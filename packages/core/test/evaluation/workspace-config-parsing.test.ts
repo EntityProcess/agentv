@@ -33,8 +33,6 @@ cases:
       teardown:
         script: ["bun", "run", "teardown.ts"]
         timeout_ms: 30000
-      env:
-        CI: "1"
 `,
     );
 
@@ -49,7 +47,6 @@ cases:
       script: ['bun', 'run', 'teardown.ts'],
       timeout_ms: 30000,
     });
-    expect(cases[0].workspace?.env).toEqual({ CI: '1' });
   });
 
   it('should parse per-case metadata', async () => {
@@ -83,8 +80,6 @@ cases:
 workspace:
   setup:
     script: ["bun", "run", "default-setup.ts"]
-  env:
-    CI: "1"
 
 cases:
   - id: case-1
@@ -102,13 +97,12 @@ cases:
     expect(cases[0].workspace?.setup).toEqual({
       script: ['bun', 'run', 'default-setup.ts'],
     });
-    expect(cases[0].workspace?.env).toEqual({ CI: '1' });
     expect(cases[1].workspace?.setup).toEqual({
       script: ['bun', 'run', 'default-setup.ts'],
     });
   });
 
-  it('should merge case-level workspace with suite-level (case replaces scripts, env deep-merged)', async () => {
+  it('should merge case-level workspace with suite-level (case replaces scripts)', async () => {
     const evalFile = path.join(testDir, 'workspace-merge.yaml');
     await writeFile(
       evalFile,
@@ -116,9 +110,6 @@ cases:
 workspace:
   setup:
     script: ["bun", "run", "default-setup.ts"]
-  env:
-    CI: "1"
-    NODE_ENV: production
 
 cases:
   - id: case-override
@@ -127,8 +118,6 @@ cases:
     workspace:
       setup:
         script: ["bun", "run", "custom-setup.ts"]
-      env:
-        PYTHON_VERSION: "3.9"
   - id: case-default
     input: "Do something else"
     criteria: "Should work"
@@ -138,16 +127,11 @@ cases:
     const cases = await loadEvalCases(evalFile, testDir);
     expect(cases).toHaveLength(2);
 
-    // case-override: setup replaced, env deep-merged
+    // case-override: setup replaced
     const overrideCase = cases.find((c) => c.id === 'case-override');
     expect(overrideCase).toBeDefined();
     expect(overrideCase.workspace?.setup).toEqual({
       script: ['bun', 'run', 'custom-setup.ts'],
-    });
-    expect(overrideCase.workspace?.env).toEqual({
-      CI: '1',
-      NODE_ENV: 'production',
-      PYTHON_VERSION: '3.9',
     });
 
     // case-default: inherits suite-level workspace entirely

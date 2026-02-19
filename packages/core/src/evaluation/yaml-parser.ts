@@ -420,7 +420,7 @@ function parseWorkspaceScriptConfig(
 
   const config: WorkspaceScriptConfig = { script: scriptArr };
   if (timeoutMs !== undefined) {
-    return { ...config, timeout_ms: timeoutMs, cwd };
+    return { ...config, timeout_ms: timeoutMs, ...(cwd !== undefined && { cwd }) };
   }
   return cwd ? { ...config, cwd } : config;
 }
@@ -440,27 +440,18 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   const setupScript = parseWorkspaceScriptConfig(obj.setup, evalFileDir);
   const teardownScript = parseWorkspaceScriptConfig(obj.teardown, evalFileDir);
 
-  let env: Record<string, string> | undefined;
-  if (isJsonObject(obj.env)) {
-    env = {};
-    for (const [k, v] of Object.entries(obj.env as Record<string, unknown>)) {
-      env[k] = String(v);
-    }
-  }
-
-  if (!template && !setupScript && !teardownScript && !env) return undefined;
+  if (!template && !setupScript && !teardownScript) return undefined;
 
   return {
     ...(template !== undefined && { template }),
     ...(setupScript !== undefined && { setup: setupScript }),
     ...(teardownScript !== undefined && { teardown: teardownScript }),
-    ...(env !== undefined && { env }),
   };
 }
 
 /**
  * Merge case-level workspace config with suite-level defaults.
- * Strategy: template/scripts replaced, env deep-merged.
+ * Strategy: case-level fields replace suite-level fields.
  */
 function mergeWorkspaceConfigs(
   suiteLevel: WorkspaceConfig | undefined,
@@ -470,18 +461,10 @@ function mergeWorkspaceConfigs(
   if (!suiteLevel) return caseLevel;
   if (!caseLevel) return suiteLevel;
 
-  // Deep merge env (case extends suite)
-  const mergedEnv =
-    suiteLevel.env || caseLevel.env
-      ? { ...(suiteLevel.env ?? {}), ...(caseLevel.env ?? {}) }
-      : undefined;
-
   return {
-    // Case replaces suite for template, scripts
     template: caseLevel.template ?? suiteLevel.template,
     setup: caseLevel.setup ?? suiteLevel.setup,
     teardown: caseLevel.teardown ?? suiteLevel.teardown,
-    ...(mergedEnv !== undefined && { env: mergedEnv }),
   };
 }
 

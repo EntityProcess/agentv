@@ -31,6 +31,7 @@ export async function computeWorkspaceFingerprint(
       const fullPath = path.join(dir, entry.name);
       const relativePath = path.relative(workspacePath, fullPath);
       hash.update(relativePath);
+      hash.update('\0');
       if (entry.isDirectory()) {
         await walk(fullPath);
       } else {

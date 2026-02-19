@@ -205,8 +205,6 @@ export type WorkspaceConfig = {
   readonly setup?: WorkspaceScriptConfig;
   /** Script to run after evaluation, before cleanup */
   readonly teardown?: WorkspaceScriptConfig;
-  /** Environment variables for workspace (deep-merged with suite-level) */
-  readonly env?: Readonly<Record<string, string>>;
 };
 
 export type CodeEvaluatorConfig = {

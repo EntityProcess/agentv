@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
@@ -70,6 +70,7 @@ import {
   cleanupEvalWorkspaces,
   cleanupWorkspace,
   createTempWorkspace,
+  getWorkspacePath,
 } from './workspace/manager.js';
 import {
   type ScriptExecutionContext,
@@ -440,8 +441,10 @@ export async function runEvaluation(
   // Cleanup all eval workspaces if forceCleanup is set, or cleanup successful runs
   // Failed runs keep their workspaces for debugging (handled per-case above)
   // This is a fallback to ensure workspace directories are cleaned up
-  const workspaceTemplate = getWorkspaceTemplate(target);
-  if (workspaceTemplate && cleanupWorkspaces) {
+  const hasAnyWorkspace =
+    getWorkspaceTemplate(target) ||
+    filteredEvalCases.some((c) => c.workspace?.template || c.workspace?.setup);
+  if (hasAnyWorkspace && cleanupWorkspaces) {
     // Force cleanup: remove all workspaces for this eval run
     await cleanupEvalWorkspaces(evalRunId).catch(() => {});
   }
@@ -690,8 +693,6 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   // If no template but setup is configured, create an empty workspace directory
   if (!workspacePath && evalCase.workspace?.setup && evalRunId) {
-    const { mkdir } = await import('node:fs/promises');
-    const { getWorkspacePath } = await import('./workspace/manager.js');
     workspacePath = getWorkspacePath(evalRunId, evalCase.id);
     await mkdir(workspacePath, { recursive: true });
   }
