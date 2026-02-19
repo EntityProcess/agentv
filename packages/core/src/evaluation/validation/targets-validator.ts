@@ -98,31 +98,6 @@ const CODEX_SETTINGS = new Set([
   'workspaceTemplate',
 ]);
 
-const COPILOT_SETTINGS = new Set([
-  ...COMMON_SETTINGS,
-  'executable',
-  'command',
-  'binary',
-  'args',
-  'arguments',
-  'model',
-  'cwd',
-  'timeout_seconds',
-  'timeoutSeconds',
-  'log_dir',
-  'logDir',
-  'log_directory',
-  'logDirectory',
-  'log_format',
-  'logFormat',
-  'log_output_format',
-  'logOutputFormat',
-  'system_prompt',
-  'systemPrompt',
-  'workspace_template',
-  'workspaceTemplate',
-]);
-
 const COPILOT_SDK_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'cli_url',
@@ -183,10 +158,10 @@ function getKnownSettings(provider: string): Set<string> | null {
     case 'codex':
     case 'codex-cli':
       return CODEX_SETTINGS;
-    case 'copilot-cli':
-      return COPILOT_SETTINGS;
+    case 'copilot':
     case 'copilot-sdk':
     case 'copilot_sdk':
+    case 'copilot-cli':
       return COPILOT_SDK_SETTINGS;
     case 'vscode':
     case 'vscode-insiders':

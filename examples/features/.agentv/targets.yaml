@@ -68,19 +68,9 @@ targets:
     log_format: json  # 'summary' (default) or 'json' for raw event logs
     # system_prompt: optional override (default instructs agent to include code in response)
 
-  # GitHub Copilot CLI
+  # GitHub Copilot (uses @github/copilot-sdk)
   - name: copilot
-    provider: copilot-cli
-    judge_target: azure_base
-    # executable: copilot                     # Optional: defaults to `copilot` on PATH
-    # model: gpt-5                            # Optional: override model
-    timeout_seconds: 180
-    log_format: json                          # Optional: 'summary' (default) or 'json'
-    # system_prompt: optional override (default instructs agent to include code in response)
-
-  # GitHub Copilot SDK - typed SDK interface
-  - name: copilot-sdk
-    provider: copilot-sdk
+    provider: copilot
     judge_target: azure_base
     model: gpt-5-mini
     # cli_path: /path/to/copilot  # Optional: defaults to bundled @github/copilot binary

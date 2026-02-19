@@ -597,15 +597,15 @@ describe('resolveTargetDefinition', () => {
     const target = resolveTargetDefinition(
       {
         name: 'copilot-with-template',
-        provider: 'copilot-cli',
+        provider: 'copilot',
         workspace_template: '/templates/copilot-workspace',
       },
       {},
     );
 
-    expect(target.kind).toBe('copilot-cli');
-    if (target.kind !== 'copilot-cli') {
-      throw new Error('expected copilot-cli target');
+    expect(target.kind).toBe('copilot');
+    if (target.kind !== 'copilot') {
+      throw new Error('expected copilot target');
     }
 
     expect(target.config.workspaceTemplate).toBe('/templates/copilot-workspace');
@@ -616,7 +616,7 @@ describe('resolveTargetDefinition', () => {
       resolveTargetDefinition(
         {
           name: 'copilot-both',
-          provider: 'copilot-cli',
+          provider: 'copilot',
           cwd: '/some/path',
           workspace_template: '/templates/workspace',
         },

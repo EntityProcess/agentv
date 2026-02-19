@@ -12,7 +12,7 @@ import {
   ensureVSCodeSubagents,
   loadEvalCases,
   subscribeToCodexLogEntries,
-  subscribeToCopilotCliLogEntries,
+  subscribeToCopilotSdkLogEntries,
   subscribeToPiLogEntries,
 } from '@agentv/core';
 
@@ -506,7 +506,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     progressReporter.addLogPaths([entry.filePath], 'pi');
   });
   const seenCopilotLogPaths = new Set<string>();
-  const unsubscribeCopilotLogs = subscribeToCopilotCliLogEntries((entry) => {
+  const unsubscribeCopilotLogs = subscribeToCopilotSdkLogEntries((entry) => {
     if (!entry.filePath || seenCopilotLogPaths.has(entry.filePath)) {
       return;
     }

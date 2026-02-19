@@ -61,7 +61,7 @@ interface ToolCallInProgress {
  */
 export class CopilotSdkProvider implements Provider {
   readonly id: string;
-  readonly kind = 'copilot-sdk' as const;
+  readonly kind = 'copilot' as const;
   readonly targetName: string;
   readonly supportsBatch = false;
 
@@ -70,7 +70,7 @@ export class CopilotSdkProvider implements Provider {
   private client: any = null;
 
   constructor(targetName: string, config: CopilotSdkResolvedConfig) {
-    this.id = `copilot-sdk:${targetName}`;
+    this.id = `copilot:${targetName}`;
     this.targetName = targetName;
     this.config = config;
   }
