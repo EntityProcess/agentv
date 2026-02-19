@@ -135,7 +135,10 @@ async function copyDirectoryRecursive(
     const relativePath = path.relative(templateRoot, srcPath);
     // Check both with and without trailing slash for directories
     if (entry.isDirectory()) {
-      if (isIgnored(relativePath, ignorePatterns) || isIgnored(`${relativePath}/`, ignorePatterns)) {
+      if (
+        isIgnored(relativePath, ignorePatterns) ||
+        isIgnored(`${relativePath}/`, ignorePatterns)
+      ) {
         continue;
       }
       await copyDirectoryRecursive(srcPath, destPath, templateRoot, ignorePatterns);
@@ -194,7 +197,12 @@ export async function createTempWorkspace(
     const ignorePatterns = await loadIgnorePatterns(resolvedTemplatePath);
 
     // Copy template to workspace, skipping .git and .gitignore patterns
-    await copyDirectoryRecursive(resolvedTemplatePath, workspacePath, resolvedTemplatePath, ignorePatterns);
+    await copyDirectoryRecursive(
+      resolvedTemplatePath,
+      workspacePath,
+      resolvedTemplatePath,
+      ignorePatterns,
+    );
 
     return workspacePath;
   } catch (error) {

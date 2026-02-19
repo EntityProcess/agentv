@@ -1439,7 +1439,9 @@ rl.on('close', () => {
     await writeFile(failingScript, 'console.error("setup boom"); process.exit(1);');
 
     const provider = new SequenceProvider('mock', {
-      responses: [{ outputMessages: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+      responses: [
+        { outputMessages: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] },
+      ],
     });
 
     const evalCase: EvalCase = {

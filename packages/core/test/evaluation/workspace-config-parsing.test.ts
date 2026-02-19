@@ -1,7 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadEvalCases } from '../../src/evaluation/yaml-parser.js';
 
@@ -41,15 +41,15 @@ cases:
     const cases = await loadEvalCases(evalFile, testDir);
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace).toBeDefined();
-    expect(cases[0].workspace!.setup_script).toEqual({
+    expect(cases[0].workspace?.setup_script).toEqual({
       script: ['bun', 'run', 'setup.ts'],
       timeout_ms: 120000,
     });
-    expect(cases[0].workspace!.teardown_script).toEqual({
+    expect(cases[0].workspace?.teardown_script).toEqual({
       script: ['bun', 'run', 'teardown.ts'],
       timeout_ms: 30000,
     });
-    expect(cases[0].workspace!.env).toEqual({ CI: '1' });
+    expect(cases[0].workspace?.env).toEqual({ CI: '1' });
   });
 
   it('should parse per-case metadata', async () => {
@@ -99,11 +99,11 @@ cases:
     const cases = await loadEvalCases(evalFile, testDir);
     expect(cases).toHaveLength(2);
     // Both cases should inherit suite-level workspace
-    expect(cases[0].workspace!.setup_script).toEqual({
+    expect(cases[0].workspace?.setup_script).toEqual({
       script: ['bun', 'run', 'default-setup.ts'],
     });
-    expect(cases[0].workspace!.env).toEqual({ CI: '1' });
-    expect(cases[1].workspace!.setup_script).toEqual({
+    expect(cases[0].workspace?.env).toEqual({ CI: '1' });
+    expect(cases[1].workspace?.setup_script).toEqual({
       script: ['bun', 'run', 'default-setup.ts'],
     });
   });
@@ -139,19 +139,21 @@ cases:
     expect(cases).toHaveLength(2);
 
     // case-override: setup_script replaced, env deep-merged
-    const overrideCase = cases.find((c) => c.id === 'case-override')!;
-    expect(overrideCase.workspace!.setup_script).toEqual({
+    const overrideCase = cases.find((c) => c.id === 'case-override');
+    expect(overrideCase).toBeDefined();
+    expect(overrideCase.workspace?.setup_script).toEqual({
       script: ['bun', 'run', 'custom-setup.ts'],
     });
-    expect(overrideCase.workspace!.env).toEqual({
+    expect(overrideCase.workspace?.env).toEqual({
       CI: '1',
       NODE_ENV: 'production',
       PYTHON_VERSION: '3.9',
     });
 
     // case-default: inherits suite-level workspace entirely
-    const defaultCase = cases.find((c) => c.id === 'case-default')!;
-    expect(defaultCase.workspace!.setup_script).toEqual({
+    const defaultCase = cases.find((c) => c.id === 'case-default');
+    expect(defaultCase).toBeDefined();
+    expect(defaultCase.workspace?.setup_script).toEqual({
       script: ['bun', 'run', 'default-setup.ts'],
     });
   });
@@ -174,7 +176,7 @@ cases:
 
     const cases = await loadEvalCases(evalFile, testDir);
     expect(cases).toHaveLength(1);
-    expect(cases[0].workspace!.setup_script!.cwd).toBe(path.join(testDir, 'scripts'));
+    expect(cases[0].workspace?.setup_script?.cwd).toBe(path.join(testDir, 'scripts'));
   });
 
   it('should parse workspace template path', async () => {
@@ -194,7 +196,7 @@ cases:
 
     const cases = await loadEvalCases(evalFile, testDir);
     expect(cases).toHaveLength(1);
-    expect(cases[0].workspace!.template).toBe(path.join(testDir, 'workspace-template'));
+    expect(cases[0].workspace?.template).toBe(path.join(testDir, 'workspace-template'));
   });
 
   it('should handle case with no workspace config', async () => {

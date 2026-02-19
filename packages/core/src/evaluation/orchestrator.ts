@@ -65,6 +65,7 @@ import {
   captureFileChanges as captureWorkspaceFileChanges,
   initializeBaseline,
 } from './workspace/file-changes.js';
+import { computeWorkspaceFingerprint } from './workspace/fingerprint.js';
 import {
   cleanupEvalWorkspaces,
   cleanupWorkspace,
@@ -75,7 +76,6 @@ import {
   executeWorkspaceSetup,
   executeWorkspaceTeardown,
 } from './workspace/script-executor.js';
-import { computeWorkspaceFingerprint } from './workspace/fingerprint.js';
 import { type PromptInputs, buildPromptInputs, loadEvalCases } from './yaml-parser.js';
 
 type MaybePromise<T> = T | Promise<T>;

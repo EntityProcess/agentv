@@ -410,8 +410,7 @@ function parseWorkspaceScriptConfig(
   const scriptArr = script.filter((s): s is string => typeof s === 'string');
   if (scriptArr.length === 0) return undefined;
 
-  const timeoutMs =
-    typeof obj.timeout_ms === 'number' ? obj.timeout_ms : undefined;
+  const timeoutMs = typeof obj.timeout_ms === 'number' ? obj.timeout_ms : undefined;
   let cwd = typeof obj.cwd === 'string' ? obj.cwd : undefined;
 
   // Resolve relative cwd against eval file directory
@@ -429,10 +428,7 @@ function parseWorkspaceScriptConfig(
 /**
  * Parse a WorkspaceConfig from raw YAML value.
  */
-function parseWorkspaceConfig(
-  raw: unknown,
-  evalFileDir: string,
-): WorkspaceConfig | undefined {
+function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfig | undefined {
   if (!isJsonObject(raw)) return undefined;
   const obj = raw as Record<string, unknown>;
 

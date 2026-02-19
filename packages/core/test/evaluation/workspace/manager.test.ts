@@ -400,20 +400,37 @@ describe('createTempWorkspace .gitignore support', () => {
     await fs.writeFile(path.join(templateDir, '.gitignore'), 'node_modules/\n');
     await fs.writeFile(path.join(templateDir, 'index.ts'), 'export {};');
     await fs.mkdir(path.join(templateDir, 'node_modules', 'some-pkg'), { recursive: true });
-    await fs.writeFile(path.join(templateDir, 'node_modules', 'some-pkg', 'index.js'), 'module.exports = {};');
+    await fs.writeFile(
+      path.join(templateDir, 'node_modules', 'some-pkg', 'index.js'),
+      'module.exports = {};',
+    );
 
-    const workspacePath = await createTempWorkspace(templateDir, 'eval-gi', 'case-01', workspaceRoot);
+    const workspacePath = await createTempWorkspace(
+      templateDir,
+      'eval-gi',
+      'case-01',
+      workspaceRoot,
+    );
 
     // index.ts should be copied
-    const indexExists = await fs.stat(path.join(workspacePath, 'index.ts')).then(() => true).catch(() => false);
+    const indexExists = await fs
+      .stat(path.join(workspacePath, 'index.ts'))
+      .then(() => true)
+      .catch(() => false);
     expect(indexExists).toBe(true);
 
     // node_modules should NOT be copied
-    const nmExists = await fs.stat(path.join(workspacePath, 'node_modules')).then(() => true).catch(() => false);
+    const nmExists = await fs
+      .stat(path.join(workspacePath, 'node_modules'))
+      .then(() => true)
+      .catch(() => false);
     expect(nmExists).toBe(false);
 
     // .gitignore itself should be copied (it's a project config file)
-    const giExists = await fs.stat(path.join(workspacePath, '.gitignore')).then(() => true).catch(() => false);
+    const giExists = await fs
+      .stat(path.join(workspacePath, '.gitignore'))
+      .then(() => true)
+      .catch(() => false);
     expect(giExists).toBe(true);
   });
 
@@ -425,15 +442,29 @@ describe('createTempWorkspace .gitignore support', () => {
     await fs.mkdir(path.join(templateDir, 'build'), { recursive: true });
     await fs.writeFile(path.join(templateDir, 'build', 'output.js'), 'compiled');
 
-    const workspacePath = await createTempWorkspace(templateDir, 'eval-gi2', 'case-01', workspaceRoot);
+    const workspacePath = await createTempWorkspace(
+      templateDir,
+      'eval-gi2',
+      'case-01',
+      workspaceRoot,
+    );
 
-    const srcExists = await fs.stat(path.join(workspacePath, 'src.ts')).then(() => true).catch(() => false);
+    const srcExists = await fs
+      .stat(path.join(workspacePath, 'src.ts'))
+      .then(() => true)
+      .catch(() => false);
     expect(srcExists).toBe(true);
 
-    const distExists = await fs.stat(path.join(workspacePath, 'dist')).then(() => true).catch(() => false);
+    const distExists = await fs
+      .stat(path.join(workspacePath, 'dist'))
+      .then(() => true)
+      .catch(() => false);
     expect(distExists).toBe(false);
 
-    const buildExists = await fs.stat(path.join(workspacePath, 'build')).then(() => true).catch(() => false);
+    const buildExists = await fs
+      .stat(path.join(workspacePath, 'build'))
+      .then(() => true)
+      .catch(() => false);
     expect(buildExists).toBe(false);
   });
 
@@ -442,27 +473,52 @@ describe('createTempWorkspace .gitignore support', () => {
     await fs.mkdir(path.join(templateDir, 'subdir'), { recursive: true });
     await fs.writeFile(path.join(templateDir, 'subdir', 'nested.txt'), 'nested');
 
-    const workspacePath = await createTempWorkspace(templateDir, 'eval-nogi', 'case-01', workspaceRoot);
+    const workspacePath = await createTempWorkspace(
+      templateDir,
+      'eval-nogi',
+      'case-01',
+      workspaceRoot,
+    );
 
-    const fileExists = await fs.stat(path.join(workspacePath, 'file.txt')).then(() => true).catch(() => false);
+    const fileExists = await fs
+      .stat(path.join(workspacePath, 'file.txt'))
+      .then(() => true)
+      .catch(() => false);
     expect(fileExists).toBe(true);
 
-    const nestedExists = await fs.stat(path.join(workspacePath, 'subdir', 'nested.txt')).then(() => true).catch(() => false);
+    const nestedExists = await fs
+      .stat(path.join(workspacePath, 'subdir', 'nested.txt'))
+      .then(() => true)
+      .catch(() => false);
     expect(nestedExists).toBe(true);
   });
 
   it('should ignore comment lines and empty lines in .gitignore', async () => {
-    await fs.writeFile(path.join(templateDir, '.gitignore'), '# This is a comment\n\nnode_modules/\n# Another comment\n');
+    await fs.writeFile(
+      path.join(templateDir, '.gitignore'),
+      '# This is a comment\n\nnode_modules/\n# Another comment\n',
+    );
     await fs.writeFile(path.join(templateDir, 'keep.txt'), 'keep');
     await fs.mkdir(path.join(templateDir, 'node_modules'), { recursive: true });
     await fs.writeFile(path.join(templateDir, 'node_modules', 'pkg.js'), 'mod');
 
-    const workspacePath = await createTempWorkspace(templateDir, 'eval-comments', 'case-01', workspaceRoot);
+    const workspacePath = await createTempWorkspace(
+      templateDir,
+      'eval-comments',
+      'case-01',
+      workspaceRoot,
+    );
 
-    const keepExists = await fs.stat(path.join(workspacePath, 'keep.txt')).then(() => true).catch(() => false);
+    const keepExists = await fs
+      .stat(path.join(workspacePath, 'keep.txt'))
+      .then(() => true)
+      .catch(() => false);
     expect(keepExists).toBe(true);
 
-    const nmExists = await fs.stat(path.join(workspacePath, 'node_modules')).then(() => true).catch(() => false);
+    const nmExists = await fs
+      .stat(path.join(workspacePath, 'node_modules'))
+      .then(() => true)
+      .catch(() => false);
     expect(nmExists).toBe(false);
   });
 });
