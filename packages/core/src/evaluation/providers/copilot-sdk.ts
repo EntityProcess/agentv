@@ -4,6 +4,7 @@ import type { WriteStream } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { arch, platform } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { recordCopilotSdkLogEntry } from './copilot-sdk-log-tracker.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
@@ -502,7 +503,9 @@ function resolvePlatformCliPath(): string | undefined {
   try {
     // Try to resolve the platform package via import.meta.resolve
     const resolved = import.meta.resolve(`${packageName}/package.json`);
-    const packageJsonPath = resolved.startsWith('file://') ? resolved.slice(7) : resolved;
+    // Use fileURLToPath for correct cross-platform conversion (slice(7) breaks on Windows
+    // where file:///D:/... becomes /D:/... which is not a valid path)
+    const packageJsonPath = resolved.startsWith('file:') ? fileURLToPath(resolved) : resolved;
     const binaryPath = path.join(path.dirname(packageJsonPath), binaryName);
     if (existsSync(binaryPath)) {
       return binaryPath;
