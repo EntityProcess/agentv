@@ -105,7 +105,7 @@ When making changes to functionality:
 When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` directly as it may run the globally installed npm version. Instead:
 
 - **From repository root:** Use `bun agentv <args>` to run the locally built version
-- **From apps/cli directory:** Use `bun dev -- <args>` to run from TypeScript source
+- **From apps/cli directory:** Use `bun run dev -- <args>` to run from TypeScript source
 
 This ensures you're testing your local changes, not the published npm package.
 
