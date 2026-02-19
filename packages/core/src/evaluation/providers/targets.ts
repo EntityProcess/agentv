@@ -467,10 +467,11 @@ export interface CodexResolvedConfig {
   readonly systemPrompt?: string;
 }
 
-export interface CopilotResolvedConfig {
-  readonly executable: string;
+export interface CopilotSdkResolvedConfig {
+  readonly cliUrl?: string;
+  readonly cliPath?: string;
+  readonly githubToken?: string;
   readonly model?: string;
-  readonly args?: readonly string[];
   readonly cwd?: string;
   readonly workspaceTemplate?: string;
   readonly timeoutMs?: number;
@@ -573,12 +574,12 @@ export type ResolvedTarget =
       readonly config: CodexResolvedConfig;
     }
   | {
-      readonly kind: 'copilot-cli';
+      readonly kind: 'copilot';
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
-      readonly config: CopilotResolvedConfig;
+      readonly config: CopilotSdkResolvedConfig;
     }
   | {
       readonly kind: 'pi-coding-agent';
@@ -750,14 +751,17 @@ export function resolveTargetDefinition(
         providerBatching,
         config: resolveCodexConfig(parsed, env, evalFilePath),
       };
+    case 'copilot':
+    case 'copilot-sdk':
+    case 'copilot_sdk':
     case 'copilot-cli':
       return {
-        kind: 'copilot-cli',
+        kind: 'copilot',
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
-        config: resolveCopilotConfig(parsed, env, evalFilePath),
+        config: resolveCopilotSdkConfig(parsed, env, evalFilePath),
       };
     case 'pi':
     case 'pi-coding-agent':
@@ -1001,37 +1005,49 @@ function normalizeCodexLogFormat(value: unknown): 'summary' | 'json' | undefined
   throw new Error("codex log format must be 'summary' or 'json'");
 }
 
-function resolveCopilotConfig(
+function resolveCopilotSdkConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
   evalFilePath?: string,
-): CopilotResolvedConfig {
-  const executableSource = target.executable ?? target.command ?? target.binary;
+): CopilotSdkResolvedConfig {
+  const cliUrlSource = target.cli_url ?? target.cliUrl;
+  const cliPathSource = target.cli_path ?? target.cliPath;
+  const githubTokenSource = target.github_token ?? target.githubToken;
   const modelSource = target.model;
-  const argsSource = target.args ?? target.arguments;
   const cwdSource = target.cwd;
   const workspaceTemplateSource = target.workspace_template ?? target.workspaceTemplate;
   const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
   const logDirSource =
     target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
-  const logFormatSource =
-    target.log_format ?? target.logFormat ?? target.log_output_format ?? target.logOutputFormat;
+  const logFormatSource = target.log_format ?? target.logFormat;
   const systemPromptSource = target.system_prompt ?? target.systemPrompt;
 
-  const executable =
-    resolveOptionalString(executableSource, env, `${target.name} copilot executable`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    }) ?? 'copilot';
-
-  const model = resolveOptionalString(modelSource, env, `${target.name} copilot model`, {
+  const cliUrl = resolveOptionalString(cliUrlSource, env, `${target.name} copilot-sdk cli URL`, {
     allowLiteral: true,
     optionalEnv: true,
   });
 
-  const args = resolveOptionalStringArray(argsSource, env, `${target.name} copilot args`);
+  const cliPath = resolveOptionalString(cliPathSource, env, `${target.name} copilot-sdk cli path`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
 
-  const cwd = resolveOptionalString(cwdSource, env, `${target.name} copilot cwd`, {
+  const githubToken = resolveOptionalString(
+    githubTokenSource,
+    env,
+    `${target.name} copilot-sdk github token`,
+    {
+      allowLiteral: false,
+      optionalEnv: true,
+    },
+  );
+
+  const model = resolveOptionalString(modelSource, env, `${target.name} copilot-sdk model`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const cwd = resolveOptionalString(cwdSource, env, `${target.name} copilot-sdk cwd`, {
     allowLiteral: true,
     optionalEnv: true,
   });
@@ -1039,7 +1055,7 @@ function resolveCopilotConfig(
   let workspaceTemplate = resolveOptionalString(
     workspaceTemplateSource,
     env,
-    `${target.name} copilot workspace template`,
+    `${target.name} copilot-sdk workspace template`,
     {
       allowLiteral: true,
       optionalEnv: true,
@@ -1058,12 +1074,17 @@ function resolveCopilotConfig(
     );
   }
 
-  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} copilot timeout`);
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} copilot-sdk timeout`);
 
-  const logDir = resolveOptionalString(logDirSource, env, `${target.name} copilot log directory`, {
-    allowLiteral: true,
-    optionalEnv: true,
-  });
+  const logDir = resolveOptionalString(
+    logDirSource,
+    env,
+    `${target.name} copilot-sdk log directory`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
 
   const logFormat = normalizeCopilotLogFormat(logFormatSource);
 
@@ -1073,9 +1094,10 @@ function resolveCopilotConfig(
       : undefined;
 
   return {
-    executable,
+    cliUrl,
+    cliPath,
+    githubToken,
     model,
-    args,
     cwd,
     workspaceTemplate,
     timeoutMs,

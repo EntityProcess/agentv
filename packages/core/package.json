@@ -41,6 +41,7 @@
     "@ai-sdk/anthropic": "^2.0.53",
     "@ai-sdk/azure": "^2.0.78",
     "@ai-sdk/google": "^2.0.44",
+    "@github/copilot-sdk": "^0.1.25",
     "@mariozechner/pi-agent-core": "^0.50.9",
     "@mariozechner/pi-ai": "^0.50.9",
     "ai": "^5.0.106",
