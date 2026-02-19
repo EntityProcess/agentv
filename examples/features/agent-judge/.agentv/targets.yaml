@@ -1,0 +1,23 @@
+targets:
+  # Mock agent that "creates tests" in the workspace.
+  # Each eval case gets a fresh copy of workspace-template/ as its CWD.
+  - name: mock_agent
+    provider: cli
+    command_template: >-
+      bash -c '
+      mkdir -p tests &&
+      printf "import { add, multiply } from \"../src/main\";\n\ndescribe(\"math functions\", () => {\n  test(\"add returns sum\", () => {\n    expect(add(2, 3)).toBe(5);\n  });\n\n  test(\"multiply returns product\", () => {\n    expect(multiply(4, 5)).toBe(20);\n  });\n});\n" > tests/math.test.ts &&
+      printf "import { greet } from \"../src/main\";\n\ndescribe(\"greet\", () => {\n  test(\"returns greeting\", () => {\n    expect(greet(\"World\")).toBe(\"Hello, World!\");\n  });\n});\n" > tests/greet.test.ts &&
+      echo "Created test files: tests/math.test.ts and tests/greet.test.ts" > {OUTPUT_FILE}
+      '
+    workspace_template: ../workspace-template
+    judge_target: azure_judge
+    timeout_seconds: 30
+
+  # Azure OpenAI target used as judge provider for built-in agent_judge mode.
+  - name: azure_judge
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    version: ${{ AZURE_OPENAI_API_VERSION }}

@@ -598,6 +598,79 @@ export async function parseEvaluators(
       continue;
     }
 
+    if (typeValue === 'agent_judge') {
+      // Validate max_steps (1-50)
+      const rawMaxSteps = rawEvaluator.max_steps ?? rawEvaluator.maxSteps;
+      let maxSteps: number | undefined;
+      if (rawMaxSteps !== undefined) {
+        if (
+          typeof rawMaxSteps !== 'number' ||
+          !Number.isInteger(rawMaxSteps) ||
+          rawMaxSteps < 1 ||
+          rawMaxSteps > 50
+        ) {
+          logWarning(
+            `Skipping agent_judge evaluator '${name}' in '${evalId}': max_steps must be an integer 1-50`,
+          );
+          continue;
+        }
+        maxSteps = rawMaxSteps;
+      }
+
+      // Validate temperature (0-2)
+      const rawTemperature = rawEvaluator.temperature;
+      let temperature: number | undefined;
+      if (rawTemperature !== undefined) {
+        if (typeof rawTemperature !== 'number' || rawTemperature < 0 || rawTemperature > 2) {
+          logWarning(
+            `Skipping agent_judge evaluator '${name}' in '${evalId}': temperature must be a number 0-2`,
+          );
+          continue;
+        }
+        temperature = rawTemperature;
+      }
+
+      // Validate judge_target (string)
+      const judgeTarget = asString(rawEvaluator.judge_target ?? rawEvaluator.judgeTarget);
+
+      // Parse prompt (file path or inline text)
+      let agentPrompt: string | undefined;
+      let agentPromptPath: string | undefined;
+      const rawAgentPrompt = rawEvaluator.prompt;
+      if (typeof rawAgentPrompt === 'string') {
+        agentPrompt = rawAgentPrompt;
+        const resolved = await resolveFileReference(rawAgentPrompt, searchRoots);
+        if (resolved.resolvedPath) {
+          agentPromptPath = path.resolve(resolved.resolvedPath);
+        }
+      }
+
+      // Parse rubrics via existing infrastructure
+      const rawAgentRubrics = rawEvaluator.rubrics;
+      const agentParsedRubrics = Array.isArray(rawAgentRubrics)
+        ? parseRubricItems(rawAgentRubrics, name, evalId)
+        : undefined;
+
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
+      evaluators.push({
+        name,
+        type: 'agent_judge',
+        ...(agentPrompt ? { prompt: agentPrompt } : {}),
+        ...(agentPromptPath
+          ? { promptPath: agentPromptPath, resolvedPromptPath: agentPromptPath }
+          : {}),
+        ...(agentParsedRubrics && agentParsedRubrics.length > 0
+          ? { rubrics: agentParsedRubrics }
+          : {}),
+        ...(maxSteps !== undefined ? { max_steps: maxSteps } : {}),
+        ...(temperature !== undefined ? { temperature } : {}),
+        ...(judgeTarget ? { judge_target: judgeTarget } : {}),
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
     // Parse prompt field - can be string (text template) or object (executable script)
     const rawPrompt = rawEvaluator.prompt;
     let prompt: string | undefined;

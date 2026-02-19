@@ -43,11 +43,16 @@ export {
   buildOutputSchema,
   buildRubricOutputSchema,
   buildScoreRangeOutputSchema,
+  calculateRubricScore,
   DEFAULT_EVALUATOR_TEMPLATE,
   substituteVariables,
   freeformEvaluationSchema,
+  rubricEvaluationSchema,
 } from './llm-judge.js';
 export type { LlmJudgeEvaluatorOptions } from './llm-judge.js';
+
+export { AgentJudgeEvaluator } from './agent-judge.js';
+export type { AgentJudgeEvaluatorOptions } from './agent-judge.js';
 
 export { assembleLlmJudgePrompt } from './llm-judge-prompt.js';
 export type { LlmJudgePromptAssembly } from './llm-judge-prompt.js';
