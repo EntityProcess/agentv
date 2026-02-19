@@ -1,0 +1,64 @@
+# Agent Judge feature demonstration
+# Tests that the agent_judge evaluator can investigate the workspace
+# to verify that an agent created the expected files and content.
+#
+# The mock_agent creates test files in the workspace-template.
+# The agent_judge evaluator uses an AI SDK agent loop with filesystem tools
+# to verify the test files exist and contain proper test cases.
+
+description: Verify agent_judge evaluator can audit workspace file creation
+
+execution:
+  target: mock_agent
+
+cases:
+  # Case 1: freeform agent_judge (no rubrics) — scores 0-1
+  - id: verify-test-creation-freeform
+    criteria: >-
+      The agent should create unit test files in a tests/ directory.
+      Test files should import from src/main.ts and test the add, multiply,
+      and greet functions with meaningful assertions.
+
+    input:
+      - role: user
+        content:
+          - type: text
+            value: Create unit tests for all functions in src/main.ts
+
+    evaluators:
+      - name: workspace-audit
+        type: agent_judge
+        max_steps: 5
+        temperature: 0
+
+  # Case 2: rubric-based agent_judge — structured evaluation
+  - id: verify-test-creation-rubric
+    criteria: >-
+      The agent should create comprehensive unit tests for the project.
+
+    input:
+      - role: user
+        content:
+          - type: text
+            value: Create unit tests for all functions in src/main.ts
+
+    evaluators:
+      - name: workspace-audit-rubric
+        type: agent_judge
+        max_steps: 5
+        temperature: 0
+        rubrics:
+          - id: tests-dir-exists
+            outcome: "A tests/ directory exists in the workspace"
+            weight: 1.0
+            required: true
+          - id: math-tests
+            outcome: "Test file exists that tests the add and multiply functions"
+            weight: 1.0
+            required: true
+          - id: greet-tests
+            outcome: "Test file exists that tests the greet function"
+            weight: 1.0
+          - id: assertions-present
+            outcome: "Tests contain proper assertions (expect/assert calls)"
+            weight: 0.5
