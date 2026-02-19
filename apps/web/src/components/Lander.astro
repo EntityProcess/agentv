@@ -55,9 +55,9 @@ import type { Props } from '@astrojs/starlight/props';
             <span class="av-terminal-title">agentv</span>
           </div>
           <div class="av-terminal-body">
-            <!-- Scene 1: agentv eval -->
+            <!-- Scene 1: agentv run -->
             <div class="av-scene av-scene-1">
-              <div class="av-line av-line-cmd"><span class="av-prompt">$</span> <span class="av-typing">agentv eval ./evals/math.yaml</span></div>
+              <div class="av-line av-line-cmd"><span class="av-prompt">$</span> <span class="av-typing">agentv run ./evals/math.yaml</span></div>
               <div class="av-line av-line-out av-line-delay-1"><span class="av-dim">Running 3 eval cases...</span></div>
               <div class="av-line av-line-out av-line-delay-2"><span class="av-pass">PASS</span> addition <span class="av-dim">score: 1.0</span></div>
               <div class="av-line av-line-out av-line-delay-3"><span class="av-pass">PASS</span> multiplication <span class="av-dim">score: 1.0</span></div>
@@ -179,7 +179,7 @@ cases:
             <h3>Run</h3>
             <div class="av-mini-terminal">
               <div class="av-mini-bar"><span class="av-mini-dots"></span></div>
-              <pre><code>agentv eval ./evals/example.yaml</code></pre>
+              <pre><code>agentv run ./evals/example.yaml</code></pre>
             </div>
           </div>
         </div>
