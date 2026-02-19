@@ -1,4 +1,4 @@
-import { exec, spawn } from 'node:child_process';
+import { type ChildProcess, exec, spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -10,17 +10,69 @@ import { DEFAULT_ALIVE_FILENAME } from './constants.js';
 
 const execAsync = promisify(exec);
 
+/** Quote a command path for shell usage if it contains spaces. */
+function shellQuote(cmd: string): string {
+  return cmd.includes(' ') ? `"${cmd}"` : cmd;
+}
+
 const DEFAULT_WAKEUP_CONTENT = `---
 description: 'Wake-up Signal'
 model: Grok Code Fast 1 (copilot)
 ---`;
+
+/**
+ * Spawn VS Code with an `error` event listener so ENOENT / EACCES don't go unhandled.
+ * Returns the ChildProcess for further use.
+ */
+function spawnVsCode(
+  vscodeCmd: string,
+  args: string[],
+  options?: { shell?: boolean },
+): ChildProcess {
+  const child = spawn(vscodeCmd, args, {
+    windowsHide: true,
+    shell: options?.shell ?? true,
+    detached: false,
+  });
+  child.on('error', () => {
+    // Handled by raceSpawnError when used, or silently ignored for fire-and-forget calls
+  });
+  return child;
+}
+
+/**
+ * Wait briefly after spawning to detect immediate failures (ENOENT, EACCES).
+ * Rejects if the process emits an `error` event within the grace period.
+ */
+async function raceSpawnError(child: ChildProcess, graceMs = 200): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    let settled = false;
+
+    const onError = (err: Error) => {
+      if (!settled) {
+        settled = true;
+        reject(err);
+      }
+    };
+
+    child.on('error', onError);
+
+    setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        child.removeListener('error', onError);
+        resolve();
+      }
+    }, graceMs);
+  });
+}
 
 export async function checkWorkspaceOpened(
   workspaceName: string,
   vscodeCmd: string,
 ): Promise<boolean> {
   try {
-    const { stdout } = await execAsync(`${vscodeCmd} --status`, {
+    const { stdout } = await execAsync(`${shellQuote(vscodeCmd)} --status`, {
       timeout: 10_000,
       windowsHide: true,
     });
@@ -41,7 +93,7 @@ export async function ensureWorkspaceFocused(
   const alreadyOpen = await checkWorkspaceOpened(workspaceName, vscodeCmd);
 
   if (alreadyOpen) {
-    spawn(vscodeCmd, [workspacePath], { windowsHide: true, shell: true, detached: false });
+    spawnVsCode(shellQuote(vscodeCmd), [workspacePath]);
     return true;
   }
 
@@ -53,7 +105,7 @@ export async function ensureWorkspaceFocused(
   const wakeupDst = path.join(githubAgentsDir, 'wakeup.md');
   await writeFile(wakeupDst, DEFAULT_WAKEUP_CONTENT, 'utf8');
 
-  spawn(vscodeCmd, [workspacePath], { windowsHide: true, shell: true, detached: false });
+  spawnVsCode(shellQuote(vscodeCmd), [workspacePath]);
   await sleep(100);
 
   const wakeupChatId = 'wakeup';
@@ -64,7 +116,7 @@ export async function ensureWorkspaceFocused(
     wakeupChatId,
     `create a file named .alive in the ${path.basename(subagentDir)} folder`,
   ];
-  spawn(vscodeCmd, chatArgs, { windowsHide: true, shell: true, detached: false });
+  spawnVsCode(shellQuote(vscodeCmd), chatArgs);
 
   const start = Date.now();
   while (!(await pathExists(aliveFile))) {
@@ -85,40 +137,37 @@ export async function launchVsCodeWithChat(
   requestInstructions: string,
   timestamp: string,
   vscodeCmd: string,
-): Promise<boolean> {
-  try {
-    const workspacePath = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
-    const messagesDir = path.join(subagentDir, 'messages');
-    await mkdir(messagesDir, { recursive: true });
+): Promise<void> {
+  const workspacePath = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
+  const messagesDir = path.join(subagentDir, 'messages');
+  await mkdir(messagesDir, { recursive: true });
 
-    const reqFile = path.join(messagesDir, `${timestamp}_req.md`);
-    await writeFile(reqFile, requestInstructions, { encoding: 'utf8' });
+  const reqFile = path.join(messagesDir, `${timestamp}_req.md`);
+  await writeFile(reqFile, requestInstructions, { encoding: 'utf8' });
 
-    const reqUri = pathToFileUri(reqFile);
-    const chatArgs = ['-r', 'chat', '-m', chatId];
-    for (const attachment of attachmentPaths) {
-      chatArgs.push('-a', attachment);
-    }
-    chatArgs.push('-a', reqFile);
-    chatArgs.push(`Follow instructions in [${path.basename(reqFile)}](${reqUri})`);
-
-    const workspaceReady = await ensureWorkspaceFocused(
-      workspacePath,
-      path.basename(subagentDir),
-      subagentDir,
-      vscodeCmd,
-    );
-    if (!workspaceReady) {
-      console.error('warning: Workspace may not be fully ready');
-    }
-
-    await sleep(500);
-    spawn(vscodeCmd, chatArgs, { windowsHide: true, shell: true, detached: false });
-    return true;
-  } catch (error) {
-    console.error(`warning: Failed to launch VS Code: ${(error as Error).message}`);
-    return false;
+  const reqUri = pathToFileUri(reqFile);
+  const chatArgs = ['-r', 'chat', '-m', chatId];
+  for (const attachment of attachmentPaths) {
+    chatArgs.push('-a', attachment);
   }
+  chatArgs.push('-a', reqFile);
+  chatArgs.push(`Follow instructions in [${path.basename(reqFile)}](${reqUri})`);
+
+  const workspaceReady = await ensureWorkspaceFocused(
+    workspacePath,
+    path.basename(subagentDir),
+    subagentDir,
+    vscodeCmd,
+  );
+  if (!workspaceReady) {
+    throw new Error(
+      `VS Code workspace '${path.basename(subagentDir)}' failed to become ready within the timeout. Check that '${vscodeCmd}' can open workspaces.`,
+    );
+  }
+
+  await sleep(500);
+  const child = spawnVsCode(shellQuote(vscodeCmd), chatArgs);
+  await raceSpawnError(child);
 }
 
 export async function launchVsCodeWithBatchChat(
@@ -127,33 +176,30 @@ export async function launchVsCodeWithBatchChat(
   attachmentPaths: string[],
   chatInstruction: string,
   vscodeCmd: string,
-): Promise<boolean> {
-  try {
-    const workspacePath = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
-    const messagesDir = path.join(subagentDir, 'messages');
-    await mkdir(messagesDir, { recursive: true });
+): Promise<void> {
+  const workspacePath = path.join(subagentDir, `${path.basename(subagentDir)}.code-workspace`);
+  const messagesDir = path.join(subagentDir, 'messages');
+  await mkdir(messagesDir, { recursive: true });
 
-    const chatArgs = ['-r', 'chat', '-m', chatId];
-    for (const attachment of attachmentPaths) {
-      chatArgs.push('-a', attachment);
-    }
-    chatArgs.push(chatInstruction);
-
-    const workspaceReady = await ensureWorkspaceFocused(
-      workspacePath,
-      path.basename(subagentDir),
-      subagentDir,
-      vscodeCmd,
-    );
-    if (!workspaceReady) {
-      console.error('warning: Workspace may not be fully ready');
-    }
-
-    await sleep(500);
-    spawn(vscodeCmd, chatArgs, { windowsHide: true, shell: true, detached: false });
-    return true;
-  } catch (error) {
-    console.error(`warning: Failed to launch VS Code: ${(error as Error).message}`);
-    return false;
+  const chatArgs = ['-r', 'chat', '-m', chatId];
+  for (const attachment of attachmentPaths) {
+    chatArgs.push('-a', attachment);
   }
+  chatArgs.push(chatInstruction);
+
+  const workspaceReady = await ensureWorkspaceFocused(
+    workspacePath,
+    path.basename(subagentDir),
+    subagentDir,
+    vscodeCmd,
+  );
+  if (!workspaceReady) {
+    throw new Error(
+      `VS Code workspace '${path.basename(subagentDir)}' failed to become ready within the timeout. Check that '${vscodeCmd}' can open workspaces.`,
+    );
+  }
+
+  await sleep(500);
+  const child = spawnVsCode(shellQuote(vscodeCmd), chatArgs);
+  await raceSpawnError(child);
 }

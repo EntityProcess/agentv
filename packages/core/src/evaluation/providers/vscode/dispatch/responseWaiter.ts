@@ -4,17 +4,30 @@ import path from 'node:path';
 import { pathExists } from '../utils/fs.js';
 import { sleep } from '../utils/time.js';
 
+const DEFAULT_TIMEOUT_MS = 600_000; // 10 minutes
+
 export async function waitForResponseOutput(
   responseFileFinal: string,
   pollInterval = 1000,
   silent = false,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<boolean> {
   if (!silent) {
     console.error(`waiting for agent to finish: ${responseFileFinal}`);
   }
 
+  const deadline = Date.now() + timeoutMs;
+
   try {
     while (!(await pathExists(responseFileFinal))) {
+      if (Date.now() >= deadline) {
+        if (!silent) {
+          console.error(
+            `error: timed out after ${Math.round(timeoutMs / 1000)}s waiting for response: ${responseFileFinal}`,
+          );
+        }
+        return false;
+      }
       await sleep(pollInterval);
     }
   } catch (error) {
@@ -52,15 +65,28 @@ export async function waitForBatchResponses(
   responseFilesFinal: readonly string[],
   pollInterval = 1000,
   silent = false,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<boolean> {
   if (!silent) {
     const fileList = responseFilesFinal.map((file) => path.basename(file)).join(', ');
     console.error(`waiting for ${responseFilesFinal.length} batch response(s): ${fileList}`);
   }
 
+  const deadline = Date.now() + timeoutMs;
+
   try {
     const pending = new Set(responseFilesFinal);
     while (pending.size > 0) {
+      if (Date.now() >= deadline) {
+        if (!silent) {
+          const remaining = [...pending].map((f) => path.basename(f)).join(', ');
+          console.error(
+            `error: timed out after ${Math.round(timeoutMs / 1000)}s waiting for batch responses. Still pending: ${remaining}`,
+          );
+        }
+        return false;
+      }
+
       for (const file of [...pending]) {
         if (await pathExists(file)) {
           pending.delete(file);

@@ -12,6 +12,7 @@ targets:
 
   - name: vscode
     provider: vscode
+    executable: ${{ VSCODE_CMD }}
     judge_target: azure_base
 
   - name: codex

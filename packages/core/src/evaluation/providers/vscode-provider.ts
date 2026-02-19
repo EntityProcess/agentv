@@ -1,4 +1,7 @@
+import { exec } from 'node:child_process';
+import { constants, access } from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import {
   dispatchAgentSession,
   dispatchBatchAgent,
@@ -12,6 +15,8 @@ import type { VSCodeResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 import { AGENTV_BATCH_REQUEST_TEMPLATE, AGENTV_REQUEST_TEMPLATE } from './vscode-templates.js';
 
+const execAsync = promisify(exec);
+
 export class VSCodeProvider implements Provider {
   readonly id: string;
   readonly kind: 'vscode' | 'vscode-insiders';
@@ -19,6 +24,7 @@ export class VSCodeProvider implements Provider {
   readonly supportsBatch = true;
 
   private readonly config: VSCodeResolvedConfig;
+  private environmentCheck?: Promise<void>;
 
   constructor(
     targetName: string,
@@ -35,6 +41,8 @@ export class VSCodeProvider implements Provider {
     if (request.signal?.aborted) {
       throw new Error('VS Code provider request was aborted before dispatch');
     }
+
+    await this.ensureEnvironmentReady();
 
     const inputFiles = normalizeAttachments(request.inputFiles);
     const promptContent = buildPromptDocument(request, inputFiles, request.guideline_patterns);
@@ -55,6 +63,7 @@ export class VSCodeProvider implements Provider {
       subagentRoot: this.config.subagentRoot,
       workspaceTemplate: effectiveWorkspaceTemplate,
       silent: true,
+      timeoutMs: this.config.timeoutMs,
     });
     const durationMs = Date.now() - startTime;
 
@@ -91,6 +100,8 @@ export class VSCodeProvider implements Provider {
       return [];
     }
 
+    await this.ensureEnvironmentReady();
+
     const normalizedRequests = requests.map((req) => ({
       request: req,
       inputFiles: normalizeAttachments(req.inputFiles),
@@ -117,6 +128,7 @@ export class VSCodeProvider implements Provider {
       subagentRoot: this.config.subagentRoot,
       workspaceTemplate: this.config.workspaceTemplate,
       silent: true,
+      timeoutMs: this.config.timeoutMs,
     });
     const totalDurationMs = Date.now() - startTime;
 
@@ -163,6 +175,51 @@ export class VSCodeProvider implements Provider {
 
     return responses;
   }
+
+  private async ensureEnvironmentReady(): Promise<void> {
+    if (!this.environmentCheck) {
+      this.environmentCheck = this.validateEnvironment();
+    }
+    await this.environmentCheck;
+  }
+
+  private async validateEnvironment(): Promise<void> {
+    await locateVSCodeExecutable(this.config.executable);
+  }
+}
+
+async function locateVSCodeExecutable(candidate: string): Promise<string> {
+  const includesPathSeparator = candidate.includes('/') || candidate.includes('\\');
+  if (includesPathSeparator) {
+    const resolved = path.isAbsolute(candidate) ? candidate : path.resolve(candidate);
+    try {
+      await access(resolved, constants.F_OK);
+      return resolved;
+    } catch {
+      throw new Error(
+        `VS Code executable not found at '${resolved}'. Check the 'executable' setting in your target configuration.`,
+      );
+    }
+  }
+
+  const locator = process.platform === 'win32' ? 'where' : 'which';
+  try {
+    const { stdout } = await execAsync(`${locator} ${candidate}`);
+    const lines = stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    if (lines.length > 0 && lines[0]) {
+      await access(lines[0], constants.F_OK);
+      return lines[0];
+    }
+  } catch {
+    // ignore and fall back to error below
+  }
+
+  throw new Error(
+    `VS Code executable '${candidate}' was not found on PATH. Check the 'executable' setting in your target configuration.`,
+  );
 }
 
 // VS Code provider uses request.question (not chatPrompt) because VS Code handles
