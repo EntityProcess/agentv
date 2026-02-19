@@ -11,8 +11,7 @@ import {
   type TrialsConfig,
   runEvaluation as defaultRunEvaluation,
   ensureVSCodeSubagents,
-  loadEvalCases,
-  readTestSuiteMetadata,
+  loadEvalSuite,
   subscribeToCodexLogEntries,
   subscribeToCopilotSdkLogEntries,
   subscribeToPiLogEntries,
@@ -252,17 +251,19 @@ async function prepareFileMetadata(params: {
     : selection.resolvedTarget.kind;
   const inlineTargetLabel = `${selection.targetName} [provider=${providerLabel}]`;
 
-  const evalCases = await loadEvalCases(testFilePath, repoRoot, {
+  const suite = await loadEvalSuite(testFilePath, repoRoot, {
     verbose: options.verbose,
     filter: options.filter,
   });
-  const filteredIds = evalCases.map((value) => value.id);
+  const filteredIds = suite.cases.map((value) => value.id);
 
-  // Extract trials config from the YAML execution block
-  const suiteMetadata = await readTestSuiteMetadata(testFilePath);
-  const trialsConfig = suiteMetadata.trials;
-
-  return { evalIds: filteredIds, evalCases, selection, inlineTargetLabel, trialsConfig };
+  return {
+    evalIds: filteredIds,
+    evalCases: suite.cases,
+    selection,
+    inlineTargetLabel,
+    trialsConfig: suite.trials,
+  };
 }
 
 async function runWithLimit<T>(

@@ -110,6 +110,28 @@ export async function readTestSuiteMetadata(
  * Load eval cases from a AgentV specification file (YAML or JSONL).
  * Format is detected by file extension: .yaml/.yml for YAML, .jsonl for JSONL.
  */
+export type EvalSuiteResult = {
+  readonly cases: readonly EvalCase[];
+  readonly trials?: TrialsConfig;
+};
+
+/**
+ * Load eval cases and suite metadata from a single parse.
+ * Prefer this over calling loadEvalCases + readTestSuiteMetadata separately.
+ */
+export async function loadEvalSuite(
+  evalFilePath: string,
+  repoRoot: URL | string,
+  options?: LoadOptions,
+): Promise<EvalSuiteResult> {
+  const format = detectFormat(evalFilePath);
+  if (format === 'jsonl') {
+    return { cases: await loadEvalCasesFromJsonl(evalFilePath, repoRoot, options) };
+  }
+  const { cases, parsed } = await loadEvalCasesFromYaml(evalFilePath, repoRoot, options);
+  return { cases, trials: extractTrialsConfig(parsed) };
+}
+
 export async function loadEvalCases(
   evalFilePath: string,
   repoRoot: URL | string,
@@ -120,7 +142,15 @@ export async function loadEvalCases(
   if (format === 'jsonl') {
     return loadEvalCasesFromJsonl(evalFilePath, repoRoot, options);
   }
+  const { cases } = await loadEvalCasesFromYaml(evalFilePath, repoRoot, options);
+  return cases;
+}
 
+async function loadEvalCasesFromYaml(
+  evalFilePath: string,
+  repoRoot: URL | string,
+  options?: LoadOptions,
+): Promise<{ cases: readonly EvalCase[]; parsed: JsonObject }> {
   // YAML parsing (existing implementation)
   const verbose = options?.verbose ?? false;
   const filterPattern = options?.filter;
@@ -317,7 +347,7 @@ export async function loadEvalCases(
     results.push(testCase);
   }
 
-  return results;
+  return { cases: results, parsed: suite };
 }
 
 /**

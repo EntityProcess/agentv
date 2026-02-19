@@ -1,7 +1,5 @@
-import { scoreToVerdict } from './evaluators/scoring.js';
 import type {
   ConfidenceIntervalAggregation,
-  EvaluationVerdict,
   MeanAggregation,
   PassAtKAggregation,
   TrialAggregation,
@@ -10,12 +8,12 @@ import type {
 } from './types.js';
 
 /**
- * Aggregate trial results into a final score, verdict, and aggregation metadata.
+ * Aggregate trial results into a final score and aggregation metadata.
  */
 export function aggregateTrials(
   trials: readonly TrialResult[],
   config: TrialsConfig,
-): { score: number; verdict: EvaluationVerdict; aggregation: TrialAggregation } {
+): { score: number; aggregation: TrialAggregation } {
   switch (config.strategy) {
     case 'pass_at_k':
       return aggregatePassAtK(trials);
@@ -28,7 +26,6 @@ export function aggregateTrials(
 
 function aggregatePassAtK(trials: readonly TrialResult[]): {
   score: number;
-  verdict: EvaluationVerdict;
   aggregation: PassAtKAggregation;
 } {
   const passedAttempts = trials.filter((t) => t.verdict === 'pass').length;
@@ -42,14 +39,12 @@ function aggregatePassAtK(trials: readonly TrialResult[]): {
 
   return {
     score: bestTrial.score,
-    verdict: bestTrial.verdict,
     aggregation,
   };
 }
 
 function aggregateMean(trials: readonly TrialResult[]): {
   score: number;
-  verdict: EvaluationVerdict;
   aggregation: MeanAggregation;
 } {
   const scores = trials.map((t) => t.score);
@@ -66,14 +61,12 @@ function aggregateMean(trials: readonly TrialResult[]): {
 
   return {
     score: mean,
-    verdict: scoreToVerdict(mean),
     aggregation,
   };
 }
 
 function aggregateConfidenceInterval(trials: readonly TrialResult[]): {
   score: number;
-  verdict: EvaluationVerdict;
   aggregation: ConfidenceIntervalAggregation;
 } {
   const scores = trials.map((t) => t.score);
@@ -89,7 +82,7 @@ function aggregateConfidenceInterval(trials: readonly TrialResult[]): {
       ci95Upper: clamp01(mean),
       stddev: 0,
     };
-    return { score: mean, verdict: scoreToVerdict(mean), aggregation };
+    return { score: mean, aggregation };
   }
 
   const variance = scores.reduce((sum, s) => sum + (s - mean) ** 2, 0) / (n - 1);
@@ -109,7 +102,6 @@ function aggregateConfidenceInterval(trials: readonly TrialResult[]): {
   // Use the lower bound of the CI as the conservative score
   return {
     score: aggregation.ci95Lower,
-    verdict: scoreToVerdict(aggregation.ci95Lower),
     aggregation,
   };
 }
@@ -120,10 +112,9 @@ function clamp01(value: number): number {
 
 /**
  * Two-tailed t-distribution critical values for 95% confidence (alpha = 0.05).
- * Index is degrees of freedom (df). For df >= 30, uses z = 1.96.
+ * Array is indexed by df-1 (i.e., index 0 = df=1). For df >= 30, uses z = 1.96.
  */
 const T_TABLE_95: readonly number[] = [
-  // df=0 is unused placeholder
   12.706, // df=1
   4.303, // df=2
   3.182, // df=3

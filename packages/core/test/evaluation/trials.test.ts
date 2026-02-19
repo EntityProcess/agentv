@@ -15,7 +15,6 @@ describe('aggregateTrials', () => {
       const result = aggregateTrials(trials, config);
 
       expect(result.score).toBe(0.9);
-      expect(result.verdict).toBe('pass');
       expect(result.aggregation.strategy).toBe('pass_at_k');
       if (result.aggregation.strategy === 'pass_at_k') {
         expect(result.aggregation.passedAttempts).toBe(1);
@@ -34,7 +33,6 @@ describe('aggregateTrials', () => {
       const result = aggregateTrials(trials, config);
 
       expect(result.score).toBe(0.4);
-      expect(result.verdict).toBe('fail');
       if (result.aggregation.strategy === 'pass_at_k') {
         expect(result.aggregation.passedAttempts).toBe(0);
         expect(result.aggregation.totalAttempts).toBe(3);
@@ -48,7 +46,6 @@ describe('aggregateTrials', () => {
       const result = aggregateTrials(trials, config);
 
       expect(result.score).toBe(0.85);
-      expect(result.verdict).toBe('pass');
     });
   });
 
@@ -64,7 +61,6 @@ describe('aggregateTrials', () => {
       const result = aggregateTrials(trials, config);
 
       expect(result.score).toBeCloseTo(0.8667, 3);
-      expect(result.verdict).toBe('pass');
       if (result.aggregation.strategy === 'mean') {
         expect(result.aggregation.mean).toBeCloseTo(0.8667, 3);
         expect(result.aggregation.min).toBe(0.7);
@@ -82,7 +78,6 @@ describe('aggregateTrials', () => {
       const result = aggregateTrials(trials, config);
 
       expect(result.score).toBeCloseTo(0.7);
-      expect(result.verdict).toBe('borderline');
     });
   });
 
