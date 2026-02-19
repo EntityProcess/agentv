@@ -1,6 +1,7 @@
 import { constants } from 'node:fs';
 import { access } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Check if a file exists on disk.
@@ -19,11 +20,11 @@ export async function fileExists(absolutePath: string): Promise<boolean> {
  */
 export function resolveToAbsolutePath(candidate: URL | string): string {
   if (candidate instanceof URL) {
-    return new URL(candidate).pathname;
+    return candidate.protocol === 'file:' ? fileURLToPath(candidate) : candidate.pathname;
   }
   if (typeof candidate === 'string') {
-    if (candidate.startsWith('file://')) {
-      return new URL(candidate).pathname;
+    if (candidate.startsWith('file:')) {
+      return fileURLToPath(candidate);
     }
     return path.resolve(candidate);
   }
