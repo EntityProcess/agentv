@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
@@ -1185,15 +1186,33 @@ async function runEvaluatorList(options: {
               return new ExecutionMetricsEvaluator({
                 config: memberConfig as ExecutionMetricsEvaluatorConfig,
               });
-            case 'agent_judge':
+            case 'agent_judge': {
+              const ajConfig = memberConfig as AgentJudgeEvaluatorConfig;
+              let ajPrompt: string | undefined;
+              if (ajConfig.resolvedPromptPath) {
+                try {
+                  ajPrompt = readFileSync(ajConfig.resolvedPromptPath, 'utf-8');
+                } catch {
+                  // Fall through — prompt file not found
+                }
+              } else if (ajConfig.prompt) {
+                ajPrompt = ajConfig.prompt;
+              }
+              let ajTargetProvider: Provider | undefined;
+              if (ajConfig.judge_target && targetResolver) {
+                ajTargetProvider = targetResolver(ajConfig.judge_target);
+              }
               return new AgentJudgeEvaluator({
                 resolveJudgeProvider: async (ctx) => {
                   if (ctx.judgeProvider) return ctx.judgeProvider;
                   return judgeProvider;
                 },
-                maxSteps: (memberConfig as AgentJudgeEvaluatorConfig).max_steps,
-                temperature: (memberConfig as AgentJudgeEvaluatorConfig).temperature,
+                maxSteps: ajConfig.max_steps,
+                temperature: ajConfig.temperature,
+                evaluatorTemplate: ajPrompt,
+                judgeTargetProvider: ajTargetProvider,
               });
+            }
             default: {
               const unknownConfig = memberConfig as { type: string };
               throw new Error(`Unsupported evaluator type in composite: ${unknownConfig.type}`);
