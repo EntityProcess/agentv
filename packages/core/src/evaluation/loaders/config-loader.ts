@@ -10,8 +10,14 @@ import { buildDirectoryChain, fileExists } from './file-resolver.js';
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RESET = '\u001b[0m';
 
+export const DEFAULT_EVAL_PATTERNS: readonly string[] = [
+  '**/evals/**/dataset*.yaml',
+  '**/evals/**/eval.yaml',
+];
+
 export type AgentVConfig = {
   readonly guideline_patterns?: readonly string[];
+  readonly eval_patterns?: readonly string[];
 };
 
 /**
@@ -56,8 +62,20 @@ export async function loadConfig(
         continue;
       }
 
+      const evalPatterns = (config as Record<string, unknown>).eval_patterns;
+      if (evalPatterns !== undefined && !Array.isArray(evalPatterns)) {
+        logWarning(`Invalid eval_patterns in ${configPath}, expected array`);
+        continue;
+      }
+
+      if (Array.isArray(evalPatterns) && !evalPatterns.every((p) => typeof p === 'string')) {
+        logWarning(`Invalid eval_patterns in ${configPath}, all entries must be strings`);
+        continue;
+      }
+
       return {
         guideline_patterns: guidelinePatterns as readonly string[] | undefined,
+        eval_patterns: evalPatterns as readonly string[] | undefined,
       };
     } catch (error) {
       logWarning(

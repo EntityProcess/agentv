@@ -1,6 +1,8 @@
 import path from 'node:path';
-import { detectFileType } from '@agentv/core/evaluation/validation';
+import { DEFAULT_EVAL_PATTERNS, loadConfig } from '@agentv/core';
 import fg from 'fast-glob';
+
+import { findRepoRoot } from './shared.js';
 
 export interface DiscoveredEvalFile {
   /** Absolute path to the eval file */
@@ -12,46 +14,39 @@ export interface DiscoveredEvalFile {
 }
 
 /**
- * Discover eval files (.yaml, .yml, .jsonl) in the current directory tree.
+ * Discover eval files by glob pattern matching.
  *
- * Uses the core `detectFileType` function to classify each file:
- * 1. Checks for `$schema: agentv-eval-v2` field (explicit marker)
- * 2. Falls back to path-based inference (files under `.agentv/` as config/targets)
- * 3. Defaults to 'eval' for unrecognized YAML files
- *
- * Groups results by category based on their parent folder structure.
+ * Uses `eval_patterns` from `.agentv/config.yaml` if configured,
+ * otherwise falls back to default patterns that match `dataset*.yaml`
+ * and `eval.yaml` files under `evals/` directories.
  */
 export async function discoverEvalFiles(cwd: string): Promise<readonly DiscoveredEvalFile[]> {
-  const patterns = ['**/*.yaml', '**/*.yml', '**/*.jsonl'];
-  const ignore = [
-    '**/node_modules/**',
-    '**/dist/**',
-    '**/.agentv/**',
-    '**/targets.yaml',
-    '**/targets.yml',
-  ];
+  const repoRoot = await findRepoRoot(cwd);
 
-  const matches = await fg(patterns, {
+  // Load config to check for custom eval_patterns
+  // Pass a dummy file path in cwd so buildDirectoryChain starts from cwd
+  const config = await loadConfig(path.join(cwd, '_'), repoRoot);
+  const patterns =
+    config?.eval_patterns && config.eval_patterns.length > 0
+      ? config.eval_patterns
+      : DEFAULT_EVAL_PATTERNS;
+
+  const ignore = ['**/node_modules/**', '**/dist/**'];
+
+  const matches = await fg(patterns as string[], {
     cwd,
     absolute: true,
     onlyFiles: true,
     ignore,
     followSymbolicLinks: true,
+    caseSensitiveMatch: false,
   });
 
-  const evalFiles: DiscoveredEvalFile[] = [];
-
-  for (const absPath of matches) {
-    // Use core's detectFileType to check $schema field and path-based inference
-    const fileType = await detectFileType(absPath);
-    if (fileType !== 'eval') {
-      continue;
-    }
-
+  const evalFiles: DiscoveredEvalFile[] = matches.map((absPath) => {
     const relativePath = path.relative(cwd, absPath);
     const category = deriveCategory(relativePath);
-    evalFiles.push({ path: absPath, relativePath, category });
-  }
+    return { path: absPath, relativePath, category };
+  });
 
   evalFiles.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
   return evalFiles;
