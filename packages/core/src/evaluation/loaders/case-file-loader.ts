@@ -83,7 +83,7 @@ function parseJsonlCases(content: string, filePath: string): JsonObject[] {
 /**
  * Load test objects from a single external file (YAML or JSONL).
  */
-async function loadCasesFromFile(filePath: string): Promise<JsonObject[]> {
+export async function loadCasesFromFile(filePath: string): Promise<JsonObject[]> {
   const ext = path.extname(filePath).toLowerCase();
   let content: string;
 

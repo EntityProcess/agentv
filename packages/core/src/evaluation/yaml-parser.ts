@@ -3,7 +3,7 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import { parse } from 'yaml';
 
-import { expandFileReferences } from './loaders/case-file-loader.js';
+import { expandFileReferences, loadCasesFromFile } from './loaders/case-file-loader.js';
 import {
   extractCacheConfig,
   extractTargetFromSuite,
@@ -226,17 +226,24 @@ async function loadTestsFromYaml(
       : fallbackDataset;
 
   const rawTestcases = resolveTests(suite);
-  if (!Array.isArray(rawTestcases)) {
-    throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
-  }
 
   const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm_judge';
 
   // Parse suite-level workspace config (default for all cases)
   const evalFileDir = path.dirname(absoluteTestPath);
 
-  // Expand any file:// references in the tests array
-  const expandedTestcases = await expandFileReferences(rawTestcases, evalFileDir);
+  // Resolve tests: string path to external file, inline array, or error
+  let expandedTestcases: readonly JsonValue[];
+  if (typeof rawTestcases === 'string') {
+    // String path: load tests from external file (YAML, JSONL)
+    const externalPath = path.resolve(evalFileDir, rawTestcases);
+    expandedTestcases = await loadCasesFromFile(externalPath);
+  } else if (Array.isArray(rawTestcases)) {
+    // Inline array: expand any file:// references
+    expandedTestcases = await expandFileReferences(rawTestcases, evalFileDir);
+  } else {
+    throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
+  }
 
   const suiteWorkspace = parseWorkspaceConfig(suite.workspace, evalFileDir);
 
