@@ -1,0 +1,83 @@
+# Tool-Call F1 Scoring Example
+#
+# Demonstrates using code_judge plugins to compute F1 scores over tool calls.
+# The judges compare expected tools (from evaluator config) against actual
+# tool calls in the agent's output messages.
+#
+# Run:
+#   cd examples/tool-evaluation-plugins
+#   bun agentv run evals/dataset.yaml --target <your-target>
+#
+# Or dry-run (mock responses — useful for testing harness flow only):
+#   bun agentv run evals/dataset.yaml --dry-run
+
+description: Tool-call F1 scoring examples
+
+tests:
+  # ==========================================
+  # Example 1: Basic tool-call F1
+  # Checks whether the right tool names were called
+  # ==========================================
+  - id: weather-lookup-f1
+    criteria: |-
+      Agent should search for weather data and fetch the forecast.
+
+    input:
+      - role: user
+        content: What is the weather in Tokyo? Fetch the detailed forecast.
+
+    execution:
+      evaluators:
+        - name: tool-f1
+          type: code_judge
+          script: ["bun", "run", "../judges/tool-call-f1.ts"]
+          expected_tools: ["search", "fetch"]
+
+  # ==========================================
+  # Example 2: Tool-call + argument F1
+  # Also validates that arguments match expected values
+  # ==========================================
+  - id: weather-lookup-args-f1
+    criteria: |-
+      Agent should search for "weather tokyo" and fetch the forecast API.
+
+    input:
+      - role: user
+        content: What is the weather in Tokyo? Fetch the detailed forecast.
+
+    execution:
+      evaluators:
+        - name: tool-args-f1
+          type: code_judge
+          script: ["bun", "run", "../judges/tool-args-f1.ts"]
+          expected_tools:
+            - tool: search
+              args: { query: "weather tokyo" }
+            - tool: fetch
+
+  # ==========================================
+  # Example 3: Combined with built-in tool_trajectory
+  # Uses F1 for scoring alongside deterministic checks
+  # ==========================================
+  - id: data-analysis-combined
+    criteria: |-
+      Agent should search for data, validate it, and process results.
+
+    input:
+      - role: user
+        content: Analyze the quarterly sales data and generate a summary report.
+
+    execution:
+      evaluators:
+        # Built-in: verify tool sequence
+        - name: trajectory-check
+          type: tool_trajectory
+          mode: any_order
+          minimums:
+            search: 1
+
+        # Plugin: F1 score over expected tools
+        - name: tool-f1
+          type: code_judge
+          script: ["bun", "run", "../judges/tool-call-f1.ts"]
+          expected_tools: ["search", "validate", "process"]
