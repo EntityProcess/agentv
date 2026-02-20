@@ -1,0 +1,130 @@
+# Deterministic Evaluator Examples
+# Shows how a single parameterised code judge handles common assertion types.
+
+description: Deterministic assertions — contains, regex, JSON validation, and more
+
+tests:
+  # --- contains ---
+  - id: contains-basic
+    criteria: Response mentions the word "hello"
+    input: "Say hello to the user."
+    expected_output: "Hello there! How can I help you today?"
+
+    execution:
+      evaluators:
+        - name: contains-check
+          type: code_judge
+          script: ["bun", "run", "../judges/assertions.ts"]
+          config:
+            type: contains
+            value: "Hello"
+
+  # --- icontains (case-insensitive) ---
+  - id: icontains-basic
+    criteria: Response mentions "hello" regardless of case
+    input: "Greet the user."
+    expected_output: "HELLO! Nice to meet you."
+
+    execution:
+      evaluators:
+        - name: icontains-check
+          type: code_judge
+          script: ["bun", "run", "../judges/assertions.ts"]
+          config:
+            type: icontains
+            value: "hello"
+
+  # --- equals ---
+  - id: equals-exact
+    criteria: Response is exactly the expected string
+    input: "What is 2+2?"
+    expected_output: "4"
+
+    execution:
+      evaluators:
+        - name: equals-check
+          type: code_judge
+          script: ["bun", "run", "../judges/assertions.ts"]
+          config:
+            type: equals
+            value: "4"
+
+  # --- regex ---
+  - id: regex-email
+    criteria: Response contains a valid email address
+    input: "Provide your contact email."
+    expected_output: "You can reach me at support@example.com."
+
+    execution:
+      evaluators:
+        - name: regex-check
+          type: code_judge
+          script: ["bun", "run", "../judges/assertions.ts"]
+          config:
+            type: regex
+            value: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+
+  # --- starts-with ---
+  - id: starts-with-prefix
+    criteria: Response begins with a greeting
+    input: "Start your reply with 'Dear User'."
+    expected_output: "Dear User, thank you for contacting us."
+
+    execution:
+      evaluators:
+        - name: starts-with-check
+          type: code_judge
+          script: ["bun", "run", "../judges/assertions.ts"]
+          config:
+            type: starts-with
+            value: "Dear User"
+
+  # --- is-json ---
+  - id: is-json-valid
+    criteria: Response is valid JSON
+    input: "Return a JSON object with a status field."
+    expected_output: '{"status": "ok", "code": 200}'
+
+    execution:
+      evaluators:
+        - name: json-check
+          type: code_judge
+          script: ["bun", "run", "../judges/assertions.ts"]
+          config:
+            type: is-json
+
+  # --- negation ---
+  - id: negated-contains
+    criteria: Response must NOT contain the word "error"
+    input: "Report the system status."
+    expected_output: "All systems operational."
+
+    execution:
+      evaluators:
+        - name: no-error-check
+          type: code_judge
+          script: ["bun", "run", "../judges/assertions.ts"]
+          config:
+            type: contains
+            value: "error"
+            negated: true
+
+  # --- combining multiple assertions on one test ---
+  - id: multi-assertion
+    criteria: Response is valid JSON that contains a "result" key
+    input: "Return a JSON object with a result key."
+    expected_output: '{"result": 42}'
+
+    execution:
+      evaluators:
+        - name: json-format
+          type: code_judge
+          script: ["bun", "run", "../judges/assertions.ts"]
+          config:
+            type: is-json
+        - name: has-result-key
+          type: code_judge
+          script: ["bun", "run", "../judges/assertions.ts"]
+          config:
+            type: contains
+            value: '"result"'
