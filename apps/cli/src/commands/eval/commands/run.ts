@@ -1,4 +1,14 @@
-import { command, flag, number, option, optional, restPositionals, string } from 'cmd-ts';
+import {
+  array,
+  command,
+  flag,
+  multioption,
+  number,
+  option,
+  optional,
+  restPositionals,
+  string,
+} from 'cmd-ts';
 
 import { runEvalCommand } from '../run-eval.js';
 import { resolveEvalPaths } from '../shared.js';
@@ -39,6 +49,13 @@ export const evalRunCommand = command({
       type: optional(string),
       long: 'out',
       description: 'Write results to the specified path',
+    }),
+    output: multioption({
+      type: array(string),
+      long: 'output',
+      short: 'o',
+      description:
+        'Output file path(s). Format inferred from extension: .jsonl, .json, .xml, .yaml',
     }),
     outputFormat: option({
       type: string,
@@ -118,6 +135,7 @@ export const evalRunCommand = command({
       filter: args.testId,
       workers: args.workers,
       out: args.out,
+      output: args.output,
       outputFormat: args.outputFormat,
       dryRun: args.dryRun,
       dryRunDelay: args.dryRunDelay,

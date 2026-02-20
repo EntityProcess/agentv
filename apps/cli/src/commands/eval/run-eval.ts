@@ -21,6 +21,7 @@ import { loadEnvFromHierarchy } from './env.js';
 import {
   type OutputFormat,
   type OutputWriter,
+  createMultiWriter,
   createOutputWriter,
   getDefaultExtension,
 } from './output-writer.js';
@@ -43,6 +44,7 @@ interface NormalizedOptions {
   readonly filter?: string;
   readonly workers?: number;
   readonly outPath?: string;
+  readonly outputPaths: readonly string[];
   readonly format: OutputFormat;
   readonly dryRun: boolean;
   readonly dryRunDelay: number;
@@ -88,12 +90,18 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
 
   const workers = normalizeNumber(rawOptions.workers, 0);
 
+  const rawOutputPaths = rawOptions.output;
+  const outputPaths: string[] = Array.isArray(rawOutputPaths)
+    ? rawOutputPaths.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+    : [];
+
   return {
     target: normalizeString(rawOptions.target),
     targetsPath: normalizeString(rawOptions.targets),
     filter: normalizeString(rawOptions.filter),
     workers: workers > 0 ? workers : undefined,
     outPath: normalizeString(rawOptions.out),
+    outputPaths,
     format,
     dryRun: normalizeBoolean(rawOptions.dryRun),
     dryRunDelay: normalizeNumber(rawOptions.dryRunDelay, 0),
@@ -440,9 +448,27 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const outputPath = options.outPath
     ? path.resolve(options.outPath)
     : buildDefaultOutputPath(cwd, options.format);
-  console.log(`Output path: ${outputPath}`);
 
-  const outputWriter = await createOutputWriter(outputPath, options.format);
+  // Resolve -o / --output paths (new multi-format support)
+  const extraOutputPaths = options.outputPaths.map((p) => path.resolve(p));
+
+  // Build the primary output writer (from --out / default)
+  // When extra --output paths are provided, combine all into a multi-writer
+  const allOutputPaths =
+    extraOutputPaths.length > 0 ? [outputPath, ...extraOutputPaths] : [outputPath];
+  const uniqueOutputPaths = [...new Set(allOutputPaths)];
+
+  let outputWriter: OutputWriter;
+  if (uniqueOutputPaths.length === 1) {
+    outputWriter = await createOutputWriter(outputPath, options.format);
+    console.log(`Output path: ${outputPath}`);
+  } else {
+    outputWriter = await createMultiWriter(uniqueOutputPaths);
+    console.log('Output paths:');
+    for (const p of uniqueOutputPaths) {
+      console.log(`  ${p}`);
+    }
+  }
 
   // Create trace writer if --trace flag is set
   // Use the first eval file's basename for the trace file name
@@ -584,7 +610,14 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     }
 
     if (allResults.length > 0) {
-      console.log(`\nResults written to: ${outputPath}`);
+      if (uniqueOutputPaths.length === 1) {
+        console.log(`\nResults written to: ${outputPath}`);
+      } else {
+        console.log('\nResults written to:');
+        for (const p of uniqueOutputPaths) {
+          console.log(`  ${p}`);
+        }
+      }
     }
   } finally {
     unsubscribeCodexLogs();
