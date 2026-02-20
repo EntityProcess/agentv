@@ -1,0 +1,7 @@
+- id: accuracy-basic-math
+  criteria: "The agent should correctly answer the math question"
+  input: "What is 15 + 27?"
+
+- id: accuracy-capital
+  criteria: "The agent should correctly identify the capital city"
+  input: "What is the capital of France?"

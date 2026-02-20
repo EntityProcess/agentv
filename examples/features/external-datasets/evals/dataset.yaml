@@ -1,0 +1,12 @@
+name: external-datasets-demo
+version: "1.0"
+
+target: default
+
+tests:
+  - id: inline-test
+    criteria: "The agent should greet the user politely"
+    input: "Hello, how are you?"
+
+  - file://cases/accuracy.yaml
+  - file://cases/regression.jsonl
