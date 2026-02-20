@@ -35,7 +35,72 @@ tests:
 | `dataset` | Optional dataset identifier |
 | `execution` | Default execution config (target, evaluators). Root-level evaluators are appended to every test's evaluators unless the test sets `skip_defaults: true` |
 | `workspace` | Suite-level workspace config (setup/teardown scripts, template) |
-| `tests` | Array of individual tests |
+| `tests` | Array of individual tests, or a string path to an external file |
+| `assert` | Suite-level assertion evaluators (alternative to `execution.evaluators`) |
+
+### Metadata Fields
+
+You can add structured metadata to your eval file using these optional top-level fields. Metadata is parsed when the `name` field is present:
+
+| Field | Description |
+|-------|-------------|
+| `name` | Machine-readable identifier (lowercase, hyphens, max 64 chars). Triggers metadata parsing. |
+| `description` | Human-readable description (max 1024 chars) |
+| `version` | Eval version string (e.g., `"1.0"`) |
+| `author` | Author or team identifier |
+| `tags` | Array of string tags for categorization |
+| `license` | License identifier (e.g., `"MIT"`, `"Apache-2.0"`) |
+| `requires` | Dependency constraints (e.g., `agentv: ">=0.30.0"`) |
+
+```yaml
+name: export-screening
+description: Evaluates export control screening accuracy
+version: "1.0"
+author: acme-compliance
+tags: [compliance, agents]
+license: Apache-2.0
+requires:
+  agentv: ">=0.30.0"
+
+tests:
+  - id: denied-party
+    criteria: Identifies denied parties correctly
+    input: Screen "Acme Corp" against denied parties list
+```
+
+### Suite-level Assert
+
+The `assert` field provides a concise way to define evaluators at the suite level, as an alternative to nesting them inside `execution.evaluators`. Suite-level assertions are appended to every test's evaluators (same merge behavior as `execution.evaluators`).
+
+```yaml
+description: API response validation
+assert:
+  - type: is_json
+    required: true
+  - type: contains
+    value: "status"
+
+tests:
+  - id: health-check
+    criteria: Returns health status
+    input: Check API health
+```
+
+`assert` supports the same evaluator types as `execution.evaluators`, including the new deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/evaluation/eval-cases/#per-test-assertions) for per-test assert usage.
+
+### Tests as String Path
+
+Instead of inlining tests in the same file, you can point `tests` to an external YAML or JSONL file. This is the inverse of the sidecar pattern — the metadata file references the test data:
+
+```yaml
+name: my-eval
+description: My evaluation suite
+execution:
+  target: default
+tests: ./cases.yaml
+```
+
+The path is resolved relative to the eval file's directory. The external file should contain a YAML array of test objects or a JSONL file with one test per line.
 
 ## JSONL Format
 

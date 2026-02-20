@@ -31,6 +31,7 @@ tests:
 | `workspace` | No | Per-case workspace config (overrides suite-level) |
 | `metadata` | No | Arbitrary key-value pairs passed to setup/teardown scripts |
 | `rubrics` | No | Structured evaluation criteria |
+| `assert` | No | Per-test assertion evaluators (alternative to `execution.evaluators`) |
 | `sidecar` | No | Additional metadata passed to evaluators |
 
 ## Input
@@ -154,6 +155,95 @@ tests:
 ```
 
 The `metadata` field is included in the stdin JSON passed to setup and teardown scripts as `case_metadata`.
+
+## Per-Test Assertions
+
+The `assert` field provides a concise way to attach evaluators directly to a test, as an alternative to nesting them inside `execution.evaluators`. It supports both deterministic assertion types and LLM-based rubric evaluation.
+
+### Deterministic Assertions
+
+These evaluators run without an LLM call and produce binary (0 or 1) scores:
+
+| Type | Field | Description |
+|------|-------|-------------|
+| `contains` | `value` | Checks if output contains the substring |
+| `regex` | `value` | Checks if output matches the regex pattern |
+| `is_json` | — | Checks if output is valid JSON |
+| `equals` | `value` | Checks if output exactly equals the value (trimmed) |
+
+```yaml
+tests:
+  - id: json-api
+    criteria: Returns valid JSON with status field
+    input: Return the system status as JSON
+    assert:
+      - type: is_json
+      - type: contains
+        value: '"status"'
+```
+
+Assertion evaluators auto-generate a `name` when one is not provided (e.g., `contains-DENIED`, `is_json`).
+
+### Rubric Assertions
+
+Use `type: rubrics` with a `criteria` array to define structured LLM-judged evaluation criteria inline:
+
+```yaml
+tests:
+  - id: denied-party
+    criteria: Must identify denied party
+    input:
+      - role: user
+        content: Screen "Acme Corp" against denied parties list
+    expected_output:
+      - role: assistant
+        content: "DENIED"
+    assert:
+      - type: contains
+        value: "DENIED"
+        required: true
+      - type: rubrics
+        criteria:
+          - id: accuracy
+            outcome: Correctly identifies the denied party
+            weight: 5.0
+          - id: reasoning
+            outcome: Provides clear reasoning for the decision
+            weight: 3.0
+```
+
+### Required Gates
+
+Any evaluator (in `assert` or `execution.evaluators`) can be marked as `required`. When a required evaluator fails, the overall test verdict is `fail` regardless of the aggregate score.
+
+| Value | Behavior |
+|-------|----------|
+| `required: true` | Must score >= 0.8 (default threshold) to pass |
+| `required: 0.6` | Must score >= 0.6 to pass (custom threshold between 0 and 1) |
+
+```yaml
+assert:
+  - type: contains
+    value: "DENIED"
+    required: true          # must pass (>= 0.8)
+  - type: rubrics
+    required: 0.6           # must score at least 0.6
+    criteria:
+      - id: quality
+        outcome: Response is well-structured
+        weight: 1.0
+```
+
+Required gates are evaluated after all evaluators run. If any required evaluator falls below its threshold, the verdict is forced to `fail`.
+
+### Assert vs execution.evaluators
+
+`assert` and `execution.evaluators` serve the same purpose — both define evaluators for a test. Choose whichever fits your style:
+
+- **`assert`**: Flat, concise syntax at the test level. Best for assertion-heavy evals.
+- **`execution.evaluators`**: Nested under `execution`. Useful when you also set `target` or `skip_defaults`.
+
+When both are present on the same test, `assert` takes precedence over `execution.evaluators`. Suite-level `assert` and `execution.evaluators` follow the same merge rules — they are appended to per-test evaluators unless `skip_defaults: true` is set.
 
 ## Sidecar Metadata
 
