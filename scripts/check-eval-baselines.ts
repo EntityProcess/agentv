@@ -15,6 +15,9 @@ type CliOptions = {
 
 const repoRoot = path.resolve(__dirname, '..');
 const examplesRoot = path.join(repoRoot, 'examples');
+// Self-contained examples live under features/; other directories (nlp-metrics/,
+// showcase/) may require user-specific target configuration.
+const featuresRoot = path.join(examplesRoot, 'features');
 
 function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
@@ -66,7 +69,7 @@ async function findBaselineFiles(dir: string, results: string[] = []): Promise<s
   return results;
 }
 
-/** Find dataset YAML files under examples/features/ (the convention for runnable evals) */
+/** Find standalone dataset YAML files (skips sidecar YAMLs that pair with a .jsonl file) */
 async function findDatasetYamlFiles(dir: string, results: string[] = []): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
@@ -80,6 +83,13 @@ async function findDatasetYamlFiles(dir: string, results: string[] = []): Promis
       entry.name.startsWith('dataset') &&
       (entry.name.endsWith('.yaml') || entry.name.endsWith('.yml'))
     ) {
+      // Skip sidecar YAMLs — these provide defaults for a paired .jsonl file
+      // and cannot be run standalone (they have no `tests` field).
+      const baseName = entry.name.replace(/\.ya?ml$/, '');
+      const siblingJsonl = path.join(dir, `${baseName}.jsonl`);
+      if (existsSync(siblingJsonl)) {
+        continue;
+      }
       results.push(fullPath);
     }
   }
@@ -245,9 +255,10 @@ async function main(): Promise<void> {
       }
     }
 
-    // Optionally discover dataset files without baselines
+    // Optionally discover dataset files without baselines (features/ only —
+    // examples outside features/ may need user-specific target configuration)
     if (options.createMissing) {
-      const allDatasetFiles = await findDatasetYamlFiles(examplesRoot);
+      const allDatasetFiles = await findDatasetYamlFiles(featuresRoot);
       const existingDatasetFiles = new Set(pairs.map((p) => p.datasetFile));
 
       for (const df of allDatasetFiles) {
