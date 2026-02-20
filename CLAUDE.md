@@ -127,7 +127,7 @@ Unit tests alone are insufficient for evaluator changes. After implementing or m
 
 2. **Run an actual eval** with a real example file:
    ```bash
-   bun agentv run examples/features/rubric/evals/dataset.yaml --test-id <case-id>
+   bun agentv run examples/features/rubric/evals/dataset.yaml --test-id <test-id>
    ```
 
 2. **Inspect the results JSONL** to verify:
