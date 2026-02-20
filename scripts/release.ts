@@ -4,6 +4,7 @@
  *
  * Usage:
  *   bun scripts/release.ts [patch|minor|major]
+ *   bun scripts/release.ts next [patch|minor|major]
  *
  * This script:
  *   1. Validates we're on the main branch
@@ -20,8 +21,10 @@ import { resolve } from 'node:path';
 import { $ } from 'bun';
 
 type BumpType = 'patch' | 'minor' | 'major';
+type ReleaseChannel = 'stable' | 'next';
 
 const VALID_BUMP_TYPES: BumpType[] = ['patch', 'minor', 'major'];
+const NEXT_PRERELEASE_TAG = 'next';
 
 // Packages to update (relative to repo root)
 const PACKAGE_PATHS = [
@@ -49,7 +52,8 @@ function writePackageJson(path: string, pkg: PackageJson): void {
 }
 
 function bumpVersion(currentVersion: string, bumpType: BumpType): string {
-  const parts = currentVersion.split('.').map(Number);
+  const stablePart = currentVersion.split('-')[0];
+  const parts = stablePart.split('.').map(Number);
 
   if (parts.length !== 3 || parts.some(Number.isNaN)) {
     throw new Error(`Invalid version format: ${currentVersion}`);
@@ -67,13 +71,70 @@ function bumpVersion(currentVersion: string, bumpType: BumpType): string {
   }
 }
 
-async function main() {
-  const bumpType = (process.argv[2] || 'patch') as BumpType;
+function parseNextPrerelease(version: string): { baseVersion: string; number: number } | undefined {
+  const match = version.match(/^(\d+\.\d+\.\d+)-next\.(\d+)$/);
+  if (!match) {
+    return undefined;
+  }
 
-  // Validate bump type
-  if (!VALID_BUMP_TYPES.includes(bumpType)) {
-    console.error(`❌ Invalid bump type: ${bumpType}`);
-    console.error(`   Valid options: ${VALID_BUMP_TYPES.join(', ')}`);
+  return {
+    baseVersion: match[1],
+    number: Number.parseInt(match[2], 10),
+  };
+}
+
+function bumpNextVersion(currentVersion: string, bumpType?: BumpType): string {
+  const parsedNext = parseNextPrerelease(currentVersion);
+
+  if (parsedNext && !bumpType) {
+    return `${parsedNext.baseVersion}-${NEXT_PRERELEASE_TAG}.${parsedNext.number + 1}`;
+  }
+
+  const baseBump = bumpType ?? 'patch';
+  const baseVersion = parsedNext ? parsedNext.baseVersion : currentVersion;
+  const bumpedBase = bumpVersion(baseVersion, baseBump);
+  return `${bumpedBase}-${NEXT_PRERELEASE_TAG}.1`;
+}
+
+function parseArgs(argv: readonly string[]): { channel: ReleaseChannel; bumpType?: BumpType } {
+  const first = argv[2];
+  const second = argv[3];
+
+  if (!first) {
+    return { channel: 'stable', bumpType: 'patch' };
+  }
+
+  if (first === NEXT_PRERELEASE_TAG) {
+    if (second === undefined) {
+      return { channel: 'next' };
+    }
+    if (!VALID_BUMP_TYPES.includes(second as BumpType)) {
+      throw new Error(
+        `Invalid bump type for next channel: ${second}. Valid options: ${VALID_BUMP_TYPES.join(', ')}`,
+      );
+    }
+    return { channel: 'next', bumpType: second as BumpType };
+  }
+
+  if (!VALID_BUMP_TYPES.includes(first as BumpType)) {
+    throw new Error(
+      `Invalid bump type: ${first}. Valid options: ${VALID_BUMP_TYPES.join(', ')} or '${NEXT_PRERELEASE_TAG}'`,
+    );
+  }
+
+  return { channel: 'stable', bumpType: first as BumpType };
+}
+
+async function main() {
+  let channel: ReleaseChannel;
+  let bumpType: BumpType | undefined;
+  try {
+    ({ channel, bumpType } = parseArgs(process.argv));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`❌ ${message}`);
+    console.error('   Usage: bun scripts/release.ts [patch|minor|major]');
+    console.error(`          bun scripts/release.ts ${NEXT_PRERELEASE_TAG} [patch|minor|major]`);
     process.exit(1);
   }
 
@@ -100,9 +161,16 @@ async function main() {
   const primaryPkgPath = resolve(process.cwd(), PRIMARY_PACKAGE);
   const primaryPkg = readPackageJson(primaryPkgPath);
   const currentVersion = primaryPkg.version;
-  const newVersion = bumpVersion(currentVersion, bumpType);
+  const newVersion =
+    channel === 'next'
+      ? bumpNextVersion(currentVersion, bumpType)
+      : bumpVersion(currentVersion, bumpType ?? 'patch');
 
-  console.log(`\n📦 Bumping version: ${currentVersion} → ${newVersion} (${bumpType})\n`);
+  const releaseMode =
+    channel === 'next'
+      ? `${NEXT_PRERELEASE_TAG}${bumpType ? ` (${bumpType})` : ' (increment)'}`
+      : (bumpType ?? 'patch');
+  console.log(`\n📦 Bumping version: ${currentVersion} → ${newVersion} [${releaseMode}]\n`);
 
   // Check if tag already exists
   const existingTags = (await $`git tag -l v${newVersion}`.text()).trim();
@@ -146,7 +214,7 @@ async function main() {
 
   console.log(`\n✅ Released v${newVersion}\n`);
   console.log('Next steps:');
-  console.log('  1. Run: bun run publish');
+  console.log(`  1. Run: bun run ${channel === 'next' ? 'publish:next' : 'publish'}`);
   console.log('  2. Create GitHub release (optional)');
 }
 

@@ -150,12 +150,18 @@ This project uses a simple release script for version bumping. The git commit hi
 
 ### Releasing a new version
 
-Run the release script with the desired bump type:
+Run the release script with the desired channel and bump type:
 
 ```bash
+# Stable channel (published to npm `latest`)
 bun run release          # patch bump (default)
 bun run release minor    # minor bump
 bun run release major    # major bump
+
+# Prerelease channel (published to npm `next`)
+bun run release:next         # bump to/increment `-next.N`
+bun run release next minor   # start a new minor prerelease line as `x.y.0-next.1`
+bun run release next major   # start a new major prerelease line as `x.0.0-next.1`
 ```
 
 The script will:
@@ -167,7 +173,8 @@ The script will:
 
 After the release script completes, publish to npm:
 ```bash
-bun run publish
+bun run publish       # stable (`latest`)
+bun run publish:next  # prerelease (`next`)
 ```
 
 ## Git Workflow
@@ -255,4 +262,3 @@ git worktree add ../agentv_feat-new-evaluator feat/new-evaluator
 
 ## Python Scripts
 When running Python scripts, always use: `uv run <script.py>`
-
