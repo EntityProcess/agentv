@@ -10,7 +10,7 @@ execution:
     strategy: pass_at_k
     cost_limit_usd: 1.00
 
-cases:
+tests:
   - id: math-basics
     criteria: Assistant correctly answers the math question and shows reasoning
 

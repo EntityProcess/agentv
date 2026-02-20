@@ -78,7 +78,7 @@ process.exit(1);
 
     const context: ScriptExecutionContext = {
       workspacePath: '/tmp/workspace',
-      evalCaseId: 'test-case-1',
+      testId: 'test-case-1',
       evalRunId: 'run-123',
     };
 
@@ -96,7 +96,7 @@ process.exit(1);
 
     const context: ScriptExecutionContext = {
       workspacePath: '/tmp/workspace',
-      evalCaseId: 'test-case-2',
+      testId: 'test-case-2',
       evalRunId: 'run-123',
     };
 
@@ -113,7 +113,7 @@ process.exit(1);
 
     const context: ScriptExecutionContext = {
       workspacePath: '/tmp/workspace',
-      evalCaseId: 'test-case-3',
+      testId: 'test-case-3',
       evalRunId: 'run-123',
     };
 
@@ -128,7 +128,7 @@ process.exit(1);
 
     const context: ScriptExecutionContext = {
       workspacePath: '/tmp/workspace',
-      evalCaseId: 'test-case-4',
+      testId: 'test-case-4',
       evalRunId: 'run-123',
     };
 
@@ -168,7 +168,7 @@ rl.on('close', () => {
 
     const context: ScriptExecutionContext = {
       workspacePath: '/home/test/workspace',
-      evalCaseId: 'my-case',
+      testId: 'my-case',
       evalRunId: 'my-run',
     };
 
@@ -210,7 +210,7 @@ rl.on('close', () => {
 
     const context: ScriptExecutionContext = {
       workspacePath: '/tmp/workspace',
-      evalCaseId: 'sympy-20590',
+      testId: 'sympy-20590',
       evalRunId: 'run-123',
       caseInput: 'Fix the bug in issue #20590...',
       caseMetadata: { repo: 'sympy/sympy', base_commit: '9aabb237' },
@@ -229,7 +229,7 @@ rl.on('close', () => {
 
     const context: ScriptExecutionContext = {
       workspacePath: '/tmp/workspace',
-      evalCaseId: 'test-case-5',
+      testId: 'test-case-5',
       evalRunId: 'run-123',
     };
 

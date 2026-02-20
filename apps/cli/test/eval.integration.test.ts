@@ -50,7 +50,7 @@ targets:
   const testFileContent = `description: CLI integration test
 target: file-target
 
-cases:
+tests:
   - id: case-alpha
     criteria: System responds with alpha
     input_messages:

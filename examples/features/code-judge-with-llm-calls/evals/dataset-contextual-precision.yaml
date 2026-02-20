@@ -19,7 +19,7 @@ execution:
       target:
         max_calls: 10
 
-cases:
+tests:
   # Test case 1: Perfect ranking - relevant node first
   # Node 1: Relevant (TypeScript builds on JS)
   # Node 2: Irrelevant (Microsoft, 2012)

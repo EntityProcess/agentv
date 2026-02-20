@@ -4,7 +4,7 @@ This example demonstrates an **external batch runner** pattern for a (synthetic)
 
 ## How it works
 
-1. **Ground truth**: `evals/dataset.yaml` contains eval cases with `input` (structured object content) and `expected_output` (e.g., `content.decision`).
+1. **Ground truth**: `evals/dataset.yaml` contains tests with `input` (structured object content) and `expected_output` (e.g., `content.decision`).
 
 2. **CSV conversion**: `batch-cli-runner.ts` imports functions from `build-csv-from-eval.ts` to convert `input` into CSV format. The CSV contains only inputs (customer data, transaction details) - no expected decisions.
 
@@ -14,13 +14,13 @@ This example demonstrates an **external batch runner** pattern for a (synthetic)
 
 ## Batch error handling (missing JSONL id)
 
-This example intentionally includes an eval case (`aml-004-not-exist`) that is **not written into the CSV input** by `scripts/build-csv-from-eval.ts`.
+This example intentionally includes a test (`aml-004-not-exist`) that is **not written into the CSV input** by `scripts/build-csv-from-eval.ts`.
 
 That means the batch runner never emits a JSONL record for that `eval_id`, and the CLI provider surfaces a provider-side error:
 
 - `error: "Batch output missing id 'aml-004-not-exist'"`
 
-AgentV then reports that eval case as failed (with `error` populated), while still evaluating the other items in the batch.
+AgentV then reports that test as failed (with `error` populated), while still evaluating the other items in the batch.
 
 ## Tool Trajectory via output_messages
 
@@ -49,8 +49,8 @@ The `tool_trajectory` evaluator extracts tool calls directly from `output_messag
 
 ## Files
 
-- `batch-cli-demo.yaml` — Ground truth: eval cases with inputs and expected outputs
-- `scripts/build-csv-from-eval.ts` — Utilities to convert YAML eval cases to CSV format (imported by batch-cli-runner.ts)
+- `batch-cli-demo.yaml` — Ground truth: tests with inputs and expected outputs
+- `scripts/build-csv-from-eval.ts` — Utilities to convert YAML tests to CSV format (imported by batch-cli-runner.ts)
 - `scripts/batch-cli-runner.ts` — Main batch runner: converts inputs to CSV, processes them, writes actual responses as JSONL
 - `.agentv/targets.yaml` — Defines the `batch_cli` CLI target with provider batching enabled
 

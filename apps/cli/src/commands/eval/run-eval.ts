@@ -4,14 +4,14 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
-  type EvalCase,
+  type EvalTest,
   type EvaluationCache,
   type EvaluationResult,
   type ProviderResponse,
   type TrialsConfig,
   runEvaluation as defaultRunEvaluation,
   ensureVSCodeSubagents,
-  loadEvalSuite,
+  loadTestSuite,
   subscribeToCodexLogEntries,
   subscribeToCopilotSdkLogEntries,
   subscribeToPiLogEntries,
@@ -219,7 +219,7 @@ async function prepareFileMetadata(params: {
   readonly options: NormalizedOptions;
 }): Promise<{
   readonly evalIds: readonly string[];
-  readonly evalCases: readonly EvalCase[];
+  readonly evalCases: readonly EvalTest[];
   readonly selection: TargetSelection;
   readonly inlineTargetLabel: string;
   readonly trialsConfig?: TrialsConfig;
@@ -251,15 +251,15 @@ async function prepareFileMetadata(params: {
     : selection.resolvedTarget.kind;
   const inlineTargetLabel = `${selection.targetName} [provider=${providerLabel}]`;
 
-  const suite = await loadEvalSuite(testFilePath, repoRoot, {
+  const suite = await loadTestSuite(testFilePath, repoRoot, {
     verbose: options.verbose,
     filter: options.filter,
   });
-  const filteredIds = suite.cases.map((value) => value.id);
+  const filteredIds = suite.tests.map((value) => value.id);
 
   return {
     evalIds: filteredIds,
-    evalCases: suite.cases,
+    evalCases: suite.tests,
     selection,
     inlineTargetLabel,
     trialsConfig: suite.trials,
@@ -300,7 +300,7 @@ async function runSingleEvalFile(params: {
   readonly displayIdTracker: { getOrAssign(evalKey: string): number };
   readonly selection: TargetSelection;
   readonly inlineTargetLabel: string;
-  readonly evalCases: readonly EvalCase[];
+  readonly evalCases: readonly EvalTest[];
   readonly trialsConfig?: TrialsConfig;
 }): Promise<{ results: EvaluationResult[] }> {
   const {
@@ -476,7 +476,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     string,
     {
       readonly evalIds: readonly string[];
-      readonly evalCases: readonly EvalCase[];
+      readonly evalCases: readonly EvalTest[];
       readonly selection: TargetSelection;
       readonly inlineTargetLabel: string;
       readonly trialsConfig?: TrialsConfig;
@@ -496,7 +496,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     0,
   );
   if (totalEvalCount === 0) {
-    throw new Error('No eval cases matched the provided filters.');
+    throw new Error('No tests matched the provided filters.');
   }
   const progressReporter = createProgressReporter(totalWorkers, { verbose: options.verbose });
   progressReporter.start();

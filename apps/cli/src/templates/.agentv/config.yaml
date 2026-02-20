@@ -12,4 +12,4 @@ guideline_patterns:
 # - Patterns use standard glob syntax (via micromatch library)
 # - Paths are normalized to forward slashes for cross-platform compatibility
 # - Only files matching these patterns are loaded as guidelines
-# - All other files referenced in eval cases are treated as regular file content
+# - All other files referenced in tests are treated as regular file content

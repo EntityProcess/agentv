@@ -27,7 +27,7 @@ description: Math problem solving evaluation
 execution:
   target: default
 
-cases:
+tests:
   - id: addition
     criteria: Correctly calculates 15 + 27 = 42
 
@@ -133,7 +133,7 @@ agentv run evals/my-eval.yaml
 # Override target
 agentv run --target azure_base evals/**/*.yaml
 
-# Run specific eval case
+# Run specific test
 agentv run --eval-id case-123 evals/my-eval.yaml
 
 # Dry-run with mock provider
@@ -253,10 +253,10 @@ Your judge prompt file defines criteria and scoring guidelines.
 
 ### Rubric-Based Evaluation
 
-Define structured criteria directly in your eval case:
+Define structured criteria directly in your test:
 
 ```yaml
-cases:
+tests:
   - id: quicksort-explain
     criteria: Explain how quicksort works
 

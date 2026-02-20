@@ -1,6 +1,6 @@
 targets:
   # Mock agent that "creates tests" in the workspace.
-  # Each eval case gets a fresh copy of workspace-template/ as its CWD.
+  # Each test gets a fresh copy of workspace-template/ as its CWD.
   - name: mock_agent
     provider: cli
     command_template: >-

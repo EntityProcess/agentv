@@ -194,7 +194,7 @@ export type WorkspaceScriptConfig = {
 };
 
 /**
- * Workspace configuration for eval cases.
+ * Workspace configuration for eval tests.
  * Can be specified at suite level and overridden per-case.
  * Merge strategy: template/scripts replaced, env deep-merged.
  */
@@ -458,9 +458,9 @@ export type EvaluatorConfig =
   | AgentJudgeEvaluatorConfig;
 
 /**
- * Eval case definition sourced from AgentV specs.
+ * Eval test definition sourced from AgentV specs.
  */
-export interface EvalCase {
+export interface EvalTest {
   readonly id: string;
   readonly dataset?: string;
   readonly conversation_id?: string;
@@ -480,6 +480,9 @@ export interface EvalCase {
   /** Arbitrary metadata passed to workspace scripts via stdin */
   readonly metadata?: Record<string, unknown>;
 }
+
+/** @deprecated Use `EvalTest` instead */
+export type EvalCase = EvalTest;
 
 /**
  * Supported trial aggregation strategies.

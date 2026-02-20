@@ -3,9 +3,9 @@ import { describe, expect, it } from 'bun:test';
 import { ExecutionMetricsEvaluator } from '../../../src/evaluation/evaluators/execution-metrics.js';
 import type { ResolvedTarget } from '../../../src/evaluation/providers/targets.js';
 import type { TraceSummary } from '../../../src/evaluation/trace.js';
-import type { EvalCase, ExecutionMetricsEvaluatorConfig } from '../../../src/evaluation/types.js';
+import type { EvalTest, ExecutionMetricsEvaluatorConfig } from '../../../src/evaluation/types.js';
 
-const baseTestCase: EvalCase = {
+const baseTestCase: EvalTest = {
   id: 'metrics-test',
   dataset: 'test',
   question: 'Test question',

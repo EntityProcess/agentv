@@ -1,27 +1,27 @@
 ---
 title: Batch CLI Evaluation
-description: Evaluate external tools that process all eval cases in a single invocation
+description: Evaluate external tools that process all tests in a single invocation
 sidebar:
   order: 5
 ---
 
-Batch CLI evaluation handles tools that process multiple inputs at once — bulk classifiers, screening engines, or any runner that reads all eval cases and outputs results in one pass.
+Batch CLI evaluation handles tools that process multiple inputs at once — bulk classifiers, screening engines, or any runner that reads all tests and outputs results in one pass.
 
 ## Overview
 
 Use batch CLI evaluation when:
 
 - An external tool processes multiple inputs in a single invocation (e.g., AML screening, bulk classification)
-- The runner reads the eval YAML directly to extract all eval cases
-- Output is JSONL with records keyed by eval case `id`
-- Each eval case has its own evaluator to validate its corresponding output record
+- The runner reads the eval YAML directly to extract all tests
+- Output is JSONL with records keyed by test `id`
+- Each test has its own evaluator to validate its corresponding output record
 
 ## Execution Flow
 
 1. **AgentV** invokes the batch runner once, passing `--eval <yaml-path>` and `--output <jsonl-path>`
-2. **Batch runner** reads the eval YAML, extracts all eval cases, processes them, and writes JSONL output keyed by `id`
-3. **AgentV** parses the JSONL and routes each record to its matching eval case by `id`
-4. **Per-case evaluators** validate the output for each eval case independently
+2. **Batch runner** reads the eval YAML, extracts all tests, processes them, and writes JSONL output keyed by `id`
+3. **AgentV** parses the JSONL and routes each record to its matching test by `id`
+4. **Per-test evaluators** validate the output for each test independently
 
 ## Eval File Structure
 
@@ -30,7 +30,7 @@ description: Batch CLI demo using structured input
 execution:
   target: batch_cli
 
-cases:
+tests:
   - id: case-001
     criteria: |-
       Batch runner returns JSON with decision=CLEAR.
@@ -92,7 +92,7 @@ cases:
 
 ## Batch Runner Contract
 
-The batch runner reads the eval YAML directly and processes all eval cases in one invocation.
+The batch runner reads the eval YAML directly and processes all tests in one invocation.
 
 ### Input
 
@@ -104,14 +104,14 @@ bun run batch-runner.ts --eval ./my-eval.yaml --output ./results.jsonl
 
 ### Output
 
-JSONL where each line is a JSON object with an `id` matching an eval case:
+JSONL where each line is a JSON object with an `id` matching a test:
 
 ```json
 {"id": "case-001", "text": "{\"decision\": \"CLEAR\", ...}"}
 {"id": "case-002", "text": "{\"decision\": \"REVIEW\", ...}"}
 ```
 
-The `id` field must match the eval case `id` for AgentV to route output to the correct evaluator.
+The `id` field must match the test `id` for AgentV to route output to the correct evaluator.
 
 ### Output with Tool Trajectory
 
@@ -144,7 +144,7 @@ AgentV extracts tool calls directly from `output_messages[].tool_calls[]` for `t
 
 ## Evaluator Implementation
 
-Each eval case has its own evaluator that validates the batch runner output. The evaluator receives the standard `code_judge` input via stdin.
+Each test has its own evaluator that validates the batch runner output. The evaluator receives the standard `code_judge` input via stdin.
 
 **Input (stdin):**
 ```json
@@ -256,13 +256,13 @@ Key settings:
 | Setting | Description |
 |---------|-------------|
 | `provider: cli` | Use the CLI provider |
-| `provider_batching: true` | Run once for all eval cases instead of per-case |
+| `provider_batching: true` | Run once for all tests instead of per-test |
 | `{EVAL_FILE}` | Placeholder replaced with the eval file path |
 | `{OUTPUT_FILE}` | Placeholder replaced with the JSONL output path |
 
 ## Best Practices
 
-1. **Use unique eval case IDs** -- the batch runner and AgentV use `id` to route outputs to the correct evaluator
+1. **Use unique test IDs** -- the batch runner and AgentV use `id` to route outputs to the correct evaluator
 2. **Structured input** -- put structured data in `user.content` for the runner to extract
 3. **Structured expected_output** -- define expected output as objects for easy comparison
 4. **Deterministic runners** -- batch runners should produce consistent output for reliable testing

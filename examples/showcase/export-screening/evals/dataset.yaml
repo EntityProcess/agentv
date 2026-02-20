@@ -24,7 +24,7 @@ execution:
       type: code_judge
       script: ["bun", "run", "validate_risk_output.ts"]
 
-cases:
+tests:
   # ============================================
   # HIGH RISK CASES (Expert Assessment: High)
   # Based on CHPL (Common High Priority List) codes

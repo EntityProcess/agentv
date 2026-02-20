@@ -26,7 +26,7 @@ export const evalRunCommand = command({
     evalId: option({
       type: optional(string),
       long: 'eval-id',
-      description: 'Filter eval cases by ID pattern (glob supported, e.g., "summary-*")',
+      description: 'Filter tests by ID pattern (glob supported, e.g., "summary-*")',
     }),
     workers: option({
       type: number,

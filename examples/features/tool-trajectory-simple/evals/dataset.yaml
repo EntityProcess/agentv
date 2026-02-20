@@ -28,7 +28,7 @@ description: Tool trajectory evaluator examples for agent execution validation
 execution:
   target: mock_agent
 
-cases:
+tests:
   # ==========================================
   # Example 1: any_order mode - Validate minimum tool usage
   # Use case: Ensure agent uses required tools at least N times, regardless of order

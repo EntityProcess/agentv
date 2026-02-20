@@ -25,7 +25,7 @@ export-screening/
 ├── skills/
 │   └── export-risk-assessment.md       # Classification guidelines
 ├── evals/
-│   ├── dataset.yaml                    # Eval cases with expert assessments
+│   ├── dataset.yaml                    # Tests with expert assessments
 │   ├── validate_risk_output.ts         # JSON validator + accuracy checker
 │   └── ci_check.ts                     # CI/CD threshold checker
 └── .agentv/
@@ -62,7 +62,7 @@ flowchart LR
 
 ## How It Works
 
-### 1. Eval Cases (`dataset.yaml`)
+### 1. Tests (`dataset.yaml`)
 
 Each case contains:
 - **Input**: Shipment details (origin, destination, product, HS code)
@@ -90,7 +90,7 @@ The `ci_check.ts` script:
 
 ## Customization
 
-### Adding eval cases
+### Adding tests
 
 Add cases to `dataset.yaml` following the existing pattern:
 

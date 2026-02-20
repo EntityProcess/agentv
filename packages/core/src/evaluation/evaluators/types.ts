@@ -1,7 +1,7 @@
 import type { ResolvedTarget } from '../providers/targets.js';
 import type { ChatPrompt, OutputMessage, Provider } from '../providers/types.js';
 import type { TraceSummary } from '../trace.js';
-import type { EvalCase, EvaluationVerdict, EvaluatorConfig, JsonObject } from '../types.js';
+import type { EvalTest, EvaluationVerdict, EvaluatorConfig, JsonObject } from '../types.js';
 
 export type { EvaluationVerdict };
 
@@ -12,7 +12,7 @@ export type { EvaluationVerdict };
 export type TargetResolver = (targetName: string) => Provider | undefined;
 
 export interface EvaluationContext {
-  readonly evalCase: EvalCase;
+  readonly evalCase: EvalTest;
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;

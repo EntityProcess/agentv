@@ -1,6 +1,6 @@
 ---
 name: agentv-eval-builder
-description: Create and maintain AgentV YAML evaluation files for testing AI agent performance. Use this skill when creating new eval files, adding eval cases, or configuring evaluators.
+description: Create and maintain AgentV YAML evaluation files for testing AI agent performance. Use this skill when creating new eval files, adding tests, or configuring evaluators.
 ---
 
 # AgentV Eval Builder
@@ -14,7 +14,7 @@ description: Example eval
 execution:
   target: default
 
-cases:
+tests:
   - id: greeting
     criteria: Friendly greeting
     input: "Say hello"
@@ -26,10 +26,10 @@ cases:
 
 ## Eval File Structure
 
-**Required:** `cases` (array)
+**Required:** `tests` (array)
 **Optional:** `description`, `execution`, `dataset`, `workspace`
 
-**Eval case fields:**
+**Test fields:**
 
 | Field | Required | Description |
 |-------|----------|-------------|
@@ -52,11 +52,11 @@ cases:
 **Content types:** inline text, `{type: "file", value: "./path.md"}`
 **File paths:** relative from eval file dir, or absolute with `/` prefix from repo root
 
-**JSONL format:** One eval case per line as JSON. Optional `.yaml` sidecar for shared defaults. See `examples/features/basic-jsonl/`.
+**JSONL format:** One test per line as JSON. Optional `.yaml` sidecar for shared defaults. See `examples/features/basic-jsonl/`.
 
 ## Workspace Setup/Teardown
 
-Run scripts before/after each eval case. Define at suite level or override per case:
+Run scripts before/after each test. Define at suite level or override per case:
 
 ```yaml
 workspace:
@@ -67,7 +67,7 @@ workspace:
   teardown:
     script: ["bun", "run", "teardown.ts"]
 
-cases:
+tests:
   - id: case-1
     input: Fix the bug
     criteria: Bug is fixed

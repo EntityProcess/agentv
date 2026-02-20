@@ -8,7 +8,7 @@ import type { JsonObject } from '../../../src/evaluation/types.js';
 
 describe('extractTrialsConfig', () => {
   it('returns undefined when no execution block', () => {
-    const suite: JsonObject = { cases: [] };
+    const suite: JsonObject = { tests: [] };
     expect(extractTrialsConfig(suite)).toBeUndefined();
   });
 
@@ -148,7 +148,7 @@ describe('extractTargetFromSuite', () => {
   });
 
   it('returns undefined when no target specified', () => {
-    const suite: JsonObject = { cases: [] };
+    const suite: JsonObject = { tests: [] };
     expect(extractTargetFromSuite(suite)).toBeUndefined();
   });
 });

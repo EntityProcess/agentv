@@ -4,7 +4,7 @@ import path from 'node:path';
 import { isGuidelineFile } from '../loaders/config-loader.js';
 import { fileExists } from '../loaders/file-resolver.js';
 import type { ChatMessageRole, ChatPrompt } from '../providers/types.js';
-import type { EvalCase, JsonObject, TestMessage } from '../types.js';
+import type { EvalTest, JsonObject, TestMessage } from '../types.js';
 import { isJsonObject } from '../types.js';
 import {
   type FormattingMode,
@@ -33,7 +33,7 @@ export interface PromptInputs {
  * @param mode - Formatting mode: 'agent' for file references, 'lm' for embedded content (default: 'lm')
  */
 export async function buildPromptInputs(
-  testCase: EvalCase,
+  testCase: EvalTest,
   mode: FormattingMode = 'lm',
 ): Promise<PromptInputs> {
   const guidelineParts: Array<{ content: string; isFile: boolean; displayPath?: string }> = [];

@@ -1,6 +1,6 @@
 import type { OutputMessage } from '../providers/types.js';
 import { TEMPLATE_VARIABLES } from '../template-variables.js';
-import type { EvalCase, LlmJudgeEvaluatorConfig, RubricItem } from '../types.js';
+import type { EvalTest, LlmJudgeEvaluatorConfig, RubricItem } from '../types.js';
 import type { PromptInputs } from '../yaml-parser.js';
 import {
   DEFAULT_EVALUATOR_TEMPLATE,
@@ -18,7 +18,7 @@ export interface LlmJudgePromptAssembly {
 }
 
 export function assembleLlmJudgePrompt(input: {
-  evalCase: EvalCase;
+  evalCase: EvalTest;
   candidate: string;
   promptInputs: PromptInputs;
   evaluatorConfig?: LlmJudgeEvaluatorConfig;
@@ -56,7 +56,7 @@ export function assembleLlmJudgePrompt(input: {
 }
 
 function assembleFreeform(
-  evalCase: EvalCase,
+  evalCase: EvalTest,
   candidate: string,
   promptInputs: PromptInputs,
   fileChanges?: string,
@@ -96,7 +96,7 @@ function assembleFreeform(
 }
 
 function assembleChecklist(
-  evalCase: EvalCase,
+  evalCase: EvalTest,
   candidate: string,
   promptInputs: PromptInputs,
   rubrics: readonly RubricItem[],
@@ -143,7 +143,7 @@ function assembleChecklist(
 }
 
 function assembleScoreRange(
-  evalCase: EvalCase,
+  evalCase: EvalTest,
   candidate: string,
   promptInputs: PromptInputs,
   rubrics: readonly RubricItem[],

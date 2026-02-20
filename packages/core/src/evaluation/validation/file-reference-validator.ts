@@ -50,7 +50,7 @@ export async function validateFileReferences(
     return errors;
   }
 
-  let cases: JsonValue | undefined = parsed.cases;
+  let cases: JsonValue | undefined = parsed.tests;
   if (cases === undefined && 'eval_cases' in parsed) {
     cases = parsed.eval_cases;
   }
@@ -72,7 +72,7 @@ export async function validateFileReferences(
     if (Array.isArray(inputMessages)) {
       await validateMessagesFileRefs(
         inputMessages,
-        `cases[${i}].input_messages`,
+        `tests[${i}].input_messages`,
         searchRoots,
         absolutePath,
         errors,
@@ -84,7 +84,7 @@ export async function validateFileReferences(
     if (Array.isArray(expectedMessages)) {
       await validateMessagesFileRefs(
         expectedMessages,
-        `cases[${i}].expected_messages`,
+        `tests[${i}].expected_messages`,
         searchRoots,
         absolutePath,
         errors,

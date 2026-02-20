@@ -103,12 +103,12 @@ export default defineCodeJudge(({ candidateAnswer, criteria }) => {
 
 ## Template Variables
 
-Derived from eval case fields (users never author these directly):
+Derived from test fields (users never author these directly):
 
 | Variable | Source |
 |----------|--------|
 | `question` | First user message in `input_messages` |
-| `criteria` | Eval case `criteria` field |
+| `criteria` | Test `criteria` field |
 | `reference_answer` | Last entry in `expected_messages` |
 | `candidate_answer` | Last entry in `output_messages` (runtime) |
 | `input_messages` | Full resolved input array (JSON) |

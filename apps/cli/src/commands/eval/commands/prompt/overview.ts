@@ -1,4 +1,4 @@
-import { type EvalCase, loadEvalCases } from '@agentv/core';
+import { type EvalTest, loadTests } from '@agentv/core';
 import { command, restPositionals, string } from 'cmd-ts';
 
 import { findRepoRoot, resolveEvalPaths } from '../../shared.js';
@@ -19,13 +19,13 @@ export const evalPromptOverviewCommand = command({
     const repoRoot = await findRepoRoot(cwd);
 
     // Collect all cases upfront for the summary
-    const fileEntries: Array<{ path: string; cases: readonly EvalCase[] }> = [];
+    const fileEntries: Array<{ path: string; tests: readonly EvalTest[] }> = [];
     for (const evalPath of resolvedPaths) {
-      const cases = await loadEvalCases(evalPath, repoRoot);
-      fileEntries.push({ path: evalPath, cases });
+      const tests = await loadTests(evalPath, repoRoot);
+      fileEntries.push({ path: evalPath, tests });
     }
 
-    const totalCases = fileEntries.reduce((sum, e) => sum + e.cases.length, 0);
+    const totalCases = fileEntries.reduce((sum, e) => sum + e.tests.length, 0);
 
     const lines: string[] = [
       '# AgentV Eval Orchestration',
@@ -57,11 +57,11 @@ export const evalPromptOverviewCommand = command({
       '',
     ];
 
-    for (const { path: evalPath, cases } of fileEntries) {
+    for (const { path: evalPath, tests } of fileEntries) {
       lines.push(`## ${evalPath}`);
       lines.push('');
 
-      for (const evalCase of cases) {
+      for (const evalCase of tests) {
         const evaluatorSummary = describeEvaluators(evalCase);
         lines.push(`### ${evalCase.id}`);
         lines.push(`Criteria: ${evalCase.criteria}`);
@@ -83,7 +83,7 @@ export const evalPromptOverviewCommand = command({
   },
 });
 
-function describeEvaluators(evalCase: EvalCase): string | undefined {
+function describeEvaluators(evalCase: EvalTest): string | undefined {
   const configs = evalCase.evaluators;
   if (!configs || configs.length === 0) return undefined;
   return configs.map((c) => `${c.name} (${c.type})`).join(', ');

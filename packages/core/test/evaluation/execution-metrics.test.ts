@@ -11,7 +11,7 @@ import {
   mergeExecutionMetrics,
   tokensPerTool,
 } from '../../src/evaluation/trace.js';
-import type { EvalCase } from '../../src/evaluation/types.js';
+import type { EvalTest } from '../../src/evaluation/types.js';
 
 describe('Execution Metrics', () => {
   describe('explorationRatio', () => {
@@ -253,7 +253,7 @@ describe('Execution Metrics', () => {
 });
 
 describe('Code Judge Metrics Integration', () => {
-  const baseTestCase: EvalCase = {
+  const baseTestCase: EvalTest = {
     id: 'metrics-test',
     dataset: 'test',
     question: 'Test question',

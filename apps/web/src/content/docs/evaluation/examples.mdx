@@ -16,7 +16,7 @@ description: Basic arithmetic evaluation
 execution:
   target: default
 
-cases:
+tests:
   - id: simple-addition
     criteria: Correctly calculates 2+2
 
@@ -34,7 +34,7 @@ description: Code review with guidelines
 execution:
   target: azure_base
 
-cases:
+tests:
   - id: code-review-basic
     criteria: Assistant provides helpful code analysis with security considerations
 
@@ -71,14 +71,14 @@ cases:
 
 ## Multi-Evaluator
 
-Combine a code judge and an LLM judge on the same eval case:
+Combine a code judge and an LLM judge on the same test:
 
 ```yaml
 description: JSON generation with validation
 execution:
   target: default
 
-cases:
+tests:
   - id: json-generation-with-validation
     criteria: Generates valid JSON with required fields
 
@@ -113,7 +113,7 @@ description: Tool usage validation
 execution:
   target: mock_agent
 
-cases:
+tests:
   # Validate minimum tool usage (order doesn't matter)
   - id: research-depth
     criteria: Agent researches thoroughly
@@ -150,7 +150,7 @@ description: Static trace evaluation
 execution:
   target: static_trace
 
-cases:
+tests:
   - id: validate-trace-file
     criteria: Trace contains required steps
     input: Analyze trace
@@ -173,7 +173,7 @@ description: Multi-turn debugging session with clarifying questions
 execution:
   target: default
 
-cases:
+tests:
   - id: debug-with-clarification
     criteria: |-
       Assistant conducts a multi-turn debugging session, asking clarification
@@ -227,14 +227,14 @@ cases:
 
 ## Batch CLI
 
-Evaluate external batch runners that process all eval cases in one invocation:
+Evaluate external batch runners that process all tests in one invocation:
 
 ```yaml
 description: Batch CLI demo (AML screening)
 execution:
   target: batch_cli
 
-cases:
+tests:
   - id: aml-001
     criteria: |-
       Batch runner returns JSON with decision=CLEAR.
@@ -310,7 +310,7 @@ cases:
 - The batch runner reads the eval YAML via `--eval` flag and outputs JSONL keyed by `id`
 - Put structured data in `user.content` as objects for the runner to extract
 - Use `expected_output` with object fields for structured expected output
-- Each eval case has its own evaluator to validate its portion of the output
+- Each test has its own evaluator to validate its portion of the output
 
 ## File Path Conventions
 

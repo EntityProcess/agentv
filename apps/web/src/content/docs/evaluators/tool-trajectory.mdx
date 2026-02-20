@@ -188,7 +188,7 @@ description: Validate research agent tool usage
 execution:
   target: codex_agent
 
-cases:
+tests:
   - id: comprehensive-research
     criteria: Agent thoroughly researches the topic
 
@@ -218,7 +218,7 @@ cases:
 ### Multi-Step Pipeline
 
 ```yaml
-cases:
+tests:
   - id: data-pipeline
     criteria: Process data through complete pipeline
 
@@ -239,7 +239,7 @@ cases:
 ### Pipeline with Latency Assertions
 
 ```yaml
-cases:
+tests:
   - id: data-pipeline-perf
     criteria: Process data within timing budgets
 

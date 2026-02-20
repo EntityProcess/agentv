@@ -21,4 +21,4 @@ eval_patterns:
 # - Patterns use standard glob syntax (via fast-glob)
 # - Matching is case-insensitive
 # - Only files matching these patterns are discovered in interactive mode
-# - All other files referenced in eval cases are treated as regular file content
+# - All other files referenced in tests are treated as regular file content

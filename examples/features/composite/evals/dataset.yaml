@@ -5,7 +5,7 @@ dataset: composite-evaluator-examples
 execution:
   target: default
 
-cases:
+tests:
   # Example 1: Weighted Average Aggregation
   - id: weighted-average-example
     input:

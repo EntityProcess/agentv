@@ -3,7 +3,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { loadEvalCases } from '../../src/evaluation/yaml-parser.js';
+import { loadTests } from '../../src/evaluation/yaml-parser.js';
 
 describe('Workspace config parsing', () => {
   let testDir: string;
@@ -22,7 +22,7 @@ describe('Workspace config parsing', () => {
     await writeFile(
       evalFile,
       `
-cases:
+tests:
   - id: test-case-1
     input: "Do something"
     criteria: "Should do the thing"
@@ -36,7 +36,7 @@ cases:
 `,
     );
 
-    const cases = await loadEvalCases(evalFile, testDir);
+    const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace).toBeDefined();
     expect(cases[0].workspace?.setup).toEqual({
@@ -54,7 +54,7 @@ cases:
     await writeFile(
       evalFile,
       `
-cases:
+tests:
   - id: sympy-20590
     input: "Fix the bug"
     criteria: "Bug should be fixed"
@@ -64,7 +64,7 @@ cases:
 `,
     );
 
-    const cases = await loadEvalCases(evalFile, testDir);
+    const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
     expect(cases[0].metadata).toEqual({
       repo: 'sympy/sympy',
@@ -81,7 +81,7 @@ workspace:
   setup:
     script: ["bun", "run", "default-setup.ts"]
 
-cases:
+tests:
   - id: case-1
     input: "Do something"
     criteria: "Should work"
@@ -91,7 +91,7 @@ cases:
 `,
     );
 
-    const cases = await loadEvalCases(evalFile, testDir);
+    const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(2);
     // Both cases should inherit suite-level workspace
     expect(cases[0].workspace?.setup).toEqual({
@@ -111,7 +111,7 @@ workspace:
   setup:
     script: ["bun", "run", "default-setup.ts"]
 
-cases:
+tests:
   - id: case-override
     input: "Do something"
     criteria: "Should work"
@@ -124,7 +124,7 @@ cases:
 `,
     );
 
-    const cases = await loadEvalCases(evalFile, testDir);
+    const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(2);
 
     // case-override: setup replaced
@@ -147,7 +147,7 @@ cases:
     await writeFile(
       evalFile,
       `
-cases:
+tests:
   - id: test-cwd
     input: "Do something"
     criteria: "Should work"
@@ -158,7 +158,7 @@ cases:
 `,
     );
 
-    const cases = await loadEvalCases(evalFile, testDir);
+    const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace?.setup?.cwd).toBe(path.join(testDir, 'scripts'));
   });
@@ -171,14 +171,14 @@ cases:
 workspace:
   template: ./workspace-template
 
-cases:
+tests:
   - id: test-template
     input: "Do something"
     criteria: "Should work"
 `,
     );
 
-    const cases = await loadEvalCases(evalFile, testDir);
+    const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace?.template).toBe(path.join(testDir, 'workspace-template'));
   });
@@ -188,14 +188,14 @@ cases:
     await writeFile(
       evalFile,
       `
-cases:
+tests:
   - id: simple-case
     input: "Do something"
     criteria: "Should work"
 `,
     );
 
-    const cases = await loadEvalCases(evalFile, testDir);
+    const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace).toBeUndefined();
   });

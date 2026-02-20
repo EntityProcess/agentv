@@ -8,7 +8,7 @@ description: Demonstrates TypeScript prompt templates for custom LLM judge promp
 execution:
   target: default
 
-cases:
+tests:
   - id: prompt-template-basic
     criteria: The CLI provides a clear answer about TypeScript benefits.
 

@@ -58,7 +58,7 @@ import type { Props } from '@astrojs/starlight/props';
             <!-- Scene 1: agentv run -->
             <div class="av-scene av-scene-1">
               <div class="av-line av-line-cmd"><span class="av-prompt">$</span> <span class="av-typing">agentv run ./evals/math.yaml</span></div>
-              <div class="av-line av-line-out av-line-delay-1"><span class="av-dim">Running 3 eval cases...</span></div>
+              <div class="av-line av-line-out av-line-delay-1"><span class="av-dim">Running 3 tests...</span></div>
               <div class="av-line av-line-out av-line-delay-2"><span class="av-pass">PASS</span> addition <span class="av-dim">score: 1.0</span></div>
               <div class="av-line av-line-out av-line-delay-3"><span class="av-pass">PASS</span> multiplication <span class="av-dim">score: 1.0</span></div>
               <div class="av-line av-line-out av-line-delay-4"><span class="av-fail">FAIL</span> division <span class="av-dim">score: 0.4</span></div>
@@ -165,7 +165,7 @@ import type { Props } from '@astrojs/starlight/props';
 execution:
   target: default
 
-cases:
+tests:
   - id: addition
     criteria: Correctly calculates 15 + 27 = 42
     input: What is 15 + 27?`}</code></pre>

@@ -4,7 +4,7 @@ Demonstrates how a TypeScript code_judge evaluator can use `defineCodeJudge` fro
 
 ## Files
 
-- `evals/dataset.yaml`: Example eval case that uses a code_judge evaluator.
+- `evals/dataset.yaml`: Example test that uses a code_judge evaluator.
 - `scripts/verify-attachments.ts`: Code judge script using `defineCodeJudge`.
 - `evals/example.txt`, `evals/python.instructions.md`: Attachment fixtures.
 
