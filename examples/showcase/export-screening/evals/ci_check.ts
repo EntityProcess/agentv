@@ -14,6 +14,7 @@
  *
  * Options:
  *   --eval FILE         Run agentv eval on this dataset first
+ *   --samples N         Number of eval runs to aggregate (default: 1)
  *   --threshold FLOAT   F1 score threshold (default: 0.95)
  *   --check-class STR   Risk class to check (default: High)
  *   --output FILE       Output JSON file (optional, defaults next to results.jsonl)
@@ -83,6 +84,7 @@ interface ThresholdResult {
   actualF1: number;
   margin: number;
   message: string;
+  samples: number;
   policyWeightedOverall: PolicyWeightedOverall;
   metrics: ConfusionMatrixMetrics;
 }
@@ -308,38 +310,6 @@ function computeMacroOverall(
   return { precision: roundTo4(precision), recall: roundTo4(recall), f1: roundTo4(f1) };
 }
 
-function computeMetricsFromResults(
-  resultsFile: string,
-): ConfusionMatrixMetrics | { error: string } {
-  const loaded = loadResults(resultsFile);
-  if ('error' in loaded) return loaded;
-
-  const classes = ['Low', 'Medium', 'High'];
-  const { matrix, parsedSamples, unparsedSamples } = buildConfusionMatrix(loaded.records, classes);
-
-  const metricsPerClass = computePerClassMetrics(matrix, classes);
-  const accuracy = computeAccuracy(matrix, classes);
-  const overallMetrics = computeMacroOverall(metricsPerClass, classes);
-
-  const totalSamples = loaded.records.length;
-
-  return {
-    confusionMatrix: {
-      classes,
-      matrix,
-      description: 'matrix[actual][predicted] = count',
-    },
-    metricsPerClass,
-    overallMetrics,
-    summary: {
-      accuracy,
-      totalSamples,
-      parsedSamples,
-      unparsedSamples,
-    },
-  };
-}
-
 function computePolicyWeightedOverall(metrics: ConfusionMatrixMetrics): PolicyWeightedOverall {
   const perClass = metrics.metricsPerClass ?? {};
   const classList = ['Low', 'Medium', 'High'].filter((cls) => cls in perClass);
@@ -435,6 +405,7 @@ function checkThreshold(
   metrics: ConfusionMatrixMetrics,
   checkClass: string,
   threshold: number,
+  samples: number,
 ): ThresholdResult {
   const perClass = metrics.metricsPerClass ?? {};
   const classMetrics = perClass[checkClass] ?? {};
@@ -444,6 +415,8 @@ function checkThreshold(
 
   const policyWeightedOverall = computePolicyWeightedOverall(metrics);
 
+  const samplesNote = samples > 1 ? ` (aggregated over ${samples} samples)` : '';
+
   return {
     result: passed ? 'pass' : 'fail',
     checkedClass: checkClass,
@@ -451,8 +424,9 @@ function checkThreshold(
     actualF1,
     margin: Math.round((actualF1 - threshold) * 10000) / 10000,
     message: passed
-      ? `PASS: ${checkClass} F1 score ${(actualF1 * 100).toFixed(1)}% >= ${(threshold * 100).toFixed(1)}% threshold`
-      : `FAIL: ${checkClass} F1 score ${(actualF1 * 100).toFixed(1)}% < ${(threshold * 100).toFixed(1)}% threshold`,
+      ? `PASS: ${checkClass} F1 score ${(actualF1 * 100).toFixed(1)}% >= ${(threshold * 100).toFixed(1)}% threshold${samplesNote}`
+      : `FAIL: ${checkClass} F1 score ${(actualF1 * 100).toFixed(1)}% < ${(threshold * 100).toFixed(1)}% threshold${samplesNote}`,
+    samples,
     policyWeightedOverall,
     metrics,
   };
@@ -464,6 +438,7 @@ Usage: bun run ci_check.ts [options] [results.jsonl]
 
 Options:
   --eval <file>        Run agentv eval on this dataset first
+  --samples <num>      Number of eval runs to aggregate (default: 1)
   --threshold <num>    F1 score threshold (default: 0.95)
   --check-class <str>  Risk class to check: Low, Medium, High (default: High)
   --output <file>      Output JSON file (defaults next to results.jsonl)
@@ -477,6 +452,9 @@ Examples:
   # Full flow - run eval then check
   bun run ci_check.ts --eval dataset.yaml --threshold 0.95
 
+  # Multi-sample CI gate - run 3 times and aggregate
+  bun run ci_check.ts --eval dataset.yaml --samples 3 --threshold 0.90
+
   # Check existing results file
   bun run ci_check.ts results.jsonl --threshold 0.95
 `);
@@ -487,6 +465,7 @@ async function main(): Promise<void> {
     args: Bun.argv.slice(2),
     options: {
       eval: { type: 'string' },
+      samples: { type: 'string', default: '1' },
       threshold: { type: 'string', default: '0.95' },
       'check-class': { type: 'string', default: 'High' },
       output: { type: 'string' },
@@ -502,49 +481,85 @@ async function main(): Promise<void> {
 
   const threshold = Number.parseFloat(values.threshold ?? '0.95');
   const checkClass = values['check-class'] ?? 'High';
+  const samples = Math.max(1, Math.round(Number.parseFloat(values.samples ?? '1')));
 
   if (!['Low', 'Medium', 'High'].includes(checkClass)) {
     logError('Error: --check-class must be Low, Medium, or High');
     process.exit(1);
   }
 
-  // Determine results file
-  let resultsFile: string;
+  // Determine results file(s)
+  let allRecords: EvaluationResultJsonlRecord[] = [];
+  let lastResultsFile = '';
 
   if (values.eval) {
     if (!existsSync(values.eval)) {
       logError(`Error: Eval file not found: ${values.eval}`);
       process.exit(1);
     }
-    resultsFile = await runEval(values.eval);
+
+    for (let i = 0; i < samples; i++) {
+      if (samples > 1) {
+        logInfo(`\n--- Sample ${i + 1}/${samples} ---`);
+      }
+      const resultsFile = await runEval(values.eval);
+      const loaded = loadResults(resultsFile);
+      if ('error' in loaded) {
+        logError(`Error in sample ${i + 1}: ${loaded.error}`);
+        process.exit(1);
+      }
+      allRecords = allRecords.concat(loaded.records);
+      lastResultsFile = resultsFile;
+    }
   } else if (positionals.length > 0) {
-    resultsFile = positionals[0];
-    if (!existsSync(resultsFile)) {
-      logError(`Error: Results file not found: ${resultsFile}`);
+    lastResultsFile = positionals[0];
+    if (!existsSync(lastResultsFile)) {
+      logError(`Error: Results file not found: ${lastResultsFile}`);
       process.exit(1);
     }
+    const loaded = loadResults(lastResultsFile);
+    if ('error' in loaded) {
+      logError(`Error: ${loaded.error}`);
+      process.exit(1);
+    }
+    allRecords = loaded.records;
   } else {
     logError('Error: Provide either --eval <dataset.yaml> or <results.jsonl>');
     printUsage();
     process.exit(1);
   }
 
-  // Compute metrics from AgentV JSONL results
-  const metrics = computeMetricsFromResults(resultsFile);
+  // Compute metrics from aggregated records
+  const classes = ['Low', 'Medium', 'High'];
+  const { matrix, parsedSamples, unparsedSamples } = buildConfusionMatrix(allRecords, classes);
+  const metricsPerClass = computePerClassMetrics(matrix, classes);
+  const accuracy = computeAccuracy(matrix, classes);
+  const overallMetrics = computeMacroOverall(metricsPerClass, classes);
 
-  if ('error' in metrics) {
-    logError(`Error: ${metrics.error}`);
-    process.exit(1);
-  }
+  const metrics: ConfusionMatrixMetrics = {
+    confusionMatrix: {
+      classes,
+      matrix,
+      description: 'matrix[actual][predicted] = count',
+    },
+    metricsPerClass,
+    overallMetrics,
+    summary: {
+      accuracy,
+      totalSamples: allRecords.length,
+      parsedSamples,
+      unparsedSamples,
+    },
+  };
 
   // Check threshold
-  const result = checkThreshold(metrics, checkClass, threshold);
+  const result = checkThreshold(metrics, checkClass, threshold, samples);
 
   // Output JSON
   const outputJson = JSON.stringify(result, null, 2);
   const defaultOutputFile = join(
-    dirname(resultsFile),
-    basename(resultsFile).replace(/\.jsonl$/i, '.ci_check.json'),
+    dirname(lastResultsFile),
+    basename(lastResultsFile).replace(/\.jsonl$/i, '.ci_check.json'),
   );
   const outputFile = values.output ?? defaultOutputFile;
 
