@@ -13,7 +13,7 @@ Demonstrates loading test cases from external files using `file://` references.
 
 ```bash
 # From repository root
-bun agentv run examples/features/external-datasets/evals/dataset.yaml
+bun agentv eval examples/features/external-datasets/evals/dataset.yaml
 ```
 
 ## Key Files

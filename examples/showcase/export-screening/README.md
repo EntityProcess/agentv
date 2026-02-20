@@ -41,7 +41,7 @@ From the repository root:
 cd examples/showcase/export-screening
 
 # Run evaluation (produces per-case results)
-bun agentv run ./evals/dataset.yaml --out results.jsonl
+bun agentv eval ./evals/dataset.yaml --out results.jsonl
 ```
 
 ### Computing Metrics
@@ -67,7 +67,7 @@ This is useful when LLM outputs are non-deterministic — aggregating over multi
 
 ```mermaid
 flowchart LR
-    A[dataset.yaml] --> B[bun agentv run]
+    A[dataset.yaml] --> B[bun agentv eval]
     B --> C[results.jsonl<br/>per-case scores]
     C --> D[ci_check.ts<br/>confusion matrix + P/R/F1 + policy-weighted overall]
 ```
@@ -158,7 +158,7 @@ bun run ./evals/ci_check.ts results.jsonl --threshold 0.95
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--eval` | - | Run agentv run on this dataset first |
+| `--eval` | - | Run agentv eval on this dataset first |
 | `--samples` | `1` | Number of eval runs to aggregate |
 | `--threshold` | `0.95` | F1 score threshold (0.0-1.0) |
 | `--check-class` | `High` | Risk class to validate (`Low`, `Medium`, `High`) |

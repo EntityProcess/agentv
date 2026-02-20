@@ -10,7 +10,7 @@ Run AgentV evaluations by acting as the LLM yourself — no API keys needed.
 ## Quick Start
 
 ```bash
-agentv prompt <eval-file.yaml>
+agentv prompt eval <eval-file.yaml>
 ```
 
 This outputs a complete orchestration prompt with step-by-step instructions and all test IDs. Follow its instructions.
@@ -22,7 +22,7 @@ For each test, run these three steps:
 ### 1. Get Task Input
 
 ```bash
-agentv prompt input <path> --test-id <id>
+agentv prompt eval input <path> --test-id <id>
 ```
 
 Returns JSON with `input_messages`, `guideline_paths`, and `criteria`. File references in messages use absolute paths — read them from the filesystem.
@@ -36,7 +36,7 @@ You ARE the candidate LLM. Read `input_messages` from step 1, read any reference
 ### 3. Judge the Result
 
 ```bash
-agentv prompt judge <path> --test-id <id> --answer-file /tmp/eval_<id>.txt
+agentv prompt eval judge <path> --test-id <id> --answer-file /tmp/eval_<id>.txt
 ```
 
 Returns JSON with an `evaluators` array. Each evaluator has a `status`:
@@ -44,7 +44,7 @@ Returns JSON with an `evaluators` array. Each evaluator has a `status`:
 - **`"completed"`** — Deterministic score is final. Read `result.score` (0.0–1.0).
 - **`"prompt_ready"`** — LLM grading required. Send `prompt.system_prompt` as system and `prompt.user_prompt` as user to yourself. Parse the JSON response to get `score`, `hits`, `misses`.
 
-## When to use this vs `agentv run`
+## When to use this vs `agentv eval`
 
-- **`agentv run`** — You have API keys configured. Runs everything end-to-end automatically.
+- **`agentv eval`** — You have API keys configured. Runs everything end-to-end automatically.
 - **`agentv prompt`** — No API keys. You orchestrate: get input, answer the task yourself, judge the result.

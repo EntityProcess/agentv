@@ -16,7 +16,7 @@ export const app = subcommands({
   description: 'AgentV CLI',
   version: packageJson.version,
   cmds: {
-    run: evalRunCommand,
+    eval: evalRunCommand,
     prompt: evalPromptCommand,
     compare: compareCommand,
     convert: convertCommand,
@@ -28,73 +28,45 @@ export const app = subcommands({
   },
 });
 
-/** Known prompt subcommands used for default insertion. */
-const PROMPT_SUBCOMMANDS = new Set(['overview', 'input', 'judge']);
+/** Known prompt eval sub-subcommands used for default insertion. */
+const PROMPT_EVAL_SUBCOMMANDS = new Set(['overview', 'input', 'judge']);
 
 /**
- * Preprocess argv for backwards compatibility and default subcommand insertion:
- * 1. `agentv eval ...` → `agentv run ...` (deprecated alias)
- * 2. `agentv eval prompt ...` → `agentv prompt ...` (deprecated alias)
- * 3. `agentv file.yaml` → `agentv run file.yaml` (bare file shorthand)
- * 4. `agentv prompt file.yaml` → `agentv prompt overview file.yaml` (default subcommand)
- * 5. `--eval-id` → `--test-id` (deprecated alias)
+ * Preprocess argv for default subcommand insertion and convenience aliases:
+ * 1. `agentv prompt file.yaml` → `agentv prompt eval overview file.yaml`
+ * 2. `agentv prompt eval file.yaml` → `agentv prompt eval overview file.yaml`
+ * 3. `--eval-id` → `--test-id` (convenience alias)
  */
 export function preprocessArgv(argv: string[]): string[] {
   const result = [...argv];
 
-  const evalIndex = result.indexOf('eval');
-  if (evalIndex !== -1) {
-    const nextArg = result[evalIndex + 1];
-
-    if (nextArg === 'prompt') {
-      // `agentv eval prompt ...` → `agentv prompt ...`
-      result.splice(evalIndex, 2, 'prompt');
-      printEvalDeprecation('prompt');
-    } else if (nextArg === 'run') {
-      // `agentv eval run ...` → `agentv run ...`
-      result.splice(evalIndex, 2, 'run');
-      printEvalDeprecation('run');
-    } else {
-      // `agentv eval file.yaml ...` → `agentv run file.yaml ...`
-      result.splice(evalIndex, 1, 'run');
-      printEvalDeprecation('run');
-    }
-  }
-
-  // Insert default prompt subcommand: `agentv prompt file.yaml` → `agentv prompt overview file.yaml`
+  // Insert default prompt subcommands:
+  //   `agentv prompt file.yaml` → `agentv prompt eval overview file.yaml`
+  //   `agentv prompt eval file.yaml` → `agentv prompt eval overview file.yaml`
   const promptIndex = result.indexOf('prompt');
   if (promptIndex !== -1) {
-    const promptNextArg = result[promptIndex + 1];
-    if (promptNextArg === undefined || !PROMPT_SUBCOMMANDS.has(promptNextArg)) {
-      result.splice(promptIndex + 1, 0, 'overview');
+    const nextArg = result[promptIndex + 1];
+    if (nextArg !== 'eval') {
+      result.splice(promptIndex + 1, 0, 'eval');
+    }
+
+    const evalIdx = promptIndex + 1;
+    const subSubArg = result[evalIdx + 1];
+    if (subSubArg === undefined || !PROMPT_EVAL_SUBCOMMANDS.has(subSubArg)) {
+      result.splice(evalIdx + 1, 0, 'overview');
     }
   }
 
-  // Rewrite deprecated --eval-id → --test-id
+  // Rewrite --eval-id → --test-id (convenience alias)
   for (let i = 0; i < result.length; i++) {
     if (result[i] === '--eval-id') {
       result[i] = '--test-id';
-      console.error(
-        '⚠  `--eval-id` is deprecated. Use `--test-id` instead.\n   This alias will be removed in v4.0.\n',
-      );
     } else if (result[i].startsWith('--eval-id=')) {
       result[i] = `--test-id=${result[i].slice('--eval-id='.length)}`;
-      console.error(
-        '⚠  `--eval-id` is deprecated. Use `--test-id` instead.\n   This alias will be removed in v4.0.\n',
-      );
     }
   }
 
   return result;
-}
-
-/** @deprecated Use {@link preprocessArgv} instead. */
-export const preprocessEvalArgv = preprocessArgv;
-
-function printEvalDeprecation(replacement: string): void {
-  console.error(
-    `⚠  \`agentv eval\` is deprecated. Use \`agentv ${replacement}\` instead.\n   This alias will be removed in v4.0.\n`,
-  );
 }
 
 export async function runCli(argv: string[] = process.argv): Promise<void> {

@@ -7,7 +7,7 @@
 # Use case: Measuring field-level extraction accuracy across a document corpus.
 #
 # Run:
-#   bun agentv run examples/features/document-extraction/evals/confusion-metrics.yaml
+#   bun agentv eval examples/features/document-extraction/evals/confusion-metrics.yaml
 #
 # Aggregate:
 #   bun run examples/features/document-extraction/scripts/aggregate_metrics.ts \

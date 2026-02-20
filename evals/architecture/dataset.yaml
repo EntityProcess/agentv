@@ -46,7 +46,7 @@ tests:
 
               **Proposed change**: Update the skill to include these exact steps:
               1. Run `agentv init`
-              2. Run `agentv run --file evals/test.yaml --output json`
+              2. Run `agentv eval --file evals/test.yaml --output json`
               3. Run `agentv report --input results.json --format html`
               4. Open the generated report in your browser
 

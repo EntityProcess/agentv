@@ -4,7 +4,7 @@
 # errors, and durations) using code judges that inspect traceSummary.
 #
 # Run with:
-#   bun agentv run examples/trace-evaluation/evals/dataset.yaml --dry-run
+#   bun agentv eval examples/trace-evaluation/evals/dataset.yaml --dry-run
 
 description: Trace-based evaluation of agent internals using code judges
 

@@ -2,7 +2,7 @@
 # Demonstrates using the keyword-judge evaluator in a standard AgentV eval.
 #
 # Run: cd examples/showcase/evaluator-conformance
-#      npx agentv run EVAL.yaml --dry-run
+#      npx agentv eval EVAL.yaml --dry-run
 #
 # The conformance harness validates this evaluator separately:
 #      bun run conformance-check.ts

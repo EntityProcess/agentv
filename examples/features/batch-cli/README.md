@@ -63,5 +63,5 @@ cd examples/features/batch-cli
 
 # Run AgentV against the batch CLI target
 # NOTE: This requires the CLI provider to support batching + JSONL batch output.
-bun agentv run ./evals/dataset.yaml --target batch_cli
+bun agentv eval ./evals/dataset.yaml --target batch_cli
 ```

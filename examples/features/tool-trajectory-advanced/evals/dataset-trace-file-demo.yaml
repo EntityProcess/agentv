@@ -7,7 +7,7 @@
 # Setup:
 #   1. Create examples/features/.env with:
 #      TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/tool-trajectory-advanced
-#   2. Run: cd examples/features && npx agentv run tool-trajectory-advanced/evals/dataset-trace-file-demo.yaml --target static_trace
+#   2. Run: cd examples/features && npx agentv eval tool-trajectory-advanced/evals/dataset-trace-file-demo.yaml --target static_trace
 
 description: Static trace file evaluation demo - Product Research Agent
 

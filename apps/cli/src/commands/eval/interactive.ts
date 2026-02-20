@@ -28,7 +28,7 @@ export interface InteractiveConfig {
 }
 
 /**
- * Launch the interactive wizard when `agentv run` is called with no arguments.
+ * Launch the interactive wizard when `agentv eval` is called with no arguments.
  */
 export async function launchInteractiveWizard(): Promise<void> {
   const cwd = process.cwd();
@@ -112,7 +112,7 @@ async function promptNewEvaluation(cwd: string): Promise<InteractiveConfig | und
     console.log(
       '\n⚠  No eval files found in the current directory.\n' +
         '   Place .yaml or .jsonl eval files in your project, or use:\n' +
-        '   agentv run <path-to-eval.yaml>\n',
+        '   agentv eval <path-to-eval.yaml>\n',
     );
     return undefined;
   }

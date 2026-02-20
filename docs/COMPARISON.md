@@ -55,8 +55,8 @@ No network round-trips, no waiting for managed infrastructure:
 **3. CLI-Native, Not UI-Native**
 ```bash
 # AgentV workflow
-agentv run evals/my-eval.yaml
-agentv run evals/**/*.yaml --workers 10  # Parallel
+agentv eval evals/my-eval.yaml
+agentv eval evals/**/*.yaml --workers 10  # Parallel
 agentv compare before.jsonl after.jsonl   # A/B testing
 ```
 
@@ -70,7 +70,7 @@ agentv compare before.jsonl after.jsonl   # A/B testing
 ```
 
 AgentV integrates into:
-- **CI/CD pipelines** (`agentv run evals/ --out results.jsonl`)
+- **CI/CD pipelines** (`agentv eval evals/ --out results.jsonl`)
 - **Git hooks** (block PRs if eval scores drop)
 - **Scripts** (parse JSONL results, trigger alerts)
 - **Notebooks** (iterate on eval logic)
@@ -79,7 +79,7 @@ AgentV integrates into:
 ```bash
 npm install -g agentv
 agentv init
-agentv run evals/example.yaml
+agentv eval evals/example.yaml
 # Done. No Docker, no K8s, no managed service.
 ```
 
@@ -107,7 +107,7 @@ Evaluate if the answer is mathematically correct.
 - 0.0: Wrong answer
 ```
 
-Then re-run: `agentv run evals/math.yaml`
+Then re-run: `agentv eval evals/math.yaml`
 
 Alternative approaches:
 - Langfuse/LangWatch: Go to UI, modify prompt, save, re-run
@@ -139,7 +139,7 @@ Single eval run scores all three dimensions. Other approaches:
 
 ```yaml
 # .github/workflows/eval.yml
-- run: agentv run evals/**/*.yaml --out results.jsonl
+- run: agentv eval evals/**/*.yaml --out results.jsonl
 - run: agentv compare baseline.jsonl results.jsonl --threshold 0.05
   # Fail if performance drops > 5%
 ```
@@ -152,7 +152,7 @@ Other tools face challenges here:
 ### Scenario: Fast Iteration Feedback Loop
 
 ```
-Edit eval → Save → agentv run (1-2 sec) → Review results
+Edit eval → Save → agentv eval (1-2 sec) → Review results
 vs
 Edit in UI → Click Save → Wait for backend → Refresh dashboard (10-20 sec)
 ```

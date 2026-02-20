@@ -12,7 +12,7 @@ guideline_patterns:
   - "**/SKILL.md"
 
 # Customize which YAML files are discovered as evals during interactive mode
-# (`agentv run` with no args). Defaults to dataset*.yaml and eval.yaml under evals/.
+# (`agentv eval` with no args). Defaults to dataset*.yaml and eval.yaml under evals/.
 eval_patterns:
   - "**/evals/**/dataset*.yaml"
   - "**/evals/**/eval.yaml"
