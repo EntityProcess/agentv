@@ -1,0 +1,125 @@
+# Trace-Based Evaluation Examples
+#
+# Demonstrates how to evaluate agent internals (LLM calls, tool executions,
+# errors, and durations) using code judges that inspect traceSummary.
+#
+# Run with:
+#   bun agentv run examples/trace-evaluation/evals/dataset.yaml --dry-run
+
+description: Trace-based evaluation of agent internals using code judges
+
+tests:
+  # ==========================================
+  # Span Count - verify LLM/tool call counts
+  # ==========================================
+  - id: span-count-check
+    criteria: |-
+      Agent completes the task with a reasonable number of
+      LLM calls and tool executions.
+
+    input:
+      - role: user
+        content: Summarize the key points of this document.
+
+    execution:
+      evaluators:
+        - name: span-count
+          type: code_judge
+          script: ["bun", "run", "../judges/span-count.ts"]
+          config:
+            maxLlmCalls: 5
+            maxToolCalls: 10
+
+  # ==========================================
+  # Error Spans - detect errors in traces
+  # ==========================================
+  - id: error-free-execution
+    criteria: |-
+      Agent completes the task without any errors in the trace.
+
+    input:
+      - role: user
+        content: Look up the weather forecast for today.
+
+    execution:
+      evaluators:
+        - name: error-check
+          type: code_judge
+          script: ["bun", "run", "../judges/error-spans.ts"]
+          config:
+            maxErrors: 0
+
+  # ==========================================
+  # Error Spans with forbidden tools
+  # ==========================================
+  - id: no-forbidden-tools
+    criteria: |-
+      Agent completes the task without calling any forbidden tools
+      and without producing errors.
+
+    input:
+      - role: user
+        content: Answer the question using only approved data sources.
+
+    execution:
+      evaluators:
+        - name: error-and-tool-check
+          type: code_judge
+          script: ["bun", "run", "../judges/error-spans.ts"]
+          config:
+            maxErrors: 0
+            forbiddenTools:
+              - execute_code
+              - shell_command
+
+  # ==========================================
+  # Span Duration - no step exceeds threshold
+  # ==========================================
+  - id: duration-check
+    criteria: |-
+      No individual tool call exceeds the time threshold,
+      ensuring responsive agent behavior.
+
+    input:
+      - role: user
+        content: Retrieve and format the latest sales data.
+
+    execution:
+      evaluators:
+        - name: duration-check
+          type: code_judge
+          script: ["bun", "run", "../judges/span-duration.ts"]
+          config:
+            maxSpanMs: 3000
+            maxTotalMs: 15000
+
+  # ==========================================
+  # Combined - all trace checks together
+  # ==========================================
+  - id: comprehensive-trace-check
+    criteria: |-
+      Agent completes the task efficiently with no errors,
+      reasonable call counts, and fast execution.
+
+    input:
+      - role: user
+        content: Process this data and generate a summary report.
+
+    execution:
+      evaluators:
+        - name: span-count
+          type: code_judge
+          script: ["bun", "run", "../judges/span-count.ts"]
+          config:
+            maxLlmCalls: 8
+            maxToolCalls: 20
+
+        - name: error-check
+          type: code_judge
+          script: ["bun", "run", "../judges/error-spans.ts"]
+
+        - name: duration-check
+          type: code_judge
+          script: ["bun", "run", "../judges/span-duration.ts"]
+          config:
+            maxSpanMs: 5000

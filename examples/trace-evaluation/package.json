@@ -1,0 +1,8 @@
+{
+  "name": "agentv-example-trace-evaluation",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agentv/eval": "file:../../packages/eval"
+  }
+}
