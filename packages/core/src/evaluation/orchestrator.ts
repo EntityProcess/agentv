@@ -128,7 +128,7 @@ export interface RunEvalCaseOptions {
 
 export interface ProgressEvent {
   readonly workerId: number;
-  readonly evalId: string;
+  readonly testId: string;
   readonly status: 'pending' | 'running' | 'completed' | 'failed';
   readonly startedAt?: number;
   readonly completedAt?: number;
@@ -299,7 +299,7 @@ export async function runEvaluation(
     for (let i = 0; i < filteredEvalCases.length; i++) {
       await onProgress({
         workerId: i + 1,
-        evalId: filteredEvalCases[i].id,
+        testId: filteredEvalCases[i].id,
         status: 'pending',
       });
     }
@@ -349,7 +349,7 @@ export async function runEvaluation(
       if (onProgress) {
         await onProgress({
           workerId,
-          evalId: evalCase.id,
+          testId: evalCase.id,
           status: 'running',
           startedAt: Date.now(),
         });
@@ -382,7 +382,7 @@ export async function runEvaluation(
         if (onProgress) {
           await onProgress({
             workerId,
-            evalId: evalCase.id,
+            testId: evalCase.id,
             status: result.error ? 'failed' : 'completed',
             startedAt: 0, // Not used for completed status
             completedAt: Date.now(),
@@ -398,7 +398,7 @@ export async function runEvaluation(
         if (onProgress) {
           await onProgress({
             workerId,
-            evalId: evalCase.id,
+            testId: evalCase.id,
             status: 'failed',
             completedAt: Date.now(),
             error: error instanceof Error ? error.message : String(error),
@@ -520,7 +520,7 @@ async function runBatchEvaluation(options: {
     for (let i = 0; i < evalCases.length; i++) {
       await onProgress({
         workerId: 1,
-        evalId: evalCases[i].id,
+        testId: evalCases[i].id,
         status: 'running',
         startedAt,
       });
@@ -602,7 +602,7 @@ async function runBatchEvaluation(options: {
       if (onProgress) {
         await onProgress({
           workerId: 1,
-          evalId: evalCase.id,
+          testId: evalCase.id,
           status: 'failed',
           completedAt: Date.now(),
           error: error instanceof Error ? error.message : String(error),
@@ -619,7 +619,7 @@ async function runBatchEvaluation(options: {
     if (onProgress) {
       await onProgress({
         workerId: 1,
-        evalId: evalCase.id,
+        testId: evalCase.id,
         status: result.error ? 'failed' : 'completed',
         startedAt: 0,
         completedAt: Date.now(),
@@ -1100,7 +1100,7 @@ async function evaluateCandidate(options: {
 
   return {
     timestamp: completedAt.toISOString(),
-    evalId: evalCase.id,
+    testId: evalCase.id,
     dataset: evalCase.dataset,
     conversationId: evalCase.conversation_id,
     score: score.score,
@@ -2044,7 +2044,7 @@ function buildErrorResult(
 
   return {
     timestamp: timestamp.toISOString(),
-    evalId: evalCase.id,
+    testId: evalCase.id,
     dataset: evalCase.dataset,
     conversationId: evalCase.conversation_id,
     score: 0,

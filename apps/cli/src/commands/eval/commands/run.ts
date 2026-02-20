@@ -23,9 +23,9 @@ export const evalRunCommand = command({
       long: 'targets',
       description: 'Path to targets.yaml (overrides discovery)',
     }),
-    evalId: option({
+    testId: option({
       type: optional(string),
-      long: 'eval-id',
+      long: 'test-id',
       description: 'Filter tests by ID pattern (glob supported, e.g., "summary-*")',
     }),
     workers: option({
@@ -115,7 +115,7 @@ export const evalRunCommand = command({
     const rawOptions: Record<string, unknown> = {
       target: args.target,
       targets: args.targets,
-      filter: args.evalId,
+      filter: args.testId,
       workers: args.workers,
       out: args.out,
       outputFormat: args.outputFormat,

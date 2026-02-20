@@ -550,7 +550,7 @@ export type TrialAggregation = PassAtKAggregation | MeanAggregation | Confidence
  */
 export interface EvaluationResult {
   readonly timestamp: string;
-  readonly evalId: string;
+  readonly testId: string;
   readonly dataset?: string;
   readonly conversationId?: string;
   readonly score: number;

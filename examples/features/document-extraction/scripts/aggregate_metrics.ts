@@ -43,7 +43,7 @@ interface EvaluatorResult {
 }
 
 interface EvaluationResult {
-  eval_id: string;
+  test_id: string;
   score: number;
   evaluator_results?: EvaluatorResult[];
 }

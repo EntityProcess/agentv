@@ -81,7 +81,7 @@ tests:
 
 **Lifecycle:** template copy → setup → git baseline → agent → file changes → teardown → cleanup
 **Merge:** Case-level fields replace suite-level fields.
-**Scripts receive stdin JSON:** `{workspace_path, eval_case_id, eval_run_id, case_input, case_metadata}`
+**Scripts receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
 **Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
 See https://agentv.dev/targets/configuration/#workspace-setupteardown
 
@@ -209,15 +209,15 @@ See `references/rubric-evaluator.md` for score-range mode and scoring formula.
 
 ```bash
 # Run evaluation (requires API keys)
-agentv run <file.yaml> [--eval-id <id>] [--target <name>] [--dry-run]
+agentv run <file.yaml> [--test-id <id>] [--target <name>] [--dry-run]
 
 # Run with trace persistence (writes to .agentv/traces/)
 agentv run <file.yaml> --trace
 
 # Agent-orchestrated evals (no API keys needed)
 agentv prompt <file.yaml>                                      # orchestration overview
-agentv prompt input <file.yaml> --eval-id <id>                 # task input JSON (file paths, not embedded content)
-agentv prompt judge <file.yaml> --eval-id <id> --answer-file f # judge prompts / code judge results
+agentv prompt input <file.yaml> --test-id <id>                 # task input JSON (file paths, not embedded content)
+agentv prompt judge <file.yaml> --test-id <id> --answer-file f # judge prompts / code judge results
 
 # Validate eval file
 agentv validate <file.yaml>

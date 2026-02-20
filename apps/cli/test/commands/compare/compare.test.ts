@@ -22,7 +22,22 @@ describe('compare command', () => {
   });
 
   describe('loadJsonlResults', () => {
-    it('should load valid JSONL file with eval_id results', () => {
+    it('should load valid JSONL file with test_id results', () => {
+      const filePath = path.join(tempDir, 'results.jsonl');
+      writeFileSync(
+        filePath,
+        '{"test_id": "case-1", "score": 0.8}\n{"test_id": "case-2", "score": 0.9}\n',
+      );
+
+      const results = loadJsonlResults(filePath);
+
+      expect(results).toEqual([
+        { testId: 'case-1', score: 0.8 },
+        { testId: 'case-2', score: 0.9 },
+      ]);
+    });
+
+    it('should load valid JSONL file with legacy eval_id results', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(
         filePath,
@@ -32,8 +47,8 @@ describe('compare command', () => {
       const results = loadJsonlResults(filePath);
 
       expect(results).toEqual([
-        { evalId: 'case-1', score: 0.8 },
-        { evalId: 'case-2', score: 0.9 },
+        { testId: 'case-1', score: 0.8 },
+        { testId: 'case-2', score: 0.9 },
       ]);
     });
 
@@ -41,7 +56,7 @@ describe('compare command', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(
         filePath,
-        '{"eval_id": "case-1", "score": 0.8}\n\n{"eval_id": "case-2", "score": 0.9}\n',
+        '{"test_id": "case-1", "score": 0.8}\n\n{"test_id": "case-2", "score": 0.9}\n',
       );
 
       const results = loadJsonlResults(filePath);
@@ -49,16 +64,16 @@ describe('compare command', () => {
       expect(results).toHaveLength(2);
     });
 
-    it('should throw error for missing eval_id', () => {
+    it('should throw error for missing test_id', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
       writeFileSync(filePath, '{"score": 0.8}\n');
 
-      expect(() => loadJsonlResults(filePath)).toThrow('Missing eval_id');
+      expect(() => loadJsonlResults(filePath)).toThrow('Missing test_id');
     });
 
     it('should throw error for missing score', () => {
       const filePath = path.join(tempDir, 'results.jsonl');
-      writeFileSync(filePath, '{"eval_id": "case-1"}\n');
+      writeFileSync(filePath, '{"test_id": "case-1"}\n');
 
       expect(() => loadJsonlResults(filePath)).toThrow('Missing or invalid score');
     });
@@ -93,27 +108,27 @@ describe('compare command', () => {
   });
 
   describe('compareResults', () => {
-    it('should match results by evalId and compute deltas', () => {
+    it('should match results by testId and compute deltas', () => {
       // Use values that avoid floating point precision issues
       const results1 = [
-        { evalId: 'case-1', score: 0.5 },
-        { evalId: 'case-2', score: 0.75 },
+        { testId: 'case-1', score: 0.5 },
+        { testId: 'case-2', score: 0.75 },
       ];
       const results2 = [
-        { evalId: 'case-1', score: 0.7 }, // +0.2 win
-        { evalId: 'case-2', score: 0.5 }, // -0.25 loss
+        { testId: 'case-1', score: 0.7 }, // +0.2 win
+        { testId: 'case-2', score: 0.5 }, // -0.25 loss
       ];
 
       const comparison = compareResults(results1, results2, 0.1);
 
       expect(comparison.matched).toHaveLength(2);
-      expect(comparison.matched[0].evalId).toBe('case-1');
+      expect(comparison.matched[0].testId).toBe('case-1');
       expect(comparison.matched[0].score1).toBe(0.5);
       expect(comparison.matched[0].score2).toBe(0.7);
       expect(comparison.matched[0].delta).toBeCloseTo(0.2, 10);
       expect(comparison.matched[0].outcome).toBe('win');
 
-      expect(comparison.matched[1].evalId).toBe('case-2');
+      expect(comparison.matched[1].testId).toBe('case-2');
       expect(comparison.matched[1].score1).toBe(0.75);
       expect(comparison.matched[1].score2).toBe(0.5);
       expect(comparison.matched[1].delta).toBeCloseTo(-0.25, 10);
@@ -122,12 +137,12 @@ describe('compare command', () => {
 
     it('should count unmatched results', () => {
       const results1 = [
-        { evalId: 'case-1', score: 0.8 },
-        { evalId: 'only-in-1', score: 0.5 },
+        { testId: 'case-1', score: 0.8 },
+        { testId: 'only-in-1', score: 0.5 },
       ];
       const results2 = [
-        { evalId: 'case-1', score: 0.9 },
-        { evalId: 'only-in-2', score: 0.6 },
+        { testId: 'case-1', score: 0.9 },
+        { testId: 'only-in-2', score: 0.6 },
       ];
 
       const comparison = compareResults(results1, results2, 0.1);
@@ -138,14 +153,14 @@ describe('compare command', () => {
     it('should compute summary statistics', () => {
       // Use values that produce clear deltas above/below threshold
       const results1 = [
-        { evalId: 'case-1', score: 0.5 },
-        { evalId: 'case-2', score: 0.75 },
-        { evalId: 'case-3', score: 0.6 },
+        { testId: 'case-1', score: 0.5 },
+        { testId: 'case-2', score: 0.75 },
+        { testId: 'case-3', score: 0.6 },
       ];
       const results2 = [
-        { evalId: 'case-1', score: 0.7 }, // win (+0.2)
-        { evalId: 'case-2', score: 0.5 }, // loss (-0.25)
-        { evalId: 'case-3', score: 0.65 }, // tie (+0.05)
+        { testId: 'case-1', score: 0.7 }, // win (+0.2)
+        { testId: 'case-2', score: 0.5 }, // loss (-0.25)
+        { testId: 'case-3', score: 0.65 }, // tie (+0.05)
       ];
 
       const comparison = compareResults(results1, results2, 0.1);

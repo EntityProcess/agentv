@@ -5,7 +5,7 @@ import type { EvaluationResult, EvaluatorResult } from '../../src/evaluation/typ
 function makeFullResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult {
   return {
     timestamp: '2026-01-01T00:00:00.000Z',
-    evalId: 'test-case',
+    testId: 'test-case',
     dataset: 'test-dataset',
     conversationId: 'conv-1',
     score: 0.85,
@@ -55,7 +55,7 @@ describe('trimBaselineResult', () => {
     const trimmed = trimBaselineResult(full);
 
     expect(trimmed.timestamp).toBe(full.timestamp);
-    expect(trimmed.evalId).toBe(full.evalId);
+    expect(trimmed.testId).toBe(full.testId);
     expect(trimmed.dataset).toBe(full.dataset);
     expect(trimmed.conversationId).toBe(full.conversationId);
     expect(trimmed.score).toBe(full.score);

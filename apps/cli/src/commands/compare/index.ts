@@ -19,12 +19,12 @@ const noColor = process.env.NO_COLOR !== undefined || !process.stdout.isTTY;
 const c = noColor ? Object.fromEntries(Object.keys(colors).map((k) => [k, ''])) : colors;
 
 interface EvalResult {
-  evalId: string;
+  testId: string;
   score: number;
 }
 
 interface MatchedResult {
-  evalId: string;
+  testId: string;
   score1: number;
   score2: number;
   delta: number;
@@ -52,14 +52,15 @@ export function loadJsonlResults(filePath: string): EvalResult[] {
     .filter((line) => line.trim());
 
   return lines.map((line) => {
-    const record = JSON.parse(line) as { eval_id?: string; score?: number };
-    if (typeof record.eval_id !== 'string') {
-      throw new Error(`Missing eval_id in result: ${line}`);
+    const record = JSON.parse(line) as { test_id?: string; eval_id?: string; score?: number };
+    const testId = record.test_id ?? record.eval_id;
+    if (typeof testId !== 'string') {
+      throw new Error(`Missing test_id in result: ${line}`);
     }
     if (typeof record.score !== 'number') {
       throw new Error(`Missing or invalid score in result: ${line}`);
     }
-    return { evalId: record.eval_id, score: record.score };
+    return { testId, score: record.score };
   });
 }
 
@@ -74,29 +75,29 @@ export function compareResults(
   results2: EvalResult[],
   threshold: number,
 ): ComparisonOutput {
-  const map1 = new Map(results1.map((r) => [r.evalId, r.score]));
-  const map2 = new Map(results2.map((r) => [r.evalId, r.score]));
+  const map1 = new Map(results1.map((r) => [r.testId, r.score]));
+  const map2 = new Map(results2.map((r) => [r.testId, r.score]));
 
   const matched: MatchedResult[] = [];
   const matchedIds = new Set<string>();
 
-  for (const [evalId, score1] of map1) {
-    const score2 = map2.get(evalId);
+  for (const [testId, score1] of map1) {
+    const score2 = map2.get(testId);
     if (score2 !== undefined) {
       const delta = score2 - score1;
       matched.push({
-        evalId: evalId,
+        testId,
         score1,
         score2,
         delta,
         outcome: classifyOutcome(delta, threshold),
       });
-      matchedIds.add(evalId);
+      matchedIds.add(testId);
     }
   }
 
-  const unmatchedFile1 = results1.filter((r) => !matchedIds.has(r.evalId)).length;
-  const unmatchedFile2 = results2.filter((r) => !map1.has(r.evalId)).length;
+  const unmatchedFile1 = results1.filter((r) => !matchedIds.has(r.testId)).length;
+  const unmatchedFile2 = results2.filter((r) => !map1.has(r.testId)).length;
 
   const wins = matched.filter((m) => m.outcome === 'win').length;
   const losses = matched.filter((m) => m.outcome === 'loss').length;
@@ -171,16 +172,16 @@ export function formatTable(comparison: ComparisonOutput, file1: string, file2: 
   lines.push('');
 
   if (comparison.matched.length === 0) {
-    lines.push(`${c.yellow}No matching eval IDs found between files.${c.reset}`);
+    lines.push(`${c.yellow}No matching test IDs found between files.${c.reset}`);
   } else {
     // Calculate column widths
     const maxIdLen = Math.max(
-      7, // "Eval ID"
-      ...comparison.matched.map((m) => m.evalId.length),
+      7, // "Test ID"
+      ...comparison.matched.map((m) => m.testId.length),
     );
 
     // Table header
-    const header = `  ${padRight('Eval ID', maxIdLen)}  ${padLeft('Baseline', 8)}  ${padLeft('Candidate', 9)}  ${padLeft('Delta', 8)}  Result`;
+    const header = `  ${padRight('Test ID', maxIdLen)}  ${padLeft('Baseline', 8)}  ${padLeft('Candidate', 9)}  ${padLeft('Delta', 8)}  Result`;
     lines.push(`${c.dim}${header}${c.reset}`);
     lines.push(
       `${c.dim}  ${'─'.repeat(maxIdLen)}  ${'─'.repeat(8)}  ${'─'.repeat(9)}  ${'─'.repeat(8)}  ${'─'.repeat(8)}${c.reset}`,
@@ -188,7 +189,7 @@ export function formatTable(comparison: ComparisonOutput, file1: string, file2: 
 
     // Table rows
     for (const m of comparison.matched) {
-      const row = `  ${padRight(m.evalId, maxIdLen)}  ${padLeft(m.score1.toFixed(2), 8)}  ${padLeft(m.score2.toFixed(2), 9)}  ${padLeft(formatDelta(m.delta), 8)}  ${formatOutcome(m.outcome)}`;
+      const row = `  ${padRight(m.testId, maxIdLen)}  ${padLeft(m.score1.toFixed(2), 8)}  ${padLeft(m.score2.toFixed(2), 9)}  ${padLeft(formatDelta(m.delta), 8)}  ${formatOutcome(m.outcome)}`;
       lines.push(row);
     }
   }

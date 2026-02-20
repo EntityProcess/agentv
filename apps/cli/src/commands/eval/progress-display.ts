@@ -1,6 +1,6 @@
 export interface WorkerProgress {
   workerId: number;
-  evalId: string;
+  testId: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
   startedAt?: number;
   completedAt?: number;
@@ -58,21 +58,21 @@ export class ProgressDisplay {
       case 'pending':
         // Only print pending in verbose mode (just shows the queue)
         if (this.verbose && !previous) {
-          console.log(`${countPrefix}   ⏳ ${progress.evalId}${targetSuffix}`);
+          console.log(`${countPrefix}   ⏳ ${progress.testId}${targetSuffix}`);
         }
         break;
       case 'running':
         // Always print running - useful feedback for long-running agents
         if (!previous || previous.status === 'pending') {
-          console.log(`${countPrefix}   🔄 ${progress.evalId}${targetSuffix}`);
+          console.log(`${countPrefix}   🔄 ${progress.testId}${targetSuffix}`);
         }
         break;
       case 'completed':
-        console.log(`${countPrefix}   ✅ ${progress.evalId}${targetSuffix}`);
+        console.log(`${countPrefix}   ✅ ${progress.testId}${targetSuffix}`);
         break;
       case 'failed':
         console.log(
-          `${countPrefix}   ❌ ${progress.evalId}${targetSuffix}${progress.error ? `: ${progress.error}` : ''}`,
+          `${countPrefix}   ❌ ${progress.testId}${targetSuffix}${progress.error ? `: ${progress.error}` : ''}`,
         );
         break;
     }

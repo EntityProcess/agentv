@@ -13,9 +13,9 @@ export const evalPromptInputCommand = command({
       displayName: 'eval-path',
       description: 'Path to evaluation .yaml file',
     }),
-    evalId: option({
+    testId: option({
       type: string,
-      long: 'eval-id',
+      long: 'test-id',
       description: 'Test ID',
     }),
   },
@@ -23,7 +23,7 @@ export const evalPromptInputCommand = command({
     const cwd = process.cwd();
     const repoRoot = await findRepoRoot(cwd);
 
-    const evalCase = await loadTestById(args.evalPath, repoRoot, args.evalId);
+    const evalCase = await loadTestById(args.evalPath, repoRoot, args.testId);
 
     // Build mapping from relative file names to resolved absolute paths.
     // input_segments has resolvedPath for non-guideline files;
@@ -34,7 +34,7 @@ export const evalPromptInputCommand = command({
     const resolvedMessages = resolveMessages(evalCase.input_messages, fileMap);
 
     const output = {
-      eval_id: evalCase.id,
+      test_id: evalCase.id,
       input_messages: resolvedMessages,
       guideline_paths: evalCase.guideline_paths,
       criteria: evalCase.criteria,

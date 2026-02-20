@@ -51,7 +51,7 @@ describe('TraceWriter', () => {
       const writer = await TraceWriter.open(testFilePath);
 
       const record = {
-        evalId: 'test-1',
+        testId: 'test-1',
         startTime: '2024-01-01T00:00:00Z',
         endTime: '2024-01-01T00:01:00Z',
         durationMs: 60000,
@@ -77,7 +77,7 @@ describe('TraceWriter', () => {
       expect(lines).toHaveLength(1);
 
       const parsed = JSON.parse(lines[0]);
-      expect(parsed.eval_id).toBe('test-1');
+      expect(parsed.test_id).toBe('test-1');
       expect(parsed.start_time).toBe('2024-01-01T00:00:00Z');
       expect(parsed.duration_ms).toBe(60000);
       expect(parsed.spans).toHaveLength(1);
@@ -90,9 +90,9 @@ describe('TraceWriter', () => {
     it('should write multiple trace records', async () => {
       const writer = await TraceWriter.open(testFilePath);
 
-      await writer.append({ evalId: 'test-1', spans: [] });
-      await writer.append({ evalId: 'test-2', spans: [] });
-      await writer.append({ evalId: 'test-3', spans: [] });
+      await writer.append({ testId: 'test-1', spans: [] });
+      await writer.append({ testId: 'test-2', spans: [] });
+      await writer.append({ testId: 'test-3', spans: [] });
 
       await writer.close();
 
@@ -100,16 +100,16 @@ describe('TraceWriter', () => {
       const lines = content.trim().split('\n');
       expect(lines).toHaveLength(3);
 
-      expect(JSON.parse(lines[0]).eval_id).toBe('test-1');
-      expect(JSON.parse(lines[1]).eval_id).toBe('test-2');
-      expect(JSON.parse(lines[2]).eval_id).toBe('test-3');
+      expect(JSON.parse(lines[0]).test_id).toBe('test-1');
+      expect(JSON.parse(lines[1]).test_id).toBe('test-2');
+      expect(JSON.parse(lines[2]).test_id).toBe('test-3');
     });
 
     it('should throw when writing to closed writer', async () => {
       const writer = await TraceWriter.open(testFilePath);
       await writer.close();
 
-      await expect(writer.append({ evalId: 'test', spans: [] })).rejects.toThrow(
+      await expect(writer.append({ testId: 'test', spans: [] })).rejects.toThrow(
         'Cannot write to closed trace writer',
       );
     });
@@ -131,7 +131,7 @@ describe('TraceWriter', () => {
 
       // Write 100 records concurrently
       const writePromises = Array.from({ length: 100 }, (_, i) =>
-        writer.append({ evalId: `test-${i}`, spans: [] }),
+        writer.append({ testId: `test-${i}`, spans: [] }),
       );
 
       await Promise.all(writePromises);
@@ -144,7 +144,7 @@ describe('TraceWriter', () => {
       // Verify all records are valid JSON
       for (const line of lines) {
         const parsed = JSON.parse(line);
-        expect(parsed.eval_id).toMatch(/^test-\d+$/);
+        expect(parsed.test_id).toMatch(/^test-\d+$/);
       }
     });
   });
@@ -242,7 +242,7 @@ describe('buildTraceRecord', () => {
       costUsd: 0.01,
     });
 
-    expect(record.evalId).toBe('eval-123');
+    expect(record.testId).toBe('eval-123');
     expect(record.startTime).toBe('2024-01-01T00:00:00Z');
     expect(record.endTime).toBe('2024-01-01T00:01:00Z');
     expect(record.durationMs).toBe(60000);
@@ -255,7 +255,7 @@ describe('buildTraceRecord', () => {
   it('should build a minimal trace record', () => {
     const record = buildTraceRecord('eval-456', []);
 
-    expect(record.evalId).toBe('eval-456');
+    expect(record.testId).toBe('eval-456');
     expect(record.spans).toHaveLength(0);
     expect(record.startTime).toBeUndefined();
     expect(record.tokenUsage).toBeUndefined();

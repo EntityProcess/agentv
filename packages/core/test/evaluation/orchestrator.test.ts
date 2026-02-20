@@ -309,7 +309,7 @@ describe('runTestCase', () => {
       }
     }
 
-    const events: Array<{ evalId: string; status: string; error?: string }> = [];
+    const events: Array<{ testId: string; status: string; error?: string }> = [];
 
     const evalCases: EvalTest[] = [
       { ...baseTestCase, id: 'case-1' },
@@ -329,14 +329,14 @@ describe('runTestCase', () => {
       evalCases,
       onProgress: async (event) => {
         if (event.status === 'completed' || event.status === 'failed') {
-          events.push({ evalId: event.evalId, status: event.status, error: event.error });
+          events.push({ testId: event.testId, status: event.status, error: event.error });
         }
       },
     });
 
     expect(results).toHaveLength(2);
-    expect(events.find((e) => e.evalId === 'case-1')?.status).toBe('completed');
-    const case2 = events.find((e) => e.evalId === 'case-2');
+    expect(events.find((e) => e.testId === 'case-1')?.status).toBe('completed');
+    const case2 = events.find((e) => e.testId === 'case-2');
     expect(case2?.status).toBe('failed');
     expect(case2?.error).toBe("Batch output missing id 'case-2'");
   });
@@ -1388,7 +1388,7 @@ let data = '';
 rl.on('line', (line) => { data += line; });
 rl.on('close', () => {
   const ctx = JSON.parse(data);
-  console.log('Setup done for ' + ctx.eval_case_id);
+  console.log('Setup done for ' + ctx.test_id);
   process.exit(0);
 });
 `,
@@ -1487,7 +1487,7 @@ let data = '';
 rl.on('line', (line) => { data += line; });
 rl.on('close', () => {
   const ctx = JSON.parse(data);
-  console.log('Teardown done for ' + ctx.eval_case_id);
+  console.log('Teardown done for ' + ctx.test_id);
   process.exit(0);
 });
 `,

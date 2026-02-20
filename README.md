@@ -134,7 +134,7 @@ agentv run evals/my-eval.yaml
 agentv run --target azure_base evals/**/*.yaml
 
 # Run specific test
-agentv run --eval-id case-123 evals/my-eval.yaml
+agentv run --test-id case-123 evals/my-eval.yaml
 
 # Dry-run with mock provider
 agentv run --dry-run evals/my-eval.yaml

@@ -13,7 +13,7 @@ import { command, option, positional, string } from 'cmd-ts';
 import { findRepoRoot } from '../../shared.js';
 
 interface JudgeResult {
-  eval_id: string;
+  test_id: string;
   evaluators: EvaluatorOutput[];
 }
 
@@ -34,9 +34,9 @@ export const evalPromptJudgeCommand = command({
       displayName: 'eval-path',
       description: 'Path to evaluation .yaml file',
     }),
-    evalId: option({
+    testId: option({
       type: string,
-      long: 'eval-id',
+      long: 'test-id',
       description: 'Test ID',
     }),
     answerFile: option({
@@ -49,7 +49,7 @@ export const evalPromptJudgeCommand = command({
     const cwd = process.cwd();
     const repoRoot = await findRepoRoot(cwd);
 
-    const evalCase = await loadTestById(args.evalPath, repoRoot, args.evalId);
+    const evalCase = await loadTestById(args.evalPath, repoRoot, args.testId);
     const candidate = (await readFile(args.answerFile, 'utf8')).trim();
     const promptInputs = await buildPromptInputs(evalCase);
 
@@ -81,7 +81,7 @@ export const evalPromptJudgeCommand = command({
     }
 
     const result: JudgeResult = {
-      eval_id: evalCase.id,
+      test_id: evalCase.id,
       evaluators: outputs,
     };
 

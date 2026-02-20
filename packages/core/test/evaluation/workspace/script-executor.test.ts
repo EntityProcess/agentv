@@ -32,7 +32,7 @@ rl.on('line', (line) => { data += line; });
 rl.on('close', () => {
   const context = JSON.parse(data);
   console.log('Setup completed for workspace:', context.workspace_path);
-  console.log('Eval case:', context.eval_case_id);
+  console.log('Test ID:', context.test_id);
   process.exit(0);
 });
 `,
@@ -149,7 +149,7 @@ rl.on('line', (line) => { data += line; });
 rl.on('close', () => {
   try {
     const context = JSON.parse(data);
-    if (context.workspace_path && context.eval_case_id && context.eval_run_id) {
+    if (context.workspace_path && context.test_id && context.eval_run_id) {
       console.log('Context validated successfully');
       process.exit(0);
     }
