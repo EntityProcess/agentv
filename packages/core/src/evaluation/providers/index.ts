@@ -1,5 +1,5 @@
 import { AnthropicProvider, AzureProvider, GeminiProvider } from './ai-sdk.js';
-import { ClaudeCodeProvider } from './claude-code.js';
+import { ClaudeProvider } from './claude.js';
 import { CliProvider } from './cli.js';
 import { CodexProvider } from './codex.js';
 import { CopilotSdkProvider } from './copilot-sdk.js';
@@ -26,7 +26,7 @@ export type {
 export type {
   AnthropicResolvedConfig,
   AzureResolvedConfig,
-  ClaudeCodeResolvedConfig,
+  ClaudeResolvedConfig,
   CliResolvedConfig,
   CopilotSdkResolvedConfig,
   GeminiResolvedConfig,
@@ -47,9 +47,9 @@ export {
 export { consumeCodexLogEntries, subscribeToCodexLogEntries } from './codex-log-tracker.js';
 export { consumePiLogEntries, subscribeToPiLogEntries } from './pi-log-tracker.js';
 export {
-  consumeClaudeCodeLogEntries,
-  subscribeToClaudeCodeLogEntries,
-} from './claude-code-log-tracker.js';
+  consumeClaudeLogEntries,
+  subscribeToClaudeLogEntries,
+} from './claude-log-tracker.js';
 export {
   consumeCopilotSdkLogEntries,
   subscribeToCopilotSdkLogEntries,
@@ -73,8 +73,8 @@ export function createProvider(target: ResolvedTarget): Provider {
       return new PiCodingAgentProvider(target.name, target.config);
     case 'pi-agent-sdk':
       return new PiAgentSdkProvider(target.name, target.config);
-    case 'claude-code':
-      return new ClaudeCodeProvider(target.name, target.config);
+    case 'claude':
+      return new ClaudeProvider(target.name, target.config);
     case 'mock':
       return new MockProvider(target.name, target.config);
     case 'vscode':

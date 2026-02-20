@@ -18,7 +18,7 @@ export type ProviderKind =
   | 'copilot'
   | 'pi-coding-agent'
   | 'pi-agent-sdk'
-  | 'claude-code'
+  | 'claude'
   | 'cli'
   | 'mock'
   | 'vscode'
@@ -32,7 +32,7 @@ export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'codex',
   'copilot',
   'pi-coding-agent',
-  'claude-code',
+  'claude',
   'vscode',
   'vscode-insiders',
 ] as const;
@@ -49,7 +49,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'copilot',
   'pi-coding-agent',
   'pi-agent-sdk',
-  'claude-code',
+  'claude',
   'cli',
   'mock',
   'vscode',
@@ -69,6 +69,8 @@ export const PROVIDER_ALIASES: readonly string[] = [
   'copilot_sdk', // alias for "copilot" (underscore variant)
   'copilot-cli', // alias for "copilot" (legacy)
   'pi', // alias for "pi-coding-agent"
+  'claude-code', // alias for "claude" (legacy)
+  'claude-sdk', // alias for "claude"
   'openai', // legacy/future support
   'bedrock', // legacy/future support
   'vertex', // legacy/future support
@@ -271,9 +273,14 @@ export interface TargetDefinition {
   readonly logFormat?: string | unknown | undefined;
   readonly log_output_format?: string | unknown | undefined;
   readonly logOutputFormat?: string | unknown | undefined;
-  // System prompt (codex, copilot, claude-code, pi-coding-agent)
+  // System prompt (codex, copilot, claude, pi-coding-agent)
   readonly system_prompt?: string | unknown | undefined;
   readonly systemPrompt?: string | unknown | undefined;
+  // Claude Agent SDK fields
+  readonly max_turns?: number | unknown | undefined;
+  readonly maxTurns?: number | unknown | undefined;
+  readonly max_budget_usd?: number | unknown | undefined;
+  readonly maxBudgetUsd?: number | unknown | undefined;
   // Mock fields
   readonly response?: string | unknown | undefined;
   readonly delayMs?: number | unknown | undefined;

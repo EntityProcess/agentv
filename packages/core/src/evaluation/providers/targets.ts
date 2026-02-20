@@ -505,14 +505,14 @@ export interface PiAgentSdkResolvedConfig {
   readonly systemPrompt?: string;
 }
 
-export interface ClaudeCodeResolvedConfig {
-  readonly executable: string;
+export interface ClaudeResolvedConfig {
   readonly model?: string;
   readonly systemPrompt?: string;
-  readonly args?: readonly string[];
   readonly cwd?: string;
   readonly workspaceTemplate?: string;
   readonly timeoutMs?: number;
+  readonly maxTurns?: number;
+  readonly maxBudgetUsd?: number;
   readonly logDir?: string;
   readonly logFormat?: 'summary' | 'json';
 }
@@ -600,12 +600,12 @@ export type ResolvedTarget =
       readonly config: PiAgentSdkResolvedConfig;
     }
   | {
-      readonly kind: 'claude-code';
+      readonly kind: 'claude';
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
-      readonly config: ClaudeCodeResolvedConfig;
+      readonly config: ClaudeResolvedConfig;
     }
   | {
       readonly kind: 'mock';
@@ -784,14 +784,16 @@ export function resolveTargetDefinition(
         providerBatching,
         config: resolvePiAgentSdkConfig(parsed, env),
       };
+    case 'claude':
     case 'claude-code':
+    case 'claude-sdk':
       return {
-        kind: 'claude-code',
+        kind: 'claude',
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
-        config: resolveClaudeCodeConfig(parsed, env, evalFilePath),
+        config: resolveClaudeConfig(parsed, env, evalFilePath),
       };
     case 'mock':
       return {
@@ -1282,14 +1284,12 @@ function resolvePiAgentSdkConfig(
   };
 }
 
-function resolveClaudeCodeConfig(
+function resolveClaudeConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
   evalFilePath?: string,
-): ClaudeCodeResolvedConfig {
-  const executableSource = target.executable ?? target.command ?? target.binary;
+): ClaudeResolvedConfig {
   const modelSource = target.model;
-  const argsSource = target.args ?? target.arguments;
   const cwdSource = target.cwd;
   const workspaceTemplateSource = target.workspace_template ?? target.workspaceTemplate;
   const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
@@ -1300,23 +1300,15 @@ function resolveClaudeCodeConfig(
     target.logFormat ??
     target.log_output_format ??
     target.logOutputFormat ??
-    env.AGENTV_CLAUDE_CODE_LOG_FORMAT;
+    env.AGENTV_CLAUDE_LOG_FORMAT;
   const systemPromptSource = target.system_prompt ?? target.systemPrompt;
 
-  const executable =
-    resolveOptionalString(executableSource, env, `${target.name} claude-code executable`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    }) ?? 'claude';
-
-  const model = resolveOptionalString(modelSource, env, `${target.name} claude-code model`, {
+  const model = resolveOptionalString(modelSource, env, `${target.name} claude model`, {
     allowLiteral: true,
     optionalEnv: true,
   });
 
-  const args = resolveOptionalStringArray(argsSource, env, `${target.name} claude-code args`);
-
-  const cwd = resolveOptionalString(cwdSource, env, `${target.name} claude-code cwd`, {
+  const cwd = resolveOptionalString(cwdSource, env, `${target.name} claude cwd`, {
     allowLiteral: true,
     optionalEnv: true,
   });
@@ -1324,7 +1316,7 @@ function resolveClaudeCodeConfig(
   let workspaceTemplate = resolveOptionalString(
     workspaceTemplateSource,
     env,
-    `${target.name} claude-code workspace template`,
+    `${target.name} claude workspace template`,
     {
       allowLiteral: true,
       optionalEnv: true,
@@ -1343,50 +1335,59 @@ function resolveClaudeCodeConfig(
     );
   }
 
-  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} claude-code timeout`);
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} claude timeout`);
 
-  const logDir = resolveOptionalString(
-    logDirSource,
-    env,
-    `${target.name} claude-code log directory`,
-    {
-      allowLiteral: true,
-      optionalEnv: true,
-    },
-  );
+  const logDir = resolveOptionalString(logDirSource, env, `${target.name} claude log directory`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
 
-  const logFormat = normalizeClaudeCodeLogFormat(logFormatSource);
+  const logFormat = normalizeClaudeLogFormat(logFormatSource);
 
   const systemPrompt =
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
       ? systemPromptSource.trim()
       : undefined;
 
+  const maxTurns =
+    typeof target.max_turns === 'number'
+      ? target.max_turns
+      : typeof target.maxTurns === 'number'
+        ? target.maxTurns
+        : undefined;
+
+  const maxBudgetUsd =
+    typeof target.max_budget_usd === 'number'
+      ? target.max_budget_usd
+      : typeof target.maxBudgetUsd === 'number'
+        ? target.maxBudgetUsd
+        : undefined;
+
   return {
-    executable,
     model,
     systemPrompt,
-    args,
     cwd,
     workspaceTemplate,
     timeoutMs,
+    maxTurns,
+    maxBudgetUsd,
     logDir,
     logFormat,
   };
 }
 
-function normalizeClaudeCodeLogFormat(value: unknown): 'summary' | 'json' | undefined {
+function normalizeClaudeLogFormat(value: unknown): 'summary' | 'json' | undefined {
   if (value === undefined || value === null) {
     return undefined;
   }
   if (typeof value !== 'string') {
-    throw new Error("claude-code log format must be 'summary' or 'json'");
+    throw new Error("claude log format must be 'summary' or 'json'");
   }
   const normalized = value.trim().toLowerCase();
   if (normalized === 'json' || normalized === 'summary') {
     return normalized;
   }
-  throw new Error("claude-code log format must be 'summary' or 'json'");
+  throw new Error("claude log format must be 'summary' or 'json'");
 }
 
 function resolveMockConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): MockResolvedConfig {

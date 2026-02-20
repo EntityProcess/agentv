@@ -78,11 +78,10 @@ targets:
     timeout_seconds: 180
     log_format: json                              # Optional: 'summary' (default) or 'json'
 
-  # Claude Code - Anthropic's autonomous coding CLI
-  - name: claude-code
-    provider: claude-code
+  # Claude - Anthropic's Claude Agent SDK
+  - name: claude
+    provider: claude
     judge_target: azure_base
-    # executable: ${{ CLAUDE_CODE_CLI_PATH }}  # Optional: defaults to `claude` on PATH
     # model: claude-sonnet-4-20250514          # Optional: override model
     timeout_seconds: 180
     log_format: json  # 'summary' (default) or 'json' for raw event logs

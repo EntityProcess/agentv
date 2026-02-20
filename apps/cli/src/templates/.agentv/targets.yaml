@@ -31,19 +31,17 @@ targets:
     log_dir: ${{ CODEX_LOG_DIR }}              # Optional: where Codex CLI stream logs are stored (defaults to ./.agentv/logs/codex)
     log_format: json                    # Optional: 'summary' (default) or 'json' for raw event logs
 
-  # Claude Code - Anthropic's autonomous coding CLI
-  - name: claude-code
-    provider: claude-code
+  # Claude - Anthropic's Claude Agent SDK
+  - name: claude
+    provider: claude
     judge_target: azure_base
-    # Uses the Claude Code CLI (defaults to `claude` on PATH)
-    # executable: ${{ CLAUDE_CODE_CLI_PATH }}  # Optional: override executable path
+    # Uses the @anthropic-ai/claude-agent-sdk
     # model: claude-sonnet-4-20250514          # Optional: override model
-    # args:                                    # Optional additional CLI arguments
-    #   - --allowedTools
-    #   - Read,Write,Edit,Bash
     timeout_seconds: 180
-    # cwd: ${{ CLAUDE_CODE_WORKSPACE_DIR }}    # Optional: working directory (defaults to process.cwd())
-    # log_dir: ${{ CLAUDE_CODE_LOG_DIR }}      # Optional: where stream logs are stored (defaults to ./.agentv/logs/claude-code)
+    # cwd: ${{ CLAUDE_WORKSPACE_DIR }}         # Optional: working directory (defaults to process.cwd())
+    # max_turns: 50                            # Optional: max conversation turns
+    # max_budget_usd: 5.0                      # Optional: max cost budget in USD
+    # log_dir: ${{ CLAUDE_LOG_DIR }}           # Optional: where stream logs are stored (defaults to ./.agentv/logs/claude)
     log_format: json                           # Optional: 'summary' (default) or 'json' for raw event logs
     # system_prompt: optional override (default instructs agent to include code in response)
 
