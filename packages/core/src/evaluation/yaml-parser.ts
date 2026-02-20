@@ -4,7 +4,6 @@ import micromatch from 'micromatch';
 import { parse } from 'yaml';
 
 import { expandFileReferences } from './loaders/case-file-loader.js';
-import { parseMetadata } from './metadata.js';
 import {
   extractCacheConfig,
   extractTargetFromSuite,
@@ -22,6 +21,7 @@ import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver
 import { detectFormat, loadTestsFromJsonl } from './loaders/jsonl-parser.js';
 import { processExpectedMessages, processMessages } from './loaders/message-processor.js';
 import { resolveExpectedMessages, resolveInputMessages } from './loaders/shorthand-expansion.js';
+import { parseMetadata } from './metadata.js';
 import type {
   EvalTest,
   JsonObject,

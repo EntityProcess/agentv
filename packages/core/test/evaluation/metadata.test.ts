@@ -37,9 +37,7 @@ describe('parseMetadata', () => {
   });
 
   it('validates name format (lowercase, digits, and hyphens only)', () => {
-    expect(() =>
-      parseMetadata({ name: 'Invalid Name!', description: 'test' }),
-    ).toThrow();
+    expect(() => parseMetadata({ name: 'Invalid Name!', description: 'test' })).toThrow();
   });
 
   it('parses minimal metadata (name + description only)', () => {

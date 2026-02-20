@@ -227,7 +227,7 @@ describe('parseEvaluators - deterministic assertion types', () => {
     );
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0].type).toBe('llm_judge');
-    expect((evaluators?.[0] as any).rubrics).toHaveLength(1);
+    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(1);
   });
 
   it('parses multiple assertion types in one evaluators array', async () => {
@@ -1286,9 +1286,9 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect(evaluators![0].type).toBe('llm_judge');
-    expect((evaluators![0] as any).rubrics).toHaveLength(2);
-    expect((evaluators![0] as any).weight).toBe(4.0);
+    expect(evaluators?.[0].type).toBe('llm_judge');
+    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(2);
+    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).weight).toBe(4.0);
   });
 
   it('auto-generates name for rubrics type', async () => {
@@ -1306,7 +1306,7 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect(evaluators![0].name).toBeTruthy();
+    expect(evaluators?.[0].name).toBeTruthy();
   });
 
   it('skips rubrics with empty criteria array', async () => {
@@ -1357,7 +1357,7 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect((evaluators![0] as any).rubrics).toHaveLength(2);
+    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(2);
   });
 });
 

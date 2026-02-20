@@ -2,7 +2,11 @@ import { z } from 'zod';
 import type { JsonObject } from './types.js';
 
 const MetadataSchema = z.object({
-  name: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/),
+  name: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9-]+$/),
   description: z.string().min(1).max(1024),
   version: z.string().optional(),
   author: z.string().optional(),
