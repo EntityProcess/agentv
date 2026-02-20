@@ -14,6 +14,7 @@ import type {
   Provider,
   ProviderRequest,
   ProviderResponse,
+  ProviderTokenUsage,
   ToolCall,
 } from './types.js';
 
@@ -77,6 +78,9 @@ export class PiCodingAgentProvider implements Provider {
 
     const inputFiles = normalizeInputFiles(request.inputFiles);
 
+    const startTime = new Date().toISOString();
+    const startMs = Date.now();
+
     const workspaceRoot = await this.createWorkspace();
     const logger = await this.createStreamLogger(request).catch(() => undefined);
     try {
@@ -103,7 +107,10 @@ export class PiCodingAgentProvider implements Provider {
 
       const parsed = parsePiJsonl(result.stdout);
       const outputMessages = extractOutputMessages(parsed);
-      const assistantText = extractAssistantText(outputMessages);
+      const tokenUsage = extractTokenUsage(parsed);
+
+      const endTime = new Date().toISOString();
+      const durationMs = Date.now() - startMs;
 
       return {
         raw: {
@@ -119,6 +126,10 @@ export class PiCodingAgentProvider implements Provider {
           logFile: logger?.filePath,
         },
         outputMessages,
+        tokenUsage,
+        durationMs,
+        startTime,
+        endTime,
       };
     } finally {
       await logger?.close();
@@ -605,6 +616,91 @@ function extractOutputMessages(events: unknown[]): readonly OutputMessage[] {
 }
 
 /**
+ * Extract token usage from Pi JSONL events.
+ * Checks the agent_end event for top-level usage, then aggregates from output messages.
+ */
+function extractTokenUsage(events: unknown[]): ProviderTokenUsage | undefined {
+  // First, check agent_end for top-level usage
+  for (let i = events.length - 1; i >= 0; i--) {
+    const event = events[i];
+    if (!event || typeof event !== 'object') continue;
+    const record = event as Record<string, unknown>;
+    if (record.type !== 'agent_end') continue;
+
+    // Check for top-level usage on agent_end event
+    const usage = record.usage;
+    if (usage && typeof usage === 'object') {
+      const u = usage as Record<string, unknown>;
+      const input = toNumber(u.input_tokens ?? u.inputTokens ?? u.input);
+      const output = toNumber(u.output_tokens ?? u.outputTokens ?? u.output);
+      if (input !== undefined || output !== undefined) {
+        const result: ProviderTokenUsage = {
+          input: input ?? 0,
+          output: output ?? 0,
+        };
+        const cached = toNumber(u.cache_read_input_tokens ?? u.cached ?? u.cachedTokens);
+        if (cached !== undefined) {
+          return { ...result, cached };
+        }
+        return result;
+      }
+    }
+
+    // Aggregate usage from messages within agent_end
+    const messages = record.messages;
+    if (Array.isArray(messages)) {
+      return aggregateUsageFromMessages(messages);
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Aggregate token usage from Pi messages that have usage metadata.
+ */
+function aggregateUsageFromMessages(messages: unknown[]): ProviderTokenUsage | undefined {
+  let totalInput = 0;
+  let totalOutput = 0;
+  let totalCached: number | undefined;
+  let found = false;
+
+  for (const msg of messages) {
+    if (!msg || typeof msg !== 'object') continue;
+    const m = msg as Record<string, unknown>;
+    const usage = m.usage;
+    if (!usage || typeof usage !== 'object') continue;
+
+    const u = usage as Record<string, unknown>;
+    const input = toNumber(u.input_tokens ?? u.inputTokens ?? u.input);
+    const output = toNumber(u.output_tokens ?? u.outputTokens ?? u.output);
+
+    if (input !== undefined || output !== undefined) {
+      found = true;
+      totalInput += input ?? 0;
+      totalOutput += output ?? 0;
+      const cached = toNumber(u.cache_read_input_tokens ?? u.cached ?? u.cachedTokens);
+      if (cached !== undefined) {
+        totalCached = (totalCached ?? 0) + cached;
+      }
+    }
+  }
+
+  if (!found) return undefined;
+
+  const result: ProviderTokenUsage = { input: totalInput, output: totalOutput };
+  if (totalCached !== undefined) {
+    return { ...result, cached: totalCached };
+  }
+  return result;
+}
+
+function toNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  return undefined;
+}
+
+/**
  * Convert a Pi message to AgentV OutputMessage format.
  */
 function convertPiMessage(message: unknown): OutputMessage | undefined {
@@ -714,22 +810,6 @@ function extractToolCalls(content: unknown): readonly ToolCall[] {
   }
 
   return toolCalls;
-}
-
-/**
- * Extract the final assistant text from output messages.
- */
-function extractAssistantText(messages: readonly OutputMessage[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (msg.role === 'assistant' && msg.content) {
-      if (typeof msg.content === 'string') {
-        return msg.content;
-      }
-      return JSON.stringify(msg.content);
-    }
-  }
-  return '';
 }
 
 /**
