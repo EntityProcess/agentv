@@ -32,8 +32,9 @@ describe('parseMetadata', () => {
     expect(() => parseMetadata({ name: 'test-eval' })).toThrow();
   });
 
-  it('requires name when description is present', () => {
-    expect(() => parseMetadata({ description: 'A test eval' })).toThrow();
+  it('ignores description without name (description is also a regular suite field)', () => {
+    const result = parseMetadata({ description: 'A test eval' });
+    expect(result).toBeUndefined();
   });
 
   it('validates name format (lowercase, digits, and hyphens only)', () => {

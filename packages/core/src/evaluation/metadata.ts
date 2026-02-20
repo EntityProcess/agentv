@@ -25,7 +25,9 @@ export function parseMetadata(suite: JsonObject): EvalMetadata | undefined {
   const hasName = typeof suite.name === 'string';
   const hasDescription = typeof suite.description === 'string';
 
-  if (!hasName && !hasDescription) {
+  // Only trigger metadata parsing when `name` is present.
+  // `description` alone doesn't trigger it since it's also used as a regular suite field.
+  if (!hasName) {
     return undefined;
   }
 
