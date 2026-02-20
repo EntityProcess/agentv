@@ -2,11 +2,21 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 
+import { isEvaluatorKind } from '../types.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
 type JsonArray = readonly JsonValue[];
+
+/** Assertion evaluator types that require a `value` field. */
+const ASSERTION_TYPES_WITH_VALUE = new Set(['contains', 'equals', 'regex']);
+
+/** Valid file extensions for external test files. */
+const VALID_TEST_FILE_EXTENSIONS = new Set(['.yaml', '.yml', '.jsonl']);
+
+/** Name field pattern: lowercase alphanumeric with hyphens. */
+const NAME_PATTERN = /^[a-z0-9-]+$/;
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -51,6 +61,9 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     };
   }
 
+  // Validate metadata fields
+  validateMetadata(parsed, absolutePath, errors);
+
   // Resolve tests with backward-compat aliases
   let cases: JsonValue | undefined = parsed.tests;
   if (cases === undefined && 'eval_cases' in parsed) {
@@ -71,12 +84,24 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       message: "'evalcases' is deprecated. Use 'tests' instead.",
     });
   }
+
+  // tests can be a string path (external file reference) or an array
+  if (typeof cases === 'string') {
+    validateTestsStringPath(cases, absolutePath, errors);
+    return {
+      valid: errors.filter((e) => e.severity === 'error').length === 0,
+      filePath: absolutePath,
+      fileType: 'eval',
+      errors,
+    };
+  }
+
   if (!Array.isArray(cases)) {
     errors.push({
       severity: 'error',
       filePath: absolutePath,
       location: 'tests',
-      message: "Missing or invalid 'tests' field (must be an array)",
+      message: "Missing or invalid 'tests' field (must be an array or a file path string)",
     });
     return {
       valid: errors.length === 0,
@@ -187,6 +212,12 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
         });
       }
     }
+
+    // assert field (array of assertion objects)
+    const assertField = evalCase.assert;
+    if (assertField !== undefined) {
+      validateAssertArray(assertField, location, absolutePath, errors);
+    }
   }
 
   return {
@@ -285,6 +316,164 @@ function validateMessages(
       });
     }
   }
+}
+
+function validateMetadata(parsed: JsonObject, filePath: string, errors: ValidationError[]): void {
+  const name = parsed.name;
+  if (name !== undefined) {
+    if (typeof name === 'string') {
+      if (!NAME_PATTERN.test(name)) {
+        errors.push({
+          severity: 'warning',
+          filePath,
+          location: 'name',
+          message: `Invalid 'name' format '${name}'. Must match pattern /^[a-z0-9-]+$/ (lowercase alphanumeric with hyphens).`,
+        });
+      }
+    }
+
+    // Warn if name is present but description is missing
+    if (!('description' in parsed) || parsed.description === undefined) {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location: 'name',
+        message: "When 'name' is present, 'description' should also be provided.",
+      });
+    }
+  }
+}
+
+function validateTestsStringPath(
+  testsPath: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  const ext = path.extname(testsPath);
+  if (!VALID_TEST_FILE_EXTENSIONS.has(ext)) {
+    errors.push({
+      severity: 'warning',
+      filePath,
+      location: 'tests',
+      message: `Unsupported file extension '${ext}' for tests path '${testsPath}'. Supported extensions: ${[...VALID_TEST_FILE_EXTENSIONS].join(', ')}`,
+    });
+  }
+}
+
+function validateAssertArray(
+  assertField: JsonValue,
+  parentLocation: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (!Array.isArray(assertField)) {
+    errors.push({
+      severity: 'warning',
+      filePath,
+      location: `${parentLocation}.assert`,
+      message: "'assert' must be an array of assertion objects.",
+    });
+    return;
+  }
+
+  for (let i = 0; i < assertField.length; i++) {
+    const item = assertField[i];
+    const location = `${parentLocation}.assert[${i}]`;
+
+    if (!isObject(item)) {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location,
+        message: 'Assertion item must be an object with a type field.',
+      });
+      continue;
+    }
+
+    // Validate type field
+    const typeValue = item.type;
+    if (typeValue === undefined || typeof typeValue !== 'string') {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location: `${location}.type`,
+        message: "Assertion item is missing a 'type' field.",
+      });
+      continue;
+    }
+
+    if (!isEvaluatorKind(typeValue)) {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location: `${location}.type`,
+        message: `Unknown assertion type '${typeValue}'.`,
+      });
+      continue;
+    }
+
+    // Validate value field for types that require it
+    if (ASSERTION_TYPES_WITH_VALUE.has(typeValue)) {
+      const value = item.value;
+      if (value === undefined || typeof value !== 'string') {
+        errors.push({
+          severity: 'warning',
+          filePath,
+          location: `${location}.value`,
+          message: `Assertion type '${typeValue}' requires a 'value' field (string).`,
+        });
+        continue;
+      }
+
+      // For regex type, validate that the pattern is valid
+      if (typeValue === 'regex') {
+        try {
+          new RegExp(value);
+        } catch {
+          errors.push({
+            severity: 'warning',
+            filePath,
+            location: `${location}.value`,
+            message: `Invalid regex pattern '${value}': not a valid regular expression.`,
+          });
+        }
+      }
+    }
+
+    // Validate required field if present
+    const required = item.required;
+    if (required !== undefined) {
+      validateRequiredField(required, location, filePath, errors);
+    }
+  }
+}
+
+function validateRequiredField(
+  required: JsonValue,
+  parentLocation: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (typeof required === 'boolean') {
+    return; // Valid
+  }
+  if (typeof required === 'number') {
+    if (required <= 0 || required > 1) {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location: `${parentLocation}.required`,
+        message: `Invalid 'required' value ${required}. When a number, it must be between 0 (exclusive) and 1 (inclusive).`,
+      });
+    }
+    return;
+  }
+  errors.push({
+    severity: 'warning',
+    filePath,
+    location: `${parentLocation}.required`,
+    message: `Invalid 'required' value. Must be a boolean or a number between 0 (exclusive) and 1 (inclusive).`,
+  });
 }
 
 function validateContentForRoleMarkers(
