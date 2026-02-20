@@ -299,7 +299,8 @@ export type CompositeAggregatorConfig =
       readonly prompt?: string;
       readonly promptPath?: string;
       readonly model?: string;
-    };
+    }
+  | { readonly type: 'threshold'; readonly threshold: number };
 
 export type CompositeEvaluatorConfig = {
   readonly name: string;
