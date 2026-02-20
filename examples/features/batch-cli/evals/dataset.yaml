@@ -42,18 +42,17 @@ tests:
             amount: 5000
             currency: USD
 
-    execution:
-      evaluators:
-        - name: decision-check
-          type: code_judge
-          script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
-          cwd: .
-        # Verify the aml_screening tool was called using trace extracted from output_messages
-        - name: tool-trajectory-check
-          type: tool_trajectory
-          mode: any_order
-          minimums:
-            aml_screening: 1
+    assert:
+      - name: decision-check
+        type: code_judge
+        script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
+        cwd: .
+      # Verify the aml_screening tool was called using trace extracted from output_messages
+      - name: tool-trajectory-check
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          aml_screening: 1
 
   - id: aml-002
     criteria: |-
@@ -82,18 +81,17 @@ tests:
             amount: 2000
             currency: USD
 
-    execution:
-      evaluators:
-        - name: decision-check
-          type: code_judge
-          script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
-          cwd: .
-        # Verify the aml_screening tool was called using trace extracted from output_messages
-        - name: tool-trajectory-check
-          type: tool_trajectory
-          mode: any_order
-          minimums:
-            aml_screening: 1
+    assert:
+      - name: decision-check
+        type: code_judge
+        script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
+        cwd: .
+      # Verify the aml_screening tool was called using trace extracted from output_messages
+      - name: tool-trajectory-check
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          aml_screening: 1
 
   - id: aml-003
     criteria: |-
@@ -122,18 +120,17 @@ tests:
             amount: 25000
             currency: USD
 
-    execution:
-      evaluators:
-        - name: decision-check
-          type: code_judge
-          script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
-          cwd: .
-        # Verify the aml_screening tool was called using trace extracted from output_messages
-        - name: tool-trajectory-check
-          type: tool_trajectory
-          mode: any_order
-          minimums:
-            aml_screening: 1
+    assert:
+      - name: decision-check
+        type: code_judge
+        script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
+        cwd: .
+      # Verify the aml_screening tool was called using trace extracted from output_messages
+      - name: tool-trajectory-check
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          aml_screening: 1
 
   - id: aml-004-not-exist
     criteria: |-
@@ -162,15 +159,14 @@ tests:
             amount: 25000
             currency: USD
 
-    execution:
-      evaluators:
-        - name: decision-check
-          type: code_judge
-          script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
-          cwd: .
-        # Verify the aml_screening tool was called using trace extracted from output_messages
-        - name: tool-trajectory-check
-          type: tool_trajectory
-          mode: any_order
-          minimums:
-            aml_screening: 1
+    assert:
+      - name: decision-check
+        type: code_judge
+        script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
+        cwd: .
+      # Verify the aml_screening tool was called using trace extracted from output_messages
+      - name: tool-trajectory-check
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          aml_screening: 1

@@ -21,13 +21,12 @@ tests:
     reference_answer: |-
       TypeScript provides static type checking, better IDE support, and improved maintainability.
 
-    execution:
-      evaluators:
-        - name: custom-prompt-eval
-          type: llm_judge
-          # Executable prompt template using explicit script array (matches code_judge pattern)
-          prompt:
-            script: [bun, run, ../prompts/custom-evaluator.ts]
+    assert:
+      - name: custom-prompt-eval
+        type: llm_judge
+        # Executable prompt template using explicit script array (matches code_judge pattern)
+        prompt:
+          script: [bun, run, ../prompts/custom-evaluator.ts]
 
   - id: prompt-template-with-config
     criteria: The CLI explains async/await correctly.
@@ -41,16 +40,15 @@ tests:
     reference_answer: |-
       Async/await is syntactic sugar over Promises that makes asynchronous code look synchronous.
 
-    execution:
-      evaluators:
-        - name: strict-eval
-          type: llm_judge
-          # Executable prompt template with config
-          prompt:
-            script: [bun, run, ../prompts/custom-evaluator.ts]
-            config:
-              rubric: |-
-                - Must mention Promises
-                - Must explain the synchronous-looking syntax
-                - Should provide an example or use case
-              strictMode: true
+    assert:
+      - name: strict-eval
+        type: llm_judge
+        # Executable prompt template with config
+        prompt:
+          script: [bun, run, ../prompts/custom-evaluator.ts]
+          config:
+            rubric: |-
+              - Must mention Promises
+              - Must explain the synchronous-looking syntax
+              - Should provide an example or use case
+            strictMode: true

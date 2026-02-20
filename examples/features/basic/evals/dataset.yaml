@@ -72,16 +72,16 @@ tests:
     execution:
       # Override file-level target for this specific test
       target: azure_base
-      
-      # Multiple evaluators - supports both code-based and LLM judges
-      evaluators:
-        - name: keyword_check
-          type: code_judge  # Code evaluators handle regex, keywords, linting, etc.
-          script: ["uv", "run", "check_python_keywords.py"]
-          cwd: .  # Working directory for script execution
-        - name: code_correctness
-          type: llm_judge  # LLM-based evaluation
-          prompt: code-correctness-judge.md
+
+    # Multiple evaluators - supports both code-based and LLM judges
+    assert:
+      - name: keyword_check
+        type: code_judge  # Code evaluators handle regex, keywords, linting, etc.
+        script: ["uv", "run", "check_python_keywords.py"]
+        cwd: .  # Working directory for script execution
+      - name: code_correctness
+        type: llm_judge  # LLM-based evaluation
+        prompt: code-correctness-judge.md
     
     input:
       - role: system
