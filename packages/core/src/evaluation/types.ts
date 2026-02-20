@@ -220,6 +220,7 @@ export type CodeEvaluatorConfig = {
   readonly cwd?: string;
   readonly resolvedCwd?: string;
   readonly weight?: number;
+  readonly required?: boolean | number;
   /** Pass-through configuration for the code_judge script (any unrecognized YAML properties) */
   readonly config?: JsonObject;
   /** When present, enables target access for the script via local proxy */
@@ -249,6 +250,7 @@ export type LlmJudgeEvaluatorConfig = {
   readonly resolvedPromptScript?: readonly string[];
   readonly rubrics?: readonly RubricItem[];
   readonly weight?: number;
+  readonly required?: boolean | number;
   /** Pass-through configuration for custom evaluator prompts (legacy, prefer prompt.config) */
   readonly config?: Record<string, unknown>;
 };
@@ -313,6 +315,7 @@ export type CompositeEvaluatorConfig = {
   readonly evaluators: readonly EvaluatorConfig[];
   readonly aggregator: CompositeAggregatorConfig;
   readonly weight?: number;
+  readonly required?: boolean | number;
 };
 
 /**
@@ -358,6 +361,7 @@ export type FieldAccuracyEvaluatorConfig = {
   /** Strategy for combining field scores (default: weighted_average) */
   readonly aggregation?: FieldAggregationType;
   readonly weight?: number;
+  readonly required?: boolean | number;
 };
 
 /**
@@ -370,6 +374,7 @@ export type LatencyEvaluatorConfig = {
   /** Maximum allowed duration in milliseconds */
   readonly threshold: number;
   readonly weight?: number;
+  readonly required?: boolean | number;
 };
 
 /**
@@ -382,6 +387,7 @@ export type CostEvaluatorConfig = {
   /** Maximum allowed cost in USD */
   readonly budget: number;
   readonly weight?: number;
+  readonly required?: boolean | number;
 };
 
 /**
@@ -398,6 +404,7 @@ export type TokenUsageEvaluatorConfig = {
   /** Maximum allowed output tokens (completion) */
   readonly max_output?: number;
   readonly weight?: number;
+  readonly required?: boolean | number;
 };
 
 /**
@@ -423,6 +430,7 @@ export type ExecutionMetricsEvaluatorConfig = {
   /** Tolerance for exploration ratio check (default: 0.2) */
   readonly exploration_tolerance?: number;
   readonly weight?: number;
+  readonly required?: boolean | number;
 };
 
 /**
@@ -449,6 +457,7 @@ export type AgentJudgeEvaluatorConfig = {
   /** Target name — delegates agent loop to this provider instead of built-in mode */
   readonly judge_target?: string;
   readonly weight?: number;
+  readonly required?: boolean | number;
 };
 
 /**
