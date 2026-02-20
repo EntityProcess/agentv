@@ -21,14 +21,13 @@
 #   partial-recall: ~0.333 (only 1 of 3 statements attributable to retrieval)
 #   zero-recall: ~0.000 (no retrieval context supports the expected answer)
 
-execution:
-  evaluators:
-    - name: contextual_recall
-      type: code_judge
-      script: [bun, run, ../scripts/contextual-recall.ts]
-      # max_calls: 1 for statement extraction + 1 per statement for attribution
-      target:
-        max_calls: 15
+assert:
+  - name: contextual_recall
+    type: code_judge
+    script: [bun, run, ../scripts/contextual-recall.ts]
+    # max_calls: 1 for statement extraction + 1 per statement for attribution
+    target:
+      max_calls: 15
 
 tests:
   # Test case 1: Perfect recall - all statements supported by retrieval

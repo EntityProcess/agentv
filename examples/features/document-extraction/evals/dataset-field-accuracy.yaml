@@ -26,90 +26,91 @@ description: Field accuracy evaluator patterns (per-evalcase scoring)
 
 execution:
   target: mock_extractor
-  evaluators:
-    # Primary evaluator: Correctness via field-level accuracy
-    - name: invoice_field_accuracy
-      type: field_accuracy
-      fields:
-        # Header fields
-        - path: invoice_number
-          match: exact
-          required: true
-          weight: 2.0
-        - path: invoice_date
-          match: date
-          formats: ["DD-MMM-YYYY", "YYYY-MM-DD", "MM/DD/YYYY"]
-          required: true
-          weight: 1.0
-        - path: currency
-          match: exact
-          required: true
-          weight: 1.0
-        
-        # Party information
-        # Note: For fuzzy matching (OCR variations), use code_judge with fuzzy_match.ts
-        - path: supplier.name
-          match: exact
-          required: true
-          weight: 1.0
-        - path: supplier.address
-          match: exact
-          required: false
-          weight: 0.5
-        - path: importer.name
-          match: exact
-          required: true
-          weight: 1.0
-        - path: importer.address
-          match: exact
-          required: false
-          weight: 0.5
-        
-        # Totals - numeric tolerance for rounding
-        - path: net_total
-          match: numeric_tolerance
-          tolerance: 1.0
-          relative: false
-          required: true
-          weight: 3.0
-        - path: gross_total
-          match: numeric_tolerance
-          tolerance: 1.0
-          relative: false
-          required: true
-          weight: 3.0
-      
-      aggregation: weighted_average
-    
-    # Alternative: Rubric-based evaluation ("Rubric as Object" pattern)
-    # Demonstrates AgentV's structured evaluation goal with human-readable criteria
-    # - name: invoice_extraction_rubric
-    #   type: rubric
-    #   rubrics:
-    #     - id: header_completeness
-    #       description: "Invoice number, date, and currency extracted correctly"
-    #       weight: 1.0
-    #       required: true
-    #     - id: party_accuracy
-    #       description: "Supplier and importer names and addresses match expected format"
-    #       weight: 1.0
-    #       required: true
-    #     - id: financial_precision
-    #       description: "Net and gross totals within acceptable tolerance (±$1)"
-    #       weight: 2.0
-    #       required: true
-    #     - id: line_items_completeness
-    #       description: "All line items extracted with descriptions, quantities, and amounts"
-    #       weight: 1.5
-    #       required: false
-    
-    # Execution metrics evaluators (optional, require provider to report metrics)
-    # - name: performance_check
-    #   type: latency
-    #   threshold: 2000  # max allowed duration in milliseconds
-    # - name: cost_tracking
-    #   type: cost
-    #   budget: 0.10  # max allowed cost in USD per test
+
+assert:
+  # Primary evaluator: Correctness via field-level accuracy
+  - name: invoice_field_accuracy
+    type: field_accuracy
+    fields:
+      # Header fields
+      - path: invoice_number
+        match: exact
+        required: true
+        weight: 2.0
+      - path: invoice_date
+        match: date
+        formats: ["DD-MMM-YYYY", "YYYY-MM-DD", "MM/DD/YYYY"]
+        required: true
+        weight: 1.0
+      - path: currency
+        match: exact
+        required: true
+        weight: 1.0
+
+      # Party information
+      # Note: For fuzzy matching (OCR variations), use code_judge with fuzzy_match.ts
+      - path: supplier.name
+        match: exact
+        required: true
+        weight: 1.0
+      - path: supplier.address
+        match: exact
+        required: false
+        weight: 0.5
+      - path: importer.name
+        match: exact
+        required: true
+        weight: 1.0
+      - path: importer.address
+        match: exact
+        required: false
+        weight: 0.5
+
+      # Totals - numeric tolerance for rounding
+      - path: net_total
+        match: numeric_tolerance
+        tolerance: 1.0
+        relative: false
+        required: true
+        weight: 3.0
+      - path: gross_total
+        match: numeric_tolerance
+        tolerance: 1.0
+        relative: false
+        required: true
+        weight: 3.0
+
+    aggregation: weighted_average
+
+  # Alternative: Rubric-based evaluation ("Rubric as Object" pattern)
+  # Demonstrates AgentV's structured evaluation goal with human-readable criteria
+  # - name: invoice_extraction_rubric
+  #   type: rubric
+  #   rubrics:
+  #     - id: header_completeness
+  #       description: "Invoice number, date, and currency extracted correctly"
+  #       weight: 1.0
+  #       required: true
+  #     - id: party_accuracy
+  #       description: "Supplier and importer names and addresses match expected format"
+  #       weight: 1.0
+  #       required: true
+  #     - id: financial_precision
+  #       description: "Net and gross totals within acceptable tolerance (±$1)"
+  #       weight: 2.0
+  #       required: true
+  #     - id: line_items_completeness
+  #       description: "All line items extracted with descriptions, quantities, and amounts"
+  #       weight: 1.5
+  #       required: false
+
+  # Execution metrics evaluators (optional, require provider to report metrics)
+  # - name: performance_check
+  #   type: latency
+  #   threshold: 2000  # max allowed duration in milliseconds
+  # - name: cost_tracking
+  #   type: cost
+  #   budget: 0.10  # max allowed cost in USD per test
 
 tests:
   # ============================================
@@ -209,7 +210,7 @@ tests:
 
       This simulates OCR output that preserves document formatting.
       Uses code_judge with config pass-through for multi-field fuzzy matching.
-    evaluators:
+    assert:
       # Multi-field fuzzy match with config pass-through
       - name: party_names_fuzzy
         type: code_judge
@@ -338,7 +339,7 @@ tests:
     criteria: |
       Extractor correctly extracts first two line items with proper array structure.
       Field paths like line_items[0].description should resolve correctly.
-    evaluators:
+    assert:
       - name: line_items_check
         type: field_accuracy
         fields:
@@ -390,7 +391,7 @@ tests:
       This test demonstrates greedy matching for line items.
       Index-based comparison would incorrectly penalize the extractor,
       but greedy matching correctly aligns items by description similarity.
-    evaluators:
+    assert:
       - name: line_items_matched
         type: code_judge
         script: ["bun", "run", "../judges/line_item_matching.ts"]
