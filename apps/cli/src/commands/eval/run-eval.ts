@@ -7,11 +7,13 @@ import {
   type EvalTest,
   type EvaluationCache,
   type EvaluationResult,
-  type ProviderResponse,
+  ResponseCache,
   type TrialsConfig,
   runEvaluation as defaultRunEvaluation,
   ensureVSCodeSubagents,
   loadTestSuite,
+  shouldEnableCache,
+  shouldSkipCacheForTemperature,
   subscribeToCodexLogEntries,
   subscribeToCopilotSdkLogEntries,
   subscribeToPiLogEntries,
@@ -58,6 +60,7 @@ interface NormalizedOptions {
   readonly agentTimeoutSeconds: number;
   readonly maxRetries: number;
   readonly cache: boolean;
+  readonly noCache: boolean;
   readonly verbose: boolean;
   readonly keepWorkspaces: boolean;
   readonly cleanupWorkspaces: boolean;
@@ -131,6 +134,7 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     agentTimeoutSeconds: normalizeNumber(rawOptions.agentTimeout, 120),
     maxRetries: normalizeNumber(rawOptions.maxRetries, 2),
     cache: normalizeBoolean(rawOptions.cache),
+    noCache: normalizeBoolean(rawOptions.noCache),
     verbose: normalizeBoolean(rawOptions.verbose),
     keepWorkspaces: normalizeBoolean(rawOptions.keepWorkspaces),
     cleanupWorkspaces: normalizeBoolean(rawOptions.cleanupWorkspaces),
@@ -156,18 +160,6 @@ function buildDefaultOutputPath(cwd: string, format: OutputFormat): string {
 function buildTraceOutputPath(cwd: string, evalFileBasename: string): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   return path.join(cwd, '.agentv', 'traces', timestamp, `${evalFileBasename}.trace.jsonl`);
-}
-
-function createEvaluationCache(): EvaluationCache {
-  const store = new Map<string, ProviderResponse>();
-  return {
-    async get(key: string) {
-      return store.get(key);
-    },
-    async set(key: string, value: ProviderResponse) {
-      store.set(key, value);
-    },
-  } satisfies EvaluationCache;
 }
 
 type ProgressReporter = {
@@ -252,6 +244,8 @@ async function prepareFileMetadata(params: {
   readonly selections: readonly { selection: TargetSelection; inlineTargetLabel: string }[];
   readonly trialsConfig?: TrialsConfig;
   readonly suiteTargets?: readonly string[];
+  readonly yamlCache?: boolean;
+  readonly yamlCachePath?: string;
 }> {
   const { testFilePath, repoRoot, cwd, options } = params;
 
@@ -340,6 +334,8 @@ async function prepareFileMetadata(params: {
     selections,
     trialsConfig: suite.trials,
     suiteTargets,
+    yamlCache: suite.cacheConfig?.enabled,
+    yamlCachePath: suite.cacheConfig?.cachePath,
   };
 }
 
@@ -458,7 +454,19 @@ async function runSingleEvalFile(params: {
     maxRetries: Math.max(0, options.maxRetries),
     agentTimeoutMs,
     cache,
-    useCache: options.cache,
+    useCache: (() => {
+      // Skip cache if not enabled
+      if (!cache) return false;
+      // Skip cache when target has temperature > 0 (non-deterministic)
+      const targetConfig = resolvedTargetSelection.resolvedTarget.config as Record<string, unknown>;
+      if (shouldSkipCacheForTemperature(targetConfig)) {
+        if (options.verbose) {
+          console.log('Cache skipped: target temperature > 0');
+        }
+        return false;
+      }
+      return true;
+    })(),
     evalCases,
     verbose: options.verbose,
     maxConcurrency: resolvedWorkers,
@@ -557,7 +565,8 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     console.log(`Trace path: ${tracePath}`);
   }
 
-  const cache = options.cache ? createEvaluationCache() : undefined;
+  // Determine cache state after loading file metadata (need YAML config)
+  // We defer cache creation until after file metadata is loaded
   const evaluationRunner = await resolveEvaluationRunner();
   const allResults: EvaluationResult[] = [];
   const seenEvalCases = new Set<string>();
@@ -583,6 +592,8 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       }[];
       readonly trialsConfig?: TrialsConfig;
       readonly suiteTargets?: readonly string[];
+      readonly yamlCache?: boolean;
+      readonly yamlCachePath?: string;
     }
   >();
   for (const testFilePath of resolvedTestFiles) {
@@ -593,6 +604,25 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       options,
     });
     fileMetadata.set(testFilePath, meta);
+  }
+
+  // Resolve cache: combine CLI flags with YAML config
+  // Use first file's YAML config for cache settings (consistent across a run)
+  const firstMeta = fileMetadata.values().next().value;
+  const yamlCacheEnabled = firstMeta?.yamlCache;
+  const yamlCachePath = firstMeta?.yamlCachePath;
+  const cacheEnabled = shouldEnableCache({
+    cliCache: options.cache,
+    cliNoCache: options.noCache,
+    yamlCache: yamlCacheEnabled,
+  });
+  const cache = cacheEnabled
+    ? new ResponseCache(yamlCachePath ? path.resolve(yamlCachePath) : undefined)
+    : undefined;
+  const useCache = cacheEnabled;
+
+  if (cacheEnabled) {
+    console.log(`Response cache: enabled${yamlCachePath ? ` (${yamlCachePath})` : ''}`);
   }
 
   // Detect matrix mode: multiple targets for any file

@@ -5,6 +5,7 @@ import { parse } from 'yaml';
 
 import { expandFileReferences } from './loaders/case-file-loader.js';
 import {
+  extractCacheConfig,
   extractTargetFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
@@ -35,6 +36,7 @@ import { isJsonObject, isTestMessage } from './types.js';
 export { buildPromptInputs, type PromptInputs } from './formatting/prompt-builder.js';
 export {
   DEFAULT_EVAL_PATTERNS,
+  extractCacheConfig,
   extractTargetFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
@@ -42,7 +44,7 @@ export {
   isGuidelineFile,
   loadConfig,
 } from './loaders/config-loader.js';
-export type { AgentVConfig } from './loaders/config-loader.js';
+export type { AgentVConfig, CacheConfig } from './loaders/config-loader.js';
 export { detectFormat } from './loaders/jsonl-parser.js';
 
 const ANSI_YELLOW = '\u001b[33m';
@@ -133,6 +135,8 @@ export type EvalSuiteResult = {
   readonly trials?: TrialsConfig;
   /** Suite-level targets from execution.targets (matrix evaluation) */
   readonly targets?: readonly string[];
+  /** Suite-level cache config from execution.cache */
+  readonly cacheConfig?: import('./loaders/config-loader.js').CacheConfig;
 };
 
 /**
@@ -149,7 +153,12 @@ export async function loadTestSuite(
     return { tests: await loadTestsFromJsonl(evalFilePath, repoRoot, options) };
   }
   const { tests, parsed } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
-  return { tests, trials: extractTrialsConfig(parsed), targets: extractTargetsFromSuite(parsed) };
+  return {
+    tests,
+    trials: extractTrialsConfig(parsed),
+    targets: extractTargetsFromSuite(parsed),
+    cacheConfig: extractCacheConfig(parsed),
+  };
 }
 
 /** @deprecated Use `loadTestSuite` instead */

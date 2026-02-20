@@ -225,6 +225,43 @@ export function extractTrialsConfig(suite: JsonObject): TrialsConfig | undefined
   return { count, strategy, costLimitUsd };
 }
 
+/**
+ * Cache configuration parsed from execution block.
+ */
+export interface CacheConfig {
+  readonly enabled: boolean;
+  readonly cachePath?: string;
+}
+
+/**
+ * Extract cache configuration from parsed eval suite's execution block.
+ * Returns undefined when no cache config is specified.
+ */
+export function extractCacheConfig(suite: JsonObject): CacheConfig | undefined {
+  const execution = suite.execution;
+  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+    return undefined;
+  }
+
+  const executionObj = execution as Record<string, unknown>;
+  const cache = executionObj.cache;
+
+  if (cache === undefined || cache === null) {
+    return undefined;
+  }
+
+  if (typeof cache !== 'boolean') {
+    logWarning(`Invalid execution.cache: ${cache}. Must be a boolean. Ignoring.`);
+    return undefined;
+  }
+
+  const cachePath = executionObj.cache_path ?? executionObj.cachePath;
+  const resolvedCachePath =
+    typeof cachePath === 'string' && cachePath.trim().length > 0 ? cachePath.trim() : undefined;
+
+  return { enabled: cache, cachePath: resolvedCachePath };
+}
+
 function logWarning(message: string): void {
   console.warn(`${ANSI_YELLOW}Warning: ${message}${ANSI_RESET}`);
 }
