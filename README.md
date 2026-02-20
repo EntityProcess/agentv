@@ -95,6 +95,25 @@ bun test
 
 See [AGENTS.md](AGENTS.md) for development guidelines and design principles.
 
+### Releasing
+
+Stable release:
+
+```bash
+bun run release          # patch bump
+bun run release minor
+bun run release major
+bun run publish          # publish to npm `latest`
+```
+
+Prerelease (`next`) channel:
+
+```bash
+bun run release:next         # bump/increment `-next.N`
+bun run release:next major   # start new major prerelease line
+bun run publish:next         # publish to npm `next`
+```
+
 ## Core Concepts
 
 **Evaluation files** (`.yaml` or `.jsonl`) define test cases with expected outcomes. **Targets** specify which agent/provider to evaluate. **Judges** (code or LLM) score results. **Results** are written as JSONL/YAML for analysis and comparison.
