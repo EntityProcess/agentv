@@ -78,6 +78,8 @@ export class CompositeEvaluator implements Evaluator {
         return this.runCodeAggregator(results, aggregator.path, aggregator.cwd ?? this.cwd);
       case 'llm_judge':
         return this.runLlmAggregator(results, context, aggregator);
+      case 'threshold':
+        return this.runThreshold(results, aggregator.threshold);
       default:
         return this.runWeightedAverage(results, aggregator.weights);
     }
@@ -132,6 +134,71 @@ export class CompositeEvaluator implements Evaluator {
       evaluatorRawRequest: {
         aggregator: 'weighted_average',
         ...(weights ? { weights } : {}),
+      },
+      evaluatorResults,
+    };
+  }
+
+  private runThreshold(results: readonly MemberResult[], threshold: number): EvaluationScore {
+    const evaluatorResults: ChildEvaluatorResult[] = [];
+    const allHits: string[] = [];
+    const allMisses: string[] = [];
+    const reasoningParts: string[] = [];
+    let passingCount = 0;
+    let borderlineCount = 0;
+
+    for (const member of results) {
+      const isPassing = member.result.verdict === 'pass' || member.result.verdict === 'borderline';
+      if (isPassing) {
+        passingCount++;
+        if (member.result.verdict === 'borderline') {
+          borderlineCount++;
+        }
+      }
+
+      allHits.push(...member.result.hits.map((h) => `[${member.id}] ${h}`));
+      allMisses.push(...member.result.misses.map((m) => `[${member.id}] ${m}`));
+      if (member.result.reasoning) {
+        reasoningParts.push(`${member.id}: ${member.result.reasoning}`);
+      }
+
+      evaluatorResults.push({
+        name: member.id,
+        type: member.type,
+        score: member.result.score,
+        verdict: member.result.verdict,
+        hits: [...member.result.hits],
+        misses: [...member.result.misses],
+        reasoning: member.result.reasoning,
+        evaluatorRawRequest: member.result.evaluatorRawRequest,
+        evaluatorResults: member.result.evaluatorResults,
+        details: member.result.details,
+      });
+    }
+
+    const totalCount = results.length;
+    const score = totalCount > 0 ? passingCount / totalCount : 0;
+    const pass = score >= threshold;
+
+    // Build reasoning with borderline warning
+    if (pass && borderlineCount > 0) {
+      reasoningParts.push(`Warning: ${borderlineCount} borderline evaluator(s) counted as passing`);
+    }
+
+    reasoningParts.unshift(
+      `${passingCount}/${totalCount} evaluators passed (threshold: ${threshold})`,
+    );
+
+    return {
+      score: clampScore(score),
+      verdict: pass ? 'pass' : 'fail',
+      hits: allHits,
+      misses: allMisses,
+      expectedAspectCount: Math.max(allHits.length + allMisses.length, 1),
+      reasoning: reasoningParts.join('; '),
+      evaluatorRawRequest: {
+        aggregator: 'threshold',
+        threshold,
       },
       evaluatorResults,
     };

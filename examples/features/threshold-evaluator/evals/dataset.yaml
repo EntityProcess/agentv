@@ -1,0 +1,35 @@
+dataset: threshold-evaluator-example
+
+# Demonstrates the threshold aggregator: pass if N% of child evaluators pass.
+# Borderline verdicts count as passing (lenient).
+
+execution:
+  target: default
+
+tests:
+  - id: flexible-gate
+    input:
+      - role: user
+        content: "Summarize the benefits of renewable energy."
+    expected_output:
+      - role: assistant
+        content: |
+          Renewable energy reduces greenhouse gas emissions, lowers long-term energy costs, and decreases dependence on finite fossil fuels.
+    criteria: |
+      The response should be accurate, concise, and cover key benefits of renewable energy.
+    execution:
+      evaluators:
+        - name: flexible_gate
+          type: composite
+          aggregator:
+            type: threshold
+            threshold: 0.5
+          evaluators:
+            - name: quality_check
+              type: llm_judge
+            - name: latency_check
+              type: latency
+              threshold: 5000
+            - name: cost_check
+              type: cost
+              budget: 0.10

@@ -167,7 +167,8 @@ export async function parseEvaluators(
       if (
         aggregatorType !== 'weighted_average' &&
         aggregatorType !== 'code_judge' &&
-        aggregatorType !== 'llm_judge'
+        aggregatorType !== 'llm_judge' &&
+        aggregatorType !== 'threshold'
       ) {
         logWarning(
           `Skipping composite evaluator '${name}' in '${evalId}': invalid aggregator type '${aggregatorType}'`,
@@ -245,6 +246,18 @@ export async function parseEvaluators(
           type: 'code_judge',
           path: aggregatorPath,
           cwd: searchRoots[0],
+        };
+      } else if (aggregatorType === 'threshold') {
+        const thresholdValue = rawAggregator.threshold;
+        if (typeof thresholdValue !== 'number' || thresholdValue < 0 || thresholdValue > 1) {
+          logWarning(
+            `Skipping composite evaluator '${name}' in '${evalId}': threshold must be a number between 0.0 and 1.0`,
+          );
+          continue;
+        }
+        aggregator = {
+          type: 'threshold',
+          threshold: thresholdValue,
         };
       } else {
         // llm_judge aggregator
