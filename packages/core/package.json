@@ -45,8 +45,9 @@
     "@mariozechner/pi-agent-core": "^0.50.9",
     "@mariozechner/pi-ai": "^0.50.9",
     "ai": "^5.0.106",
-    "micromatch": "^4.0.8",
+    "fast-glob": "^3.3.3",
     "json5": "^2.2.3",
+    "micromatch": "^4.0.8",
     "yaml": "^2.6.0",
     "zod": "^3.23.8"
   },

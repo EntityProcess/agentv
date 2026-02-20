@@ -3,6 +3,7 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import { parse } from 'yaml';
 
+import { expandFileReferences } from './loaders/case-file-loader.js';
 import {
   extractTargetFromSuite,
   extractTrialsConfig,
@@ -203,6 +204,10 @@ async function loadTestsFromYaml(
 
   // Parse suite-level workspace config (default for all cases)
   const evalFileDir = path.dirname(absoluteTestPath);
+
+  // Expand any file:// references in the tests array
+  const expandedTestcases = await expandFileReferences(rawTestcases, evalFileDir);
+
   const suiteWorkspace = parseWorkspaceConfig(suite.workspace, evalFileDir);
 
   // Extract global target from execution.target (or legacy root-level target)
@@ -211,7 +216,7 @@ async function loadTestsFromYaml(
 
   const results: EvalTest[] = [];
 
-  for (const rawEvalcase of rawTestcases) {
+  for (const rawEvalcase of expandedTestcases) {
     if (!isJsonObject(rawEvalcase)) {
       logWarning('Skipping invalid test entry (expected object)');
       continue;

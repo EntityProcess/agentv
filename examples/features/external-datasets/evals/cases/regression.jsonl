@@ -1,0 +1,2 @@
+{"id": "regression-greeting", "criteria": "The agent should respond with a greeting", "input": "Hi there!"}
+{"id": "regression-farewell", "criteria": "The agent should respond with a farewell", "input": "Goodbye!"}
