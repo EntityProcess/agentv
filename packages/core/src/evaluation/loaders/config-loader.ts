@@ -119,6 +119,44 @@ export function extractTargetFromSuite(suite: JsonObject): string | undefined {
   return undefined;
 }
 
+/**
+ * Extract targets array from parsed eval suite.
+ * Precedence: execution.targets (array) > execution.target (singular).
+ * Returns undefined when no targets array is specified.
+ */
+export function extractTargetsFromSuite(suite: JsonObject): readonly string[] | undefined {
+  const execution = suite.execution;
+  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+    return undefined;
+  }
+
+  const targets = (execution as Record<string, unknown>).targets;
+  if (Array.isArray(targets)) {
+    const valid = targets.filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
+    return valid.length > 0 ? valid.map((t) => t.trim()) : undefined;
+  }
+
+  return undefined;
+}
+
+/**
+ * Extract per-test targets array from a raw test case object.
+ */
+export function extractTargetsFromTestCase(testCase: JsonObject): readonly string[] | undefined {
+  const execution = testCase.execution;
+  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+    return undefined;
+  }
+
+  const targets = (execution as Record<string, unknown>).targets;
+  if (Array.isArray(targets)) {
+    const valid = targets.filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
+    return valid.length > 0 ? valid.map((t) => t.trim()) : undefined;
+  }
+
+  return undefined;
+}
+
 const VALID_TRIAL_STRATEGIES: ReadonlySet<string> = new Set([
   'pass_at_k',
   'mean',

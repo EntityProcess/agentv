@@ -480,6 +480,8 @@ export interface EvalTest {
   readonly workspace?: WorkspaceConfig;
   /** Arbitrary metadata passed to workspace scripts via stdin */
   readonly metadata?: Record<string, unknown>;
+  /** Per-test target override (matrix evaluation) */
+  readonly targets?: readonly string[];
 }
 
 /** @deprecated Use `EvalTest` instead */

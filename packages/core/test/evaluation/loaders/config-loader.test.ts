@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test';
 
 import {
   extractTargetFromSuite,
+  extractTargetsFromSuite,
+  extractTargetsFromTestCase,
   extractTrialsConfig,
 } from '../../../src/evaluation/loaders/config-loader.js';
 import type { JsonObject } from '../../../src/evaluation/types.js';
@@ -150,5 +152,75 @@ describe('extractTargetFromSuite', () => {
   it('returns undefined when no target specified', () => {
     const suite: JsonObject = { tests: [] };
     expect(extractTargetFromSuite(suite)).toBeUndefined();
+  });
+});
+
+describe('extractTargetsFromSuite', () => {
+  it('returns undefined when no execution block', () => {
+    const suite: JsonObject = { tests: [] };
+    expect(extractTargetsFromSuite(suite)).toBeUndefined();
+  });
+
+  it('returns undefined when no targets array in execution', () => {
+    const suite: JsonObject = { execution: { target: 'default' } };
+    expect(extractTargetsFromSuite(suite)).toBeUndefined();
+  });
+
+  it('extracts targets array from execution.targets', () => {
+    const suite: JsonObject = {
+      execution: { targets: ['copilot', 'claude'] },
+    };
+    expect(extractTargetsFromSuite(suite)).toEqual(['copilot', 'claude']);
+  });
+
+  it('filters out non-string entries', () => {
+    const suite: JsonObject = {
+      execution: { targets: ['copilot', 123, null, 'claude'] },
+    };
+    expect(extractTargetsFromSuite(suite)).toEqual(['copilot', 'claude']);
+  });
+
+  it('returns undefined for empty targets array', () => {
+    const suite: JsonObject = {
+      execution: { targets: [] },
+    };
+    expect(extractTargetsFromSuite(suite)).toBeUndefined();
+  });
+
+  it('trims whitespace from target names', () => {
+    const suite: JsonObject = {
+      execution: { targets: ['  copilot  ', 'claude  '] },
+    };
+    expect(extractTargetsFromSuite(suite)).toEqual(['copilot', 'claude']);
+  });
+
+  it('returns undefined when targets is not an array', () => {
+    const suite: JsonObject = {
+      execution: { targets: 'copilot' },
+    };
+    expect(extractTargetsFromSuite(suite)).toBeUndefined();
+  });
+});
+
+describe('extractTargetsFromTestCase', () => {
+  it('returns undefined when no execution block', () => {
+    const testCase: JsonObject = { id: 'test-1' };
+    expect(extractTargetsFromTestCase(testCase)).toBeUndefined();
+  });
+
+  it('extracts targets from test case execution.targets', () => {
+    const testCase: JsonObject = {
+      id: 'test-1',
+      execution: { targets: ['copilot'] },
+    };
+    expect(extractTargetsFromTestCase(testCase)).toEqual(['copilot']);
+  });
+
+  it('returns undefined when targets is empty', () => {
+    const testCase: JsonObject = {
+      id: 'test-1',
+      execution: { targets: [] },
+    };
+    expect(extractTargetsFromTestCase(testCase)).toBeUndefined();
   });
 });

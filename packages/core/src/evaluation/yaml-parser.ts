@@ -6,6 +6,8 @@ import { parse } from 'yaml';
 import { expandFileReferences } from './loaders/case-file-loader.js';
 import {
   extractTargetFromSuite,
+  extractTargetsFromSuite,
+  extractTargetsFromTestCase,
   extractTrialsConfig,
   loadConfig,
 } from './loaders/config-loader.js';
@@ -33,6 +35,9 @@ import { isJsonObject, isTestMessage } from './types.js';
 export { buildPromptInputs, type PromptInputs } from './formatting/prompt-builder.js';
 export {
   DEFAULT_EVAL_PATTERNS,
+  extractTargetFromSuite,
+  extractTargetsFromSuite,
+  extractTargetsFromTestCase,
   extractTrialsConfig,
   isGuidelineFile,
   loadConfig,
@@ -99,7 +104,7 @@ function resolveTests(suite: RawTestSuite): JsonValue | undefined {
  */
 export async function readTestSuiteMetadata(
   testFilePath: string,
-): Promise<{ target?: string; trials?: TrialsConfig }> {
+): Promise<{ target?: string; targets?: readonly string[]; trials?: TrialsConfig }> {
   try {
     const absolutePath = path.resolve(testFilePath);
     const content = await readFile(absolutePath, 'utf8');
@@ -111,6 +116,7 @@ export async function readTestSuiteMetadata(
 
     return {
       target: extractTargetFromSuite(parsed),
+      targets: extractTargetsFromSuite(parsed),
       trials: extractTrialsConfig(parsed),
     };
   } catch {
@@ -125,6 +131,8 @@ export async function readTestSuiteMetadata(
 export type EvalSuiteResult = {
   readonly tests: readonly EvalTest[];
   readonly trials?: TrialsConfig;
+  /** Suite-level targets from execution.targets (matrix evaluation) */
+  readonly targets?: readonly string[];
 };
 
 /**
@@ -141,7 +149,7 @@ export async function loadTestSuite(
     return { tests: await loadTestsFromJsonl(evalFilePath, repoRoot, options) };
   }
   const { tests, parsed } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
-  return { tests, trials: extractTrialsConfig(parsed) };
+  return { tests, trials: extractTrialsConfig(parsed), targets: extractTargetsFromSuite(parsed) };
 }
 
 /** @deprecated Use `loadTestSuite` instead */
@@ -350,6 +358,9 @@ async function loadTestsFromYaml(
       ? (evalcase.metadata as Record<string, unknown>)
       : undefined;
 
+    // Extract per-test targets override (matrix evaluation)
+    const caseTargets = extractTargetsFromTestCase(evalcase as JsonObject);
+
     const testCase: EvalTest = {
       id,
       dataset: datasetName,
@@ -367,6 +378,7 @@ async function loadTestsFromYaml(
       evaluators,
       workspace: mergedWorkspace,
       metadata,
+      targets: caseTargets,
     };
 
     if (verbose) {
