@@ -27,8 +27,12 @@ import {
 } from './output-writer.js';
 import { ProgressDisplay, type WorkerProgress } from './progress-display.js';
 import { findRepoRoot } from './shared.js';
-import { calculateEvaluationSummary, formatEvaluationSummary } from './statistics.js';
-import { type TargetSelection, selectTarget } from './targets.js';
+import {
+  calculateEvaluationSummary,
+  formatEvaluationSummary,
+  formatMatrixSummary,
+} from './statistics.js';
+import { type TargetSelection, selectMultipleTargets, selectTarget } from './targets.js';
 import { TraceWriter, buildTraceRecord } from './trace-writer.js';
 
 const DEFAULT_WORKERS = 3;
@@ -40,6 +44,7 @@ interface RunEvalCommandInput {
 
 interface NormalizedOptions {
   readonly target?: string;
+  readonly cliTargets: readonly string[];
   readonly targetsPath?: string;
   readonly filter?: string;
   readonly workers?: number;
@@ -95,8 +100,24 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     ? rawOutputPaths.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
     : [];
 
+  // Normalize --target: can be a string (legacy) or string[] (multioption)
+  const rawTarget = rawOptions.target;
+  let cliTargets: string[] = [];
+  let singleTarget: string | undefined;
+  if (Array.isArray(rawTarget)) {
+    cliTargets = rawTarget.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+    singleTarget = cliTargets.length === 1 ? cliTargets[0] : undefined;
+  } else if (typeof rawTarget === 'string') {
+    const trimmed = rawTarget.trim();
+    if (trimmed.length > 0 && trimmed !== 'default') {
+      cliTargets = [trimmed];
+      singleTarget = trimmed;
+    }
+  }
+
   return {
-    target: normalizeString(rawOptions.target),
+    target: singleTarget,
+    cliTargets,
     targetsPath: normalizeString(rawOptions.targets),
     filter: normalizeString(rawOptions.filter),
     workers: workers > 0 ? workers : undefined,
@@ -228,9 +249,9 @@ async function prepareFileMetadata(params: {
 }): Promise<{
   readonly evalIds: readonly string[];
   readonly evalCases: readonly EvalTest[];
-  readonly selection: TargetSelection;
-  readonly inlineTargetLabel: string;
+  readonly selections: readonly { selection: TargetSelection; inlineTargetLabel: string }[];
   readonly trialsConfig?: TrialsConfig;
+  readonly suiteTargets?: readonly string[];
 }> {
   const { testFilePath, repoRoot, cwd, options } = params;
 
@@ -241,36 +262,84 @@ async function prepareFileMetadata(params: {
     verbose: options.verbose,
   });
 
-  const selection = await selectTarget({
-    testFilePath,
-    repoRoot,
-    cwd,
-    explicitTargetsPath: options.targetsPath,
-    cliTargetName: options.target,
-    dryRun: options.dryRun,
-    dryRunDelay: options.dryRunDelay,
-    dryRunDelayMin: options.dryRunDelayMin,
-    dryRunDelayMax: options.dryRunDelayMax,
-    env: process.env,
-  });
-
-  const providerLabel = options.dryRun
-    ? `${selection.resolvedTarget.kind} (dry-run)`
-    : selection.resolvedTarget.kind;
-  const inlineTargetLabel = `${selection.targetName} [provider=${providerLabel}]`;
-
   const suite = await loadTestSuite(testFilePath, repoRoot, {
     verbose: options.verbose,
     filter: options.filter,
   });
   const filteredIds = suite.tests.map((value) => value.id);
 
+  // Determine target names: CLI --target flags override YAML
+  const cliTargets = options.cliTargets;
+  const suiteTargets = suite.targets;
+
+  // Resolve which target names to use (precedence: CLI > YAML targets > YAML target > default)
+  let targetNames: readonly string[];
+  if (cliTargets.length > 0) {
+    targetNames = cliTargets;
+  } else if (suiteTargets && suiteTargets.length > 0) {
+    targetNames = suiteTargets;
+  } else {
+    targetNames = [];
+  }
+
+  let selections: { selection: TargetSelection; inlineTargetLabel: string }[];
+
+  if (targetNames.length > 1) {
+    // Matrix mode: multiple targets
+    const multiSelections = await selectMultipleTargets({
+      testFilePath,
+      repoRoot,
+      cwd,
+      explicitTargetsPath: options.targetsPath,
+      dryRun: options.dryRun,
+      dryRunDelay: options.dryRunDelay,
+      dryRunDelayMin: options.dryRunDelayMin,
+      dryRunDelayMax: options.dryRunDelayMax,
+      env: process.env,
+      targetNames,
+    });
+
+    selections = multiSelections.map((sel) => {
+      const providerLabel = options.dryRun
+        ? `${sel.resolvedTarget.kind} (dry-run)`
+        : sel.resolvedTarget.kind;
+      return {
+        selection: sel,
+        inlineTargetLabel: `${sel.targetName} [provider=${providerLabel}]`,
+      };
+    });
+  } else {
+    // Single target mode (legacy path)
+    const selection = await selectTarget({
+      testFilePath,
+      repoRoot,
+      cwd,
+      explicitTargetsPath: options.targetsPath,
+      cliTargetName: targetNames.length === 1 ? targetNames[0] : options.target,
+      dryRun: options.dryRun,
+      dryRunDelay: options.dryRunDelay,
+      dryRunDelayMin: options.dryRunDelayMin,
+      dryRunDelayMax: options.dryRunDelayMax,
+      env: process.env,
+    });
+
+    const providerLabel = options.dryRun
+      ? `${selection.resolvedTarget.kind} (dry-run)`
+      : selection.resolvedTarget.kind;
+    selections = [
+      {
+        selection,
+        inlineTargetLabel: `${selection.targetName} [provider=${providerLabel}]`,
+      },
+    ];
+  }
+
   return {
     evalIds: filteredIds,
     evalCases: suite.tests,
-    selection,
-    inlineTargetLabel,
+    selections,
     trialsConfig: suite.trials,
+    suiteTargets,
   };
 }
 
@@ -310,6 +379,7 @@ async function runSingleEvalFile(params: {
   readonly inlineTargetLabel: string;
   readonly evalCases: readonly EvalTest[];
   readonly trialsConfig?: TrialsConfig;
+  readonly matrixMode?: boolean;
 }): Promise<{ results: EvaluationResult[] }> {
   const {
     testFilePath,
@@ -328,7 +398,10 @@ async function runSingleEvalFile(params: {
     inlineTargetLabel,
     evalCases,
     trialsConfig,
+    matrixMode,
   } = params;
+
+  const targetName = selection.targetName;
 
   await ensureFileExists(testFilePath, 'Test file');
 
@@ -408,7 +481,8 @@ async function runSingleEvalFile(params: {
       await outputWriter.append(resultWithoutTrace as EvaluationResult);
     },
     onProgress: async (event) => {
-      const evalKey = makeEvalKey(testFilePath, event.testId);
+      const evalKeyId = matrixMode ? `${event.testId}@${targetName}` : event.testId;
+      const evalKey = makeEvalKey(testFilePath, evalKeyId);
       if (event.status === 'pending' && !seenEvalCases.has(evalKey)) {
         seenEvalCases.add(evalKey);
         progressReporter.setTotal(seenEvalCases.size);
@@ -417,7 +491,7 @@ async function runSingleEvalFile(params: {
 
       progressReporter.update(displayId, {
         workerId: displayId,
-        testId: event.testId,
+        testId: matrixMode ? `${event.testId}@${targetName}` : event.testId,
         status: event.status,
         startedAt: event.startedAt,
         completedAt: event.completedAt,
@@ -503,9 +577,12 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     {
       readonly evalIds: readonly string[];
       readonly evalCases: readonly EvalTest[];
-      readonly selection: TargetSelection;
-      readonly inlineTargetLabel: string;
+      readonly selections: readonly {
+        selection: TargetSelection;
+        inlineTargetLabel: string;
+      }[];
       readonly trialsConfig?: TrialsConfig;
+      readonly suiteTargets?: readonly string[];
     }
   >();
   for (const testFilePath of resolvedTestFiles) {
@@ -517,10 +594,24 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     });
     fileMetadata.set(testFilePath, meta);
   }
-  const totalEvalCount = Array.from(fileMetadata.values()).reduce(
-    (sum, meta) => sum + meta.evalIds.length,
-    0,
-  );
+
+  // Detect matrix mode: multiple targets for any file
+  const isMatrixMode = Array.from(fileMetadata.values()).some((meta) => meta.selections.length > 1);
+
+  // In matrix mode, total eval count is tests × targets (accounting for per-test target overrides)
+  let totalEvalCount = 0;
+  for (const meta of fileMetadata.values()) {
+    const suiteTargetNames = meta.selections.map((s) => s.selection.targetName);
+    for (const test of meta.evalCases) {
+      // Per-test targets override suite-level targets
+      const testTargetNames =
+        test.targets && test.targets.length > 0
+          ? test.targets.filter((t) => suiteTargetNames.includes(t))
+          : suiteTargetNames;
+      totalEvalCount += testTargetNames.length > 0 ? testTargetNames.length : 1;
+    }
+  }
+
   if (totalEvalCount === 0) {
     throw new Error('No tests matched the provided filters.');
   }
@@ -552,16 +643,21 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     progressReporter.addLogPaths([entry.filePath], 'copilot');
   });
   for (const [testFilePath, meta] of fileMetadata.entries()) {
-    for (const testId of meta.evalIds) {
-      const evalKey = makeEvalKey(testFilePath, testId);
-      seenEvalCases.add(evalKey);
-      const displayId = displayIdTracker.getOrAssign(evalKey);
-      progressReporter.update(displayId, {
-        workerId: displayId,
-        testId,
-        status: 'pending',
-        targetLabel: meta.inlineTargetLabel,
-      });
+    for (const { selection, inlineTargetLabel } of meta.selections) {
+      for (const testId of meta.evalIds) {
+        const evalKey = makeEvalKey(
+          testFilePath,
+          meta.selections.length > 1 ? `${testId}@${selection.targetName}` : testId,
+        );
+        seenEvalCases.add(evalKey);
+        const displayId = displayIdTracker.getOrAssign(evalKey);
+        progressReporter.update(displayId, {
+          workerId: displayId,
+          testId: meta.selections.length > 1 ? `${testId}@${selection.targetName}` : testId,
+          status: 'pending',
+          targetLabel: inlineTargetLabel,
+        });
+      }
     }
   }
 
@@ -571,32 +667,58 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       if (!targetPrep) {
         throw new Error(`Missing metadata for ${testFilePath}`);
       }
-      const result = await runSingleEvalFile({
-        testFilePath,
-        cwd,
-        repoRoot,
-        options,
-        outputWriter,
-        traceWriter,
-        cache,
-        evaluationRunner,
-        workersOverride: perFileWorkers,
-        progressReporter,
-        seenEvalCases,
-        displayIdTracker,
-        selection: targetPrep.selection,
-        inlineTargetLabel: targetPrep.inlineTargetLabel,
-        evalCases: targetPrep.evalCases,
-        trialsConfig: targetPrep.trialsConfig,
-      });
 
-      allResults.push(...result.results);
+      // Run once per target selection (matrix mode)
+      for (const { selection, inlineTargetLabel } of targetPrep.selections) {
+        // Filter eval cases to those applicable to this target
+        const targetName = selection.targetName;
+        const applicableEvalCases =
+          targetPrep.selections.length > 1
+            ? targetPrep.evalCases.filter((test) => {
+                if (test.targets && test.targets.length > 0) {
+                  return test.targets.includes(targetName);
+                }
+                return true;
+              })
+            : targetPrep.evalCases;
+
+        if (applicableEvalCases.length === 0) {
+          continue;
+        }
+
+        const result = await runSingleEvalFile({
+          testFilePath,
+          cwd,
+          repoRoot,
+          options,
+          outputWriter,
+          traceWriter,
+          cache,
+          evaluationRunner,
+          workersOverride: perFileWorkers,
+          progressReporter,
+          seenEvalCases,
+          displayIdTracker,
+          selection,
+          inlineTargetLabel,
+          evalCases: applicableEvalCases,
+          trialsConfig: targetPrep.trialsConfig,
+          matrixMode: targetPrep.selections.length > 1,
+        });
+
+        allResults.push(...result.results);
+      }
     });
 
     progressReporter.finish();
 
     const summary = calculateEvaluationSummary(allResults);
     console.log(formatEvaluationSummary(summary));
+
+    // Print matrix summary when multiple targets were evaluated
+    if (isMatrixMode && allResults.length > 0) {
+      console.log(formatMatrixSummary(allResults));
+    }
 
     // Print workspace paths for failed cases (when preserved for debugging)
     const failedWithWorkspaces = allResults.filter(

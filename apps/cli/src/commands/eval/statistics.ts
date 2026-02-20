@@ -190,3 +190,66 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
 
   return lines.join('\n');
 }
+
+/**
+ * Format a matrix summary table showing tests × targets.
+ */
+export function formatMatrixSummary(results: readonly EvaluationResult[]): string {
+  // Collect unique targets and test IDs
+  const targetSet = new Set<string>();
+  const testIdSet = new Set<string>();
+  for (const result of results) {
+    targetSet.add(result.target);
+    testIdSet.add(result.testId);
+  }
+
+  const targets = [...targetSet].sort();
+  const testIds = [...testIdSet].sort();
+
+  if (targets.length < 2) {
+    return '';
+  }
+
+  // Build lookup: testId -> target -> score
+  const scoreMap = new Map<string, Map<string, number>>();
+  for (const result of results) {
+    if (!scoreMap.has(result.testId)) {
+      scoreMap.set(result.testId, new Map());
+    }
+    scoreMap.get(result.testId)?.set(result.target, result.score);
+  }
+
+  const lines: string[] = [];
+  lines.push('\n==================================================');
+  lines.push('MATRIX RESULTS (tests × targets)');
+  lines.push('==================================================');
+
+  // Header row
+  const testIdColWidth = Math.max(7, ...testIds.map((id) => id.length));
+  const targetColWidth = Math.max(7, ...targets.map((t) => t.length));
+  const header = `${'Test'.padEnd(testIdColWidth)}  ${targets.map((t) => t.padEnd(targetColWidth)).join('  ')}`;
+  lines.push(header);
+  lines.push('-'.repeat(header.length));
+
+  // Data rows
+  for (const testId of testIds) {
+    const cells = targets.map((target) => {
+      const score = scoreMap.get(testId)?.get(target);
+      return score !== undefined
+        ? formatScore(score).padEnd(targetColWidth)
+        : '-'.padEnd(targetColWidth);
+    });
+    lines.push(`${testId.padEnd(testIdColWidth)}  ${cells.join('  ')}`);
+  }
+
+  // Per-target averages
+  lines.push('-'.repeat(header.length));
+  const avgCells = targets.map((target) => {
+    const scores = results.filter((r) => r.target === target).map((r) => r.score);
+    const avg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+    return formatScore(avg).padEnd(targetColWidth);
+  });
+  lines.push(`${'Average'.padEnd(testIdColWidth)}  ${avgCells.join('  ')}`);
+
+  return lines.join('\n');
+}

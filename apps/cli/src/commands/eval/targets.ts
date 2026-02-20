@@ -22,6 +22,13 @@ export async function readTestSuiteTarget(testFilePath: string): Promise<string 
   return metadata.target;
 }
 
+export async function readTestSuiteTargets(
+  testFilePath: string,
+): Promise<readonly string[] | undefined> {
+  const metadata = await readTestSuiteMetadata(testFilePath);
+  return metadata.targets;
+}
+
 export interface TargetSelection {
   readonly definitions: readonly TargetDefinition[];
   readonly resolvedTarget: ResolvedTarget;
@@ -36,6 +43,7 @@ export interface TargetSelectionOptions {
   readonly cwd: string;
   readonly explicitTargetsPath?: string;
   readonly cliTargetName?: string;
+  readonly cliTargetNames?: readonly string[];
   readonly dryRun: boolean;
   readonly dryRunDelay: number;
   readonly dryRunDelayMin: number;
@@ -159,4 +167,110 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to resolve target '${targetChoice.name}': ${message}`);
   }
+}
+
+/**
+ * Select multiple targets for matrix evaluation.
+ * Returns an array of TargetSelection, one per target name.
+ */
+export async function selectMultipleTargets(
+  options: TargetSelectionOptions & { readonly targetNames: readonly string[] },
+): Promise<readonly TargetSelection[]> {
+  const {
+    testFilePath,
+    repoRoot,
+    cwd,
+    explicitTargetsPath,
+    dryRun,
+    dryRunDelay,
+    dryRunDelayMin,
+    dryRunDelayMax,
+    env,
+    targetNames,
+  } = options;
+
+  const targetsFilePath = await discoverTargetsFile({
+    explicitPath: explicitTargetsPath,
+    testFilePath,
+    repoRoot,
+    cwd,
+  });
+
+  // Validate targets file once
+  const validationResult = await validateTargetsFile(targetsFilePath);
+  const warnings = validationResult.errors.filter((e) => e.severity === 'warning');
+  const useColors = isTTY();
+  if (warnings.length > 0) {
+    console.warn(`\nWarnings in ${targetsFilePath}:`);
+    for (const warning of warnings) {
+      const location = warning.location ? ` [${warning.location}]` : '';
+      const prefix = useColors ? `${ANSI_YELLOW}  ⚠${ANSI_RESET}` : '  ⚠';
+      const message = useColors ? `${ANSI_YELLOW}${warning.message}${ANSI_RESET}` : warning.message;
+      console.warn(`${prefix}${location} ${message}`);
+    }
+    console.warn('');
+  }
+  const errors = validationResult.errors.filter((e) => e.severity === 'error');
+  if (errors.length > 0) {
+    console.error(`\nErrors in ${targetsFilePath}:`);
+    for (const error of errors) {
+      const location = error.location ? ` [${error.location}]` : '';
+      const prefix = useColors ? `${ANSI_RED}  ✗${ANSI_RESET}` : '  ✗';
+      const message = useColors ? `${ANSI_RED}${error.message}${ANSI_RESET}` : error.message;
+      console.error(`${prefix}${location} ${message}`);
+    }
+    throw new Error(`Targets file validation failed with ${errors.length} error(s)`);
+  }
+
+  const definitions = await readTargetDefinitions(targetsFilePath);
+  const results: TargetSelection[] = [];
+
+  for (const name of targetNames) {
+    const targetDefinition = definitions.find(
+      (definition: TargetDefinition) => definition.name === name,
+    );
+    if (!targetDefinition) {
+      const available = listTargetNames(definitions).join(', ');
+      throw new Error(
+        `Target '${name}' not found in ${targetsFilePath}. Available targets: ${available}`,
+      );
+    }
+
+    if (dryRun) {
+      const mockTarget: ResolvedTarget = {
+        kind: 'mock',
+        name: `${targetDefinition.name}-dry-run`,
+        judgeTarget: undefined,
+        config: {
+          response: '{"answer":"Mock dry-run response"}',
+          delayMs: dryRunDelay,
+          delayMinMs: dryRunDelayMin,
+          delayMaxMs: dryRunDelayMax,
+        },
+      };
+      results.push({
+        definitions,
+        resolvedTarget: mockTarget,
+        targetName: name,
+        targetSource: 'cli',
+        targetsFilePath,
+      });
+    } else {
+      try {
+        const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath);
+        results.push({
+          definitions,
+          resolvedTarget,
+          targetName: name,
+          targetSource: 'cli',
+          targetsFilePath,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to resolve target '${name}': ${message}`);
+      }
+    }
+  }
+
+  return results;
 }

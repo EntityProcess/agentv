@@ -22,11 +22,10 @@ export const evalRunCommand = command({
       displayName: 'eval-paths',
       description: 'Path(s) or glob(s) to evaluation .yaml file(s)',
     }),
-    target: option({
-      type: string,
+    target: multioption({
+      type: array(string),
       long: 'target',
-      description: 'Override target name from targets.yaml',
-      defaultValue: () => 'default',
+      description: 'Override target name(s) from targets.yaml (repeatable for matrix evaluation)',
     }),
     targets: option({
       type: optional(string),
