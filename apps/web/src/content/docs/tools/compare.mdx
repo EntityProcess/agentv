@@ -29,7 +29,7 @@ agentv compare before.jsonl after.jsonl
 ## How It Works
 
 1. **Load Results** -- reads both JSONL files containing evaluation results
-2. **Match by eval_id** -- pairs results with matching `eval_id` fields
+2. **Match by test_id** -- pairs results with matching `test_id` fields
 3. **Compute Deltas** -- calculates `delta = score2 - score1` for each pair
 4. **Classify Outcomes**:
    - **win**: delta &gt;= threshold (candidate better)
@@ -44,7 +44,7 @@ agentv compare before.jsonl after.jsonl
 ```
 Comparing: baseline.jsonl -> candidate.jsonl
 
-  Eval ID        Baseline  Candidate     Delta  Result
+  Test ID        Baseline  Candidate     Delta  Result
   -------------  --------  ---------  --------  --------
   safety-check       0.70       0.90     +0.20  win
   accuracy-test      0.85       0.80     -0.05  = tie
@@ -63,7 +63,7 @@ Use `--json` or `--format=json` for machine-readable output. Fields use snake_ca
 {
   "matched": [
     {
-      "eval_id": "case-1",
+      "test_id": "case-1",
       "score1": 0.7,
       "score2": 0.9,
       "delta": 0.2,

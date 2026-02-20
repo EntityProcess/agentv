@@ -32,7 +32,7 @@ describe('preprocessArgv', () => {
         'prompt',
         'input',
         'file.yaml',
-        '--eval-id',
+        '--test-id',
         'case-1',
       ]);
       expect(result).toEqual([
@@ -41,7 +41,7 @@ describe('preprocessArgv', () => {
         'prompt',
         'input',
         'file.yaml',
-        '--eval-id',
+        '--test-id',
         'case-1',
       ]);
     });
@@ -54,7 +54,7 @@ describe('preprocessArgv', () => {
         'prompt',
         'judge',
         'file.yaml',
-        '--eval-id',
+        '--test-id',
         'case-1',
         '--answer-file',
         'out.txt',
@@ -65,7 +65,7 @@ describe('preprocessArgv', () => {
         'prompt',
         'judge',
         'file.yaml',
-        '--eval-id',
+        '--test-id',
         'case-1',
         '--answer-file',
         'out.txt',
@@ -94,6 +94,39 @@ describe('preprocessArgv', () => {
     it('inserts `overview` when `prompt` has no arguments', () => {
       const result = preprocessArgv(['node', 'agentv', 'prompt']);
       expect(result).toEqual(['node', 'agentv', 'prompt', 'overview']);
+    });
+  });
+
+  describe('--eval-id deprecation alias', () => {
+    it('rewrites `--eval-id` → `--test-id`', () => {
+      const result = preprocessArgv(['node', 'agentv', 'run', 'file.yaml', '--eval-id', 'case-1']);
+      expect(result).toEqual(['node', 'agentv', 'run', 'file.yaml', '--test-id', 'case-1']);
+    });
+
+    it('rewrites `--eval-id=value` → `--test-id=value`', () => {
+      const result = preprocessArgv(['node', 'agentv', 'run', 'file.yaml', '--eval-id=case-1']);
+      expect(result).toEqual(['node', 'agentv', 'run', 'file.yaml', '--test-id=case-1']);
+    });
+
+    it('rewrites `--eval-id` in prompt commands', () => {
+      const result = preprocessArgv([
+        'node',
+        'agentv',
+        'prompt',
+        'input',
+        'file.yaml',
+        '--eval-id',
+        'case-1',
+      ]);
+      expect(result).toEqual([
+        'node',
+        'agentv',
+        'prompt',
+        'input',
+        'file.yaml',
+        '--test-id',
+        'case-1',
+      ]);
     });
   });
 

@@ -22,7 +22,7 @@ For each test, run these three steps:
 ### 1. Get Task Input
 
 ```bash
-agentv prompt input <path> --eval-id <id>
+agentv prompt input <path> --test-id <id>
 ```
 
 Returns JSON with `input_messages`, `guideline_paths`, and `criteria`. File references in messages use absolute paths — read them from the filesystem.
@@ -36,7 +36,7 @@ You ARE the candidate LLM. Read `input_messages` from step 1, read any reference
 ### 3. Judge the Result
 
 ```bash
-agentv prompt judge <path> --eval-id <id> --answer-file /tmp/eval_<id>.txt
+agentv prompt judge <path> --test-id <id> --answer-file /tmp/eval_<id>.txt
 ```
 
 Returns JSON with an `evaluators` array. Each evaluator has a `status`:

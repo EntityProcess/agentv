@@ -387,7 +387,7 @@ async function runSingleEvalFile(params: {
     onResult: async (result: EvaluationResult) => {
       // Write trace if trace writer is available and outputMessages exist
       if (traceWriter && result.outputMessages && result.outputMessages.length > 0) {
-        const traceRecord = buildTraceRecord(result.evalId, result.outputMessages, {
+        const traceRecord = buildTraceRecord(result.testId, result.outputMessages, {
           tokenUsage: result.traceSummary?.tokenUsage,
           costUsd: result.traceSummary?.costUsd,
           durationMs: result.traceSummary?.durationMs,
@@ -400,7 +400,7 @@ async function runSingleEvalFile(params: {
       await outputWriter.append(resultWithoutTrace as EvaluationResult);
     },
     onProgress: async (event) => {
-      const evalKey = makeEvalKey(testFilePath, event.evalId);
+      const evalKey = makeEvalKey(testFilePath, event.testId);
       if (event.status === 'pending' && !seenEvalCases.has(evalKey)) {
         seenEvalCases.add(evalKey);
         progressReporter.setTotal(seenEvalCases.size);
@@ -409,7 +409,7 @@ async function runSingleEvalFile(params: {
 
       progressReporter.update(displayId, {
         workerId: displayId,
-        evalId: event.evalId,
+        testId: event.testId,
         status: event.status,
         startedAt: event.startedAt,
         completedAt: event.completedAt,
@@ -526,13 +526,13 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     progressReporter.addLogPaths([entry.filePath], 'copilot');
   });
   for (const [testFilePath, meta] of fileMetadata.entries()) {
-    for (const evalId of meta.evalIds) {
-      const evalKey = makeEvalKey(testFilePath, evalId);
+    for (const testId of meta.evalIds) {
+      const evalKey = makeEvalKey(testFilePath, testId);
       seenEvalCases.add(evalKey);
       const displayId = displayIdTracker.getOrAssign(evalKey);
       progressReporter.update(displayId, {
         workerId: displayId,
-        evalId,
+        testId,
         status: 'pending',
         targetLabel: meta.inlineTargetLabel,
       });
@@ -579,7 +579,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     if (failedWithWorkspaces.length > 0) {
       console.log('\nWorkspaces preserved for debugging:');
       for (const result of failedWithWorkspaces) {
-        console.log(`  ${result.evalId}: ${result.workspacePath}`);
+        console.log(`  ${result.testId}: ${result.workspacePath}`);
       }
     }
 

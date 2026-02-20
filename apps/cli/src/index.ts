@@ -37,6 +37,7 @@ const PROMPT_SUBCOMMANDS = new Set(['overview', 'input', 'judge']);
  * 2. `agentv eval prompt ...` → `agentv prompt ...` (deprecated alias)
  * 3. `agentv file.yaml` → `agentv run file.yaml` (bare file shorthand)
  * 4. `agentv prompt file.yaml` → `agentv prompt overview file.yaml` (default subcommand)
+ * 5. `--eval-id` → `--test-id` (deprecated alias)
  */
 export function preprocessArgv(argv: string[]): string[] {
   const result = [...argv];
@@ -66,6 +67,21 @@ export function preprocessArgv(argv: string[]): string[] {
     const promptNextArg = result[promptIndex + 1];
     if (promptNextArg === undefined || !PROMPT_SUBCOMMANDS.has(promptNextArg)) {
       result.splice(promptIndex + 1, 0, 'overview');
+    }
+  }
+
+  // Rewrite deprecated --eval-id → --test-id
+  for (let i = 0; i < result.length; i++) {
+    if (result[i] === '--eval-id') {
+      result[i] = '--test-id';
+      console.error(
+        '⚠  `--eval-id` is deprecated. Use `--test-id` instead.\n   This alias will be removed in v4.0.\n',
+      );
+    } else if (result[i].startsWith('--eval-id=')) {
+      result[i] = `--test-id=${result[i].slice('--eval-id='.length)}`;
+      console.error(
+        '⚠  `--eval-id` is deprecated. Use `--test-id` instead.\n   This alias will be removed in v4.0.\n',
+      );
     }
   }
 

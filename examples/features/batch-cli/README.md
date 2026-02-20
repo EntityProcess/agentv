@@ -16,7 +16,7 @@ This example demonstrates an **external batch runner** pattern for a (synthetic)
 
 This example intentionally includes a test (`aml-004-not-exist`) that is **not written into the CSV input** by `scripts/build-csv-from-eval.ts`.
 
-That means the batch runner never emits a JSONL record for that `eval_id`, and the CLI provider surfaces a provider-side error:
+That means the batch runner never emits a JSONL record for that `test_id`, and the CLI provider surfaces a provider-side error:
 
 - `error: "Batch output missing id 'aml-004-not-exist'"`
 

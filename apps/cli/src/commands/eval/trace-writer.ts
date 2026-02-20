@@ -31,8 +31,8 @@ export interface TraceSpan {
  * A trace record representing a single eval case execution.
  */
 export interface TraceRecord {
-  /** Eval case identifier */
-  readonly evalId: string;
+  /** Test case identifier */
+  readonly testId: string;
   /** ISO 8601 timestamp when execution started */
   readonly startTime?: string;
   /** ISO 8601 timestamp when execution ended */
@@ -77,7 +77,7 @@ export function extractTraceSpans(outputMessages: readonly OutputMessage[]): rea
  * Builds a TraceRecord from an EvaluationResult's outputMessages.
  */
 export function buildTraceRecord(
-  evalId: string,
+  testId: string,
   outputMessages: readonly OutputMessage[],
   options?: {
     readonly tokenUsage?: ProviderTokenUsage;
@@ -90,7 +90,7 @@ export function buildTraceRecord(
   const spans = extractTraceSpans(outputMessages);
 
   return {
-    evalId,
+    testId,
     startTime: options?.startTime,
     endTime: options?.endTime,
     durationMs: options?.durationMs,

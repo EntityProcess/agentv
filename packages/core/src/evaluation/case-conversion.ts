@@ -1,7 +1,7 @@
 /**
  * Converts a camelCase string to snake_case.
  * Examples:
- *   evalId -> eval_id
+ *   testId -> test_id
  *   candidateAnswer -> candidate_answer
  *   conversationId -> conversation_id
  *

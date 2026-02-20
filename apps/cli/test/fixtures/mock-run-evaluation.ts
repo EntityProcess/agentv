@@ -15,14 +15,13 @@ interface RunEvaluationOptionsLike {
   readonly cache?: unknown;
   readonly useCache?: boolean;
   readonly testId?: string;
-  readonly evalId?: string;
   readonly evalCases?: ReadonlyArray<unknown>;
   readonly verbose?: boolean;
   readonly onResult?: (result: EvaluationResultLike) => Promise<void> | void;
 }
 
 interface EvaluationResultLike {
-  readonly evalId: string;
+  readonly testId: string;
   readonly score: number;
   readonly hits: readonly string[];
   readonly misses: readonly string[];
@@ -37,7 +36,7 @@ function buildResults(targetName: string): EvaluationResultLike[] {
   const baseTime = new Date('2024-01-01T00:00:00.000Z');
   return [
     {
-      evalId: 'case-alpha',
+      testId: 'case-alpha',
       score: 0.6,
       hits: ['alpha'],
       misses: [],
@@ -48,7 +47,7 @@ function buildResults(targetName: string): EvaluationResultLike[] {
       reasoning: 'Alpha reasoning',
     },
     {
-      evalId: 'case-beta',
+      testId: 'case-beta',
       score: 0.9,
       hits: ['beta', 'gamma'],
       misses: ['delta'],
@@ -106,7 +105,7 @@ export async function runEvaluation(
   await maybeWriteDiagnostics(options, results);
   await maybeWritePromptDump(
     options.promptDumpDir,
-    results.map((result) => result.evalId),
+    results.map((result) => result.testId),
   );
 
   for (const result of results) {

@@ -28,7 +28,7 @@ agentv run --target azure_base evals/**/*.yaml
 Run a single test by ID:
 
 ```bash
-agentv run --eval-id case-123 evals/my-eval.yaml
+agentv run --test-id case-123 evals/my-eval.yaml
 ```
 
 ### Dry Run
@@ -58,7 +58,7 @@ agentv run evals/my-eval.yaml --trace
 ```
 
 Traces are written to `.agentv/traces/<timestamp>/<eval-file>.trace.jsonl` as JSONL records containing:
-- `evalId` - The test identifier
+- `testId` - The test identifier
 - `startTime` / `endTime` - Execution boundaries
 - `durationMs` - Total execution duration
 - `spans` - Array of tool invocations with timing and input/output
@@ -101,7 +101,7 @@ Outputs a step-by-step orchestration prompt listing all tests and the commands t
 ### Get Task Input
 
 ```bash
-agentv prompt input evals/my-eval.yaml --eval-id case-123
+agentv prompt input evals/my-eval.yaml --test-id case-123
 ```
 
 Returns JSON with:
@@ -112,7 +112,7 @@ Returns JSON with:
 ### Judge the Result
 
 ```bash
-agentv prompt judge evals/my-eval.yaml --eval-id case-123 --answer-file response.txt
+agentv prompt judge evals/my-eval.yaml --test-id case-123 --answer-file response.txt
 ```
 
 Runs code judges deterministically and returns LLM judge prompts for the agent to execute. Each evaluator in the output has a `status`:

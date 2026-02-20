@@ -5,7 +5,7 @@ import { toSnakeCaseDeep } from '../../src/utils/case-conversion.js';
 describe('toSnakeCaseDeep', () => {
   test('converts simple camelCase keys to snake_case', () => {
     const input = {
-      evalId: 'test-001',
+      testId: 'test-001',
       candidateAnswer: 'hello world',
       conversationId: 'conv-123',
     };
@@ -13,7 +13,7 @@ describe('toSnakeCaseDeep', () => {
     const result = toSnakeCaseDeep(input);
 
     expect(result).toEqual({
-      eval_id: 'test-001',
+      test_id: 'test-001',
       candidate_answer: 'hello world',
       conversation_id: 'conv-123',
     });
@@ -21,7 +21,7 @@ describe('toSnakeCaseDeep', () => {
 
   test('converts nested objects recursively', () => {
     const input = {
-      evalId: 'test-001',
+      testId: 'test-001',
       traceSummary: {
         toolCalls: 5,
         totalSteps: 10,
@@ -31,7 +31,7 @@ describe('toSnakeCaseDeep', () => {
     const result = toSnakeCaseDeep(input);
 
     expect(result).toEqual({
-      eval_id: 'test-001',
+      test_id: 'test-001',
       trace_summary: {
         tool_calls: 5,
         total_steps: 10,
@@ -73,7 +73,7 @@ describe('toSnakeCaseDeep', () => {
   test('handles complex nested structures', () => {
     const input = {
       timestamp: '2025-01-02T00:00:00Z',
-      evalId: 'test-001',
+      testId: 'test-001',
       agentProviderRequest: {
         modelName: 'gpt-4',
         maxTokens: 1000,
@@ -95,7 +95,7 @@ describe('toSnakeCaseDeep', () => {
 
     expect(result).toEqual({
       timestamp: '2025-01-02T00:00:00Z',
-      eval_id: 'test-001',
+      test_id: 'test-001',
       agent_provider_request: {
         model_name: 'gpt-4',
         max_tokens: 1000,
@@ -116,14 +116,14 @@ describe('toSnakeCaseDeep', () => {
 
   test('handles keys that are already snake_case', () => {
     const input = {
-      eval_id: 'test-001',
+      test_id: 'test-001',
       candidate_answer: 'hello',
     };
 
     const result = toSnakeCaseDeep(input);
 
     expect(result).toEqual({
-      eval_id: 'test-001',
+      test_id: 'test-001',
       candidate_answer: 'hello',
     });
   });

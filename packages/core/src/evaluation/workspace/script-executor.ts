@@ -7,8 +7,6 @@ import type { WorkspaceScriptConfig } from '../types.js';
 export interface ScriptExecutionContext {
   readonly workspacePath: string;
   readonly testId: string;
-  /** @deprecated Use `testId` instead */
-  readonly evalCaseId?: string;
   readonly evalRunId: string;
   readonly caseInput?: string;
   readonly caseMetadata?: Record<string, unknown>;
@@ -29,7 +27,7 @@ export async function executeWorkspaceSetup(
 ): Promise<string> {
   const stdin = JSON.stringify({
     workspace_path: context.workspacePath,
-    eval_case_id: context.testId,
+    test_id: context.testId,
     eval_run_id: context.evalRunId,
     case_input: context.caseInput ?? null,
     case_metadata: context.caseMetadata ?? null,
@@ -67,7 +65,7 @@ export async function executeWorkspaceTeardown(
 ): Promise<string> {
   const stdin = JSON.stringify({
     workspace_path: context.workspacePath,
-    eval_case_id: context.testId,
+    test_id: context.testId,
     eval_run_id: context.evalRunId,
     case_input: context.caseInput ?? null,
     case_metadata: context.caseMetadata ?? null,

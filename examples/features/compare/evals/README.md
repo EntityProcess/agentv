@@ -26,7 +26,7 @@ Output:
 ```
 Comparing: baseline-results.jsonl → candidate-results.jsonl
 
-  Eval ID          Baseline  Candidate     Delta  Result
+  Test ID          Baseline  Candidate     Delta  Result
   ───────────────  ────────  ─────────  ────────  ────────
   code-review-001      0.72       0.88     +0.16  ✓ win
   code-review-002      0.85       0.82     -0.03  = tie
@@ -58,7 +58,7 @@ Output uses snake_case for Python ecosystem compatibility:
 ```json
 {
   "matched": [
-    {"eval_id": "code-review-001", "score1": 0.72, "score2": 0.88, "delta": 0.16, "outcome": "win"}
+    {"test_id": "code-review-001", "score1": 0.72, "score2": 0.88, "delta": 0.16, "outcome": "win"}
   ],
   "unmatched": {"file1": 0, "file2": 0},
   "summary": {

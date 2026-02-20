@@ -16,7 +16,7 @@ export interface EvaluationSummary {
   readonly topResults: readonly EvaluationResult[];
   readonly bottomResults: readonly EvaluationResult[];
   readonly errorCount: number;
-  readonly errors: readonly { readonly evalId: string; readonly error: string }[];
+  readonly errors: readonly { readonly testId: string; readonly error: string }[];
 }
 
 const HISTOGRAM_BREAKPOINTS = [0, 0.2, 0.4, 0.6, 0.8, 1];
@@ -86,7 +86,7 @@ export function calculateEvaluationSummary(
   // Track errors
   const errors = results
     .filter((result) => result.error !== undefined)
-    .map((result) => ({ evalId: result.evalId, error: result.error as string }));
+    .map((result) => ({ testId: result.testId, error: result.error as string }));
   const errorCount = errors.length;
 
   if (total === 0) {
@@ -148,7 +148,7 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
     lines.push('ERRORS');
     lines.push('==================================================');
     for (const error of summary.errors) {
-      lines.push(`\n❌ ${error.evalId}`);
+      lines.push(`\n❌ ${error.testId}`);
       lines.push(`   ${error.error}`);
     }
     lines.push('');
@@ -180,12 +180,12 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
 
   lines.push('\nTop performing tests:');
   summary.topResults.forEach((result, index) => {
-    lines.push(`  ${index + 1}. ${result.evalId}: ${formatScore(result.score)}`);
+    lines.push(`  ${index + 1}. ${result.testId}: ${formatScore(result.score)}`);
   });
 
   lines.push('\nLowest performing tests:');
   summary.bottomResults.forEach((result, index) => {
-    lines.push(`  ${index + 1}. ${result.evalId}: ${formatScore(result.score)}`);
+    lines.push(`  ${index + 1}. ${result.testId}: ${formatScore(result.score)}`);
   });
 
   return lines.join('\n');
