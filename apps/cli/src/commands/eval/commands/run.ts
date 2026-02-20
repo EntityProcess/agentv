@@ -14,7 +14,7 @@ import { runEvalCommand } from '../run-eval.js';
 import { resolveEvalPaths } from '../shared.js';
 
 export const evalRunCommand = command({
-  name: 'run',
+  name: 'eval',
   description: 'Run eval suites and report results',
   args: {
     evalPaths: restPositionals({

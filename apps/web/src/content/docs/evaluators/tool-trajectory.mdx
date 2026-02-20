@@ -171,10 +171,10 @@ The evaluator extracts tool calls from `output_messages[].tool_calls[]`. The `to
 
 ```bash
 # Write trace files to disk
-agentv run evals/test.yaml --dump-traces
+agentv eval evals/test.yaml --dump-traces
 
 # Include full trace in result output
-agentv run evals/test.yaml --include-trace
+agentv eval evals/test.yaml --include-trace
 ```
 
 Use `--dump-traces` to inspect actual traces and understand agent behavior before writing evaluators.

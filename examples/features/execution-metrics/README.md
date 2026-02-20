@@ -15,7 +15,7 @@ Demonstrates execution metrics tracking (tokens, cost, latency) in evaluations.
 ```bash
 # From repository root
 cd examples/features
-bun agentv run execution-metrics/evals/dataset.yaml --target mock_metrics_agent
+bun agentv eval execution-metrics/evals/dataset.yaml --target mock_metrics_agent
 ```
 
 ## Setup

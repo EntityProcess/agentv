@@ -47,7 +47,7 @@ bun run build
 
 ```bash
 # From examples/features
-bun agentv run deterministic-evaluators/evals/dataset.yaml --target <your-target>
+bun agentv eval deterministic-evaluators/evals/dataset.yaml --target <your-target>
 ```
 
 ## Standalone Test

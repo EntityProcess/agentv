@@ -14,10 +14,10 @@ Demonstrates core AgentV schema features with minimal setup.
 
 ```bash
 # From repository root
-bun agentv run examples/features/basic/evals/dataset.yaml
+bun agentv eval examples/features/basic/evals/dataset.yaml
 
 # With specific target
-bun agentv run examples/features/basic/evals/dataset.yaml --target default
+bun agentv eval examples/features/basic/evals/dataset.yaml --target default
 ```
 
 ## Key Files

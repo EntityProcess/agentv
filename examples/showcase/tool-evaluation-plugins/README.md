@@ -56,7 +56,7 @@ evaluators:
 export TOOL_EVAL_PLUGINS_DIR=$(pwd)/examples/showcase/tool-evaluation-plugins
 
 # Run the demo
-npx agentv run examples/showcase/tool-evaluation-plugins/tool-eval-demo.yaml
+npx agentv eval examples/showcase/tool-evaluation-plugins/tool-eval-demo.yaml
 ```
 
 ## Input Contract

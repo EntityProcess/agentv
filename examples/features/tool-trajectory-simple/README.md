@@ -15,7 +15,7 @@ Demonstrates tool trajectory evaluation with different matching modes.
 ```bash
 # From repository root
 cd examples/features
-bun agentv run tool-trajectory-simple/evals/dataset.yaml --target mock_agent
+bun agentv eval tool-trajectory-simple/evals/dataset.yaml --target mock_agent
 ```
 
 ## Setup

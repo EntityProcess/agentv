@@ -12,9 +12,9 @@ The `compare` command computes deltas between two evaluation runs for A/B testin
 Run two evaluations and compare them:
 
 ```bash
-agentv run evals/my-eval.yaml --out before.jsonl
+agentv eval evals/my-eval.yaml --out before.jsonl
 # ... make changes to your agent ...
-agentv run evals/my-eval.yaml --out after.jsonl
+agentv eval evals/my-eval.yaml --out after.jsonl
 agentv compare before.jsonl after.jsonl
 ```
 
@@ -102,10 +102,10 @@ Compare different model versions:
 
 ```bash
 # Run baseline evaluation
-agentv run evals/*.yaml --target gpt-4 --out baseline.jsonl
+agentv eval evals/*.yaml --target gpt-4 --out baseline.jsonl
 
 # Run candidate evaluation
-agentv run evals/*.yaml --target gpt-4o --out candidate.jsonl
+agentv eval evals/*.yaml --target gpt-4o --out candidate.jsonl
 
 # Compare results
 agentv compare baseline.jsonl candidate.jsonl
@@ -117,10 +117,10 @@ Compare before/after prompt changes:
 
 ```bash
 # Run with original prompt
-agentv run evals/*.yaml --out before.jsonl
+agentv eval evals/*.yaml --out before.jsonl
 
 # Modify prompt, then run again
-agentv run evals/*.yaml --out after.jsonl
+agentv eval evals/*.yaml --out after.jsonl
 
 # Compare with strict threshold
 agentv compare before.jsonl after.jsonl --threshold 0.05

@@ -44,7 +44,7 @@ From the repository root:
 
 ```bash
 cd examples/features
-bun agentv run code-judge-sdk/evals/dataset.yaml --target local_cli
+bun agentv eval code-judge-sdk/evals/dataset.yaml --target local_cli
 ```
 
 This requires a CLI target named `local_cli` configured in `.agentv/targets.yaml`.

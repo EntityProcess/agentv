@@ -18,10 +18,10 @@ From repo root:
 
 ```bash
 # Pattern 1: Field accuracy (per-evalcase scoring)
-bun agentv run examples/features/document-extraction/evals/dataset-field-accuracy.yaml
+bun agentv eval examples/features/document-extraction/evals/dataset-field-accuracy.yaml
 
 # Pattern 2: Confusion metrics (cross-document aggregation)
-bun agentv run examples/features/document-extraction/evals/dataset-confusion-metrics.yaml
+bun agentv eval examples/features/document-extraction/evals/dataset-confusion-metrics.yaml
 
 # Aggregate TP/TN/FP/FN into a table (only works with dataset-confusion-metrics.yaml)
 bun run examples/features/document-extraction/scripts/aggregate_metrics.ts \
