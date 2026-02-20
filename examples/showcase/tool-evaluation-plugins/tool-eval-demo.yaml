@@ -28,20 +28,19 @@ tests:
       - role: user
         content: Find information about the current weather in Tokyo and fetch the detailed forecast.
 
-    execution:
-      evaluators:
-        # Built-in: Check minimum tool calls
-        - name: trajectory-check
-          type: tool_trajectory
-          mode: any_order
-          minimums:
-            search: 1
-            fetch: 1
+    assert:
+      # Built-in: Check minimum tool calls
+      - name: trajectory-check
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          search: 1
+          fetch: 1
 
-        # Plugin: Semantic tool selection evaluation
-        - name: selection-quality
-          type: code_judge
-          script: ["bun", "run", "scripts/tool-selection-judge.ts"]
+      # Plugin: Semantic tool selection evaluation
+      - name: selection-quality
+        type: code_judge
+        script: ["bun", "run", "scripts/tool-selection-judge.ts"]
 
   # ==========================================
   # Example 2: Efficiency Scoring
@@ -58,12 +57,11 @@ tests:
       - role: user
         content: Get the current time.
 
-    execution:
-      evaluators:
-        # Plugin: Efficiency metrics scoring
-        - name: efficiency-check
-          type: code_judge
-          script: ["bun", "run", "scripts/efficiency-scorer.ts"]
+    assert:
+      # Plugin: Efficiency metrics scoring
+      - name: efficiency-check
+        type: code_judge
+        script: ["bun", "run", "scripts/efficiency-scorer.ts"]
 
   # ==========================================
   # Example 3: Combined Built-in + Plugin Evaluation
@@ -83,26 +81,25 @@ tests:
       - role: user
         content: Analyze the quarterly sales data and generate a summary report.
 
-    execution:
-      evaluators:
-        # Built-in: Verify required workflow sequence
-        - name: workflow-trajectory
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            - tool: search
-            - tool: validate
-            - tool: process
+    assert:
+      # Built-in: Verify required workflow sequence
+      - name: workflow-trajectory
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: search
+          - tool: validate
+          - tool: process
 
-        # Plugin: Check if tools were appropriate choices
-        - name: selection-check
-          type: code_judge
-          script: ["bun", "run", "scripts/tool-selection-judge.ts"]
+      # Plugin: Check if tools were appropriate choices
+      - name: selection-check
+        type: code_judge
+        script: ["bun", "run", "scripts/tool-selection-judge.ts"]
 
-        # Plugin: Evaluate efficiency
-        - name: efficiency
-          type: code_judge
-          script: ["bun", "run", "scripts/efficiency-scorer.ts"]
+      # Plugin: Evaluate efficiency
+      - name: efficiency
+        type: code_judge
+        script: ["bun", "run", "scripts/efficiency-scorer.ts"]
 
   # ==========================================
   # Example 4: Pairwise Comparison
@@ -128,9 +125,8 @@ tests:
           2. Configuration: Edit settings.json
           3. Usage: Run the main command
 
-    execution:
-      evaluators:
-        # Plugin: Pairwise comparison with position bias mitigation
-        - name: pairwise-quality
-          type: code_judge
-          script: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
+    assert:
+      # Plugin: Pairwise comparison with position bias mitigation
+      - name: pairwise-quality
+        type: code_judge
+        script: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
