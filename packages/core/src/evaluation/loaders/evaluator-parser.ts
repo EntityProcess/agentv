@@ -16,6 +16,7 @@ export async function parseEvaluators(
   rawEvalCase: JsonObject & {
     readonly execution?: JsonValue;
     readonly evaluators?: JsonValue;
+    readonly assert?: JsonValue;
   },
   globalExecution: JsonObject | undefined,
   searchRoots: readonly string[],
@@ -24,13 +25,17 @@ export async function parseEvaluators(
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
 
-  // Case-level evaluators: execution.evaluators > top-level evaluators
+  // Case-level evaluators priority: assert > execution.evaluators > top-level evaluators
   const caseEvaluators =
-    (executionObject ? executionObject.evaluators : undefined) ?? rawEvalCase.evaluators;
+    rawEvalCase.assert ??
+    (executionObject ? executionObject.evaluators : undefined) ??
+    rawEvalCase.evaluators;
 
-  // Root-level (default) evaluators from suite execution block
+  // Root-level (default) evaluators: assert > execution.evaluators
   const skipDefaults = executionObject?.skip_defaults === true;
-  const rootEvaluators = skipDefaults ? undefined : globalExecution?.evaluators;
+  const rootEvaluators = skipDefaults
+    ? undefined
+    : (globalExecution?.assert ?? globalExecution?.evaluators);
 
   // Parse case-level evaluators
   const parsedCase = await parseEvaluatorList(caseEvaluators, searchRoots, evalId);
@@ -72,11 +77,19 @@ async function parseEvaluatorList(
       continue;
     }
 
-    const name = asString(rawEvaluator.name);
+    const rawName = asString(rawEvaluator.name);
     const typeValue = rawEvaluator.type;
 
-    if (!name || !isEvaluatorKind(typeValue)) {
-      logWarning(`Skipping evaluator with invalid name/type in '${evalId}'`);
+    if (!isEvaluatorKind(typeValue)) {
+      logWarning(`Skipping evaluator with invalid type in '${evalId}'`);
+      continue;
+    }
+
+    // Auto-generate name for assertion types if not provided
+    const name = rawName ?? generateAssertionName(typeValue, rawEvaluator);
+
+    if (!name) {
+      logWarning(`Skipping evaluator with missing name in '${evalId}'`);
       continue;
     }
 
@@ -150,8 +163,10 @@ async function parseEvaluatorList(
         }
       }
 
+      const required = parseRequired(rawEvaluator.required);
+
       // Collect unrecognized properties as pass-through config
-      const knownProps = new Set(['name', 'type', 'script', 'cwd', 'weight', 'target']);
+      const knownProps = new Set(['name', 'type', 'script', 'cwd', 'weight', 'target', 'required']);
       const config: Record<string, JsonValue> = {};
       for (const [key, value] of Object.entries(rawEvaluator)) {
         if (!knownProps.has(key) && value !== undefined) {
@@ -166,6 +181,7 @@ async function parseEvaluatorList(
         cwd,
         resolvedCwd,
         ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
         ...(Object.keys(config).length > 0 ? { config } : {}),
         ...(targetConfig !== undefined ? { target: targetConfig } : {}),
       });
@@ -173,10 +189,11 @@ async function parseEvaluatorList(
     }
 
     if (typeValue === 'composite') {
-      const rawMembers = rawEvaluator.evaluators;
+      // Accept assert as alias for evaluators in composite
+      const rawMembers = rawEvaluator.assert ?? rawEvaluator.evaluators;
       if (!Array.isArray(rawMembers)) {
         logWarning(
-          `Skipping composite evaluator '${name}' in '${evalId}': missing evaluators array`,
+          `Skipping composite evaluator '${name}' in '${evalId}': missing evaluators (or assert) array`,
         );
         continue;
       }
@@ -303,6 +320,7 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
 
       evaluators.push({
         name,
@@ -310,6 +328,7 @@ async function parseEvaluatorList(
         evaluators: memberEvaluators,
         aggregator,
         ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
       });
       continue;
     }
@@ -380,6 +399,7 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name,
@@ -388,6 +408,7 @@ async function parseEvaluatorList(
         ...(minimums ? { minimums } : {}),
         ...(expected ? { expected } : {}),
         ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
       };
 
       evaluators.push(config);
@@ -462,6 +483,7 @@ async function parseEvaluatorList(
       const validAggregation = isValidFieldAggregationType(aggregation) ? aggregation : undefined;
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
 
       evaluators.push({
         name,
@@ -469,6 +491,7 @@ async function parseEvaluatorList(
         fields,
         ...(validAggregation ? { aggregation: validAggregation } : {}),
         ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
       });
       continue;
     }
@@ -483,12 +506,14 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
 
       evaluators.push({
         name,
         type: 'latency',
         threshold,
         ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
       });
       continue;
     }
@@ -503,12 +528,14 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
 
       evaluators.push({
         name,
         type: 'cost',
         budget,
         ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
       });
       continue;
     }
@@ -549,12 +576,14 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
 
       evaluators.push({
         name,
         type: 'token_usage',
         ...validLimits,
         ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
       });
       continue;
     }
@@ -625,12 +654,14 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
 
       evaluators.push({
         name,
         type: 'execution_metrics',
         ...validThresholds,
         ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
       });
       continue;
     }
@@ -689,6 +720,7 @@ async function parseEvaluatorList(
         : undefined;
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
 
       evaluators.push({
         name,
@@ -704,6 +736,109 @@ async function parseEvaluatorList(
         ...(temperature !== undefined ? { temperature } : {}),
         ...(judgeTarget ? { judge_target: judgeTarget } : {}),
         ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'contains') {
+      const value = asString(rawEvaluator.value);
+      if (!value) {
+        logWarning(`Skipping contains evaluator '${name}' in '${evalId}': missing value`);
+        continue;
+      }
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
+      evaluators.push({
+        name,
+        type: 'contains',
+        value,
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'regex') {
+      const value = asString(rawEvaluator.value);
+      if (!value) {
+        logWarning(`Skipping regex evaluator '${name}' in '${evalId}': missing value`);
+        continue;
+      }
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
+      evaluators.push({
+        name,
+        type: 'regex',
+        value,
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'is_json') {
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
+      evaluators.push({
+        name,
+        type: 'is_json',
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'equals') {
+      const value = asString(rawEvaluator.value);
+      if (!value) {
+        logWarning(`Skipping equals evaluator '${name}' in '${evalId}': missing value`);
+        continue;
+      }
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
+      evaluators.push({
+        name,
+        type: 'equals',
+        value,
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'rubrics') {
+      const rawCriteria = rawEvaluator.criteria;
+      if (!Array.isArray(rawCriteria) || rawCriteria.length === 0) {
+        logWarning(
+          `Skipping rubrics evaluator '${name}' in '${evalId}': criteria must be a non-empty array`,
+        );
+        continue;
+      }
+
+      // Normalize string shorthands to objects before passing to parseRubricItems
+      const normalizedCriteria = rawCriteria.map((item, index) => {
+        if (typeof item === 'string') {
+          return { id: `rubric-${index + 1}`, outcome: item, weight: 1.0, required: true };
+        }
+        return item;
+      });
+
+      const parsedCriteria = parseRubricItems(normalizedCriteria, name, evalId);
+      if (!parsedCriteria || parsedCriteria.length === 0) {
+        logWarning(`Skipping rubrics evaluator '${name}' in '${evalId}': no valid criteria found`);
+        continue;
+      }
+
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
+
+      evaluators.push({
+        name,
+        type: 'llm_judge',
+        rubrics: parsedCriteria,
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
       });
       continue;
     }
@@ -785,6 +920,7 @@ async function parseEvaluatorList(
       }
 
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
 
       // Back-compat: `type: rubric` maps to `type: llm_judge` with `rubrics`.
       evaluators.push({
@@ -792,15 +928,26 @@ async function parseEvaluatorList(
         type: 'llm_judge',
         rubrics: parsedRubrics,
         ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
       });
       continue;
     }
 
     const weight = validateWeight(rawEvaluator.weight, name, evalId);
+    const required = parseRequired(rawEvaluator.required);
 
     // Collect unrecognized properties as pass-through config (for text prompt templates)
     // Note: For script prompts, config comes from prompt.config instead
-    const knownProps = new Set(['name', 'type', 'prompt', 'model', 'rubrics', 'weight', 'config']);
+    const knownProps = new Set([
+      'name',
+      'type',
+      'prompt',
+      'model',
+      'rubrics',
+      'weight',
+      'config',
+      'required',
+    ]);
     const config: Record<string, JsonValue> = {};
     for (const [key, value] of Object.entries(rawEvaluator)) {
       if (!knownProps.has(key) && value !== undefined) {
@@ -827,11 +974,42 @@ async function parseEvaluatorList(
       ...(resolvedPromptScript ? { resolvedPromptScript } : {}),
       ...(parsedRubrics && parsedRubrics.length > 0 ? { rubrics: parsedRubrics } : {}),
       ...(weight !== undefined ? { weight } : {}),
+      ...(required !== undefined ? { required } : {}),
       ...(finalConfig ? { config: finalConfig } : {}),
     });
   }
 
   return evaluators.length > 0 ? evaluators : undefined;
+}
+
+/** Assertion evaluator types that support auto-generated names. */
+const ASSERTION_TYPES = new Set(['contains', 'regex', 'is_json', 'equals', 'rubrics']);
+
+/**
+ * Generate a descriptive name for assertion-type evaluators when no explicit name is given.
+ * Returns undefined for non-assertion types (those still require an explicit name).
+ */
+function generateAssertionName(typeValue: string, rawEvaluator: JsonObject): string | undefined {
+  if (!ASSERTION_TYPES.has(typeValue)) {
+    return undefined;
+  }
+
+  const value = asString(rawEvaluator.value);
+
+  switch (typeValue) {
+    case 'contains':
+      return value ? `contains-${value}` : 'contains';
+    case 'regex':
+      return value ? `regex-${value.length > 30 ? value.slice(0, 30) : value}` : 'regex';
+    case 'is_json':
+      return 'is_json';
+    case 'equals':
+      return value ? `equals-${value}` : 'equals';
+    case 'rubrics':
+      return 'rubrics';
+    default:
+      return undefined;
+  }
 }
 
 /**
@@ -900,6 +1078,17 @@ function logWarning(message: string, details?: readonly string[]): void {
   } else {
     console.warn(`${ANSI_YELLOW}Warning: ${message}${ANSI_RESET}`);
   }
+}
+
+/**
+ * Parse a `required` value from raw evaluator config.
+ * Accepts `true` (uses default 0.8 threshold) or a number in (0, 1] range.
+ * Returns undefined for falsy/invalid values.
+ */
+function parseRequired(value: JsonValue | undefined): boolean | number | undefined {
+  if (value === true) return true;
+  if (typeof value === 'number' && value > 0 && value <= 1) return value;
+  return undefined;
 }
 
 /**

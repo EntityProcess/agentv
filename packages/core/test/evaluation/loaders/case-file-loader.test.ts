@@ -8,7 +8,7 @@ import {
   isFileReference,
   resolveFileReference,
 } from '../../../src/evaluation/loaders/case-file-loader.js';
-import { loadTests } from '../../../src/evaluation/yaml-parser.js';
+import { loadTestSuite, loadTests } from '../../../src/evaluation/yaml-parser.js';
 
 describe('isFileReference', () => {
   it('returns true for file:// strings', () => {
@@ -282,5 +282,163 @@ tests:
     await expect(loadTests(path.join(tempDir, 'malformed-ref.yaml'), tempDir)).rejects.toThrow(
       /Malformed JSONL at line 2/,
     );
+  });
+});
+
+describe('tests as string path', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-tests-string-path-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('loads tests from external YAML file', async () => {
+    // Create external cases file
+    await writeFile(
+      path.join(tempDir, 'cases.yaml'),
+      `- id: ext-yaml-1
+  criteria: "Goal 1"
+  input: "Hello"
+- id: ext-yaml-2
+  criteria: "Goal 2"
+  input: "World"
+`,
+    );
+
+    // Create suite YAML with tests as string path
+    await writeFile(
+      path.join(tempDir, 'suite.yaml'),
+      `name: string-path-suite
+tests: ./cases.yaml
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'suite.yaml'), tempDir);
+
+    expect(tests).toHaveLength(2);
+    expect(tests[0].id).toBe('ext-yaml-1');
+    expect(tests[0].criteria).toBe('Goal 1');
+    expect(tests[1].id).toBe('ext-yaml-2');
+    expect(tests[1].criteria).toBe('Goal 2');
+  });
+
+  it('loads tests from external JSONL file', async () => {
+    // Create external JSONL cases file
+    await writeFile(
+      path.join(tempDir, 'cases.jsonl'),
+      [
+        '{"id": "ext-jsonl-1", "criteria": "JSONL Goal 1", "input": "Query 1"}',
+        '{"id": "ext-jsonl-2", "criteria": "JSONL Goal 2", "input": "Query 2"}',
+      ].join('\n'),
+    );
+
+    // Create suite YAML with tests pointing to JSONL
+    await writeFile(
+      path.join(tempDir, 'suite-jsonl.yaml'),
+      `name: jsonl-string-path
+tests: ./cases.jsonl
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'suite-jsonl.yaml'), tempDir);
+
+    expect(tests).toHaveLength(2);
+    expect(tests[0].id).toBe('ext-jsonl-1');
+    expect(tests[1].id).toBe('ext-jsonl-2');
+  });
+
+  it('resolves relative path against eval file directory', async () => {
+    // Create nested directory structure
+    const dirA = path.join(tempDir, 'a');
+    const dirB = path.join(tempDir, 'b');
+    await mkdir(dirA, { recursive: true });
+    await mkdir(dirB, { recursive: true });
+
+    // Create cases in directory b
+    await writeFile(
+      path.join(dirB, 'cases.yaml'),
+      `- id: relative-path-test
+  criteria: "Relative path goal"
+  input: "Input"
+`,
+    );
+
+    // Create suite in directory a, referencing ../b/cases.yaml
+    await writeFile(
+      path.join(dirA, 'suite.yaml'),
+      `name: relative-path-suite
+tests: ../b/cases.yaml
+`,
+    );
+
+    const tests = await loadTests(path.join(dirA, 'suite.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].id).toBe('relative-path-test');
+  });
+
+  it('throws on non-existent external file', async () => {
+    await writeFile(
+      path.join(tempDir, 'missing-tests.yaml'),
+      `name: missing-suite
+tests: ./nonexistent.yaml
+`,
+    );
+
+    await expect(loadTests(path.join(tempDir, 'missing-tests.yaml'), tempDir)).rejects.toThrow(
+      /Cannot read external test file/,
+    );
+  });
+
+  it('preserves suite-level metadata when using string path', async () => {
+    await writeFile(
+      path.join(tempDir, 'meta-cases.yaml'),
+      `- id: meta-test
+  criteria: "Meta goal"
+  input: "Meta input"
+`,
+    );
+
+    await writeFile(
+      path.join(tempDir, 'meta-suite.yaml'),
+      `name: meta-suite
+description: A suite with external tests
+tests: ./meta-cases.yaml
+`,
+    );
+
+    const result = await loadTestSuite(path.join(tempDir, 'meta-suite.yaml'), tempDir);
+
+    expect(result.tests).toHaveLength(1);
+    expect(result.tests[0].id).toBe('meta-test');
+    expect(result.metadata?.name).toBe('meta-suite');
+    expect(result.metadata?.description).toBe('A suite with external tests');
+  });
+
+  it('loads tests from string path without ./ prefix', async () => {
+    await writeFile(
+      path.join(tempDir, 'bare-cases.yaml'),
+      `- id: bare-path-test
+  criteria: "Bare path goal"
+  input: "Input"
+`,
+    );
+
+    await writeFile(
+      path.join(tempDir, 'bare-suite.yaml'),
+      `name: bare-path-suite
+tests: bare-cases.yaml
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'bare-suite.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].id).toBe('bare-path-test');
   });
 });

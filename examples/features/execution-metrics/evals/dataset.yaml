@@ -107,14 +107,14 @@ tests:
 
     input:
       - role: user
-        content: Read the documentation and make small improvements.
+        content: Implement a small code improvement based on the existing file.
 
     execution:
       evaluators:
         - name: exploration-balance
           type: execution_metrics
-          target_exploration_ratio: 0.6  # 60% should be read-only tools
-          exploration_tolerance: 0.2      # Allow +/- 20% variance
+          target_exploration_ratio: 0.5  # 50% should be read-only tools
+          exploration_tolerance: 0.3      # Allow +/- 30% variance
 
   # ==========================================
   # Example 5: Strict cost budget

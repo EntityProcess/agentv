@@ -8,6 +8,14 @@
 #
 # Retrieval context is passed via expected_output.tool_calls, which
 # represents the expected agent behavior (calling a retrieval tool).
+#
+# EXPECTED SCORES:
+#   Some test cases intentionally produce low scores to demonstrate how
+#   retrieval node ordering affects contextual precision scoring.
+#
+#   perfect-ranking: ~1.000 (relevant node ranked first)
+#   mixed-ranking: ~0.833 (2 relevant nodes with 1 irrelevant between)
+#   relevant-node-last: ~0.333 (relevant node ranked last — worst case)
 
 execution:
   evaluators:
@@ -75,6 +83,7 @@ tests:
   # Node 3: Relevant (sky is blue)
   # Precision@3 = 1/3 = 0.333
   # Score = (1/1) * 0.333 = 0.333
+  # NOTE: Low score is intentional — demonstrates precision penalty for poor ranking
   - id: relevant-node-last
     criteria: The sky is blue
     input:

@@ -1,130 +1,98 @@
 # Deterministic Evaluator Examples
-# Shows how a single parameterised code judge handles common assertion types.
+# Shows built-in assertion types for common deterministic checks.
+# These replace the need for external code_judge scripts for simple assertions.
 
-description: Deterministic assertions — contains, regex, JSON validation, and more
+name: deterministic-evaluators
+description: Built-in deterministic assertions — contains, regex, JSON validation, equals
+
+execution:
+  target: default
 
 tests:
   # --- contains ---
   - id: contains-basic
-    criteria: Response mentions the word "hello"
+    criteria: Response mentions the word "Hello"
     input: "Say hello to the user."
     expected_output: "Hello there! How can I help you today?"
-
-    execution:
-      evaluators:
-        - name: contains-check
-          type: code_judge
-          script: ["bun", "run", "../judges/assertions.ts"]
-          config:
-            type: contains
-            value: "Hello"
-
-  # --- icontains (case-insensitive) ---
-  - id: icontains-basic
-    criteria: Response mentions "hello" regardless of case
-    input: "Greet the user."
-    expected_output: "HELLO! Nice to meet you."
-
-    execution:
-      evaluators:
-        - name: icontains-check
-          type: code_judge
-          script: ["bun", "run", "../judges/assertions.ts"]
-          config:
-            type: icontains
-            value: "hello"
-
-  # --- equals ---
-  - id: equals-exact
-    criteria: Response is exactly the expected string
-    input: "What is 2+2?"
-    expected_output: "4"
-
-    execution:
-      evaluators:
-        - name: equals-check
-          type: code_judge
-          script: ["bun", "run", "../judges/assertions.ts"]
-          config:
-            type: equals
-            value: "4"
+    assert:
+      - type: contains
+        value: "Hello"
 
   # --- regex ---
   - id: regex-email
     criteria: Response contains a valid email address
-    input: "Provide your contact email."
+    input:
+      - role: system
+        content: "You must include the email support@example.com in your response."
+      - role: user
+        content: "Provide your contact email."
     expected_output: "You can reach me at support@example.com."
+    assert:
+      - type: regex
+        value: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
 
-    execution:
-      evaluators:
-        - name: regex-check
-          type: code_judge
-          script: ["bun", "run", "../judges/assertions.ts"]
-          config:
-            type: regex
-            value: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+  # --- equals ---
+  - id: equals-exact
+    criteria: Response is exactly the expected string
+    input:
+      - role: system
+        content: "You are a calculator. Respond with only the numeric result, nothing else."
+      - role: user
+        content: "What is 2+2?"
+    expected_output: "4"
+    assert:
+      - type: equals
+        value: "4"
 
-  # --- starts-with ---
+  # --- regex with starts-with pattern ---
   - id: starts-with-prefix
     criteria: Response begins with a greeting
     input: "Start your reply with 'Dear User'."
     expected_output: "Dear User, thank you for contacting us."
+    assert:
+      - type: regex
+        value: "^Dear User"
 
-    execution:
-      evaluators:
-        - name: starts-with-check
-          type: code_judge
-          script: ["bun", "run", "../judges/assertions.ts"]
-          config:
-            type: starts-with
-            value: "Dear User"
-
-  # --- is-json ---
+  # --- is_json ---
   - id: is-json-valid
     criteria: Response is valid JSON
-    input: "Return a JSON object with a status field."
+    input:
+      - role: system
+        content: "You are an API. Respond only with valid JSON, no markdown or explanations."
+      - role: user
+        content: "Return a JSON object with a status field set to ok and code 200."
     expected_output: '{"status": "ok", "code": 200}'
-
-    execution:
-      evaluators:
-        - name: json-check
-          type: code_judge
-          script: ["bun", "run", "../judges/assertions.ts"]
-          config:
-            type: is-json
-
-  # --- negation ---
-  - id: negated-contains
-    criteria: Response must NOT contain the word "error"
-    input: "Report the system status."
-    expected_output: "All systems operational."
-
-    execution:
-      evaluators:
-        - name: no-error-check
-          type: code_judge
-          script: ["bun", "run", "../judges/assertions.ts"]
-          config:
-            type: contains
-            value: "error"
-            negated: true
+    assert:
+      - type: is_json
 
   # --- combining multiple assertions on one test ---
   - id: multi-assertion
     criteria: Response is valid JSON that contains a "result" key
-    input: "Return a JSON object with a result key."
+    input:
+      - role: system
+        content: "You are an API. Respond only with valid JSON, no markdown or explanations."
+      - role: user
+        content: 'Return a JSON object with a "result" key set to the number 42.'
     expected_output: '{"result": 42}'
+    assert:
+      - type: is_json
+        required: true
+      - type: contains
+        value: '"result"'
 
-    execution:
-      evaluators:
-        - name: json-format
-          type: code_judge
-          script: ["bun", "run", "../judges/assertions.ts"]
-          config:
-            type: is-json
-        - name: has-result-key
-          type: code_judge
-          script: ["bun", "run", "../judges/assertions.ts"]
-          config:
-            type: contains
-            value: '"result"'
+  # --- required gate example ---
+  - id: required-gate
+    criteria: Response must be valid JSON (required) and ideally contain a message field
+    input:
+      - role: system
+        content: "You are an API. Respond only with valid JSON, no markdown or explanations."
+      - role: user
+        content: 'Return a JSON object with a "message" field set to "success".'
+    expected_output: '{"message": "success"}'
+    assert:
+      - type: is_json
+        required: true
+      - type: contains
+        value: '"message"'
+      - type: contains
+        value: success

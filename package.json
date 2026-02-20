@@ -29,6 +29,7 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@j178/prek": "^0.3.0",
+    "@agentv/core": "workspace:*",
     "@agentv/eval": "workspace:*",
     "@types/bun": "latest",
     "@types/node": "24.1.0",

@@ -22,6 +22,10 @@ import {
   ToolTrajectoryEvaluator,
   executeScript,
   isNonEmptyString,
+  runContainsAssertion,
+  runEqualsAssertion,
+  runIsJsonAssertion,
+  runRegexAssertion,
   scoreToVerdict,
 } from './evaluators.js';
 import { readJsonFile, readTextFile } from './file-utils.js';
@@ -45,7 +49,9 @@ import {
 import { aggregateTrials } from './trials.js';
 import type {
   AgentJudgeEvaluatorConfig,
+  ContainsEvaluatorConfig,
   CostEvaluatorConfig,
+  EqualsEvaluatorConfig,
   EvalTest,
   EvaluationResult,
   EvaluationVerdict,
@@ -54,9 +60,11 @@ import type {
   EvaluatorResult,
   ExecutionMetricsEvaluatorConfig,
   FieldAccuracyEvaluatorConfig,
+  IsJsonEvaluatorConfig,
   JsonObject,
   JsonValue,
   LatencyEvaluatorConfig,
+  RegexEvaluatorConfig,
   TokenUsageEvaluatorConfig,
   TrialResult,
   TrialsConfig,
@@ -1250,6 +1258,7 @@ async function runEvaluatorList(options: {
     readonly name: string;
     readonly type: string;
     readonly weight?: number;
+    readonly required?: boolean | number;
   }> = [];
   const evaluatorResults: EvaluatorResult[] = [];
 
@@ -1274,7 +1283,13 @@ async function runEvaluatorList(options: {
           workspacePath,
         });
         const weight = evaluator.weight ?? 1.0;
-        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: evaluator.type,
+          weight,
+          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
+        });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
@@ -1313,7 +1328,13 @@ async function runEvaluatorList(options: {
           workspacePath,
         });
         const weight = evaluator.weight ?? 1.0;
-        scored.push({ score, name: evaluator.name, type: 'code_judge', weight });
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: 'code_judge',
+          weight,
+          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
+        });
         evaluatorResults.push({
           name: evaluator.name,
           type: 'code_judge',
@@ -1431,7 +1452,13 @@ async function runEvaluatorList(options: {
           workspacePath,
         });
         const weight = evaluator.weight ?? 1.0;
-        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: evaluator.type,
+          weight,
+          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
+        });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
@@ -1464,7 +1491,13 @@ async function runEvaluatorList(options: {
           workspacePath,
         });
         const weight = evaluator.weight ?? 1.0;
-        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: evaluator.type,
+          weight,
+          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
+        });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
@@ -1495,7 +1528,13 @@ async function runEvaluatorList(options: {
           workspacePath,
         });
         const weight = evaluator.weight ?? 1.0;
-        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: evaluator.type,
+          weight,
+          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
+        });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
@@ -1526,7 +1565,13 @@ async function runEvaluatorList(options: {
           workspacePath,
         });
         const weight = evaluator.weight ?? 1.0;
-        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: evaluator.type,
+          weight,
+          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
+        });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
@@ -1557,7 +1602,13 @@ async function runEvaluatorList(options: {
           workspacePath,
         });
         const weight = evaluator.weight ?? 1.0;
-        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: evaluator.type,
+          weight,
+          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
+        });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
@@ -1588,7 +1639,13 @@ async function runEvaluatorList(options: {
           workspacePath,
         });
         const weight = evaluator.weight ?? 1.0;
-        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: evaluator.type,
+          weight,
+          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
+        });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
@@ -1619,7 +1676,13 @@ async function runEvaluatorList(options: {
           workspacePath,
         });
         const weight = evaluator.weight ?? 1.0;
-        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: evaluator.type,
+          weight,
+          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
+        });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
@@ -1688,7 +1751,13 @@ async function runEvaluatorList(options: {
           workspacePath,
         });
         const weight = evaluator.weight ?? 1.0;
-        scored.push({ score, name: evaluator.name, type: evaluator.type, weight });
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: evaluator.type,
+          weight,
+          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
+        });
         evaluatorResults.push({
           name: evaluator.name,
           type: evaluator.type,
@@ -1700,6 +1769,139 @@ async function runEvaluatorList(options: {
           reasoning: score.reasoning,
           evaluatorProviderRequest: score.evaluatorRawRequest,
           details: score.details,
+        });
+      }
+
+      if (evaluator.type === 'contains') {
+        const containsConfig = evaluator as ContainsEvaluatorConfig;
+        const result = runContainsAssertion(candidate, containsConfig.value);
+        const score: EvaluationScore = {
+          score: result.score,
+          verdict: result.score === 1 ? 'pass' : 'fail',
+          hits: result.hits,
+          misses: result.misses,
+          reasoning:
+            result.score === 1
+              ? `Output contains "${containsConfig.value}"`
+              : `Output does not contain "${containsConfig.value}"`,
+          expectedAspectCount: 1,
+        };
+        const weight = containsConfig.weight ?? 1.0;
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: evaluator.type,
+          weight,
+          ...(containsConfig.required !== undefined ? { required: containsConfig.required } : {}),
+        });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+        });
+      }
+
+      if (evaluator.type === 'regex') {
+        const regexConfig = evaluator as RegexEvaluatorConfig;
+        const result = runRegexAssertion(candidate, regexConfig.value);
+        const score: EvaluationScore = {
+          score: result.score,
+          verdict: result.score === 1 ? 'pass' : 'fail',
+          hits: result.hits,
+          misses: result.misses,
+          reasoning:
+            result.score === 1
+              ? `Output matches pattern /${regexConfig.value}/`
+              : `Output does not match pattern /${regexConfig.value}/`,
+          expectedAspectCount: 1,
+        };
+        const weight = regexConfig.weight ?? 1.0;
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: evaluator.type,
+          weight,
+          ...(regexConfig.required !== undefined ? { required: regexConfig.required } : {}),
+        });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+        });
+      }
+
+      if (evaluator.type === 'is_json') {
+        const isJsonConfig = evaluator as IsJsonEvaluatorConfig;
+        const result = runIsJsonAssertion(candidate);
+        const score: EvaluationScore = {
+          score: result.score,
+          verdict: result.score === 1 ? 'pass' : 'fail',
+          hits: result.hits,
+          misses: result.misses,
+          reasoning: result.score === 1 ? 'Output is valid JSON' : 'Output is not valid JSON',
+          expectedAspectCount: 1,
+        };
+        const weight = isJsonConfig.weight ?? 1.0;
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: evaluator.type,
+          weight,
+          ...(isJsonConfig.required !== undefined ? { required: isJsonConfig.required } : {}),
+        });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
+        });
+      }
+
+      if (evaluator.type === 'equals') {
+        const equalsConfig = evaluator as EqualsEvaluatorConfig;
+        const result = runEqualsAssertion(candidate, equalsConfig.value);
+        const score: EvaluationScore = {
+          score: result.score,
+          verdict: result.score === 1 ? 'pass' : 'fail',
+          hits: result.hits,
+          misses: result.misses,
+          reasoning:
+            result.score === 1
+              ? `Output equals "${equalsConfig.value}"`
+              : `Output does not equal "${equalsConfig.value}"`,
+          expectedAspectCount: 1,
+        };
+        const weight = equalsConfig.weight ?? 1.0;
+        scored.push({
+          score,
+          name: evaluator.name,
+          type: evaluator.type,
+          weight,
+          ...(equalsConfig.required !== undefined ? { required: equalsConfig.required } : {}),
+        });
+        evaluatorResults.push({
+          name: evaluator.name,
+          type: evaluator.type,
+          score: score.score,
+          weight,
+          verdict: score.verdict,
+          hits: score.hits,
+          misses: score.misses,
+          reasoning: score.reasoning,
         });
       }
     } catch (error) {
@@ -1719,6 +1921,7 @@ async function runEvaluatorList(options: {
         name: evaluator.name ?? 'unknown',
         type: resultType ?? 'llm_judge',
         weight,
+        ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
       });
       evaluatorResults.push({
         name: evaluator.name ?? 'unknown',
@@ -1733,8 +1936,17 @@ async function runEvaluatorList(options: {
     }
   }
 
-  const aggregateScore =
-    scored.length > 0
+  // Required gate: if any evaluator with `required` flag fails its threshold, aggregate becomes 0
+  const PASS_THRESHOLD = 0.8;
+  const hasRequiredFailure = scored.some((entry) => {
+    if (!entry.required) return false;
+    const minScore = typeof entry.required === 'number' ? entry.required : PASS_THRESHOLD;
+    return entry.score.score < minScore;
+  });
+
+  const aggregateScore = hasRequiredFailure
+    ? 0
+    : scored.length > 0
       ? computeWeightedMean(
           scored.map((entry) => ({ score: entry.score.score, weight: entry.weight })),
         )

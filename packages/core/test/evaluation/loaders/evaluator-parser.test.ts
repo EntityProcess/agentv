@@ -5,7 +5,253 @@ import path from 'node:path';
 
 import { parseEvaluators } from '../../../src/evaluation/loaders/evaluator-parser.js';
 import type { ToolTrajectoryEvaluatorConfig } from '../../../src/evaluation/trace.js';
-import type { CodeEvaluatorConfig } from '../../../src/evaluation/types.js';
+import type {
+  CodeEvaluatorConfig,
+  CompositeEvaluatorConfig,
+  ContainsEvaluatorConfig,
+  EqualsEvaluatorConfig,
+  IsJsonEvaluatorConfig,
+  LatencyEvaluatorConfig,
+  LlmJudgeEvaluatorConfig,
+  RegexEvaluatorConfig,
+} from '../../../src/evaluation/types.js';
+
+describe('parseEvaluators - deterministic assertion types', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-assertions-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('parses type: contains', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'check-denied', type: 'contains', value: 'DENIED' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+    const config = evaluators?.[0] as ContainsEvaluatorConfig;
+    expect(config.name).toBe('check-denied');
+    expect(config.value).toBe('DENIED');
+  });
+
+  it('auto-generates name for contains when not provided', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ type: 'contains', value: 'DENIED' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].name).toBeTruthy();
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('skips contains evaluator with missing value', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'no-value', type: 'contains' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('parses type: contains with weight', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'weighted-contains', type: 'contains', value: 'OK', weight: 2.0 }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as ContainsEvaluatorConfig;
+    expect(config.weight).toBe(2.0);
+  });
+
+  it('parses type: regex', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'risk-check', type: 'regex', value: 'risk: \\w+' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('regex');
+    const config = evaluators?.[0] as RegexEvaluatorConfig;
+    expect(config.name).toBe('risk-check');
+    expect(config.value).toBe('risk: \\w+');
+  });
+
+  it('auto-generates name for regex when not provided', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ type: 'regex', value: '^\\d{3}-\\d{4}$' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].name).toBeTruthy();
+    expect(evaluators?.[0].type).toBe('regex');
+  });
+
+  it('skips regex evaluator with missing value', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'no-pattern', type: 'regex' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('parses type: is_json', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'json-check', type: 'is_json' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('is_json');
+    const config = evaluators?.[0] as IsJsonEvaluatorConfig;
+    expect(config.name).toBe('json-check');
+  });
+
+  it('auto-generates name for is_json when not provided', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ type: 'is_json' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].name).toBeTruthy();
+    expect(evaluators?.[0].type).toBe('is_json');
+  });
+
+  it('parses type: is_json with weight', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'json-weighted', type: 'is_json', weight: 0.5 }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as IsJsonEvaluatorConfig;
+    expect(config.weight).toBe(0.5);
+  });
+
+  it('parses type: equals', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'exact-match', type: 'equals', value: 'DENIED' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('equals');
+    const config = evaluators?.[0] as EqualsEvaluatorConfig;
+    expect(config.name).toBe('exact-match');
+    expect(config.value).toBe('DENIED');
+  });
+
+  it('auto-generates name for equals when not provided', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ type: 'equals', value: 'APPROVED' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].name).toBeTruthy();
+    expect(evaluators?.[0].type).toBe('equals');
+  });
+
+  it('skips equals evaluator with missing value', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'no-value', type: 'equals' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('parses type: rubrics with criteria as llm_judge', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [
+          {
+            name: 'rubrics-eval',
+            type: 'rubrics',
+            criteria: [{ id: 'r1', outcome: 'Must be polite', weight: 1.0, required: true }],
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('llm_judge');
+    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(1);
+  });
+
+  it('parses multiple assertion types in one evaluators array', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [
+          { name: 'c1', type: 'contains', value: 'hello' },
+          { name: 'r1', type: 'regex', value: '\\d+' },
+          { name: 'j1', type: 'is_json' },
+          { name: 'e1', type: 'equals', value: 'exact' },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(4);
+    expect(evaluators?.[0].type).toBe('contains');
+    expect(evaluators?.[1].type).toBe('regex');
+    expect(evaluators?.[2].type).toBe('is_json');
+    expect(evaluators?.[3].type).toBe('equals');
+  });
+});
 
 describe('parseEvaluators - tool_trajectory', () => {
   let tempDir: string;
@@ -881,5 +1127,449 @@ describe('parseEvaluators - default evaluators merge', () => {
     expect(evaluators).toHaveLength(2);
     expect(evaluators?.[0]).toEqual({ name: 'case-eval', type: 'latency', threshold: 3000 });
     expect(evaluators?.[1]).toEqual({ name: 'root-eval', type: 'latency', threshold: 5000 });
+  });
+});
+
+describe('parseEvaluators - assert field', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-assert-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('parses assert field as evaluators', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [{ type: 'contains', value: 'DENIED' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('assert takes precedence over execution.evaluators', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [{ type: 'contains', value: 'DENIED' }],
+        execution: {
+          evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
+        },
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('assert takes precedence over top-level evaluators', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [{ type: 'contains', value: 'DENIED' }],
+        evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('merges suite-level assert with test-level assert', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [{ type: 'contains', value: 'DENIED' }],
+      },
+      { assert: [{ name: 'latency-check', type: 'latency', threshold: 5000 }] },
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(2);
+    expect(evaluators?.[0].type).toBe('contains');
+    expect(evaluators?.[1].type).toBe('latency');
+  });
+
+  it('skip_defaults prevents suite-level assert from being appended', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [{ type: 'contains', value: 'DENIED' }],
+        execution: { skip_defaults: true },
+      },
+      { assert: [{ name: 'latency-check', type: 'latency', threshold: 5000 }] },
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('falls back to execution.evaluators when assert is not present', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        execution: {
+          evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
+        },
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('latency');
+  });
+
+  it('suite-level assert takes precedence over suite-level execution.evaluators', async () => {
+    const evaluators = await parseEvaluators(
+      {},
+      {
+        assert: [{ type: 'contains', value: 'HELLO' }],
+        evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
+      },
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('falls back to suite-level execution.evaluators when suite assert is not present', async () => {
+    const evaluators = await parseEvaluators(
+      {},
+      {
+        evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
+      },
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('latency');
+  });
+});
+
+describe('parseEvaluators - type: rubrics with criteria', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-rubrics-criteria-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('parses rubrics type with criteria array', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            type: 'rubrics',
+            criteria: [
+              { id: 'accuracy', outcome: 'Correct answer', weight: 5.0 },
+              { id: 'reasoning', outcome: 'Clear reasoning', weight: 3.0 },
+            ],
+            weight: 4.0,
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('llm_judge');
+    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(2);
+    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).weight).toBe(4.0);
+  });
+
+  it('auto-generates name for rubrics type', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            type: 'rubrics',
+            criteria: [{ id: 'check-1', outcome: 'Some check', weight: 1.0 }],
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].name).toBeTruthy();
+  });
+
+  it('skips rubrics with empty criteria array', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            type: 'rubrics',
+            criteria: [],
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('skips rubrics with missing criteria', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            type: 'rubrics',
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('supports string shorthand in criteria', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            type: 'rubrics',
+            criteria: ['Must be polite', 'Must be accurate'],
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(2);
+  });
+});
+
+describe('parseEvaluators - required field', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-required-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+    await writeFile(path.join(tempDir, 'test_script.ts'), '// dummy script');
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('parses required: true on contains evaluator', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'check', type: 'contains', value: 'DENIED', required: true }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as ContainsEvaluatorConfig;
+    expect(config.required).toBe(true);
+  });
+
+  it('parses required: 0.6 (numeric threshold) on contains evaluator', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'check', type: 'contains', value: 'DENIED', required: 0.6 }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as ContainsEvaluatorConfig;
+    expect(config.required).toBe(0.6);
+  });
+
+  it('ignores required: false', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'check', type: 'contains', value: 'DENIED', required: false }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as ContainsEvaluatorConfig;
+    expect(config.required).toBeUndefined();
+  });
+
+  it('parses required on latency evaluator', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'lat', type: 'latency', threshold: 5000, required: true }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as LatencyEvaluatorConfig;
+    expect(config.required).toBe(true);
+  });
+
+  it('parses required on code_judge evaluator', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [
+          {
+            name: 'code-check',
+            type: 'code_judge',
+            script: ['bun', 'run', './test_script.ts'],
+            required: true,
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as CodeEvaluatorConfig;
+    expect(config.required).toBe(true);
+  });
+
+  it('parses required on llm_judge evaluator', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'judge', type: 'llm_judge', required: 0.7 }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as LlmJudgeEvaluatorConfig;
+    expect(config.required).toBe(0.7);
+  });
+
+  it('ignores invalid required values (string, negative, > 1)', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [
+          { name: 'c1', type: 'contains', value: 'A', required: 'yes' },
+          { name: 'c2', type: 'contains', value: 'B', required: -0.5 },
+          { name: 'c3', type: 'contains', value: 'C', required: 1.5 },
+          { name: 'c4', type: 'contains', value: 'D', required: 0 },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(4);
+    // All invalid required values should be dropped (undefined)
+    for (const config of evaluators ?? []) {
+      expect((config as ContainsEvaluatorConfig).required).toBeUndefined();
+    }
+  });
+});
+
+describe('parseEvaluators - composite assert field', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-composite-assert-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+    // Create dummy prompt files for llm_judge members (must include required template fields)
+    await writeFile(path.join(tempDir, 'safety.md'), 'Evaluate safety of {{ candidate_answer }}');
+    await writeFile(path.join(tempDir, 'quality.md'), 'Evaluate quality of {{ candidate_answer }}');
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('parses composite with assert field (new syntax)', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            name: 'combined',
+            type: 'composite',
+            assert: [
+              { name: 'safety', type: 'llm_judge', prompt: './safety.md' },
+              { name: 'quality', type: 'llm_judge', prompt: './quality.md' },
+            ],
+            aggregator: { type: 'weighted_average' },
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('composite');
+  });
+
+  it('composite still works with evaluators field (backward compat)', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [
+          {
+            name: 'combined',
+            type: 'composite',
+            evaluators: [
+              { name: 'safety', type: 'llm_judge', prompt: './safety.md' },
+              { name: 'quality', type: 'llm_judge', prompt: './quality.md' },
+            ],
+            aggregator: { type: 'weighted_average' },
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('composite');
+  });
+
+  it('composite assert takes precedence over evaluators', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            name: 'combined',
+            type: 'composite',
+            assert: [{ name: 'safety', type: 'llm_judge', prompt: './safety.md' }],
+            evaluators: [{ name: 'quality', type: 'llm_judge', prompt: './quality.md' }],
+            aggregator: { type: 'weighted_average' },
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    // assert takes precedence - only 1 inner evaluator
+    const composite = evaluators?.[0] as CompositeEvaluatorConfig;
+    expect(composite.evaluators).toHaveLength(1);
+    expect(composite.evaluators[0].name).toBe('safety');
   });
 });

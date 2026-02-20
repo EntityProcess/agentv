@@ -1,4 +1,5 @@
-dataset: threshold-evaluator-example
+name: threshold-evaluator-example
+description: Demonstrates the threshold aggregator — pass if N% of child evaluators pass
 
 # Demonstrates the threshold aggregator: pass if N% of child evaluators pass.
 # Borderline verdicts count as passing (lenient).
@@ -25,11 +26,18 @@ tests:
             type: threshold
             threshold: 0.5
           evaluators:
-            - name: quality_check
+            - name: accuracy_check
               type: llm_judge
-            - name: latency_check
-              type: latency
-              threshold: 5000
-            - name: cost_check
-              type: cost
-              budget: 0.10
+              prompt: |
+                Evaluate whether the response accurately describes the benefits of renewable energy.
+                Score 1.0 if factually correct, 0.5 if mostly correct, 0.0 if contains errors.
+            - name: completeness_check
+              type: llm_judge
+              prompt: |
+                Evaluate whether the response covers at least 3 key benefits of renewable energy.
+                Score 1.0 if comprehensive, 0.5 if partially complete, 0.0 if missing major points.
+            - name: conciseness_check
+              type: llm_judge
+              prompt: |
+                Evaluate whether the response is concise and well-structured.
+                Score 1.0 if concise and clear, 0.5 if acceptable, 0.0 if verbose or disorganized.

@@ -12,6 +12,16 @@
 # - Fuzzy matching via code_judge plugins
 # - Line item array validation
 #
+# EXPECTED SCORES:
+#   Some test cases intentionally produce lower scores to demonstrate evaluation behavior.
+#
+#   invoice-001: ~1.000 (perfect extraction)
+#   invoice-002: ~1.000 (fuzzy match handles "Acme - Shipping" vs "Acme Shipping")
+#   invoice-003: ~0.923 (supplier.name exact match fails due to dash variation)
+#   invoice-004: ~0.846 (missing invoice_number required field, weight 2.0)
+#   invoice-005: ~1.000 (line items extracted correctly)
+#   invoice-006: ~1.000 (greedy matching handles reordered line items)
+#
 description: Field accuracy evaluator patterns (per-evalcase scoring)
 
 execution:
@@ -249,13 +259,18 @@ tests:
   # ============================================
   # Test Case 3: Amount Rounding Tolerance
   # Tests numeric tolerance for total amounts
+  # NOTE: Low score is intentional — supplier.name exact match fails
+  #   ("Acme - Shipping" vs "Acme Shipping") to demonstrate the need
+  #   for fuzzy matching (see invoice-002 test case above).
+  #   Numeric tolerance (±1.0) correctly accepts 0.5 difference.
+  # Expected score: ~0.923 (supplier.name miss, numeric tolerance pass)
   # ============================================
   - id: invoice-003
     conversation_id: document-extraction
     criteria: |
       ACTUAL EXTRACTOR OUTPUT: net_total = 1889.5, gross_total = 1889.5
       EXPECTED GROUND TRUTH: net_total = 1889, gross_total = 1889
-      
+
       Mock extractor output sample (`invoice-003.json`) contains 1889.5 USD (preserved decimals).
       Numeric tolerance (±1.0) should accept 0.5 difference and pass.
     expected_output:
@@ -281,6 +296,10 @@ tests:
   # ============================================
   # Test Case 4: Missing Required Fields
   # Tests evaluation failure when critical fields missing
+  # NOTE: Low score is intentional — invoice_number is missing from the fixture
+  #   and supplier.name has the dash variation. This demonstrates how required
+  #   field validation reduces scores when critical fields are absent.
+  # Expected score: ~0.846 (lose 2/13 weight for missing invoice_number)
   # ============================================
   - id: invoice-004
     conversation_id: document-extraction

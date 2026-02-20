@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { readdir, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { toCamelCaseDeep, toSnakeCaseDeep, trimBaselineResult } from '@agentv/core';
@@ -45,42 +45,53 @@ function parseArgs(argv: string[]): CliOptions {
   return options;
 }
 
-async function findBaselineFiles(dir: string, results: string[] = []): Promise<string[]> {
+/** Find dataset YAML files by naming convention (dataset*.yaml) */
+async function findDatasetYamlFiles(dir: string, results: string[] = []): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      await findBaselineFiles(fullPath, results);
+      await findDatasetYamlFiles(fullPath, results);
       continue;
     }
-    if (entry.isFile() && entry.name.endsWith('.baseline.jsonl')) {
+    if (
+      entry.isFile() &&
+      entry.name.startsWith('dataset') &&
+      (entry.name.endsWith('.yaml') || entry.name.endsWith('.yml'))
+    ) {
       results.push(fullPath);
     }
   }
   return results;
 }
 
-function resolveEvalFile(baselinePath: string): string {
-  const yamlPath = baselinePath.replace(/\.baseline\.jsonl$/, '.yaml');
-  if (existsSync(yamlPath)) {
-    return yamlPath;
+/** Find YAML files that have an existing baseline (covers non-standard names) */
+async function findBaselinedYamlFiles(dir: string, results: string[] = []): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await findBaselinedYamlFiles(fullPath, results);
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith('.baseline.jsonl')) {
+      const yamlPath = fullPath.replace(/\.baseline\.jsonl$/, '.yaml');
+      if (existsSync(yamlPath)) {
+        results.push(yamlPath);
+        continue;
+      }
+      const ymlPath = fullPath.replace(/\.baseline\.jsonl$/, '.yml');
+      if (existsSync(ymlPath)) {
+        results.push(ymlPath);
+      }
+    }
   }
-  const ymlPath = baselinePath.replace(/\.baseline\.jsonl$/, '.yml');
-  if (existsSync(ymlPath)) {
-    return ymlPath;
-  }
-  throw new Error(`Eval file not found for baseline: ${baselinePath}`);
+  return results;
 }
 
-function resolveBaselineForEvalFile(evalFilePath: string): string {
-  const absolutePath = path.resolve(evalFilePath);
-  const baselinePath = absolutePath.replace(/\.ya?ml$/, '.baseline.jsonl');
-  if (!existsSync(baselinePath)) {
-    throw new Error(
-      `Baseline file not found for eval file: ${evalFilePath}\nExpected: ${baselinePath}`,
-    );
-  }
-  return baselinePath;
+function baselinePathFor(datasetFilePath: string): string {
+  const absolutePath = path.resolve(datasetFilePath);
+  return absolutePath.replace(/\.ya?ml$/, '.baseline.jsonl');
 }
 
 /** Generate candidate path as sibling to baseline */
@@ -88,7 +99,7 @@ function candidatePathFor(baselinePath: string): string {
   return baselinePath.replace(/\.baseline\.jsonl$/, '.candidate.jsonl');
 }
 
-async function runEval(evalFile: string, candidatePath: string): Promise<number> {
+async function runAgentVEval(datasetFile: string, candidatePath: string): Promise<number> {
   const env = { ...process.env };
   if (!env.TOOL_EVAL_PLUGINS_DIR) {
     env.TOOL_EVAL_PLUGINS_DIR = path.join(
@@ -99,7 +110,7 @@ async function runEval(evalFile: string, candidatePath: string): Promise<number>
     );
   }
 
-  const args = ['bun', 'agentv', 'eval', evalFile, '--out', candidatePath];
+  const args = ['bun', 'agentv', 'eval', datasetFile, '--out', candidatePath];
   const proc = Bun.spawn(args, {
     cwd: repoRoot,
     stdout: 'inherit',
@@ -128,6 +139,72 @@ function trimBaselineFile(filePath: string): void {
   writeFileSync(filePath, `${trimmedLines.join('\n')}\n`, 'utf8');
 }
 
+/** Clean up candidate files after comparison */
+function cleanupCandidate(candidatePath: string): void {
+  if (existsSync(candidatePath)) {
+    unlinkSync(candidatePath);
+  }
+}
+
+async function processDatasetFile(
+  datasetFile: string,
+  baselinePath: string,
+  options: CliOptions,
+): Promise<{ success: boolean; updated: boolean; created: boolean }> {
+  const relativePath = path.relative(repoRoot, baselinePath);
+  const candidatePath = candidatePathFor(baselinePath);
+  const baselineExists = existsSync(baselinePath);
+
+  console.log(`\nRunning: ${path.relative(repoRoot, datasetFile)}`);
+  const exitCode = await runAgentVEval(datasetFile, candidatePath);
+  if (exitCode !== 0) {
+    cleanupCandidate(candidatePath);
+    return { success: false, updated: false, created: false };
+  }
+
+  if (!existsSync(candidatePath)) {
+    console.error(`Missing candidate results for ${relativePath}`);
+    return { success: false, updated: false, created: false };
+  }
+
+  if (options.update) {
+    if (options.dryRun) {
+      const action = baselineExists ? 'update' : 'create';
+      console.log(`[dry-run] Would ${action}: ${relativePath}`);
+      cleanupCandidate(candidatePath);
+      return { success: true, updated: baselineExists, created: !baselineExists };
+    }
+    await rename(candidatePath, baselinePath);
+    trimBaselineFile(baselinePath);
+    const action = baselineExists ? 'Updated' : 'Created';
+    console.log(`${action} (trimmed): ${relativePath}`);
+    return { success: true, updated: baselineExists, created: !baselineExists };
+  }
+
+  // Compare mode
+  if (!baselineExists) {
+    console.error(`No baseline to compare against: ${relativePath}`);
+    console.error('  Run with --update to create it.');
+    cleanupCandidate(candidatePath);
+    return { success: false, updated: false, created: false };
+  }
+
+  const args = ['bun', 'agentv', 'compare', baselinePath, candidatePath];
+  if (options.threshold) {
+    args.push('--threshold', options.threshold);
+  }
+
+  console.log(`Comparing ${relativePath}`);
+  const proc = Bun.spawn(args, {
+    cwd: repoRoot,
+    stdout: 'inherit',
+    stderr: 'inherit',
+  });
+  const compareExitCode = await proc.exited;
+  cleanupCandidate(candidatePath);
+  return { success: compareExitCode === 0, updated: false, created: false };
+}
+
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
 
@@ -136,89 +213,63 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  let baselineFiles: string[];
+  // Collect dataset file → baseline path pairs
+  const pairs: Array<{ datasetFile: string; baselinePath: string }> = [];
+
   if (options.evalFile) {
-    // Single eval file mode
-    const baselinePath = resolveBaselineForEvalFile(options.evalFile);
-    baselineFiles = [baselinePath];
+    const absPath = path.resolve(options.evalFile);
+    pairs.push({ datasetFile: absPath, baselinePath: baselinePathFor(absPath) });
   } else {
-    // Default: find all baseline files under examples/
-    baselineFiles = await findBaselineFiles(examplesRoot);
-    if (baselineFiles.length === 0) {
-      console.error('No baseline files found under examples/.');
+    // Discover eval YAML files: by naming convention + by existing baselines
+    const byConvention = await findDatasetYamlFiles(examplesRoot);
+    const byBaseline = await findBaselinedYamlFiles(examplesRoot);
+    const allDatasetFiles = [...new Set([...byConvention, ...byBaseline])];
+    for (const df of allDatasetFiles) {
+      pairs.push({ datasetFile: df, baselinePath: baselinePathFor(df) });
+    }
+
+    if (pairs.length === 0) {
+      console.error('No dataset files found under examples/.');
       process.exit(1);
     }
   }
 
   let failures = 0;
-  const updatedFiles: string[] = [];
+  let updatedCount = 0;
+  let createdCount = 0;
 
-  for (const baselinePath of baselineFiles.sort()) {
-    const candidatePath = candidatePathFor(baselinePath);
-    const evalFile = resolveEvalFile(baselinePath);
-    const relativePath = path.relative(repoRoot, baselinePath);
-
-    console.log(`Running eval for ${relativePath}`);
-    const evalExitCode = await runEval(evalFile, candidatePath);
-    if (evalExitCode !== 0) {
-      failures += 1;
-      continue;
-    }
-
-    if (!existsSync(candidatePath)) {
-      console.error(`Missing candidate results for ${relativePath}`);
-      failures += 1;
-      continue;
-    }
-
-    if (options.update) {
-      // Update mode: replace baseline with candidate
-      if (options.dryRun) {
-        console.log(`[dry-run] Would update: ${relativePath}`);
-        updatedFiles.push(relativePath);
-      } else {
-        await rename(candidatePath, baselinePath);
-        trimBaselineFile(baselinePath);
-        console.log(`Updated (trimmed): ${relativePath}`);
-        updatedFiles.push(relativePath);
-      }
-    } else {
-      // Compare mode: check candidate against baseline
-      const args = ['bun', 'agentv', 'compare', baselinePath, candidatePath];
-      if (options.threshold) {
-        args.push('--threshold', options.threshold);
-      }
-
-      console.log(`Comparing ${relativePath}`);
-      const proc = Bun.spawn(args, {
-        cwd: repoRoot,
-        stdout: 'inherit',
-        stderr: 'inherit',
-      });
-      const exitCode = await proc.exited;
-      if (exitCode !== 0) {
-        failures += 1;
-      }
-    }
+  for (const { datasetFile, baselinePath } of pairs.sort((a, b) =>
+    a.datasetFile.localeCompare(b.datasetFile),
+  )) {
+    const result = await processDatasetFile(datasetFile, baselinePath, options);
+    if (!result.success) failures += 1;
+    if (result.updated) updatedCount += 1;
+    if (result.created) createdCount += 1;
   }
 
   if (options.update) {
-    if (options.dryRun) {
-      console.log(`\n[dry-run] Would update ${updatedFiles.length} baseline file(s).`);
-    } else {
-      console.log(`\nUpdated ${updatedFiles.length} baseline file(s).`);
+    const prefix = options.dryRun ? '[dry-run] Would have' : '';
+    const parts: string[] = [];
+    if (updatedCount > 0) parts.push(`updated ${updatedCount}`);
+    if (createdCount > 0) parts.push(`created ${createdCount}`);
+    if (parts.length > 0) {
+      console.log(`\n${prefix} ${parts.join(', ')} baseline file(s).`);
+    }
+    if (failures > 0) {
+      console.error(`${failures} dataset(s) failed.`);
+      process.exit(1);
     }
   } else {
     if (failures > 0) {
-      console.error(`Baseline comparison failed for ${failures} file(s).`);
+      console.error(`\nBaseline comparison failed for ${failures} file(s).`);
       process.exit(1);
     }
-    console.log('Baseline comparison passed for all files.');
+    console.log('\nBaseline comparison passed for all files.');
   }
 }
 
 main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(`Baseline comparison failed: ${message}`);
+  console.error(`Baseline check failed: ${message}`);
   process.exit(1);
 });

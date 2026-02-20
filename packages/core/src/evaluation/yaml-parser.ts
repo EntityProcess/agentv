@@ -3,7 +3,7 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import { parse } from 'yaml';
 
-import { expandFileReferences } from './loaders/case-file-loader.js';
+import { expandFileReferences, loadCasesFromFile } from './loaders/case-file-loader.js';
 import {
   extractCacheConfig,
   extractTargetFromSuite,
@@ -21,6 +21,7 @@ import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver
 import { detectFormat, loadTestsFromJsonl } from './loaders/jsonl-parser.js';
 import { processExpectedMessages, processMessages } from './loaders/message-processor.js';
 import { resolveExpectedMessages, resolveInputMessages } from './loaders/shorthand-expansion.js';
+import { parseMetadata } from './metadata.js';
 import type {
   EvalTest,
   JsonObject,
@@ -46,6 +47,7 @@ export {
 } from './loaders/config-loader.js';
 export type { AgentVConfig, CacheConfig } from './loaders/config-loader.js';
 export { detectFormat } from './loaders/jsonl-parser.js';
+export type { EvalMetadata } from './metadata.js';
 
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RED = '\u001b[31m';
@@ -67,6 +69,15 @@ type RawTestSuite = JsonObject & {
   readonly execution?: JsonValue;
   readonly dataset?: JsonValue;
   readonly workspace?: JsonValue;
+  readonly assert?: JsonValue;
+  // Suite-level metadata fields
+  readonly name?: JsonValue;
+  readonly description?: JsonValue;
+  readonly version?: JsonValue;
+  readonly author?: JsonValue;
+  readonly tags?: JsonValue;
+  readonly license?: JsonValue;
+  readonly requires?: JsonValue;
 };
 
 type RawEvalCase = JsonObject & {
@@ -79,6 +90,7 @@ type RawEvalCase = JsonObject & {
   readonly expected_output?: JsonValue;
   readonly execution?: JsonValue;
   readonly evaluators?: JsonValue;
+  readonly assert?: JsonValue;
   readonly rubrics?: JsonValue;
   readonly workspace?: JsonValue;
   readonly metadata?: JsonValue;
@@ -134,6 +146,8 @@ export type EvalSuiteResult = {
   readonly targets?: readonly string[];
   /** Suite-level cache config from execution.cache */
   readonly cacheConfig?: import('./loaders/config-loader.js').CacheConfig;
+  /** Suite-level metadata (name, description, version, etc.) */
+  readonly metadata?: import('./metadata.js').EvalMetadata;
 };
 
 /**
@@ -150,11 +164,13 @@ export async function loadTestSuite(
     return { tests: await loadTestsFromJsonl(evalFilePath, repoRoot, options) };
   }
   const { tests, parsed } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
+  const metadata = parseMetadata(parsed);
   return {
     tests,
     trials: extractTrialsConfig(parsed),
     targets: extractTargetsFromSuite(parsed),
     cacheConfig: extractCacheConfig(parsed),
+    ...(metadata !== undefined && { metadata }),
   };
 }
 
@@ -210,23 +226,36 @@ async function loadTestsFromYaml(
       : fallbackDataset;
 
   const rawTestcases = resolveTests(suite);
-  if (!Array.isArray(rawTestcases)) {
-    throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
-  }
 
   const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm_judge';
 
   // Parse suite-level workspace config (default for all cases)
   const evalFileDir = path.dirname(absoluteTestPath);
 
-  // Expand any file:// references in the tests array
-  const expandedTestcases = await expandFileReferences(rawTestcases, evalFileDir);
+  // Resolve tests: string path to external file, inline array, or error
+  let expandedTestcases: readonly JsonValue[];
+  if (typeof rawTestcases === 'string') {
+    // String path: load tests from external file (YAML, JSONL)
+    const externalPath = path.resolve(evalFileDir, rawTestcases);
+    expandedTestcases = await loadCasesFromFile(externalPath);
+  } else if (Array.isArray(rawTestcases)) {
+    // Inline array: expand any file:// references
+    expandedTestcases = await expandFileReferences(rawTestcases, evalFileDir);
+  } else {
+    throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
+  }
 
   const suiteWorkspace = parseWorkspaceConfig(suite.workspace, evalFileDir);
 
   // Extract global target from execution.target (or legacy root-level target)
-  const globalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
-  const _globalTarget = asString(globalExecution?.target) ?? asString(suite.target);
+  const rawGlobalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
+  const _globalTarget = asString(rawGlobalExecution?.target) ?? asString(suite.target);
+
+  // Build global execution context, including suite-level assert (which is a sibling of execution)
+  const globalExecution: JsonObject | undefined =
+    suite.assert !== undefined
+      ? { ...(rawGlobalExecution ?? {}), assert: suite.assert }
+      : rawGlobalExecution;
 
   const results: EvalTest[] = [];
 

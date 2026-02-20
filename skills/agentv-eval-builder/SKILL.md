@@ -26,8 +26,8 @@ tests:
 
 ## Eval File Structure
 
-**Required:** `tests` (array)
-**Optional:** `description`, `execution`, `dataset`, `workspace`
+**Required:** `tests` (array or string path)
+**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `execution`, `dataset`, `workspace`, `assert`
 
 **Test fields:**
 
@@ -38,6 +38,7 @@ tests:
 | `input` / `input` | yes | Input to the agent |
 | `expected_output` / `expected_output` | no | Gold-standard reference answer |
 | `rubrics` | no | Inline evaluation criteria |
+| `assert` | no | Per-test assertion evaluators (alternative to `execution.evaluators`) |
 | `execution` | no | Per-case execution overrides |
 | `workspace` | no | Per-case workspace config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
@@ -53,6 +54,76 @@ tests:
 **File paths:** relative from eval file dir, or absolute with `/` prefix from repo root
 
 **JSONL format:** One test per line as JSON. Optional `.yaml` sidecar for shared defaults. See `examples/features/basic-jsonl/`.
+
+## Metadata
+
+When `name` is present, the suite is parsed as a metadata-bearing eval:
+
+```yaml
+name: export-screening        # required, lowercase/hyphens, max 64 chars
+description: Evaluates export control screening accuracy
+version: "1.0"
+author: acme-compliance
+tags: [compliance, agents]
+license: Apache-2.0
+requires:
+  agentv: ">=0.30.0"
+```
+
+## Tests as String Path
+
+Point `tests` to an external file instead of inlining:
+
+```yaml
+name: my-eval
+description: My evaluation suite
+tests: ./cases.yaml           # relative to eval file dir
+```
+
+The external file can be YAML (array of test objects) or JSONL.
+
+## Assert Field
+
+`assert` defines evaluators at the suite level or per-test level. It is an alternative to `execution.evaluators` with the same merge behavior:
+
+```yaml
+# Suite-level (appended to every test)
+assert:
+  - type: is_json
+    required: true
+  - type: contains
+    value: "status"
+
+tests:
+  - id: test-1
+    criteria: Returns JSON
+    input: Get status
+    # Per-test assert (runs before suite-level)
+    assert:
+      - type: equals
+        value: '{"status": "ok"}'
+```
+
+When both `assert` and `execution.evaluators` are present, `assert` takes precedence.
+
+## Required Gates
+
+Any evaluator can be marked `required` to enforce a minimum score:
+
+```yaml
+assert:
+  - type: contains
+    value: "DENIED"
+    required: true          # must score >= 0.8 (default)
+  - type: rubrics
+    required: 0.6           # must score >= 0.6 (custom threshold)
+    criteria:
+      - id: accuracy
+        outcome: Identifies the denied party
+        weight: 5.0
+```
+
+If a required evaluator scores below its threshold, the overall verdict is forced to `fail`.
 
 ## Workspace Setup/Teardown
 
@@ -87,7 +158,7 @@ See https://agentv.dev/targets/configuration/#workspace-setupteardown
 
 ## Evaluator Types
 
-Configure via `execution.evaluators` array. Multiple evaluators produce a weighted average score.
+Configure via `execution.evaluators` or `assert` array. Multiple evaluators produce a weighted average score.
 
 ### code_judge
 ```yaml
@@ -193,6 +264,48 @@ Compares `output_messages` fields against `expected_output` fields.
 ```
 Declarative threshold-based checks on execution metrics. Only specified thresholds are checked.
 Score is proportional: `hits / (hits + misses)`. Missing data counts as a miss.
+
+### contains
+```yaml
+- type: contains
+  value: "DENIED"
+  required: true
+```
+Binary check: does output contain the substring? Name auto-generated if omitted.
+
+### regex
+```yaml
+- type: regex
+  value: "\\d{3}-\\d{2}-\\d{4}"
+```
+Binary check: does output match the regex pattern?
+
+### equals
+```yaml
+- type: equals
+  value: "42"
+```
+Binary check: does output exactly equal the value (both trimmed)?
+
+### is_json
+```yaml
+- type: is_json
+  required: true
+```
+Binary check: is the output valid JSON?
+
+### rubrics
+```yaml
+- type: rubrics
+  criteria:
+    - id: accuracy
+      outcome: Correctly identifies the denied party
+      weight: 5.0
+    - id: reasoning
+      outcome: Provides clear reasoning
+      weight: 3.0
+```
+LLM-judged structured evaluation with weighted criteria. Criteria items support `id`, `outcome`, `weight`, and `required` fields.
 
 ### rubric (inline)
 ```yaml

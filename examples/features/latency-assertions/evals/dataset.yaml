@@ -33,6 +33,9 @@
 
 description: Latency assertions for per-step performance validation
 
+execution:
+  target: mock_latency_agent
+
 tests:
   # ==========================================
   # Example 1: Simple latency assertion - PASS
