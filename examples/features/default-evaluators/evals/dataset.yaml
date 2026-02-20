@@ -1,0 +1,39 @@
+# Default Evaluators Example
+# Demonstrates root-level execution.evaluators that apply to all tests
+
+dataset: default-evaluators-example
+
+execution:
+  target: default
+  evaluators:
+    - name: latency_check
+      type: latency
+      threshold: 5000
+
+tests:
+  - id: greeting
+    criteria: The assistant responds with a friendly greeting
+    input: "Hello!"
+    expected_output: "Hello! How can I help you today?"
+    # Gets latency_check from root-level evaluators
+
+  - id: with-custom-eval
+    criteria: The assistant provides a helpful response about refunds
+    input: "I want a refund"
+    expected_output: "I'd be happy to help you with a refund. Could you provide your order number?"
+    execution:
+      evaluators:
+        - name: helpfulness
+          type: llm_judge
+      # Also gets latency_check from root-level evaluators
+
+  - id: skip-defaults
+    criteria: The assistant handles urgent requests appropriately
+    input: "URGENT: System is down"
+    expected_output: "I understand this is urgent. Let me escalate this immediately."
+    execution:
+      skip_defaults: true
+      evaluators:
+        - name: urgency_check
+          type: llm_judge
+      # Does NOT get latency_check — skip_defaults opts out
