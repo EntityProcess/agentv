@@ -1,0 +1,9 @@
+{
+  "name": "agentv-example-evaluator-conformance",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agentv/eval": "file:../../../packages/eval",
+    "yaml": "^2.7.1"
+  }
+}
