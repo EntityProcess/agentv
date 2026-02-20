@@ -1,21 +1,26 @@
 # Default Evaluators Example
 # Demonstrates root-level execution.evaluators that apply to all tests
 
-dataset: default-evaluators-example
+name: default-evaluators-example
+description: Root-level evaluators that automatically apply to every test
 
 execution:
   target: default
   evaluators:
-    - name: latency_check
-      type: latency
-      threshold: 5000
+    - name: tone_check
+      type: llm_judge
+      prompt: |
+        Evaluate whether the response has a professional and helpful tone.
+        Score 1.0 if the response is polite, clear, and professional.
+        Score 0.5 if the tone is acceptable but could be improved.
+        Score 0.0 if the tone is rude, unclear, or unprofessional.
 
 tests:
   - id: greeting
     criteria: The assistant responds with a friendly greeting
     input: "Hello!"
     expected_output: "Hello! How can I help you today?"
-    # Gets latency_check from root-level evaluators
+    # Gets tone_check from root-level evaluators
 
   - id: with-custom-eval
     criteria: The assistant provides a helpful response about refunds
@@ -25,15 +30,19 @@ tests:
       evaluators:
         - name: helpfulness
           type: llm_judge
-      # Also gets latency_check from root-level evaluators
+      # Also gets tone_check from root-level evaluators
 
   - id: skip-defaults
     criteria: The assistant handles urgent requests appropriately
-    input: "URGENT: System is down"
-    expected_output: "I understand this is urgent. Let me escalate this immediately."
+    input:
+      - role: system
+        content: "You are a support agent. When a user reports an urgent issue, acknowledge the urgency and offer to help immediately. Do not ask clarifying questions first."
+      - role: user
+        content: "URGENT: System is down"
+    expected_output: "I understand this is urgent. Let me help you right away. Can you tell me which system is affected so I can start troubleshooting?"
     execution:
       skip_defaults: true
       evaluators:
         - name: urgency_check
           type: llm_judge
-      # Does NOT get latency_check — skip_defaults opts out
+      # Does NOT get tone_check — skip_defaults opts out

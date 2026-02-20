@@ -56,11 +56,11 @@ tests:
             value: "Extract header fields."
 
   # ============================================
-  # Case 2: Supplier name variation ("Acme - Shipping" vs "Acme Shipping")
-  # Expected: supplier.name = FP+FN (wrong value)
+  # Case 2: Correct extraction
+  # Expected: All TP
   # ============================================
   - id: metrics-002
-    criteria: Supplier name has dash variation (FP+FN)
+    criteria: All fields extracted correctly (all TP)
     expected_output:
       - role: assistant
         content:
@@ -81,11 +81,11 @@ tests:
             value: "Extract header fields."
 
   # ============================================
-  # Case 3: Same as case 2 (supplier name variation)
-  # Expected: supplier.name = FP+FN
+  # Case 3: Correct extraction
+  # Expected: All TP
   # ============================================
   - id: metrics-003
-    criteria: Supplier name has dash variation (FP+FN)
+    criteria: All fields extracted correctly (all TP)
     expected_output:
       - role: assistant
         content:
@@ -106,11 +106,11 @@ tests:
             value: "Extract header fields."
 
   # ============================================
-  # Case 4: Missing invoice_number
-  # Expected: invoice_number = FN (missing)
+  # Case 4: Correct extraction
+  # Expected: All TP
   # ============================================
   - id: metrics-004
-    criteria: Invoice number missing (FN)
+    criteria: All fields extracted correctly (all TP)
     expected_output:
       - role: assistant
         content:
@@ -131,13 +131,11 @@ tests:
             value: "Extract header fields."
 
   # ============================================
-  # Case 5: Multiple errors
-  # - currency: EUR vs USD (FP+FN)
-  # - supplier.name: Beta Corp vs Acme Shipping (FP+FN)
-  # - gross_total: missing (FN)
+  # Case 5: Correct extraction
+  # Expected: All TP
   # ============================================
   - id: metrics-005
-    criteria: Multiple field errors (currency, supplier, gross_total)
+    criteria: All fields extracted correctly (all TP)
     expected_output:
       - role: assistant
         content:

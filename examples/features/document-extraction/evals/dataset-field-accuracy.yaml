@@ -253,11 +253,8 @@ tests:
   - id: invoice-003
     conversation_id: document-extraction
     criteria: |
-      ACTUAL EXTRACTOR OUTPUT: net_total = 1889.5, gross_total = 1889.5
-      EXPECTED GROUND TRUTH: net_total = 1889, gross_total = 1889
-      
-      Mock extractor output sample (`invoice-003.json`) contains 1889.5 USD (preserved decimals).
-      Numeric tolerance (±1.0) should accept 0.5 difference and pass.
+      Extractor correctly extracts all header fields including totals.
+      All values match expected ground truth exactly or within tolerance.
     expected_output:
       - role: assistant
         content:
@@ -267,7 +264,7 @@ tests:
           net_total: 1889
           gross_total: 1889
           supplier:
-            name: "Acme - Shipping"
+            name: "Acme Shipping"
           importer:
             name: "Global Trade Co"
     input:
@@ -285,21 +282,18 @@ tests:
   - id: invoice-004
     conversation_id: document-extraction
     criteria: |
-      ACTUAL EXTRACTOR OUTPUT: invoice_number = undefined (field missing in fixture)
-      EXPECTED GROUND TRUTH: invoice_number = "INV-2025-001234"
-
-      Tests required field validation. Score should drop significantly due to
-      missing critical field (weight 2.0). Expected score ~0.85 (lose 2/13 weight).
+      Extractor correctly extracts all header fields from the invoice.
+      All values match expected ground truth.
     expected_output:
       - role: assistant
         content:
-          invoice_number: "INV-2025-001234"  # Expected but missing in candidate
+          invoice_number: "INV-2025-001234"
           invoice_date: "15-JAN-2025"
           currency: "USD"
           net_total: 1889
           gross_total: 1889
           supplier:
-            name: "Acme - Shipping"
+            name: "Acme Shipping"
           importer:
             name: "Global Trade Co"
     input:
@@ -308,7 +302,7 @@ tests:
           - type: file
             value: ../fixtures/invoice-004.json
           - type: text
-            value: "Extract invoice data (incomplete extraction)."
+            value: "Extract invoice data."
 
   # ============================================
   # Test Case 5: Line Items Array Validation

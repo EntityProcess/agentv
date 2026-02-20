@@ -93,8 +93,8 @@ function generateResponse(prompt: string): AgentResponse {
           content:
             'Here is the implementation:\n\n```typescript\nfunction example() {\n  return "Hello";\n}\n```',
           tool_calls: [
-            { tool: 'read_file', input: { path: 'src/index.ts' } },
-            { tool: 'write_file', input: { path: 'src/example.ts', content: '...' } },
+            { tool: 'Read', input: { path: 'src/index.ts' } },
+            { tool: 'Edit', input: { path: 'src/example.ts', content: '...' } },
           ],
         },
       ],
