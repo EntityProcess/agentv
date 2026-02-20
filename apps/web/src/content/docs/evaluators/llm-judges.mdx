@@ -50,11 +50,11 @@ Score the response from 0.0 to 1.0 based on:
 | Variable | Source |
 |----------|--------|
 | `question` | First user message content |
-| `criteria` | Eval case `criteria` field |
+| `criteria` | Test `criteria` field |
 | `reference_answer` | Last expected message content |
 | `candidate_answer` | Last candidate response content |
-| `sidecar` | Eval case `sidecar` metadata |
-| `rubrics` | Eval case `rubrics` (if defined) |
+| `sidecar` | Test `sidecar` metadata |
+| `rubrics` | Test `rubrics` (if defined) |
 | `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
 
 ### TypeScript Template
@@ -86,7 +86,7 @@ Evaluate and provide a score from 0 to 1.`;
 
 ## How It Works
 
-1. AgentV renders the prompt template with variables from the eval case
+1. AgentV renders the prompt template with variables from the test
 2. The rendered prompt is sent to the judge target (configured in targets.yaml)
 3. The LLM returns a structured evaluation with score, hits, misses, and reasoning
 4. Results are recorded in the output JSONL
@@ -117,7 +117,7 @@ TypeScript templates receive a context object with these fields:
 | `question` | `string` | First user message content |
 | `candidateAnswer` | `string` | Last entry in `output_messages` |
 | `referenceAnswer` | `string` | Last entry in `expected_messages` |
-| `criteria` | `string` | Eval case `criteria` field |
+| `criteria` | `string` | Test `criteria` field |
 | `expectedMessages` | `Message[]` | Full resolved expected messages |
 | `outputMessages` | `Message[]` | Full provider output messages |
 | `traceSummary` | `TraceSummary` | Execution metrics summary |
@@ -150,7 +150,7 @@ Derived strings injected into evaluator prompts:
 | Variable | Derivation |
 |----------|------------|
 | `question` | Content of the first `user` role entry in `input_messages` |
-| `criteria` | Passed through from the eval case field |
+| `criteria` | Passed through from the test field |
 | `reference_answer` | Content of the last entry in `expected_messages` |
 | `candidate_answer` | Content of the last entry in `output_messages` |
 | `input_messages` | Full resolved input array, JSON-serialized |

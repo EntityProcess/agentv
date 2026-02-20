@@ -14,11 +14,11 @@ import {
   parseInlineRubrics,
 } from './loaders/evaluator-parser.js';
 import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
-import { detectFormat, loadEvalCasesFromJsonl } from './loaders/jsonl-parser.js';
+import { detectFormat, loadTestsFromJsonl } from './loaders/jsonl-parser.js';
 import { processExpectedMessages, processMessages } from './loaders/message-processor.js';
 import { resolveExpectedMessages, resolveInputMessages } from './loaders/shorthand-expansion.js';
 import type {
-  EvalCase,
+  EvalTest,
   JsonObject,
   JsonValue,
   TestMessage,
@@ -45,15 +45,15 @@ const ANSI_RESET = '\u001b[0m';
 
 type LoadOptions = {
   readonly verbose?: boolean;
-  /** Filter eval cases by ID pattern (glob supported, e.g., "summary-*") */
+  /** Filter tests by ID pattern (glob supported, e.g., "summary-*") */
   readonly filter?: string;
 };
 
 type RawTestSuite = JsonObject & {
-  readonly cases?: JsonValue;
-  /** @deprecated Use `cases` instead */
+  readonly tests?: JsonValue;
+  /** @deprecated Use `tests` instead */
   readonly eval_cases?: JsonValue;
-  /** @deprecated Use `cases` instead */
+  /** @deprecated Use `tests` instead */
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
   readonly execution?: JsonValue;
@@ -79,14 +79,14 @@ type RawEvalCase = JsonObject & {
   readonly metadata?: JsonValue;
 };
 
-function resolveEvalCases(suite: RawTestSuite): JsonValue | undefined {
-  if (suite.cases !== undefined) return suite.cases;
+function resolveTests(suite: RawTestSuite): JsonValue | undefined {
+  if (suite.tests !== undefined) return suite.tests;
   if (suite.eval_cases !== undefined) {
-    logWarning("'eval_cases' is deprecated. Use 'cases' instead.");
+    logWarning("'eval_cases' is deprecated. Use 'tests' instead.");
     return suite.eval_cases;
   }
   if (suite.evalcases !== undefined) {
-    logWarning("'evalcases' is deprecated. Use 'cases' instead.");
+    logWarning("'evalcases' is deprecated. Use 'tests' instead.");
     return suite.evalcases;
   }
   return undefined;
@@ -94,7 +94,7 @@ function resolveEvalCases(suite: RawTestSuite): JsonValue | undefined {
 
 /**
  * Read metadata from a test suite file (like target name).
- * This is a convenience function for CLI tools that need metadata without loading all eval cases.
+ * This is a convenience function for CLI tools that need metadata without loading all tests.
  */
 export async function readTestSuiteMetadata(
   testFilePath: string,
@@ -118,50 +118,56 @@ export async function readTestSuiteMetadata(
 }
 
 /**
- * Load eval cases from a AgentV specification file (YAML or JSONL).
+ * Load tests from an AgentV specification file (YAML or JSONL).
  * Format is detected by file extension: .yaml/.yml for YAML, .jsonl for JSONL.
  */
 export type EvalSuiteResult = {
-  readonly cases: readonly EvalCase[];
+  readonly tests: readonly EvalTest[];
   readonly trials?: TrialsConfig;
 };
 
 /**
- * Load eval cases and suite metadata from a single parse.
- * Prefer this over calling loadEvalCases + readTestSuiteMetadata separately.
+ * Load tests and suite metadata from a single parse.
+ * Prefer this over calling loadTests + readTestSuiteMetadata separately.
  */
-export async function loadEvalSuite(
+export async function loadTestSuite(
   evalFilePath: string,
   repoRoot: URL | string,
   options?: LoadOptions,
 ): Promise<EvalSuiteResult> {
   const format = detectFormat(evalFilePath);
   if (format === 'jsonl') {
-    return { cases: await loadEvalCasesFromJsonl(evalFilePath, repoRoot, options) };
+    return { tests: await loadTestsFromJsonl(evalFilePath, repoRoot, options) };
   }
-  const { cases, parsed } = await loadEvalCasesFromYaml(evalFilePath, repoRoot, options);
-  return { cases, trials: extractTrialsConfig(parsed) };
+  const { tests, parsed } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
+  return { tests, trials: extractTrialsConfig(parsed) };
 }
 
-export async function loadEvalCases(
+/** @deprecated Use `loadTestSuite` instead */
+export const loadEvalSuite = loadTestSuite;
+
+export async function loadTests(
   evalFilePath: string,
   repoRoot: URL | string,
   options?: LoadOptions,
-): Promise<readonly EvalCase[]> {
+): Promise<readonly EvalTest[]> {
   // Detect format and route to appropriate parser
   const format = detectFormat(evalFilePath);
   if (format === 'jsonl') {
-    return loadEvalCasesFromJsonl(evalFilePath, repoRoot, options);
+    return loadTestsFromJsonl(evalFilePath, repoRoot, options);
   }
-  const { cases } = await loadEvalCasesFromYaml(evalFilePath, repoRoot, options);
-  return cases;
+  const { tests } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
+  return tests;
 }
 
-async function loadEvalCasesFromYaml(
+/** @deprecated Use `loadTests` instead */
+export const loadEvalCases = loadTests;
+
+async function loadTestsFromYaml(
   evalFilePath: string,
   repoRoot: URL | string,
   options?: LoadOptions,
-): Promise<{ cases: readonly EvalCase[]; parsed: JsonObject }> {
+): Promise<{ tests: readonly EvalTest[]; parsed: JsonObject }> {
   // YAML parsing (existing implementation)
   const verbose = options?.verbose ?? false;
   const filterPattern = options?.filter;
@@ -188,9 +194,9 @@ async function loadEvalCasesFromYaml(
       ? datasetNameFromSuite
       : fallbackDataset;
 
-  const rawTestcases = resolveEvalCases(suite);
+  const rawTestcases = resolveTests(suite);
   if (!Array.isArray(rawTestcases)) {
-    throw new Error(`Invalid test file format: ${evalFilePath} - missing 'cases' field`);
+    throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
   }
 
   const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm_judge';
@@ -203,18 +209,18 @@ async function loadEvalCasesFromYaml(
   const globalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
   const _globalTarget = asString(globalExecution?.target) ?? asString(suite.target);
 
-  const results: EvalCase[] = [];
+  const results: EvalTest[] = [];
 
   for (const rawEvalcase of rawTestcases) {
     if (!isJsonObject(rawEvalcase)) {
-      logWarning('Skipping invalid eval case entry (expected object)');
+      logWarning('Skipping invalid test entry (expected object)');
       continue;
     }
 
     const evalcase = rawEvalcase as RawEvalCase;
     const id = asString(evalcase.id);
 
-    // Skip eval cases that don't match the filter pattern (glob supported)
+    // Skip tests that don't match the filter pattern (glob supported)
     if (filterPattern && (!id || !micromatch.isMatch(id, filterPattern))) {
       continue;
     }
@@ -225,7 +231,7 @@ async function loadEvalCasesFromYaml(
       outcome = asString(evalcase.expected_outcome);
       if (outcome) {
         logWarning(
-          `Eval case '${asString(evalcase.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
+          `Test '${asString(evalcase.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
         );
       }
     }
@@ -237,7 +243,7 @@ async function loadEvalCasesFromYaml(
 
     if (!id || !outcome || !inputMessages || inputMessages.length === 0) {
       logError(
-        `Skipping incomplete eval case: ${id ?? 'unknown'}. Missing required fields: id, criteria, and/or input_messages (or input)`,
+        `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, criteria, and/or input_messages (or input)`,
       );
       continue;
     }
@@ -300,9 +306,9 @@ async function loadEvalCasesFromYaml(
     try {
       evaluators = await parseEvaluators(evalcase, globalExecution, searchRoots, id ?? 'unknown');
     } catch (error) {
-      // Skip entire eval case if evaluator validation fails
+      // Skip entire test if evaluator validation fails
       const message = error instanceof Error ? error.message : String(error);
-      logError(`Skipping eval case '${id}': ${message}`);
+      logError(`Skipping test '${id}': ${message}`);
       continue;
     }
 
@@ -339,7 +345,7 @@ async function loadEvalCasesFromYaml(
       ? (evalcase.metadata as Record<string, unknown>)
       : undefined;
 
-    const testCase: EvalCase = {
+    const testCase: EvalTest = {
       id,
       dataset: datasetName,
       conversation_id: conversationId,
@@ -359,7 +365,7 @@ async function loadEvalCasesFromYaml(
     };
 
     if (verbose) {
-      console.log(`\n[Eval Case: ${id}]`);
+      console.log(`\n[Test: ${id}]`);
       if (testCase.guideline_paths.length > 0) {
         console.log(`  Guidelines used: ${testCase.guideline_paths.length}`);
         for (const guidelinePath of testCase.guideline_paths) {
@@ -373,28 +379,29 @@ async function loadEvalCasesFromYaml(
     results.push(testCase);
   }
 
-  return { cases: results, parsed: suite };
+  return { tests: results, parsed: suite };
 }
 
 /**
- * Load a single eval case by exact ID match.
+ * Load a single test by exact ID match.
  * Throws if the ID is not found.
  */
-export async function loadEvalCaseById(
+export async function loadTestById(
   evalFilePath: string,
   repoRoot: URL | string,
   evalId: string,
-): Promise<EvalCase> {
-  const cases = await loadEvalCases(evalFilePath, repoRoot);
-  const match = cases.find((c) => c.id === evalId);
+): Promise<EvalTest> {
+  const tests = await loadTests(evalFilePath, repoRoot);
+  const match = tests.find((c) => c.id === evalId);
   if (!match) {
-    const available = cases.map((c) => c.id).join(', ');
-    throw new Error(
-      `Eval case "${evalId}" not found in ${evalFilePath}. Available IDs: ${available}`,
-    );
+    const available = tests.map((c) => c.id).join(', ');
+    throw new Error(`Test '${evalId}' not found in ${evalFilePath}. Available IDs: ${available}`);
   }
   return match;
 }
+
+/** @deprecated Use `loadTestById` instead */
+export const loadEvalCaseById = loadTestById;
 
 /**
  * Parse a WorkspaceScriptConfig from raw YAML value.

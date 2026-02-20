@@ -6,15 +6,15 @@
 # The mock agent: edits hello.txt + config.json, creates src/utils.ts + tests/main.test.ts,
 # and deletes obsolete.log.
 #
-# Two eval cases each get their own fresh workspace copy, proving the feature
+# Two tests each get their own fresh workspace copy, proving the feature
 # works independently across parallel eval runs.
 
-description: Verify file_changes captures edits, creates, and deletes across multiple eval cases
+description: Verify file_changes captures edits, creates, and deletes across multiple tests
 
 execution:
   target: mock_agent
 
-cases:
+tests:
   # Case 1: verify edits and creates
   - id: verify-edits-and-creates
     criteria: >-

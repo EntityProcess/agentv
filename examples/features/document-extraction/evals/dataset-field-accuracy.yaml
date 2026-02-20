@@ -99,9 +99,9 @@ execution:
     #   threshold: 2000  # max allowed duration in milliseconds
     # - name: cost_tracking
     #   type: cost
-    #   budget: 0.10  # max allowed cost in USD per eval case
+    #   budget: 0.10  # max allowed cost in USD per test
 
-cases:
+tests:
   # ============================================
   # Test Case 1: CMA CGM Shipping Invoice
   # Perfect extraction scenario

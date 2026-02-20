@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import {
-  type EvalCase,
+  type EvalTest,
   type EvaluatorConfig,
   assembleLlmJudgePrompt,
   buildPromptInputs,
   executeScript,
-  loadEvalCaseById,
+  loadTestById,
   toSnakeCaseDeep,
 } from '@agentv/core';
 import { command, option, positional, string } from 'cmd-ts';
@@ -27,7 +27,7 @@ interface EvaluatorOutput {
 
 export const evalPromptJudgeCommand = command({
   name: 'judge',
-  description: 'Run code judges and output LLM judge prompts for a single eval case',
+  description: 'Run code judges and output LLM judge prompts for a single test',
   args: {
     evalPath: positional({
       type: string,
@@ -37,7 +37,7 @@ export const evalPromptJudgeCommand = command({
     evalId: option({
       type: string,
       long: 'eval-id',
-      description: 'Eval case ID',
+      description: 'Test ID',
     }),
     answerFile: option({
       type: string,
@@ -49,7 +49,7 @@ export const evalPromptJudgeCommand = command({
     const cwd = process.cwd();
     const repoRoot = await findRepoRoot(cwd);
 
-    const evalCase = await loadEvalCaseById(args.evalPath, repoRoot, args.evalId);
+    const evalCase = await loadTestById(args.evalPath, repoRoot, args.evalId);
     const candidate = (await readFile(args.answerFile, 'utf8')).trim();
     const promptInputs = await buildPromptInputs(evalCase);
 
@@ -92,7 +92,7 @@ export const evalPromptJudgeCommand = command({
 
 async function processEvaluator(
   config: EvaluatorConfig,
-  evalCase: EvalCase,
+  evalCase: EvalTest,
   candidate: string,
   promptInputs: Awaited<ReturnType<typeof buildPromptInputs>>,
 ): Promise<EvaluatorOutput> {

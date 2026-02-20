@@ -5,7 +5,7 @@ dataset: weighted-evaluators-examples
 execution:
   target: default
 
-cases:
+tests:
   # Example 1: Different weights for multiple evaluators
   - id: weighted-multi-evaluator
     input:

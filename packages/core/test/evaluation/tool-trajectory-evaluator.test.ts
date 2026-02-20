@@ -6,7 +6,7 @@ import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type { OutputMessage, Provider } from '../../src/evaluation/providers/types.js';
 import type { ToolTrajectoryEvaluatorConfig, TraceSummary } from '../../src/evaluation/trace.js';
 import { computeTraceSummary } from '../../src/evaluation/trace.js';
-import type { EvalCase } from '../../src/evaluation/types.js';
+import type { EvalTest } from '../../src/evaluation/types.js';
 
 // Minimal mock objects
 const mockTarget: ResolvedTarget = {
@@ -24,7 +24,7 @@ const mockProvider: Provider = {
   },
 };
 
-const mockEvalCase: EvalCase = {
+const mockEvalCase: EvalTest = {
   id: 'test-case',
   question: 'Test question',
   input_messages: [],

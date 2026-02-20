@@ -46,7 +46,7 @@ import { aggregateTrials } from './trials.js';
 import type {
   AgentJudgeEvaluatorConfig,
   CostEvaluatorConfig,
-  EvalCase,
+  EvalTest,
   EvaluationResult,
   EvaluationVerdict,
   EvaluatorConfig,
@@ -77,7 +77,7 @@ import {
   executeWorkspaceSetup,
   executeWorkspaceTeardown,
 } from './workspace/script-executor.js';
-import { type PromptInputs, buildPromptInputs, loadEvalCases } from './yaml-parser.js';
+import { type PromptInputs, buildPromptInputs, loadTests } from './yaml-parser.js';
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -103,7 +103,7 @@ export interface EvaluationCache {
 }
 
 export interface RunEvalCaseOptions {
-  readonly evalCase: EvalCase;
+  readonly evalCase: EvalTest;
   readonly provider: Provider;
   readonly target: ResolvedTarget;
   readonly evaluators: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
@@ -148,11 +148,11 @@ export interface RunEvaluationOptions {
   readonly cache?: EvaluationCache;
   readonly useCache?: boolean;
   readonly now?: () => Date;
-  /** Filter eval cases by ID pattern (glob supported, e.g., "summary-*") */
+  /** Filter tests by ID pattern (glob supported, e.g., "summary-*") */
   readonly filter?: string;
   readonly verbose?: boolean;
   readonly maxConcurrency?: number;
-  readonly evalCases?: readonly EvalCase[];
+  readonly evalCases?: readonly EvalTest[];
   readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
   readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
   /** Keep workspace on success (default: cleanup on success, keep on failure) */
@@ -202,12 +202,12 @@ export async function runEvaluation(
 
   // Use pre-loaded eval cases if provided, otherwise load them
   const evalCases =
-    preloadedEvalCases ?? (await loadEvalCases(evalFilePath, repoRoot, { verbose, filter }));
+    preloadedEvalCases ?? (await loadTests(evalFilePath, repoRoot, { verbose, filter }));
 
   const filteredEvalCases = filterEvalCases(evalCases, filter);
   if (filteredEvalCases.length === 0) {
     if (filter) {
-      throw new Error(`No eval cases matched filter '${filter}' in ${evalFilePath}`);
+      throw new Error(`No tests matched filter '${filter}' in ${evalFilePath}`);
     }
     return [];
   }
@@ -453,7 +453,7 @@ export async function runEvaluation(
 }
 
 async function runBatchEvaluation(options: {
-  readonly evalCases: readonly EvalCase[];
+  readonly evalCases: readonly EvalTest[];
   readonly provider: Provider;
   readonly target: ResolvedTarget;
   readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
@@ -701,7 +701,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   if (workspacePath && evalCase.workspace?.setup) {
     const scriptContext: ScriptExecutionContext = {
       workspacePath,
-      evalCaseId: evalCase.id,
+      testId: evalCase.id,
       evalRunId: evalRunId ?? '',
       caseInput: evalCase.question,
       caseMetadata: evalCase.metadata,
@@ -859,7 +859,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   if (workspacePath && evalCase.workspace?.teardown) {
     const scriptContext: ScriptExecutionContext = {
       workspacePath,
-      evalCaseId: evalCase.id,
+      testId: evalCase.id,
       evalRunId: evalRunId ?? '',
       caseInput: evalCase.question,
       caseMetadata: evalCase.metadata,
@@ -1019,7 +1019,7 @@ async function runEvalCaseWithTrials(
 }
 
 async function evaluateCandidate(options: {
-  readonly evalCase: EvalCase;
+  readonly evalCase: EvalTest;
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
@@ -1120,7 +1120,7 @@ async function evaluateCandidate(options: {
 }
 
 async function runEvaluatorsForCase(options: {
-  readonly evalCase: EvalCase;
+  readonly evalCase: EvalTest;
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
@@ -1205,7 +1205,7 @@ async function runEvaluatorsForCase(options: {
 }
 
 async function runEvaluatorList(options: {
-  readonly evalCase: EvalCase;
+  readonly evalCase: EvalTest;
   readonly evaluators: readonly EvaluatorConfig[];
   readonly candidate: string;
   readonly target: ResolvedTarget;
@@ -1764,7 +1764,7 @@ async function runEvaluatorList(options: {
 
 async function runLlmJudgeEvaluator(options: {
   readonly config: import('./types.js').LlmJudgeEvaluatorConfig;
-  readonly evalCase: EvalCase;
+  readonly evalCase: EvalTest;
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
@@ -1829,7 +1829,7 @@ async function runLlmJudgeEvaluator(options: {
 }
 
 interface ResolveCustomPromptContext {
-  readonly evalCase: EvalCase;
+  readonly evalCase: EvalTest;
   readonly candidate: string;
   readonly outputMessages?: readonly OutputMessage[];
   readonly traceSummary?: TraceSummary;
@@ -1930,7 +1930,7 @@ async function executePromptTemplate(
   }
 }
 
-function filterEvalCases(evalCases: readonly EvalCase[], filter?: string): readonly EvalCase[] {
+function filterEvalCases(evalCases: readonly EvalTest[], filter?: string): readonly EvalTest[] {
   if (!filter) {
     return evalCases;
   }
@@ -1961,7 +1961,7 @@ function buildEvaluatorRegistry(
 async function invokeProvider(
   provider: Provider,
   options: {
-    readonly evalCase: EvalCase;
+    readonly evalCase: EvalTest;
     readonly target: ResolvedTarget;
     readonly promptInputs: PromptInputs;
     readonly attempt: number;
@@ -2007,7 +2007,7 @@ async function invokeProvider(
 }
 
 function buildErrorResult(
-  evalCase: EvalCase,
+  evalCase: EvalTest,
   targetName: string,
   timestamp: Date,
   error: unknown,
@@ -2076,7 +2076,7 @@ function extractProviderError(response: ProviderResponse): string | undefined {
 function createCacheKey(
   provider: Provider,
   target: ResolvedTarget,
-  evalCase: EvalCase,
+  evalCase: EvalTest,
   promptInputs: PromptInputs,
 ): string {
   const hash = createHash('sha256');

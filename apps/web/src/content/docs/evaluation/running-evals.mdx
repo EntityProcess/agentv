@@ -23,9 +23,9 @@ Run against a different target than specified in the eval file:
 agentv run --target azure_base evals/**/*.yaml
 ```
 
-### Run Specific Eval Case
+### Run Specific Test
 
-Run a single eval case by ID:
+Run a single test by ID:
 
 ```bash
 agentv run --eval-id case-123 evals/my-eval.yaml
@@ -58,7 +58,7 @@ agentv run evals/my-eval.yaml --trace
 ```
 
 Traces are written to `.agentv/traces/<timestamp>/<eval-file>.trace.jsonl` as JSONL records containing:
-- `evalId` - The eval case identifier
+- `evalId` - The test identifier
 - `startTime` / `endTime` - Execution boundaries
 - `durationMs` - Total execution duration
 - `spans` - Array of tool invocations with timing and input/output
@@ -66,7 +66,7 @@ Traces are written to `.agentv/traces/<timestamp>/<eval-file>.trace.jsonl` as JS
 
 ### Workspace Cleanup
 
-When using `workspace_template` or the `workspace` config block, temporary workspaces are created for each eval case. By default, workspaces are cleaned up on success and preserved on failure for debugging.
+When using `workspace_template` or the `workspace` config block, temporary workspaces are created for each test. By default, workspaces are cleaned up on success and preserved on failure for debugging.
 
 ```bash
 # Always keep workspaces (for debugging)
@@ -96,7 +96,7 @@ Run evaluations without API keys by letting an external agent (e.g., Claude Code
 agentv prompt evals/my-eval.yaml
 ```
 
-Outputs a step-by-step orchestration prompt listing all eval cases and the commands to run for each.
+Outputs a step-by-step orchestration prompt listing all tests and the commands to run for each.
 
 ### Get Task Input
 

@@ -13,7 +13,7 @@ description: Showcase of tool evaluation plugin patterns
 execution:
   target: mock_agent
 
-cases:
+tests:
   # ==========================================
   # Example 1: Tool Selection Evaluation
   # Use case: Verify agent chose appropriate tools for the task

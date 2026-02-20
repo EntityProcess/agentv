@@ -3,7 +3,7 @@ description: Evaluates whether proposed changes follow AGENTS.md design principl
 execution:
   target: default
 
-cases:
+tests:
   - id: violates-lightweight-core
     criteria: |
       The proposed change violates the "Lightweight Core, Plugin Extensibility" principle.

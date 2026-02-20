@@ -1,16 +1,16 @@
 ---
-title: Eval Cases
-description: Defining individual test cases
+title: Tests
+description: Defining individual tests
 sidebar:
   order: 2
 ---
 
-Eval cases are individual test cases within an evaluation file. Each case defines input messages, expected outcomes, and optional evaluator overrides.
+Tests are individual test entries within an evaluation file. Each test defines input messages, expected outcomes, and optional evaluator overrides.
 
 ## Basic Structure
 
 ```yaml
-cases:
+tests:
   - id: addition
     criteria: Correctly calculates 15 + 27 = 42
 
@@ -23,7 +23,7 @@ cases:
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `id` | Yes | Unique identifier for the eval case |
+| `id` | Yes | Unique identifier for the test |
 | `criteria` | Yes | Description of what a correct response should contain |
 | `input` | Yes | Input sent to the target (string, object, or message array). Alias: `input_messages` |
 | `expected_output` | No | Expected response for comparison (string, object, or message array). Alias: `expected_messages` |
@@ -69,10 +69,10 @@ expected_output:
 
 ## Per-Case Execution Overrides
 
-Override the default target or evaluators for specific cases:
+Override the default target or evaluators for specific tests:
 
 ```yaml
-cases:
+tests:
   - id: complex-case
     criteria: Provides detailed explanation
     input: Explain quicksort algorithm
@@ -87,14 +87,14 @@ cases:
 
 ## Per-Case Workspace Config
 
-Override the suite-level workspace config for individual cases. Case-level fields replace suite-level fields:
+Override the suite-level workspace config for individual tests. Test-level fields replace suite-level fields:
 
 ```yaml
 workspace:
   setup:
     script: ["bun", "run", "default-setup.ts"]
 
-cases:
+tests:
   - id: case-1
     criteria: Should work
     input: Do something
@@ -115,7 +115,7 @@ See [Workspace Setup/Teardown](/targets/configuration/#workspace-setupteardown) 
 Pass arbitrary key-value pairs to setup/teardown scripts via the `metadata` field. This is useful for benchmark datasets where each case needs repo info, commit hashes, or other context:
 
 ```yaml
-cases:
+tests:
   - id: sympy-20590
     criteria: Bug should be fixed
     input: Fix the diophantine equation bug
@@ -134,7 +134,7 @@ The `metadata` field is included in the stdin JSON passed to setup and teardown 
 Pass additional context to evaluators via the `sidecar` field:
 
 ```yaml
-cases:
+tests:
   - id: code-gen
     criteria: Generates valid Python
     sidecar:

@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-The `generate` command creates structured evaluation criteria from your eval cases.
+The `generate` command creates structured evaluation criteria from your tests.
 
 ## Generate Rubrics
 
@@ -15,11 +15,11 @@ Auto-generate rubrics from expected outcomes:
 agentv generate rubrics evals/my-eval.yaml
 ```
 
-This analyzes each eval case's `criteria` field and creates structured rubric criteria with appropriate weights.
+This analyzes each test's `criteria` field and creates structured rubric criteria with appropriate weights.
 
 ## How It Works
 
-1. Reads each eval case's `criteria`
+1. Reads each test's `criteria`
 2. Uses an LLM to decompose the criteria into individual checkable rubric items
 3. Assigns weights based on importance
 4. Writes the rubrics back to the eval file
@@ -29,7 +29,7 @@ This analyzes each eval case's `criteria` field and creates structured rubric cr
 Before:
 
 ```yaml
-cases:
+tests:
   - id: quicksort
     criteria: Explains quicksort with time complexity and examples
     input: Explain quicksort
@@ -38,7 +38,7 @@ cases:
 After running `agentv generate rubrics`:
 
 ```yaml
-cases:
+tests:
   - id: quicksort
     criteria: Explains quicksort with time complexity and examples
     input: Explain quicksort

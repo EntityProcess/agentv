@@ -66,7 +66,7 @@ Set the default target at the top level or override per case:
 execution:
   target: azure_base
 
-cases:
+tests:
   - id: test-1
     # Uses azure_base
 
@@ -88,7 +88,7 @@ targets:
 
 ## Workspace Template
 
-For agent targets, `workspace_template` specifies a directory that gets copied to a temporary location before each eval case runs. This provides isolated, reproducible workspaces.
+For agent targets, `workspace_template` specifies a directory that gets copied to a temporary location before each test runs. This provides isolated, reproducible workspaces.
 
 ```yaml
 targets:
@@ -101,11 +101,11 @@ targets:
 When `workspace_template` is set:
 - The template directory is copied to `~/.agentv/workspaces/<eval-run-id>/<case-id>/`
 - The `.git` directory is skipped during copy
-- Each eval case gets its own isolated copy
+- Each test gets its own isolated copy
 
 ### Workspace Setup/Teardown
 
-Run scripts before and after each eval case using the `workspace` block. This can be defined at the suite level (applies to all cases) or per case (overrides suite-level).
+Run scripts before and after each test using the `workspace` block. This can be defined at the suite level (applies to all tests) or per test (overrides suite-level).
 
 ```yaml
 workspace:
@@ -136,7 +136,7 @@ Each script config accepts:
 **Lifecycle order:** template copy → setup script → git baseline → agent runs → file changes captured → teardown script → cleanup
 
 **Error handling:**
-- Setup failure aborts the eval case with an error result
+- Setup failure aborts the test with an error result
 - Teardown failure is non-fatal (warning only)
 
 **Script context:** Both scripts receive a JSON object on stdin with case context:
@@ -151,7 +151,7 @@ Each script config accepts:
 }
 ```
 
-**Suite vs per-case:** When both are defined, case-level fields replace suite-level fields. See [Per-Case Workspace Config](/evaluation/eval-cases/#per-case-workspace-config) for examples.
+**Suite vs per-test:** When both are defined, test-level fields replace suite-level fields. See [Per-Test Workspace Config](/evaluation/eval-cases/#per-case-workspace-config) for examples.
 
 ### Workspace Fingerprinting
 
@@ -171,7 +171,7 @@ Override with CLI flags:
 
 | Option | Use Case |
 |--------|----------|
-| `cwd` | Run in an existing directory (shared across cases) |
+| `cwd` | Run in an existing directory (shared across tests) |
 | `workspace_template` | Copy template to temp location (isolated per case) |
 
 These options are mutually exclusive. If neither is set, the eval file's directory is used as the working directory.

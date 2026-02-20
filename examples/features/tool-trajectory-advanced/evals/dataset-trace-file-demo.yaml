@@ -15,7 +15,7 @@ description: Static trace file evaluation demo - Product Research Agent
 execution:
   target: static_trace
 
-cases:
+tests:
   # =============================================================================
   # Example 1: In-Order Validation
   # Use case: Ensure tools are called in the expected sequence (allows gaps)

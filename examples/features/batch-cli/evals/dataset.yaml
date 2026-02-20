@@ -1,7 +1,7 @@
 # Batch CLI provider demo (synthetic)
 #
 # Goal: demonstrate a realistic batch pattern for AML screening.
-# - Eval cases contain structured `input_messages` objects.
+# - Tests contain structured `input_messages` objects.
 # - A batch runner converts those objects into a CSV input file.
 # - The CLI provider runs the batch runner once, producing JSONL output.
 # - output_messages in JSONL are automatically converted to trace events for tool_trajectory evaluation.
@@ -11,7 +11,7 @@ description: Batch CLI demo (AML screening) using structured input_messages → 
 execution:
   target: batch_cli
 
-cases:
+tests:
   - id: aml-001
     criteria: |-
       Batch runner returns a JSON object with decision=CLEAR.

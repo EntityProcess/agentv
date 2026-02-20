@@ -12,7 +12,7 @@ execution:
     - name: content_evaluator
       type: llm_judge
 
-cases:
+tests:
   # ==============================================================================
   # TIER 1: STANDARD REFERENCE CASES (Explicit Resources)
   # ==============================================================================

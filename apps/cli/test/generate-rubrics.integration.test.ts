@@ -54,7 +54,7 @@ targets:
 execution:
   target: default
 
-cases:`;
+tests:`;
 
   if (withComments) {
     testFileContent += '\n  # This is a test comment\n  # TODO: update this test case';
@@ -134,7 +134,7 @@ describe('generate rubrics integration', () => {
 
     expect(stdout).toContain('Generating rubrics for:');
     expect(stdout).toContain('case-with-outcome');
-    expect(stdout).toMatch(/Updated \d+ eval case\(s\) with generated rubrics/);
+    expect(stdout).toMatch(/Updated \d+ test\(s\) with generated rubrics/);
 
     // Read the updated file
     const content = await readFile(fixture.testFilePath, 'utf8');
@@ -176,10 +176,10 @@ describe('generate rubrics integration', () => {
 
     // Check that structure is maintained (basic indentation check)
     const lines = updatedContent.split('\n');
-    const casesLine = lines.findIndex((line) => line.includes('cases:'));
+    const casesLine = lines.findIndex((line) => line.includes('tests:'));
     const rubricsLine = lines.findIndex((line) => line.includes('rubrics:'));
 
-    // rubrics should be indented more than cases
+    // rubrics should be indented more than tests
     if (casesLine >= 0 && rubricsLine >= 0) {
       const casesIndent = lines[casesLine].match(/^\s*/)?.[0].length ?? 0;
       const rubricsIndent = lines[rubricsLine].match(/^\s*/)?.[0].length ?? 0;

@@ -5,14 +5,14 @@ sidebar:
   order: 3
 ---
 
-Rubrics define structured evaluation criteria directly in your eval cases. They support binary checklist grading and score-range analytic grading.
+Rubrics define structured evaluation criteria directly in your tests. They support binary checklist grading and score-range analytic grading.
 
 ## Basic Usage
 
 The simplest form — each string becomes a required criterion:
 
 ```yaml
-cases:
+tests:
   - id: quicksort-explain
     criteria: Explain how quicksort works
     input: Explain quicksort algorithm
@@ -100,14 +100,14 @@ Generate rubrics from expected outcomes:
 agentv generate rubrics evals/my-eval.yaml
 ```
 
-This analyzes each eval case's `criteria` and creates structured rubric criteria.
+This analyzes each test's `criteria` and creates structured rubric criteria.
 
 ## Combining with Other Evaluators
 
 Rubrics work alongside code and LLM judges:
 
 ```yaml
-cases:
+tests:
   - id: code-quality
     criteria: Generates correct, clean Python code
     input: Write a fibonacci function

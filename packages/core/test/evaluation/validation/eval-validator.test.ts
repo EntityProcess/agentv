@@ -21,7 +21,7 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'input-alias.yaml');
     await writeFile(
       filePath,
-      `cases:
+      `tests:
   - id: test-1
     criteria: Goal
     input: "What is 2+2?"
@@ -38,7 +38,7 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'input-array.yaml');
     await writeFile(
       filePath,
-      `cases:
+      `tests:
   - id: test-1
     criteria: Goal
     input:
@@ -59,7 +59,7 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'output-string.yaml');
     await writeFile(
       filePath,
-      `cases:
+      `tests:
   - id: test-1
     criteria: Goal
     input: Query
@@ -77,7 +77,7 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'output-object.yaml');
     await writeFile(
       filePath,
-      `cases:
+      `tests:
   - id: test-1
     criteria: Goal
     input: Query
@@ -97,7 +97,7 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'missing-input.yaml');
     await writeFile(
       filePath,
-      `cases:
+      `tests:
   - id: test-1
     criteria: Goal
 `,
@@ -113,7 +113,7 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'invalid-input.yaml');
     await writeFile(
       filePath,
-      `cases:
+      `tests:
   - id: test-1
     criteria: Goal
     input: 123
@@ -130,7 +130,7 @@ describe('validateEvalFile', () => {
     const filePath = path.join(tempDir, 'canonical-precedence.yaml');
     await writeFile(
       filePath,
-      `cases:
+      `tests:
   - id: test-1
     criteria: Goal
     input_messages:
@@ -147,7 +147,7 @@ describe('validateEvalFile', () => {
   });
 
   describe('backward-compat aliases', () => {
-    it('accepts eval_cases as deprecated alias for cases (with warning)', async () => {
+    it('accepts eval_cases as deprecated alias for tests (with warning)', async () => {
       const filePath = path.join(tempDir, 'eval-cases-alias.yaml');
       await writeFile(
         filePath,
@@ -167,7 +167,7 @@ describe('validateEvalFile', () => {
       expect(warnings.some((e) => e.message.includes("'eval_cases' is deprecated"))).toBe(true);
     });
 
-    it('accepts evalcases as deprecated alias for cases (with warning)', async () => {
+    it('accepts evalcases as deprecated alias for tests (with warning)', async () => {
       const filePath = path.join(tempDir, 'evalcases-alias.yaml');
       await writeFile(
         filePath,
@@ -191,7 +191,7 @@ describe('validateEvalFile', () => {
       const filePath = path.join(tempDir, 'expected-outcome-alias.yaml');
       await writeFile(
         filePath,
-        `cases:
+        `tests:
   - id: test-1
     expected_outcome: Goal
     input:

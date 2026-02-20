@@ -28,7 +28,7 @@ The template receives evaluation context via stdin (JSON) and outputs the prompt
 
 ## Available Context Fields
 
-- `question` - The eval case question
+- `question` - The test question
 - `candidateAnswer` - The agent's response being evaluated
 - `referenceAnswer` - Optional reference answer
 - `criteria` - Optional criteria / expected outcome
@@ -51,7 +51,7 @@ bun agentv run examples/features/prompt-template-sdk/evals/dataset.yaml --dry-ru
 ```
 prompt-template-sdk/
   evals/
-    dataset.yaml       # Eval cases using TypeScript prompt
+    dataset.yaml       # Tests using TypeScript prompt
   prompts/
     custom-evaluator.ts  # TypeScript prompt template
   README.md

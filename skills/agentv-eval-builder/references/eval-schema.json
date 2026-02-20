@@ -10,19 +10,19 @@
     },
     "target": {
       "type": "string",
-      "description": "(Deprecated: use execution.target instead) Default target configuration name. Can be overridden per eval case."
+      "description": "(Deprecated: use execution.target instead) Default target configuration name. Can be overridden per test."
     },
     "execution": {
       "type": "object",
-      "description": "Default execution configuration for all eval cases (can be overridden per case)",
+      "description": "Default execution configuration for all tests (can be overridden per test)",
       "properties": {
         "target": {
           "type": "string",
-          "description": "Default target configuration name (e.g., default, azure_base, vscode_projectx). Can be overridden per eval case."
+          "description": "Default target configuration name (e.g., default, azure_base, vscode_projectx). Can be overridden per test."
         },
         "evaluators": {
           "type": "array",
-          "description": "Default evaluators for all eval cases (code-based and LLM judges)",
+          "description": "Default evaluators for all tests (code-based and LLM judges)",
           "items": {
             "type": "object",
             "properties": {
@@ -60,20 +60,20 @@
       },
       "additionalProperties": true
     },
-    "cases": {
+    "tests": {
       "type": "array",
-      "description": "Array of evaluation cases",
+      "description": "Array of evaluation tests",
       "minItems": 1,
       "items": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string",
-            "description": "Unique identifier for the eval case"
+            "description": "Unique identifier for the test"
           },
           "conversation_id": {
             "type": "string",
-            "description": "Optional conversation identifier for threading multiple eval cases together"
+            "description": "Optional conversation identifier for threading multiple tests together"
           },
           "criteria": {
             "type": "string",
@@ -81,7 +81,7 @@
           },
           "note": {
             "type": "string",
-            "description": "Optional note or additional context for the eval case. Use this to document test-specific considerations, known limitations, or rationale for expected behavior."
+            "description": "Optional note or additional context for the test. Use this to document test-specific considerations, known limitations, or rationale for expected behavior."
           },
           "input_messages": {
             "type": "array",
@@ -233,7 +233,7 @@
             "properties": {
               "target": {
                 "type": "string",
-                "description": "Override target for this specific eval case"
+                "description": "Override target for this specific test"
               },
               "evaluators": {
                 "type": "array",
@@ -273,6 +273,6 @@
       }
     }
   },
-  "required": ["cases"],
+  "required": ["tests"],
   "additionalProperties": false
 }

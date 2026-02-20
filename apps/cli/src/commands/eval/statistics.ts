@@ -157,7 +157,7 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
   lines.push('\n==================================================');
   lines.push('EVALUATION SUMMARY');
   lines.push('==================================================');
-  lines.push(`Total eval cases: ${summary.total}`);
+  lines.push(`Total tests: ${summary.total}`);
 
   if (summary.errorCount > 0) {
     lines.push(`Failed: ${summary.errorCount}`);
@@ -178,12 +178,12 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
     lines.push(`  ${start.toFixed(1)}-${end.toFixed(1)}: ${bin.count}`);
   }
 
-  lines.push('\nTop performing eval cases:');
+  lines.push('\nTop performing tests:');
   summary.topResults.forEach((result, index) => {
     lines.push(`  ${index + 1}. ${result.evalId}: ${formatScore(result.score)}`);
   });
 
-  lines.push('\nLowest performing eval cases:');
+  lines.push('\nLowest performing tests:');
   summary.bottomResults.forEach((result, index) => {
     lines.push(`  ${index + 1}. ${result.evalId}: ${formatScore(result.score)}`);
   });

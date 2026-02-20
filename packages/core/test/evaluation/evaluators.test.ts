@@ -16,7 +16,7 @@ import type {
   ProviderRequest,
   ProviderResponse,
 } from '../../src/evaluation/providers/types.js';
-import type { EvalCase } from '../../src/evaluation/types.js';
+import type { EvalTest } from '../../src/evaluation/types.js';
 
 /** Helper to create a ProviderResponse with text wrapped in outputMessages */
 function textResponse(text: string): ProviderResponse {
@@ -51,7 +51,7 @@ class CapturingProvider implements Provider {
   }
 }
 
-const baseTestCase: EvalCase = {
+const baseTestCase: EvalTest = {
   id: 'case-1',
   dataset: 'test-dataset',
   question: 'Improve the logging implementation',
@@ -441,7 +441,7 @@ describe('CodeEvaluator', () => {
   it('passes required fields to code_judge scripts', async () => {
     const judgeProvider = new StubProvider(textResponse('{}'));
 
-    const evalCaseWithExpectedMessages: EvalCase = {
+    const evalCaseWithExpectedMessages: EvalTest = {
       ...baseTestCase,
       expected_messages: [{ role: 'assistant', content: { decision: 'ACCEPT' } }],
     };
@@ -602,7 +602,7 @@ describe('CodeEvaluator', () => {
 });
 
 describe('FieldAccuracyEvaluator', () => {
-  const baseTestCaseWithExpected: EvalCase = {
+  const baseTestCaseWithExpected: EvalTest = {
     ...baseTestCase,
     expected_messages: [
       {
@@ -860,7 +860,7 @@ describe('FieldAccuracyEvaluator', () => {
   });
 
   it('handles array index paths', () => {
-    const evalCaseWithArray: EvalCase = {
+    const evalCaseWithArray: EvalTest = {
       ...baseTestCase,
       expected_messages: [
         {

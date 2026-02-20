@@ -11,7 +11,7 @@ description: Verify agent_judge evaluator can audit workspace file creation
 execution:
   target: mock_agent
 
-cases:
+tests:
   # Case 1: freeform agent_judge (no rubrics) — scores 0-1
   - id: verify-test-creation-freeform
     criteria: >-

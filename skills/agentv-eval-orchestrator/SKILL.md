@@ -13,11 +13,11 @@ Run AgentV evaluations by acting as the LLM yourself — no API keys needed.
 agentv prompt <eval-file.yaml>
 ```
 
-This outputs a complete orchestration prompt with step-by-step instructions and all eval case IDs. Follow its instructions.
+This outputs a complete orchestration prompt with step-by-step instructions and all test IDs. Follow its instructions.
 
 ## Workflow
 
-For each eval case, run these three steps:
+For each test, run these three steps:
 
 ### 1. Get Task Input
 

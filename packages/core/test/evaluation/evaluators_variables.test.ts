@@ -7,7 +7,7 @@ import type {
   ProviderRequest,
   ProviderResponse,
 } from '../../src/evaluation/providers/types.js';
-import type { EvalCase } from '../../src/evaluation/types.js';
+import type { EvalTest } from '../../src/evaluation/types.js';
 
 class CapturingProvider implements Provider {
   readonly id = 'capturing';
@@ -23,7 +23,7 @@ class CapturingProvider implements Provider {
   }
 }
 
-const baseTestCase: EvalCase = {
+const baseTestCase: EvalTest = {
   id: 'case-1',
   dataset: 'test-dataset',
   question: 'Original Question Text',

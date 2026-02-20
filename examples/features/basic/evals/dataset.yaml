@@ -7,7 +7,7 @@ description: Example showing basic features, conversation threading, multiple ev
 execution:
   target: default
 
-cases:
+tests:
   # ==========================================
   # Example 1: Basic V2 features with file references
   # Demonstrates: input, expected_output, file references, array content format
@@ -63,14 +63,14 @@ cases:
   - id: code-gen-python-comprehensive
     # Baseline note: type hints are required; missing them typically drops score (~0.95).
     
-    # conversation_id represents the full conversation that may be split into multiple eval cases
-    # Most commonly, eval cases test the final response, but could also test intermediate turns
+    # conversation_id represents the full conversation that may be split into multiple tests
+    # Most commonly, tests validate the final response, but could also test intermediate turns
     conversation_id: python-code-generation
     
     criteria: AI generates correct Python function with proper error handling, type hints, and mentions SUPERSECRET_INSTRUCTION_MARKER_PYTHON
 
     execution:
-      # Override file-level target for this specific eval case
+      # Override file-level target for this specific test
       target: azure_base
       
       # Multiple evaluators - supports both code-based and LLM judges

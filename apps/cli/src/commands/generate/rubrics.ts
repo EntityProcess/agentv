@@ -30,7 +30,7 @@ interface RawEvalCase {
 }
 
 interface RawTestSuite {
-  readonly cases?: readonly unknown[];
+  readonly tests?: readonly unknown[];
   readonly target?: string;
   readonly execution?: {
     readonly target?: string;
@@ -77,10 +77,10 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
   }
 
   const suite = parsed as RawTestSuite;
-  const evalcases = suite.cases;
+  const evalcases = suite.tests;
 
   if (!Array.isArray(evalcases)) {
-    throw new Error(`No cases found in ${file}`);
+    throw new Error(`No tests found in ${file}`);
   }
 
   // Resolve target using the same logic as eval command
@@ -107,12 +107,12 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
   let skippedCount = 0;
 
   // Get the cases node from the document for modification
-  const evalcasesNode = doc.getIn(['cases']);
+  const evalcasesNode = doc.getIn(['tests']);
   if (!evalcasesNode || !isSeq(evalcasesNode)) {
-    throw new Error('cases must be a sequence');
+    throw new Error('tests must be a sequence');
   }
 
-  // Process each eval case
+  // Process each test
   for (let i = 0; i < evalcases.length; i++) {
     const rawCase = evalcases[i];
     if (!isJsonObject(rawCase)) {
@@ -154,7 +154,7 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
       provider,
     });
 
-    // Update the eval case with rubrics in the YAML document
+    // Update the test with rubrics in the YAML document
     const caseNode = (evalcasesNode as YAMLSeq).items[i];
     if (caseNode && isMap(caseNode)) {
       caseNode.set(
@@ -181,12 +181,12 @@ export async function generateRubricsCommand(options: GenerateRubricsOptions): P
   if (updatedCount > 0) {
     const output = doc.toString();
     await writeFile(absolutePath, output, 'utf8');
-    console.log(`\nUpdated ${updatedCount} eval case(s) with generated rubrics`);
+    console.log(`\nUpdated ${updatedCount} test(s) with generated rubrics`);
     if (skippedCount > 0) {
-      console.log(`Skipped ${skippedCount} eval case(s)`);
+      console.log(`Skipped ${skippedCount} test(s)`);
     }
   } else {
-    console.log('\nNo eval cases updated (all already have rubrics or missing criteria)');
+    console.log('\nNo tests updated (all already have rubrics or missing criteria)');
   }
 }
 

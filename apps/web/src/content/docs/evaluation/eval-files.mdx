@@ -9,7 +9,7 @@ Evaluation files define the test cases, targets, and evaluators for an evaluatio
 
 ## YAML Format
 
-The primary format. A single file contains metadata, execution config, and eval cases:
+The primary format. A single file contains metadata, execution config, and tests:
 
 ```yaml
 description: Math problem solving evaluation
@@ -20,7 +20,7 @@ execution:
       type: llm_judge
       prompt: ./judges/correctness.md
 
-cases:
+tests:
   - id: addition
     criteria: Correctly calculates 15 + 27 = 42
     input: What is 15 + 27?
@@ -35,11 +35,11 @@ cases:
 | `dataset` | Optional dataset identifier |
 | `execution` | Default execution config (target, evaluators) |
 | `workspace` | Suite-level workspace config (setup/teardown scripts, template) |
-| `cases` | Array of individual test cases |
+| `tests` | Array of individual tests |
 
 ## JSONL Format
 
-For large-scale evaluations, AgentV supports JSONL (JSON Lines) format. Each line is a single eval case:
+For large-scale evaluations, AgentV supports JSONL (JSON Lines) format. Each line is a single test:
 
 ```jsonl
 {"id": "test-1", "criteria": "Calculates correctly", "input": "What is 2+2?"}

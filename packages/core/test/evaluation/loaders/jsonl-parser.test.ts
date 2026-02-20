@@ -3,11 +3,8 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import {
-  detectFormat,
-  loadEvalCasesFromJsonl,
-} from '../../../src/evaluation/loaders/jsonl-parser.js';
-import { loadEvalCases } from '../../../src/evaluation/yaml-parser.js';
+import { detectFormat, loadTestsFromJsonl } from '../../../src/evaluation/loaders/jsonl-parser.js';
+import { loadTests } from '../../../src/evaluation/yaml-parser.js';
 
 describe('detectFormat', () => {
   it('returns jsonl for .jsonl extension', () => {
@@ -32,7 +29,7 @@ describe('detectFormat', () => {
   });
 });
 
-describe('loadEvalCasesFromJsonl', () => {
+describe('loadTestsFromJsonl', () => {
   let tempDir: string;
 
   beforeAll(async () => {
@@ -51,7 +48,7 @@ describe('loadEvalCasesFromJsonl', () => {
       '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
     );
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
     expect(cases[0].id).toBe('test-1');
@@ -72,7 +69,7 @@ describe('loadEvalCasesFromJsonl', () => {
       ].join('\n'),
     );
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(3);
     expect(cases[0].id).toBe('test-1');
@@ -97,7 +94,7 @@ describe('loadEvalCasesFromJsonl', () => {
       ].join('\n'),
     );
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(3);
     expect(cases[0].id).toBe('test-1');
@@ -116,7 +113,7 @@ describe('loadEvalCasesFromJsonl', () => {
       ].join('\n'),
     );
 
-    await expect(loadEvalCasesFromJsonl(jsonlPath, tempDir)).rejects.toThrow(/Line 3/);
+    await expect(loadTestsFromJsonl(jsonlPath, tempDir)).rejects.toThrow(/Line 3/);
   });
 
   it('skips cases with missing required fields', async () => {
@@ -132,7 +129,7 @@ describe('loadEvalCasesFromJsonl', () => {
       ].join('\n'),
     );
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(2);
     expect(cases[0].id).toBe('test-1');
@@ -152,7 +149,7 @@ describe('loadEvalCasesFromJsonl', () => {
       'description: Test dataset\ndataset: my-tests\nevaluator: llm_judge\n',
     );
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
     expect(cases[0].dataset).toBe('my-tests');
@@ -166,7 +163,7 @@ describe('loadEvalCasesFromJsonl', () => {
       '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
     );
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
     expect(cases[0].dataset).toBe('my-dataset');
@@ -179,7 +176,7 @@ describe('loadEvalCasesFromJsonl', () => {
       '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "evaluators": [{"name": "rubric-check", "type": "llm_judge", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
     );
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
     expect(cases[0].evaluators).toHaveLength(1);
@@ -193,7 +190,7 @@ describe('loadEvalCasesFromJsonl', () => {
       '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "rubrics": ["Must be polite", "Must be helpful"]}\n',
     );
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
     expect(cases[0].evaluators).toHaveLength(1);
@@ -213,7 +210,7 @@ describe('loadEvalCasesFromJsonl', () => {
       ].join('\n'),
     );
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir, { filter: 'test-2' });
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir, { filter: 'test-2' });
 
     expect(cases).toHaveLength(1);
     expect(cases[0].id).toBe('test-2');
@@ -230,7 +227,7 @@ describe('loadEvalCasesFromJsonl', () => {
       ].join('\n'),
     );
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir, { filter: 'summary-*' });
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir, { filter: 'summary-*' });
 
     expect(cases).toHaveLength(2);
     expect(cases.map((c) => c.id)).toEqual(['summary-basic', 'summary-advanced']);
@@ -243,7 +240,7 @@ describe('loadEvalCasesFromJsonl', () => {
       '{"id": "test-1", "conversation_id": "conv-123", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
     );
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
     expect(cases[0].conversation_id).toBe('conv-123');
@@ -256,7 +253,7 @@ describe('loadEvalCasesFromJsonl', () => {
       '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "expected_messages": [{"role": "assistant", "content": "Response"}]}\n',
     );
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
     expect(cases[0].expected_messages).toHaveLength(1);
@@ -267,17 +264,17 @@ describe('loadEvalCasesFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'empty.jsonl');
     await writeFile(jsonlPath, '');
 
-    const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(0);
   });
 });
 
-describe('loadEvalCases with format detection', () => {
+describe('loadTests with format detection', () => {
   let tempDir: string;
 
   beforeAll(async () => {
-    tempDir = path.join(os.tmpdir(), `agentv-test-loadEvalCases-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `agentv-test-loadTests-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
   });
 
@@ -292,7 +289,7 @@ describe('loadEvalCases with format detection', () => {
       '{"id": "jsonl-test", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
     );
 
-    const cases = await loadEvalCases(jsonlPath, tempDir);
+    const cases = await loadTests(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
     expect(cases[0].id).toBe('jsonl-test');
@@ -302,7 +299,7 @@ describe('loadEvalCases with format detection', () => {
     const yamlPath = path.join(tempDir, 'test.yaml');
     await writeFile(
       yamlPath,
-      `cases:
+      `tests:
   - id: yaml-test
     criteria: Goal
     input_messages:
@@ -311,7 +308,7 @@ describe('loadEvalCases with format detection', () => {
 `,
     );
 
-    const cases = await loadEvalCases(yamlPath, tempDir);
+    const cases = await loadTests(yamlPath, tempDir);
 
     expect(cases).toHaveLength(1);
     expect(cases[0].id).toBe('yaml-test');
@@ -321,7 +318,7 @@ describe('loadEvalCases with format detection', () => {
     const ymlPath = path.join(tempDir, 'test.yml');
     await writeFile(
       ymlPath,
-      `cases:
+      `tests:
   - id: yml-test
     criteria: Goal
     input_messages:
@@ -330,21 +327,21 @@ describe('loadEvalCases with format detection', () => {
 `,
     );
 
-    const cases = await loadEvalCases(ymlPath, tempDir);
+    const cases = await loadTests(ymlPath, tempDir);
 
     expect(cases).toHaveLength(1);
     expect(cases[0].id).toBe('yml-test');
   });
 
-  it('throws for unsupported extensions via loadEvalCases', async () => {
+  it('throws for unsupported extensions via loadTests', async () => {
     const txtPath = path.join(tempDir, 'test.txt');
     await writeFile(txtPath, '{}');
 
-    await expect(loadEvalCases(txtPath, tempDir)).rejects.toThrow('Unsupported file format');
+    await expect(loadTests(txtPath, tempDir)).rejects.toThrow('Unsupported file format');
   });
 });
 
-describe('JSONL and YAML produce equivalent EvalCases', () => {
+describe('JSONL and YAML produce equivalent EvalTests', () => {
   let tempDir: string;
 
   beforeAll(async () => {
@@ -356,7 +353,7 @@ describe('JSONL and YAML produce equivalent EvalCases', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('produces identical EvalCase structure from both formats', async () => {
+  it('produces identical EvalTest structure from both formats', async () => {
     // Create equivalent YAML and JSONL files
     const yamlPath = path.join(tempDir, 'equiv.yaml');
     const jsonlPath = path.join(tempDir, 'equiv.jsonl');
@@ -364,7 +361,7 @@ describe('JSONL and YAML produce equivalent EvalCases', () => {
     await writeFile(
       yamlPath,
       `dataset: my-dataset
-cases:
+tests:
   - id: test-1
     criteria: "The agent should respond with a helpful answer"
     input_messages:
@@ -383,8 +380,8 @@ cases:
       '{"id": "test-1", "criteria": "The agent should respond with a helpful answer", "input_messages": [{"role": "user", "content": "What is 2+2?"}]}\n',
     );
 
-    const yamlCases = await loadEvalCases(yamlPath, tempDir);
-    const jsonlCases = await loadEvalCases(jsonlPath2, tempDir);
+    const yamlCases = await loadTests(yamlPath, tempDir);
+    const jsonlCases = await loadTests(jsonlPath2, tempDir);
 
     expect(yamlCases).toHaveLength(1);
     expect(jsonlCases).toHaveLength(1);
@@ -416,7 +413,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const jsonlPath = path.join(tempDir, 'input-shorthand.jsonl');
       await writeFile(jsonlPath, '{"id": "test-1", "criteria": "Goal", "input": "What is 2+2?"}\n');
 
-      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+      const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].input_messages).toHaveLength(1);
@@ -431,7 +428,7 @@ describe('Input/expected_output aliases and shorthand', () => {
         '{"id": "test-1", "criteria": "Goal", "input": [{"role": "system", "content": "Be helpful"}, {"role": "user", "content": "Hello"}]}\n',
       );
 
-      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+      const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].input_messages).toHaveLength(2);
@@ -446,7 +443,7 @@ describe('Input/expected_output aliases and shorthand', () => {
         '{"id": "test-1", "criteria": "Goal", "input": "Query", "expected_output": "The answer is 4"}\n',
       );
 
-      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+      const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].expected_messages).toHaveLength(1);
@@ -462,7 +459,7 @@ describe('Input/expected_output aliases and shorthand', () => {
         '{"id": "test-1", "criteria": "Goal", "input": "Query", "expected_output": {"riskLevel": "High", "confidence": 0.95}}\n',
       );
 
-      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+      const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].expected_messages).toHaveLength(1);
@@ -478,7 +475,7 @@ describe('Input/expected_output aliases and shorthand', () => {
         '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Canonical"}], "input": "Should be ignored"}\n',
       );
 
-      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+      const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].input_messages[0].content).toBe('Canonical');
@@ -491,7 +488,7 @@ describe('Input/expected_output aliases and shorthand', () => {
         '{"id": "test-1", "criteria": "Goal", "input": "Query", "expected_messages": [{"role": "assistant", "content": "Canonical"}], "expected_output": "Should be ignored"}\n',
       );
 
-      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+      const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].expected_messages[0].content).toBe('Canonical');
@@ -503,14 +500,14 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'input-shorthand.yaml');
       await writeFile(
         yamlPath,
-        `cases:
+        `tests:
   - id: test-1
     criteria: Goal
     input: "What is 2+2?"
 `,
       );
 
-      const cases = await loadEvalCases(yamlPath, tempDir);
+      const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].input_messages).toHaveLength(1);
@@ -522,7 +519,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'input-array.yaml');
       await writeFile(
         yamlPath,
-        `cases:
+        `tests:
   - id: test-1
     criteria: Goal
     input:
@@ -533,7 +530,7 @@ describe('Input/expected_output aliases and shorthand', () => {
 `,
       );
 
-      const cases = await loadEvalCases(yamlPath, tempDir);
+      const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].input_messages).toHaveLength(2);
@@ -545,7 +542,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'expected-string.yaml');
       await writeFile(
         yamlPath,
-        `cases:
+        `tests:
   - id: test-1
     criteria: Goal
     input: Query
@@ -553,7 +550,7 @@ describe('Input/expected_output aliases and shorthand', () => {
 `,
       );
 
-      const cases = await loadEvalCases(yamlPath, tempDir);
+      const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].expected_messages).toHaveLength(1);
@@ -565,7 +562,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'expected-object.yaml');
       await writeFile(
         yamlPath,
-        `cases:
+        `tests:
   - id: test-1
     criteria: Goal
     input: Query
@@ -575,7 +572,7 @@ describe('Input/expected_output aliases and shorthand', () => {
 `,
       );
 
-      const cases = await loadEvalCases(yamlPath, tempDir);
+      const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].expected_messages).toHaveLength(1);
@@ -588,7 +585,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'canonical-precedence.yaml');
       await writeFile(
         yamlPath,
-        `cases:
+        `tests:
   - id: test-1
     criteria: Goal
     input_messages:
@@ -598,7 +595,7 @@ describe('Input/expected_output aliases and shorthand', () => {
 `,
       );
 
-      const cases = await loadEvalCases(yamlPath, tempDir);
+      const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].input_messages[0].content).toBe('Canonical');
@@ -610,7 +607,7 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'mixed.yaml');
       await writeFile(
         yamlPath,
-        `cases:
+        `tests:
   - id: test-canonical
     criteria: Goal
     input_messages:
@@ -626,7 +623,7 @@ describe('Input/expected_output aliases and shorthand', () => {
 `,
       );
 
-      const cases = await loadEvalCases(yamlPath, tempDir);
+      const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(2);
       expect(cases[0].id).toBe('test-canonical');
@@ -642,7 +639,7 @@ describe('Input/expected_output aliases and shorthand', () => {
 
       await writeFile(
         yamlPath,
-        `cases:
+        `tests:
   - id: test-1
     criteria: Goal
     input: "What is 2+2?"
@@ -656,8 +653,8 @@ describe('Input/expected_output aliases and shorthand', () => {
         '{"id": "test-1", "criteria": "Goal", "input": "What is 2+2?", "expected_output": {"answer": 4}}\n',
       );
 
-      const yamlCases = await loadEvalCases(yamlPath, tempDir);
-      const jsonlCases = await loadEvalCases(jsonlPath, tempDir);
+      const yamlCases = await loadTests(yamlPath, tempDir);
+      const jsonlCases = await loadTests(jsonlPath, tempDir);
 
       expect(yamlCases).toHaveLength(1);
       expect(jsonlCases).toHaveLength(1);
@@ -687,8 +684,8 @@ describe('Backward-compat aliases', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  describe('eval_cases → cases alias (YAML)', () => {
-    it('supports eval_cases as deprecated alias for cases', async () => {
+  describe('eval_cases → tests alias (YAML)', () => {
+    it('supports eval_cases as deprecated alias for tests', async () => {
       const yamlPath = path.join(tempDir, 'eval-cases-alias.yaml');
       await writeFile(
         yamlPath,
@@ -701,14 +698,14 @@ describe('Backward-compat aliases', () => {
 `,
       );
 
-      const cases = await loadEvalCases(yamlPath, tempDir);
+      const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].id).toBe('test-1');
       expect(cases[0].criteria).toBe('Goal');
     });
 
-    it('supports evalcases as deprecated alias for cases', async () => {
+    it('supports evalcases as deprecated alias for tests', async () => {
       const yamlPath = path.join(tempDir, 'evalcases-alias.yaml');
       await writeFile(
         yamlPath,
@@ -721,17 +718,17 @@ describe('Backward-compat aliases', () => {
 `,
       );
 
-      const cases = await loadEvalCases(yamlPath, tempDir);
+      const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].id).toBe('test-1');
     });
 
-    it('cases takes precedence over eval_cases', async () => {
+    it('tests takes precedence over eval_cases', async () => {
       const yamlPath = path.join(tempDir, 'cases-precedence.yaml');
       await writeFile(
         yamlPath,
-        `cases:
+        `tests:
   - id: canonical
     criteria: Goal
     input_messages:
@@ -746,7 +743,7 @@ eval_cases:
 `,
       );
 
-      const cases = await loadEvalCases(yamlPath, tempDir);
+      const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].id).toBe('canonical');
@@ -758,7 +755,7 @@ eval_cases:
       const yamlPath = path.join(tempDir, 'expected-outcome-alias.yaml');
       await writeFile(
         yamlPath,
-        `cases:
+        `tests:
   - id: test-1
     expected_outcome: Goal
     input_messages:
@@ -767,7 +764,7 @@ eval_cases:
 `,
       );
 
-      const cases = await loadEvalCases(yamlPath, tempDir);
+      const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].id).toBe('test-1');
@@ -778,7 +775,7 @@ eval_cases:
       const yamlPath = path.join(tempDir, 'criteria-precedence.yaml');
       await writeFile(
         yamlPath,
-        `cases:
+        `tests:
   - id: test-1
     criteria: Canonical
     expected_outcome: Deprecated
@@ -788,7 +785,7 @@ eval_cases:
 `,
       );
 
-      const cases = await loadEvalCases(yamlPath, tempDir);
+      const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].criteria).toBe('Canonical');
@@ -803,7 +800,7 @@ eval_cases:
         '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
       );
 
-      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+      const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].id).toBe('test-1');
@@ -817,7 +814,7 @@ eval_cases:
         '{"id": "test-1", "criteria": "Canonical", "expected_outcome": "Deprecated", "input_messages": [{"role": "user", "content": "Query"}]}\n',
       );
 
-      const cases = await loadEvalCasesFromJsonl(jsonlPath, tempDir);
+      const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
       expect(cases[0].criteria).toBe('Canonical');

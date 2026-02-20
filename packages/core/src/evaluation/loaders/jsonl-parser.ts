@@ -3,7 +3,7 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import { parse as parseYaml } from 'yaml';
 
-import type { EvalCase, JsonObject, JsonValue, TestMessage } from '../types.js';
+import type { EvalTest, JsonObject, JsonValue, TestMessage } from '../types.js';
 import { isJsonObject, isTestMessage } from '../types.js';
 import { loadConfig } from './config-loader.js';
 import { coerceEvaluator, parseEvaluators, parseInlineRubrics } from './evaluator-parser.js';
@@ -17,7 +17,7 @@ const ANSI_RESET = '\u001b[0m';
 
 type LoadOptions = {
   readonly verbose?: boolean;
-  /** Filter eval cases by ID pattern (glob supported, e.g., "summary-*") */
+  /** Filter tests by ID pattern (glob supported, e.g., "summary-*") */
   readonly filter?: string;
 };
 
@@ -32,7 +32,7 @@ type SidecarMetadata = {
 };
 
 /**
- * Raw eval case from JSONL line.
+ * Raw test from JSONL line.
  */
 type RawJsonlEvalCase = JsonObject & {
   readonly id?: JsonValue;
@@ -123,13 +123,13 @@ function parseJsonlContent(content: string, filePath: string): RawJsonlEvalCase[
 }
 
 /**
- * Load eval cases from a JSONL file with optional sidecar YAML metadata.
+ * Load tests from a JSONL file with optional sidecar YAML metadata.
  */
-export async function loadEvalCasesFromJsonl(
+export async function loadTestsFromJsonl(
   evalFilePath: string,
   repoRoot: URL | string,
   options?: LoadOptions,
-): Promise<readonly EvalCase[]> {
+): Promise<readonly EvalTest[]> {
   const verbose = options?.verbose ?? false;
   const filterPattern = options?.filter;
   const absoluteTestPath = path.resolve(evalFilePath);
@@ -166,7 +166,7 @@ export async function loadEvalCasesFromJsonl(
     }
   }
 
-  const results: EvalCase[] = [];
+  const results: EvalTest[] = [];
 
   for (let lineIndex = 0; lineIndex < rawCases.length; lineIndex++) {
     const evalcase = rawCases[lineIndex];
@@ -184,7 +184,7 @@ export async function loadEvalCasesFromJsonl(
       outcome = asString(evalcase.expected_outcome);
       if (outcome) {
         logWarning(
-          `Eval case '${asString(evalcase.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
+          `Test '${asString(evalcase.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
         );
       }
     }
@@ -196,7 +196,7 @@ export async function loadEvalCasesFromJsonl(
 
     if (!id || !outcome || !inputMessages || inputMessages.length === 0) {
       logError(
-        `Skipping incomplete eval case at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, criteria, and/or input_messages (or input)`,
+        `Skipping incomplete test at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, criteria, and/or input_messages (or input)`,
       );
       continue;
     }
@@ -263,9 +263,9 @@ export async function loadEvalCasesFromJsonl(
     try {
       evaluators = await parseEvaluators(evalcase, mergedExecution, searchRoots, id ?? 'unknown');
     } catch (error) {
-      // Skip entire eval case if evaluator validation fails
+      // Skip entire test if evaluator validation fails
       const message = error instanceof Error ? error.message : String(error);
-      logError(`Skipping eval case '${id}' at line ${lineNumber}: ${message}`);
+      logError(`Skipping test '${id}' at line ${lineNumber}: ${message}`);
       continue;
     }
 
@@ -293,7 +293,7 @@ export async function loadEvalCasesFromJsonl(
       ...userFilePaths,
     ];
 
-    const testCase: EvalCase = {
+    const testCase: EvalTest = {
       id,
       dataset: datasetName,
       conversation_id: conversationId,
@@ -311,7 +311,7 @@ export async function loadEvalCasesFromJsonl(
     };
 
     if (verbose) {
-      console.log(`\n[Eval Case: ${id}]`);
+      console.log(`\n[Test: ${id}]`);
       if (testCase.guideline_paths.length > 0) {
         console.log(`  Guidelines used: ${testCase.guideline_paths.length}`);
         for (const guidelinePath of testCase.guideline_paths) {
@@ -327,6 +327,9 @@ export async function loadEvalCasesFromJsonl(
 
   return results;
 }
+
+/** @deprecated Use `loadTestsFromJsonl` instead */
+export const loadEvalCasesFromJsonl = loadTestsFromJsonl;
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;

@@ -17,7 +17,7 @@ import type {
   ProviderResponse,
   ToolCall,
 } from '../../src/evaluation/providers/types.js';
-import type { EvalCase, TrialsConfig } from '../../src/evaluation/types.js';
+import type { EvalTest, TrialsConfig } from '../../src/evaluation/types.js';
 
 class SequenceProvider implements Provider {
   readonly id: string;
@@ -110,7 +110,7 @@ class CapturingCliProvider implements Provider {
   }
 }
 
-const baseTestCase: EvalCase = {
+const baseTestCase: EvalTest = {
   id: 'case-1',
   dataset: 'test-dataset',
   question: 'Explain logging improvements',
@@ -311,7 +311,7 @@ describe('runTestCase', () => {
 
     const events: Array<{ evalId: string; status: string; error?: string }> = [];
 
-    const evalCases: EvalCase[] = [
+    const evalCases: EvalTest[] = [
       { ...baseTestCase, id: 'case-1' },
       { ...baseTestCase, id: 'case-2' },
     ];
@@ -568,7 +568,7 @@ class TraceProvider implements Provider {
 }
 
 describe('runEvalCase trace integration', () => {
-  const traceTestCase: EvalCase = {
+  const traceTestCase: EvalTest = {
     id: 'trace-case',
     dataset: 'trace-dataset',
     question: 'What is the weather?',
@@ -980,7 +980,7 @@ Reference: \${input.reference_answer ?? 'none'}\`);
       let receivedQuestion = '';
       const captureJudge = {
         kind: 'llm_judge' as const,
-        async evaluate(context: { evalCase: EvalCase; evaluatorTemplateOverride?: string }) {
+        async evaluate(context: { evalCase: EvalTest; evaluatorTemplateOverride?: string }) {
           // The evaluatorTemplateOverride should contain our custom prompt
           receivedQuestion = context.evaluatorTemplateOverride ?? '';
           return {
@@ -1402,7 +1402,7 @@ rl.on('close', () => {
       ],
     });
 
-    const evalCase: EvalCase = {
+    const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
         template: templateDir,
@@ -1444,7 +1444,7 @@ rl.on('close', () => {
       ],
     });
 
-    const evalCase: EvalCase = {
+    const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
         template: templateDir,
@@ -1501,7 +1501,7 @@ rl.on('close', () => {
       ],
     });
 
-    const evalCase: EvalCase = {
+    const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
         template: templateDir,

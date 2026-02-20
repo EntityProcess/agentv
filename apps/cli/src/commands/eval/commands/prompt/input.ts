@@ -1,12 +1,12 @@
 import type { JsonObject, TestMessage } from '@agentv/core';
-import { loadEvalCaseById } from '@agentv/core';
+import { loadTestById } from '@agentv/core';
 import { command, option, positional, string } from 'cmd-ts';
 
 import { findRepoRoot } from '../../shared.js';
 
 export const evalPromptInputCommand = command({
   name: 'input',
-  description: 'Output task input JSON for a single eval case',
+  description: 'Output task input JSON for a single test',
   args: {
     evalPath: positional({
       type: string,
@@ -16,14 +16,14 @@ export const evalPromptInputCommand = command({
     evalId: option({
       type: string,
       long: 'eval-id',
-      description: 'Eval case ID',
+      description: 'Test ID',
     }),
   },
   handler: async (args) => {
     const cwd = process.cwd();
     const repoRoot = await findRepoRoot(cwd);
 
-    const evalCase = await loadEvalCaseById(args.evalPath, repoRoot, args.evalId);
+    const evalCase = await loadTestById(args.evalPath, repoRoot, args.evalId);
 
     // Build mapping from relative file names to resolved absolute paths.
     // input_segments has resolvedPath for non-guideline files;

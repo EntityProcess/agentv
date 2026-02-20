@@ -13,13 +13,13 @@ AgentV supports multiple evaluator types that can be combined for comprehensive 
 |------|-------------|----------|
 | `code_judge` | Deterministic script (Python/TS/any) | Exact matching, format validation, programmatic checks |
 | `llm_judge` | LLM-based evaluation with custom prompt | Semantic evaluation, nuance, subjective quality |
-| Rubrics | Structured criteria in eval case | Multi-criterion grading with weights |
+| Rubrics | Structured criteria in test | Multi-criterion grading with weights |
 
 ## Referencing Evaluators
 
-Evaluators are configured at the execution level — either top-level (applies to all cases) or per-case:
+Evaluators are configured at the execution level — either top-level (applies to all tests) or per-test:
 
-### Top-Level (Default for All Cases)
+### Top-Level (Default for All Tests)
 
 ```yaml
 description: My evaluation
@@ -29,7 +29,7 @@ execution:
       type: llm_judge
       prompt: ./judges/correctness.md
 
-cases:
+tests:
   - id: test-1
     # Uses the top-level evaluator
     ...
@@ -38,7 +38,7 @@ cases:
 ### Per-Case Override
 
 ```yaml
-cases:
+tests:
   - id: test-1
     criteria: Returns valid JSON
     input: Generate a JSON config
@@ -54,7 +54,7 @@ cases:
 Use multiple evaluators on the same case for comprehensive scoring:
 
 ```yaml
-cases:
+tests:
   - id: code-generation
     criteria: Generates correct Python code
     input: Write a sorting function
