@@ -16,6 +16,7 @@ Trade compliance teams screen shipments to identify potential dual-use goods req
 2. **Structured JSON output** with reasoning
 3. **Code evaluator** for format validation and accuracy checking
 4. **Wrapper-based metrics** (confusion matrix + precision/recall/F1 + policy-weighted overall)
+5. **Multi-sample CI gating** — run eval N times, aggregate results, and gate on aggregated metrics
 
 ## Files
 
@@ -50,6 +51,17 @@ Use the wrapper script to compute a confusion matrix and policy-weighted overall
 ```bash
 bun run ./evals/ci_check.ts results.jsonl --threshold 0.95 --check-class High
 ```
+
+### Multi-Sample CI Gating
+
+Run the eval multiple times and aggregate results for higher-confidence CI gates. The `--samples` flag runs the eval N times, concatenates all per-case results, and computes metrics over the combined set:
+
+```bash
+# Run eval 3 times, aggregate, and gate on High-class F1 >= 90%
+bun run ./evals/ci_check.ts --eval ./evals/dataset.yaml --samples 3 --threshold 0.90 --check-class High
+```
+
+This is useful when LLM outputs are non-deterministic — aggregating over multiple runs produces more stable metrics for CI gates.
 
 ## Evaluation Flow
 
@@ -135,6 +147,9 @@ The `ci_check.ts` script provides threshold-based quality gates for CI/CD pipeli
 # Full flow: run eval and check threshold in one command
 bun run ./evals/ci_check.ts --eval ./evals/dataset.yaml --threshold 0.95
 
+# Multi-sample gate: run 5 times, aggregate, then check
+bun run ./evals/ci_check.ts --eval ./evals/dataset.yaml --samples 5 --threshold 0.90
+
 # Or check existing results file
 bun run ./evals/ci_check.ts results.jsonl --threshold 0.95
 ```
@@ -144,6 +159,7 @@ bun run ./evals/ci_check.ts results.jsonl --threshold 0.95
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--eval` | - | Run agentv run on this dataset first |
+| `--samples` | `1` | Number of eval runs to aggregate |
 | `--threshold` | `0.95` | F1 score threshold (0.0-1.0) |
 | `--check-class` | `High` | Risk class to validate (`Low`, `Medium`, `High`) |
 | `--output` | (auto) | Optional JSON output file |
@@ -163,6 +179,7 @@ bun run ./evals/ci_check.ts results.jsonl --threshold 0.95
   "actualF1": 0.9625,
   "margin": 0.0125,
   "message": "PASS: High F1 score 96.2% >= 95.0% threshold",
+  "samples": 1,
   "policyWeightedOverall": { "precision": 0.68, "recall": 0.65, "f1": 0.80 },
   "metrics": { ... }
 }
@@ -191,6 +208,7 @@ jobs:
         run: |
           bun run ./evals/ci_check.ts \
             --eval ./evals/dataset.yaml \
+            --samples 3 \
             --threshold 0.95 \
             --check-class High
 ```
