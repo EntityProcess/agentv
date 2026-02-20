@@ -105,7 +105,7 @@ agentv prompt eval input evals/my-eval.yaml --test-id case-123
 ```
 
 Returns JSON with:
-- `input_messages` — `[{role, content}]` array. File references use absolute paths (`{type: "file", path: "/abs/path"}`) that the agent can read directly from the filesystem.
+- `input` — `[{role, content}]` array. File references use absolute paths (`{type: "file", path: "/abs/path"}`) that the agent can read directly from the filesystem.
 - `guideline_paths` — files containing additional instructions to prepend to the system message.
 - `criteria` — grading criteria for the orchestrator's reference (do not pass to the candidate).
 

@@ -83,53 +83,8 @@
             "type": "string",
             "description": "Optional note or additional context for the test. Use this to document test-specific considerations, known limitations, or rationale for expected behavior."
           },
-          "input_messages": {
-            "type": "array",
-            "description": "Input messages for the conversation",
-            "minItems": 1,
-            "items": {
-              "type": "object",
-              "properties": {
-                "role": {
-                  "type": "string",
-                  "enum": ["system", "user", "assistant", "tool"],
-                  "description": "Message role"
-                },
-                "content": {
-                  "oneOf": [
-                    {
-                      "type": "string",
-                      "description": "Simple text content"
-                    },
-                    {
-                      "type": "array",
-                      "description": "Mixed content items (text and file references)",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "enum": ["text", "file"],
-                            "description": "Content type: 'text' for inline content, 'file' for file references"
-                          },
-                          "value": {
-                            "type": "string",
-                            "description": "Text content or file path. Relative paths (e.g., ../prompts/file.md) are resolved from eval file directory. Absolute paths (e.g., /docs/examples/prompts/file.md) are resolved from repo root."
-                          }
-                        },
-                        "required": ["type", "value"],
-                        "additionalProperties": false
-                      }
-                    }
-                  ]
-                }
-              },
-              "required": ["role", "content"],
-              "additionalProperties": false
-            }
-          },
           "input": {
-            "description": "Alias for input_messages with shorthand support. String expands to single user message, array of messages passes through.",
+            "description": "Input messages for the conversation. String expands to single user message, array of messages passes through.",
             "oneOf": [
               {
                 "type": "string",
@@ -137,68 +92,53 @@
               },
               {
                 "type": "array",
-                "description": "Array of messages (same format as input_messages)",
+                "description": "Array of messages",
+                "minItems": 1,
                 "items": {
                   "type": "object",
                   "properties": {
                     "role": {
                       "type": "string",
-                      "enum": ["system", "user", "assistant", "tool"]
+                      "enum": ["system", "user", "assistant", "tool"],
+                      "description": "Message role"
                     },
                     "content": {
-                      "oneOf": [{ "type": "string" }, { "type": "array" }]
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "description": "Simple text content"
+                        },
+                        {
+                          "type": "array",
+                          "description": "Mixed content items (text and file references)",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": ["text", "file"],
+                                "description": "Content type: 'text' for inline content, 'file' for file references"
+                              },
+                              "value": {
+                                "type": "string",
+                                "description": "Text content or file path. Relative paths (e.g., ../prompts/file.md) are resolved from eval file directory. Absolute paths (e.g., /docs/examples/prompts/file.md) are resolved from repo root."
+                              }
+                            },
+                            "required": ["type", "value"],
+                            "additionalProperties": false
+                          }
+                        }
+                      ]
                     }
                   },
-                  "required": ["role", "content"]
+                  "required": ["role", "content"],
+                  "additionalProperties": false
                 }
               }
             ]
           },
-          "expected_messages": {
-            "type": "array",
-            "description": "Expected response messages. Canonical form — use this or expected_output (alias). The content of the last entry is derived as the template variable 'reference_answer' for evaluator prompts.",
-            "minItems": 1,
-            "items": {
-              "type": "object",
-              "properties": {
-                "role": {
-                  "type": "string",
-                  "enum": ["system", "user", "assistant", "tool"],
-                  "description": "Message role"
-                },
-                "content": {
-                  "oneOf": [
-                    {
-                      "type": "string",
-                      "description": "Simple text content"
-                    },
-                    {
-                      "type": "array",
-                      "description": "Mixed content items",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "enum": ["text", "file"]
-                          },
-                          "value": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["type", "value"],
-                        "additionalProperties": false
-                      }
-                    }
-                  ]
-                }
-              },
-              "required": ["role", "content"],
-              "additionalProperties": false
-            }
-          },
           "expected_output": {
-            "description": "Alias for expected_messages with shorthand support. String expands to single assistant message, object wraps as assistant message content. Resolves to expected_messages internally — the content of the last resolved entry becomes the template variable 'reference_answer'.",
+            "description": "Expected response messages. String expands to single assistant message, object wraps as assistant message content. The content of the last resolved entry becomes the template variable 'reference_answer'.",
             "oneOf": [
               {
                 "type": "string",
@@ -210,19 +150,48 @@
               },
               {
                 "type": "array",
-                "description": "Array of messages (same format as expected_messages)",
+                "description": "Array of messages",
                 "items": {
                   "type": "object",
                   "properties": {
                     "role": {
                       "type": "string",
-                      "enum": ["system", "user", "assistant", "tool"]
+                      "enum": ["system", "user", "assistant", "tool"],
+                      "description": "Message role"
                     },
                     "content": {
-                      "oneOf": [{ "type": "string" }, { "type": "object" }, { "type": "array" }]
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "description": "Simple text content"
+                        },
+                        {
+                          "type": "object",
+                          "description": "Structured content object"
+                        },
+                        {
+                          "type": "array",
+                          "description": "Mixed content items",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": ["text", "file"]
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "value"],
+                            "additionalProperties": false
+                          }
+                        }
+                      ]
                     }
                   },
-                  "required": ["role", "content"]
+                  "required": ["role", "content"],
+                  "additionalProperties": false
                 }
               }
             ]
@@ -272,7 +241,7 @@
           }
         },
         "required": ["id", "criteria"],
-        "anyOf": [{ "required": ["input_messages"] }, { "required": ["input"] }],
+        "anyOf": [{ "required": ["input"] }],
         "additionalProperties": true
       }
     }

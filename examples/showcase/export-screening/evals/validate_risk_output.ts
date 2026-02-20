@@ -34,11 +34,11 @@ function extractJsonFromResponse(content: string): Record<string, unknown> | nul
 }
 
 function extractExpectedRiskLevel(
-  expectedMessages: readonly Record<string, unknown>[] | undefined,
+  expectedOutput: readonly Record<string, unknown>[] | undefined,
 ): string | null {
-  if (!expectedMessages) return null;
+  if (!expectedOutput) return null;
 
-  for (const msg of expectedMessages) {
+  for (const msg of expectedOutput) {
     if (msg.role !== 'assistant') continue;
 
     const content = msg.content;
@@ -59,7 +59,7 @@ function extractExpectedRiskLevel(
   return null;
 }
 
-export default defineCodeJudge(({ candidateAnswer, expectedMessages }) => {
+export default defineCodeJudge(({ candidateAnswer, expectedOutput }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
@@ -103,7 +103,7 @@ export default defineCodeJudge(({ candidateAnswer, expectedMessages }) => {
   hits.push(`riskLevel=${candidateRisk}`);
 
   // Compare to expected if available
-  const expectedRisk = extractExpectedRiskLevel(expectedMessages);
+  const expectedRisk = extractExpectedRiskLevel(expectedOutput);
 
   if (expectedRisk === null) {
     // No expected value to compare - just validate format

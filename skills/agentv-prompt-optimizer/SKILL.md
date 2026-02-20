@@ -14,7 +14,7 @@ description: Iteratively optimize prompt files against AgentV evaluation dataset
 1.  **Initialize**
     - Verify `<eval-path>` (file or glob) targets the correct system.
     - **Identify Prompt Files**:
-        - Infer prompt files from the eval file content (look for `file:` references in `input_messages` that match these patterns).
+        - Infer prompt files from the eval file content (look for `file:` references in `input` that match these patterns).
         - Recursively check referenced prompt files for *other* prompt references (dependencies).
         - If multiple prompts are found, consider ALL of them as candidates for optimization.
     - **Identify Optimization Log**:

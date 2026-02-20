@@ -27,9 +27,9 @@ const baseTestCase: EvalTest = {
   id: 'case-1',
   dataset: 'test-dataset',
   question: 'Original Question Text',
-  input_messages: [{ role: 'user', content: 'User Input Message' }],
+  input: [{ role: 'user', content: 'User Input Message' }],
   input_segments: [{ type: 'text', value: 'Input Message' }],
-  expected_messages: [{ type: 'text', value: 'Expected Output Message' }],
+  expected_output: [{ type: 'text', value: 'Expected Output Message' }],
   reference_answer: 'Reference Answer Text',
   guideline_paths: [],
   file_paths: [],
@@ -51,8 +51,8 @@ Question: {{question}}
 Outcome: {{criteria}}
 Reference: {{reference_answer}}
 Candidate: {{candidate_answer}}
-Input Messages: {{input_messages}}
-Expected Messages: {{expected_messages}}
+Input Messages: {{input}}
+Expected Messages: {{expected_output}}
 File Changes: {{file_changes}}
 `;
 
@@ -94,11 +94,11 @@ File Changes: {{file_changes}}
     expect(request?.question).toContain('Reference: Reference Answer Text');
     expect(request?.question).toContain('Candidate: Candidate Answer Text');
 
-    // Verify input_messages JSON stringification
+    // Verify input JSON stringification
     expect(request?.question).toContain('Input Messages: [');
     expect(request?.question).toContain('"value": "Input Message"');
 
-    // Verify expected_messages JSON stringification
+    // Verify expected_output JSON stringification
     expect(request?.question).toContain('Expected Messages: [');
     expect(request?.question).toContain('"value": "Expected Output Message"');
 
@@ -151,8 +151,8 @@ Question: {{ question }}
 Outcome: {{ criteria }}
 Reference: {{ reference_answer }}
 Candidate: {{ candidate_answer }}
-Input Messages: {{ input_messages }}
-Expected Messages: {{ expected_messages }}
+Input Messages: {{ input }}
+Expected Messages: {{ expected_output }}
 `;
 
     const judgeProvider = new CapturingProvider({

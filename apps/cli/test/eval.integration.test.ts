@@ -53,20 +53,20 @@ target: file-target
 tests:
   - id: case-alpha
     criteria: System responds with alpha
-    input_messages:
+    input:
       - role: user
         content: |
           Please respond with alpha
-    expected_messages:
+    expected_output:
       - role: assistant
         content: "Alpha"
   - id: case-beta
     criteria: System responds with beta
-    input_messages:
+    input:
       - role: user
         content: |
           Please respond with beta
-    expected_messages:
+    expected_output:
       - role: assistant
         content: "Beta"
 `;

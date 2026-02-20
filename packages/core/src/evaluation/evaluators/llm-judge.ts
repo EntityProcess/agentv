@@ -114,9 +114,9 @@ export class LlmJudgeEvaluator implements Evaluator {
 
     // Prepare template variables for substitution
     const variables = {
-      [TEMPLATE_VARIABLES.INPUT_MESSAGES]: JSON.stringify(context.evalCase.input_segments, null, 2),
-      [TEMPLATE_VARIABLES.EXPECTED_MESSAGES]: JSON.stringify(
-        context.evalCase.expected_messages,
+      [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(context.evalCase.input_segments, null, 2),
+      [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: JSON.stringify(
+        context.evalCase.expected_output,
         null,
         2,
       ),

@@ -30,12 +30,12 @@ export const evalPromptInputCommand = command({
     // file_paths (which includes guidelines) is used as a fallback.
     const fileMap = buildFileMap(evalCase.input_segments, evalCase.file_paths);
 
-    // Resolve file references in input_messages to absolute paths
-    const resolvedMessages = resolveMessages(evalCase.input_messages, fileMap);
+    // Resolve file references in input to absolute paths
+    const resolvedMessages = resolveMessages(evalCase.input, fileMap);
 
     const output = {
       test_id: evalCase.id,
-      input_messages: resolvedMessages,
+      input: resolvedMessages,
       guideline_paths: evalCase.guideline_paths,
       criteria: evalCase.criteria,
     };

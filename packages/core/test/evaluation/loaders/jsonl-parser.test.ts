@@ -45,7 +45,7 @@ describe('loadTestsFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'single.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}]}\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
@@ -53,9 +53,9 @@ describe('loadTestsFromJsonl', () => {
     expect(cases).toHaveLength(1);
     expect(cases[0].id).toBe('test-1');
     expect(cases[0].criteria).toBe('Goal');
-    expect(cases[0].input_messages).toHaveLength(1);
-    expect(cases[0].input_messages[0].role).toBe('user');
-    expect(cases[0].input_messages[0].content).toBe('Query');
+    expect(cases[0].input).toHaveLength(1);
+    expect(cases[0].input[0].role).toBe('user');
+    expect(cases[0].input[0].content).toBe('Query');
   });
 
   it('parses multi-line JSONL', async () => {
@@ -63,9 +63,9 @@ describe('loadTestsFromJsonl', () => {
     await writeFile(
       jsonlPath,
       [
-        '{"id": "test-1", "criteria": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
-        '{"id": "test-2", "criteria": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
-        '{"id": "test-3", "criteria": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
+        '{"id": "test-1", "criteria": "Goal 1", "input": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-2", "criteria": "Goal 2", "input": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "test-3", "criteria": "Goal 3", "input": [{"role": "user", "content": "Query 3"}]}',
       ].join('\n'),
     );
 
@@ -85,11 +85,11 @@ describe('loadTestsFromJsonl', () => {
     await writeFile(
       jsonlPath,
       [
-        '{"id": "test-1", "criteria": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-1", "criteria": "Goal 1", "input": [{"role": "user", "content": "Query 1"}]}',
         '',
-        '{"id": "test-2", "criteria": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "test-2", "criteria": "Goal 2", "input": [{"role": "user", "content": "Query 2"}]}',
         '   ',
-        '{"id": "test-3", "criteria": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
+        '{"id": "test-3", "criteria": "Goal 3", "input": [{"role": "user", "content": "Query 3"}]}',
         '',
       ].join('\n'),
     );
@@ -107,9 +107,9 @@ describe('loadTestsFromJsonl', () => {
     await writeFile(
       jsonlPath,
       [
-        '{"id": "test-1", "criteria": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
-        '{"id": "test-2", "criteria": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
-        '{"id": "test-3", "criteria": "Goal 3" "input_messages": []}', // Missing comma
+        '{"id": "test-1", "criteria": "Goal 1", "input": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-2", "criteria": "Goal 2", "input": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "test-3", "criteria": "Goal 3" "input": []}', // Missing comma
       ].join('\n'),
     );
 
@@ -121,11 +121,11 @@ describe('loadTestsFromJsonl', () => {
     await writeFile(
       jsonlPath,
       [
-        '{"id": "test-1", "criteria": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
-        '{"id": "test-2", "input_messages": [{"role": "user", "content": "Query 2"}]}', // Missing criteria
-        '{"criteria": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}', // Missing id
-        '{"id": "test-4", "criteria": "Goal 4"}', // Missing input_messages
-        '{"id": "test-5", "criteria": "Goal 5", "input_messages": [{"role": "user", "content": "Query 5"}]}',
+        '{"id": "test-1", "criteria": "Goal 1", "input": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-2", "input": [{"role": "user", "content": "Query 2"}]}', // Missing criteria
+        '{"criteria": "Goal 3", "input": [{"role": "user", "content": "Query 3"}]}', // Missing id
+        '{"id": "test-4", "criteria": "Goal 4"}', // Missing input
+        '{"id": "test-5", "criteria": "Goal 5", "input": [{"role": "user", "content": "Query 5"}]}',
       ].join('\n'),
     );
 
@@ -142,7 +142,7 @@ describe('loadTestsFromJsonl', () => {
 
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}]}\n',
     );
     await writeFile(
       sidecarPath,
@@ -160,7 +160,7 @@ describe('loadTestsFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'my-dataset.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}]}\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
@@ -173,7 +173,7 @@ describe('loadTestsFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'with-evaluators.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "evaluators": [{"name": "rubric-check", "type": "llm_judge", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "evaluators": [{"name": "rubric-check", "type": "llm_judge", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
@@ -187,7 +187,7 @@ describe('loadTestsFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'with-rubrics.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "rubrics": ["Must be polite", "Must be helpful"]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "rubrics": ["Must be polite", "Must be helpful"]}\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
@@ -204,9 +204,9 @@ describe('loadTestsFromJsonl', () => {
     await writeFile(
       jsonlPath,
       [
-        '{"id": "test-1", "criteria": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
-        '{"id": "test-2", "criteria": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
-        '{"id": "test-3", "criteria": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
+        '{"id": "test-1", "criteria": "Goal 1", "input": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "test-2", "criteria": "Goal 2", "input": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "test-3", "criteria": "Goal 3", "input": [{"role": "user", "content": "Query 3"}]}',
       ].join('\n'),
     );
 
@@ -221,9 +221,9 @@ describe('loadTestsFromJsonl', () => {
     await writeFile(
       jsonlPath,
       [
-        '{"id": "summary-basic", "criteria": "Goal 1", "input_messages": [{"role": "user", "content": "Query 1"}]}',
-        '{"id": "summary-advanced", "criteria": "Goal 2", "input_messages": [{"role": "user", "content": "Query 2"}]}',
-        '{"id": "code-review", "criteria": "Goal 3", "input_messages": [{"role": "user", "content": "Query 3"}]}',
+        '{"id": "summary-basic", "criteria": "Goal 1", "input": [{"role": "user", "content": "Query 1"}]}',
+        '{"id": "summary-advanced", "criteria": "Goal 2", "input": [{"role": "user", "content": "Query 2"}]}',
+        '{"id": "code-review", "criteria": "Goal 3", "input": [{"role": "user", "content": "Query 3"}]}',
       ].join('\n'),
     );
 
@@ -237,7 +237,7 @@ describe('loadTestsFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'with-conv-id.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "conversation_id": "conv-123", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+      '{"id": "test-1", "conversation_id": "conv-123", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}]}\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
@@ -246,17 +246,17 @@ describe('loadTestsFromJsonl', () => {
     expect(cases[0].conversation_id).toBe('conv-123');
   });
 
-  it('supports expected_messages field', async () => {
+  it('supports expected_output field', async () => {
     const jsonlPath = path.join(tempDir, 'with-expected.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}], "expected_messages": [{"role": "assistant", "content": "Response"}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "expected_output": [{"role": "assistant", "content": "Response"}]}\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
-    expect(cases[0].expected_messages).toHaveLength(1);
+    expect(cases[0].expected_output).toHaveLength(1);
     expect(cases[0].reference_answer).toBe('Response');
   });
 
@@ -286,7 +286,7 @@ describe('loadTests with format detection', () => {
     const jsonlPath = path.join(tempDir, 'test.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "jsonl-test", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+      '{"id": "jsonl-test", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}]}\n',
     );
 
     const cases = await loadTests(jsonlPath, tempDir);
@@ -302,7 +302,7 @@ describe('loadTests with format detection', () => {
       `tests:
   - id: yaml-test
     criteria: Goal
-    input_messages:
+    input:
       - role: user
         content: Query
 `,
@@ -321,7 +321,7 @@ describe('loadTests with format detection', () => {
       `tests:
   - id: yml-test
     criteria: Goal
-    input_messages:
+    input:
       - role: user
         content: Query
 `,
@@ -364,7 +364,7 @@ describe('JSONL and YAML produce equivalent EvalTests', () => {
 tests:
   - id: test-1
     criteria: "The agent should respond with a helpful answer"
-    input_messages:
+    input:
       - role: user
         content: "What is 2+2?"
 `,
@@ -377,7 +377,7 @@ tests:
     const jsonlPath2 = path.join(tempDir, 'equiv-sidecar.jsonl');
     await writeFile(
       jsonlPath2,
-      '{"id": "test-1", "criteria": "The agent should respond with a helpful answer", "input_messages": [{"role": "user", "content": "What is 2+2?"}]}\n',
+      '{"id": "test-1", "criteria": "The agent should respond with a helpful answer", "input": [{"role": "user", "content": "What is 2+2?"}]}\n',
     );
 
     const yamlCases = await loadTests(yamlPath, tempDir);
@@ -390,9 +390,9 @@ tests:
     expect(jsonlCases[0].id).toBe(yamlCases[0].id);
     expect(jsonlCases[0].criteria).toBe(yamlCases[0].criteria);
     expect(jsonlCases[0].dataset).toBe(yamlCases[0].dataset);
-    expect(jsonlCases[0].input_messages.length).toBe(yamlCases[0].input_messages.length);
-    expect(jsonlCases[0].input_messages[0].role).toBe(yamlCases[0].input_messages[0].role);
-    expect(jsonlCases[0].input_messages[0].content).toBe(yamlCases[0].input_messages[0].content);
+    expect(jsonlCases[0].input.length).toBe(yamlCases[0].input.length);
+    expect(jsonlCases[0].input[0].role).toBe(yamlCases[0].input[0].role);
+    expect(jsonlCases[0].input[0].content).toBe(yamlCases[0].input[0].content);
   });
 });
 
@@ -416,9 +416,9 @@ describe('Input/expected_output aliases and shorthand', () => {
       const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
-      expect(cases[0].input_messages).toHaveLength(1);
-      expect(cases[0].input_messages[0].role).toBe('user');
-      expect(cases[0].input_messages[0].content).toBe('What is 2+2?');
+      expect(cases[0].input).toHaveLength(1);
+      expect(cases[0].input[0].role).toBe('user');
+      expect(cases[0].input[0].content).toBe('What is 2+2?');
     });
 
     it('supports input as message array', async () => {
@@ -431,9 +431,9 @@ describe('Input/expected_output aliases and shorthand', () => {
       const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
-      expect(cases[0].input_messages).toHaveLength(2);
-      expect(cases[0].input_messages[0].role).toBe('system');
-      expect(cases[0].input_messages[1].role).toBe('user');
+      expect(cases[0].input).toHaveLength(2);
+      expect(cases[0].input[0].role).toBe('system');
+      expect(cases[0].input[1].role).toBe('user');
     });
 
     it('supports expected_output string shorthand', async () => {
@@ -446,9 +446,9 @@ describe('Input/expected_output aliases and shorthand', () => {
       const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
-      expect(cases[0].expected_messages).toHaveLength(1);
-      expect(cases[0].expected_messages[0].role).toBe('assistant');
-      expect(cases[0].expected_messages[0].content).toBe('The answer is 4');
+      expect(cases[0].expected_output).toHaveLength(1);
+      expect(cases[0].expected_output[0].role).toBe('assistant');
+      expect(cases[0].expected_output[0].content).toBe('The answer is 4');
       expect(cases[0].reference_answer).toBe('The answer is 4');
     });
 
@@ -462,36 +462,36 @@ describe('Input/expected_output aliases and shorthand', () => {
       const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
-      expect(cases[0].expected_messages).toHaveLength(1);
-      expect(cases[0].expected_messages[0].role).toBe('assistant');
-      const content = cases[0].expected_messages[0].content as { riskLevel: string };
+      expect(cases[0].expected_output).toHaveLength(1);
+      expect(cases[0].expected_output[0].role).toBe('assistant');
+      const content = cases[0].expected_output[0].content as { riskLevel: string };
       expect(content.riskLevel).toBe('High');
     });
 
-    it('canonical input_messages takes precedence over input alias', async () => {
-      const jsonlPath = path.join(tempDir, 'canonical-precedence.jsonl');
+    it('resolves input message array', async () => {
+      const jsonlPath = path.join(tempDir, 'input-messages.jsonl');
       await writeFile(
         jsonlPath,
-        '{"id": "test-1", "criteria": "Goal", "input_messages": [{"role": "user", "content": "Canonical"}], "input": "Should be ignored"}\n',
+        '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Hello"}]}\n',
       );
 
       const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
-      expect(cases[0].input_messages[0].content).toBe('Canonical');
+      expect(cases[0].input[0].content).toBe('Hello');
     });
 
-    it('canonical expected_messages takes precedence over expected_output alias', async () => {
-      const jsonlPath = path.join(tempDir, 'canonical-expected-precedence.jsonl');
+    it('resolves expected_output message array', async () => {
+      const jsonlPath = path.join(tempDir, 'expected-output.jsonl');
       await writeFile(
         jsonlPath,
-        '{"id": "test-1", "criteria": "Goal", "input": "Query", "expected_messages": [{"role": "assistant", "content": "Canonical"}], "expected_output": "Should be ignored"}\n',
+        '{"id": "test-1", "criteria": "Goal", "input": "Query", "expected_output": [{"role": "assistant", "content": "Response"}]}\n',
       );
 
       const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
       expect(cases).toHaveLength(1);
-      expect(cases[0].expected_messages[0].content).toBe('Canonical');
+      expect(cases[0].expected_output[0].content).toBe('Response');
     });
   });
 
@@ -510,9 +510,9 @@ describe('Input/expected_output aliases and shorthand', () => {
       const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
-      expect(cases[0].input_messages).toHaveLength(1);
-      expect(cases[0].input_messages[0].role).toBe('user');
-      expect(cases[0].input_messages[0].content).toBe('What is 2+2?');
+      expect(cases[0].input).toHaveLength(1);
+      expect(cases[0].input[0].role).toBe('user');
+      expect(cases[0].input[0].content).toBe('What is 2+2?');
     });
 
     it('supports input as message array', async () => {
@@ -533,9 +533,9 @@ describe('Input/expected_output aliases and shorthand', () => {
       const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
-      expect(cases[0].input_messages).toHaveLength(2);
-      expect(cases[0].input_messages[0].role).toBe('system');
-      expect(cases[0].input_messages[1].role).toBe('user');
+      expect(cases[0].input).toHaveLength(2);
+      expect(cases[0].input[0].role).toBe('system');
+      expect(cases[0].input[1].role).toBe('user');
     });
 
     it('supports expected_output string shorthand', async () => {
@@ -553,9 +553,9 @@ describe('Input/expected_output aliases and shorthand', () => {
       const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
-      expect(cases[0].expected_messages).toHaveLength(1);
-      expect(cases[0].expected_messages[0].role).toBe('assistant');
-      expect(cases[0].expected_messages[0].content).toBe('The answer is 4');
+      expect(cases[0].expected_output).toHaveLength(1);
+      expect(cases[0].expected_output[0].role).toBe('assistant');
+      expect(cases[0].expected_output[0].content).toBe('The answer is 4');
     });
 
     it('supports expected_output object shorthand', async () => {
@@ -575,30 +575,29 @@ describe('Input/expected_output aliases and shorthand', () => {
       const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
-      expect(cases[0].expected_messages).toHaveLength(1);
-      expect(cases[0].expected_messages[0].role).toBe('assistant');
-      const content = cases[0].expected_messages[0].content as { riskLevel: string };
+      expect(cases[0].expected_output).toHaveLength(1);
+      expect(cases[0].expected_output[0].role).toBe('assistant');
+      const content = cases[0].expected_output[0].content as { riskLevel: string };
       expect(content.riskLevel).toBe('High');
     });
 
-    it('canonical input_messages takes precedence over input alias', async () => {
-      const yamlPath = path.join(tempDir, 'canonical-precedence.yaml');
+    it('resolves input message array from YAML', async () => {
+      const yamlPath = path.join(tempDir, 'input-messages.yaml');
       await writeFile(
         yamlPath,
         `tests:
   - id: test-1
     criteria: Goal
-    input_messages:
+    input:
       - role: user
-        content: Canonical
-    input: Should be ignored
+        content: Hello from YAML
 `,
       );
 
       const cases = await loadTests(yamlPath, tempDir);
 
       expect(cases).toHaveLength(1);
-      expect(cases[0].input_messages[0].content).toBe('Canonical');
+      expect(cases[0].input[0].content).toBe('Hello from YAML');
     });
   });
 
@@ -610,10 +609,10 @@ describe('Input/expected_output aliases and shorthand', () => {
         `tests:
   - id: test-canonical
     criteria: Goal
-    input_messages:
+    input:
       - role: user
         content: Using canonical
-    expected_messages:
+    expected_output:
       - role: assistant
         content: Canonical response
   - id: test-alias
@@ -627,10 +626,10 @@ describe('Input/expected_output aliases and shorthand', () => {
 
       expect(cases).toHaveLength(2);
       expect(cases[0].id).toBe('test-canonical');
-      expect(cases[0].input_messages[0].content).toBe('Using canonical');
+      expect(cases[0].input[0].content).toBe('Using canonical');
       expect(cases[1].id).toBe('test-alias');
-      expect(cases[1].input_messages[0].content).toBe('Using alias shorthand');
-      expect(cases[1].expected_messages[0].content).toBe('Alias response');
+      expect(cases[1].input[0].content).toBe('Using alias shorthand');
+      expect(cases[1].expected_output[0].content).toBe('Alias response');
     });
 
     it('YAML and JSONL aliases produce equivalent results', async () => {
@@ -660,13 +659,13 @@ describe('Input/expected_output aliases and shorthand', () => {
       expect(jsonlCases).toHaveLength(1);
 
       // Input should match
-      expect(jsonlCases[0].input_messages[0].role).toBe(yamlCases[0].input_messages[0].role);
-      expect(jsonlCases[0].input_messages[0].content).toBe(yamlCases[0].input_messages[0].content);
+      expect(jsonlCases[0].input[0].role).toBe(yamlCases[0].input[0].role);
+      expect(jsonlCases[0].input[0].content).toBe(yamlCases[0].input[0].content);
 
       // Expected output should match
-      expect(jsonlCases[0].expected_messages[0].role).toBe(yamlCases[0].expected_messages[0].role);
-      const yamlContent = yamlCases[0].expected_messages[0].content as { answer: number };
-      const jsonlContent = jsonlCases[0].expected_messages[0].content as { answer: number };
+      expect(jsonlCases[0].expected_output[0].role).toBe(yamlCases[0].expected_output[0].role);
+      const yamlContent = yamlCases[0].expected_output[0].content as { answer: number };
+      const jsonlContent = jsonlCases[0].expected_output[0].content as { answer: number };
       expect(jsonlContent.answer).toBe(yamlContent.answer);
     });
   });
@@ -692,7 +691,7 @@ describe('Backward-compat aliases', () => {
         `eval_cases:
   - id: test-1
     criteria: Goal
-    input_messages:
+    input:
       - role: user
         content: Query
 `,
@@ -712,7 +711,7 @@ describe('Backward-compat aliases', () => {
         `evalcases:
   - id: test-1
     criteria: Goal
-    input_messages:
+    input:
       - role: user
         content: Query
 `,
@@ -731,13 +730,13 @@ describe('Backward-compat aliases', () => {
         `tests:
   - id: canonical
     criteria: Goal
-    input_messages:
+    input:
       - role: user
         content: Query
 eval_cases:
   - id: deprecated
     criteria: Goal
-    input_messages:
+    input:
       - role: user
         content: Query
 `,
@@ -758,7 +757,7 @@ eval_cases:
         `tests:
   - id: test-1
     expected_outcome: Goal
-    input_messages:
+    input:
       - role: user
         content: Query
 `,
@@ -779,7 +778,7 @@ eval_cases:
   - id: test-1
     criteria: Canonical
     expected_outcome: Deprecated
-    input_messages:
+    input:
       - role: user
         content: Query
 `,
@@ -797,7 +796,7 @@ eval_cases:
       const jsonlPath = path.join(tempDir, 'expected-outcome-alias.jsonl');
       await writeFile(
         jsonlPath,
-        '{"id": "test-1", "expected_outcome": "Goal", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+        '{"id": "test-1", "expected_outcome": "Goal", "input": [{"role": "user", "content": "Query"}]}\n',
       );
 
       const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
@@ -811,7 +810,7 @@ eval_cases:
       const jsonlPath = path.join(tempDir, 'criteria-precedence.jsonl');
       await writeFile(
         jsonlPath,
-        '{"id": "test-1", "criteria": "Canonical", "expected_outcome": "Deprecated", "input_messages": [{"role": "user", "content": "Query"}]}\n',
+        '{"id": "test-1", "criteria": "Canonical", "expected_outcome": "Deprecated", "input": [{"role": "user", "content": "Query"}]}\n',
       );
 
       const cases = await loadTestsFromJsonl(jsonlPath, tempDir);

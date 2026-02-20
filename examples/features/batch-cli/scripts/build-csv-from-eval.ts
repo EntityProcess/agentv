@@ -32,10 +32,10 @@ export type EvalRow = {
   readonly effective_date: string;
 };
 
-function findFirstUserContentObject(inputMessages: unknown): Record<string, unknown> | undefined {
-  if (!Array.isArray(inputMessages)) return undefined;
+function findFirstUserContentObject(input: unknown): Record<string, unknown> | undefined {
+  if (!Array.isArray(input)) return undefined;
 
-  for (const msg of inputMessages) {
+  for (const msg of input) {
     if (!isObject(msg)) continue;
     if ((msg as Record<string, unknown>).role !== 'user') continue;
     const content = (msg as Record<string, unknown>).content;
@@ -64,7 +64,7 @@ export function extractRowsFromEvalYaml(yamlText: string): readonly EvalRow[] {
       continue;
     }
 
-    const content = findFirstUserContentObject(item.input_messages ?? item.input);
+    const content = findFirstUserContentObject(item.input ?? item.input);
     if (!content) continue;
 
     const request = isObject(content.request) ? (content.request as Record<string, unknown>) : {};

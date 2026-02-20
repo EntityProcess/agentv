@@ -119,25 +119,14 @@ describe('expandExpectedOutputShorthand', () => {
 });
 
 describe('resolveInputMessages', () => {
-  it('uses canonical input_messages when present', () => {
+  it('resolves input message array', () => {
     const raw = {
-      input_messages: [{ role: 'user', content: 'Canonical' }],
-      input: 'Should be ignored',
+      input: [{ role: 'user', content: 'Hello' }],
     };
 
     const result = resolveInputMessages(raw);
 
-    expect(result).toEqual([{ role: 'user', content: 'Canonical' }]);
-  });
-
-  it('falls back to input alias when input_messages not present', () => {
-    const raw = {
-      input: 'From alias',
-    };
-
-    const result = resolveInputMessages(raw);
-
-    expect(result).toEqual([{ role: 'user', content: 'From alias' }]);
+    expect(result).toEqual([{ role: 'user', content: 'Hello' }]);
   });
 
   it('expands input shorthand string', () => {
@@ -165,18 +154,8 @@ describe('resolveInputMessages', () => {
     expect(result?.[1].role).toBe('user');
   });
 
-  it('returns undefined when neither present', () => {
+  it('returns undefined when not present', () => {
     const raw = { id: 'test' };
-
-    const result = resolveInputMessages(raw);
-
-    expect(result).toBeUndefined();
-  });
-
-  it('returns undefined for invalid input_messages', () => {
-    const raw = {
-      input_messages: 'not an array',
-    };
 
     const result = resolveInputMessages(raw);
 
@@ -185,25 +164,14 @@ describe('resolveInputMessages', () => {
 });
 
 describe('resolveExpectedMessages', () => {
-  it('uses canonical expected_messages when present', () => {
+  it('resolves expected_output message array', () => {
     const raw = {
-      expected_messages: [{ role: 'assistant', content: 'Canonical' }],
-      expected_output: 'Should be ignored',
+      expected_output: [{ role: 'assistant', content: 'Hello' }],
     };
 
     const result = resolveExpectedMessages(raw);
 
-    expect(result).toEqual([{ role: 'assistant', content: 'Canonical' }]);
-  });
-
-  it('falls back to expected_output alias when expected_messages not present', () => {
-    const raw = {
-      expected_output: 'From alias',
-    };
-
-    const result = resolveExpectedMessages(raw);
-
-    expect(result).toEqual([{ role: 'assistant', content: 'From alias' }]);
+    expect(result).toEqual([{ role: 'assistant', content: 'Hello' }]);
   });
 
   it('expands expected_output shorthand string', () => {
@@ -241,18 +209,8 @@ describe('resolveExpectedMessages', () => {
     expect(result?.[1].content).toBe('Second');
   });
 
-  it('returns undefined when neither present', () => {
+  it('returns undefined when not present', () => {
     const raw = { id: 'test' };
-
-    const result = resolveExpectedMessages(raw);
-
-    expect(result).toBeUndefined();
-  });
-
-  it('returns undefined for invalid expected_messages', () => {
-    const raw = {
-      expected_messages: 'not an array',
-    };
 
     const result = resolveExpectedMessages(raw);
 

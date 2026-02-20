@@ -1,13 +1,13 @@
 import type { Message } from '@agentv/eval';
 
 /**
- * Extract retrieval context from expectedMessages tool calls.
+ * Extract retrieval context from expectedOutput tool calls.
  * Looks for tool calls with an output.results array (common pattern for search tools).
  */
-export function extractRetrievalContext(expectedMessages: Message[]): string[] {
+export function extractRetrievalContext(expectedOutput: Message[]): string[] {
   const results: string[] = [];
 
-  for (const message of expectedMessages) {
+  for (const message of expectedOutput) {
     if (!message.toolCalls) continue;
 
     for (const toolCall of message.toolCalls) {

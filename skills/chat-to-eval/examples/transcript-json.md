@@ -30,7 +30,7 @@ tests:
 
   - id: negative-forty-intersection
     criteria: "Identify the Fahrenheit-Celsius intersection point"
-    input_messages:
+    input:
       - role: user
         content: "Convert 72°F to Celsius"
       - role: assistant

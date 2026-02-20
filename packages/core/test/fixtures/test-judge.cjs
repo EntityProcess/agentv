@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
-const hasExpected = Array.isArray(input.expected_messages);
+const hasExpected = Array.isArray(input.expected_output);
 const hasCandidate = typeof input.candidate_answer === 'string';
 let candidateDecisionOk = false;
 
@@ -18,12 +18,12 @@ console.log(
   JSON.stringify({
     score: ok ? 1 : 0,
     hits: [
-      hasExpected ? 'expected_messages present' : null,
+      hasExpected ? 'expected_output present' : null,
       hasCandidate ? 'candidate_answer present' : null,
       candidateDecisionOk ? 'candidate_answer parses' : null,
     ].filter(Boolean),
     misses: [
-      hasExpected ? null : 'expected_messages missing',
+      hasExpected ? null : 'expected_output missing',
       hasCandidate ? null : 'candidate_answer missing',
       candidateDecisionOk ? null : 'candidate_answer invalid',
     ].filter(Boolean),

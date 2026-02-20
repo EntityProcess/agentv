@@ -67,24 +67,24 @@ export async function validateFileReferences(
       continue;
     }
 
-    // Check input_messages
-    const inputMessages = evalCase.input_messages;
-    if (Array.isArray(inputMessages)) {
+    // Check input
+    const inputField = evalCase.input;
+    if (Array.isArray(inputField)) {
       await validateMessagesFileRefs(
-        inputMessages,
-        `tests[${i}].input_messages`,
+        inputField,
+        `tests[${i}].input`,
         searchRoots,
         absolutePath,
         errors,
       );
     }
 
-    // Check expected_messages
-    const expectedMessages = evalCase.expected_messages;
-    if (Array.isArray(expectedMessages)) {
+    // Check expected_output
+    const expectedOutputField = evalCase.expected_output;
+    if (Array.isArray(expectedOutputField)) {
       await validateMessagesFileRefs(
-        expectedMessages,
-        `tests[${i}].expected_messages`,
+        expectedOutputField,
+        `tests[${i}].expected_output`,
         searchRoots,
         absolutePath,
         errors,

@@ -4,11 +4,11 @@
  */
 export const TEMPLATE_VARIABLES = {
   CANDIDATE_ANSWER: 'candidate_answer',
-  EXPECTED_MESSAGES: 'expected_messages',
+  EXPECTED_OUTPUT: 'expected_output',
   QUESTION: 'question',
   CRITERIA: 'criteria',
   REFERENCE_ANSWER: 'reference_answer',
-  INPUT_MESSAGES: 'input_messages',
+  INPUT: 'input',
   OUTPUT_MESSAGES: 'output_messages',
   FILE_CHANGES: 'file_changes',
 } as const;
@@ -29,5 +29,5 @@ export const VALID_TEMPLATE_VARIABLES = new Set<string>(Object.values(TEMPLATE_V
  */
 export const REQUIRED_TEMPLATE_VARIABLES = new Set<string>([
   TEMPLATE_VARIABLES.CANDIDATE_ANSWER,
-  TEMPLATE_VARIABLES.EXPECTED_MESSAGES,
+  TEMPLATE_VARIABLES.EXPECTED_OUTPUT,
 ]);

@@ -136,7 +136,7 @@ export function isTestMessage(value: unknown): value is TestMessage {
   if (Array.isArray(candidate.content) && candidate.content.every(isJsonObject)) {
     return true;
   }
-  // Allow messages with tool_calls but no content (for expected_messages format)
+  // Allow messages with tool_calls but no content (for expected_output format)
   if (Array.isArray(candidate.tool_calls) && candidate.tool_calls.length > 0) {
     return true;
   }
@@ -466,9 +466,9 @@ export interface EvalTest {
   readonly dataset?: string;
   readonly conversation_id?: string;
   readonly question: string;
-  readonly input_messages: readonly TestMessage[];
+  readonly input: readonly TestMessage[];
   readonly input_segments: readonly JsonObject[];
-  readonly expected_messages: readonly JsonObject[];
+  readonly expected_output: readonly JsonObject[];
   readonly reference_answer?: string;
   readonly guideline_paths: readonly string[];
   readonly guideline_patterns?: readonly string[];

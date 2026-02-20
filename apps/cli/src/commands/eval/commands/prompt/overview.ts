@@ -37,7 +37,7 @@ export const evalPromptOverviewCommand = command({
       'Run `agentv prompt eval input <path> --test-id <id>` to get the task as JSON.',
       '',
       'The output contains:',
-      '- `input_messages` — `[{role, content}]` array. Content segments are either `{type: "text", value: "..."}` or `{type: "file", path: "/absolute/path"}`. Read file segments from the filesystem.',
+      '- `input` — `[{role, content}]` array. Content segments are either `{type: "text", value: "..."}` or `{type: "file", path: "/absolute/path"}`. Read file segments from the filesystem.',
       '- `guideline_paths` — files containing additional instructions to prepend to the system message (may be empty). Read these from the filesystem.',
       '- `criteria` — what a good answer should accomplish (for your reference, do not leak to the agent being tested)',
       '',

@@ -116,9 +116,9 @@ TypeScript templates receive a context object with these fields:
 |-------|------|-------------|
 | `question` | `string` | First user message content |
 | `candidateAnswer` | `string` | Last entry in `output_messages` |
-| `referenceAnswer` | `string` | Last entry in `expected_messages` |
+| `referenceAnswer` | `string` | Last entry in `expected_output` |
 | `criteria` | `string` | Test `criteria` field |
-| `expectedMessages` | `Message[]` | Full resolved expected messages |
+| `expectedOutput` | `Message[]` | Full resolved expected output |
 | `outputMessages` | `Message[]` | Full provider output messages |
 | `traceSummary` | `TraceSummary` | Execution metrics summary |
 | `config` | `object` | Custom config from YAML |
@@ -131,15 +131,15 @@ Template variables are derived internally through three layers:
 
 What users write in YAML or JSONL:
 
-- `input` or `input_messages` -- two syntaxes for the same data. `input: "What is 2+2?"` expands to `[{ role: "user", content: "What is 2+2?" }]`. If both are present, `input_messages` takes precedence.
-- `expected_output` or `expected_messages` -- two syntaxes for the same data. `expected_output: "4"` expands to `[{ role: "assistant", content: "4" }]`. If both are present, `expected_messages` takes precedence.
+- `input` or `input` -- two syntaxes for the same data. `input: "What is 2+2?"` expands to `[{ role: "user", content: "What is 2+2?" }]`. If both are present, `input` takes precedence.
+- `expected_output` or `expected_output` -- two syntaxes for the same data. `expected_output: "4"` expands to `[{ role: "assistant", content: "4" }]`. If both are present, `expected_output` takes precedence.
 
 ### 2. Resolved Layer
 
 After parsing, canonical message arrays replace the shorthand fields:
 
-- `input_messages: TestMessage[]` -- canonical resolved input
-- `expected_messages: TestMessage[]` -- canonical resolved expected output
+- `input: TestMessage[]` -- canonical resolved input
+- `expected_output: TestMessage[]` -- canonical resolved expected output
 
 At this layer, `input` and `expected_output` no longer exist as separate fields.
 
@@ -149,12 +149,12 @@ Derived strings injected into evaluator prompts:
 
 | Variable | Derivation |
 |----------|------------|
-| `question` | Content of the first `user` role entry in `input_messages` |
+| `question` | Content of the first `user` role entry in `input` |
 | `criteria` | Passed through from the test field |
-| `reference_answer` | Content of the last entry in `expected_messages` |
+| `reference_answer` | Content of the last entry in `expected_output` |
 | `candidate_answer` | Content of the last entry in `output_messages` |
-| `input_messages` | Full resolved input array, JSON-serialized |
-| `expected_messages` | Full resolved expected array, JSON-serialized |
+| `input` | Full resolved input array, JSON-serialized |
+| `expected_output` | Full resolved expected array, JSON-serialized |
 | `output_messages` | Full provider output array, JSON-serialized |
 | `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
 
@@ -168,8 +168,8 @@ expected_output: "The answer is 4"
 
 ```
 # Resolved:
-input_messages:    [{ role: "user", content: "What is 2+2?" }]
-expected_messages: [{ role: "assistant", content: "The answer is 4" }]
+input:    [{ role: "user", content: "What is 2+2?" }]
+expected_output: [{ role: "assistant", content: "The answer is 4" }]
 
 # Derived template variables:
 question:         "What is 2+2?"

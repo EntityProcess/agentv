@@ -27,9 +27,9 @@ const mockProvider: Provider = {
 const mockEvalCase: EvalTest = {
   id: 'test-case',
   question: 'Test question',
-  input_messages: [],
+  input: [],
   input_segments: [],
-  expected_messages: [],
+  expected_output: [],
   guideline_paths: [],
   file_paths: [],
   criteria: 'Expected outcome',

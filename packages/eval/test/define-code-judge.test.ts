@@ -11,11 +11,11 @@ describe('CodeJudgeInputSchema', () => {
   const validInput = {
     question: 'What is 2+2?',
     criteria: 'The answer should be 4',
-    expectedMessages: [{ role: 'assistant', content: '4' }],
+    expectedOutput: [{ role: 'assistant', content: '4' }],
     candidateAnswer: 'The answer is 4',
     guidelineFiles: [],
     inputFiles: [],
-    inputMessages: [{ role: 'user', content: 'What is 2+2?' }],
+    input: [{ role: 'user', content: 'What is 2+2?' }],
   };
 
   it('parses valid input', () => {
@@ -170,11 +170,11 @@ describe('Schema type inference', () => {
     const input: CodeJudgeInput = {
       question: 'test',
       criteria: 'test',
-      expectedMessages: [],
+      expectedOutput: [],
       candidateAnswer: 'test',
       guidelineFiles: [],
       inputFiles: [],
-      inputMessages: [],
+      input: [],
     };
 
     // These should all type-check correctly

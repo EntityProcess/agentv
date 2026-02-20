@@ -187,8 +187,8 @@ Beyond the basic `question`, `criteria`, `candidate_answer`, and `reference_answ
 |-------|------|-------------|
 | `guideline_files` | `string[]` | Paths to guideline files referenced in the eval |
 | `input_files` | `string[]` | Paths to input files referenced in the eval |
-| `input_messages` | `Message[]` | Full resolved input message array |
-| `expected_messages` | `Message[]` | Expected agent behavior including tool calls |
+| `input` | `Message[]` | Full resolved input message array |
+| `expected_output` | `Message[]` | Expected agent behavior including tool calls |
 | `output_messages` | `Message[]` | Actual agent execution trace with tool calls |
 | `trace_summary` | `TraceSummary` | Lightweight execution metrics |
 | `file_changes` | `string \| null` | Unified diff of workspace file changes (when `workspace_template` is configured) |
@@ -224,7 +224,7 @@ Beyond the basic `question`, `criteria`, `candidate_answer`, and `reference_answ
 | `start_time` | `string` | ISO timestamp of first event |
 | `end_time` | `string` | ISO timestamp of last event |
 
-Use `expected_messages` for retrieval context in RAG evals (tool calls with outputs) and `output_messages` for the actual agent execution trace from live runs.
+Use `expected_output` for retrieval context in RAG evals (tool calls with outputs) and `output_messages` for the actual agent execution trace from live runs.
 
 ## Workspace Access
 

@@ -1,16 +1,16 @@
 /**
- * Shorthand expansion utilities for input/expected_output aliases.
+ * Shorthand expansion utilities for input/expected_output fields.
  *
  * Supports:
- * - `input` as alias for `input_messages` with string shorthand
- * - `expected_output` as alias for `expected_messages` with string/object shorthand
+ * - `input` with string shorthand or message array
+ * - `expected_output` with string/object shorthand or message array
  */
 
 import type { JsonObject, JsonValue, TestMessage } from '../types.js';
 import { isJsonObject, isTestMessage } from '../types.js';
 
 /**
- * Expand the `input` shorthand/alias into the canonical `input_messages` format.
+ * Expand the `input` shorthand into a message array.
  *
  * Supports:
  * - String: "What is 2+2?" -> [{ role: 'user', content: "What is 2+2?" }]
@@ -39,7 +39,7 @@ export function expandInputShorthand(value: JsonValue | undefined): TestMessage[
 }
 
 /**
- * Expand the `expected_output` shorthand/alias into canonical `expected_messages` format.
+ * Expand the `expected_output` shorthand into a message array.
  *
  * Supports:
  * - String: "Answer" -> [{ role: 'assistant', content: "Answer" }]
@@ -86,47 +86,21 @@ export function expandExpectedOutputShorthand(
 }
 
 /**
- * Resolve input_messages from raw eval case data, supporting the `input` alias.
- *
- * Precedence: input_messages (canonical) > input (alias)
+ * Resolve input from raw eval case data.
  *
  * @param raw Raw eval case object from YAML/JSONL
  * @returns Resolved input messages array or undefined if none found
  */
 export function resolveInputMessages(raw: JsonObject): TestMessage[] | undefined {
-  // Canonical name takes precedence
-  if (raw.input_messages !== undefined) {
-    if (Array.isArray(raw.input_messages)) {
-      const messages = raw.input_messages.filter((msg): msg is TestMessage => isTestMessage(msg));
-      return messages.length > 0 ? messages : undefined;
-    }
-    return undefined;
-  }
-
-  // Fall back to alias with shorthand expansion
   return expandInputShorthand(raw.input);
 }
 
 /**
- * Resolve expected_messages from raw eval case data, supporting the `expected_output` alias.
- *
- * Precedence: expected_messages (canonical) > expected_output (alias)
+ * Resolve expected_output from raw eval case data.
  *
  * @param raw Raw eval case object from YAML/JSONL
- * @returns Resolved expected messages array or undefined if none found
+ * @returns Resolved expected output messages array or undefined if none found
  */
 export function resolveExpectedMessages(raw: JsonObject): TestMessage[] | undefined {
-  // Canonical name takes precedence
-  if (raw.expected_messages !== undefined) {
-    if (Array.isArray(raw.expected_messages)) {
-      const messages = raw.expected_messages.filter((msg): msg is TestMessage =>
-        isTestMessage(msg),
-      );
-      return messages.length > 0 ? messages : undefined;
-    }
-    return undefined;
-  }
-
-  // Fall back to alias with shorthand expansion
   return expandExpectedOutputShorthand(raw.expected_output);
 }

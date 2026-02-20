@@ -35,7 +35,7 @@ interface EvalConfig {
 
 interface EvalInput {
   candidate_answer: string;
-  expected_messages: Array<{ role: string; content: unknown }>;
+  expected_output: Array<{ role: string; content: unknown }>;
   config: EvalConfig | null;
 }
 
@@ -240,10 +240,10 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Extract expected data from expected_messages
+  // Extract expected data from expected_output
   let expectedObj: unknown;
-  for (let i = input.expected_messages.length - 1; i >= 0; i--) {
-    const msg = input.expected_messages[i];
+  for (let i = input.expected_output.length - 1; i >= 0; i--) {
+    const msg = input.expected_output[i];
     if (msg.role === 'assistant' && msg.content) {
       expectedObj = msg.content;
       break;
@@ -255,7 +255,7 @@ async function main(): Promise<void> {
       JSON.stringify({
         score: 0,
         hits: [],
-        misses: ['No expected data found in expected_messages'],
+        misses: ['No expected data found in expected_output'],
         reasoning: 'Could not find assistant message with expected content',
         details: {
           alignment: [],

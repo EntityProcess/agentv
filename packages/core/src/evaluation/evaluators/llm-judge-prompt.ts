@@ -68,8 +68,8 @@ function assembleFreeform(
       : evalCase.question;
 
   const variables = {
-    [TEMPLATE_VARIABLES.INPUT_MESSAGES]: JSON.stringify(evalCase.input_segments, null, 2),
-    [TEMPLATE_VARIABLES.EXPECTED_MESSAGES]: JSON.stringify(evalCase.expected_messages, null, 2),
+    [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(evalCase.input_segments, null, 2),
+    [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: JSON.stringify(evalCase.expected_output, null, 2),
     [TEMPLATE_VARIABLES.OUTPUT_MESSAGES]: JSON.stringify([], null, 2),
     [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: candidate.trim(),
     [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (evalCase.reference_answer ?? '').trim(),
