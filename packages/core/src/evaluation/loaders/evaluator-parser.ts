@@ -16,6 +16,7 @@ export async function parseEvaluators(
   rawEvalCase: JsonObject & {
     readonly execution?: JsonValue;
     readonly evaluators?: JsonValue;
+    readonly assert?: JsonValue;
   },
   globalExecution: JsonObject | undefined,
   searchRoots: readonly string[],
@@ -24,13 +25,17 @@ export async function parseEvaluators(
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
 
-  // Case-level evaluators: execution.evaluators > top-level evaluators
+  // Case-level evaluators priority: assert > execution.evaluators > top-level evaluators
   const caseEvaluators =
-    (executionObject ? executionObject.evaluators : undefined) ?? rawEvalCase.evaluators;
+    rawEvalCase.assert ??
+    (executionObject ? executionObject.evaluators : undefined) ??
+    rawEvalCase.evaluators;
 
-  // Root-level (default) evaluators from suite execution block
+  // Root-level (default) evaluators: assert > execution.evaluators
   const skipDefaults = executionObject?.skip_defaults === true;
-  const rootEvaluators = skipDefaults ? undefined : globalExecution?.evaluators;
+  const rootEvaluators = skipDefaults
+    ? undefined
+    : (globalExecution?.assert ?? globalExecution?.evaluators);
 
   // Parse case-level evaluators
   const parsedCase = await parseEvaluatorList(caseEvaluators, searchRoots, evalId);

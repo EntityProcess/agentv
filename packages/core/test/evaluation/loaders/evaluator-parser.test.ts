@@ -1125,3 +1125,129 @@ describe('parseEvaluators - default evaluators merge', () => {
     expect(evaluators?.[1]).toEqual({ name: 'root-eval', type: 'latency', threshold: 5000 });
   });
 });
+
+describe('parseEvaluators - assert field', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-assert-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('parses assert field as evaluators', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [{ type: 'contains', value: 'DENIED' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('assert takes precedence over execution.evaluators', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [{ type: 'contains', value: 'DENIED' }],
+        execution: {
+          evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
+        },
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('assert takes precedence over top-level evaluators', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [{ type: 'contains', value: 'DENIED' }],
+        evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('merges suite-level assert with test-level assert', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [{ type: 'contains', value: 'DENIED' }],
+      },
+      { assert: [{ name: 'latency-check', type: 'latency', threshold: 5000 }] },
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(2);
+    expect(evaluators?.[0].type).toBe('contains');
+    expect(evaluators?.[1].type).toBe('latency');
+  });
+
+  it('skip_defaults prevents suite-level assert from being appended', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [{ type: 'contains', value: 'DENIED' }],
+        execution: { skip_defaults: true },
+      },
+      { assert: [{ name: 'latency-check', type: 'latency', threshold: 5000 }] },
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('falls back to execution.evaluators when assert is not present', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        execution: {
+          evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
+        },
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('latency');
+  });
+
+  it('suite-level assert takes precedence over suite-level execution.evaluators', async () => {
+    const evaluators = await parseEvaluators(
+      {},
+      {
+        assert: [{ type: 'contains', value: 'HELLO' }],
+        evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
+      },
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('falls back to suite-level execution.evaluators when suite assert is not present', async () => {
+    const evaluators = await parseEvaluators(
+      {},
+      {
+        evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
+      },
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('latency');
+  });
+});

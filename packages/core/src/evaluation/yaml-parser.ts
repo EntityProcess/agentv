@@ -69,6 +69,7 @@ type RawTestSuite = JsonObject & {
   readonly execution?: JsonValue;
   readonly dataset?: JsonValue;
   readonly workspace?: JsonValue;
+  readonly assert?: JsonValue;
   // Suite-level metadata fields
   readonly name?: JsonValue;
   readonly description?: JsonValue;
@@ -89,6 +90,7 @@ type RawEvalCase = JsonObject & {
   readonly expected_output?: JsonValue;
   readonly execution?: JsonValue;
   readonly evaluators?: JsonValue;
+  readonly assert?: JsonValue;
   readonly rubrics?: JsonValue;
   readonly workspace?: JsonValue;
   readonly metadata?: JsonValue;
@@ -239,8 +241,14 @@ async function loadTestsFromYaml(
   const suiteWorkspace = parseWorkspaceConfig(suite.workspace, evalFileDir);
 
   // Extract global target from execution.target (or legacy root-level target)
-  const globalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
-  const _globalTarget = asString(globalExecution?.target) ?? asString(suite.target);
+  const rawGlobalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
+  const _globalTarget = asString(rawGlobalExecution?.target) ?? asString(suite.target);
+
+  // Build global execution context, including suite-level assert (which is a sibling of execution)
+  const globalExecution: JsonObject | undefined =
+    suite.assert !== undefined
+      ? { ...(rawGlobalExecution ?? {}), assert: suite.assert }
+      : rawGlobalExecution;
 
   const results: EvalTest[] = [];
 
