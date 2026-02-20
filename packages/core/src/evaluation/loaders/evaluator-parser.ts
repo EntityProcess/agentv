@@ -189,10 +189,11 @@ async function parseEvaluatorList(
     }
 
     if (typeValue === 'composite') {
-      const rawMembers = rawEvaluator.evaluators;
+      // Accept assert as alias for evaluators in composite
+      const rawMembers = rawEvaluator.assert ?? rawEvaluator.evaluators;
       if (!Array.isArray(rawMembers)) {
         logWarning(
-          `Skipping composite evaluator '${name}' in '${evalId}': missing evaluators array`,
+          `Skipping composite evaluator '${name}' in '${evalId}': missing evaluators (or assert) array`,
         );
         continue;
       }

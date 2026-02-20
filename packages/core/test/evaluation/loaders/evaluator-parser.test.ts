@@ -7,6 +7,7 @@ import { parseEvaluators } from '../../../src/evaluation/loaders/evaluator-parse
 import type { ToolTrajectoryEvaluatorConfig } from '../../../src/evaluation/trace.js';
 import type {
   CodeEvaluatorConfig,
+  CompositeEvaluatorConfig,
   ContainsEvaluatorConfig,
   EqualsEvaluatorConfig,
   IsJsonEvaluatorConfig,
@@ -1484,5 +1485,95 @@ describe('parseEvaluators - required field', () => {
     for (const config of evaluators ?? []) {
       expect((config as ContainsEvaluatorConfig).required).toBeUndefined();
     }
+  });
+});
+
+describe('parseEvaluators - composite assert field', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-composite-assert-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+    // Create dummy prompt files for llm_judge members (must include required template fields)
+    await writeFile(path.join(tempDir, 'safety.md'), 'Evaluate safety of {{ candidate_answer }}');
+    await writeFile(path.join(tempDir, 'quality.md'), 'Evaluate quality of {{ candidate_answer }}');
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('parses composite with assert field (new syntax)', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            name: 'combined',
+            type: 'composite',
+            assert: [
+              { name: 'safety', type: 'llm_judge', prompt: './safety.md' },
+              { name: 'quality', type: 'llm_judge', prompt: './quality.md' },
+            ],
+            aggregator: { type: 'weighted_average' },
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators![0].type).toBe('composite');
+  });
+
+  it('composite still works with evaluators field (backward compat)', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [
+          {
+            name: 'combined',
+            type: 'composite',
+            evaluators: [
+              { name: 'safety', type: 'llm_judge', prompt: './safety.md' },
+              { name: 'quality', type: 'llm_judge', prompt: './quality.md' },
+            ],
+            aggregator: { type: 'weighted_average' },
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators![0].type).toBe('composite');
+  });
+
+  it('composite assert takes precedence over evaluators', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            name: 'combined',
+            type: 'composite',
+            assert: [
+              { name: 'safety', type: 'llm_judge', prompt: './safety.md' },
+            ],
+            evaluators: [
+              { name: 'quality', type: 'llm_judge', prompt: './quality.md' },
+            ],
+            aggregator: { type: 'weighted_average' },
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    // assert takes precedence - only 1 inner evaluator
+    const composite = evaluators![0] as CompositeEvaluatorConfig;
+    expect(composite.evaluators).toHaveLength(1);
+    expect(composite.evaluators[0].name).toBe('safety');
   });
 });
