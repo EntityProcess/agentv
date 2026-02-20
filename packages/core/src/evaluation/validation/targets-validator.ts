@@ -149,6 +149,30 @@ const MOCK_SETTINGS = new Set([
 // CLI_SETTINGS removed - Zod schema validation now handles CLI provider settings validation
 // in resolveCliConfig() via CliTargetInputSchema
 
+const CLAUDE_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  'model',
+  'cwd',
+  'timeout_seconds',
+  'timeoutSeconds',
+  'log_dir',
+  'logDir',
+  'log_directory',
+  'logDirectory',
+  'log_format',
+  'logFormat',
+  'log_output_format',
+  'logOutputFormat',
+  'system_prompt',
+  'systemPrompt',
+  'workspace_template',
+  'workspaceTemplate',
+  'max_turns',
+  'maxTurns',
+  'max_budget_usd',
+  'maxBudgetUsd',
+]);
+
 function getKnownSettings(provider: string): Set<string> | null {
   const normalizedProvider = provider.toLowerCase();
   switch (normalizedProvider) {
@@ -169,6 +193,10 @@ function getKnownSettings(provider: string): Set<string> | null {
     case 'copilot_sdk':
     case 'copilot-cli':
       return COPILOT_SDK_SETTINGS;
+    case 'claude':
+    case 'claude-code':
+    case 'claude-sdk':
+      return CLAUDE_SETTINGS;
     case 'vscode':
     case 'vscode-insiders':
       return VSCODE_SETTINGS;

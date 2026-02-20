@@ -49,7 +49,7 @@ This keeps secrets out of version-controlled files.
 | `azure` | LLM | Azure OpenAI |
 | `anthropic` | LLM | Anthropic Claude API |
 | `gemini` | LLM | Google Gemini |
-| `claude-code` | Agent | Claude Code CLI |
+| `claude` | Agent | Claude Agent SDK |
 | `codex` | Agent | Codex CLI |
 | `pi-coding-agent` | Agent | Pi Coding Agent |
 | `vscode` | Agent | VS Code with Copilot |
@@ -92,8 +92,8 @@ For agent targets, `workspace_template` specifies a directory that gets copied t
 
 ```yaml
 targets:
-  - name: claude_code
-    provider: claude-code
+  - name: claude_agent
+    provider: claude
     workspace_template: ./workspace-templates/my-project
     judge_target: azure_base
 ```

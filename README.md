@@ -218,7 +218,7 @@ targets:
     judge_target: azure_base
 ```
 
-Supports: `azure`, `anthropic`, `gemini`, `codex`, `pi-coding-agent`, `claude-code`, `vscode`, `vscode-insiders`, `cli`, and `mock`.
+Supports: `azure`, `anthropic`, `gemini`, `codex`, `copilot`, `pi-coding-agent`, `claude`, `vscode`, `vscode-insiders`, `cli`, and `mock`.
 
 Use `${{ VARIABLE_NAME }}` syntax to reference your `.env` file. See `.agentv/targets.yaml` after `agentv init` for detailed examples and all provider-specific fields.
 

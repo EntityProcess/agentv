@@ -528,31 +528,31 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/mutually exclusive/i);
   });
 
-  it('resolves claude-code workspace_template', () => {
+  it('resolves claude workspace_template', () => {
     const target = resolveTargetDefinition(
       {
         name: 'claude-with-template',
-        provider: 'claude-code',
+        provider: 'claude',
         workspace_template: '/templates/claude-workspace',
       },
       {},
     );
 
-    expect(target.kind).toBe('claude-code');
-    if (target.kind !== 'claude-code') {
-      throw new Error('expected claude-code target');
+    expect(target.kind).toBe('claude');
+    if (target.kind !== 'claude') {
+      throw new Error('expected claude target');
     }
 
     expect(target.config.workspaceTemplate).toBe('/templates/claude-workspace');
     expect(target.config.cwd).toBeUndefined();
   });
 
-  it('throws when both cwd and workspace_template are specified for claude-code', () => {
+  it('throws when both cwd and workspace_template are specified for claude', () => {
     expect(() =>
       resolveTargetDefinition(
         {
           name: 'claude-both',
-          provider: 'claude-code',
+          provider: 'claude',
           cwd: '/some/path',
           workspace_template: '/templates/workspace',
         },

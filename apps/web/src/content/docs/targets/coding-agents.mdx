@@ -7,12 +7,12 @@ sidebar:
 
 Coding agent targets evaluate AI coding assistants and CLI-based agents. These targets require a `judge_target` to run LLM-based evaluators.
 
-## Claude Code
+## Claude
 
 ```yaml
 targets:
-  - name: claude_code
-    provider: claude-code
+  - name: claude_agent
+    provider: claude
     workspace_template: ./workspace-templates/my-project
     judge_target: azure_base
 ```
