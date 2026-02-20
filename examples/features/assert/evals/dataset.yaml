@@ -1,0 +1,37 @@
+name: assert-demo
+description: Demonstrates eval spec v2 assert features
+version: "1.0"
+tags: [demo, assert]
+
+assert:
+  - type: is_json
+
+tests:
+  - id: contains-check
+    criteria: Response must contain the word hello
+    input:
+      - role: user
+        content: Say hello world
+    expected_output:
+      - role: assistant
+        content: '{"message": "hello world"}'
+    assert:
+      - type: contains
+        value: hello
+        required: true
+      - type: equals
+        value: '{"message": "hello world"}'
+
+  - id: regex-check
+    criteria: Response must match a greeting pattern
+    input:
+      - role: user
+        content: Greet me formally
+    expected_output:
+      - role: assistant
+        content: '{"greeting": "Good morning"}'
+    assert:
+      - type: regex
+        value: "Good (morning|afternoon|evening)"
+      - type: contains
+        value: greeting
