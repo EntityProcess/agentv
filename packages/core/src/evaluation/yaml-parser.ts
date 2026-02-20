@@ -4,6 +4,7 @@ import micromatch from 'micromatch';
 import { parse } from 'yaml';
 
 import { expandFileReferences } from './loaders/case-file-loader.js';
+import { parseMetadata } from './metadata.js';
 import {
   extractCacheConfig,
   extractTargetFromSuite,
@@ -46,6 +47,7 @@ export {
 } from './loaders/config-loader.js';
 export type { AgentVConfig, CacheConfig } from './loaders/config-loader.js';
 export { detectFormat } from './loaders/jsonl-parser.js';
+export type { EvalMetadata } from './metadata.js';
 
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RED = '\u001b[31m';
@@ -67,6 +69,14 @@ type RawTestSuite = JsonObject & {
   readonly execution?: JsonValue;
   readonly dataset?: JsonValue;
   readonly workspace?: JsonValue;
+  // Suite-level metadata fields
+  readonly name?: JsonValue;
+  readonly description?: JsonValue;
+  readonly version?: JsonValue;
+  readonly author?: JsonValue;
+  readonly tags?: JsonValue;
+  readonly license?: JsonValue;
+  readonly requires?: JsonValue;
 };
 
 type RawEvalCase = JsonObject & {
@@ -134,6 +144,8 @@ export type EvalSuiteResult = {
   readonly targets?: readonly string[];
   /** Suite-level cache config from execution.cache */
   readonly cacheConfig?: import('./loaders/config-loader.js').CacheConfig;
+  /** Suite-level metadata (name, description, version, etc.) */
+  readonly metadata?: import('./metadata.js').EvalMetadata;
 };
 
 /**
@@ -150,11 +162,13 @@ export async function loadTestSuite(
     return { tests: await loadTestsFromJsonl(evalFilePath, repoRoot, options) };
   }
   const { tests, parsed } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
+  const metadata = parseMetadata(parsed);
   return {
     tests,
     trials: extractTrialsConfig(parsed),
     targets: extractTargetsFromSuite(parsed),
     cacheConfig: extractCacheConfig(parsed),
+    ...(metadata !== undefined && { metadata }),
   };
 }
 
