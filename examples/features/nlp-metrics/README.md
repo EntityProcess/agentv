@@ -17,13 +17,13 @@ Each judge is a standalone TypeScript file that uses `defineCodeJudge` from `@ag
 
 ```bash
 # From the repository root
-bun agentv eval examples/nlp-metrics/evals/dataset.yaml
+bun agentv eval examples/features/nlp-metrics/evals/dataset.yaml
 ```
 
 Run a single test:
 
 ```bash
-bun agentv eval examples/nlp-metrics/evals/dataset.yaml --test-id summarisation-rouge
+bun agentv eval examples/features/nlp-metrics/evals/dataset.yaml --test-id summarisation-rouge
 ```
 
 ## How It Works
