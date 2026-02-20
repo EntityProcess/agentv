@@ -28,8 +28,9 @@ describe('parseMetadata', () => {
     expect(result).toBeUndefined();
   });
 
-  it('requires description when name is present', () => {
-    expect(() => parseMetadata({ name: 'test-eval' })).toThrow();
+  it('allows name without description (description is optional)', () => {
+    const result = parseMetadata({ name: 'test-eval' });
+    expect(result).toEqual({ name: 'test-eval' });
   });
 
   it('ignores description without name (description is also a regular suite field)', () => {

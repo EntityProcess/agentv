@@ -3,35 +3,78 @@ description: Demonstrates eval spec v2 assert features
 version: "1.0"
 tags: [demo, assert]
 
-assert:
-  - type: is_json
+execution:
+  target: default
 
 tests:
+  # ==========================================
+  # Example 1: contains assertion (case-sensitive)
+  # ==========================================
   - id: contains-check
-    criteria: Response must contain the word hello
+    criteria: Response must contain the word Hello
     input:
       - role: user
         content: Say hello world
     expected_output:
       - role: assistant
-        content: '{"message": "hello world"}'
+        content: Hello world!
     assert:
       - type: contains
-        value: hello
-        required: true
-      - type: equals
-        value: '{"message": "hello world"}'
+        value: Hello
+      - type: regex
+        value: "[Hh]ello"
 
-  - id: regex-check
-    criteria: Response must match a greeting pattern
+  # ==========================================
+  # Example 2: is_json assertion with JSON output
+  # ==========================================
+  - id: json-response
+    criteria: Response must be valid JSON with a status field
     input:
+      - role: system
+        content: "You are an API that only responds with valid JSON. No markdown, no explanation, just raw JSON."
       - role: user
-        content: Greet me formally
+        content: 'Return a JSON object with fields: status set to "ok" and code set to 200.'
     expected_output:
       - role: assistant
-        content: '{"greeting": "Good morning"}'
+        content: '{"status": "ok", "code": 200}'
+    assert:
+      - type: is_json
+        required: true
+      - type: contains
+        value: '"status"'
+      - type: contains
+        value: '"ok"'
+
+  # ==========================================
+  # Example 3: regex assertion for pattern matching
+  # ==========================================
+  - id: regex-check
+    criteria: Response must include a formal greeting pattern
+    input:
+      - role: user
+        content: Greet me formally with a time-of-day greeting (e.g. Good morning, Good afternoon, or Good evening)
+    expected_output:
+      - role: assistant
+        content: Good morning! It's a pleasure to meet you.
     assert:
       - type: regex
         value: "Good (morning|afternoon|evening)"
-      - type: contains
-        value: greeting
+        required: true
+
+  # ==========================================
+  # Example 4: equals assertion for exact match
+  # ==========================================
+  - id: equals-check
+    criteria: Response must be exactly the number 4
+    input:
+      - role: system
+        content: "You are a calculator. Respond with only the numeric result, nothing else. No words, no punctuation, just the number."
+      - role: user
+        content: "What is 2 + 2?"
+    expected_output:
+      - role: assistant
+        content: "4"
+    assert:
+      - type: equals
+        value: "4"
+        required: true

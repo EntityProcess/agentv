@@ -7,7 +7,7 @@ const MetadataSchema = z.object({
     .min(1)
     .max(64)
     .regex(/^[a-z0-9-]+$/),
-  description: z.string().min(1).max(1024),
+  description: z.string().min(1).max(1024).optional(),
   version: z.string().optional(),
   author: z.string().optional(),
   tags: z.array(z.string()).optional(),
