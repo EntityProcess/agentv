@@ -44,6 +44,7 @@
     "@github/copilot-sdk": "^0.1.25",
     "@mariozechner/pi-agent-core": "^0.50.9",
     "@mariozechner/pi-ai": "^0.50.9",
+    "@openai/codex-sdk": "^0.104.0",
     "ai": "^5.0.106",
     "fast-glob": "^3.3.3",
     "json5": "^2.2.3",

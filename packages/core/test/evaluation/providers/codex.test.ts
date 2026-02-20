@@ -3,12 +3,12 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { CodexCliProvider } from '../../../src/evaluation/providers/codex-cli.js';
 import {
   type CodexLogEntry,
   consumeCodexLogEntries,
   subscribeToCodexLogEntries,
 } from '../../../src/evaluation/providers/codex-log-tracker.js';
-import { CodexProvider } from '../../../src/evaluation/providers/codex.js';
 import {
   type ProviderRequest,
   extractLastAssistantContent,
@@ -18,7 +18,7 @@ async function createTempDir(prefix: string): Promise<string> {
   return await mkdtemp(path.join(tmpdir(), prefix));
 }
 
-describe('CodexProvider', () => {
+describe('CodexCliProvider', () => {
   let fixturesRoot: string;
 
   beforeEach(async () => {
@@ -42,7 +42,7 @@ describe('CodexProvider', () => {
         exitCode: 0,
       }),
     );
-    const provider = new CodexProvider(
+    const provider = new CodexCliProvider(
       'codex-target',
       {
         executable: process.execPath,
@@ -105,7 +105,7 @@ describe('CodexProvider', () => {
       stderr: '',
       exitCode: 0,
     }));
-    const provider = new CodexProvider(
+    const provider = new CodexCliProvider(
       'codex-target',
       {
         executable: process.execPath,
@@ -136,7 +136,7 @@ describe('CodexProvider', () => {
       exitCode: 0,
     }));
 
-    const provider = new CodexProvider(
+    const provider = new CodexCliProvider(
       'codex-target',
       {
         executable: process.execPath,
@@ -172,7 +172,7 @@ describe('CodexProvider', () => {
       };
     });
 
-    const provider = new CodexProvider(
+    const provider = new CodexCliProvider(
       'codex-target',
       {
         executable: process.execPath,
@@ -217,7 +217,7 @@ describe('CodexProvider', () => {
       };
     });
 
-    const provider = new CodexProvider(
+    const provider = new CodexCliProvider(
       'codex-target',
       {
         executable: process.execPath,
