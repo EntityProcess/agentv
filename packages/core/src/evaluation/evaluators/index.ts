@@ -62,3 +62,12 @@ export type { TokenUsageEvaluatorOptions } from './token-usage.js';
 
 export { ToolTrajectoryEvaluator } from './tool-trajectory.js';
 export type { ToolTrajectoryEvaluatorOptions } from './tool-trajectory.js';
+
+// Deterministic assertions
+export {
+  runContainsAssertion,
+  runEqualsAssertion,
+  runIsJsonAssertion,
+  runRegexAssertion,
+} from './assertions.js';
+export type { AssertionResult } from './assertions.js';
