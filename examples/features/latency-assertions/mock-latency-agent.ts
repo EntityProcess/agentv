@@ -41,7 +41,12 @@ function generateResponse(prompt: string): AgentResponse {
           role: 'assistant',
           content: 'Here is the config file content: { "debug": false }',
           tool_calls: [
-            { tool: 'Read', input: { path: 'config.json' }, output: '{ "debug": false }', duration_ms: 45 },
+            {
+              tool: 'Read',
+              input: { path: 'config.json' },
+              output: '{ "debug": false }',
+              duration_ms: 45,
+            },
           ],
         },
       ],
@@ -64,7 +69,11 @@ function generateResponse(prompt: string): AgentResponse {
   }
 
   // Scenario: Data pipeline (mixed durations)
-  if (lowerPrompt.includes('process') || lowerPrompt.includes('data') || lowerPrompt.includes('customer')) {
+  if (
+    lowerPrompt.includes('process') ||
+    lowerPrompt.includes('data') ||
+    lowerPrompt.includes('customer')
+  ) {
     return {
       output_messages: [
         {
@@ -116,9 +125,7 @@ function generateResponse(prompt: string): AgentResponse {
 
   // Default
   return {
-    output_messages: [
-      { role: 'assistant', content: 'Request processed.' },
-    ],
+    output_messages: [{ role: 'assistant', content: 'Request processed.' }],
   };
 }
 
