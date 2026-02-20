@@ -33,7 +33,7 @@ tests:
 |-------|-------------|
 | `description` | Human-readable description of the evaluation |
 | `dataset` | Optional dataset identifier |
-| `execution` | Default execution config (target, evaluators) |
+| `execution` | Default execution config (target, evaluators). Root-level evaluators are appended to every test's evaluators unless the test sets `skip_defaults: true` |
 | `workspace` | Suite-level workspace config (setup/teardown scripts, template) |
 | `tests` | Array of individual tests |
 

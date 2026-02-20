@@ -24,13 +24,37 @@ export async function parseEvaluators(
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
 
-  // Priority: case-level execution.evaluators > case-level evaluators > global execution.evaluators
-  // Note: If a case has an execution object but omits evaluators, we MUST still fall back to the
-  // suite-level execution.evaluators (otherwise adding constraints at case-level disables inheritance).
-  const candidateEvaluators =
-    (executionObject ? executionObject.evaluators : undefined) ??
-    rawEvalCase.evaluators ??
-    globalExecution?.evaluators;
+  // Case-level evaluators: execution.evaluators > top-level evaluators
+  const caseEvaluators =
+    (executionObject ? executionObject.evaluators : undefined) ?? rawEvalCase.evaluators;
+
+  // Root-level (default) evaluators from suite execution block
+  const skipDefaults = executionObject?.skip_defaults === true;
+  const rootEvaluators = skipDefaults ? undefined : globalExecution?.evaluators;
+
+  // Parse case-level evaluators
+  const parsedCase = await parseEvaluatorList(caseEvaluators, searchRoots, evalId);
+  // Parse root-level evaluators (appended after case-level)
+  const parsedRoot = await parseEvaluatorList(rootEvaluators, searchRoots, evalId);
+
+  if (!parsedCase && !parsedRoot) {
+    return undefined;
+  }
+
+  // Case-level evaluators run first, root-level defaults appended
+  const evaluators: EvaluatorConfig[] = [...(parsedCase ?? []), ...(parsedRoot ?? [])];
+
+  return evaluators.length > 0 ? evaluators : undefined;
+}
+
+/**
+ * Parse a raw evaluator array into typed EvaluatorConfig objects.
+ */
+async function parseEvaluatorList(
+  candidateEvaluators: JsonValue | undefined,
+  searchRoots: readonly string[],
+  evalId: string,
+): Promise<readonly EvaluatorConfig[] | undefined> {
   if (candidateEvaluators === undefined) {
     return undefined;
   }

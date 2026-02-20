@@ -22,7 +22,7 @@
         },
         "evaluators": {
           "type": "array",
-          "description": "Default evaluators for all tests (code-based and LLM judges)",
+          "description": "Default evaluators appended to every test's evaluators (unless skip_defaults is set per test)",
           "items": {
             "type": "object",
             "properties": {
@@ -235,9 +235,13 @@
                 "type": "string",
                 "description": "Override target for this specific test"
               },
+              "skip_defaults": {
+                "type": "boolean",
+                "description": "When true, root-level execution.evaluators are not appended to this test's evaluators"
+              },
               "evaluators": {
                 "type": "array",
-                "description": "Multiple evaluators (code-based and LLM judges)",
+                "description": "Per-test evaluators (root-level evaluators are appended unless skip_defaults is true)",
                 "items": {
                   "type": "object",
                   "properties": {

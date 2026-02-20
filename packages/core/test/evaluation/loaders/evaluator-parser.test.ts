@@ -780,3 +780,106 @@ describe('parseEvaluators - execution_metrics', () => {
     });
   });
 });
+
+describe('parseEvaluators - default evaluators merge', () => {
+  it('appends root evaluators after case-level evaluators', async () => {
+    const rawEvalCase = {
+      execution: {
+        evaluators: [{ name: 'case-eval', type: 'latency', threshold: 3000 }],
+      },
+    };
+
+    const globalExecution = {
+      evaluators: [{ name: 'root-eval', type: 'latency', threshold: 5000 }],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, globalExecution, [process.cwd()], 'test');
+
+    expect(evaluators).toHaveLength(2);
+    expect(evaluators?.[0]).toEqual({ name: 'case-eval', type: 'latency', threshold: 3000 });
+    expect(evaluators?.[1]).toEqual({ name: 'root-eval', type: 'latency', threshold: 5000 });
+  });
+
+  it('uses only root evaluators when case has none', async () => {
+    const rawEvalCase = {};
+
+    const globalExecution = {
+      evaluators: [{ name: 'root-eval', type: 'latency', threshold: 5000 }],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, globalExecution, [process.cwd()], 'test');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toEqual({ name: 'root-eval', type: 'latency', threshold: 5000 });
+  });
+
+  it('skips root evaluators when skip_defaults is true', async () => {
+    const rawEvalCase = {
+      execution: {
+        skip_defaults: true,
+        evaluators: [{ name: 'case-eval', type: 'latency', threshold: 3000 }],
+      },
+    };
+
+    const globalExecution = {
+      evaluators: [{ name: 'root-eval', type: 'latency', threshold: 5000 }],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, globalExecution, [process.cwd()], 'test');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toEqual({ name: 'case-eval', type: 'latency', threshold: 3000 });
+  });
+
+  it('returns undefined when no evaluators at any level', async () => {
+    const rawEvalCase = {};
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [process.cwd()], 'test');
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('returns undefined when skip_defaults and no case evaluators', async () => {
+    const rawEvalCase = {
+      execution: { skip_defaults: true },
+    };
+
+    const globalExecution = {
+      evaluators: [{ name: 'root-eval', type: 'latency', threshold: 5000 }],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, globalExecution, [process.cwd()], 'test');
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('backward compat: case with execution object but no evaluators inherits root', async () => {
+    const rawEvalCase = {
+      execution: {
+        constraints: { max_total_tokens: 123 },
+      },
+    };
+
+    const globalExecution = {
+      evaluators: [{ name: 'root-eval', type: 'latency', threshold: 5000 }],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, globalExecution, [process.cwd()], 'test');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toEqual({ name: 'root-eval', type: 'latency', threshold: 5000 });
+  });
+
+  it('case top-level evaluators field also merges with root', async () => {
+    const rawEvalCase = {
+      evaluators: [{ name: 'case-eval', type: 'latency', threshold: 3000 }],
+    };
+
+    const globalExecution = {
+      evaluators: [{ name: 'root-eval', type: 'latency', threshold: 5000 }],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, globalExecution, [process.cwd()], 'test');
+
+    expect(evaluators).toHaveLength(2);
+    expect(evaluators?.[0]).toEqual({ name: 'case-eval', type: 'latency', threshold: 3000 });
+    expect(evaluators?.[1]).toEqual({ name: 'root-eval', type: 'latency', threshold: 5000 });
+  });
+});

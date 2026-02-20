@@ -85,6 +85,32 @@ tests:
           prompt: ./judges/depth.md
 ```
 
+Per-case evaluators are **merged** with root-level `execution.evaluators` — test-specific evaluators run first, then root-level defaults are appended. To opt out of root-level evaluators for a specific test, set `skip_defaults: true`:
+
+```yaml
+execution:
+  evaluators:
+    - name: latency_check
+      type: latency
+      threshold: 5000
+
+tests:
+  - id: normal-case
+    criteria: Returns correct answer
+    input: What is 2+2?
+    # Gets latency_check from root-level evaluators
+
+  - id: special-case
+    criteria: Handles edge case
+    input: Handle this edge case
+    execution:
+      skip_defaults: true
+      evaluators:
+        - name: custom_eval
+          type: llm_judge
+      # Does NOT get latency_check
+```
+
 ## Per-Case Workspace Config
 
 Override the suite-level workspace config for individual tests. Test-level fields replace suite-level fields:
