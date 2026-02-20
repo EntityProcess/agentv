@@ -1,4 +1,4 @@
-# Sidecar metadata for dataset.jsonl
+# Sidecar metadata for cases.jsonl
 # Provides default values for all tests
 
 description: JSONL version of the basic example - demonstrates file references, multi-turn, and per-case overrides

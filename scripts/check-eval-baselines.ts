@@ -45,7 +45,7 @@ function parseArgs(argv: string[]): CliOptions {
   return options;
 }
 
-/** Find dataset YAML files by naming convention (skips sidecar YAMLs) */
+/** Find dataset YAML files by naming convention (dataset*.yaml) */
 async function findDatasetYamlFiles(dir: string, results: string[] = []): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
@@ -59,12 +59,6 @@ async function findDatasetYamlFiles(dir: string, results: string[] = []): Promis
       entry.name.startsWith('dataset') &&
       (entry.name.endsWith('.yaml') || entry.name.endsWith('.yml'))
     ) {
-      // Skip sidecar YAMLs — these provide defaults for a paired .jsonl file
-      // and cannot be run standalone (they have no `tests` field).
-      const baseName = entry.name.replace(/\.ya?ml$/, '');
-      const siblingJsonl = path.join(dir, `${baseName}.jsonl`);
-      if (existsSync(siblingJsonl)) continue;
-
       results.push(fullPath);
     }
   }
