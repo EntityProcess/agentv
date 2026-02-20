@@ -1,0 +1,84 @@
+# Evaluator Conformance Fixture Dataset
+#
+# Each fixture has a label indicating the expected evaluator behavior:
+#   - pass:      Unambiguous pass — evaluator must always score 1.0
+#   - fail:      Unambiguous fail — evaluator must always score 0.0
+#   - ambiguous: Allowed to vary within score_bounds
+#
+# The evaluator under test receives: question, criteria, candidate_answer, expected_output
+
+evaluator:
+  script: ["bun", "run", "evaluators/keyword-judge.ts"]
+
+fixtures:
+  # ── Unambiguous Pass Cases ─────────────────────────────────────────────
+
+  - id: clear-pass-exact-match
+    label: pass
+    question: "What is the capital of France?"
+    criteria: "Answer must name the capital city of France."
+    expected_output: "Paris"
+    candidate_answer: "Paris"
+
+  - id: clear-pass-contains-answer
+    label: pass
+    question: "What is 7 * 8?"
+    criteria: "Answer must contain the correct numerical result."
+    expected_output: "56"
+    candidate_answer: "The answer is 56."
+
+  - id: clear-pass-multi-keyword
+    label: pass
+    question: "Name the primary colors."
+    criteria: "Answer must mention red, blue, and yellow."
+    expected_output: "red, blue, yellow"
+    candidate_answer: "The primary colors are red, blue, and yellow."
+
+  # ── Unambiguous Fail Cases ─────────────────────────────────────────────
+
+  - id: clear-fail-wrong-answer
+    label: fail
+    question: "What is the capital of France?"
+    criteria: "Answer must name the capital city of France."
+    expected_output: "Paris"
+    candidate_answer: "London"
+
+  - id: clear-fail-irrelevant
+    label: fail
+    question: "What is 7 * 8?"
+    criteria: "Answer must contain the correct numerical result."
+    expected_output: "56"
+    candidate_answer: "I like pizza."
+
+  - id: clear-fail-empty
+    label: fail
+    question: "Name the primary colors."
+    criteria: "Answer must mention red, blue, and yellow."
+    expected_output: "red, blue, yellow"
+    candidate_answer: ""
+
+  # ── Ambiguous Cases ────────────────────────────────────────────────────
+
+  - id: ambiguous-partial-overlap
+    label: ambiguous
+    score_bounds: [0.2, 0.8]
+    question: "Name the primary colors."
+    criteria: "Answer must mention red, blue, and yellow."
+    expected_output: "red, blue, yellow"
+    candidate_answer: "Red and green are colors."
+
+  - id: ambiguous-verbose-correct
+    label: ambiguous
+    score_bounds: [0.4, 1.0]
+    question: "What is the capital of France?"
+    criteria: "Answer must name the capital city of France."
+    expected_output: "Paris"
+    candidate_answer: "France is a country in Europe. Its capital city is Paris, which is known for the Eiffel Tower."
+
+  - id: ambiguous-near-miss
+    label: ambiguous
+    score_bounds: [0.0, 0.6]
+    question: "What is 7 * 8?"
+    criteria: "Answer must contain the correct numerical result."
+    expected_output: "56"
+    candidate_answer: "The answer is approximately 55."

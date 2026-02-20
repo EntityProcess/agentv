@@ -1,0 +1,31 @@
+# Evaluator Conformance Demo
+# Demonstrates using the keyword-judge evaluator in a standard AgentV eval.
+#
+# Run: cd examples/showcase/evaluator-conformance
+#      npx agentv run EVAL.yaml --dry-run
+#
+# The conformance harness validates this evaluator separately:
+#      bun run conformance-check.ts
+
+description: Keyword-matching evaluator used for conformance testing demo
+
+tests:
+  - id: exact-match
+    criteria: "Answer must name the capital city of France."
+    input: "What is the capital of France?"
+    expected_output: "Paris"
+    execution:
+      evaluators:
+        - name: keyword-judge
+          type: code_judge
+          script: ["bun", "run", "evaluators/keyword-judge.ts"]
+
+  - id: partial-match
+    criteria: "Answer must mention red, blue, and yellow."
+    input: "Name the primary colors."
+    expected_output: "red, blue, yellow"
+    execution:
+      evaluators:
+        - name: keyword-judge
+          type: code_judge
+          script: ["bun", "run", "evaluators/keyword-judge.ts"]
