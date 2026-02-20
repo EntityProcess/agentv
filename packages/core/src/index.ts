@@ -7,6 +7,11 @@ export * from './evaluation/evaluators.js';
 export * from './evaluation/orchestrator.js';
 export * from './evaluation/generators/index.js';
 export * from './evaluation/workspace/index.js';
+export {
+  ResponseCache,
+  shouldEnableCache,
+  shouldSkipCacheForTemperature,
+} from './evaluation/cache/response-cache.js';
 export { toSnakeCaseDeep, toCamelCaseDeep } from './evaluation/case-conversion.js';
 export { trimBaselineResult } from './evaluation/baseline.js';
 

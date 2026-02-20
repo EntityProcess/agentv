@@ -99,7 +99,11 @@ export const evalRunCommand = command({
     }),
     cache: flag({
       long: 'cache',
-      description: 'Enable in-memory provider response cache',
+      description: 'Enable provider response cache (persisted to disk)',
+    }),
+    noCache: flag({
+      long: 'no-cache',
+      description: 'Disable caching (overrides YAML execution.cache)',
     }),
     verbose: flag({
       long: 'verbose',
@@ -143,6 +147,7 @@ export const evalRunCommand = command({
       agentTimeout: args.agentTimeout,
       maxRetries: args.maxRetries,
       cache: args.cache,
+      noCache: args.noCache,
       verbose: args.verbose,
       keepWorkspaces: args.keepWorkspaces,
       cleanupWorkspaces: args.cleanupWorkspaces,
