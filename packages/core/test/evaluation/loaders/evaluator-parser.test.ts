@@ -1523,7 +1523,7 @@ describe('parseEvaluators - composite assert field', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect(evaluators![0].type).toBe('composite');
+    expect(evaluators?.[0].type).toBe('composite');
   });
 
   it('composite still works with evaluators field (backward compat)', async () => {
@@ -1546,7 +1546,7 @@ describe('parseEvaluators - composite assert field', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect(evaluators![0].type).toBe('composite');
+    expect(evaluators?.[0].type).toBe('composite');
   });
 
   it('composite assert takes precedence over evaluators', async () => {
@@ -1556,12 +1556,8 @@ describe('parseEvaluators - composite assert field', () => {
           {
             name: 'combined',
             type: 'composite',
-            assert: [
-              { name: 'safety', type: 'llm_judge', prompt: './safety.md' },
-            ],
-            evaluators: [
-              { name: 'quality', type: 'llm_judge', prompt: './quality.md' },
-            ],
+            assert: [{ name: 'safety', type: 'llm_judge', prompt: './safety.md' }],
+            evaluators: [{ name: 'quality', type: 'llm_judge', prompt: './quality.md' }],
             aggregator: { type: 'weighted_average' },
           },
         ],
@@ -1572,7 +1568,7 @@ describe('parseEvaluators - composite assert field', () => {
     );
     expect(evaluators).toHaveLength(1);
     // assert takes precedence - only 1 inner evaluator
-    const composite = evaluators![0] as CompositeEvaluatorConfig;
+    const composite = evaluators?.[0] as CompositeEvaluatorConfig;
     expect(composite.evaluators).toHaveLength(1);
     expect(composite.evaluators[0].name).toBe('safety');
   });
