@@ -53,7 +53,7 @@ tests:
 
   - id: srp-example
     criteria: "Provide a concrete example of the Single Responsibility Principle"
-    input_messages:
+    input:
       - role: user
         content: "What are the SOLID principles in software engineering?"
       - role: assistant

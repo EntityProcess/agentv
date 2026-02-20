@@ -55,9 +55,9 @@ const baseTestCase: EvalTest = {
   id: 'case-1',
   dataset: 'test-dataset',
   question: 'Improve the logging implementation',
-  input_messages: [{ role: 'user', content: 'Please add logging' }],
+  input: [{ role: 'user', content: 'Please add logging' }],
   input_segments: [{ type: 'text', value: 'Please add logging' }],
-  expected_messages: [],
+  expected_output: [],
   reference_answer: '- add structured logging\n- avoid global state',
   guideline_paths: [],
   file_paths: [],
@@ -443,7 +443,7 @@ describe('CodeEvaluator', () => {
 
     const evalCaseWithExpectedMessages: EvalTest = {
       ...baseTestCase,
-      expected_messages: [{ role: 'assistant', content: { decision: 'ACCEPT' } }],
+      expected_output: [{ role: 'assistant', content: { decision: 'ACCEPT' } }],
     };
 
     const expectedCandidate = '{"decision":"ACCEPT"}';
@@ -466,7 +466,7 @@ describe('CodeEvaluator', () => {
 
     expect(result.score).toBe(1);
     expect(result.verdict).toBe('pass');
-    expect(result.hits).toContain('expected_messages present');
+    expect(result.hits).toContain('expected_output present');
     expect(result.hits).toContain('candidate_answer present');
     expect(result.hits).toContain('candidate_answer parses');
   });
@@ -529,7 +529,7 @@ describe('CodeEvaluator', () => {
     const result = await evaluator.evaluate({
       evalCase: {
         ...baseTestCase,
-        expected_messages: [{ role: 'assistant', content: 'test' }],
+        expected_output: [{ role: 'assistant', content: 'test' }],
       },
       candidate: 'Test candidate',
       target: baseTarget,
@@ -586,7 +586,7 @@ describe('CodeEvaluator', () => {
     const result = await evaluator.evaluate({
       evalCase: {
         ...baseTestCase,
-        expected_messages: [{ role: 'assistant', content: { decision: 'ACCEPT' } }],
+        expected_output: [{ role: 'assistant', content: { decision: 'ACCEPT' } }],
       },
       candidate: '{"decision":"ACCEPT"}',
       target: baseTarget,
@@ -604,7 +604,7 @@ describe('CodeEvaluator', () => {
 describe('FieldAccuracyEvaluator', () => {
   const baseTestCaseWithExpected: EvalTest = {
     ...baseTestCase,
-    expected_messages: [
+    expected_output: [
       {
         role: 'assistant',
         content: {
@@ -862,7 +862,7 @@ describe('FieldAccuracyEvaluator', () => {
   it('handles array index paths', () => {
     const evalCaseWithArray: EvalTest = {
       ...baseTestCase,
-      expected_messages: [
+      expected_output: [
         {
           role: 'assistant',
           content: {

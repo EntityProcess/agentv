@@ -41,7 +41,7 @@ export class CodeEvaluator implements Evaluator {
     const payload = {
       question: context.evalCase.question,
       criteria: context.evalCase.criteria,
-      expectedMessages: context.evalCase.expected_messages,
+      expectedOutput: context.evalCase.expected_output,
       referenceAnswer: context.evalCase.reference_answer,
       candidateAnswer: context.candidate,
       outputMessages: context.outputMessages ?? null,
@@ -49,7 +49,7 @@ export class CodeEvaluator implements Evaluator {
       inputFiles: context.evalCase.file_paths.filter(
         (path) => !context.evalCase.guideline_paths.includes(path),
       ),
-      inputMessages: context.evalCase.input_messages,
+      input: context.evalCase.input,
       traceSummary: context.traceSummary ?? null,
       fileChanges: context.fileChanges ?? null,
       workspacePath: context.workspacePath ?? null,

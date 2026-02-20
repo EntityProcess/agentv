@@ -65,10 +65,10 @@ tests:`;
     criteria: System should respond politely and helpfully`;
 
   testFileContent += `
-    input_messages:
+    input:
       - role: user
         content: "Hello, can you help me?"
-    expected_messages:
+    expected_output:
       - role: assistant
         content: "Of course! How can I help you?"`;
 
@@ -78,7 +78,7 @@ tests:`;
 
   testFileContent += `
   - id: case-without-outcome
-    input_messages:
+    input:
       - role: user
         content: "This case has no expected outcome"
 `;

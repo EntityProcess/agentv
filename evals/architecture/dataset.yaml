@@ -8,7 +8,7 @@ tests:
     criteria: |
       The proposed change violates the "Lightweight Core, Plugin Extensibility" principle.
 
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -24,7 +24,7 @@ tests:
               - violated_principle: name of violated principle, or null
               - reasoning: one sentence
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           follows_principles: false
@@ -35,7 +35,7 @@ tests:
     criteria: |
       The proposed change violates the "AI-First Design" principle.
 
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -55,7 +55,7 @@ tests:
               - violated_principle: name of violated principle, or null
               - reasoning: one sentence
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           follows_principles: false
@@ -66,7 +66,7 @@ tests:
     criteria: |
       The proposed change follows the design principles.
 
-    input_messages:
+    input:
       - role: user
         content:
           - type: file
@@ -82,7 +82,7 @@ tests:
               - violated_principle: name of violated principle, or null
               - reasoning: one sentence
 
-    expected_messages:
+    expected_output:
       - role: assistant
         content: |
           follows_principles: true

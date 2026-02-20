@@ -6,7 +6,7 @@
 # Formula: (1/R) * Σ(Precision@k * r_k) for k=1 to n
 # where R = total relevant nodes, r_k = binary relevance at position k
 #
-# Retrieval context is passed via expected_messages.tool_calls, which
+# Retrieval context is passed via expected_output.tool_calls, which
 # represents the expected agent behavior (calling a retrieval tool).
 
 execution:

@@ -32,11 +32,11 @@ The template receives evaluation context via stdin (JSON) and outputs the prompt
 - `candidateAnswer` - The agent's response being evaluated
 - `referenceAnswer` - Optional reference answer
 - `criteria` - Optional criteria / expected outcome
-- `expectedMessages` - Optional expected messages
+- `expectedOutput` - Optional expected output messages
 - `outputMessages` - Optional output messages from agent
 - `guidelineFiles` - Paths to guideline files
 - `inputFiles` - Paths to input files
-- `inputMessages` - Input messages to agent
+- `input` - Input messages to agent
 - `traceSummary` - Optional trace summary with tool usage metrics
 - `config` - Optional pass-through config from YAML
 

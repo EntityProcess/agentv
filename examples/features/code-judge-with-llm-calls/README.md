@@ -117,10 +117,10 @@ This produces: `["Node A", "Node B", "Node C"]`
 
 **Potential Solutions:**
 
-All solutions below can be implemented entirely in the code judge - no core AgentV changes required. The code judge receives the full `expectedMessages` structure:
+All solutions below can be implemented entirely in the code judge - no core AgentV changes required. The code judge receives the full `expectedOutput` structure:
 
 ```typescript
-// Available in input.expectedMessages
+// Available in input.expectedOutput
 {
   role: 'assistant',
   toolCalls: [{

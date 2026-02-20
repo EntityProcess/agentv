@@ -91,16 +91,16 @@ export class FieldAccuracyEvaluator implements Evaluator {
       };
     }
 
-    // Extract expected data from expected_messages
-    const expectedData = this.extractExpectedData(evalCase.expected_messages);
+    // Extract expected data from expected_output
+    const expectedData = this.extractExpectedData(evalCase.expected_output);
     if (!expectedData) {
       return {
         score: 0,
         verdict: 'fail',
         hits: [],
-        misses: ['No expected data found in expected_messages'],
+        misses: ['No expected data found in expected_output'],
         expectedAspectCount: this.config.fields.length,
-        reasoning: 'Could not extract expected data from expected_messages',
+        reasoning: 'Could not extract expected data from expected_output',
       };
     }
 
@@ -116,7 +116,7 @@ export class FieldAccuracyEvaluator implements Evaluator {
   }
 
   /**
-   * Extract expected data from expected_messages array.
+   * Extract expected data from expected_output array.
    * Looks for the last assistant message with content.
    */
   private extractExpectedData(

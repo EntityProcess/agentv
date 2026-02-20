@@ -150,8 +150,8 @@ Each test has its own evaluator that validates the batch runner output. The eval
 ```json
 {
   "candidate_answer": "{\"id\":\"case-001\",\"decision\":\"CLEAR\",...}",
-  "expected_messages": [{"role": "assistant", "content": {"decision": "CLEAR"}}],
-  "input_messages": [...]
+  "expected_output": [{"role": "assistant", "content": {"decision": "CLEAR"}}],
+  "input": [...]
 }
 ```
 
@@ -172,14 +172,14 @@ import fs from 'node:fs';
 
 type EvalInput = {
   candidate_answer?: string;
-  expected_messages?: Array<{ role: string; content: unknown }>;
+  expected_output?: Array<{ role: string; content: unknown }>;
 };
 
 function main() {
   const stdin = fs.readFileSync(0, 'utf8');
   const input = JSON.parse(stdin) as EvalInput;
 
-  const expectedDecision = findExpectedDecision(input.expected_messages);
+  const expectedDecision = findExpectedDecision(input.expected_output);
 
   let candidateDecision: string | undefined;
   try {

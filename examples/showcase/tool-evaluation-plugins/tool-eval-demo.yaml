@@ -119,7 +119,7 @@ tests:
         content: Summarize the main points of the user manual.
 
     # Reference answer for comparison (from a baseline agent)
-    # Note: reference_answer is constructed from expected_messages content
+    # Note: reference_answer is constructed from expected_output content
     expected_output:
       - role: assistant
         content: |-

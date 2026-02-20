@@ -93,7 +93,7 @@ describe('validateEvalFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it('rejects eval file without input_messages or input alias', async () => {
+  it('rejects eval file without input field', async () => {
     const filePath = path.join(tempDir, 'missing-input.yaml');
     await writeFile(
       filePath,
@@ -106,7 +106,7 @@ describe('validateEvalFile', () => {
     const result = await validateEvalFile(filePath);
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.message.includes("'input_messages' or 'input'"))).toBe(true);
+    expect(result.errors.some((e) => e.message.includes("'input'"))).toBe(true);
   });
 
   it('rejects eval file with invalid input alias type', async () => {
@@ -126,17 +126,16 @@ describe('validateEvalFile', () => {
     expect(result.errors.some((e) => e.message.includes("'input'"))).toBe(true);
   });
 
-  it('validates canonical input_messages when both canonical and alias present', async () => {
-    const filePath = path.join(tempDir, 'canonical-precedence.yaml');
+  it('validates input message array', async () => {
+    const filePath = path.join(tempDir, 'input-messages.yaml');
     await writeFile(
       filePath,
       `tests:
   - id: test-1
     criteria: Goal
-    input_messages:
+    input:
       - role: user
-        content: Canonical
-    input: "Alias should be ignored for validation purposes"
+        content: Hello
 `,
     );
 

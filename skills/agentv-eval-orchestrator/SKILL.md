@@ -25,11 +25,11 @@ For each test, run these three steps:
 agentv prompt eval input <path> --test-id <id>
 ```
 
-Returns JSON with `input_messages`, `guideline_paths`, and `criteria`. File references in messages use absolute paths — read them from the filesystem.
+Returns JSON with `input`, `guideline_paths`, and `criteria`. File references in messages use absolute paths — read them from the filesystem.
 
 ### 2. Execute the Task
 
-You ARE the candidate LLM. Read `input_messages` from step 1, read any referenced files, and answer the task. Save your response to a temp file.
+You ARE the candidate LLM. Read `input` from step 1, read any referenced files, and answer the task. Save your response to a temp file.
 
 **Important**: Do not leak `criteria` into your answer — it's for your reference when judging, not part of the task.
 

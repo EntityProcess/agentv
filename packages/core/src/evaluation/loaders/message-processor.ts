@@ -50,7 +50,7 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
 
     // Structured object content (real-world style payloads). Treat as a single text segment.
     // This keeps prompt building deterministic while preserving the full payload for code evaluators
-    // via evalCase.input_messages.
+    // via evalCase.input.
     if (isJsonObject(content)) {
       const rendered = JSON.stringify(content, null, 2);
       segments.push({ type: 'text', value: rendered });
@@ -85,7 +85,7 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
           const attempts = attempted.length
             ? ['  Tried:', ...attempted.map((candidate) => `    ${candidate}`)]
             : undefined;
-          const context = messageType === 'input' ? '' : ' in expected_messages';
+          const context = messageType === 'input' ? '' : ' in expected_output';
           logWarning(`File not found${context}: ${displayPath}`, attempts);
           continue;
         }
@@ -189,7 +189,7 @@ export async function resolveAssistantContent(
         const attempts = attempted.length
           ? ['  Tried:', ...attempted.map((candidate) => `    ${candidate}`)]
           : undefined;
-        logWarning(`File not found in expected_messages: ${displayPath}`, attempts);
+        logWarning(`File not found in expected_output: ${displayPath}`, attempts);
         continue;
       }
 
@@ -267,7 +267,7 @@ type ProcessExpectedMessagesOptions = {
 };
 
 /**
- * Extended message type for expected_messages that may include tool_calls.
+ * Extended message type for expected_output that may include tool_calls.
  */
 type ExtendedTestMessage = TestMessage & {
   readonly name?: string;
@@ -275,7 +275,7 @@ type ExtendedTestMessage = TestMessage & {
 };
 
 /**
- * Process expected_messages preserving full message structure including role and tool_calls.
+ * Process expected_output preserving full message structure including role and tool_calls.
  * Resolves file references and processes content.
  */
 export async function processExpectedMessages(
@@ -323,7 +323,7 @@ export async function processExpectedMessages(
             const attempts = attempted.length
               ? ['  Tried:', ...attempted.map((candidate) => `    ${candidate}`)]
               : undefined;
-            logWarning(`File not found in expected_messages: ${displayPath}`, attempts);
+            logWarning(`File not found in expected_output: ${displayPath}`, attempts);
             continue;
           }
 

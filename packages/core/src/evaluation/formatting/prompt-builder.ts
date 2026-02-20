@@ -71,7 +71,7 @@ export async function buildPromptInputs(
     }
   }
 
-  for (const message of testCase.input_messages) {
+  for (const message of testCase.input) {
     const messageSegments: JsonObject[] = [];
 
     if (typeof message.content === 'string') {
@@ -126,7 +126,7 @@ export async function buildPromptInputs(
   }
 
   // Determine if we need role markers based on actual processed content
-  const useRoleMarkers = needsRoleMarkers(testCase.input_messages, segmentsByMessage);
+  const useRoleMarkers = needsRoleMarkers(testCase.input, segmentsByMessage);
 
   let question: string;
 
@@ -134,8 +134,8 @@ export async function buildPromptInputs(
     // Multi-turn format with role markers using pre-computed segments
     const messageParts: string[] = [];
 
-    for (let i = 0; i < testCase.input_messages.length; i++) {
-      const message = testCase.input_messages[i];
+    for (let i = 0; i < testCase.input.length; i++) {
+      const message = testCase.input[i];
       const segments = segmentsByMessage[i];
 
       if (!hasVisibleContent(segments)) {
@@ -189,7 +189,7 @@ export async function buildPromptInputs(
 
   const chatPrompt = useRoleMarkers
     ? buildChatPromptFromSegments({
-        messages: testCase.input_messages,
+        messages: testCase.input,
         segmentsByMessage,
         guidelinePatterns: testCase.guideline_patterns,
         guidelineContent: guidelines,

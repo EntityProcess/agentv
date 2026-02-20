@@ -29,11 +29,11 @@ cat << 'EOF' | bun run scripts/verify-attachments.ts
 {
   "question": "Please echo this request",
   "criteria": "The CLI echoes the prompt and lists attachment names.",
-  "expected_messages": [{"role": "assistant", "content": "Attachments detected (2): example.txt, python.instructions.md."}],
+  "expected_output": [{"role": "assistant", "content": "Attachments detected (2): example.txt, python.instructions.md."}],
   "candidate_answer": "Attachments detected (2): example.txt, python.instructions.md.",
   "guideline_files": ["evals/python.instructions.md"],
   "input_files": ["evals/example.txt"],
-  "input_messages": []
+  "input": []
 }
 EOF
 ```

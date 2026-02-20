@@ -47,11 +47,11 @@ function rougeN(candidate: string, reference: string, n: number) {
   return { precision, recall, f1 };
 }
 
-export default defineCodeJudge(({ candidateAnswer, referenceAnswer, expectedMessages }) => {
+export default defineCodeJudge(({ candidateAnswer, referenceAnswer, expectedOutput }) => {
   const reference =
     referenceAnswer ??
-    (expectedMessages[0] && typeof expectedMessages[0].content === 'string'
-      ? expectedMessages[0].content
+    (expectedOutput[0] && typeof expectedOutput[0].content === 'string'
+      ? expectedOutput[0].content
       : '');
 
   if (!reference) {

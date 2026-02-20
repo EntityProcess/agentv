@@ -40,9 +40,6 @@ type RawJsonlEvalCase = JsonObject & {
   readonly criteria?: JsonValue;
   /** @deprecated Use `criteria` instead */
   readonly expected_outcome?: JsonValue;
-  readonly input_messages?: JsonValue;
-  readonly expected_messages?: JsonValue;
-  // Aliases for input_messages/expected_messages
   readonly input?: JsonValue;
   readonly expected_output?: JsonValue;
   readonly execution?: JsonValue;
@@ -189,19 +186,19 @@ export async function loadTestsFromJsonl(
       }
     }
 
-    // Resolve input_messages with alias/shorthand support (canonical takes precedence)
+    // Resolve input with shorthand support
     const inputMessages = resolveInputMessages(evalcase);
-    // Resolve expected_messages with alias/shorthand support (canonical takes precedence)
+    // Resolve expected_output with shorthand support
     const expectedMessages = resolveExpectedMessages(evalcase) ?? [];
 
     if (!id || !outcome || !inputMessages || inputMessages.length === 0) {
       logError(
-        `Skipping incomplete test at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, criteria, and/or input_messages (or input)`,
+        `Skipping incomplete test at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, criteria, and/or input`,
       );
       continue;
     }
 
-    // expected_messages is optional - for outcome-only evaluation
+    // expected_output is optional - for outcome-only evaluation
     const hasExpectedMessages = expectedMessages.length > 0;
 
     const guidelinePaths: string[] = [];
@@ -219,8 +216,8 @@ export async function loadTestsFromJsonl(
       verbose,
     });
 
-    // Process expected_messages into segments (only if provided)
-    // Preserve full message structure including role and tool_calls for expected_messages evaluator
+    // Process expected_output into segments (only if provided)
+    // Preserve full message structure including role and tool_calls for evaluator
     const outputSegments = hasExpectedMessages
       ? await processExpectedMessages({
           messages: expectedMessages,
@@ -231,7 +228,7 @@ export async function loadTestsFromJsonl(
       : [];
 
     // Build reference_answer:
-    // Extract the content from the last message in expected_messages (similar to candidate_answer)
+    // Extract the content from the last message in expected_output (similar to candidate_answer)
     let referenceAnswer = '';
     if (outputSegments.length > 0) {
       // Get the last message
@@ -298,9 +295,9 @@ export async function loadTestsFromJsonl(
       dataset: datasetName,
       conversation_id: conversationId,
       question: question,
-      input_messages: inputMessages,
+      input: inputMessages,
       input_segments: inputSegments,
-      expected_messages: outputSegments,
+      expected_output: outputSegments,
       reference_answer: referenceAnswer,
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
       guideline_patterns: guidelinePatterns,

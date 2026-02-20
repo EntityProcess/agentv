@@ -10,7 +10,7 @@
 # 2. Check if each statement can be attributed to retrieval context
 # 3. Score = proportion of attributable statements
 #
-# Retrieval context is passed via expected_messages.tool_calls, which
+# Retrieval context is passed via expected_output.tool_calls, which
 # represents the expected agent behavior (calling a retrieval tool).
 
 execution:

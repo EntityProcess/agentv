@@ -60,11 +60,11 @@ cat <<'EOF' | bun run judges/assertions.ts
 {
   "question": "Say hello",
   "criteria": "Response contains hello",
-  "expected_messages": [],
+  "expected_output": [],
   "candidate_answer": "Hello world!",
   "guideline_files": [],
   "input_files": [],
-  "input_messages": [],
+  "input": [],
   "config": { "type": "icontains", "value": "hello" }
 }
 EOF

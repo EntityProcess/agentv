@@ -13,7 +13,7 @@
  * 2. For each statement, check if it can be attributed to the retrieval context
  * 3. Score = proportion of statements supported by retrieval
  *
- * Retrieval context is extracted from expected_messages.tool_calls output,
+ * Retrieval context is extracted from expected_output.tool_calls output,
  * which represents the expected agent behavior (calling a retrieval tool).
  *
  * Requires `target: { max_calls: N }` in the evaluator YAML config,
@@ -33,7 +33,7 @@ interface AttributionResult {
 }
 
 export default defineCodeJudge(async (input) => {
-  const { question, criteria, expectedMessages } = input;
+  const { question, criteria, expectedOutput } = input;
 
   if (!criteria) {
     return {
@@ -44,16 +44,16 @@ export default defineCodeJudge(async (input) => {
     };
   }
 
-  // Extract retrieval context from expected_messages tool_calls
-  const retrievalContext = extractRetrievalContext(expectedMessages);
+  // Extract retrieval context from expected_output tool_calls
+  const retrievalContext = extractRetrievalContext(expectedOutput);
 
   if (retrievalContext.length === 0) {
     return {
       score: 0,
       hits: [],
-      misses: ['No retrieval context found in expected_messages.tool_calls'],
+      misses: ['No retrieval context found in expected_output.tool_calls'],
       reasoning:
-        'Contextual Recall requires retrieval context in expected_messages[].tool_calls[].output.results',
+        'Contextual Recall requires retrieval context in expected_output[].tool_calls[].output.results',
     };
   }
 

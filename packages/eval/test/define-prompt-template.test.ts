@@ -7,11 +7,11 @@ describe('PromptTemplateInputSchema', () => {
   const validInput = {
     question: 'What is 2+2?',
     criteria: 'The answer should be 4',
-    expectedMessages: [],
+    expectedOutput: [],
     candidateAnswer: 'The answer is 4',
     guidelineFiles: [],
     inputFiles: [],
-    inputMessages: [],
+    input: [],
   };
 
   it('parses valid input with all required fields', () => {
@@ -19,10 +19,10 @@ describe('PromptTemplateInputSchema', () => {
     expect(result.question).toBe('What is 2+2?');
     expect(result.candidateAnswer).toBe('The answer is 4');
     expect(result.criteria).toBe('The answer should be 4');
-    expect(result.expectedMessages).toEqual([]);
+    expect(result.expectedOutput).toEqual([]);
     expect(result.guidelineFiles).toEqual([]);
     expect(result.inputFiles).toEqual([]);
-    expect(result.inputMessages).toEqual([]);
+    expect(result.input).toEqual([]);
   });
 
   it('rejects input missing required fields', () => {
@@ -75,13 +75,13 @@ describe('PromptTemplateInputSchema', () => {
     expect(result.config).toEqual({ rubric: 'Check for correctness', strictMode: true });
   });
 
-  it('accepts expectedMessages with content', () => {
+  it('accepts expectedOutput with content', () => {
     const inputWithMessages = {
       ...validInput,
-      expectedMessages: [{ role: 'assistant', content: '4' }],
+      expectedOutput: [{ role: 'assistant', content: '4' }],
     };
     const result = PromptTemplateInputSchema.parse(inputWithMessages);
-    expect(result.expectedMessages[0].content).toBe('4');
+    expect(result.expectedOutput[0].content).toBe('4');
   });
 
   it('accepts guidelineFiles with paths', () => {
@@ -102,13 +102,13 @@ describe('PromptTemplateInputSchema', () => {
     expect(result.inputFiles).toEqual(['/path/to/input1.txt']);
   });
 
-  it('accepts inputMessages with content', () => {
+  it('accepts input with content', () => {
     const inputWithMessages = {
       ...validInput,
-      inputMessages: [{ role: 'user', content: 'What is 2+2?' }],
+      input: [{ role: 'user', content: 'What is 2+2?' }],
     };
     const result = PromptTemplateInputSchema.parse(inputWithMessages);
-    expect(result.inputMessages[0].content).toBe('What is 2+2?');
+    expect(result.input[0].content).toBe('What is 2+2?');
   });
 
   it('accepts optional outputMessages with toolCalls', () => {
@@ -130,13 +130,13 @@ describe('PromptTemplateInputSchema', () => {
     const fullInput = {
       question: 'What is 2+2?',
       criteria: 'The answer should be 4',
-      expectedMessages: [{ role: 'assistant', content: '4' }],
+      expectedOutput: [{ role: 'assistant', content: '4' }],
       referenceAnswer: 'The sum is 4',
       candidateAnswer: 'The answer is 4',
       outputMessages: [{ role: 'assistant', content: 'The answer is 4' }],
       guidelineFiles: ['/path/to/guideline.txt'],
       inputFiles: ['/path/to/input.txt'],
-      inputMessages: [{ role: 'user', content: 'What is 2+2?' }],
+      input: [{ role: 'user', content: 'What is 2+2?' }],
       traceSummary: {
         eventCount: 1,
         toolNames: [],
@@ -160,11 +160,11 @@ describe('Schema type inference', () => {
     const input: PromptTemplateInput = {
       question: 'test',
       criteria: 'expected',
-      expectedMessages: [],
+      expectedOutput: [],
       candidateAnswer: 'test',
       guidelineFiles: [],
       inputFiles: [],
-      inputMessages: [],
+      input: [],
     };
 
     // These should all type-check correctly
@@ -182,21 +182,21 @@ describe('Schema type inference', () => {
     const input: PromptTemplateInput = {
       question: 'test question',
       criteria: 'expected outcome',
-      expectedMessages: [],
+      expectedOutput: [],
       candidateAnswer: 'test answer',
       guidelineFiles: [],
       inputFiles: [],
-      inputMessages: [],
+      input: [],
     };
 
     // Required fields must be present
     expect(input.question).toBe('test question');
     expect(input.criteria).toBe('expected outcome');
     expect(input.candidateAnswer).toBe('test answer');
-    expect(input.expectedMessages).toEqual([]);
+    expect(input.expectedOutput).toEqual([]);
     expect(input.guidelineFiles).toEqual([]);
     expect(input.inputFiles).toEqual([]);
-    expect(input.inputMessages).toEqual([]);
+    expect(input.input).toEqual([]);
 
     // Optional fields can be omitted
     expect(input.referenceAnswer).toBeUndefined();

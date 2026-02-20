@@ -35,8 +35,8 @@ tests:
 |-------|----------|-------------|
 | `id` | yes | Unique identifier |
 | `criteria` | yes | What the response should accomplish |
-| `input` / `input_messages` | yes | Input to the agent |
-| `expected_output` / `expected_messages` | no | Gold-standard reference answer |
+| `input` / `input` | yes | Input to the agent |
+| `expected_output` / `expected_output` | no | Gold-standard reference answer |
 | `rubrics` | no | Inline evaluation criteria |
 | `execution` | no | Per-case execution overrides |
 | `workspace` | no | Per-case workspace config (overrides suite-level) |
@@ -46,7 +46,7 @@ tests:
 **Shorthand aliases:**
 - `input` (string) expands to `[{role: "user", content: "..."}]`
 - `expected_output` (string/object) expands to `[{role: "assistant", content: ...}]`
-- Canonical `input_messages` / `expected_messages` take precedence when both present
+- Canonical `input` / `expected_output` take precedence when both present
 
 **Message format:** `{role, content}` where role is `system`, `user`, `assistant`, or `tool`
 **Content types:** inline text, `{type: "file", value: "./path.md"}`
@@ -111,7 +111,7 @@ See docs at https://agentv.dev/evaluators/code-judges/
   config:                       # passed to script templates as context.config
     strictness: high
 ```
-Variables: `{{question}}`, `{{criteria}}`, `{{candidate_answer}}`, `{{reference_answer}}`, `{{input_messages}}`, `{{expected_messages}}`, `{{output_messages}}`, `{{file_changes}}`
+Variables: `{{question}}`, `{{criteria}}`, `{{candidate_answer}}`, `{{reference_answer}}`, `{{input}}`, `{{expected_output}}`, `{{output_messages}}`, `{{file_changes}}`
 - Markdown templates: use `{{variable}}` syntax
 - TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/eval`, receives context object with all variables + `config`
 
@@ -156,7 +156,7 @@ Aggregator types: `weighted_average`, `all_or_nothing`, `minimum`, `maximum`, `s
   numeric_tolerance: 0.01    # for numeric_tolerance match_type
   aggregation: weighted_average  # weighted_average | all_or_nothing
 ```
-Compares `output_messages` fields against `expected_messages` fields.
+Compares `output_messages` fields against `expected_output` fields.
 
 ### latency
 ```yaml

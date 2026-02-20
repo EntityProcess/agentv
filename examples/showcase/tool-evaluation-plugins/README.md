@@ -67,7 +67,7 @@ All code judges receive a JSON object on stdin with:
 {
   "question": "User's question/task",
   "criteria": "Expected behavior description",
-  "reference_answer": "Gold standard answer (from expected_messages)",
+  "reference_answer": "Gold standard answer (from expected_output)",
   "candidate_answer": "Agent's final response",
   "output_messages": [
     {

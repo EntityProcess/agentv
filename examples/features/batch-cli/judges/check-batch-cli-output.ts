@@ -3,7 +3,7 @@
  * Batch CLI Output Evaluator - Code Judge
  *
  * Validates that the batch CLI runner produces the expected decision
- * by comparing candidate output against expected_messages or input_messages.
+ * by comparing candidate output against expected_output or input.
  */
 import { defineCodeJudge } from '@agentv/eval';
 
@@ -12,9 +12,9 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 function findExpectedDecisionFromExpectedMessages(
-  expectedMessages: readonly Record<string, unknown>[],
+  expectedOutput: readonly Record<string, unknown>[],
 ): string | undefined {
-  for (const msg of expectedMessages) {
+  for (const msg of expectedOutput) {
     if (!isObject(msg)) continue;
     const content = msg.content;
     if (!isObject(content)) continue;
@@ -28,9 +28,9 @@ function findExpectedDecisionFromExpectedMessages(
 }
 
 function findExpectedDecisionFromInputMessages(
-  inputMessages: readonly Record<string, unknown>[],
+  input: readonly Record<string, unknown>[],
 ): string | undefined {
-  for (const msg of inputMessages) {
+  for (const msg of input) {
     if (!isObject(msg)) continue;
     if (msg.role !== 'user') continue;
     const content = msg.content;
@@ -47,10 +47,10 @@ function findExpectedDecisionFromInputMessages(
   return undefined;
 }
 
-export default defineCodeJudge(({ expectedMessages, inputMessages, candidateAnswer }) => {
+export default defineCodeJudge(({ expectedOutput, input, candidateAnswer }) => {
   const expectedDecision =
-    findExpectedDecisionFromExpectedMessages(expectedMessages) ??
-    findExpectedDecisionFromInputMessages(inputMessages);
+    findExpectedDecisionFromExpectedMessages(expectedOutput) ??
+    findExpectedDecisionFromInputMessages(input);
 
   let candidateObj: unknown;
   try {
@@ -68,7 +68,7 @@ export default defineCodeJudge(({ expectedMessages, inputMessages, candidateAnsw
   const misses: string[] = [];
 
   if (!expectedDecision) {
-    misses.push('Missing expected decision (expected_messages[].content.decision)');
+    misses.push('Missing expected decision (expected_output[].content.decision)');
   } else {
     hits.push(`expected.decision present: ${expectedDecision}`);
   }

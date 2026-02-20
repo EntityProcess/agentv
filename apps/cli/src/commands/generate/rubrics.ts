@@ -26,7 +26,7 @@ interface RawEvalCase {
   readonly question?: string;
   readonly reference_answer?: string;
   readonly rubrics?: JsonValue;
-  readonly input_messages?: readonly unknown[];
+  readonly input?: readonly unknown[];
 }
 
 interface RawTestSuite {
@@ -196,8 +196,8 @@ function extractQuestion(evalCase: RawEvalCase): string | undefined {
     return explicitQuestion;
   }
 
-  // Try to extract from input_messages
-  const inputMessages = evalCase.input_messages;
+  // Try to extract from input
+  const inputMessages = evalCase.input;
   if (!Array.isArray(inputMessages)) {
     return undefined;
   }

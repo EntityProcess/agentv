@@ -134,7 +134,7 @@ tests:
           
           Please brainstorm 3-5 innovative features we should consider building.
     
-    # Note: No expected_messages - evaluation is purely based on whether criteria are met
+    # Note: No expected_output - evaluation is purely based on whether criteria are met
     # The LLM judge will assess: creativity, technical feasibility, value propositions, and distinctiveness
 
   # ==========================================

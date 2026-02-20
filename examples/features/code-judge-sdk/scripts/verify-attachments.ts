@@ -13,12 +13,12 @@ function fileName(path: string): string {
 }
 
 export default defineCodeJudge(
-  ({ expectedMessages, candidateAnswer, guidelineFiles, inputFiles }) => {
+  ({ expectedOutput, candidateAnswer, guidelineFiles, inputFiles }) => {
     const hits: string[] = [];
     const misses: string[] = [];
 
     // Check if candidate matches expected message
-    const expectedMessage = expectedMessages[0];
+    const expectedMessage = expectedOutput[0];
     const expectedContent =
       expectedMessage && typeof expectedMessage.content === 'string'
         ? expectedMessage.content

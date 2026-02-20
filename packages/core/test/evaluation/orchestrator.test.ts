@@ -114,9 +114,9 @@ const baseTestCase: EvalTest = {
   id: 'case-1',
   dataset: 'test-dataset',
   question: 'Explain logging improvements',
-  input_messages: [{ role: 'user', content: 'Explain logging improvements' }],
+  input: [{ role: 'user', content: 'Explain logging improvements' }],
   input_segments: [{ type: 'text', value: 'Explain logging improvements' }],
-  expected_messages: [],
+  expected_output: [],
   reference_answer: '- add structured logging\n- avoid global state',
   guideline_paths: [],
   file_paths: [],
@@ -412,7 +412,7 @@ describe('runTestCase', () => {
         id: 'multi',
         dataset: 'ds',
         question: '',
-        input_messages: [
+        input: [
           { role: 'system', content: 'Guide' },
           {
             role: 'user',
@@ -429,7 +429,7 @@ describe('runTestCase', () => {
           { type: 'text', value: 'Review' },
           { type: 'text', value: 'Ack' },
         ],
-        expected_messages: [],
+        expected_output: [],
         reference_answer: '',
         guideline_paths: [],
         file_paths: [],
@@ -463,9 +463,9 @@ describe('runTestCase', () => {
         id: 'single',
         dataset: 'ds',
         question: '',
-        input_messages: [{ role: 'user', content: 'Hello' }],
+        input: [{ role: 'user', content: 'Hello' }],
         input_segments: [{ type: 'text', value: 'Hello' }],
-        expected_messages: [],
+        expected_output: [],
         reference_answer: '',
         guideline_paths: [],
         file_paths: [],
@@ -517,7 +517,7 @@ describe('runTestCase', () => {
     const result = await runEvalCase({
       evalCase: {
         ...baseTestCase,
-        input_messages: [
+        input: [
           {
             role: 'user',
             content: [
@@ -572,9 +572,9 @@ describe('runEvalCase trace integration', () => {
     id: 'trace-case',
     dataset: 'trace-dataset',
     question: 'What is the weather?',
-    input_messages: [{ role: 'user', content: 'What is the weather?' }],
+    input: [{ role: 'user', content: 'What is the weather?' }],
     input_segments: [{ type: 'text', value: 'What is the weather?' }],
-    expected_messages: [],
+    expected_output: [],
     reference_answer: 'The weather is sunny',
     guideline_paths: [],
     file_paths: [],

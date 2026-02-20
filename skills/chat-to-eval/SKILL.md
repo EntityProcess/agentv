@@ -82,7 +82,7 @@ tests:
 - Use `tests:` as the top-level array key — never `cases:`
 - Generate kebab-case `id` values derived from the exchange topic
 - Write `criteria` as a concise statement of what a good response achieves
-- Use `input` for single user messages; use `input_messages` for multi-turn
+- Use `input` for single user messages; use `input` for multi-turn
 - Set `expected_output` to the actual assistant response from the transcript
 - Include 2–4 rubrics per test capturing distinct quality dimensions
 
@@ -113,13 +113,13 @@ Append a commented evaluator configuration based on the test content:
 
 ## Multi-Turn Conversations
 
-For conversations with context dependencies across turns, use `input_messages`:
+For conversations with context dependencies across turns, use `input`:
 
 ```yaml
 tests:
   - id: multi-turn-context
     criteria: "Agent remembers prior context"
-    input_messages:
+    input:
       - role: user
         content: "My name is Alice"
       - role: assistant

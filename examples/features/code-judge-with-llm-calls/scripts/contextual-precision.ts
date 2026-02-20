@@ -9,7 +9,7 @@
  * Formula: (1/R) * Σ(Precision@k * r_k) for k=1 to n
  * where R = total relevant nodes, r_k = binary relevance at position k
  *
- * Retrieval context is extracted from expected_messages.tool_calls output,
+ * Retrieval context is extracted from expected_output.tool_calls output,
  * which represents the expected agent behavior (calling a retrieval tool).
  *
  * Requires `target: { max_calls: N }` in the evaluator YAML config,
@@ -24,18 +24,18 @@ interface RelevanceResult {
 }
 
 export default defineCodeJudge(async (input) => {
-  const { question, criteria, expectedMessages } = input;
+  const { question, criteria, expectedOutput } = input;
 
-  // Extract retrieval context from expected_messages tool_calls
-  const retrievalContext = extractRetrievalContext(expectedMessages);
+  // Extract retrieval context from expected_output tool_calls
+  const retrievalContext = extractRetrievalContext(expectedOutput);
 
   if (retrievalContext.length === 0) {
     return {
       score: 0,
       hits: [],
-      misses: ['No retrieval context found in expected_messages.tool_calls'],
+      misses: ['No retrieval context found in expected_output.tool_calls'],
       reasoning:
-        'Contextual Precision requires retrieval context in expected_messages[].tool_calls[].output.results',
+        'Contextual Precision requires retrieval context in expected_output[].tool_calls[].output.results',
     };
   }
 

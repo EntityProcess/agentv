@@ -1894,7 +1894,7 @@ async function executePromptTemplate(
   const payload = {
     question: context.evalCase.question,
     criteria: context.evalCase.criteria,
-    expectedMessages: context.evalCase.expected_messages,
+    expectedOutput: context.evalCase.expected_output,
     referenceAnswer: context.evalCase.reference_answer,
     candidateAnswer: context.candidate,
     outputMessages: context.outputMessages ?? null,
@@ -1902,7 +1902,7 @@ async function executePromptTemplate(
     inputFiles: context.evalCase.file_paths.filter(
       (p) => !context.evalCase.guideline_paths.includes(p),
     ),
-    inputMessages: context.evalCase.input_messages,
+    input: context.evalCase.input,
     traceSummary: context.traceSummary ?? null,
     fileChanges: context.fileChanges ?? null,
     workspacePath: context.workspacePath ?? null,

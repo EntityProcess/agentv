@@ -12,8 +12,8 @@
   "candidate_answer": "string",
   "guideline_files": ["path"],
   "input_files": ["path"],
-  "input_messages": [{"role": "user", "content": "..."}],
-  "expected_messages": [{"role": "assistant", "content": "..."}],
+  "input": [{"role": "user", "content": "..."}],
+  "expected_output": [{"role": "assistant", "content": "..."}],
   "output_messages": [{"role": "assistant", "content": "..."}],
   "trace_summary": {
     "event_count": 5,
@@ -54,7 +54,7 @@ import { defineCodeJudge, createTargetClient, definePromptTemplate } from '@agen
   - `.invoke({question, systemPrompt})` - Single LLM call
   - `.invokeBatch(requests)` - Batch LLM calls
 - `definePromptTemplate(fn)` - Wraps prompt generation function
-  - Context fields: `question`, `candidateAnswer`, `referenceAnswer`, `criteria`, `expectedMessages`, `outputMessages`, `config`, `traceSummary`
+  - Context fields: `question`, `candidateAnswer`, `referenceAnswer`, `criteria`, `expectedOutput`, `outputMessages`, `config`, `traceSummary`
 
 ## Python Example
 
@@ -107,12 +107,12 @@ Derived from test fields (users never author these directly):
 
 | Variable | Source |
 |----------|--------|
-| `question` | First user message in `input_messages` |
+| `question` | First user message in `input` |
 | `criteria` | Test `criteria` field |
-| `reference_answer` | Last entry in `expected_messages` |
+| `reference_answer` | Last entry in `expected_output` |
 | `candidate_answer` | Last entry in `output_messages` (runtime) |
-| `input_messages` | Full resolved input array (JSON) |
-| `expected_messages` | Full resolved expected array (JSON) |
+| `input` | Full resolved input array (JSON) |
+| `expected_output` | Full resolved expected array (JSON) |
 | `output_messages` | Full provider output array (JSON) |
 
 Markdown templates use `{{variable}}` syntax. TypeScript templates receive context object.
