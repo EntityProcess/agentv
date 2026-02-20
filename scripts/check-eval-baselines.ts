@@ -9,20 +9,15 @@ type CliOptions = {
   threshold?: string;
   evalFile?: string;
   update: boolean;
-  createMissing: boolean;
   dryRun: boolean;
 };
 
 const repoRoot = path.resolve(__dirname, '..');
 const examplesRoot = path.join(repoRoot, 'examples');
-// Self-contained examples live under features/; other directories (nlp-metrics/,
-// showcase/) may require user-specific target configuration.
-const featuresRoot = path.join(examplesRoot, 'features');
 
 function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
     update: false,
-    createMissing: false,
     dryRun: false,
   };
 
@@ -42,10 +37,6 @@ function parseArgs(argv: string[]): CliOptions {
       options.update = true;
       continue;
     }
-    if (arg === '--create-missing') {
-      options.createMissing = true;
-      continue;
-    }
     if (arg === '--dry-run') {
       options.dryRun = true;
     }
@@ -54,22 +45,7 @@ function parseArgs(argv: string[]): CliOptions {
   return options;
 }
 
-async function findBaselineFiles(dir: string, results: string[] = []): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      await findBaselineFiles(fullPath, results);
-      continue;
-    }
-    if (entry.isFile() && entry.name.endsWith('.baseline.jsonl')) {
-      results.push(fullPath);
-    }
-  }
-  return results;
-}
-
-/** Find standalone dataset YAML files (skips sidecar YAMLs that pair with a .jsonl file) */
+/** Find dataset YAML files by naming convention (skips sidecar YAMLs) */
 async function findDatasetYamlFiles(dir: string, results: string[] = []): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
@@ -87,25 +63,36 @@ async function findDatasetYamlFiles(dir: string, results: string[] = []): Promis
       // and cannot be run standalone (they have no `tests` field).
       const baseName = entry.name.replace(/\.ya?ml$/, '');
       const siblingJsonl = path.join(dir, `${baseName}.jsonl`);
-      if (existsSync(siblingJsonl)) {
-        continue;
-      }
+      if (existsSync(siblingJsonl)) continue;
+
       results.push(fullPath);
     }
   }
   return results;
 }
 
-function resolveDatasetFile(baselinePath: string): string {
-  const yamlPath = baselinePath.replace(/\.baseline\.jsonl$/, '.yaml');
-  if (existsSync(yamlPath)) {
-    return yamlPath;
+/** Find YAML files that have an existing baseline (covers non-standard names) */
+async function findBaselinedYamlFiles(dir: string, results: string[] = []): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await findBaselinedYamlFiles(fullPath, results);
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith('.baseline.jsonl')) {
+      const yamlPath = fullPath.replace(/\.baseline\.jsonl$/, '.yaml');
+      if (existsSync(yamlPath)) {
+        results.push(yamlPath);
+        continue;
+      }
+      const ymlPath = fullPath.replace(/\.baseline\.jsonl$/, '.yml');
+      if (existsSync(ymlPath)) {
+        results.push(ymlPath);
+      }
+    }
   }
-  const ymlPath = baselinePath.replace(/\.baseline\.jsonl$/, '.yml');
-  if (existsSync(ymlPath)) {
-    return ymlPath;
-  }
-  throw new Error(`Dataset file not found for baseline: ${baselinePath}`);
+  return results;
 }
 
 function baselinePathFor(datasetFilePath: string): string {
@@ -232,11 +219,6 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  if (options.createMissing && !options.update) {
-    console.error('--create-missing requires --update');
-    process.exit(1);
-  }
-
   // Collect dataset file → baseline path pairs
   const pairs: Array<{ datasetFile: string; baselinePath: string }> = [];
 
@@ -244,31 +226,16 @@ async function main(): Promise<void> {
     const absPath = path.resolve(options.evalFile);
     pairs.push({ datasetFile: absPath, baselinePath: baselinePathFor(absPath) });
   } else {
-    // Find all existing baselines
-    const baselineFiles = await findBaselineFiles(examplesRoot);
-    for (const bp of baselineFiles) {
-      try {
-        const df = resolveDatasetFile(bp);
-        pairs.push({ datasetFile: df, baselinePath: bp });
-      } catch {
-        console.warn(`Skipping orphaned baseline: ${path.relative(repoRoot, bp)}`);
-      }
-    }
-
-    // Optionally discover dataset files without baselines (features/ only —
-    // examples outside features/ may need user-specific target configuration)
-    if (options.createMissing) {
-      const allDatasetFiles = await findDatasetYamlFiles(featuresRoot);
-      const existingDatasetFiles = new Set(pairs.map((p) => p.datasetFile));
-
-      for (const df of allDatasetFiles) {
-        if (existingDatasetFiles.has(df)) continue;
-        pairs.push({ datasetFile: df, baselinePath: baselinePathFor(df) });
-      }
+    // Discover eval YAML files: by naming convention + by existing baselines
+    const byConvention = await findDatasetYamlFiles(examplesRoot);
+    const byBaseline = await findBaselinedYamlFiles(examplesRoot);
+    const allDatasetFiles = [...new Set([...byConvention, ...byBaseline])];
+    for (const df of allDatasetFiles) {
+      pairs.push({ datasetFile: df, baselinePath: baselinePathFor(df) });
     }
 
     if (pairs.length === 0) {
-      console.error('No baseline or dataset files found under examples/.');
+      console.error('No dataset files found under examples/.');
       process.exit(1);
     }
   }

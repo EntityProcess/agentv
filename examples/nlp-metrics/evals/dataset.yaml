@@ -5,7 +5,7 @@
 description: NLP text-quality metrics using code_judge evaluators
 
 execution:
-  target: local_cli
+  target: default
 
 tests:
   - id: summarisation-rouge
