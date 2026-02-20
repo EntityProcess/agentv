@@ -72,11 +72,19 @@ async function parseEvaluatorList(
       continue;
     }
 
-    const name = asString(rawEvaluator.name);
+    const rawName = asString(rawEvaluator.name);
     const typeValue = rawEvaluator.type;
 
-    if (!name || !isEvaluatorKind(typeValue)) {
-      logWarning(`Skipping evaluator with invalid name/type in '${evalId}'`);
+    if (!isEvaluatorKind(typeValue)) {
+      logWarning(`Skipping evaluator with invalid type in '${evalId}'`);
+      continue;
+    }
+
+    // Auto-generate name for assertion types if not provided
+    const name = rawName ?? generateAssertionName(typeValue, rawEvaluator);
+
+    if (!name) {
+      logWarning(`Skipping evaluator with missing name in '${evalId}'`);
       continue;
     }
 
@@ -708,6 +716,72 @@ async function parseEvaluatorList(
       continue;
     }
 
+    if (typeValue === 'contains') {
+      const value = asString(rawEvaluator.value);
+      if (!value) {
+        logWarning(`Skipping contains evaluator '${name}' in '${evalId}': missing value`);
+        continue;
+      }
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      evaluators.push({
+        name,
+        type: 'contains',
+        value,
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'regex') {
+      const value = asString(rawEvaluator.value);
+      if (!value) {
+        logWarning(`Skipping regex evaluator '${name}' in '${evalId}': missing value`);
+        continue;
+      }
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      evaluators.push({
+        name,
+        type: 'regex',
+        value,
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'is_json') {
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      evaluators.push({
+        name,
+        type: 'is_json',
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'equals') {
+      const value = asString(rawEvaluator.value);
+      if (!value) {
+        logWarning(`Skipping equals evaluator '${name}' in '${evalId}': missing value`);
+        continue;
+      }
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      evaluators.push({
+        name,
+        type: 'equals',
+        value,
+        ...(weight !== undefined ? { weight } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'rubrics') {
+      // Stub: rubrics evaluator parsing is not yet implemented (Task 7)
+      logWarning(
+        `Skipping rubrics evaluator '${name}' in '${evalId}': rubrics evaluator type is not yet implemented`,
+      );
+      continue;
+    }
+
     // Parse prompt field - can be string (text template) or object (executable script)
     const rawPrompt = rawEvaluator.prompt;
     let prompt: string | undefined;
@@ -832,6 +906,36 @@ async function parseEvaluatorList(
   }
 
   return evaluators.length > 0 ? evaluators : undefined;
+}
+
+/** Assertion evaluator types that support auto-generated names. */
+const ASSERTION_TYPES = new Set(['contains', 'regex', 'is_json', 'equals', 'rubrics']);
+
+/**
+ * Generate a descriptive name for assertion-type evaluators when no explicit name is given.
+ * Returns undefined for non-assertion types (those still require an explicit name).
+ */
+function generateAssertionName(typeValue: string, rawEvaluator: JsonObject): string | undefined {
+  if (!ASSERTION_TYPES.has(typeValue)) {
+    return undefined;
+  }
+
+  const value = asString(rawEvaluator.value);
+
+  switch (typeValue) {
+    case 'contains':
+      return value ? `contains-${value}` : 'contains';
+    case 'regex':
+      return value ? `regex-${value.length > 30 ? value.slice(0, 30) : value}` : 'regex';
+    case 'is_json':
+      return 'is_json';
+    case 'equals':
+      return value ? `equals-${value}` : 'equals';
+    case 'rubrics':
+      return 'rubrics';
+    default:
+      return undefined;
+  }
 }
 
 /**

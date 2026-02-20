@@ -159,6 +159,11 @@ const EVALUATOR_KIND_VALUES = [
   'token_usage',
   'execution_metrics',
   'agent_judge',
+  'contains',
+  'regex',
+  'is_json',
+  'equals',
+  'rubrics',
 ] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
@@ -446,6 +451,65 @@ export type AgentJudgeEvaluatorConfig = {
   readonly weight?: number;
 };
 
+/**
+ * Configuration for the contains assertion evaluator.
+ * Checks whether the candidate output contains a specified substring.
+ */
+export type ContainsEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'contains';
+  readonly value: string;
+  readonly weight?: number;
+  readonly required?: boolean | number;
+};
+
+/**
+ * Configuration for the regex assertion evaluator.
+ * Checks whether the candidate output matches a regular expression pattern.
+ */
+export type RegexEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'regex';
+  readonly value: string;
+  readonly weight?: number;
+  readonly required?: boolean | number;
+};
+
+/**
+ * Configuration for the is_json assertion evaluator.
+ * Checks whether the candidate output is valid JSON.
+ */
+export type IsJsonEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'is_json';
+  readonly weight?: number;
+  readonly required?: boolean | number;
+};
+
+/**
+ * Configuration for the equals assertion evaluator.
+ * Checks whether the candidate output exactly equals a specified string.
+ */
+export type EqualsEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'equals';
+  readonly value: string;
+  readonly weight?: number;
+  readonly required?: boolean | number;
+};
+
+/**
+ * Configuration for the rubrics evaluator.
+ * Evaluates candidate output against a list of rubric criteria.
+ */
+export type RubricsEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'rubrics';
+  readonly criteria: readonly RubricItem[];
+  readonly weight?: number;
+  readonly required?: boolean | number;
+};
+
 export type EvaluatorConfig =
   | CodeEvaluatorConfig
   | LlmJudgeEvaluatorConfig
@@ -456,7 +520,12 @@ export type EvaluatorConfig =
   | CostEvaluatorConfig
   | TokenUsageEvaluatorConfig
   | ExecutionMetricsEvaluatorConfig
-  | AgentJudgeEvaluatorConfig;
+  | AgentJudgeEvaluatorConfig
+  | ContainsEvaluatorConfig
+  | RegexEvaluatorConfig
+  | IsJsonEvaluatorConfig
+  | EqualsEvaluatorConfig
+  | RubricsEvaluatorConfig;
 
 /**
  * Eval test definition sourced from AgentV specs.

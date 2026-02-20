@@ -5,7 +5,249 @@ import path from 'node:path';
 
 import { parseEvaluators } from '../../../src/evaluation/loaders/evaluator-parser.js';
 import type { ToolTrajectoryEvaluatorConfig } from '../../../src/evaluation/trace.js';
-import type { CodeEvaluatorConfig } from '../../../src/evaluation/types.js';
+import type {
+  CodeEvaluatorConfig,
+  ContainsEvaluatorConfig,
+  EqualsEvaluatorConfig,
+  IsJsonEvaluatorConfig,
+  RegexEvaluatorConfig,
+} from '../../../src/evaluation/types.js';
+
+describe('parseEvaluators - deterministic assertion types', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-assertions-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('parses type: contains', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'check-denied', type: 'contains', value: 'DENIED' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+    const config = evaluators?.[0] as ContainsEvaluatorConfig;
+    expect(config.name).toBe('check-denied');
+    expect(config.value).toBe('DENIED');
+  });
+
+  it('auto-generates name for contains when not provided', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ type: 'contains', value: 'DENIED' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].name).toBeTruthy();
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('skips contains evaluator with missing value', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'no-value', type: 'contains' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('parses type: contains with weight', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'weighted-contains', type: 'contains', value: 'OK', weight: 2.0 }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as ContainsEvaluatorConfig;
+    expect(config.weight).toBe(2.0);
+  });
+
+  it('parses type: regex', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'risk-check', type: 'regex', value: 'risk: \\w+' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('regex');
+    const config = evaluators?.[0] as RegexEvaluatorConfig;
+    expect(config.name).toBe('risk-check');
+    expect(config.value).toBe('risk: \\w+');
+  });
+
+  it('auto-generates name for regex when not provided', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ type: 'regex', value: '^\\d{3}-\\d{4}$' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].name).toBeTruthy();
+    expect(evaluators?.[0].type).toBe('regex');
+  });
+
+  it('skips regex evaluator with missing value', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'no-pattern', type: 'regex' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('parses type: is_json', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'json-check', type: 'is_json' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('is_json');
+    const config = evaluators?.[0] as IsJsonEvaluatorConfig;
+    expect(config.name).toBe('json-check');
+  });
+
+  it('auto-generates name for is_json when not provided', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ type: 'is_json' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].name).toBeTruthy();
+    expect(evaluators?.[0].type).toBe('is_json');
+  });
+
+  it('parses type: is_json with weight', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'json-weighted', type: 'is_json', weight: 0.5 }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as IsJsonEvaluatorConfig;
+    expect(config.weight).toBe(0.5);
+  });
+
+  it('parses type: equals', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'exact-match', type: 'equals', value: 'DENIED' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('equals');
+    const config = evaluators?.[0] as EqualsEvaluatorConfig;
+    expect(config.name).toBe('exact-match');
+    expect(config.value).toBe('DENIED');
+  });
+
+  it('auto-generates name for equals when not provided', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ type: 'equals', value: 'APPROVED' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].name).toBeTruthy();
+    expect(evaluators?.[0].type).toBe('equals');
+  });
+
+  it('skips equals evaluator with missing value', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [{ name: 'no-value', type: 'equals' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('parses type: rubrics as a stub (skipped for now)', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [
+          {
+            name: 'rubrics-eval',
+            type: 'rubrics',
+            criteria: [{ id: 'r1', outcome: 'Must be polite', weight: 1.0, required: true }],
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    // rubrics stub: should be skipped with a warning (not yet implemented)
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('parses multiple assertion types in one evaluators array', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        evaluators: [
+          { name: 'c1', type: 'contains', value: 'hello' },
+          { name: 'r1', type: 'regex', value: '\\d+' },
+          { name: 'j1', type: 'is_json' },
+          { name: 'e1', type: 'equals', value: 'exact' },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(4);
+    expect(evaluators?.[0].type).toBe('contains');
+    expect(evaluators?.[1].type).toBe('regex');
+    expect(evaluators?.[2].type).toBe('is_json');
+    expect(evaluators?.[3].type).toBe('equals');
+  });
+});
 
 describe('parseEvaluators - tool_trajectory', () => {
   let tempDir: string;
