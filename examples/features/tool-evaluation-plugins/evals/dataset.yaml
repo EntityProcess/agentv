@@ -26,12 +26,11 @@ tests:
       - role: user
         content: What is the weather in Tokyo? Fetch the detailed forecast.
 
-    execution:
-      evaluators:
-        - name: tool-f1
-          type: code_judge
-          script: ["bun", "run", "../judges/tool-call-f1.ts"]
-          expected_tools: ["search", "fetch"]
+    assert:
+      - name: tool-f1
+        type: code_judge
+        script: ["bun", "run", "../judges/tool-call-f1.ts"]
+        expected_tools: ["search", "fetch"]
 
   # ==========================================
   # Example 2: Tool-call + argument F1
@@ -45,15 +44,14 @@ tests:
       - role: user
         content: What is the weather in Tokyo? Fetch the detailed forecast.
 
-    execution:
-      evaluators:
-        - name: tool-args-f1
-          type: code_judge
-          script: ["bun", "run", "../judges/tool-args-f1.ts"]
-          expected_tools:
-            - tool: search
-              args: { query: "weather tokyo" }
-            - tool: fetch
+    assert:
+      - name: tool-args-f1
+        type: code_judge
+        script: ["bun", "run", "../judges/tool-args-f1.ts"]
+        expected_tools:
+          - tool: search
+            args: { query: "weather tokyo" }
+          - tool: fetch
 
   # ==========================================
   # Example 3: Combined with built-in tool_trajectory
@@ -67,17 +65,16 @@ tests:
       - role: user
         content: Analyze the quarterly sales data and generate a summary report.
 
-    execution:
-      evaluators:
-        # Built-in: verify tool sequence
-        - name: trajectory-check
-          type: tool_trajectory
-          mode: any_order
-          minimums:
-            search: 1
+    assert:
+      # Built-in: verify tool sequence
+      - name: trajectory-check
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          search: 1
 
-        # Plugin: F1 score over expected tools
-        - name: tool-f1
-          type: code_judge
-          script: ["bun", "run", "../judges/tool-call-f1.ts"]
-          expected_tools: ["search", "validate", "process"]
+      # Plugin: F1 score over expected tools
+      - name: tool-f1
+        type: code_judge
+        script: ["bun", "run", "../judges/tool-call-f1.ts"]
+        expected_tools: ["search", "validate", "process"]

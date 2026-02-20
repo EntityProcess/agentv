@@ -45,14 +45,13 @@ tests:
       - role: user
         content: Research the key differences between REST and GraphQL APIs.
 
-    execution:
-      evaluators:
-        - name: tool-usage-check
-          type: tool_trajectory
-          mode: any_order
-          minimums:
-            knowledgeSearch: 2    # Mock agent calls this 2 times
-            documentRetrieve: 1   # Mock agent calls this 1 time
+    assert:
+      - name: tool-usage-check
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          knowledgeSearch: 2    # Mock agent calls this 2 times
+          documentRetrieve: 1   # Mock agent calls this 1 time
 
   # ==========================================
   # Example 2: in_order mode - Validate tool sequence
@@ -69,16 +68,15 @@ tests:
       - role: user
         content: Process the customer data from the API endpoint.
 
-    execution:
-      evaluators:
-        - name: workflow-sequence
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            - tool: fetchData
-            - tool: validateSchema
-            - tool: transformData
-            - tool: saveResults
+    assert:
+      - name: workflow-sequence
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: fetchData
+          - tool: validateSchema
+          - tool: transformData
+          - tool: saveResults
 
   # ==========================================
   # Example 3: exact mode - Validate precise tool sequence
@@ -95,15 +93,14 @@ tests:
       - role: user
         content: Authenticate the user with provided credentials.
 
-    execution:
-      evaluators:
-        - name: auth-sequence-exact
-          type: tool_trajectory
-          mode: exact
-          expected:
-            - tool: checkCredentials
-            - tool: generateToken
-            - tool: auditLog
+    assert:
+      - name: auth-sequence-exact
+        type: tool_trajectory
+        mode: exact
+        expected:
+          - tool: checkCredentials
+          - tool: generateToken
+          - tool: auditLog
 
   # ==========================================
   # Example 4: any_order with metrics tools
@@ -120,14 +117,13 @@ tests:
       - role: user
         content: What are the current system metrics for CPU and memory?
 
-    execution:
-      evaluators:
-        - name: metrics-tools
-          type: tool_trajectory
-          mode: any_order
-          minimums:
-            getCpuMetrics: 1
-            getMemoryMetrics: 1
+    assert:
+      - name: metrics-tools
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          getCpuMetrics: 1
+          getMemoryMetrics: 1
 
   # ==========================================
   # Example 5: Partial match - demonstrates scoring
@@ -144,15 +140,14 @@ tests:
       - role: user
         content: Search for information and generate a report.
 
-    execution:
-      evaluators:
-        - name: tool-check
-          type: tool_trajectory
-          mode: any_order
-          minimums:
-            knowledgeSearch: 1    # Present in research trace (will pass)
-            documentRetrieve: 1   # Present in research trace (will pass)
-            generateReport: 1     # NOT present (will fail - demonstrates partial scoring)
+    assert:
+      - name: tool-check
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          knowledgeSearch: 1    # Present in research trace (will pass)
+          documentRetrieve: 1   # Present in research trace (will pass)
+          generateReport: 1     # NOT present (will fail - demonstrates partial scoring)
 
   # ==========================================
   # ARGUMENT MATCHING EXAMPLES
@@ -171,18 +166,17 @@ tests:
       - role: user
         content: What's the weather like in Paris?
 
-    execution:
-      evaluators:
-        - name: arg-validation
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            - tool: search
-              args:
-                query: "weather Paris"
-            - tool: get_weather
-              args:
-                location: "Paris"
+    assert:
+      - name: arg-validation
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: search
+            args:
+              query: "weather Paris"
+          - tool: get_weather
+            args:
+              location: "Paris"
 
   # ==========================================
   # Example 7: Skip argument validation with `any`
@@ -197,19 +191,18 @@ tests:
       - role: user
         content: Load customer data, normalize it, and save
 
-    execution:
-      evaluators:
-        - name: workflow-sequence-only
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            # Exact match: must use specific source
-            - tool: load_data
-              args:
-                source: "customers"
-            # Skip: any transformation is acceptable
-            - tool: transform
-              args: any
-            # Skip: we don't care about save arguments
-            - tool: save_data
-              args: any
+    assert:
+      - name: workflow-sequence-only
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          # Exact match: must use specific source
+          - tool: load_data
+            args:
+              source: "customers"
+          # Skip: any transformation is acceptable
+          - tool: transform
+            args: any
+          # Skip: we don't care about save arguments
+          - tool: save_data
+            args: any
