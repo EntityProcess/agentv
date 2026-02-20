@@ -24,6 +24,7 @@ export default defineConfig({
     '@mariozechner/pi-agent-core',
     '@mariozechner/pi-ai',
     '@github/copilot-sdk',
+    '@openai/codex-sdk',
   ],
   // Provide a real require() for bundled CJS modules (e.g. debug) that need Node.js builtins like tty
   banner: {

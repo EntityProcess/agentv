@@ -457,6 +457,7 @@ export interface GeminiResolvedConfig {
 }
 
 export interface CodexResolvedConfig {
+  readonly model?: string;
   readonly executable: string;
   readonly args?: readonly string[];
   readonly cwd?: string;
@@ -918,6 +919,7 @@ function resolveCodexConfig(
   env: EnvLookup,
   evalFilePath?: string,
 ): CodexResolvedConfig {
+  const modelSource = target.model;
   const executableSource = target.executable ?? target.command ?? target.binary;
   const argsSource = target.args ?? target.arguments;
   const cwdSource = target.cwd;
@@ -932,6 +934,11 @@ function resolveCodexConfig(
     target.logOutputFormat ??
     env.AGENTV_CODEX_LOG_FORMAT;
   const systemPromptSource = target.system_prompt ?? target.systemPrompt;
+
+  const model = resolveOptionalString(modelSource, env, `${target.name} codex model`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} codex executable`, {
@@ -981,6 +988,7 @@ function resolveCodexConfig(
       : undefined;
 
   return {
+    model,
     executable,
     args,
     cwd,

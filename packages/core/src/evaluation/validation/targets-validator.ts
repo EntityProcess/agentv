@@ -78,6 +78,7 @@ const GEMINI_SETTINGS = new Set([
 
 const CODEX_SETTINGS = new Set([
   ...COMMON_SETTINGS,
+  'model',
   'executable',
   'command',
   'binary',
@@ -94,6 +95,8 @@ const CODEX_SETTINGS = new Set([
   'logFormat',
   'log_output_format',
   'logOutputFormat',
+  'system_prompt',
+  'systemPrompt',
   'workspace_template',
   'workspaceTemplate',
 ]);

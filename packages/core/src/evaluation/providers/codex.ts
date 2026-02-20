@@ -1,24 +1,40 @@
-import { exec as execCallback, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { constants, createWriteStream } from 'node:fs';
+import { createWriteStream } from 'node:fs';
 import type { WriteStream } from 'node:fs';
-import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { promisify } from 'node:util';
 
 import { recordCodexLogEntry } from './codex-log-tracker.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { CodexResolvedConfig } from './targets.js';
-import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
+import type {
+  OutputMessage,
+  Provider,
+  ProviderRequest,
+  ProviderResponse,
+  ProviderTokenUsage,
+  ToolCall,
+} from './types.js';
 
-const execAsync = promisify(execCallback);
-const WORKSPACE_PREFIX = 'agentv-codex-';
-const PROMPT_FILENAME = 'prompt.md';
-const JSONL_TYPE_ITEM_COMPLETED = 'item.completed';
+// Lazy-loaded module to avoid bundling issues with dynamic requires
+// biome-ignore lint/suspicious/noExplicitAny: dynamic import type
+let codexSdkModule: any = null;
+
+async function loadCodexSdk(): Promise<typeof import('@openai/codex-sdk')> {
+  if (!codexSdkModule) {
+    try {
+      codexSdkModule = await import('@openai/codex-sdk');
+    } catch (error) {
+      throw new Error(
+        `Failed to load @openai/codex-sdk. Please install it:\n  npm install @openai/codex-sdk\n\nOriginal error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+  return codexSdkModule;
+}
 
 /**
- * Default system prompt for Codex CLI evaluations.
+ * Default system prompt for Codex SDK evaluations.
  * Ensures the agent returns code in its response rather than just writing files.
  */
 const DEFAULT_SYSTEM_PROMPT = `**IMPORTANT**: Follow these instructions for your response:
@@ -27,27 +43,13 @@ const DEFAULT_SYSTEM_PROMPT = `**IMPORTANT**: Follow these instructions for your
 - For each intended file, include the relative path and unified git diff following the convention \`diff --git ...\`.
 This is required for evaluation scoring.`;
 
-interface CodexRunOptions {
-  readonly executable: string;
-  readonly args: readonly string[];
-  readonly cwd: string;
-  readonly prompt: string;
-  readonly timeoutMs?: number;
-  readonly env: NodeJS.ProcessEnv;
-  readonly signal?: AbortSignal;
-  readonly onStdoutChunk?: (chunk: string) => void;
-  readonly onStderrChunk?: (chunk: string) => void;
-}
-
-interface CodexRunResult {
-  readonly stdout: string;
-  readonly stderr: string;
-  readonly exitCode: number;
-  readonly timedOut?: boolean;
-}
-
-type CodexRunner = (options: CodexRunOptions) => Promise<CodexRunResult>;
-
+/**
+ * Codex SDK provider using the @openai/codex-sdk library directly.
+ * This provides typed event access for structured tool calls, token usage, and clean thread lifecycle.
+ *
+ * Note: The SDK is loaded lazily on first use to avoid bundling issues.
+ * Users must install @openai/codex-sdk separately.
+ */
 export class CodexProvider implements Provider {
   readonly id: string;
   readonly kind = 'codex' as const;
@@ -55,163 +57,227 @@ export class CodexProvider implements Provider {
   readonly supportsBatch = false;
 
   private readonly config: CodexResolvedConfig;
-  private readonly runCodex: CodexRunner;
-  private environmentCheck?: Promise<void>;
-  private resolvedExecutable?: string;
 
-  constructor(
-    targetName: string,
-    config: CodexResolvedConfig,
-    runner: CodexRunner = defaultCodexRunner,
-  ) {
+  constructor(targetName: string, config: CodexResolvedConfig) {
     this.id = `codex:${targetName}`;
     this.targetName = targetName;
     this.config = config;
-    this.runCodex = runner;
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
     if (request.signal?.aborted) {
-      throw new Error('Codex provider request was aborted before execution');
+      throw new Error('Codex SDK request was aborted before execution');
     }
 
-    await this.ensureEnvironmentReady();
+    const sdk = await loadCodexSdk();
 
-    const inputFiles = normalizeInputFiles(request.inputFiles);
+    const startTime = new Date().toISOString();
+    const startMs = Date.now();
 
-    const workspaceRoot = await this.createWorkspace();
     const logger = await this.createStreamLogger(request).catch(() => undefined);
+
+    // Build Codex SDK options
+    // biome-ignore lint/suspicious/noExplicitAny: SDK constructor options are dynamic
+    const codexOptions: any = {};
+    if (this.config.model) {
+      codexOptions.config = { model: this.config.model };
+    }
+
+    const codex = new sdk.Codex(codexOptions);
+
+    // Build thread options
+    // biome-ignore lint/suspicious/noExplicitAny: SDK thread options are dynamic
+    const threadOptions: any = {
+      skipGitRepoCheck: true,
+    };
+
+    const cwd = this.resolveCwd(request.cwd);
+    if (cwd) {
+      threadOptions.workingDirectory = cwd;
+    }
+
+    const thread = codex.startThread(threadOptions);
+
+    // Build the prompt
+    const inputFiles = normalizeInputFiles(request.inputFiles);
+    const basePrompt = buildPromptDocument(request, inputFiles);
+
+    // Skip forced diff prompt when AgentV captures file changes
+    const systemPrompt =
+      this.config.systemPrompt ?? (request.captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT);
+    const prompt = systemPrompt ? `${systemPrompt}\n\n${basePrompt}` : basePrompt;
+
+    // Track events
+    const completedToolCalls: ToolCall[] = [];
+    let finalContent = '';
+    let tokenUsage: ProviderTokenUsage | undefined;
+
     try {
-      const basePrompt = buildPromptDocument(request, inputFiles);
-      // Skip forced diff prompt when AgentV captures file changes
-      const systemPrompt =
-        this.config.systemPrompt ??
-        (request.captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT);
-      const promptContent = systemPrompt ? `${systemPrompt}\n\n${basePrompt}` : basePrompt;
-      const promptFile = path.join(workspaceRoot, PROMPT_FILENAME);
-      await writeFile(promptFile, promptContent, 'utf8');
+      const timeoutMs = this.config.timeoutMs;
 
-      const args = this.buildCodexArgs();
-      const cwd = this.resolveCwd(workspaceRoot, request.cwd);
+      // Run with streaming to capture events
+      const runPromise = this.runStreamedWithEvents(
+        thread,
+        prompt,
+        completedToolCalls,
+        logger,
+        (content) => {
+          finalContent = content;
+        },
+        (usage) => {
+          tokenUsage = usage;
+        },
+        request.signal,
+      );
 
-      const result = await this.executeCodex(args, cwd, promptContent, request.signal, logger);
-
-      if (result.timedOut) {
-        throw new Error(
-          `Codex CLI timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
-        );
+      if (timeoutMs) {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          const timer = setTimeout(() => {
+            reject(new Error(`Codex SDK timed out after ${Math.ceil(timeoutMs / 1000)}s`));
+          }, timeoutMs);
+          timer.unref?.();
+        });
+        await Promise.race([runPromise, timeoutPromise]);
+      } else {
+        await runPromise;
       }
 
-      if (result.exitCode !== 0) {
-        const detail = pickDetail(result.stderr, result.stdout);
-        const prefix = `Codex CLI exited with code ${result.exitCode}`;
-        throw new Error(detail ? `${prefix}: ${detail}` : prefix);
-      }
+      const endTime = new Date().toISOString();
+      const durationMs = Date.now() - startMs;
 
-      const parsed = parseCodexJson(result.stdout);
-      const assistantText = extractAssistantText(parsed);
+      // Build output messages
+      const outputMessages: OutputMessage[] = [];
+
+      if (completedToolCalls.length > 0) {
+        outputMessages.push({
+          role: 'assistant',
+          content: finalContent || undefined,
+          toolCalls: completedToolCalls,
+        });
+      } else if (finalContent) {
+        outputMessages.push({
+          role: 'assistant',
+          content: finalContent,
+        });
+      }
 
       return {
         raw: {
-          response: parsed,
-          stdout: result.stdout,
-          stderr: result.stderr,
-          exitCode: result.exitCode,
-          args,
-          executable: this.resolvedExecutable ?? this.config.executable,
-          promptFile,
-          workspace: workspaceRoot,
-          inputFiles,
+          model: this.config.model,
           logFile: logger?.filePath,
         },
-        outputMessages: [{ role: 'assistant' as const, content: assistantText }],
+        outputMessages,
+        tokenUsage,
+        durationMs,
+        startTime,
+        endTime,
       };
     } finally {
       await logger?.close();
-      await this.cleanupWorkspace(workspaceRoot);
     }
   }
 
-  private async ensureEnvironmentReady(): Promise<void> {
-    if (!this.environmentCheck) {
-      this.environmentCheck = this.validateEnvironment();
+  private async runStreamedWithEvents(
+    // biome-ignore lint/suspicious/noExplicitAny: SDK thread type is dynamically loaded
+    thread: any,
+    prompt: string,
+    completedToolCalls: ToolCall[],
+    logger: CodexSdkStreamLogger | undefined,
+    onContent: (content: string) => void,
+    onUsage: (usage: ProviderTokenUsage) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    // biome-ignore lint/suspicious/noExplicitAny: SDK types are dynamic
+    const turnOptions: any = {};
+    if (signal) {
+      turnOptions.signal = signal;
     }
-    await this.environmentCheck;
+
+    const { events } = await thread.runStreamed(prompt, turnOptions);
+
+    for await (const event of events) {
+      const eventType = event.type as string;
+
+      logger?.handleEvent(eventType, event);
+
+      if (eventType === 'item.completed') {
+        // biome-ignore lint/suspicious/noExplicitAny: SDK event item is dynamic
+        const item = (event as any).item;
+        if (item) {
+          this.processCompletedItem(item, completedToolCalls, onContent);
+        }
+      }
+
+      if (eventType === 'turn.completed') {
+        // biome-ignore lint/suspicious/noExplicitAny: SDK event usage is dynamic
+        const usage = (event as any).usage;
+        if (usage) {
+          onUsage({
+            input: usage.input_tokens ?? 0,
+            output: usage.output_tokens ?? 0,
+            cached: usage.cached_input_tokens ?? undefined,
+          });
+        }
+      }
+
+      if (eventType === 'turn.failed') {
+        // biome-ignore lint/suspicious/noExplicitAny: SDK event error is dynamic
+        const error = (event as any).error;
+        throw new Error(`Codex SDK turn failed: ${error?.message ?? 'unknown error'}`);
+      }
+    }
   }
 
-  private async validateEnvironment(): Promise<void> {
-    this.resolvedExecutable = await locateExecutable(this.config.executable);
+  private processCompletedItem(
+    // biome-ignore lint/suspicious/noExplicitAny: SDK item type is dynamic
+    item: any,
+    completedToolCalls: ToolCall[],
+    onContent: (content: string) => void,
+  ): void {
+    const itemType = item.type as string;
+
+    if (itemType === 'agent_message') {
+      const text = item.text;
+      if (typeof text === 'string') {
+        onContent(text);
+      }
+    }
+
+    if (itemType === 'command_execution') {
+      completedToolCalls.push({
+        tool: 'command_execution',
+        input: item.command,
+        output: item.aggregated_output,
+        id: item.id,
+      });
+    }
+
+    if (itemType === 'file_change') {
+      completedToolCalls.push({
+        tool: 'file_change',
+        input: item.changes,
+        id: item.id,
+      });
+    }
+
+    if (itemType === 'mcp_tool_call') {
+      completedToolCalls.push({
+        tool: `mcp:${item.server}/${item.tool}`,
+        input: item.arguments,
+        output: item.result ?? item.error,
+        id: item.id,
+      });
+    }
   }
 
-  private resolveCwd(workspaceRoot: string, cwdOverride?: string): string {
-    // Request cwd override takes precedence (e.g., from workspace_template)
+  private resolveCwd(cwdOverride?: string): string | undefined {
     if (cwdOverride) {
       return path.resolve(cwdOverride);
     }
-    if (!this.config.cwd) {
-      return workspaceRoot;
+    if (this.config.cwd) {
+      return path.resolve(this.config.cwd);
     }
-    return path.resolve(this.config.cwd);
-  }
-
-  private buildCodexArgs(): string[] {
-    // Global flags must come before 'exec' subcommand
-    const args = [
-      '--ask-for-approval',
-      'never',
-      'exec',
-      '--json',
-      '--color',
-      'never',
-      '--skip-git-repo-check',
-    ];
-    if (this.config.args && this.config.args.length > 0) {
-      args.push(...this.config.args);
-    }
-    args.push('-');
-    return args;
-  }
-
-  private async executeCodex(
-    args: readonly string[],
-    cwd: string,
-    promptContent: string,
-    signal: AbortSignal | undefined,
-    logger: CodexStreamLogger | undefined,
-  ): Promise<CodexRunResult> {
-    try {
-      return await this.runCodex({
-        executable: this.resolvedExecutable ?? this.config.executable,
-        args,
-        cwd,
-        prompt: promptContent,
-        timeoutMs: this.config.timeoutMs,
-        env: process.env,
-        signal,
-        onStdoutChunk: logger ? (chunk) => logger.handleStdoutChunk(chunk) : undefined,
-        onStderrChunk: logger ? (chunk) => logger.handleStderrChunk(chunk) : undefined,
-      });
-    } catch (error) {
-      const err = error as NodeJS.ErrnoException;
-      if (err.code === 'ENOENT') {
-        throw new Error(
-          `Codex executable '${this.config.executable}' was not found. Update the target settings.executable or add it to PATH.`,
-        );
-      }
-      throw error;
-    }
-  }
-
-  private async createWorkspace(): Promise<string> {
-    return await mkdtemp(path.join(tmpdir(), WORKSPACE_PREFIX));
-  }
-
-  private async cleanupWorkspace(workspaceRoot: string): Promise<void> {
-    try {
-      await rm(workspaceRoot, { recursive: true, force: true });
-    } catch {
-      // Best-effort cleanup
-    }
+    return undefined;
   }
 
   private resolveLogDirectory(): string | undefined {
@@ -227,7 +293,7 @@ export class CodexProvider implements Provider {
 
   private async createStreamLogger(
     request: ProviderRequest,
-  ): Promise<CodexStreamLogger | undefined> {
+  ): Promise<CodexSdkStreamLogger | undefined> {
     const logDir = this.resolveLogDirectory();
     if (!logDir) {
       return undefined;
@@ -236,14 +302,14 @@ export class CodexProvider implements Provider {
       await mkdir(logDir, { recursive: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(`Skipping Codex stream logging (could not create ${logDir}): ${message}`);
+      console.warn(`Skipping Codex SDK stream logging (could not create ${logDir}): ${message}`);
       return undefined;
     }
 
     const filePath = path.join(logDir, buildLogFilename(request, this.targetName));
 
     try {
-      const logger = await CodexStreamLogger.create({
+      const logger = await CodexSdkStreamLogger.create({
         filePath,
         targetName: this.targetName,
         evalCaseId: request.evalCaseId,
@@ -259,18 +325,16 @@ export class CodexProvider implements Provider {
       return logger;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(`Skipping Codex stream logging for ${filePath}: ${message}`);
+      console.warn(`Skipping Codex SDK stream logging for ${filePath}: ${message}`);
       return undefined;
     }
   }
 }
 
-class CodexStreamLogger {
+class CodexSdkStreamLogger {
   readonly filePath: string;
   private readonly stream: WriteStream;
   private readonly startedAt = Date.now();
-  private stdoutBuffer = '';
-  private stderrBuffer = '';
   private readonly format: 'summary' | 'json';
 
   private constructor(filePath: string, format: 'summary' | 'json') {
@@ -285,93 +349,85 @@ class CodexStreamLogger {
     readonly evalCaseId?: string;
     readonly attempt?: number;
     readonly format: 'summary' | 'json';
-  }): Promise<CodexStreamLogger> {
-    const logger = new CodexStreamLogger(options.filePath, options.format);
+  }): Promise<CodexSdkStreamLogger> {
+    const logger = new CodexSdkStreamLogger(options.filePath, options.format);
     const header = [
-      '# Codex CLI stream log',
+      '# Codex SDK stream log',
       `# target: ${options.targetName}`,
       options.evalCaseId ? `# eval: ${options.evalCaseId}` : undefined,
       options.attempt !== undefined ? `# attempt: ${options.attempt + 1}` : undefined,
       `# started: ${new Date().toISOString()}`,
       '',
     ].filter((line): line is string => Boolean(line));
-    logger.writeLines(header);
+    for (const line of header) {
+      logger.stream.write(`${line}\n`);
+    }
     return logger;
   }
 
-  handleStdoutChunk(chunk: string): void {
-    this.stdoutBuffer += chunk;
-    this.flushBuffer('stdout');
-  }
-
-  handleStderrChunk(chunk: string): void {
-    this.stderrBuffer += chunk;
-    this.flushBuffer('stderr');
+  handleEvent(eventType: string, data: unknown): void {
+    const elapsed = formatElapsed(this.startedAt);
+    if (this.format === 'json') {
+      this.stream.write(`${JSON.stringify({ time: elapsed, event: eventType, data })}\n`);
+    } else {
+      const summary = summarizeEvent(eventType, data);
+      if (summary) {
+        this.stream.write(`[+${elapsed}] [${eventType}] ${summary}\n`);
+      }
+    }
   }
 
   async close(): Promise<void> {
-    this.flushBuffer('stdout');
-    this.flushBuffer('stderr');
-    this.flushRemainder();
     await new Promise<void>((resolve, reject) => {
       this.stream.once('error', reject);
       this.stream.end(() => resolve());
     });
   }
+}
 
-  private writeLines(lines: readonly string[]): void {
-    for (const line of lines) {
-      this.stream.write(`${line}\n`);
-    }
+function summarizeEvent(eventType: string, data: unknown): string | undefined {
+  if (!data || typeof data !== 'object') {
+    return eventType;
   }
-
-  private flushBuffer(source: 'stdout' | 'stderr'): void {
-    const buffer = source === 'stdout' ? this.stdoutBuffer : this.stderrBuffer;
-    const lines = buffer.split(/\r?\n/);
-    const remainder = lines.pop() ?? '';
-    if (source === 'stdout') {
-      this.stdoutBuffer = remainder;
-    } else {
-      this.stderrBuffer = remainder;
-    }
-    for (const line of lines) {
-      const formatted = this.formatLine(line, source);
-      if (formatted) {
-        this.stream.write(formatted);
-        this.stream.write('\n');
+  const d = data as Record<string, unknown>;
+  // biome-ignore lint/suspicious/noExplicitAny: SDK event item is dynamic
+  const item = (d as any).item;
+  switch (eventType) {
+    case 'item.completed':
+    case 'item.started':
+    case 'item.updated': {
+      if (!item || typeof item !== 'object') return eventType;
+      const itemType = item.type as string;
+      if (itemType === 'agent_message') {
+        const text = typeof item.text === 'string' ? item.text : '';
+        return `${itemType}: ${text.slice(0, 200)}${text.length > 200 ? '...' : ''}`;
       }
+      if (itemType === 'command_execution') {
+        return `${itemType}: ${item.command ?? 'unknown'}`;
+      }
+      if (itemType === 'file_change') {
+        return `${itemType}: ${Array.isArray(item.changes) ? item.changes.length : 0} files`;
+      }
+      if (itemType === 'mcp_tool_call') {
+        return `${itemType}: ${item.server}/${item.tool}`;
+      }
+      return itemType;
     }
-  }
-
-  private formatLine(rawLine: string, source: 'stdout' | 'stderr'): string | undefined {
-    const trimmed = rawLine.trim();
-    if (trimmed.length === 0) {
+    case 'turn.completed': {
+      // biome-ignore lint/suspicious/noExplicitAny: SDK event usage is dynamic
+      const usage = (d as any).usage;
+      if (usage) {
+        return `input=${usage.input_tokens ?? 0} output=${usage.output_tokens ?? 0}`;
+      }
+      return 'completed';
+    }
+    case 'turn.failed': {
+      // biome-ignore lint/suspicious/noExplicitAny: SDK event error is dynamic
+      const error = (d as any).error;
+      return typeof error?.message === 'string' ? error.message : 'failed';
+    }
+    default:
       return undefined;
-    }
-    const message =
-      this.format === 'json' ? formatCodexJsonLog(trimmed) : formatCodexLogMessage(trimmed, source);
-    return `[+${formatElapsed(this.startedAt)}] [${source}] ${message}`;
-  }
-
-  private flushRemainder(): void {
-    const stdoutRemainder = this.stdoutBuffer.trim();
-    if (stdoutRemainder.length > 0) {
-      const formatted = this.formatLine(stdoutRemainder, 'stdout');
-      if (formatted) {
-        this.stream.write(formatted);
-        this.stream.write('\n');
-      }
-    }
-    const stderrRemainder = this.stderrBuffer.trim();
-    if (stderrRemainder.length > 0) {
-      const formatted = this.formatLine(stderrRemainder, 'stderr');
-      if (formatted) {
-        this.stream.write(formatted);
-        this.stream.write('\n');
-      }
-    }
-    this.stdoutBuffer = '';
-    this.stderrBuffer = '';
   }
 }
 
@@ -406,438 +462,4 @@ function formatElapsed(startedAt: number): string {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function formatCodexLogMessage(rawLine: string, source: 'stdout' | 'stderr'): string {
-  const parsed = tryParseJsonValue(rawLine);
-  if (parsed) {
-    const summary = summarizeCodexEvent(parsed);
-    if (summary) {
-      return summary;
-    }
-  }
-  if (source === 'stderr') {
-    return `stderr: ${rawLine}`;
-  }
-  return rawLine;
-}
-
-function formatCodexJsonLog(rawLine: string): string {
-  const parsed = tryParseJsonValue(rawLine);
-  if (!parsed) {
-    return rawLine;
-  }
-  try {
-    return JSON.stringify(parsed, null, 2);
-  } catch {
-    return rawLine;
-  }
-}
-
-function summarizeCodexEvent(event: unknown): string | undefined {
-  if (!event || typeof event !== 'object') {
-    return undefined;
-  }
-  const record = event as Record<string, unknown>;
-  const type = typeof record.type === 'string' ? record.type : undefined;
-  let message =
-    extractFromEvent(event) ??
-    extractFromItem(record.item) ??
-    flattenContent(record.output ?? record.content);
-  if (!message && type === JSONL_TYPE_ITEM_COMPLETED) {
-    const item = record.item;
-    if (item && typeof item === 'object') {
-      const candidate = flattenContent(
-        (item as Record<string, unknown>).text ??
-          (item as Record<string, unknown>).content ??
-          (item as Record<string, unknown>).output,
-      );
-      if (candidate) {
-        message = candidate;
-      }
-    }
-  }
-  if (!message) {
-    const itemType =
-      typeof (record.item as Record<string, unknown> | undefined)?.type === 'string'
-        ? (record.item as Record<string, unknown>).type
-        : undefined;
-    if (type && itemType) {
-      return `${type}:${itemType}`;
-    }
-    if (type) {
-      return type;
-    }
-  }
-  if (type && message) {
-    return `${type}: ${message}`;
-  }
-  if (message) {
-    return message;
-  }
-  return type;
-}
-
-function tryParseJsonValue(rawLine: string): unknown | undefined {
-  try {
-    return JSON.parse(rawLine);
-  } catch {
-    return undefined;
-  }
-}
-
-async function locateExecutable(candidate: string): Promise<string> {
-  const includesPathSeparator = candidate.includes('/') || candidate.includes('\\');
-  if (includesPathSeparator) {
-    const resolved = path.isAbsolute(candidate) ? candidate : path.resolve(candidate);
-    const executablePath = await ensureWindowsExecutableVariant(resolved);
-    await access(executablePath, constants.F_OK);
-    return executablePath;
-  }
-
-  const locator = process.platform === 'win32' ? 'where' : 'which';
-  try {
-    const { stdout } = await execAsync(`${locator} ${candidate}`);
-    const lines = stdout
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-    const preferred = selectExecutableCandidate(lines);
-    if (preferred) {
-      const executablePath = await ensureWindowsExecutableVariant(preferred);
-      await access(executablePath, constants.F_OK);
-      return executablePath;
-    }
-  } catch {
-    // ignore and fall back to error below
-  }
-
-  throw new Error(`Codex executable '${candidate}' was not found on PATH`);
-}
-
-function selectExecutableCandidate(candidates: readonly string[]): string | undefined {
-  if (candidates.length === 0) {
-    return undefined;
-  }
-  if (process.platform !== 'win32') {
-    return candidates[0];
-  }
-  const extensions = getWindowsExecutableExtensions();
-  for (const ext of extensions) {
-    const match = candidates.find((candidate) => candidate.toLowerCase().endsWith(ext));
-    if (match) {
-      return match;
-    }
-  }
-  return candidates[0];
-}
-
-async function ensureWindowsExecutableVariant(candidate: string): Promise<string> {
-  if (process.platform !== 'win32') {
-    return candidate;
-  }
-  if (hasExecutableExtension(candidate)) {
-    return candidate;
-  }
-
-  const extensions = getWindowsExecutableExtensions();
-  for (const ext of extensions) {
-    const withExtension = `${candidate}${ext}`;
-    try {
-      await access(withExtension, constants.F_OK);
-      return withExtension;
-    } catch {
-      // keep searching
-    }
-  }
-  return candidate;
-}
-
-function hasExecutableExtension(candidate: string): boolean {
-  const lower = candidate.toLowerCase();
-  return getWindowsExecutableExtensions().some((ext) => lower.endsWith(ext));
-}
-
-const DEFAULT_WINDOWS_EXTENSIONS = ['.com', '.exe', '.bat', '.cmd', '.ps1'] as const;
-
-function getWindowsExecutableExtensions(): readonly string[] {
-  if (process.platform !== 'win32') {
-    return [];
-  }
-  const fromEnv = process.env.PATHEXT?.split(';')
-    .map((ext) => ext.trim().toLowerCase())
-    .filter((ext) => ext.length > 0);
-  return fromEnv && fromEnv.length > 0 ? fromEnv : DEFAULT_WINDOWS_EXTENSIONS;
-}
-
-function parseCodexJson(output: string): unknown {
-  const trimmed = output.trim();
-  if (trimmed.length === 0) {
-    throw new Error('Codex CLI produced no output in --json mode');
-  }
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    const lineObjects = parseJsonLines(trimmed);
-    if (lineObjects) {
-      return lineObjects;
-    }
-    const lastBrace = trimmed.lastIndexOf('{');
-    if (lastBrace >= 0) {
-      const candidate = trimmed.slice(lastBrace);
-      try {
-        return JSON.parse(candidate);
-      } catch {
-        // fallthrough
-      }
-    }
-    const preview = trimmed.slice(0, 200);
-    throw new Error(`Codex CLI emitted invalid JSON: ${preview}${trimmed.length > 200 ? '…' : ''}`);
-  }
-}
-
-function extractAssistantText(parsed: unknown): string {
-  if (Array.isArray(parsed)) {
-    const text = extractFromEventStream(parsed);
-    if (text) {
-      return text;
-    }
-  }
-
-  if (!parsed || typeof parsed !== 'object') {
-    throw new Error('Codex CLI JSON response did not include an assistant message');
-  }
-
-  const record = parsed as Record<string, unknown>;
-  const eventText = extractFromEvent(record);
-  if (eventText) {
-    return eventText;
-  }
-
-  const messages = Array.isArray(record.messages) ? record.messages : undefined;
-  if (messages) {
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      const entry = messages[index];
-      if (!entry || typeof entry !== 'object') {
-        continue;
-      }
-      const role = (entry as Record<string, unknown>).role;
-      if (role !== 'assistant') {
-        continue;
-      }
-      const content = (entry as Record<string, unknown>).content;
-      const flattened = flattenContent(content);
-      if (flattened) {
-        return flattened;
-      }
-    }
-  }
-
-  const response = record.response;
-  if (response && typeof response === 'object') {
-    const content = (response as Record<string, unknown>).content;
-    const flattened = flattenContent(content);
-    if (flattened) {
-      return flattened;
-    }
-  }
-
-  const output = record.output;
-  const flattenedOutput = flattenContent(output);
-  if (flattenedOutput) {
-    return flattenedOutput;
-  }
-
-  throw new Error('Codex CLI JSON response did not include an assistant message');
-}
-
-function extractFromEventStream(events: readonly unknown[]): string | undefined {
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    const candidate = events[index];
-    const text = extractFromEvent(candidate);
-    if (text) {
-      return text;
-    }
-  }
-  return undefined;
-}
-
-function extractFromEvent(event: unknown): string | undefined {
-  if (!event || typeof event !== 'object') {
-    return undefined;
-  }
-  const record = event as Record<string, unknown>;
-  const type = typeof record.type === 'string' ? record.type : undefined;
-  if (type === JSONL_TYPE_ITEM_COMPLETED) {
-    const item = record.item;
-    const text = extractFromItem(item);
-    if (text) {
-      return text;
-    }
-  }
-  const output = record.output ?? record.content;
-  const flattened = flattenContent(output);
-  if (flattened) {
-    return flattened;
-  }
-  return undefined;
-}
-
-function extractFromItem(item: unknown): string | undefined {
-  if (!item || typeof item !== 'object') {
-    return undefined;
-  }
-  const record = item as Record<string, unknown>;
-  const itemType = typeof record.type === 'string' ? record.type : undefined;
-  if (itemType === 'agent_message' || itemType === 'response' || itemType === 'output') {
-    const text = flattenContent(record.text ?? record.content ?? record.output);
-    if (text) {
-      return text;
-    }
-  }
-  return undefined;
-}
-
-function flattenContent(value: unknown): string | undefined {
-  if (typeof value === 'string') {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    const parts = value
-      .map((segment) => {
-        if (typeof segment === 'string') {
-          return segment;
-        }
-        if (segment && typeof segment === 'object' && 'text' in segment) {
-          const text = (segment as Record<string, unknown>).text;
-          return typeof text === 'string' ? text : undefined;
-        }
-        return undefined;
-      })
-      .filter((part): part is string => typeof part === 'string' && part.length > 0);
-    return parts.length > 0 ? parts.join(' \n') : undefined;
-  }
-  if (value && typeof value === 'object' && 'text' in value) {
-    const text = (value as Record<string, unknown>).text;
-    return typeof text === 'string' ? text : undefined;
-  }
-  return undefined;
-}
-
-function parseJsonLines(output: string): unknown[] | undefined {
-  const lines = output
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  if (lines.length <= 1) {
-    return undefined;
-  }
-  const parsed: unknown[] = [];
-  for (const line of lines) {
-    try {
-      parsed.push(JSON.parse(line));
-    } catch {
-      return undefined;
-    }
-  }
-  return parsed;
-}
-
-function pickDetail(stderr: string, stdout: string): string | undefined {
-  const errorText = stderr.trim();
-  if (errorText.length > 0) {
-    return errorText;
-  }
-  const stdoutText = stdout.trim();
-  return stdoutText.length > 0 ? stdoutText : undefined;
-}
-
-function formatTimeoutSuffix(timeoutMs: number | undefined): string {
-  if (!timeoutMs || timeoutMs <= 0) {
-    return '';
-  }
-  const seconds = Math.ceil(timeoutMs / 1000);
-  return ` after ${seconds}s`;
-}
-
-async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunResult> {
-  return await new Promise<CodexRunResult>((resolve, reject) => {
-    const child = spawn(options.executable, options.args, {
-      cwd: options.cwd,
-      env: options.env,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      shell: shouldShellExecute(options.executable),
-    });
-
-    let stdout = '';
-    let stderr = '';
-    let timedOut = false;
-
-    const onAbort = (): void => {
-      child.kill('SIGTERM');
-    };
-
-    if (options.signal) {
-      if (options.signal.aborted) {
-        onAbort();
-      } else {
-        options.signal.addEventListener('abort', onAbort, { once: true });
-      }
-    }
-
-    let timeoutHandle: NodeJS.Timeout | undefined;
-    if (options.timeoutMs && options.timeoutMs > 0) {
-      timeoutHandle = setTimeout(() => {
-        timedOut = true;
-        child.kill('SIGTERM');
-      }, options.timeoutMs);
-      timeoutHandle.unref?.();
-    }
-
-    child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-      options.onStdoutChunk?.(chunk);
-    });
-
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk;
-      options.onStderrChunk?.(chunk);
-    });
-
-    child.stdin.end(options.prompt);
-
-    const cleanup = (): void => {
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-      }
-      if (options.signal) {
-        options.signal.removeEventListener('abort', onAbort);
-      }
-    };
-
-    child.on('error', (error) => {
-      cleanup();
-      reject(error);
-    });
-
-    child.on('close', (code) => {
-      cleanup();
-      resolve({
-        stdout,
-        stderr,
-        exitCode: typeof code === 'number' ? code : -1,
-        timedOut,
-      });
-    });
-  });
-}
-
-function shouldShellExecute(executable: string): boolean {
-  if (process.platform !== 'win32') {
-    return false;
-  }
-  const lower = executable.toLowerCase();
-  return lower.endsWith('.cmd') || lower.endsWith('.bat') || lower.endsWith('.ps1');
 }
