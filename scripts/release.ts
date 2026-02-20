@@ -162,7 +162,9 @@ async function main() {
   const primaryPkg = readPackageJson(primaryPkgPath);
   const currentVersion = primaryPkg.version;
   const newVersion =
-    channel === 'next' ? bumpNextVersion(currentVersion, bumpType) : bumpVersion(currentVersion, bumpType ?? 'patch');
+    channel === 'next'
+      ? bumpNextVersion(currentVersion, bumpType)
+      : bumpVersion(currentVersion, bumpType ?? 'patch');
 
   const releaseMode =
     channel === 'next'
