@@ -208,7 +208,7 @@ describe('parseEvaluators - deterministic assertion types', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('parses type: rubrics as a stub (skipped for now)', async () => {
+  it('parses type: rubrics with criteria as llm_judge', async () => {
     const evaluators = await parseEvaluators(
       {
         evaluators: [
@@ -223,8 +223,9 @@ describe('parseEvaluators - deterministic assertion types', () => {
       [tempDir],
       'test-1',
     );
-    // rubrics stub: should be skipped with a warning (not yet implemented)
-    expect(evaluators).toBeUndefined();
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('llm_judge');
+    expect((evaluators?.[0] as any).rubrics).toHaveLength(1);
   });
 
   it('parses multiple assertion types in one evaluators array', async () => {
@@ -1249,5 +1250,116 @@ describe('parseEvaluators - assert field', () => {
     );
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0].type).toBe('latency');
+  });
+});
+
+describe('parseEvaluators - type: rubrics with criteria', () => {
+  let tempDir: string;
+
+  beforeAll(async () => {
+    tempDir = path.join(os.tmpdir(), `agentv-test-rubrics-criteria-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('parses rubrics type with criteria array', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            type: 'rubrics',
+            criteria: [
+              { id: 'accuracy', outcome: 'Correct answer', weight: 5.0 },
+              { id: 'reasoning', outcome: 'Clear reasoning', weight: 3.0 },
+            ],
+            weight: 4.0,
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators![0].type).toBe('llm_judge');
+    expect((evaluators![0] as any).rubrics).toHaveLength(2);
+    expect((evaluators![0] as any).weight).toBe(4.0);
+  });
+
+  it('auto-generates name for rubrics type', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            type: 'rubrics',
+            criteria: [
+              { id: 'check-1', outcome: 'Some check', weight: 1.0 },
+            ],
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators![0].name).toBeTruthy();
+  });
+
+  it('skips rubrics with empty criteria array', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            type: 'rubrics',
+            criteria: [],
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('skips rubrics with missing criteria', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            type: 'rubrics',
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toBeUndefined();
+  });
+
+  it('supports string shorthand in criteria', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          {
+            type: 'rubrics',
+            criteria: [
+              'Must be polite',
+              'Must be accurate',
+            ],
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect((evaluators![0] as any).rubrics).toHaveLength(2);
   });
 });

@@ -780,10 +780,38 @@ async function parseEvaluatorList(
     }
 
     if (typeValue === 'rubrics') {
-      // Stub: rubrics evaluator parsing is not yet implemented (Task 7)
-      logWarning(
-        `Skipping rubrics evaluator '${name}' in '${evalId}': rubrics evaluator type is not yet implemented`,
-      );
+      const rawCriteria = rawEvaluator.criteria;
+      if (!Array.isArray(rawCriteria) || rawCriteria.length === 0) {
+        logWarning(
+          `Skipping rubrics evaluator '${name}' in '${evalId}': criteria must be a non-empty array`,
+        );
+        continue;
+      }
+
+      // Normalize string shorthands to objects before passing to parseRubricItems
+      const normalizedCriteria = rawCriteria.map((item, index) => {
+        if (typeof item === 'string') {
+          return { id: `rubric-${index + 1}`, outcome: item, weight: 1.0, required: true };
+        }
+        return item;
+      });
+
+      const parsedCriteria = parseRubricItems(normalizedCriteria, name, evalId);
+      if (!parsedCriteria || parsedCriteria.length === 0) {
+        logWarning(
+          `Skipping rubrics evaluator '${name}' in '${evalId}': no valid criteria found`,
+        );
+        continue;
+      }
+
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+
+      evaluators.push({
+        name,
+        type: 'llm_judge',
+        rubrics: parsedCriteria,
+        ...(weight !== undefined ? { weight } : {}),
+      });
       continue;
     }
 
