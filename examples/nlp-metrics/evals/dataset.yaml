@@ -1,0 +1,100 @@
+# NLP Metrics Evaluator Examples
+# Demonstrates ROUGE, BLEU, cosine similarity, and Levenshtein distance
+# as code_judge evaluators — no external dependencies required.
+
+description: NLP text-quality metrics using code_judge evaluators
+
+execution:
+  target: local_cli
+
+tests:
+  - id: summarisation-rouge
+    criteria: Summary captures key points from the original text.
+
+    input:
+      - role: user
+        content: Summarise the following article in one sentence.
+
+    expected_output:
+      - role: assistant
+        content: The quick brown fox jumps over the lazy dog near the river bank.
+
+    execution:
+      evaluators:
+        - name: rouge-score
+          type: code_judge
+          script: ["bun", "run", "../judges/rouge.ts"]
+
+  - id: translation-bleu
+    criteria: Translation preserves meaning and word choice of the reference.
+
+    input:
+      - role: user
+        content: Translate the following sentence to English.
+
+    expected_output:
+      - role: assistant
+        content: The cat sat on the mat and watched the birds in the garden.
+
+    execution:
+      evaluators:
+        - name: bleu-score
+          type: code_judge
+          script: ["bun", "run", "../judges/bleu.ts"]
+
+  - id: paraphrase-similarity
+    criteria: Paraphrase conveys the same meaning as the reference.
+
+    input:
+      - role: user
+        content: Paraphrase the following sentence.
+
+    expected_output:
+      - role: assistant
+        content: Machine learning models require large amounts of training data to perform well.
+
+    execution:
+      evaluators:
+        - name: cosine-similarity
+          type: code_judge
+          script: ["bun", "run", "../judges/similarity.ts"]
+
+  - id: extraction-levenshtein
+    criteria: Extracted text closely matches the expected value.
+
+    input:
+      - role: user
+        content: Extract the product name from this invoice.
+
+    expected_output:
+      - role: assistant
+        content: "Widget Pro 3000"
+
+    execution:
+      evaluators:
+        - name: edit-distance
+          type: code_judge
+          script: ["bun", "run", "../judges/levenshtein.ts"]
+
+  - id: multi-metric-evaluation
+    criteria: Response is evaluated by multiple NLP metrics simultaneously.
+
+    input:
+      - role: user
+        content: Rewrite the following paragraph more concisely.
+
+    expected_output:
+      - role: assistant
+        content: Artificial intelligence is transforming healthcare by enabling faster diagnosis and personalised treatment plans.
+
+    execution:
+      evaluators:
+        - name: rouge-score
+          type: code_judge
+          script: ["bun", "run", "../judges/rouge.ts"]
+        - name: cosine-similarity
+          type: code_judge
+          script: ["bun", "run", "../judges/similarity.ts"]
+        - name: edit-distance
+          type: code_judge
+          script: ["bun", "run", "../judges/levenshtein.ts"]
