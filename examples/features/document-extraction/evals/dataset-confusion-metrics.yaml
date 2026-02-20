@@ -6,13 +6,25 @@
 #
 # Use case: Measuring field-level extraction accuracy across a document corpus.
 #
+# EXPECTED SCORES:
+#   Some test cases intentionally produce low scores to demonstrate the confusion
+#   matrix concept. The mock fixtures contain deliberate extraction errors
+#   (name variations, missing fields, wrong values) to show TP/FP/FN distribution.
+#
+#   metrics-001: ~1.000 (all fields correct)
+#   metrics-002: ~0.833 (supplier.name mismatch: "Acme - Shipping" vs "Acme Shipping")
+#   metrics-003: ~0.833 (supplier.name mismatch: "Acme - Shipping" vs "Acme Shipping")
+#   metrics-004: ~0.667 (invoice_number missing + supplier.name mismatch)
+#   metrics-005: ~0.500 (currency, supplier.name, gross_total errors)
+#
 # Run:
-#   bun agentv eval examples/features/document-extraction/evals/confusion-metrics.yaml
+#   bun agentv eval examples/features/document-extraction/evals/dataset-confusion-metrics.yaml
 #
 # Aggregate:
 #   bun run examples/features/document-extraction/scripts/aggregate_metrics.ts \
 #     .agentv/results/eval_<timestamp>.jsonl
 #
+
 description: Header field confusion metrics (TP/TN/FP/FN aggregation)
 
 execution:
@@ -32,7 +44,7 @@ execution:
 tests:
   # ============================================
   # Case 1: Perfect extraction
-  # Expected: All TP
+  # Expected: All TP → score ~1.000
   # ============================================
   - id: metrics-001
     criteria: All fields extracted correctly (all TP)
@@ -56,11 +68,12 @@ tests:
             value: "Extract header fields."
 
   # ============================================
-  # Case 2: Correct extraction
-  # Expected: All TP
+  # Case 2: Supplier name variation ("Acme - Shipping" vs "Acme Shipping")
+  # Expected: supplier.name = FP+FN (wrong value) → score ~0.833
+  # NOTE: Low score is intentional — demonstrates confusion matrix for name mismatches
   # ============================================
   - id: metrics-002
-    criteria: All fields extracted correctly (all TP)
+    criteria: Supplier name has dash variation (FP+FN)
     expected_output:
       - role: assistant
         content:
@@ -81,11 +94,12 @@ tests:
             value: "Extract header fields."
 
   # ============================================
-  # Case 3: Correct extraction
-  # Expected: All TP
+  # Case 3: Same as case 2 (supplier name variation)
+  # Expected: supplier.name = FP+FN → score ~0.833
+  # NOTE: Low score is intentional — same name mismatch pattern as case 2
   # ============================================
   - id: metrics-003
-    criteria: All fields extracted correctly (all TP)
+    criteria: Supplier name has dash variation (FP+FN)
     expected_output:
       - role: assistant
         content:
@@ -106,11 +120,12 @@ tests:
             value: "Extract header fields."
 
   # ============================================
-  # Case 4: Correct extraction
-  # Expected: All TP
+  # Case 4: Missing invoice_number
+  # Expected: invoice_number = FN (missing) + supplier.name FP+FN → score ~0.667
+  # NOTE: Low score is intentional — demonstrates FN for missing fields
   # ============================================
   - id: metrics-004
-    criteria: All fields extracted correctly (all TP)
+    criteria: Invoice number missing (FN)
     expected_output:
       - role: assistant
         content:
@@ -131,11 +146,15 @@ tests:
             value: "Extract header fields."
 
   # ============================================
-  # Case 5: Correct extraction
-  # Expected: All TP
+  # Case 5: Multiple errors
+  # - currency: EUR vs USD (FP+FN)
+  # - supplier.name: Beta Corp vs Acme Shipping (FP+FN)
+  # - gross_total: missing (FN)
+  # Expected: score ~0.500
+  # NOTE: Low score is intentional — demonstrates multiple extraction failures
   # ============================================
   - id: metrics-005
-    criteria: All fields extracted correctly (all TP)
+    criteria: Multiple field errors (currency, supplier, gross_total)
     expected_output:
       - role: assistant
         content:

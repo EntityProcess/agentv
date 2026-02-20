@@ -1,13 +1,14 @@
 {
   "invoice_number": "INV-2025-001234",
   "invoice_date": "15-JAN-2025",
-  "currency": "USD",
+  "currency": "EUR",
   "net_total": 1889,
-  "gross_total": 1889,
   "supplier": {
-    "name": "Acme Shipping"
+    "name": "Beta Corp",
+    "address": ""
   },
   "importer": {
     "name": "Global Trade Co"
-  }
+  },
+  "po_number": "PO-HALLUCINATED-123"
 }
