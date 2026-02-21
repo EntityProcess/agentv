@@ -82,15 +82,14 @@ tests:
   - id: json-generation-with-validation
     criteria: Generates valid JSON with required fields
 
-    execution:
-      evaluators:
-        - name: json_format_validator
-          type: code_judge
-          script: uv run validate_json.py
-          cwd: ./evaluators
-        - name: content_evaluator
-          type: llm_judge
-          prompt: ./judges/semantic_correctness.md
+    assert:
+      - name: json_format_validator
+        type: code_judge
+        script: uv run validate_json.py
+        cwd: ./evaluators
+      - name: content_evaluator
+        type: llm_judge
+        prompt: ./judges/semantic_correctness.md
 
     input: |-
       Generate a JSON object for a user with name "Alice",
@@ -118,27 +117,25 @@ tests:
   - id: research-depth
     criteria: Agent researches thoroughly
     input: Research REST vs GraphQL
-    execution:
-      evaluators:
-        - name: research-check
-          type: tool_trajectory
-          mode: any_order
-          minimums:
-            knowledgeSearch: 2
-            documentRetrieve: 1
+    assert:
+      - name: research-check
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          knowledgeSearch: 2
+          documentRetrieve: 1
 
   # Validate exact tool sequence
   - id: auth-flow
     criteria: Agent follows auth sequence
     input: Authenticate user
-    execution:
-      evaluators:
-        - name: auth-sequence
-          type: tool_trajectory
-          mode: exact
-          expected:
-            - tool: checkCredentials
-            - tool: generateToken
+    assert:
+      - name: auth-sequence
+        type: tool_trajectory
+        mode: exact
+        expected:
+          - tool: checkCredentials
+          - tool: generateToken
 ```
 
 ## Static Trace
@@ -154,14 +151,13 @@ tests:
   - id: validate-trace-file
     criteria: Trace contains required steps
     input: Analyze trace
-    execution:
-      evaluators:
-        - name: trace-check
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            - tool: webSearch
-            - tool: readFile
+    assert:
+      - name: trace-check
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: webSearch
+          - tool: readFile
 ```
 
 ## Multi-Turn Conversation
@@ -262,12 +258,11 @@ tests:
             amount: 5000
             currency: USD
 
-    execution:
-      evaluators:
-        - name: decision-check
-          type: code_judge
-          script: bun run ./scripts/check-batch-cli-output.ts
-          cwd: .
+    assert:
+      - name: decision-check
+        type: code_judge
+        script: bun run ./scripts/check-batch-cli-output.ts
+        cwd: .
 
   - id: aml-002
     criteria: |-
@@ -296,12 +291,11 @@ tests:
             amount: 2000
             currency: USD
 
-    execution:
-      evaluators:
-        - name: decision-check
-          type: code_judge
-          script: bun run ./scripts/check-batch-cli-output.ts
-          cwd: .
+    assert:
+      - name: decision-check
+        type: code_judge
+        script: bun run ./scripts/check-batch-cli-output.ts
+        cwd: .
 ```
 
 ### Batch CLI Pattern Notes
