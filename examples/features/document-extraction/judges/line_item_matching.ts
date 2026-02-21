@@ -11,7 +11,7 @@
  * 3. Unmatched expected items count toward FN
  * 4. Unmatched parsed items count toward FP
  *
- * Usage in dataset.yaml:
+ * Usage in dataset.eval.yaml:
  * ```yaml
  * evaluators:
  *   - name: line_items_matched

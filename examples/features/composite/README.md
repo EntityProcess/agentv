@@ -13,9 +13,9 @@ Demonstrates composite evaluator patterns for combining multiple evaluation crit
 
 ```bash
 # From repository root
-bun agentv eval examples/features/composite/evals/dataset.yaml
+bun agentv eval examples/features/composite/evals/dataset.eval.yaml
 ```
 
 ## Key Files
 
-- `evals/dataset.yaml` - Test cases with composite evaluator patterns
+- `evals/dataset.eval.yaml` - Test cases with composite evaluator patterns

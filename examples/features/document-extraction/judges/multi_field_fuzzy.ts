@@ -5,7 +5,7 @@
  * A configurable code_judge that compares multiple fields using Levenshtein similarity.
  * Configuration is passed via YAML properties that become stdin config.
  *
- * Usage in dataset.yaml:
+ * Usage in dataset.eval.yaml:
  * ```yaml
  * evaluators:
  *   - name: party_names_fuzzy

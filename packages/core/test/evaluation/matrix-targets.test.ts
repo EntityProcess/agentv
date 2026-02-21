@@ -7,7 +7,7 @@ import { loadTestSuite } from '../../src/evaluation/yaml-parser.js';
 
 function createTempYaml(content: string): { filePath: string; dir: string } {
   const dir = mkdtempSync(path.join(tmpdir(), 'matrix-test-'));
-  const filePath = path.join(dir, 'dataset.yaml');
+  const filePath = path.join(dir, 'dataset.eval.yaml');
   writeFileSync(filePath, content);
   return { filePath, dir };
 }

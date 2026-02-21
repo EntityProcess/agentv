@@ -13,10 +13,10 @@ Demonstrates CLI target configuration with file attachments.
 
 ```bash
 # From repository root
-bun agentv eval examples/features/local-cli/evals/dataset.yaml
+bun agentv eval examples/features/local-cli/evals/dataset.eval.yaml
 ```
 
 ## Key Files
 
-- `evals/dataset.yaml` - Test cases with file attachments
+- `evals/dataset.eval.yaml` - Test cases with file attachments
 - `.agentv/targets.yaml` - Local CLI target configuration

@@ -177,7 +177,7 @@ tests:
           cuts and renewable energy adoption.
 
     # No rubrics defined - will use default llm_judge evaluator
-    # To generate rubrics: agentv generate rubrics evals/dataset.yaml
+    # To generate rubrics: agentv generate rubrics evals/dataset.eval.yaml
 
   # ==========================================
   # Example 5: Multi-criteria score_ranges

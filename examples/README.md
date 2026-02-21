@@ -69,7 +69,7 @@ Each example follows this structure:
 ```
 example-name/
 ├── evals/
-│   ├── dataset.yaml          # Primary eval file
+│   ├── dataset.eval.yaml     # Primary eval file
 │   ├── *.ts or *.py          # Code evaluators (optional)
 │   └── *.md                  # LLM judge prompts (optional)
 ├── scripts/                  # Helper scripts (optional)

@@ -26,7 +26,7 @@ export-screening/
 ├── skills/
 │   └── export-risk-assessment.md       # Classification guidelines
 ├── evals/
-│   ├── dataset.yaml                    # Tests with expert assessments
+│   ├── dataset.eval.yaml                    # Tests with expert assessments
 │   ├── validate_risk_output.ts         # JSON validator + accuracy checker
 │   └── ci_check.ts                     # CI/CD threshold checker
 └── .agentv/
@@ -41,7 +41,7 @@ From the repository root:
 cd examples/showcase/export-screening
 
 # Run evaluation (produces per-case results)
-bun agentv eval ./evals/dataset.yaml --out results.jsonl
+bun agentv eval ./evals/dataset.eval.yaml --out results.jsonl
 ```
 
 ### Computing Metrics
@@ -58,7 +58,7 @@ Run the eval multiple times and aggregate results for higher-confidence CI gates
 
 ```bash
 # Run eval 3 times, aggregate, and gate on High-class F1 >= 90%
-bun run ./evals/ci_check.ts --eval ./evals/dataset.yaml --samples 3 --threshold 0.90 --check-class High
+bun run ./evals/ci_check.ts --eval ./evals/dataset.eval.yaml --samples 3 --threshold 0.90 --check-class High
 ```
 
 This is useful when LLM outputs are non-deterministic — aggregating over multiple runs produces more stable metrics for CI gates.
@@ -67,14 +67,14 @@ This is useful when LLM outputs are non-deterministic — aggregating over multi
 
 ```mermaid
 flowchart LR
-    A[dataset.yaml] --> B[bun agentv eval]
+    A[dataset.eval.yaml] --> B[bun agentv eval]
     B --> C[results.jsonl<br/>per-case scores]
     C --> D[ci_check.ts<br/>confusion matrix + P/R/F1 + policy-weighted overall]
 ```
 
 ## How It Works
 
-### 1. Tests (`dataset.yaml`)
+### 1. Tests (`dataset.eval.yaml`)
 
 Each case contains:
 - **Input**: Shipment details (origin, destination, product, HS code)
@@ -104,7 +104,7 @@ The `ci_check.ts` script:
 
 ### Adding tests
 
-Add cases to `dataset.yaml` following the existing pattern:
+Add cases to `dataset.eval.yaml` following the existing pattern:
 
 ```yaml
 - id: exp-custom-001
@@ -145,10 +145,10 @@ The `ci_check.ts` script provides threshold-based quality gates for CI/CD pipeli
 
 ```bash
 # Full flow: run eval and check threshold in one command
-bun run ./evals/ci_check.ts --eval ./evals/dataset.yaml --threshold 0.95
+bun run ./evals/ci_check.ts --eval ./evals/dataset.eval.yaml --threshold 0.95
 
 # Multi-sample gate: run 5 times, aggregate, then check
-bun run ./evals/ci_check.ts --eval ./evals/dataset.yaml --samples 5 --threshold 0.90
+bun run ./evals/ci_check.ts --eval ./evals/dataset.eval.yaml --samples 5 --threshold 0.90
 
 # Or check existing results file
 bun run ./evals/ci_check.ts results.jsonl --threshold 0.95
@@ -189,7 +189,7 @@ bun run ./evals/ci_check.ts results.jsonl --threshold 0.95
 
 ```mermaid
 flowchart LR
-    A[dataset.yaml] --> B[ci_check.ts<br/>--eval]
+    A[dataset.eval.yaml] --> B[ci_check.ts<br/>--eval]
     B --> C{F1 >= 95%?}
     C -->|Yes| D[Pass<br/>exit 0]
     C -->|No| E[Fail<br/>exit 1]
@@ -207,7 +207,7 @@ jobs:
       - name: Run eval and check quality gate
         run: |
           bun run ./evals/ci_check.ts \
-            --eval ./evals/dataset.yaml \
+            --eval ./evals/dataset.eval.yaml \
             --samples 3 \
             --threshold 0.95 \
             --check-class High

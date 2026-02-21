@@ -11,19 +11,19 @@ The mental health showcase includes two therapeutic frameworks and one router:
 
 ## Evaluation Datasets
 
-### dataset-routing.yaml
+### routing.eval.yaml
 Tests the router's ability to select the appropriate framework for different client statements.
 
 **Known Baseline Issues:**
 - `route-to-listening-gatekeeper` deliberately scores low (0.5) due to ambiguous routing guidelines. This case involves triangulation - a dysfunctional family pattern where the client mediates between wife and mother. The AI incorrectly selects `resource_focused_encouragement` because the surface indicators (exhaustion, protective behavior, stuckness) match the encouragement criteria. However, the correct choice is `three_levels_listening` because encouraging triangulation would reinforce pathological behavior. This case is left as a baseline to demonstrate the need for more nuanced routing guidelines that distinguish adaptive protective behaviors from dysfunctional patterns.
 
-### dataset-encouragement.yaml
+### encouragement.eval.yaml
 Tests the resource-focused encouragement framework's ability to identify resources and reframe client statements.
 
 **Known Baseline Issues:**
 - `encouragement-cutting-paradox` fails due to content being flagged as sensitive by the LLM provider's safety filters.
 
-### dataset-listening.yaml
+### listening.eval.yaml
 Tests the three levels of listening framework's ability to analyze client statements across Content, Emotion, and Process dimensions.
 
 ## Purpose

@@ -11,7 +11,7 @@ const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RESET = '\u001b[0m';
 
 export const DEFAULT_EVAL_PATTERNS: readonly string[] = [
-  '**/evals/**/dataset*.yaml',
+  '**/evals/**/*.eval.yaml',
   '**/evals/**/eval.yaml',
 ];
 

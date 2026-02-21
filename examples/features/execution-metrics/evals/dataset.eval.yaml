@@ -13,7 +13,7 @@
 # Score is proportional: hits / (hits + misses)
 #
 # Run with:
-#   bun agentv eval examples/features/execution-metrics/evals/dataset.yaml --dry-run
+#   bun agentv eval examples/features/execution-metrics/evals/dataset.eval.yaml --dry-run
 
 description: Demonstrates the built-in execution_metrics evaluator
 

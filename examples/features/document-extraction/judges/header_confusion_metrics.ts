@@ -12,7 +12,7 @@
  * - FP: expected is empty AND parsed is non-empty
  * - FN: expected is non-empty AND parsed is empty
  *
- * Usage in dataset.yaml:
+ * Usage in dataset.eval.yaml:
  * ```yaml
  * evaluators:
  *   - name: header_confusion

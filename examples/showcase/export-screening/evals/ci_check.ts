@@ -7,7 +7,7 @@
  *
  * Usage:
  *   # Full flow: run eval then check threshold
- *   bun run ci_check.ts --eval dataset.yaml --threshold 0.95 --check-class High
+ *   bun run ci_check.ts --eval dataset.eval.yaml --threshold 0.95 --check-class High
  *
  *   # Check existing results JSONL file
  *   bun run ci_check.ts results.jsonl --threshold 0.95 --check-class High
@@ -450,10 +450,10 @@ Exit Codes:
 
 Examples:
   # Full flow - run eval then check
-  bun run ci_check.ts --eval dataset.yaml --threshold 0.95
+  bun run ci_check.ts --eval dataset.eval.yaml --threshold 0.95
 
   # Multi-sample CI gate - run 3 times and aggregate
-  bun run ci_check.ts --eval dataset.yaml --samples 3 --threshold 0.90
+  bun run ci_check.ts --eval dataset.eval.yaml --samples 3 --threshold 0.90
 
   # Check existing results file
   bun run ci_check.ts results.jsonl --threshold 0.95
@@ -524,7 +524,7 @@ async function main(): Promise<void> {
     }
     allRecords = loaded.records;
   } else {
-    logError('Error: Provide either --eval <dataset.yaml> or <results.jsonl>');
+    logError('Error: Provide either --eval <dataset.eval.yaml> or <results.jsonl>');
     printUsage();
     process.exit(1);
   }

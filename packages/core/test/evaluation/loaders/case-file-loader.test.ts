@@ -184,7 +184,7 @@ describe('loadTests with file:// references', () => {
 
     // Create main eval file with file:// references
     await writeFile(
-      path.join(tempDir, 'dataset.yaml'),
+      path.join(tempDir, 'dataset.eval.yaml'),
       `name: test-suite
 tests:
   - id: inline-test
@@ -195,7 +195,7 @@ tests:
 `,
     );
 
-    const tests = await loadTests(path.join(tempDir, 'dataset.yaml'), tempDir);
+    const tests = await loadTests(path.join(tempDir, 'dataset.eval.yaml'), tempDir);
 
     expect(tests).toHaveLength(3);
     expect(tests[0].id).toBe('inline-test');

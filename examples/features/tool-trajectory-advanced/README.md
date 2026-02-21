@@ -15,7 +15,7 @@ Demonstrates tool trajectory evaluation combined with expected output validation
 ```bash
 # From repository root
 cd examples/features
-bun agentv eval tool-trajectory-advanced/evals/dataset-trace-file-demo.yaml --target static_trace
+bun agentv eval tool-trajectory-advanced/evals/trace-file-demo.eval.yaml --target static_trace
 ```
 
 ## Setup
@@ -30,4 +30,4 @@ TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/tool-trajectory-advanced
 
 - `cat-trace.ts` - CLI that reads static trace files
 - `static-trace.json` - Pre-captured trace data
-- `evals/dataset-trace-file-demo.yaml` - Test cases with expected_output validation
+- `evals/trace-file-demo.eval.yaml` - Test cases with expected_output validation

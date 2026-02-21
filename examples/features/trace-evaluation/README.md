@@ -34,7 +34,7 @@ interface TraceSummary {
 
 ```bash
 # From the repository root (dry-run mode for testing without a live agent)
-bun agentv eval examples/features/trace-evaluation/evals/dataset.yaml --dry-run
+bun agentv eval examples/features/trace-evaluation/evals/dataset.eval.yaml --dry-run
 ```
 
 ## Patterns
@@ -80,4 +80,4 @@ evaluators:
 ```
 
 ### Combining judges
-Stack multiple trace judges on a single test for comprehensive checks — see the `comprehensive-trace-check` test in `evals/dataset.yaml`.
+Stack multiple trace judges on a single test for comprehensive checks — see the `comprehensive-trace-check` test in `evals/dataset.eval.yaml`.

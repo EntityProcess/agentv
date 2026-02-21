@@ -4,7 +4,7 @@ Demonstrates how a TypeScript code_judge evaluator can use `defineCodeJudge` fro
 
 ## Files
 
-- `evals/dataset.yaml`: Example test that uses a code_judge evaluator.
+- `evals/dataset.eval.yaml`: Example test that uses a code_judge evaluator.
 - `scripts/verify-attachments.ts`: Code judge script using `defineCodeJudge`.
 - `evals/example.txt`, `evals/python.instructions.md`: Attachment fixtures.
 
@@ -44,7 +44,7 @@ From the repository root:
 
 ```bash
 cd examples/features
-bun agentv eval code-judge-sdk/evals/dataset.yaml --target local_cli
+bun agentv eval code-judge-sdk/evals/dataset.eval.yaml --target local_cli
 ```
 
 This requires a CLI target named `local_cli` configured in `.agentv/targets.yaml`.
