@@ -72,6 +72,15 @@ tests:
 
 Each evaluator produces its own score. Results appear in `scores[]` in the output JSONL.
 
+For multiple evaluators in `assert`, the test score is the weighted mean:
+
+```
+final_score = sum(score_i * weight_i) / sum(weight_i)
+```
+
+If `weight` is omitted, it defaults to `1.0` (equal weighting).
+If any evaluator has `required: true` (or `required: <threshold>`) and scores below its required threshold, the overall test score is forced to `0`.
+
 ## Best Practices
 
 - **Use code judges for deterministic checks** — exact value matching, format validation, schema compliance

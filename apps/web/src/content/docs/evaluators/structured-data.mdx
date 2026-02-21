@@ -107,7 +107,7 @@ Use a `composite` evaluator to produce a single "release gate" score from multip
 assert:
   - name: release_gate
     type: composite
-    evaluators:
+    assert:
       - name: correctness
         type: field_accuracy
         fields:
