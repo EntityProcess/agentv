@@ -22,6 +22,6 @@ console.log(
       hasTokenUsage ? null : 'tokenUsage missing',
       hasCostUsd ? null : 'costUsd missing',
     ].filter(Boolean),
-    reasoning: 'Checked trace_summary fields',
+    reasoning: 'Checked trace fields',
   }),
 );

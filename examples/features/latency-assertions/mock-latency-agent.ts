@@ -27,7 +27,7 @@ interface Message {
 }
 
 interface AgentResponse {
-  output_messages: Message[];
+  output: Message[];
 }
 
 function generateResponse(prompt: string): AgentResponse {
@@ -36,7 +36,7 @@ function generateResponse(prompt: string): AgentResponse {
   // Scenario: Read file (fast operation)
   if (lowerPrompt.includes('read') || lowerPrompt.includes('config')) {
     return {
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'Here is the config file content: { "debug": false }',
@@ -56,7 +56,7 @@ function generateResponse(prompt: string): AgentResponse {
   // Scenario: Large file read (slow operation)
   if (lowerPrompt.includes('large')) {
     return {
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'Loaded the large file.',
@@ -75,7 +75,7 @@ function generateResponse(prompt: string): AgentResponse {
     lowerPrompt.includes('customer')
   ) {
     return {
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'Data pipeline completed successfully.',
@@ -93,7 +93,7 @@ function generateResponse(prompt: string): AgentResponse {
   // Scenario: Authentication (fast operations)
   if (lowerPrompt.includes('auth') || lowerPrompt.includes('credential')) {
     return {
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'User authenticated successfully.',
@@ -110,7 +110,7 @@ function generateResponse(prompt: string): AgentResponse {
   // Scenario: Weather query
   if (lowerPrompt.includes('weather')) {
     return {
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'The weather in Paris is 22°C and sunny.',
@@ -125,7 +125,7 @@ function generateResponse(prompt: string): AgentResponse {
 
   // Default
   return {
-    output_messages: [{ role: 'assistant', content: 'Request processed.' }],
+    output: [{ role: 'assistant', content: 'Request processed.' }],
   };
 }
 
@@ -156,7 +156,7 @@ function main(): void {
 
   const response = generateResponse(values.prompt);
   writeFileSync(values.output, JSON.stringify(response, null, 2));
-  const msg = response.output_messages[0];
+  const msg = response.output[0];
   if (msg) console.log(msg.content);
 }
 

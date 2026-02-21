@@ -1495,8 +1495,8 @@ describe('parseEvaluators - composite assert field', () => {
     tempDir = path.join(os.tmpdir(), `agentv-test-composite-assert-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
     // Create dummy prompt files for llm_judge members (must include required template fields)
-    await writeFile(path.join(tempDir, 'safety.md'), 'Evaluate safety of {{ candidate_answer }}');
-    await writeFile(path.join(tempDir, 'quality.md'), 'Evaluate quality of {{ candidate_answer }}');
+    await writeFile(path.join(tempDir, 'safety.md'), 'Evaluate safety of {{ answer }}');
+    await writeFile(path.join(tempDir, 'quality.md'), 'Evaluate quality of {{ answer }}');
   });
 
   afterAll(async () => {

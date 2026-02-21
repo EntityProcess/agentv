@@ -176,13 +176,13 @@ describe('CliProvider', () => {
     expect(responses[1]?.raw?.error).toBe("Batch output missing id 'case-2'");
   });
 
-  it('parses output_messages from single case JSON output', async () => {
+  it('parses output from single case JSON output', async () => {
     const runner = mock(async (command: string): Promise<CommandRunResult> => {
       const match = command.match(/agentv-case-1-\d+-\w+\.json/);
       if (match) {
         const outputFilePath = path.join(os.tmpdir(), match[0]);
         const output = {
-          output_messages: [
+          output: [
             {
               role: 'assistant',
               content: 'Response with tool calls',
@@ -219,7 +219,7 @@ describe('CliProvider', () => {
     expect(response.output?.[0].toolCalls?.[1].tool).toBe('analyze');
   });
 
-  it('parses output_messages from batch JSONL output', async () => {
+  it('parses output from batch JSONL output', async () => {
     const runner = mock(async (command: string): Promise<CommandRunResult> => {
       const match = command.match(/agentv-batch-\d+-\w+\.jsonl/);
       if (match) {
@@ -227,7 +227,7 @@ describe('CliProvider', () => {
         const record1 = {
           id: 'case-1',
           text: 'Response 1',
-          output_messages: [
+          output: [
             {
               role: 'assistant',
               tool_calls: [{ tool: 'toolA', input: { x: 1 } }],
@@ -237,7 +237,7 @@ describe('CliProvider', () => {
         const record2 = {
           id: 'case-2',
           text: 'Response 2',
-          output_messages: [
+          output: [
             {
               role: 'assistant',
               tool_calls: [{ tool: 'toolB', input: { y: 2 } }],
@@ -280,7 +280,7 @@ describe('CliProvider', () => {
         const outputFilePath = path.join(os.tmpdir(), match[0]);
         const output = {
           text: 'Response',
-          output_messages: [
+          output: [
             { role: 'user', content: 'Hello' },
             { role: 'assistant', content: 'Hi there!' },
           ],

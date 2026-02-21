@@ -29,7 +29,7 @@ interface Message {
 }
 
 interface AgentResponse {
-  output_messages: Message[];
+  output: Message[];
 }
 
 function createToolCall(name: string, input: unknown, id?: string): ToolCall {
@@ -50,7 +50,7 @@ function generateResponse(prompt: string): AgentResponse {
   // Scenario 1: Research task - uses knowledgeSearch and documentRetrieve
   if (lowerPrompt.includes('research') || lowerPrompt.includes('search')) {
     return {
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content:
@@ -72,7 +72,7 @@ function generateResponse(prompt: string): AgentResponse {
     (lowerPrompt.includes('customer') || lowerPrompt.includes('normalize'))
   ) {
     return {
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'Customer data loaded, normalized, and saved successfully.',
@@ -93,7 +93,7 @@ function generateResponse(prompt: string): AgentResponse {
     lowerPrompt.includes('pipeline')
   ) {
     return {
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content:
@@ -116,7 +116,7 @@ function generateResponse(prompt: string): AgentResponse {
     lowerPrompt.includes('credential')
   ) {
     return {
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'Authentication successful. Token generated for user.',
@@ -137,7 +137,7 @@ function generateResponse(prompt: string): AgentResponse {
     lowerPrompt.includes('memory')
   ) {
     return {
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: `Based on the current system metrics:
@@ -156,7 +156,7 @@ The system is operating within normal parameters.`,
   // Scenario 5: Branch deactivation - uses semanticSearch multiple times
   if (lowerPrompt.includes('deactivate') && lowerPrompt.includes('branch')) {
     return {
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content:
@@ -174,7 +174,7 @@ The system is operating within normal parameters.`,
   // Scenario 6: Weather query - uses search and get_weather with exact args
   if (lowerPrompt.includes('weather')) {
     return {
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'The weather in Paris is currently sunny with a high of 22°C.',
@@ -189,7 +189,7 @@ The system is operating within normal parameters.`,
 
   // Default: generic response with no tools
   return {
-    output_messages: [
+    output: [
       {
         role: 'assistant',
         content: 'I processed your request.',
@@ -232,7 +232,7 @@ function main(): void {
   writeFileSync(values.output, JSON.stringify(response, null, 2));
 
   // Also output the text to stdout for logging
-  const firstMessage = response.output_messages[0];
+  const firstMessage = response.output[0];
   if (firstMessage) {
     console.log(firstMessage.content);
   }

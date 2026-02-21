@@ -19,7 +19,7 @@
 # Wire format:
 #   Providers must include `duration_ms` in tool calls for latency checks to work:
 #   {
-#     "output_messages": [{
+#     "output": [{
 #       "role": "assistant",
 #       "tool_calls": [{
 #         "tool": "Read",

@@ -16,7 +16,7 @@ Evaluate the generated code against the requirements. Score from 0.0 to 1.0 base
 {{reference_answer}}
 
 ### Candidate Answer
-{{candidate_answer}}
+{{answer}}
 
 ## Constraints
 - **0.9-1.0**: Excellent (Correct, efficient, best practices)

@@ -121,14 +121,14 @@ describe('toSnakeCaseDeep', () => {
   test('handles keys that are already snake_case', () => {
     const input = {
       test_id: 'test-001',
-      candidate_answer: 'hello',
+      answer: 'hello',
     };
 
     const result = toSnakeCaseDeep(input);
 
     expect(result).toEqual({
       test_id: 'test-001',
-      candidate_answer: 'hello',
+      answer: 'hello',
     });
   });
 });

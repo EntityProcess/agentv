@@ -171,7 +171,7 @@ Configure via `assert` array. Multiple evaluators produce a weighted average sco
   target: {}              # optional: enable LLM target proxy (max_calls: 50)
 ```
 Contract: stdin JSON -> stdout JSON `{score, hits, misses, reasoning}`
-Input includes: `question`, `criteria`, `candidate_answer`, `reference_answer`, `output_messages`, `trace_summary`, `file_changes`, `workspace_path`, `config`
+Input includes: `question`, `criteria`, `answer`, `reference_answer`, `output`, `trace`, `file_changes`, `workspace_path`, `config`
 When `workspace_template` is configured, `workspace_path` is the absolute path to the workspace dir (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the workspace).
 See docs at https://agentv.dev/evaluators/code-judges/
 
@@ -184,7 +184,7 @@ See docs at https://agentv.dev/evaluators/code-judges/
   config:                       # passed to script templates as context.config
     strictness: high
 ```
-Variables: `{{question}}`, `{{criteria}}`, `{{candidate_answer}}`, `{{reference_answer}}`, `{{input}}`, `{{expected_output}}`, `{{output_messages}}`, `{{file_changes}}`
+Variables: `{{question}}`, `{{criteria}}`, `{{answer}}`, `{{reference_answer}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{file_changes}}`
 - Markdown templates: use `{{variable}}` syntax
 - TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/eval`, receives context object with all variables + `config`
 
@@ -229,7 +229,7 @@ Aggregator types: `weighted_average`, `all_or_nothing`, `minimum`, `maximum`, `s
   numeric_tolerance: 0.01    # for numeric_tolerance match_type
   aggregation: weighted_average  # weighted_average | all_or_nothing
 ```
-Compares `output_messages` fields against `expected_output` fields.
+Compares `output` fields against `expected_output` fields.
 
 ### latency
 ```yaml

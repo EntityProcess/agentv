@@ -14,8 +14,8 @@ npm install @agentv/eval
 #!/usr/bin/env bun
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, traceSummary }) => ({
-  score: candidateAnswer.length > 0 ? 1.0 : 0.0,
+export default defineCodeJudge(({ answer, trace }) => ({
+  score: answer.length > 0 ? 1.0 : 0.0,
   hits: ['Output received'],
 }));
 ```

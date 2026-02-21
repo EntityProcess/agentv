@@ -344,7 +344,7 @@ describe('runTestCase', () => {
   it('uses a custom evaluator prompt when provided', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'agentv-custom-judge-'));
     const promptPath = path.join(directory, 'judge.md');
-    writeFileSync(promptPath, 'CUSTOM PROMPT CONTENT with {{ candidate_answer }}', 'utf8');
+    writeFileSync(promptPath, 'CUSTOM PROMPT CONTENT with {{ answer }}', 'utf8');
 
     const provider = new SequenceProvider('mock', {
       responses: [

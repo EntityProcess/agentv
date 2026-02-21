@@ -3,13 +3,13 @@
  * These variables can be used in custom evaluator templates with {{ variable_name }} syntax.
  */
 export const TEMPLATE_VARIABLES = {
-  CANDIDATE_ANSWER: 'candidate_answer',
+  ANSWER: 'answer',
   EXPECTED_OUTPUT: 'expected_output',
   QUESTION: 'question',
   CRITERIA: 'criteria',
   REFERENCE_ANSWER: 'reference_answer',
   INPUT: 'input',
-  OUTPUT_MESSAGES: 'output_messages',
+  OUTPUT: 'output',
   FILE_CHANGES: 'file_changes',
 } as const;
 
@@ -28,6 +28,6 @@ export const VALID_TEMPLATE_VARIABLES = new Set<string>(Object.values(TEMPLATE_V
  * At least one of these should be present in a custom evaluator template.
  */
 export const REQUIRED_TEMPLATE_VARIABLES = new Set<string>([
-  TEMPLATE_VARIABLES.CANDIDATE_ANSWER,
+  TEMPLATE_VARIABLES.ANSWER,
   TEMPLATE_VARIABLES.EXPECTED_OUTPUT,
 ]);

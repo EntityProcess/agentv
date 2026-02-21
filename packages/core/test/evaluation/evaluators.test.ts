@@ -467,8 +467,8 @@ describe('CodeEvaluator', () => {
     expect(result.score).toBe(1);
     expect(result.verdict).toBe('pass');
     expect(result.hits).toContain('expected_output present');
-    expect(result.hits).toContain('candidate_answer present');
-    expect(result.hits).toContain('candidate_answer parses');
+    expect(result.hits).toContain('answer present');
+    expect(result.hits).toContain('answer parses');
   });
 
   it('surfaces stderr and exit code on failure', async () => {

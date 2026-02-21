@@ -132,12 +132,12 @@ Example: 3 expected tools with 2 latency assertions = 5 total aspects scored.
 
 ## Trace Data Format
 
-Tool trajectory evaluators require trace data from the agent provider. Providers return `output_messages` containing `tool_calls`:
+Tool trajectory evaluators require trace data from the agent provider. Providers return `output` containing `tool_calls`:
 
 ```json
 {
   "id": "eval-001",
-  "output_messages": [
+  "output": [
     {
       "role": "assistant",
       "content": "I'll search for information about this topic.",
@@ -156,16 +156,16 @@ Tool trajectory evaluators require trace data from the agent provider. Providers
 }
 ```
 
-The evaluator extracts tool calls from `output_messages[].tool_calls[]`. The `tool` and `input` fields are required. Optional fields:
+The evaluator extracts tool calls from `output[].tool_calls[]`. The `tool` and `input` fields are required. Optional fields:
 
 - `id` and `timestamp` — for debugging
 - `duration_ms` — required if using `max_duration_ms` latency assertions
 
 ### Supported Providers
 
-- **codex** — returns `output_messages` via JSONL log events
-- **vscode / vscode-insiders** — returns `output_messages` from Copilot execution
-- **cli** — returns `output_messages` with `tool_calls`
+- **codex** — returns `output` via JSONL log events
+- **vscode / vscode-insiders** — returns `output` from Copilot execution
+- **cli** — returns `output` with `tool_calls`
 
 ## CLI Options
 

@@ -34,7 +34,7 @@ interface EvalConfig {
 }
 
 interface EvalInput {
-  candidate_answer: string;
+  answer: string;
   expected_output: Array<{ role: string; content: unknown }>;
   config: EvalConfig | null;
 }
@@ -144,14 +144,14 @@ async function main(): Promise<void> {
   // Parse candidate answer
   let candidateObj: unknown;
   try {
-    candidateObj = JSON.parse(input.candidate_answer);
+    candidateObj = JSON.parse(input.answer);
   } catch {
     console.log(
       JSON.stringify({
         score: 0,
         hits: [],
-        misses: ['Failed to parse candidate_answer as JSON'],
-        reasoning: 'Could not parse candidate_answer',
+        misses: ['Failed to parse answer as JSON'],
+        reasoning: 'Could not parse answer',
         details: {
           metrics: {},
           summary: { total_tp: 0, total_tn: 0, total_fp: 0, total_fn: 0 },

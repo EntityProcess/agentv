@@ -36,7 +36,7 @@ const ToolCallSchema = z.object({
 
 /**
  * Schema for individual output messages.
- * Validates output_messages array items from CLI JSON output.
+ * Validates output array items from CLI JSON output.
  * Uses snake_case field names matching JSONL convention.
  */
 const MessageInputSchema = z.object({
@@ -67,6 +67,7 @@ const TokenUsageSchema = z.object({
  */
 const CliOutputSchema = z.object({
   text: z.unknown().optional(),
+  output: z.array(MessageInputSchema).optional(),
   output_messages: z.array(MessageInputSchema).optional(),
   token_usage: TokenUsageSchema.optional(),
   cost_usd: z.number().optional(),
@@ -436,7 +437,7 @@ export class CliProvider implements Provider {
 
   /**
    * Parse output content from CLI.
-   * If the content is valid JSON with 'output_messages' or 'text' field, extract them.
+   * If the content is valid JSON with 'output' (or legacy 'output_messages') or 'text' field, extract them.
    * If only 'text' is provided, wrap it in output.
    * Otherwise, treat the entire content as plain text wrapped in output.
    *
@@ -471,10 +472,10 @@ export class CliProvider implements Provider {
     // Validate metrics and warn about negative values
     const metrics = validateMetrics(obj.cost_usd, obj.duration_ms, 'parsing output');
 
-    // Convert output_messages to Message[] format
-    const output = convertMessages(obj.output_messages);
+    // Convert output (or legacy output_messages) to Message[] format
+    const output = convertMessages(obj.output ?? obj.output_messages);
 
-    // If output_messages provided, use it
+    // If output provided, use it
     if (output && output.length > 0) {
       return {
         output,
@@ -495,7 +496,7 @@ export class CliProvider implements Provider {
       };
     }
 
-    // No output_messages or text, treat original content as plain text
+    // No output or text, treat original content as plain text
     return { output: [{ role: 'assistant', content }] };
   }
 
@@ -548,8 +549,8 @@ export class CliProvider implements Provider {
         throw new Error(`CLI batch output contains duplicate id: ${obj.id}`);
       }
 
-      // Prefer output_messages, fall back to text wrapped in output
-      const output = convertMessages(obj.output_messages);
+      // Prefer output (or legacy output_messages), fall back to text wrapped in output
+      const output = convertMessages(obj.output ?? obj.output_messages);
       let finalMessages: readonly Message[];
       if (output && output.length > 0) {
         finalMessages = output;

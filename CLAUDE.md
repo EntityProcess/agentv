@@ -131,7 +131,7 @@ Unit tests alone are insufficient for evaluator changes. After implementing or m
    ```
 
 2. **Inspect the results JSONL** to verify:
-   - The correct evaluator type is invoked (check `evaluator_results[].type`)
+   - The correct evaluator type is invoked (check `scores[].type`)
    - Scores are calculated as expected
    - Hits/misses reflect the evaluation logic
 

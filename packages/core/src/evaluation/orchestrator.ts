@@ -567,7 +567,7 @@ async function runBatchEvaluation(options: {
         })
       : undefined;
 
-    // Extract candidate from last assistant message in output_messages
+    // Extract candidate from last assistant message in output
     const candidate = extractLastAssistantContent(output);
 
     const providerError = extractProviderError(providerResponse);
@@ -845,7 +845,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       })
     : undefined;
 
-  // Extract candidate from last assistant message in output_messages
+  // Extract candidate from last assistant message in output
   const candidate = extractLastAssistantContent(output);
 
   // Capture file changes from workspace if baseline was initialized

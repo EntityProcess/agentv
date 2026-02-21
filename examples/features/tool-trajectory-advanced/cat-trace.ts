@@ -74,7 +74,7 @@ function buildOutputPayload(parsed: {
   trace?: TraceEvent[];
 }): {
   text?: string;
-  output_messages?: Array<{
+  output?: Array<{
     role: string;
     content?: string;
     tool_calls?: Array<{
@@ -114,7 +114,7 @@ function buildOutputPayload(parsed: {
 
   return {
     ...(text ? { text } : {}),
-    output_messages: [
+    output: [
       {
         role: 'assistant',
         ...(text ? { content: text } : {}),

@@ -228,7 +228,7 @@ export async function loadTestsFromJsonl(
       : [];
 
     // Build reference_answer:
-    // Extract the content from the last message in expected_output (similar to candidate_answer)
+    // Extract the content from the last message in expected_output (similar to answer)
     let referenceAnswer = '';
     if (outputSegments.length > 0) {
       // Get the last message

@@ -14,7 +14,7 @@ console.log(
   JSON.stringify({
     score: hasExpected && hasCandidate ? 0.75 : 0,
     hits: hasExpected ? ['expected_output present'] : [],
-    misses: hasCandidate ? [] : ['candidate_answer missing'],
+    misses: hasCandidate ? [] : ['answer missing'],
     reasoning: 'Testing details passthrough',
     details: {
       metrics: {

@@ -50,7 +50,7 @@ describe('LlmJudgeEvaluator Variable Substitution', () => {
 Question: {{question}}
 Outcome: {{criteria}}
 Reference: {{reference_answer}}
-Candidate: {{candidate_answer}}
+Candidate: {{answer}}
 Input Messages: {{input}}
 Expected Messages: {{expected_output}}
 File Changes: {{file_changes}}
@@ -150,7 +150,7 @@ File Changes: {{file_changes}}
 Question: {{ question }}
 Outcome: {{ criteria }}
 Reference: {{ reference_answer }}
-Candidate: {{ candidate_answer }}
+Candidate: {{ answer }}
 Input Messages: {{ input }}
 Expected Messages: {{ expected_output }}
 `;

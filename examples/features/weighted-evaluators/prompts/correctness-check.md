@@ -12,7 +12,7 @@ Assess the correctness of the candidate response, checking for:
 ## Input
 - Question: {{ question }}
 - Reference Answer: {{ reference_answer }}
-- Candidate Answer: {{ candidate_answer }}
+- Answer: {{ answer }}
 
 ## Output Format
 Return a JSON object with:

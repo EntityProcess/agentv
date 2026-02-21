@@ -35,7 +35,7 @@ interface Message {
 
 interface AgentResponse {
   text: string;
-  output_messages: Message[];
+  output: Message[];
   token_usage: TokenUsage;
   cost_usd: number;
   duration_ms: number;
@@ -51,7 +51,7 @@ function generateResponse(prompt: string): AgentResponse {
   if (lowerPrompt.includes('simple') || lowerPrompt.includes('hello')) {
     return {
       text: 'Hello! How can I help you today?',
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'Hello! How can I help you today?',
@@ -67,7 +67,7 @@ function generateResponse(prompt: string): AgentResponse {
   if (lowerPrompt.includes('research') || lowerPrompt.includes('analyze')) {
     return {
       text: 'Based on my research, here are the key findings about the topic...',
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'Based on my research, here are the key findings about the topic...',
@@ -87,7 +87,7 @@ function generateResponse(prompt: string): AgentResponse {
   if (lowerPrompt.includes('code') || lowerPrompt.includes('implement')) {
     return {
       text: 'Here is the implementation:\n\n```typescript\nfunction example() {\n  return "Hello";\n}\n```',
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content:
@@ -108,7 +108,7 @@ function generateResponse(prompt: string): AgentResponse {
   if (lowerPrompt.includes('inefficient') || lowerPrompt.includes('wasteful')) {
     return {
       text: 'I completed the task after extensive exploration.',
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'I completed the task after extensive exploration.',
@@ -135,7 +135,7 @@ function generateResponse(prompt: string): AgentResponse {
   // Default: moderate usage
   return {
     text: 'I processed your request successfully.',
-    output_messages: [
+    output: [
       {
         role: 'assistant',
         content: 'I processed your request successfully.',

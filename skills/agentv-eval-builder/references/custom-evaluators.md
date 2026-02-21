@@ -9,13 +9,13 @@
   "question": "string",
   "criteria": "string",
   "reference_answer": "string",
-  "candidate_answer": "string",
+  "answer": "string",
   "guideline_files": ["path"],
   "input_files": ["path"],
   "input": [{"role": "user", "content": "..."}],
   "expected_output": [{"role": "assistant", "content": "..."}],
-  "output_messages": [{"role": "assistant", "content": "..."}],
-  "trace_summary": {
+  "output": [{"role": "assistant", "content": "..."}],
+  "trace": {
     "event_count": 5,
     "tool_names": ["fetch"],
     "tool_calls_by_name": {"fetch": 1},
@@ -54,7 +54,7 @@ import { defineCodeJudge, createTargetClient, definePromptTemplate } from '@agen
   - `.invoke({question, systemPrompt})` - Single LLM call
   - `.invokeBatch(requests)` - Batch LLM calls
 - `definePromptTemplate(fn)` - Wraps prompt generation function
-  - Context fields: `question`, `candidateAnswer`, `referenceAnswer`, `criteria`, `expectedOutput`, `outputMessages`, `config`, `traceSummary`
+  - Context fields: `question`, `answer`, `referenceAnswer`, `criteria`, `expectedOutput`, `output`, `config`, `trace`
 
 ## Python Example
 
@@ -63,7 +63,7 @@ import { defineCodeJudge, createTargetClient, definePromptTemplate } from '@agen
 import json, sys
 
 def evaluate(data: dict) -> dict:
-    candidate = data.get("candidate_answer", "")
+    candidate = data.get("answer", "")
     hits, misses = [], []
     for kw in ["async", "await"]:
         (hits if kw in candidate else misses).append(f"Keyword '{kw}'")
@@ -86,10 +86,10 @@ if __name__ == "__main__":
 #!/usr/bin/env bun
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, criteria }) => {
+export default defineCodeJudge(({ answer, criteria }) => {
   const hits: string[] = [];
   const misses: string[] = [];
-  if (candidateAnswer.includes(criteria)) {
+  if (answer.includes(criteria)) {
     hits.push('Matches expected outcome');
   } else {
     misses.push('Does not match expected outcome');
@@ -110,9 +110,9 @@ Derived from test fields (users never author these directly):
 | `question` | First user message in `input` |
 | `criteria` | Test `criteria` field |
 | `reference_answer` | Last entry in `expected_output` |
-| `candidate_answer` | Last entry in `output_messages` (runtime) |
+| `answer` | Last entry in `output` (runtime) |
 | `input` | Full resolved input array (JSON) |
 | `expected_output` | Full resolved expected array (JSON) |
-| `output_messages` | Full provider output array (JSON) |
+| `output` | Full provider output array (JSON) |
 
 Markdown templates use `{{variable}}` syntax. TypeScript templates receive context object.

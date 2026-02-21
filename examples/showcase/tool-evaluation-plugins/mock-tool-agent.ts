@@ -3,7 +3,7 @@
  * Mock Tool Agent for tool evaluation plugin demos.
  *
  * This CLI simulates an agent that uses various tools, returning
- * output_messages with tool_calls for trajectory evaluation.
+ * output with tool_calls for trajectory evaluation.
  *
  * Usage:
  *   bun run mock-tool-agent.ts --prompt "..." --output output.json
@@ -27,7 +27,7 @@ interface Message {
 
 interface AgentResponse {
   text: string;
-  output_messages: Message[];
+  output: Message[];
   token_usage: { input: number; output: number; cached?: number };
   cost_usd: number;
   duration_ms: number;
@@ -43,7 +43,7 @@ function generateResponse(prompt: string): AgentResponse {
   if (lowerPrompt.includes('weather') || lowerPrompt.includes('forecast')) {
     return {
       text: 'The weather in Tokyo is currently 22°C with clear skies. The forecast shows...',
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'Let me search for weather information and fetch the detailed forecast.',
@@ -76,7 +76,7 @@ function generateResponse(prompt: string): AgentResponse {
   if (lowerPrompt.includes('time') || lowerPrompt.includes('current')) {
     return {
       text: 'The current time is 14:30 UTC.',
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'The current time is 14:30 UTC.',
@@ -97,7 +97,7 @@ function generateResponse(prompt: string): AgentResponse {
   ) {
     return {
       text: 'Quarterly sales analysis complete. Key findings: Revenue up 15%, strong Q3 performance.',
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'Let me analyze the quarterly sales data.',
@@ -139,7 +139,7 @@ function generateResponse(prompt: string): AgentResponse {
   ) {
     return {
       text: 'Here is a summary of the user manual:\n1. Installation: Follow the setup wizard\n2. Configuration: Edit settings.json\n3. Usage: Run the main command',
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           content: 'I will retrieve and summarize the document.',
@@ -167,7 +167,7 @@ function generateResponse(prompt: string): AgentResponse {
   // Default: general response with minimal tools
   return {
     text: 'I processed your request.',
-    output_messages: [
+    output: [
       {
         role: 'assistant',
         content: 'I processed your request.',

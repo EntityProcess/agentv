@@ -16,7 +16,7 @@ Code judges communicate via stdin/stdout JSON:
 {
   "question": "What is 15 + 27?",
   "criteria": "Correctly calculates 15 + 27 = 42",
-  "candidate_answer": "The answer is 42.",
+  "answer": "The answer is 42.",
   "reference_answer": "42",
   "sidecar": {}
 }
@@ -45,12 +45,12 @@ Code judges communicate via stdin/stdout JSON:
 # validators/check_answer.py
 import json, sys
 data = json.load(sys.stdin)
-candidate_answer = data.get("candidate_answer", "")
+answer = data.get("answer", "")
 
 hits = []
 misses = []
 
-if "42" in candidate_answer:
+if "42" in answer:
     hits.append("Answer contains correct value (42)")
 else:
     misses.append("Answer does not contain expected value (42)")
@@ -72,12 +72,12 @@ print(json.dumps({
 import { readFileSync } from "fs";
 
 const data = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
-const candidateAnswer: string = data.candidate_answer ?? "";
+const answer: string = data.answer ?? "";
 
 const hits: string[] = [];
 const misses: string[] = [];
 
-if (candidateAnswer.includes("42")) {
+if (answer.includes("42")) {
   hits.push("Answer contains correct value (42)");
 } else {
   misses.push("Answer does not contain expected value (42)");
@@ -109,11 +109,11 @@ The `@agentv/eval` package provides a declarative API with automatic stdin/stdou
 #!/usr/bin/env bun
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, criteria }) => {
+export default defineCodeJudge(({ answer, criteria }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
-  if (candidateAnswer.includes(criteria)) {
+  if (answer.includes(criteria)) {
     hits.push('Answer matches expected outcome');
   } else {
     misses.push('Answer does not match expected outcome');
@@ -156,12 +156,12 @@ Use `createTargetClient` from the SDK:
 #!/usr/bin/env bun
 import { createTargetClient, defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(async ({ question, candidateAnswer }) => {
+export default defineCodeJudge(async ({ question, answer }) => {
   const target = createTargetClient();
   if (!target) return { score: 0, misses: ['Target not configured'] };
 
   const response = await target.invoke({
-    question: `Is this relevant to: ${question}? Response: ${candidateAnswer}`,
+    question: `Is this relevant to: ${question}? Response: ${answer}`,
     systemPrompt: 'Respond with JSON: { "relevant": true/false }'
   });
 
@@ -181,7 +181,7 @@ Use `target.invokeBatch(requests)` for multiple calls in parallel.
 
 ## Advanced Input Fields
 
-Beyond the basic `question`, `criteria`, `candidate_answer`, and `reference_answer` fields, code judges receive additional context:
+Beyond the basic `question`, `criteria`, `answer`, and `reference_answer` fields, code judges receive additional context:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -189,12 +189,12 @@ Beyond the basic `question`, `criteria`, `candidate_answer`, and `reference_answ
 | `input_files` | `string[]` | Paths to input files referenced in the eval |
 | `input` | `Message[]` | Full resolved input message array |
 | `expected_output` | `Message[]` | Expected agent behavior including tool calls |
-| `output_messages` | `Message[]` | Actual agent execution trace with tool calls |
-| `trace_summary` | `TraceSummary` | Lightweight execution metrics |
+| `output` | `Message[]` | Actual agent execution trace with tool calls |
+| `trace` | `TraceSummary` | Lightweight execution metrics |
 | `file_changes` | `string \| null` | Unified diff of workspace file changes (when `workspace_template` is configured) |
 | `workspace_path` | `string \| null` | Absolute path to the workspace directory (when `workspace_template` is configured) |
 
-### trace_summary structure
+### trace structure
 
 ```json
 {
@@ -224,7 +224,7 @@ Beyond the basic `question`, `criteria`, `candidate_answer`, and `reference_answ
 | `start_time` | `string` | ISO timestamp of first event |
 | `end_time` | `string` | ISO timestamp of last event |
 
-Use `expected_output` for retrieval context in RAG evals (tool calls with outputs) and `output_messages` for the actual agent execution trace from live runs.
+Use `expected_output` for retrieval context in RAG evals (tool calls with outputs) and `output` for the actual agent execution trace from live runs.
 
 ## Workspace Access
 
@@ -300,5 +300,5 @@ See `examples/features/functional-grading/` for a complete working example.
 Test a code judge by piping JSON to stdin:
 
 ```bash
-echo '{"question":"What is 2+2?","criteria":"4","candidate_answer":"4","reference_answer":"4","sidecar":{}}' | python validators/check_answer.py
+echo '{"question":"What is 2+2?","criteria":"4","answer":"4","reference_answer":"4","sidecar":{}}' | python validators/check_answer.py
 ```

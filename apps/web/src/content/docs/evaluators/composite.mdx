@@ -190,7 +190,7 @@ Composites can contain other composites for hierarchical evaluation:
 
 ## Result Structure
 
-Composite evaluators return nested `evaluator_results`, giving full visibility into each sub-evaluator:
+Composite evaluators return nested `scores`, giving full visibility into each sub-evaluator:
 
 ```json
 {
@@ -199,7 +199,7 @@ Composite evaluators return nested `evaluator_results`, giving full visibility i
   "hits": ["[safety] No harmful content", "[quality] Clear explanation"],
   "misses": ["[quality] Could use more examples"],
   "reasoning": "safety: Passed all checks; quality: Good but could improve",
-  "evaluator_results": [
+  "scores": [
     {
       "name": "safety",
       "type": "llm_judge",

@@ -30,7 +30,7 @@ interface Fixture {
   question: string;
   criteria: string;
   expected_output: string;
-  candidate_answer: string;
+  answer: string;
   score_bounds?: [number, number];
 }
 
@@ -93,11 +93,11 @@ function buildCodeJudgeInput(fixture: Fixture): string {
   return JSON.stringify({
     question: fixture.question,
     criteria: fixture.criteria,
-    candidate_answer: fixture.candidate_answer,
+    answer: fixture.answer,
     reference_answer: fixture.expected_output,
     expected_output: [],
     input: [{ role: 'user', content: fixture.question }],
-    output_messages: [{ role: 'assistant', content: fixture.candidate_answer }],
+    output: [{ role: 'assistant', content: fixture.answer }],
     guideline_files: [],
     input_files: [],
   });

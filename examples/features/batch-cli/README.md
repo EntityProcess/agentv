@@ -8,7 +8,7 @@ This example demonstrates an **external batch runner** pattern for a (synthetic)
 
 2. **CSV conversion**: `batch-cli-runner.ts` imports functions from `build-csv-from-eval.ts` to convert `input` into CSV format. The CSV contains only inputs (customer data, transaction details) - no expected decisions.
 
-3. **Batch processing**: `batch-cli-runner.ts` reads the CSV and applies synthetic AML screening rules, writing **actual responses** as JSONL to a temporary file. Each JSONL record includes `output_messages` with `tool_calls` for trace extraction.
+3. **Batch processing**: `batch-cli-runner.ts` reads the CSV and applies synthetic AML screening rules, writing **actual responses** as JSONL to a temporary file. Each JSONL record includes `output` with `tool_calls` for trace extraction.
 
 4. **Evaluation**: AgentV compares the actual JSONL output against the ground truth in `evals/dataset.eval.yaml` using evaluators like `code_judge` and `tool_trajectory`.
 
@@ -22,15 +22,15 @@ That means the batch runner never emits a JSONL record for that `test_id`, and t
 
 AgentV then reports that test as failed (with `error` populated), while still evaluating the other items in the batch.
 
-## Tool Trajectory via output_messages
+## Tool Trajectory via output
 
-The batch runner outputs JSONL records with `output_messages` containing `tool_calls`:
+The batch runner outputs JSONL records with `output` containing `tool_calls`:
 
 ```json
 {
   "id": "aml-001",
   "text": "{...}",
-  "output_messages": [
+  "output": [
     {
       "role": "assistant",
       "tool_calls": [
@@ -45,7 +45,7 @@ The batch runner outputs JSONL records with `output_messages` containing `tool_c
 }
 ```
 
-The `tool_trajectory` evaluator extracts tool calls directly from `output_messages[].tool_calls[]`. This is the primary format - no separate `trace` field is required.
+The `tool_trajectory` evaluator extracts tool calls directly from `output[].tool_calls[]`. This is the primary format - no separate `trace` field is required.
 
 ## Files
 

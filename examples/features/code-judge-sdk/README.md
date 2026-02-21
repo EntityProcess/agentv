@@ -30,7 +30,7 @@ cat << 'EOF' | bun run scripts/verify-attachments.ts
   "question": "Please echo this request",
   "criteria": "The CLI echoes the prompt and lists attachment names.",
   "expected_output": [{"role": "assistant", "content": "Attachments detected (2): example.txt, python.instructions.md."}],
-  "candidate_answer": "Attachments detected (2): example.txt, python.instructions.md.",
+  "answer": "Attachments detected (2): example.txt, python.instructions.md.",
   "guideline_files": ["evals/python.instructions.md"],
   "input_files": ["evals/example.txt"],
   "input": []
@@ -60,8 +60,8 @@ The `defineCodeJudge` helper:
 ```typescript
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, criteria }) => ({
-  score: candidateAnswer.includes(criteria) ? 1.0 : 0.0,
+export default defineCodeJudge(({ answer, criteria }) => ({
+  score: answer.includes(criteria) ? 1.0 : 0.0,
   hits: ['Check passed'],
   misses: [],
 }));

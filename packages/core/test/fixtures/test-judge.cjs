@@ -19,13 +19,13 @@ console.log(
     score: ok ? 1 : 0,
     hits: [
       hasExpected ? 'expected_output present' : null,
-      hasCandidate ? 'candidate_answer present' : null,
-      candidateDecisionOk ? 'candidate_answer parses' : null,
+      hasCandidate ? 'answer present' : null,
+      candidateDecisionOk ? 'answer parses' : null,
     ].filter(Boolean),
     misses: [
       hasExpected ? null : 'expected_output missing',
-      hasCandidate ? null : 'candidate_answer missing',
-      candidateDecisionOk ? null : 'candidate_answer invalid',
+      hasCandidate ? null : 'answer missing',
+      candidateDecisionOk ? null : 'answer invalid',
     ].filter(Boolean),
   }),
 );
