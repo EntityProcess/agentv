@@ -4,11 +4,11 @@ const fs = require('node:fs');
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
 const hasExpected = Array.isArray(input.expected_output);
-const hasCandidate = typeof input.candidate_answer === 'string';
+const hasCandidate = typeof input.answer === 'string';
 let candidateDecisionOk = false;
 
 try {
-  const obj = JSON.parse(input.candidate_answer);
+  const obj = JSON.parse(input.answer);
   candidateDecisionOk = obj && obj.decision === 'ACCEPT';
 } catch {}
 

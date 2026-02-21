@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
-const summary = input.trace_summary;
+const summary = input.trace;
 const hasEventCount = summary && typeof summary.event_count === 'number';
 const hasTokenUsage = summary?.token_usage && typeof summary.token_usage.input === 'number';
 const hasCostUsd = summary && typeof summary.cost_usd === 'number';
