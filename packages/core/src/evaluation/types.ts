@@ -481,7 +481,7 @@ export type AgentJudgeEvaluatorConfig = {
   /** Temperature for built-in mode (default 0) */
   readonly temperature?: number;
   /** Target name — delegates agent loop to this provider instead of built-in mode */
-  readonly judge_target?: string;
+  readonly target?: string;
   readonly weight?: number;
   readonly required?: boolean | number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */

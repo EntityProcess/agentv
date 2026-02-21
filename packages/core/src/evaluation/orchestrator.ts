@@ -1546,8 +1546,8 @@ async function runEvaluatorList(options: {
                 ajPrompt = ajConfig.prompt;
               }
               let ajTargetProvider: Provider | undefined;
-              if (ajConfig.judge_target && targetResolver) {
-                ajTargetProvider = targetResolver(ajConfig.judge_target);
+              if (ajConfig.target && targetResolver) {
+                ajTargetProvider = targetResolver(ajConfig.target);
               }
               return new AgentJudgeEvaluator({
                 resolveJudgeProvider: async (ctx) => {
@@ -1850,13 +1850,13 @@ async function runEvaluatorList(options: {
           customPrompt = agentJudgeConfig.prompt;
         }
 
-        // Resolve judge_target provider if specified
+        // Resolve target provider if specified
         let judgeTargetProvider: Provider | undefined;
-        if (agentJudgeConfig.judge_target && targetResolver) {
-          judgeTargetProvider = targetResolver(agentJudgeConfig.judge_target);
+        if (agentJudgeConfig.target && targetResolver) {
+          judgeTargetProvider = targetResolver(agentJudgeConfig.target);
           if (!judgeTargetProvider) {
             throw new Error(
-              `agent_judge evaluator '${evaluator.name}': judge_target '${agentJudgeConfig.judge_target}' not found in targets`,
+              `agent_judge evaluator '${evaluator.name}': target '${agentJudgeConfig.target}' not found in targets`,
             );
           }
         }

@@ -20,7 +20,7 @@ targets:
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     version: ${{ AZURE_OPENAI_API_VERSION }}
 
-  # Copilot CLI — used as delegated agent_judge via judge_target
+  # Copilot CLI — used as delegated agent_judge target
   - name: copilot_judge
     provider: copilot-cli
     model: claude-haiku-4.5
