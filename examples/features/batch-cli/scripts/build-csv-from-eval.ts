@@ -50,7 +50,8 @@ export function extractRowsFromEvalYaml(yamlText: string): readonly EvalRow[] {
   const parsed = parse(yamlText) as unknown;
   if (!isObject(parsed)) return [];
 
-  const evalcases = (parsed as Record<string, unknown>).cases;
+  const evalcases =
+    (parsed as Record<string, unknown>).tests ?? (parsed as Record<string, unknown>).cases;
   if (!Array.isArray(evalcases)) return [];
 
   const rows: EvalRow[] = [];
@@ -139,7 +140,7 @@ async function main(): Promise<void> {
 
   if (rows.length === 0) {
     throw new Error(
-      'No rows extracted. Ensure cases have a user input_message with object content.request/content.row',
+      'No rows extracted. Ensure tests have a user input with object content.request/content.row',
     );
   }
 

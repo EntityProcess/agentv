@@ -35,7 +35,8 @@ function extractActualTools(input: CodeJudgeInput): string[] {
 }
 
 export default defineCodeJudge(({ output, config, ...rest }) => {
-  const expectedTools: string[] = (config?.expected_tools as string[]) ?? [];
+  const expectedTools: string[] =
+    (config?.expectedTools as string[]) ?? (config?.expected_tools as string[]) ?? [];
 
   if (expectedTools.length === 0) {
     return {

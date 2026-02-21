@@ -63,7 +63,7 @@ function argsMatch(expected: Record<string, unknown>, actual: Record<string, unk
 }
 
 export default defineCodeJudge(({ output, config, ...rest }) => {
-  const rawExpected = config?.expected_tools;
+  const rawExpected = config?.expectedTools ?? config?.expected_tools;
   if (!rawExpected || !Array.isArray(rawExpected) || rawExpected.length === 0) {
     return {
       score: 0,
