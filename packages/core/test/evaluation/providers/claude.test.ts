@@ -265,6 +265,49 @@ describe('ClaudeProvider', () => {
     expect(params.options?.allowDangerouslySkipPermissions).toBe(true);
   });
 
+  it('strips CLAUDECODE env var to allow nested sessions', async () => {
+    // Simulate running inside a Claude Code session
+    const originalClaudeCode = process.env.CLAUDECODE;
+    process.env.CLAUDECODE = '1';
+
+    try {
+      const queryMock = mock((_params: unknown) =>
+        createMockQuery({
+          messages: [
+            {
+              type: 'result',
+              subtype: 'success',
+              total_cost_usd: 0,
+              duration_ms: 100,
+              usage: {},
+            },
+          ],
+        }),
+      );
+
+      mock.module('@anthropic-ai/claude-agent-sdk', () => ({
+        query: queryMock,
+      }));
+
+      const { ClaudeProvider } = await import('../../../src/evaluation/providers/claude.js');
+
+      const provider = new ClaudeProvider('test-target', {});
+      await provider.invoke({ question: 'Test nested session' });
+
+      const params = queryMock.mock.calls[0][0] as {
+        options?: { env?: Record<string, string | undefined> };
+      };
+      expect(params.options?.env).toBeDefined();
+      expect(params.options?.env?.CLAUDECODE).toBeUndefined();
+    } finally {
+      if (originalClaudeCode !== undefined) {
+        process.env.CLAUDECODE = originalClaudeCode;
+      } else {
+        delete process.env.CLAUDECODE;
+      }
+    }
+  });
+
   it('includes timing information in response', async () => {
     const queryMock = mock(() =>
       createMockQuery({
