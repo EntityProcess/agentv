@@ -38,6 +38,7 @@
   },
   "files": ["dist", "README.md"],
   "dependencies": {
+    "@agentclientprotocol/sdk": "^0.14.1",
     "@ai-sdk/anthropic": "^2.0.53",
     "@ai-sdk/azure": "^2.0.78",
     "@ai-sdk/google": "^2.0.44",

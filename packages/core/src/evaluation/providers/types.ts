@@ -16,6 +16,7 @@ export type ProviderKind =
   | 'gemini'
   | 'codex'
   | 'copilot'
+  | 'copilot-cli'
   | 'pi-coding-agent'
   | 'pi-agent-sdk'
   | 'claude'
@@ -31,6 +32,7 @@ export type ProviderKind =
 export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'codex',
   'copilot',
+  'copilot-cli',
   'pi-coding-agent',
   'claude',
   'vscode',
@@ -47,6 +49,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'gemini',
   'codex',
   'copilot',
+  'copilot-cli',
   'pi-coding-agent',
   'pi-agent-sdk',
   'claude',
@@ -67,7 +70,7 @@ export const PROVIDER_ALIASES: readonly string[] = [
   'codex-cli', // alias for "codex"
   'copilot-sdk', // alias for "copilot"
   'copilot_sdk', // alias for "copilot" (underscore variant)
-  'copilot-cli', // alias for "copilot" (legacy)
+
   'pi', // alias for "pi-coding-agent"
   'claude-code', // alias for "claude" (legacy)
   'claude-sdk', // alias for "claude"

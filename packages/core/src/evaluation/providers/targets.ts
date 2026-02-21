@@ -468,6 +468,18 @@ export interface CodexResolvedConfig {
   readonly systemPrompt?: string;
 }
 
+export interface CopilotCliResolvedConfig {
+  readonly executable: string;
+  readonly model?: string;
+  readonly args?: readonly string[];
+  readonly cwd?: string;
+  readonly workspaceTemplate?: string;
+  readonly timeoutMs?: number;
+  readonly logDir?: string;
+  readonly logFormat?: 'summary' | 'json';
+  readonly systemPrompt?: string;
+}
+
 export interface CopilotSdkResolvedConfig {
   readonly cliUrl?: string;
   readonly cliPath?: string;
@@ -582,6 +594,14 @@ export type ResolvedTarget =
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: CopilotSdkResolvedConfig;
+    }
+  | {
+      readonly kind: 'copilot-cli';
+      readonly name: string;
+      readonly judgeTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: CopilotCliResolvedConfig;
     }
   | {
       readonly kind: 'pi-coding-agent';
@@ -756,7 +776,6 @@ export function resolveTargetDefinition(
     case 'copilot':
     case 'copilot-sdk':
     case 'copilot_sdk':
-    case 'copilot-cli':
       return {
         kind: 'copilot',
         name: parsed.name,
@@ -764,6 +783,15 @@ export function resolveTargetDefinition(
         workers: parsed.workers,
         providerBatching,
         config: resolveCopilotSdkConfig(parsed, env, evalFilePath),
+      };
+    case 'copilot-cli':
+      return {
+        kind: 'copilot-cli',
+        name: parsed.name,
+        judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolveCopilotCliConfig(parsed, env, evalFilePath),
       };
     case 'pi':
     case 'pi-coding-agent':
@@ -1109,6 +1137,94 @@ function resolveCopilotSdkConfig(
     cliPath,
     githubToken,
     model,
+    cwd,
+    workspaceTemplate,
+    timeoutMs,
+    logDir,
+    logFormat,
+    systemPrompt,
+  };
+}
+
+function resolveCopilotCliConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+  evalFilePath?: string,
+): CopilotCliResolvedConfig {
+  const executableSource = target.executable ?? target.command ?? target.binary;
+  const modelSource = target.model;
+  const argsSource = target.args ?? target.arguments;
+  const cwdSource = target.cwd;
+  const workspaceTemplateSource = target.workspace_template ?? target.workspaceTemplate;
+  const timeoutSource = target.timeout_seconds ?? target.timeoutSeconds;
+  const logDirSource =
+    target.log_dir ?? target.logDir ?? target.log_directory ?? target.logDirectory;
+  const logFormatSource = target.log_format ?? target.logFormat;
+  const systemPromptSource = target.system_prompt ?? target.systemPrompt;
+
+  const executable =
+    resolveOptionalString(executableSource, env, `${target.name} copilot-cli executable`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }) ?? 'copilot';
+
+  const model = resolveOptionalString(modelSource, env, `${target.name} copilot-cli model`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const args = resolveOptionalStringArray(argsSource, env, `${target.name} copilot-cli args`);
+
+  const cwd = resolveOptionalString(cwdSource, env, `${target.name} copilot-cli cwd`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  let workspaceTemplate = resolveOptionalString(
+    workspaceTemplateSource,
+    env,
+    `${target.name} copilot-cli workspace template`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
+
+  // Resolve relative workspace template paths against eval file directory
+  if (workspaceTemplate && evalFilePath && !path.isAbsolute(workspaceTemplate)) {
+    workspaceTemplate = path.resolve(path.dirname(path.resolve(evalFilePath)), workspaceTemplate);
+  }
+
+  // Validate mutual exclusivity of cwd and workspace_template
+  if (cwd && workspaceTemplate) {
+    throw new Error(
+      `${target.name}: 'cwd' and 'workspace_template' are mutually exclusive. Use 'cwd' to run in an existing directory, or 'workspace_template' to copy a template to a temp location.`,
+    );
+  }
+
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} copilot-cli timeout`);
+
+  const logDir = resolveOptionalString(
+    logDirSource,
+    env,
+    `${target.name} copilot-cli log directory`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
+
+  const logFormat = normalizeCopilotLogFormat(logFormatSource);
+
+  const systemPrompt =
+    typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
+      ? systemPromptSource.trim()
+      : undefined;
+
+  return {
+    executable,
+    model,
+    args,
     cwd,
     workspaceTemplate,
     timeoutMs,
