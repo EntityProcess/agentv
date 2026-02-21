@@ -1,0 +1,1078 @@
+diff --git a/CLAUDE.md b/CLAUDE.md
+index a30e04a..f9bb9c4 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -12,7 +12,7 @@ This repository contains the AgentEvals specification - industry-standard evalua
+ 
+ The core specification file format for defining agent evaluations:
+ - `name` - Unique identifier for the eval suite
+-- `cases` - Array of evaluation cases
++- `tests` - Array of tests
+ - `execution.evaluators` - Evaluator configurations
+ 
+ ### Evaluator Types
+diff --git a/README.md b/README.md
+index f8498f9..0bb7ae6 100644
+--- a/README.md
++++ b/README.md
+@@ -32,7 +32,7 @@ execution:
+       type: llm_judge
+       prompt: ./prompts/correctness.md
+ 
+-cases:
++tests:
+   - id: detect-off-by-one
+     criteria: Identifies loop condition bug
+     input:
+diff --git a/docs/src/content/docs/evaluators/execution-metrics.mdx b/docs/src/content/docs/evaluators/execution-metrics.mdx
+index 7bd9e11..2b27e5f 100644
+--- a/docs/src/content/docs/evaluators/execution-metrics.mdx
++++ b/docs/src/content/docs/evaluators/execution-metrics.mdx
+@@ -47,7 +47,7 @@ execution:
+       max_tool_calls: 5
+       max_duration_ms: 10000
+ 
+-cases:
++tests:
+   - id: quick-lookup
+     criteria: Agent finds answer efficiently
+     input: "What is the capital of France?"
+@@ -82,10 +82,10 @@ execution:
+ 
+ ### Tiered Performance
+ 
+-Different bounds for different eval cases:
++Different bounds for different tests:
+ 
+ ```yaml
+-cases:
++tests:
+   - id: simple-query
+     criteria: Quick response
+     input: "Hello!"
+@@ -265,7 +265,7 @@ max_duration_ms: 45000  # P95 was 38000
+ ### 2. Different Bounds for Different Tasks
+ 
+ ```yaml
+-cases:
++tests:
+   - id: simple
+     execution:
+       evaluators:
+diff --git a/docs/src/content/docs/evaluators/llm-judge.mdx b/docs/src/content/docs/evaluators/llm-judge.mdx
+index 9aef143..3d203bb 100644
+--- a/docs/src/content/docs/evaluators/llm-judge.mdx
++++ b/docs/src/content/docs/evaluators/llm-judge.mdx
+@@ -206,7 +206,7 @@ execution:
+       prompt: ./prompts/quality.md
+       weight: 1.0
+ 
+-cases:
++tests:
+   - id: factual-question
+     criteria: Provides accurate factual answer
+     input: "What is the capital of France?"
+diff --git a/docs/src/content/docs/evaluators/rubric.mdx b/docs/src/content/docs/evaluators/rubric.mdx
+index 83ca89a..1e7f958 100644
+--- a/docs/src/content/docs/evaluators/rubric.mdx
++++ b/docs/src/content/docs/evaluators/rubric.mdx
+@@ -119,7 +119,7 @@ execution:
+           outcome: Identifies security implications
+           weight: 2.0
+ 
+-cases:
++tests:
+   - id: sql-injection
+     criteria: Identifies SQL injection vulnerability
+     input:
+@@ -230,10 +230,10 @@ Intermediate values are interpolated linearly.
+ 
+ ## Inline vs. File-Level Rubrics
+ 
+-### Inline (per case)
++### Inline (per test)
+ 
+ ```yaml
+-cases:
++tests:
+   - id: greeting
+     criteria: Friendly greeting
+     input: "Hello!"
+@@ -255,8 +255,8 @@ execution:
+         - id: accuracy
+           outcome: Accurate information
+ 
+-cases:
+-  - id: case-1
++tests:
++  - id: test-1
+     # Uses shared_rubric evaluator
+ ```
+ 
+@@ -271,10 +271,10 @@ execution:
+         - id: tone
+           outcome: Professional
+ 
+-cases:
+-  - id: specific-case
++tests:
++  - id: specific-test
+     rubrics:
+-      # Additional case-specific rubrics
++      # Additional test-specific rubrics
+       - Must mention product name
+       - Includes call to action
+ ```
+diff --git a/docs/src/content/docs/evaluators/tool-trajectory.mdx b/docs/src/content/docs/evaluators/tool-trajectory.mdx
+index e2b0cce..7ed6967 100644
+--- a/docs/src/content/docs/evaluators/tool-trajectory.mdx
++++ b/docs/src/content/docs/evaluators/tool-trajectory.mdx
+@@ -199,7 +199,7 @@ execution:
+       max_tool_calls: 10
+       max_duration_ms: 30000
+ 
+-cases:
++tests:
+   - id: research-python
+     criteria: |
+       Agent searches for Python information, reads multiple sources,
+@@ -334,7 +334,7 @@ evaluators:
+ ### 4. Document Tool Expectations
+ 
+ ```yaml
+-cases:
++tests:
+   - id: research
+     criteria: |
+       Agent should:
+diff --git a/docs/src/content/docs/getting-started/introduction.mdx b/docs/src/content/docs/getting-started/introduction.mdx
+index 2ce5525..fc6e76a 100644
+--- a/docs/src/content/docs/getting-started/introduction.mdx
++++ b/docs/src/content/docs/getting-started/introduction.mdx
+@@ -36,7 +36,7 @@ name: my-agent-eval
+ version: "1.0"
+ description: Evaluates my agent capabilities
+ 
+-cases:
++tests:
+   - id: basic-task
+     criteria: Agent completes the task correctly
+     input:
+@@ -44,9 +44,9 @@ cases:
+         content: "Perform this task..."
+ ```
+ 
+-### Cases
++### Tests
+ 
+-Individual test cases within an evaluation suite. Each case defines:
++Individual tests within an evaluation suite. Each test defines:
+ 
+ - **Input** - What to send to the agent
+ - **Criteria** - Natural language description of success
+diff --git a/docs/src/content/docs/getting-started/quick-start.mdx b/docs/src/content/docs/getting-started/quick-start.mdx
+index 7f68aa6..f798ae3 100644
+--- a/docs/src/content/docs/getting-started/quick-start.mdx
++++ b/docs/src/content/docs/getting-started/quick-start.mdx
+@@ -20,7 +20,7 @@ name: hello-world-eval
+ version: "1.0"
+ description: A simple evaluation to verify agent responses
+ 
+-cases:
++tests:
+   - id: greeting-response
+     criteria: |
+       Agent responds with a friendly greeting that includes the user's name
+@@ -62,7 +62,7 @@ execution:
+         Score 0.5 if partially correct.
+         Score 0.0 if fails basic requirements.
+ 
+-cases:
++tests:
+   - id: greeting-response
+     criteria: |
+       Agent responds with a friendly greeting that includes the user's name
+diff --git a/docs/src/content/docs/index.mdx b/docs/src/content/docs/index.mdx
+index beef1e5..cb34ba3 100644
+--- a/docs/src/content/docs/index.mdx
++++ b/docs/src/content/docs/index.mdx
+@@ -45,7 +45,7 @@ execution:
+       type: llm_judge
+       prompt: ./prompts/quality.md
+ 
+-cases:
++tests:
+   - id: detect-bug
+     criteria: Identifies the loop condition bug
+     input:
+diff --git a/docs/src/content/docs/integration/results.mdx b/docs/src/content/docs/integration/results.mdx
+index fcc60ea..e183d5c 100644
+--- a/docs/src/content/docs/integration/results.mdx
++++ b/docs/src/content/docs/integration/results.mdx
+@@ -66,7 +66,7 @@ AgentEvals produces structured results in JSONL format, enabling analysis, track
+ | Field | Type | Description |
+ |-------|------|-------------|
+ | `timestamp` | `string` | ISO 8601 timestamp |
+-| `evalId` | `string` | Case ID |
++| `evalId` | `string` | Test ID |
+ | `dataset` | `string` | EVAL name |
+ | `score` | `number` | Final score (0-1) |
+ | `verdict` | `string` | pass / borderline / fail |
+@@ -135,7 +135,7 @@ cat results.jsonl | jq -s 'group_by(.verdict) | map({verdict: .[0].verdict, coun
+ # Average score
+ cat results.jsonl | jq -s 'map(.score) | add / length'
+ 
+-# Failed cases
++# Failed tests
+ cat results.jsonl | jq 'select(.verdict == "fail")'
+ 
+ # Top misses
+diff --git a/docs/src/content/docs/integration/targets.mdx b/docs/src/content/docs/integration/targets.mdx
+index 9699aeb..7e03c9a 100644
+--- a/docs/src/content/docs/integration/targets.mdx
++++ b/docs/src/content/docs/integration/targets.mdx
+@@ -123,13 +123,13 @@ execution:
+   target: default  # Uses "default" from targets.yaml
+ ```
+ 
+-### Per-Case Override
++### Per-Test Override
+ 
+ ```yaml
+-cases:
++tests:
+   - id: complex-task
+     execution:
+-      target: powerful  # Override for this case
++      target: powerful  # Override for this test
+ ```
+ 
+ ### Judge Target
+@@ -166,19 +166,19 @@ AZURE_DEPLOYMENT=gpt-4o
+ 
+ ## Target Resolution
+ 
+-1. Check case `execution.target`
++1. Check test `execution.target`
+ 2. Fall back to file-level `execution.target`
+ 3. Fall back to `default` target
+ 4. Error if no matching target found
+ 
+ ```yaml
+ # Resolution order
+-cases:
+-  - id: case-1
++tests:
++  - id: test-1
+     execution:
+       target: special    # 1. Uses "special"
+ 
+-  - id: case-2           # 2. Uses file-level "fast"
++  - id: test-2           # 2. Uses file-level "fast"
+ 
+ execution:
+   target: fast           # File-level default
+diff --git a/docs/src/content/docs/patterns/multi-turn.mdx b/docs/src/content/docs/patterns/multi-turn.mdx
+index 706cbf1..0aabdcc 100644
+--- a/docs/src/content/docs/patterns/multi-turn.mdx
++++ b/docs/src/content/docs/patterns/multi-turn.mdx
+@@ -9,10 +9,10 @@ Multi-turn evaluation assesses agent performance across conversational exchanges
+ 
+ ### Using conversation_id
+ 
+-Group related cases with `conversation_id`:
++Group related tests with `conversation_id`:
+ 
+ ```yaml
+-cases:
++tests:
+   - id: support-turn-1
+     conversation_id: support-session
+     criteria: Agent acknowledges request
+@@ -44,7 +44,7 @@ cases:
+ Include complete history in each turn:
+ 
+ ```yaml
+-cases:
++tests:
+   - id: final-turn
+     criteria: Agent maintains context throughout
+     input:
+@@ -83,7 +83,7 @@ execution:
+ 
+         Score 1.0 if context maintained, 0.0 if lost.
+ 
+-cases:
++tests:
+   - id: name-recall
+     criteria: Agent remembers user's name
+     input:
+@@ -179,7 +179,7 @@ execution:
+       aggregator:
+         type: weighted_average
+ 
+-cases:
++tests:
+   # Complete conversation flow
+   - id: password-reset-1
+     conversation_id: password-reset
+@@ -241,7 +241,7 @@ cases:
+ ### Turn-Level Metrics
+ 
+ ```yaml
+-cases:
++tests:
+   - id: turn-3
+     execution:
+       evaluators:
+@@ -289,7 +289,7 @@ execution:
+         - tool: verify_identity
+         - tool: perform_action
+ 
+-cases:
++tests:
+   - id: account-lookup-flow
+     criteria: Agent looks up account before action
+     input:
+@@ -370,7 +370,7 @@ execution:
+ ### 5. Use Realistic Scenarios
+ 
+ ```yaml
+-cases:
++tests:
+   - id: realistic-support
+     note: |
+       Based on actual support ticket patterns.
+diff --git a/docs/src/content/docs/patterns/safety-gates.mdx b/docs/src/content/docs/patterns/safety-gates.mdx
+index 9dbf5f2..2d9b41d 100644
+--- a/docs/src/content/docs/patterns/safety-gates.mdx
++++ b/docs/src/content/docs/patterns/safety-gates.mdx
+@@ -275,7 +275,7 @@ execution:
+         required: [content_safety, pii_protection, policy_compliance]
+         # Quality evaluated only if all safety checks pass
+ 
+-cases:
++tests:
+   - id: normal-request
+     criteria: Provides helpful, safe response
+     input:
+@@ -338,7 +338,7 @@ metadata:
+ ### Alert on Failures
+ 
+ ```yaml
+-cases:
++tests:
+   - id: safety-critical
+     metadata:
+       alert_on_fail: true
+@@ -390,8 +390,8 @@ metadata:
+ ### 5. Test Edge Cases
+ 
+ ```yaml
+-cases:
+-  - id: borderline-case
++tests:
++  - id: borderline-test
+     note: Tests gray area between helpful and harmful
+     input:
+       - role: user
+diff --git a/docs/src/content/docs/patterns/testing-pyramid.mdx b/docs/src/content/docs/patterns/testing-pyramid.mdx
+index 2e106f4..0943d4c 100644
+--- a/docs/src/content/docs/patterns/testing-pyramid.mdx
++++ b/docs/src/content/docs/patterns/testing-pyramid.mdx
+@@ -93,7 +93,7 @@ execution:
+       type: execution_metrics
+       max_tool_calls: 10
+ 
+-cases:
++tests:
+   - id: off-by-one
+     criteria: Identifies loop condition bug
+     input:
+@@ -253,7 +253,7 @@ evaluators:
+ ### Integration Evals
+ 
+ ```yaml
+-cases:
++tests:
+   - id: multi-step
+     conversation_id: research-flow
+ 
+diff --git a/docs/src/content/docs/reference/glossary.mdx b/docs/src/content/docs/reference/glossary.mdx
+index a97e66d..2fef058 100644
+--- a/docs/src/content/docs/reference/glossary.mdx
++++ b/docs/src/content/docs/reference/glossary.mdx
+@@ -22,8 +22,8 @@ The primary file format for defining evaluation suites in the AgentEvals specifi
+ 
+ ## Evaluation Components
+ 
+-### Case
+-A single test case within an evaluation suite. Contains input, criteria, and evaluation configuration.
++### Test
++A single test within an evaluation suite. Contains input, criteria, and evaluation configuration.
+ 
+ ### Evaluator
+ A component that assesses agent output. Types include `code_judge`, `llm_judge`, `rubric`, `composite`, `tool_trajectory`, `field_accuracy`, and `execution_metrics`.
+@@ -125,7 +125,7 @@ Storing all evaluations in a single `evals/` directory.
+ Storing evaluations alongside skills in `skills/*/evals/`.
+ 
+ ### Dataset
+-A collection of cases, either in YAML or JSONL format.
++A collection of tests, either in YAML or JSONL format.
+ 
+ ## Patterns
+ 
+@@ -139,7 +139,7 @@ A pattern ensuring critical safety checks pass before quality evaluation.
+ Evaluation of conversations spanning multiple exchanges.
+ 
+ ### Conversation ID
+-An identifier grouping related cases in a multi-turn conversation.
++An identifier grouping related tests in a multi-turn conversation.
+ 
+ ## Agent-Native Principles
+ 
+diff --git a/docs/src/content/docs/reference/schema.mdx b/docs/src/content/docs/reference/schema.mdx
+index 8dae78c..664b185 100644
+--- a/docs/src/content/docs/reference/schema.mdx
++++ b/docs/src/content/docs/reference/schema.mdx
+@@ -58,7 +58,7 @@ version: string           # Optional: Spec version (default: "1.0")
+ description: string       # Optional: Human-readable description
+ metadata: object          # Optional: Custom key-value pairs
+ execution: ExecutionConfig  # Optional: Default execution settings
+-cases: Case[]              # Required: Array of test cases
++tests: (Test | string)[]   # Required: Array of tests or file references
+ ```
+ 
+ ## ExecutionConfig
+@@ -70,10 +70,10 @@ execution:
+   evaluators: Evaluator[]     # Array of evaluator configs
+ ```
+ 
+-## Case
++## Test
+ 
+ ```yaml
+-cases:
++tests:
+   - id: string                # Required: Unique identifier
+     criteria: string          # Required: Success criteria
+ 
+@@ -254,13 +254,13 @@ tolerance: number     # Optional: For numeric_tolerance
+ 
+ ### Required Fields
+ 
+-- `name` and `cases` at root
+-- `id` and `criteria` in cases
++- `name` and `tests` at root
++- `id` and `criteria` in tests
+ - `name` and `type` in evaluators
+ 
+ ### Input Requirements
+ 
+-Each case must have at least one of:
++Each test must have at least one of:
+ - `input` (shorthand)
+ - `input_messages` (canonical)
+ 
+@@ -285,7 +285,7 @@ The complete JSON Schema is available at:
+   "$id": "https://agentevals.io/schema/eval.schema.json",
+   "title": "AgentEvals EVAL.yaml Schema",
+   "type": "object",
+-  "required": ["name", "cases"],
++  "required": ["name", "tests"],
+   ...
+ }
+ ```
+diff --git a/docs/src/content/docs/specification/eval-format.mdx b/docs/src/content/docs/specification/eval-format.mdx
+index 25a5ae0..6a4e779 100644
+--- a/docs/src/content/docs/specification/eval-format.mdx
++++ b/docs/src/content/docs/specification/eval-format.mdx
+@@ -10,7 +10,7 @@ The `EVAL.yaml` file is the primary specification file for defining agent evalua
+ ```yaml
+ # Required fields
+ name: string                    # Unique identifier
+-cases: Case[]                    # Array of test cases
++tests: Test[]                    # Array of tests
+ 
+ # Optional fields
+ version: string                 # Spec version (default: "1.0")
+@@ -48,7 +48,7 @@ execution:
+       script: ["python", "./judges/format.py"]
+       weight: 1.0
+ 
+-cases:
++tests:
+   - id: detect-off-by-one
+     description: Detect classic off-by-one loop error
+     criteria: |
+@@ -144,7 +144,7 @@ metadata:
+ 
+ ### execution
+ 
+-Default execution settings for all cases.
++Default execution settings for all tests.
+ 
+ - **Type:** `ExecutionConfig`
+ 
+@@ -160,14 +160,41 @@ execution:
+ 
+ See [Evaluators](/specification/evaluators/) for evaluator configuration.
+ 
+-### cases (required)
++### tests (required)
+ 
+-Array of evaluation cases.
++Array of tests. Each element is either an inline test object or a string file path to import.
+ 
+-- **Type:** `Case[]`
++- **Type:** `(Test | string)[]`
+ - **Min items:** 1
+ 
+-See [Case Schema](/specification/evalcase-schema/) for full schema.
++**Inline tests:**
++```yaml
++tests:
++  - id: greeting
++    criteria: Agent responds with a greeting
++    input: "Hello!"
++```
++
++**File references:**
++```yaml
++tests:
++  - ./security.yaml
++  - ./style.yaml
++```
++
++**Mixed (inline + file references):**
++```yaml
++tests:
++  - ./security.yaml
++  - ./style.yaml
++  - id: quick-check
++    criteria: Agent responds within constraints
++    input: "Hello!"
++```
++
++File references resolve relative to the EVAL.yaml directory. Each referenced file contains an array of test objects.
++
++See [Test Schema](/specification/case-schema/) for full schema.
+ 
+ ## File Resolution
+ 
+@@ -183,7 +210,7 @@ execution:
+       script: ["python", "./judges/check.py"]
+       # Resolves to: /project/evals/code-review/judges/check.py
+ 
+-cases:
++tests:
+   - id: example
+     input:
+       - role: user
+@@ -204,12 +231,12 @@ content:
+ 
+ ## JSONL Format
+ 
+-For large evaluations, use JSONL format with one case per line:
++For large evaluations, use JSONL format with one test per line:
+ 
+ **dataset.jsonl:**
+ ```jsonl
+-{"id": "case-1", "criteria": "...", "input": [{"role": "user", "content": "..."}]}
+-{"id": "case-2", "criteria": "...", "input": [{"role": "user", "content": "..."}]}
++{"id": "test-1", "criteria": "...", "input": [{"role": "user", "content": "..."}]}
++{"id": "test-2", "criteria": "...", "input": [{"role": "user", "content": "..."}]}
+ ```
+ 
+ **dataset.yaml** (sidecar for shared config):
+@@ -236,6 +263,6 @@ npx ajv validate -s eval.schema.json -d EVAL.yaml
+ 
+ ## Next Steps
+ 
+-- [Case Schema](/specification/evalcase-schema/) - Individual case structure
++- [Test Schema](/specification/case-schema/) - Individual test structure
+ - [Evaluators](/specification/evaluators/) - Evaluator configuration
+ - [Organization](/specification/organization/) - File organization patterns
+diff --git a/docs/src/content/docs/specification/evalcase-schema.mdx b/docs/src/content/docs/specification/evalcase-schema.mdx
+index 84e6695..2055cfc 100644
+--- a/docs/src/content/docs/specification/evalcase-schema.mdx
++++ b/docs/src/content/docs/specification/evalcase-schema.mdx
+@@ -1,9 +1,9 @@
+ ---
+-title: Case Schema
+-description: Schema reference for evaluation cases
++title: Test Schema
++description: Schema reference for tests
+ ---
+ 
+-A **case** is a single test case within an evaluation suite. Each case defines an input, criteria, and optionally how to evaluate the result.
++A **test** is a single test within an evaluation suite. Each test defines an input, criteria, and optionally how to evaluate the result.
+ 
+ ## Schema
+ 
+@@ -22,11 +22,11 @@ expected_messages: Message[]    # Canonical form
+ 
+ # Evaluation (optional)
+ rubrics: (string | Rubric)[]    # Inline evaluation criteria
+-execution: ExecutionConfig      # Per-case execution override
++execution: ExecutionConfig      # Per-test execution override
+ 
+ # Metadata (optional)
+ description: string             # Human-readable description
+-conversation_id: string         # Groups related multi-turn cases
++conversation_id: string         # Groups related multi-turn tests
+ note: string                    # Test-specific context
+ metadata: object                # Custom key-value pairs
+ ```
+@@ -41,7 +41,7 @@ Unique identifier within the EVAL.yaml file.
+ - **Constraints:** Must be unique within the file
+ 
+ ```yaml
+-cases:
++tests:
+   - id: greeting-response
+   - id: error-handling
+   - id: edge-case-empty-input
+@@ -200,10 +200,10 @@ score_ranges:             # Analytic scoring (0-10 scale)
+ 
+ ### execution
+ 
+-Per-case execution override.
++Per-test execution override.
+ 
+ ```yaml
+-cases:
++tests:
+   - id: slow-task
+     criteria: Completes analysis
+     input: "Analyze this large dataset..."
+@@ -218,10 +218,10 @@ cases:
+ 
+ ### conversation_id
+ 
+-Groups related multi-turn test cases.
++Groups related multi-turn tests.
+ 
+ ```yaml
+-cases:
++tests:
+   - id: turn-1
+     conversation_id: support-flow
+     input:
+@@ -268,7 +268,7 @@ Test-specific context provided to evaluators.
+ 
+ ## Complete Examples
+ 
+-### Basic Case
++### Basic Test
+ 
+ ```yaml
+ - id: simple-greeting
+@@ -278,7 +278,7 @@ Test-specific context provided to evaluators.
+     - Contains a greeting word
+ ```
+ 
+-### Complex Case
++### Complex Test
+ 
+ ```yaml
+ - id: code-review-security
+diff --git a/docs/src/content/docs/specification/organization.mdx b/docs/src/content/docs/specification/organization.mdx
+index d38787c..1c97a87 100644
+--- a/docs/src/content/docs/specification/organization.mdx
++++ b/docs/src/content/docs/specification/organization.mdx
+@@ -1,142 +1,67 @@
+ ---
+-title: Organization Patterns
+-description: How to organize evaluation files in your project
++title: Organization
++description: How to organize evaluation files
+ ---
+ 
+-AgentEvals supports multiple organizational patterns. Choose the one that fits your project structure.
++Each evaluation lives in its own directory with an `EVAL.yaml` entry point.
+ 
+-## Pattern 1: Centralized
++## Structure
+ 
+-All evaluations in a single `evals/` directory. Best for:
+-- Dedicated evaluation repositories
+-- Cross-cutting evaluations
+-- CI/CD integration
+-
+-```
+-project/
+-├── evals/
+-│   ├── code-review/
+-│   │   ├── EVAL.yaml
+-│   │   ├── prompts/
+-│   │   │   └── quality.md
+-│   │   └── judges/
+-│   │       └── syntax.py
+-│   ├── document-extraction/
+-│   │   ├── EVAL.yaml
+-│   │   └── fixtures/
+-│   │       └── sample.pdf
+-│   └── rag-accuracy/
+-│       ├── EVAL.yaml
+-│       └── dataset.jsonl
+-├── .agentv/
+-│   ├── targets.yaml
+-│   └── config.yaml
+-└── README.md
+ ```
+-
+-## Pattern 2: Skill-Based
+-
+-Evaluations co-located with skills. Best for:
+-- [AgentSkills](https://github.com/agentskills/agentskills) integration
+-- Feature-oriented development
+-- Self-contained skill packages
+-
+-```
+-project/
+-├── skills/
+-│   ├── code-review/
+-│   │   ├── SKILL.md              # Skill definition
+-│   │   ├── evals/
+-│   │   │   ├── EVAL.yaml
+-│   │   │   └── prompts/
+-│   │   │       └── quality.md
+-│   │   └── scripts/
+-│   │       └── review.py
+-│   ├── document-extraction/
+-│   │   ├── SKILL.md
+-│   │   └── evals/
+-│   │       └── EVAL.yaml
+-│   └── rag-search/
+-│       ├── SKILL.md
+-│       └── evals/
+-│           └── EVAL.yaml
+-└── .agentv/
+-    └── config.yaml
++evals/
++├── code-review/
++│   ├── EVAL.yaml
++│   ├── prompts/
++│   │   └── quality.md
++│   └── judges/
++│       └── syntax.py
++├── document-extraction/
++│   ├── EVAL.yaml
++│   └── fixtures/
++│       └── sample.pdf
++└── rag-accuracy/
++    ├── EVAL.yaml
++    └── dataset.jsonl
+ ```
+ 
+-## Pattern 3: Domain-Grouped
+-
+-Evaluations organized by domain or capability area. Best for:
+-- Large projects with many capabilities
+-- Team-based organization
+-- Multiple evaluation types per domain
++Each eval directory contains:
+ 
+-```
+-project/
+-├── domains/
+-│   ├── coding/
+-│   │   ├── evals/
+-│   │   │   ├── review.yaml
+-│   │   │   ├── generation.yaml
+-│   │   │   └── debugging.yaml
+-│   │   └── shared/
+-│   │       └── prompts/
+-│   ├── retrieval/
+-│   │   ├── evals/
+-│   │   │   ├── rag-accuracy.yaml
+-│   │   │   └── search-quality.yaml
+-│   │   └── fixtures/
+-│   └── conversation/
+-│       └── evals/
+-│           ├── multi-turn.yaml
+-│           └── context-retention.yaml
+-└── .agentv/
+-    └── config.yaml
+-```
+-
+-## Linking Skills and Evals
++| File/Directory | Purpose |
++|----------------|---------|
++| `EVAL.yaml` | Evaluation definition (required) |
++| `prompts/` | LLM judge prompts |
++| `judges/` | Code judge scripts |
++| `fixtures/` | Test data and samples |
++| `dataset.jsonl` | Large test datasets |
+ 
+-Use the `metadata.skill` field to link evaluations to skills:
++## Discovery
+ 
+-**Skill-based (co-located):**
+-```yaml
+-# skills/code-review/evals/EVAL.yaml
+-name: code-review-eval
+-metadata:
+-  skill: code-review    # References parent skill
+-```
++Tools discover evaluations by finding `EVAL.yaml` files:
+ 
+-**Centralized (reference):**
+-```yaml
+-# evals/code-review/EVAL.yaml
+-name: code-review-eval
+-metadata:
+-  skill: code-review    # References skill elsewhere
+-  skill_path: ../skills/code-review
++```bash
++agentv list
++agentv eval "evals/**/EVAL.yaml"
+ ```
+ 
+ ## Shared Resources
+ 
+-### Shared Prompts
+-
+-Create a shared prompts directory:
++Place shared prompts or judges alongside the evals directory:
+ 
+ ```
+ project/
+-├── shared/
+-│   └── prompts/
+-│       ├── safety.md
+-│       ├── quality.md
+-│       └── format.md
+-└── evals/
+-    └── code-review/
+-        └── EVAL.yaml
++├── evals/
++│   └── code-review/
++│       └── EVAL.yaml
++└── shared/
++    ├── prompts/
++    │   └── safety.md
++    └── judges/
++        └── format_checker.py
+ ```
+ 
+-Reference with absolute paths:
++Reference with absolute paths from the repo root:
+ 
+ ```yaml
+-# evals/code-review/EVAL.yaml
+ execution:
+   evaluators:
+     - name: safety
+@@ -144,52 +69,11 @@ execution:
+       prompt: /shared/prompts/safety.md
+ ```
+ 
+-### Shared Judges
+-
+-Create reusable code judges:
+-
+-```
+-project/
+-├── shared/
+-│   └── judges/
+-│       ├── json_validator.py
+-│       ├── format_checker.py
+-│       └── requirements.txt
+-└── evals/
+-```
+-
+-Reference in evaluators:
+-
+-```yaml
+-evaluators:
+-  - name: format
+-    type: code_judge
+-    script: ["python", "/shared/judges/format_checker.py"]
+-```
+-
+-## Configuration Files
+-
+-### .agentv/config.yaml
+-
+-Project-wide configuration:
+-
+-```yaml
+-# .agentv/config.yaml
+-eval_patterns:
+-  - "evals/**/EVAL.yaml"
+-  - "skills/**/evals/EVAL.yaml"
+-
+-defaults:
+-  timeout_seconds: 300
+-  target: default
+-```
++## Configuration
+ 
+ ### .agentv/targets.yaml
+ 
+-Provider configuration:
+-
+ ```yaml
+-# .agentv/targets.yaml
+ targets:
+   - name: default
+     provider: anthropic
+@@ -198,108 +82,18 @@ targets:
+   - name: powerful
+     provider: anthropic
+     model: claude-opus-4-20250514
+-
+-  - name: fast
+-    provider: anthropic
+-    model: claude-3-5-haiku-20241022
+-```
+-
+-## Discovery
+-
+-AgentEvals tools discover evaluations by pattern:
+-
+-```bash
+-# Find all evaluations
+-agentv list
+-
+-# Run specific patterns
+-agentv eval "evals/code-*/**"
+-agentv eval "skills/*/evals/**"
+-```
+-
+-## Naming Conventions
+-
+-### Eval Files
+-
+-| Pattern | Description |
+-|---------|-------------|
+-| `EVAL.yaml` | Primary evaluation file |
+-| `dataset.yaml` | Alternative name (agentv style) |
+-| `*.eval.yaml` | Scoped evaluations |
+-
+-### Directories
+-
+-| Directory | Purpose |
+-|-----------|---------|
+-| `prompts/` | LLM judge prompts |
+-| `judges/` | Code judge scripts |
+-| `fixtures/` | Test data and samples |
+-| `references/` | Reference documents |
+-
+-### Files
+-
+-| File | Purpose |
+-|------|---------|
+-| `*.md` | Prompt templates |
+-| `*.py` | Python code judges |
+-| `*.ts` | TypeScript code judges |
+-| `*.jsonl` | Large datasets |
+-
+-## Migration
+-
+-### From Centralized to Skill-Based
+-
+-1. Create skill directories
+-2. Move eval files to `skills/*/evals/`
+-3. Update relative paths in EVAL.yaml
+-4. Add `metadata.skill` references
+-
+-### From Custom to Standard
+-
+-1. Rename evaluation files to `EVAL.yaml`
+-2. Convert to YAML format if needed
+-3. Map custom fields to standard schema
+-4. Update tooling configuration
+-
+-## Best Practices
+-
+-### 1. Keep Related Files Together
+-
+-```
+-evals/code-review/
+-├── EVAL.yaml
+-├── prompts/
+-│   └── quality.md      # Used by this eval
+-└── judges/
+-    └── syntax.py       # Used by this eval
+ ```
+ 
+-### 2. Use Descriptive Names
++### .agentv/config.yaml
+ 
+ ```yaml
+-# Good
+-name: code-review-security-vulnerabilities
+-
+-# Avoid
+-name: cr-sec-1
+-```
+-
+-### 3. Document Structure
+-
+-Add a README in evaluation directories:
++eval_patterns:
++  - "evals/**/EVAL.yaml"
+ 
++defaults:
++  timeout_seconds: 300
++  target: default
+ ```
+-evals/
+-├── README.md           # Explains evaluation organization
+-├── code-review/
+-│   └── README.md       # Explains this evaluation suite
+-```
+-
+-### 4. Version Control Friendly
+-
+-- Use YAML over JSON for better diffs
+-- Keep files small and focused
+-- Split large datasets into JSONL
+ 
+ ## Next Steps
+ 
+diff --git a/docs/src/content/docs/specification/overview.mdx b/docs/src/content/docs/specification/overview.mdx
+index b5737e7..0791c70 100644
+--- a/docs/src/content/docs/specification/overview.mdx
++++ b/docs/src/content/docs/specification/overview.mdx
+@@ -20,7 +20,7 @@ AgentEvals is designed with these goals:
+ | Component | File | Description |
+ |-----------|------|-------------|
+ | [EVAL Format](/specification/eval-format/) | `EVAL.yaml` | Main evaluation file structure |
+-| [Case Schema](/specification/evalcase-schema/) | Within EVAL.yaml | Individual test case definition |
++| [Test Schema](/specification/case-schema/) | Within EVAL.yaml | Individual test definition |
+ | [Evaluators](/specification/evaluators/) | Referenced | Assessment components |
+ | [Verdicts](/specification/verdicts/) | Results | Pass/borderline/fail determination |
+ | [Organization](/specification/organization/) | Directory | File organization patterns |
+@@ -46,7 +46,7 @@ execution:
+       type: llm_judge
+       prompt: ./prompts/quality.md
+ 
+-cases:
++tests:
+   - id: test-case-1
+     criteria: Agent accomplishes the task
+     input:
+@@ -74,5 +74,5 @@ The specification follows semantic versioning:
+ ## Next Steps
+ 
+ - [EVAL Format](/specification/eval-format/) - Detailed file format
+-- [Case Schema](/specification/evalcase-schema/) - Test case structure
++- [Test Schema](/specification/case-schema/) - Test structure
+ - [Evaluators Reference](/specification/evaluators/) - Evaluator type overview
+diff --git a/docs/src/content/docs/specification/verdicts.mdx b/docs/src/content/docs/specification/verdicts.mdx
+index 19c2f07..bc32f22 100644
+--- a/docs/src/content/docs/specification/verdicts.mdx
++++ b/docs/src/content/docs/specification/verdicts.mdx
+@@ -183,7 +183,7 @@ misses:
+ 
+ ## Verdict Distribution
+ 
+-When evaluating multiple cases, track distribution:
++When evaluating multiple tests, track distribution:
+ 
+ ```
+ Suite Results:

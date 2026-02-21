@@ -10,10 +10,11 @@ const STRIPPED_TOP_LEVEL_FIELDS = new Set([
   'trace',
   'workspacePath',
   'output',
-  'setupOutput',
-  'teardownOutput',
+  'beforeAllOutput',
+  'beforeEachOutput',
+  'afterAllOutput',
+  'afterEachOutput',
   'fileChanges',
-  'workspaceFingerprint',
 ]);
 
 /**

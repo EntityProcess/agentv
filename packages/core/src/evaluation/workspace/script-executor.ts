@@ -2,7 +2,7 @@ import { execFileWithStdin } from '../../runtime/exec.js';
 import type { WorkspaceScriptConfig } from '../types.js';
 
 /**
- * Context passed to setup/teardown scripts via stdin.
+ * Context passed to workspace lifecycle scripts via stdin.
  */
 export interface ScriptExecutionContext {
   readonly workspacePath: string;
@@ -12,18 +12,21 @@ export interface ScriptExecutionContext {
   readonly caseMetadata?: Record<string, unknown>;
 }
 
+export type ScriptFailureMode = 'fatal' | 'warn';
+
 /**
- * Executes a workspace setup script.
- * Setup script failure aborts the eval case.
+ * Executes a workspace lifecycle script (before_all, after_all, before_each, after_each).
  *
  * @param config - Workspace script configuration (script, timeout_ms, cwd)
  * @param context - Context passed to script via stdin (JSON)
+ * @param failureMode - 'fatal' throws on non-zero exit; 'warn' logs warning
  * @returns Captured stdout from the script
- * @throws Error if script exits with non-zero code or times out
+ * @throws Error if script exits with non-zero code (fatal mode) or times out
  */
-export async function executeWorkspaceSetup(
+export async function executeWorkspaceScript(
   config: WorkspaceScriptConfig,
   context: ScriptExecutionContext,
+  failureMode: ScriptFailureMode = 'fatal',
 ): Promise<string> {
   const stdin = JSON.stringify({
     workspace_path: context.workspacePath,
@@ -33,8 +36,8 @@ export async function executeWorkspaceSetup(
     case_metadata: context.caseMetadata ?? null,
   });
 
-  const timeoutMs = config.timeout_ms ?? 60000; // Default 60s for setup
-  const cwd = config.cwd; // Optional cwd for script execution
+  const timeoutMs = config.timeout_ms ?? (failureMode === 'fatal' ? 60000 : 30000);
+  const cwd = config.cwd;
 
   const result = await execFileWithStdin(config.script, stdin, {
     timeoutMs,
@@ -44,47 +47,10 @@ export async function executeWorkspaceSetup(
   if (result.exitCode !== 0) {
     const stderr = result.stderr.trim();
     const message = stderr ? `${stderr}` : `Process exited with code ${result.exitCode}`;
-    throw new Error(`Setup script failed: ${message}`);
-  }
-
-  return result.stdout;
-}
-
-/**
- * Executes a workspace teardown script.
- * Teardown script failure only logs a warning but doesn't fail the eval.
- *
- * @param config - Workspace script configuration (script, timeout_ms, cwd)
- * @param context - Context passed to script via stdin (JSON)
- * @returns Captured stdout from the script
- * @throws Error if script times out (other exit codes are ignored)
- */
-export async function executeWorkspaceTeardown(
-  config: WorkspaceScriptConfig,
-  context: ScriptExecutionContext,
-): Promise<string> {
-  const stdin = JSON.stringify({
-    workspace_path: context.workspacePath,
-    test_id: context.testId,
-    eval_run_id: context.evalRunId,
-    case_input: context.caseInput ?? null,
-    case_metadata: context.caseMetadata ?? null,
-  });
-
-  const timeoutMs = config.timeout_ms ?? 30000; // Default 30s for teardown
-  const cwd = config.cwd; // Optional cwd for script execution
-
-  const result = await execFileWithStdin(config.script, stdin, {
-    timeoutMs,
-    cwd,
-  });
-
-  // For teardown, non-zero exit codes are warnings only, not failures
-  // But timeouts are still errors
-  if (result.exitCode !== 0) {
-    const stderr = result.stderr.trim();
-    const message = stderr ? `${stderr}` : `Process exited with code ${result.exitCode}`;
-    console.warn(`Teardown script warning: ${message}`);
+    if (failureMode === 'fatal') {
+      throw new Error(`Script failed: ${message}`);
+    }
+    console.warn(`Script warning: ${message}`);
   }
 
   return result.stdout;

@@ -17,7 +17,7 @@ describe('Workspace config parsing', () => {
     await rm(testDir, { recursive: true, force: true });
   });
 
-  it('should parse per-case workspace config with setup and teardown scripts', async () => {
+  it('should parse per-case workspace config with before_all and after_each scripts', async () => {
     const evalFile = path.join(testDir, 'workspace-case.yaml');
     await writeFile(
       evalFile,
@@ -27,10 +27,10 @@ tests:
     input: "Do something"
     criteria: "Should do the thing"
     workspace:
-      setup:
+      before_all:
         script: ["bun", "run", "setup.ts"]
         timeout_ms: 120000
-      teardown:
+      after_each:
         script: ["bun", "run", "teardown.ts"]
         timeout_ms: 30000
 `,
@@ -39,11 +39,11 @@ tests:
     const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace).toBeDefined();
-    expect(cases[0].workspace?.setup).toEqual({
+    expect(cases[0].workspace?.before_all).toEqual({
       script: ['bun', 'run', 'setup.ts'],
       timeout_ms: 120000,
     });
-    expect(cases[0].workspace?.teardown).toEqual({
+    expect(cases[0].workspace?.after_each).toEqual({
       script: ['bun', 'run', 'teardown.ts'],
       timeout_ms: 30000,
     });
@@ -78,7 +78,7 @@ tests:
       evalFile,
       `
 workspace:
-  setup:
+  before_all:
     script: ["bun", "run", "default-setup.ts"]
 
 tests:
@@ -94,10 +94,10 @@ tests:
     const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(2);
     // Both cases should inherit suite-level workspace
-    expect(cases[0].workspace?.setup).toEqual({
+    expect(cases[0].workspace?.before_all).toEqual({
       script: ['bun', 'run', 'default-setup.ts'],
     });
-    expect(cases[1].workspace?.setup).toEqual({
+    expect(cases[1].workspace?.before_all).toEqual({
       script: ['bun', 'run', 'default-setup.ts'],
     });
   });
@@ -108,7 +108,7 @@ tests:
       evalFile,
       `
 workspace:
-  setup:
+  before_all:
     script: ["bun", "run", "default-setup.ts"]
 
 tests:
@@ -116,7 +116,7 @@ tests:
     input: "Do something"
     criteria: "Should work"
     workspace:
-      setup:
+      before_all:
         script: ["bun", "run", "custom-setup.ts"]
   - id: case-default
     input: "Do something else"
@@ -127,22 +127,22 @@ tests:
     const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(2);
 
-    // case-override: setup replaced
+    // case-override: before_all replaced
     const overrideCase = cases.find((c) => c.id === 'case-override');
     expect(overrideCase).toBeDefined();
-    expect(overrideCase.workspace?.setup).toEqual({
+    expect(overrideCase.workspace?.before_all).toEqual({
       script: ['bun', 'run', 'custom-setup.ts'],
     });
 
     // case-default: inherits suite-level workspace entirely
     const defaultCase = cases.find((c) => c.id === 'case-default');
     expect(defaultCase).toBeDefined();
-    expect(defaultCase.workspace?.setup).toEqual({
+    expect(defaultCase.workspace?.before_all).toEqual({
       script: ['bun', 'run', 'default-setup.ts'],
     });
   });
 
-  it('should resolve setup cwd relative to eval file directory', async () => {
+  it('should resolve before_all cwd relative to eval file directory', async () => {
     const evalFile = path.join(testDir, 'workspace-cwd.yaml');
     await writeFile(
       evalFile,
@@ -152,7 +152,7 @@ tests:
     input: "Do something"
     criteria: "Should work"
     workspace:
-      setup:
+      before_all:
         script: ["bun", "run", "setup.ts"]
         cwd: ./scripts
 `,
@@ -160,7 +160,7 @@ tests:
 
     const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
-    expect(cases[0].workspace?.setup?.cwd).toBe(path.join(testDir, 'scripts'));
+    expect(cases[0].workspace?.before_all?.cwd).toBe(path.join(testDir, 'scripts'));
   });
 
   it('should parse workspace template path', async () => {

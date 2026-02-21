@@ -6,11 +6,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { WorkspaceScriptConfig } from '../../../src/evaluation/types.js';
 import {
   type ScriptExecutionContext,
-  executeWorkspaceSetup,
-  executeWorkspaceTeardown,
+  executeWorkspaceScript,
 } from '../../../src/evaluation/workspace/script-executor.js';
 
-describe('Script Executor', () => {
+describe('Workspace Script Executor', () => {
   let testDir: string;
   let setupScript: string;
   let teardownScript: string;
@@ -70,7 +69,7 @@ process.exit(1);
     await rm(testDir, { recursive: true, force: true });
   });
 
-  it('should execute setup script successfully', async () => {
+  it('should execute workspace script successfully (fatal mode)', async () => {
     const config: WorkspaceScriptConfig = {
       script: ['node', setupScript],
       timeout_ms: 5000,
@@ -82,13 +81,13 @@ process.exit(1);
       evalRunId: 'run-123',
     };
 
-    const output = await executeWorkspaceSetup(config, context);
+    const output = await executeWorkspaceScript(config, context, 'fatal');
     expect(output).toContain('Setup completed');
     expect(output).toContain('/tmp/workspace');
     expect(output).toContain('test-case-1');
   });
 
-  it('should execute teardown script successfully', async () => {
+  it('should execute workspace script successfully (warn mode)', async () => {
     const config: WorkspaceScriptConfig = {
       script: ['node', teardownScript],
       timeout_ms: 5000,
@@ -100,12 +99,12 @@ process.exit(1);
       evalRunId: 'run-123',
     };
 
-    const output = await executeWorkspaceTeardown(config, context);
+    const output = await executeWorkspaceScript(config, context, 'warn');
     expect(output).toContain('Teardown completed');
     expect(output).toContain('/tmp/workspace');
   });
 
-  it('should fail on setup script error', async () => {
+  it('should fail on script error in fatal mode', async () => {
     const config: WorkspaceScriptConfig = {
       script: ['node', failingScript],
       timeout_ms: 5000,
@@ -117,10 +116,10 @@ process.exit(1);
       evalRunId: 'run-123',
     };
 
-    await expect(executeWorkspaceSetup(config, context)).rejects.toThrow('Setup script failed');
+    await expect(executeWorkspaceScript(config, context, 'fatal')).rejects.toThrow('Script failed');
   });
 
-  it('should handle teardown script error gracefully (with warning)', async () => {
+  it('should handle script error gracefully in warn mode', async () => {
     const config: WorkspaceScriptConfig = {
       script: ['node', failingScript],
       timeout_ms: 5000,
@@ -132,8 +131,8 @@ process.exit(1);
       evalRunId: 'run-123',
     };
 
-    // Teardown should not throw, only warn
-    const output = await executeWorkspaceTeardown(config, context);
+    // Warn mode should not throw, only warn
+    const output = await executeWorkspaceScript(config, context, 'warn');
     expect(output).toBeDefined();
   });
 
@@ -172,11 +171,11 @@ rl.on('close', () => {
       evalRunId: 'my-run',
     };
 
-    const output = await executeWorkspaceSetup(config, context);
+    const output = await executeWorkspaceScript(config, context);
     expect(output).toContain('Context validated successfully');
   });
 
-  it('should pass case metadata and input to setup script via stdin', async () => {
+  it('should pass case metadata and input to script via stdin', async () => {
     const metadataCheckScript = path.join(testDir, 'check-metadata.js');
     await writeFile(
       metadataCheckScript,
@@ -216,7 +215,7 @@ rl.on('close', () => {
       caseMetadata: { repo: 'sympy/sympy', base_commit: '9aabb237' },
     };
 
-    const output = await executeWorkspaceSetup(config, context);
+    const output = await executeWorkspaceScript(config, context);
     expect(output).toContain('Metadata received: sympy/sympy');
     expect(output).toContain('Input received: Fix the bug in issue');
   });
@@ -234,7 +233,7 @@ rl.on('close', () => {
     };
 
     // Should complete successfully with default timeout
-    const output = await executeWorkspaceSetup(config, context);
+    const output = await executeWorkspaceScript(config, context);
     expect(output).toBeDefined();
   });
 });

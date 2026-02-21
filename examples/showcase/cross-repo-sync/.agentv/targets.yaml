@@ -1,0 +1,13 @@
+targets:
+  - name: mock_agent
+    provider: cli
+    command_template: bash mock-agent.sh {PROMPT} {OUTPUT_FILE}
+    timeout_seconds: 30
+
+  - name: claude_agent
+    provider: claude
+    timeout_seconds: 900
+
+  - name: copilot_agent
+    provider: copilot
+    timeout_seconds: 900

@@ -99,47 +99,54 @@ targets:
 ```
 
 When `workspace_template` is set:
-- The template directory is copied to `~/.agentv/workspaces/<eval-run-id>/<test-id>/`
+- The template directory is copied to `~/.agentv/workspaces/<eval-run-id>/shared/`
 - The `.git` directory is skipped during copy
-- Each test gets its own isolated copy
+- Tests share the workspace; use `after_each` to reset state between tests
 
-### Workspace Setup/Teardown
+### Workspace Lifecycle Hooks
 
-Run scripts before and after each test using the `workspace` block. This can be defined at the suite level (applies to all tests) or per test (overrides suite-level).
+Run scripts at different points in the evaluation lifecycle using the `workspace` block. This can be defined at the suite level (applies to all tests) or per test (overrides suite-level).
 
 ```yaml
 workspace:
   template: ./workspace-templates/my-project
-  setup:
+  before_all:
     script: ["bun", "run", "setup.ts"]
     timeout_ms: 120000
     cwd: ./scripts
-  teardown:
-    script: ["bun", "run", "teardown.ts"]
+  after_each:
+    script: ["bun", "run", "reset.ts"]
+    timeout_ms: 5000
+  after_all:
+    script: ["bun", "run", "cleanup.ts"]
     timeout_ms: 30000
 ```
 
 | Field | Description |
 |-------|-------------|
 | `template` | Directory to copy as workspace (alternative to target-level `workspace_template`) |
-| `setup` | Script to run after workspace creation, before the agent runs |
-| `teardown` | Script to run after evaluation, before cleanup |
+| `before_all` | Runs once after workspace creation, before the first test |
+| `after_all` | Runs once after the last test, before cleanup |
+| `before_each` | Runs before each test |
+| `after_each` | Runs after each test (e.g., reset workspace state for reuse) |
 
 Each script config accepts:
 
 | Field | Description |
 |-------|-------------|
 | `script` | Command array (e.g., `["bun", "run", "setup.ts"]`) |
-| `timeout_ms` | Timeout in milliseconds (default: 60000 for setup, 30000 for teardown) |
+| `timeout_ms` | Timeout in milliseconds (default: 60000 for `before_all`, 30000 for others) |
 | `cwd` | Working directory (relative paths resolved against eval file directory) |
 
-**Lifecycle order:** template copy → setup script → git baseline → agent runs → file changes captured → teardown script → cleanup
+**Lifecycle order:** template copy → `before_all` → git baseline → (`before_each` → agent runs → file changes captured → `after_each`) × N tests → `after_all` → cleanup
+
+**Shared workspace:** The workspace is created once and shared across all tests in a suite. Use `after_each` to reset state between tests (e.g., `git checkout . && git clean -fd`).
 
 **Error handling:**
-- Setup failure aborts the test with an error result
-- Teardown failure is non-fatal (warning only)
+- `before_all` / `before_each` failure aborts the test with an error result
+- `after_all` / `after_each` failure is non-fatal (warning only)
 
-**Script context:** Both scripts receive a JSON object on stdin with case context:
+**Script context:** All scripts receive a JSON object on stdin with case context:
 
 ```json
 {
@@ -152,10 +159,6 @@ Each script config accepts:
 ```
 
 **Suite vs per-test:** When both are defined, test-level fields replace suite-level fields. See [Per-Test Workspace Config](/evaluation/eval-cases/#per-case-workspace-config) for examples.
-
-### Workspace Fingerprinting
-
-After setup and git baseline initialization, AgentV computes a SHA-256 fingerprint of the workspace file tree. This fingerprint is included in the evaluation result as `workspaceFingerprint` and can be used to verify that workspaces are reproducible across runs.
 
 ### Cleanup Behavior
 

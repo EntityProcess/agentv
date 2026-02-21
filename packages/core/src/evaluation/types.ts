@@ -185,7 +185,7 @@ export type TargetAccessConfig = {
 };
 
 /**
- * Configuration for workspace setup/teardown scripts.
+ * Configuration for workspace lifecycle scripts (before_all, after_all, before_each, after_each).
  * Scripts are executed with workspace context passed via stdin.
  */
 export type WorkspaceScriptConfig = {
@@ -202,14 +202,24 @@ export type WorkspaceScriptConfig = {
  * Workspace configuration for eval tests.
  * Can be specified at suite level and overridden per-case.
  * Merge strategy: template/scripts replaced, env deep-merged.
+ *
+ * Lifecycle hooks follow bun:test/Vitest naming:
+ * - before_all: runs ONCE before first test, creates shared workspace
+ * - after_all: runs ONCE after last test, final cleanup
+ * - before_each: runs before each test (optional)
+ * - after_each: runs after each test (e.g., reset git state)
  */
 export type WorkspaceConfig = {
   /** Template directory to copy */
   readonly template?: string;
-  /** Script to run after workspace creation, before git baseline */
-  readonly setup?: WorkspaceScriptConfig;
-  /** Script to run after evaluation, before cleanup */
-  readonly teardown?: WorkspaceScriptConfig;
+  /** Script to run once before first test (after workspace creation, before git baseline) */
+  readonly before_all?: WorkspaceScriptConfig;
+  /** Script to run once after last test (before workspace cleanup) */
+  readonly after_all?: WorkspaceScriptConfig;
+  /** Script to run before each test */
+  readonly before_each?: WorkspaceScriptConfig;
+  /** Script to run after each test (e.g., git reset for workspace reuse) */
+  readonly after_each?: WorkspaceScriptConfig;
 };
 
 export type CodeEvaluatorConfig = {
@@ -683,14 +693,16 @@ export interface EvaluationResult {
   readonly input?: readonly import('./providers/types.js').Message[] | string;
   /** Full output messages from agent execution (only included when --trace flag is set) */
   readonly output?: readonly import('./providers/types.js').Message[];
-  /** Captured output from workspace setup script */
-  readonly setupOutput?: string;
-  /** Captured output from workspace teardown script */
-  readonly teardownOutput?: string;
+  /** Captured output from workspace before_all script */
+  readonly beforeAllOutput?: string;
+  /** Captured output from workspace before_each script */
+  readonly beforeEachOutput?: string;
+  /** Captured output from workspace after_all script */
+  readonly afterAllOutput?: string;
+  /** Captured output from workspace after_each script */
+  readonly afterEachOutput?: string;
   /** Unified diff of workspace file changes (when workspace_template is configured) */
   readonly fileChanges?: string;
-  /** SHA-256 fingerprint of workspace state after setup */
-  readonly workspaceFingerprint?: { readonly hash: string; readonly fileCount: number };
   /** Individual trial results (only present when trials.count > 1) */
   readonly trials?: readonly TrialResult[];
   /** Aggregation metadata describing how the final score was computed from trials */
