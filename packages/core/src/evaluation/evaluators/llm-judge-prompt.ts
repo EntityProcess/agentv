@@ -41,9 +41,9 @@ export function assembleLlmJudgePrompt(input: {
   if (rubrics && rubrics.length > 0) {
     const hasScoreRanges = rubrics.some((r) => r.score_ranges && r.score_ranges.length > 0);
     if (hasScoreRanges) {
-      return assembleScoreRange(evalCase, candidate, promptInputs, rubrics);
+      return assembleScoreRange(evalCase, candidate, promptInputs, rubrics, fileChanges);
     }
-    return assembleChecklist(evalCase, candidate, promptInputs, rubrics);
+    return assembleChecklist(evalCase, candidate, promptInputs, rubrics, fileChanges);
   }
 
   return assembleFreeform(
@@ -100,6 +100,7 @@ function assembleChecklist(
   candidate: string,
   promptInputs: PromptInputs,
   rubrics: readonly RubricItem[],
+  fileChanges?: string,
 ): LlmJudgePromptAssembly {
   const formattedQuestion =
     promptInputs.question && promptInputs.question.trim().length > 0
@@ -121,7 +122,13 @@ function assembleChecklist(
     parts.push('[[ ## reference_answer ## ]]', evalCase.reference_answer, '');
   }
 
-  parts.push('[[ ## answer ## ]]', candidate, '', '[[ ## rubrics ## ]]');
+  parts.push('[[ ## answer ## ]]', candidate, '');
+
+  if (fileChanges) {
+    parts.push('[[ ## file_changes ## ]]', fileChanges, '');
+  }
+
+  parts.push('[[ ## rubrics ## ]]');
 
   for (const rubric of rubrics) {
     const requiredLabel = rubric.required ? ' (REQUIRED)' : '';
@@ -147,6 +154,7 @@ function assembleScoreRange(
   candidate: string,
   promptInputs: PromptInputs,
   rubrics: readonly RubricItem[],
+  fileChanges?: string,
 ): LlmJudgePromptAssembly {
   const formattedQuestion =
     promptInputs.question && promptInputs.question.trim().length > 0
@@ -169,7 +177,13 @@ function assembleScoreRange(
     parts.push('[[ ## reference_answer ## ]]', evalCase.reference_answer, '');
   }
 
-  parts.push('[[ ## answer ## ]]', candidate, '', '[[ ## scoring_criteria ## ]]');
+  parts.push('[[ ## answer ## ]]', candidate, '');
+
+  if (fileChanges) {
+    parts.push('[[ ## file_changes ## ]]', fileChanges, '');
+  }
+
+  parts.push('[[ ## scoring_criteria ## ]]');
 
   for (const rubric of rubrics) {
     const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';

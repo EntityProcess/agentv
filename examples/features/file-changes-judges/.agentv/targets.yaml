@@ -1,0 +1,27 @@
+targets:
+  # Mock agent that adds a subtract function to calculator.ts.
+  # Each test gets a fresh copy of workspace-template/ as its CWD.
+  - name: mock_agent
+    provider: cli
+    command_template: >-
+      bash -c '
+      printf "export function add(a: number, b: number): number {\n  return a + b;\n}\n\nexport function subtract(a: number, b: number): number {\n  return a - b;\n}\n" > src/calculator.ts &&
+      echo "Added subtract function to calculator.ts" > {OUTPUT_FILE}
+      '
+    workspace_template: ../workspace-template
+    judge_target: azure_judge
+    timeout_seconds: 30
+
+  # Azure OpenAI — used as LLM judge (rubrics) and built-in agent_judge provider
+  - name: azure_judge
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    version: ${{ AZURE_OPENAI_API_VERSION }}
+
+  # Copilot CLI — used as delegated agent_judge via judge_target
+  - name: copilot_judge
+    provider: copilot-cli
+    model: claude-haiku-4.5
+    timeout_seconds: 120

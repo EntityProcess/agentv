@@ -1,0 +1,56 @@
+# File changes + judges integration test
+#
+# Proves that file_changes diffs are correctly passed to all judge types:
+#   1. rubrics      — LLM judge (Azure) evaluates the diff
+#   2. agent_judge  — built-in mode (Azure via AI SDK) sees file_changes in prompt
+#   3. agent_judge  — judge_target mode (Copilot CLI with haiku) sees file_changes in prompt
+#
+# The mock agent adds a `subtract` function to calculator.ts, producing a small
+# diff (~10 lines) that fits comfortably in any LLM context window.
+
+description: Verify file_changes diffs are accessible to LLM judge, built-in agent judge, and copilot-cli agent judge
+
+execution:
+  target: mock_agent
+
+tests:
+  - id: verify-file-changes-judges
+    criteria: >-
+      The agent must add a subtract function to src/calculator.ts.
+      The file_changes diff should show the new subtract function was added.
+      The existing add function must remain unchanged.
+
+    input:
+      - role: user
+        content:
+          - type: text
+            value: Add a subtract function to src/calculator.ts
+
+    assert:
+      # 1. LLM judge with rubrics — Azure evaluates file_changes diff
+      - name: llm-judge-rubrics
+        type: rubrics
+        criteria:
+          - id: subtract-added
+            outcome: "The diff shows a new subtract function was added to calculator.ts"
+            weight: 1.0
+            required: true
+          - id: add-preserved
+            outcome: "The diff does not remove or modify the existing add function"
+            weight: 1.0
+            required: true
+          - id: valid-diff
+            outcome: "The file_changes contains a valid unified diff format"
+            weight: 0.5
+
+      # 2. Built-in agent judge — Azure via AI SDK with filesystem tools
+      - name: agent-judge-builtin
+        type: agent_judge
+        max_steps: 3
+        temperature: 0
+
+      # 3. Copilot CLI agent judge — delegated via judge_target
+      - name: agent-judge-copilot
+        type: agent_judge
+        judge_target: copilot_judge
+        temperature: 0
