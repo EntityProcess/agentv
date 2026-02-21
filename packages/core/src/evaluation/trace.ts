@@ -59,6 +59,8 @@ export interface ToolTrajectoryEvaluatorConfig {
   /** Optional weight for top-level aggregation (defaults to 1.0) */
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
 }
 
 /**

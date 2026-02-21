@@ -14,6 +14,7 @@ export {
   deepEqual,
   extractJsonBlob,
   isNonEmptyString,
+  negateScore,
   parseJsonFromText,
   parseJsonSafe,
   scoreToVerdict,

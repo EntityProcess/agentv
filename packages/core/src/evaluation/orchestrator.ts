@@ -22,6 +22,7 @@ import {
   ToolTrajectoryEvaluator,
   executeScript,
   isNonEmptyString,
+  negateScore,
   runContainsAssertion,
   runEqualsAssertion,
   runIsJsonAssertion,
@@ -1941,6 +1942,24 @@ async function runEvaluatorList(options: {
         misses: [`Evaluator '${evaluator.name ?? 'unknown'}' failed: ${message}`],
         reasoning: message,
       });
+    }
+
+    // Apply negation if configured — inverts score and swaps pass/fail verdict
+    if (evaluator.negate === true && scored.length > 0) {
+      const lastScoredIdx = scored.length - 1;
+      const lastScoresIdx = scores.length - 1;
+      const negated = negateScore(scored[lastScoredIdx].score);
+      scored[lastScoredIdx] = { ...scored[lastScoredIdx], score: negated };
+      if (lastScoresIdx >= 0) {
+        scores[lastScoresIdx] = {
+          ...scores[lastScoresIdx],
+          score: negated.score,
+          verdict: negated.verdict,
+          hits: [...negated.hits],
+          misses: [...negated.misses],
+          reasoning: negated.reasoning,
+        };
+      }
     }
   }
 

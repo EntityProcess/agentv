@@ -1,3 +1,4 @@
+import type { EvaluationScore } from './types.js';
 import type { EvaluationVerdict } from '../types.js';
 
 export function scoreToVerdict(score: number): EvaluationVerdict {
@@ -46,10 +47,6 @@ export function parseJsonSafe(payload: string): Record<string, unknown> | undefi
   }
 }
 
-/**
- * Deep equality check for two values.
- * Handles primitives, arrays, and plain objects.
- */
 export function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (a === null || b === null) return a === b;
@@ -68,4 +65,24 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   const bKeys = Object.keys(bObj);
   if (aKeys.length !== bKeys.length) return false;
   return aKeys.every((key) => Object.hasOwn(bObj, key) && deepEqual(aObj[key], bObj[key]));
+}
+
+/**
+ * Negate an evaluation score: inverts score (1 - score), swaps pass/fail verdict,
+ * swaps hits/misses, and annotates reasoning.
+ */
+export function negateScore(score: EvaluationScore): EvaluationScore {
+  const negatedScore = clampScore(1 - score.score);
+  const negatedVerdict: EvaluationVerdict =
+    score.verdict === 'pass' ? 'fail' : score.verdict === 'fail' ? 'pass' : 'borderline';
+  return {
+    ...score,
+    score: negatedScore,
+    verdict: negatedVerdict,
+    reasoning: score.reasoning
+      ? `[Negated] ${score.reasoning} (original score: ${score.score.toFixed(2)})`
+      : `[Negated] Original score: ${score.score.toFixed(2)}`,
+    hits: score.misses,
+    misses: score.hits,
+  };
 }
