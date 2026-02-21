@@ -15,7 +15,7 @@ A composite evaluator wraps two or more sub-evaluators and an aggregator that de
 assert:
   - name: my_composite
     type: composite
-    evaluators:
+    assert:
       - name: evaluator_1
         type: llm_judge
         prompt: ./prompts/check1.md
@@ -30,6 +30,9 @@ assert:
 ```
 
 Each sub-evaluator runs independently, then the aggregator combines their results.
+Use `assert` for composite members. `evaluators` is still accepted for backward compatibility.
+
+If you only need weighted-average aggregation, a plain test-level `assert` list already computes a weighted mean across evaluators. Use `composite` when you need a custom aggregation strategy (`threshold`, `code_judge`, `llm_judge`) or nested evaluator groups.
 
 ## Aggregator Types
 
@@ -46,6 +49,7 @@ aggregator:
 ```
 
 If weights are omitted, all evaluators receive equal weight (1.0).
+This is equivalent to averaging all member scores.
 
 The score is calculated as:
 
@@ -115,7 +119,7 @@ tests:
     assert:
       - name: safety_gate
         type: composite
-        evaluators:
+        assert:
           - name: safety
             type: llm_judge
             prompt: ./prompts/safety-check.md
@@ -136,7 +140,7 @@ Assign different importance to each evaluation dimension:
 ```yaml
 - name: release_readiness
   type: composite
-  evaluators:
+  assert:
     - name: correctness
       type: llm_judge
       prompt: ./prompts/correctness.md
@@ -161,10 +165,10 @@ Composites can contain other composites for hierarchical evaluation:
 ```yaml
 - name: comprehensive_eval
   type: composite
-  evaluators:
+  assert:
     - name: content_quality
       type: composite
-      evaluators:
+      assert:
         - name: accuracy
           type: llm_judge
           prompt: ./prompts/accuracy.md
