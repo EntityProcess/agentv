@@ -46,10 +46,12 @@ tests:
       3. **Liskov Substitution** — Subtypes must be substitutable for their base types
       4. **Interface Segregation** — Prefer small, specific interfaces over large ones
       5. **Dependency Inversion** — Depend on abstractions, not concretions
-    rubrics:
-      - Lists all five SOLID principles by name
-      - Provides a concise explanation for each principle
-      - Explanations are technically accurate
+    assert:
+      - type: rubrics
+        criteria:
+          - Lists all five SOLID principles by name
+          - Provides a concise explanation for each principle
+          - Explanations are technically accurate
 
   - id: srp-example
     criteria: "Provide a concrete example of the Single Responsibility Principle"
@@ -67,10 +69,12 @@ tests:
       Good: `AuthService` handles login/registration. `EmailService` handles sending emails.
 
       Each class has one job, making them easier to test and maintain.
-    rubrics:
-      - Shows a bad example that violates SRP
-      - Shows a good example that follows SRP
-      - Explains why the separation is beneficial
+    assert:
+      - type: rubrics
+        criteria:
+          - Shows a bad example that violates SRP
+          - Shows a good example that follows SRP
+          - Explains why the separation is beneficial
 
   - id: interface-vs-abstract-class
     criteria: "Explain the difference between interfaces and abstract classes"
@@ -82,15 +86,16 @@ tests:
       - **Abstract class**: Can have both abstract and concrete methods. A class can extend only one. Can hold state.
 
       Use interfaces for "can-do" relationships (e.g., `Serializable`). Use abstract classes for "is-a" relationships with shared behavior (e.g., `Animal` base class).
-    rubrics:
-      - Correctly distinguishes interfaces from abstract classes
-      - Mentions multiple inheritance support for interfaces
-      - Provides guidance on when to use each
+    assert:
+      - type: rubrics
+        criteria:
+          - Correctly distinguishes interfaces from abstract classes
+          - Mentions multiple inheritance support for interfaces
+          - Provides guidance on when to use each
 
-# Suggested evaluators:
-# execution:
-#   evaluators:
-#     - name: quality
-#       type: llm_judge
-#       prompt: ./prompts/quality.md
+# Suggested additional evaluators:
+# assert:
+#   - name: quality
+#     type: llm_judge
+#     prompt: ./prompts/quality.md
 ```

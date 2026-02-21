@@ -23,10 +23,12 @@ tests:
     criteria: "Convert Fahrenheit to Celsius with correct formula"
     input: "Convert 72°F to Celsius"
     expected_output: "72°F is approximately 22.2°C. The formula is: (°F - 32) × 5/9 = °C"
-    rubrics:
-      - Provides the correct converted value (approximately 22.2°C)
-      - Shows or references the conversion formula
-      - Uses appropriate precision
+    assert:
+      - type: rubrics
+        criteria:
+          - Provides the correct converted value (approximately 22.2°C)
+          - Shows or references the conversion formula
+          - Uses appropriate precision
 
   - id: negative-forty-intersection
     criteria: "Identify the Fahrenheit-Celsius intersection point"
@@ -38,25 +40,28 @@ tests:
       - role: user
         content: "What about -40?"
     expected_output: "-40°F equals exactly -40°C. This is the unique point where Fahrenheit and Celsius scales intersect."
-    rubrics:
-      - States that -40°F equals -40°C
-      - Mentions this is the intersection point of both scales
+    assert:
+      - type: rubrics
+        criteria:
+          - States that -40°F equals -40°C
+          - Mentions this is the intersection point of both scales
 
   - id: absolute-zero
     criteria: "Confirm absolute zero equivalence and explain its significance"
     input: "Is 0 Kelvin the same as -273.15°C?"
     expected_output: "Yes, 0 Kelvin (absolute zero) equals -273.15°C. It's the theoretical lowest possible temperature where all molecular motion stops."
-    rubrics:
-      - Confirms the equivalence of 0K and -273.15°C
-      - Explains the physical significance of absolute zero
+    assert:
+      - type: rubrics
+        criteria:
+          - Confirms the equivalence of 0K and -273.15°C
+          - Explains the physical significance of absolute zero
 
-# Suggested evaluators:
-# execution:
-#   evaluators:
-#     - name: accuracy
-#       type: code_judge
-#       script: ./scripts/check_conversion.py
-#     - name: quality
-#       type: llm_judge
-#       prompt: ./prompts/quality.md
+# Suggested additional evaluators:
+# assert:
+#   - name: accuracy
+#     type: code_judge
+#     script: ./scripts/check_conversion.py
+#   - name: quality
+#     type: llm_judge
+#     prompt: ./prompts/quality.md
 ```

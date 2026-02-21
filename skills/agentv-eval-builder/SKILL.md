@@ -19,9 +19,11 @@ tests:
     criteria: Friendly greeting
     input: "Say hello"
     expected_output: "Hello! How can I help you?"
-    rubrics:
-      - Greeting is friendly and warm
-      - Offers to help
+    assert:
+      - type: rubrics
+        criteria:
+          - Greeting is friendly and warm
+          - Offers to help
 ```
 
 ## Eval File Structure
@@ -37,8 +39,8 @@ tests:
 | `criteria` | yes | What the response should accomplish |
 | `input` / `input` | yes | Input to the agent |
 | `expected_output` / `expected_output` | no | Gold-standard reference answer |
-| `rubrics` | no | Inline evaluation criteria |
-| `assert` | no | Per-test assertion evaluators (alternative to `execution.evaluators`) |
+| `assert` | no | Evaluators: assertions, rubrics, judges |
+| `rubrics` | no | **Deprecated** — use `assert: [{type: rubrics, criteria: [...]}]` instead |
 | `execution` | no | Per-case execution overrides |
 | `workspace` | no | Per-case workspace config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
@@ -84,7 +86,7 @@ The external file can be YAML (array of test objects) or JSONL.
 
 ## Assert Field
 
-`assert` defines evaluators at the suite level or per-test level. It is an alternative to `execution.evaluators` with the same merge behavior:
+`assert` defines evaluators at the suite level or per-test level. It is the canonical field for all evaluators (replaces `execution.evaluators`):
 
 ```yaml
 # Suite-level (appended to every test)
@@ -104,7 +106,7 @@ tests:
         value: '{"status": "ok"}'
 ```
 
-When both `assert` and `execution.evaluators` are present, `assert` takes precedence.
+`execution.evaluators` is deprecated. When both `assert` and `execution.evaluators` are present, `assert` takes precedence.
 
 ## Required Gates
 
@@ -158,7 +160,7 @@ See https://agentv.dev/targets/configuration/#workspace-setupteardown
 
 ## Evaluator Types
 
-Configure via `execution.evaluators` or `assert` array. Multiple evaluators produce a weighted average score.
+Configure via `assert` array. Multiple evaluators produce a weighted average score.
 
 ### code_judge
 ```yaml
@@ -190,7 +192,7 @@ Variables: `{{question}}`, `{{criteria}}`, `{{candidate_answer}}`, `{{reference_
 ```yaml
 - name: gate
   type: composite
-  evaluators:
+  assert:
     - name: safety
       type: llm_judge
       prompt: ./safety.md
@@ -307,15 +309,8 @@ Binary check: is the output valid JSON?
 ```
 LLM-judged structured evaluation with weighted criteria. Criteria items support `id`, `outcome`, `weight`, and `required` fields.
 
-### rubric (inline)
-```yaml
-rubrics:
-  - Simple string criterion
-  - id: weighted
-    criteria: Detailed criterion
-    weight: 2.0
-    required: true
-```
+### rubrics (inline, deprecated)
+Top-level `rubrics:` field is deprecated. Use `type: rubrics` under `assert` instead.
 See `references/rubric-evaluator.md` for score-range mode and scoring formula.
 
 ## CLI Commands

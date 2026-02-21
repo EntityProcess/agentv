@@ -73,9 +73,11 @@ tests:
     criteria: "<What the response should accomplish>"
     input: "<User message>"
     expected_output: "<Assistant response from transcript>"
-    rubrics:
-      - <Quality criterion 1>
-      - <Quality criterion 2>
+    assert:
+      - type: rubrics
+        criteria:
+          - <Quality criterion 1>
+          - <Quality criterion 2>
 ```
 
 **Rules:**
@@ -84,22 +86,21 @@ tests:
 - Write `criteria` as a concise statement of what a good response achieves
 - Use `input` for single user messages; use `input` for multi-turn
 - Set `expected_output` to the actual assistant response from the transcript
-- Include 2–4 rubrics per test capturing distinct quality dimensions
+- Include 2–4 rubrics per test as `type: rubrics` under `assert` capturing distinct quality dimensions
 
 ### 5. Suggest Evaluators
 
 Append a commented evaluator configuration based on the test content:
 
 ```yaml
-# Suggested evaluators:
-# execution:
-#   evaluators:
-#     - name: quality
-#       type: llm_judge
-#       prompt: ./prompts/quality.md
-#     - name: accuracy
-#       type: code_judge
-#       script: ./scripts/check_accuracy.py
+# Suggested additional evaluators:
+# assert:
+#   - name: quality
+#     type: llm_judge
+#     prompt: ./prompts/quality.md
+#   - name: accuracy
+#     type: code_judge
+#     script: ./scripts/check_accuracy.py
 ```
 
 - Recommend `llm_judge` for subjective quality (tone, helpfulness, completeness)
@@ -127,9 +128,11 @@ tests:
       - role: user
         content: "What's my name?"
     expected_output: "Your name is Alice."
-    rubrics:
-      - Correctly recalls the user's name from earlier in the conversation
-      - Response is natural and conversational
+    assert:
+      - type: rubrics
+        criteria:
+          - Correctly recalls the user's name from earlier in the conversation
+          - Response is natural and conversational
 ```
 
 ## Guidelines

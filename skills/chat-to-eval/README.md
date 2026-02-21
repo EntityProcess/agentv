@@ -9,7 +9,7 @@ This skill takes a chat transcript — either as markdown conversation or JSON m
 The LLM analyzes the conversation to:
 1. Identify test-worthy exchanges (factual Q&A, task completion, edge cases)
 2. Derive evaluation criteria from context
-3. Generate valid YAML with `tests:`, rubrics, and suggested evaluators
+3. Generate valid YAML with `tests:`, `assert` evaluators, and rubrics
 
 ## Usage
 
@@ -44,28 +44,31 @@ tests:
     criteria: "Correctly identify the capital of France"
     input: "What's the capital of France?"
     expected_output: "The capital of France is Paris."
-    rubrics:
-      - States Paris as the capital
-      - Response is concise and direct
+    assert:
+      - type: rubrics
+        criteria:
+          - States Paris as the capital
+          - Response is concise and direct
 
   - id: python-reverse-list
     criteria: "Explain how to reverse a list in Python"
     input: "How do I reverse a list in Python?"
     expected_output: "Use the `reverse()` method or slicing: `my_list[::-1]`"
-    rubrics:
-      - Provides at least one valid method to reverse a list
-      - Code syntax is correct
-      - Explanation is clear and actionable
+    assert:
+      - type: rubrics
+        criteria:
+          - Provides at least one valid method to reverse a list
+          - Code syntax is correct
+          - Explanation is clear and actionable
 
-# Suggested evaluators:
-# execution:
-#   evaluators:
-#     - name: quality
-#       type: llm_judge
-#       prompt: ./prompts/quality.md
-#     - name: accuracy
-#       type: code_judge
-#       script: ./scripts/check_accuracy.py
+# Suggested additional evaluators:
+# assert:
+#   - name: quality
+#     type: llm_judge
+#     prompt: ./prompts/quality.md
+#   - name: accuracy
+#     type: code_judge
+#     script: ./scripts/check_accuracy.py
 ```
 
 ## When to Use

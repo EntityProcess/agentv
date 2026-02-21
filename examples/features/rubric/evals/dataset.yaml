@@ -1,15 +1,15 @@
 # AgentV Rubric Evaluator Example
-# Demonstrates the rubric-based evaluation feature
+# Demonstrates the rubric-based evaluation feature using type: rubrics under assert
 
-description: Example showing rubric evaluator with inline rubrics and criteria
+description: Example showing rubric evaluator with type rubrics under assert
 
 execution:
   target: default
 
 tests:
   # ==========================================
-  # Example 1: Simple inline rubrics
-  # Demonstrates: inline rubrics as strings, criteria field
+  # Example 1: Simple string rubrics
+  # Demonstrates: string shorthand criteria under type: rubrics
   # ==========================================
   - id: code-explanation-simple
 
@@ -33,11 +33,12 @@ tests:
           - Best/Average: O(n log n)
           - Worst case: O(n²) when poorly chosen pivots
 
-    # Inline rubrics - simple string format
-    rubrics:
-      - Mentions divide-and-conquer approach
-      - Explains the partition step
-      - States time complexity correctly
+    assert:
+      - type: rubrics
+        criteria:
+          - Mentions divide-and-conquer approach
+          - Explains the partition step
+          - States time complexity correctly
 
   # ==========================================
   # Example 2: Detailed rubric objects
@@ -69,31 +70,33 @@ tests:
           - 500 Internal Server Error: Server-side error
 
     # Detailed rubric objects with weights and required flags
-    rubrics:
-      - id: structure
-        outcome: Has clear headings and organization
-        weight: 1.0
-        required: true
+    assert:
+      - type: rubrics
+        criteria:
+          - id: structure
+            outcome: Has clear headings and organization
+            weight: 1.0
+            required: true
 
-      - id: success-codes
-        outcome: Covers 2xx success codes with examples
-        weight: 2.0
-        required: true
+          - id: success-codes
+            outcome: Covers 2xx success codes with examples
+            weight: 2.0
+            required: true
 
-      - id: client-errors
-        outcome: Explains 4xx client error codes
-        weight: 2.0
-        required: true
+          - id: client-errors
+            outcome: Explains 4xx client error codes
+            weight: 2.0
+            required: true
 
-      - id: server-errors
-        outcome: Explains 5xx server error codes
-        weight: 1.5
-        required: false
+          - id: server-errors
+            outcome: Explains 5xx server error codes
+            weight: 1.5
+            required: false
 
-      - id: practical-examples
-        outcome: Includes practical use case examples
-        weight: 1.0
-        required: false
+          - id: practical-examples
+            outcome: Includes practical use case examples
+            weight: 1.0
+            required: false
 
   # ==========================================
   # Example 3: Multiple evaluators with rubric
@@ -131,15 +134,14 @@ tests:
               pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
               return bool(re.match(pattern, email))
 
-    # Inline rubrics for semantic checks
-    rubrics:
-      - Uses regular expressions for email validation
-      - Includes type hints
-      - Has docstring documentation
-      - Handles edge cases (None, empty string)
-
     assert:
-      # Rubric evaluator is auto-added from inline rubrics field
+      # Rubric evaluator for semantic checks
+      - type: rubrics
+        criteria:
+          - Uses regular expressions for email validation
+          - Includes type hints
+          - Has docstring documentation
+          - Handles edge cases (None, empty string)
 
       # Additional code evaluator for syntax checking
       - name: python_syntax
@@ -204,22 +206,24 @@ tests:
           more extreme weather. Scientists urge urgent emissions cuts and a transition
           to renewable energy.
 
-    rubrics:
-      - id: factual_accuracy
-        weight: 2.0
-        required_min_score: 8
-        score_ranges:
-          0: Contains major factual errors or contradicts the article.
-          3: Mostly on-topic but includes at least one clear factual error or misstates a key claim.
-          6: Generally accurate but misses an important point or slightly distorts emphasis.
-          8: Accurate and covers the key points with only minor omissions.
-          10: Fully accurate, captures all key points with no distortions.
+    assert:
+      - type: rubrics
+        criteria:
+          - id: factual_accuracy
+            weight: 2.0
+            required_min_score: 8
+            score_ranges:
+              0: Contains major factual errors or contradicts the article.
+              3: Mostly on-topic but includes at least one clear factual error or misstates a key claim.
+              6: Generally accurate but misses an important point or slightly distorts emphasis.
+              8: Accurate and covers the key points with only minor omissions.
+              10: Fully accurate, captures all key points with no distortions.
 
-      - id: brevity_and_clarity
-        weight: 1.0
-        score_ranges:
-          0: Exceeds 50 words or is hard to understand.
-          3: Under 50 words but unclear, repetitive, or poorly structured.
-          6: Under 50 words and mostly clear, but could be more concise or better phrased.
-          8: Under 50 words, clear and concise.
-          10: Under 50 words, exceptionally clear, concise, and well phrased.
+          - id: brevity_and_clarity
+            weight: 1.0
+            score_ranges:
+              0: Exceeds 50 words or is hard to understand.
+              3: Under 50 words but unclear, repetitive, or poorly structured.
+              6: Under 50 words and mostly clear, but could be more concise or better phrased.
+              8: Under 50 words, clear and concise.
+              10: Under 50 words, exceptionally clear, concise, and well phrased.

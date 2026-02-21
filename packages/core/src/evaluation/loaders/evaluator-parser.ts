@@ -922,7 +922,7 @@ async function parseEvaluatorList(
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
       const required = parseRequired(rawEvaluator.required);
 
-      // Back-compat: `type: rubric` maps to `type: llm_judge` with `rubrics`.
+      // deprecated: `type: rubric` maps to `type: llm_judge` with `rubrics`. Use `type: rubrics` with `criteria` instead.
       evaluators.push({
         name,
         type: 'llm_judge',

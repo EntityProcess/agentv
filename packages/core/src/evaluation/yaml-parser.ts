@@ -360,7 +360,7 @@ async function loadTestsFromYaml(
       continue;
     }
 
-    // Handle inline rubrics field (syntactic sugar)
+    // Handle inline rubrics field (deprecated: use assert: [{type: rubrics, criteria: [...]}] instead)
     const inlineRubrics = evalcase.rubrics;
     if (inlineRubrics !== undefined && Array.isArray(inlineRubrics)) {
       const rubricEvaluator = parseInlineRubrics(inlineRubrics);
