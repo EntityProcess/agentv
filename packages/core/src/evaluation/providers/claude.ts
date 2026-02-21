@@ -90,6 +90,11 @@ export class ClaudeProvider implements Provider {
     const queryOptions: any = {
       permissionMode: 'bypassPermissions',
       allowDangerouslySkipPermissions: true,
+      // The SDK spawns a Claude Code subprocess. When AgentV itself runs inside
+      // a Claude Code session the CLAUDECODE env var is set, which causes the
+      // subprocess to refuse to start ("cannot be launched inside another Claude
+      // Code session"). Passing a sanitized env removes that guard.
+      env: sanitizeEnvForClaudeSdk(),
     };
 
     if (this.config.model) {
@@ -426,6 +431,18 @@ function summarizeMessage(msg: Record<string, unknown>): string | undefined {
     default:
       return undefined;
   }
+}
+
+/**
+ * Build a process.env copy without variables that block nested Claude sessions.
+ * The Claude Agent SDK spawns Claude Code as a child process; if CLAUDECODE is
+ * present the child immediately exits with "cannot be launched inside another
+ * Claude Code session".
+ */
+function sanitizeEnvForClaudeSdk(): Record<string, string | undefined> {
+  const env = { ...process.env };
+  delete env.CLAUDECODE;
+  return env;
 }
 
 function isClaudeLogStreamingDisabled(): boolean {
