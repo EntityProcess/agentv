@@ -4,10 +4,10 @@
 # a cross-target comparison matrix.
 #
 # Usage:
-#   agentv eval examples/features/matrix-evaluation/evals/dataset.yaml
+#   agentv eval examples/features/matrix-evaluation/evals/dataset.eval.yaml
 #
 # Or with CLI override:
-#   agentv eval examples/features/matrix-evaluation/evals/dataset.yaml --target copilot --target claude
+#   agentv eval examples/features/matrix-evaluation/evals/dataset.eval.yaml --target copilot --target claude
 
 execution:
   targets:

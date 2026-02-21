@@ -18,7 +18,7 @@
 #   metrics-005: ~0.500 (currency, supplier.name, gross_total errors)
 #
 # Run:
-#   bun agentv eval examples/features/document-extraction/evals/dataset-confusion-metrics.yaml
+#   bun agentv eval examples/features/document-extraction/evals/confusion-metrics.eval.yaml
 #
 # Aggregate:
 #   bun run examples/features/document-extraction/scripts/aggregate_metrics.ts \

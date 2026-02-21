@@ -115,7 +115,7 @@ For large-scale evaluations, AgentV supports JSONL (JSON Lines) format. Each lin
 
 An optional YAML sidecar file provides metadata and execution config. Place it alongside the JSONL file with the same base name:
 
-`dataset.jsonl` + `dataset.yaml`:
+`dataset.jsonl` + `dataset.eval.yaml`:
 
 ```yaml
 description: Math evaluation dataset
@@ -137,6 +137,6 @@ evaluator: llm_judge
 Use the `convert` command to switch between YAML and JSONL:
 
 ```bash
-agentv convert evals/dataset.yaml --format jsonl
+agentv convert evals/dataset.eval.yaml --format jsonl
 agentv convert evals/dataset.jsonl --format yaml
 ```

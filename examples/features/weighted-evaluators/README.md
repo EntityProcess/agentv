@@ -13,9 +13,9 @@ Demonstrates weighted evaluator configurations for prioritizing different evalua
 
 ```bash
 # From repository root
-bun agentv eval examples/features/weighted-evaluators/evals/dataset.yaml
+bun agentv eval examples/features/weighted-evaluators/evals/dataset.eval.yaml
 ```
 
 ## Key Files
 
-- `evals/dataset.yaml` - Test cases with weighted evaluator configurations
+- `evals/dataset.eval.yaml` - Test cases with weighted evaluator configurations

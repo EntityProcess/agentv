@@ -56,8 +56,8 @@ export async function discoverEvalFiles(cwd: string): Promise<readonly Discovere
 function deriveCategory(relativePath: string): string {
   const parts = relativePath.split(path.sep);
   // Use the first meaningful directory as category
-  // e.g., "examples/showcase/export-screening/evals/dataset.yaml" → "showcase/export-screening"
-  // e.g., "evals/dataset.yaml" → "evals"
+  // e.g., "examples/showcase/export-screening/evals/dataset.eval.yaml" → "showcase/export-screening"
+  // e.g., "evals/dataset.eval.yaml" → "evals"
   if (parts.length <= 1) {
     return 'root';
   }

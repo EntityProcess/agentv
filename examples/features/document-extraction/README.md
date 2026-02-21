@@ -18,17 +18,17 @@ From repo root:
 
 ```bash
 # Pattern 1: Field accuracy (per-evalcase scoring)
-bun agentv eval examples/features/document-extraction/evals/dataset-field-accuracy.yaml
+bun agentv eval examples/features/document-extraction/evals/field-accuracy.eval.yaml
 
 # Pattern 2: Confusion metrics (cross-document aggregation)
-bun agentv eval examples/features/document-extraction/evals/dataset-confusion-metrics.yaml
+bun agentv eval examples/features/document-extraction/evals/confusion-metrics.eval.yaml
 
-# Aggregate TP/TN/FP/FN into a table (only works with dataset-confusion-metrics.yaml)
+# Aggregate TP/TN/FP/FN into a table (only works with confusion-metrics.eval.yaml)
 bun run examples/features/document-extraction/scripts/aggregate_metrics.ts \
   .agentv/results/eval_<timestamp>.jsonl
 ```
 
-## Pattern 1: Field Accuracy (`dataset-field-accuracy.yaml`)
+## Pattern 1: Field Accuracy (`field-accuracy.eval.yaml`)
 
 Uses the built-in `field_accuracy` evaluator for per-evalcase scoring:
 
@@ -51,7 +51,7 @@ evaluators:
 
 **Best for**: Quick validation, CI/CD gates, simple pass/fail checks.
 
-## Pattern 2: Confusion Metrics (`dataset-confusion-metrics.yaml`)
+## Pattern 2: Confusion Metrics (`confusion-metrics.eval.yaml`)
 
 Uses a custom `code_judge` that emits `details.metrics` with TP/TN/FP/FN per field:
 
@@ -106,8 +106,8 @@ Options:
 ## Where To Look
 
 - **Datasets**:
-  - `evals/dataset-field-accuracy.yaml` - Field accuracy patterns
-  - `evals/dataset-confusion-metrics.yaml` - TP/TN/FP/FN aggregation
+  - `evals/field-accuracy.eval.yaml` - Field accuracy patterns
+  - `evals/confusion-metrics.eval.yaml` - TP/TN/FP/FN aggregation
 - **Target**: `mock_extractor.ts`
 - **Fixtures**: `fixtures/`
 - **Judges**:

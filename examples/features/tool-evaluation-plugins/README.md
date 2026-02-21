@@ -39,7 +39,7 @@ evaluators:
 
 ```bash
 cd examples/features/tool-evaluation-plugins
-bun agentv eval evals/dataset.yaml --target <your-target>
+bun agentv eval evals/dataset.eval.yaml --target <your-target>
 ```
 
 ## Output

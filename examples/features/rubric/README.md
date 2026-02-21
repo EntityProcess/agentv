@@ -14,10 +14,10 @@ Demonstrates rubric-based evaluation with weights, required flags, and auto-gene
 
 ```bash
 # From repository root
-bun agentv eval examples/features/rubric/evals/dataset.yaml --target default
+bun agentv eval examples/features/rubric/evals/dataset.eval.yaml --target default
 ```
 
 ## Key Files
 
-- `evals/dataset.yaml` - Test cases with various rubric patterns
+- `evals/dataset.eval.yaml` - Test cases with various rubric patterns
 - `evals/rubrics/` - External rubric files

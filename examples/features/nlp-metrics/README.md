@@ -17,13 +17,13 @@ Each judge is a standalone TypeScript file that uses `defineCodeJudge` from `@ag
 
 ```bash
 # From the repository root
-bun agentv eval examples/features/nlp-metrics/evals/dataset.yaml
+bun agentv eval examples/features/nlp-metrics/evals/dataset.eval.yaml
 ```
 
 Run a single test:
 
 ```bash
-bun agentv eval examples/features/nlp-metrics/evals/dataset.yaml --test-id summarisation-rouge
+bun agentv eval examples/features/nlp-metrics/evals/dataset.eval.yaml --test-id summarisation-rouge
 ```
 
 ## How It Works
@@ -36,4 +36,4 @@ Each judge receives the candidate answer and reference text via the `defineCodeJ
 
 ## Combining Metrics
 
-The `multi-metric-evaluation` test in `dataset.yaml` shows how to attach multiple evaluators to a single test case. AgentV runs each judge independently and reports all scores.
+The `multi-metric-evaluation` test in `dataset.eval.yaml` shows how to attach multiple evaluators to a single test case. AgentV runs each judge independently and reports all scores.

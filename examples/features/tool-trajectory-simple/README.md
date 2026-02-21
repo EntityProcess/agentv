@@ -15,7 +15,7 @@ Demonstrates tool trajectory evaluation with different matching modes.
 ```bash
 # From repository root
 cd examples/features
-bun agentv eval tool-trajectory-simple/evals/dataset.yaml --target mock_agent
+bun agentv eval tool-trajectory-simple/evals/dataset.eval.yaml --target mock_agent
 ```
 
 ## Setup
@@ -29,4 +29,4 @@ TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/tool-trajectory-simple
 ## Key Files
 
 - `mock-agent.ts` - Mock CLI agent that simulates tool usage
-- `evals/dataset.yaml` - Test cases demonstrating different trajectory modes
+- `evals/dataset.eval.yaml` - Test cases demonstrating different trajectory modes

@@ -6,10 +6,10 @@
 #
 # Run:
 #   cd examples/tool-evaluation-plugins
-#   bun agentv eval evals/dataset.yaml --target <your-target>
+#   bun agentv eval evals/dataset.eval.yaml --target <your-target>
 #
 # Or dry-run (mock responses — useful for testing harness flow only):
-#   bun agentv eval evals/dataset.yaml --dry-run
+#   bun agentv eval evals/dataset.eval.yaml --dry-run
 
 description: Tool-call F1 scoring examples
 

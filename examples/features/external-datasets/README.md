@@ -13,12 +13,12 @@ Demonstrates loading test cases from external files using `file://` references.
 
 ```bash
 # From repository root
-bun agentv eval examples/features/external-datasets/evals/dataset.yaml
+bun agentv eval examples/features/external-datasets/evals/dataset.eval.yaml
 ```
 
 ## Key Files
 
-- `evals/dataset.yaml` — Main eval with inline tests and `file://` references
+- `evals/dataset.eval.yaml` — Main eval with inline tests and `file://` references
 - `evals/cases/accuracy.yaml` — YAML array of test cases
 - `evals/cases/regression.jsonl` — JSONL test data (one test per line)
 

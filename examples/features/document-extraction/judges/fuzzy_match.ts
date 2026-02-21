@@ -6,7 +6,7 @@
  * evaluator. Use this approach for comparing extracted text that may have OCR errors,
  * formatting variations, or minor typos.
  *
- * Usage in dataset.yaml:
+ * Usage in dataset.eval.yaml:
  * ```yaml
  * evaluators:
  *   - name: vendor_name_fuzzy
