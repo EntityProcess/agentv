@@ -25,17 +25,17 @@ export async function parseEvaluators(
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
 
-  // Case-level evaluators priority: assert > execution.evaluators > top-level evaluators
+  // Case-level evaluators priority: assert > execution.evaluators (deprecated) > top-level evaluators (deprecated)
   const caseEvaluators =
     rawEvalCase.assert ??
-    (executionObject ? executionObject.evaluators : undefined) ??
-    rawEvalCase.evaluators;
+    (executionObject ? executionObject.evaluators : undefined) ?? // deprecated: use assert
+    rawEvalCase.evaluators; // deprecated: use assert
 
-  // Root-level (default) evaluators: assert > execution.evaluators
+  // Root-level (default) evaluators: assert > execution.evaluators (deprecated)
   const skipDefaults = executionObject?.skip_defaults === true;
   const rootEvaluators = skipDefaults
     ? undefined
-    : (globalExecution?.assert ?? globalExecution?.evaluators);
+    : (globalExecution?.assert ?? globalExecution?.evaluators); // deprecated: use assert
 
   // Parse case-level evaluators
   const parsedCase = await parseEvaluatorList(caseEvaluators, searchRoots, evalId);
@@ -189,8 +189,8 @@ async function parseEvaluatorList(
     }
 
     if (typeValue === 'composite') {
-      // Accept assert as alias for evaluators in composite
-      const rawMembers = rawEvaluator.assert ?? rawEvaluator.evaluators;
+      // Accept assert as canonical key; evaluators is deprecated
+      const rawMembers = rawEvaluator.assert ?? rawEvaluator.evaluators; // evaluators deprecated
       if (!Array.isArray(rawMembers)) {
         logWarning(
           `Skipping composite evaluator '${name}' in '${evalId}': missing evaluators (or assert) array`,
