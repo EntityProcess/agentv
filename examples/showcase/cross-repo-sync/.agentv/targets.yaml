@@ -12,3 +12,9 @@ targets:
     provider: copilot-cli
     model: claude-haiku-4.5
     timeout_seconds: 900
+
+  - name: azure_judge
+    provider: azure
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}

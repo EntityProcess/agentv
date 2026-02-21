@@ -78,7 +78,7 @@ export class CopilotCliProvider implements Provider {
 
     // Build command args
     const executable = this.resolveExecutable();
-    const args = this.buildCliArgs(request);
+    const args = this.buildCliArgs();
 
     // Spawn the CLI process
     const agentProcess = spawn(executable, args, {
@@ -200,14 +200,20 @@ export class CopilotCliProvider implements Provider {
         mcpServers: [],
       });
 
-      // Build the prompt
+      // Build the prompt with optional system instructions prepended
       const inputFiles = normalizeInputFiles(request.inputFiles);
       const prompt = buildPromptDocument(request, inputFiles);
+      const systemPrompt = this.resolveSystemPrompt(request);
+      const promptMessages: Array<{ type: 'text'; text: string }> = [];
+      if (systemPrompt) {
+        promptMessages.push({ type: 'text', text: systemPrompt });
+      }
+      promptMessages.push({ type: 'text', text: prompt });
 
       // Send and wait with timeout
       const sendPromise = connection.prompt({
         sessionId: session.sessionId,
-        prompt: [{ type: 'text', text: prompt }],
+        prompt: promptMessages,
       });
 
       if (request.signal) {
@@ -262,19 +268,11 @@ export class CopilotCliProvider implements Provider {
     }
   }
 
-  private buildCliArgs(request: ProviderRequest): string[] {
+  private buildCliArgs(): string[] {
     const args = ['--acp', '--stdio', '--allow-all-tools'];
 
     if (this.config.model) {
       args.push('--model', this.config.model);
-    }
-
-    // Skip forced diff prompt when AgentV captures file changes
-    const systemPrompt =
-      this.config.systemPrompt ?? (request.captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT);
-
-    if (systemPrompt) {
-      args.push('--system-prompt', systemPrompt);
     }
 
     // Append user-provided extra args
@@ -283,6 +281,10 @@ export class CopilotCliProvider implements Provider {
     }
 
     return args;
+  }
+
+  private resolveSystemPrompt(request: ProviderRequest): string | undefined {
+    return this.config.systemPrompt ?? (request.captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT);
   }
 
   private async raceWithTimeout(
