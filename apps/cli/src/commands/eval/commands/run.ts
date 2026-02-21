@@ -122,6 +122,19 @@ export const evalRunCommand = command({
       long: 'trace',
       description: 'Persist full execution traces to .agentv/traces/ as JSONL',
     }),
+    exportOtel: flag({
+      long: 'export-otel',
+      description: 'Export evaluation traces via OTLP/HTTP to configured endpoint',
+    }),
+    otelBackend: option({
+      type: optional(string),
+      long: 'otel-backend',
+      description: 'Use a backend preset (langfuse, braintrust, confident)',
+    }),
+    otelCaptureContent: flag({
+      long: 'otel-capture-content',
+      description: 'Include message content in exported OTel spans (privacy: disabled by default)',
+    }),
   },
   handler: async (args) => {
     // Launch interactive wizard when no eval paths and stdin is a TTY
@@ -152,6 +165,9 @@ export const evalRunCommand = command({
       keepWorkspaces: args.keepWorkspaces,
       cleanupWorkspaces: args.cleanupWorkspaces,
       trace: args.trace,
+      exportOtel: args.exportOtel,
+      otelBackend: args.otelBackend,
+      otelCaptureContent: args.otelCaptureContent,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },
