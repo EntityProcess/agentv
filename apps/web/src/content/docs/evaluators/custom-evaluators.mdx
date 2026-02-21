@@ -13,21 +13,20 @@ AgentV supports multiple evaluator types that can be combined for comprehensive 
 |------|-------------|----------|
 | `code_judge` | Deterministic script (Python/TS/any) | Exact matching, format validation, programmatic checks |
 | `llm_judge` | LLM-based evaluation with custom prompt | Semantic evaluation, nuance, subjective quality |
-| Rubrics | Structured criteria in test | Multi-criterion grading with weights |
+| `rubrics` | Structured rubric evaluator via `assert` | Multi-criterion grading with weights |
 
 ## Referencing Evaluators
 
-Evaluators are configured at the execution level — either top-level (applies to all tests) or per-test:
+Evaluators are configured using `assert` — either top-level (applies to all tests) or per-test:
 
 ### Top-Level (Default for All Tests)
 
 ```yaml
 description: My evaluation
-execution:
-  evaluators:
-    - name: correctness
-      type: llm_judge
-      prompt: ./judges/correctness.md
+assert:
+  - name: correctness
+    type: llm_judge
+    prompt: ./judges/correctness.md
 
 tests:
   - id: test-1
@@ -42,11 +41,10 @@ tests:
   - id: test-1
     criteria: Returns valid JSON
     input: Generate a JSON config
-    execution:
-      evaluators:
-        - name: json_check
-          type: code_judge
-          script: ./validators/check_json.py
+    assert:
+      - name: json_check
+        type: code_judge
+        script: ./validators/check_json.py
 ```
 
 ## Combining Evaluators
@@ -58,18 +56,18 @@ tests:
   - id: code-generation
     criteria: Generates correct Python code
     input: Write a sorting function
-    rubrics:
-      - Code is syntactically valid
-      - Handles edge cases (empty list, single element)
-      - Uses appropriate algorithm
-    execution:
-      evaluators:
-        - name: syntax_check
-          type: code_judge
-          script: ./validators/check_syntax.py
-        - name: quality_review
-          type: llm_judge
-          prompt: ./judges/code_quality.md
+    assert:
+      - type: rubrics
+        criteria:
+          - Code is syntactically valid
+          - Handles edge cases (empty list, single element)
+          - Uses appropriate algorithm
+      - name: syntax_check
+        type: code_judge
+        script: ./validators/check_syntax.py
+      - name: quality_review
+        type: llm_judge
+        prompt: ./judges/code_quality.md
 ```
 
 Each evaluator produces its own score. Results appear in `scores[]` in the output JSONL.

@@ -15,10 +15,11 @@ The primary format. A single file contains metadata, execution config, and tests
 description: Math problem solving evaluation
 execution:
   target: default
-  evaluators:
-    - name: correctness
-      type: llm_judge
-      prompt: ./judges/correctness.md
+
+assert:
+  - name: correctness
+    type: llm_judge
+    prompt: ./judges/correctness.md
 
 tests:
   - id: addition
@@ -33,10 +34,10 @@ tests:
 |-------|-------------|
 | `description` | Human-readable description of the evaluation |
 | `dataset` | Optional dataset identifier |
-| `execution` | Default execution config (target, evaluators). Root-level evaluators are appended to every test's evaluators unless the test sets `skip_defaults: true` |
+| `execution` | Default execution config (for example `target`) |
 | `workspace` | Suite-level workspace config (setup/teardown scripts, template) |
 | `tests` | Array of individual tests, or a string path to an external file |
-| `assert` | Suite-level assertion evaluators (alternative to `execution.evaluators`) |
+| `assert` | Suite-level evaluators appended to each test unless `execution.skip_defaults: true` is set on the test |
 
 ### Metadata Fields
 
@@ -70,7 +71,7 @@ tests:
 
 ### Suite-level Assert
 
-The `assert` field provides a concise way to define evaluators at the suite level, as an alternative to nesting them inside `execution.evaluators`. Suite-level assertions are appended to every test's evaluators (same merge behavior as `execution.evaluators`).
+The `assert` field is the canonical way to define suite-level evaluators. Suite-level assertions are appended to every test's evaluators unless a test sets `execution.skip_defaults: true`.
 
 ```yaml
 description: API response validation
@@ -86,7 +87,7 @@ tests:
     input: Check API health
 ```
 
-`assert` supports the same evaluator types as `execution.evaluators`, including the new deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/evaluation/eval-cases/#per-test-assertions) for per-test assert usage.
+`assert` supports all evaluator types, including deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/evaluation/eval-cases/#per-test-assertions) for per-test assert usage.
 
 ### Tests as String Path
 
@@ -122,7 +123,10 @@ description: Math evaluation dataset
 dataset: math-tests
 execution:
   target: azure_base
-evaluator: llm_judge
+assert:
+  - name: correctness
+    type: llm_judge
+    prompt: ./judges/correctness.md
 ```
 
 ### Benefits of JSONL

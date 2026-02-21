@@ -12,11 +12,10 @@ LLM judges use a language model to evaluate agent responses against custom crite
 Reference an LLM judge in your eval file:
 
 ```yaml
-execution:
-  evaluators:
-    - name: semantic_check
-      type: llm_judge
-      prompt: ./judges/correctness.md
+assert:
+  - name: semantic_check
+    type: llm_judge
+    prompt: ./judges/correctness.md
 ```
 
 ## Prompt Files
@@ -96,7 +95,7 @@ Evaluate and provide a score from 0 to 1.`;
 When using TypeScript templates, configure them in YAML with optional `config` data passed to the script:
 
 ```yaml
-evaluators:
+assert:
   - name: custom-eval
     type: llm_judge
     prompt:

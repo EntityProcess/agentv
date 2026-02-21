@@ -35,11 +35,10 @@ tests:
 
     expected_output: "42"
 
-    execution:
-      evaluators:
-        - name: math_check
-          type: code_judge
-          script: ./validators/check_math.py
+    assert:
+      - name: math_check
+        type: code_judge
+        script: ./validators/check_math.py
 ```
 
 **5. Run the eval:**
@@ -192,11 +191,10 @@ print(json.dumps({
 Reference evaluators in your eval file:
 
 ```yaml
-execution:
-  evaluators:
-    - name: my_validator
-      type: code_judge
-      script: ./validators/check_answer.py
+assert:
+  - name: my_validator
+    type: code_judge
+    script: ./validators/check_answer.py
 ```
 
 For complete templates, examples, and evaluator patterns, see: [custom-evaluators](https://agentv.dev/evaluators/custom-evaluators/)
@@ -261,11 +259,10 @@ For complete examples and patterns, see:
 Create markdown judge files with evaluation criteria and scoring guidelines:
 
 ```yaml
-execution:
-  evaluators:
-    - name: semantic_check
-      type: llm_judge
-      prompt: ./judges/correctness.md
+assert:
+  - name: semantic_check
+    type: llm_judge
+    prompt: ./judges/correctness.md
 ```
 
 Your judge prompt file defines criteria and scoring guidelines.
@@ -281,10 +278,12 @@ tests:
 
     input: Explain quicksort algorithm
 
-    rubrics:
-      - Mentions divide-and-conquer approach
-      - Explains partition step
-      - States time complexity
+    assert:
+      - type: rubrics
+        criteria:
+          - Mentions divide-and-conquer approach
+          - Explains partition step
+          - States time complexity
 ```
 
 Scoring: `(satisfied weights) / (total weights)` → verdicts: `pass` (≥0.8), `borderline` (≥0.6), `fail`
