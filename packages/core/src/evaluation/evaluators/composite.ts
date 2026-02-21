@@ -94,7 +94,7 @@ export class CompositeEvaluator implements Evaluator {
     const allHits: string[] = [];
     const allMisses: string[] = [];
     const reasoningParts: string[] = [];
-    const evaluatorResults: ChildEvaluatorResult[] = [];
+    const scores: ChildEvaluatorResult[] = [];
 
     for (const member of results) {
       const weight = weights?.[member.id] ?? 1.0;
@@ -107,7 +107,7 @@ export class CompositeEvaluator implements Evaluator {
       }
 
       // Build child result entry
-      evaluatorResults.push({
+      scores.push({
         name: member.id,
         type: member.type,
         score: member.result.score,
@@ -117,7 +117,7 @@ export class CompositeEvaluator implements Evaluator {
         misses: [...member.result.misses],
         reasoning: member.result.reasoning,
         evaluatorRawRequest: member.result.evaluatorRawRequest,
-        evaluatorResults: member.result.evaluatorResults,
+        scores: member.result.scores,
         details: member.result.details,
       });
     }
@@ -135,12 +135,12 @@ export class CompositeEvaluator implements Evaluator {
         aggregator: 'weighted_average',
         ...(weights ? { weights } : {}),
       },
-      evaluatorResults,
+      scores,
     };
   }
 
   private runThreshold(results: readonly MemberResult[], threshold: number): EvaluationScore {
-    const evaluatorResults: ChildEvaluatorResult[] = [];
+    const scores: ChildEvaluatorResult[] = [];
     const allHits: string[] = [];
     const allMisses: string[] = [];
     const reasoningParts: string[] = [];
@@ -162,7 +162,7 @@ export class CompositeEvaluator implements Evaluator {
         reasoningParts.push(`${member.id}: ${member.result.reasoning}`);
       }
 
-      evaluatorResults.push({
+      scores.push({
         name: member.id,
         type: member.type,
         score: member.result.score,
@@ -171,7 +171,7 @@ export class CompositeEvaluator implements Evaluator {
         misses: [...member.result.misses],
         reasoning: member.result.reasoning,
         evaluatorRawRequest: member.result.evaluatorRawRequest,
-        evaluatorResults: member.result.evaluatorResults,
+        scores: member.result.scores,
         details: member.result.details,
       });
     }
@@ -200,7 +200,7 @@ export class CompositeEvaluator implements Evaluator {
         aggregator: 'threshold',
         threshold,
       },
-      evaluatorResults,
+      scores,
     };
   }
 
@@ -214,7 +214,7 @@ export class CompositeEvaluator implements Evaluator {
     const inputPayload = JSON.stringify({ results: resultsObject }, null, 2);
 
     // Build child results for output
-    const evaluatorResults: ChildEvaluatorResult[] = results.map((member) => ({
+    const scores: ChildEvaluatorResult[] = results.map((member) => ({
       name: member.id,
       type: member.type,
       score: member.result.score,
@@ -224,7 +224,7 @@ export class CompositeEvaluator implements Evaluator {
       misses: [...member.result.misses],
       reasoning: member.result.reasoning,
       evaluatorRawRequest: member.result.evaluatorRawRequest,
-      evaluatorResults: member.result.evaluatorResults,
+      scores: member.result.scores,
       details: member.result.details,
     }));
 
@@ -252,7 +252,7 @@ export class CompositeEvaluator implements Evaluator {
           aggregator: 'code_judge',
           script: scriptPath,
         },
-        evaluatorResults,
+        scores,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -268,7 +268,7 @@ export class CompositeEvaluator implements Evaluator {
           script: scriptPath,
           error: message,
         },
-        evaluatorResults,
+        scores,
       };
     }
   }
@@ -287,7 +287,7 @@ export class CompositeEvaluator implements Evaluator {
     const resultsJson = JSON.stringify(resultsObject, null, 2);
 
     // Build child results for output
-    const evaluatorResults: ChildEvaluatorResult[] = results.map((member) => ({
+    const scores: ChildEvaluatorResult[] = results.map((member) => ({
       name: member.id,
       type: member.type,
       score: member.result.score,
@@ -296,7 +296,7 @@ export class CompositeEvaluator implements Evaluator {
       misses: [...member.result.misses],
       reasoning: member.result.reasoning,
       evaluatorRawRequest: member.result.evaluatorRawRequest,
-      evaluatorResults: member.result.evaluatorResults,
+      scores: member.result.scores,
       details: member.result.details,
     }));
 
@@ -339,7 +339,7 @@ export class CompositeEvaluator implements Evaluator {
           expectedAspectCount: Math.max(hits.length + misses.length, 1),
           reasoning,
           evaluatorRawRequest,
-          evaluatorResults,
+          scores,
         };
       }
 
@@ -351,7 +351,7 @@ export class CompositeEvaluator implements Evaluator {
       });
 
       const data = freeformEvaluationSchema.parse(
-        parseJsonFromText(extractLastAssistantContent(response.outputMessages)),
+        parseJsonFromText(extractLastAssistantContent(response.output)),
       );
       const score = clampScore(data.score);
       const hits = Array.isArray(data.hits) ? data.hits.filter(isNonEmptyString).slice(0, 4) : [];
@@ -368,7 +368,7 @@ export class CompositeEvaluator implements Evaluator {
         expectedAspectCount: Math.max(hits.length + misses.length, 1),
         reasoning,
         evaluatorRawRequest,
-        evaluatorResults,
+        scores,
       };
     } catch {
       return {
@@ -378,7 +378,7 @@ export class CompositeEvaluator implements Evaluator {
         misses: [],
         expectedAspectCount: 1,
         evaluatorRawRequest,
-        evaluatorResults,
+        scores,
       };
     }
   }

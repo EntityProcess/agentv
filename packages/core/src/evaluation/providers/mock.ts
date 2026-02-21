@@ -30,7 +30,7 @@ export class MockProvider implements Provider {
     }
 
     return {
-      outputMessages: [{ role: 'assistant' as const, content: this.cannedResponse }],
+      output: [{ role: 'assistant' as const, content: this.cannedResponse }],
       raw: {
         question: request.question,
         guidelines: request.guidelines,

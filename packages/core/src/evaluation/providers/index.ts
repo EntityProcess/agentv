@@ -13,6 +13,7 @@ import { VSCodeProvider } from './vscode-provider.js';
 
 export type {
   EnvLookup,
+  Message,
   OutputMessage,
   Provider,
   ProviderKind,

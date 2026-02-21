@@ -10,7 +10,7 @@ import { recordCopilotSdkLogEntry } from './copilot-sdk-log-tracker.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { CopilotSdkResolvedConfig } from './targets.js';
 import type {
-  OutputMessage,
+  Message,
   Provider,
   ProviderRequest,
   ProviderResponse,
@@ -226,16 +226,16 @@ export class CopilotSdkProvider implements Provider {
       const durationMs = Date.now() - startMs;
 
       // Build output messages
-      const outputMessages: OutputMessage[] = [];
+      const output: Message[] = [];
 
       if (completedToolCalls.length > 0) {
-        outputMessages.push({
+        output.push({
           role: 'assistant',
           content: finalContent || undefined,
           toolCalls: completedToolCalls,
         });
       } else if (finalContent) {
-        outputMessages.push({
+        output.push({
           role: 'assistant',
           content: finalContent,
         });
@@ -247,7 +247,7 @@ export class CopilotSdkProvider implements Provider {
           cliUrl: this.config.cliUrl,
           logFile: logger?.filePath,
         },
-        outputMessages,
+        output,
         tokenUsage,
         costUsd,
         durationMs,

@@ -13,7 +13,7 @@ function fileName(path: string): string {
 }
 
 export default defineCodeJudge(
-  ({ expectedOutput, candidateAnswer, guidelineFiles, inputFiles }) => {
+  ({ expectedOutput, answer, guidelineFiles, inputFiles }) => {
     const hits: string[] = [];
     const misses: string[] = [];
 
@@ -24,7 +24,7 @@ export default defineCodeJudge(
         ? expectedMessage.content
         : undefined;
 
-    if (expectedContent && candidateAnswer.trim() === expectedContent.trim()) {
+    if (expectedContent && answer.trim() === expectedContent.trim()) {
       hits.push('Candidate answer matches expected message');
     } else {
       misses.push('Candidate answer does not match expected message');
@@ -33,7 +33,7 @@ export default defineCodeJudge(
     // Check if attachments are mentioned
     const attachmentNames = [...guidelineFiles, ...inputFiles].map(fileName);
     for (const name of attachmentNames) {
-      if (candidateAnswer.includes(name)) {
+      if (answer.includes(name)) {
         hits.push(`Mentions attachment: ${name}`);
       } else {
         misses.push(`Missing attachment: ${name}`);

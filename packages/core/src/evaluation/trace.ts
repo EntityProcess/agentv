@@ -74,9 +74,9 @@ export interface ToolTrajectoryExpectedItem {
 
 /**
  * Simplified input type for computeTraceSummary.
- * Matches OutputMessage structure without requiring full provider/types import.
+ * Matches Message structure without requiring full provider/types import.
  */
-interface OutputMessageLike {
+interface MessageLike {
   readonly role?: string;
   readonly startTime?: string;
   readonly endTime?: string;
@@ -98,7 +98,7 @@ interface OutputMessageLike {
  * - toolDurations: per-tool duration arrays (from durationMs or computed from start/end)
  * - llmCallCount: count of assistant messages
  */
-export function computeTraceSummary(messages: readonly OutputMessageLike[]): TraceSummary {
+export function computeTraceSummary(messages: readonly MessageLike[]): TraceSummary {
   const toolCallCounts: Record<string, number> = {};
   const toolDurations: Record<string, number[]> = {};
   let totalToolCalls = 0;

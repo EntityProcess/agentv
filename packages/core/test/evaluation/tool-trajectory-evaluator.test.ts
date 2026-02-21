@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test';
 import { ToolTrajectoryEvaluator } from '../../src/evaluation/evaluators.js';
 import type { EvaluationContext } from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
-import type { OutputMessage, Provider } from '../../src/evaluation/providers/types.js';
+import type { Message, Provider } from '../../src/evaluation/providers/types.js';
 import type { ToolTrajectoryEvaluatorConfig, TraceSummary } from '../../src/evaluation/trace.js';
 import { computeTraceSummary } from '../../src/evaluation/trace.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
@@ -20,7 +20,7 @@ const mockProvider: Provider = {
   kind: 'mock',
   targetName: 'mock',
   async invoke() {
-    return { outputMessages: [] };
+    return { output: [] };
   },
 };
 
@@ -36,8 +36,8 @@ const mockEvalCase: EvalTest = {
 };
 
 function createContext(options: {
-  traceSummary?: TraceSummary;
-  outputMessages?: readonly OutputMessage[];
+  trace?: TraceSummary;
+  output?: readonly Message[];
 }): EvaluationContext {
   return {
     evalCase: mockEvalCase,
@@ -47,8 +47,8 @@ function createContext(options: {
     attempt: 0,
     promptInputs: { question: '', guidelines: '' },
     now: new Date(),
-    traceSummary: options.traceSummary,
-    outputMessages: options.outputMessages,
+    trace: options.trace,
+    output: options.output,
   };
 }
 
@@ -73,7 +73,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
   describe('any_order mode', () => {
     it('passes when all minimums are met', () => {
-      const outputMessages: OutputMessage[] = [
+      const output: Message[] = [
         {
           role: 'assistant',
           toolCalls: [
@@ -84,7 +84,7 @@ describe('ToolTrajectoryEvaluator', () => {
           ],
         },
       ];
-      const summary = computeTraceSummary(outputMessages);
+      const summary = computeTraceSummary(output);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -96,7 +96,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          traceSummary: summary,
+          trace: summary,
         }),
       );
 
@@ -107,13 +107,13 @@ describe('ToolTrajectoryEvaluator', () => {
     });
 
     it('fails when minimums are not met', () => {
-      const outputMessages: OutputMessage[] = [
+      const output: Message[] = [
         {
           role: 'assistant',
           toolCalls: [{ tool: 'search' }, { tool: 'analyze' }],
         },
       ];
-      const summary = computeTraceSummary(outputMessages);
+      const summary = computeTraceSummary(output);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -125,7 +125,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          traceSummary: summary,
+          trace: summary,
         }),
       );
 
@@ -139,7 +139,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
   describe('in_order mode', () => {
     it('passes when tools appear in expected order', () => {
-      const outputMessages: OutputMessage[] = [
+      const output: Message[] = [
         {
           role: 'assistant',
           toolCalls: [
@@ -161,7 +161,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          outputMessages,
+          output,
         }),
       );
 
@@ -171,7 +171,7 @@ describe('ToolTrajectoryEvaluator', () => {
     });
 
     it('fails when expected tool is missing', () => {
-      const outputMessages: OutputMessage[] = [
+      const output: Message[] = [
         {
           role: 'assistant',
           toolCalls: [
@@ -191,7 +191,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          outputMessages,
+          output,
         }),
       );
 
@@ -205,7 +205,7 @@ describe('ToolTrajectoryEvaluator', () => {
     });
 
     it('fails when tools appear in wrong order', () => {
-      const outputMessages: OutputMessage[] = [
+      const output: Message[] = [
         {
           role: 'assistant',
           toolCalls: [
@@ -225,7 +225,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          outputMessages,
+          output,
         }),
       );
 
@@ -239,7 +239,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
   describe('exact mode', () => {
     it('passes when trace exactly matches expected', () => {
-      const outputMessages: OutputMessage[] = [
+      const output: Message[] = [
         {
           role: 'assistant',
           toolCalls: [
@@ -259,7 +259,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          outputMessages,
+          output,
         }),
       );
 
@@ -268,7 +268,7 @@ describe('ToolTrajectoryEvaluator', () => {
     });
 
     it('fails when trace has extra tools', () => {
-      const outputMessages: OutputMessage[] = [
+      const output: Message[] = [
         {
           role: 'assistant',
           toolCalls: [
@@ -289,7 +289,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          outputMessages,
+          output,
         }),
       );
 
@@ -298,7 +298,7 @@ describe('ToolTrajectoryEvaluator', () => {
     });
 
     it('fails when trace has wrong tool at position', () => {
-      const outputMessages: OutputMessage[] = [
+      const output: Message[] = [
         {
           role: 'assistant',
           toolCalls: [
@@ -318,7 +318,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          outputMessages,
+          output,
         }),
       );
 
@@ -331,7 +331,7 @@ describe('ToolTrajectoryEvaluator', () => {
   describe('argument matching', () => {
     describe('exact mode with args', () => {
       it('passes when args match exactly', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [
@@ -352,14 +352,14 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         expect(result.score).toBe(1);
         expect(result.verdict).toBe('pass');
       });
 
       it('fails when args do not match', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [{ tool: 'search', input: { query: 'wrong', limit: 10 } }],
@@ -374,7 +374,7 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         expect(result.score).toBe(0);
         expect(result.verdict).toBe('fail');
@@ -382,7 +382,7 @@ describe('ToolTrajectoryEvaluator', () => {
       });
 
       it('skips arg validation with args: any', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [{ tool: 'search', input: { query: 'anything', limit: 999 } }],
@@ -397,14 +397,14 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         expect(result.score).toBe(1);
         expect(result.verdict).toBe('pass');
       });
 
       it('matches without args field (backward compatibility)', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [{ tool: 'search', input: { any: 'args' } }],
@@ -419,7 +419,7 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         expect(result.score).toBe(1);
         expect(result.verdict).toBe('pass');
@@ -428,7 +428,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
     describe('in_order mode with args', () => {
       it('fails when tool found but args mismatch', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [
@@ -449,7 +449,7 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         expect(result.score).toBe(0.5);
         expect(result.verdict).toBe('fail');
@@ -459,7 +459,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
     describe('array argument matching', () => {
       it('matches arrays with deep equality', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [{ tool: 'search', input: { tags: ['a', 'b', 'c'] } }],
@@ -474,14 +474,14 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         expect(result.score).toBe(1);
         expect(result.verdict).toBe('pass');
       });
 
       it('fails on array order mismatch', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [{ tool: 'search', input: { tags: ['c', 'b', 'a'] } }],
@@ -496,7 +496,7 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         expect(result.score).toBe(0);
         expect(result.verdict).toBe('fail');
@@ -507,7 +507,7 @@ describe('ToolTrajectoryEvaluator', () => {
   describe('latency assertions', () => {
     describe('in_order mode with latency', () => {
       it('passes when latency is within limit', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [{ tool: 'Read', input: { file_path: 'config.json' }, durationMs: 45 }],
@@ -522,7 +522,7 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         expect(result.score).toBe(1);
         expect(result.verdict).toBe('pass');
@@ -530,7 +530,7 @@ describe('ToolTrajectoryEvaluator', () => {
       });
 
       it('fails when latency exceeds limit', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [{ tool: 'Read', input: { file_path: 'config.json' }, durationMs: 120 }],
@@ -545,7 +545,7 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         expect(result.score).toBe(0.5); // 1 sequence hit, 0 latency hits out of 2 total assertions
         expect(result.verdict).toBe('fail');
@@ -553,7 +553,7 @@ describe('ToolTrajectoryEvaluator', () => {
       });
 
       it('skips latency check when no duration data available', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [{ tool: 'Read', input: { file_path: 'config.json' } }], // No durationMs
@@ -568,7 +568,7 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         // Sequence hit counts, latency skipped - neutral (doesn't count against score)
         // 1 sequence assertion, latency assertion skipped = 1 total effective assertion
@@ -580,7 +580,7 @@ describe('ToolTrajectoryEvaluator', () => {
       });
 
       it('handles mixed latency assertions', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [
@@ -603,7 +603,7 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         // 3 sequence assertions + 2 latency assertions = 5 total
         // 3 sequence hits + 1 latency hit (Read) = 4 hits
@@ -616,7 +616,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
     describe('exact mode with latency', () => {
       it('passes when all latency assertions pass', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [
@@ -637,7 +637,7 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         expect(result.score).toBe(1);
         expect(result.verdict).toBe('pass');
@@ -645,7 +645,7 @@ describe('ToolTrajectoryEvaluator', () => {
       });
 
       it('fails when latency exceeds limit in exact mode', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [{ tool: 'Read', durationMs: 150 }],
@@ -660,7 +660,7 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         expect(result.score).toBe(0.5); // 1 sequence hit out of 2 total assertions
         expect(result.verdict).toBe('fail');
@@ -668,7 +668,7 @@ describe('ToolTrajectoryEvaluator', () => {
       });
 
       it('does not check latency when sequence does not match', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [{ tool: 'Write', durationMs: 10 }], // Wrong tool
@@ -683,7 +683,7 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         // Sequence mismatch - latency is not checked
         expect(result.score).toBe(0);
@@ -695,7 +695,7 @@ describe('ToolTrajectoryEvaluator', () => {
       });
 
       it('handles exact boundary condition', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [{ tool: 'Read', durationMs: 100 }], // Exactly at limit
@@ -710,7 +710,7 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         // Exactly at limit should pass (<=)
         expect(result.score).toBe(1);
@@ -721,7 +721,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
     describe('latency with args', () => {
       it('checks latency only when args match', () => {
-        const outputMessages: OutputMessage[] = [
+        const output: Message[] = [
           {
             role: 'assistant',
             toolCalls: [{ tool: 'Read', input: { file_path: 'config.json' }, durationMs: 45 }],
@@ -736,7 +736,7 @@ describe('ToolTrajectoryEvaluator', () => {
         };
         const evaluator = new ToolTrajectoryEvaluator({ config });
 
-        const result = evaluator.evaluate(createContext({ outputMessages }));
+        const result = evaluator.evaluate(createContext({ output }));
 
         expect(result.score).toBe(1);
         expect(result.verdict).toBe('pass');

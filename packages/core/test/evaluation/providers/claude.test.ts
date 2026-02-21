@@ -87,7 +87,7 @@ describe('ClaudeProvider', () => {
     };
 
     const response = await provider.invoke(request);
-    const content = extractLastAssistantContent(response.outputMessages);
+    const content = extractLastAssistantContent(response.output);
     expect(content).toBe('Hello from Claude SDK');
     expect(queryMock).toHaveBeenCalledTimes(1);
   });
@@ -224,9 +224,9 @@ describe('ClaudeProvider', () => {
     const provider = new ClaudeProvider('test-target', {});
     const response = await provider.invoke({ question: 'Read file' });
 
-    expect(response.outputMessages).toBeDefined();
-    expect(response.outputMessages?.length).toBe(2);
-    const firstMsg = response.outputMessages?.[0];
+    expect(response.output).toBeDefined();
+    expect(response.output?.length).toBe(2);
+    const firstMsg = response.output?.[0];
     expect(firstMsg?.toolCalls).toBeDefined();
     expect(firstMsg?.toolCalls?.length).toBe(1);
     expect(firstMsg?.toolCalls?.[0]?.tool).toBe('Read');

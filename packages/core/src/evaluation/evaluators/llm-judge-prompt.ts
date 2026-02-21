@@ -1,4 +1,4 @@
-import type { OutputMessage } from '../providers/types.js';
+import type { Message } from '../providers/types.js';
 import { TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { EvalTest, LlmJudgeEvaluatorConfig, RubricItem } from '../types.js';
 import type { PromptInputs } from '../yaml-parser.js';
@@ -22,7 +22,7 @@ export function assembleLlmJudgePrompt(input: {
   candidate: string;
   promptInputs: PromptInputs;
   evaluatorConfig?: LlmJudgeEvaluatorConfig;
-  outputMessages?: readonly OutputMessage[];
+  output?: readonly Message[];
   fileChanges?: string;
   evaluatorTemplateOverride?: string;
 }): LlmJudgePromptAssembly {

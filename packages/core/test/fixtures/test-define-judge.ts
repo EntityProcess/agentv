@@ -4,13 +4,13 @@
  */
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, criteria }) => {
+export default defineCodeJudge(({ answer, criteria }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
   // Simple check: does candidate mention the criteria keywords?
   const outcomeWords = criteria.toLowerCase().split(/\s+/);
-  const candidateWords = candidateAnswer.toLowerCase().split(/\s+/);
+  const candidateWords = answer.toLowerCase().split(/\s+/);
 
   for (const word of outcomeWords) {
     if (word.length > 3 && candidateWords.includes(word)) {

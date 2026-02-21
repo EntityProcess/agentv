@@ -18,7 +18,7 @@ function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult
     score: 1.0,
     hits: ['criterion-1'],
     misses: [],
-    candidateAnswer: 'answer',
+    answer: 'answer',
     target: 'default',
     ...overrides,
   };
@@ -81,11 +81,11 @@ describe('JsonWriter', () => {
 
   it('should convert keys to snake_case', async () => {
     const writer = await JsonWriter.open(testFilePath);
-    await writer.append(makeResult({ candidateAnswer: 'my answer', testId: 'snake-case-test' }));
+    await writer.append(makeResult({ answer: 'my answer', testId: 'snake-case-test' }));
     await writer.close();
 
     const content = JSON.parse(await readFile(testFilePath, 'utf8'));
-    expect(content.results[0].candidate_answer).toBe('my answer');
+    expect(content.results[0].answer).toBe('my answer');
     expect(content.results[0].test_id).toBe('snake-case-test');
   });
 });

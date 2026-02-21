@@ -65,7 +65,7 @@ function bleuScore(candidate: string, reference: string, maxN = 4): number {
   return bp * Math.exp(logSum / count);
 }
 
-export default defineCodeJudge(({ candidateAnswer, referenceAnswer, expectedOutput }) => {
+export default defineCodeJudge(({ answer, referenceAnswer, expectedOutput }) => {
   const reference =
     referenceAnswer ??
     (expectedOutput[0] && typeof expectedOutput[0].content === 'string'
@@ -76,7 +76,7 @@ export default defineCodeJudge(({ candidateAnswer, referenceAnswer, expectedOutp
     return { score: 0, misses: ['No reference text provided'], reasoning: 'Missing reference.' };
   }
 
-  const score = bleuScore(candidateAnswer, reference);
+  const score = bleuScore(answer, reference);
 
   const hits: string[] = [];
   const misses: string[] = [];

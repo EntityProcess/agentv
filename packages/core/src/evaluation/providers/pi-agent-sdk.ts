@@ -1,6 +1,6 @@
 import type { PiAgentSdkResolvedConfig } from './targets.js';
 import type {
-  OutputMessage,
+  Message,
   Provider,
   ProviderRequest,
   ProviderResponse,
@@ -99,7 +99,7 @@ export class PiAgentSdkProvider implements Provider {
     });
 
     // Collect events for output messages
-    const outputMessages: OutputMessage[] = [];
+    const output: Message[] = [];
     let finalAssistantContent = '';
 
     // Subscribe to events
@@ -134,7 +134,7 @@ export class PiAgentSdkProvider implements Provider {
       // Extract messages from agent state
       const agentMessages = agent.state.messages;
       for (const msg of agentMessages) {
-        outputMessages.push(convertAgentMessage(msg));
+        output.push(convertAgentMessage(msg));
       }
 
       const durationMs = Date.now() - startTime;
@@ -146,7 +146,7 @@ export class PiAgentSdkProvider implements Provider {
           model: this.config.model,
           provider: this.config.provider,
         },
-        outputMessages,
+        output,
         durationMs,
       };
     } finally {
@@ -182,9 +182,9 @@ function extractTextContent(content: unknown): string | undefined {
 }
 
 /**
- * Convert pi-agent message to AgentV OutputMessage format.
+ * Convert pi-agent message to AgentV Message format.
  */
-function convertAgentMessage(message: unknown): OutputMessage {
+function convertAgentMessage(message: unknown): Message {
   if (!message || typeof message !== 'object') {
     return { role: 'unknown', content: String(message) };
   }

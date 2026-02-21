@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { readTextFile } from '../file-utils.js';
 import type { CliResolvedConfig } from './targets.js';
 import type {
-  OutputMessage,
+  Message,
   Provider,
   ProviderRequest,
   ProviderResponse,
@@ -39,7 +39,7 @@ const ToolCallSchema = z.object({
  * Validates output_messages array items from CLI JSON output.
  * Uses snake_case field names matching JSONL convention.
  */
-const OutputMessageInputSchema = z.object({
+const MessageInputSchema = z.object({
   role: z.string(),
   name: z.string().optional(),
   content: z.unknown().optional(),
@@ -67,7 +67,7 @@ const TokenUsageSchema = z.object({
  */
 const CliOutputSchema = z.object({
   text: z.unknown().optional(),
-  output_messages: z.array(OutputMessageInputSchema).optional(),
+  output_messages: z.array(MessageInputSchema).optional(),
   token_usage: TokenUsageSchema.optional(),
   cost_usd: z.number().optional(),
   duration_ms: z.number().optional(),
@@ -82,7 +82,7 @@ const CliJsonlRecordSchema = CliOutputSchema.extend({
 });
 
 // Type for parsed output messages from Zod schema
-type ParsedOutputMessage = z.infer<typeof OutputMessageInputSchema>;
+type ParsedMessage = z.infer<typeof MessageInputSchema>;
 
 /**
  * Validates cost_usd and duration_ms values, warning and discarding negative values.
@@ -110,12 +110,12 @@ function validateMetrics(
 }
 
 /**
- * Converts Zod-parsed output messages to internal OutputMessage format.
+ * Converts Zod-parsed output messages to internal Message format.
  * Handles snake_case to camelCase conversion for toolCalls and durationMs.
  */
-function convertOutputMessages(
-  messages: readonly ParsedOutputMessage[] | undefined,
-): readonly OutputMessage[] | undefined {
+function convertMessages(
+  messages: readonly ParsedMessage[] | undefined,
+): readonly Message[] | undefined {
   if (!messages || messages.length === 0) {
     return undefined;
   }
@@ -284,7 +284,7 @@ export class CliProvider implements Provider {
     const parsed = this.parseOutputContent(responseContent);
 
     return {
-      outputMessages: parsed.outputMessages,
+      output: parsed.output,
       tokenUsage: parsed.tokenUsage,
       costUsd: parsed.costUsd,
       durationMs: parsed.durationMs ?? measuredDurationMs,
@@ -381,7 +381,7 @@ export class CliProvider implements Provider {
       const evalCaseId = request.evalCaseId;
       if (!evalCaseId) {
         return {
-          outputMessages: [],
+          output: [],
           durationMs: perRequestFallbackMs,
           raw: {
             command: renderedCommand,
@@ -402,7 +402,7 @@ export class CliProvider implements Provider {
           console.warn(`[cli-provider:${this.targetName}] ${errorMessage}`);
         }
         return {
-          outputMessages: [{ role: 'assistant', content: `Error: ${errorMessage}` }],
+          output: [{ role: 'assistant', content: `Error: ${errorMessage}` }],
           durationMs: perRequestFallbackMs,
           raw: {
             command: renderedCommand,
@@ -416,7 +416,7 @@ export class CliProvider implements Provider {
       }
 
       return {
-        outputMessages: parsed.outputMessages,
+        output: parsed.output,
         tokenUsage: parsed.tokenUsage,
         costUsd: parsed.costUsd,
         durationMs: parsed.durationMs ?? perRequestFallbackMs,
@@ -437,8 +437,8 @@ export class CliProvider implements Provider {
   /**
    * Parse output content from CLI.
    * If the content is valid JSON with 'output_messages' or 'text' field, extract them.
-   * If only 'text' is provided, wrap it in outputMessages.
-   * Otherwise, treat the entire content as plain text wrapped in outputMessages.
+   * If only 'text' is provided, wrap it in output.
+   * Otherwise, treat the entire content as plain text wrapped in output.
    *
    * Also extracts optional execution metrics:
    * - token_usage: { input, output, cached? }
@@ -446,7 +446,7 @@ export class CliProvider implements Provider {
    * - duration_ms: number
    */
   private parseOutputContent(content: string): {
-    outputMessages: readonly OutputMessage[];
+    output: readonly Message[];
     tokenUsage?: ProviderTokenUsage;
     costUsd?: number;
     durationMs?: number;
@@ -456,14 +456,14 @@ export class CliProvider implements Provider {
       parsed = JSON.parse(content);
     } catch {
       // Not valid JSON, treat as plain text
-      return { outputMessages: [{ role: 'assistant', content }] };
+      return { output: [{ role: 'assistant', content }] };
     }
 
     // Validate against schema
     const result = CliOutputSchema.safeParse(parsed);
     if (!result.success) {
       // Invalid structure, treat as plain text
-      return { outputMessages: [{ role: 'assistant', content }] };
+      return { output: [{ role: 'assistant', content }] };
     }
 
     const obj = result.data;
@@ -471,24 +471,24 @@ export class CliProvider implements Provider {
     // Validate metrics and warn about negative values
     const metrics = validateMetrics(obj.cost_usd, obj.duration_ms, 'parsing output');
 
-    // Convert output_messages to OutputMessage[] format
-    const outputMessages = convertOutputMessages(obj.output_messages);
+    // Convert output_messages to Message[] format
+    const output = convertMessages(obj.output_messages);
 
     // If output_messages provided, use it
-    if (outputMessages && outputMessages.length > 0) {
+    if (output && output.length > 0) {
       return {
-        outputMessages,
+        output,
         tokenUsage: obj.token_usage,
         costUsd: metrics.costUsd,
         durationMs: metrics.durationMs,
       };
     }
 
-    // Fall back to text field, wrap in outputMessages
+    // Fall back to text field, wrap in output
     if (obj.text !== undefined) {
       const text = typeof obj.text === 'string' ? obj.text : String(obj.text);
       return {
-        outputMessages: [{ role: 'assistant', content: text }],
+        output: [{ role: 'assistant', content: text }],
         tokenUsage: obj.token_usage,
         costUsd: metrics.costUsd,
         durationMs: metrics.durationMs,
@@ -496,13 +496,13 @@ export class CliProvider implements Provider {
     }
 
     // No output_messages or text, treat original content as plain text
-    return { outputMessages: [{ role: 'assistant', content }] };
+    return { output: [{ role: 'assistant', content }] };
   }
 
   private parseJsonlBatchOutput(content: string): Map<
     string,
     {
-      outputMessages: readonly OutputMessage[];
+      output: readonly Message[];
       tokenUsage?: ProviderTokenUsage;
       costUsd?: number;
       durationMs?: number;
@@ -511,7 +511,7 @@ export class CliProvider implements Provider {
     const records = new Map<
       string,
       {
-        outputMessages: readonly OutputMessage[];
+        output: readonly Message[];
         tokenUsage?: ProviderTokenUsage;
         costUsd?: number;
         durationMs?: number;
@@ -548,11 +548,11 @@ export class CliProvider implements Provider {
         throw new Error(`CLI batch output contains duplicate id: ${obj.id}`);
       }
 
-      // Prefer output_messages, fall back to text wrapped in outputMessages
-      const outputMessages = convertOutputMessages(obj.output_messages);
-      let finalOutputMessages: readonly OutputMessage[];
-      if (outputMessages && outputMessages.length > 0) {
-        finalOutputMessages = outputMessages;
+      // Prefer output_messages, fall back to text wrapped in output
+      const output = convertMessages(obj.output_messages);
+      let finalMessages: readonly Message[];
+      if (output && output.length > 0) {
+        finalMessages = output;
       } else {
         // Fall back to text field
         const text =
@@ -561,14 +561,14 @@ export class CliProvider implements Provider {
             : obj.text === undefined
               ? ''
               : JSON.stringify(obj.text);
-        finalOutputMessages = text ? [{ role: 'assistant', content: text }] : [];
+        finalMessages = text ? [{ role: 'assistant', content: text }] : [];
       }
 
       // Validate metrics and warn about negative values
       const metrics = validateMetrics(obj.cost_usd, obj.duration_ms, `batch record '${obj.id}'`);
 
       records.set(obj.id, {
-        outputMessages: finalOutputMessages,
+        output: finalMessages,
         tokenUsage: obj.token_usage,
         costUsd: metrics.costUsd,
         durationMs: metrics.durationMs,

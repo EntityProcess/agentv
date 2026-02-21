@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { readFile, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
-import type { OutputMessage } from '@agentv/core';
+import type { Message } from '@agentv/core';
 import {
   TraceWriter,
   buildTraceRecord,
@@ -152,7 +152,7 @@ describe('TraceWriter', () => {
 
 describe('extractTraceSpans', () => {
   it('should extract tool calls from output messages', () => {
-    const messages: OutputMessage[] = [
+    const messages: Message[] = [
       {
         role: 'assistant',
         content: 'Let me help you',
@@ -190,7 +190,7 @@ describe('extractTraceSpans', () => {
   });
 
   it('should handle messages without tool calls', () => {
-    const messages: OutputMessage[] = [
+    const messages: Message[] = [
       { role: 'user', content: 'Hello' },
       { role: 'assistant', content: 'Hi there' },
     ];
@@ -200,7 +200,7 @@ describe('extractTraceSpans', () => {
   });
 
   it('should handle multiple messages with tool calls', () => {
-    const messages: OutputMessage[] = [
+    const messages: Message[] = [
       {
         role: 'assistant',
         toolCalls: [{ tool: 'tool1', input: {} }],
@@ -227,7 +227,7 @@ describe('extractTraceSpans', () => {
 
 describe('buildTraceRecord', () => {
   it('should build a complete trace record', () => {
-    const messages: OutputMessage[] = [
+    const messages: Message[] = [
       {
         role: 'assistant',
         toolCalls: [{ tool: 'read_file', input: { path: '/test' } }],

@@ -70,11 +70,11 @@ File Changes: {{file_changes}}
       evaluatorTemplate: customPrompt,
     });
 
-    const candidateAnswer = 'Candidate Answer Text';
+    const answer = 'Candidate Answer Text';
 
     await evaluator.evaluate({
       evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
-      candidate: candidateAnswer,
+      candidate: answer,
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
@@ -169,11 +169,11 @@ Expected Messages: {{ expected_output }}
       evaluatorTemplate: customPrompt,
     });
 
-    const candidateAnswer = 'Candidate Answer Text';
+    const answer = 'Candidate Answer Text';
 
     await evaluator.evaluate({
       evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
-      candidate: candidateAnswer,
+      candidate: answer,
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,

@@ -6,7 +6,7 @@ describe('toSnakeCaseDeep', () => {
   test('converts simple camelCase keys to snake_case', () => {
     const input = {
       testId: 'test-001',
-      candidateAnswer: 'hello world',
+      answer: 'hello world',
       conversationId: 'conv-123',
     };
 
@@ -14,7 +14,7 @@ describe('toSnakeCaseDeep', () => {
 
     expect(result).toEqual({
       test_id: 'test-001',
-      candidate_answer: 'hello world',
+      answer: 'hello world',
       conversation_id: 'conv-123',
     });
   });
@@ -22,7 +22,7 @@ describe('toSnakeCaseDeep', () => {
   test('converts nested objects recursively', () => {
     const input = {
       testId: 'test-001',
-      traceSummary: {
+      trace: {
         toolCalls: 5,
         totalSteps: 10,
       },
@@ -32,7 +32,7 @@ describe('toSnakeCaseDeep', () => {
 
     expect(result).toEqual({
       test_id: 'test-001',
-      trace_summary: {
+      trace: {
         tool_calls: 5,
         total_steps: 10,
       },
@@ -41,7 +41,7 @@ describe('toSnakeCaseDeep', () => {
 
   test('converts arrays of objects', () => {
     const input = {
-      evaluatorResults: [
+      scores: [
         { evalName: 'test1', hitCount: 3 },
         { evalName: 'test2', hitCount: 5 },
       ],
@@ -50,7 +50,7 @@ describe('toSnakeCaseDeep', () => {
     const result = toSnakeCaseDeep(input);
 
     expect(result).toEqual({
-      evaluator_results: [
+      scores: [
         { eval_name: 'test1', hit_count: 3 },
         { eval_name: 'test2', hit_count: 5 },
       ],
@@ -74,15 +74,17 @@ describe('toSnakeCaseDeep', () => {
     const input = {
       timestamp: '2025-01-02T00:00:00Z',
       testId: 'test-001',
-      agentProviderRequest: {
-        modelName: 'gpt-4',
-        maxTokens: 1000,
+      requests: {
+        agent: {
+          modelName: 'gpt-4',
+          maxTokens: 1000,
+        },
       },
-      evaluatorResults: [
+      scores: [
         {
           evaluatorName: 'code_judge',
           rawRequest: {
-            candidateAnswer: 'code',
+            answer: 'code',
             expectedOutcome: 'correct',
           },
         },
@@ -96,15 +98,17 @@ describe('toSnakeCaseDeep', () => {
     expect(result).toEqual({
       timestamp: '2025-01-02T00:00:00Z',
       test_id: 'test-001',
-      agent_provider_request: {
-        model_name: 'gpt-4',
-        max_tokens: 1000,
+      requests: {
+        agent: {
+          model_name: 'gpt-4',
+          max_tokens: 1000,
+        },
       },
-      evaluator_results: [
+      scores: [
         {
           evaluator_name: 'code_judge',
           raw_request: {
-            candidate_answer: 'code',
+            answer: 'code',
             expected_outcome: 'correct',
           },
         },

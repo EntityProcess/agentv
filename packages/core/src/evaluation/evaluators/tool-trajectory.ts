@@ -1,4 +1,4 @@
-import type { OutputMessage } from '../providers/types.js';
+import type { Message } from '../providers/types.js';
 import type {
   ToolTrajectoryEvaluatorConfig,
   ToolTrajectoryExpectedItem,
@@ -94,13 +94,13 @@ export class ToolTrajectoryEvaluator implements Evaluator {
   }
 
   evaluate(context: EvaluationContext): EvaluationScore {
-    const { outputMessages, traceSummary } = context;
+    const { output, trace } = context;
 
-    // Extract tool calls from outputMessages (primary source)
-    const toolCalls = this.extractToolCallsFromMessages(outputMessages);
+    // Extract tool calls from output (primary source)
+    const toolCalls = this.extractToolCallsFromMessages(output);
 
     // Handle missing tool calls
-    if (toolCalls.length === 0 && !traceSummary) {
+    if (toolCalls.length === 0 && !trace) {
       return {
         score: 0,
         verdict: 'fail',
@@ -111,7 +111,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     }
 
     // Build summary from tool calls if available, otherwise use provided summary
-    const summary = toolCalls.length > 0 ? this.buildSummary(toolCalls) : traceSummary;
+    const summary = toolCalls.length > 0 ? this.buildSummary(toolCalls) : trace;
 
     if (!summary) {
       return {
@@ -145,7 +145,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
    * Extract tool calls from output messages.
    */
   private extractToolCallsFromMessages(
-    messages: readonly OutputMessage[] | undefined,
+    messages: readonly Message[] | undefined,
   ): readonly ExtractedToolCall[] {
     if (!messages) {
       return [];

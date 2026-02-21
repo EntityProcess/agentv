@@ -136,7 +136,7 @@ describe('PiCodingAgentProvider execution metrics', () => {
     expect(response.tokenUsage).toBeUndefined();
   });
 
-  it('still returns outputMessages alongside metrics', async () => {
+  it('still returns output alongside metrics', async () => {
     const events = [
       {
         type: 'agent_end',
@@ -151,8 +151,8 @@ describe('PiCodingAgentProvider execution metrics', () => {
 
     const response = await provider.invoke(request);
 
-    expect(response.outputMessages).toBeDefined();
-    expect(response.outputMessages?.length).toBe(2);
+    expect(response.output).toBeDefined();
+    expect(response.output?.length).toBe(2);
     expect(response.tokenUsage?.input).toBe(100);
     expect(response.durationMs).toBeDefined();
     expect(response.startTime).toBeDefined();

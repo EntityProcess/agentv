@@ -125,7 +125,7 @@ export interface ToolCall {
  * An output message from agent execution.
  * Represents a single message in the conversation with optional tool calls.
  */
-export interface OutputMessage {
+export interface Message {
   /** Message role (e.g., 'assistant', 'user', 'tool') */
   readonly role: string;
   /** Optional name for the message sender */
@@ -144,6 +144,9 @@ export interface OutputMessage {
   readonly metadata?: Record<string, unknown>;
 }
 
+/** @deprecated Use Message instead */
+export type OutputMessage = Message;
+
 /**
  * Token usage metrics reported by provider.
  */
@@ -160,7 +163,7 @@ export interface ProviderResponse {
   readonly raw?: unknown;
   readonly usage?: JsonObject;
   /** Output messages from agent execution (primary source for tool trajectory) */
-  readonly outputMessages?: readonly OutputMessage[];
+  readonly output?: readonly Message[];
   /** Token usage metrics (optional) */
   readonly tokenUsage?: ProviderTokenUsage;
   /** Total cost in USD (optional) */
@@ -178,7 +181,7 @@ export interface ProviderResponse {
  * Returns empty string if no assistant message found.
  */
 export function extractLastAssistantContent(
-  messages: readonly OutputMessage[] | undefined,
+  messages: readonly Message[] | undefined,
 ): string {
   if (!messages || messages.length === 0) {
     return '';

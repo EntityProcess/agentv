@@ -474,18 +474,18 @@ async function runSingleEvalFile(params: {
     cleanupWorkspaces: options.cleanupWorkspaces,
     trials: trialsConfig,
     onResult: async (result: EvaluationResult) => {
-      // Write trace if trace writer is available and outputMessages exist
-      if (traceWriter && result.outputMessages && result.outputMessages.length > 0) {
-        const traceRecord = buildTraceRecord(result.testId, result.outputMessages, {
-          tokenUsage: result.traceSummary?.tokenUsage,
-          costUsd: result.traceSummary?.costUsd,
-          durationMs: result.traceSummary?.durationMs,
+      // Write trace if trace writer is available and output exist
+      if (traceWriter && result.output && result.output.length > 0) {
+        const traceRecord = buildTraceRecord(result.testId, result.output, {
+          tokenUsage: result.trace?.tokenUsage,
+          costUsd: result.trace?.costUsd,
+          durationMs: result.trace?.durationMs,
         });
         await traceWriter.append(traceRecord);
       }
 
-      // Strip outputMessages from result before writing to avoid bloating results JSONL
-      const { outputMessages: _, ...resultWithoutTrace } = result;
+      // Strip output from result before writing to avoid bloating results JSONL
+      const { output: _, ...resultWithoutTrace } = result;
       await outputWriter.append(resultWithoutTrace as EvaluationResult);
     },
     onProgress: async (event) => {

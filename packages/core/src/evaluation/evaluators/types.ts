@@ -1,5 +1,5 @@
 import type { ResolvedTarget } from '../providers/targets.js';
-import type { ChatPrompt, OutputMessage, Provider } from '../providers/types.js';
+import type { ChatPrompt, Message, Provider } from '../providers/types.js';
 import type { TraceSummary } from '../trace.js';
 import type { EvalTest, EvaluationVerdict, EvaluatorConfig, JsonObject } from '../types.js';
 
@@ -28,9 +28,9 @@ export interface EvaluationContext {
   readonly evaluatorTemplateOverride?: string;
   readonly evaluator?: EvaluatorConfig;
   /** Output messages from agent execution (primary source for tool trajectory) */
-  readonly outputMessages?: readonly OutputMessage[];
+  readonly output?: readonly Message[];
   /** Lightweight summary of trace events (if available) */
-  readonly traceSummary?: TraceSummary;
+  readonly trace?: TraceSummary;
   /** Resolver for target override in code judges */
   readonly targetResolver?: TargetResolver;
   /** List of available target names for code judges */
@@ -49,7 +49,7 @@ export interface EvaluationScore {
   readonly expectedAspectCount: number;
   readonly reasoning?: string;
   readonly evaluatorRawRequest?: JsonObject;
-  readonly evaluatorResults?: readonly ChildEvaluatorResult[];
+  readonly scores?: readonly ChildEvaluatorResult[];
   /** Optional structured details from code judges (e.g., TP/TN/FP/FN counts, alignments). */
   readonly details?: JsonObject;
 }
@@ -64,7 +64,7 @@ export interface ChildEvaluatorResult {
   readonly misses: readonly string[];
   readonly reasoning?: string;
   readonly evaluatorRawRequest?: JsonObject;
-  readonly evaluatorResults?: readonly ChildEvaluatorResult[];
+  readonly scores?: readonly ChildEvaluatorResult[];
   /** Optional structured details from code judges (e.g., TP/TN/FP/FN counts, alignments). */
   readonly details?: JsonObject;
 }

@@ -36,12 +36,12 @@ function runAssertion(type: AssertionType, candidate: string, value?: string): b
   }
 }
 
-export default defineCodeJudge(({ candidateAnswer, criteria, config }) => {
+export default defineCodeJudge(({ answer, criteria, config }) => {
   const type = (config?.type as AssertionType) ?? 'contains';
   const value = config?.value as string | undefined;
   const negated = (config?.negated as boolean) ?? false;
 
-  const rawPass = runAssertion(type, candidateAnswer, value);
+  const rawPass = runAssertion(type, answer, value);
   const pass = negated ? !rawPass : rawPass;
 
   const label = negated ? `NOT ${type}` : type;

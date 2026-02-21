@@ -8,8 +8,8 @@
  * #!/usr/bin/env bun
  * import { defineCodeJudge } from '@agentv/eval';
  *
- * export default defineCodeJudge(({ traceSummary, candidateAnswer }) => ({
- *   score: traceSummary?.eventCount <= 5 ? 1.0 : 0.5,
+ * export default defineCodeJudge(({ trace, answer }) => ({
+ *   score: trace?.eventCount <= 5 ? 1.0 : 0.5,
  *   hits: ['Efficient tool usage'],
  *   misses: [],
  * }));
@@ -94,12 +94,12 @@ export type { PromptTemplateHandler };
  * ```typescript
  * import { defineCodeJudge } from '@agentv/eval';
  *
- * export default defineCodeJudge(({ traceSummary }) => {
- *   if (!traceSummary) {
+ * export default defineCodeJudge(({ trace }) => {
+ *   if (!trace) {
  *     return { score: 0.5, reasoning: 'No trace available' };
  *   }
  *
- *   const efficient = traceSummary.eventCount <= 10;
+ *   const efficient = trace.eventCount <= 10;
  *   return {
  *     score: efficient ? 1.0 : 0.5,
  *     hits: efficient ? ['Efficient execution'] : [],
@@ -116,7 +116,7 @@ export type { PromptTemplateHandler };
  *   maxToolCalls: z.number().default(10),
  * });
  *
- * export default defineCodeJudge(({ traceSummary, config }) => {
+ * export default defineCodeJudge(({ trace, config }) => {
  *   const { maxToolCalls } = ConfigSchema.parse(config ?? {});
  *   // Use maxToolCalls...
  * });
@@ -145,7 +145,7 @@ export function defineCodeJudge(handler: CodeJudgeHandler): void {
  *
  * export default definePromptTemplate((ctx) => `
  *   Question: ${ctx.question}
- *   Answer: ${ctx.candidateAnswer}
+ *   Answer: ${ctx.answer}
  *
  *   ${ctx.referenceAnswer ? `Reference: ${ctx.referenceAnswer}` : ''}
  * `);
@@ -159,7 +159,7 @@ export function defineCodeJudge(handler: CodeJudgeHandler): void {
  *   const rubric = ctx.config?.rubric as string | undefined;
  *   return `
  *     Question: ${ctx.question}
- *     Candidate Answer: ${ctx.candidateAnswer}
+ *     Candidate Answer: ${ctx.answer}
  *     ${rubric ? `\nEvaluation Criteria:\n${rubric}` : ''}
  *   `;
  * });

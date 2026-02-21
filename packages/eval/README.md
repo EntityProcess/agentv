@@ -26,7 +26,7 @@ The `defineCodeJudge` function handles stdin/stdout parsing, snake_case conversi
 
 - `defineCodeJudge(handler)` - Define a code judge evaluator
 - `CodeJudgeInput`, `CodeJudgeResult` - TypeScript types
-- `TraceSummary`, `OutputMessage`, `ToolCall` - Trace data types
+- `TraceSummary`, `Message`, `ToolCall` - Trace data types
 - `z` - Re-exported Zod for custom config schemas
 
 ## Documentation

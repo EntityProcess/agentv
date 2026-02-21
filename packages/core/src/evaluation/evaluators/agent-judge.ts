@@ -190,7 +190,7 @@ export class AgentJudgeEvaluator implements Evaluator {
         attempt: context.attempt,
       });
 
-      const assistantContent = extractLastAssistantContent(response.outputMessages);
+      const assistantContent = extractLastAssistantContent(response.output);
       if (!assistantContent) {
         return {
           score: 0,

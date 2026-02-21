@@ -17,7 +17,7 @@
  *       type: code_judge
  *       script: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
  */
-import { type OutputMessage, defineCodeJudge } from '@agentv/eval';
+import { type Message, defineCodeJudge } from '@agentv/eval';
 
 interface ToolSummary {
   tools: string[];
@@ -31,7 +31,7 @@ interface CompareResult {
   bAdvantages: string[];
 }
 
-function extractToolSummary(messages: readonly OutputMessage[] | undefined): ToolSummary {
+function extractToolSummary(messages: readonly Message[] | undefined): ToolSummary {
   if (!messages) {
     return { tools: [], count: 0, unique: [] };
   }
@@ -101,7 +101,7 @@ function compareResponses(
 }
 
 export default defineCodeJudge((input) => {
-  const candidate = input.candidateAnswer;
+  const candidate = input.answer;
   const reference = input.referenceAnswer ?? '';
 
   // If no reference, we can't do pairwise comparison
@@ -115,8 +115,8 @@ export default defineCodeJudge((input) => {
   }
 
   // Extract tool summaries
-  const candidateTools = extractToolSummary(input.outputMessages ?? undefined);
-  // For reference, we'd need referenceOutputMessages (not in standard payload)
+  const candidateTools = extractToolSummary(input.output ?? undefined);
+  // For reference, we'd need referenceMessages (not in standard payload)
   const referenceTools: ToolSummary = { tools: [], count: 0, unique: [] };
 
   // Pass 1: Candidate as A, Reference as B

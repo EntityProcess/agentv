@@ -27,7 +27,7 @@ interface ToolCall {
   output?: unknown;
 }
 
-interface OutputMessage {
+interface Message {
   role: 'assistant';
   content: string;
   tool_calls?: ToolCall[];
@@ -35,7 +35,7 @@ interface OutputMessage {
 
 interface AgentResponse {
   text: string;
-  output_messages: OutputMessage[];
+  output_messages: Message[];
   token_usage: TokenUsage;
   cost_usd: number;
   duration_ms: number;

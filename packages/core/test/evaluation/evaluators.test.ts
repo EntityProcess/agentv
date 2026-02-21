@@ -18,10 +18,10 @@ import type {
 } from '../../src/evaluation/providers/types.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
-/** Helper to create a ProviderResponse with text wrapped in outputMessages */
+/** Helper to create a ProviderResponse with text wrapped in output */
 function textResponse(text: string): ProviderResponse {
   return {
-    outputMessages: [{ role: 'assistant', content: text }],
+    output: [{ role: 'assistant', content: text }],
   };
 }
 
@@ -74,7 +74,7 @@ const baseTarget: ResolvedTarget = {
 describe('LlmJudgeEvaluator', () => {
   it('parses JSON response and returns evaluation score', async () => {
     const judgeProvider = new StubProvider({
-      outputMessages: [
+      output: [
         {
           role: 'assistant',
           content: JSON.stringify({
@@ -111,7 +111,7 @@ describe('LlmJudgeEvaluator', () => {
 
   it('parses JSON from markdown code block', async () => {
     const judgeProvider = new StubProvider({
-      outputMessages: [
+      output: [
         {
           role: 'assistant',
           content: `Here is the evaluation:\n\n\`\`\`json\n${JSON.stringify({
@@ -146,7 +146,7 @@ describe('LlmJudgeEvaluator', () => {
 
   it('validates score is in range [0.0, 1.0]', async () => {
     const judgeProvider = new StubProvider({
-      outputMessages: [
+      output: [
         {
           role: 'assistant',
           content: JSON.stringify({
@@ -182,7 +182,7 @@ describe('LlmJudgeEvaluator', () => {
 
   it('enforces max 4 entries for hits and misses', async () => {
     const judgeProvider = new StubProvider({
-      outputMessages: [
+      output: [
         {
           role: 'assistant',
           content: JSON.stringify({
@@ -233,7 +233,7 @@ describe('LlmJudgeEvaluator', () => {
     }
 
     const judgeProvider = new CapturingProvider({
-      outputMessages: [
+      output: [
         {
           role: 'assistant',
           content: JSON.stringify({
@@ -279,7 +279,7 @@ describe('LlmJudgeEvaluator', () => {
 
   it('rejects JSON with invalid hits/misses types', async () => {
     const judgeProvider = new StubProvider({
-      outputMessages: [
+      output: [
         {
           role: 'assistant',
           content: JSON.stringify({
@@ -337,7 +337,7 @@ describe('LlmJudgeEvaluator', () => {
 
   it('supports rubric mode when rubrics are provided in config', async () => {
     const judgeProvider = new StubProvider({
-      outputMessages: [
+      output: [
         {
           role: 'assistant',
           content: JSON.stringify({
@@ -382,7 +382,7 @@ describe('LlmJudgeEvaluator', () => {
 
   it('passes multi-turn role markers through to evaluator prompts', async () => {
     const judgeProvider = new CapturingProvider({
-      outputMessages: [
+      output: [
         { role: 'assistant', content: JSON.stringify({ score: 0.65, hits: [], misses: [] }) },
       ],
     });
@@ -410,7 +410,7 @@ describe('LlmJudgeEvaluator', () => {
 
   it('keeps single-turn prompts flat when no markers are needed', async () => {
     const judgeProvider = new CapturingProvider({
-      outputMessages: [
+      output: [
         { role: 'assistant', content: JSON.stringify({ score: 0.8, hits: [], misses: [] }) },
       ],
     });
@@ -948,7 +948,7 @@ describe('LatencyEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      traceSummary: {
+      trace: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -979,7 +979,7 @@ describe('LatencyEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      traceSummary: {
+      trace: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -1010,7 +1010,7 @@ describe('LatencyEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      // No traceSummary
+      // No trace
     });
 
     expect(result.score).toBe(0);
@@ -1035,7 +1035,7 @@ describe('LatencyEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      traceSummary: {
+      trace: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -1067,7 +1067,7 @@ describe('CostEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      traceSummary: {
+      trace: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -1098,7 +1098,7 @@ describe('CostEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      traceSummary: {
+      trace: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -1129,7 +1129,7 @@ describe('CostEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      // No traceSummary
+      // No trace
     });
 
     expect(result.score).toBe(0);
@@ -1154,7 +1154,7 @@ describe('CostEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      traceSummary: {
+      trace: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -1182,7 +1182,7 @@ describe('TokenUsageEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      traceSummary: {
+      trace: {
         eventCount: 0,
         toolNames: [],
         toolCallsByName: {},
@@ -1209,7 +1209,7 @@ describe('TokenUsageEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      traceSummary: {
+      trace: {
         eventCount: 0,
         toolNames: [],
         toolCallsByName: {},

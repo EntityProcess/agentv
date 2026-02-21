@@ -49,7 +49,7 @@ function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
   return union.size === 0 ? 0 : intersection.size / union.size;
 }
 
-export default defineCodeJudge(({ candidateAnswer, referenceAnswer, expectedOutput }) => {
+export default defineCodeJudge(({ answer, referenceAnswer, expectedOutput }) => {
   const reference =
     referenceAnswer ??
     (expectedOutput[0] && typeof expectedOutput[0].content === 'string'
@@ -60,7 +60,7 @@ export default defineCodeJudge(({ candidateAnswer, referenceAnswer, expectedOutp
     return { score: 0, misses: ['No reference text provided'], reasoning: 'Missing reference.' };
   }
 
-  const candTokens = tokenize(candidateAnswer);
+  const candTokens = tokenize(answer);
   const refTokens = tokenize(reference);
 
   const candTf = termFrequency(candTokens);

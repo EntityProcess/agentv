@@ -17,14 +17,14 @@
  *       type: code_judge
  *       script: ["bun", "run", "scripts/tool-selection-judge.ts"]
  */
-import { type OutputMessage, defineCodeJudge } from '@agentv/eval';
+import { type Message, defineCodeJudge } from '@agentv/eval';
 
 interface ExtractedToolCall {
   tool: string;
   input: Record<string, unknown>;
 }
 
-function extractToolCalls(messages: readonly OutputMessage[]): ExtractedToolCall[] {
+function extractToolCalls(messages: readonly Message[]): ExtractedToolCall[] {
   const toolCalls: ExtractedToolCall[] = [];
   for (const msg of messages) {
     if (msg.role === 'assistant' && msg.toolCalls) {
@@ -49,11 +49,11 @@ const toolTaskMappings: Record<string, string[]> = {
   validate: ['check', 'validate', 'verify', 'confirm'],
 };
 
-export default defineCodeJudge(({ question, criteria, outputMessages }) => {
+export default defineCodeJudge(({ question, criteria, output }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
-  const toolCalls = extractToolCalls(outputMessages ?? []);
+  const toolCalls = extractToolCalls(output ?? []);
 
   // Extract keywords from question and expected outcome
   const taskText = `${question} ${criteria}`.toLowerCase();

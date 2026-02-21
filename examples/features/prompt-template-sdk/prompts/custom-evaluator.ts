@@ -29,7 +29,7 @@ export default definePromptTemplate((ctx) => {
 ${ctx.question}
 
 ## Candidate Answer
-${ctx.candidateAnswer}
+${ctx.answer}
 ${referenceSection}
 ${rubricSection}
 ${strictWarning}

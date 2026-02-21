@@ -17,7 +17,7 @@ function createMockProvider(targetName: string): Provider {
     kind: 'mock',
     targetName,
     invoke: async (request: ProviderRequest): Promise<ProviderResponse> => ({
-      outputMessages: [
+      output: [
         { role: 'assistant', content: `Response from ${targetName}: ${request.question}` },
       ],
     }),

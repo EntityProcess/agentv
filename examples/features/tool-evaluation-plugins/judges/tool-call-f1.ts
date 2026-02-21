@@ -24,7 +24,7 @@ import { type CodeJudgeInput, defineCodeJudge } from '@agentv/eval';
 
 function extractActualTools(input: CodeJudgeInput): string[] {
   const tools: string[] = [];
-  for (const msg of input.outputMessages ?? []) {
+  for (const msg of input.output ?? []) {
     if (msg.role === 'assistant' && msg.toolCalls) {
       for (const call of msg.toolCalls) {
         tools.push(call.tool);
@@ -34,7 +34,7 @@ function extractActualTools(input: CodeJudgeInput): string[] {
   return tools;
 }
 
-export default defineCodeJudge(({ outputMessages, config, ...rest }) => {
+export default defineCodeJudge(({ output, config, ...rest }) => {
   const expectedTools: string[] = (config?.expected_tools as string[]) ?? [];
 
   if (expectedTools.length === 0) {
@@ -45,7 +45,7 @@ export default defineCodeJudge(({ outputMessages, config, ...rest }) => {
     };
   }
 
-  const input: CodeJudgeInput = { outputMessages, config, ...rest };
+  const input: CodeJudgeInput = { output, config, ...rest };
   const actualTools = extractActualTools(input);
   const actualSet = new Set(actualTools);
 

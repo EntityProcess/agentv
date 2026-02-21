@@ -10,7 +10,7 @@ function makeResult(testId: string, target: string, score: number): EvaluationRe
     score,
     hits: [],
     misses: [],
-    candidateAnswer: '',
+    answer: '',
     target,
   };
 }

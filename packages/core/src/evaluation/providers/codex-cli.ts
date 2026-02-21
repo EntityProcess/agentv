@@ -124,7 +124,7 @@ export class CodexCliProvider implements Provider {
           inputFiles,
           logFile: logger?.filePath,
         },
-        outputMessages: [{ role: 'assistant' as const, content: assistantText }],
+        output: [{ role: 'assistant' as const, content: assistantText }],
       };
     } finally {
       await logger?.close();

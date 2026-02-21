@@ -30,7 +30,7 @@ export interface TargetProxyInvokeRequest {
  * Response body for /invoke endpoint
  */
 export interface TargetProxyInvokeResponse {
-  readonly outputMessages: readonly unknown[];
+  readonly output: readonly unknown[];
   readonly rawText?: string;
 }
 
@@ -203,11 +203,11 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
       });
 
       // Extract output messages and rawText
-      const outputMessages = response.outputMessages ?? [];
-      const rawText = extractLastAssistantContent(outputMessages);
+      const output = response.output ?? [];
+      const rawText = extractLastAssistantContent(output);
 
       const result: TargetProxyInvokeResponse = {
-        outputMessages,
+        output,
         rawText,
       };
 
@@ -241,7 +241,7 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
       for (const request of requests) {
         if (!request.question || typeof request.question !== 'string') {
           responses.push({
-            outputMessages: [],
+            output: [],
             rawText: 'Error: Missing required field: question',
           });
           continue;
@@ -251,7 +251,7 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
         const provider = resolveProvider(request.target);
         if (!provider) {
           responses.push({
-            outputMessages: [],
+            output: [],
             rawText: `Error: Unknown target '${request.target}'. Available: ${targetsList.join(', ')}`,
           });
           continue;
@@ -267,15 +267,15 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
             attempt: request.attempt ?? 1,
           });
 
-          const outputMessages = response.outputMessages ?? [];
+          const output = response.output ?? [];
           responses.push({
-            outputMessages,
-            rawText: extractLastAssistantContent(outputMessages),
+            output,
+            rawText: extractLastAssistantContent(output),
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           responses.push({
-            outputMessages: [],
+            output: [],
             rawText: `Error: ${message}`,
           });
         }

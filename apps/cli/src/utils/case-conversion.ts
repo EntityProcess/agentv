@@ -2,7 +2,7 @@
  * Converts a camelCase string to snake_case.
  * Examples:
  *   testId -> test_id
- *   candidateAnswer -> candidate_answer
+ *   answer -> answer
  *   conversationId -> conversation_id
  *
  * Note: Keys that start with an uppercase letter are treated as proper nouns

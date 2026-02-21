@@ -108,7 +108,7 @@ describe('CopilotSdkProvider', () => {
     };
 
     const response = await provider.invoke(request);
-    const content = extractLastAssistantContent(response.outputMessages);
+    const content = extractLastAssistantContent(response.output);
     expect(content).toBe('Hello from Copilot SDK');
     expect(session.sendAndWait).toHaveBeenCalledTimes(1);
     expect(session.destroy).toHaveBeenCalledTimes(1);
@@ -289,9 +289,9 @@ describe('CopilotSdkProvider', () => {
 
     const response = await provider.invoke({ question: 'Read file' });
 
-    expect(response.outputMessages).toBeDefined();
-    expect(response.outputMessages?.length).toBe(1);
-    const msg = response.outputMessages?.[0];
+    expect(response.output).toBeDefined();
+    expect(response.output?.length).toBe(1);
+    const msg = response.output?.[0];
     expect(msg?.toolCalls).toBeDefined();
     expect(msg?.toolCalls?.length).toBe(1);
     expect(msg?.toolCalls?.[0]?.tool).toBe('Read');

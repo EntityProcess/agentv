@@ -120,7 +120,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         null,
         2,
       ),
-      [TEMPLATE_VARIABLES.OUTPUT_MESSAGES]: JSON.stringify(context.outputMessages ?? [], null, 2),
+      [TEMPLATE_VARIABLES.OUTPUT_MESSAGES]: JSON.stringify(context.output ?? [], null, 2),
       [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: context.candidate.trim(),
       [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
@@ -414,7 +414,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         });
 
         const data = schema.parse(
-          parseJsonFromText(extractLastAssistantContent(response.outputMessages)),
+          parseJsonFromText(extractLastAssistantContent(response.output)),
         );
         return { data, providerResponse: response };
       } catch (e: unknown) {

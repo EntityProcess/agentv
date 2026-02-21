@@ -20,14 +20,14 @@ interface ToolCall {
   duration_ms: number;
 }
 
-interface OutputMessage {
+interface Message {
   role: 'assistant';
   content: string;
   tool_calls?: ToolCall[];
 }
 
 interface AgentResponse {
-  output_messages: OutputMessage[];
+  output_messages: Message[];
 }
 
 function generateResponse(prompt: string): AgentResponse {

@@ -8,7 +8,7 @@ describe('PromptTemplateInputSchema', () => {
     question: 'What is 2+2?',
     criteria: 'The answer should be 4',
     expectedOutput: [],
-    candidateAnswer: 'The answer is 4',
+    answer: 'The answer is 4',
     guidelineFiles: [],
     inputFiles: [],
     input: [],
@@ -17,7 +17,7 @@ describe('PromptTemplateInputSchema', () => {
   it('parses valid input with all required fields', () => {
     const result = PromptTemplateInputSchema.parse(validInput);
     expect(result.question).toBe('What is 2+2?');
-    expect(result.candidateAnswer).toBe('The answer is 4');
+    expect(result.answer).toBe('The answer is 4');
     expect(result.criteria).toBe('The answer should be 4');
     expect(result.expectedOutput).toEqual([]);
     expect(result.guidelineFiles).toEqual([]);
@@ -28,7 +28,7 @@ describe('PromptTemplateInputSchema', () => {
   it('rejects input missing required fields', () => {
     const minimalInput = {
       question: 'What is 2+2?',
-      candidateAnswer: 'The answer is 4',
+      answer: 'The answer is 4',
     };
     expect(() => PromptTemplateInputSchema.parse(minimalInput)).toThrow();
   });
@@ -42,10 +42,10 @@ describe('PromptTemplateInputSchema', () => {
     expect(result.referenceAnswer).toBe('The sum of 2 and 2 is 4');
   });
 
-  it('accepts optional traceSummary', () => {
+  it('accepts optional trace', () => {
     const inputWithTrace = {
       ...validInput,
-      traceSummary: {
+      trace: {
         eventCount: 3,
         toolNames: ['read', 'write'],
         toolCallsByName: { read: 2, write: 1 },
@@ -53,17 +53,17 @@ describe('PromptTemplateInputSchema', () => {
       },
     };
     const result = PromptTemplateInputSchema.parse(inputWithTrace);
-    expect(result.traceSummary?.eventCount).toBe(3);
-    expect(result.traceSummary?.toolNames).toEqual(['read', 'write']);
+    expect(result.trace?.eventCount).toBe(3);
+    expect(result.trace?.toolNames).toEqual(['read', 'write']);
   });
 
-  it('accepts null traceSummary', () => {
+  it('accepts null trace', () => {
     const inputWithNullTrace = {
       ...validInput,
-      traceSummary: null,
+      trace: null,
     };
     const result = PromptTemplateInputSchema.parse(inputWithNullTrace);
-    expect(result.traceSummary).toBeNull();
+    expect(result.trace).toBeNull();
   });
 
   it('accepts optional config', () => {
@@ -111,10 +111,10 @@ describe('PromptTemplateInputSchema', () => {
     expect(result.input[0].content).toBe('What is 2+2?');
   });
 
-  it('accepts optional outputMessages with toolCalls', () => {
+  it('accepts optional output with toolCalls', () => {
     const inputWithOutput = {
       ...validInput,
-      outputMessages: [
+      output: [
         {
           role: 'assistant',
           content: 'Reading file...',
@@ -123,7 +123,7 @@ describe('PromptTemplateInputSchema', () => {
       ],
     };
     const result = PromptTemplateInputSchema.parse(inputWithOutput);
-    expect(result.outputMessages?.[0].toolCalls?.[0].tool).toBe('read');
+    expect(result.output?.[0].toolCalls?.[0].tool).toBe('read');
   });
 
   it('accepts full input with all fields', () => {
@@ -132,12 +132,12 @@ describe('PromptTemplateInputSchema', () => {
       criteria: 'The answer should be 4',
       expectedOutput: [{ role: 'assistant', content: '4' }],
       referenceAnswer: 'The sum is 4',
-      candidateAnswer: 'The answer is 4',
-      outputMessages: [{ role: 'assistant', content: 'The answer is 4' }],
+      answer: 'The answer is 4',
+      output: [{ role: 'assistant', content: 'The answer is 4' }],
       guidelineFiles: ['/path/to/guideline.txt'],
       inputFiles: ['/path/to/input.txt'],
       input: [{ role: 'user', content: 'What is 2+2?' }],
-      traceSummary: {
+      trace: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -149,7 +149,7 @@ describe('PromptTemplateInputSchema', () => {
     expect(result.question).toBe('What is 2+2?');
     expect(result.criteria).toBe('The answer should be 4');
     expect(result.referenceAnswer).toBe('The sum is 4');
-    expect(result.candidateAnswer).toBe('The answer is 4');
+    expect(result.answer).toBe('The answer is 4');
     expect(result.config).toEqual({ rubric: 'Check correctness' });
   });
 });
@@ -161,7 +161,7 @@ describe('Schema type inference', () => {
       question: 'test',
       criteria: 'expected',
       expectedOutput: [],
-      candidateAnswer: 'test',
+      answer: 'test',
       guidelineFiles: [],
       inputFiles: [],
       input: [],
@@ -169,9 +169,9 @@ describe('Schema type inference', () => {
 
     // These should all type-check correctly
     const _q: string = input.question;
-    const _c: string = input.candidateAnswer;
+    const _c: string = input.answer;
     const _outcome: string = input.criteria;
-    const _trace: PromptTemplateInput['traceSummary'] = undefined;
+    const _trace: PromptTemplateInput['trace'] = undefined;
     const _config: PromptTemplateInput['config'] = null;
     const _ref: PromptTemplateInput['referenceAnswer'] = undefined;
 
@@ -183,7 +183,7 @@ describe('Schema type inference', () => {
       question: 'test question',
       criteria: 'expected outcome',
       expectedOutput: [],
-      candidateAnswer: 'test answer',
+      answer: 'test answer',
       guidelineFiles: [],
       inputFiles: [],
       input: [],
@@ -192,7 +192,7 @@ describe('Schema type inference', () => {
     // Required fields must be present
     expect(input.question).toBe('test question');
     expect(input.criteria).toBe('expected outcome');
-    expect(input.candidateAnswer).toBe('test answer');
+    expect(input.answer).toBe('test answer');
     expect(input.expectedOutput).toEqual([]);
     expect(input.guidelineFiles).toEqual([]);
     expect(input.inputFiles).toEqual([]);
@@ -200,8 +200,8 @@ describe('Schema type inference', () => {
 
     // Optional fields can be omitted
     expect(input.referenceAnswer).toBeUndefined();
-    expect(input.outputMessages).toBeUndefined();
-    expect(input.traceSummary).toBeUndefined();
+    expect(input.output).toBeUndefined();
+    expect(input.trace).toBeUndefined();
     expect(input.config).toBeUndefined();
   });
 });

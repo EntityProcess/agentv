@@ -708,7 +708,7 @@ describe('createProvider', () => {
 
     expect(createAzureMock).toHaveBeenCalledTimes(1);
     expect(generateTextMock).toHaveBeenCalledTimes(1);
-    expect(extractLastAssistantContent(response.outputMessages)).toBe('ok');
+    expect(extractLastAssistantContent(response.output)).toBe('ok');
   });
   it('creates a gemini provider that calls the Vercel AI SDK', async () => {
     const env = {
@@ -732,6 +732,6 @@ describe('createProvider', () => {
 
     expect(createGeminiMock).toHaveBeenCalled();
     expect(generateTextMock).toHaveBeenCalled();
-    expect(extractLastAssistantContent(response.outputMessages)).toBe('ok');
+    expect(extractLastAssistantContent(response.output)).toBe('ok');
   });
 });

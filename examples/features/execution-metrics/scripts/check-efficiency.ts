@@ -3,7 +3,7 @@
  * Efficiency Check - Code Judge for Execution Metrics
  *
  * Demonstrates how to evaluate agent efficiency using execution metrics
- * available in the traceSummary payload.
+ * available in the trace payload.
  */
 import { defineCodeJudge } from '@agentv/eval';
 
@@ -15,12 +15,12 @@ const THRESHOLDS = {
   maxDurationMs: 10000,
 };
 
-export default defineCodeJudge(({ traceSummary }) => {
+export default defineCodeJudge(({ trace }) => {
   const hits: string[] = [];
   const misses: string[] = [];
   const checks: boolean[] = [];
 
-  if (!traceSummary) {
+  if (!trace) {
     return {
       score: 0.5,
       hits: [],
@@ -30,19 +30,19 @@ export default defineCodeJudge(({ traceSummary }) => {
   }
 
   // Check tool call count
-  if (traceSummary.eventCount <= THRESHOLDS.maxToolCalls) {
-    hits.push(`Tool calls (${traceSummary.eventCount}) within limit (${THRESHOLDS.maxToolCalls})`);
+  if (trace.eventCount <= THRESHOLDS.maxToolCalls) {
+    hits.push(`Tool calls (${trace.eventCount}) within limit (${THRESHOLDS.maxToolCalls})`);
     checks.push(true);
   } else {
     misses.push(
-      `Too many tool calls: ${traceSummary.eventCount} (max: ${THRESHOLDS.maxToolCalls})`,
+      `Too many tool calls: ${trace.eventCount} (max: ${THRESHOLDS.maxToolCalls})`,
     );
     checks.push(false);
   }
 
   // Check token usage if available
-  if (traceSummary.tokenUsage) {
-    const totalTokens = traceSummary.tokenUsage.input + traceSummary.tokenUsage.output;
+  if (trace.tokenUsage) {
+    const totalTokens = trace.tokenUsage.input + trace.tokenUsage.output;
     if (totalTokens <= THRESHOLDS.maxTokens) {
       hits.push(`Token usage (${totalTokens}) within limit`);
       checks.push(true);
@@ -53,26 +53,26 @@ export default defineCodeJudge(({ traceSummary }) => {
   }
 
   // Check cost if available
-  if (traceSummary.costUsd !== undefined) {
-    if (traceSummary.costUsd <= THRESHOLDS.maxCostUsd) {
-      hits.push(`Cost ($${traceSummary.costUsd.toFixed(4)}) within budget`);
+  if (trace.costUsd !== undefined) {
+    if (trace.costUsd <= THRESHOLDS.maxCostUsd) {
+      hits.push(`Cost ($${trace.costUsd.toFixed(4)}) within budget`);
       checks.push(true);
     } else {
       misses.push(
-        `High cost: $${traceSummary.costUsd.toFixed(4)} (max: $${THRESHOLDS.maxCostUsd})`,
+        `High cost: $${trace.costUsd.toFixed(4)} (max: $${THRESHOLDS.maxCostUsd})`,
       );
       checks.push(false);
     }
   }
 
   // Check duration if available
-  if (traceSummary.durationMs !== undefined) {
-    if (traceSummary.durationMs <= THRESHOLDS.maxDurationMs) {
-      hits.push(`Duration (${traceSummary.durationMs}ms) within limit`);
+  if (trace.durationMs !== undefined) {
+    if (trace.durationMs <= THRESHOLDS.maxDurationMs) {
+      hits.push(`Duration (${trace.durationMs}ms) within limit`);
       checks.push(true);
     } else {
       misses.push(
-        `Slow execution: ${traceSummary.durationMs}ms (max: ${THRESHOLDS.maxDurationMs}ms)`,
+        `Slow execution: ${trace.durationMs}ms (max: ${THRESHOLDS.maxDurationMs}ms)`,
       );
       checks.push(false);
     }

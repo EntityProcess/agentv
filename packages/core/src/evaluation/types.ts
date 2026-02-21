@@ -586,7 +586,7 @@ export interface TrialResult {
   readonly attempt: number;
   readonly score: number;
   readonly verdict: EvaluationVerdict;
-  readonly evaluatorResults?: readonly EvaluatorResult[];
+  readonly scores?: readonly EvaluatorResult[];
   readonly error?: string;
   readonly costUsd?: number;
 }
@@ -637,20 +637,24 @@ export interface EvaluationResult {
   readonly score: number;
   readonly hits: readonly string[];
   readonly misses: readonly string[];
-  readonly candidateAnswer: string;
+  readonly answer: string;
   readonly target: string;
   readonly reasoning?: string;
-  readonly agentProviderRequest?: JsonObject;
-  readonly lmProviderRequest?: JsonObject;
-  readonly evaluatorProviderRequest?: JsonObject;
-  readonly evaluatorResults?: readonly EvaluatorResult[];
+  readonly requests?: {
+    readonly agent?: JsonObject;
+    readonly lm?: JsonObject;
+    readonly evaluator?: JsonObject;
+  };
+  readonly scores?: readonly EvaluatorResult[];
   readonly error?: string;
   /** Lightweight summary of the execution trace (always included when available) */
-  readonly traceSummary?: TraceSummary;
+  readonly trace?: TraceSummary;
   /** Path to the temporary workspace directory (included on failure for debugging) */
   readonly workspacePath?: string;
+  /** Input messages or prompt string sent to the agent */
+  readonly input?: readonly import('./providers/types.js').Message[] | string;
   /** Full output messages from agent execution (only included when --trace flag is set) */
-  readonly outputMessages?: readonly import('./providers/types.js').OutputMessage[];
+  readonly output?: readonly import('./providers/types.js').Message[];
   /** Captured output from workspace setup script */
   readonly setupOutput?: string;
   /** Captured output from workspace teardown script */
@@ -680,7 +684,7 @@ export interface EvaluatorResult {
   readonly reasoning?: string;
   readonly rawRequest?: JsonObject;
   readonly evaluatorProviderRequest?: JsonObject;
-  readonly evaluatorResults?: readonly EvaluatorResult[];
+  readonly scores?: readonly EvaluatorResult[];
   /** Optional structured details from code judges (e.g., TP/TN/FP/FN counts). */
   readonly details?: JsonObject;
 }

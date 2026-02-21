@@ -10,7 +10,7 @@ import { recordPiLogEntry } from './pi-log-tracker.js';
 import { normalizeInputFiles } from './preread.js';
 import type { PiCodingAgentResolvedConfig } from './targets.js';
 import type {
-  OutputMessage,
+  Message,
   Provider,
   ProviderRequest,
   ProviderResponse,
@@ -106,7 +106,7 @@ export class PiCodingAgentProvider implements Provider {
       }
 
       const parsed = parsePiJsonl(result.stdout);
-      const outputMessages = extractOutputMessages(parsed);
+      const output = extractMessages(parsed);
       const tokenUsage = extractTokenUsage(parsed);
 
       const endTime = new Date().toISOString();
@@ -125,7 +125,7 @@ export class PiCodingAgentProvider implements Provider {
           inputFiles,
           logFile: logger?.filePath,
         },
-        outputMessages,
+        output,
         tokenUsage,
         durationMs,
         startTime,
@@ -573,10 +573,10 @@ function parsePiJsonl(output: string): unknown[] {
 }
 
 /**
- * Extract OutputMessage array from Pi JSONL events.
+ * Extract Message array from Pi JSONL events.
  * Looks for the agent_end event which contains the full message history.
  */
-function extractOutputMessages(events: unknown[]): readonly OutputMessage[] {
+function extractMessages(events: unknown[]): readonly Message[] {
   // Find the agent_end event which contains all messages
   for (let i = events.length - 1; i >= 0; i--) {
     const event = events[i];
@@ -593,11 +593,11 @@ function extractOutputMessages(events: unknown[]): readonly OutputMessage[] {
       continue;
     }
 
-    return messages.map(convertPiMessage).filter((m): m is OutputMessage => m !== undefined);
+    return messages.map(convertPiMessage).filter((m): m is Message => m !== undefined);
   }
 
   // Fallback: collect messages from turn_end events
-  const outputMessages: OutputMessage[] = [];
+  const output: Message[] = [];
   for (const event of events) {
     if (!event || typeof event !== 'object') {
       continue;
@@ -607,12 +607,12 @@ function extractOutputMessages(events: unknown[]): readonly OutputMessage[] {
       const message = record.message;
       const converted = convertPiMessage(message);
       if (converted) {
-        outputMessages.push(converted);
+        output.push(converted);
       }
     }
   }
 
-  return outputMessages;
+  return output;
 }
 
 /**
@@ -701,9 +701,9 @@ function toNumber(value: unknown): number | undefined {
 }
 
 /**
- * Convert a Pi message to AgentV OutputMessage format.
+ * Convert a Pi message to AgentV Message format.
  */
-function convertPiMessage(message: unknown): OutputMessage | undefined {
+function convertPiMessage(message: unknown): Message | undefined {
   if (!message || typeof message !== 'object') {
     return undefined;
   }
