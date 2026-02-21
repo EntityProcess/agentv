@@ -1116,6 +1116,7 @@ async function evaluateCandidate(options: {
           ...(evaluatorRequest ? { evaluator: evaluatorRequest } : {}),
         }
       : undefined;
+  const input = buildResultInput(promptInputs);
 
   return {
     timestamp: completedAt.toISOString(),
@@ -1129,6 +1130,7 @@ async function evaluateCandidate(options: {
     target: target.name,
     reasoning: score.reasoning,
     requests,
+    input,
     scores: scores,
     trace: trace,
     output: output,
@@ -2288,6 +2290,7 @@ function buildErrorResult(
           ...(lmRequest ? { lm: lmRequest } : {}),
         }
       : undefined;
+  const input = buildResultInput(promptInputs);
 
   return {
     timestamp: timestamp.toISOString(),
@@ -2300,6 +2303,7 @@ function buildErrorResult(
     answer: `Error occurred: ${message}`,
     target: targetName,
     requests,
+    input,
     error: message,
   } satisfies EvaluationResult;
 }
@@ -2336,6 +2340,17 @@ function createCacheKey(
     hash.update(JSON.stringify(promptInputs.chatPrompt));
   }
   return hash.digest('hex');
+}
+
+function buildResultInput(promptInputs: PromptInputs): EvaluationResult['input'] {
+  if (promptInputs.chatPrompt) {
+    return promptInputs.chatPrompt.map((message) => ({
+      role: message.role,
+      ...(message.name ? { name: message.name } : {}),
+      content: message.content,
+    }));
+  }
+  return promptInputs.question;
 }
 
 function isTimeoutLike(error: unknown): boolean {

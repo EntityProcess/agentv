@@ -176,6 +176,7 @@ describe('runTestCase', () => {
     expect(result.hits).toHaveLength(1);
     expect(result.misses).toHaveLength(0);
     expect(result.timestamp).toBe('2024-01-01T00:00:00.000Z');
+    expect(result.input).toBe('Explain logging improvements');
   });
 
   it('reuses cached provider response when available', async () => {
@@ -256,6 +257,7 @@ describe('runTestCase', () => {
 
     expect(result.score).toBe(0);
     expect(result.misses[0]).toContain('Provider failure');
+    expect(result.input).toBe('Explain logging improvements');
   });
 
   it('surfaces provider raw.error as evaluation error', async () => {
@@ -449,6 +451,7 @@ describe('runTestCase', () => {
     });
     expect(chatPrompt[2]).toEqual({ role: 'assistant', content: 'Ack' });
     expect(result.requests?.lm?.chat_prompt).toBeDefined();
+    expect(result.input).toEqual(chatPrompt);
   });
 
   it('omits chatPrompt for single-turn evals', async () => {
