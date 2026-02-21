@@ -90,8 +90,11 @@ export class CopilotCliProvider implements Provider {
     let costUsd: number | undefined;
 
     // Set up ACP connection
-    const input = Writable.toWeb(agentProcess.stdin!);
-    const output = Readable.toWeb(agentProcess.stdout!) as ReadableStream<Uint8Array>;
+    if (!agentProcess.stdin || !agentProcess.stdout) {
+      throw new Error('Copilot CLI process missing stdin/stdout (stdio: pipe required)');
+    }
+    const input = Writable.toWeb(agentProcess.stdin);
+    const output = Readable.toWeb(agentProcess.stdout) as ReadableStream<Uint8Array>;
     const stream = acp.ndJsonStream(input, output);
 
     const client: acp.Client = {
