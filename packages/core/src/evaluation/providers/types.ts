@@ -180,9 +180,7 @@ export interface ProviderResponse {
  * Extract the content from the last assistant message in an output message array.
  * Returns empty string if no assistant message found.
  */
-export function extractLastAssistantContent(
-  messages: readonly Message[] | undefined,
-): string {
+export function extractLastAssistantContent(messages: readonly Message[] | undefined): string {
   if (!messages || messages.length === 0) {
     return '';
   }

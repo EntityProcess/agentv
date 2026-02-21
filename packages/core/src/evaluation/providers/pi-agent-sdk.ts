@@ -1,11 +1,5 @@
 import type { PiAgentSdkResolvedConfig } from './targets.js';
-import type {
-  Message,
-  Provider,
-  ProviderRequest,
-  ProviderResponse,
-  ToolCall,
-} from './types.js';
+import type { Message, Provider, ProviderRequest, ProviderResponse, ToolCall } from './types.js';
 
 type PiProvider =
   | 'anthropic'

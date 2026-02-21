@@ -1,6 +1,6 @@
-import type { EvaluationResult } from '../evaluation/types.js';
 import type { Message } from '../evaluation/providers/types.js';
-import type { OtelExportOptions, OtelBackendPreset } from './types.js';
+import type { EvaluationResult } from '../evaluation/types.js';
+import type { OtelBackendPreset, OtelExportOptions } from './types.js';
 
 export type { OtelExportOptions, OtelBackendPreset };
 
@@ -111,7 +111,12 @@ export class OtelTraceExporter {
     tracer.startActiveSpan(
       'agentv.eval',
       { startTime: startHr },
-      (rootSpan: { setAttribute: Function; addEvent: Function; setStatus: Function; end: Function }) => {
+      (rootSpan: {
+        setAttribute: (...args: unknown[]) => void;
+        addEvent: (...args: unknown[]) => void;
+        setStatus: (...args: unknown[]) => void;
+        end: (...args: unknown[]) => void;
+      }) => {
         // Core attributes
         rootSpan.setAttribute('agentv.test_id', result.testId);
         rootSpan.setAttribute('agentv.target', result.target);
@@ -126,7 +131,8 @@ export class OtelTraceExporter {
           rootSpan.setAttribute('agentv.trace.tool_names', t.toolNames.join(','));
           if (t.durationMs != null) rootSpan.setAttribute('agentv.trace.duration_ms', t.durationMs);
           if (t.costUsd != null) rootSpan.setAttribute('agentv.trace.cost_usd', t.costUsd);
-          if (t.llmCallCount != null) rootSpan.setAttribute('agentv.trace.llm_call_count', t.llmCallCount);
+          if (t.llmCallCount != null)
+            rootSpan.setAttribute('agentv.trace.llm_call_count', t.llmCallCount);
         }
 
         // Child spans from output messages (--trace mode)
@@ -187,7 +193,10 @@ export class OtelTraceExporter {
       tracer.startActiveSpan(
         spanName,
         { startTime: startHr },
-        (span: { setAttribute: Function; end: Function }) => {
+        (span: {
+          setAttribute: (...args: unknown[]) => void;
+          end: (...args: unknown[]) => void;
+        }) => {
           if (msg.metadata?.model) {
             span.setAttribute('gen_ai.request.model', String(msg.metadata.model));
           }
@@ -208,7 +217,10 @@ export class OtelTraceExporter {
                 tracer.startActiveSpan(
                   'gen_ai.tool',
                   {},
-                  (toolSpan: { setAttribute: Function; end: Function }) => {
+                  (toolSpan: {
+                    setAttribute: (...args: unknown[]) => void;
+                    end: (...args: unknown[]) => void;
+                  }) => {
                     toolSpan.setAttribute('gen_ai.tool.name', tc.tool);
                     if (tc.id) toolSpan.setAttribute('gen_ai.tool.call.id', tc.id);
 

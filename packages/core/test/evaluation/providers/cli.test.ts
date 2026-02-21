@@ -62,9 +62,7 @@ describe('CliProvider', () => {
     const response = await provider.invoke(baseRequest);
 
     expect(runner).toHaveBeenCalledTimes(1);
-    expect(extractLastAssistantContent(response.output)).toContain(
-      'Test response from CLI',
-    );
+    expect(extractLastAssistantContent(response.output)).toContain('Test response from CLI');
     expect(response.raw && (response.raw as Record<string, unknown>).command).toBeDefined();
     const command = runner.mock.calls[0]?.[0] as string;
     expect(command).toContain('--file');

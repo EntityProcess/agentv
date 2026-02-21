@@ -295,9 +295,7 @@ describe('runTestCase', () => {
         return requests.map((request) => {
           if (request.evalCaseId === 'case-2') {
             return {
-              output: [
-                { role: 'assistant', content: "Error: Batch output missing id 'case-2'" },
-              ],
+              output: [{ role: 'assistant', content: "Error: Batch output missing id 'case-2'" }],
               raw: { error: "Batch output missing id 'case-2'" },
             };
           }
@@ -796,9 +794,7 @@ describe('runEvalCase trace integration', () => {
     expect(result.scores?.[0]?.scores).toHaveLength(2);
     const childNames = result.scores?.[0]?.scores?.map((child) => child.name);
     expect(childNames).toEqual(['latency', 'cost']);
-    const childVerdicts = result.scores?.[0]?.scores?.map(
-      (child) => child.verdict,
-    );
+    const childVerdicts = result.scores?.[0]?.scores?.map((child) => child.verdict);
     expect(childVerdicts).toEqual(['pass', 'pass']);
   });
 
@@ -1439,9 +1435,7 @@ rl.on('close', () => {
     await writeFile(failingScript, 'console.error("setup boom"); process.exit(1);');
 
     const provider = new SequenceProvider('mock', {
-      responses: [
-        { output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] },
-      ],
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
     });
 
     const evalCase: EvalTest = {

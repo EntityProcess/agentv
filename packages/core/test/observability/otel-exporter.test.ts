@@ -137,7 +137,7 @@ describe('OTel OtelTraceExporter', () => {
           score: 0.95,
           answer: 'hello',
           timestamp: new Date().toISOString(),
-        } as any),
+        } as unknown as Parameters<OtelTraceExporter['exportResult']>[0]),
       ).not.toThrow();
     });
   });

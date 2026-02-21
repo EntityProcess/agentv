@@ -168,7 +168,16 @@ async function parseEvaluatorList(
       const required = parseRequired(rawEvaluator.required);
 
       // Collect unrecognized properties as pass-through config
-      const knownProps = new Set(['name', 'type', 'script', 'cwd', 'weight', 'target', 'required', 'negate']);
+      const knownProps = new Set([
+        'name',
+        'type',
+        'script',
+        'cwd',
+        'weight',
+        'target',
+        'required',
+        'negate',
+      ]);
       const config: Record<string, JsonValue> = {};
       for (const [key, value] of Object.entries(rawEvaluator)) {
         if (!knownProps.has(key) && value !== undefined) {

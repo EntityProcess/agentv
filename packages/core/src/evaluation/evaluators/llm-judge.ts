@@ -304,12 +304,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       parts.push('[[ ## reference_answer ## ]]', context.evalCase.reference_answer, '');
     }
 
-    parts.push(
-      '[[ ## answer ## ]]',
-      context.candidate,
-      '',
-      '[[ ## scoring_criteria ## ]]',
-    );
+    parts.push('[[ ## answer ## ]]', context.candidate, '', '[[ ## scoring_criteria ## ]]');
 
     for (const rubric of rubrics) {
       const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
@@ -413,9 +408,7 @@ export class LlmJudgeEvaluator implements Evaluator {
           temperature: this.temperature,
         });
 
-        const data = schema.parse(
-          parseJsonFromText(extractLastAssistantContent(response.output)),
-        );
+        const data = schema.parse(parseJsonFromText(extractLastAssistantContent(response.output)));
         return { data, providerResponse: response };
       } catch (e: unknown) {
         lastError = e instanceof Error ? e : new Error(String(e));

@@ -1,5 +1,5 @@
-import type { EvaluationScore } from './types.js';
 import type { EvaluationVerdict } from '../types.js';
+import type { EvaluationScore } from './types.js';
 
 export function scoreToVerdict(score: number): EvaluationVerdict {
   if (score >= 0.8) {

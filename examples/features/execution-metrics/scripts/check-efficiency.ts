@@ -34,9 +34,7 @@ export default defineCodeJudge(({ trace }) => {
     hits.push(`Tool calls (${trace.eventCount}) within limit (${THRESHOLDS.maxToolCalls})`);
     checks.push(true);
   } else {
-    misses.push(
-      `Too many tool calls: ${trace.eventCount} (max: ${THRESHOLDS.maxToolCalls})`,
-    );
+    misses.push(`Too many tool calls: ${trace.eventCount} (max: ${THRESHOLDS.maxToolCalls})`);
     checks.push(false);
   }
 
@@ -58,9 +56,7 @@ export default defineCodeJudge(({ trace }) => {
       hits.push(`Cost ($${trace.costUsd.toFixed(4)}) within budget`);
       checks.push(true);
     } else {
-      misses.push(
-        `High cost: $${trace.costUsd.toFixed(4)} (max: $${THRESHOLDS.maxCostUsd})`,
-      );
+      misses.push(`High cost: $${trace.costUsd.toFixed(4)} (max: $${THRESHOLDS.maxCostUsd})`);
       checks.push(false);
     }
   }
@@ -71,9 +67,7 @@ export default defineCodeJudge(({ trace }) => {
       hits.push(`Duration (${trace.durationMs}ms) within limit`);
       checks.push(true);
     } else {
-      misses.push(
-        `Slow execution: ${trace.durationMs}ms (max: ${THRESHOLDS.maxDurationMs}ms)`,
-      );
+      misses.push(`Slow execution: ${trace.durationMs}ms (max: ${THRESHOLDS.maxDurationMs}ms)`);
       checks.push(false);
     }
   }

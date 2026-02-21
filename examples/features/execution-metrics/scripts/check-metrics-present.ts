@@ -28,9 +28,7 @@ export default defineCodeJudge(({ trace }) => {
 
   // Check for tokenUsage
   if (trace.tokenUsage) {
-    hits.push(
-      `tokenUsage present: ${trace.tokenUsage.input}/${trace.tokenUsage.output}`,
-    );
+    hits.push(`tokenUsage present: ${trace.tokenUsage.input}/${trace.tokenUsage.output}`);
   } else {
     misses.push('tokenUsage not present');
   }
