@@ -284,7 +284,9 @@ export class CopilotCliProvider implements Provider {
   }
 
   private resolveSystemPrompt(request: ProviderRequest): string | undefined {
-    return this.config.systemPrompt ?? (request.captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT);
+    return (
+      this.config.systemPrompt ?? (request.captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT)
+    );
   }
 
   private async raceWithTimeout(
