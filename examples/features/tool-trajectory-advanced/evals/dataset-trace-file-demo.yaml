@@ -35,14 +35,13 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    execution:
-      evaluators:
-        - name: search-then-fetch
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            - tool: webSearch
-            - tool: fetchPage
+    assert:
+      - name: search-then-fetch
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: webSearch
+          - tool: fetchPage
 
   # =============================================================================
   # Example 2: Exact Sequence Validation
@@ -61,16 +60,15 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    execution:
-      evaluators:
-        - name: exact-workflow
-          type: tool_trajectory
-          mode: exact
-          expected:
-            - tool: webSearch
-            - tool: fetchPage
-            - tool: webSearch
-            - tool: summarize
+    assert:
+      - name: exact-workflow
+        type: tool_trajectory
+        mode: exact
+        expected:
+          - tool: webSearch
+          - tool: fetchPage
+          - tool: webSearch
+          - tool: summarize
 
   # =============================================================================
   # Example 3: Any-Order with Minimums
@@ -89,14 +87,13 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    execution:
-      evaluators:
-        - name: research-depth
-          type: tool_trajectory
-          mode: any_order
-          minimums:
-            webSearch: 2
-            fetchPage: 1
+    assert:
+      - name: research-depth
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          webSearch: 2
+          fetchPage: 1
 
   # =============================================================================
   # Example 4: Tool Input Validation
@@ -115,18 +112,17 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    execution:
-      evaluators:
-        - name: input-validator
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            - tool: webSearch
-              input:
-                query: "ThinkPad X1 Carbon Gen 11 specifications"
-            - tool: fetchPage
-              input:
-                url: "https://www.lenovo.com/thinkpad-x1-carbon-gen11"
+    assert:
+      - name: input-validator
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: webSearch
+            input:
+              query: "ThinkPad X1 Carbon Gen 11 specifications"
+          - tool: fetchPage
+            input:
+              url: "https://www.lenovo.com/thinkpad-x1-carbon-gen11"
 
   # =============================================================================
   # Example 5: Tool Output Validation
@@ -145,20 +141,19 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    execution:
-      evaluators:
-        - name: output-validator
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            - tool: webSearch
-              output:
-                results:
-                  - link: "https://www.lenovo.com/thinkpad-x1-carbon-gen11"
-                    snippet: "14-inch business ultrabook with Intel Core processors"
-            - tool: fetchPage
-              output:
-                title: "ThinkPad X1 Carbon Gen 11 | Premium Business Laptop"
+    assert:
+      - name: output-validator
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: webSearch
+            output:
+              results:
+                - link: "https://www.lenovo.com/thinkpad-x1-carbon-gen11"
+                  snippet: "14-inch business ultrabook with Intel Core processors"
+          - tool: fetchPage
+            output:
+              title: "ThinkPad X1 Carbon Gen 11 | Premium Business Laptop"
 
   # =============================================================================
   # Example 6: Combined Validation (Real-World Pattern)
@@ -252,22 +247,21 @@ tests:
             - "No discrete GPU option"
           confidence: "High"
 
-    execution:
-      evaluators:
-        # Validate the research workflow sequence
-        - name: workflow-validator
-          type: tool_trajectory
-          mode: exact
-          expected:
-            - tool: webSearch
-            - tool: fetchPage
-            - tool: webSearch
-            - tool: summarize
+    assert:
+      # Validate the research workflow sequence
+      - name: workflow-validator
+        type: tool_trajectory
+        mode: exact
+        expected:
+          - tool: webSearch
+          - tool: fetchPage
+          - tool: webSearch
+          - tool: summarize
 
-        # Ensure adequate research depth
-        - name: research-depth
-          type: tool_trajectory
-          mode: any_order
-          minimums:
-            webSearch: 2
-            fetchPage: 1
+      # Ensure adequate research depth
+      - name: research-depth
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          webSearch: 2
+          fetchPage: 1

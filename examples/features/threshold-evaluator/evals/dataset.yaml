@@ -18,26 +18,25 @@ tests:
           Renewable energy reduces greenhouse gas emissions, lowers long-term energy costs, and decreases dependence on finite fossil fuels.
     criteria: |
       The response should be accurate, concise, and cover key benefits of renewable energy.
-    execution:
-      evaluators:
-        - name: flexible_gate
-          type: composite
-          aggregator:
-            type: threshold
-            threshold: 0.5
-          evaluators:
-            - name: accuracy_check
-              type: llm_judge
-              prompt: |
-                Evaluate whether the response accurately describes the benefits of renewable energy.
-                Score 1.0 if factually correct, 0.5 if mostly correct, 0.0 if contains errors.
-            - name: completeness_check
-              type: llm_judge
-              prompt: |
-                Evaluate whether the response covers at least 3 key benefits of renewable energy.
-                Score 1.0 if comprehensive, 0.5 if partially complete, 0.0 if missing major points.
-            - name: conciseness_check
-              type: llm_judge
-              prompt: |
-                Evaluate whether the response is concise and well-structured.
-                Score 1.0 if concise and clear, 0.5 if acceptable, 0.0 if verbose or disorganized.
+    assert:
+      - name: flexible_gate
+        type: composite
+        aggregator:
+          type: threshold
+          threshold: 0.5
+        assert:
+          - name: accuracy_check
+            type: llm_judge
+            prompt: |
+              Evaluate whether the response accurately describes the benefits of renewable energy.
+              Score 1.0 if factually correct, 0.5 if mostly correct, 0.0 if contains errors.
+          - name: completeness_check
+            type: llm_judge
+            prompt: |
+              Evaluate whether the response covers at least 3 key benefits of renewable energy.
+              Score 1.0 if comprehensive, 0.5 if partially complete, 0.0 if missing major points.
+          - name: conciseness_check
+            type: llm_judge
+            prompt: |
+              Evaluate whether the response is concise and well-structured.
+              Score 1.0 if concise and clear, 0.5 if acceptable, 0.0 if verbose or disorganized.

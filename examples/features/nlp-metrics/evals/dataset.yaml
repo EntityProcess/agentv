@@ -19,11 +19,10 @@ tests:
       - role: assistant
         content: The quick brown fox jumps over the lazy dog near the river bank.
 
-    execution:
-      evaluators:
-        - name: rouge-score
-          type: code_judge
-          script: ["bun", "run", "../judges/rouge.ts"]
+    assert:
+      - name: rouge-score
+        type: code_judge
+        script: ["bun", "run", "../judges/rouge.ts"]
 
   - id: translation-bleu
     criteria: Translation preserves meaning and word choice of the reference.
@@ -36,11 +35,10 @@ tests:
       - role: assistant
         content: The cat sat on the mat and watched the birds in the garden.
 
-    execution:
-      evaluators:
-        - name: bleu-score
-          type: code_judge
-          script: ["bun", "run", "../judges/bleu.ts"]
+    assert:
+      - name: bleu-score
+        type: code_judge
+        script: ["bun", "run", "../judges/bleu.ts"]
 
   - id: paraphrase-similarity
     criteria: Paraphrase conveys the same meaning as the reference.
@@ -53,11 +51,10 @@ tests:
       - role: assistant
         content: Machine learning models require large amounts of training data to perform well.
 
-    execution:
-      evaluators:
-        - name: cosine-similarity
-          type: code_judge
-          script: ["bun", "run", "../judges/similarity.ts"]
+    assert:
+      - name: cosine-similarity
+        type: code_judge
+        script: ["bun", "run", "../judges/similarity.ts"]
 
   - id: extraction-levenshtein
     criteria: Extracted text closely matches the expected value.
@@ -70,11 +67,10 @@ tests:
       - role: assistant
         content: "Widget Pro 3000"
 
-    execution:
-      evaluators:
-        - name: edit-distance
-          type: code_judge
-          script: ["bun", "run", "../judges/levenshtein.ts"]
+    assert:
+      - name: edit-distance
+        type: code_judge
+        script: ["bun", "run", "../judges/levenshtein.ts"]
 
   - id: multi-metric-evaluation
     criteria: Response is evaluated by multiple NLP metrics simultaneously.
@@ -87,14 +83,13 @@ tests:
       - role: assistant
         content: Artificial intelligence is transforming healthcare by enabling faster diagnosis and personalised treatment plans.
 
-    execution:
-      evaluators:
-        - name: rouge-score
-          type: code_judge
-          script: ["bun", "run", "../judges/rouge.ts"]
-        - name: cosine-similarity
-          type: code_judge
-          script: ["bun", "run", "../judges/similarity.ts"]
-        - name: edit-distance
-          type: code_judge
-          script: ["bun", "run", "../judges/levenshtein.ts"]
+    assert:
+      - name: rouge-score
+        type: code_judge
+        script: ["bun", "run", "../judges/rouge.ts"]
+      - name: cosine-similarity
+        type: code_judge
+        script: ["bun", "run", "../judges/similarity.ts"]
+      - name: edit-distance
+        type: code_judge
+        script: ["bun", "run", "../judges/levenshtein.ts"]

@@ -49,14 +49,13 @@ tests:
       - role: user
         content: Read the config.json file.
 
-    execution:
-      evaluators:
-        - name: fast-read
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            - tool: Read
-              max_duration_ms: 200  # Allow 200ms (actual ~45ms)
+    assert:
+      - name: fast-read
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: Read
+            max_duration_ms: 200  # Allow 200ms (actual ~45ms)
 
   # ==========================================
   # Example 2: Latency assertion - FAIL
@@ -70,14 +69,13 @@ tests:
       - role: user
         content: Read the large-file.json.
 
-    execution:
-      evaluators:
-        - name: slow-read
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            - tool: Read
-              max_duration_ms: 10  # Very tight budget (actual ~45ms)
+    assert:
+      - name: slow-read
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: Read
+            max_duration_ms: 10  # Very tight budget (actual ~45ms)
 
   # ==========================================
   # Example 3: Mixed sequence with latency
@@ -92,19 +90,18 @@ tests:
       - role: user
         content: Process the customer data from the API.
 
-    execution:
-      evaluators:
-        - name: data-pipeline-perf
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            - tool: fetchData
-              max_duration_ms: 1000  # Network call can take up to 1s
-            - tool: validateSchema      # No latency requirement
-            - tool: transformData
-              max_duration_ms: 500   # Transform should be fast
-            - tool: saveResults
-              max_duration_ms: 200   # Saves should be quick
+    assert:
+      - name: data-pipeline-perf
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: fetchData
+            max_duration_ms: 1000  # Network call can take up to 1s
+          - tool: validateSchema      # No latency requirement
+          - tool: transformData
+            max_duration_ms: 500   # Transform should be fast
+          - tool: saveResults
+            max_duration_ms: 200   # Saves should be quick
 
   # ==========================================
   # Example 4: Exact mode with latency assertions
@@ -118,18 +115,17 @@ tests:
       - role: user
         content: Authenticate the user with provided credentials.
 
-    execution:
-      evaluators:
-        - name: auth-perf
-          type: tool_trajectory
-          mode: exact
-          expected:
-            - tool: checkCredentials
-              max_duration_ms: 100  # Credential check should be fast
-            - tool: generateToken
-              max_duration_ms: 50   # Token generation is quick
-            - tool: auditLog
-              max_duration_ms: 200  # Logging can take longer
+    assert:
+      - name: auth-perf
+        type: tool_trajectory
+        mode: exact
+        expected:
+          - tool: checkCredentials
+            max_duration_ms: 100  # Credential check should be fast
+          - tool: generateToken
+            max_duration_ms: 50   # Token generation is quick
+          - tool: auditLog
+            max_duration_ms: 200  # Logging can take longer
 
   # ==========================================
   # Example 5: Combined with argument matching
@@ -143,17 +139,16 @@ tests:
       - role: user
         content: What's the weather like in Paris?
 
-    execution:
-      evaluators:
-        - name: weather-perf
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            - tool: search
-              args:
-                query: "weather Paris"
-              max_duration_ms: 500
-            - tool: get_weather
-              args:
-                location: "Paris"
-              max_duration_ms: 1000
+    assert:
+      - name: weather-perf
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: search
+            args:
+              query: "weather Paris"
+            max_duration_ms: 500
+          - tool: get_weather
+            args:
+              location: "Paris"
+            max_duration_ms: 1000

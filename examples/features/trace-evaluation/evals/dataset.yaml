@@ -21,14 +21,13 @@ tests:
       - role: user
         content: Summarize the key points of this document.
 
-    execution:
-      evaluators:
-        - name: span-count
-          type: code_judge
-          script: ["bun", "run", "../judges/span-count.ts"]
-          config:
-            maxLlmCalls: 5
-            maxToolCalls: 10
+    assert:
+      - name: span-count
+        type: code_judge
+        script: ["bun", "run", "../judges/span-count.ts"]
+        config:
+          maxLlmCalls: 5
+          maxToolCalls: 10
 
   # ==========================================
   # Error Spans - detect errors in traces
@@ -41,13 +40,12 @@ tests:
       - role: user
         content: Look up the weather forecast for today.
 
-    execution:
-      evaluators:
-        - name: error-check
-          type: code_judge
-          script: ["bun", "run", "../judges/error-spans.ts"]
-          config:
-            maxErrors: 0
+    assert:
+      - name: error-check
+        type: code_judge
+        script: ["bun", "run", "../judges/error-spans.ts"]
+        config:
+          maxErrors: 0
 
   # ==========================================
   # Error Spans with forbidden tools
@@ -61,16 +59,15 @@ tests:
       - role: user
         content: Answer the question using only approved data sources.
 
-    execution:
-      evaluators:
-        - name: error-and-tool-check
-          type: code_judge
-          script: ["bun", "run", "../judges/error-spans.ts"]
-          config:
-            maxErrors: 0
-            forbiddenTools:
-              - execute_code
-              - shell_command
+    assert:
+      - name: error-and-tool-check
+        type: code_judge
+        script: ["bun", "run", "../judges/error-spans.ts"]
+        config:
+          maxErrors: 0
+          forbiddenTools:
+            - execute_code
+            - shell_command
 
   # ==========================================
   # Span Duration - no step exceeds threshold
@@ -84,14 +81,13 @@ tests:
       - role: user
         content: Retrieve and format the latest sales data.
 
-    execution:
-      evaluators:
-        - name: duration-check
-          type: code_judge
-          script: ["bun", "run", "../judges/span-duration.ts"]
-          config:
-            maxSpanMs: 3000
-            maxTotalMs: 15000
+    assert:
+      - name: duration-check
+        type: code_judge
+        script: ["bun", "run", "../judges/span-duration.ts"]
+        config:
+          maxSpanMs: 3000
+          maxTotalMs: 15000
 
   # ==========================================
   # Combined - all trace checks together
@@ -105,21 +101,20 @@ tests:
       - role: user
         content: Process this data and generate a summary report.
 
-    execution:
-      evaluators:
-        - name: span-count
-          type: code_judge
-          script: ["bun", "run", "../judges/span-count.ts"]
-          config:
-            maxLlmCalls: 8
-            maxToolCalls: 20
+    assert:
+      - name: span-count
+        type: code_judge
+        script: ["bun", "run", "../judges/span-count.ts"]
+        config:
+          maxLlmCalls: 8
+          maxToolCalls: 20
 
-        - name: error-check
-          type: code_judge
-          script: ["bun", "run", "../judges/error-spans.ts"]
+      - name: error-check
+        type: code_judge
+        script: ["bun", "run", "../judges/error-spans.ts"]
 
-        - name: duration-check
-          type: code_judge
-          script: ["bun", "run", "../judges/span-duration.ts"]
-          config:
-            maxSpanMs: 5000
+      - name: duration-check
+        type: code_judge
+        script: ["bun", "run", "../judges/span-duration.ts"]
+        config:
+          maxSpanMs: 5000

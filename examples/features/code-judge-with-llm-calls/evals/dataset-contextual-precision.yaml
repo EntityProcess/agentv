@@ -17,15 +17,14 @@
 #   mixed-ranking: ~0.833 (2 relevant nodes with 1 irrelevant between)
 #   relevant-node-last: ~0.333 (relevant node ranked last — worst case)
 
-execution:
-  evaluators:
-    - name: contextual_precision
-      type: code_judge
-      script: [bun, run, ../scripts/contextual-precision.ts]
-      # Target access config - allows script to invoke configured targets
-      # max_calls should be >= number of retrieval context nodes
-      target:
-        max_calls: 10
+assert:
+  - name: contextual_precision
+    type: code_judge
+    script: [bun, run, ../scripts/contextual-precision.ts]
+    # Target access config - allows script to invoke configured targets
+    # max_calls should be >= number of retrieval context nodes
+    target:
+      max_calls: 10
 
 tests:
   # Test case 1: Perfect ranking - relevant node first

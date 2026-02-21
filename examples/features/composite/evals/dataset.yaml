@@ -17,22 +17,21 @@ tests:
           Machine learning is a subset of AI that enables systems to learn from data and improve performance without explicit programming. It uses algorithms to identify patterns, make predictions, and adapt based on experience.
     criteria: |
       The response should be both concise and detailed, balancing brevity with informative content.
-    execution:
-      evaluators:
-        - name: release_gate
-          type: composite
-          evaluators:
-            - name: safety
-              type: llm_judge
-              prompt: ../prompts/safety-check.md
-            - name: quality
-              type: llm_judge
-              prompt: ../prompts/quality-evaluation.md
-          aggregator:
-            type: weighted_average
-            weights:
-              safety: 0.3
-              quality: 0.7
+    assert:
+      - name: release_gate
+        type: composite
+        assert:
+          - name: safety
+            type: llm_judge
+            prompt: ../prompts/safety-check.md
+          - name: quality
+            type: llm_judge
+            prompt: ../prompts/quality-evaluation.md
+        aggregator:
+          type: weighted_average
+          weights:
+            safety: 0.3
+            quality: 0.7
 
   # Example 2: Code Judge Aggregator (Safety Gate Pattern)
   - id: code-judge-safety-gate
@@ -45,20 +44,19 @@ tests:
           Quantum computing uses quantum bits (qubits) that can exist in multiple states simultaneously, unlike classical bits that are either 0 or 1. This property, called superposition, along with entanglement, allows quantum computers to solve certain complex problems exponentially faster than classical computers.
     criteria: |
       The response should be accurate, accessible to non-experts, and pass safety checks.
-    execution:
-      evaluators:
-        - name: safety_gate
-          type: composite
-          evaluators:
-            - name: safety
-              type: llm_judge
-              prompt: ../prompts/safety-check-strict.md
-            - name: quality
-              type: llm_judge
-              prompt: ../prompts/technical-accuracy.md
-          aggregator:
-            type: code_judge
-            path: node ../scripts/safety-gate-aggregator.js
+    assert:
+      - name: safety_gate
+        type: composite
+        assert:
+          - name: safety
+            type: llm_judge
+            prompt: ../prompts/safety-check-strict.md
+          - name: quality
+            type: llm_judge
+            prompt: ../prompts/technical-accuracy.md
+        aggregator:
+          type: code_judge
+          path: node ../scripts/safety-gate-aggregator.js
 
   # Example 3: LLM Judge Aggregator
   - id: llm-judge-conflict-resolution
@@ -72,20 +70,19 @@ tests:
           Premium wireless headphones featuring active noise cancellation, 30-hour battery life, premium sound quality with enhanced bass, comfortable over-ear design, and seamless Bluetooth 5.0 connectivity.
     criteria: |
       The response should balance conciseness with detail effectively.
-    execution:
-      evaluators:
-        - name: final_decision
-          type: composite
-          evaluators:
-            - name: conciseness
-              type: llm_judge
-              prompt: ../prompts/conciseness-check.md
-            - name: detail
-              type: llm_judge
-              prompt: ../prompts/detail-check.md
-          aggregator:
+    assert:
+      - name: final_decision
+        type: composite
+        assert:
+          - name: conciseness
             type: llm_judge
-            prompt: ../prompts/conflict-resolution.md
+            prompt: ../prompts/conciseness-check.md
+          - name: detail
+            type: llm_judge
+            prompt: ../prompts/detail-check.md
+        aggregator:
+          type: llm_judge
+          prompt: ../prompts/conflict-resolution.md
 
   # Example 4: Nested Composite Evaluators
   - id: nested-composite
@@ -98,30 +95,29 @@ tests:
           Supervised learning uses labeled training data to learn patterns and make predictions, like classifying emails as spam or not spam. Unsupervised learning finds patterns in unlabeled data without predefined categories, like customer segmentation or anomaly detection.
     criteria: |
       The response should be accurate, clear, safe, and appropriately detailed.
-    execution:
-      evaluators:
-        - name: comprehensive_evaluation
-          type: composite
-          evaluators:
-            - name: content_quality
-              type: composite
-              evaluators:
-                - name: accuracy
-                  type: llm_judge
-                  prompt: ../prompts/accuracy-check.md
-                - name: clarity
-                  type: llm_judge
-                  prompt: ../prompts/clarity-check.md
-              aggregator:
-                type: weighted_average
-                weights:
-                  accuracy: 0.6
-                  clarity: 0.4
-            - name: safety
-              type: llm_judge
-              prompt: ../prompts/safety-verification.md
-          aggregator:
-            type: weighted_average
-            weights:
-              content_quality: 0.7
-              safety: 0.3
+    assert:
+      - name: comprehensive_evaluation
+        type: composite
+        assert:
+          - name: content_quality
+            type: composite
+            assert:
+              - name: accuracy
+                type: llm_judge
+                prompt: ../prompts/accuracy-check.md
+              - name: clarity
+                type: llm_judge
+                prompt: ../prompts/clarity-check.md
+            aggregator:
+              type: weighted_average
+              weights:
+                accuracy: 0.6
+                clarity: 0.4
+          - name: safety
+            type: llm_judge
+            prompt: ../prompts/safety-verification.md
+        aggregator:
+          type: weighted_average
+          weights:
+            content_quality: 0.7
+            safety: 0.3

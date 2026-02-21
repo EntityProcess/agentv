@@ -24,7 +24,7 @@ tests:
       Implement the add, multiply, and fibonacci functions in src/index.ts.
       The function signatures are already defined — replace the throw statements
       with working implementations.
-    evaluators:
+    assert:
       - name: functional-check
         type: code_judge
         script: ["bun", "run", "../scripts/functional-check.ts"]

@@ -27,7 +27,7 @@ tests:
           - type: text
             value: Edit hello.txt and config.json, create src/utils.ts and tests/main.test.ts, delete obsolete.log.
 
-    evaluators:
+    assert:
       - name: check-edits-and-creates
         type: code_judge
         script: ["uv", "run", "../check_file_changes.py"]
@@ -47,7 +47,7 @@ tests:
           - type: text
             value: Edit hello.txt and config.json, create src/utils.ts and tests/main.test.ts, delete obsolete.log.
 
-    evaluators:
+    assert:
       - name: check-deletes-and-structure
         type: code_judge
         script: ["uv", "run", "../check_file_changes.py"]

@@ -19,10 +19,11 @@ description: Export control risk classification eval for trade compliance screen
 
 execution:
   target: default
-  evaluators:
-    - name: risk_assessment_quality
-      type: code_judge
-      script: ["bun", "run", "validate_risk_output.ts"]
+
+assert:
+  - name: risk_assessment_quality
+    type: code_judge
+    script: ["bun", "run", "validate_risk_output.ts"]
 
 tests:
   # ============================================

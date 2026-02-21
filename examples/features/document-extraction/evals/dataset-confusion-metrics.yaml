@@ -29,17 +29,18 @@ description: Header field confusion metrics (TP/TN/FP/FN aggregation)
 
 execution:
   target: mock_extractor
-  evaluators:
-    - name: header_confusion
-      type: code_judge
-      script: ["bun", "run", "../judges/header_confusion_metrics.ts"]
-      fields:
-        - path: invoice_number
-        - path: invoice_date
-        - path: currency
-        - path: supplier.name
-        - path: importer.name
-        - path: gross_total
+
+assert:
+  - name: header_confusion
+    type: code_judge
+    script: ["bun", "run", "../judges/header_confusion_metrics.ts"]
+    fields:
+      - path: invoice_number
+      - path: invoice_date
+      - path: currency
+      - path: supplier.name
+      - path: importer.name
+      - path: gross_total
 
 tests:
   # ============================================
