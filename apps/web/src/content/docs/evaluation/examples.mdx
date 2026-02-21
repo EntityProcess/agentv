@@ -29,7 +29,7 @@ tests:
 
 Use multipart content to attach files alongside text prompts:
 
-```yaml
+````yaml
 description: Code review with guidelines
 execution:
   target: azure_base
@@ -67,7 +67,7 @@ tests:
               query = "SELECT * FROM users WHERE id = ?"
               return db.execute(query, (user_id,))
           ```
-```
+````
 
 ## Multi-Evaluator
 
@@ -168,7 +168,7 @@ tests:
 
 Test multi-turn interactions where intermediate messages set context:
 
-```yaml
+````yaml
 description: Multi-turn debugging session with clarifying questions
 execution:
   target: default
@@ -223,7 +223,7 @@ tests:
                   result.append(item)
               return result
           ```
-```
+````
 
 ## Batch CLI
 
