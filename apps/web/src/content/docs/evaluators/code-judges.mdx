@@ -94,11 +94,10 @@ console.log(JSON.stringify({
 ## Referencing in Eval Files
 
 ```yaml
-execution:
-  evaluators:
-    - name: my_validator
-      type: code_judge
-      script: ./validators/check_answer.py
+assert:
+  - name: my_validator
+    type: code_judge
+    script: ./validators/check_answer.py
 ```
 
 ## @agentv/eval SDK
@@ -140,7 +139,7 @@ Code judges can call an LLM through a target proxy for metrics that require mult
 Add a `target` block to the evaluator config:
 
 ```yaml
-evaluators:
+assert:
   - name: contextual-precision
     type: code_judge
     script: bun scripts/contextual-precision.ts
@@ -287,7 +286,7 @@ tests:
   - id: implement-feature
     criteria: Agent implements the feature correctly
     input: "Implement the TODO functions in src/index.ts"
-    evaluators:
+    assert:
       - name: functional-check
         type: code_judge
         script: bun scripts/functional-check.ts

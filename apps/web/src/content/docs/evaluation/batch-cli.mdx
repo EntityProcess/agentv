@@ -53,12 +53,11 @@ tests:
             name: Example A
             amount: 5000
 
-    execution:
-      evaluators:
-        - name: decision-check
-          type: code_judge
-          script: bun run ./scripts/check-output.ts
-          cwd: .
+    assert:
+      - name: decision-check
+        type: code_judge
+        script: bun run ./scripts/check-output.ts
+        cwd: .
 
   - id: case-002
     criteria: |-
@@ -82,12 +81,11 @@ tests:
             name: Example B
             amount: 25000
 
-    execution:
-      evaluators:
-        - name: decision-check
-          type: code_judge
-          script: bun run ./scripts/check-output.ts
-          cwd: .
+    assert:
+      - name: decision-check
+        type: code_judge
+        script: bun run ./scripts/check-output.ts
+        cwd: .
 ```
 
 ## Batch Runner Contract

@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-Rubrics define structured evaluation criteria directly in your tests. They support binary checklist grading and score-range analytic grading.
+Rubrics are defined with `assert` entries using `type: rubrics`. They support binary checklist grading and score-range analytic grading.
 
 ## Basic Usage
 
@@ -16,10 +16,12 @@ tests:
   - id: quicksort-explain
     criteria: Explain how quicksort works
     input: Explain quicksort algorithm
-    rubrics:
-      - Mentions divide-and-conquer approach
-      - Explains partition step
-      - States time complexity
+    assert:
+      - type: rubrics
+        criteria:
+          - Mentions divide-and-conquer approach
+          - Explains partition step
+          - States time complexity
 ```
 
 ## Checklist Mode
@@ -27,17 +29,19 @@ tests:
 For fine-grained control, use rubric objects with weights and requirements:
 
 ```yaml
-rubrics:
-  - id: core-concept
-    outcome: Explains divide-and-conquer
-    weight: 2.0
-    required: true
-  - id: partition
-    outcome: Describes partition step
-    weight: 1.5
-  - id: complexity
-    outcome: States O(n log n) average time
-    weight: 1.0
+assert:
+  - type: rubrics
+    criteria:
+      - id: core-concept
+        outcome: Explains divide-and-conquer
+        weight: 2.0
+        required: true
+      - id: partition
+        outcome: Describes partition step
+        weight: 1.5
+      - id: complexity
+        outcome: States O(n log n) average time
+        weight: 1.0
 ```
 
 ### Rubric Object Fields
@@ -56,16 +60,18 @@ rubrics:
 For quality gradients instead of binary pass/fail, use score ranges:
 
 ```yaml
-rubrics:
-  - id: accuracy
-    outcome: Provides correct answer
-    weight: 2.0
-    score_ranges:
-      0: Completely wrong
-      3: Partially correct with major errors
-      5: Mostly correct with minor issues
-      7: Correct with minor omissions
-      10: Perfectly accurate and complete
+assert:
+  - type: rubrics
+    criteria:
+      - id: accuracy
+        outcome: Provides correct answer
+        weight: 2.0
+        score_ranges:
+          0: Completely wrong
+          3: Partially correct with major errors
+          5: Mostly correct with minor issues
+          7: Correct with minor omissions
+          10: Perfectly accurate and complete
 ```
 
 Each criterion is scored 0–10 by the LLM judge with granular feedback.
@@ -111,13 +117,13 @@ tests:
   - id: code-quality
     criteria: Generates correct, clean Python code
     input: Write a fibonacci function
-    rubrics:
-      - Returns correct values for n=0,1,2,10
-      - Uses meaningful variable names
-      - Includes docstring
-    execution:
-      evaluators:
-        - name: syntax_check
-          type: code_judge
-          script: ./validators/check_python.py
+    assert:
+      - type: rubrics
+        criteria:
+          - Returns correct values for n=0,1,2,10
+          - Uses meaningful variable names
+          - Includes docstring
+      - name: syntax_check
+        type: code_judge
+        script: ./validators/check_python.py
 ```

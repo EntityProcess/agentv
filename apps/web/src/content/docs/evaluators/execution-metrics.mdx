@@ -12,7 +12,7 @@ AgentV provides built-in evaluators for checking execution metrics against thres
 The `execution_metrics` evaluator provides declarative threshold-based checks on multiple metrics in a single evaluator.
 
 ```yaml
-evaluators:
+assert:
   - name: efficiency
     type: execution_metrics
     max_tool_calls: 10        # Maximum tool invocations
@@ -50,15 +50,14 @@ tests:
   - id: efficient-research
     criteria: Agent researches and summarizes efficiently
     input: Research the topic and provide a summary
-    execution:
-      evaluators:
-        - name: efficiency
-          type: execution_metrics
-          max_tool_calls: 15
-          max_llm_calls: 5
-          max_tokens: 8000
-          max_cost_usd: 0.10
-          max_duration_ms: 60000
+    assert:
+      - name: efficiency
+        type: execution_metrics
+        max_tool_calls: 15
+        max_llm_calls: 5
+        max_tokens: 8000
+        max_cost_usd: 0.10
+        max_duration_ms: 60000
 ```
 
 ### Example: Exploration Balance
@@ -66,7 +65,7 @@ tests:
 Check that an agent maintains a good balance between reading (exploration) and writing (action):
 
 ```yaml
-evaluators:
+assert:
   - name: exploration-balance
     type: execution_metrics
     target_exploration_ratio: 0.6  # 60% should be read-only tools
@@ -124,16 +123,15 @@ tests:
   - id: code-generation
     criteria: Generates correct, efficient code
     input: Write a sorting algorithm
-    execution:
-      evaluators:
-        # Semantic quality
-        - name: quality
-          type: llm_judge
-          prompt: ./prompts/code-quality.md
+    assert:
+      # Semantic quality
+      - name: quality
+        type: llm_judge
+        prompt: ./prompts/code-quality.md
 
-        # Efficiency constraints
-        - name: efficiency
-          type: execution_metrics
-          max_tool_calls: 10
-          max_duration_ms: 30000
+      # Efficiency constraints
+      - name: efficiency
+        type: execution_metrics
+        max_tool_calls: 10
+        max_duration_ms: 30000
 ```

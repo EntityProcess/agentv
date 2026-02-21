@@ -12,22 +12,21 @@ Composite evaluators combine multiple evaluators and aggregate their results int
 A composite evaluator wraps two or more sub-evaluators and an aggregator that determines the final score:
 
 ```yaml
-execution:
-  evaluators:
-    - name: my_composite
-      type: composite
-      evaluators:
-        - name: evaluator_1
-          type: llm_judge
-          prompt: ./prompts/check1.md
-        - name: evaluator_2
-          type: code_judge
-          script: uv run check2.py
-      aggregator:
-        type: weighted_average
-        weights:
-          evaluator_1: 0.6
-          evaluator_2: 0.4
+assert:
+  - name: my_composite
+    type: composite
+    evaluators:
+      - name: evaluator_1
+        type: llm_judge
+        prompt: ./prompts/check1.md
+      - name: evaluator_2
+        type: code_judge
+        script: uv run check2.py
+    aggregator:
+      type: weighted_average
+      weights:
+        evaluator_1: 0.6
+        evaluator_2: 0.4
 ```
 
 Each sub-evaluator runs independently, then the aggregator combines their results.
@@ -113,20 +112,19 @@ tests:
 
     input: Explain quantum computing
 
-    execution:
-      evaluators:
-        - name: safety_gate
-          type: composite
-          evaluators:
-            - name: safety
-              type: llm_judge
-              prompt: ./prompts/safety-check.md
-            - name: quality
-              type: llm_judge
-              prompt: ./prompts/quality-check.md
-          aggregator:
-            type: code_judge
-            path: ./scripts/safety-gate.js
+    assert:
+      - name: safety_gate
+        type: composite
+        evaluators:
+          - name: safety
+            type: llm_judge
+            prompt: ./prompts/safety-check.md
+          - name: quality
+            type: llm_judge
+            prompt: ./prompts/quality-check.md
+        aggregator:
+          type: code_judge
+          path: ./scripts/safety-gate.js
 ```
 
 The `safety-gate.js` script can return a score of 0.0 whenever the safety evaluator fails, regardless of the quality score.

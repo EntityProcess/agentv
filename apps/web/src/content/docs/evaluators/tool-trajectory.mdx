@@ -14,14 +14,13 @@ Tool trajectory evaluators validate that an agent used the expected tools during
 Validates that each tool was called at least N times, regardless of order:
 
 ```yaml
-execution:
-  evaluators:
-    - name: tool-usage
-      type: tool_trajectory
-      mode: any_order
-      minimums:
-        knowledgeSearch: 2    # Must be called at least twice
-        documentRetrieve: 1   # Must be called at least once
+assert:
+  - name: tool-usage
+    type: tool_trajectory
+    mode: any_order
+    minimums:
+      knowledgeSearch: 2    # Must be called at least twice
+      documentRetrieve: 1   # Must be called at least once
 ```
 
 Use `any_order` when you want to ensure required tools are used but don't care about execution order.
@@ -31,16 +30,15 @@ Use `any_order` when you want to ensure required tools are used but don't care a
 Validates tools appear in the expected sequence, but allows gaps (other tools can appear between expected ones):
 
 ```yaml
-execution:
-  evaluators:
-    - name: workflow-sequence
-      type: tool_trajectory
-      mode: in_order
-      expected:
-        - tool: fetchData
-        - tool: validateSchema
-        - tool: transformData
-        - tool: saveResults
+assert:
+  - name: workflow-sequence
+    type: tool_trajectory
+    mode: in_order
+    expected:
+      - tool: fetchData
+      - tool: validateSchema
+      - tool: transformData
+      - tool: saveResults
 ```
 
 Use `in_order` when you need to verify logical workflow order while allowing the agent to use additional helper tools between steps.
@@ -50,15 +48,14 @@ Use `in_order` when you need to verify logical workflow order while allowing the
 Validates the exact tool sequence with no gaps or extra tools:
 
 ```yaml
-execution:
-  evaluators:
-    - name: auth-sequence
-      type: tool_trajectory
-      mode: exact
-      expected:
-        - tool: checkCredentials
-        - tool: generateToken
-        - tool: auditLog
+assert:
+  - name: auth-sequence
+    type: tool_trajectory
+    mode: exact
+    expected:
+      - tool: checkCredentials
+      - tool: generateToken
+      - tool: auditLog
 ```
 
 Use `exact` for security-critical workflows, strict protocol validation, or regression testing specific behavior.
@@ -68,22 +65,21 @@ Use `exact` for security-critical workflows, strict protocol validation, or regr
 For `in_order` and `exact` modes, you can optionally validate tool arguments:
 
 ```yaml
-execution:
-  evaluators:
-    - name: search-validation
-      type: tool_trajectory
-      mode: in_order
-      expected:
-        # Partial match — only specified keys are checked
-        - tool: search
-          args: { query: "machine learning" }
+assert:
+  - name: search-validation
+    type: tool_trajectory
+    mode: in_order
+    expected:
+      # Partial match — only specified keys are checked
+      - tool: search
+        args: { query: "machine learning" }
 
-        # Skip argument validation for this tool
-        - tool: process
-          args: any
+      # Skip argument validation for this tool
+      - tool: process
+        args: any
 
-        # No args field = no argument validation (same as args: any)
-        - tool: saveResults
+      # No args field = no argument validation (same as args: any)
+      - tool: saveResults
 ```
 
 | Syntax | Behavior |
@@ -97,17 +93,16 @@ execution:
 For `in_order` and `exact` modes, you can validate per-tool timing with `max_duration_ms`:
 
 ```yaml
-execution:
-  evaluators:
-    - name: perf-check
-      type: tool_trajectory
-      mode: in_order
-      expected:
-        - tool: Read
-          max_duration_ms: 100    # Must complete within 100ms
-        - tool: Edit
-          max_duration_ms: 500    # Allow 500ms for edits
-        - tool: Write             # No timing requirement
+assert:
+  - name: perf-check
+    type: tool_trajectory
+    mode: in_order
+    expected:
+      - tool: Read
+        max_duration_ms: 100    # Must complete within 100ms
+      - tool: Edit
+        max_duration_ms: 500    # Allow 500ms for edits
+      - tool: Write             # No timing requirement
 ```
 
 Each `max_duration_ms` assertion counts as a separate scoring aspect. The rules:
@@ -194,25 +189,24 @@ tests:
 
     input: Research machine learning frameworks
 
-    execution:
-      evaluators:
-        # Check minimum tool usage
-        - name: coverage
-          type: tool_trajectory
-          mode: any_order
-          minimums:
-            webSearch: 1
-            documentRead: 2
-            noteTaking: 1
+    assert:
+      # Check minimum tool usage
+      - name: coverage
+        type: tool_trajectory
+        mode: any_order
+        minimums:
+          webSearch: 1
+          documentRead: 2
+          noteTaking: 1
 
-        # Check workflow order
-        - name: workflow
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            - tool: webSearch
-            - tool: documentRead
-            - tool: summarize
+      # Check workflow order
+      - name: workflow
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: webSearch
+          - tool: documentRead
+          - tool: summarize
 ```
 
 ### Multi-Step Pipeline
@@ -224,16 +218,15 @@ tests:
 
     input: Process the customer dataset
 
-    execution:
-      evaluators:
-        - name: pipeline-check
-          type: tool_trajectory
-          mode: exact
-          expected:
-            - tool: loadData
-            - tool: validate
-            - tool: transform
-            - tool: export
+    assert:
+      - name: pipeline-check
+        type: tool_trajectory
+        mode: exact
+        expected:
+          - tool: loadData
+          - tool: validate
+          - tool: transform
+          - tool: export
 ```
 
 ### Pipeline with Latency Assertions
@@ -245,19 +238,18 @@ tests:
 
     input: Process the customer dataset quickly
 
-    execution:
-      evaluators:
-        - name: pipeline-perf
-          type: tool_trajectory
-          mode: in_order
-          expected:
-            - tool: loadData
-              max_duration_ms: 1000   # Network fetch within 1s
-            - tool: validate           # No timing requirement
-            - tool: transform
-              max_duration_ms: 500    # Transform must be fast
-            - tool: export
-              max_duration_ms: 200    # Export should be quick
+    assert:
+      - name: pipeline-perf
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: loadData
+            max_duration_ms: 1000   # Network fetch within 1s
+          - tool: validate           # No timing requirement
+          - tool: transform
+            max_duration_ms: 500    # Transform must be fast
+          - tool: export
+            max_duration_ms: 200    # Export should be quick
 ```
 
 ## Best Practices

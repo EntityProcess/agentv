@@ -27,11 +27,11 @@ tests:
 | `criteria` | Yes | Description of what a correct response should contain |
 | `input` | Yes | Input sent to the target (string, object, or message array). Alias: `input` |
 | `expected_output` | No | Expected response for comparison (string, object, or message array). Alias: `expected_output` |
-| `execution` | No | Per-case execution overrides (target, evaluators) |
+| `execution` | No | Per-case execution overrides (for example `target`, `skip_defaults`) |
 | `workspace` | No | Per-case workspace config (overrides suite-level) |
 | `metadata` | No | Arbitrary key-value pairs passed to setup/teardown scripts |
 | `rubrics` | No | Structured evaluation criteria |
-| `assert` | No | Per-test assertion evaluators (alternative to `execution.evaluators`) |
+| `assert` | No | Per-test evaluators |
 | `sidecar` | No | Additional metadata passed to evaluators |
 
 ## Input
@@ -80,36 +80,35 @@ tests:
 
     execution:
       target: gpt4_target
-      evaluators:
-        - name: depth_check
-          type: llm_judge
-          prompt: ./judges/depth.md
+    assert:
+      - name: depth_check
+        type: llm_judge
+        prompt: ./judges/depth.md
 ```
 
-Per-case evaluators are **merged** with root-level `execution.evaluators` — test-specific evaluators run first, then root-level defaults are appended. To opt out of root-level evaluators for a specific test, set `skip_defaults: true`:
+Per-case `assert` evaluators are **merged** with root-level `assert` evaluators — test-specific evaluators run first, then root-level defaults are appended. To opt out of root-level defaults for a specific test, set `execution.skip_defaults: true`:
 
 ```yaml
-execution:
-  evaluators:
-    - name: latency_check
-      type: latency
-      threshold: 5000
+assert:
+  - name: latency_check
+    type: latency
+    threshold: 5000
 
 tests:
   - id: normal-case
     criteria: Returns correct answer
     input: What is 2+2?
-    # Gets latency_check from root-level evaluators
+    # Gets latency_check from root-level assert
 
   - id: special-case
     criteria: Handles edge case
     input: Handle this edge case
     execution:
       skip_defaults: true
-      evaluators:
-        - name: custom_eval
-          type: llm_judge
-      # Does NOT get latency_check
+    assert:
+      - name: custom_eval
+        type: llm_judge
+    # Does NOT get latency_check
 ```
 
 ## Per-Case Workspace Config
@@ -158,7 +157,7 @@ The `metadata` field is included in the stdin JSON passed to setup and teardown 
 
 ## Per-Test Assertions
 
-The `assert` field provides a concise way to attach evaluators directly to a test, as an alternative to nesting them inside `execution.evaluators`. It supports both deterministic assertion types and LLM-based rubric evaluation.
+The `assert` field defines evaluators directly on a test. It supports both deterministic assertion types and LLM-based rubric evaluation.
 
 ### Deterministic Assertions
 
@@ -214,7 +213,7 @@ tests:
 
 ### Required Gates
 
-Any evaluator (in `assert` or `execution.evaluators`) can be marked as `required`. When a required evaluator fails, the overall test verdict is `fail` regardless of the aggregate score.
+Any evaluator in `assert` can be marked as `required`. When a required evaluator fails, the overall test verdict is `fail` regardless of the aggregate score.
 
 | Value | Behavior |
 |-------|----------|
@@ -236,14 +235,13 @@ assert:
 
 Required gates are evaluated after all evaluators run. If any required evaluator falls below its threshold, the verdict is forced to `fail`.
 
-### Assert vs execution.evaluators
+### Assert Merge Behavior
 
-`assert` and `execution.evaluators` serve the same purpose — both define evaluators for a test. Choose whichever fits your style:
+`assert` can be defined at both suite and test levels:
 
-- **`assert`**: Flat, concise syntax at the test level. Best for assertion-heavy evals.
-- **`execution.evaluators`**: Nested under `execution`. Useful when you also set `target` or `skip_defaults`.
-
-When both are present on the same test, `assert` takes precedence over `execution.evaluators`. Suite-level `assert` and `execution.evaluators` follow the same merge rules — they are appended to per-test evaluators unless `skip_defaults: true` is set.
+- Per-test `assert` evaluators run first.
+- Suite-level `assert` evaluators are appended automatically.
+- Set `execution.skip_defaults: true` on a test to skip suite-level defaults.
 
 ## Sidecar Metadata
 

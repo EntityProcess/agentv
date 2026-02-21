@@ -44,11 +44,10 @@ tests:
 
     expected_output: "42"
 
-    execution:
-      evaluators:
-        - name: math_check
-          type: code_judge
-          script: ./validators/check_math.py
+    assert:
+      - name: math_check
+        type: code_judge
+        script: ./validators/check_math.py
 ```
 
 ## 5. Run the eval
