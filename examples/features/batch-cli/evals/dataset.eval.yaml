@@ -4,7 +4,7 @@
 # - Tests contain structured `input` objects.
 # - A batch runner converts those objects into a CSV input file.
 # - The CLI provider runs the batch runner once, producing JSONL output.
-# - output_messages in JSONL are automatically converted to trace events for tool_trajectory evaluation.
+# - output in JSONL are automatically converted to trace events for tool_trajectory evaluation.
 
 description: Batch CLI demo (AML screening) using structured input → CSV → JSONL with trace extraction
 
@@ -47,7 +47,7 @@ tests:
         type: code_judge
         script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
         cwd: .
-      # Verify the aml_screening tool was called using trace extracted from output_messages
+      # Verify the aml_screening tool was called using trace extracted from output
       - name: tool-trajectory-check
         type: tool_trajectory
         mode: any_order
@@ -86,7 +86,7 @@ tests:
         type: code_judge
         script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
         cwd: .
-      # Verify the aml_screening tool was called using trace extracted from output_messages
+      # Verify the aml_screening tool was called using trace extracted from output
       - name: tool-trajectory-check
         type: tool_trajectory
         mode: any_order
@@ -125,7 +125,7 @@ tests:
         type: code_judge
         script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
         cwd: .
-      # Verify the aml_screening tool was called using trace extracted from output_messages
+      # Verify the aml_screening tool was called using trace extracted from output
       - name: tool-trajectory-check
         type: tool_trajectory
         mode: any_order
@@ -164,7 +164,7 @@ tests:
         type: code_judge
         script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
         cwd: .
-      # Verify the aml_screening tool was called using trace extracted from output_messages
+      # Verify the aml_screening tool was called using trace extracted from output
       - name: tool-trajectory-check
         type: tool_trajectory
         mode: any_order

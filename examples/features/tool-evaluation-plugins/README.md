@@ -6,7 +6,7 @@ Code judge plugins that compute **F1 scores** over tool calls, comparing expecte
 
 ### `judges/tool-call-f1.ts` — Name-only F1
 
-Computes precision, recall, and F1 by comparing expected tool names against actual tool calls from `outputMessages`.
+Computes precision, recall, and F1 by comparing expected tool names against actual tool calls from `output`.
 
 - **True positive**: expected tool was called
 - **False negative**: expected tool was NOT called

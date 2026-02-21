@@ -2,7 +2,7 @@ import { createWriteStream } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { finished } from 'node:stream/promises';
-import type { OutputMessage, ProviderTokenUsage } from '@agentv/core';
+import type { Message, ProviderTokenUsage } from '@agentv/core';
 import { Mutex } from 'async-mutex';
 
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
@@ -51,10 +51,10 @@ export interface TraceRecord {
  * Extracts trace spans from output messages.
  * Converts tool calls from the agent execution into TraceSpan objects.
  */
-export function extractTraceSpans(outputMessages: readonly OutputMessage[]): readonly TraceSpan[] {
+export function extractTraceSpans(output: readonly Message[]): readonly TraceSpan[] {
   const spans: TraceSpan[] = [];
 
-  for (const message of outputMessages) {
+  for (const message of output) {
     if (message.toolCalls && message.toolCalls.length > 0) {
       for (const toolCall of message.toolCalls) {
         spans.push({
@@ -74,11 +74,11 @@ export function extractTraceSpans(outputMessages: readonly OutputMessage[]): rea
 }
 
 /**
- * Builds a TraceRecord from an EvaluationResult's outputMessages.
+ * Builds a TraceRecord from an EvaluationResult's output.
  */
 export function buildTraceRecord(
   testId: string,
-  outputMessages: readonly OutputMessage[],
+  output: readonly Message[],
   options?: {
     readonly tokenUsage?: ProviderTokenUsage;
     readonly costUsd?: number;
@@ -87,7 +87,7 @@ export function buildTraceRecord(
     readonly durationMs?: number;
   },
 ): TraceRecord {
-  const spans = extractTraceSpans(outputMessages);
+  const spans = extractTraceSpans(output);
 
   return {
     testId,

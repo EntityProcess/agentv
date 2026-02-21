@@ -12,7 +12,7 @@ describe('CodeJudgeInputSchema', () => {
     question: 'What is 2+2?',
     criteria: 'The answer should be 4',
     expectedOutput: [{ role: 'assistant', content: '4' }],
-    candidateAnswer: 'The answer is 4',
+    answer: 'The answer is 4',
     guidelineFiles: [],
     inputFiles: [],
     input: [{ role: 'user', content: 'What is 2+2?' }],
@@ -21,13 +21,13 @@ describe('CodeJudgeInputSchema', () => {
   it('parses valid input', () => {
     const result = CodeJudgeInputSchema.parse(validInput);
     expect(result.question).toBe('What is 2+2?');
-    expect(result.candidateAnswer).toBe('The answer is 4');
+    expect(result.answer).toBe('The answer is 4');
   });
 
-  it('accepts optional traceSummary', () => {
+  it('accepts optional trace', () => {
     const inputWithTrace = {
       ...validInput,
-      traceSummary: {
+      trace: {
         eventCount: 3,
         toolNames: ['read', 'write'],
         toolCallsByName: { read: 2, write: 1 },
@@ -35,17 +35,17 @@ describe('CodeJudgeInputSchema', () => {
       },
     };
     const result = CodeJudgeInputSchema.parse(inputWithTrace);
-    expect(result.traceSummary?.eventCount).toBe(3);
-    expect(result.traceSummary?.toolNames).toEqual(['read', 'write']);
+    expect(result.trace?.eventCount).toBe(3);
+    expect(result.trace?.toolNames).toEqual(['read', 'write']);
   });
 
-  it('accepts null traceSummary', () => {
+  it('accepts null trace', () => {
     const inputWithNullTrace = {
       ...validInput,
-      traceSummary: null,
+      trace: null,
     };
     const result = CodeJudgeInputSchema.parse(inputWithNullTrace);
-    expect(result.traceSummary).toBeNull();
+    expect(result.trace).toBeNull();
   });
 
   it('accepts optional config', () => {
@@ -57,10 +57,10 @@ describe('CodeJudgeInputSchema', () => {
     expect(result.config).toEqual({ maxToolCalls: 10, strictMode: true });
   });
 
-  it('accepts optional outputMessages with toolCalls', () => {
+  it('accepts optional output with toolCalls', () => {
     const inputWithOutput = {
       ...validInput,
-      outputMessages: [
+      output: [
         {
           role: 'assistant',
           content: 'Reading file...',
@@ -69,7 +69,7 @@ describe('CodeJudgeInputSchema', () => {
       ],
     };
     const result = CodeJudgeInputSchema.parse(inputWithOutput);
-    expect(result.outputMessages?.[0].toolCalls?.[0].tool).toBe('read');
+    expect(result.output?.[0].toolCalls?.[0].tool).toBe('read');
   });
 });
 
@@ -171,7 +171,7 @@ describe('Schema type inference', () => {
       question: 'test',
       criteria: 'test',
       expectedOutput: [],
-      candidateAnswer: 'test',
+      answer: 'test',
       guidelineFiles: [],
       inputFiles: [],
       input: [],
@@ -179,8 +179,8 @@ describe('Schema type inference', () => {
 
     // These should all type-check correctly
     const _q: string = input.question;
-    const _c: string = input.candidateAnswer;
-    const _trace: CodeJudgeInput['traceSummary'] = undefined;
+    const _c: string = input.answer;
+    const _trace: CodeJudgeInput['trace'] = undefined;
     const _config: CodeJudgeInput['config'] = null;
 
     expect(input.question).toBe('test');

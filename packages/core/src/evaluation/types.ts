@@ -221,6 +221,8 @@ export type CodeEvaluatorConfig = {
   readonly resolvedCwd?: string;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
   /** Pass-through configuration for the code_judge script (any unrecognized YAML properties) */
   readonly config?: JsonObject;
   /** When present, enables target access for the script via local proxy */
@@ -251,6 +253,8 @@ export type LlmJudgeEvaluatorConfig = {
   readonly rubrics?: readonly RubricItem[];
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
   /** Pass-through configuration for custom evaluator prompts (legacy, prefer prompt.config) */
   readonly config?: Record<string, unknown>;
 };
@@ -316,6 +320,8 @@ export type CompositeEvaluatorConfig = {
   readonly aggregator: CompositeAggregatorConfig;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
 };
 
 /**
@@ -362,6 +368,8 @@ export type FieldAccuracyEvaluatorConfig = {
   readonly aggregation?: FieldAggregationType;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
 };
 
 /**
@@ -375,6 +383,8 @@ export type LatencyEvaluatorConfig = {
   readonly threshold: number;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
 };
 
 /**
@@ -388,6 +398,8 @@ export type CostEvaluatorConfig = {
   readonly budget: number;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
 };
 
 /**
@@ -405,6 +417,8 @@ export type TokenUsageEvaluatorConfig = {
   readonly max_output?: number;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
 };
 
 /**
@@ -431,6 +445,8 @@ export type ExecutionMetricsEvaluatorConfig = {
   readonly exploration_tolerance?: number;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
 };
 
 /**
@@ -458,6 +474,8 @@ export type AgentJudgeEvaluatorConfig = {
   readonly judge_target?: string;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
 };
 
 /**
@@ -470,6 +488,8 @@ export type ContainsEvaluatorConfig = {
   readonly value: string;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
 };
 
 /**
@@ -482,6 +502,8 @@ export type RegexEvaluatorConfig = {
   readonly value: string;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
 };
 
 /**
@@ -493,6 +515,8 @@ export type IsJsonEvaluatorConfig = {
   readonly type: 'is_json';
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
 };
 
 /**
@@ -505,6 +529,8 @@ export type EqualsEvaluatorConfig = {
   readonly value: string;
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
 };
 
 /**
@@ -517,6 +543,8 @@ export type RubricsEvaluatorConfig = {
   readonly criteria: readonly RubricItem[];
   readonly weight?: number;
   readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
 };
 
 export type EvaluatorConfig =
@@ -586,7 +614,7 @@ export interface TrialResult {
   readonly attempt: number;
   readonly score: number;
   readonly verdict: EvaluationVerdict;
-  readonly evaluatorResults?: readonly EvaluatorResult[];
+  readonly scores?: readonly EvaluatorResult[];
   readonly error?: string;
   readonly costUsd?: number;
 }
@@ -637,20 +665,24 @@ export interface EvaluationResult {
   readonly score: number;
   readonly hits: readonly string[];
   readonly misses: readonly string[];
-  readonly candidateAnswer: string;
+  readonly answer: string;
   readonly target: string;
   readonly reasoning?: string;
-  readonly agentProviderRequest?: JsonObject;
-  readonly lmProviderRequest?: JsonObject;
-  readonly evaluatorProviderRequest?: JsonObject;
-  readonly evaluatorResults?: readonly EvaluatorResult[];
+  readonly requests?: {
+    readonly agent?: JsonObject;
+    readonly lm?: JsonObject;
+    readonly evaluator?: JsonObject;
+  };
+  readonly scores?: readonly EvaluatorResult[];
   readonly error?: string;
   /** Lightweight summary of the execution trace (always included when available) */
-  readonly traceSummary?: TraceSummary;
+  readonly trace?: TraceSummary;
   /** Path to the temporary workspace directory (included on failure for debugging) */
   readonly workspacePath?: string;
+  /** Input messages or prompt string sent to the agent */
+  readonly input?: readonly import('./providers/types.js').Message[] | string;
   /** Full output messages from agent execution (only included when --trace flag is set) */
-  readonly outputMessages?: readonly import('./providers/types.js').OutputMessage[];
+  readonly output?: readonly import('./providers/types.js').Message[];
   /** Captured output from workspace setup script */
   readonly setupOutput?: string;
   /** Captured output from workspace teardown script */
@@ -680,7 +712,7 @@ export interface EvaluatorResult {
   readonly reasoning?: string;
   readonly rawRequest?: JsonObject;
   readonly evaluatorProviderRequest?: JsonObject;
-  readonly evaluatorResults?: readonly EvaluatorResult[];
+  readonly scores?: readonly EvaluatorResult[];
   /** Optional structured details from code judges (e.g., TP/TN/FP/FN counts). */
   readonly details?: JsonObject;
 }

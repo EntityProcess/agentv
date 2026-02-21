@@ -305,7 +305,7 @@ function mapResponse(result: TextResult): ProviderResponse {
   return {
     raw: result,
     usage: toJsonObject(result.totalUsage ?? result.usage),
-    outputMessages: [{ role: 'assistant' as const, content }],
+    output: [{ role: 'assistant' as const, content }],
   };
 }
 

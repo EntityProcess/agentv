@@ -115,13 +115,13 @@ The `id` field must match the test `id` for AgentV to route output to the correc
 
 ### Output with Tool Trajectory
 
-To enable `tool_trajectory` evaluation, include `output_messages` with `tool_calls`:
+To enable `tool_trajectory` evaluation, include `output` with `tool_calls`:
 
 ```json
 {
   "id": "case-001",
   "text": "{\"decision\": \"CLEAR\", ...}",
-  "output_messages": [
+  "output": [
     {
       "role": "assistant",
       "tool_calls": [
@@ -140,7 +140,7 @@ To enable `tool_trajectory` evaluation, include `output_messages` with `tool_cal
 }
 ```
 
-AgentV extracts tool calls directly from `output_messages[].tool_calls[]` for `tool_trajectory` evaluators.
+AgentV extracts tool calls directly from `output[].tool_calls[]` for `tool_trajectory` evaluators.
 
 ## Evaluator Implementation
 
@@ -149,7 +149,7 @@ Each test has its own evaluator that validates the batch runner output. The eval
 **Input (stdin):**
 ```json
 {
-  "candidate_answer": "{\"id\":\"case-001\",\"decision\":\"CLEAR\",...}",
+  "answer": "{\"id\":\"case-001\",\"decision\":\"CLEAR\",...}",
   "expected_output": [{"role": "assistant", "content": {"decision": "CLEAR"}}],
   "input": [...]
 }
@@ -171,7 +171,7 @@ Each test has its own evaluator that validates the batch runner output. The eval
 import fs from 'node:fs';
 
 type EvalInput = {
-  candidate_answer?: string;
+  answer?: string;
   expected_output?: Array<{ role: string; content: unknown }>;
 };
 
@@ -183,7 +183,7 @@ function main() {
 
   let candidateDecision: string | undefined;
   try {
-    const parsed = JSON.parse(input.candidate_answer ?? '');
+    const parsed = JSON.parse(input.answer ?? '');
     candidateDecision = parsed.decision;
   } catch {
     candidateDecision = undefined;

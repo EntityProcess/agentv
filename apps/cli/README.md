@@ -169,12 +169,12 @@ Write code judges in Python or TypeScript:
 # validators/check_answer.py
 import json, sys
 data = json.load(sys.stdin)
-candidate_answer = data.get("candidate_answer", "")
+answer = data.get("answer", "")
 
 hits = []
 misses = []
 
-if "42" in candidate_answer:
+if "42" in answer:
     hits.append("Answer contains correct value (42)")
 else:
     misses.append("Answer does not contain expected value (42)")
@@ -248,7 +248,7 @@ Use `${{ VARIABLE_NAME }}` syntax to reference your `.env` file. See `.agentv/ta
 Write validators in any language (Python, TypeScript, Node, etc.):
 
 ```bash
-# Input: stdin JSON with question, criteria, candidate_answer
+# Input: stdin JSON with question, criteria, answer
 # Output: stdout JSON with score (0-1), hits, misses, reasoning
 ```
 

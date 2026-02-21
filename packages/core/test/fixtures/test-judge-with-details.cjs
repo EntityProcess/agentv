@@ -7,14 +7,14 @@ const fs = require('node:fs');
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
 const hasExpected = Array.isArray(input.expected_output);
-const hasCandidate = typeof input.candidate_answer === 'string';
+const hasCandidate = typeof input.answer === 'string';
 
 // Emit details with structured metrics
 console.log(
   JSON.stringify({
     score: hasExpected && hasCandidate ? 0.75 : 0,
     hits: hasExpected ? ['expected_output present'] : [],
-    misses: hasCandidate ? [] : ['candidate_answer missing'],
+    misses: hasCandidate ? [] : ['answer missing'],
     reasoning: 'Testing details passthrough',
     details: {
       metrics: {

@@ -36,7 +36,7 @@ interface ActualCall {
 
 function extractActualCalls(input: CodeJudgeInput): ActualCall[] {
   const calls: ActualCall[] = [];
-  for (const msg of input.outputMessages ?? []) {
+  for (const msg of input.output ?? []) {
     if (msg.role === 'assistant' && msg.toolCalls) {
       for (const call of msg.toolCalls) {
         calls.push({
@@ -62,8 +62,8 @@ function argsMatch(expected: Record<string, unknown>, actual: Record<string, unk
   return true;
 }
 
-export default defineCodeJudge(({ outputMessages, config, ...rest }) => {
-  const rawExpected = config?.expected_tools;
+export default defineCodeJudge(({ output, config, ...rest }) => {
+  const rawExpected = config?.expectedTools ?? config?.expected_tools;
   if (!rawExpected || !Array.isArray(rawExpected) || rawExpected.length === 0) {
     return {
       score: 0,
@@ -76,7 +76,7 @@ export default defineCodeJudge(({ outputMessages, config, ...rest }) => {
     typeof e === 'string' ? { tool: e } : (e as ExpectedTool),
   );
 
-  const input: CodeJudgeInput = { outputMessages, config, ...rest };
+  const input: CodeJudgeInput = { output, config, ...rest };
   const actualCalls = extractActualCalls(input);
 
   // Greedy matching: for each expected tool, find first unmatched actual call

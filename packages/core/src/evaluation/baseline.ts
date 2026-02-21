@@ -5,13 +5,11 @@ import type { EvaluationResult, EvaluatorResult } from './types.js';
  * Uses a denylist approach: new fields are auto-preserved.
  */
 const STRIPPED_TOP_LEVEL_FIELDS = new Set([
-  'candidateAnswer',
-  'lmProviderRequest',
-  'agentProviderRequest',
-  'evaluatorProviderRequest',
-  'traceSummary',
+  'answer',
+  'requests',
+  'trace',
   'workspacePath',
-  'outputMessages',
+  'output',
   'setupOutput',
   'teardownOutput',
   'fileChanges',
@@ -32,7 +30,7 @@ function trimEvaluatorResult(result: EvaluatorResult): EvaluatorResult {
   const trimmed: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(result)) {
     if (STRIPPED_EVALUATOR_FIELDS.has(key)) continue;
-    if (key === 'evaluatorResults' && Array.isArray(value)) {
+    if (key === 'scores' && Array.isArray(value)) {
       trimmed[key] = (value as EvaluatorResult[]).map(trimEvaluatorResult);
     } else {
       trimmed[key] = value;
@@ -52,7 +50,7 @@ export function trimBaselineResult(result: EvaluationResult): EvaluationResult {
   const trimmed: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(result)) {
     if (STRIPPED_TOP_LEVEL_FIELDS.has(key)) continue;
-    if (key === 'evaluatorResults' && Array.isArray(value)) {
+    if (key === 'scores' && Array.isArray(value)) {
       trimmed[key] = (value as EvaluatorResult[]).map(trimEvaluatorResult);
     } else {
       trimmed[key] = value;

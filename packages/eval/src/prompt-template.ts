@@ -68,7 +68,7 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
  *
  * export default definePromptTemplate((ctx) => `
  *   Question: ${ctx.question}
- *   Answer: ${ctx.candidateAnswer}
+ *   Answer: ${ctx.answer}
  *
  *   ${ctx.referenceAnswer ? `Reference: ${ctx.referenceAnswer}` : ''}
  * `);
@@ -82,7 +82,7 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
  *   const rubric = ctx.config?.rubric as string | undefined;
  *   return `
  *     Question: ${ctx.question}
- *     Candidate Answer: ${ctx.candidateAnswer}
+ *     Candidate Answer: ${ctx.answer}
  *     ${rubric ? `\nEvaluation Criteria:\n${rubric}` : ''}
  *   `;
  * });
@@ -94,7 +94,7 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
  *
  * export default definePromptTemplate(async (ctx) => {
  *   // Async operations are supported
- *   return `Question: ${ctx.question}\nAnswer: ${ctx.candidateAnswer}`;
+ *   return `Question: ${ctx.question}\nAnswer: ${ctx.answer}`;
  * });
  * ```
  */

@@ -22,6 +22,7 @@ import {
   ToolTrajectoryEvaluator,
   executeScript,
   isNonEmptyString,
+  negateScore,
   runContainsAssertion,
   runEqualsAssertion,
   runIsJsonAssertion,
@@ -33,7 +34,7 @@ import { createProvider } from './providers/index.js';
 import { type ResolvedTarget, resolveTargetDefinition } from './providers/targets.js';
 import type {
   EnvLookup,
-  OutputMessage,
+  Message,
   Provider,
   ProviderRequest,
   ProviderResponse,
@@ -541,15 +542,15 @@ async function runBatchEvaluation(options: {
     const promptInputs = promptInputsList[i];
     const providerResponse = batchResponse[i];
 
-    // Extract outputMessages from batch response
-    const outputMessages = providerResponse.outputMessages;
+    // Extract output from batch response
+    const output = providerResponse.output;
     const hasExecutionMetrics =
       providerResponse.tokenUsage !== undefined ||
       providerResponse.costUsd !== undefined ||
       providerResponse.durationMs !== undefined;
 
-    const baseSummary = outputMessages
-      ? computeTraceSummary(outputMessages)
+    const baseSummary = output
+      ? computeTraceSummary(output)
       : hasExecutionMetrics
         ? {
             eventCount: 0,
@@ -559,7 +560,7 @@ async function runBatchEvaluation(options: {
           }
         : undefined;
     // Merge execution metrics from provider response
-    const traceSummary = baseSummary
+    const trace = baseSummary
       ? mergeExecutionMetrics(baseSummary, {
           tokenUsage: providerResponse.tokenUsage,
           costUsd: providerResponse.costUsd,
@@ -567,8 +568,8 @@ async function runBatchEvaluation(options: {
         })
       : undefined;
 
-    // Extract candidate from last assistant message in output_messages
-    const candidate = extractLastAssistantContent(outputMessages);
+    // Extract candidate from last assistant message in output
+    const candidate = extractLastAssistantContent(output);
 
     const providerError = extractProviderError(providerResponse);
 
@@ -585,8 +586,8 @@ async function runBatchEvaluation(options: {
         attempt: 0,
         judgeProvider: await resolveJudgeProvider(target),
         agentTimeoutMs,
-        outputMessages,
-        traceSummary,
+        output,
+        trace,
         targetResolver,
         availableTargets,
       });
@@ -817,17 +818,17 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     await cache.set(cacheKey, providerResponse);
   }
 
-  // Extract outputMessages from provider response
-  const outputMessages = providerResponse.outputMessages;
+  // Extract output from provider response
+  const output = providerResponse.output;
 
   const hasExecutionMetrics =
     providerResponse.tokenUsage !== undefined ||
     providerResponse.costUsd !== undefined ||
     providerResponse.durationMs !== undefined;
 
-  // Compute trace summary if outputMessages available. If not, still preserve execution metrics.
-  const baseSummary = outputMessages
-    ? computeTraceSummary(outputMessages)
+  // Compute trace summary if output available. If not, still preserve execution metrics.
+  const baseSummary = output
+    ? computeTraceSummary(output)
     : hasExecutionMetrics
       ? {
           eventCount: 0,
@@ -837,7 +838,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         }
       : undefined;
   // Merge execution metrics from provider response
-  const traceSummary = baseSummary
+  const trace = baseSummary
     ? mergeExecutionMetrics(baseSummary, {
         tokenUsage: providerResponse.tokenUsage,
         costUsd: providerResponse.costUsd,
@@ -845,8 +846,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       })
     : undefined;
 
-  // Extract candidate from last assistant message in output_messages
-  const candidate = extractLastAssistantContent(outputMessages);
+  // Extract candidate from last assistant message in output
+  const candidate = extractLastAssistantContent(output);
 
   // Capture file changes from workspace if baseline was initialized
   let fileChanges: string | undefined;
@@ -891,8 +892,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       attempt,
       judgeProvider,
       agentTimeoutMs,
-      outputMessages,
-      traceSummary,
+      output,
+      trace,
       targetResolver,
       availableTargets,
       fileChanges,
@@ -971,14 +972,14 @@ async function runEvalCaseWithTrials(
     allResults.push(result);
 
     // Extract cost from trace summary if available
-    const trialCost = result.traceSummary?.costUsd;
+    const trialCost = result.trace?.costUsd;
 
     const trialVerdict = scoreToVerdict(result.score);
     const trial: TrialResult = {
       attempt,
       score: result.score,
       verdict: trialVerdict,
-      evaluatorResults: result.evaluatorResults,
+      scores: result.scores,
       error: result.error,
       costUsd: trialCost,
     };
@@ -1010,7 +1011,7 @@ async function runEvalCaseWithTrials(
   const { score, aggregation } = aggregateTrials(trialResults, trialsConfig);
 
   // Use the best-scoring trial's EvaluationResult for metadata (hits, misses, reasoning,
-  // candidateAnswer) so that the result's metadata corresponds to the aggregated score.
+  // answer) so that the result's metadata corresponds to the aggregated score.
   const bestTrialIndex = trialResults.reduce(
     (bestIdx, t, idx) => (t.score > trialResults[bestIdx].score ? idx : bestIdx),
     0,
@@ -1037,8 +1038,8 @@ async function evaluateCandidate(options: {
   readonly attempt: number;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
-  readonly outputMessages?: readonly OutputMessage[];
-  readonly traceSummary?: TraceSummary;
+  readonly output?: readonly Message[];
+  readonly trace?: TraceSummary;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
@@ -1055,8 +1056,8 @@ async function evaluateCandidate(options: {
     attempt,
     judgeProvider,
     agentTimeoutMs,
-    outputMessages,
-    traceSummary,
+    output,
+    trace,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1064,7 +1065,7 @@ async function evaluateCandidate(options: {
   } = options;
 
   const gradeTimestamp = nowFn();
-  const { score, evaluatorResults } = await runEvaluatorsForCase({
+  const { score, scores } = await runEvaluatorsForCase({
     evalCase,
     candidate,
     target,
@@ -1075,8 +1076,8 @@ async function evaluateCandidate(options: {
     now: gradeTimestamp,
     judgeProvider,
     agentTimeoutMs,
-    outputMessages,
-    traceSummary,
+    output,
+    trace,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1085,26 +1086,37 @@ async function evaluateCandidate(options: {
 
   const completedAt = nowFn();
 
-  let agentProviderRequest: JsonObject | undefined;
-  let lmProviderRequest: JsonObject | undefined;
+  let agentRequest: JsonObject | undefined;
+  let lmRequest: JsonObject | undefined;
 
   if (isAgentProvider(provider)) {
-    agentProviderRequest = {
+    agentRequest = {
       question: promptInputs.question,
       guideline_paths: evalCase.guideline_paths,
     } as JsonObject;
   } else {
     if (promptInputs.chatPrompt) {
-      lmProviderRequest = {
+      lmRequest = {
         chat_prompt: promptInputs.chatPrompt as unknown as JsonValue,
       } as JsonObject;
     } else {
-      lmProviderRequest = {
+      lmRequest = {
         question: promptInputs.question,
         guidelines: promptInputs.guidelines,
       } as JsonObject;
     }
   }
+
+  const evaluatorRequest = scores ? undefined : score.evaluatorRawRequest;
+  const requests =
+    agentRequest || lmRequest || evaluatorRequest
+      ? {
+          ...(agentRequest ? { agent: agentRequest } : {}),
+          ...(lmRequest ? { lm: lmRequest } : {}),
+          ...(evaluatorRequest ? { evaluator: evaluatorRequest } : {}),
+        }
+      : undefined;
+  const input = buildResultInput(promptInputs);
 
   return {
     timestamp: completedAt.toISOString(),
@@ -1114,15 +1126,14 @@ async function evaluateCandidate(options: {
     score: score.score,
     hits: score.hits,
     misses: score.misses,
-    candidateAnswer: candidate,
+    answer: candidate,
     target: target.name,
     reasoning: score.reasoning,
-    agentProviderRequest: agentProviderRequest,
-    lmProviderRequest: lmProviderRequest,
-    evaluatorProviderRequest: evaluatorResults ? undefined : score.evaluatorRawRequest,
-    evaluatorResults: evaluatorResults,
-    traceSummary: traceSummary,
-    outputMessages: outputMessages,
+    requests,
+    input,
+    scores: scores,
+    trace: trace,
+    output: output,
     fileChanges,
   };
 }
@@ -1138,13 +1149,13 @@ async function runEvaluatorsForCase(options: {
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
-  readonly outputMessages?: readonly OutputMessage[];
-  readonly traceSummary?: TraceSummary;
+  readonly output?: readonly Message[];
+  readonly trace?: TraceSummary;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
   readonly workspacePath?: string;
-}): Promise<{ score: EvaluationScore; evaluatorResults?: EvaluatorResult[] }> {
+}): Promise<{ score: EvaluationScore; scores?: EvaluatorResult[] }> {
   const {
     evalCase,
     candidate,
@@ -1156,8 +1167,8 @@ async function runEvaluatorsForCase(options: {
     now,
     judgeProvider,
     agentTimeoutMs,
-    outputMessages,
-    traceSummary,
+    output,
+    trace,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1177,8 +1188,8 @@ async function runEvaluatorsForCase(options: {
       now,
       judgeProvider,
       agentTimeoutMs,
-      outputMessages,
-      traceSummary,
+      output,
+      trace,
       targetResolver,
       availableTargets,
       fileChanges,
@@ -1201,8 +1212,8 @@ async function runEvaluatorsForCase(options: {
     promptInputs,
     now,
     judgeProvider,
-    outputMessages,
-    traceSummary,
+    output,
+    trace,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1226,13 +1237,13 @@ async function runEvaluatorList(options: {
   readonly now: Date;
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
-  readonly outputMessages?: readonly OutputMessage[];
-  readonly traceSummary?: TraceSummary;
+  readonly output?: readonly Message[];
+  readonly trace?: TraceSummary;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
   readonly workspacePath?: string;
-}): Promise<{ score: EvaluationScore; evaluatorResults: EvaluatorResult[] }> {
+}): Promise<{ score: EvaluationScore; scores: EvaluatorResult[] }> {
   const {
     evalCase,
     evaluators,
@@ -1245,8 +1256,8 @@ async function runEvaluatorList(options: {
     now,
     judgeProvider,
     agentTimeoutMs,
-    outputMessages,
-    traceSummary,
+    output,
+    trace,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1260,7 +1271,7 @@ async function runEvaluatorList(options: {
     readonly weight?: number;
     readonly required?: boolean | number;
   }> = [];
-  const evaluatorResults: EvaluatorResult[] = [];
+  const scores: EvaluatorResult[] = [];
 
   for (const evaluator of evaluators ?? []) {
     try {
@@ -1276,8 +1287,8 @@ async function runEvaluatorList(options: {
           promptInputs,
           now,
           judgeProvider,
-          outputMessages,
-          traceSummary,
+          output,
+          trace,
           agentTimeoutMs,
           fileChanges,
           workspacePath,
@@ -1290,7 +1301,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
@@ -1320,8 +1331,8 @@ async function runEvaluatorList(options: {
           promptInputs,
           now,
           judgeProvider,
-          outputMessages,
-          traceSummary,
+          output,
+          trace,
           targetResolver,
           availableTargets,
           fileChanges,
@@ -1335,7 +1346,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: 'code_judge',
           score: score.score,
@@ -1444,8 +1455,8 @@ async function runEvaluatorList(options: {
           promptInputs,
           now,
           judgeProvider,
-          outputMessages,
-          traceSummary,
+          output,
+          trace,
           targetResolver,
           availableTargets,
           fileChanges,
@@ -1459,7 +1470,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
@@ -1469,7 +1480,7 @@ async function runEvaluatorList(options: {
           misses: score.misses,
           reasoning: score.reasoning,
           evaluatorProviderRequest: score.evaluatorRawRequest,
-          evaluatorResults: mapChildResults(score.evaluatorResults),
+          scores: mapChildResults(score.scores),
         });
       }
 
@@ -1485,8 +1496,8 @@ async function runEvaluatorList(options: {
           attempt,
           promptInputs,
           now,
-          outputMessages,
-          traceSummary,
+          output,
+          trace,
           fileChanges,
           workspacePath,
         });
@@ -1498,7 +1509,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
@@ -1522,8 +1533,8 @@ async function runEvaluatorList(options: {
           attempt,
           promptInputs,
           now,
-          outputMessages,
-          traceSummary,
+          output,
+          trace,
           fileChanges,
           workspacePath,
         });
@@ -1535,7 +1546,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
@@ -1559,8 +1570,8 @@ async function runEvaluatorList(options: {
           attempt,
           promptInputs,
           now,
-          outputMessages,
-          traceSummary,
+          output,
+          trace,
           fileChanges,
           workspacePath,
         });
@@ -1572,7 +1583,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
@@ -1596,8 +1607,8 @@ async function runEvaluatorList(options: {
           attempt,
           promptInputs,
           now,
-          outputMessages,
-          traceSummary,
+          output,
+          trace,
           fileChanges,
           workspacePath,
         });
@@ -1609,7 +1620,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
@@ -1633,8 +1644,8 @@ async function runEvaluatorList(options: {
           attempt,
           promptInputs,
           now,
-          outputMessages,
-          traceSummary,
+          output,
+          trace,
           fileChanges,
           workspacePath,
         });
@@ -1646,7 +1657,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
@@ -1670,8 +1681,8 @@ async function runEvaluatorList(options: {
           attempt,
           promptInputs,
           now,
-          outputMessages,
-          traceSummary,
+          output,
+          trace,
           fileChanges,
           workspacePath,
         });
@@ -1683,7 +1694,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
@@ -1745,8 +1756,8 @@ async function runEvaluatorList(options: {
           now,
           judgeProvider,
           evaluator: agentJudgeConfig,
-          outputMessages,
-          traceSummary,
+          output,
+          trace,
           fileChanges,
           workspacePath,
         });
@@ -1758,7 +1769,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
@@ -1794,7 +1805,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(containsConfig.required !== undefined ? { required: containsConfig.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
@@ -1828,7 +1839,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(regexConfig.required !== undefined ? { required: regexConfig.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
@@ -1859,7 +1870,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(isJsonConfig.required !== undefined ? { required: isJsonConfig.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
@@ -1893,7 +1904,7 @@ async function runEvaluatorList(options: {
           weight,
           ...(equalsConfig.required !== undefined ? { required: equalsConfig.required } : {}),
         });
-        evaluatorResults.push({
+        scores.push({
           name: evaluator.name,
           type: evaluator.type,
           score: score.score,
@@ -1923,7 +1934,7 @@ async function runEvaluatorList(options: {
         weight,
         ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
       });
-      evaluatorResults.push({
+      scores.push({
         name: evaluator.name ?? 'unknown',
         type: resultType ?? 'llm_judge',
         score: 0,
@@ -1933,6 +1944,24 @@ async function runEvaluatorList(options: {
         misses: [`Evaluator '${evaluator.name ?? 'unknown'}' failed: ${message}`],
         reasoning: message,
       });
+    }
+
+    // Apply negation if configured — inverts score and swaps pass/fail verdict
+    if (evaluator.negate === true && scored.length > 0) {
+      const lastScoredIdx = scored.length - 1;
+      const lastScoresIdx = scores.length - 1;
+      const negated = negateScore(scored[lastScoredIdx].score);
+      scored[lastScoredIdx] = { ...scored[lastScoredIdx], score: negated };
+      if (lastScoresIdx >= 0) {
+        scores[lastScoresIdx] = {
+          ...scores[lastScoresIdx],
+          score: negated.score,
+          verdict: negated.verdict,
+          hits: [...negated.hits],
+          misses: [...negated.misses],
+          reasoning: negated.reasoning,
+        };
+      }
     }
   }
 
@@ -1971,7 +2000,7 @@ async function runEvaluatorList(options: {
     reasoning,
   };
 
-  return { score, evaluatorResults };
+  return { score, scores };
 }
 
 async function runLlmJudgeEvaluator(options: {
@@ -1987,8 +2016,8 @@ async function runLlmJudgeEvaluator(options: {
   readonly promptInputs: PromptInputs;
   readonly now: Date;
   readonly judgeProvider?: Provider;
-  readonly outputMessages?: readonly OutputMessage[];
-  readonly traceSummary?: TraceSummary;
+  readonly output?: readonly Message[];
+  readonly trace?: TraceSummary;
   readonly agentTimeoutMs?: number;
   readonly fileChanges?: string;
   readonly workspacePath?: string;
@@ -2004,8 +2033,8 @@ async function runLlmJudgeEvaluator(options: {
     promptInputs,
     now,
     judgeProvider,
-    outputMessages,
-    traceSummary,
+    output,
+    trace,
     agentTimeoutMs,
     fileChanges,
     workspacePath,
@@ -2015,8 +2044,8 @@ async function runLlmJudgeEvaluator(options: {
     {
       evalCase,
       candidate,
-      outputMessages,
-      traceSummary,
+      output,
+      trace,
       config: config.config,
       fileChanges,
       workspacePath,
@@ -2043,8 +2072,8 @@ async function runLlmJudgeEvaluator(options: {
 interface ResolveCustomPromptContext {
   readonly evalCase: EvalTest;
   readonly candidate: string;
-  readonly outputMessages?: readonly OutputMessage[];
-  readonly traceSummary?: TraceSummary;
+  readonly output?: readonly Message[];
+  readonly trace?: TraceSummary;
   readonly config?: Record<string, unknown>;
   readonly fileChanges?: string;
   readonly workspacePath?: string;
@@ -2108,14 +2137,14 @@ async function executePromptTemplate(
     criteria: context.evalCase.criteria,
     expectedOutput: context.evalCase.expected_output,
     referenceAnswer: context.evalCase.reference_answer,
-    candidateAnswer: context.candidate,
-    outputMessages: context.outputMessages ?? null,
+    answer: context.candidate,
+    output: context.output ?? null,
     guidelineFiles: context.evalCase.guideline_paths,
     inputFiles: context.evalCase.file_paths.filter(
       (p) => !context.evalCase.guideline_paths.includes(p),
     ),
     input: context.evalCase.input,
-    traceSummary: context.traceSummary ?? null,
+    trace: context.trace ?? null,
     fileChanges: context.fileChanges ?? null,
     workspacePath: context.workspacePath ?? null,
     config: config ?? context.config ?? null,
@@ -2228,24 +2257,24 @@ function buildErrorResult(
 ): EvaluationResult {
   const message = error instanceof Error ? error.message : String(error);
 
-  let agentProviderRequest: JsonObject | undefined;
-  let lmProviderRequest: JsonObject | undefined;
+  let agentRequest: JsonObject | undefined;
+  let lmRequest: JsonObject | undefined;
 
   if (isAgentProvider(provider)) {
-    agentProviderRequest = {
+    agentRequest = {
       question: promptInputs.question,
       guideline_paths: evalCase.guideline_paths,
       error: message,
     } as JsonObject;
   } else {
     if (promptInputs.chatPrompt) {
-      lmProviderRequest = {
+      lmRequest = {
         chat_prompt: promptInputs.chatPrompt as unknown as JsonValue,
         guideline_paths: evalCase.guideline_paths,
         error: message,
       } as JsonObject;
     } else {
-      lmProviderRequest = {
+      lmRequest = {
         question: promptInputs.question,
         guidelines: promptInputs.guidelines,
         guideline_paths: evalCase.guideline_paths,
@@ -2253,6 +2282,15 @@ function buildErrorResult(
       } as JsonObject;
     }
   }
+
+  const requests =
+    agentRequest || lmRequest
+      ? {
+          ...(agentRequest ? { agent: agentRequest } : {}),
+          ...(lmRequest ? { lm: lmRequest } : {}),
+        }
+      : undefined;
+  const input = buildResultInput(promptInputs);
 
   return {
     timestamp: timestamp.toISOString(),
@@ -2262,10 +2300,10 @@ function buildErrorResult(
     score: 0,
     hits: [],
     misses: [`Error: ${message}`],
-    candidateAnswer: `Error occurred: ${message}`,
+    answer: `Error occurred: ${message}`,
     target: targetName,
-    agentProviderRequest: agentProviderRequest,
-    lmProviderRequest: lmProviderRequest,
+    requests,
+    input,
     error: message,
   } satisfies EvaluationResult;
 }
@@ -2302,6 +2340,17 @@ function createCacheKey(
     hash.update(JSON.stringify(promptInputs.chatPrompt));
   }
   return hash.digest('hex');
+}
+
+function buildResultInput(promptInputs: PromptInputs): EvaluationResult['input'] {
+  if (promptInputs.chatPrompt) {
+    return promptInputs.chatPrompt.map((message) => ({
+      role: message.role,
+      ...(message.name ? { name: message.name } : {}),
+      content: message.content,
+    }));
+  }
+  return promptInputs.question;
 }
 
 function isTimeoutLike(error: unknown): boolean {
@@ -2341,7 +2390,7 @@ function mapChildResults(
     misses: child.misses,
     reasoning: child.reasoning,
     evaluatorProviderRequest: child.evaluatorRawRequest,
-    evaluatorResults: mapChildResults(child.evaluatorResults),
+    scores: mapChildResults(child.scores),
     details: child.details,
   }));
 }

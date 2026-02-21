@@ -11,20 +11,22 @@ function makeFullResult(overrides: Partial<EvaluationResult> = {}): EvaluationRe
     score: 0.85,
     hits: ['hit-1'],
     misses: ['miss-1'],
-    candidateAnswer: 'A very long candidate answer that bloats the file...',
+    answer: 'A very long candidate answer that bloats the file...',
     target: 'test-target',
     reasoning: 'Good answer',
-    lmProviderRequest: { chat_prompt: [{ role: 'user', content: 'hello' }] },
-    agentProviderRequest: { model: 'gpt-4' },
-    evaluatorProviderRequest: { user_prompt: 'evaluate this', system_prompt: 'you are a judge' },
-    traceSummary: {
+    requests: {
+      lm: { chat_prompt: [{ role: 'user', content: 'hello' }] },
+      agent: { model: 'gpt-4' },
+      evaluator: { user_prompt: 'evaluate this', system_prompt: 'you are a judge' },
+    },
+    trace: {
       event_count: 5,
       tool_names: ['Read'],
       tool_calls_by_name: { Read: 5 },
       error_count: 0,
     },
     workspacePath: '/tmp/workspace-123',
-    outputMessages: [{ role: 'assistant', content: [{ type: 'text', text: 'hello' }] }],
+    output: [{ role: 'assistant', content: [{ type: 'text', text: 'hello' }] }],
     setupOutput: 'setup done',
     teardownOutput: 'teardown done',
     fileChanges: '--- a/file\n+++ b/file\n@@ -1 +1 @@\n-old\n+new',
@@ -64,13 +66,11 @@ describe('trimBaselineResult', () => {
     expect(trimmed.target).toBe(full.target);
     expect(trimmed.reasoning).toBe(full.reasoning);
 
-    expect(trimmed.candidateAnswer).toBeUndefined();
-    expect(trimmed.lmProviderRequest).toBeUndefined();
-    expect(trimmed.agentProviderRequest).toBeUndefined();
-    expect(trimmed.evaluatorProviderRequest).toBeUndefined();
-    expect(trimmed.traceSummary).toBeUndefined();
+    expect(trimmed.answer).toBeUndefined();
+    expect(trimmed.requests).toBeUndefined();
+    expect(trimmed.trace).toBeUndefined();
     expect(trimmed.workspacePath).toBeUndefined();
-    expect(trimmed.outputMessages).toBeUndefined();
+    expect(trimmed.output).toBeUndefined();
     expect(trimmed.setupOutput).toBeUndefined();
     expect(trimmed.teardownOutput).toBeUndefined();
     expect(trimmed.fileChanges).toBeUndefined();
@@ -84,11 +84,11 @@ describe('trimBaselineResult', () => {
 
   it('trims evaluator results', () => {
     const evaluatorResult = makeEvaluatorResult();
-    const full = makeFullResult({ evaluatorResults: [evaluatorResult] });
+    const full = makeFullResult({ scores: [evaluatorResult] });
     const trimmed = trimBaselineResult(full);
 
-    expect(trimmed.evaluatorResults).toHaveLength(1);
-    const er = trimmed.evaluatorResults?.[0];
+    expect(trimmed.scores).toHaveLength(1);
+    const er = trimmed.scores?.[0];
     expect(er.name).toBe('test-evaluator');
     expect(er.type).toBe('llm_judge');
     expect(er.score).toBe(0.9);
@@ -108,17 +108,17 @@ describe('trimBaselineResult', () => {
     const composite = makeEvaluatorResult({
       name: 'composite',
       type: 'composite',
-      evaluatorResults: [inner],
+      scores: [inner],
     });
-    const full = makeFullResult({ evaluatorResults: [composite] });
+    const full = makeFullResult({ scores: [composite] });
     const trimmed = trimBaselineResult(full);
 
-    const outerEr = trimmed.evaluatorResults?.[0];
+    const outerEr = trimmed.scores?.[0];
     expect(outerEr.rawRequest).toBeUndefined();
     expect(outerEr.evaluatorProviderRequest).toBeUndefined();
-    expect(outerEr.evaluatorResults).toHaveLength(1);
+    expect(outerEr.scores).toHaveLength(1);
 
-    const innerEr = outerEr.evaluatorResults?.[0];
+    const innerEr = outerEr.scores?.[0];
     expect(innerEr.name).toBe('inner');
     expect(innerEr.rawRequest).toBeUndefined();
     expect(innerEr.evaluatorProviderRequest).toBeUndefined();
@@ -127,7 +127,7 @@ describe('trimBaselineResult', () => {
 
   it('does not mutate the original result', () => {
     const evaluatorResult = makeEvaluatorResult();
-    const full = makeFullResult({ evaluatorResults: [evaluatorResult] });
+    const full = makeFullResult({ scores: [evaluatorResult] });
     const originalJson = JSON.stringify(full);
 
     trimBaselineResult(full);
@@ -138,7 +138,7 @@ describe('trimBaselineResult', () => {
   it('handles result with no evaluator results', () => {
     const full = makeFullResult();
     const trimmed = trimBaselineResult(full);
-    expect(trimmed.evaluatorResults).toBeUndefined();
+    expect(trimmed.scores).toBeUndefined();
   });
 
   it('preserves unknown future fields (denylist approach)', () => {

@@ -20,7 +20,7 @@
 import { jaroWinklerSimilarity, levenshteinSimilarity } from '../lib/fuzzy_utils';
 
 interface EvalInput {
-  candidate_answer: string;
+  answer: string;
   reference_answer: string;
   criteria: string;
   question: string;
@@ -47,7 +47,7 @@ async function main(): Promise<void> {
   const input: EvalInput = JSON.parse(inputText);
 
   // Extract and normalize strings for comparison
-  const candidate = String(input.candidate_answer || '')
+  const candidate = String(input.answer || '')
     .trim()
     .toLowerCase();
   const expected = String(input.reference_answer || '')
@@ -77,7 +77,7 @@ async function main(): Promise<void> {
       : [
           `Similarity: ${(similarity * 100).toFixed(1)}% < ${SIMILARITY_THRESHOLD * 100}% threshold`,
         ],
-    reasoning: `${ALGORITHM} similarity between "${input.candidate_answer}" and "${input.reference_answer}": ${(similarity * 100).toFixed(1)}%`,
+    reasoning: `${ALGORITHM} similarity between "${input.answer}" and "${input.reference_answer}": ${(similarity * 100).toFixed(1)}%`,
   };
 
   console.log(JSON.stringify(output));

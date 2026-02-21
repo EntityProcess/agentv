@@ -31,7 +31,7 @@ function levenshteinDistance(a: string, b: string): number {
   return prev[n] ?? 0;
 }
 
-export default defineCodeJudge(({ candidateAnswer, referenceAnswer, expectedOutput }) => {
+export default defineCodeJudge(({ answer, referenceAnswer, expectedOutput }) => {
   const reference =
     referenceAnswer ??
     (expectedOutput[0] && typeof expectedOutput[0].content === 'string'
@@ -42,7 +42,7 @@ export default defineCodeJudge(({ candidateAnswer, referenceAnswer, expectedOutp
     return { score: 0, misses: ['No reference text provided'], reasoning: 'Missing reference.' };
   }
 
-  const candNorm = candidateAnswer.trim().toLowerCase();
+  const candNorm = answer.trim().toLowerCase();
   const refNorm = reference.trim().toLowerCase();
 
   const distance = levenshteinDistance(candNorm, refNorm);

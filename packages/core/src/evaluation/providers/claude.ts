@@ -8,7 +8,7 @@ import { recordClaudeLogEntry } from './claude-log-tracker.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { ClaudeResolvedConfig } from './targets.js';
 import type {
-  OutputMessage,
+  Message,
   Provider,
   ProviderRequest,
   ProviderResponse,
@@ -119,7 +119,7 @@ export class ClaudeProvider implements Provider {
 
     // Track state from messages
     const completedToolCalls: ToolCall[] = [];
-    const outputMessages: OutputMessage[] = [];
+    const output: Message[] = [];
     let tokenUsage: ProviderTokenUsage | undefined;
     let costUsd: number | undefined;
     let durationMs: number | undefined;
@@ -148,12 +148,12 @@ export class ClaudeProvider implements Provider {
               const textContent = extractTextContent(content);
               const toolCalls = extractToolCalls(content);
 
-              const outputMsg: OutputMessage = {
+              const outputMsg: Message = {
                 role: 'assistant',
                 content: textContent,
                 toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
               };
-              outputMessages.push(outputMsg);
+              output.push(outputMsg);
               completedToolCalls.push(...toolCalls);
             }
           }
@@ -195,7 +195,7 @@ export class ClaudeProvider implements Provider {
           model: this.config.model,
           logFile: logger?.filePath,
         },
-        outputMessages,
+        output,
         tokenUsage,
         costUsd,
         durationMs: totalDurationMs,

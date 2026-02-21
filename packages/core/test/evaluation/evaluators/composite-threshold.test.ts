@@ -33,7 +33,7 @@ const baseMockProvider = {
   id: 'mock',
   kind: 'mock' as const,
   targetName: 'mock',
-  invoke: async () => ({ outputMessages: [{ role: 'assistant' as const, content: 'test' }] }),
+  invoke: async () => ({ output: [{ role: 'assistant' as const, content: 'test' }] }),
 };
 
 function createContext(): EvaluationContext {
@@ -97,7 +97,7 @@ describe('CompositeEvaluator threshold aggregation', () => {
     const result = await evaluator.evaluate(createContext());
     expect(result.score).toBe(1.0);
     expect(result.verdict).toBe('pass');
-    expect(result.evaluatorResults).toHaveLength(4);
+    expect(result.scores).toHaveLength(4);
   });
 
   it('2/4 pass, threshold 0.5 → pass, score = 0.5', async () => {
@@ -292,7 +292,7 @@ describe('CompositeEvaluator threshold aggregation', () => {
     expect(result.verdict).toBe('fail');
   });
 
-  it('evaluatorResults array included in output', async () => {
+  it('scores array included in output', async () => {
     const factory = createMockFactory({
       a: makeResult('pass', 1.0),
       b: makeResult('fail', 0.3),
@@ -312,9 +312,9 @@ describe('CompositeEvaluator threshold aggregation', () => {
     });
 
     const result = await evaluator.evaluate(createContext());
-    expect(result.evaluatorResults).toBeDefined();
-    expect(result.evaluatorResults).toHaveLength(2);
-    const results = result.evaluatorResults as NonNullable<typeof result.evaluatorResults>;
+    expect(result.scores).toBeDefined();
+    expect(result.scores).toHaveLength(2);
+    const results = result.scores as NonNullable<typeof result.scores>;
     expect(results[0].name).toBe('a');
     expect(results[1].name).toBe('b');
     expect(result.evaluatorRawRequest).toEqual({

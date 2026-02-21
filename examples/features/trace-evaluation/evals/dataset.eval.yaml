@@ -1,7 +1,7 @@
 # Trace-Based Evaluation Examples
 #
 # Demonstrates how to evaluate agent internals (LLM calls, tool executions,
-# errors, and durations) using code judges that inspect traceSummary.
+# errors, and durations) using code judges that inspect trace.
 #
 # Run with:
 #   bun agentv eval examples/features/trace-evaluation/evals/dataset.eval.yaml --dry-run

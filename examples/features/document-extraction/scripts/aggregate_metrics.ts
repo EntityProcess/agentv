@@ -39,13 +39,13 @@ interface EvaluatorResult {
     };
     alignment?: Array<{ expectedIdx: number; parsedIdx: number; similarity: number }>;
   };
-  evaluator_results?: EvaluatorResult[];
+  scores?: EvaluatorResult[];
 }
 
 interface EvaluationResult {
   test_id: string;
   score: number;
-  evaluator_results?: EvaluatorResult[];
+  scores?: EvaluatorResult[];
 }
 
 interface AggregatedMetrics {
@@ -81,8 +81,8 @@ function extractMetricsFromResults(
     // Skip if filter is set and doesn't match
     if (evaluatorFilter && result.name !== evaluatorFilter) {
       // Still process children
-      if (result.evaluator_results) {
-        for (const child of result.evaluator_results) {
+      if (result.scores) {
+        for (const child of result.scores) {
           processResult(child);
         }
       }
@@ -104,8 +104,8 @@ function extractMetricsFromResults(
     }
 
     // Process nested evaluator results
-    if (result.evaluator_results) {
-      for (const child of result.evaluator_results) {
+    if (result.scores) {
+      for (const child of result.scores) {
         processResult(child);
       }
     }
@@ -279,8 +279,8 @@ Example:
       const result = JSON.parse(line) as EvaluationResult;
       lineCount++;
 
-      if (result.evaluator_results) {
-        const metrics = extractMetricsFromResults(result.evaluator_results, evaluatorFilter);
+      if (result.scores) {
+        const metrics = extractMetricsFromResults(result.scores, evaluatorFilter);
         for (const [field, m] of Object.entries(metrics)) {
           if (!aggregated[field]) {
             aggregated[field] = { tp: 0, tn: 0, fp: 0, fn: 0, count: 0 };

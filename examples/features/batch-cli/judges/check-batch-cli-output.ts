@@ -47,14 +47,14 @@ function findExpectedDecisionFromInputMessages(
   return undefined;
 }
 
-export default defineCodeJudge(({ expectedOutput, input, candidateAnswer }) => {
+export default defineCodeJudge(({ expectedOutput, input, answer }) => {
   const expectedDecision =
     findExpectedDecisionFromExpectedMessages(expectedOutput) ??
     findExpectedDecisionFromInputMessages(input);
 
   let candidateObj: unknown;
   try {
-    candidateObj = JSON.parse(candidateAnswer);
+    candidateObj = JSON.parse(answer);
   } catch {
     candidateObj = undefined;
   }

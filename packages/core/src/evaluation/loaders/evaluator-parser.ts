@@ -93,6 +93,8 @@ async function parseEvaluatorList(
       continue;
     }
 
+    const negate = rawEvaluator.negate === true ? true : undefined;
+
     if (typeValue === 'code_judge') {
       let script: string[] | undefined;
       const rawScript = rawEvaluator.script;
@@ -166,7 +168,16 @@ async function parseEvaluatorList(
       const required = parseRequired(rawEvaluator.required);
 
       // Collect unrecognized properties as pass-through config
-      const knownProps = new Set(['name', 'type', 'script', 'cwd', 'weight', 'target', 'required']);
+      const knownProps = new Set([
+        'name',
+        'type',
+        'script',
+        'cwd',
+        'weight',
+        'target',
+        'required',
+        'negate',
+      ]);
       const config: Record<string, JsonValue> = {};
       for (const [key, value] of Object.entries(rawEvaluator)) {
         if (!knownProps.has(key) && value !== undefined) {
@@ -182,6 +193,7 @@ async function parseEvaluatorList(
         resolvedCwd,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
         ...(Object.keys(config).length > 0 ? { config } : {}),
         ...(targetConfig !== undefined ? { target: targetConfig } : {}),
       });
@@ -329,6 +341,7 @@ async function parseEvaluatorList(
         aggregator,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
@@ -409,6 +422,7 @@ async function parseEvaluatorList(
         ...(expected ? { expected } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       };
 
       evaluators.push(config);
@@ -492,6 +506,7 @@ async function parseEvaluatorList(
         ...(validAggregation ? { aggregation: validAggregation } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
@@ -514,6 +529,7 @@ async function parseEvaluatorList(
         threshold,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
@@ -536,6 +552,7 @@ async function parseEvaluatorList(
         budget,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
@@ -584,6 +601,7 @@ async function parseEvaluatorList(
         ...validLimits,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
@@ -662,6 +680,7 @@ async function parseEvaluatorList(
         ...validThresholds,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
@@ -737,6 +756,7 @@ async function parseEvaluatorList(
         ...(judgeTarget ? { judge_target: judgeTarget } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
@@ -755,6 +775,7 @@ async function parseEvaluatorList(
         value,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
@@ -773,6 +794,7 @@ async function parseEvaluatorList(
         value,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
@@ -785,6 +807,7 @@ async function parseEvaluatorList(
         type: 'is_json',
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
@@ -803,6 +826,7 @@ async function parseEvaluatorList(
         value,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
@@ -839,6 +863,7 @@ async function parseEvaluatorList(
         rubrics: parsedCriteria,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
@@ -929,6 +954,7 @@ async function parseEvaluatorList(
         rubrics: parsedRubrics,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
       });
       continue;
     }
@@ -947,6 +973,7 @@ async function parseEvaluatorList(
       'weight',
       'config',
       'required',
+      'negate',
     ]);
     const config: Record<string, JsonValue> = {};
     for (const [key, value] of Object.entries(rawEvaluator)) {
@@ -975,6 +1002,7 @@ async function parseEvaluatorList(
       ...(parsedRubrics && parsedRubrics.length > 0 ? { rubrics: parsedRubrics } : {}),
       ...(weight !== undefined ? { weight } : {}),
       ...(required !== undefined ? { required } : {}),
+      ...(negate !== undefined ? { negate } : {}),
       ...(finalConfig ? { config: finalConfig } : {}),
     });
   }

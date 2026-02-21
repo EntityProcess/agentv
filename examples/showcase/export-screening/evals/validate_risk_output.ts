@@ -59,12 +59,12 @@ function extractExpectedRiskLevel(
   return null;
 }
 
-export default defineCodeJudge(({ candidateAnswer, expectedOutput }) => {
+export default defineCodeJudge(({ answer, expectedOutput }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
   // Parse candidate JSON
-  const parsed = extractJsonFromResponse(candidateAnswer);
+  const parsed = extractJsonFromResponse(answer);
 
   if (parsed === null) {
     return {

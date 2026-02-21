@@ -273,14 +273,14 @@ describe('Code Judge Metrics Integration', () => {
     config: { response: '{}' },
   };
 
-  it('passes traceSummary to code_judge scripts', async () => {
+  it('passes trace to code_judge scripts', async () => {
     // Use external script file for cross-platform compatibility
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-trace-summary.cjs')];
 
     const evaluator = new CodeEvaluator({ script });
 
-    const traceSummary: TraceSummary = {
+    const trace: TraceSummary = {
       eventCount: 3,
       toolNames: ['Read', 'Edit'],
       toolCallsByName: { Read: 2, Edit: 1 },
@@ -297,7 +297,7 @@ describe('Code Judge Metrics Integration', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      traceSummary,
+      trace,
     });
 
     expect(result.score).toBe(1);
@@ -307,7 +307,7 @@ describe('Code Judge Metrics Integration', () => {
     expect(result.hits).toContain('costUsd present');
   });
 
-  it('handles missing traceSummary gracefully', async () => {
+  it('handles missing trace gracefully', async () => {
     // Use external script file for cross-platform compatibility
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-no-trace-summary.cjs')];
@@ -321,7 +321,7 @@ describe('Code Judge Metrics Integration', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      // No traceSummary provided
+      // No trace provided
     });
 
     expect(result.score).toBe(1);

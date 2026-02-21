@@ -24,7 +24,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
   }
 
   evaluate(context: EvaluationContext): EvaluationScore {
-    const { traceSummary } = context;
+    const { trace } = context;
     const {
       max_tool_calls,
       max_llm_calls,
@@ -36,7 +36,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
     } = this.config;
 
     // If no trace summary, we can't evaluate
-    if (!traceSummary) {
+    if (!trace) {
       return {
         score: 0,
         verdict: 'fail',
@@ -58,7 +58,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
 
     // Check max_tool_calls
     if (max_tool_calls !== undefined) {
-      const toolCalls = traceSummary.eventCount;
+      const toolCalls = trace.eventCount;
       actualMetrics.tool_calls = toolCalls;
 
       if (toolCalls <= max_tool_calls) {
@@ -70,7 +70,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
 
     // Check max_llm_calls
     if (max_llm_calls !== undefined) {
-      const llmCalls = traceSummary.llmCallCount;
+      const llmCalls = trace.llmCallCount;
 
       if (llmCalls === undefined) {
         misses.push('LLM call count data not available');
@@ -87,7 +87,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
 
     // Check max_tokens
     if (max_tokens !== undefined) {
-      const tokenUsage = traceSummary.tokenUsage;
+      const tokenUsage = trace.tokenUsage;
 
       if (!tokenUsage) {
         misses.push('Token usage data not available');
@@ -105,7 +105,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
 
     // Check max_cost_usd
     if (max_cost_usd !== undefined) {
-      const costUsd = traceSummary.costUsd;
+      const costUsd = trace.costUsd;
 
       if (costUsd === undefined) {
         misses.push('Cost data not available');
@@ -123,7 +123,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
 
     // Check max_duration_ms
     if (max_duration_ms !== undefined) {
-      const durationMs = traceSummary.durationMs;
+      const durationMs = trace.durationMs;
 
       if (durationMs === undefined) {
         misses.push('Duration data not available');
@@ -140,7 +140,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
 
     // Check target_exploration_ratio
     if (target_exploration_ratio !== undefined) {
-      const ratio = explorationRatio(traceSummary);
+      const ratio = explorationRatio(trace);
 
       if (ratio === undefined) {
         misses.push('Exploration ratio not available (no tool calls)');

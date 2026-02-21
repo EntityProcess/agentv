@@ -76,7 +76,7 @@ describe('createTargetClientInternal', () => {
 describe('TargetClient.invoke', () => {
   it('makes POST request with correct headers', async () => {
     const mockResponse = {
-      outputMessages: [{ role: 'assistant', content: 'test response' }],
+      output: [{ role: 'assistant', content: 'test response' }],
       rawText: 'test response',
     };
 
@@ -102,9 +102,9 @@ describe('TargetClient.invoke', () => {
     fetchSpy.mockRestore();
   });
 
-  it('returns response with outputMessages and rawText', async () => {
+  it('returns response with output and rawText', async () => {
     const mockResponse = {
-      outputMessages: [{ role: 'assistant', content: 'test' }],
+      output: [{ role: 'assistant', content: 'test' }],
       rawText: 'test',
     };
 
@@ -116,7 +116,7 @@ describe('TargetClient.invoke', () => {
     const client = createTargetClientInternal('http://127.0.0.1:3000', 'token');
     const response = await client.invoke({ question: 'test' });
 
-    expect(response.outputMessages).toEqual([{ role: 'assistant', content: 'test' }]);
+    expect(response.output).toEqual([{ role: 'assistant', content: 'test' }]);
     expect(response.rawText).toBe('test');
 
     fetchSpy.mockRestore();
@@ -173,8 +173,8 @@ describe('TargetClient.invokeBatch', () => {
   it('makes POST request to /invokeBatch endpoint', async () => {
     const mockResponse = {
       responses: [
-        { outputMessages: [], rawText: 'response 1' },
-        { outputMessages: [], rawText: 'response 2' },
+        { output: [], rawText: 'response 1' },
+        { output: [], rawText: 'response 2' },
       ],
     };
 
@@ -199,8 +199,8 @@ describe('TargetClient.invokeBatch', () => {
   it('returns array of responses', async () => {
     const mockResponse = {
       responses: [
-        { outputMessages: [], rawText: 'response 1' },
-        { outputMessages: [], rawText: 'response 2' },
+        { output: [], rawText: 'response 1' },
+        { output: [], rawText: 'response 2' },
       ],
     };
 
@@ -328,7 +328,7 @@ describe('TargetClient.getInfo', () => {
 describe('TargetClient.invoke with target override', () => {
   it('includes target in request body when specified', async () => {
     const mockResponse = {
-      outputMessages: [{ role: 'assistant', content: 'test response' }],
+      output: [{ role: 'assistant', content: 'test response' }],
       rawText: 'test response',
     };
 
@@ -361,8 +361,8 @@ describe('TargetClient.invokeBatch with target override', () => {
   it('includes target in each request when specified', async () => {
     const mockResponse = {
       responses: [
-        { outputMessages: [], rawText: 'response 1' },
-        { outputMessages: [], rawText: 'response 2' },
+        { output: [], rawText: 'response 1' },
+        { output: [], rawText: 'response 2' },
       ],
     };
 

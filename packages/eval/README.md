@@ -14,8 +14,8 @@ npm install @agentv/eval
 #!/usr/bin/env bun
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, traceSummary }) => ({
-  score: candidateAnswer.length > 0 ? 1.0 : 0.0,
+export default defineCodeJudge(({ answer, trace }) => ({
+  score: answer.length > 0 ? 1.0 : 0.0,
   hits: ['Output received'],
 }));
 ```
@@ -26,7 +26,7 @@ The `defineCodeJudge` function handles stdin/stdout parsing, snake_case conversi
 
 - `defineCodeJudge(handler)` - Define a code judge evaluator
 - `CodeJudgeInput`, `CodeJudgeResult` - TypeScript types
-- `TraceSummary`, `OutputMessage`, `ToolCall` - Trace data types
+- `TraceSummary`, `Message`, `ToolCall` - Trace data types
 - `z` - Re-exported Zod for custom config schemas
 
 ## Documentation

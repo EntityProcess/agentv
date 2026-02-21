@@ -69,7 +69,7 @@ describe('CodexCliProvider', () => {
 
     const response = await provider.invoke(request);
 
-    expect(extractLastAssistantContent(response.outputMessages)).toBe('done');
+    expect(extractLastAssistantContent(response.output)).toBe('done');
     expect(runner).toHaveBeenCalledTimes(1);
     const invocation = runner.mock.calls[0][0];
     expect(invocation.args.slice(0, 7)).toEqual([
@@ -150,7 +150,7 @@ describe('CodexCliProvider', () => {
     };
 
     const response = await provider.invoke(request);
-    expect(extractLastAssistantContent(response.outputMessages)).toBe('final answer');
+    expect(extractLastAssistantContent(response.output)).toBe('final answer');
   });
 
   it('streams codex output to a readable log file', async () => {

@@ -1,4 +1,4 @@
-import type { OutputMessage } from '../providers/types.js';
+import type { Message } from '../providers/types.js';
 import { TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { EvalTest, LlmJudgeEvaluatorConfig, RubricItem } from '../types.js';
 import type { PromptInputs } from '../yaml-parser.js';
@@ -22,7 +22,7 @@ export function assembleLlmJudgePrompt(input: {
   candidate: string;
   promptInputs: PromptInputs;
   evaluatorConfig?: LlmJudgeEvaluatorConfig;
-  outputMessages?: readonly OutputMessage[];
+  output?: readonly Message[];
   fileChanges?: string;
   evaluatorTemplateOverride?: string;
 }): LlmJudgePromptAssembly {
@@ -70,8 +70,8 @@ function assembleFreeform(
   const variables = {
     [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(evalCase.input_segments, null, 2),
     [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: JSON.stringify(evalCase.expected_output, null, 2),
-    [TEMPLATE_VARIABLES.OUTPUT_MESSAGES]: JSON.stringify([], null, 2),
-    [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: candidate.trim(),
+    [TEMPLATE_VARIABLES.OUTPUT]: JSON.stringify([], null, 2),
+    [TEMPLATE_VARIABLES.ANSWER]: candidate.trim(),
     [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (evalCase.reference_answer ?? '').trim(),
     [TEMPLATE_VARIABLES.CRITERIA]: evalCase.criteria.trim(),
     [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
@@ -121,7 +121,7 @@ function assembleChecklist(
     parts.push('[[ ## reference_answer ## ]]', evalCase.reference_answer, '');
   }
 
-  parts.push('[[ ## candidate_answer ## ]]', candidate, '', '[[ ## rubrics ## ]]');
+  parts.push('[[ ## answer ## ]]', candidate, '', '[[ ## rubrics ## ]]');
 
   for (const rubric of rubrics) {
     const requiredLabel = rubric.required ? ' (REQUIRED)' : '';
@@ -169,7 +169,7 @@ function assembleScoreRange(
     parts.push('[[ ## reference_answer ## ]]', evalCase.reference_answer, '');
   }
 
-  parts.push('[[ ## candidate_answer ## ]]', candidate, '', '[[ ## scoring_criteria ## ]]');
+  parts.push('[[ ## answer ## ]]', candidate, '', '[[ ## scoring_criteria ## ]]');
 
   for (const rubric of rubrics) {
     const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';

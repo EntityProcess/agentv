@@ -18,7 +18,7 @@ import { definePromptTemplate } from '@agentv/eval';
 
 export default definePromptTemplate((ctx) => `
   Question: ${ctx.question}
-  Answer: ${ctx.candidateAnswer}
+  Answer: ${ctx.answer}
 
   ${ctx.referenceAnswer ? `Reference: ${ctx.referenceAnswer}` : ''}
 `);
@@ -29,15 +29,15 @@ The template receives evaluation context via stdin (JSON) and outputs the prompt
 ## Available Context Fields
 
 - `question` - The test question
-- `candidateAnswer` - The agent's response being evaluated
+- `answer` - The agent's response being evaluated
 - `referenceAnswer` - Optional reference answer
 - `criteria` - Optional criteria / expected outcome
 - `expectedOutput` - Optional expected output messages
-- `outputMessages` - Optional output messages from agent
+- `output` - Optional output messages from agent
 - `guidelineFiles` - Paths to guideline files
 - `inputFiles` - Paths to input files
 - `input` - Input messages to agent
-- `traceSummary` - Optional trace summary with tool usage metrics
+- `trace` - Optional trace summary with tool usage metrics
 - `config` - Optional pass-through config from YAML
 
 ## Running

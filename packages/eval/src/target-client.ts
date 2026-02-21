@@ -22,7 +22,7 @@ export interface TargetInvokeRequest {
  * Response from a target invocation
  */
 export interface TargetInvokeResponse {
-  readonly outputMessages: readonly unknown[];
+  readonly output: readonly unknown[];
   readonly rawText?: string;
 }
 

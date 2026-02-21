@@ -11,7 +11,7 @@ import {
 } from '../../src/evaluation/orchestrator.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type {
-  OutputMessage,
+  Message,
   Provider,
   ProviderRequest,
   ProviderResponse,
@@ -154,7 +154,7 @@ describe('runTestCase', () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [
+          output: [
             {
               role: 'assistant',
               content: 'You should add structured logging and avoid global state.',
@@ -176,13 +176,14 @@ describe('runTestCase', () => {
     expect(result.hits).toHaveLength(1);
     expect(result.misses).toHaveLength(0);
     expect(result.timestamp).toBe('2024-01-01T00:00:00.000Z');
+    expect(result.input).toBe('Explain logging improvements');
   });
 
   it('reuses cached provider response when available', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'Use structured logging.' }],
+          output: [{ role: 'assistant', content: 'Use structured logging.' }],
         },
       ],
     });
@@ -206,7 +207,7 @@ describe('runTestCase', () => {
       useCache: true,
     });
 
-    expect(first.candidateAnswer).toContain('structured logging');
+    expect(first.answer).toContain('structured logging');
 
     const second = await runEvalCase({
       evalCase: baseTestCase,
@@ -217,7 +218,7 @@ describe('runTestCase', () => {
       useCache: true,
     });
 
-    expect(second.candidateAnswer).toBe(first.candidateAnswer);
+    expect(second.answer).toBe(first.answer);
     expect(provider.callIndex).toBe(1);
   });
 
@@ -226,7 +227,7 @@ describe('runTestCase', () => {
       errors: [new Error('Request timeout')],
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'Add structured logging.' }],
+          output: [{ role: 'assistant', content: 'Add structured logging.' }],
         },
       ],
     });
@@ -256,13 +257,14 @@ describe('runTestCase', () => {
 
     expect(result.score).toBe(0);
     expect(result.misses[0]).toContain('Provider failure');
+    expect(result.input).toBe('Explain logging improvements');
   });
 
   it('surfaces provider raw.error as evaluation error', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'Some response text.' }],
+          output: [{ role: 'assistant', content: 'Some response text.' }],
           raw: { error: "Batch output missing id 'case-1'" },
         },
       ],
@@ -295,15 +297,13 @@ describe('runTestCase', () => {
         return requests.map((request) => {
           if (request.evalCaseId === 'case-2') {
             return {
-              outputMessages: [
-                { role: 'assistant', content: "Error: Batch output missing id 'case-2'" },
-              ],
+              output: [{ role: 'assistant', content: "Error: Batch output missing id 'case-2'" }],
               raw: { error: "Batch output missing id 'case-2'" },
             };
           }
 
           return {
-            outputMessages: [{ role: 'assistant', content: 'OK' }],
+            output: [{ role: 'assistant', content: 'OK' }],
           };
         });
       }
@@ -344,18 +344,18 @@ describe('runTestCase', () => {
   it('uses a custom evaluator prompt when provided', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'agentv-custom-judge-'));
     const promptPath = path.join(directory, 'judge.md');
-    writeFileSync(promptPath, 'CUSTOM PROMPT CONTENT with {{ candidate_answer }}', 'utf8');
+    writeFileSync(promptPath, 'CUSTOM PROMPT CONTENT with {{ answer }}', 'utf8');
 
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'Answer text' }],
+          output: [{ role: 'assistant', content: 'Answer text' }],
         },
       ],
     });
 
     const judgeProvider = new CapturingJudgeProvider('judge', {
-      outputMessages: [
+      output: [
         {
           role: 'assistant',
           content: JSON.stringify({
@@ -391,20 +391,20 @@ describe('runTestCase', () => {
     );
     expect(judgeProvider.lastRequest?.systemPrompt).not.toContain('CUSTOM PROMPT CONTENT');
 
-    expect(result.evaluatorResults?.[0]?.evaluatorProviderRequest?.userPrompt).toContain(
+    expect(result.scores?.[0]?.evaluatorProviderRequest?.userPrompt).toContain(
       'CUSTOM PROMPT CONTENT',
     );
-    expect(result.evaluatorResults?.[0]?.evaluatorProviderRequest?.systemPrompt).toContain(
+    expect(result.scores?.[0]?.evaluatorProviderRequest?.systemPrompt).toContain(
       'You must respond with a single JSON object',
     );
-    expect(result.evaluatorResults?.[0]?.evaluatorProviderRequest?.systemPrompt).not.toContain(
+    expect(result.scores?.[0]?.evaluatorProviderRequest?.systemPrompt).not.toContain(
       'CUSTOM PROMPT CONTENT',
     );
   });
 
   it('passes chatPrompt for multi-turn evals', async () => {
     const provider = new CapturingProvider('mock', {
-      outputMessages: [{ role: 'assistant', content: 'Candidate' }],
+      output: [{ role: 'assistant', content: 'Candidate' }],
     });
 
     const result = await runEvalCase({
@@ -450,12 +450,13 @@ describe('runTestCase', () => {
       content: '<file path="snippet.txt">\ncode()\n</file>\nReview',
     });
     expect(chatPrompt[2]).toEqual({ role: 'assistant', content: 'Ack' });
-    expect(result.lmProviderRequest?.chat_prompt).toBeDefined();
+    expect(result.requests?.lm?.chat_prompt).toBeDefined();
+    expect(result.input).toEqual(chatPrompt);
   });
 
   it('omits chatPrompt for single-turn evals', async () => {
     const provider = new CapturingProvider('mock', {
-      outputMessages: [{ role: 'assistant', content: 'Candidate' }],
+      output: [{ role: 'assistant', content: 'Candidate' }],
     });
 
     await runEvalCase({
@@ -487,7 +488,7 @@ describe('runTestCase', () => {
       readonly kind = 'codex'; // Agent provider kind
       readonly targetName = 'agent';
       async invoke() {
-        return { outputMessages: [{ role: 'assistant', content: 'ok' }] };
+        return { output: [{ role: 'assistant', content: 'ok' }] };
       }
     }
 
@@ -504,14 +505,14 @@ describe('runTestCase', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.agentProviderRequest).toBeDefined();
-    expect(result.lmProviderRequest).toBeUndefined();
-    expect(result.agentProviderRequest?.question).toBe('Explain logging improvements');
+    expect(result.requests?.agent).toBeDefined();
+    expect(result.requests?.lm).toBeUndefined();
+    expect(result.requests?.agent?.question).toBe('Explain logging improvements');
   });
 
   it('uses file references (not embedded contents) for cli providers', async () => {
     const provider = new CapturingCliProvider('cli', {
-      outputMessages: [{ role: 'assistant', content: 'ok' }],
+      output: [{ role: 'assistant', content: 'ok' }],
     });
 
     const result = await runEvalCase({
@@ -537,14 +538,14 @@ describe('runTestCase', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.lmProviderRequest).toBeDefined();
-    expect(result.lmProviderRequest?.question).toContain('<file: path="input.json">');
-    expect(result.lmProviderRequest?.question).not.toContain('<file path="input.json">');
-    expect(result.lmProviderRequest?.question).not.toContain('{"secret":true}');
+    expect(result.requests?.lm).toBeDefined();
+    expect(result.requests?.lm?.question).toContain('<file: path="input.json">');
+    expect(result.requests?.lm?.question).not.toContain('<file path="input.json">');
+    expect(result.requests?.lm?.question).not.toContain('{"secret":true}');
   });
 });
 
-// Provider that returns outputMessages with tool calls
+// Provider that returns output with tool calls
 class TraceProvider implements Provider {
   readonly id: string;
   readonly kind = 'mock' as const;
@@ -553,7 +554,7 @@ class TraceProvider implements Provider {
   constructor(
     targetName: string,
     private readonly response: ProviderResponse,
-    private readonly outputMessages?: readonly OutputMessage[],
+    private readonly output?: readonly Message[],
   ) {
     this.id = `trace:${targetName}`;
     this.targetName = targetName;
@@ -562,7 +563,7 @@ class TraceProvider implements Provider {
   async invoke(): Promise<ProviderResponse> {
     return {
       ...this.response,
-      outputMessages: this.outputMessages,
+      output: this.output,
     };
   }
 }
@@ -582,8 +583,8 @@ describe('runEvalCase trace integration', () => {
     evaluator: 'llm_judge',
   };
 
-  it('includes traceSummary in result when provider returns outputMessages with tool calls', async () => {
-    const outputMessages: OutputMessage[] = [
+  it('includes trace in result when provider returns output with tool calls', async () => {
+    const output: Message[] = [
       {
         role: 'assistant',
         content: 'The weather is 72°F',
@@ -601,8 +602,8 @@ describe('runEvalCase trace integration', () => {
 
     const provider = new TraceProvider(
       'mock',
-      { outputMessages: [{ role: 'assistant', content: 'The weather is 72°F' }] },
-      outputMessages,
+      { output: [{ role: 'assistant', content: 'The weather is 72°F' }] },
+      output,
     );
 
     const result = await runEvalCase({
@@ -612,16 +613,16 @@ describe('runEvalCase trace integration', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.traceSummary).toBeDefined();
-    expect(result.traceSummary?.eventCount).toBe(1);
-    expect(result.traceSummary?.toolNames).toEqual(['getWeather']);
-    expect(result.traceSummary?.toolCallsByName).toEqual({ getWeather: 1 });
-    expect(result.traceSummary?.errorCount).toBe(0);
+    expect(result.trace).toBeDefined();
+    expect(result.trace?.eventCount).toBe(1);
+    expect(result.trace?.toolNames).toEqual(['getWeather']);
+    expect(result.trace?.toolCallsByName).toEqual({ getWeather: 1 });
+    expect(result.trace?.errorCount).toBe(0);
   });
 
-  it('omits traceSummary when provider returns no outputMessages', async () => {
+  it('omits trace when provider returns no output', async () => {
     const provider = new TraceProvider('mock', {
-      outputMessages: [{ role: 'assistant', content: 'The weather is sunny' }],
+      output: [{ role: 'assistant', content: 'The weather is sunny' }],
     });
 
     const result = await runEvalCase({
@@ -631,10 +632,10 @@ describe('runEvalCase trace integration', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.traceSummary).toBeUndefined();
+    expect(result.trace).toBeUndefined();
   });
 
-  it('includes traceSummary when provider reports tokenUsage without outputMessages', async () => {
+  it('includes trace when provider reports tokenUsage without output', async () => {
     const provider = new TraceProvider('mock', {
       tokenUsage: { input: 10, output: 20, cached: 5 },
     });
@@ -655,13 +656,13 @@ describe('runEvalCase trace integration', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.traceSummary).toBeDefined();
-    expect(result.traceSummary?.tokenUsage).toEqual({ input: 10, output: 20, cached: 5 });
+    expect(result.trace).toBeDefined();
+    expect(result.trace?.tokenUsage).toEqual({ input: 10, output: 20, cached: 5 });
     expect(result.score).toBe(1);
   });
 
-  it('runs tool_trajectory evaluator with outputMessages', async () => {
-    const outputMessages: OutputMessage[] = [
+  it('runs tool_trajectory evaluator with output', async () => {
+    const output: Message[] = [
       {
         role: 'assistant',
         content: 'Result',
@@ -686,8 +687,8 @@ describe('runEvalCase trace integration', () => {
 
     const provider = new TraceProvider(
       'mock',
-      { outputMessages: [{ role: 'assistant', content: 'Result' }] },
-      outputMessages,
+      { output: [{ role: 'assistant', content: 'Result' }] },
+      output,
     );
 
     const trajectoryEvaluator = new ToolTrajectoryEvaluator({
@@ -720,14 +721,14 @@ describe('runEvalCase trace integration', () => {
     });
 
     expect(result.score).toBe(1);
-    expect(result.evaluatorResults).toHaveLength(1);
-    expect(result.evaluatorResults?.[0]?.name).toBe('tool-check');
-    expect(result.evaluatorResults?.[0]?.verdict).toBe('pass');
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0]?.name).toBe('tool-check');
+    expect(result.scores?.[0]?.verdict).toBe('pass');
   });
 
   it('fails tool_trajectory evaluator when no trace available', async () => {
     const provider = new TraceProvider('mock', {
-      outputMessages: [{ role: 'assistant', content: 'Result' }],
+      output: [{ role: 'assistant', content: 'Result' }],
     });
 
     const trajectoryEvaluator = new ToolTrajectoryEvaluator({
@@ -760,14 +761,14 @@ describe('runEvalCase trace integration', () => {
     });
 
     expect(result.score).toBe(0);
-    expect(result.evaluatorResults?.[0]?.verdict).toBe('fail');
-    expect(result.evaluatorResults?.[0]?.misses).toContain('No trace available for evaluation');
+    expect(result.scores?.[0]?.verdict).toBe('fail');
+    expect(result.scores?.[0]?.misses).toContain('No trace available for evaluation');
   });
 
-  it('runs latency/cost evaluators inside composite using traceSummary', async () => {
-    const outputMessages: OutputMessage[] = [{ role: 'assistant', content: 'Done' }];
+  it('runs latency/cost evaluators inside composite using trace', async () => {
+    const output: Message[] = [{ role: 'assistant', content: 'Done' }];
 
-    const provider = new TraceProvider('mock', { costUsd: 0.05, durationMs: 1200 }, outputMessages);
+    const provider = new TraceProvider('mock', { costUsd: 0.05, durationMs: 1200 }, output);
 
     const result = await runEvalCase({
       evalCase: {
@@ -790,20 +791,18 @@ describe('runEvalCase trace integration', () => {
     });
 
     expect(result.score).toBe(1);
-    expect(result.evaluatorResults).toHaveLength(1);
-    expect(result.evaluatorResults?.[0]?.name).toBe('metrics');
-    expect(result.evaluatorResults?.[0]?.verdict).toBe('pass');
-    expect(result.evaluatorResults?.[0]?.evaluatorResults).toHaveLength(2);
-    const childNames = result.evaluatorResults?.[0]?.evaluatorResults?.map((child) => child.name);
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0]?.name).toBe('metrics');
+    expect(result.scores?.[0]?.verdict).toBe('pass');
+    expect(result.scores?.[0]?.scores).toHaveLength(2);
+    const childNames = result.scores?.[0]?.scores?.map((child) => child.name);
     expect(childNames).toEqual(['latency', 'cost']);
-    const childVerdicts = result.evaluatorResults?.[0]?.evaluatorResults?.map(
-      (child) => child.verdict,
-    );
+    const childVerdicts = result.scores?.[0]?.scores?.map((child) => child.verdict);
     expect(childVerdicts).toEqual(['pass', 'pass']);
   });
 
   it('computes correct trace summary with multiple tool calls', async () => {
-    const outputMessages: OutputMessage[] = [
+    const output: Message[] = [
       {
         role: 'assistant',
         content: 'Done',
@@ -818,8 +817,8 @@ describe('runEvalCase trace integration', () => {
 
     const provider = new TraceProvider(
       'mock',
-      { outputMessages: [{ role: 'assistant', content: 'Done' }] },
-      outputMessages,
+      { output: [{ role: 'assistant', content: 'Done' }] },
+      output,
     );
 
     const result = await runEvalCase({
@@ -829,11 +828,11 @@ describe('runEvalCase trace integration', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.traceSummary).toBeDefined();
-    expect(result.traceSummary?.eventCount).toBe(4);
-    expect(result.traceSummary?.toolNames).toEqual(['toolA', 'toolB', 'toolC']);
-    expect(result.traceSummary?.toolCallsByName).toEqual({ toolA: 2, toolB: 1, toolC: 1 });
-    expect(result.traceSummary?.errorCount).toBe(0);
+    expect(result.trace).toBeDefined();
+    expect(result.trace?.eventCount).toBe(4);
+    expect(result.trace?.toolNames).toEqual(['toolA', 'toolB', 'toolC']);
+    expect(result.trace?.toolCallsByName).toEqual({ toolA: 2, toolB: 1, toolC: 1 });
+    expect(result.trace?.errorCount).toBe(0);
   });
 
   describe('weighted evaluators', () => {
@@ -841,7 +840,7 @@ describe('runEvalCase trace integration', () => {
       const provider = new SequenceProvider('mock', {
         responses: [
           {
-            outputMessages: [{ role: 'assistant', content: 'Candidate answer' }],
+            output: [{ role: 'assistant', content: 'Candidate answer' }],
           },
         ],
       });
@@ -864,16 +863,16 @@ describe('runEvalCase trace integration', () => {
       // eval2 weight=1.0, score=0.8 -> 0.8
       // Total: (1.6 + 0.8) / (2.0 + 1.0) = 2.4 / 3.0 = 0.8
       expect(result.score).toBeCloseTo(0.8);
-      expect(result.evaluatorResults).toHaveLength(2);
-      expect(result.evaluatorResults?.[0]?.weight).toBe(2.0);
-      expect(result.evaluatorResults?.[1]?.weight).toBe(1.0);
+      expect(result.scores).toHaveLength(2);
+      expect(result.scores?.[0]?.weight).toBe(2.0);
+      expect(result.scores?.[1]?.weight).toBe(1.0);
     });
 
     it('defaults missing weights to 1.0', async () => {
       const provider = new SequenceProvider('mock', {
         responses: [
           {
-            outputMessages: [{ role: 'assistant', content: 'Candidate answer' }],
+            output: [{ role: 'assistant', content: 'Candidate answer' }],
           },
         ],
       });
@@ -896,15 +895,15 @@ describe('runEvalCase trace integration', () => {
       // eval2 weight=1.0 (default), score=0.8 -> 0.8
       // Total: (2.4 + 0.8) / (3.0 + 1.0) = 3.2 / 4.0 = 0.8
       expect(result.score).toBeCloseTo(0.8);
-      expect(result.evaluatorResults?.[0]?.weight).toBe(3.0);
-      expect(result.evaluatorResults?.[1]?.weight).toBe(1.0);
+      expect(result.scores?.[0]?.weight).toBe(3.0);
+      expect(result.scores?.[1]?.weight).toBe(1.0);
     });
 
     it('excludes evaluators with weight 0', async () => {
       const provider = new SequenceProvider('mock', {
         responses: [
           {
-            outputMessages: [{ role: 'assistant', content: 'Candidate answer' }],
+            output: [{ role: 'assistant', content: 'Candidate answer' }],
           },
         ],
       });
@@ -927,15 +926,15 @@ describe('runEvalCase trace integration', () => {
       // eval2 weight=1.0, score=0.8 -> 0.8
       // Total: (0 + 0.8) / (0 + 1.0) = 0.8 / 1.0 = 0.8
       expect(result.score).toBeCloseTo(0.8);
-      expect(result.evaluatorResults?.[0]?.weight).toBe(0);
-      expect(result.evaluatorResults?.[1]?.weight).toBe(1.0);
+      expect(result.scores?.[0]?.weight).toBe(0);
+      expect(result.scores?.[1]?.weight).toBe(1.0);
     });
 
     it('returns 0 when all evaluators have weight 0', async () => {
       const provider = new SequenceProvider('mock', {
         responses: [
           {
-            outputMessages: [{ role: 'assistant', content: 'Candidate answer' }],
+            output: [{ role: 'assistant', content: 'Candidate answer' }],
           },
         ],
       });
@@ -971,7 +970,7 @@ describe('runEvalCase trace integration', () => {
 const stdin = readFileSync(0, 'utf8');
 const input = JSON.parse(stdin);
 console.log(\`Question: \${input.question}
-Candidate: \${input.candidate_answer}
+Candidate: \${input.answer}
 Reference: \${input.reference_answer ?? 'none'}\`);
 `,
       );
@@ -996,7 +995,7 @@ Reference: \${input.reference_answer ?? 'none'}\`);
       const provider = new SequenceProvider('mock', {
         responses: [
           {
-            outputMessages: [{ role: 'assistant', content: 'The answer is 4' }],
+            output: [{ role: 'assistant', content: 'The answer is 4' }],
           },
         ],
       });
@@ -1036,7 +1035,7 @@ Reference: \${input.reference_answer ?? 'none'}\`);
         `const fs = require('fs');
 const stdin = fs.readFileSync(0, 'utf8');
 const input = JSON.parse(stdin);
-console.log('Question: ' + input.question + '\\nAnswer: ' + input.candidate_answer);
+console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
 `,
       );
 
@@ -1058,7 +1057,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.candidate_answ
       const provider = new SequenceProvider('mock', {
         responses: [
           {
-            outputMessages: [{ role: 'assistant', content: 'Test response' }],
+            output: [{ role: 'assistant', content: 'Test response' }],
           },
         ],
       });
@@ -1111,7 +1110,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.candidate_answ
       const provider = new SequenceProvider('mock', {
         responses: [
           {
-            outputMessages: [{ role: 'assistant', content: 'Response' }],
+            output: [{ role: 'assistant', content: 'Response' }],
           },
         ],
       });
@@ -1150,7 +1149,7 @@ describe('runEvaluation with trials', () => {
     async invoke(): Promise<ProviderResponse> {
       this.callCount += 1;
       return {
-        outputMessages: [{ role: 'assistant', content: `Response ${this.callCount}` }],
+        output: [{ role: 'assistant', content: `Response ${this.callCount}` }],
       };
     }
   }
@@ -1283,7 +1282,7 @@ describe('runEvaluation with trials', () => {
       targetName: 'mock',
       async invoke(): Promise<ProviderResponse> {
         return {
-          outputMessages: [{ role: 'assistant', content: 'response' }],
+          output: [{ role: 'assistant', content: 'response' }],
           costUsd: 3.0, // Each call costs $3
         };
       },
@@ -1397,7 +1396,7 @@ rl.on('close', () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
+          output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
         },
       ],
     });
@@ -1439,9 +1438,7 @@ rl.on('close', () => {
     await writeFile(failingScript, 'console.error("setup boom"); process.exit(1);');
 
     const provider = new SequenceProvider('mock', {
-      responses: [
-        { outputMessages: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] },
-      ],
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
     });
 
     const evalCase: EvalTest = {
@@ -1496,7 +1493,7 @@ rl.on('close', () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
+          output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
         },
       ],
     });
@@ -1544,7 +1541,7 @@ describe('deterministic assertion evaluators in orchestrator', () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'The answer is hello world today' }],
+          output: [{ role: 'assistant', content: 'The answer is hello world today' }],
         },
       ],
     });
@@ -1562,17 +1559,17 @@ describe('deterministic assertion evaluators in orchestrator', () => {
     expect(result.score).toBe(1);
     expect(result.hits).toContain('Output contains "hello world"');
     expect(result.misses).toHaveLength(0);
-    expect(result.evaluatorResults).toHaveLength(1);
-    expect(result.evaluatorResults?.[0].type).toBe('contains');
-    expect(result.evaluatorResults?.[0].score).toBe(1);
-    expect(result.evaluatorResults?.[0].verdict).toBe('pass');
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0].type).toBe('contains');
+    expect(result.scores?.[0].score).toBe(1);
+    expect(result.scores?.[0].verdict).toBe('pass');
   });
 
   it('contains evaluator scores 0 when output does not contain value', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'The answer is goodbye' }],
+          output: [{ role: 'assistant', content: 'The answer is goodbye' }],
         },
       ],
     });
@@ -1589,17 +1586,17 @@ describe('deterministic assertion evaluators in orchestrator', () => {
 
     expect(result.score).toBe(0);
     expect(result.misses).toContain('Output does not contain "hello world"');
-    expect(result.evaluatorResults).toHaveLength(1);
-    expect(result.evaluatorResults?.[0].type).toBe('contains');
-    expect(result.evaluatorResults?.[0].score).toBe(0);
-    expect(result.evaluatorResults?.[0].verdict).toBe('fail');
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0].type).toBe('contains');
+    expect(result.scores?.[0].score).toBe(0);
+    expect(result.scores?.[0].verdict).toBe('fail');
   });
 
   it('regex evaluator scores 1 when output matches pattern', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'The result is 42 units' }],
+          output: [{ role: 'assistant', content: 'The result is 42 units' }],
         },
       ],
     });
@@ -1615,17 +1612,17 @@ describe('deterministic assertion evaluators in orchestrator', () => {
     });
 
     expect(result.score).toBe(1);
-    expect(result.evaluatorResults).toHaveLength(1);
-    expect(result.evaluatorResults?.[0].type).toBe('regex');
-    expect(result.evaluatorResults?.[0].score).toBe(1);
-    expect(result.evaluatorResults?.[0].verdict).toBe('pass');
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0].type).toBe('regex');
+    expect(result.scores?.[0].score).toBe(1);
+    expect(result.scores?.[0].verdict).toBe('pass');
   });
 
   it('regex evaluator scores 0 when output does not match pattern', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'No numbers here' }],
+          output: [{ role: 'assistant', content: 'No numbers here' }],
         },
       ],
     });
@@ -1641,17 +1638,17 @@ describe('deterministic assertion evaluators in orchestrator', () => {
     });
 
     expect(result.score).toBe(0);
-    expect(result.evaluatorResults).toHaveLength(1);
-    expect(result.evaluatorResults?.[0].type).toBe('regex');
-    expect(result.evaluatorResults?.[0].score).toBe(0);
-    expect(result.evaluatorResults?.[0].verdict).toBe('fail');
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0].type).toBe('regex');
+    expect(result.scores?.[0].score).toBe(0);
+    expect(result.scores?.[0].verdict).toBe('fail');
   });
 
   it('is_json evaluator scores 1 when output is valid JSON', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: '{"key": "value"}' }],
+          output: [{ role: 'assistant', content: '{"key": "value"}' }],
         },
       ],
     });
@@ -1667,17 +1664,17 @@ describe('deterministic assertion evaluators in orchestrator', () => {
     });
 
     expect(result.score).toBe(1);
-    expect(result.evaluatorResults).toHaveLength(1);
-    expect(result.evaluatorResults?.[0].type).toBe('is_json');
-    expect(result.evaluatorResults?.[0].score).toBe(1);
-    expect(result.evaluatorResults?.[0].verdict).toBe('pass');
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0].type).toBe('is_json');
+    expect(result.scores?.[0].score).toBe(1);
+    expect(result.scores?.[0].verdict).toBe('pass');
   });
 
   it('is_json evaluator scores 0 when output is not valid JSON', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'not json at all' }],
+          output: [{ role: 'assistant', content: 'not json at all' }],
         },
       ],
     });
@@ -1693,17 +1690,17 @@ describe('deterministic assertion evaluators in orchestrator', () => {
     });
 
     expect(result.score).toBe(0);
-    expect(result.evaluatorResults).toHaveLength(1);
-    expect(result.evaluatorResults?.[0].type).toBe('is_json');
-    expect(result.evaluatorResults?.[0].score).toBe(0);
-    expect(result.evaluatorResults?.[0].verdict).toBe('fail');
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0].type).toBe('is_json');
+    expect(result.scores?.[0].score).toBe(0);
+    expect(result.scores?.[0].verdict).toBe('fail');
   });
 
   it('equals evaluator scores 1 when output exactly matches value (trimmed)', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: '  exact match  ' }],
+          output: [{ role: 'assistant', content: '  exact match  ' }],
         },
       ],
     });
@@ -1719,17 +1716,17 @@ describe('deterministic assertion evaluators in orchestrator', () => {
     });
 
     expect(result.score).toBe(1);
-    expect(result.evaluatorResults).toHaveLength(1);
-    expect(result.evaluatorResults?.[0].type).toBe('equals');
-    expect(result.evaluatorResults?.[0].score).toBe(1);
-    expect(result.evaluatorResults?.[0].verdict).toBe('pass');
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0].type).toBe('equals');
+    expect(result.scores?.[0].score).toBe(1);
+    expect(result.scores?.[0].verdict).toBe('pass');
   });
 
   it('equals evaluator scores 0 when output does not match value', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'different text' }],
+          output: [{ role: 'assistant', content: 'different text' }],
         },
       ],
     });
@@ -1745,17 +1742,17 @@ describe('deterministic assertion evaluators in orchestrator', () => {
     });
 
     expect(result.score).toBe(0);
-    expect(result.evaluatorResults).toHaveLength(1);
-    expect(result.evaluatorResults?.[0].type).toBe('equals');
-    expect(result.evaluatorResults?.[0].score).toBe(0);
-    expect(result.evaluatorResults?.[0].verdict).toBe('fail');
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0].type).toBe('equals');
+    expect(result.scores?.[0].score).toBe(0);
+    expect(result.scores?.[0].verdict).toBe('fail');
   });
 
   it('supports custom weight on assertion evaluators', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'hello world' }],
+          output: [{ role: 'assistant', content: 'hello world' }],
         },
       ],
     });
@@ -1771,14 +1768,14 @@ describe('deterministic assertion evaluators in orchestrator', () => {
     });
 
     expect(result.score).toBe(1);
-    expect(result.evaluatorResults?.[0].weight).toBe(2.0);
+    expect(result.scores?.[0].weight).toBe(2.0);
   });
 
   it('combines multiple assertion evaluators with weighted average', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'hello world' }],
+          output: [{ role: 'assistant', content: 'hello world' }],
         },
       ],
     });
@@ -1798,7 +1795,7 @@ describe('deterministic assertion evaluators in orchestrator', () => {
 
     // One passes (score=1), one fails (score=0), average = 0.5
     expect(result.score).toBe(0.5);
-    expect(result.evaluatorResults).toHaveLength(2);
+    expect(result.scores).toHaveLength(2);
   });
 });
 
@@ -1820,7 +1817,7 @@ describe('required gates', () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'The answer is goodbye' }],
+          output: [{ role: 'assistant', content: 'The answer is goodbye' }],
         },
       ],
     });
@@ -1842,17 +1839,17 @@ describe('required gates', () => {
     // The "nice-to-have" evaluator passes (output contains "goodbye").
     // Because the required evaluator fails, the aggregate score should be 0.
     expect(result.score).toBe(0);
-    expect(result.evaluatorResults).toHaveLength(2);
+    expect(result.scores).toHaveLength(2);
     // Individual evaluator scores are still reported correctly
-    expect(result.evaluatorResults?.[0]?.score).toBe(0); // must-have fails
-    expect(result.evaluatorResults?.[1]?.score).toBe(1); // nice-to-have passes
+    expect(result.scores?.[0]?.score).toBe(0); // must-have fails
+    expect(result.scores?.[1]?.score).toBe(1); // nice-to-have passes
   });
 
   it('scores normally when all required evaluators pass', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'hello world' }],
+          output: [{ role: 'assistant', content: 'hello world' }],
         },
       ],
     });
@@ -1875,14 +1872,14 @@ describe('required gates', () => {
     // Because the required evaluator passes, the aggregate should be normal weighted average.
     // (1 + 0) / 2 = 0.5
     expect(result.score).toBe(0.5);
-    expect(result.evaluatorResults).toHaveLength(2);
+    expect(result.scores).toHaveLength(2);
   });
 
   it('supports numeric required threshold', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'The answer is goodbye' }],
+          output: [{ role: 'assistant', content: 'The answer is goodbye' }],
         },
       ],
     });
@@ -1909,7 +1906,7 @@ describe('required gates', () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'hello world' }],
+          output: [{ role: 'assistant', content: 'hello world' }],
         },
       ],
     });
@@ -1937,7 +1934,7 @@ describe('required gates', () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'hello world' }],
+          output: [{ role: 'assistant', content: 'hello world' }],
         },
       ],
     });
@@ -1957,7 +1954,7 @@ describe('required gates', () => {
 
     // Neither evaluator is required, so no gating. Normal average: (1 + 0) / 2 = 0.5
     expect(result.score).toBe(0.5);
-    expect(result.evaluatorResults).toHaveLength(2);
+    expect(result.scores).toHaveLength(2);
   });
 
   it('required: true uses 0.8 threshold (llm_judge score below 0.8 triggers gate)', async () => {
@@ -1980,7 +1977,7 @@ describe('required gates', () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'Some response' }],
+          output: [{ role: 'assistant', content: 'Some response' }],
         },
       ],
     });
@@ -2003,7 +2000,7 @@ describe('required gates', () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
-          outputMessages: [{ role: 'assistant', content: 'hello world' }],
+          output: [{ role: 'assistant', content: 'hello world' }],
         },
       ],
     });

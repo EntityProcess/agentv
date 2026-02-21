@@ -93,7 +93,7 @@ describe('CodexProvider (SDK)', () => {
     };
 
     const response = await provider.invoke(request);
-    const content = extractLastAssistantContent(response.outputMessages);
+    const content = extractLastAssistantContent(response.output);
     expect(content).toBe('Hello from Codex SDK');
     expect(thread.runStreamed).toHaveBeenCalledTimes(1);
   });
@@ -283,9 +283,9 @@ describe('CodexProvider (SDK)', () => {
 
     const response = await provider.invoke({ question: 'List files' });
 
-    expect(response.outputMessages).toBeDefined();
-    expect(response.outputMessages?.length).toBe(1);
-    const msg = response.outputMessages?.[0];
+    expect(response.output).toBeDefined();
+    expect(response.output?.length).toBe(1);
+    const msg = response.output?.[0];
     expect(msg?.toolCalls).toBeDefined();
     expect(msg?.toolCalls?.length).toBe(1);
     expect(msg?.toolCalls?.[0]?.tool).toBe('command_execution');
@@ -326,7 +326,7 @@ describe('CodexProvider (SDK)', () => {
 
     const response = await provider.invoke({ question: 'Update file' });
 
-    const msg = response.outputMessages?.[0];
+    const msg = response.output?.[0];
     expect(msg?.toolCalls?.length).toBe(1);
     expect(msg?.toolCalls?.[0]?.tool).toBe('file_change');
     expect(msg?.toolCalls?.[0]?.input).toEqual([{ path: 'src/index.ts', kind: 'update' }]);

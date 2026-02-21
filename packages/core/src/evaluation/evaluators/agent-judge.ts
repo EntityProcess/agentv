@@ -190,7 +190,7 @@ export class AgentJudgeEvaluator implements Evaluator {
         attempt: context.attempt,
       });
 
-      const assistantContent = extractLastAssistantContent(response.outputMessages);
+      const assistantContent = extractLastAssistantContent(response.output);
       if (!assistantContent) {
         return {
           score: 0,
@@ -323,7 +323,7 @@ export class AgentJudgeEvaluator implements Evaluator {
         : context.evalCase.question;
 
     const variables: Record<string, string> = {
-      [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: context.candidate.trim(),
+      [TEMPLATE_VARIABLES.ANSWER]: context.candidate.trim(),
       [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
       [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
@@ -352,7 +352,7 @@ export class AgentJudgeEvaluator implements Evaluator {
       parts.push('[[ ## reference_answer ## ]]', context.evalCase.reference_answer, '');
     }
 
-    parts.push('[[ ## candidate_answer ## ]]', context.candidate, '');
+    parts.push('[[ ## answer ## ]]', context.candidate, '');
 
     if (context.fileChanges) {
       parts.push('[[ ## file_changes ## ]]', context.fileChanges, '');
@@ -393,7 +393,7 @@ export class AgentJudgeEvaluator implements Evaluator {
 
     if (this.evaluatorTemplate) {
       const variables: Record<string, string> = {
-        [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: context.candidate.trim(),
+        [TEMPLATE_VARIABLES.ANSWER]: context.candidate.trim(),
         [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
         [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
         [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
@@ -422,7 +422,7 @@ export class AgentJudgeEvaluator implements Evaluator {
       parts.push('[[ ## reference_answer ## ]]', context.evalCase.reference_answer, '');
     }
 
-    parts.push('[[ ## candidate_answer ## ]]', context.candidate, '');
+    parts.push('[[ ## answer ## ]]', context.candidate, '');
 
     if (context.fileChanges) {
       parts.push('[[ ## file_changes ## ]]', context.fileChanges, '');

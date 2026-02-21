@@ -8,7 +8,7 @@ import { recordCodexLogEntry } from './codex-log-tracker.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { CodexResolvedConfig } from './targets.js';
 import type {
-  OutputMessage,
+  Message,
   Provider,
   ProviderRequest,
   ProviderResponse,
@@ -146,16 +146,16 @@ export class CodexProvider implements Provider {
       const durationMs = Date.now() - startMs;
 
       // Build output messages
-      const outputMessages: OutputMessage[] = [];
+      const output: Message[] = [];
 
       if (completedToolCalls.length > 0) {
-        outputMessages.push({
+        output.push({
           role: 'assistant',
           content: finalContent || undefined,
           toolCalls: completedToolCalls,
         });
       } else if (finalContent) {
-        outputMessages.push({
+        output.push({
           role: 'assistant',
           content: finalContent,
         });
@@ -166,7 +166,7 @@ export class CodexProvider implements Provider {
           model: this.config.model,
           logFile: logger?.filePath,
         },
-        outputMessages,
+        output,
         tokenUsage,
         durationMs,
         startTime,

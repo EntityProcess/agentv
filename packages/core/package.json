@@ -53,6 +53,13 @@
     "yaml": "^2.6.0",
     "zod": "^3.23.8"
   },
+  "optionalDependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.212.0",
+    "@opentelemetry/resources": "^2.5.1",
+    "@opentelemetry/sdk-trace-node": "^2.5.1",
+    "@opentelemetry/semantic-conventions": "^1.39.0"
+  },
   "devDependencies": {
     "@agentv/eval": "workspace:*",
     "@types/micromatch": "^4.0.10"

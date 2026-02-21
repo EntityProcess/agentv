@@ -7,6 +7,7 @@ import {
   type EvalTest,
   type EvaluationCache,
   type EvaluationResult,
+  type OtelTraceExporter as OtelTraceExporterType,
   ResponseCache,
   type TrialsConfig,
   runEvaluation as defaultRunEvaluation,
@@ -65,6 +66,9 @@ interface NormalizedOptions {
   readonly keepWorkspaces: boolean;
   readonly cleanupWorkspaces: boolean;
   readonly trace: boolean;
+  readonly exportOtel: boolean;
+  readonly otelBackend?: string;
+  readonly otelCaptureContent: boolean;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -139,6 +143,9 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     keepWorkspaces: normalizeBoolean(rawOptions.keepWorkspaces),
     cleanupWorkspaces: normalizeBoolean(rawOptions.cleanupWorkspaces),
     trace: normalizeBoolean(rawOptions.trace),
+    exportOtel: normalizeBoolean(rawOptions.exportOtel),
+    otelBackend: normalizeString(rawOptions.otelBackend),
+    otelCaptureContent: normalizeBoolean(rawOptions.otelCaptureContent),
   } satisfies NormalizedOptions;
 }
 
@@ -365,6 +372,7 @@ async function runSingleEvalFile(params: {
   readonly options: NormalizedOptions;
   readonly outputWriter: OutputWriter;
   readonly traceWriter?: TraceWriter;
+  readonly otelExporter?: OtelTraceExporterType | null;
   readonly cache?: EvaluationCache;
   readonly evaluationRunner: typeof defaultRunEvaluation;
   readonly workersOverride?: number;
@@ -384,6 +392,7 @@ async function runSingleEvalFile(params: {
     options,
     outputWriter,
     traceWriter,
+    otelExporter,
     cache,
     evaluationRunner,
     workersOverride,
@@ -474,19 +483,33 @@ async function runSingleEvalFile(params: {
     cleanupWorkspaces: options.cleanupWorkspaces,
     trials: trialsConfig,
     onResult: async (result: EvaluationResult) => {
-      // Write trace if trace writer is available and outputMessages exist
-      if (traceWriter && result.outputMessages && result.outputMessages.length > 0) {
-        const traceRecord = buildTraceRecord(result.testId, result.outputMessages, {
-          tokenUsage: result.traceSummary?.tokenUsage,
-          costUsd: result.traceSummary?.costUsd,
-          durationMs: result.traceSummary?.durationMs,
+      // Write trace if trace writer is available and output exist
+      if (traceWriter && result.output && result.output.length > 0) {
+        const traceRecord = buildTraceRecord(result.testId, result.output, {
+          tokenUsage: result.trace?.tokenUsage,
+          costUsd: result.trace?.costUsd,
+          durationMs: result.trace?.durationMs,
         });
         await traceWriter.append(traceRecord);
       }
 
-      // Strip outputMessages from result before writing to avoid bloating results JSONL
-      const { outputMessages: _, ...resultWithoutTrace } = result;
+      // Strip output from result before writing to avoid bloating results JSONL
+      const { output: _, ...resultWithoutTrace } = result;
       await outputWriter.append(resultWithoutTrace as EvaluationResult);
+
+      // Export to OTel if exporter is configured
+      if (otelExporter) {
+        try {
+          otelExporter.exportResult(result);
+        } catch (err) {
+          // Export failures don't fail the evaluation
+          if (options.verbose) {
+            console.warn(
+              `OTel export warning: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }
+      }
     },
     onProgress: async (event) => {
       const evalKeyId = matrixMode ? `${event.testId}@${targetName}` : event.testId;
@@ -525,6 +548,59 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
 
   if (options.verbose) {
     console.log(`Repository root: ${repoRoot}`);
+  }
+
+  // Initialize OTel exporter if --export-otel flag is set
+  let otelExporter: OtelTraceExporterType | null = null;
+
+  if (options.exportOtel) {
+    try {
+      const { OtelTraceExporter, OTEL_BACKEND_PRESETS } = await import('@agentv/core');
+
+      // Resolve endpoint and headers
+      let endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+      let headers: Record<string, string> = {};
+
+      if (options.otelBackend) {
+        const preset = OTEL_BACKEND_PRESETS[options.otelBackend];
+        if (preset) {
+          endpoint = preset.endpoint;
+          headers = preset.headers(process.env);
+        } else {
+          console.warn(`Unknown OTel backend preset: ${options.otelBackend}`);
+        }
+      }
+
+      // Parse OTEL_EXPORTER_OTLP_HEADERS env var
+      if (process.env.OTEL_EXPORTER_OTLP_HEADERS) {
+        for (const pair of process.env.OTEL_EXPORTER_OTLP_HEADERS.split(',')) {
+          const [key, ...rest] = pair.split('=');
+          if (key) headers[key.trim()] = rest.join('=').trim();
+        }
+      }
+
+      const captureContent =
+        options.otelCaptureContent || process.env.AGENTV_OTEL_CAPTURE_CONTENT === 'true';
+
+      otelExporter = new OtelTraceExporter({
+        endpoint,
+        headers,
+        captureContent,
+      });
+
+      const initialized = await otelExporter.init();
+      if (!initialized) {
+        console.warn(
+          'OTel export requested but @opentelemetry packages not available. Install them to enable export.',
+        );
+        otelExporter = null;
+      }
+    } catch (err) {
+      console.warn(
+        `OTel export initialization failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      otelExporter = null;
+    }
   }
 
   const outputPath = options.outPath
@@ -723,6 +799,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
           options,
           outputWriter,
           traceWriter,
+          otelExporter,
           cache,
           evaluationRunner,
           workersOverride: perFileWorkers,
@@ -777,6 +854,13 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     unsubscribeCopilotLogs();
     await outputWriter.close().catch(() => undefined);
     await traceWriter?.close().catch(() => undefined);
+    if (otelExporter) {
+      try {
+        await otelExporter.shutdown();
+      } catch {
+        // Silently ignore shutdown errors
+      }
+    }
   }
 }
 

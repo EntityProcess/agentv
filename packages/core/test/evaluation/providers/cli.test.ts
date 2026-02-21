@@ -62,9 +62,7 @@ describe('CliProvider', () => {
     const response = await provider.invoke(baseRequest);
 
     expect(runner).toHaveBeenCalledTimes(1);
-    expect(extractLastAssistantContent(response.outputMessages)).toContain(
-      'Test response from CLI',
-    );
+    expect(extractLastAssistantContent(response.output)).toContain('Test response from CLI');
     expect(response.raw && (response.raw as Record<string, unknown>).command).toBeDefined();
     const command = runner.mock.calls[0]?.[0] as string;
     expect(command).toContain('--file');
@@ -133,8 +131,8 @@ describe('CliProvider', () => {
 
     expect(runner).toHaveBeenCalledTimes(1);
     expect(responses).toHaveLength(2);
-    expect(extractLastAssistantContent(responses[0]?.outputMessages)).toBe('Batch response 1');
-    expect(extractLastAssistantContent(responses[1]?.outputMessages)).toBe('Batch response 2');
+    expect(extractLastAssistantContent(responses[0]?.output)).toBe('Batch response 1');
+    expect(extractLastAssistantContent(responses[1]?.output)).toBe('Batch response 2');
   });
 
   it('returns error response for batch output missing requested ids', async () => {
@@ -168,21 +166,21 @@ describe('CliProvider', () => {
     expect(responses).toHaveLength(2);
 
     // First request has matching ID - should succeed
-    expect(extractLastAssistantContent(responses[0]?.outputMessages)).toBe('Batch response 1');
+    expect(extractLastAssistantContent(responses[0]?.output)).toBe('Batch response 1');
 
     // Second request has missing ID - should return error response
-    const errorContent = extractLastAssistantContent(responses[1]?.outputMessages);
+    const errorContent = extractLastAssistantContent(responses[1]?.output);
     expect(errorContent).toMatch(/Batch output missing id 'case-2'/);
     expect(responses[1]?.raw?.error).toBe("Batch output missing id 'case-2'");
   });
 
-  it('parses output_messages from single case JSON output', async () => {
+  it('parses output from single case JSON output', async () => {
     const runner = mock(async (command: string): Promise<CommandRunResult> => {
       const match = command.match(/agentv-case-1-\d+-\w+\.json/);
       if (match) {
         const outputFilePath = path.join(os.tmpdir(), match[0]);
         const output = {
-          output_messages: [
+          output: [
             {
               role: 'assistant',
               content: 'Response with tool calls',
@@ -208,18 +206,18 @@ describe('CliProvider', () => {
     const provider = new CliProvider('cli-target', baseConfig, runner);
     const response = await provider.invoke(baseRequest);
 
-    expect(extractLastAssistantContent(response.outputMessages)).toBe('Response with tool calls');
-    expect(response.outputMessages).toBeDefined();
-    expect(response.outputMessages).toHaveLength(1);
-    expect(response.outputMessages?.[0].role).toBe('assistant');
-    expect(response.outputMessages?.[0].toolCalls).toHaveLength(2);
-    expect(response.outputMessages?.[0].toolCalls?.[0].tool).toBe('search');
-    expect(response.outputMessages?.[0].toolCalls?.[0].input).toEqual({ query: 'hello' });
-    expect(response.outputMessages?.[0].toolCalls?.[0].output).toBe('result');
-    expect(response.outputMessages?.[0].toolCalls?.[1].tool).toBe('analyze');
+    expect(extractLastAssistantContent(response.output)).toBe('Response with tool calls');
+    expect(response.output).toBeDefined();
+    expect(response.output).toHaveLength(1);
+    expect(response.output?.[0].role).toBe('assistant');
+    expect(response.output?.[0].toolCalls).toHaveLength(2);
+    expect(response.output?.[0].toolCalls?.[0].tool).toBe('search');
+    expect(response.output?.[0].toolCalls?.[0].input).toEqual({ query: 'hello' });
+    expect(response.output?.[0].toolCalls?.[0].output).toBe('result');
+    expect(response.output?.[0].toolCalls?.[1].tool).toBe('analyze');
   });
 
-  it('parses output_messages from batch JSONL output', async () => {
+  it('parses output from batch JSONL output', async () => {
     const runner = mock(async (command: string): Promise<CommandRunResult> => {
       const match = command.match(/agentv-batch-\d+-\w+\.jsonl/);
       if (match) {
@@ -227,7 +225,7 @@ describe('CliProvider', () => {
         const record1 = {
           id: 'case-1',
           text: 'Response 1',
-          output_messages: [
+          output: [
             {
               role: 'assistant',
               tool_calls: [{ tool: 'toolA', input: { x: 1 } }],
@@ -237,7 +235,7 @@ describe('CliProvider', () => {
         const record2 = {
           id: 'case-2',
           text: 'Response 2',
-          output_messages: [
+          output: [
             {
               role: 'assistant',
               tool_calls: [{ tool: 'toolB', input: { y: 2 } }],
@@ -267,10 +265,10 @@ describe('CliProvider', () => {
     const responses = await provider.invokeBatch([baseRequest, request2]);
 
     expect(responses).toHaveLength(2);
-    expect(responses[0]?.outputMessages).toBeDefined();
-    expect(responses[0]?.outputMessages?.[0].toolCalls?.[0].tool).toBe('toolA');
-    expect(responses[1]?.outputMessages).toBeDefined();
-    expect(responses[1]?.outputMessages?.[0].toolCalls?.[0].tool).toBe('toolB');
+    expect(responses[0]?.output).toBeDefined();
+    expect(responses[0]?.output?.[0].toolCalls?.[0].tool).toBe('toolA');
+    expect(responses[1]?.output).toBeDefined();
+    expect(responses[1]?.output?.[0].toolCalls?.[0].tool).toBe('toolB');
   });
 
   it('handles messages without tool_calls', async () => {
@@ -280,7 +278,7 @@ describe('CliProvider', () => {
         const outputFilePath = path.join(os.tmpdir(), match[0]);
         const output = {
           text: 'Response',
-          output_messages: [
+          output: [
             { role: 'user', content: 'Hello' },
             { role: 'assistant', content: 'Hi there!' },
           ],
@@ -300,10 +298,10 @@ describe('CliProvider', () => {
     const provider = new CliProvider('cli-target', baseConfig, runner);
     const response = await provider.invoke(baseRequest);
 
-    expect(response.outputMessages).toBeDefined();
-    expect(response.outputMessages).toHaveLength(2);
-    expect(response.outputMessages?.[0].toolCalls).toBeUndefined();
-    expect(response.outputMessages?.[1].toolCalls).toBeUndefined();
+    expect(response.output).toBeDefined();
+    expect(response.output).toHaveLength(2);
+    expect(response.output?.[0].toolCalls).toBeUndefined();
+    expect(response.output?.[1].toolCalls).toBeUndefined();
   });
 
   it('parses execution metrics from single case JSON output', async () => {
@@ -332,7 +330,7 @@ describe('CliProvider', () => {
     const provider = new CliProvider('cli-target', baseConfig, runner);
     const response = await provider.invoke(baseRequest);
 
-    expect(extractLastAssistantContent(response.outputMessages)).toBe('Response with metrics');
+    expect(extractLastAssistantContent(response.output)).toBe('Response with metrics');
     expect(response.tokenUsage).toEqual({ input: 1000, output: 500, cached: 100 });
     expect(response.costUsd).toBe(0.0045);
     expect(response.durationMs).toBe(2500);

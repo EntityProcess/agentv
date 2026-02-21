@@ -35,7 +35,7 @@ Evaluate the candidate's response to the following question:
 **Question:** {{question}}
 **Criteria:** {{criteria}}
 **Reference Answer:** {{reference_answer}}
-**Candidate Answer:** {{candidate_answer}}
+**Candidate Answer:** {{answer}}
 
 ## Scoring
 
@@ -52,7 +52,7 @@ Score the response from 0.0 to 1.0 based on:
 | `question` | First user message content |
 | `criteria` | Test `criteria` field |
 | `reference_answer` | Last expected message content |
-| `candidate_answer` | Last candidate response content |
+| `answer` | Last candidate response content |
 | `sidecar` | Test `sidecar` metadata |
 | `rubrics` | Test `rubrics` (if defined) |
 | `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
@@ -74,7 +74,7 @@ export default definePromptTemplate((ctx) => {
 ${ctx.question}
 
 ## Candidate Answer
-${ctx.candidateAnswer}
+${ctx.answer}
 
 ${ctx.referenceAnswer ? `## Reference Answer\n${ctx.referenceAnswer}` : ''}
 
@@ -115,12 +115,12 @@ TypeScript templates receive a context object with these fields:
 | Field | Type | Description |
 |-------|------|-------------|
 | `question` | `string` | First user message content |
-| `candidateAnswer` | `string` | Last entry in `output_messages` |
+| `answer` | `string` | Last entry in `output` |
 | `referenceAnswer` | `string` | Last entry in `expected_output` |
 | `criteria` | `string` | Test `criteria` field |
 | `expectedOutput` | `Message[]` | Full resolved expected output |
-| `outputMessages` | `Message[]` | Full provider output messages |
-| `traceSummary` | `TraceSummary` | Execution metrics summary |
+| `output` | `Message[]` | Full provider output messages |
+| `trace` | `TraceSummary` | Execution metrics summary |
 | `config` | `object` | Custom config from YAML |
 
 ## Template Variable Derivation
@@ -152,10 +152,10 @@ Derived strings injected into evaluator prompts:
 | `question` | Content of the first `user` role entry in `input` |
 | `criteria` | Passed through from the test field |
 | `reference_answer` | Content of the last entry in `expected_output` |
-| `candidate_answer` | Content of the last entry in `output_messages` |
+| `answer` | Content of the last entry in `output` |
 | `input` | Full resolved input array, JSON-serialized |
 | `expected_output` | Full resolved expected array, JSON-serialized |
-| `output_messages` | Full provider output array, JSON-serialized |
+| `output` | Full provider output array, JSON-serialized |
 | `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
 
 **Example flow:**
@@ -174,5 +174,5 @@ expected_output: [{ role: "assistant", content: "The answer is 4" }]
 # Derived template variables:
 question:         "What is 2+2?"
 reference_answer: "The answer is 4"
-candidate_answer: (extracted from provider output at runtime)
+answer: (extracted from provider output at runtime)
 ```

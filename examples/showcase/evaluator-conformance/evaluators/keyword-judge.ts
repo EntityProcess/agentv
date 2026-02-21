@@ -8,8 +8,8 @@
  */
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, referenceAnswer, criteria }) => {
-  const candidate = (candidateAnswer ?? '').toLowerCase().trim();
+export default defineCodeJudge(({ answer, referenceAnswer, criteria }) => {
+  const candidate = (answer ?? '').toLowerCase().trim();
   const expected = (referenceAnswer ?? '').toLowerCase().trim();
 
   if (!candidate) {

@@ -12,9 +12,9 @@ import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
  * Default evaluator template for the user prompt (variables will be substituted).
  * Custom evaluators can override this via evaluatorTemplate option.
  */
-export const DEFAULT_EVALUATOR_TEMPLATE = `You are an expert evaluator. Your goal is to grade the candidate_answer based on how well it achieves the criteria for the original task.
+export const DEFAULT_EVALUATOR_TEMPLATE = `You are an expert evaluator. Your goal is to grade the answer based on how well it achieves the criteria for the original task.
 
-Use the reference_answer as a gold standard for a high-quality response (if provided). The reference_answer may be a simple text response, or it may contain a sequence of expected agent messages including tool calls. When it contains multiple messages, the last message represents the final expected answer. The candidate_answer does not need to match it verbatim, but should capture the key points and follow the same spirit.
+Use the reference_answer as a gold standard for a high-quality response (if provided). The reference_answer may be a simple text response, or it may contain a sequence of expected agent messages including tool calls. When it contains multiple messages, the last message represents the final expected answer. The answer does not need to match it verbatim, but should capture the key points and follow the same spirit.
 
 Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.
 
@@ -27,8 +27,8 @@ Be concise and focused in your evaluation. Provide succinct, specific feedback r
 [[ ## reference_answer ## ]]
 {{${TEMPLATE_VARIABLES.REFERENCE_ANSWER}}}
 
-[[ ## candidate_answer ## ]]
-{{${TEMPLATE_VARIABLES.CANDIDATE_ANSWER}}}`;
+[[ ## answer ## ]]
+{{${TEMPLATE_VARIABLES.ANSWER}}}`;
 
 type JudgeProviderResolver = (context: EvaluationContext) => Promise<Provider | undefined>;
 
@@ -120,8 +120,8 @@ export class LlmJudgeEvaluator implements Evaluator {
         null,
         2,
       ),
-      [TEMPLATE_VARIABLES.OUTPUT_MESSAGES]: JSON.stringify(context.outputMessages ?? [], null, 2),
-      [TEMPLATE_VARIABLES.CANDIDATE_ANSWER]: context.candidate.trim(),
+      [TEMPLATE_VARIABLES.OUTPUT]: JSON.stringify(context.output ?? [], null, 2),
+      [TEMPLATE_VARIABLES.ANSWER]: context.candidate.trim(),
       [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
       [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
@@ -304,12 +304,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       parts.push('[[ ## reference_answer ## ]]', context.evalCase.reference_answer, '');
     }
 
-    parts.push(
-      '[[ ## candidate_answer ## ]]',
-      context.candidate,
-      '',
-      '[[ ## scoring_criteria ## ]]',
-    );
+    parts.push('[[ ## answer ## ]]', context.candidate, '', '[[ ## scoring_criteria ## ]]');
 
     for (const rubric of rubrics) {
       const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
@@ -363,7 +358,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       parts.push('[[ ## reference_answer ## ]]', context.evalCase.reference_answer, '');
     }
 
-    parts.push('[[ ## candidate_answer ## ]]', context.candidate, '', '[[ ## rubrics ## ]]');
+    parts.push('[[ ## answer ## ]]', context.candidate, '', '[[ ## rubrics ## ]]');
 
     for (const rubric of rubrics) {
       const requiredLabel = rubric.required ? ' (REQUIRED)' : '';
@@ -413,9 +408,7 @@ export class LlmJudgeEvaluator implements Evaluator {
           temperature: this.temperature,
         });
 
-        const data = schema.parse(
-          parseJsonFromText(extractLastAssistantContent(response.outputMessages)),
-        );
+        const data = schema.parse(parseJsonFromText(extractLastAssistantContent(response.output)));
         return { data, providerResponse: response };
       } catch (e: unknown) {
         lastError = e instanceof Error ? e : new Error(String(e));

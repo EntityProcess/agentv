@@ -50,7 +50,7 @@ describe('LlmJudgeEvaluator Variable Substitution', () => {
 Question: {{question}}
 Outcome: {{criteria}}
 Reference: {{reference_answer}}
-Candidate: {{candidate_answer}}
+Candidate: {{answer}}
 Input Messages: {{input}}
 Expected Messages: {{expected_output}}
 File Changes: {{file_changes}}
@@ -70,11 +70,11 @@ File Changes: {{file_changes}}
       evaluatorTemplate: customPrompt,
     });
 
-    const candidateAnswer = 'Candidate Answer Text';
+    const answer = 'Candidate Answer Text';
 
     await evaluator.evaluate({
       evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
-      candidate: candidateAnswer,
+      candidate: answer,
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,
@@ -150,7 +150,7 @@ File Changes: {{file_changes}}
 Question: {{ question }}
 Outcome: {{ criteria }}
 Reference: {{ reference_answer }}
-Candidate: {{ candidate_answer }}
+Candidate: {{ answer }}
 Input Messages: {{ input }}
 Expected Messages: {{ expected_output }}
 `;
@@ -169,11 +169,11 @@ Expected Messages: {{ expected_output }}
       evaluatorTemplate: customPrompt,
     });
 
-    const candidateAnswer = 'Candidate Answer Text';
+    const answer = 'Candidate Answer Text';
 
     await evaluator.evaluate({
       evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
-      candidate: candidateAnswer,
+      candidate: answer,
       target: baseTarget,
       provider: judgeProvider,
       attempt: 0,

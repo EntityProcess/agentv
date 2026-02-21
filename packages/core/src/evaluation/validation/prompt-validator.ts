@@ -37,14 +37,14 @@ export function validateTemplateVariables(content: string, source: string): void
   }
 
   // Check if template contains required variables for evaluation
-  const hasCandidateAnswer = foundVariables.has(TEMPLATE_VARIABLES.CANDIDATE_ANSWER);
+  const hasCandidateAnswer = foundVariables.has(TEMPLATE_VARIABLES.ANSWER);
   const hasExpectedOutput = foundVariables.has(TEMPLATE_VARIABLES.EXPECTED_OUTPUT);
   const hasRequiredFields = hasCandidateAnswer || hasExpectedOutput;
 
   // ERROR: Missing required fields - throw error to skip this evaluator/eval case
   if (!hasRequiredFields) {
     throw new Error(
-      `Missing required fields. Must include at least one of:\n  - {{ ${TEMPLATE_VARIABLES.CANDIDATE_ANSWER} }}\n  - {{ ${TEMPLATE_VARIABLES.EXPECTED_OUTPUT} }}`,
+      `Missing required fields. Must include at least one of:\n  - {{ ${TEMPLATE_VARIABLES.ANSWER} }}\n  - {{ ${TEMPLATE_VARIABLES.EXPECTED_OUTPUT} }}`,
     );
   }
 

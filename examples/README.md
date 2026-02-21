@@ -100,8 +100,8 @@ Then write type-safe code judges:
 #!/usr/bin/env bun
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ candidateAnswer, criteria }) => ({
-  score: candidateAnswer.includes('expected') ? 1.0 : 0.0,
+export default defineCodeJudge(({ answer, criteria }) => ({
+  score: answer.includes('expected') ? 1.0 : 0.0,
   hits: ['Found expected content'],
   misses: [],
 }));

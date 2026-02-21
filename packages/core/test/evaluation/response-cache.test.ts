@@ -17,7 +17,7 @@ describe('ResponseCache', () => {
 
   const sampleResponse: ProviderResponse = {
     raw: { text: 'Hello world' },
-    outputMessages: [{ role: 'assistant', content: 'Hello world' }],
+    output: [{ role: 'assistant', content: 'Hello world' }],
   };
 
   it('should store and retrieve cached responses', async () => {

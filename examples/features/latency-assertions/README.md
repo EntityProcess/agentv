@@ -36,7 +36,7 @@ For latency assertions to work, providers must include `duration_ms` in tool cal
 
 ```json
 {
-  "output_messages": [{
+  "output": [{
     "role": "assistant",
     "tool_calls": [{
       "tool": "Read",

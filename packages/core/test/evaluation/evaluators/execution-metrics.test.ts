@@ -28,10 +28,10 @@ const baseMockProvider = {
   id: 'mock',
   kind: 'mock' as const,
   targetName: 'mock',
-  invoke: async () => ({ outputMessages: [{ role: 'assistant' as const, content: 'test' }] }),
+  invoke: async () => ({ output: [{ role: 'assistant' as const, content: 'test' }] }),
 };
 
-function createContext(traceSummary?: TraceSummary) {
+function createContext(trace?: TraceSummary) {
   return {
     evalCase: baseTestCase,
     candidate: 'Test answer',
@@ -40,7 +40,7 @@ function createContext(traceSummary?: TraceSummary) {
     attempt: 0,
     promptInputs: { question: '', guidelines: '' },
     now: new Date(),
-    traceSummary,
+    trace,
   };
 }
 
@@ -452,7 +452,7 @@ describe('ExecutionMetricsEvaluator', () => {
   });
 
   describe('missing data handling', () => {
-    it('fails when no traceSummary is available', () => {
+    it('fails when no trace is available', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
         type: 'execution_metrics',

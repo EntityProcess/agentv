@@ -68,8 +68,8 @@ All code judges receive a JSON object on stdin with:
   "question": "User's question/task",
   "criteria": "Expected behavior description",
   "reference_answer": "Gold standard answer (from expected_output)",
-  "candidate_answer": "Agent's final response",
-  "output_messages": [
+  "answer": "Agent's final response",
+  "output": [
     {
       "role": "assistant",
       "content": "...",
@@ -84,7 +84,7 @@ All code judges receive a JSON object on stdin with:
       ]
     }
   ],
-  "trace_summary": {
+  "trace": {
     "event_count": 5,
     "tool_names": ["fetch", "search"],
     "tool_calls_by_name": { "search": 2, "fetch": 1 },
@@ -96,7 +96,7 @@ All code judges receive a JSON object on stdin with:
 }
 ```
 
-**Note:** `trace_summary` is a lightweight summary (just counts). To access tool call arguments, use `output_messages[].tool_calls[].input`.
+**Note:** `trace` is a lightweight summary (just counts). To access tool call arguments, use `output[].tool_calls[].input`.
 
 ## Output Contract
 

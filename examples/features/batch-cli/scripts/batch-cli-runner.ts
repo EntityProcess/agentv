@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { buildCsv, extractRowsFromEvalYaml } from './build-csv-from-eval.ts';
 
-// Batch CLI runner that processes CSV files for AML screening and outputs JSONL with output_messages for trace extraction.
+// Batch CLI runner that processes CSV files for AML screening and outputs JSONL with output for trace extraction.
 
 function getFlag(args: readonly string[], name: string): string | undefined {
   const idx = args.indexOf(name);
@@ -109,7 +109,7 @@ async function main(): Promise<void> {
   type OutputRecord = {
     id: string;
     text: string;
-    output_messages: Array<{
+    output: Array<{
       role: string;
       tool_calls?: Array<{
         tool: string;
@@ -157,12 +157,12 @@ async function main(): Promise<void> {
       currency,
     };
 
-    // Build output_messages with tool_calls for trace extraction
-    // This demonstrates the new output_messages format that AgentV can extract traces from
+    // Build output with tool_calls for trace extraction
+    // This demonstrates the new output format that AgentV can extract traces from
     records.push({
       id,
       text: JSON.stringify(payload),
-      output_messages: [
+      output: [
         {
           role: 'assistant',
           tool_calls: [

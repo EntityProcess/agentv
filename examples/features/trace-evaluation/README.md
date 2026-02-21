@@ -1,6 +1,6 @@
 # Trace-Based Evaluation
 
-Demonstrates how to evaluate agent internals — LLM call counts, tool executions, errors, and step durations — using code judges that inspect `context.traceSummary`.
+Demonstrates how to evaluate agent internals — LLM call counts, tool executions, errors, and step durations — using code judges that inspect `context.trace`.
 
 ## Judges
 
@@ -12,7 +12,7 @@ Demonstrates how to evaluate agent internals — LLM call counts, tool execution
 
 ## Available Trace Data
 
-Code judges receive `traceSummary` with these fields:
+Code judges receive `trace` with these fields:
 
 ```typescript
 interface TraceSummary {

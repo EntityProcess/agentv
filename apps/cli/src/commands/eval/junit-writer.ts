@@ -56,9 +56,7 @@ export class JunitWriter {
       const errors = results.filter((r) => r.error !== undefined).length;
 
       const testCases = results.map((r) => {
-        const time = r.traceSummary?.durationMs
-          ? (r.traceSummary.durationMs / 1000).toFixed(3)
-          : '0.000';
+        const time = r.trace?.durationMs ? (r.trace.durationMs / 1000).toFixed(3) : '0.000';
 
         let inner = '';
         if (r.error) {

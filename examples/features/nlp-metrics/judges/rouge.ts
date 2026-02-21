@@ -47,7 +47,7 @@ function rougeN(candidate: string, reference: string, n: number) {
   return { precision, recall, f1 };
 }
 
-export default defineCodeJudge(({ candidateAnswer, referenceAnswer, expectedOutput }) => {
+export default defineCodeJudge(({ answer, referenceAnswer, expectedOutput }) => {
   const reference =
     referenceAnswer ??
     (expectedOutput[0] && typeof expectedOutput[0].content === 'string'
@@ -58,8 +58,8 @@ export default defineCodeJudge(({ candidateAnswer, referenceAnswer, expectedOutp
     return { score: 0, misses: ['No reference text provided'], reasoning: 'Missing reference.' };
   }
 
-  const rouge1 = rougeN(candidateAnswer, reference, 1);
-  const rouge2 = rougeN(candidateAnswer, reference, 2);
+  const rouge1 = rougeN(answer, reference, 1);
+  const rouge2 = rougeN(answer, reference, 2);
 
   const score = rouge1.f1;
 

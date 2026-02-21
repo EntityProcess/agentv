@@ -14,6 +14,7 @@ export {
 } from './evaluation/cache/response-cache.js';
 export { toSnakeCaseDeep, toCamelCaseDeep } from './evaluation/case-conversion.js';
 export { trimBaselineResult } from './evaluation/baseline.js';
+export * from './observability/index.js';
 
 export type AgentKernel = {
   status: string;
