@@ -353,6 +353,11 @@ export async function runEvaluation(
   const hasSharedWorkspace = !!(workspaceTemplate || suiteWorkspace?.before_all);
   const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
   const workers = hasSharedWorkspace ? 1 : requestedWorkers;
+  if (hasSharedWorkspace && requestedWorkers > 1) {
+    console.warn(
+      `Warning: Shared workspace requires sequential execution. Overriding workers from ${requestedWorkers} to 1.`,
+    );
+  }
   const limit = pLimit(workers);
   let sharedWorkspacePath: string | undefined;
   let sharedBaselineCommit: string | undefined;

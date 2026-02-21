@@ -1,11 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { createWriteStream, existsSync, readdirSync } from 'node:fs';
-import type { WriteStream } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
-import { arch, platform } from 'node:os';
 import path from 'node:path';
 import { Readable, Writable } from 'node:stream';
-import { fileURLToPath } from 'node:url';
 
 import type { ChildProcess } from 'node:child_process';
 import { spawn } from 'node:child_process';
@@ -13,6 +9,13 @@ import { spawn } from 'node:child_process';
 import * as acp from '@agentclientprotocol/sdk';
 
 import { recordCopilotCliLogEntry } from './copilot-cli-log-tracker.js';
+import {
+  CopilotStreamLogger,
+  buildLogFilename,
+  isLogStreamingDisabled,
+  killProcess,
+  resolvePlatformCliPath,
+} from './copilot-utils.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { CopilotCliResolvedConfig } from './targets.js';
 import type {
@@ -163,15 +166,16 @@ export class CopilotCliProvider implements Provider {
         }
 
         if (sessionUpdate === 'usage_update') {
-          // UsageUpdate has { size, used, cost? } — cost has { amount, currency }
-          if (update.cost && update.cost.currency === 'USD') {
-            costUsd = update.cost.amount;
-          }
-          // Approximate token usage from context window info
+          // ACP UsageUpdate has { size, used, cost? } — cost has { amount, currency }
+          // `used` reports cumulative context window usage, so overwrite (not accumulate)
           if (tokenUsage) {
             tokenUsage = { input: update.used, output: tokenUsage.output };
           } else {
             tokenUsage = { input: update.used, output: 0 };
+          }
+          // Cost may arrive across multiple events — accumulate
+          if (update.cost && update.cost.currency === 'USD') {
+            costUsd = (costUsd ?? 0) + update.cost.amount;
           }
         }
       },
@@ -291,15 +295,20 @@ export class CopilotCliProvider implements Provider {
       return;
     }
 
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         killProcess(agentProcess);
         reject(new Error(`Copilot CLI timed out after ${Math.ceil(timeoutMs / 1000)}s`));
       }, timeoutMs);
       timer.unref?.();
     });
 
-    await Promise.race([sendPromise, timeoutPromise]);
+    try {
+      await Promise.race([sendPromise, timeoutPromise]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   private resolveCwd(cwdOverride?: string): string | undefined {
@@ -327,8 +336,7 @@ export class CopilotCliProvider implements Provider {
   }
 
   private resolveLogDirectory(): string | undefined {
-    const disabled = isCopilotCliLogStreamingDisabled();
-    if (disabled) {
+    if (isLogStreamingDisabled('AGENTV_COPILOT_CLI_STREAM_LOGS')) {
       return undefined;
     }
     if (this.config.logDir) {
@@ -339,7 +347,7 @@ export class CopilotCliProvider implements Provider {
 
   private async createStreamLogger(
     request: ProviderRequest,
-  ): Promise<CopilotCliStreamLogger | undefined> {
+  ): Promise<CopilotStreamLogger | undefined> {
     const logDir = this.resolveLogDirectory();
     if (!logDir) {
       return undefined;
@@ -352,16 +360,20 @@ export class CopilotCliProvider implements Provider {
       return undefined;
     }
 
-    const filePath = path.join(logDir, buildLogFilename(request, this.targetName));
+    const filePath = path.join(logDir, buildLogFilename(request, this.targetName, 'copilot-cli'));
 
     try {
-      const logger = await CopilotCliStreamLogger.create({
-        filePath,
-        targetName: this.targetName,
-        evalCaseId: request.evalCaseId,
-        attempt: request.attempt,
-        format: this.config.logFormat ?? 'summary',
-      });
+      const logger = await CopilotStreamLogger.create(
+        {
+          filePath,
+          targetName: this.targetName,
+          evalCaseId: request.evalCaseId,
+          attempt: request.attempt,
+          format: this.config.logFormat ?? 'summary',
+          headerLabel: 'Copilot CLI (ACP)',
+        },
+        summarizeAcpEvent,
+      );
       recordCopilotCliLogEntry({
         filePath,
         targetName: this.targetName,
@@ -377,80 +389,7 @@ export class CopilotCliProvider implements Provider {
   }
 }
 
-function killProcess(proc: ChildProcess): void {
-  try {
-    if (proc.exitCode === null && proc.signalCode === null) {
-      proc.kill('SIGTERM');
-      // Give process 5s to exit gracefully, then force-kill
-      const forceTimer = setTimeout(() => {
-        try {
-          proc.kill('SIGKILL');
-        } catch {
-          // Already exited
-        }
-      }, 5000);
-      forceTimer.unref?.();
-    }
-  } catch {
-    // Process already exited
-  }
-}
-
-class CopilotCliStreamLogger {
-  readonly filePath: string;
-  private readonly stream: WriteStream;
-  private readonly startedAt = Date.now();
-  private readonly format: 'summary' | 'json';
-
-  private constructor(filePath: string, format: 'summary' | 'json') {
-    this.filePath = filePath;
-    this.format = format;
-    this.stream = createWriteStream(filePath, { flags: 'a' });
-  }
-
-  static async create(options: {
-    readonly filePath: string;
-    readonly targetName: string;
-    readonly evalCaseId?: string;
-    readonly attempt?: number;
-    readonly format: 'summary' | 'json';
-  }): Promise<CopilotCliStreamLogger> {
-    const logger = new CopilotCliStreamLogger(options.filePath, options.format);
-    const header = [
-      '# Copilot CLI (ACP) stream log',
-      `# target: ${options.targetName}`,
-      options.evalCaseId ? `# eval: ${options.evalCaseId}` : undefined,
-      options.attempt !== undefined ? `# attempt: ${options.attempt + 1}` : undefined,
-      `# started: ${new Date().toISOString()}`,
-      '',
-    ].filter((line): line is string => Boolean(line));
-    for (const line of header) {
-      logger.stream.write(`${line}\n`);
-    }
-    return logger;
-  }
-
-  handleEvent(eventType: string, data: unknown): void {
-    const elapsed = formatElapsed(this.startedAt);
-    if (this.format === 'json') {
-      this.stream.write(`${JSON.stringify({ time: elapsed, event: eventType, data })}\n`);
-    } else {
-      const summary = summarizeEvent(eventType, data);
-      if (summary) {
-        this.stream.write(`[+${elapsed}] [${eventType}] ${summary}\n`);
-      }
-    }
-  }
-
-  async close(): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
-      this.stream.once('error', reject);
-      this.stream.end(() => resolve());
-    });
-  }
-}
-
-function summarizeEvent(eventType: string, data: unknown): string | undefined {
+function summarizeAcpEvent(eventType: string, data: unknown): string | undefined {
   if (!data || typeof data !== 'object') {
     return eventType;
   }
@@ -467,126 +406,9 @@ function summarizeEvent(eventType: string, data: unknown): string | undefined {
       return `${d.title ?? d.kind ?? 'unknown'} (${d.status ?? 'running'})`;
     case 'tool_call_update':
       return `${d.toolCallId ?? 'unknown'} ${d.status ?? 'updated'}`;
-    case 'usage': {
-      return `input=${d.inputTokens ?? 0} output=${d.outputTokens ?? 0}`;
-    }
+    case 'usage_update':
+      return `used=${d.used ?? 0} size=${d.size ?? 0}`;
     default:
       return undefined;
   }
-}
-
-function isCopilotCliLogStreamingDisabled(): boolean {
-  const envValue = process.env.AGENTV_COPILOT_CLI_STREAM_LOGS;
-  if (!envValue) {
-    return false;
-  }
-  const normalized = envValue.trim().toLowerCase();
-  return normalized === 'false' || normalized === '0' || normalized === 'off';
-}
-
-function buildLogFilename(request: ProviderRequest, targetName: string): string {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const evalId = sanitizeForFilename(request.evalCaseId ?? 'copilot-cli');
-  const attemptSuffix = request.attempt !== undefined ? `_attempt-${request.attempt + 1}` : '';
-  const target = sanitizeForFilename(targetName);
-  return `${timestamp}_${target}_${evalId}${attemptSuffix}_${randomUUID().slice(0, 8)}.log`;
-}
-
-function sanitizeForFilename(value: string): string {
-  const sanitized = value.replace(/[^A-Za-z0-9._-]+/g, '_');
-  return sanitized.length > 0 ? sanitized : 'copilot-cli';
-}
-
-/**
- * Resolve the platform-specific native Copilot CLI binary from the @github/copilot
- * optional dependency.
- */
-function resolvePlatformCliPath(): string | undefined {
-  const os = platform();
-  const cpu = arch();
-
-  const platformMap: Record<string, string> = {
-    linux: 'linux',
-    darwin: 'darwin',
-    win32: 'win32',
-  };
-  const archMap: Record<string, string> = {
-    x64: 'x64',
-    arm64: 'arm64',
-  };
-
-  const osPart = platformMap[os];
-  const archPart = archMap[cpu];
-  if (!osPart || !archPart) {
-    return undefined;
-  }
-
-  const packageName = `@github/copilot-${osPart}-${archPart}`;
-  const binaryName = os === 'win32' ? 'copilot.exe' : 'copilot';
-
-  try {
-    const resolved = import.meta.resolve(`${packageName}/package.json`);
-    const packageJsonPath = resolved.startsWith('file:') ? fileURLToPath(resolved) : resolved;
-    const binaryPath = path.join(path.dirname(packageJsonPath), binaryName);
-    if (existsSync(binaryPath)) {
-      return binaryPath;
-    }
-  } catch {
-    // Not resolvable via import.meta.resolve
-  }
-
-  // Walk up from cwd looking for node_modules containing the package
-  let searchDir = process.cwd();
-  for (let i = 0; i < 10; i++) {
-    const standardPath = path.join(
-      searchDir,
-      'node_modules',
-      ...packageName.split('/'),
-      binaryName,
-    );
-    if (existsSync(standardPath)) {
-      return standardPath;
-    }
-
-    // Bun's deduped .bun directory layout
-    const bunDir = path.join(searchDir, 'node_modules', '.bun');
-    const prefix = `@github+copilot-${osPart}-${archPart}@`;
-    try {
-      const entries = readdirSync(bunDir);
-      for (const entry of entries) {
-        if (entry.startsWith(prefix)) {
-          const candidate = path.join(
-            bunDir,
-            entry,
-            'node_modules',
-            '@github',
-            `copilot-${osPart}-${archPart}`,
-            binaryName,
-          );
-          if (existsSync(candidate)) {
-            return candidate;
-          }
-        }
-      }
-    } catch {
-      // .bun directory doesn't exist or can't be read
-    }
-
-    const parent = path.dirname(searchDir);
-    if (parent === searchDir) break;
-    searchDir = parent;
-  }
-
-  return undefined;
-}
-
-function formatElapsed(startedAt: number): string {
-  const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
-  const hours = Math.floor(elapsedSeconds / 3600);
-  const minutes = Math.floor((elapsedSeconds % 3600) / 60);
-  const seconds = elapsedSeconds % 60;
-  if (hours > 0) {
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
