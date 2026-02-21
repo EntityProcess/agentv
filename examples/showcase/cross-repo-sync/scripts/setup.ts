@@ -5,8 +5,10 @@
  *   - workspace_path: string
  *   - case_metadata: { agentevals_before: string }
  *
- * Clones the repo, checks out the specified commit, then removes .git
- * so the workspace-level git can track file changes made by the agent.
+ * Clones the repo and checks out the specified commit, preserving .git
+ * so the agent has access to full git history (log, blame, etc.).
+ * The workspace-level git uses --submodule=diff to expand nested repo
+ * changes into individual file diffs.
  * Uses node:child_process execFile (no shell, safe from injection).
  */
 
@@ -67,10 +69,9 @@ async function main(): Promise<void> {
   await run('git', ['clone', AGENTEVALS_REPO, agentevalsDir]);
   await run('git', ['checkout', commit], agentevalsDir);
 
-  // Remove .git so workspace-level git can track file changes
-  rmSync(`${agentevalsDir}/.git`, { recursive: true, force: true });
-
-  console.log(`Cloned agentevals at ${commit} → ${agentevalsDir} (.git removed)`);
+  // Preserve .git so agent has full git history (log, blame, etc.)
+  // Workspace-level git uses --submodule=diff to track nested repo changes.
+  console.log(`Cloned agentevals at ${commit} → ${agentevalsDir} (.git preserved)`);
 }
 
 main().catch((err) => {

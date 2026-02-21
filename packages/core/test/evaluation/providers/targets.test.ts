@@ -625,6 +625,76 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/mutually exclusive/i);
   });
 
+  it('resolves copilot-cli as its own provider kind', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'copilot-cli-target',
+        provider: 'copilot-cli',
+        model: 'claude-haiku-4.5',
+        timeout_seconds: 600,
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('copilot-cli');
+    if (target.kind !== 'copilot-cli') {
+      throw new Error('expected copilot-cli target');
+    }
+
+    expect(target.config.executable).toBe('copilot');
+    expect(target.config.model).toBe('claude-haiku-4.5');
+    expect(target.config.timeoutMs).toBe(600000);
+  });
+
+  it('copilot-cli defaults executable to copilot', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'copilot-cli-default',
+        provider: 'copilot-cli',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('copilot-cli');
+    if (target.kind !== 'copilot-cli') {
+      throw new Error('expected copilot-cli target');
+    }
+
+    expect(target.config.executable).toBe('copilot');
+  });
+
+  it('resolves copilot-cli workspace_template', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'copilot-cli-with-template',
+        provider: 'copilot-cli',
+        workspace_template: '/templates/copilot-cli-workspace',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('copilot-cli');
+    if (target.kind !== 'copilot-cli') {
+      throw new Error('expected copilot-cli target');
+    }
+
+    expect(target.config.workspaceTemplate).toBe('/templates/copilot-cli-workspace');
+  });
+
+  it('throws when both cwd and workspace_template are specified for copilot-cli', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'copilot-cli-both',
+          provider: 'copilot-cli',
+          cwd: '/some/path',
+          workspace_template: '/templates/workspace',
+        },
+        {},
+      ),
+    ).toThrow(/mutually exclusive/i);
+  });
+
   it('resolves pi-coding-agent workspace_template', () => {
     const target = resolveTargetDefinition(
       {

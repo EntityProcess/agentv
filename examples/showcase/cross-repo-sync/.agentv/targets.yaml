@@ -9,5 +9,6 @@ targets:
     timeout_seconds: 900
 
   - name: copilot_agent
-    provider: copilot
+    provider: copilot-cli
+    model: claude-haiku-4.5
     timeout_seconds: 900
