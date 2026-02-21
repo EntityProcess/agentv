@@ -6,10 +6,10 @@
  * so both copilot-sdk.ts and copilot-cli.ts stay DRY.
  */
 
+import type { ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createWriteStream, existsSync, readdirSync } from 'node:fs';
 import type { WriteStream } from 'node:fs';
-import type { ChildProcess } from 'node:child_process';
 import { arch, platform } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -67,7 +67,12 @@ export function resolvePlatformCliPath(): string | undefined {
   let searchDir = process.cwd();
   for (let i = 0; i < 10; i++) {
     // Standard node_modules layout
-    const standardPath = path.join(searchDir, 'node_modules', ...packageName.split('/'), binaryName);
+    const standardPath = path.join(
+      searchDir,
+      'node_modules',
+      ...packageName.split('/'),
+      binaryName,
+    );
     if (existsSync(standardPath)) {
       return standardPath;
     }
