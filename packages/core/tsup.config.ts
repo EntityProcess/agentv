@@ -13,6 +13,13 @@ export default defineConfig({
   },
   target: 'node20',
   tsconfig: './tsconfig.build.json',
+  external: [
+    '@opentelemetry/api',
+    '@opentelemetry/exporter-trace-otlp-http',
+    '@opentelemetry/resources',
+    '@opentelemetry/sdk-trace-node',
+    '@opentelemetry/semantic-conventions',
+  ],
   outExtension({ format }) {
     return {
       js: format === 'cjs' ? '.cjs' : '.js',

@@ -303,7 +303,7 @@ describe('ClaudeProvider', () => {
       if (originalClaudeCode !== undefined) {
         process.env.CLAUDECODE = originalClaudeCode;
       } else {
-        delete process.env.CLAUDECODE;
+        process.env.CLAUDECODE = undefined;
       }
     }
   });

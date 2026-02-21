@@ -441,7 +441,7 @@ function summarizeMessage(msg: Record<string, unknown>): string | undefined {
  */
 function sanitizeEnvForClaudeSdk(): Record<string, string | undefined> {
   const env = { ...process.env };
-  delete env.CLAUDECODE;
+  env.CLAUDECODE = undefined;
   return env;
 }
 
