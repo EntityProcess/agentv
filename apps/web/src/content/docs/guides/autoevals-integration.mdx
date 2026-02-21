@@ -1,0 +1,270 @@
+---
+title: Autoevals Integration
+description: Use Braintrust's open-source autoevals scorers (Factuality, Faithfulness, etc.) as code_judge evaluators in AgentV.
+sidebar:
+  order: 2
+---
+
+## Overview
+
+[Braintrust's `autoevals`](https://github.com/braintrustdata/autoevals) is an open-source library (Apache 2.0, 800+ stars) with 25+ production-tested scorers for evaluating AI outputs. It includes LLM-as-a-judge evaluations (Factuality, Faithfulness, ClosedQA), RAG metrics (ContextRelevancy, ContextRecall, AnswerRelevancy), and heuristic checks (JSONDiff, EmbeddingSimilarity).
+
+**Key points:**
+
+- Works standalone — no Braintrust platform account required
+- Uses any OpenAI-compatible endpoint for LLM-based scorers
+- Integrates with AgentV via `code_judge` evaluator type: wrap any autoevals scorer in a script that reads stdin and writes the AgentV judge result to stdout
+
+## Installation
+
+```bash
+# TypeScript
+npm install autoevals
+
+# Python
+pip install autoevals
+```
+
+Set your API key for LLM-based scorers:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+```
+
+## Available Scorers
+
+| Scorer | Use Case | Key Parameters |
+|--------|----------|----------------|
+| `Factuality` | Is the answer factually consistent with the expected answer? | `input`, `output`, `expected` |
+| `ClosedQA` | Does the answer correctly address the question given criteria? | `input`, `output`, `expected` |
+| `Faithfulness` | Is the output faithful to the provided context (no hallucination)? | `input`, `output`, `expected` |
+| `ContextRelevancy` | Is the retrieved context relevant to the question? | `input`, `output`, `expected` |
+| `ContextRecall` | Does the context contain the information needed to answer? | `input`, `output`, `expected` |
+| `AnswerRelevancy` | Is the answer relevant to the question asked? | `input`, `output`, `expected` |
+| `Summary` | Does the summary accurately capture the source material? | `input`, `output`, `expected` |
+| `Translation` | Is the translation accurate and natural? | `input`, `output`, `expected` |
+| `JSONDiff` | Structural diff between JSON objects (heuristic, no LLM) | `output`, `expected` |
+| `EmbeddingSimilarity` | Cosine similarity between embeddings (no LLM) | `output`, `expected` |
+
+All LLM-based scorers return a `score` (0–1) and `metadata.rationale` explaining the judgment.
+
+## TypeScript Example
+
+Use the `Factuality` scorer as an AgentV `code_judge` to verify answer correctness.
+
+**EVAL.yaml:**
+
+```yaml
+tests:
+  - id: capital-city
+    input:
+      - role: user
+        content: "What is the capital of France?"
+    expected_output: "Paris is the capital of France."
+    assert:
+      - name: factuality
+        type: code_judge
+        script: ["bun", "run", "judges/factuality.ts"]
+```
+
+**judges/factuality.ts:**
+
+```typescript
+#!/usr/bin/env bun
+import { readFileSync } from "fs";
+import { Factuality } from "autoevals";
+
+const input = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
+
+const result = await Factuality({
+  input: input.question,
+  output: input.answer,
+  expected: input.reference_answer,
+});
+
+const score = result.score ?? 0;
+const rationale = result.metadata?.rationale ?? "No rationale provided";
+
+console.log(
+  JSON.stringify({
+    score,
+    hits: score >= 0.5 ? [rationale] : [],
+    misses: score < 0.5 ? [rationale] : [],
+    reasoning: rationale,
+  })
+);
+```
+
+The code judge reads the AgentV input from stdin (`question`, `answer`, `reference_answer`), maps the fields to autoevals parameters (`input`, `output`, `expected`), runs the scorer, and writes the AgentV result format to stdout.
+
+## Python Example
+
+Use the `Faithfulness` scorer to detect hallucination in a RAG pipeline.
+
+**EVAL.yaml:**
+
+```yaml
+tests:
+  - id: rag-faithfulness
+    input:
+      - role: user
+        content: "Summarize the key findings from the research paper."
+    expected_output: "The paper found that transformer models outperform RNNs on long-range tasks."
+    assert:
+      - name: faithfulness
+        type: code_judge
+        script: ["python", "judges/faithfulness.py"]
+```
+
+**judges/faithfulness.py:**
+
+```python
+#!/usr/bin/env python3
+import json
+import sys
+from autoevals import Faithfulness
+
+data = json.load(sys.stdin)
+
+evaluator = Faithfulness()
+result = evaluator(
+    input=data.get("question", ""),
+    output=data.get("answer", ""),
+    expected=data.get("reference_answer", ""),
+)
+
+score = result.score or 0
+rationale = (result.metadata or {}).get("rationale", "No rationale provided")
+
+print(json.dumps({
+    "score": score,
+    "hits": [rationale] if score >= 0.5 else [],
+    "misses": [rationale] if score < 0.5 else [],
+    "reasoning": rationale,
+}))
+```
+
+## Configuration
+
+Autoevals uses `OPENAI_API_KEY` and `OPENAI_BASE_URL` by default. To point it at any OpenAI-compatible endpoint without a Braintrust account:
+
+### TypeScript
+
+```typescript
+import OpenAI from "openai";
+import { init } from "autoevals";
+
+init({
+  client: new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: "https://api.openai.com/v1/",
+  }),
+});
+```
+
+### Python
+
+```python
+import openai
+from autoevals import init
+
+init(openai.AsyncOpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+    base_url="https://api.openai.com/v1/",
+))
+```
+
+You can also configure per-scorer by passing a `client` parameter:
+
+```typescript
+const result = await Factuality({
+  client: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }),
+  input: "...",
+  output: "...",
+  expected: "...",
+});
+```
+
+## RAG Evaluation Suite
+
+Combine multiple autoevals scorers in a single code judge for comprehensive RAG evaluation.
+
+**EVAL.yaml:**
+
+```yaml
+tests:
+  - id: rag-pipeline
+    input:
+      - role: user
+        content: "What are the benefits of exercise?"
+    expected_output: "Exercise improves cardiovascular health, mental well-being, and longevity."
+    assert:
+      - name: rag-quality
+        type: code_judge
+        script: ["bun", "run", "judges/rag-suite.ts"]
+        weight: 1.0
+```
+
+**judges/rag-suite.ts:**
+
+```typescript
+#!/usr/bin/env bun
+import { readFileSync } from "fs";
+import {
+  Factuality,
+  Faithfulness,
+  AnswerRelevancy,
+  ContextRelevancy,
+} from "autoevals";
+
+const input = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
+
+const scorerArgs = {
+  input: input.question,
+  output: input.answer,
+  expected: input.reference_answer,
+};
+
+// Run all scorers in parallel
+const [factuality, faithfulness, answerRelevancy, contextRelevancy] =
+  await Promise.all([
+    Factuality(scorerArgs),
+    Faithfulness(scorerArgs),
+    AnswerRelevancy(scorerArgs),
+    ContextRelevancy(scorerArgs),
+  ]);
+
+const results = [
+  { name: "Factuality", ...factuality },
+  { name: "Faithfulness", ...faithfulness },
+  { name: "Answer Relevancy", ...answerRelevancy },
+  { name: "Context Relevancy", ...contextRelevancy },
+];
+
+const hits: string[] = [];
+const misses: string[] = [];
+
+for (const r of results) {
+  const score = r.score ?? 0;
+  const rationale = r.metadata?.rationale ?? "No rationale";
+  if (score >= 0.5) {
+    hits.push(`${r.name} (${score.toFixed(2)}): ${rationale}`);
+  } else {
+    misses.push(`${r.name} (${score.toFixed(2)}): ${rationale}`);
+  }
+}
+
+const avgScore =
+  results.reduce((sum, r) => sum + (r.score ?? 0), 0) / results.length;
+
+console.log(
+  JSON.stringify({
+    score: avgScore,
+    hits,
+    misses,
+    reasoning: `Average score across ${results.length} RAG metrics: ${avgScore.toFixed(2)}`,
+  })
+);
+```
+
+This pattern runs Factuality, Faithfulness, AnswerRelevancy, and ContextRelevancy in parallel and returns a composite score. Add or remove scorers to match your pipeline's requirements.
