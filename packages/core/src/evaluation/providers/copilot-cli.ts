@@ -127,8 +127,9 @@ export class CopilotCliProvider implements Provider {
           }
           // Tool call arrived already completed
           if (update.status === 'completed' || update.status === 'failed') {
+            const toolName = update.title ?? update.kind ?? 'unknown';
             completedToolCalls.push({
-              tool: update.title ?? update.kind ?? 'unknown',
+              tool: toolName,
               input: update.rawInput,
               output: update.rawOutput,
               id: callId,
@@ -136,6 +137,13 @@ export class CopilotCliProvider implements Provider {
               endTime: new Date().toISOString(),
               durationMs: 0,
             });
+            request.streamCallbacks?.onToolCallEnd?.(
+              toolName,
+              update.rawInput,
+              update.rawOutput,
+              0,
+              callId,
+            );
           }
         }
 
@@ -145,6 +153,7 @@ export class CopilotCliProvider implements Provider {
             const inProgress = toolCallsInProgress.get(callId);
             if (inProgress) {
               toolCallsInProgress.delete(callId);
+              const duration = Date.now() - inProgress.startMs;
               completedToolCalls.push({
                 tool: inProgress.tool,
                 input: inProgress.input,
@@ -152,8 +161,15 @@ export class CopilotCliProvider implements Provider {
                 id: inProgress.id,
                 startTime: inProgress.startTime,
                 endTime: new Date().toISOString(),
-                durationMs: Date.now() - inProgress.startMs,
+                durationMs: duration,
               });
+              request.streamCallbacks?.onToolCallEnd?.(
+                inProgress.tool,
+                inProgress.input,
+                update.rawOutput,
+                duration,
+                inProgress.id,
+              );
             }
           }
         }
@@ -177,6 +193,8 @@ export class CopilotCliProvider implements Provider {
           if (update.cost && update.cost.currency === 'USD') {
             costUsd = (costUsd ?? 0) + update.cost.amount;
           }
+          // Stream callback for LLM usage
+          request.streamCallbacks?.onLlmCallEnd?.('copilot', tokenUsage);
         }
       },
     };

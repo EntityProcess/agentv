@@ -20,6 +20,7 @@ export type {
   ProviderKind,
   ProviderRequest,
   ProviderResponse,
+  ProviderStreamCallbacks,
   ProviderTokenUsage,
   TargetDefinition,
   ToolCall,

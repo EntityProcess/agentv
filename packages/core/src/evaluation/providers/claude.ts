@@ -160,6 +160,19 @@ export class ClaudeProvider implements Provider {
               };
               output.push(outputMsg);
               completedToolCalls.push(...toolCalls);
+
+              // Stream callbacks for real-time observability
+              if (request.streamCallbacks) {
+                for (const tc of toolCalls) {
+                  request.streamCallbacks.onToolCallEnd?.(
+                    tc.tool,
+                    tc.input,
+                    tc.output,
+                    tc.durationMs ?? 0,
+                    tc.id,
+                  );
+                }
+              }
             }
           }
 
@@ -183,6 +196,9 @@ export class ClaudeProvider implements Provider {
                 output: outputTokens,
                 cached: (usage.cache_read_input_tokens as number) ?? undefined,
               };
+
+              // Stream callback for LLM usage
+              request.streamCallbacks?.onLlmCallEnd?.(this.config.model ?? 'claude', tokenUsage);
             }
           }
         }

@@ -452,6 +452,9 @@ async function runSingleEvalFile(params: {
     });
   }
 
+  // Create streaming observer for real-time OTel span export
+  const streamingObserver = otelExporter?.createStreamingObserver() ?? null;
+
   const results = await evaluationRunner({
     testFilePath,
     repoRoot,
@@ -480,13 +483,17 @@ async function runSingleEvalFile(params: {
     keepWorkspaces: options.keepWorkspaces,
     cleanupWorkspaces: options.cleanupWorkspaces,
     trials: trialsConfig,
+    streamCallbacks: streamingObserver?.getStreamCallbacks(),
     onResult: async (result: EvaluationResult) => {
+      // Finalize streaming observer span with score
+      streamingObserver?.finalizeEvalCase(result.score, result.error);
+
       // Strip output from result before writing to avoid bloating results JSONL
       const { output: _, ...resultWithoutTrace } = result;
       await outputWriter.append(resultWithoutTrace as EvaluationResult);
 
-      // Export to OTel if exporter is configured
-      if (otelExporter) {
+      // Export to OTel if exporter is configured (skip batch export when streaming is active)
+      if (otelExporter && !streamingObserver) {
         try {
           await otelExporter.exportResult(result);
         } catch (err) {
@@ -507,6 +514,11 @@ async function runSingleEvalFile(params: {
         progressReporter.setTotal(seenEvalCases.size);
       }
       const displayId = displayIdTracker.getOrAssign(evalKey);
+
+      // Start streaming observer when eval case begins execution
+      if (event.status === 'running' && streamingObserver) {
+        streamingObserver.startEvalCase(event.testId, targetName);
+      }
 
       progressReporter.update(displayId, {
         workerId: displayId,
