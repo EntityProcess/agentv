@@ -48,7 +48,7 @@ describe('transformWorkspacePaths', () => {
 
     const locations = result.settings['chat.promptFilesLocations'];
     // Relative glob should be resolved
-    const resolvedGlob = path.resolve(templateDir, 'prompts') + '/**/*.md';
+    const resolvedGlob = `${path.resolve(templateDir, 'prompts')}/**/*.md`;
     expect(locations[resolvedGlob.replace(/\\/g, '/')]).toBe(true);
     // Absolute path should be preserved
     expect(locations['/absolute/path']).toBe(true);
