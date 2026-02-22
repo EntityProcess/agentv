@@ -1,5 +1,5 @@
 ---
-name: chat-to-eval
+name: agentv-chat-to-eval
 description: Convert chat conversations into AgentV evaluation YAML files. Use this skill when you have a chat transcript (markdown or JSON messages) and want to generate eval test cases from it.
 ---
 

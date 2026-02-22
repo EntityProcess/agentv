@@ -8,11 +8,12 @@
   },
   "plugins": [
     {
-      "name": "agentv",
-      "description": "Automates AI agent evaluations and prompt optimization",
-      "source": "./",
+      "name": "agentv-dev",
+      "description": "Development skills for building and optimizing AgentV evaluations",
+      "source": "./plugins/agentv-dev",
       "strict": false,
       "skills": [
+        "./skills/agentv-chat-to-eval",
         "./skills/agentv-eval-builder",
         "./skills/agentv-eval-orchestrator",
         "./skills/agentv-prompt-optimizer"

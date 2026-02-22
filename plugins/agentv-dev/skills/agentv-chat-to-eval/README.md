@@ -1,4 +1,4 @@
-# chat-to-eval
+# agentv-chat-to-eval
 
 An AgentV skill that converts chat conversations into evaluation YAML files.
 

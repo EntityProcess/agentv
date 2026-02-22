@@ -16,11 +16,12 @@ export function getAgentsTemplates(): Template[] {
     return getTemplatesFromDir('.agents');
   }
 
-  // Dev mode: use repo-root skills/ folder (marketplace-compatible location)
+  // Dev mode: use repo-root plugins/agentv-dev/skills/ folder (marketplace-compatible location)
   const repoRoot = getRepoRootFromDev();
-  const skillsRoot = path.join(repoRoot, 'skills');
+  const skillsRoot = path.join(repoRoot, 'plugins', 'agentv-dev', 'skills');
 
   const skillsToInclude = [
+    'agentv-chat-to-eval',
     'agentv-eval-builder',
     'agentv-eval-orchestrator',
     'agentv-prompt-optimizer',
