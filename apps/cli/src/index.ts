@@ -9,6 +9,7 @@ import { evalRunCommand } from './commands/eval/commands/run.js';
 import { generateCommand } from './commands/generate/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
 import { selfCommand } from './commands/self/index.js';
+import { traceCommand } from './commands/trace/index.js';
 import { trimCommand } from './commands/trim/index.js';
 import { validateCommand } from './commands/validate/index.js';
 
@@ -25,6 +26,7 @@ export const app = subcommands({
     generate: generateCommand,
     init: initCmdTsCommand,
     self: selfCommand,
+    trace: traceCommand,
     trim: trimCommand,
     validate: validateCommand,
   },
