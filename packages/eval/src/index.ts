@@ -1,9 +1,20 @@
 /**
  * AgentV Evaluation SDK
  *
- * Build custom code judges for evaluating AI agent outputs.
+ * Build custom evaluators for AI agent outputs.
  *
- * @example Basic code judge
+ * @example Custom assertion (simplest way to add evaluation logic)
+ * ```typescript
+ * #!/usr/bin/env bun
+ * import { defineAssertion } from '@agentv/eval';
+ *
+ * export default defineAssertion(({ answer }) => ({
+ *   pass: answer.includes('hello'),
+ *   reasoning: 'Checks greeting',
+ * }));
+ * ```
+ *
+ * @example Code judge (full control)
  * ```typescript
  * #!/usr/bin/env bun
  * import { defineCodeJudge } from '@agentv/eval';
@@ -71,8 +82,11 @@ export {
 // Re-export Zod for typed config support
 export { z } from 'zod';
 
+// Re-export assertion types
+export type { AssertionContext, AssertionHandler, AssertionScore } from './assertion.js';
+
+import { type AssertionHandler, runAssertion } from './assertion.js';
 import { type PromptTemplateHandler, runPromptTemplate } from './prompt-template.js';
-// Import runtime
 import { type CodeJudgeHandler, runCodeJudge } from './runtime.js';
 
 export type { CodeJudgeHandler };
@@ -168,4 +182,52 @@ export function defineCodeJudge(handler: CodeJudgeHandler): void {
 export function definePromptTemplate(handler: PromptTemplateHandler): void {
   // Run immediately when module is loaded
   runPromptTemplate(handler);
+}
+
+/**
+ * Define a custom assertion evaluator with automatic stdin/stdout handling.
+ *
+ * Assertions are the simplest way to add custom evaluation logic. They receive
+ * the full evaluation context and return a pass/fail result with optional
+ * granular scoring.
+ *
+ * This function:
+ * 1. Reads JSON from stdin (snake_case format)
+ * 2. Converts to camelCase and validates with Zod
+ * 3. Calls your handler with typed context
+ * 4. Normalizes the result (pass→score, clamp, etc.)
+ * 5. Outputs JSON to stdout
+ * 6. Handles errors gracefully with proper exit codes
+ *
+ * @param handler - Function that evaluates the context and returns a result
+ *
+ * @example Simple pass/fail
+ * ```typescript
+ * import { defineAssertion } from '@agentv/eval';
+ *
+ * export default defineAssertion(({ answer }) => ({
+ *   pass: answer.toLowerCase().includes('hello'),
+ *   reasoning: 'Checks for greeting',
+ * }));
+ * ```
+ *
+ * @example Granular scoring
+ * ```typescript
+ * import { defineAssertion } from '@agentv/eval';
+ *
+ * export default defineAssertion(({ answer, trace }) => {
+ *   const hasContent = answer.length > 0 ? 0.5 : 0;
+ *   const isEfficient = (trace?.eventCount ?? 0) <= 5 ? 0.5 : 0;
+ *   return {
+ *     score: hasContent + isEfficient,
+ *     hits: [
+ *       ...(hasContent ? ['Has content'] : []),
+ *       ...(isEfficient ? ['Efficient'] : []),
+ *     ],
+ *   };
+ * });
+ * ```
+ */
+export function defineAssertion(handler: AssertionHandler): void {
+  runAssertion(handler);
 }
