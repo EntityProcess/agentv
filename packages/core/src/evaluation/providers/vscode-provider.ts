@@ -47,10 +47,10 @@ export class VSCodeProvider implements Provider {
     const inputFiles = normalizeAttachments(request.inputFiles);
     const promptContent = buildPromptDocument(request, inputFiles, request.guideline_patterns);
 
-    // Only pass workspaceTemplate if it's an actual .code-workspace file.
-    // When workspace_template is a directory the orchestrator already copied it
-    // to a temp location and passes that as request.cwd — so we use cwd instead.
-    const workspaceTemplate = await resolveWorkspaceTemplateFile(this.config.workspaceTemplate);
+    // Prefer workspace file resolved from eval-level workspace.template.
+    // Fall back to target-level config.workspaceTemplate (must be a file, not directory).
+    const workspaceTemplate =
+      request.workspaceFile ?? (await resolveWorkspaceTemplateFile(this.config.workspaceTemplate));
 
     // Measure wall-clock time for duration
     const startTime = Date.now();
