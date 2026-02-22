@@ -6,7 +6,6 @@
  * the EvaluatorRegistry at startup.
  */
 
-import { readFileSync } from 'node:fs';
 import {
   AgentJudgeEvaluator,
   CodeEvaluator,
@@ -24,6 +23,7 @@ import {
   runRegexAssertion,
 } from '../evaluators.js';
 import { resolveCustomPrompt } from '../evaluators/prompt-resolution.js';
+import { readTextFile } from '../file-utils.js';
 import type { Provider } from '../providers/types.js';
 import type { ToolTrajectoryEvaluatorConfig } from '../trace.js';
 import type {
@@ -160,14 +160,14 @@ export const executionMetricsFactory: EvaluatorFactoryFn = (config) => {
 };
 
 /** Factory for `agent_judge` evaluators. */
-export const agentJudgeFactory: EvaluatorFactoryFn = (config, context) => {
+export const agentJudgeFactory: EvaluatorFactoryFn = async (config, context) => {
   const c = config as AgentJudgeEvaluatorConfig;
   const { judgeProvider, targetResolver } = context;
 
   let customPrompt: string | undefined;
   if (c.resolvedPromptPath) {
     try {
-      customPrompt = readFileSync(c.resolvedPromptPath, 'utf-8');
+      customPrompt = await readTextFile(c.resolvedPromptPath);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`Could not read agent_judge prompt at ${c.resolvedPromptPath}: ${message}`);
