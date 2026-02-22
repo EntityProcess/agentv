@@ -145,6 +145,8 @@ export interface Message {
   readonly durationMs?: number;
   /** Provider-specific metadata */
   readonly metadata?: Record<string, unknown>;
+  /** Per-message token usage metrics (optional) */
+  readonly tokenUsage?: ProviderTokenUsage;
 }
 
 /** @deprecated Use Message instead */

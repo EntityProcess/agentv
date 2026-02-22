@@ -231,6 +231,19 @@ export class OtelTraceExporter {
             span.setAttribute('gen_ai.response.model', model);
           }
 
+          // Per-span token usage (GenAI conventions)
+          if (msg.tokenUsage) {
+            if (msg.tokenUsage.input != null) {
+              span.setAttribute('gen_ai.usage.input_tokens', msg.tokenUsage.input);
+            }
+            if (msg.tokenUsage.output != null) {
+              span.setAttribute('gen_ai.usage.output_tokens', msg.tokenUsage.output);
+            }
+            if (msg.tokenUsage.cached != null) {
+              span.setAttribute('gen_ai.usage.cache_read.input_tokens', msg.tokenUsage.cached);
+            }
+          }
+
           if (captureContent && msg.content != null) {
             span.setAttribute(
               'gen_ai.output.messages',
