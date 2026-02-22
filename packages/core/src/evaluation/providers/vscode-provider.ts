@@ -117,7 +117,9 @@ export class VSCodeProvider implements Provider {
     );
 
     // For batch, we don't support per-request cwd override (would need separate workspaces)
-    const batchWorkspaceTemplate = await resolveWorkspaceTemplateFile(this.config.workspaceTemplate);
+    const batchWorkspaceTemplate = await resolveWorkspaceTemplateFile(
+      this.config.workspaceTemplate,
+    );
 
     // Measure wall-clock time for batch duration
     const startTime = Date.now();
