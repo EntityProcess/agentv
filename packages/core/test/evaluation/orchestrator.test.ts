@@ -2019,3 +2019,160 @@ describe('required gates', () => {
     expect(result.score).toBe(1);
   });
 });
+
+describe('workspace.template .code-workspace resolution', () => {
+  let testDir: string;
+
+  afterEach(async () => {
+    if (testDir) {
+      const { rm } = await import('node:fs/promises');
+      await rm(testDir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+
+  it('threads workspaceFile to provider when workspace.template is a .code-workspace file', async () => {
+    const { mkdtemp, writeFile, mkdir, rm } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-orch-ws-resolve-'));
+
+    // Create a workspace template directory with a .code-workspace file and a source file
+    const templateDir = path.join(testDir, 'template');
+    await mkdir(templateDir, { recursive: true });
+    const wsFile = path.join(templateDir, 'project.code-workspace');
+    await writeFile(wsFile, JSON.stringify({ folders: [{ path: '.' }] }));
+    await writeFile(path.join(templateDir, 'index.ts'), 'export {}');
+
+    const provider = new CapturingProvider('mock', {
+      output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
+    });
+
+    // Point workspace.template at the .code-workspace FILE (not directory)
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        template: wsFile,
+      },
+    };
+
+    const evalRunId = 'test-ws-resolve';
+    const result = await runEvalCase({
+      evalCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      evalRunId,
+      keepWorkspaces: true,
+    });
+
+    const capturedCwd = provider.lastRequest?.cwd;
+    try {
+      expect(result.error).toBeUndefined();
+      expect(provider.lastRequest).toBeDefined();
+      // workspaceFile should be the .code-workspace file path
+      expect(provider.lastRequest?.workspaceFile).toBe(wsFile);
+      // cwd should be a temp workspace directory (copied from the parent of the .code-workspace file)
+      expect(capturedCwd).toBeDefined();
+      expect(capturedCwd).not.toBe(templateDir);
+      // The temp workspace should contain the copied files
+      const cwdContents = readdirSync(capturedCwd as string);
+      expect(cwdContents).toContain('index.ts');
+      expect(cwdContents).toContain('project.code-workspace');
+    } finally {
+      if (capturedCwd) {
+        await rm(capturedCwd, { recursive: true, force: true }).catch(() => {});
+      }
+    }
+  });
+
+  it('threads workspaceFile when directory contains exactly 1 .code-workspace', async () => {
+    const { mkdtemp, writeFile, mkdir } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-orch-ws-resolve-'));
+
+    const templateDir = path.join(testDir, 'template');
+    await mkdir(templateDir, { recursive: true });
+    await writeFile(
+      path.join(templateDir, 'auto-detected.code-workspace'),
+      JSON.stringify({ folders: [{ path: '.' }] }),
+    );
+    await writeFile(path.join(templateDir, 'main.ts'), 'console.log("hi")');
+
+    const provider = new CapturingProvider('mock', {
+      output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
+    });
+
+    // Point workspace.template at the DIRECTORY (should auto-detect the single .code-workspace)
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        template: templateDir,
+      },
+    };
+
+    const { rm } = await import('node:fs/promises');
+    const result = await runEvalCase({
+      evalCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      evalRunId: 'test-ws-auto-detect',
+      keepWorkspaces: true,
+    });
+
+    const capturedCwd = provider.lastRequest?.cwd;
+    try {
+      expect(result.error).toBeUndefined();
+      expect(provider.lastRequest).toBeDefined();
+      // Auto-detected workspaceFile from directory
+      expect(provider.lastRequest?.workspaceFile).toBe(
+        path.join(templateDir, 'auto-detected.code-workspace'),
+      );
+      expect(capturedCwd).toBeDefined();
+    } finally {
+      if (capturedCwd) {
+        await rm(capturedCwd, { recursive: true, force: true }).catch(() => {});
+      }
+    }
+  });
+
+  it('does not set workspaceFile when directory has no .code-workspace files', async () => {
+    const { mkdtemp, writeFile, mkdir } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-orch-ws-resolve-'));
+
+    const templateDir = path.join(testDir, 'template');
+    await mkdir(templateDir, { recursive: true });
+    await writeFile(path.join(templateDir, 'README.md'), '# hello');
+
+    const provider = new CapturingProvider('mock', {
+      output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
+    });
+
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        template: templateDir,
+      },
+    };
+
+    const { rm } = await import('node:fs/promises');
+    const result = await runEvalCase({
+      evalCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      evalRunId: 'test-ws-no-wsfile',
+      keepWorkspaces: true,
+    });
+
+    const capturedCwd = provider.lastRequest?.cwd;
+    try {
+      expect(result.error).toBeUndefined();
+      expect(provider.lastRequest).toBeDefined();
+      // No .code-workspace files → workspaceFile should be undefined
+      expect(provider.lastRequest?.workspaceFile).toBeUndefined();
+      expect(capturedCwd).toBeDefined();
+    } finally {
+      if (capturedCwd) {
+        await rm(capturedCwd, { recursive: true, force: true }).catch(() => {});
+      }
+    }
+  });
+});

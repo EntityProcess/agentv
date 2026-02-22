@@ -210,7 +210,8 @@ export type WorkspaceScriptConfig = {
  * - after_each: runs after each test (e.g., reset git state)
  */
 export type WorkspaceConfig = {
-  /** Template directory to copy */
+  /** Template directory or .code-workspace file. Directories are copied to temp workspace.
+   *  .code-workspace files are used by VS Code providers; CLI providers use the parent directory. */
   readonly template?: string;
   /** Script to run once before first test (after workspace creation, before git baseline) */
   readonly before_all?: WorkspaceScriptConfig;

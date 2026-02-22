@@ -69,6 +69,7 @@ export interface DispatchOptions {
   requestTemplate?: string;
   extraAttachments?: readonly string[];
   workspaceTemplate?: string;
+  cwd?: string;
   dryRun?: boolean;
   wait?: boolean;
   vscodeCmd?: string;
@@ -107,6 +108,7 @@ export async function dispatchAgentSession(
     requestTemplate,
     extraAttachments,
     workspaceTemplate,
+    cwd,
     dryRun = false,
     wait = true,
     vscodeCmd = 'code',
@@ -146,6 +148,7 @@ export async function dispatchAgentSession(
       chatId,
       workspaceTemplate,
       dryRun,
+      cwd,
     );
     if (preparationResult !== 0) {
       return {

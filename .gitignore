@@ -13,3 +13,4 @@ coverage/
 **/.agentv/logs/
 .env
 __pycache__/
+.worktrees/
