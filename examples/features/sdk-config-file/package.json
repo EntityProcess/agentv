@@ -1,0 +1,9 @@
+{
+  "name": "agentv-example-sdk-config-file",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agentv/core": "file:../../../packages/core",
+    "@agentv/eval": "file:../../../packages/eval"
+  }
+}
