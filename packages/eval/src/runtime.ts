@@ -64,16 +64,32 @@ export async function runCodeJudge(handler: CodeJudgeHandler): Promise<void> {
     // 4. Validate input with Zod
     const input = CodeJudgeInputSchema.parse(camelInput);
 
-    // 5. Run handler
+    // 5. Set up lazy file-backed output loading if applicable
+    if (input.outputPath && (input.output === null || input.output === undefined)) {
+      let cachedOutput: CodeJudgeInput['output'] | undefined;
+      const filePath = input.outputPath;
+      Object.defineProperty(input, 'output', {
+        get() {
+          if (cachedOutput === undefined) {
+            cachedOutput = JSON.parse(readFileSync(filePath, 'utf8'));
+          }
+          return cachedOutput;
+        },
+        configurable: true,
+        enumerable: true,
+      });
+    }
+
+    // 6. Run handler
     const rawResult = await handler(input);
 
-    // 6. Validate and normalize output
+    // 7. Validate and normalize output
     const result = CodeJudgeResultSchema.parse({
       ...rawResult,
       score: clampScore(rawResult.score),
     });
 
-    // 7. Output JSON
+    // 8. Output JSON
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {
     // Output failure result

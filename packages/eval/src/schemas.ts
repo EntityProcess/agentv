@@ -67,6 +67,8 @@ export const CodeJudgeInputSchema = z.object({
   referenceAnswer: z.string().optional(),
   answer: z.string(),
   output: z.array(MessageSchema).nullable().optional(),
+  /** Path to a temp file containing the output JSON (used for large payloads). */
+  outputPath: z.string().optional(),
   guidelineFiles: z.array(z.string()),
   inputFiles: z.array(z.string()),
   input: z.array(MessageSchema),

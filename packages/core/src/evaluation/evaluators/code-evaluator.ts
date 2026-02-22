@@ -1,3 +1,7 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+
 import { execFileWithStdin, execShellWithStdin } from '../../runtime/exec.js';
 import {
   DEFAULT_MAX_CALLS,
@@ -8,6 +12,9 @@ import { toSnakeCaseDeep } from '../case-conversion.js';
 import type { JsonObject, TargetAccessConfig } from '../types.js';
 import { clampScore, isNonEmptyString, parseJsonSafe, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
+
+/** Threshold in bytes above which output is written to a temp file instead of inlined. */
+const FILE_BACKED_OUTPUT_THRESHOLD = 50_000;
 
 export interface CodeEvaluatorOptions {
   readonly script: readonly string[];
@@ -37,6 +44,20 @@ export class CodeEvaluator implements Evaluator {
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
+    // Determine whether to use file-backed output for large payloads
+    let outputForPayload = context.output ?? null;
+    let outputPath: string | undefined;
+
+    if (outputForPayload) {
+      const serialized = JSON.stringify(outputForPayload);
+      if (serialized.length > FILE_BACKED_OUTPUT_THRESHOLD) {
+        const tmpDir = await mkdtemp(join(tmpdir(), 'agentv-judge-'));
+        outputPath = join(tmpDir, 'output.json');
+        await writeFile(outputPath, serialized);
+        outputForPayload = null;
+      }
+    }
+
     // Build payload (camelCase internally, converted to snake_case for judges)
     const payload = {
       question: context.evalCase.question,
@@ -44,7 +65,8 @@ export class CodeEvaluator implements Evaluator {
       expectedOutput: context.evalCase.expected_output,
       referenceAnswer: context.evalCase.reference_answer,
       answer: context.candidate,
-      output: context.output ?? null,
+      output: outputForPayload,
+      outputPath,
       guidelineFiles: context.evalCase.guideline_paths,
       inputFiles: context.evalCase.file_paths.filter(
         (path) => !context.evalCase.guideline_paths.includes(path),
@@ -159,6 +181,10 @@ export class CodeEvaluator implements Evaluator {
       // Always shut down the proxy when done
       if (proxyShutdown) {
         await proxyShutdown();
+      }
+      // Clean up temp file for file-backed output
+      if (outputPath) {
+        await rm(dirname(outputPath), { recursive: true, force: true }).catch(() => {});
       }
     }
   }
