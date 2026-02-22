@@ -35,5 +35,7 @@ const turnSpan = tracer.startSpan(
 state.currentTurnSpanId = turnSpan.spanContext().spanId;
 await saveState(state);
 
-// Don't end turn span yet — tool calls will be children
+// End turn span immediately — each hook runs in a separate process so we can't
+// keep spans open across hooks. Tool call spans link via stored spanId.
+turnSpan.end();
 await flush();
