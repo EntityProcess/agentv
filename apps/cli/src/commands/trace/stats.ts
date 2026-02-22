@@ -13,7 +13,7 @@ import {
 /**
  * Compute percentiles from a sorted array of numbers.
  */
-function percentile(sorted: number[], p: number): number {
+export function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
   const index = (p / 100) * (sorted.length - 1);
   const lower = Math.floor(index);

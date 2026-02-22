@@ -3,7 +3,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { listResultFiles, loadResultFile } from '../../../src/commands/trace/utils.js';
+import { percentile } from '../../../src/commands/trace/stats.js';
+import {
+  extractTimestampFromFilename,
+  formatDuration,
+  listResultFiles,
+  loadResultFile,
+} from '../../../src/commands/trace/utils.js';
 
 // Test JSONL content with trace data
 const RESULT_WITH_TRACE = JSON.stringify({
@@ -93,6 +99,20 @@ describe('trace utils', () => {
 
       expect(() => loadResultFile(filePath)).toThrow();
     });
+
+    it('should throw on missing score', () => {
+      const filePath = path.join(tempDir, 'no-score.jsonl');
+      writeFileSync(filePath, '{"test_id": "test-1"}\n');
+
+      expect(() => loadResultFile(filePath)).toThrow('Missing or invalid score');
+    });
+
+    it('should throw on non-numeric score', () => {
+      const filePath = path.join(tempDir, 'bad-score.jsonl');
+      writeFileSync(filePath, '{"test_id": "test-1", "score": "high"}\n');
+
+      expect(() => loadResultFile(filePath)).toThrow('Missing or invalid score');
+    });
   });
 
   describe('listResultFiles', () => {
@@ -105,7 +125,6 @@ describe('trace utils', () => {
       const resultsDir = path.join(tempDir, '.agentv', 'results');
       mkdirSync(resultsDir, { recursive: true });
 
-      // Create two result files
       writeFileSync(
         path.join(resultsDir, 'eval_2026-02-20T21-38-05-833Z.jsonl'),
         `${RESULT_WITH_TRACE}\n${RESULT_WITHOUT_TRACE}\n`,
@@ -159,5 +178,77 @@ describe('trace utils', () => {
       const metas = listResultFiles(tempDir);
       expect(metas).toHaveLength(1);
     });
+  });
+
+  describe('extractTimestampFromFilename', () => {
+    it('should extract and format timestamp from eval filename', () => {
+      const result = extractTimestampFromFilename('eval_2026-02-20T21-38-05-833Z.jsonl');
+      expect(result).toBe('2026-02-20T21:38:05.833Z');
+    });
+
+    it('should return undefined for non-matching filenames', () => {
+      expect(extractTimestampFromFilename('random-file.jsonl')).toBeUndefined();
+      expect(extractTimestampFromFilename('results.jsonl')).toBeUndefined();
+    });
+
+    it('should handle different timestamp values', () => {
+      const result = extractTimestampFromFilename('eval_2026-01-01T00-00-00-000Z.jsonl');
+      expect(result).toBe('2026-01-01T00:00:00.000Z');
+    });
+  });
+
+  describe('formatDuration', () => {
+    it('should format milliseconds', () => {
+      expect(formatDuration(50)).toBe('50ms');
+      expect(formatDuration(999)).toBe('999ms');
+    });
+
+    it('should format seconds', () => {
+      expect(formatDuration(1000)).toBe('1.0s');
+      expect(formatDuration(1500)).toBe('1.5s');
+      expect(formatDuration(15080)).toBe('15.1s');
+    });
+
+    it('should format minutes', () => {
+      expect(formatDuration(60000)).toBe('1m0s');
+      expect(formatDuration(90000)).toBe('1m30s');
+    });
+  });
+});
+
+describe('percentile', () => {
+  it('should return 0 for empty array', () => {
+    expect(percentile([], 50)).toBe(0);
+  });
+
+  it('should return the value for single element', () => {
+    expect(percentile([42], 50)).toBe(42);
+    expect(percentile([42], 0)).toBe(42);
+    expect(percentile([42], 100)).toBe(42);
+  });
+
+  it('should compute P50 (median) correctly', () => {
+    expect(percentile([1, 2, 3, 4, 5], 50)).toBe(3);
+  });
+
+  it('should compute P0 and P100', () => {
+    expect(percentile([1, 2, 3, 4, 5], 0)).toBe(1);
+    expect(percentile([1, 2, 3, 4, 5], 100)).toBe(5);
+  });
+
+  it('should interpolate for fractional indices', () => {
+    // P25 of [1,2,3,4,5]: index = 0.25 * 4 = 1.0 → exact at index 1 → 2
+    expect(percentile([1, 2, 3, 4, 5], 25)).toBe(2);
+
+    // P75 of [1,2,3,4,5]: index = 0.75 * 4 = 3.0 → exact at index 3 → 4
+    expect(percentile([1, 2, 3, 4, 5], 75)).toBe(4);
+
+    // P90 of [1,2,3,4,5]: index = 0.9 * 4 = 3.6 → interpolate between 4 and 5
+    expect(percentile([1, 2, 3, 4, 5], 90)).toBeCloseTo(4.6);
+  });
+
+  it('should work with two elements', () => {
+    // P50 of [10, 20]: index = 0.5 * 1 = 0.5 → interpolate between 10 and 20
+    expect(percentile([10, 20], 50)).toBe(15);
   });
 });

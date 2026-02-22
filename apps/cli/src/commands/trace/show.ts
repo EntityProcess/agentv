@@ -285,10 +285,10 @@ export const traceShowCommand = command({
       description: 'Show hierarchical trace tree (requires results with --trace output)',
     }),
     format: option({
-      type: optional(oneOf(['table', 'json', 'yaml'])),
+      type: optional(oneOf(['table', 'json'])),
       long: 'format',
       short: 'f',
-      description: 'Output format: table (default), json, or yaml',
+      description: 'Output format: table (default) or json',
     }),
   },
   handler: async ({ file, testId, tree, format }) => {

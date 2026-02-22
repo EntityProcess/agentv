@@ -94,7 +94,13 @@ export function loadResultFile(filePath: string): RawResult[] {
     .split('\n')
     .filter((line) => line.trim());
 
-  return lines.map((line) => JSON.parse(line) as RawResult);
+  return lines.map((line, i) => {
+    const record = JSON.parse(line) as RawResult;
+    if (typeof record.score !== 'number') {
+      throw new Error(`Missing or invalid score in result at line ${i + 1}: ${line.slice(0, 100)}`);
+    }
+    return record;
+  });
 }
 
 /**
@@ -167,7 +173,7 @@ export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
 /**
  * Extract ISO timestamp from eval filename like eval_2026-02-20T21-38-05-833Z.jsonl
  */
-function extractTimestampFromFilename(filename: string): string | undefined {
+export function extractTimestampFromFilename(filename: string): string | undefined {
   const match = filename.match(/eval_(\d{4}-\d{2}-\d{2}T[\d-]+Z)/);
   if (!match) return undefined;
   // Re-convert dashes back to colons/dots for display
