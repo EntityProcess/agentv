@@ -19,6 +19,14 @@
         "./skills/agentv-prompt-optimizer"
       ],
       "category": "development"
+    },
+    {
+      "name": "agentv-trace",
+      "description": "Session tracing plugin — exports Claude Code session traces via OpenTelemetry",
+      "source": "./plugins/agentv-trace",
+      "strict": false,
+      "hooks": "./hooks.json",
+      "category": "observability"
     }
   ]
 }
