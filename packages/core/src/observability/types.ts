@@ -8,6 +8,8 @@ export interface OtelExportOptions {
   readonly captureContent?: boolean;
   /** Service name for OTel resource */
   readonly serviceName?: string;
+  /** When true, group messages into turn spans for multi-turn evals */
+  readonly groupTurns?: boolean;
 }
 
 /** Preset configuration for a known observability backend. */

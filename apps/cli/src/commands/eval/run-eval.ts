@@ -69,6 +69,7 @@ interface NormalizedOptions {
   readonly exportOtel: boolean;
   readonly otelBackend?: string;
   readonly otelCaptureContent: boolean;
+  readonly otelGroupTurns: boolean;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -146,6 +147,7 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     exportOtel: normalizeBoolean(rawOptions.exportOtel),
     otelBackend: normalizeString(rawOptions.otelBackend),
     otelCaptureContent: normalizeBoolean(rawOptions.otelCaptureContent),
+    otelGroupTurns: normalizeBoolean(rawOptions.otelGroupTurns),
   } satisfies NormalizedOptions;
 }
 
@@ -586,6 +588,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
         endpoint,
         headers,
         captureContent,
+        groupTurns: options.otelGroupTurns,
       });
 
       const initialized = await otelExporter.init();

@@ -164,8 +164,35 @@ export class OtelTraceExporter {
         if (result.output) {
           const parentCtx = api.trace.setSpan(api.context.active(), rootSpan);
 
-          for (const msg of result.output) {
-            this.exportMessage(tracer, api, parentCtx, msg, captureContent);
+          if (this.options.groupTurns) {
+            const turns = groupMessagesIntoTurns(result.output);
+            if (turns.length > 1) {
+              for (const [i, turn] of turns.entries()) {
+                api.context.with(parentCtx, () => {
+                  tracer.startActiveSpan(
+                    `agentv.turn.${i + 1}`,
+                    {},
+                    (turnSpan: {
+                      end: (...args: unknown[]) => void;
+                    }) => {
+                      const turnCtx = api.trace.setSpan(api.context.active(), turnSpan);
+                      for (const msg of turn.messages) {
+                        this.exportMessage(tracer, api, turnCtx, msg, captureContent);
+                      }
+                      turnSpan.end();
+                    },
+                  );
+                });
+              }
+            } else {
+              for (const msg of result.output) {
+                this.exportMessage(tracer, api, parentCtx, msg, captureContent);
+              }
+            }
+          } else {
+            for (const msg of result.output) {
+              this.exportMessage(tracer, api, parentCtx, msg, captureContent);
+            }
           }
         }
 
@@ -280,6 +307,28 @@ export class OtelTraceExporter {
       );
     });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Turn grouping
+// ---------------------------------------------------------------------------
+
+interface Turn {
+  messages: Message[];
+}
+
+function groupMessagesIntoTurns(messages: readonly Message[]): Turn[] {
+  const turns: Turn[] = [];
+  let current: Message[] = [];
+  for (const msg of messages) {
+    if (msg.role === 'user' && current.length > 0) {
+      turns.push({ messages: current });
+      current = [];
+    }
+    current.push(msg);
+  }
+  if (current.length > 0) turns.push({ messages: current });
+  return turns;
 }
 
 // ---------------------------------------------------------------------------
