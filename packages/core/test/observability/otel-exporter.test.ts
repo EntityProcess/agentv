@@ -288,3 +288,147 @@ describe('W3C traceparent propagation', () => {
     await setup.exporter.shutdown();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Per-span token usage metrics
+// ---------------------------------------------------------------------------
+
+describe('Per-span token usage metrics', () => {
+  const savedTraceparent = process.env.TRACEPARENT;
+
+  afterEach(() => {
+    if (savedTraceparent !== undefined) {
+      process.env.TRACEPARENT = savedTraceparent;
+    } else {
+      process.env.TRACEPARENT = undefined;
+    }
+  });
+
+  async function createTestExporter() {
+    try {
+      const [sdkTraceNode, api] = await Promise.all([
+        import('@opentelemetry/sdk-trace-node'),
+        import('@opentelemetry/api'),
+      ]);
+
+      const { NodeTracerProvider, SimpleSpanProcessor, InMemorySpanExporter } = sdkTraceNode;
+      const memExporter = new InMemorySpanExporter();
+
+      const provider = new NodeTracerProvider({
+        spanProcessors: [new SimpleSpanProcessor(memExporter)],
+      });
+
+      const exporter = new OtelTraceExporter({
+        endpoint: 'http://localhost:4318/v1/traces',
+      });
+
+      // biome-ignore lint/suspicious/noExplicitAny: test access to private fields
+      const exp = exporter as any;
+      exp.provider = provider;
+      exp.api = api;
+      exp.tracer = provider.getTracer('agentv-test', '1.0.0');
+
+      return { exporter, memExporter };
+    } catch {
+      return null;
+    }
+  }
+
+  it('sets token usage attributes on child spans when tokenUsage is present', async () => {
+    process.env.TRACEPARENT = undefined;
+    const setup = await createTestExporter();
+    if (!setup) return;
+
+    const result = {
+      testId: 'test-tokens',
+      target: 'my-agent',
+      score: 1,
+      answer: 'ok',
+      timestamp: new Date().toISOString(),
+      output: [
+        {
+          role: 'assistant',
+          content: 'hello',
+          metadata: { model: 'gpt-4' },
+          tokenUsage: { input: 100, output: 50, cached: 25 },
+        },
+      ],
+    } as unknown as Parameters<OtelTraceExporter['exportResult']>[0];
+
+    await setup.exporter.exportResult(result);
+
+    const spans = setup.memExporter.getFinishedSpans();
+    const msgSpan = spans.find((s) => s.name.startsWith('chat '));
+    expect(msgSpan).toBeDefined();
+    expect(msgSpan?.attributes['gen_ai.usage.input_tokens']).toBe(100);
+    expect(msgSpan?.attributes['gen_ai.usage.output_tokens']).toBe(50);
+    expect(msgSpan?.attributes['gen_ai.usage.cache_read.input_tokens']).toBe(25);
+
+    await setup.exporter.shutdown();
+  });
+
+  it('omits token usage attributes when tokenUsage is not present', async () => {
+    process.env.TRACEPARENT = undefined;
+    const setup = await createTestExporter();
+    if (!setup) return;
+
+    const result = {
+      testId: 'test-no-tokens',
+      target: 'my-agent',
+      score: 1,
+      answer: 'ok',
+      timestamp: new Date().toISOString(),
+      output: [
+        {
+          role: 'assistant',
+          content: 'hello',
+          metadata: { model: 'gpt-4' },
+        },
+      ],
+    } as unknown as Parameters<OtelTraceExporter['exportResult']>[0];
+
+    await setup.exporter.exportResult(result);
+
+    const spans = setup.memExporter.getFinishedSpans();
+    const msgSpan = spans.find((s) => s.name.startsWith('chat '));
+    expect(msgSpan).toBeDefined();
+    expect(msgSpan?.attributes['gen_ai.usage.input_tokens']).toBeUndefined();
+    expect(msgSpan?.attributes['gen_ai.usage.output_tokens']).toBeUndefined();
+    expect(msgSpan?.attributes['gen_ai.usage.cache_read.input_tokens']).toBeUndefined();
+
+    await setup.exporter.shutdown();
+  });
+
+  it('omits cached attribute when only input and output are present', async () => {
+    process.env.TRACEPARENT = undefined;
+    const setup = await createTestExporter();
+    if (!setup) return;
+
+    const result = {
+      testId: 'test-partial-tokens',
+      target: 'my-agent',
+      score: 1,
+      answer: 'ok',
+      timestamp: new Date().toISOString(),
+      output: [
+        {
+          role: 'assistant',
+          content: 'hello',
+          metadata: { model: 'gpt-4' },
+          tokenUsage: { input: 200, output: 75 },
+        },
+      ],
+    } as unknown as Parameters<OtelTraceExporter['exportResult']>[0];
+
+    await setup.exporter.exportResult(result);
+
+    const spans = setup.memExporter.getFinishedSpans();
+    const msgSpan = spans.find((s) => s.name.startsWith('chat '));
+    expect(msgSpan).toBeDefined();
+    expect(msgSpan?.attributes['gen_ai.usage.input_tokens']).toBe(200);
+    expect(msgSpan?.attributes['gen_ai.usage.output_tokens']).toBe(75);
+    expect(msgSpan?.attributes['gen_ai.usage.cache_read.input_tokens']).toBeUndefined();
+
+    await setup.exporter.shutdown();
+  });
+});
