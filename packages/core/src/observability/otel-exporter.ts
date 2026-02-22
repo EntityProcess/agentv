@@ -97,7 +97,7 @@ export class OtelTraceExporter {
   }
 
   /** Export a single evaluation result as an OTel trace. */
-  exportResult(result: EvaluationResult): void {
+  async exportResult(result: EvaluationResult): Promise<void> {
     if (!this.tracer || !this.api) return;
 
     const api = this.api;
@@ -108,9 +108,30 @@ export class OtelTraceExporter {
     const startHr = toHrTime(result.trace?.startTime ?? result.timestamp);
     const endHr = toHrTime(result.trace?.endTime ?? result.timestamp);
 
+    // Support trace composition via W3C traceparent propagation
+    let parentCtx = api.ROOT_CONTEXT;
+    const traceparent = process.env.TRACEPARENT;
+    if (traceparent) {
+      try {
+        const { W3CTraceContextPropagator } = await import('@opentelemetry/core');
+        const propagator = new W3CTraceContextPropagator();
+        parentCtx = propagator.extract(
+          api.ROOT_CONTEXT,
+          { traceparent, tracestate: process.env.TRACESTATE ?? '' },
+          {
+            get: (carrier: Record<string, string>, key: string) => carrier[key],
+            keys: (carrier: Record<string, string>) => Object.keys(carrier),
+          },
+        );
+      } catch {
+        // Malformed TRACEPARENT — fall back to standalone trace
+      }
+    }
+
     tracer.startActiveSpan(
       'agentv.eval',
       { startTime: startHr },
+      parentCtx,
       (rootSpan: {
         setAttribute: (...args: unknown[]) => void;
         addEvent: (...args: unknown[]) => void;

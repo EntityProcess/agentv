@@ -3,7 +3,7 @@
  * These tests exercise logic that does NOT require actual OTel SDK packages.
  */
 
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
 import { OTEL_BACKEND_PRESETS, OtelTraceExporter } from '../../src/observability/otel-exporter.js';
 
 // ---------------------------------------------------------------------------
@@ -127,10 +127,10 @@ describe('OTel OtelTraceExporter', () => {
   });
 
   describe('exportResult() without init', () => {
-    it('silently no-ops when called before init()', () => {
+    it('silently no-ops when called before init()', async () => {
       const exporter = new OtelTraceExporter({});
       // Should not throw even though tracer/api are null
-      expect(() =>
+      await expect(
         exporter.exportResult({
           testId: 'test-1',
           target: 'my-agent',
@@ -138,7 +138,7 @@ describe('OTel OtelTraceExporter', () => {
           answer: 'hello',
           timestamp: new Date().toISOString(),
         } as unknown as Parameters<OtelTraceExporter['exportResult']>[0]),
-      ).not.toThrow();
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -147,5 +147,144 @@ describe('OTel OtelTraceExporter', () => {
       const exporter = new OtelTraceExporter({});
       await expect(exporter.shutdown()).resolves.toBeUndefined();
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// W3C traceparent propagation
+// ---------------------------------------------------------------------------
+
+describe('W3C traceparent propagation', () => {
+  const VALID_TRACEPARENT = '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01';
+  const VALID_TRACE_ID = '0af7651916cd43dd8448eb211c80319c';
+  const VALID_PARENT_SPAN_ID = 'b7ad6b7169203331';
+
+  const savedTraceparent = process.env.TRACEPARENT;
+  const savedTracestate = process.env.TRACESTATE;
+
+  afterEach(() => {
+    if (savedTraceparent !== undefined) {
+      process.env.TRACEPARENT = savedTraceparent;
+    } else {
+      process.env.TRACEPARENT = undefined;
+    }
+    if (savedTracestate !== undefined) {
+      process.env.TRACESTATE = savedTracestate;
+    } else {
+      process.env.TRACESTATE = undefined;
+    }
+  });
+
+  /**
+   * Helper: create an OtelTraceExporter wired to an InMemorySpanExporter.
+   * We create our own NodeTracerProvider with an InMemorySpanExporter and
+   * inject it into the exporter's private fields, bypassing init().
+   */
+  async function createTestExporter() {
+    try {
+      const [sdkTraceNode, api] = await Promise.all([
+        import('@opentelemetry/sdk-trace-node'),
+        import('@opentelemetry/api'),
+      ]);
+
+      const { NodeTracerProvider, SimpleSpanProcessor, InMemorySpanExporter } = sdkTraceNode;
+      const memExporter = new InMemorySpanExporter();
+
+      const provider = new NodeTracerProvider({
+        spanProcessors: [new SimpleSpanProcessor(memExporter)],
+      });
+
+      const exporter = new OtelTraceExporter({
+        endpoint: 'http://localhost:4318/v1/traces',
+      });
+
+      // Inject private fields so exportResult() works without HTTP exporter
+      // biome-ignore lint/suspicious/noExplicitAny: test access to private fields
+      const exp = exporter as any;
+      exp.provider = provider;
+      exp.api = api;
+      exp.tracer = provider.getTracer('agentv-test', '1.0.0');
+
+      return { exporter, memExporter };
+    } catch {
+      return null;
+    }
+  }
+
+  const makeResult = () =>
+    ({
+      testId: 'test-tp',
+      target: 'my-agent',
+      score: 1,
+      answer: 'ok',
+      timestamp: new Date().toISOString(),
+    }) as unknown as Parameters<OtelTraceExporter['exportResult']>[0];
+
+  it('creates a standalone trace when TRACEPARENT is not set', async () => {
+    process.env.TRACEPARENT = undefined;
+    const setup = await createTestExporter();
+    if (!setup) return; // OTel not available — skip
+
+    await setup.exporter.exportResult(makeResult());
+
+    const spans = setup.memExporter.getFinishedSpans();
+    expect(spans.length).toBeGreaterThanOrEqual(1);
+
+    const root = spans.find((s) => s.name === 'agentv.eval');
+    expect(root).toBeDefined();
+    // No parent — parentSpanContext should be undefined
+    expect(root?.parentSpanContext).toBeUndefined();
+
+    await setup.exporter.shutdown();
+  });
+
+  it('inherits traceId and parentSpanId from a valid TRACEPARENT', async () => {
+    process.env.TRACEPARENT = VALID_TRACEPARENT;
+    const setup = await createTestExporter();
+    if (!setup) return;
+
+    await setup.exporter.exportResult(makeResult());
+
+    const spans = setup.memExporter.getFinishedSpans();
+    const root = spans.find((s) => s.name === 'agentv.eval');
+    expect(root).toBeDefined();
+    expect(root?.spanContext().traceId).toBe(VALID_TRACE_ID);
+    expect(root?.parentSpanContext?.spanId).toBe(VALID_PARENT_SPAN_ID);
+
+    await setup.exporter.shutdown();
+  });
+
+  it('falls back to standalone trace when TRACEPARENT is malformed', async () => {
+    process.env.TRACEPARENT = 'not-a-valid-traceparent';
+    const setup = await createTestExporter();
+    if (!setup) return;
+
+    await setup.exporter.exportResult(makeResult());
+
+    const spans = setup.memExporter.getFinishedSpans();
+    const root = spans.find((s) => s.name === 'agentv.eval');
+    expect(root).toBeDefined();
+    // Malformed traceparent is ignored by the propagator — new root trace
+    expect(root?.spanContext().traceId).not.toBe(VALID_TRACE_ID);
+
+    await setup.exporter.shutdown();
+  });
+
+  it('propagates TRACESTATE when present alongside TRACEPARENT', async () => {
+    process.env.TRACEPARENT = VALID_TRACEPARENT;
+    process.env.TRACESTATE = 'vendor=opaque';
+    const setup = await createTestExporter();
+    if (!setup) return;
+
+    await setup.exporter.exportResult(makeResult());
+
+    const spans = setup.memExporter.getFinishedSpans();
+    const root = spans.find((s) => s.name === 'agentv.eval');
+    expect(root).toBeDefined();
+    // traceId should match the parent
+    expect(root?.spanContext().traceId).toBe(VALID_TRACE_ID);
+    expect(root?.spanContext().traceState?.get('vendor')).toBe('opaque');
+
+    await setup.exporter.shutdown();
   });
 });
