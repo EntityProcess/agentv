@@ -83,7 +83,12 @@ export {
 export { z } from 'zod';
 
 // Re-export assertion types
-export type { AssertionContext, AssertionHandler, AssertionScore } from './assertion.js';
+export type {
+  AssertionContext,
+  AssertionHandler,
+  AssertionScore,
+  AssertionType,
+} from './assertion.js';
 
 import { type AssertionHandler, runAssertion } from './assertion.js';
 import { type PromptTemplateHandler, runPromptTemplate } from './prompt-template.js';

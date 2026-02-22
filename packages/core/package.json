@@ -38,6 +38,7 @@
   },
   "files": ["dist", "README.md"],
   "dependencies": {
+    "@agentv/eval": "workspace:*",
     "@agentclientprotocol/sdk": "^0.14.1",
     "@ai-sdk/anthropic": "^2.0.53",
     "@ai-sdk/azure": "^2.0.78",
@@ -63,7 +64,6 @@
     "@opentelemetry/semantic-conventions": "^1.39.0"
   },
   "devDependencies": {
-    "@agentv/eval": "workspace:*",
     "@types/micromatch": "^4.0.10"
   }
 }

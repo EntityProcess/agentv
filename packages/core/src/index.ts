@@ -5,6 +5,19 @@ export * from './evaluation/file-utils.js';
 export * from './evaluation/providers/index.js';
 export * from './evaluation/evaluators.js';
 export * from './evaluation/orchestrator.js';
+export {
+  evaluate,
+  type EvalConfig,
+  type EvalTestInput,
+  type EvalAssertionInput,
+  type EvalRunResult,
+  type EvalSummary,
+} from './evaluation/evaluate.js';
+export {
+  defineConfig,
+  loadTsConfig,
+  type AgentVConfig as AgentVTsConfig,
+} from './evaluation/config.js';
 export * from './evaluation/generators/index.js';
 export * from './evaluation/workspace/index.js';
 export {
@@ -15,6 +28,18 @@ export {
 export { toSnakeCaseDeep, toCamelCaseDeep } from './evaluation/case-conversion.js';
 export { trimBaselineResult } from './evaluation/baseline.js';
 export * from './observability/index.js';
+
+// Registry exports
+export {
+  EvaluatorRegistry,
+  DeterministicAssertionEvaluator,
+} from './evaluation/registry/evaluator-registry.js';
+export type {
+  EvaluatorDispatchContext,
+  EvaluatorFactoryFn,
+} from './evaluation/registry/evaluator-registry.js';
+export { createBuiltinRegistry } from './evaluation/registry/builtin-evaluators.js';
+export { discoverAssertions } from './evaluation/registry/assertion-discovery.js';
 
 export type AgentKernel = {
   status: string;

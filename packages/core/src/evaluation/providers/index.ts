@@ -7,6 +7,7 @@ import { CopilotSdkProvider } from './copilot-sdk.js';
 import { MockProvider } from './mock.js';
 import { PiAgentSdkProvider } from './pi-agent-sdk.js';
 import { PiCodingAgentProvider } from './pi-coding-agent.js';
+import { ProviderRegistry } from './provider-registry.js';
 import type { ResolvedTarget } from './targets.js';
 import { resolveTargetDefinition } from './targets.js';
 import type { EnvLookup, Provider, TargetDefinition } from './types.js';
@@ -63,39 +64,47 @@ export {
   subscribeToCopilotCliLogEntries,
 } from './copilot-cli-log-tracker.js';
 
+export {
+  ProviderRegistry,
+  type ProviderFactoryFn,
+} from './provider-registry.js';
+
+/**
+ * Create and return the default provider registry with all built-in providers.
+ */
+export function createBuiltinProviderRegistry(): ProviderRegistry {
+  const registry = new ProviderRegistry();
+
+  registry
+    .register('azure', (t) => new AzureProvider(t.name, t.config as never))
+    .register('anthropic', (t) => new AnthropicProvider(t.name, t.config as never))
+    .register('gemini', (t) => new GeminiProvider(t.name, t.config as never))
+    .register('cli', (t) => new CliProvider(t.name, t.config as never))
+    .register('codex', (t) => new CodexProvider(t.name, t.config as never))
+    .register('copilot', (t) => new CopilotSdkProvider(t.name, t.config as never))
+    .register('copilot-cli', (t) => new CopilotCliProvider(t.name, t.config as never))
+    .register('pi-coding-agent', (t) => new PiCodingAgentProvider(t.name, t.config as never))
+    .register('pi-agent-sdk', (t) => new PiAgentSdkProvider(t.name, t.config as never))
+    .register('claude', (t) => new ClaudeProvider(t.name, t.config as never))
+    .register('mock', (t) => new MockProvider(t.name, t.config as never))
+    .register('vscode', (t) => new VSCodeProvider(t.name, t.config as never, 'vscode'))
+    .register(
+      'vscode-insiders',
+      (t) => new VSCodeProvider(t.name, t.config as never, 'vscode-insiders'),
+    );
+
+  return registry;
+}
+
+/** Singleton registry instance used by createProvider(). */
+const defaultProviderRegistry = createBuiltinProviderRegistry();
+
+/**
+ * Create a provider from a resolved target using the default registry.
+ * Custom providers can be registered via `createBuiltinProviderRegistry().register()`.
+ */
 export function createProvider(target: ResolvedTarget): Provider {
-  switch (target.kind) {
-    case 'azure':
-      return new AzureProvider(target.name, target.config);
-    case 'anthropic':
-      return new AnthropicProvider(target.name, target.config);
-    case 'gemini':
-      return new GeminiProvider(target.name, target.config);
-    case 'cli':
-      return new CliProvider(target.name, target.config);
-    case 'codex':
-      return new CodexProvider(target.name, target.config);
-    case 'copilot':
-      return new CopilotSdkProvider(target.name, target.config);
-    case 'copilot-cli':
-      return new CopilotCliProvider(target.name, target.config);
-    case 'pi-coding-agent':
-      return new PiCodingAgentProvider(target.name, target.config);
-    case 'pi-agent-sdk':
-      return new PiAgentSdkProvider(target.name, target.config);
-    case 'claude':
-      return new ClaudeProvider(target.name, target.config);
-    case 'mock':
-      return new MockProvider(target.name, target.config);
-    case 'vscode':
-    case 'vscode-insiders':
-      return new VSCodeProvider(target.name, target.config, target.kind);
-    default: {
-      // Exhaustive check
-      const neverTarget: never = target;
-      throw new Error(`Unsupported provider kind ${(neverTarget as { kind: string }).kind}`);
-    }
-  }
+  return defaultProviderRegistry.create(target);
 }
 
 export function resolveAndCreateProvider(

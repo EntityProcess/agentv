@@ -26,7 +26,7 @@ import type {
   TargetDefinition,
 } from './providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
-import { createBuiltinRegistry } from './registry/index.js';
+import { createBuiltinRegistry, discoverAssertions } from './registry/index.js';
 import { type TraceSummary, computeTraceSummary, mergeExecutionMetrics } from './trace.js';
 import { aggregateTrials } from './trials.js';
 import type {
@@ -111,6 +111,8 @@ export interface RunEvalCaseOptions {
   readonly suiteWorkspaceFile?: string;
   /** Real-time observability callbacks passed to the provider */
   readonly streamCallbacks?: ProviderStreamCallbacks;
+  /** Evaluator type registry (with custom assertions discovered) */
+  readonly typeRegistry?: import('./registry/evaluator-registry.js').EvaluatorRegistry;
 }
 
 export interface ProgressEvent {
@@ -265,6 +267,10 @@ export async function runEvaluation(
 
   const evaluatorRegistry = buildEvaluatorRegistry(evaluators, resolveJudgeProvider);
   const typeRegistry = createBuiltinRegistry();
+
+  // Discover custom assertions from .agentv/assertions/ directory
+  const discoveryBaseDir = evalFilePath ? path.dirname(path.resolve(evalFilePath)) : process.cwd();
+  await discoverAssertions(typeRegistry, discoveryBaseDir);
 
   const primaryProvider = getOrCreateProvider(target);
   let providerSupportsBatch =
@@ -430,6 +436,7 @@ export async function runEvaluation(
           sharedBaselineCommit,
           suiteWorkspaceFile,
           streamCallbacks,
+          typeRegistry,
         };
         let result =
           trials && trials.count > 1
@@ -745,11 +752,12 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     sharedWorkspacePath,
     sharedBaselineCommit,
     suiteWorkspaceFile,
+    typeRegistry: providedTypeRegistry,
   } = options;
 
   const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
   const promptInputs = await buildPromptInputs(evalCase, formattingMode);
-  const typeRegistry = createBuiltinRegistry();
+  const typeRegistry = providedTypeRegistry ?? createBuiltinRegistry();
 
   const cacheKey = useCache ? createCacheKey(provider, target, evalCase, promptInputs) : undefined;
   let cachedResponse: ProviderResponse | undefined;

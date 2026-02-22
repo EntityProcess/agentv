@@ -6,3 +6,4 @@
 export { EvaluatorRegistry, DeterministicAssertionEvaluator } from './evaluator-registry.js';
 export type { EvaluatorDispatchContext, EvaluatorFactoryFn } from './evaluator-registry.js';
 export { createBuiltinRegistry } from './builtin-evaluators.js';
+export { discoverAssertions } from './assertion-discovery.js';

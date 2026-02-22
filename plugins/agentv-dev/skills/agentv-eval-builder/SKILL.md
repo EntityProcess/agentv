@@ -371,6 +371,62 @@ export default defineCodeJudge(({ trace, answer }) => ({
 
 Both are used via `type: code_judge` in YAML with `script: bun run judge.ts`.
 
+### Convention-Based Discovery
+
+Place assertion files in `.agentv/assertions/` — they auto-register by filename:
+
+```
+.agentv/assertions/word-count.ts  →  type: word-count
+.agentv/assertions/sentiment.ts   →  type: sentiment
+```
+
+No `script:` needed in YAML — just use `type: <filename>`.
+
+## Programmatic API
+
+Use `evaluate()` from `@agentv/core` to run evals as a library:
+
+```typescript
+import { evaluate } from '@agentv/core';
+
+const { results, summary } = await evaluate({
+  tests: [
+    {
+      id: 'greeting',
+      input: 'Say hello',
+      assert: [{ type: 'contains', value: 'hello' }],
+    },
+  ],
+  target: { provider: 'mock_agent' },
+});
+console.log(`${summary.passed}/${summary.total} passed`);
+```
+
+Supports inline tests (no YAML) or file-based via `specFile`.
+
+## defineConfig
+
+Type-safe project configuration in `agentv.config.ts`:
+
+```typescript
+import { defineConfig } from '@agentv/core';
+
+export default defineConfig({
+  execution: { workers: 5, maxRetries: 2 },
+  output: { format: 'jsonl', dir: './results' },
+  limits: { maxCostUsd: 10.0 },
+});
+```
+
+Auto-discovered from project root. Validated with Zod.
+
+## Scaffold Commands
+
+```bash
+agentv create assertion <name>  # → .agentv/assertions/<name>.ts
+agentv create eval <name>       # → evals/<name>.eval.yaml + .cases.jsonl
+```
+
 ## Schemas
 
 - Eval file: `references/eval-schema.json`

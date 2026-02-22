@@ -1,0 +1,8 @@
+{
+  "name": "agentv-example-sdk-custom-assertion",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agentv/eval": "file:../../../packages/eval"
+  }
+}
