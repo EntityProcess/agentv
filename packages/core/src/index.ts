@@ -13,6 +13,11 @@ export {
   type EvalRunResult,
   type EvalSummary,
 } from './evaluation/evaluate.js';
+export {
+  defineConfig,
+  loadConfig,
+  type AgentVConfig,
+} from './evaluation/config.js';
 export * from './evaluation/generators/index.js';
 export * from './evaluation/workspace/index.js';
 export {
