@@ -126,7 +126,7 @@ const CONFIG_FILE_NAMES = [
  * @param projectRoot - Project root directory to search from
  * @returns Loaded and validated config, or null if not found
  */
-export async function loadConfig(projectRoot: string): Promise<AgentVConfig | null> {
+export async function loadTsConfig(projectRoot: string): Promise<AgentVConfig | null> {
   const { existsSync } = await import('node:fs');
   const { pathToFileURL } = await import('node:url');
   const { join } = await import('node:path');

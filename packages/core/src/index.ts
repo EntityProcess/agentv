@@ -15,8 +15,8 @@ export {
 } from './evaluation/evaluate.js';
 export {
   defineConfig,
-  loadConfig,
-  type AgentVConfig,
+  loadTsConfig,
+  type AgentVConfig as AgentVTsConfig,
 } from './evaluation/config.js';
 export * from './evaluation/generators/index.js';
 export * from './evaluation/workspace/index.js';
