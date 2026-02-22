@@ -3,6 +3,7 @@ import { binary, run, subcommands } from 'cmd-ts';
 import packageJson from '../package.json' with { type: 'json' };
 import { compareCommand } from './commands/compare/index.js';
 import { convertCommand } from './commands/convert/index.js';
+import { createCommand } from './commands/create/index.js';
 import { evalPromptCommand } from './commands/eval/commands/prompt/index.js';
 import { evalRunCommand } from './commands/eval/commands/run.js';
 import { generateCommand } from './commands/generate/index.js';
@@ -20,6 +21,7 @@ export const app = subcommands({
     prompt: evalPromptCommand,
     compare: compareCommand,
     convert: convertCommand,
+    create: createCommand,
     generate: generateCommand,
     init: initCmdTsCommand,
     self: selfCommand,
