@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { parseAssertSpec } from '../../../src/commands/trace/score.js';
 import { percentile } from '../../../src/commands/trace/stats.js';
 import {
   extractTimestampFromFilename,
@@ -250,5 +251,106 @@ describe('percentile', () => {
   it('should work with two elements', () => {
     // P50 of [10, 20]: index = 0.5 * 1 = 0.5 → interpolate between 10 and 20
     expect(percentile([10, 20], 50)).toBe(15);
+  });
+});
+
+describe('parseAssertSpec', () => {
+  describe('deterministic evaluators', () => {
+    it('should parse contains spec', () => {
+      const config = parseAssertSpec('contains:Hello world');
+      expect(config.type).toBe('contains');
+      expect(config.name).toBe('contains');
+      expect((config as { value: string }).value).toBe('Hello world');
+    });
+
+    it('should parse contains with colons in value', () => {
+      const config = parseAssertSpec('contains:key: value');
+      expect(config.type).toBe('contains');
+      expect((config as { value: string }).value).toBe('key: value');
+    });
+
+    it('should throw on contains without value', () => {
+      expect(() => parseAssertSpec('contains')).toThrow('contains requires a value');
+    });
+
+    it('should parse regex spec', () => {
+      const config = parseAssertSpec('regex:^Dear User');
+      expect(config.type).toBe('regex');
+      expect((config as { value: string }).value).toBe('^Dear User');
+    });
+
+    it('should throw on regex without pattern', () => {
+      expect(() => parseAssertSpec('regex')).toThrow('regex requires a pattern');
+    });
+
+    it('should parse is_json spec', () => {
+      const config = parseAssertSpec('is_json');
+      expect(config.type).toBe('is_json');
+    });
+
+    it('should parse equals spec', () => {
+      const config = parseAssertSpec('equals:4');
+      expect(config.type).toBe('equals');
+      expect((config as { value: string }).value).toBe('4');
+    });
+
+    it('should throw on equals without value', () => {
+      expect(() => parseAssertSpec('equals')).toThrow('equals requires a value');
+    });
+  });
+
+  describe('trace-based evaluators', () => {
+    it('should parse latency spec', () => {
+      const config = parseAssertSpec('latency:5000');
+      expect(config.type).toBe('latency');
+      expect((config as { threshold: number }).threshold).toBe(5000);
+    });
+
+    it('should throw on invalid latency value', () => {
+      expect(() => parseAssertSpec('latency:abc')).toThrow('latency requires a threshold');
+    });
+
+    it('should throw on latency without value', () => {
+      expect(() => parseAssertSpec('latency')).toThrow('latency requires a threshold');
+    });
+
+    it('should parse cost spec', () => {
+      const config = parseAssertSpec('cost:0.10');
+      expect(config.type).toBe('cost');
+      expect((config as { budget: number }).budget).toBe(0.1);
+    });
+
+    it('should throw on cost without value', () => {
+      expect(() => parseAssertSpec('cost')).toThrow('cost requires a budget');
+    });
+
+    it('should parse token_usage spec with params', () => {
+      const config = parseAssertSpec('token_usage:max_total=2000,max_input=1500');
+      expect(config.type).toBe('token_usage');
+      expect((config as { max_total: number }).max_total).toBe(2000);
+      expect((config as { max_input: number }).max_input).toBe(1500);
+    });
+
+    it('should parse token_usage spec without params', () => {
+      const config = parseAssertSpec('token_usage');
+      expect(config.type).toBe('token_usage');
+    });
+
+    it('should parse execution_metrics spec', () => {
+      const config = parseAssertSpec('execution_metrics:max_tool_calls=10,max_tokens=3000');
+      expect(config.type).toBe('execution_metrics');
+      expect((config as { max_tool_calls: number }).max_tool_calls).toBe(10);
+      expect((config as { max_tokens: number }).max_tokens).toBe(3000);
+    });
+  });
+
+  describe('unsupported types', () => {
+    it('should throw on unknown evaluator type', () => {
+      expect(() => parseAssertSpec('llm_judge')).toThrow('Unsupported evaluator type');
+    });
+
+    it('should throw on empty spec', () => {
+      expect(() => parseAssertSpec('')).toThrow('Unsupported evaluator type');
+    });
   });
 });
