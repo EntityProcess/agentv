@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { mkdir, stat } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
@@ -81,6 +81,7 @@ import {
   createTempWorkspace,
   getWorkspacePath,
 } from './workspace/manager.js';
+import { resolveWorkspaceTemplate } from './workspace/resolve.js';
 import {
   type ScriptExecutionContext,
   executeWorkspaceScript,
@@ -136,6 +137,8 @@ export interface RunEvalCaseOptions {
   readonly sharedWorkspacePath?: string;
   /** Pre-initialized baseline commit for shared workspace */
   readonly sharedBaselineCommit?: string;
+  /** Suite-level .code-workspace file (resolved from workspace.template) */
+  readonly suiteWorkspaceFile?: string;
   /** Real-time observability callbacks passed to the provider */
   readonly streamCallbacks?: ProviderStreamCallbacks;
 }
@@ -352,7 +355,10 @@ export async function runEvaluation(
   // If any test has workspace config, create shared workspace once.
   // Determine workspace config from first test (suite-level config propagates to all).
   const suiteWorkspace = filteredEvalCases[0]?.workspace;
-  const workspaceTemplate = suiteWorkspace?.template ?? getWorkspaceTemplate(target);
+  const rawTemplate = suiteWorkspace?.template ?? getWorkspaceTemplate(target);
+  const resolvedTemplate = await resolveWorkspaceTemplate(rawTemplate);
+  const workspaceTemplate = resolvedTemplate?.dir;
+  const suiteWorkspaceFile = resolvedTemplate?.workspaceFile;
 
   // Resolve worker count: CLI option > target setting > default (1)
   // Force workers=1 when shared workspace is used to prevent data corruption
@@ -370,10 +376,7 @@ export async function runEvaluation(
   let beforeAllOutput: string | undefined;
 
   if (workspaceTemplate) {
-    const templateIsDir = await stat(path.resolve(workspaceTemplate))
-      .then((s) => s.isDirectory())
-      .catch(() => false);
-    if (templateIsDir) {
+    {
       try {
         sharedWorkspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, 'shared');
       } catch (error) {
@@ -455,6 +458,7 @@ export async function runEvaluation(
           cleanupWorkspaces,
           sharedWorkspacePath,
           sharedBaselineCommit,
+          suiteWorkspaceFile,
           streamCallbacks,
         };
         let result =
@@ -767,6 +771,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     cleanupWorkspaces: forceCleanup,
     sharedWorkspacePath,
     sharedBaselineCommit,
+    suiteWorkspaceFile,
   } = options;
 
   const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
@@ -787,16 +792,18 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   let afterEachOutput: string | undefined;
   const isSharedWorkspace = !!sharedWorkspacePath;
 
+  let caseWorkspaceFile: string | undefined;
+
   if (!workspacePath) {
     // Per-case workspace creation (backwards compat for tests without shared workspace)
-    const workspaceTemplate = evalCase.workspace?.template ?? getWorkspaceTemplate(target);
-    if (workspaceTemplate && evalRunId) {
-      const templateIsDir = await stat(path.resolve(workspaceTemplate))
-        .then((s) => s.isDirectory())
-        .catch(() => false);
-      if (templateIsDir) {
+    const rawCaseTemplate = evalCase.workspace?.template ?? getWorkspaceTemplate(target);
+    const resolvedCaseTemplate = await resolveWorkspaceTemplate(rawCaseTemplate);
+    const caseWorkspaceTemplate = resolvedCaseTemplate?.dir;
+    caseWorkspaceFile = resolvedCaseTemplate?.workspaceFile;
+    if (caseWorkspaceTemplate && evalRunId) {
+      {
         try {
-          workspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, evalCase.id);
+          workspacePath = await createTempWorkspace(caseWorkspaceTemplate, evalRunId, evalCase.id);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           return buildErrorResult(
@@ -900,6 +907,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         agentTimeoutMs,
         signal,
         cwd: workspacePath,
+        workspaceFile: caseWorkspaceFile ?? suiteWorkspaceFile,
         captureFileChanges: !!baselineCommit,
         streamCallbacks: options.streamCallbacks,
       });
@@ -2344,6 +2352,8 @@ async function invokeProvider(
     readonly signal?: AbortSignal;
     /** Working directory override (e.g., from workspace_template) */
     readonly cwd?: string;
+    /** VS Code .code-workspace file (resolved from workspace.template) */
+    readonly workspaceFile?: string;
     /** When true, AgentV captures file changes — provider should skip forced diff prompt */
     readonly captureFileChanges?: boolean;
     /** Real-time observability callbacks */
@@ -2357,6 +2367,7 @@ async function invokeProvider(
     agentTimeoutMs,
     signal,
     cwd,
+    workspaceFile,
     captureFileChanges,
     streamCallbacks,
   } = options;
@@ -2382,6 +2393,7 @@ async function invokeProvider(
       },
       signal: controller.signal,
       cwd,
+      workspaceFile,
       captureFileChanges,
       streamCallbacks,
     });
