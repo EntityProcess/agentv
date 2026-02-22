@@ -65,7 +65,14 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 
 ## Project Structure
 - `packages/core/` - Evaluation engine, providers, grading
+  - `src/evaluation/registry/` - Extensible evaluator registry (EvaluatorRegistry, assertion discovery)
+  - `src/evaluation/providers/provider-registry.ts` - Provider plugin registry
+  - `src/evaluation/evaluate.ts` - `evaluate()` programmatic API
+  - `src/evaluation/config.ts` - `defineConfig()` for typed agentv.config.ts
+- `packages/eval/` - Lightweight assertion SDK (`defineAssertion`, `defineCodeJudge`)
 - `apps/cli/` - Command-line interface (published as `agentv`)
+  - `src/commands/create/` - Scaffold commands (`agentv create assertion/eval`)
+- `examples/features/sdk-*` - SDK usage examples (custom assertion, programmatic API, config file)
 
 ## Quality Assurance Workflow
 

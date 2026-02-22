@@ -199,6 +199,79 @@ assert:
 
 For complete templates, examples, and evaluator patterns, see: [custom-evaluators](https://agentv.dev/evaluators/custom-evaluators/)
 
+### TypeScript SDK
+
+#### Custom Assertions with `defineAssertion()`
+
+Create custom assertion types in TypeScript using `@agentv/eval`:
+
+```typescript
+// .agentv/assertions/word-count.ts
+import { defineAssertion } from '@agentv/eval';
+
+export default defineAssertion(({ answer }) => {
+  const wordCount = answer.trim().split(/\s+/).length;
+  return {
+    pass: wordCount >= 3,
+    reasoning: `Output has ${wordCount} words`,
+  };
+});
+```
+
+Files in `.agentv/assertions/` are auto-discovered by filename — use directly in YAML:
+
+```yaml
+assert:
+  - type: word-count    # matches word-count.ts
+  - type: contains
+    value: "Hello"
+```
+
+#### Programmatic API with `evaluate()`
+
+Use AgentV as a library — no YAML needed:
+
+```typescript
+import { evaluate } from '@agentv/core';
+
+const { results, summary } = await evaluate({
+  tests: [
+    {
+      id: 'greeting',
+      input: 'Say hello',
+      assert: [{ type: 'contains', value: 'Hello' }],
+    },
+  ],
+});
+
+console.log(`${summary.passed}/${summary.total} passed`);
+```
+
+Auto-discovers `default` target from `.agentv/targets.yaml` and `.env` credentials.
+
+#### Typed Configuration with `defineConfig()`
+
+Create `agentv.config.ts` at your project root for typed, validated configuration:
+
+```typescript
+import { defineConfig } from '@agentv/core';
+
+export default defineConfig({
+  execution: { workers: 5, maxRetries: 2 },
+  output: { format: 'jsonl', dir: './results' },
+  limits: { maxCostUsd: 10.0 },
+});
+```
+
+#### Scaffold Commands
+
+Bootstrap new assertions and eval files:
+
+```bash
+agentv create assertion sentiment   # → .agentv/assertions/sentiment.ts
+agentv create eval my-eval          # → evals/my-eval.eval.yaml + .cases.jsonl
+```
+
 ### Compare Evaluation Results
 
 Run two evaluations and compare them:

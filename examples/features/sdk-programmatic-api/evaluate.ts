@@ -3,6 +3,9 @@
  *
  * Uses evaluate() from @agentv/core to run evaluations as a library.
  * No YAML needed — tests defined inline with full type safety.
+ *
+ * Run: bun run evaluate.ts
+ * (Uses 'default' target from .agentv/targets.yaml and .env credentials)
  */
 import { evaluate } from '@agentv/core';
 
@@ -10,22 +13,16 @@ const { results, summary } = await evaluate({
   tests: [
     {
       id: 'greeting',
-      input: 'Say hello to the user',
-      expected_output: "Hello! I'm here to help you.",
-      assert: [
-        { type: 'contains', value: 'Hello' },
-        { type: 'contains', value: 'help' },
-      ],
-    },
-    {
-      id: 'math',
-      input: 'What is 2+2?',
-      expected_output: '4',
-      assert: [{ type: 'equals', value: '4' }],
+      input: 'Say hello and introduce yourself briefly.',
+      expected_output: "Hello! I'm an AI assistant here to help you.",
+      assert: [{ type: 'contains', value: 'Hello' }],
     },
     {
       id: 'json-output',
-      input: 'Return a JSON object with status ok',
+      input: [
+        { role: 'system', content: 'Respond only with valid JSON. No markdown.' },
+        { role: 'user', content: 'Return a JSON object with a "status" field set to "ok".' },
+      ],
       expected_output: '{"status": "ok"}',
       assert: [
         { type: 'is_json', required: true },
@@ -33,7 +30,6 @@ const { results, summary } = await evaluate({
       ],
     },
   ],
-  target: { name: 'default', provider: 'mock_agent' },
   onResult: (result) => {
     console.log(`  ${result.testId}: score=${result.score.toFixed(2)}`);
   },

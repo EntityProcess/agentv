@@ -35,10 +35,12 @@
  * @module
  */
 
+import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { findGitRoot } from './file-utils.js';
+import { buildDirectoryChain, findGitRoot } from './file-utils.js';
 
 import { runEvaluation } from './orchestrator.js';
+import { readTargetDefinitions } from './providers/targets-file.js';
 import { resolveTargetDefinition } from './providers/targets.js';
 import type { TargetDefinition } from './providers/types.js';
 import type { EvalTest, EvaluationResult, EvaluatorConfig } from './types.js';
@@ -192,16 +194,21 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
     throw new Error('Must specify either "tests" (inline) or "specFile" (YAML path).');
   }
 
-  // Resolve target
-  const targetDef: TargetDefinition = config.target ?? {
-    name: 'default',
-    provider: 'mock_agent',
-  };
-  const resolvedTarget = resolveTargetDefinition(targetDef);
-
   // Resolve repo root
   const gitRoot = await findGitRoot(process.cwd());
   const repoRoot = gitRoot ?? process.cwd();
+
+  // Load .env files from hierarchy (closest to cwd first)
+  await loadEnvHierarchy(repoRoot);
+
+  // Resolve target — inline definition or auto-discover from targets.yaml
+  let targetDef: TargetDefinition;
+  if (config.target) {
+    targetDef = config.target;
+  } else {
+    targetDef = (await discoverDefaultTarget(repoRoot)) ?? { name: 'default', provider: 'mock' };
+  }
+  const resolvedTarget = resolveTargetDefinition(targetDef);
 
   let evalCases: readonly EvalTest[] | EvalTest[];
   let testFilePath: string;
@@ -252,7 +259,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
         input_segments: [],
         expected_output: expectedOutput,
         reference_answer: test.expected_output,
-        guideline_paths: [process.cwd()],
+        guideline_paths: [],
         guideline_patterns: [],
         file_paths: [],
         evaluators: assertConfigs.length > 0 ? assertConfigs : undefined,
@@ -330,4 +337,66 @@ function computeSummary(results: readonly EvaluationResult[], durationMs: number
     durationMs,
     meanScore: total > 0 ? scoreSum / total : 0,
   };
+}
+
+const TARGET_FILE_CANDIDATES = ['.agentv/targets.yaml', '.agentv/targets.yml'] as const;
+
+/**
+ * Auto-discover the 'default' target from targets.yaml in the repo tree.
+ */
+async function discoverDefaultTarget(repoRoot: string): Promise<TargetDefinition | null> {
+  const cwd = process.cwd();
+  const chain = buildDirectoryChain(path.join(cwd, '_placeholder'), repoRoot);
+
+  for (const dir of chain) {
+    for (const candidate of TARGET_FILE_CANDIDATES) {
+      const targetsPath = path.join(dir, candidate);
+      if (!existsSync(targetsPath)) continue;
+      try {
+        const definitions = await readTargetDefinitions(targetsPath);
+        const defaultTarget = definitions.find((d) => d.name === 'default');
+        if (defaultTarget) return defaultTarget;
+      } catch {
+        // Skip invalid targets files
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Load .env files from the directory hierarchy (root → child order).
+ * Only sets variables not already in process.env.
+ */
+async function loadEnvHierarchy(repoRoot: string): Promise<void> {
+  const { readFileSync } = await import('node:fs');
+  const cwd = process.cwd();
+  const chain = buildDirectoryChain(path.join(cwd, '_placeholder'), repoRoot);
+
+  // Collect .env files from closest to root
+  const envFiles: string[] = [];
+  for (const dir of chain) {
+    const envPath = path.join(dir, '.env');
+    if (existsSync(envPath)) envFiles.push(envPath);
+  }
+
+  // Load from root to child so child values take precedence
+  for (let i = envFiles.length - 1; i >= 0; i--) {
+    try {
+      const content = readFileSync(envFiles[i], 'utf8');
+      for (const line of content.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const eqIdx = trimmed.indexOf('=');
+        if (eqIdx <= 0) continue;
+        const key = trimmed.slice(0, eqIdx).trim();
+        const val = trimmed.slice(eqIdx + 1).trim();
+        if (!(key in process.env)) {
+          process.env[key] = val;
+        }
+      }
+    } catch {
+      // Skip unreadable .env files
+    }
+  }
 }
