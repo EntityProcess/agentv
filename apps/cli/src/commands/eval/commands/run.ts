@@ -118,9 +118,15 @@ export const evalRunCommand = command({
       long: 'cleanup-workspaces',
       description: 'Always cleanup temporary workspaces, even on failure',
     }),
-    trace: flag({
-      long: 'trace',
-      description: 'Persist full execution traces to .agentv/traces/ as JSONL',
+    otelFile: option({
+      type: optional(string),
+      long: 'otel-file',
+      description: 'Write OTLP JSON trace to file (importable by OTel backends)',
+    }),
+    traceFile: option({
+      type: optional(string),
+      long: 'trace-file',
+      description: 'Write human-readable trace JSONL to file',
     }),
     exportOtel: flag({
       long: 'export-otel',
@@ -169,7 +175,9 @@ export const evalRunCommand = command({
       verbose: args.verbose,
       keepWorkspaces: args.keepWorkspaces,
       cleanupWorkspaces: args.cleanupWorkspaces,
-      trace: args.trace,
+      trace: false,
+      otelFile: args.otelFile,
+      traceFile: args.traceFile,
       exportOtel: args.exportOtel,
       otelBackend: args.otelBackend,
       otelCaptureContent: args.otelCaptureContent,

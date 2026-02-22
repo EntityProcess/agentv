@@ -36,7 +36,6 @@ import {
   formatMatrixSummary,
 } from './statistics.js';
 import { type TargetSelection, selectMultipleTargets, selectTarget } from './targets.js';
-import { TraceWriter, buildTraceRecord } from './trace-writer.js';
 
 const DEFAULT_WORKERS = 3;
 
@@ -66,6 +65,8 @@ interface NormalizedOptions {
   readonly keepWorkspaces: boolean;
   readonly cleanupWorkspaces: boolean;
   readonly trace: boolean;
+  readonly otelFile?: string;
+  readonly traceFile?: string;
   readonly exportOtel: boolean;
   readonly otelBackend?: string;
   readonly otelCaptureContent: boolean;
@@ -144,6 +145,8 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     keepWorkspaces: normalizeBoolean(rawOptions.keepWorkspaces),
     cleanupWorkspaces: normalizeBoolean(rawOptions.cleanupWorkspaces),
     trace: normalizeBoolean(rawOptions.trace),
+    otelFile: normalizeString(rawOptions.otelFile),
+    traceFile: normalizeString(rawOptions.traceFile),
     exportOtel: normalizeBoolean(rawOptions.exportOtel),
     otelBackend: normalizeString(rawOptions.otelBackend),
     otelCaptureContent: normalizeBoolean(rawOptions.otelCaptureContent),
@@ -164,11 +167,6 @@ function buildDefaultOutputPath(cwd: string, format: OutputFormat): string {
   const baseName = 'eval';
   const extension = getDefaultExtension(format);
   return path.join(cwd, '.agentv', 'results', `${baseName}_${timestamp}${extension}`);
-}
-
-function buildTraceOutputPath(cwd: string, evalFileBasename: string): string {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  return path.join(cwd, '.agentv', 'traces', timestamp, `${evalFileBasename}.trace.jsonl`);
 }
 
 type ProgressReporter = {
@@ -373,7 +371,6 @@ async function runSingleEvalFile(params: {
   readonly repoRoot: string;
   readonly options: NormalizedOptions;
   readonly outputWriter: OutputWriter;
-  readonly traceWriter?: TraceWriter;
   readonly otelExporter?: OtelTraceExporterType | null;
   readonly cache?: EvaluationCache;
   readonly evaluationRunner: typeof defaultRunEvaluation;
@@ -393,7 +390,6 @@ async function runSingleEvalFile(params: {
     repoRoot,
     options,
     outputWriter,
-    traceWriter,
     otelExporter,
     cache,
     evaluationRunner,
@@ -485,16 +481,6 @@ async function runSingleEvalFile(params: {
     cleanupWorkspaces: options.cleanupWorkspaces,
     trials: trialsConfig,
     onResult: async (result: EvaluationResult) => {
-      // Write trace if trace writer is available and output exist
-      if (traceWriter && result.output && result.output.length > 0) {
-        const traceRecord = buildTraceRecord(result.testId, result.output, {
-          tokenUsage: result.trace?.tokenUsage,
-          costUsd: result.trace?.costUsd,
-          durationMs: result.trace?.durationMs,
-        });
-        await traceWriter.append(traceRecord);
-      }
-
       // Strip output from result before writing to avoid bloating results JSONL
       const { output: _, ...resultWithoutTrace } = result;
       await outputWriter.append(resultWithoutTrace as EvaluationResult);
@@ -552,10 +538,11 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     console.log(`Repository root: ${repoRoot}`);
   }
 
-  // Initialize OTel exporter if --export-otel flag is set
+  // Initialize OTel exporter if --export-otel flag is set or file export flags are used
   let otelExporter: OtelTraceExporterType | null = null;
+  const useFileExport = !!(options.otelFile || options.traceFile);
 
-  if (options.exportOtel) {
+  if (options.exportOtel || useFileExport) {
     try {
       const { OtelTraceExporter, OTEL_BACKEND_PRESETS } = await import('@agentv/core');
 
@@ -589,6 +576,8 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
         headers,
         captureContent,
         groupTurns: options.otelGroupTurns,
+        otlpFilePath: options.otelFile ? path.resolve(options.otelFile) : undefined,
+        traceFilePath: options.traceFile ? path.resolve(options.traceFile) : undefined,
       });
 
       const initialized = await otelExporter.init();
@@ -631,17 +620,13 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     }
   }
 
-  // Create trace writer if --trace flag is set
-  // Use the first eval file's basename for the trace file name
+  // Log file export paths
   const resolvedTestFiles = input.testFiles.map((file) => path.resolve(file));
-  const evalFileBasename =
-    resolvedTestFiles.length > 0
-      ? path.basename(resolvedTestFiles[0], path.extname(resolvedTestFiles[0]))
-      : 'eval';
-  const tracePath = options.trace ? buildTraceOutputPath(cwd, evalFileBasename) : undefined;
-  const traceWriter = tracePath ? await TraceWriter.open(tracePath) : undefined;
-  if (tracePath) {
-    console.log(`Trace path: ${tracePath}`);
+  if (options.otelFile) {
+    console.log(`OTLP JSON file: ${path.resolve(options.otelFile)}`);
+  }
+  if (options.traceFile) {
+    console.log(`Trace file: ${path.resolve(options.traceFile)}`);
   }
 
   // Determine cache state after loading file metadata (need YAML config)
@@ -801,7 +786,6 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
           repoRoot,
           options,
           outputWriter,
-          traceWriter,
           otelExporter,
           cache,
           evaluationRunner,
@@ -856,7 +840,6 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     unsubscribePiLogs();
     unsubscribeCopilotLogs();
     await outputWriter.close().catch(() => undefined);
-    await traceWriter?.close().catch(() => undefined);
     if (otelExporter) {
       try {
         await otelExporter.shutdown();

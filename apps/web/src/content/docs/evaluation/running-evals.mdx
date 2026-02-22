@@ -51,18 +51,27 @@ agentv eval evals/my-eval.yaml --out results/baseline.jsonl
 
 ### Trace Persistence
 
-Persist full execution traces (tool calls, timing, spans) to disk for debugging and analysis:
+Export execution traces (tool calls, timing, spans) to files for debugging and analysis:
 
 ```bash
-agentv eval evals/my-eval.yaml --trace
+# Human-readable JSONL trace (one record per test case)
+agentv eval evals/my-eval.yaml --trace-file traces/eval.jsonl
+
+# OTLP JSON trace (importable by OTel backends like Jaeger, Grafana)
+agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
+
+# Both formats simultaneously
+agentv eval evals/my-eval.yaml --trace-file traces/eval.jsonl --otel-file traces/eval.otlp.json
 ```
 
-Traces are written to `.agentv/traces/<timestamp>/<eval-file>.trace.jsonl` as JSONL records containing:
-- `testId` - The test identifier
-- `startTime` / `endTime` - Execution boundaries
-- `durationMs` - Total execution duration
-- `spans` - Array of tool invocations with timing and input/output
-- `tokenUsage` / `costUsd` - Resource consumption
+The `--trace-file` format writes JSONL records containing:
+- `test_id` - The test identifier
+- `target` / `score` - Target and evaluation score
+- `duration_ms` - Total execution duration
+- `spans` - Array of tool invocations with timing
+- `token_usage` / `cost_usd` - Resource consumption
+
+The `--otel-file` format writes standard OTLP JSON that can be imported into any OpenTelemetry-compatible backend.
 
 ### Workspace Cleanup
 

@@ -61,16 +61,14 @@ export class OtelTraceExporter {
   /** Initialize the OTel SDK. Returns false if OTel packages are not available. */
   async init(): Promise<boolean> {
     try {
-      const [sdkTraceNode, otlpHttp, resourcesMod, semconvMod, api] = await Promise.all([
+      const [sdkTraceNode, resourcesMod, semconvMod, api] = await Promise.all([
         import('@opentelemetry/sdk-trace-node'),
-        import('@opentelemetry/exporter-trace-otlp-http'),
         import('@opentelemetry/resources'),
         import('@opentelemetry/semantic-conventions'),
         import('@opentelemetry/api'),
       ]);
 
       const { NodeTracerProvider: Provider, SimpleSpanProcessor } = sdkTraceNode;
-      const { OTLPTraceExporter } = otlpHttp;
       const { resourceFromAttributes } = resourcesMod;
       const { ATTR_SERVICE_NAME } = semconvMod;
 
@@ -78,14 +76,43 @@ export class OtelTraceExporter {
         [ATTR_SERVICE_NAME]: this.options.serviceName ?? 'agentv',
       });
 
-      const exporter = new OTLPTraceExporter({
-        url: this.options.endpoint,
-        headers: this.options.headers,
-      });
+      // biome-ignore lint/suspicious/noExplicitAny: OTel processor types loaded dynamically
+      const processors: any[] = [];
+
+      // Remote OTLP exporter (only when endpoint is configured)
+      if (this.options.endpoint) {
+        const otlpHttp = await import('@opentelemetry/exporter-trace-otlp-http');
+        const { OTLPTraceExporter } = otlpHttp;
+        const exporter = new OTLPTraceExporter({
+          url: this.options.endpoint,
+          headers: this.options.headers,
+        });
+        processors.push(new SimpleSpanProcessor(exporter));
+      }
+
+      // OTLP JSON file exporter
+      if (this.options.otlpFilePath) {
+        const { OtlpJsonFileExporter } = await import('./otlp-json-file-exporter.js');
+        processors.push(
+          new SimpleSpanProcessor(new OtlpJsonFileExporter(this.options.otlpFilePath)),
+        );
+      }
+
+      // Simple trace file exporter
+      if (this.options.traceFilePath) {
+        const { SimpleTraceFileExporter } = await import('./simple-trace-file-exporter.js');
+        processors.push(
+          new SimpleSpanProcessor(new SimpleTraceFileExporter(this.options.traceFilePath)),
+        );
+      }
+
+      if (processors.length === 0) {
+        return false;
+      }
 
       this.provider = new Provider({
         resource,
-        spanProcessors: [new SimpleSpanProcessor(exporter)],
+        spanProcessors: processors,
       });
       this.provider.register();
       this.api = api;
