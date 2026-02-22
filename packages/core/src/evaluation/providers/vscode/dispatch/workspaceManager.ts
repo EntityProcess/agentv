@@ -45,6 +45,7 @@ export async function findUnlockedSubagent(subagentRoot: string): Promise<string
 export async function copyAgentConfig(
   subagentDir: string,
   workspaceTemplate?: string,
+  cwd?: string,
 ): Promise<{ workspace: string; messagesDir: string }> {
   let workspaceContent: unknown;
 
@@ -72,7 +73,18 @@ export async function copyAgentConfig(
     ? path.dirname(path.resolve(workspaceTemplate))
     : subagentDir;
   const workspaceJson = JSON.stringify(workspaceContent, null, 2);
-  const transformedContent = transformWorkspacePaths(workspaceJson, templateDir);
+  let transformedContent = transformWorkspacePaths(workspaceJson, templateDir);
+
+  if (cwd) {
+    const absCwd = path.resolve(cwd);
+    const parsed = JSON.parse(transformedContent) as { folders: { path: string }[] };
+    const alreadyPresent = parsed.folders.some((f) => f.path === absCwd);
+    if (!alreadyPresent) {
+      parsed.folders.push({ path: absCwd });
+      transformedContent = JSON.stringify(parsed, null, 2);
+    }
+  }
+
   await writeFile(workspaceDst, transformedContent, 'utf8');
 
   const messagesDir = path.join(subagentDir, 'messages');
@@ -120,13 +132,14 @@ export async function prepareSubagentDirectory(
   chatId: string,
   workspaceTemplate: string | undefined,
   dryRun: boolean,
+  cwd?: string,
 ): Promise<number> {
   if (dryRun) {
     return 0;
   }
 
   try {
-    await copyAgentConfig(subagentDir, workspaceTemplate);
+    await copyAgentConfig(subagentDir, workspaceTemplate, cwd);
   } catch (error) {
     console.error(`error: ${(error as Error).message}`);
     return 1;

@@ -47,10 +47,6 @@ export class VSCodeProvider implements Provider {
     const inputFiles = normalizeAttachments(request.inputFiles);
     const promptContent = buildPromptDocument(request, inputFiles, request.guideline_patterns);
 
-    // Use request.cwd as workspace override if provided (e.g., from orchestrator workspace management)
-    // Otherwise fall back to config.workspaceTemplate for provider-managed workspace creation
-    const effectiveWorkspaceTemplate = request.cwd ?? this.config.workspaceTemplate;
-
     // Measure wall-clock time for duration
     const startTime = Date.now();
     const session = await dispatchAgentSession({
@@ -61,7 +57,8 @@ export class VSCodeProvider implements Provider {
       dryRun: this.config.dryRun,
       vscodeCmd: this.config.executable,
       subagentRoot: this.config.subagentRoot,
-      workspaceTemplate: effectiveWorkspaceTemplate,
+      workspaceTemplate: this.config.workspaceTemplate,
+      cwd: request.cwd,
       silent: true,
       timeoutMs: this.config.timeoutMs,
     });
