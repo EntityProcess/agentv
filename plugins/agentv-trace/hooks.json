@@ -1,0 +1,9 @@
+{
+  "hooks": [
+    { "event": "SessionStart", "command": "bun run hooks/session-start.ts", "async": true },
+    { "event": "UserPromptSubmit", "command": "bun run hooks/user-prompt-submit.ts", "async": true },
+    { "event": "PostToolUse", "command": "bun run hooks/post-tool-use.ts", "matcher": "*", "async": true },
+    { "event": "Stop", "command": "bun run hooks/stop.ts", "async": true },
+    { "event": "SessionEnd", "command": "bun run hooks/session-end.ts", "async": true }
+  ]
+}
