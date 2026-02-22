@@ -3,6 +3,7 @@ import path from 'node:path';
 import { defineConfig } from 'tsup';
 
 const SKILLS_TO_INCLUDE = [
+  'agentv-chat-to-eval',
   'agentv-eval-builder',
   'agentv-eval-orchestrator',
   'agentv-prompt-optimizer',
@@ -37,7 +38,7 @@ export default defineConfig({
     const distTemplatesDir = path.join('dist', 'templates');
 
     const repoRootDir = path.resolve('..', '..');
-    const rootSkillsDir = path.join(repoRootDir, 'skills');
+    const rootSkillsDir = path.join(repoRootDir, 'plugins', 'agentv-dev', 'skills');
 
     // Copy entire templates directory structure recursively
     cpSync(srcTemplatesDir, distTemplatesDir, {

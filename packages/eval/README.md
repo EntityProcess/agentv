@@ -37,7 +37,7 @@ For complete documentation including:
 - Execution metrics usage
 - Best practices
 
-See the [Custom Evaluators Guide](../../skills/agentv-eval-builder/references/custom-evaluators.md) or run AgentV's `/agentv-eval-builder` skill.
+See the [Custom Evaluators Guide](../../plugins/agentv-dev/skills/agentv-eval-builder/references/custom-evaluators.md) or run AgentV's `/agentv-eval-builder` skill.
 
 ## Repository
 
