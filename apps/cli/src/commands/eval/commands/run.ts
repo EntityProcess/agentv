@@ -38,11 +38,10 @@ export const evalRunCommand = command({
       description: 'Filter tests by ID pattern (glob supported, e.g., "summary-*")',
     }),
     workers: option({
-      type: number,
+      type: optional(number),
       long: 'workers',
       description:
         'Number of parallel workers (default: 3, max: 50). Can also be set per-target in targets.yaml',
-      defaultValue: () => 3,
     }),
     out: option({
       type: optional(string),
@@ -57,10 +56,9 @@ export const evalRunCommand = command({
         'Output file path(s). Format inferred from extension: .jsonl, .json, .xml, .yaml',
     }),
     outputFormat: option({
-      type: string,
+      type: optional(string),
       long: 'output-format',
       description: "Output format: 'jsonl' or 'yaml' (default: jsonl)",
-      defaultValue: () => 'jsonl',
     }),
     dryRun: flag({
       long: 'dry-run',
@@ -86,16 +84,14 @@ export const evalRunCommand = command({
       defaultValue: () => 0,
     }),
     agentTimeout: option({
-      type: number,
+      type: optional(number),
       long: 'agent-timeout',
       description: 'Timeout in seconds for provider responses (default: 120)',
-      defaultValue: () => 120,
     }),
     maxRetries: option({
-      type: number,
+      type: optional(number),
       long: 'max-retries',
       description: 'Retry count for timeout recoveries (default: 2)',
-      defaultValue: () => 2,
     }),
     cache: flag({
       long: 'cache',
