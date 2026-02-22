@@ -1,6 +1,6 @@
 import { subcommands } from 'cmd-ts';
 
-import { createAssertionCommand, createEvalCommand } from './commands.js';
+import { createAssertionCommand, createEvalCommand, createProviderCommand } from './commands.js';
 
 export const createCommand = subcommands({
   name: 'create',
@@ -8,5 +8,6 @@ export const createCommand = subcommands({
   cmds: {
     assertion: createAssertionCommand,
     eval: createEvalCommand,
+    provider: createProviderCommand,
   },
 });

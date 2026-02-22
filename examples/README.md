@@ -41,13 +41,20 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 - [composite](features/composite/) - Composite evaluator patterns
 - [weighted-evaluators](features/weighted-evaluators/) - Weighted evaluators
 - [execution-metrics](features/execution-metrics/) - Metrics tracking (tokens, cost, latency)
-- [code-judge-sdk](features/code-judge-sdk/) - TypeScript SDK for code judges
 - [code-judge-with-llm-calls](features/code-judge-with-llm-calls/) - Code judges with target proxy for LLM calls
 - [batch-cli](features/batch-cli/) - Batch CLI evaluation
 - [document-extraction](features/document-extraction/) - Document data extraction
 - [local-cli](features/local-cli/) - Local CLI targets
 - [compare](features/compare/) - Baseline comparison
 - [deterministic-evaluators](features/deterministic-evaluators/) - Deterministic assertions (contains, regex, JSON validation)
+
+### SDK
+
+- [code-judge-sdk](features/code-judge-sdk/) - TypeScript SDK for code judges using `defineCodeJudge()`
+- [sdk-custom-assertion](features/sdk-custom-assertion/) - Custom assertion types using `defineAssertion()`
+- [sdk-programmatic-api](features/sdk-programmatic-api/) - Programmatic evaluation using `evaluate()`
+- [sdk-config-file](features/sdk-config-file/) - Typed configuration with `defineConfig()`
+- [prompt-template-sdk](features/prompt-template-sdk/) - Custom LLM judge prompts using `definePromptTemplate()`
 
 ---
 

@@ -227,6 +227,8 @@ assert:
     value: "Hello"
 ```
 
+See the [sdk-custom-assertion example](examples/features/sdk-custom-assertion).
+
 #### Programmatic API with `evaluate()`
 
 Use AgentV as a library — no YAML needed:
@@ -247,7 +249,7 @@ const { results, summary } = await evaluate({
 console.log(`${summary.passed}/${summary.total} passed`);
 ```
 
-Auto-discovers `default` target from `.agentv/targets.yaml` and `.env` credentials.
+Auto-discovers `default` target from `.agentv/targets.yaml` and `.env` credentials. See the [sdk-programmatic-api example](examples/features/sdk-programmatic-api).
 
 #### Typed Configuration with `defineConfig()`
 
@@ -262,6 +264,8 @@ export default defineConfig({
   limits: { maxCostUsd: 10.0 },
 });
 ```
+
+See the [sdk-config-file example](examples/features/sdk-config-file).
 
 #### Scaffold Commands
 
