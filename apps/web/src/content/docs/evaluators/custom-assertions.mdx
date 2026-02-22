@@ -1,0 +1,249 @@
+---
+title: Custom Assertions
+description: Build reusable assertion types with defineAssertion() and convention-based discovery
+sidebar:
+  order: 7
+---
+
+Custom assertions let you add evaluation logic that goes beyond built-in types. Define a TypeScript function, drop it in `.agentv/assertions/`, and reference it by name in your YAML eval files.
+
+## When to Use Each Approach
+
+AgentV provides two SDK functions for custom evaluation logic:
+
+| Function | Best For | Discovery |
+|----------|----------|-----------|
+| `defineAssertion()` | Pass/fail checks, reusable assertion types | Convention-based (`.agentv/assertions/`) |
+| `defineCodeJudge()` | Full scoring control with explicit hits/misses | Referenced via `type: code_judge` + `script:` |
+
+**Use `defineAssertion()`** when you want a named assertion type that can be referenced across eval files without specifying a script path. It uses a simplified result contract focused on `pass` and optional `score`.
+
+**Use `defineCodeJudge()`** when you need full control over scoring with explicit `hits`/`misses` arrays, or when the evaluator is a one-off script tied to a specific eval. See [Code Judges](/evaluators/code-judges/) for details.
+
+Both functions handle stdin/stdout JSON parsing, snake_case-to-camelCase conversion, Zod validation, and error handling automatically.
+
+## Installation
+
+```bash
+npm install @agentv/eval
+```
+
+## Convention-Based Discovery
+
+Place assertion files in `.agentv/assertions/` anywhere in your project tree. AgentV walks up from the eval file's directory to find the nearest `.agentv/assertions/` folder.
+
+The filename (without extension) becomes the assertion type name:
+
+```
+.agentv/assertions/word-count.ts   -->  type: word-count
+.agentv/assertions/sentiment.ts    -->  type: sentiment
+.agentv/assertions/has-citation.ts -->  type: has-citation
+```
+
+Supported file extensions: `.ts`, `.js`, `.mts`, `.mjs`.
+
+Custom assertion types cannot override built-in types (`contains`, `equals`, `is_json`, etc.). If a filename matches a built-in, it is silently skipped.
+
+### Using in YAML
+
+Reference the assertion by type name directly -- no `script:` path needed:
+
+```yaml
+assert:
+  - type: word-count
+  - type: contains
+    value: "Hello"
+```
+
+## Pass/Fail Pattern
+
+The simplest pattern returns `pass` (boolean) and `reasoning` (string):
+
+```typescript
+// .agentv/assertions/word-count.ts
+import { defineAssertion } from '@agentv/eval';
+
+export default defineAssertion(({ answer }) => {
+  const wordCount = answer.trim().split(/\s+/).length;
+  return {
+    pass: wordCount >= 3,
+    reasoning: `Output has ${wordCount} words`,
+  };
+});
+```
+
+When only `pass` is provided, the score defaults to `1` (pass) or `0` (fail).
+
+## Score Pattern
+
+Return a `score` (0 to 1) for granular evaluation instead of binary pass/fail:
+
+```typescript
+// .agentv/assertions/efficiency.ts
+import { defineAssertion } from '@agentv/eval';
+
+export default defineAssertion(({ answer, trace }) => {
+  const hasContent = answer.length > 0 ? 0.5 : 0;
+  const isEfficient = (trace?.eventCount ?? 0) <= 5 ? 0.5 : 0;
+  return {
+    score: hasContent + isEfficient,
+    hits: [
+      ...(hasContent ? ['Has content'] : []),
+      ...(isEfficient ? ['Efficient'] : []),
+    ],
+  };
+});
+```
+
+If `pass` is omitted but `score` is provided, pass is derived as `score >= 0.5`. Scores are clamped to the `[0, 1]` range.
+
+## AssertionScore Contract
+
+The handler must return an `AssertionScore` object:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pass` | `boolean` | Explicit pass/fail. If omitted, derived from `score` (>= 0.5 = pass). |
+| `score` | `number` | Numeric score between 0 and 1. Defaults to 1 if `pass=true`, 0 if `pass=false`. |
+| `hits` | `string[]` | Aspects that passed. |
+| `misses` | `string[]` | Aspects that failed. |
+| `reasoning` | `string` | Human-readable explanation. |
+| `details` | `Record<string, unknown>` | Optional structured data for domain-specific metrics. |
+
+## Context Available to Assertions
+
+The handler receives an `AssertionContext` with the same fields as a code judge:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `question` | `string` | The input question/prompt |
+| `criteria` | `string` | Evaluation criteria from the test case |
+| `answer` | `string` | The agent's text response |
+| `referenceAnswer` | `string` | Expected/reference answer |
+| `trace` | `TraceSummary` | Execution metrics (tool calls, tokens, duration, cost) |
+| `input` | `Message[]` | Full resolved input messages |
+| `expectedOutput` | `Message[]` | Expected output messages |
+| `output` | `Message[]` | Actual agent output messages |
+| `sidecar` | `Record<string, unknown>` | Custom metadata passed through |
+
+## Testing Custom Assertions
+
+Test assertions locally by piping JSON to stdin:
+
+```bash
+echo '{"question":"Say hello","criteria":"Multi-word greeting","answer":"Hello there, nice to meet you!","reference_answer":"","sidecar":{}}' \
+  | bun run .agentv/assertions/word-count.ts
+```
+
+Expected output:
+
+```json
+{
+  "score": 1,
+  "hits": [],
+  "misses": [],
+  "reasoning": "Output has 6 words (>= 3 required)"
+}
+```
+
+For test-driven development, write Vitest tests against your assertion logic directly:
+
+```typescript
+// .agentv/assertions/__tests__/word-count.test.ts
+import { expect, test } from 'vitest';
+
+// Extract the core logic into a testable function
+function checkWordCount(answer: string) {
+  const wordCount = answer.trim().split(/\s+/).length;
+  const minWords = 3;
+  const pass = wordCount >= minWords;
+  return { pass, wordCount };
+}
+
+test('passes with enough words', () => {
+  const result = checkWordCount('Hello there friend');
+  expect(result.pass).toBe(true);
+});
+
+test('fails with too few words', () => {
+  const result = checkWordCount('Hi');
+  expect(result.pass).toBe(false);
+});
+```
+
+## Full Working Example
+
+This example shows the complete flow from assertion definition to YAML eval file.
+
+### 1. Project Structure
+
+```
+my-project/
+  .agentv/
+    assertions/
+      word-count.ts
+  evals/
+    dataset.eval.yaml
+  package.json
+```
+
+### 2. Define the Assertion
+
+```typescript
+// .agentv/assertions/word-count.ts
+#!/usr/bin/env bun
+import { defineAssertion } from '@agentv/eval';
+
+export default defineAssertion(({ answer }) => {
+  const wordCount = answer.trim().split(/\s+/).length;
+  const minWords = 3;
+  const pass = wordCount >= minWords;
+
+  return {
+    pass,
+    score: pass ? 1.0 : Math.min(wordCount / minWords, 0.9),
+    reasoning: pass
+      ? `Output has ${wordCount} words (>= ${minWords} required)`
+      : `Output has only ${wordCount} words (need >= ${minWords})`,
+  };
+});
+```
+
+### 3. Reference in YAML
+
+```yaml
+# evals/dataset.eval.yaml
+name: custom-assertion-demo
+description: Demonstrates custom assertions with convention discovery
+
+execution:
+  target: default
+
+tests:
+  - id: greeting-response
+    criteria: Agent gives a multi-word greeting
+    input: "Say hello and introduce yourself"
+    expected_output: "Hello! I'm an AI assistant here to help you."
+    assert:
+      - type: contains
+        value: "Hello"
+      - type: word-count
+
+  - id: short-answer
+    criteria: Agent gives a short but valid response
+    input: "What is 2+2?"
+    expected_output: "The answer is 4."
+    assert:
+      - type: contains
+        value: "4"
+      - type: word-count
+```
+
+### 4. Install and Run
+
+```bash
+npm install @agentv/eval
+agentv eval evals/dataset.eval.yaml
+```
+
+Each test produces scores from both the built-in `contains` assertion and your custom `word-count` assertion. Results appear in the output JSONL with each evaluator's score in the `scores[]` array.
