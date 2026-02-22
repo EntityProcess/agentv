@@ -441,7 +441,9 @@ function summarizeMessage(msg: Record<string, unknown>): string | undefined {
  */
 function sanitizeEnvForClaudeSdk(): Record<string, string | undefined> {
   const env = { ...process.env };
+  // Remove all Claude Code session markers to allow nested sessions
   env.CLAUDECODE = undefined;
+  env.CLAUDE_CODE_ENTRYPOINT = undefined;
   return env;
 }
 

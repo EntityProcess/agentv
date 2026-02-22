@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { createWriteStream, existsSync, readdirSync } from 'node:fs';
-import type { WriteStream } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
-import { arch, platform } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { recordCopilotSdkLogEntry } from './copilot-sdk-log-tracker.js';
+import {
+  CopilotStreamLogger,
+  buildLogFilename,
+  isLogStreamingDisabled,
+  resolvePlatformCliPath,
+} from './copilot-utils.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { CopilotSdkResolvedConfig } from './targets.js';
 import type {
@@ -205,8 +207,6 @@ export class CopilotSdkProvider implements Provider {
       const prompt = buildPromptDocument(request, inputFiles);
 
       // Send and wait with optional timeout
-      const timeoutMs = this.config.timeoutMs;
-
       if (request.signal) {
         // Handle abort signal
         const abortHandler = () => {
@@ -214,12 +214,12 @@ export class CopilotSdkProvider implements Provider {
         };
         request.signal.addEventListener('abort', abortHandler, { once: true });
         try {
-          await this.sendWithTimeout(session, prompt, timeoutMs);
+          await this.sendWithTimeout(session, prompt, this.config.timeoutMs);
         } finally {
           request.signal.removeEventListener('abort', abortHandler);
         }
       } else {
-        await this.sendWithTimeout(session, prompt, timeoutMs);
+        await this.sendWithTimeout(session, prompt, this.config.timeoutMs);
       }
 
       const endTime = new Date().toISOString();
@@ -296,15 +296,19 @@ export class CopilotSdkProvider implements Provider {
       return;
     }
 
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         reject(new Error(`Copilot SDK timed out after ${Math.ceil(timeoutMs / 1000)}s`));
       }, timeoutMs);
-      // Don't block process exit
       timer.unref?.();
     });
 
-    await Promise.race([session.sendAndWait({ prompt }), timeoutPromise]);
+    try {
+      await Promise.race([session.sendAndWait({ prompt }), timeoutPromise]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   private resolveCwd(cwdOverride?: string): string | undefined {
@@ -318,8 +322,7 @@ export class CopilotSdkProvider implements Provider {
   }
 
   private resolveLogDirectory(): string | undefined {
-    const disabled = isCopilotSdkLogStreamingDisabled();
-    if (disabled) {
+    if (isLogStreamingDisabled('AGENTV_COPILOT_SDK_STREAM_LOGS')) {
       return undefined;
     }
     if (this.config.logDir) {
@@ -330,7 +333,7 @@ export class CopilotSdkProvider implements Provider {
 
   private async createStreamLogger(
     request: ProviderRequest,
-  ): Promise<CopilotSdkStreamLogger | undefined> {
+  ): Promise<CopilotStreamLogger | undefined> {
     const logDir = this.resolveLogDirectory();
     if (!logDir) {
       return undefined;
@@ -343,16 +346,20 @@ export class CopilotSdkProvider implements Provider {
       return undefined;
     }
 
-    const filePath = path.join(logDir, buildLogFilename(request, this.targetName));
+    const filePath = path.join(logDir, buildLogFilename(request, this.targetName, 'copilot-sdk'));
 
     try {
-      const logger = await CopilotSdkStreamLogger.create({
-        filePath,
-        targetName: this.targetName,
-        evalCaseId: request.evalCaseId,
-        attempt: request.attempt,
-        format: this.config.logFormat ?? 'summary',
-      });
+      const logger = await CopilotStreamLogger.create(
+        {
+          filePath,
+          targetName: this.targetName,
+          evalCaseId: request.evalCaseId,
+          attempt: request.attempt,
+          format: this.config.logFormat ?? 'summary',
+          headerLabel: 'Copilot SDK',
+        },
+        summarizeSdkEvent,
+      );
       recordCopilotSdkLogEntry({
         filePath,
         targetName: this.targetName,
@@ -368,61 +375,7 @@ export class CopilotSdkProvider implements Provider {
   }
 }
 
-class CopilotSdkStreamLogger {
-  readonly filePath: string;
-  private readonly stream: WriteStream;
-  private readonly startedAt = Date.now();
-  private readonly format: 'summary' | 'json';
-
-  private constructor(filePath: string, format: 'summary' | 'json') {
-    this.filePath = filePath;
-    this.format = format;
-    this.stream = createWriteStream(filePath, { flags: 'a' });
-  }
-
-  static async create(options: {
-    readonly filePath: string;
-    readonly targetName: string;
-    readonly evalCaseId?: string;
-    readonly attempt?: number;
-    readonly format: 'summary' | 'json';
-  }): Promise<CopilotSdkStreamLogger> {
-    const logger = new CopilotSdkStreamLogger(options.filePath, options.format);
-    const header = [
-      '# Copilot SDK stream log',
-      `# target: ${options.targetName}`,
-      options.evalCaseId ? `# eval: ${options.evalCaseId}` : undefined,
-      options.attempt !== undefined ? `# attempt: ${options.attempt + 1}` : undefined,
-      `# started: ${new Date().toISOString()}`,
-      '',
-    ].filter((line): line is string => Boolean(line));
-    for (const line of header) {
-      logger.stream.write(`${line}\n`);
-    }
-    return logger;
-  }
-
-  handleEvent(eventType: string, data: unknown): void {
-    const elapsed = formatElapsed(this.startedAt);
-    if (this.format === 'json') {
-      this.stream.write(`${JSON.stringify({ time: elapsed, event: eventType, data })}\n`);
-    } else {
-      const summary = summarizeEvent(eventType, data);
-      if (summary) {
-        this.stream.write(`[+${elapsed}] [${eventType}] ${summary}\n`);
-      }
-    }
-  }
-
-  async close(): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
-      this.stream.once('error', reject);
-      this.stream.end(() => resolve());
-    });
-  }
-}
-
-function summarizeEvent(eventType: string, data: unknown): string | undefined {
+function summarizeSdkEvent(eventType: string, data: unknown): string | undefined {
   if (!data || typeof data !== 'object') {
     return eventType;
   }
@@ -446,127 +399,4 @@ function summarizeEvent(eventType: string, data: unknown): string | undefined {
     default:
       return undefined;
   }
-}
-
-function isCopilotSdkLogStreamingDisabled(): boolean {
-  const envValue = process.env.AGENTV_COPILOT_SDK_STREAM_LOGS;
-  if (!envValue) {
-    return false;
-  }
-  const normalized = envValue.trim().toLowerCase();
-  return normalized === 'false' || normalized === '0' || normalized === 'off';
-}
-
-function buildLogFilename(request: ProviderRequest, targetName: string): string {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const evalId = sanitizeForFilename(request.evalCaseId ?? 'copilot-sdk');
-  const attemptSuffix = request.attempt !== undefined ? `_attempt-${request.attempt + 1}` : '';
-  const target = sanitizeForFilename(targetName);
-  return `${timestamp}_${target}_${evalId}${attemptSuffix}_${randomUUID().slice(0, 8)}.log`;
-}
-
-function sanitizeForFilename(value: string): string {
-  const sanitized = value.replace(/[^A-Za-z0-9._-]+/g, '_');
-  return sanitized.length > 0 ? sanitized : 'copilot-sdk';
-}
-
-/**
- * Resolve the platform-specific native Copilot CLI binary from the @github/copilot
- * optional dependency. The SDK's default `getBundledCliPath()` points to a JS entry
- * that imports `node:sqlite` (unsupported by Bun). This function locates the native
- * binary directly.
- */
-function resolvePlatformCliPath(): string | undefined {
-  const os = platform();
-  const cpu = arch();
-
-  // Map Node.js platform/arch to @github/copilot package naming
-  const platformMap: Record<string, string> = {
-    linux: 'linux',
-    darwin: 'darwin',
-    win32: 'win32',
-  };
-  const archMap: Record<string, string> = {
-    x64: 'x64',
-    arm64: 'arm64',
-  };
-
-  const osPart = platformMap[os];
-  const archPart = archMap[cpu];
-  if (!osPart || !archPart) {
-    return undefined;
-  }
-
-  const packageName = `@github/copilot-${osPart}-${archPart}`;
-  const binaryName = os === 'win32' ? 'copilot.exe' : 'copilot';
-
-  try {
-    // Try to resolve the platform package via import.meta.resolve
-    const resolved = import.meta.resolve(`${packageName}/package.json`);
-    // Use fileURLToPath for correct cross-platform conversion (slice(7) breaks on Windows
-    // where file:///D:/... becomes /D:/... which is not a valid path)
-    const packageJsonPath = resolved.startsWith('file:') ? fileURLToPath(resolved) : resolved;
-    const binaryPath = path.join(path.dirname(packageJsonPath), binaryName);
-    if (existsSync(binaryPath)) {
-      return binaryPath;
-    }
-  } catch {
-    // Not resolvable via import.meta.resolve
-  }
-
-  // Walk up from cwd looking for node_modules containing the package
-  let searchDir = process.cwd();
-  for (let i = 0; i < 10; i++) {
-    // Standard node_modules layout
-    const standardPath = path.join(
-      searchDir,
-      'node_modules',
-      ...packageName.split('/'),
-      binaryName,
-    );
-    if (existsSync(standardPath)) {
-      return standardPath;
-    }
-
-    // Bun's deduped .bun directory layout
-    const bunDir = path.join(searchDir, 'node_modules', '.bun');
-    const prefix = `@github+copilot-${osPart}-${archPart}@`;
-    try {
-      const entries = readdirSync(bunDir);
-      for (const entry of entries) {
-        if (entry.startsWith(prefix)) {
-          const candidate = path.join(
-            bunDir,
-            entry,
-            'node_modules',
-            '@github',
-            `copilot-${osPart}-${archPart}`,
-            binaryName,
-          );
-          if (existsSync(candidate)) {
-            return candidate;
-          }
-        }
-      }
-    } catch {
-      // .bun directory doesn't exist or can't be read
-    }
-
-    const parent = path.dirname(searchDir);
-    if (parent === searchDir) break;
-    searchDir = parent;
-  }
-
-  return undefined;
-}
-
-function formatElapsed(startedAt: number): string {
-  const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
-  const hours = Math.floor(elapsedSeconds / 3600);
-  const minutes = Math.floor((elapsedSeconds % 3600) / 60);
-  const seconds = elapsedSeconds % 60;
-  if (hours > 0) {
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }

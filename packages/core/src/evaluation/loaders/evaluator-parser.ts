@@ -717,8 +717,8 @@ async function parseEvaluatorList(
         temperature = rawTemperature;
       }
 
-      // Validate judge_target (string)
-      const judgeTarget = asString(rawEvaluator.judge_target ?? rawEvaluator.judgeTarget);
+      // Validate target (string)
+      const judgeTarget = asString(rawEvaluator.target);
 
       // Parse prompt (file path or inline text)
       let agentPrompt: string | undefined;
@@ -753,7 +753,7 @@ async function parseEvaluatorList(
           : {}),
         ...(maxSteps !== undefined ? { max_steps: maxSteps } : {}),
         ...(temperature !== undefined ? { temperature } : {}),
-        ...(judgeTarget ? { judge_target: judgeTarget } : {}),
+        ...(judgeTarget ? { target: judgeTarget } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(negate !== undefined ? { negate } : {}),

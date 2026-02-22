@@ -1,0 +1,11 @@
+{
+  "name": "cross-repo-sync-showcase",
+  "private": true,
+  "description": "Cross-repo sync workspace evaluation showcase",
+  "dependencies": {
+    "@agentv/eval": "file:../../../packages/eval"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}

@@ -29,7 +29,7 @@ tests:
 | `expected_output` | No | Expected response for comparison (string, object, or message array). Alias: `expected_output` |
 | `execution` | No | Per-case execution overrides (for example `target`, `skip_defaults`) |
 | `workspace` | No | Per-case workspace config (overrides suite-level) |
-| `metadata` | No | Arbitrary key-value pairs passed to setup/teardown scripts |
+| `metadata` | No | Arbitrary key-value pairs passed to lifecycle scripts |
 | `rubrics` | No | Structured evaluation criteria |
 | `assert` | No | Per-test evaluators |
 | `sidecar` | No | Additional metadata passed to evaluators |
@@ -117,7 +117,7 @@ Override the suite-level workspace config for individual tests. Test-level field
 
 ```yaml
 workspace:
-  setup:
+  before_all:
     script: ["bun", "run", "default-setup.ts"]
 
 tests:
@@ -125,20 +125,20 @@ tests:
     criteria: Should work
     input: Do something
     workspace:
-      setup:
+      before_all:
         script: ["bun", "run", "custom-setup.ts"]
 
   - id: case-2
     criteria: Should also work
     input: Do something else
-    # Inherits suite-level setup
+    # Inherits suite-level before_all
 ```
 
-See [Workspace Setup/Teardown](/targets/configuration/#workspace-setupteardown) for the full workspace config reference.
+See [Workspace Lifecycle Hooks](/targets/configuration/#workspace-lifecycle-hooks) for the full workspace config reference.
 
 ## Per-Case Metadata
 
-Pass arbitrary key-value pairs to setup/teardown scripts via the `metadata` field. This is useful for benchmark datasets where each case needs repo info, commit hashes, or other context:
+Pass arbitrary key-value pairs to lifecycle scripts via the `metadata` field. This is useful for benchmark datasets where each case needs repo info, commit hashes, or other context:
 
 ```yaml
 tests:
@@ -149,11 +149,11 @@ tests:
       repo: sympy/sympy
       base_commit: "abc123def"
     workspace:
-      setup:
+      before_all:
         script: ["python", "checkout_repo.py"]
 ```
 
-The `metadata` field is included in the stdin JSON passed to setup and teardown scripts as `case_metadata`.
+The `metadata` field is included in the stdin JSON passed to lifecycle scripts as `case_metadata`.
 
 ## Per-Test Assertions
 

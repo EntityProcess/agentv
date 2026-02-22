@@ -304,7 +304,13 @@ export class LlmJudgeEvaluator implements Evaluator {
       parts.push('[[ ## reference_answer ## ]]', context.evalCase.reference_answer, '');
     }
 
-    parts.push('[[ ## answer ## ]]', context.candidate, '', '[[ ## scoring_criteria ## ]]');
+    parts.push('[[ ## answer ## ]]', context.candidate, '');
+
+    if (context.fileChanges) {
+      parts.push('[[ ## file_changes ## ]]', context.fileChanges, '');
+    }
+
+    parts.push('[[ ## scoring_criteria ## ]]');
 
     for (const rubric of rubrics) {
       const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
@@ -358,7 +364,13 @@ export class LlmJudgeEvaluator implements Evaluator {
       parts.push('[[ ## reference_answer ## ]]', context.evalCase.reference_answer, '');
     }
 
-    parts.push('[[ ## answer ## ]]', context.candidate, '', '[[ ## rubrics ## ]]');
+    parts.push('[[ ## answer ## ]]', context.candidate, '');
+
+    if (context.fileChanges) {
+      parts.push('[[ ## file_changes ## ]]', context.fileChanges, '');
+    }
+
+    parts.push('[[ ## rubrics ## ]]');
 
     for (const rubric of rubrics) {
       const requiredLabel = rubric.required ? ' (REQUIRED)' : '';

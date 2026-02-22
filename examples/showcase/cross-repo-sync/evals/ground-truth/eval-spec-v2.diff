@@ -1,0 +1,224 @@
+diff --git a/docs/src/content/docs/specification/eval-format.mdx b/docs/src/content/docs/specification/eval-format.mdx
+index 9aef9a0..c559c56 100644
+--- a/docs/src/content/docs/specification/eval-format.mdx
++++ b/docs/src/content/docs/specification/eval-format.mdx
+@@ -164,7 +164,7 @@ See [Evaluators](/specification/evaluators/) for evaluator configuration.
+ 
+ Array of tests. Each element is either an inline test object or a string file path to import.
+ 
+-- **Type:** `(Test | string)[]`
++- **Type:** `(Test | string)[] | string`
+ - **Min items:** 1
+ 
+ **Inline tests:**
+@@ -182,6 +182,13 @@ tests:
+   - ./style.yaml
+ ```
+ 
++**External file (inverted sidecar):**
++```yaml
++tests: ./cases.jsonl
++```
++
++When `tests` is a string path, it references an external YAML or JSONL file. The metadata and config stay in the main EVAL.yaml while test data lives separately.
++
+ **Mixed (inline + file references):**
+ ```yaml
+ tests:
+diff --git a/docs/src/content/docs/specification/evalcase-schema.mdx b/docs/src/content/docs/specification/evalcase-schema.mdx
+index 2055cfc..fa75628 100644
+--- a/docs/src/content/docs/specification/evalcase-schema.mdx
++++ b/docs/src/content/docs/specification/evalcase-schema.mdx
+@@ -12,16 +12,15 @@ A **test** is a single test within an evaluation suite. Each test defines an inp
+ id: string                      # Unique identifier within file
+ criteria: string                # Natural language success criteria
+ 
+-# Input (at least one required)
++# Input (required)
+ input: string | Message[]       # Input to the agent
+-input_messages: Message[]       # Canonical form
+ 
+ # Expected output (optional)
+ expected_output: string | object | Message[]
+-expected_messages: Message[]    # Canonical form
+ 
+ # Evaluation (optional)
+ rubrics: (string | Rubric)[]    # Inline evaluation criteria
++assert: Assertion[]             # Deterministic and LLM assertions
+ execution: ExecutionConfig      # Per-test execution override
+ 
+ # Metadata (optional)
+@@ -60,22 +59,18 @@ criteria: |
+   and provides an accurate fix with clear explanation.
+ ```
+ 
+-### input / input_messages
++### input
+ 
+ The input to send to the agent.
+ 
+ **Shorthand form (`input`):**
+ ```yaml
+ input: "Hello, my name is Alice!"
+-# Expands to:
+-input_messages:
+-  - role: user
+-    content: "Hello, my name is Alice!"
+ ```
+ 
+-**Full form (`input_messages`):**
++**Multi-turn:**
+ ```yaml
+-input_messages:
++input:
+   - role: system
+     content: "You are a helpful assistant."
+   - role: user
+@@ -84,7 +79,7 @@ input_messages:
+ 
+ **With file references:**
+ ```yaml
+-input_messages:
++input:
+   - role: user
+     content:
+       - type: text
+@@ -132,7 +127,7 @@ tool_calls:
+   value: object
+ ```
+ 
+-### expected_output / expected_messages
++### expected_output
+ 
+ Reference output for comparison.
+ 
+@@ -141,9 +136,9 @@ Reference output for comparison.
+ expected_output: "Hello Alice! Nice to meet you."
+ ```
+ 
+-**Full form:**
++**Message array:**
+ ```yaml
+-expected_messages:
++expected_output:
+   - role: assistant
+     content: "Hello Alice! Nice to meet you."
+ ```
+@@ -287,7 +282,7 @@ Test-specific context provided to evaluators.
+     Agent identifies SQL injection vulnerability and suggests
+     parameterized queries as the fix.
+ 
+-  input_messages:
++  input:
+     - role: system
+       content:
+         - type: file
+@@ -299,7 +294,7 @@ Test-specific context provided to evaluators.
+         - type: file
+           value: ./fixtures/vulnerable.py
+ 
+-  expected_messages:
++  expected_output:
+     - role: assistant
+       content: |
+         Security Issue: SQL Injection vulnerability detected.
+diff --git a/docs/src/content/docs/specification/evaluators.mdx b/docs/src/content/docs/specification/evaluators.mdx
+index e1a4bc4..22bf3e9 100644
+--- a/docs/src/content/docs/specification/evaluators.mdx
++++ b/docs/src/content/docs/specification/evaluators.mdx
+@@ -3,7 +3,7 @@ title: Evaluators Reference
+ description: Overview of all evaluator types in AgentEvals
+ ---
+ 
+-Evaluators are components that assess agent outputs. AgentEvals supports seven core evaluator types that can be combined to create sophisticated evaluation pipelines.
++Evaluators are components that assess agent outputs. AgentEvals supports eleven core evaluator types that can be combined to create sophisticated evaluation pipelines.
+ 
+ ## Evaluator Types
+ 
+@@ -16,6 +16,10 @@ Evaluators are components that assess agent outputs. AgentEvals supports seven c
+ | [`tool_trajectory`](/evaluators/tool-trajectory/) | Validate tool usage | Agentic behavior validation |
+ | [`field_accuracy`](/evaluators/field-accuracy/) | Check data fields | Structured output validation |
+ | [`execution_metrics`](/evaluators/execution-metrics/) | Performance bounds | Latency, cost, token limits |
++| `contains` | Substring check | Quick output validation |
++| `regex` | Pattern matching | Format validation |
++| `is_json` | JSON validation | API response checks |
++| `equals` | Exact match | Deterministic outputs |
+ 
+ ## Common Configuration
+ 
+@@ -147,6 +151,43 @@ Set performance thresholds.
+   max_cost_usd: 0.10
+ ```
+ 
++### contains
++
++Check if output contains a substring.
++
++```yaml
++- type: contains
++  value: "DENIED"
++  required: true
++```
++
++### regex
++
++Check if output matches a regular expression.
++
++```yaml
++- type: regex
++  value: "Good (morning|afternoon|evening)"
++```
++
++### is_json
++
++Check if output is valid JSON.
++
++```yaml
++- type: is_json
++  required: true
++```
++
++### equals
++
++Check if output exactly matches a value (both sides trimmed).
++
++```yaml
++- type: equals
++  value: "42"
++```
++
+ ## Weights and Aggregation
+ 
+ Evaluator scores are combined using weighted averaging:
+@@ -171,15 +212,25 @@ If `correctness` scores 0.9 and `format` scores 0.7:
+ Final Score = (0.9 × 3.0 + 0.7 × 1.0) / (3.0 + 1.0) = 0.85
+ ```
+ 
+-## Required Evaluators
++## Required Gates
++
++Any evaluator can be marked `required`. When a required evaluator scores below the threshold, the verdict is forced to `fail` regardless of the aggregate score.
+ 
+-Rubrics with `required: true` override the weighted score:
++| Value | Behavior |
++|-------|----------|
++| `required: true` | Must score >= 0.8 (default threshold) |
++| `required: 0.6` | Must score >= custom threshold (0-1) |
+ 
+ ```yaml
+-rubrics:
+-  - id: safety
+-    outcome: No harmful content
+-    required: true    # Fail verdict if missed, regardless of score
++assert:
++  - type: contains
++    value: "DENIED"
++    required: true          # Must pass (>= 0.8)
++  - type: rubrics
++    required: 0.6           # Must score at least 0.6
++    criteria:
++      - id: quality
++        outcome: Response is well-structured
+ ```
+ 
+ ## Next Steps

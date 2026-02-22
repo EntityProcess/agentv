@@ -496,15 +496,19 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     template = path.resolve(evalFileDir, template);
   }
 
-  const setupScript = parseWorkspaceScriptConfig(obj.setup, evalFileDir);
-  const teardownScript = parseWorkspaceScriptConfig(obj.teardown, evalFileDir);
+  const beforeAll = parseWorkspaceScriptConfig(obj.before_all, evalFileDir);
+  const afterAll = parseWorkspaceScriptConfig(obj.after_all, evalFileDir);
+  const beforeEach = parseWorkspaceScriptConfig(obj.before_each, evalFileDir);
+  const afterEach = parseWorkspaceScriptConfig(obj.after_each, evalFileDir);
 
-  if (!template && !setupScript && !teardownScript) return undefined;
+  if (!template && !beforeAll && !afterAll && !beforeEach && !afterEach) return undefined;
 
   return {
     ...(template !== undefined && { template }),
-    ...(setupScript !== undefined && { setup: setupScript }),
-    ...(teardownScript !== undefined && { teardown: teardownScript }),
+    ...(beforeAll !== undefined && { before_all: beforeAll }),
+    ...(afterAll !== undefined && { after_all: afterAll }),
+    ...(beforeEach !== undefined && { before_each: beforeEach }),
+    ...(afterEach !== undefined && { after_each: afterEach }),
   };
 }
 
@@ -522,8 +526,10 @@ function mergeWorkspaceConfigs(
 
   return {
     template: caseLevel.template ?? suiteLevel.template,
-    setup: caseLevel.setup ?? suiteLevel.setup,
-    teardown: caseLevel.teardown ?? suiteLevel.teardown,
+    before_all: caseLevel.before_all ?? suiteLevel.before_all,
+    after_all: caseLevel.after_all ?? suiteLevel.after_all,
+    before_each: caseLevel.before_each ?? suiteLevel.before_each,
+    after_each: caseLevel.after_each ?? suiteLevel.after_each,
   };
 }
 

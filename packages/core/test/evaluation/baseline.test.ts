@@ -27,8 +27,8 @@ function makeFullResult(overrides: Partial<EvaluationResult> = {}): EvaluationRe
     },
     workspacePath: '/tmp/workspace-123',
     output: [{ role: 'assistant', content: [{ type: 'text', text: 'hello' }] }],
-    setupOutput: 'setup done',
-    teardownOutput: 'teardown done',
+    beforeAllOutput: 'setup done',
+    afterEachOutput: 'teardown done',
     fileChanges: '--- a/file\n+++ b/file\n@@ -1 +1 @@\n-old\n+new',
     ...overrides,
   };
@@ -71,8 +71,8 @@ describe('trimBaselineResult', () => {
     expect(trimmed.trace).toBeUndefined();
     expect(trimmed.workspacePath).toBeUndefined();
     expect(trimmed.output).toBeUndefined();
-    expect(trimmed.setupOutput).toBeUndefined();
-    expect(trimmed.teardownOutput).toBeUndefined();
+    expect(trimmed.beforeAllOutput).toBeUndefined();
+    expect(trimmed.afterEachOutput).toBeUndefined();
     expect(trimmed.fileChanges).toBeUndefined();
   });
 

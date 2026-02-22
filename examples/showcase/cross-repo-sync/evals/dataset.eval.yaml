@@ -1,0 +1,82 @@
+name: cross-repo-sync
+description: Evaluate agent ability to sync agentv implementation with agentevals spec
+version: "1.0"
+tags: [showcase, workspace, cross-repo]
+
+workspace:
+  template: ../workspace-template
+  before_each:
+    script: ["bash", "../scripts/run-ts.sh", "../scripts/setup.ts"]
+    timeout_ms: 900000
+    cwd: .
+  after_each:
+    script: ["bash", "../scripts/run-ts.sh", "../scripts/reset.ts"]
+    timeout_ms: 5000
+    cwd: .
+
+execution:
+  target: mock_agent
+
+tests:
+  - id: eval-spec-v2-sync
+    metadata:
+      agentevals_before: "9f8aa3a"
+      ground_truth: ../evals/ground-truth/eval-spec-v2.diff
+    criteria: >-
+      Update agentevals spec to reflect eval spec v2: add contains/regex/is_json/equals
+      assert types, required gates for all evaluators, tests-as-string-path.
+    input:
+      - role: user
+        content: |
+          agentv just merged eval spec v2 (PR #262). Update the agentevals
+          spec docs to reflect: 4 new deterministic assert types, required
+          gates, assert field at test/suite level, tests-as-string-path.
+    assert:
+      - name: sync-check
+        type: code_judge
+        script: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
+        expected_files_modified:
+          - agentevals/docs/src/content/docs/specification/evaluators.mdx
+          - agentevals/docs/src/content/docs/specification/eval-format.mdx
+        expected_keywords: [contains, regex, is_json, equals, required, assert]
+
+  - id: cases-to-tests-sync
+    metadata:
+      agentevals_before: "1aaa26f"
+      ground_truth: ../evals/ground-truth/cases-to-tests.diff
+    criteria: >-
+      Rename 'cases' to 'tests' throughout the agentevals spec docs.
+    input:
+      - role: user
+        content: |
+          agentv renamed cases→tests in the eval schema (PR #240).
+          Update all agentevals spec docs to match.
+    assert:
+      - name: sync-check
+        type: code_judge
+        script: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
+        expected_files_modified:
+          - agentevals/docs/src/content/docs/specification/eval-format.mdx
+          - agentevals/docs/src/content/docs/specification/evalcase-schema.mdx
+        expected_keywords: [tests]
+
+  - id: schema-field-rename-sync
+    metadata:
+      agentevals_before: "81f4b44"
+      ground_truth: ../evals/ground-truth/schema-field-rename.diff
+    criteria: >-
+      Rename eval_cases→cases and expected_outcome→criteria/outcome in agentevals spec.
+    input:
+      - role: user
+        content: |
+          agentv renamed schema fields: eval_cases→cases, expected_outcome→criteria
+          at case level, expected_outcome→outcome at rubric level (PR #202).
+          Update agentevals spec docs accordingly.
+    assert:
+      - name: sync-check
+        type: code_judge
+        script: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
+        expected_files_modified:
+          - agentevals/docs/src/content/docs/specification/eval-format.mdx
+          - agentevals/docs/src/content/docs/specification/evalcase-schema.mdx
+        expected_keywords: [cases, criteria, outcome]

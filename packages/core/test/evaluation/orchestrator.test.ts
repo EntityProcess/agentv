@@ -1357,7 +1357,7 @@ describe('runEvaluation with trials', () => {
   });
 });
 
-describe('workspace setup/teardown', () => {
+describe('workspace lifecycle hooks', () => {
   let testDir: string;
 
   afterEach(async () => {
@@ -1405,7 +1405,7 @@ rl.on('close', () => {
       ...baseTestCase,
       workspace: {
         template: templateDir,
-        setup: {
+        before_all: {
           script: ['node', setupScript],
           timeout_ms: 10000,
         },
@@ -1421,7 +1421,7 @@ rl.on('close', () => {
       cleanupWorkspaces: true,
     });
 
-    expect(result.setupOutput).toContain('Setup done for case-1');
+    expect(result.beforeAllOutput).toContain('Setup done for case-1');
     expect(result.error).toBeUndefined();
   });
 
@@ -1445,7 +1445,7 @@ rl.on('close', () => {
       ...baseTestCase,
       workspace: {
         template: templateDir,
-        setup: {
+        before_all: {
           script: ['node', failingScript],
           timeout_ms: 5000,
         },
@@ -1461,7 +1461,7 @@ rl.on('close', () => {
       cleanupWorkspaces: true,
     });
 
-    expect(result.error).toContain('Workspace setup failed');
+    expect(result.error).toContain('before_all script failed');
     expect(result.score).toBe(0);
   });
 
@@ -1502,7 +1502,7 @@ rl.on('close', () => {
       ...baseTestCase,
       workspace: {
         template: templateDir,
-        teardown: {
+        after_each: {
           script: ['node', teardownScript],
           timeout_ms: 10000,
         },
@@ -1518,7 +1518,7 @@ rl.on('close', () => {
       cleanupWorkspaces: true,
     });
 
-    expect(result.teardownOutput).toContain('Teardown done for case-1');
+    expect(result.afterEachOutput).toContain('Teardown done for case-1');
     expect(result.error).toBeUndefined();
   });
 });

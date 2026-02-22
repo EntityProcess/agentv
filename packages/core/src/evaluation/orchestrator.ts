@@ -74,7 +74,6 @@ import {
   captureFileChanges as captureWorkspaceFileChanges,
   initializeBaseline,
 } from './workspace/file-changes.js';
-import { computeWorkspaceFingerprint } from './workspace/fingerprint.js';
 import {
   cleanupEvalWorkspaces,
   cleanupWorkspace,
@@ -83,8 +82,7 @@ import {
 } from './workspace/manager.js';
 import {
   type ScriptExecutionContext,
-  executeWorkspaceSetup,
-  executeWorkspaceTeardown,
+  executeWorkspaceScript,
 } from './workspace/script-executor.js';
 import { type PromptInputs, buildPromptInputs, loadTests } from './yaml-parser.js';
 
@@ -133,6 +131,10 @@ export interface RunEvalCaseOptions {
   readonly keepWorkspaces?: boolean;
   /** Force cleanup of workspaces even on failure */
   readonly cleanupWorkspaces?: boolean;
+  /** Pre-created shared workspace path (shared across tests in a suite) */
+  readonly sharedWorkspacePath?: string;
+  /** Pre-initialized baseline commit for shared workspace */
+  readonly sharedBaselineCommit?: string;
 }
 
 export interface ProgressEvent {
@@ -340,13 +342,76 @@ export async function runEvaluation(
     }
   }
 
+  // --- Shared workspace lifecycle ---
+  // If any test has workspace config, create shared workspace once.
+  // Determine workspace config from first test (suite-level config propagates to all).
+  const suiteWorkspace = filteredEvalCases[0]?.workspace;
+  const workspaceTemplate = suiteWorkspace?.template ?? getWorkspaceTemplate(target);
+
   // Resolve worker count: CLI option > target setting > default (1)
-  const workers = options.maxConcurrency ?? target.workers ?? 1;
+  // Force workers=1 when shared workspace is used to prevent data corruption
+  const hasSharedWorkspace = !!(workspaceTemplate || suiteWorkspace?.before_all);
+  const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
+  const workers = hasSharedWorkspace ? 1 : requestedWorkers;
+  if (hasSharedWorkspace && requestedWorkers > 1) {
+    console.warn(
+      `Warning: Shared workspace requires sequential execution. Overriding workers from ${requestedWorkers} to 1.`,
+    );
+  }
   const limit = pLimit(workers);
+  let sharedWorkspacePath: string | undefined;
+  let sharedBaselineCommit: string | undefined;
+  let beforeAllOutput: string | undefined;
+
+  if (workspaceTemplate) {
+    const templateIsDir = await stat(path.resolve(workspaceTemplate))
+      .then((s) => s.isDirectory())
+      .catch(() => false);
+    if (templateIsDir) {
+      try {
+        sharedWorkspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, 'shared');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to create shared workspace: ${message}`);
+      }
+    }
+  } else if (suiteWorkspace?.before_all) {
+    // No template but before_all is configured: create empty workspace
+    sharedWorkspacePath = getWorkspacePath(evalRunId, 'shared');
+    await mkdir(sharedWorkspacePath, { recursive: true });
+  }
+
+  // Execute before_all (runs ONCE before first test)
+  if (sharedWorkspacePath && suiteWorkspace?.before_all) {
+    const scriptContext: ScriptExecutionContext = {
+      workspacePath: sharedWorkspacePath,
+      testId: '__before_all__',
+      evalRunId,
+    };
+    try {
+      beforeAllOutput = await executeWorkspaceScript(suiteWorkspace.before_all, scriptContext);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (sharedWorkspacePath) {
+        await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+      }
+      throw new Error(`before_all script failed: ${message}`);
+    }
+  }
+
+  // Initialize git baseline for shared workspace
+  if (sharedWorkspacePath) {
+    try {
+      sharedBaselineCommit = await initializeBaseline(sharedWorkspacePath);
+    } catch {
+      // Non-fatal: file change tracking is best-effort
+    }
+  }
 
   // Track worker assignments for progress reporting
   let nextWorkerId = 1;
   const workerIdByEvalId = new Map<string, number>();
+  let beforeAllOutputAttached = false;
 
   // Map test cases to limited promises for parallel execution
   const promises = filteredEvalCases.map((evalCase) =>
@@ -382,11 +447,19 @@ export async function runEvaluation(
           evalRunId,
           keepWorkspaces,
           cleanupWorkspaces,
+          sharedWorkspacePath,
+          sharedBaselineCommit,
         };
-        const result =
+        let result =
           trials && trials.count > 1
             ? await runEvalCaseWithTrials(runCaseOptions, trials)
             : await runEvalCase(runCaseOptions);
+
+        // Attach beforeAllOutput to first result only
+        if (beforeAllOutput && !beforeAllOutputAttached) {
+          result = { ...result, beforeAllOutput };
+          beforeAllOutputAttached = true;
+        }
 
         if (onProgress) {
           await onProgress({
@@ -447,14 +520,41 @@ export async function runEvaluation(
     }
   }
 
-  // Cleanup all eval workspaces if forceCleanup is set, or cleanup successful runs
-  // Failed runs keep their workspaces for debugging (handled per-case above)
-  // This is a fallback to ensure workspace directories are cleaned up
-  const hasAnyWorkspace =
-    getWorkspaceTemplate(target) ||
-    filteredEvalCases.some((c) => c.workspace?.template || c.workspace?.setup);
-  if (hasAnyWorkspace && cleanupWorkspaces) {
-    // Force cleanup: remove all workspaces for this eval run
+  // --- Shared workspace after_all + cleanup ---
+  if (sharedWorkspacePath && suiteWorkspace?.after_all) {
+    const scriptContext: ScriptExecutionContext = {
+      workspacePath: sharedWorkspacePath,
+      testId: '__after_all__',
+      evalRunId,
+    };
+    try {
+      const afterAllOutput = await executeWorkspaceScript(
+        suiteWorkspace.after_all,
+        scriptContext,
+        'warn',
+      );
+      // Attach afterAllOutput to last result
+      if (afterAllOutput && results.length > 0) {
+        results[results.length - 1] = { ...results[results.length - 1], afterAllOutput };
+      }
+    } catch {
+      // after_all failures are non-fatal
+    }
+  }
+
+  // Cleanup shared workspace
+  if (sharedWorkspacePath) {
+    const hasFailure = results.some((r) => !!r.error || r.score < 0.5);
+    if (cleanupWorkspaces) {
+      await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+    } else if (!hasFailure && !keepWorkspaces) {
+      await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+    }
+    // If failure and not forceCleanup: keep for debugging
+  }
+
+  // Fallback cleanup for any per-case workspaces
+  if (cleanupWorkspaces) {
     await cleanupEvalWorkspaces(evalRunId).catch(() => {});
   }
 
@@ -658,6 +758,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     evalRunId,
     keepWorkspaces,
     cleanupWorkspaces: forceCleanup,
+    sharedWorkspacePath,
+    sharedBaselineCommit,
   } = options;
 
   const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
@@ -671,28 +773,67 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   const nowFn = now ?? (() => new Date());
 
-  // Check if workspace_template is configured for this target or eval case
-  const workspaceTemplate = evalCase.workspace?.template ?? getWorkspaceTemplate(target);
-  let workspacePath: string | undefined;
-  let setupOutput: string | undefined;
-  let teardownOutput: string | undefined;
+  // Use shared workspace if provided, otherwise create per-case workspace
+  let workspacePath: string | undefined = sharedWorkspacePath;
+  let beforeAllOutput: string | undefined;
+  let beforeEachOutput: string | undefined;
+  let afterEachOutput: string | undefined;
+  const isSharedWorkspace = !!sharedWorkspacePath;
 
-  // Create temp workspace if template is a directory and we have evalRunId.
-  // File-based templates (e.g. .code-workspace) are passed through to the provider as-is.
-  if (workspaceTemplate && evalRunId) {
-    const templateIsDir = await stat(path.resolve(workspaceTemplate))
-      .then((s) => s.isDirectory())
-      .catch(() => false);
-    if (templateIsDir) {
+  if (!workspacePath) {
+    // Per-case workspace creation (backwards compat for tests without shared workspace)
+    const workspaceTemplate = evalCase.workspace?.template ?? getWorkspaceTemplate(target);
+    if (workspaceTemplate && evalRunId) {
+      const templateIsDir = await stat(path.resolve(workspaceTemplate))
+        .then((s) => s.isDirectory())
+        .catch(() => false);
+      if (templateIsDir) {
+        try {
+          workspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, evalCase.id);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return buildErrorResult(
+            evalCase,
+            target.name,
+            nowFn(),
+            new Error(`Failed to create workspace: ${message}`),
+            promptInputs,
+            provider,
+          );
+        }
+      }
+    }
+
+    // If no template but before_all is configured per-case, create empty workspace
+    if (!workspacePath && evalCase.workspace?.before_all && evalRunId) {
+      workspacePath = getWorkspacePath(evalRunId, evalCase.id);
+      await mkdir(workspacePath, { recursive: true });
+    }
+
+    // Execute per-case before_all (only when not using shared workspace)
+    if (workspacePath && evalCase.workspace?.before_all) {
+      const scriptContext: ScriptExecutionContext = {
+        workspacePath,
+        testId: evalCase.id,
+        evalRunId: evalRunId ?? '',
+        caseInput: evalCase.question,
+        caseMetadata: evalCase.metadata,
+      };
       try {
-        workspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, evalCase.id);
+        beforeAllOutput = await executeWorkspaceScript(
+          evalCase.workspace.before_all,
+          scriptContext,
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
+        if (forceCleanup && workspacePath) {
+          await cleanupWorkspace(workspacePath).catch(() => {});
+        }
         return buildErrorResult(
           evalCase,
           target.name,
           nowFn(),
-          new Error(`Failed to create workspace: ${message}`),
+          new Error(`before_all script failed: ${message}`),
           promptInputs,
           provider,
         );
@@ -700,14 +841,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
   }
 
-  // If no template but setup is configured, create an empty workspace directory
-  if (!workspacePath && evalCase.workspace?.setup && evalRunId) {
-    workspacePath = getWorkspacePath(evalRunId, evalCase.id);
-    await mkdir(workspacePath, { recursive: true });
-  }
-
-  // Execute workspace setup script (runs before git baseline init so setup changes are part of baseline)
-  if (workspacePath && evalCase.workspace?.setup) {
+  // Execute before_each hook (runs before each test for any workspace)
+  if (workspacePath && evalCase.workspace?.before_each) {
     const scriptContext: ScriptExecutionContext = {
       workspacePath,
       testId: evalCase.id,
@@ -716,40 +851,30 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       caseMetadata: evalCase.metadata,
     };
     try {
-      setupOutput = await executeWorkspaceSetup(evalCase.workspace.setup, scriptContext);
+      beforeEachOutput = await executeWorkspaceScript(
+        evalCase.workspace.before_each,
+        scriptContext,
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (forceCleanup && workspacePath) {
-        await cleanupWorkspace(workspacePath).catch(() => {});
-      }
       return buildErrorResult(
         evalCase,
         target.name,
         nowFn(),
-        new Error(`Workspace setup failed: ${message}`),
+        new Error(`before_each script failed: ${message}`),
         promptInputs,
         provider,
       );
     }
   }
 
-  // Initialize git baseline for file change tracking when workspace is configured
-  let baselineCommit: string | undefined;
-  if (workspacePath) {
+  // Initialize git baseline (use shared baseline or per-case)
+  let baselineCommit: string | undefined = sharedBaselineCommit;
+  if (!baselineCommit && workspacePath) {
     try {
       baselineCommit = await initializeBaseline(workspacePath);
     } catch {
       // Non-fatal: file change tracking is best-effort
-    }
-  }
-
-  // Compute workspace fingerprint after setup + baseline init
-  let workspaceFingerprint: { hash: string; fileCount: number } | undefined;
-  if (workspacePath) {
-    try {
-      workspaceFingerprint = await computeWorkspaceFingerprint(workspacePath);
-    } catch {
-      // Non-fatal: fingerprinting is best-effort
     }
   }
 
@@ -864,8 +989,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   const providerError = extractProviderError(providerResponse);
 
-  // Execute workspace teardown script (runs after evaluation, before cleanup)
-  if (workspacePath && evalCase.workspace?.teardown) {
+  // Execute after_each hook (runs after evaluation, before cleanup)
+  if (workspacePath && evalCase.workspace?.after_each) {
     const scriptContext: ScriptExecutionContext = {
       workspacePath,
       testId: evalCase.id,
@@ -874,9 +999,13 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       caseMetadata: evalCase.metadata,
     };
     try {
-      teardownOutput = await executeWorkspaceTeardown(evalCase.workspace.teardown, scriptContext);
+      afterEachOutput = await executeWorkspaceScript(
+        evalCase.workspace.after_each,
+        scriptContext,
+        'warn',
+      );
     } catch {
-      // Teardown failures are non-fatal (warning already logged by executeWorkspaceTeardown)
+      // after_each failures are non-fatal
     }
   }
 
@@ -901,22 +1030,19 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     });
 
     const finalResult = providerError
-      ? { ...result, error: providerError, setupOutput, teardownOutput, workspaceFingerprint }
-      : { ...result, setupOutput, teardownOutput, workspaceFingerprint };
+      ? { ...result, error: providerError, beforeAllOutput, beforeEachOutput, afterEachOutput }
+      : { ...result, beforeAllOutput, beforeEachOutput, afterEachOutput };
 
     // Determine if this is a failure (has error or low score)
     const isFailure = !!finalResult.error || finalResult.score < 0.5;
 
-    // Cleanup workspace based on result and flags
-    if (workspacePath) {
+    // Cleanup workspace based on result and flags (only for per-case workspaces)
+    if (workspacePath && !isSharedWorkspace) {
       if (forceCleanup) {
-        // forceCleanup: always cleanup
         await cleanupWorkspace(workspacePath).catch(() => {});
       } else if (isFailure) {
-        // Failure: keep workspace, include path in result
         return { ...finalResult, workspacePath };
       } else if (!keepWorkspaces) {
-        // Success and not keeping: cleanup
         await cleanupWorkspace(workspacePath).catch(() => {});
       }
     }
@@ -931,14 +1057,14 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       promptInputs,
       provider,
     );
-    // On error, keep workspace for debugging (unless forceCleanup is set)
-    if (workspacePath) {
+    // On error, keep workspace for debugging (only for per-case workspaces)
+    if (workspacePath && !isSharedWorkspace) {
       if (forceCleanup) {
         await cleanupWorkspace(workspacePath).catch(() => {});
       }
-      return { ...errorResult, workspacePath, setupOutput, teardownOutput, workspaceFingerprint };
+      return { ...errorResult, workspacePath, beforeEachOutput, afterEachOutput };
     }
-    return { ...errorResult, setupOutput, teardownOutput, workspaceFingerprint };
+    return { ...errorResult, beforeEachOutput, afterEachOutput };
   }
 }
 
@@ -1420,8 +1546,8 @@ async function runEvaluatorList(options: {
                 ajPrompt = ajConfig.prompt;
               }
               let ajTargetProvider: Provider | undefined;
-              if (ajConfig.judge_target && targetResolver) {
-                ajTargetProvider = targetResolver(ajConfig.judge_target);
+              if (ajConfig.target && targetResolver) {
+                ajTargetProvider = targetResolver(ajConfig.target);
               }
               return new AgentJudgeEvaluator({
                 resolveJudgeProvider: async (ctx) => {
@@ -1724,13 +1850,13 @@ async function runEvaluatorList(options: {
           customPrompt = agentJudgeConfig.prompt;
         }
 
-        // Resolve judge_target provider if specified
+        // Resolve target provider if specified
         let judgeTargetProvider: Provider | undefined;
-        if (agentJudgeConfig.judge_target && targetResolver) {
-          judgeTargetProvider = targetResolver(agentJudgeConfig.judge_target);
+        if (agentJudgeConfig.target && targetResolver) {
+          judgeTargetProvider = targetResolver(agentJudgeConfig.target);
           if (!judgeTargetProvider) {
             throw new Error(
-              `agent_judge evaluator '${evaluator.name}': judge_target '${agentJudgeConfig.judge_target}' not found in targets`,
+              `agent_judge evaluator '${evaluator.name}': target '${agentJudgeConfig.target}' not found in targets`,
             );
           }
         }

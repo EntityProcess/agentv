@@ -61,6 +61,7 @@
       "name": "@agentv/core",
       "version": "2.7.0",
       "dependencies": {
+        "@agentclientprotocol/sdk": "^0.14.1",
         "@ai-sdk/anthropic": "^2.0.53",
         "@ai-sdk/azure": "^2.0.78",
         "@ai-sdk/google": "^2.0.44",
@@ -97,6 +98,8 @@
     },
   },
   "packages": {
+    "@agentclientprotocol/sdk": ["@agentclientprotocol/sdk@0.14.1", "", { "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" } }, "sha512-b6r3PS3Nly+Wyw9U+0nOr47bV8tfS476EgyEMhoKvJCZLbgqoDFN7DJwkxL88RR0aiOqOYV1ZnESHqb+RmdH8w=="],
+
     "@agentv/core": ["@agentv/core@workspace:packages/core"],
 
     "@agentv/eval": ["@agentv/eval@workspace:packages/eval"],
