@@ -1,0 +1,95 @@
+---
+title: Trace
+description: Inspect and analyze evaluation traces from the CLI
+sidebar:
+  order: 5
+---
+
+The `trace` command provides headless trace inspection and analysis — no server or dashboard needed. All data is read from local JSONL result files.
+
+## Subcommands
+
+### `trace list`
+
+Enumerate evaluation result files from `.agentv/results/`.
+
+```bash
+agentv trace list [--limit N] [--format json|table]
+```
+
+Shows filename, test count, pass rate, average score, file size, and timestamp for each result file.
+
+### `trace show`
+
+Display evaluation results with trace details.
+
+```bash
+agentv trace show <result-file> [--test-id <id>] [--tree] [--format json|table]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--test-id` | Filter to a specific test ID |
+| `--tree` | Show hierarchical trace tree (requires results with output messages) |
+| `--format`, `-f` | Output format: `table` (default), `json` |
+
+#### Tree View
+
+The `--tree` flag renders tool call traces as a hierarchical tree:
+
+```
+research-question, 15.1s, 10,167 tok, $0.105
+├─ tools, 2.4s
+│  ├─ WebSearch, 2.1s
+│  └─ WebSearch, 1.8s
+├─ tavily_search, 3.5s
+└─ write_report, 450ms
+
+Scores: response_quality 75% | routing_accuracy 100%
+```
+
+Falls back to a flat summary when output messages are not present in the result file.
+
+### `trace stats`
+
+Compute summary statistics (percentiles) across evaluation results.
+
+```bash
+agentv trace stats <result-file> [--group-by target|dataset|test-id] [--format json|table]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--group-by`, `-g` | Group statistics by: `target`, `dataset`, or `test-id` |
+| `--format`, `-f` | Output format: `table` (default), `json` |
+
+Output shows mean, P50, P90, P95, and P99 for score, latency, cost, tokens, tool calls, and LLM calls.
+
+```
+Metric              Mean         P50         P90         P95         P99
+────────────  ──────────  ──────────  ──────────  ──────────  ──────────
+score               0.83        0.90        1.00        1.00        1.00
+latency_s           11.7         9.5        22.8        25.4        27.5
+cost_usd          $0.077      $0.065      $0.150      $0.165      $0.177
+tokens_total       7,463       7,000      13,367      14,433      15,287
+```
+
+Metrics with no data are omitted automatically.
+
+## Composability
+
+All commands support `--format json` for piping to `jq`:
+
+```bash
+# Find tests costing more than $0.10
+agentv trace show results.jsonl --format json \
+  | jq '[.[] | select(.trace.cost_usd > 0.10) | {test_id, score, cost: .trace.cost_usd}]'
+
+# Compare providers
+agentv trace stats results.jsonl --group-by target --format json \
+  | jq '.groups[] | {label, score_mean: .metrics.score.mean}'
+```
+
+## Example
+
+See `examples/features/trace-analysis/` for a complete showcase with sample data.
