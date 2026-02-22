@@ -517,7 +517,7 @@ async function runSingleEvalFile(params: {
 
       // Start streaming observer when eval case begins execution
       if (event.status === 'running' && streamingObserver) {
-        streamingObserver.startEvalCase(event.testId, targetName);
+        streamingObserver.startEvalCase(event.testId, targetName, testFilePath);
       }
 
       progressReporter.update(displayId, {
