@@ -71,7 +71,7 @@ export interface ToolTrajectoryEvaluatorConfig {
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
   /** Default argument matching mode for all expected items (defaults to 'exact') */
-  readonly defaultArgsMatch?: ArgsMatchMode | readonly string[];
+  readonly argsMatch?: ArgsMatchMode | readonly string[];
 }
 
 /**
@@ -83,7 +83,7 @@ export interface ToolTrajectoryExpectedItem {
   readonly args?: 'any' | Record<string, unknown>;
   /** Optional maximum duration in milliseconds for latency assertions */
   readonly maxDurationMs?: number;
-  /** Per-item argument matching mode override (takes precedence over evaluator-level defaultArgsMatch) */
+  /** Per-item argument matching mode override (takes precedence over evaluator-level argsMatch) */
   readonly argsMatch?: ArgsMatchMode | readonly string[];
 }
 

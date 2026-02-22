@@ -33,13 +33,13 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
 
 /**
  * Resolve the effective args match mode for an expected item.
- * Priority: per-item argsMatch > evaluator-level defaultArgsMatch > 'exact'
+ * Priority: per-item argsMatch > evaluator-level argsMatch > 'exact'
  */
 function resolveArgsMatchMode(
   item: ToolTrajectoryExpectedItem,
   config: ToolTrajectoryEvaluatorConfig,
 ): ArgsMatchMode | readonly string[] {
-  return item.argsMatch ?? config.defaultArgsMatch ?? 'exact';
+  return item.argsMatch ?? config.argsMatch ?? 'exact';
 }
 
 /**

@@ -706,8 +706,8 @@ describe('ToolTrajectoryEvaluator', () => {
       });
     });
 
-    describe('default_args_match at evaluator level', () => {
-      it('applies defaultArgsMatch to all items without per-item override', () => {
+    describe('args_match at evaluator level', () => {
+      it('applies argsMatch to all items without per-item override', () => {
         const output: Message[] = [
           {
             role: 'assistant',
@@ -722,7 +722,7 @@ describe('ToolTrajectoryEvaluator', () => {
           name: 'test',
           type: 'tool_trajectory',
           mode: 'exact',
-          defaultArgsMatch: 'superset',
+          argsMatch: 'superset',
           expected: [
             { tool: 'search', args: { query: 'test' } },
             { tool: 'analyze', args: { format: 'json' } },
@@ -737,7 +737,7 @@ describe('ToolTrajectoryEvaluator', () => {
         expect(result.verdict).toBe('pass');
       });
 
-      it('per-item argsMatch overrides defaultArgsMatch', () => {
+      it('per-item argsMatch overrides evaluator-level argsMatch', () => {
         const output: Message[] = [
           {
             role: 'assistant',
@@ -752,7 +752,7 @@ describe('ToolTrajectoryEvaluator', () => {
           name: 'test',
           type: 'tool_trajectory',
           mode: 'exact',
-          defaultArgsMatch: 'superset',
+          argsMatch: 'superset',
           expected: [
             // Uses default superset - extras OK
             { tool: 'search', args: { query: 'test' } },
@@ -769,7 +769,7 @@ describe('ToolTrajectoryEvaluator', () => {
         expect(result.verdict).toBe('fail');
       });
 
-      it('defaultArgsMatch with field list', () => {
+      it('argsMatch with field list', () => {
         const output: Message[] = [
           {
             role: 'assistant',
@@ -784,7 +784,7 @@ describe('ToolTrajectoryEvaluator', () => {
           name: 'test',
           type: 'tool_trajectory',
           mode: 'exact',
-          defaultArgsMatch: ['query', 'format'],
+          argsMatch: ['query', 'format'],
           expected: [
             { tool: 'search', args: { query: 'test', limit: 10 } },
             { tool: 'analyze', args: { format: 'xml', depth: 1 } },
@@ -816,7 +816,7 @@ describe('ToolTrajectoryEvaluator', () => {
           name: 'test',
           type: 'tool_trajectory',
           mode: 'in_order',
-          defaultArgsMatch: 'superset',
+          argsMatch: 'superset',
           expected: [
             { tool: 'search', args: { query: 'test' } },
             { tool: 'analyze', args: { format: 'json' } },
@@ -1218,7 +1218,7 @@ describe('ToolTrajectoryEvaluator', () => {
         name: 'test',
         type: 'tool_trajectory',
         mode: 'superset',
-        defaultArgsMatch: 'superset',
+        argsMatch: 'superset',
         expected: [{ tool: 'search', args: { query: 'test' } }, { tool: 'analyze' }],
       };
       const evaluator = new ToolTrajectoryEvaluator({ config });
@@ -1303,7 +1303,7 @@ describe('ToolTrajectoryEvaluator', () => {
       expect(result.verdict).toBe('pass');
     });
 
-    it('matches with args using evaluator-level defaultArgsMatch', () => {
+    it('matches with args using evaluator-level argsMatch', () => {
       const output: Message[] = [
         {
           role: 'assistant',
@@ -1315,7 +1315,7 @@ describe('ToolTrajectoryEvaluator', () => {
         name: 'test',
         type: 'tool_trajectory',
         mode: 'superset',
-        defaultArgsMatch: 'superset',
+        argsMatch: 'superset',
         expected: [{ tool: 'search', args: { query: 'test' } }],
       };
       const evaluator = new ToolTrajectoryEvaluator({ config });

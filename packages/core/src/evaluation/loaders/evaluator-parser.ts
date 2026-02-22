@@ -378,29 +378,29 @@ async function parseEvaluatorList(
         }
       }
 
-      // Parse default_args_match at evaluator level (snake_case from YAML -> camelCase)
-      const rawDefaultArgsMatch = rawEvaluator.default_args_match ?? rawEvaluator.defaultArgsMatch;
-      let defaultArgsMatch: import('../trace.js').ArgsMatchMode | readonly string[] | undefined;
-      if (rawDefaultArgsMatch !== undefined) {
-        if (Array.isArray(rawDefaultArgsMatch)) {
+      // Parse args_match at evaluator level (snake_case from YAML -> camelCase)
+      const rawArgsMatch = rawEvaluator.args_match ?? rawEvaluator.argsMatch;
+      let argsMatch: import('../trace.js').ArgsMatchMode | readonly string[] | undefined;
+      if (rawArgsMatch !== undefined) {
+        if (Array.isArray(rawArgsMatch)) {
           // Field list mode: string array of field paths
-          const fieldList = rawDefaultArgsMatch.filter(
+          const fieldList = rawArgsMatch.filter(
             (f): f is string => typeof f === 'string' && f.length > 0,
           );
           if (fieldList.length > 0) {
-            defaultArgsMatch = fieldList;
+            argsMatch = fieldList;
           }
-        } else if (typeof rawDefaultArgsMatch === 'string') {
+        } else if (typeof rawArgsMatch === 'string') {
           if (
-            rawDefaultArgsMatch === 'exact' ||
-            rawDefaultArgsMatch === 'superset' ||
-            rawDefaultArgsMatch === 'subset' ||
-            rawDefaultArgsMatch === 'ignore'
+            rawArgsMatch === 'exact' ||
+            rawArgsMatch === 'superset' ||
+            rawArgsMatch === 'subset' ||
+            rawArgsMatch === 'ignore'
           ) {
-            defaultArgsMatch = rawDefaultArgsMatch;
+            argsMatch = rawArgsMatch;
           } else {
             logWarning(
-              `Invalid default_args_match '${rawDefaultArgsMatch}' for tool_trajectory evaluator '${name}' in '${evalId}': must be exact, superset, subset, ignore, or a string array`,
+              `Invalid args_match '${rawArgsMatch}' for tool_trajectory evaluator '${name}' in '${evalId}': must be exact, superset, subset, ignore, or a string array`,
             );
           }
         }
@@ -500,7 +500,7 @@ async function parseEvaluatorList(
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(negate !== undefined ? { negate } : {}),
-        ...(defaultArgsMatch !== undefined ? { defaultArgsMatch } : {}),
+        ...(argsMatch !== undefined ? { argsMatch } : {}),
       };
 
       evaluators.push(config);

@@ -11,7 +11,7 @@
 # - superset: Every expected tool must be found in actual (extras OK, greedy matching)
 # - subset: Every actual call must be in the allowed set (expected items reusable)
 #
-# Argument matching modes (per-item `args_match` or evaluator-level `default_args_match`):
+# Argument matching modes (per-item `args_match` or evaluator-level `args_match`):
 # - exact: Bidirectional deep equality, no extra keys (default)
 # - superset: Actual args must contain all expected keys (extras OK)
 # - subset: Actual args must be a subset of expected (no unexpected keys)
@@ -181,7 +181,7 @@ tests:
         type: tool_trajectory
         mode: in_order
         # Use superset args matching to allow extra keys in actual args
-        default_args_match: superset
+        args_match: superset
         expected:
           - tool: search
             args:
@@ -242,7 +242,7 @@ tests:
       - name: required-tools
         type: tool_trajectory
         mode: superset
-        default_args_match: superset
+        args_match: superset
         expected:
           - tool: knowledgeSearch
           - tool: documentRetrieve
@@ -288,7 +288,7 @@ tests:
       - name: mixed-precision
         type: tool_trajectory
         mode: in_order
-        default_args_match: ignore  # Default: don't check args
+        args_match: ignore  # Default: don't check args
         expected:
           - tool: fetchData
           - tool: validateSchema
