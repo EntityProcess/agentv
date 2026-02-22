@@ -852,7 +852,20 @@ export function resolveTargetDefinition(
         config: resolveCliConfig(parsed, env, evalFilePath),
       };
     default:
-      throw new Error(`Unsupported provider '${parsed.provider}' in target '${parsed.name}'`);
+      // Unknown provider kind — resolve as CLI target.
+      // This enables convention-based provider discovery: scripts in
+      // .agentv/providers/ are registered in the ProviderRegistry under
+      // their filename, and users can reference them by name directly.
+      // The ProviderRegistry factory handles creating the appropriate
+      // CliProvider with the discovered script path.
+      return {
+        kind: 'cli',
+        name: parsed.name,
+        judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolveDiscoveredProviderConfig(parsed, provider, env, evalFilePath),
+      };
   }
 }
 
@@ -1624,6 +1637,52 @@ function resolveCliConfig(
   }
 
   return normalized;
+}
+
+/**
+ * Resolves configuration for a discovered (convention-based) provider.
+ *
+ * When the provider kind doesn't match any built-in provider, it is assumed
+ * to be a convention-based provider discovered from `.agentv/providers/`.
+ * The command template defaults to `bun run .agentv/providers/<kind>.ts {PROMPT}`
+ * but can be overridden via command_template in the target definition.
+ */
+function resolveDiscoveredProviderConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  providerKind: string,
+  env: EnvLookup,
+  evalFilePath?: string,
+): CliResolvedConfig {
+  // Use explicit command_template if provided, otherwise derive from convention
+  const commandTemplateSource = target.command_template ?? target.commandTemplate;
+  const commandTemplate = commandTemplateSource
+    ? resolveString(commandTemplateSource, env, `${target.name} command template`, true)
+    : `bun run .agentv/providers/${providerKind}.ts {PROMPT}`;
+
+  // Resolve optional fields using the same patterns as CLI providers
+  const timeoutSeconds = target.timeout_seconds ?? target.timeoutSeconds;
+  const timeoutMs = resolveTimeoutMs(timeoutSeconds, `${target.name} timeout`);
+
+  let cwd = resolveOptionalString(target.cwd, env, `${target.name} working directory`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  // Resolve relative cwd paths against eval file directory
+  if (cwd && evalFilePath && !path.isAbsolute(cwd)) {
+    cwd = path.resolve(path.dirname(path.resolve(evalFilePath)), cwd);
+  }
+
+  // Fallback: if cwd is not set and we have an eval file path, use the eval directory
+  if (!cwd && evalFilePath) {
+    cwd = path.dirname(path.resolve(evalFilePath));
+  }
+
+  return {
+    commandTemplate,
+    cwd,
+    timeoutMs,
+  };
 }
 
 function resolveTimeoutMs(source: unknown, description: string): number | undefined {

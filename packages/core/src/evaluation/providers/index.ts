@@ -69,6 +69,8 @@ export {
   type ProviderFactoryFn,
 } from './provider-registry.js';
 
+export { discoverProviders } from './provider-discovery.js';
+
 /**
  * Create and return the default provider registry with all built-in providers.
  */

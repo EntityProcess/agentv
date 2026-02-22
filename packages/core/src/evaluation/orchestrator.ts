@@ -14,7 +14,8 @@ import {
   scoreToVerdict,
 } from './evaluators.js';
 import { readJsonFile } from './file-utils.js';
-import { createProvider } from './providers/index.js';
+import { createBuiltinProviderRegistry, createProvider } from './providers/index.js';
+import { discoverProviders } from './providers/provider-discovery.js';
 import { type ResolvedTarget, resolveTargetDefinition } from './providers/targets.js';
 import type {
   EnvLookup,
@@ -268,9 +269,13 @@ export async function runEvaluation(
   const evaluatorRegistry = buildEvaluatorRegistry(evaluators, resolveJudgeProvider);
   const typeRegistry = createBuiltinRegistry();
 
-  // Discover custom assertions from .agentv/assertions/ directory
+  // Discover custom assertions and providers from .agentv/ directory
   const discoveryBaseDir = evalFilePath ? path.dirname(path.resolve(evalFilePath)) : process.cwd();
   await discoverAssertions(typeRegistry, discoveryBaseDir);
+
+  // Discover custom providers from .agentv/providers/ directory
+  const providerRegistry = createBuiltinProviderRegistry();
+  await discoverProviders(providerRegistry, discoveryBaseDir);
 
   const primaryProvider = getOrCreateProvider(target);
   let providerSupportsBatch =
