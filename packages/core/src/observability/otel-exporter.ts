@@ -261,7 +261,30 @@ export class OtelTraceExporter {
   /** Create a streaming observer for real-time span export */
   createStreamingObserver(): OtelStreamingObserver | null {
     if (!this.tracer || !this.api) return null;
-    return new OtelStreamingObserver(this.tracer, this.api, this.options.captureContent ?? false);
+    // Extract TRACEPARENT for trace composition
+    let parentCtx: unknown;
+    const traceparent = process.env.TRACEPARENT;
+    if (traceparent && this.W3CPropagator) {
+      try {
+        const propagator = new this.W3CPropagator();
+        parentCtx = propagator.extract(
+          this.api.ROOT_CONTEXT,
+          { traceparent, tracestate: process.env.TRACESTATE ?? '' },
+          {
+            get: (carrier: Record<string, string>, key: string) => carrier[key],
+            keys: (carrier: Record<string, string>) => Object.keys(carrier),
+          },
+        );
+      } catch {
+        // Malformed TRACEPARENT — ignore
+      }
+    }
+    return new OtelStreamingObserver(
+      this.tracer,
+      this.api,
+      this.options.captureContent ?? false,
+      parentCtx,
+    );
   }
 
   // -----------------------------------------------------------------------
@@ -380,11 +403,14 @@ export class OtelStreamingObserver {
     private readonly tracer: Tracer,
     private readonly api: OtelApi,
     private readonly captureContent: boolean,
+    // biome-ignore lint/suspicious/noExplicitAny: OTel context loaded dynamically
+    private readonly parentCtx?: any,
   ) {}
 
   /** Create root eval span immediately (visible in backend right away) */
   startEvalCase(testId: string, target: string, dataset?: string): void {
-    this.rootSpan = this.tracer.startSpan('agentv.eval');
+    const ctx = this.parentCtx ?? this.api.context.active();
+    this.rootSpan = this.tracer.startSpan('agentv.eval', undefined, ctx);
     this.rootSpan.setAttribute('gen_ai.operation.name', 'evaluate');
     this.rootSpan.setAttribute('gen_ai.system', 'agentv');
     this.rootSpan.setAttribute('agentv.test_id', testId);
