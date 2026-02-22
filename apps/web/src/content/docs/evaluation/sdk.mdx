@@ -1,0 +1,156 @@
+---
+title: TypeScript SDK
+description: Programmatic API for evaluations, custom assertions, and typed configuration
+sidebar:
+  order: 6
+---
+
+AgentV provides two npm packages for programmatic use:
+
+- **`@agentv/eval`** — custom assertions and code judges
+- **`@agentv/core`** — programmatic evaluation API and typed configuration
+
+## Installation
+
+```bash
+# Assertion SDK (defineAssertion, defineCodeJudge)
+npm install @agentv/eval
+
+# Programmatic API (evaluate, defineConfig)
+npm install @agentv/core
+```
+
+## Custom Assertions
+
+Use `defineAssertion` from `@agentv/eval` to create reusable assertion types. Place them in `.agentv/assertions/` — they're auto-discovered by filename.
+
+### Pass/Fail Pattern
+
+```typescript
+// .agentv/assertions/word-count.ts
+import { defineAssertion } from '@agentv/eval';
+
+export default defineAssertion(({ answer }) => {
+  const wordCount = answer.trim().split(/\s+/).length;
+  return {
+    pass: wordCount >= 3,
+    reasoning: `Output has ${wordCount} words`,
+  };
+});
+```
+
+### Score Pattern
+
+Return a `score` (0–1) instead of `pass` for graded evaluation:
+
+```typescript
+// .agentv/assertions/efficiency.ts
+import { defineAssertion } from '@agentv/eval';
+
+export default defineAssertion(({ answer, trace }) => ({
+  pass: answer.length > 0 && (trace?.eventCount ?? 0) <= 10,
+  reasoning: 'Checks content exists and is efficient',
+}));
+```
+
+If only `pass` is given, score is `1` (pass) or `0` (fail).
+
+### Using in YAML
+
+Convention-based discovery maps filename → assertion type:
+
+```
+.agentv/assertions/word-count.ts  →  type: word-count
+.agentv/assertions/sentiment.ts   →  type: sentiment
+```
+
+Reference directly in your eval file — no `script:` needed:
+
+```yaml
+assert:
+  - type: word-count
+  - type: contains
+    value: "Hello"
+```
+
+## Code Judges
+
+Use `defineCodeJudge` from `@agentv/eval` for full control over scoring with explicit hits/misses:
+
+```typescript
+import { defineCodeJudge } from '@agentv/eval';
+
+export default defineCodeJudge(({ trace, answer }) => ({
+  score: trace?.eventCount <= 5 ? 1.0 : 0.5,
+  hits: ['Efficient tool usage'],
+  misses: [],
+}));
+```
+
+`defineCodeJudge` scripts are referenced in YAML with `type: code_judge` and `script: bun run judge.ts`. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
+
+For detailed patterns, input/output contracts, and language-agnostic examples, see [Code Judges](/evaluators/code-judges/).
+
+## Programmatic API
+
+Use `evaluate()` from `@agentv/core` to run evaluations as a library — no YAML needed.
+
+### Inline Test Definitions
+
+```typescript
+import { evaluate } from '@agentv/core';
+
+const { results, summary } = await evaluate({
+  tests: [
+    {
+      id: 'greeting',
+      input: 'Say hello',
+      assert: [{ type: 'contains', value: 'Hello' }],
+    },
+  ],
+});
+
+console.log(`${summary.passed}/${summary.total} passed`);
+```
+
+Auto-discovers the `default` target from `.agentv/targets.yaml` and `.env` credentials.
+
+### File-Based via `specFile`
+
+Point to an existing YAML eval instead of inlining tests:
+
+```typescript
+import { evaluate } from '@agentv/core';
+
+const { results, summary } = await evaluate({
+  specFile: './evals/my-eval.eval.yaml',
+});
+```
+
+## Typed Configuration
+
+Create `agentv.config.ts` at your project root for type-safe, validated configuration using `defineConfig()` from `@agentv/core`:
+
+```typescript
+import { defineConfig } from '@agentv/core';
+
+export default defineConfig({
+  execution: { workers: 5, maxRetries: 2 },
+  output: { format: 'jsonl', dir: './results' },
+  limits: { maxCostUsd: 10.0 },
+});
+```
+
+The config file is auto-discovered by the CLI from your project root and validated with Zod at startup.
+
+## Scaffold Commands
+
+Bootstrap new assertions and eval files from the CLI:
+
+```bash
+# Create a new assertion type
+agentv create assertion <name>   # → .agentv/assertions/<name>.ts
+
+# Create a new eval with test cases
+agentv create eval <name>        # → evals/<name>.eval.yaml + .cases.jsonl
+```

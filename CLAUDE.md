@@ -261,6 +261,12 @@ git worktree add ../agentv_docs-update docs/update-readme
 git worktree add ../agentv_feat-new-evaluator feat/new-evaluator
 ```
 
+**IMPORTANT: After creating a worktree, copy `.env` from the main worktree:**
+```bash
+cp /home/christso/projects/agentv/.env .env
+```
+This is required for e2e tests, evaluator runs, and any LLM-dependent operations (Azure OpenAI credentials, etc.).
+
 ## Package Publishing
 - Core package (`packages/core/`) - Core evaluation engine and grading logic (published as `@agentv/core`)
 - CLI package (`apps/cli/`) is published as `agentv` on npm
