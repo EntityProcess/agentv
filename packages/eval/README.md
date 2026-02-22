@@ -1,6 +1,6 @@
 # @agentv/eval
 
-Evaluation SDK for AgentV - build custom code judges with zero boilerplate.
+Evaluation SDK for AgentV - build custom evaluators with zero boilerplate.
 
 ## Installation
 
@@ -9,6 +9,22 @@ npm install @agentv/eval
 ```
 
 ## Quick Start
+
+### defineAssertion (simplest way)
+
+```typescript
+#!/usr/bin/env bun
+import { defineAssertion } from '@agentv/eval';
+
+export default defineAssertion(({ answer }) => ({
+  pass: answer.toLowerCase().includes('hello'),
+  reasoning: 'Checks for greeting',
+}));
+```
+
+Assertions support `pass: boolean` for simple checks and `score: number` (0-1) for granular scoring.
+
+### defineCodeJudge (full control)
 
 ```typescript
 #!/usr/bin/env bun
@@ -20,13 +36,17 @@ export default defineCodeJudge(({ answer, trace }) => ({
 }));
 ```
 
-The `defineCodeJudge` function handles stdin/stdout parsing, snake_case conversion, Zod validation, and error handling automatically.
+Both functions handle stdin/stdout parsing, snake_case conversion, Zod validation, and error handling automatically.
 
 ## Exports
 
-- `defineCodeJudge(handler)` - Define a code judge evaluator
-- `CodeJudgeInput`, `CodeJudgeResult` - TypeScript types
+- `defineAssertion(handler)` - Define a custom assertion (pass/fail + optional score)
+- `defineCodeJudge(handler)` - Define a code judge evaluator (full score control)
+- `definePromptTemplate(handler)` - Define a dynamic prompt template
+- `AssertionContext`, `AssertionScore` - Assertion types
+- `CodeJudgeInput`, `CodeJudgeResult` - Code judge types
 - `TraceSummary`, `Message`, `ToolCall` - Trace data types
+- `createTargetClient()` - LLM target proxy for evaluators
 - `z` - Re-exported Zod for custom config schemas
 
 ## Documentation
