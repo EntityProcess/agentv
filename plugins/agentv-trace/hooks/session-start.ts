@@ -1,4 +1,4 @@
-import { getTracer } from '../lib/otel.js';
+import { flush, getTracer } from '../lib/otel.js';
 import { type SessionState, cleanupStaleStates, saveState } from '../lib/state.js';
 import { readHookInput } from '../lib/types.js';
 
@@ -8,7 +8,9 @@ if (!otel) process.exit(0);
 
 const { tracer } = otel;
 
-// Create root session span (self-contained — started and ended immediately)
+// Create root session span — serves as trace ID anchor for all subsequent hooks.
+// Each hook runs in a separate process, so this span cannot be ended across processes.
+// Child spans in later hooks reconstruct a parent context from the stored traceId/spanId.
 const rootSpan = tracer.startSpan('agentv session', {
   attributes: {
     'gen_ai.system': 'agentv',
@@ -30,6 +32,9 @@ const state: SessionState = {
 
 await saveState(state);
 
-// Don't end the root span — it stays open until SessionEnd
+// End and export the root span immediately — it serves as a trace anchor.
+// Subsequent hooks create child spans using the stored traceId/spanId.
+rootSpan.end();
+await flush();
 // Clean up stale states from previous sessions
 await cleanupStaleStates();

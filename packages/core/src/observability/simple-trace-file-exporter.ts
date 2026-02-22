@@ -14,6 +14,7 @@ export class SimpleTraceFileExporter {
   private filePath: string;
   private streamReady: Promise<WriteStream> | null = null;
   private pendingWrites: Promise<void>[] = [];
+  private _shuttingDown = false;
 
   constructor(filePath: string) {
     this.filePath = filePath;
@@ -31,6 +32,10 @@ export class SimpleTraceFileExporter {
   }
 
   export(spans: ReadableSpan[], resultCallback: (result: { code: number }) => void): void {
+    if (this._shuttingDown) {
+      resultCallback({ code: 0 });
+      return;
+    }
     const spanMap = new Map<string, ReadableSpan>();
     const childMap = new Map<string, ReadableSpan[]>();
 
@@ -61,6 +66,7 @@ export class SimpleTraceFileExporter {
   }
 
   async shutdown(): Promise<void> {
+    this._shuttingDown = true;
     await Promise.all(this.pendingWrites);
     this.pendingWrites = [];
     return new Promise((resolve) => {
