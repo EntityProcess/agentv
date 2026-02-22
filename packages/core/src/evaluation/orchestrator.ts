@@ -26,7 +26,7 @@ import type {
   TargetDefinition,
 } from './providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
-import { createBuiltinRegistry } from './registry/index.js';
+import { createBuiltinRegistry, discoverAssertions } from './registry/index.js';
 import { type TraceSummary, computeTraceSummary, mergeExecutionMetrics } from './trace.js';
 import { aggregateTrials } from './trials.js';
 import type {
@@ -265,6 +265,10 @@ export async function runEvaluation(
 
   const evaluatorRegistry = buildEvaluatorRegistry(evaluators, resolveJudgeProvider);
   const typeRegistry = createBuiltinRegistry();
+
+  // Discover custom assertions from .agentv/assertions/ directory
+  const discoveryBaseDir = evalFilePath ? path.dirname(path.resolve(evalFilePath)) : process.cwd();
+  await discoverAssertions(typeRegistry, discoveryBaseDir);
 
   const primaryProvider = getOrCreateProvider(target);
   let providerSupportsBatch =
