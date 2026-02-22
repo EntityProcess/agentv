@@ -27,19 +27,29 @@ export async function discoverAssertions(
   registry: EvaluatorRegistry,
   baseDir: string,
 ): Promise<string[]> {
-  const assertionsDir = path.join(baseDir, '.agentv', 'assertions');
   const patterns = ['*.ts', '*.js', '*.mts', '*.mjs'];
 
-  let files: string[];
-  try {
-    files = await fg(patterns, {
-      cwd: assertionsDir,
-      absolute: true,
-      onlyFiles: true,
-    });
-  } catch {
-    // Directory doesn't exist — no custom assertions
-    return [];
+  // Search baseDir and its ancestors for .agentv/assertions/
+  const candidateDirs: string[] = [];
+  let dir = path.resolve(baseDir);
+  const root = path.parse(dir).root;
+  while (dir !== root) {
+    candidateDirs.push(path.join(dir, '.agentv', 'assertions'));
+    dir = path.dirname(dir);
+  }
+
+  let files: string[] = [];
+  for (const assertionsDir of candidateDirs) {
+    try {
+      const found = await fg(patterns, {
+        cwd: assertionsDir,
+        absolute: true,
+        onlyFiles: true,
+      });
+      files = files.concat(found);
+    } catch {
+      // Directory doesn't exist — skip
+    }
   }
 
   const discoveredTypes: string[] = [];

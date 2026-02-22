@@ -80,13 +80,19 @@ async function parseEvaluatorList(
     const rawName = asString(rawEvaluator.name);
     const typeValue = rawEvaluator.type;
 
-    if (!isEvaluatorKind(typeValue)) {
+    // Unknown types are treated as custom assertion types (resolved via registry discovery)
+    const isCustomType = typeof typeValue === 'string' && !isEvaluatorKind(typeValue);
+    if (typeof typeValue !== 'string') {
       logWarning(`Skipping evaluator with invalid type in '${evalId}'`);
       continue;
     }
 
+    const customTypeName = isCustomType ? typeValue : undefined;
+
     // Auto-generate name for assertion types if not provided
-    const name = rawName ?? generateAssertionName(typeValue, rawEvaluator);
+    const name =
+      rawName ??
+      (isCustomType ? typeValue : generateAssertionName(typeValue as EvaluatorKind, rawEvaluator));
 
     if (!name) {
       logWarning(`Skipping evaluator with missing name in '${evalId}'`);
@@ -94,6 +100,29 @@ async function parseEvaluatorList(
     }
 
     const negate = rawEvaluator.negate === true ? true : undefined;
+
+    // Custom assertion types — store with their type name for registry dispatch
+    if (isCustomType) {
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
+      // Collect all properties except known meta-keys as pass-through config
+      const knownProps = new Set(['name', 'type', 'weight', 'required', 'negate']);
+      const config: Record<string, JsonValue> = {};
+      for (const [key, value] of Object.entries(rawEvaluator)) {
+        if (!knownProps.has(key) && value !== undefined) {
+          config[key] = value as JsonValue;
+        }
+      }
+      evaluators.push({
+        name,
+        type: customTypeName as unknown as EvaluatorKind,
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
+        ...(Object.keys(config).length > 0 ? { config } : {}),
+      } as EvaluatorConfig);
+      continue;
+    }
 
     if (typeValue === 'code_judge') {
       let script: string[] | undefined;

@@ -20,10 +20,11 @@ tests:
   - id: short-answer
     criteria: Agent gives a short but valid response
     input: "What is 2+2?"
-    expected_output: "4"
+    expected_output: "The answer is 4."
     assert:
-      - type: equals
+      - type: contains
         value: "4"
+      - type: word-count
 
   - id: json-response
     criteria: Agent returns valid JSON with sufficient content
