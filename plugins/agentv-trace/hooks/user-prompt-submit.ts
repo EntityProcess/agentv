@@ -1,6 +1,6 @@
-import { readHookInput } from "../lib/types.js";
-import { loadState, saveState } from "../lib/state.js";
-import { getTracer, flush } from "../lib/otel.js";
+import { flush, getTracer } from '../lib/otel.js';
+import { loadState, saveState } from '../lib/state.js';
+import { readHookInput } from '../lib/types.js';
 
 const input = readHookInput();
 const state = await loadState(input.session_id);
@@ -25,10 +25,8 @@ const turnSpan = tracer.startSpan(
   `agentv.turn.${state.turnCount}`,
   {
     attributes: {
-      "agentv.turn.number": state.turnCount,
-      ...(input.prompt
-        ? { "agentv.turn.prompt": input.prompt.substring(0, 200) }
-        : {}),
+      'agentv.turn.number': state.turnCount,
+      ...(input.prompt ? { 'agentv.turn.prompt': input.prompt.substring(0, 200) } : {}),
     },
   },
   parentCtx,

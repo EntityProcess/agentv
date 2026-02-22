@@ -1,6 +1,6 @@
-import { readHookInput } from "../lib/types.js";
-import { loadState, saveState } from "../lib/state.js";
-import { flush } from "../lib/otel.js";
+import { flush } from '../lib/otel.js';
+import { loadState, saveState } from '../lib/state.js';
+import { readHookInput } from '../lib/types.js';
 
 const input = readHookInput();
 const state = await loadState(input.session_id);

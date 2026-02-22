@@ -59,17 +59,20 @@ export class OtelTraceExporter {
   private provider: NodeTracerProvider | null = null;
   private tracer: Tracer | null = null;
   private api: OtelApi | null = null;
+  // biome-ignore lint/suspicious/noExplicitAny: OTel types loaded dynamically
+  private W3CPropagator: any = null;
 
   constructor(private readonly options: OtelExportOptions) {}
 
   /** Initialize the OTel SDK. Returns false if OTel packages are not available. */
   async init(): Promise<boolean> {
     try {
-      const [sdkTraceNode, resourcesMod, semconvMod, api] = await Promise.all([
+      const [sdkTraceNode, resourcesMod, semconvMod, api, coreMod] = await Promise.all([
         import('@opentelemetry/sdk-trace-node'),
         import('@opentelemetry/resources'),
         import('@opentelemetry/semantic-conventions'),
         import('@opentelemetry/api'),
+        import('@opentelemetry/core').catch(() => null),
       ]);
 
       const { NodeTracerProvider: Provider, SimpleSpanProcessor } = sdkTraceNode;
@@ -121,6 +124,7 @@ export class OtelTraceExporter {
       this.provider.register();
       this.api = api;
       this.tracer = api.trace.getTracer('agentv', '1.0.0');
+      this.W3CPropagator = coreMod?.W3CTraceContextPropagator ?? null;
       return true;
     } catch {
       return false;
@@ -142,10 +146,9 @@ export class OtelTraceExporter {
     // Support trace composition via W3C traceparent propagation
     let parentCtx = api.ROOT_CONTEXT;
     const traceparent = process.env.TRACEPARENT;
-    if (traceparent) {
+    if (traceparent && this.W3CPropagator) {
       try {
-        const { W3CTraceContextPropagator } = await import('@opentelemetry/core');
-        const propagator = new W3CTraceContextPropagator();
+        const propagator = new this.W3CPropagator();
         parentCtx = propagator.extract(
           api.ROOT_CONTEXT,
           { traceparent, tracestate: process.env.TRACESTATE ?? '' },

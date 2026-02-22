@@ -1,6 +1,6 @@
-import { readHookInput } from "../lib/types.js";
-import { loadState, saveState } from "../lib/state.js";
-import { getTracer, flush } from "../lib/otel.js";
+import { flush, getTracer } from '../lib/otel.js';
+import { loadState, saveState } from '../lib/state.js';
+import { readHookInput } from '../lib/types.js';
 
 const input = readHookInput();
 const state = await loadState(input.session_id);
@@ -21,13 +21,13 @@ const parentCtx = api.trace.setSpanContext(api.context.active(), {
   isRemote: false,
 });
 
-const toolName = input.tool_name ?? "unknown";
+const toolName = input.tool_name ?? 'unknown';
 const toolSpan = tracer.startSpan(
   `execute_tool ${toolName}`,
   {
     attributes: {
-      "gen_ai.tool.name": toolName,
-      "gen_ai.operation.name": "tool",
+      'gen_ai.tool.name': toolName,
+      'gen_ai.operation.name': 'tool',
     },
   },
   parentCtx,

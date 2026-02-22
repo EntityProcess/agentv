@@ -13,10 +13,10 @@ export interface HookInput {
 
 export function readHookInput(): HookInput {
   // Claude Code hooks receive input via stdin as JSON
-  const stdin = require("node:fs").readFileSync(0, "utf8");
+  const stdin = require('node:fs').readFileSync(0, 'utf8');
   try {
     return JSON.parse(stdin);
   } catch {
-    return { session_id: "unknown" };
+    return { session_id: 'unknown' };
   }
 }
