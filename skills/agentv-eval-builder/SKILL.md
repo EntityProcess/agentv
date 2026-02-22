@@ -319,8 +319,11 @@ See `references/rubric-evaluator.md` for score-range mode and scoring formula.
 # Run evaluation (requires API keys)
 agentv eval <file.yaml> [--test-id <id>] [--target <name>] [--dry-run]
 
-# Run with trace persistence (writes to .agentv/traces/)
-agentv eval <file.yaml> --trace
+# Run with trace file (human-readable JSONL)
+agentv eval <file.yaml> --trace-file traces/eval.jsonl
+
+# Run with OTLP JSON file (importable by OTel backends)
+agentv eval <file.yaml> --otel-file traces/eval.otlp.json
 
 # Agent-orchestrated evals (no API keys needed)
 agentv prompt eval <file.yaml>                                      # orchestration overview
