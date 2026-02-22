@@ -29,6 +29,33 @@ tests:
         value: "well"
 `;
 
+const PROVIDER_TEMPLATE = `#!/usr/bin/env bun
+/**
+ * Custom provider scaffold.
+ *
+ * AgentV providers are configured via .agentv/targets.yaml using the CLI provider:
+ *
+ *   targets:
+ *     - name: my-target
+ *       provider: cli
+ *       command_template: "bun run .agentv/providers/<name>.ts {PROMPT}"
+ *
+ * This script receives the prompt as a CLI argument and prints the response to stdout.
+ */
+
+const prompt = process.argv[2];
+
+if (!prompt) {
+  console.error('Usage: bun run provider.ts "<prompt>"');
+  process.exit(1);
+}
+
+// TODO: Replace with your LLM API call or custom logic
+const response = \`Echo: \${prompt}\`;
+
+console.log(response);
+`;
+
 const EVAL_CASES_TEMPLATE = `{"id":"case-1","criteria":"Responds helpfully","input":"What is 2+2?","expected_output":"4"}
 `;
 
@@ -50,6 +77,29 @@ export const createAssertionCommand = command({
     await writeFile(filePath, ASSERTION_TEMPLATE);
     console.log(`Created ${path.relative(process.cwd(), filePath)}`);
     console.log(`\nUse in EVAL.yaml:\n  assert:\n    - type: ${name}`);
+  },
+});
+
+export const createProviderCommand = command({
+  name: 'provider',
+  description: 'Create a custom provider scaffold',
+  args: {
+    name: positional({
+      type: string,
+      displayName: 'name',
+      description: 'Name of the provider (e.g., my-llm)',
+    }),
+  },
+  handler: async ({ name }) => {
+    const dir = path.join(process.cwd(), '.agentv', 'providers');
+    const filePath = path.join(dir, `${name}.ts`);
+
+    await mkdir(dir, { recursive: true });
+    await writeFile(filePath, PROVIDER_TEMPLATE);
+    console.log(`Created ${path.relative(process.cwd(), filePath)}`);
+    console.log(
+      `\nConfigure in .agentv/targets.yaml:\n  targets:\n    - name: ${name}\n      provider: cli\n      command_template: "bun run .agentv/providers/${name}.ts {PROMPT}"`,
+    );
   },
 });
 
