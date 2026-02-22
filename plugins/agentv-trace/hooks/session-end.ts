@@ -1,6 +1,6 @@
-import { readHookInput } from "../lib/types.js";
-import { loadState, deleteState } from "../lib/state.js";
-import { getTracer, flush } from "../lib/otel.js";
+import { flush, getTracer } from '../lib/otel.js';
+import { deleteState, loadState } from '../lib/state.js';
+import { readHookInput } from '../lib/types.js';
 
 const input = readHookInput();
 const state = await loadState(input.session_id);
@@ -19,12 +19,12 @@ if (otel) {
   });
 
   const endSpan = tracer.startSpan(
-    "agentv.session.end",
+    'agentv.session.end',
     {
       attributes: {
-        "agentv.session_id": state.sessionId,
-        "agentv.turn_count": state.turnCount,
-        "agentv.tool_count": state.toolCount,
+        'agentv.session_id': state.sessionId,
+        'agentv.turn_count': state.turnCount,
+        'agentv.tool_count': state.toolCount,
       },
     },
     parentCtx,

@@ -1,10 +1,6 @@
-import { readHookInput } from "../lib/types.js";
-import {
-  saveState,
-  cleanupStaleStates,
-  type SessionState,
-} from "../lib/state.js";
-import { getTracer } from "../lib/otel.js";
+import { getTracer } from '../lib/otel.js';
+import { type SessionState, cleanupStaleStates, saveState } from '../lib/state.js';
+import { readHookInput } from '../lib/types.js';
 
 const input = readHookInput();
 const otel = await getTracer();
@@ -13,11 +9,11 @@ if (!otel) process.exit(0);
 const { tracer } = otel;
 
 // Create root session span (self-contained — started and ended immediately)
-const rootSpan = tracer.startSpan("agentv session", {
+const rootSpan = tracer.startSpan('agentv session', {
   attributes: {
-    "gen_ai.system": "agentv",
-    "agentv.session_id": input.session_id,
-    ...(input.cwd ? { "agentv.workspace": input.cwd } : {}),
+    'gen_ai.system': 'agentv',
+    'agentv.session_id': input.session_id,
+    ...(input.cwd ? { 'agentv.workspace': input.cwd } : {}),
   },
 });
 

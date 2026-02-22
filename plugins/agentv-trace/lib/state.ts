@@ -1,16 +1,9 @@
-import {
-  readFile,
-  writeFile,
-  rename,
-  unlink,
-  mkdir,
-  readdir,
-} from "node:fs/promises";
-import { join } from "node:path";
-import { homedir } from "node:os";
-import { randomUUID } from "node:crypto";
+import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
-const STATE_DIR = join(homedir(), ".agentv", "trace-state");
+const STATE_DIR = join(homedir(), '.agentv', 'trace-state');
 
 export interface SessionState {
   sessionId: string;
@@ -22,11 +15,9 @@ export interface SessionState {
   startedAt: string;
 }
 
-export async function loadState(
-  sessionId: string,
-): Promise<SessionState | null> {
+export async function loadState(sessionId: string): Promise<SessionState | null> {
   try {
-    const data = await readFile(join(STATE_DIR, `${sessionId}.json`), "utf8");
+    const data = await readFile(join(STATE_DIR, `${sessionId}.json`), 'utf8');
     return JSON.parse(data);
   } catch {
     return null;
@@ -49,22 +40,15 @@ export async function deleteState(sessionId: string): Promise<void> {
   }
 }
 
-export async function cleanupStaleStates(
-  maxAgeMs = 24 * 60 * 60 * 1000,
-): Promise<void> {
+export async function cleanupStaleStates(maxAgeMs = 24 * 60 * 60 * 1000): Promise<void> {
   try {
     const files = await readdir(STATE_DIR);
     const now = Date.now();
     for (const file of files) {
-      if (!file.endsWith(".json")) continue;
+      if (!file.endsWith('.json')) continue;
       try {
-        const data = JSON.parse(
-          await readFile(join(STATE_DIR, file), "utf8"),
-        );
-        if (
-          data.startedAt &&
-          now - new Date(data.startedAt).getTime() > maxAgeMs
-        ) {
+        const data = JSON.parse(await readFile(join(STATE_DIR, file), 'utf8'));
+        if (data.startedAt && now - new Date(data.startedAt).getTime() > maxAgeMs) {
           await unlink(join(STATE_DIR, file));
         }
       } catch {

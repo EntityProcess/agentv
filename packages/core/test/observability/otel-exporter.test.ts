@@ -193,6 +193,7 @@ describe('W3C traceparent propagation', () => {
       const provider = new NodeTracerProvider({
         spanProcessors: [new SimpleSpanProcessor(memExporter)],
       });
+      provider.register();
 
       const exporter = new OtelTraceExporter({
         endpoint: 'http://localhost:4318/v1/traces',
@@ -205,7 +206,15 @@ describe('W3C traceparent propagation', () => {
       exp.api = api;
       exp.tracer = provider.getTracer('agentv-test', '1.0.0');
 
-      return { exporter, memExporter };
+      // Inject W3C propagator for traceparent tests
+      try {
+        const coreMod = await import('@opentelemetry/core');
+        exp.W3CPropagator = coreMod.W3CTraceContextPropagator;
+      } catch {
+        // W3C propagation tests will be skipped
+      }
+
+      return { exporter, memExporter, provider };
     } catch {
       return null;
     }
