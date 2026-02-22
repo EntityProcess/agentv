@@ -5,6 +5,14 @@ export * from './evaluation/file-utils.js';
 export * from './evaluation/providers/index.js';
 export * from './evaluation/evaluators.js';
 export * from './evaluation/orchestrator.js';
+export {
+  evaluate,
+  type EvalConfig,
+  type EvalTestInput,
+  type EvalAssertionInput,
+  type EvalRunResult,
+  type EvalSummary,
+} from './evaluation/evaluate.js';
 export * from './evaluation/generators/index.js';
 export * from './evaluation/workspace/index.js';
 export {
