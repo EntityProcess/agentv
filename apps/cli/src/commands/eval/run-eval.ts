@@ -13,6 +13,7 @@ import {
   runEvaluation as defaultRunEvaluation,
   ensureVSCodeSubagents,
   loadTestSuite,
+  loadTsConfig,
   shouldEnableCache,
   shouldSkipCacheForTemperature,
   subscribeToCodexLogEntries,
@@ -98,11 +99,31 @@ function normalizeNumber(value: unknown, fallback: number): number {
   return fallback;
 }
 
-function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOptions {
-  const formatStr = normalizeString(rawOptions.outputFormat) ?? 'jsonl';
+function normalizeOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return undefined;
+}
+
+function normalizeOptions(
+  rawOptions: Record<string, unknown>,
+  config?: Awaited<ReturnType<typeof loadTsConfig>>,
+): NormalizedOptions {
+  const cliFormat = normalizeString(rawOptions.outputFormat);
+  const configFormat = config?.output?.format;
+  const formatStr = cliFormat ?? configFormat ?? 'jsonl';
   const format: OutputFormat = formatStr === 'yaml' ? 'yaml' : 'jsonl';
 
-  const workers = normalizeNumber(rawOptions.workers, 0);
+  const cliWorkers = normalizeOptionalNumber(rawOptions.workers);
+  const configWorkers = config?.execution?.workers;
+  const workers = cliWorkers ?? configWorkers ?? 0;
 
   const rawOutputPaths = rawOptions.output;
   const outputPaths: string[] = Array.isArray(rawOutputPaths)
@@ -124,23 +145,42 @@ function normalizeOptions(rawOptions: Record<string, unknown>): NormalizedOption
     }
   }
 
+  const cliAgentTimeout = normalizeOptionalNumber(rawOptions.agentTimeout);
+  const configAgentTimeoutSeconds =
+    config?.execution?.agentTimeoutMs != null ? config.execution.agentTimeoutMs / 1000 : undefined;
+
+  const cliMaxRetries = normalizeOptionalNumber(rawOptions.maxRetries);
+  const configMaxRetries = config?.execution?.maxRetries;
+
+  // Cache: CLI flags take priority, then config file, then default (true via shouldEnableCache)
+  const cliCache = normalizeBoolean(rawOptions.cache);
+  const cliNoCache = normalizeBoolean(rawOptions.noCache);
+  const configCacheEnabled = config?.cache?.enabled;
+  // If neither --cache nor --no-cache was passed, use config value
+  const resolvedCache = cliCache || (!cliNoCache && configCacheEnabled === true);
+  const resolvedNoCache = cliNoCache;
+
+  // Output dir: CLI --out > config output.dir > auto-generated
+  const cliOut = normalizeString(rawOptions.out);
+  const configOut = config?.output?.dir;
+
   return {
     target: singleTarget,
     cliTargets,
     targetsPath: normalizeString(rawOptions.targets),
     filter: normalizeString(rawOptions.filter),
     workers: workers > 0 ? workers : undefined,
-    outPath: normalizeString(rawOptions.out),
+    outPath: cliOut ?? configOut,
     outputPaths,
     format,
     dryRun: normalizeBoolean(rawOptions.dryRun),
     dryRunDelay: normalizeNumber(rawOptions.dryRunDelay, 0),
     dryRunDelayMin: normalizeNumber(rawOptions.dryRunDelayMin, 0),
     dryRunDelayMax: normalizeNumber(rawOptions.dryRunDelayMax, 0),
-    agentTimeoutSeconds: normalizeNumber(rawOptions.agentTimeout, 120),
-    maxRetries: normalizeNumber(rawOptions.maxRetries, 2),
-    cache: normalizeBoolean(rawOptions.cache),
-    noCache: normalizeBoolean(rawOptions.noCache),
+    agentTimeoutSeconds: cliAgentTimeout ?? configAgentTimeoutSeconds ?? 120,
+    maxRetries: cliMaxRetries ?? configMaxRetries ?? 2,
+    cache: resolvedCache,
+    noCache: resolvedNoCache,
     verbose: normalizeBoolean(rawOptions.verbose),
     keepWorkspaces: normalizeBoolean(rawOptions.keepWorkspaces),
     cleanupWorkspaces: normalizeBoolean(rawOptions.cleanupWorkspaces),
@@ -536,8 +576,19 @@ async function runSingleEvalFile(params: {
 }
 
 export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> {
-  const options = normalizeOptions(input.rawOptions);
   const cwd = process.cwd();
+
+  // Load agentv.config.ts (if present) for default values
+  let config: Awaited<ReturnType<typeof loadTsConfig>> = null;
+  try {
+    config = await loadTsConfig(cwd);
+  } catch (err) {
+    console.warn(
+      `Warning: Failed to load agentv config: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  const options = normalizeOptions(input.rawOptions, config);
   const repoRoot = await findRepoRoot(cwd);
 
   if (options.keepWorkspaces && options.cleanupWorkspaces) {
