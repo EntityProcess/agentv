@@ -376,13 +376,11 @@ export async function runEvaluation(
   let beforeAllOutput: string | undefined;
 
   if (workspaceTemplate) {
-    {
-      try {
-        sharedWorkspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, 'shared');
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`Failed to create shared workspace: ${message}`);
-      }
+    try {
+      sharedWorkspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, 'shared');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to create shared workspace: ${message}`);
     }
   } else if (suiteWorkspace?.before_all) {
     // No template but before_all is configured: create empty workspace
@@ -801,20 +799,18 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     const caseWorkspaceTemplate = resolvedCaseTemplate?.dir;
     caseWorkspaceFile = resolvedCaseTemplate?.workspaceFile;
     if (caseWorkspaceTemplate && evalRunId) {
-      {
-        try {
-          workspacePath = await createTempWorkspace(caseWorkspaceTemplate, evalRunId, evalCase.id);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          return buildErrorResult(
-            evalCase,
-            target.name,
-            nowFn(),
-            new Error(`Failed to create workspace: ${message}`),
-            promptInputs,
-            provider,
-          );
-        }
+      try {
+        workspacePath = await createTempWorkspace(caseWorkspaceTemplate, evalRunId, evalCase.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return buildErrorResult(
+          evalCase,
+          target.name,
+          nowFn(),
+          new Error(`Failed to create workspace: ${message}`),
+          promptInputs,
+          provider,
+        );
       }
     }
 

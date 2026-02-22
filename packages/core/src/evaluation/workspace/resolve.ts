@@ -46,7 +46,7 @@ export async function resolveWorkspaceTemplate(
   if (workspaceFiles.length === 1) {
     return {
       dir: resolved,
-      workspaceFile: path.join(resolved, workspaceFiles[0]!),
+      workspaceFile: path.join(resolved, workspaceFiles[0] as string),
     };
   }
 

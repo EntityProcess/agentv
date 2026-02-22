@@ -27,8 +27,8 @@ describe('resolveWorkspaceTemplate', () => {
     const result = await resolveWorkspaceTemplate(wsFile);
 
     expect(result).toBeDefined();
-    expect(result!.dir).toBe(tempDir);
-    expect(result!.workspaceFile).toBe(wsFile);
+    expect(result?.dir).toBe(tempDir);
+    expect(result?.workspaceFile).toBe(wsFile);
   });
 
   it('resolves directory with 1 .code-workspace: auto-detects file', async () => {
@@ -39,8 +39,8 @@ describe('resolveWorkspaceTemplate', () => {
     const result = await resolveWorkspaceTemplate(tempDir);
 
     expect(result).toBeDefined();
-    expect(result!.dir).toBe(tempDir);
-    expect(result!.workspaceFile).toBe(wsFile);
+    expect(result?.dir).toBe(tempDir);
+    expect(result?.workspaceFile).toBe(wsFile);
   });
 
   it('resolves directory with multiple .code-workspace: uses template.code-workspace', async () => {
@@ -56,8 +56,8 @@ describe('resolveWorkspaceTemplate', () => {
     const result = await resolveWorkspaceTemplate(tempDir);
 
     expect(result).toBeDefined();
-    expect(result!.dir).toBe(tempDir);
-    expect(result!.workspaceFile).toBe(path.join(tempDir, 'template.code-workspace'));
+    expect(result?.dir).toBe(tempDir);
+    expect(result?.workspaceFile).toBe(path.join(tempDir, 'template.code-workspace'));
   });
 
   it('resolves directory with multiple .code-workspace but no template.code-workspace: no workspaceFile', async () => {
@@ -73,8 +73,8 @@ describe('resolveWorkspaceTemplate', () => {
     const result = await resolveWorkspaceTemplate(tempDir);
 
     expect(result).toBeDefined();
-    expect(result!.dir).toBe(tempDir);
-    expect(result!.workspaceFile).toBeUndefined();
+    expect(result?.dir).toBe(tempDir);
+    expect(result?.workspaceFile).toBeUndefined();
   });
 
   it('resolves directory with no .code-workspace: dir only', async () => {
@@ -83,8 +83,8 @@ describe('resolveWorkspaceTemplate', () => {
     const result = await resolveWorkspaceTemplate(tempDir);
 
     expect(result).toBeDefined();
-    expect(result!.dir).toBe(tempDir);
-    expect(result!.workspaceFile).toBeUndefined();
+    expect(result?.dir).toBe(tempDir);
+    expect(result?.workspaceFile).toBeUndefined();
   });
 
   it('throws for non-existent path', async () => {
