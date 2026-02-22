@@ -117,6 +117,10 @@ export class OtelTraceExporter {
         setStatus: (...args: unknown[]) => void;
         end: (...args: unknown[]) => void;
       }) => {
+        // GenAI semantic convention attributes
+        rootSpan.setAttribute('gen_ai.operation.name', 'evaluate');
+        rootSpan.setAttribute('gen_ai.system', 'agentv');
+
         // Core attributes
         rootSpan.setAttribute('agentv.test_id', result.testId);
         rootSpan.setAttribute('agentv.target', result.target);
@@ -184,7 +188,8 @@ export class OtelTraceExporter {
     captureContent: boolean,
   ): void {
     const isAssistant = msg.role === 'assistant';
-    const spanName = isAssistant ? 'gen_ai.generation' : `gen_ai.message.${msg.role}`;
+    const model = msg.metadata?.model ? String(msg.metadata.model) : undefined;
+    const spanName = isAssistant ? `chat ${model ?? 'unknown'}` : `gen_ai.message.${msg.role}`;
 
     const startHr = toHrTime(msg.startTime);
     const endHr = toHrTime(msg.endTime);
@@ -197,14 +202,17 @@ export class OtelTraceExporter {
           setAttribute: (...args: unknown[]) => void;
           end: (...args: unknown[]) => void;
         }) => {
-          if (msg.metadata?.model) {
-            span.setAttribute('gen_ai.request.model', String(msg.metadata.model));
+          if (isAssistant) {
+            span.setAttribute('gen_ai.operation.name', 'chat');
           }
-          if (msg.durationMs != null) span.setAttribute('gen_ai.duration_ms', msg.durationMs);
+          if (model) {
+            span.setAttribute('gen_ai.request.model', model);
+            span.setAttribute('gen_ai.response.model', model);
+          }
 
           if (captureContent && msg.content != null) {
             span.setAttribute(
-              'gen_ai.content',
+              'gen_ai.output.messages',
               typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
             );
           }
@@ -215,7 +223,7 @@ export class OtelTraceExporter {
             for (const tc of msg.toolCalls) {
               api.context.with(msgCtx, () => {
                 tracer.startActiveSpan(
-                  'gen_ai.tool',
+                  `execute_tool ${tc.tool}`,
                   {},
                   (toolSpan: {
                     setAttribute: (...args: unknown[]) => void;
@@ -227,13 +235,13 @@ export class OtelTraceExporter {
                     if (captureContent) {
                       if (tc.input != null) {
                         toolSpan.setAttribute(
-                          'gen_ai.tool.input',
+                          'gen_ai.tool.call.arguments',
                           typeof tc.input === 'string' ? tc.input : JSON.stringify(tc.input),
                         );
                       }
                       if (tc.output != null) {
                         toolSpan.setAttribute(
-                          'gen_ai.tool.output',
+                          'gen_ai.tool.call.result',
                           typeof tc.output === 'string' ? tc.output : JSON.stringify(tc.output),
                         );
                       }
