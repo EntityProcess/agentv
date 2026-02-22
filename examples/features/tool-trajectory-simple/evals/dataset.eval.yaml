@@ -4,14 +4,22 @@
 # The tool_trajectory evaluator validates that an agent used the expected tools
 # during execution. It works with trace data returned by agent providers.
 #
-# Three matching modes are available:
+# Five trajectory matching modes are available:
 # - any_order: Validates minimum tool call counts (tools can appear in any order)
 # - in_order: Validates tools appear in expected sequence (allows gaps)
 # - exact: Validates exact tool sequence match (no gaps, no extra tools)
+# - superset: Every expected tool must be found in actual (extras OK, greedy matching)
+# - subset: Every actual call must be in the allowed set (expected items reusable)
 #
-# Argument matching:
-# - Exact: args: { key: "value" } - must match exactly (deep equality)
-# - Skip: args: any - validate tool name only, ignore arguments
+# Argument matching modes (per-item `args_match` or evaluator-level `default_args_match`):
+# - exact: Bidirectional deep equality, no extra keys (default)
+# - superset: Actual args must contain all expected keys (extras OK)
+# - subset: Actual args must be a subset of expected (no unexpected keys)
+# - ignore: Skip argument checking entirely
+# - [field list]: Check only listed fields (dot-notation supported)
+#
+# Legacy shorthand:
+# - args: any - validate tool name only, ignore arguments
 # Note: For pattern/regex matching, use a code_judge evaluator instead.
 #
 # This demo uses a CLI provider (mock-agent.ts) that simulates an agent with tool usage.
@@ -154,8 +162,10 @@ tests:
   # ==========================================
 
   # ==========================================
-  # Example 6: Exact argument matching
+  # Example 6: Exact argument matching (default mode)
   # Use case: Validate tool is called with specific argument values
+  # Note: With the default `exact` args matching, actual args must match
+  # expected args exactly (bidirectional deep equality, no extra keys).
   # ==========================================
   - id: exact-args-match
 
@@ -170,6 +180,8 @@ tests:
       - name: arg-validation
         type: tool_trajectory
         mode: in_order
+        # Use superset args matching to allow extra keys in actual args
+        default_args_match: superset
         expected:
           - tool: search
             args:
@@ -196,13 +208,116 @@ tests:
         type: tool_trajectory
         mode: in_order
         expected:
-          # Exact match: must use specific source
+          # Superset match: must include this key, extras OK
           - tool: load_data
             args:
               source: "customers"
+            args_match: superset
           # Skip: any transformation is acceptable
           - tool: transform
             args: any
           # Skip: we don't care about save arguments
           - tool: save_data
             args: any
+
+  # ==========================================
+  # TRAJECTORY MODE EXAMPLES (v2)
+  # ==========================================
+
+  # ==========================================
+  # Example 8: superset mode - actual trajectory must contain all expected
+  # Use case: Verify required tools were called, regardless of order or extras
+  # ==========================================
+  - id: superset-mode
+
+    criteria: |-
+      Agent must call both search and analyze tools during execution.
+      Extra tool calls are acceptable.
+
+    input:
+      - role: user
+        content: Research and analyze the data.
+
+    assert:
+      - name: required-tools
+        type: tool_trajectory
+        mode: superset
+        default_args_match: superset
+        expected:
+          - tool: knowledgeSearch
+          - tool: documentRetrieve
+
+  # ==========================================
+  # Example 9: subset mode - all actual calls must be in allowed set
+  # Use case: Restrict agent to only use approved tools (safety guardrail)
+  # ==========================================
+  - id: subset-mode
+
+    criteria: |-
+      Agent must only use approved read-only tools.
+      No write or delete operations should occur.
+
+    input:
+      - role: user
+        content: Look up the current system status.
+
+    assert:
+      - name: safe-tools-only
+        type: tool_trajectory
+        mode: subset
+        expected:
+          - tool: getCpuMetrics
+          - tool: getMemoryMetrics
+          - tool: knowledgeSearch
+          - tool: documentRetrieve
+
+  # ==========================================
+  # Example 10: Per-item args_match override
+  # Use case: Mixed matching requirements within a single trajectory
+  # ==========================================
+  - id: mixed-args-match
+
+    criteria: |-
+      Agent calls tools with varying argument precision requirements.
+
+    input:
+      - role: user
+        content: Process the customer data from the API endpoint.
+
+    assert:
+      - name: mixed-precision
+        type: tool_trajectory
+        mode: in_order
+        default_args_match: ignore  # Default: don't check args
+        expected:
+          - tool: fetchData
+          - tool: validateSchema
+          - tool: transformData
+          - tool: saveResults
+
+  # ==========================================
+  # Example 11: Field list args matching
+  # Use case: Check only specific fields in tool arguments
+  # ==========================================
+  - id: field-list-match
+
+    criteria: |-
+      Agent fetches data from the correct source.
+      Other arguments like pagination or format don't matter.
+
+    input:
+      - role: user
+        content: Process the customer data from the API endpoint.
+
+    assert:
+      - name: check-source-only
+        type: tool_trajectory
+        mode: in_order
+        expected:
+          - tool: fetchData
+            args:
+              source: "api"
+            args_match:
+              - source  # Only check this field
+          - tool: saveResults
+            args_match: ignore  # Don't check args at all

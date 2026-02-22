@@ -1,5 +1,6 @@
 import type { Message } from '../providers/types.js';
 import type {
+  ArgsMatchMode,
   ToolTrajectoryEvaluatorConfig,
   ToolTrajectoryExpectedItem,
   TraceSummary,
@@ -15,25 +16,92 @@ interface ExtractedToolCall {
 }
 
 /**
- * Check if actual args match expected args.
- * - 'any' → always matches
- * - object → partial match (only specified keys, deep equality)
+ * Get a nested value from an object using dot-notation path.
+ * Supports paths like "a.b.c" to access deeply nested properties.
+ */
+function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+  const parts = path.split('.');
+  let current: unknown = obj;
+  for (const part of parts) {
+    if (current === null || current === undefined || typeof current !== 'object') {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
+/**
+ * Resolve the effective args match mode for an expected item.
+ * Priority: per-item argsMatch > evaluator-level defaultArgsMatch > 'exact'
+ */
+function resolveArgsMatchMode(
+  item: ToolTrajectoryExpectedItem,
+  config: ToolTrajectoryEvaluatorConfig,
+): ArgsMatchMode | readonly string[] {
+  return item.argsMatch ?? config.defaultArgsMatch ?? 'exact';
+}
+
+/**
+ * Check if actual args match expected args using the specified mode.
+ *
+ * Modes:
+ * - 'exact': bidirectional deep equality (no extra keys allowed)
+ * - 'superset': actual must contain all expected keys (extras OK) - was the old implicit default
+ * - 'subset': actual must be a subset of expected (no unexpected keys in actual)
+ * - 'ignore': skip argument checking entirely
+ * - string[]: check only the listed fields (dot-notation supported)
  */
 function argsMatch(
   expected: ToolTrajectoryExpectedItem['args'],
   actual: Record<string, unknown> | undefined,
+  mode: ArgsMatchMode | readonly string[],
 ): boolean {
-  // No args constraint means match
+  // No args constraint means match (regardless of mode)
   if (expected === undefined) return true;
-  // 'any' means skip validation
+  // 'any' means skip validation (legacy shorthand for ignore)
   if (expected === 'any') return true;
-  // Partial match: check only specified keys
+
+  // 'ignore' mode skips all arg checking
+  if (mode === 'ignore') return true;
+
+  // From here expected is a Record<string, unknown>
   if (actual === undefined) return false;
-  for (const key of Object.keys(expected)) {
-    if (!Object.hasOwn(actual, key)) return false;
-    if (!deepEqual(expected[key], actual[key])) return false;
+
+  // Field list mode: check only the listed fields with deep equality
+  if (Array.isArray(mode)) {
+    for (const field of mode) {
+      const expectedVal = getNestedValue(expected, field);
+      const actualVal = getNestedValue(actual, field);
+      if (expectedVal === undefined) continue; // Skip fields not specified in expected
+      if (!deepEqual(expectedVal, actualVal)) return false;
+    }
+    return true;
   }
-  return true;
+
+  switch (mode) {
+    case 'exact':
+      return deepEqual(expected, actual);
+
+    case 'superset':
+      // actual must contain all expected keys (extras OK)
+      for (const key of Object.keys(expected)) {
+        if (!Object.hasOwn(actual, key)) return false;
+        if (!deepEqual(expected[key], actual[key])) return false;
+      }
+      return true;
+
+    case 'subset':
+      // actual must be a subset of expected (no unexpected keys in actual)
+      for (const key of Object.keys(actual)) {
+        if (!Object.hasOwn(expected, key)) return false;
+        if (!deepEqual(actual[key], expected[key])) return false;
+      }
+      return true;
+
+    default:
+      return deepEqual(expected, actual);
+  }
 }
 
 /** Result of checking latency assertion */
@@ -98,9 +166,11 @@ export class ToolTrajectoryEvaluator implements Evaluator {
 
     // Extract tool calls from output (primary source)
     const toolCalls = this.extractToolCallsFromMessages(output);
+    const hasOutput = output !== undefined && output.length > 0;
 
-    // Handle missing tool calls
-    if (toolCalls.length === 0 && !trace) {
+    // Handle missing data — but allow empty tool calls through for subset/superset
+    // modes when output messages exist (empty call list is valid input for those modes)
+    if (toolCalls.length === 0 && !trace && !hasOutput) {
       return {
         score: 0,
         verdict: 'fail',
@@ -113,23 +183,27 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     // Build summary from tool calls if available, otherwise use provided summary
     const summary = toolCalls.length > 0 ? this.buildSummary(toolCalls) : trace;
 
-    if (!summary) {
-      return {
-        score: 0,
-        verdict: 'fail',
-        hits: [],
-        misses: ['No trace available for evaluation'],
-        expectedAspectCount: 1,
-      };
-    }
-
     switch (this.config.mode) {
-      case 'any_order':
+      case 'any_order': {
+        if (!summary) {
+          return {
+            score: 0,
+            verdict: 'fail',
+            hits: [],
+            misses: ['No trace available for evaluation'],
+            expectedAspectCount: 1,
+          };
+        }
         return this.evaluateAnyOrder(summary);
+      }
       case 'in_order':
         return this.evaluateInOrder(toolCalls);
       case 'exact':
         return this.evaluateExact(toolCalls);
+      case 'superset':
+        return this.evaluateSuperset(toolCalls);
+      case 'subset':
+        return this.evaluateSubset(toolCalls);
       default:
         return {
           score: 0,
@@ -204,9 +278,9 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       const required = minimums[toolName];
       const actual = summary.toolCallsByName[toolName] ?? 0;
       if (actual >= required) {
-        hits.push(`${toolName}: called ${actual} times (required ≥${required})`);
+        hits.push(`${toolName}: called ${actual} times (required >=${required})`);
       } else {
-        misses.push(`${toolName}: called ${actual} times (required ≥${required})`);
+        misses.push(`${toolName}: called ${actual} times (required >=${required})`);
       }
     }
 
@@ -252,6 +326,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     for (let i = 0; i < expected.length; i++) {
       const expectedItem = expected[i];
       const expectedTool = expectedItem.tool;
+      const mode = resolveArgsMatchMode(expectedItem, this.config);
       let found = false;
       let argsMismatch = false;
       let matchedCall: ExtractedToolCall | undefined;
@@ -260,7 +335,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
         const actualCall = toolCalls[actualIndex];
         if (actualCall.name === expectedTool) {
           // Tool name matches, check args if specified
-          if (argsMatch(expectedItem.args, actualCall.args)) {
+          if (argsMatch(expectedItem.args, actualCall.args, mode)) {
             hits.push(`Found ${expectedTool} at position ${actualIndex}`);
             sequenceHits++;
             matchedCall = actualCall;
@@ -359,11 +434,12 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       const expectedTool = expectedItem.tool;
       const actualCall = toolCalls[i];
       const actualTool = actualCall.name;
+      const mode = resolveArgsMatchMode(expectedItem, this.config);
       let sequenceMatched = false;
 
       if (actualTool === expectedTool) {
         // Tool name matches, check args if specified
-        if (argsMatch(expectedItem.args, actualCall.args)) {
+        if (argsMatch(expectedItem.args, actualCall.args, mode)) {
           hits.push(`Position ${i}: ${expectedTool}`);
           sequenceHits++;
           sequenceMatched = true;
@@ -414,6 +490,142 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       hits,
       misses,
       expectedAspectCount: totalAssertions,
+    };
+  }
+
+  /**
+   * Superset mode: actual trajectory must contain all expected tool calls.
+   * Every expected item must be found in actual (greedy matching with consumption).
+   * Extra tool calls in actual are OK.
+   */
+  private evaluateSuperset(toolCalls: readonly ExtractedToolCall[]): EvaluationScore {
+    const expected = this.config.expected ?? [];
+
+    if (expected.length === 0) {
+      return {
+        score: 1,
+        verdict: 'pass',
+        hits: ['No expected tools specified'],
+        misses: [],
+        expectedAspectCount: 0,
+      };
+    }
+
+    const hits: string[] = [];
+    const misses: string[] = [];
+
+    // Track which actual calls have been consumed
+    const consumed = new Set<number>();
+
+    for (let i = 0; i < expected.length; i++) {
+      const expectedItem = expected[i];
+      const expectedTool = expectedItem.tool;
+      const mode = resolveArgsMatchMode(expectedItem, this.config);
+      let found = false;
+
+      // Greedy: find the first unconsumed actual call that matches
+      for (let j = 0; j < toolCalls.length; j++) {
+        if (consumed.has(j)) continue;
+        const actualCall = toolCalls[j];
+        if (
+          actualCall.name === expectedTool &&
+          argsMatch(expectedItem.args, actualCall.args, mode)
+        ) {
+          hits.push(`Found ${expectedTool} at position ${j}`);
+          consumed.add(j);
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        misses.push(`Expected ${expectedTool} not found in actual trajectory`);
+      }
+    }
+
+    const score = expected.length > 0 ? hits.length / expected.length : 1;
+
+    return {
+      score,
+      verdict: scoreToVerdict(score),
+      hits,
+      misses,
+      expectedAspectCount: expected.length,
+    };
+  }
+
+  /**
+   * Subset mode: every actual tool call must be in the allowed list.
+   * Expected items are reusable (not consumed) - they define the allowed set.
+   * If every actual call matches at least one expected item, score is 1.
+   */
+  private evaluateSubset(toolCalls: readonly ExtractedToolCall[]): EvaluationScore {
+    const expected = this.config.expected ?? [];
+
+    if (expected.length === 0) {
+      // No expected items means no calls are allowed
+      if (toolCalls.length === 0) {
+        return {
+          score: 1,
+          verdict: 'pass',
+          hits: ['No tool calls and no expected tools'],
+          misses: [],
+          expectedAspectCount: 0,
+        };
+      }
+      return {
+        score: 0,
+        verdict: 'fail',
+        hits: [],
+        misses: [`${toolCalls.length} unexpected tool call(s) with empty allowed list`],
+        expectedAspectCount: toolCalls.length,
+      };
+    }
+
+    if (toolCalls.length === 0) {
+      return {
+        score: 1,
+        verdict: 'pass',
+        hits: ['No actual tool calls (trivially a subset)'],
+        misses: [],
+        expectedAspectCount: 0,
+      };
+    }
+
+    const hits: string[] = [];
+    const misses: string[] = [];
+
+    for (let i = 0; i < toolCalls.length; i++) {
+      const actualCall = toolCalls[i];
+      let allowed = false;
+
+      // Check if actual call matches any expected item (items are reusable)
+      for (const expectedItem of expected) {
+        const mode = resolveArgsMatchMode(expectedItem, this.config);
+        if (
+          actualCall.name === expectedItem.tool &&
+          argsMatch(expectedItem.args, actualCall.args, mode)
+        ) {
+          allowed = true;
+          break;
+        }
+      }
+
+      if (allowed) {
+        hits.push(`Position ${i}: ${actualCall.name} is in allowed set`);
+      } else {
+        misses.push(`Position ${i}: ${actualCall.name} is not in allowed set`);
+      }
+    }
+
+    const score = toolCalls.length > 0 ? hits.length / toolCalls.length : 1;
+
+    return {
+      score,
+      verdict: scoreToVerdict(score),
+      hits,
+      misses,
+      expectedAspectCount: toolCalls.length,
     };
   }
 }

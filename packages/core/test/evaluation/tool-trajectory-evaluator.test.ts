@@ -133,7 +133,7 @@ describe('ToolTrajectoryEvaluator', () => {
       expect(result.verdict).toBe('fail');
       expect(result.hits.length).toBe(1); // analyze passed
       expect(result.misses.length).toBe(1); // search failed
-      expect(result.misses[0]).toContain('search: called 1 times (required ≥3)');
+      expect(result.misses[0]).toContain('search: called 1 times (required >=3)');
     });
   });
 
@@ -329,8 +329,8 @@ describe('ToolTrajectoryEvaluator', () => {
   });
 
   describe('argument matching', () => {
-    describe('exact mode with args', () => {
-      it('passes when args match exactly', () => {
+    describe('exact mode with args (default exact args matching)', () => {
+      it('passes when args match exactly (bidirectional deep equality)', () => {
         const output: Message[] = [
           {
             role: 'assistant',
@@ -356,6 +356,30 @@ describe('ToolTrajectoryEvaluator', () => {
 
         expect(result.score).toBe(1);
         expect(result.verdict).toBe('pass');
+      });
+
+      it('fails when actual has extra keys (exact mode is bidirectional)', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'search', input: { query: 'test', limit: 10, extra: true } }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'search', args: { query: 'test', limit: 10 } }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        // With exact args matching (new default), extra keys cause failure
+        expect(result.score).toBe(0);
+        expect(result.verdict).toBe('fail');
+        expect(result.misses.some((m) => m.includes('args mismatch'))).toBe(true);
       });
 
       it('fails when args do not match', () => {
@@ -426,6 +450,356 @@ describe('ToolTrajectoryEvaluator', () => {
       });
     });
 
+    describe('superset args matching mode', () => {
+      it('passes when actual has extra keys with args_match: superset', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'search', input: { query: 'test', limit: 10, extra: true } }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'search', args: { query: 'test', limit: 10 }, argsMatch: 'superset' }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+      });
+
+      it('fails when expected key is missing from actual with args_match: superset', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'search', input: { query: 'test' } }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'search', args: { query: 'test', limit: 10 }, argsMatch: 'superset' }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        expect(result.score).toBe(0);
+        expect(result.verdict).toBe('fail');
+      });
+    });
+
+    describe('subset args matching mode', () => {
+      it('passes when actual is a subset of expected with args_match: subset', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'search', input: { query: 'test' } }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'search', args: { query: 'test', limit: 10 }, argsMatch: 'subset' }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+      });
+
+      it('fails when actual has unexpected keys with args_match: subset', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'search', input: { query: 'test', extra: true } }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'search', args: { query: 'test' }, argsMatch: 'subset' }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        expect(result.score).toBe(0);
+        expect(result.verdict).toBe('fail');
+      });
+    });
+
+    describe('ignore args matching mode', () => {
+      it('passes with any args when args_match: ignore', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'search', input: { completely: 'different', args: true } }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'search', args: { query: 'test', limit: 10 }, argsMatch: 'ignore' }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+      });
+    });
+
+    describe('field list args matching mode', () => {
+      it('checks only specified fields', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [
+              {
+                tool: 'search',
+                input: { query: 'test', limit: 99, format: 'xml' },
+              },
+            ],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [
+            {
+              tool: 'search',
+              args: { query: 'test', limit: 10, format: 'json' },
+              argsMatch: ['query'],
+            },
+          ],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        // Only 'query' is checked, which matches
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+      });
+
+      it('fails when specified field does not match', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [
+              {
+                tool: 'search',
+                input: { query: 'wrong', limit: 10 },
+              },
+            ],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [
+            {
+              tool: 'search',
+              args: { query: 'test', limit: 10 },
+              argsMatch: ['query'],
+            },
+          ],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        expect(result.score).toBe(0);
+        expect(result.verdict).toBe('fail');
+      });
+
+      it('supports dot-notation for nested fields', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [
+              {
+                tool: 'search',
+                input: {
+                  config: { query: 'test', format: 'xml' },
+                  extra: 'ignored',
+                },
+              },
+            ],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [
+            {
+              tool: 'search',
+              args: { config: { query: 'test', format: 'json' } },
+              argsMatch: ['config.query'],
+            },
+          ],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        // Only config.query is checked, which matches
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+      });
+
+      it('skips fields not specified in expected', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [
+              {
+                tool: 'search',
+                input: { query: 'test', limit: 99 },
+              },
+            ],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [
+            {
+              tool: 'search',
+              args: { query: 'test' },
+              // 'limit' is in the field list but not in expected args, so it's skipped
+              argsMatch: ['query', 'limit'],
+            },
+          ],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+      });
+    });
+
+    describe('default_args_match at evaluator level', () => {
+      it('applies defaultArgsMatch to all items without per-item override', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [
+              { tool: 'search', input: { query: 'test', extra1: true } },
+              { tool: 'analyze', input: { format: 'json', extra2: true } },
+            ],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          defaultArgsMatch: 'superset',
+          expected: [
+            { tool: 'search', args: { query: 'test' } },
+            { tool: 'analyze', args: { format: 'json' } },
+          ],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        // superset: extras OK
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+      });
+
+      it('per-item argsMatch overrides defaultArgsMatch', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [
+              { tool: 'search', input: { query: 'test', extra: true } },
+              { tool: 'analyze', input: { format: 'json', extra: true } },
+            ],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          defaultArgsMatch: 'superset',
+          expected: [
+            // Uses default superset - extras OK
+            { tool: 'search', args: { query: 'test' } },
+            // Override to exact - extras cause failure
+            { tool: 'analyze', args: { format: 'json' }, argsMatch: 'exact' },
+          ],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        // search passes (superset), analyze fails (exact with extra key)
+        expect(result.score).toBe(0.5);
+        expect(result.verdict).toBe('fail');
+      });
+
+      it('defaultArgsMatch with field list', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [
+              { tool: 'search', input: { query: 'test', limit: 999 } },
+              { tool: 'analyze', input: { format: 'xml', depth: 5 } },
+            ],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          defaultArgsMatch: ['query', 'format'],
+          expected: [
+            { tool: 'search', args: { query: 'test', limit: 10 } },
+            { tool: 'analyze', args: { format: 'xml', depth: 1 } },
+          ],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        // Only query and format fields checked
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+      });
+    });
+
     describe('in_order mode with args', () => {
       it('fails when tool found but args mismatch', () => {
         const output: Message[] = [
@@ -442,6 +816,7 @@ describe('ToolTrajectoryEvaluator', () => {
           name: 'test',
           type: 'tool_trajectory',
           mode: 'in_order',
+          defaultArgsMatch: 'superset',
           expected: [
             { tool: 'search', args: { query: 'test' } },
             { tool: 'analyze', args: { format: 'json' } },
@@ -500,6 +875,86 @@ describe('ToolTrajectoryEvaluator', () => {
 
         expect(result.score).toBe(0);
         expect(result.verdict).toBe('fail');
+      });
+    });
+
+    describe('edge cases', () => {
+      it('handles empty args objects', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'search', input: {} }],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'search', args: {} }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+      });
+
+      it('handles undefined actual args with expected args', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [{ tool: 'search' }], // No input/args
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [{ tool: 'search', args: { query: 'test' } }],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        expect(result.score).toBe(0);
+        expect(result.verdict).toBe('fail');
+      });
+
+      it('handles nested objects in args', () => {
+        const output: Message[] = [
+          {
+            role: 'assistant',
+            toolCalls: [
+              {
+                tool: 'search',
+                input: {
+                  config: { query: 'test', options: { limit: 10 } },
+                },
+              },
+            ],
+          },
+        ];
+
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode: 'exact',
+          expected: [
+            {
+              tool: 'search',
+              args: { config: { query: 'test', options: { limit: 10 } } },
+            },
+          ],
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
+
+        const result = evaluator.evaluate(createContext({ output }));
+
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
       });
     });
   });
@@ -742,6 +1197,306 @@ describe('ToolTrajectoryEvaluator', () => {
         expect(result.verdict).toBe('pass');
         expect(result.hits.some((h) => h.includes('45ms (max: 100ms)'))).toBe(true);
       });
+    });
+  });
+
+  describe('superset trajectory mode', () => {
+    it('passes when all expected tools found in actual (extras OK)', () => {
+      const output: Message[] = [
+        {
+          role: 'assistant',
+          toolCalls: [
+            { tool: 'init', input: {} },
+            { tool: 'search', input: { query: 'test' } },
+            { tool: 'analyze', input: {} },
+            { tool: 'cleanup', input: {} },
+          ],
+        },
+      ];
+
+      const config: ToolTrajectoryEvaluatorConfig = {
+        name: 'test',
+        type: 'tool_trajectory',
+        mode: 'superset',
+        defaultArgsMatch: 'superset',
+        expected: [{ tool: 'search', args: { query: 'test' } }, { tool: 'analyze' }],
+      };
+      const evaluator = new ToolTrajectoryEvaluator({ config });
+
+      const result = evaluator.evaluate(createContext({ output }));
+
+      expect(result.score).toBe(1);
+      expect(result.verdict).toBe('pass');
+      expect(result.hits.length).toBe(2);
+    });
+
+    it('fails when expected tool not found in actual', () => {
+      const output: Message[] = [
+        {
+          role: 'assistant',
+          toolCalls: [
+            { tool: 'search', input: {} },
+            { tool: 'cleanup', input: {} },
+          ],
+        },
+      ];
+
+      const config: ToolTrajectoryEvaluatorConfig = {
+        name: 'test',
+        type: 'tool_trajectory',
+        mode: 'superset',
+        expected: [{ tool: 'search' }, { tool: 'analyze' }],
+      };
+      const evaluator = new ToolTrajectoryEvaluator({ config });
+
+      const result = evaluator.evaluate(createContext({ output }));
+
+      expect(result.score).toBe(0.5);
+      expect(result.verdict).toBe('fail');
+      expect(result.misses.some((m) => m.includes('analyze'))).toBe(true);
+    });
+
+    it('consumes matched calls (greedy, no reuse)', () => {
+      const output: Message[] = [
+        {
+          role: 'assistant',
+          toolCalls: [{ tool: 'search', input: {} }],
+        },
+      ];
+
+      const config: ToolTrajectoryEvaluatorConfig = {
+        name: 'test',
+        type: 'tool_trajectory',
+        mode: 'superset',
+        expected: [
+          { tool: 'search' },
+          { tool: 'search' }, // Needs a second search call
+        ],
+      };
+      const evaluator = new ToolTrajectoryEvaluator({ config });
+
+      const result = evaluator.evaluate(createContext({ output }));
+
+      expect(result.score).toBe(0.5); // Only one search found
+      expect(result.verdict).toBe('fail');
+    });
+
+    it('handles empty expected list', () => {
+      const output: Message[] = [
+        {
+          role: 'assistant',
+          toolCalls: [{ tool: 'search', input: {} }],
+        },
+      ];
+
+      const config: ToolTrajectoryEvaluatorConfig = {
+        name: 'test',
+        type: 'tool_trajectory',
+        mode: 'superset',
+        expected: [],
+      };
+      const evaluator = new ToolTrajectoryEvaluator({ config });
+
+      const result = evaluator.evaluate(createContext({ output }));
+
+      expect(result.score).toBe(1);
+      expect(result.verdict).toBe('pass');
+    });
+
+    it('matches with args using evaluator-level defaultArgsMatch', () => {
+      const output: Message[] = [
+        {
+          role: 'assistant',
+          toolCalls: [{ tool: 'search', input: { query: 'test', limit: 10, extra: true } }],
+        },
+      ];
+
+      const config: ToolTrajectoryEvaluatorConfig = {
+        name: 'test',
+        type: 'tool_trajectory',
+        mode: 'superset',
+        defaultArgsMatch: 'superset',
+        expected: [{ tool: 'search', args: { query: 'test' } }],
+      };
+      const evaluator = new ToolTrajectoryEvaluator({ config });
+
+      const result = evaluator.evaluate(createContext({ output }));
+
+      expect(result.score).toBe(1);
+      expect(result.verdict).toBe('pass');
+    });
+  });
+
+  describe('subset trajectory mode', () => {
+    it('passes when all actual calls are in allowed set', () => {
+      const output: Message[] = [
+        {
+          role: 'assistant',
+          toolCalls: [
+            { tool: 'read', input: {} },
+            { tool: 'search', input: {} },
+          ],
+        },
+      ];
+
+      const config: ToolTrajectoryEvaluatorConfig = {
+        name: 'test',
+        type: 'tool_trajectory',
+        mode: 'subset',
+        expected: [
+          { tool: 'read' },
+          { tool: 'search' },
+          { tool: 'analyze' }, // Allowed but not used
+        ],
+      };
+      const evaluator = new ToolTrajectoryEvaluator({ config });
+
+      const result = evaluator.evaluate(createContext({ output }));
+
+      expect(result.score).toBe(1);
+      expect(result.verdict).toBe('pass');
+    });
+
+    it('fails when actual call is not in allowed set', () => {
+      const output: Message[] = [
+        {
+          role: 'assistant',
+          toolCalls: [
+            { tool: 'read', input: {} },
+            { tool: 'delete', input: {} }, // Not in allowed set
+          ],
+        },
+      ];
+
+      const config: ToolTrajectoryEvaluatorConfig = {
+        name: 'test',
+        type: 'tool_trajectory',
+        mode: 'subset',
+        expected: [{ tool: 'read' }, { tool: 'search' }],
+      };
+      const evaluator = new ToolTrajectoryEvaluator({ config });
+
+      const result = evaluator.evaluate(createContext({ output }));
+
+      expect(result.score).toBe(0.5);
+      expect(result.verdict).toBe('fail');
+      expect(result.misses.some((m) => m.includes('delete'))).toBe(true);
+    });
+
+    it('expected items are reusable (not consumed)', () => {
+      const output: Message[] = [
+        {
+          role: 'assistant',
+          toolCalls: [
+            { tool: 'read', input: {} },
+            { tool: 'read', input: {} },
+            { tool: 'read', input: {} },
+          ],
+        },
+      ];
+
+      const config: ToolTrajectoryEvaluatorConfig = {
+        name: 'test',
+        type: 'tool_trajectory',
+        mode: 'subset',
+        expected: [
+          { tool: 'read' }, // Single expected item allows any number of reads
+        ],
+      };
+      const evaluator = new ToolTrajectoryEvaluator({ config });
+
+      const result = evaluator.evaluate(createContext({ output }));
+
+      expect(result.score).toBe(1);
+      expect(result.verdict).toBe('pass');
+    });
+
+    it('passes with empty actual calls (trivially a subset)', () => {
+      const output: Message[] = [
+        {
+          role: 'assistant',
+          toolCalls: [],
+        },
+      ];
+
+      const config: ToolTrajectoryEvaluatorConfig = {
+        name: 'test',
+        type: 'tool_trajectory',
+        mode: 'subset',
+        expected: [{ tool: 'read' }, { tool: 'search' }],
+      };
+      const evaluator = new ToolTrajectoryEvaluator({ config });
+
+      const result = evaluator.evaluate(createContext({ output }));
+
+      expect(result.score).toBe(1);
+      expect(result.verdict).toBe('pass');
+    });
+
+    it('fails with actual calls when expected is empty', () => {
+      const output: Message[] = [
+        {
+          role: 'assistant',
+          toolCalls: [{ tool: 'read', input: {} }],
+        },
+      ];
+
+      const config: ToolTrajectoryEvaluatorConfig = {
+        name: 'test',
+        type: 'tool_trajectory',
+        mode: 'subset',
+        expected: [],
+      };
+      const evaluator = new ToolTrajectoryEvaluator({ config });
+
+      const result = evaluator.evaluate(createContext({ output }));
+
+      expect(result.score).toBe(0);
+      expect(result.verdict).toBe('fail');
+    });
+
+    it('matches with args using per-item argsMatch', () => {
+      const output: Message[] = [
+        {
+          role: 'assistant',
+          toolCalls: [{ tool: 'search', input: { query: 'test', extra: true } }],
+        },
+      ];
+
+      const config: ToolTrajectoryEvaluatorConfig = {
+        name: 'test',
+        type: 'tool_trajectory',
+        mode: 'subset',
+        expected: [{ tool: 'search', args: { query: 'test' }, argsMatch: 'superset' }],
+      };
+      const evaluator = new ToolTrajectoryEvaluator({ config });
+
+      const result = evaluator.evaluate(createContext({ output }));
+
+      expect(result.score).toBe(1);
+      expect(result.verdict).toBe('pass');
+    });
+
+    it('fails when args do not match in subset mode', () => {
+      const output: Message[] = [
+        {
+          role: 'assistant',
+          toolCalls: [{ tool: 'search', input: { query: 'wrong' } }],
+        },
+      ];
+
+      const config: ToolTrajectoryEvaluatorConfig = {
+        name: 'test',
+        type: 'tool_trajectory',
+        mode: 'subset',
+        expected: [{ tool: 'search', args: { query: 'test' } }],
+      };
+      const evaluator = new ToolTrajectoryEvaluator({ config });
+
+      const result = evaluator.evaluate(createContext({ output }));
+
+      expect(result.score).toBe(0);
+      expect(result.verdict).toBe('fail');
     });
   });
 });

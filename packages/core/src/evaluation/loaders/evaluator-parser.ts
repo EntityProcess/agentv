@@ -348,9 +348,15 @@ async function parseEvaluatorList(
 
     if (typeValue === 'tool_trajectory') {
       const mode = asString(rawEvaluator.mode);
-      if (mode !== 'any_order' && mode !== 'in_order' && mode !== 'exact') {
+      if (
+        mode !== 'any_order' &&
+        mode !== 'in_order' &&
+        mode !== 'exact' &&
+        mode !== 'subset' &&
+        mode !== 'superset'
+      ) {
         logWarning(
-          `Skipping tool_trajectory evaluator '${name}' in '${evalId}': invalid mode '${mode}' (must be any_order, in_order, or exact)`,
+          `Skipping tool_trajectory evaluator '${name}' in '${evalId}': invalid mode '${mode}' (must be any_order, in_order, exact, subset, or superset)`,
         );
         continue;
       }
@@ -368,6 +374,34 @@ async function parseEvaluatorList(
         for (const [toolName, count] of Object.entries(rawMinimums)) {
           if (typeof count === 'number' && count >= 0) {
             minimums[toolName] = count;
+          }
+        }
+      }
+
+      // Parse default_args_match at evaluator level (snake_case from YAML -> camelCase)
+      const rawDefaultArgsMatch = rawEvaluator.default_args_match ?? rawEvaluator.defaultArgsMatch;
+      let defaultArgsMatch: import('../trace.js').ArgsMatchMode | readonly string[] | undefined;
+      if (rawDefaultArgsMatch !== undefined) {
+        if (Array.isArray(rawDefaultArgsMatch)) {
+          // Field list mode: string array of field paths
+          const fieldList = rawDefaultArgsMatch.filter(
+            (f): f is string => typeof f === 'string' && f.length > 0,
+          );
+          if (fieldList.length > 0) {
+            defaultArgsMatch = fieldList;
+          }
+        } else if (typeof rawDefaultArgsMatch === 'string') {
+          if (
+            rawDefaultArgsMatch === 'exact' ||
+            rawDefaultArgsMatch === 'superset' ||
+            rawDefaultArgsMatch === 'subset' ||
+            rawDefaultArgsMatch === 'ignore'
+          ) {
+            defaultArgsMatch = rawDefaultArgsMatch;
+          } else {
+            logWarning(
+              `Invalid default_args_match '${rawDefaultArgsMatch}' for tool_trajectory evaluator '${name}' in '${evalId}': must be exact, superset, subset, ignore, or a string array`,
+            );
           }
         }
       }
@@ -391,7 +425,47 @@ async function parseEvaluatorList(
             } else if (isJsonObject(item.args)) {
               args = item.args as Record<string, unknown>;
             }
-            expected.push({ tool: item.tool, ...(args !== undefined ? { args } : {}) });
+
+            // Parse optional max_duration_ms (snake_case from YAML -> camelCase)
+            const rawMaxDuration = item.max_duration_ms ?? item.maxDurationMs;
+            const maxDurationMs =
+              typeof rawMaxDuration === 'number' && rawMaxDuration >= 0
+                ? rawMaxDuration
+                : undefined;
+
+            // Parse per-item args_match (snake_case from YAML -> camelCase)
+            const rawItemArgsMatch = item.args_match ?? item.argsMatch;
+            let itemArgsMatch: import('../trace.js').ArgsMatchMode | readonly string[] | undefined;
+            if (rawItemArgsMatch !== undefined) {
+              if (Array.isArray(rawItemArgsMatch)) {
+                const fieldList = rawItemArgsMatch.filter(
+                  (f): f is string => typeof f === 'string' && f.length > 0,
+                );
+                if (fieldList.length > 0) {
+                  itemArgsMatch = fieldList;
+                }
+              } else if (typeof rawItemArgsMatch === 'string') {
+                if (
+                  rawItemArgsMatch === 'exact' ||
+                  rawItemArgsMatch === 'superset' ||
+                  rawItemArgsMatch === 'subset' ||
+                  rawItemArgsMatch === 'ignore'
+                ) {
+                  itemArgsMatch = rawItemArgsMatch;
+                } else {
+                  logWarning(
+                    `Invalid args_match '${rawItemArgsMatch}' for expected item '${item.tool}' in evaluator '${name}' in '${evalId}'`,
+                  );
+                }
+              }
+            }
+
+            expected.push({
+              tool: item.tool,
+              ...(args !== undefined ? { args } : {}),
+              ...(maxDurationMs !== undefined ? { maxDurationMs } : {}),
+              ...(itemArgsMatch !== undefined ? { argsMatch: itemArgsMatch } : {}),
+            });
           }
         }
       }
@@ -404,7 +478,10 @@ async function parseEvaluatorList(
         continue;
       }
 
-      if ((mode === 'in_order' || mode === 'exact') && !expected) {
+      if (
+        (mode === 'in_order' || mode === 'exact' || mode === 'subset' || mode === 'superset') &&
+        !expected
+      ) {
         logWarning(
           `Skipping tool_trajectory evaluator '${name}' in '${evalId}': ${mode} mode requires expected`,
         );
@@ -423,6 +500,7 @@ async function parseEvaluatorList(
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(negate !== undefined ? { negate } : {}),
+        ...(defaultArgsMatch !== undefined ? { defaultArgsMatch } : {}),
       };
 
       evaluators.push(config);

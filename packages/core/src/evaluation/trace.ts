@@ -45,22 +45,33 @@ export interface TraceSummary {
 }
 
 /**
+ * Argument matching mode for tool_trajectory expected items.
+ * - 'exact': bidirectional deep equality, no extra keys allowed (default)
+ * - 'superset': actual args must contain all expected keys (extras OK)
+ * - 'subset': actual args must be a subset of expected keys (no unexpected keys)
+ * - 'ignore': skip argument checking entirely
+ */
+export type ArgsMatchMode = 'exact' | 'ignore' | 'subset' | 'superset';
+
+/**
  * Configuration for tool_trajectory evaluator.
  */
 export interface ToolTrajectoryEvaluatorConfig {
   readonly name: string;
   readonly type: 'tool_trajectory';
   /** Matching mode */
-  readonly mode: 'any_order' | 'in_order' | 'exact';
+  readonly mode: 'any_order' | 'in_order' | 'exact' | 'subset' | 'superset';
   /** Minimum call counts per tool (for any_order mode) */
   readonly minimums?: Readonly<Record<string, number>>;
-  /** Expected tool sequence (for in_order/exact modes) */
+  /** Expected tool sequence (for in_order/exact/subset/superset modes) */
   readonly expected?: readonly ToolTrajectoryExpectedItem[];
   /** Optional weight for top-level aggregation (defaults to 1.0) */
   readonly weight?: number;
   readonly required?: boolean | number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
+  /** Default argument matching mode for all expected items (defaults to 'exact') */
+  readonly defaultArgsMatch?: ArgsMatchMode | readonly string[];
 }
 
 /**
@@ -72,6 +83,8 @@ export interface ToolTrajectoryExpectedItem {
   readonly args?: 'any' | Record<string, unknown>;
   /** Optional maximum duration in milliseconds for latency assertions */
   readonly maxDurationMs?: number;
+  /** Per-item argument matching mode override (takes precedence over evaluator-level defaultArgsMatch) */
+  readonly argsMatch?: ArgsMatchMode | readonly string[];
 }
 
 /**
