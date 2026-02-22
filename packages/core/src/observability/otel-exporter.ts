@@ -1,4 +1,8 @@
-import type { Message } from '../evaluation/providers/types.js';
+import type {
+  Message,
+  ProviderStreamCallbacks,
+  ProviderTokenUsage,
+} from '../evaluation/providers/types.js';
 import type { EvaluationResult } from '../evaluation/types.js';
 import type { OtelBackendPreset, OtelExportOptions } from './types.js';
 
@@ -251,6 +255,12 @@ export class OtelTraceExporter {
     await this.provider?.shutdown();
   }
 
+  /** Create a streaming observer for real-time span export */
+  createStreamingObserver(): OtelStreamingObserver | null {
+    if (!this.tracer || !this.api) return null;
+    return new OtelStreamingObserver(this.tracer, this.api, this.options.captureContent ?? false);
+  }
+
   // -----------------------------------------------------------------------
   // Private helpers
   // -----------------------------------------------------------------------
@@ -346,6 +356,110 @@ export class OtelTraceExporter {
         },
       );
     });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Streaming observer
+// ---------------------------------------------------------------------------
+
+/**
+ * Streaming observer that creates OTel spans in real-time during eval execution.
+ * Spans are exported immediately via SimpleSpanProcessor as each tool call / LLM response completes.
+ */
+export class OtelStreamingObserver {
+  // biome-ignore lint/suspicious/noExplicitAny: OTel span type loaded dynamically
+  private rootSpan: any = null;
+  // biome-ignore lint/suspicious/noExplicitAny: OTel context loaded dynamically
+  private rootCtx: any = null;
+
+  constructor(
+    private readonly tracer: Tracer,
+    private readonly api: OtelApi,
+    private readonly captureContent: boolean,
+  ) {}
+
+  /** Create root eval span immediately (visible in backend right away) */
+  startEvalCase(testId: string, target: string, dataset?: string): void {
+    this.rootSpan = this.tracer.startSpan('agentv.eval');
+    this.rootSpan.setAttribute('gen_ai.operation.name', 'evaluate');
+    this.rootSpan.setAttribute('gen_ai.system', 'agentv');
+    this.rootSpan.setAttribute('agentv.test_id', testId);
+    this.rootSpan.setAttribute('agentv.target', target);
+    if (dataset) this.rootSpan.setAttribute('agentv.dataset', dataset);
+    this.rootCtx = this.api.trace.setSpan(this.api.context.active(), this.rootSpan);
+  }
+
+  /** Create and immediately export a tool span */
+  onToolCall(
+    name: string,
+    input: unknown,
+    output: unknown,
+    _durationMs: number,
+    toolCallId?: string,
+  ): void {
+    if (!this.rootCtx) return;
+    this.api.context.with(this.rootCtx, () => {
+      const span = this.tracer.startSpan(`execute_tool ${name}`);
+      span.setAttribute('gen_ai.tool.name', name);
+      if (toolCallId) span.setAttribute('gen_ai.tool.call.id', toolCallId);
+      if (this.captureContent) {
+        if (input != null)
+          span.setAttribute(
+            'gen_ai.tool.call.arguments',
+            typeof input === 'string' ? input : JSON.stringify(input),
+          );
+        if (output != null)
+          span.setAttribute(
+            'gen_ai.tool.call.result',
+            typeof output === 'string' ? output : JSON.stringify(output),
+          );
+      }
+      span.end();
+    });
+  }
+
+  /** Create and immediately export an LLM span */
+  onLlmCall(model: string, tokenUsage?: ProviderTokenUsage): void {
+    if (!this.rootCtx) return;
+    this.api.context.with(this.rootCtx, () => {
+      const span = this.tracer.startSpan(`chat ${model}`);
+      span.setAttribute('gen_ai.operation.name', 'chat');
+      span.setAttribute('gen_ai.request.model', model);
+      span.setAttribute('gen_ai.response.model', model);
+      if (tokenUsage) {
+        if (tokenUsage.input != null)
+          span.setAttribute('gen_ai.usage.input_tokens', tokenUsage.input);
+        if (tokenUsage.output != null)
+          span.setAttribute('gen_ai.usage.output_tokens', tokenUsage.output);
+        if (tokenUsage.cached != null)
+          span.setAttribute('gen_ai.usage.cache_read.input_tokens', tokenUsage.cached);
+      }
+      span.end();
+    });
+  }
+
+  /** Finalize root span with score/verdict after evaluation completes */
+  finalizeEvalCase(score: number, error?: string): void {
+    if (!this.rootSpan) return;
+    this.rootSpan.setAttribute('agentv.score', score);
+    if (error) {
+      this.rootSpan.setStatus({ code: this.api.SpanStatusCode.ERROR, message: error });
+    } else {
+      this.rootSpan.setStatus({ code: this.api.SpanStatusCode.OK });
+    }
+    this.rootSpan.end();
+    this.rootSpan = null;
+    this.rootCtx = null;
+  }
+
+  /** Get ProviderStreamCallbacks for passing to providers */
+  getStreamCallbacks(): ProviderStreamCallbacks {
+    return {
+      onToolCallEnd: (name, input, output, durationMs, toolCallId) =>
+        this.onToolCall(name, input, output, durationMs, toolCallId),
+      onLlmCallEnd: (model, tokenUsage) => this.onLlmCall(model, tokenUsage),
+    };
   }
 }
 

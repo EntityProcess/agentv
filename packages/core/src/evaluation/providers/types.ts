@@ -84,6 +84,19 @@ export const PROVIDER_ALIASES: readonly string[] = [
  */
 export const TARGETS_SCHEMA_V2 = 'agentv-targets-v2.2';
 
+/** Callbacks for real-time observability during provider execution */
+export interface ProviderStreamCallbacks {
+  onToolCallStart?: (toolName: string, toolCallId?: string) => void;
+  onToolCallEnd?: (
+    toolName: string,
+    input: unknown,
+    output: unknown,
+    durationMs: number,
+    toolCallId?: string,
+  ) => void;
+  onLlmCallEnd?: (model: string, tokenUsage?: ProviderTokenUsage) => void;
+}
+
 export interface ProviderRequest {
   readonly question: string;
   readonly systemPrompt?: string;
@@ -101,6 +114,8 @@ export interface ProviderRequest {
   readonly cwd?: string;
   /** When true, AgentV captures file changes from workspace — provider should skip forced diff prompt */
   readonly captureFileChanges?: boolean;
+  /** Real-time observability callbacks (optional) */
+  readonly streamCallbacks?: ProviderStreamCallbacks;
 }
 
 /**

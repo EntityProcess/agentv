@@ -38,6 +38,7 @@ import type {
   Provider,
   ProviderRequest,
   ProviderResponse,
+  ProviderStreamCallbacks,
   TargetDefinition,
 } from './providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
@@ -135,6 +136,8 @@ export interface RunEvalCaseOptions {
   readonly sharedWorkspacePath?: string;
   /** Pre-initialized baseline commit for shared workspace */
   readonly sharedBaselineCommit?: string;
+  /** Real-time observability callbacks passed to the provider */
+  readonly streamCallbacks?: ProviderStreamCallbacks;
 }
 
 export interface ProgressEvent {
@@ -172,6 +175,8 @@ export interface RunEvaluationOptions {
   readonly cleanupWorkspaces?: boolean;
   /** Trial configuration for running eval cases multiple times */
   readonly trials?: TrialsConfig;
+  /** Real-time observability callbacks passed to the provider */
+  readonly streamCallbacks?: ProviderStreamCallbacks;
 }
 
 export async function runEvaluation(
@@ -197,6 +202,7 @@ export async function runEvaluation(
     keepWorkspaces,
     cleanupWorkspaces,
     trials,
+    streamCallbacks,
   } = options;
 
   // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
@@ -449,6 +455,7 @@ export async function runEvaluation(
           cleanupWorkspaces,
           sharedWorkspacePath,
           sharedBaselineCommit,
+          streamCallbacks,
         };
         let result =
           trials && trials.count > 1
@@ -894,6 +901,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         signal,
         cwd: workspacePath,
         captureFileChanges: !!baselineCommit,
+        streamCallbacks: options.streamCallbacks,
       });
     } catch (error) {
       lastError = error;
@@ -2338,10 +2346,20 @@ async function invokeProvider(
     readonly cwd?: string;
     /** When true, AgentV captures file changes — provider should skip forced diff prompt */
     readonly captureFileChanges?: boolean;
+    /** Real-time observability callbacks */
+    readonly streamCallbacks?: ProviderStreamCallbacks;
   },
 ): Promise<ProviderResponse> {
-  const { evalCase, promptInputs, attempt, agentTimeoutMs, signal, cwd, captureFileChanges } =
-    options;
+  const {
+    evalCase,
+    promptInputs,
+    attempt,
+    agentTimeoutMs,
+    signal,
+    cwd,
+    captureFileChanges,
+    streamCallbacks,
+  } = options;
 
   const controller = new AbortController();
   const timeout = agentTimeoutMs ? setTimeout(() => controller.abort(), agentTimeoutMs) : undefined;
@@ -2365,6 +2383,7 @@ async function invokeProvider(
       signal: controller.signal,
       cwd,
       captureFileChanges,
+      streamCallbacks,
     });
   } finally {
     if (timeout !== undefined) {
