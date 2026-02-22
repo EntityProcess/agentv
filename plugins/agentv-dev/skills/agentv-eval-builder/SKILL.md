@@ -340,6 +340,37 @@ agentv compare <results1.jsonl> <results2.jsonl>
 agentv generate rubrics <file.yaml> [--target <name>]
 ```
 
+## Code Judge SDK
+
+Use `@agentv/eval` to build custom evaluators in TypeScript/JavaScript:
+
+### defineAssertion (recommended for custom checks)
+```typescript
+#!/usr/bin/env bun
+import { defineAssertion } from '@agentv/eval';
+
+export default defineAssertion(({ answer, trace }) => ({
+  pass: answer.length > 0 && (trace?.eventCount ?? 0) <= 10,
+  reasoning: 'Checks content exists and is efficient',
+}));
+```
+
+Assertions support both `pass: boolean` and `score: number` (0-1). If only `pass` is given, score is 1 (pass) or 0 (fail).
+
+### defineCodeJudge (full control)
+```typescript
+#!/usr/bin/env bun
+import { defineCodeJudge } from '@agentv/eval';
+
+export default defineCodeJudge(({ trace, answer }) => ({
+  score: trace?.eventCount <= 5 ? 1.0 : 0.5,
+  hits: ['Efficient tool usage'],
+  misses: [],
+}));
+```
+
+Both are used via `type: code_judge` in YAML with `script: bun run judge.ts`.
+
 ## Schemas
 
 - Eval file: `references/eval-schema.json`
