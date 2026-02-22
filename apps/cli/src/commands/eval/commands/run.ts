@@ -135,6 +135,11 @@ export const evalRunCommand = command({
       long: 'otel-capture-content',
       description: 'Include message content in exported OTel spans (privacy: disabled by default)',
     }),
+    otelGroupTurns: flag({
+      long: 'otel-group-turns',
+      description:
+        'Group messages into turn spans for multi-turn evaluations (requires --export-otel)',
+    }),
   },
   handler: async (args) => {
     // Launch interactive wizard when no eval paths and stdin is a TTY
@@ -168,6 +173,7 @@ export const evalRunCommand = command({
       exportOtel: args.exportOtel,
       otelBackend: args.otelBackend,
       otelCaptureContent: args.otelCaptureContent,
+      otelGroupTurns: args.otelGroupTurns,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },
