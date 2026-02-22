@@ -1,0 +1,223 @@
+---
+title: Custom Providers (SDK)
+description: Implement native TypeScript providers using the ProviderRegistry API
+sidebar:
+  order: 5
+---
+
+Custom providers let you implement evaluation targets in TypeScript instead of shelling out to a CLI command. This is useful when you want to call an HTTP API, use an SDK, or implement custom logic that goes beyond what the CLI provider supports.
+
+## Provider Interface
+
+Every provider must implement the `Provider` interface from `@agentv/core`:
+
+```typescript
+interface Provider {
+  readonly id: string;
+  readonly kind: string;
+  readonly targetName: string;
+  invoke(request: ProviderRequest): Promise<ProviderResponse>;
+}
+```
+
+### ProviderRequest
+
+The request object passed to `invoke()`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `question` | `string` | The input prompt from the eval case |
+| `systemPrompt` | `string?` | Optional system prompt |
+| `guidelines` | `string?` | Evaluation guidelines |
+| `inputFiles` | `string[]?` | File paths attached to the eval case |
+| `evalCaseId` | `string?` | Unique identifier for this eval case |
+| `attempt` | `number?` | Retry attempt number (0-based) |
+| `signal` | `AbortSignal?` | Cancellation signal |
+| `cwd` | `string?` | Working directory override |
+
+### ProviderResponse
+
+The response object returned from `invoke()`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `output` | `Message[]?` | Output messages from the provider |
+| `tokenUsage` | `{ input, output, cached? }?` | Token usage metrics |
+| `costUsd` | `number?` | Total cost in USD |
+| `durationMs` | `number?` | Execution duration in milliseconds |
+| `raw` | `unknown?` | Raw provider-specific data for debugging |
+
+Each `Message` in the output array has:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `role` | `string` | Message role (e.g., `'assistant'`) |
+| `content` | `unknown?` | Message content (usually a string) |
+| `toolCalls` | `ToolCall[]?` | Tool calls made in this message |
+| `durationMs` | `number?` | Duration of this message in milliseconds |
+
+## Registering a Custom Provider
+
+Use `createBuiltinProviderRegistry()` to get a registry pre-loaded with all built-in providers, then call `.register()` to add your own:
+
+```typescript
+import {
+  createBuiltinProviderRegistry,
+  type ProviderFactoryFn,
+  type ResolvedTarget,
+  type Provider,
+  type ProviderRequest,
+  type ProviderResponse,
+} from '@agentv/core';
+
+const registry = createBuiltinProviderRegistry();
+
+registry.register('my-provider', (target: ResolvedTarget): Provider => {
+  return {
+    id: `my-provider:${target.name}`,
+    kind: 'cli', // use 'cli' as the kind for custom providers
+    targetName: target.name,
+    async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+      // Your implementation here
+      return {
+        output: [{ role: 'assistant', content: 'Hello from my provider' }],
+      };
+    },
+  };
+});
+```
+
+The `register()` method takes two arguments:
+
+1. **kind** (`string`) -- A unique identifier for your provider. This is the value used in `provider:` in targets.yaml.
+2. **factory** (`ProviderFactoryFn`) -- A function that receives a `ResolvedTarget` and returns a `Provider` instance.
+
+The factory function signature:
+
+```typescript
+type ProviderFactoryFn = (target: ResolvedTarget) => Provider;
+```
+
+## Example: Wrapping an HTTP API
+
+Here is a practical example that wraps a REST API as a custom provider:
+
+```typescript
+import {
+  createBuiltinProviderRegistry,
+  type Provider,
+  type ProviderRequest,
+  type ProviderResponse,
+  type ResolvedTarget,
+} from '@agentv/core';
+
+class HttpAgentProvider implements Provider {
+  readonly id: string;
+  readonly kind = 'cli' as const;
+  readonly targetName: string;
+
+  private readonly baseUrl: string;
+  private readonly apiKey: string;
+
+  constructor(targetName: string, config: { baseUrl: string; apiKey: string }) {
+    this.id = `http-agent:${targetName}`;
+    this.targetName = targetName;
+    this.baseUrl = config.baseUrl;
+    this.apiKey = config.apiKey;
+  }
+
+  async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+    const startTime = Date.now();
+
+    const response = await fetch(`${this.baseUrl}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        prompt: request.question,
+        system: request.systemPrompt,
+      }),
+      signal: request.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+    }
+
+    const data = await response.json();
+    const durationMs = Date.now() - startTime;
+
+    return {
+      output: [{ role: 'assistant', content: data.text }],
+      tokenUsage: data.usage
+        ? { input: data.usage.prompt_tokens, output: data.usage.completion_tokens }
+        : undefined,
+      costUsd: data.cost,
+      durationMs,
+      raw: data,
+    };
+  }
+}
+
+// Register the provider
+const registry = createBuiltinProviderRegistry();
+
+registry.register('http-agent', (target: ResolvedTarget) => {
+  const config = target.config as { baseUrl: string; apiKey: string };
+  return new HttpAgentProvider(target.name, {
+    baseUrl: config.baseUrl ?? 'http://localhost:8080',
+    apiKey: config.apiKey ?? '',
+  });
+});
+```
+
+Then reference it in your targets file:
+
+```yaml
+# .agentv/targets.yaml
+targets:
+  - name: my_http_agent
+    provider: http-agent
+    judge_target: azure_base
+```
+
+:::note
+Custom provider kinds are not validated against the built-in provider list. When the registry has a factory registered for the kind string, it will be used.
+:::
+
+## CLI Providers vs Native Providers
+
+AgentV supports two approaches for custom targets:
+
+| Aspect | CLI Provider | Native TypeScript Provider |
+|--------|-------------|---------------------------|
+| **Configuration** | YAML only (`provider: cli`) | TypeScript code + YAML |
+| **Communication** | Shell command + JSON output file | Direct function call |
+| **Best for** | Wrapping existing scripts, polyglot tools | HTTP APIs, SDKs, complex orchestration |
+| **Setup** | No code required | Requires a TypeScript entry point |
+| **Debugging** | Inspect output files | Standard TypeScript debugging |
+| **Token usage** | Must be included in JSON output | Returned directly in `ProviderResponse` |
+
+### When to use CLI providers
+
+Use `provider: cli` when:
+- You have an existing script or binary to wrap
+- The agent is written in a different language (Python, Go, etc.)
+- You want zero TypeScript code
+
+```yaml
+targets:
+  - name: python_agent
+    provider: cli
+    command_template: 'python agent.py --prompt {PROMPT} --output {OUTPUT_FILE}'
+```
+
+### When to use native providers
+
+Use a custom TypeScript provider when:
+- You are calling an HTTP API or SDK directly
+- You need structured error handling or retry logic
+- You want to report token usage and cost programmatically
+- You need to share state across invocations (connection pools, auth tokens)
