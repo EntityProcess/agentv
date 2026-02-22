@@ -22,6 +22,38 @@ import {
 export type AssertionContext = CodeJudgeInput;
 
 /**
+ * Known built-in assertion types. Custom types are extensible via string.
+ *
+ * Use in EVAL.yaml `assert` blocks:
+ * ```yaml
+ * assert:
+ *   - type: contains
+ *     value: "Paris"
+ * ```
+ *
+ * Custom types registered via `.agentv/assertions/` or `defineAssertion()`
+ * are also valid — the `string & {}` escape hatch provides autocomplete
+ * for known types while accepting any string.
+ */
+export type AssertionType =
+  | 'llm_judge'
+  | 'code_judge'
+  | 'rubrics'
+  | 'composite'
+  | 'tool_trajectory'
+  | 'field_accuracy'
+  | 'latency'
+  | 'cost'
+  | 'token_usage'
+  | 'execution_metrics'
+  | 'agent_judge'
+  | 'contains'
+  | 'equals'
+  | 'regex'
+  | 'is_json'
+  | (string & {});
+
+/**
  * Result returned from an assertion handler.
  *
  * @example Pass with reasoning
