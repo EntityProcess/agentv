@@ -5,31 +5,16 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
 
-import { toSnakeCaseDeep } from './case-conversion.js';
 import {
-  AgentJudgeEvaluator,
   type ChildEvaluatorResult,
-  CodeEvaluator,
-  CompositeEvaluator,
-  CostEvaluator,
   type EvaluationScore,
   type Evaluator,
-  ExecutionMetricsEvaluator,
-  FieldAccuracyEvaluator,
-  LatencyEvaluator,
   LlmJudgeEvaluator,
-  TokenUsageEvaluator,
-  ToolTrajectoryEvaluator,
-  executeScript,
   isNonEmptyString,
   negateScore,
-  runContainsAssertion,
-  runEqualsAssertion,
-  runIsJsonAssertion,
-  runRegexAssertion,
   scoreToVerdict,
 } from './evaluators.js';
-import { readJsonFile, readTextFile } from './file-utils.js';
+import { readJsonFile } from './file-utils.js';
 import { createProvider } from './providers/index.js';
 import { type ResolvedTarget, resolveTargetDefinition } from './providers/targets.js';
 import type {
@@ -42,32 +27,18 @@ import type {
   TargetDefinition,
 } from './providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
-import {
-  type ToolTrajectoryEvaluatorConfig,
-  type TraceSummary,
-  computeTraceSummary,
-  mergeExecutionMetrics,
-} from './trace.js';
+import { createBuiltinRegistry } from './registry/index.js';
+import { type TraceSummary, computeTraceSummary, mergeExecutionMetrics } from './trace.js';
 import { aggregateTrials } from './trials.js';
 import type {
-  AgentJudgeEvaluatorConfig,
-  ContainsEvaluatorConfig,
-  CostEvaluatorConfig,
-  EqualsEvaluatorConfig,
   EvalTest,
   EvaluationResult,
   EvaluationVerdict,
   EvaluatorConfig,
   EvaluatorKind,
   EvaluatorResult,
-  ExecutionMetricsEvaluatorConfig,
-  FieldAccuracyEvaluatorConfig,
-  IsJsonEvaluatorConfig,
   JsonObject,
   JsonValue,
-  LatencyEvaluatorConfig,
-  RegexEvaluatorConfig,
-  TokenUsageEvaluatorConfig,
   TrialResult,
   TrialsConfig,
 } from './types.js';
@@ -294,6 +265,7 @@ export async function runEvaluation(
   ];
 
   const evaluatorRegistry = buildEvaluatorRegistry(evaluators, resolveJudgeProvider);
+  const typeRegistry = createBuiltinRegistry();
 
   const primaryProvider = getOrCreateProvider(target);
   let providerSupportsBatch =
@@ -332,6 +304,7 @@ export async function runEvaluation(
         provider: primaryProvider,
         target,
         evaluatorRegistry,
+        typeRegistry,
         nowFn: now ?? (() => new Date()),
         onProgress,
         onResult,
@@ -577,6 +550,7 @@ async function runBatchEvaluation(options: {
   readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
     readonly llm_judge: Evaluator;
   };
+  readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
   readonly nowFn: () => Date;
   readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
   readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
@@ -591,6 +565,7 @@ async function runBatchEvaluation(options: {
     provider,
     target,
     evaluatorRegistry,
+    typeRegistry,
     nowFn,
     onProgress,
     onResult,
@@ -690,6 +665,7 @@ async function runBatchEvaluation(options: {
         target,
         provider,
         evaluators: evaluatorRegistry,
+        typeRegistry,
         promptInputs,
         nowFn,
         attempt: 0,
@@ -774,6 +750,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
   const promptInputs = await buildPromptInputs(evalCase, formattingMode);
+  const typeRegistry = createBuiltinRegistry();
 
   const cacheKey = useCache ? createCacheKey(provider, target, evalCase, promptInputs) : undefined;
   let cachedResponse: ProviderResponse | undefined;
@@ -1028,6 +1005,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       target,
       provider,
       evaluators,
+      typeRegistry,
       promptInputs,
       nowFn,
       attempt,
@@ -1171,6 +1149,7 @@ async function evaluateCandidate(options: {
   readonly target: ResolvedTarget;
   readonly provider: Provider;
   readonly evaluators: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
+  readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
   readonly promptInputs: PromptInputs;
   readonly nowFn: () => Date;
   readonly attempt: number;
@@ -1189,6 +1168,7 @@ async function evaluateCandidate(options: {
     target,
     provider,
     evaluators,
+    typeRegistry,
     promptInputs,
     nowFn,
     attempt,
@@ -1209,6 +1189,7 @@ async function evaluateCandidate(options: {
     target,
     provider,
     evaluators,
+    typeRegistry,
     attempt,
     promptInputs,
     now: gradeTimestamp,
@@ -1282,6 +1263,7 @@ async function runEvaluatorsForCase(options: {
   readonly target: ResolvedTarget;
   readonly provider: Provider;
   readonly evaluators: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
+  readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
   readonly attempt: number;
   readonly promptInputs: PromptInputs;
   readonly now: Date;
@@ -1300,6 +1282,7 @@ async function runEvaluatorsForCase(options: {
     target,
     provider,
     evaluators,
+    typeRegistry,
     attempt,
     promptInputs,
     now,
@@ -1321,6 +1304,7 @@ async function runEvaluatorsForCase(options: {
       target,
       provider,
       evaluatorRegistry: evaluators,
+      typeRegistry,
       attempt,
       promptInputs,
       now,
@@ -1370,6 +1354,7 @@ async function runEvaluatorList(options: {
   readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
     readonly llm_judge: Evaluator;
   };
+  readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
   readonly attempt: number;
   readonly promptInputs: PromptInputs;
   readonly now: Date;
@@ -1389,6 +1374,7 @@ async function runEvaluatorList(options: {
     target,
     provider,
     evaluatorRegistry,
+    typeRegistry,
     attempt,
     promptInputs,
     now,
@@ -1411,681 +1397,101 @@ async function runEvaluatorList(options: {
   }> = [];
   const scores: EvaluatorResult[] = [];
 
-  for (const evaluator of evaluators ?? []) {
+  // Build the evaluation context (shared across all evaluators for this case)
+  const evalContext: import('./evaluators/types.js').EvaluationContext = {
+    evalCase,
+    candidate,
+    target,
+    provider,
+    attempt,
+    promptInputs,
+    now,
+    judgeProvider,
+    output,
+    trace,
+    targetResolver,
+    availableTargets,
+    fileChanges,
+    workspacePath,
+  };
+
+  // Build the dispatch context for evaluator factories
+  const evalFileDir = evalCase.guideline_paths[0]
+    ? path.dirname(evalCase.guideline_paths[0])
+    : process.cwd();
+  const dispatchContext: import('./registry/evaluator-registry.js').EvaluatorDispatchContext = {
+    judgeProvider,
+    targetResolver,
+    availableTargets,
+    agentTimeoutMs,
+    evalFileDir,
+    llmJudge: evaluatorRegistry.llm_judge,
+    registry: typeRegistry,
+  };
+
+  for (const evaluatorConfig of evaluators ?? []) {
     try {
-      if (evaluator.type === 'llm_judge') {
-        const score = await runLlmJudgeEvaluator({
-          config: evaluator,
-          evalCase,
-          candidate,
-          target,
-          provider,
-          evaluatorRegistry,
-          attempt,
-          promptInputs,
-          now,
-          judgeProvider,
-          output,
-          trace,
-          agentTimeoutMs,
-          fileChanges,
-          workspacePath,
-        });
-        const weight = evaluator.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: evaluator.type,
-          weight,
-          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-          evaluatorProviderRequest: score.evaluatorRawRequest,
-        });
-      }
+      // Create evaluator instance via registry
+      const evaluatorInstance = await typeRegistry.create(evaluatorConfig, dispatchContext);
+      const score = await evaluatorInstance.evaluate(evalContext);
 
-      if (evaluator.type === 'code') {
-        const codeEvaluator = new CodeEvaluator({
-          script: evaluator.script,
-          cwd: evaluator.resolvedCwd ?? evaluator.cwd,
-          agentTimeoutMs,
-          config: evaluator.config,
-          target: evaluator.target,
-        });
-        const score = await codeEvaluator.evaluate({
-          evalCase,
-          candidate,
-          target,
-          provider,
-          attempt,
-          promptInputs,
-          now,
-          judgeProvider,
-          output,
-          trace,
-          targetResolver,
-          availableTargets,
-          fileChanges,
-          workspacePath,
-        });
-        const weight = evaluator.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: 'code_judge',
-          weight,
-          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: 'code_judge',
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-          evaluatorProviderRequest: score.evaluatorRawRequest,
-          details: score.details,
-        });
-      }
+      // Determine result type (code evaluators report as code_judge)
+      const resultType = evaluatorConfig.type === 'code' ? 'code_judge' : evaluatorConfig.type;
+      const weight = evaluatorConfig.weight ?? 1.0;
 
-      if (evaluator.type === 'composite') {
-        const evalFileDir = evalCase.guideline_paths[0]
-          ? path.dirname(evalCase.guideline_paths[0])
-          : process.cwd();
-
-        const createEvaluator = (memberConfig: import('./types.js').EvaluatorConfig): Evaluator => {
-          switch (memberConfig.type) {
-            case 'llm_judge':
-              return evaluatorRegistry.llm_judge;
-            case 'code':
-              return new CodeEvaluator({
-                script: memberConfig.script,
-                cwd: memberConfig.resolvedCwd ?? memberConfig.cwd,
-                agentTimeoutMs,
-                config: memberConfig.config,
-                target: memberConfig.target,
-              });
-            case 'composite':
-              return new CompositeEvaluator({
-                config: memberConfig,
-                cwd: evalFileDir,
-                evaluatorFactory: { create: createEvaluator },
-              });
-            case 'tool_trajectory':
-              return new ToolTrajectoryEvaluator({
-                config: memberConfig as ToolTrajectoryEvaluatorConfig,
-              });
-            case 'field_accuracy':
-              return new FieldAccuracyEvaluator({
-                config: memberConfig as FieldAccuracyEvaluatorConfig,
-              });
-            case 'latency':
-              return new LatencyEvaluator({
-                config: memberConfig as LatencyEvaluatorConfig,
-              });
-            case 'cost':
-              return new CostEvaluator({
-                config: memberConfig as CostEvaluatorConfig,
-              });
-            case 'token_usage':
-              return new TokenUsageEvaluator({
-                config: memberConfig as TokenUsageEvaluatorConfig,
-              });
-            case 'execution_metrics':
-              return new ExecutionMetricsEvaluator({
-                config: memberConfig as ExecutionMetricsEvaluatorConfig,
-              });
-            case 'agent_judge': {
-              const ajConfig = memberConfig as AgentJudgeEvaluatorConfig;
-              let ajPrompt: string | undefined;
-              if (ajConfig.resolvedPromptPath) {
-                try {
-                  ajPrompt = readFileSync(ajConfig.resolvedPromptPath, 'utf-8');
-                } catch {
-                  // Fall through — prompt file not found
-                }
-              } else if (ajConfig.prompt) {
-                ajPrompt = ajConfig.prompt;
-              }
-              let ajTargetProvider: Provider | undefined;
-              if (ajConfig.target && targetResolver) {
-                ajTargetProvider = targetResolver(ajConfig.target);
-              }
-              return new AgentJudgeEvaluator({
-                resolveJudgeProvider: async (ctx) => {
-                  if (ctx.judgeProvider) return ctx.judgeProvider;
-                  return judgeProvider;
-                },
-                maxSteps: ajConfig.max_steps,
-                temperature: ajConfig.temperature,
-                evaluatorTemplate: ajPrompt,
-                judgeTargetProvider: ajTargetProvider,
-              });
-            }
-            default: {
-              const unknownConfig = memberConfig as { type: string };
-              throw new Error(`Unsupported evaluator type in composite: ${unknownConfig.type}`);
-            }
-          }
-        };
-
-        const compositeEvaluator = new CompositeEvaluator({
-          config: evaluator,
-          cwd: evalFileDir,
-          evaluatorFactory: { create: createEvaluator },
-        });
-        const score = await compositeEvaluator.evaluate({
-          evalCase,
-          candidate,
-          target,
-          provider,
-          attempt,
-          promptInputs,
-          now,
-          judgeProvider,
-          output,
-          trace,
-          targetResolver,
-          availableTargets,
-          fileChanges,
-          workspacePath,
-        });
-        const weight = evaluator.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: evaluator.type,
-          weight,
-          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-          evaluatorProviderRequest: score.evaluatorRawRequest,
-          scores: mapChildResults(score.scores),
-        });
-      }
-
-      if (evaluator.type === 'tool_trajectory') {
-        const trajectoryEvaluator = new ToolTrajectoryEvaluator({
-          config: evaluator as ToolTrajectoryEvaluatorConfig,
-        });
-        const score = trajectoryEvaluator.evaluate({
-          evalCase,
-          candidate,
-          target,
-          provider,
-          attempt,
-          promptInputs,
-          now,
-          output,
-          trace,
-          fileChanges,
-          workspacePath,
-        });
-        const weight = evaluator.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: evaluator.type,
-          weight,
-          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-        });
-      }
-
-      if (evaluator.type === 'field_accuracy') {
-        const fieldAccuracyEvaluator = new FieldAccuracyEvaluator({
-          config: evaluator as FieldAccuracyEvaluatorConfig,
-        });
-        const score = fieldAccuracyEvaluator.evaluate({
-          evalCase,
-          candidate,
-          target,
-          provider,
-          attempt,
-          promptInputs,
-          now,
-          output,
-          trace,
-          fileChanges,
-          workspacePath,
-        });
-        const weight = evaluator.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: evaluator.type,
-          weight,
-          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-        });
-      }
-
-      if (evaluator.type === 'latency') {
-        const latencyEvaluator = new LatencyEvaluator({
-          config: evaluator as LatencyEvaluatorConfig,
-        });
-        const score = latencyEvaluator.evaluate({
-          evalCase,
-          candidate,
-          target,
-          provider,
-          attempt,
-          promptInputs,
-          now,
-          output,
-          trace,
-          fileChanges,
-          workspacePath,
-        });
-        const weight = evaluator.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: evaluator.type,
-          weight,
-          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-        });
-      }
-
-      if (evaluator.type === 'cost') {
-        const costEvaluator = new CostEvaluator({
-          config: evaluator as CostEvaluatorConfig,
-        });
-        const score = costEvaluator.evaluate({
-          evalCase,
-          candidate,
-          target,
-          provider,
-          attempt,
-          promptInputs,
-          now,
-          output,
-          trace,
-          fileChanges,
-          workspacePath,
-        });
-        const weight = evaluator.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: evaluator.type,
-          weight,
-          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-        });
-      }
-
-      if (evaluator.type === 'token_usage') {
-        const tokenUsageEvaluator = new TokenUsageEvaluator({
-          config: evaluator as TokenUsageEvaluatorConfig,
-        });
-        const score = tokenUsageEvaluator.evaluate({
-          evalCase,
-          candidate,
-          target,
-          provider,
-          attempt,
-          promptInputs,
-          now,
-          output,
-          trace,
-          fileChanges,
-          workspacePath,
-        });
-        const weight = evaluator.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: evaluator.type,
-          weight,
-          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-        });
-      }
-
-      if (evaluator.type === 'execution_metrics') {
-        const executionMetricsEvaluator = new ExecutionMetricsEvaluator({
-          config: evaluator as ExecutionMetricsEvaluatorConfig,
-        });
-        const score = executionMetricsEvaluator.evaluate({
-          evalCase,
-          candidate,
-          target,
-          provider,
-          attempt,
-          promptInputs,
-          now,
-          output,
-          trace,
-          fileChanges,
-          workspacePath,
-        });
-        const weight = evaluator.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: evaluator.type,
-          weight,
-          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-        });
-      }
-
-      if (evaluator.type === 'agent_judge') {
-        const agentJudgeConfig = evaluator as AgentJudgeEvaluatorConfig;
-
-        // Resolve custom prompt from file or inline
-        let customPrompt: string | undefined;
-        if (agentJudgeConfig.resolvedPromptPath) {
-          try {
-            customPrompt = await readTextFile(agentJudgeConfig.resolvedPromptPath);
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            console.warn(
-              `Could not read agent_judge prompt at ${agentJudgeConfig.resolvedPromptPath}: ${message}`,
-            );
-          }
-        } else if (agentJudgeConfig.prompt) {
-          customPrompt = agentJudgeConfig.prompt;
-        }
-
-        // Resolve target provider if specified
-        let judgeTargetProvider: Provider | undefined;
-        if (agentJudgeConfig.target && targetResolver) {
-          judgeTargetProvider = targetResolver(agentJudgeConfig.target);
-          if (!judgeTargetProvider) {
-            throw new Error(
-              `agent_judge evaluator '${evaluator.name}': target '${agentJudgeConfig.target}' not found in targets`,
-            );
-          }
-        }
-
-        const agentJudgeEvaluator = new AgentJudgeEvaluator({
-          resolveJudgeProvider: async (ctx) => {
-            if (ctx.judgeProvider) return ctx.judgeProvider;
-            return judgeProvider;
-          },
-          maxSteps: agentJudgeConfig.max_steps,
-          temperature: agentJudgeConfig.temperature,
-          evaluatorTemplate: customPrompt,
-          judgeTargetProvider,
-        });
-
-        const score = await agentJudgeEvaluator.evaluate({
-          evalCase,
-          candidate,
-          target,
-          provider,
-          attempt,
-          promptInputs,
-          now,
-          judgeProvider,
-          evaluator: agentJudgeConfig,
-          output,
-          trace,
-          fileChanges,
-          workspacePath,
-        });
-        const weight = evaluator.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: evaluator.type,
-          weight,
-          ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-          evaluatorProviderRequest: score.evaluatorRawRequest,
-          details: score.details,
-        });
-      }
-
-      if (evaluator.type === 'contains') {
-        const containsConfig = evaluator as ContainsEvaluatorConfig;
-        const result = runContainsAssertion(candidate, containsConfig.value);
-        const score: EvaluationScore = {
-          score: result.score,
-          verdict: result.score === 1 ? 'pass' : 'fail',
-          hits: result.hits,
-          misses: result.misses,
-          reasoning:
-            result.score === 1
-              ? `Output contains "${containsConfig.value}"`
-              : `Output does not contain "${containsConfig.value}"`,
-          expectedAspectCount: 1,
-        };
-        const weight = containsConfig.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: evaluator.type,
-          weight,
-          ...(containsConfig.required !== undefined ? { required: containsConfig.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-        });
-      }
-
-      if (evaluator.type === 'regex') {
-        const regexConfig = evaluator as RegexEvaluatorConfig;
-        const result = runRegexAssertion(candidate, regexConfig.value);
-        const score: EvaluationScore = {
-          score: result.score,
-          verdict: result.score === 1 ? 'pass' : 'fail',
-          hits: result.hits,
-          misses: result.misses,
-          reasoning:
-            result.score === 1
-              ? `Output matches pattern /${regexConfig.value}/`
-              : `Output does not match pattern /${regexConfig.value}/`,
-          expectedAspectCount: 1,
-        };
-        const weight = regexConfig.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: evaluator.type,
-          weight,
-          ...(regexConfig.required !== undefined ? { required: regexConfig.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-        });
-      }
-
-      if (evaluator.type === 'is_json') {
-        const isJsonConfig = evaluator as IsJsonEvaluatorConfig;
-        const result = runIsJsonAssertion(candidate);
-        const score: EvaluationScore = {
-          score: result.score,
-          verdict: result.score === 1 ? 'pass' : 'fail',
-          hits: result.hits,
-          misses: result.misses,
-          reasoning: result.score === 1 ? 'Output is valid JSON' : 'Output is not valid JSON',
-          expectedAspectCount: 1,
-        };
-        const weight = isJsonConfig.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: evaluator.type,
-          weight,
-          ...(isJsonConfig.required !== undefined ? { required: isJsonConfig.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-        });
-      }
-
-      if (evaluator.type === 'equals') {
-        const equalsConfig = evaluator as EqualsEvaluatorConfig;
-        const result = runEqualsAssertion(candidate, equalsConfig.value);
-        const score: EvaluationScore = {
-          score: result.score,
-          verdict: result.score === 1 ? 'pass' : 'fail',
-          hits: result.hits,
-          misses: result.misses,
-          reasoning:
-            result.score === 1
-              ? `Output equals "${equalsConfig.value}"`
-              : `Output does not equal "${equalsConfig.value}"`,
-          expectedAspectCount: 1,
-        };
-        const weight = equalsConfig.weight ?? 1.0;
-        scored.push({
-          score,
-          name: evaluator.name,
-          type: evaluator.type,
-          weight,
-          ...(equalsConfig.required !== undefined ? { required: equalsConfig.required } : {}),
-        });
-        scores.push({
-          name: evaluator.name,
-          type: evaluator.type,
-          score: score.score,
-          weight,
-          verdict: score.verdict,
-          hits: score.hits,
-          misses: score.misses,
-          reasoning: score.reasoning,
-        });
-      }
+      scored.push({
+        score,
+        name: evaluatorConfig.name,
+        type: resultType,
+        weight,
+        ...(evaluatorConfig.required !== undefined ? { required: evaluatorConfig.required } : {}),
+      });
+      scores.push({
+        name: evaluatorConfig.name,
+        type: resultType,
+        score: score.score,
+        weight,
+        verdict: score.verdict,
+        hits: score.hits,
+        misses: score.misses,
+        reasoning: score.reasoning,
+        evaluatorProviderRequest: score.evaluatorRawRequest,
+        details: score.details,
+        scores: mapChildResults(score.scores),
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const fallbackScore: EvaluationScore = {
         score: 0,
         verdict: 'fail',
         hits: [],
-        misses: [`Evaluator '${evaluator.name}' failed: ${message}`],
+        misses: [`Evaluator '${evaluatorConfig.name}' failed: ${message}`],
         expectedAspectCount: 1,
         reasoning: message,
       };
-      const resultType = evaluator.type === 'code' ? 'code_judge' : evaluator.type;
-      const weight = evaluator.weight ?? 1.0;
+      const resultType = evaluatorConfig.type === 'code' ? 'code_judge' : evaluatorConfig.type;
+      const weight = evaluatorConfig.weight ?? 1.0;
       scored.push({
         score: fallbackScore,
-        name: evaluator.name ?? 'unknown',
+        name: evaluatorConfig.name ?? 'unknown',
         type: resultType ?? 'llm_judge',
         weight,
-        ...(evaluator.required !== undefined ? { required: evaluator.required } : {}),
+        ...(evaluatorConfig.required !== undefined ? { required: evaluatorConfig.required } : {}),
       });
       scores.push({
-        name: evaluator.name ?? 'unknown',
+        name: evaluatorConfig.name ?? 'unknown',
         type: resultType ?? 'llm_judge',
         score: 0,
         weight,
         verdict: 'fail',
         hits: [],
-        misses: [`Evaluator '${evaluator.name ?? 'unknown'}' failed: ${message}`],
+        misses: [`Evaluator '${evaluatorConfig.name ?? 'unknown'}' failed: ${message}`],
         reasoning: message,
       });
     }
 
     // Apply negation if configured — inverts score and swaps pass/fail verdict
-    if (evaluator.negate === true && scored.length > 0) {
+    if (evaluatorConfig.negate === true && scored.length > 0) {
       const lastScoredIdx = scored.length - 1;
       const lastScoresIdx = scores.length - 1;
       const negated = negateScore(scored[lastScoredIdx].score);
@@ -2139,174 +1545,6 @@ async function runEvaluatorList(options: {
   };
 
   return { score, scores };
-}
-
-async function runLlmJudgeEvaluator(options: {
-  readonly config: import('./types.js').LlmJudgeEvaluatorConfig;
-  readonly evalCase: EvalTest;
-  readonly candidate: string;
-  readonly target: ResolvedTarget;
-  readonly provider: Provider;
-  readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
-    readonly llm_judge: Evaluator;
-  };
-  readonly attempt: number;
-  readonly promptInputs: PromptInputs;
-  readonly now: Date;
-  readonly judgeProvider?: Provider;
-  readonly output?: readonly Message[];
-  readonly trace?: TraceSummary;
-  readonly agentTimeoutMs?: number;
-  readonly fileChanges?: string;
-  readonly workspacePath?: string;
-}): Promise<EvaluationScore> {
-  const {
-    config,
-    evalCase,
-    candidate,
-    target,
-    provider,
-    evaluatorRegistry,
-    attempt,
-    promptInputs,
-    now,
-    judgeProvider,
-    output,
-    trace,
-    agentTimeoutMs,
-    fileChanges,
-    workspacePath,
-  } = options;
-  const customPrompt = await resolveCustomPrompt(
-    config,
-    {
-      evalCase,
-      candidate,
-      output,
-      trace,
-      config: config.config,
-      fileChanges,
-      workspacePath,
-    },
-    agentTimeoutMs,
-  );
-
-  return evaluatorRegistry.llm_judge.evaluate({
-    evalCase,
-    candidate,
-    target,
-    provider,
-    attempt,
-    promptInputs,
-    now,
-    judgeProvider,
-    evaluatorTemplateOverride: customPrompt,
-    evaluator: config,
-    fileChanges,
-    workspacePath,
-  });
-}
-
-interface ResolveCustomPromptContext {
-  readonly evalCase: EvalTest;
-  readonly candidate: string;
-  readonly output?: readonly Message[];
-  readonly trace?: TraceSummary;
-  readonly config?: Record<string, unknown>;
-  readonly fileChanges?: string;
-  readonly workspacePath?: string;
-}
-
-async function resolveCustomPrompt(
-  promptConfig: {
-    readonly prompt?: string | import('./types.js').PromptScriptConfig;
-    readonly promptPath?: string;
-    readonly resolvedPromptPath?: string;
-    readonly resolvedPromptScript?: readonly string[];
-    readonly config?: Record<string, unknown>;
-  },
-  context?: ResolveCustomPromptContext,
-  timeoutMs?: number,
-): Promise<string | undefined> {
-  // Executable prompt template using script array (matches code_judge pattern)
-  if (promptConfig.resolvedPromptScript && promptConfig.resolvedPromptScript.length > 0) {
-    if (!context) {
-      throw new Error('Context required for executable prompt templates');
-    }
-    return executePromptTemplate(
-      promptConfig.resolvedPromptScript,
-      context,
-      promptConfig.config,
-      timeoutMs,
-    );
-  }
-
-  const promptPath = promptConfig.resolvedPromptPath ?? promptConfig.promptPath;
-
-  if (promptPath) {
-    // Static text file (existing behavior)
-    try {
-      const content = await readTextFile(promptPath);
-      return content;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`Could not read custom prompt at ${promptPath}: ${message}`);
-    }
-  }
-
-  // Handle prompt as string - could be inline or the original prompt value
-  const promptValue = promptConfig.prompt;
-  if (typeof promptValue === 'string') {
-    return promptValue;
-  }
-
-  return undefined;
-}
-
-async function executePromptTemplate(
-  script: readonly string[],
-  context: ResolveCustomPromptContext,
-  config?: Record<string, unknown>,
-  timeoutMs?: number,
-): Promise<string> {
-  // Build payload matching code judge input format for consistency
-  const payload = {
-    question: context.evalCase.question,
-    criteria: context.evalCase.criteria,
-    expectedOutput: context.evalCase.expected_output,
-    referenceAnswer: context.evalCase.reference_answer,
-    answer: context.candidate,
-    output: context.output ?? null,
-    guidelineFiles: context.evalCase.guideline_paths,
-    inputFiles: context.evalCase.file_paths.filter(
-      (p) => !context.evalCase.guideline_paths.includes(p),
-    ),
-    input: context.evalCase.input,
-    trace: context.trace ?? null,
-    fileChanges: context.fileChanges ?? null,
-    workspacePath: context.workspacePath ?? null,
-    config: config ?? context.config ?? null,
-  };
-
-  const inputJson = JSON.stringify(toSnakeCaseDeep(payload), null, 2);
-
-  // Derive cwd from the last element of the script array (the script file path)
-  const scriptPath = script[script.length - 1];
-  const cwd = path.dirname(scriptPath);
-
-  try {
-    const stdout = await executeScript(script, inputJson, timeoutMs, cwd);
-    const prompt = stdout.trim();
-
-    if (!prompt) {
-      throw new Error('Prompt template produced empty output');
-    }
-
-    return prompt;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Prompt template execution failed: ${message}`);
-  }
 }
 
 function filterEvalCases(evalCases: readonly EvalTest[], filter?: string): readonly EvalTest[] {
