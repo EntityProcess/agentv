@@ -500,7 +500,7 @@ async function runSingleEvalFile(params: {
       // Export to OTel if exporter is configured
       if (otelExporter) {
         try {
-          otelExporter.exportResult(result);
+          await otelExporter.exportResult(result);
         } catch (err) {
           // Export failures don't fail the evaluation
           if (options.verbose) {
