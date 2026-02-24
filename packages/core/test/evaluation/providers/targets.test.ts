@@ -434,6 +434,24 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.filesFormat).toBe('--file {path}');
   });
 
+  it('accepts PROMPT_FILE as a supported cli placeholder', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'shell-cli-prompt-file',
+        provider: 'cli',
+        command_template: 'agent run --prompt-file {PROMPT_FILE} --out {OUTPUT_FILE}',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('cli');
+    if (target.kind !== 'cli') {
+      throw new Error('expected cli target');
+    }
+
+    expect(target.config.commandTemplate).toContain('{PROMPT_FILE}');
+  });
+
   it('throws for unknown cli placeholders', () => {
     expect(() =>
       resolveTargetDefinition(
