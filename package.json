@@ -40,7 +40,7 @@
     "yaml": "^2.6.1"
   },
   "dependencies": {
-    "@mariozechner/pi-agent-core": "^0.50.9",
-    "@mariozechner/pi-ai": "^0.50.9"
+    "@mariozechner/pi-agent-core": "^0.54.2",
+    "@mariozechner/pi-ai": "^0.54.2"
   }
 }

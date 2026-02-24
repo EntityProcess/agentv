@@ -412,6 +412,26 @@ Automatically retries on rate limits, transient 5xx errors, and network failures
 **Reference:**
 - Monorepo structure: `packages/core/` (engine), `packages/eval/` (evaluation logic), `apps/cli/` (commands)
 
+## Troubleshooting
+
+### `EACCES` permission error on global install
+
+If you see `EACCES: permission denied` when running `npm install -g agentv`, npm is trying to write to a system directory. Fix this by configuring npm to use a user-owned directory:
+
+```bash
+mkdir -p ~/.npm-global
+npm config set prefix ~/.npm-global --location=user
+```
+
+Then add the directory to your PATH. For bash (`~/.bashrc`) or zsh (`~/.zshrc`):
+
+```bash
+echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
+source ~/.bashrc
+```
+
+After this, `npm install -g` will work without `sudo`.
+
 ## Contributing
 
 See [AGENTS.md](AGENTS.md) for development guidelines, design principles, and quality assurance workflow.
