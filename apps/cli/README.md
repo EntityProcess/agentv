@@ -308,7 +308,7 @@ targets:
 
   - name: local_agent
     provider: cli
-    command_template: 'python agent.py --prompt {PROMPT}'
+    command_template: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
     judge_target: azure_base
 ```
 

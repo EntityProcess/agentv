@@ -405,6 +405,7 @@ export function normalizeCliTargetInput(
  */
 export const CLI_PLACEHOLDERS = new Set([
   'PROMPT',
+  'PROMPT_FILE',
   'GUIDELINES',
   'EVAL_ID',
   'ATTEMPT',
