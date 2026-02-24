@@ -38,6 +38,7 @@ tests:
 | `workspace` | Suite-level workspace config (lifecycle hooks, template) |
 | `tests` | Array of individual tests, or a string path to an external file |
 | `assert` | Suite-level evaluators appended to each test unless `execution.skip_defaults: true` is set on the test |
+| `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
 
 ### Metadata Fields
 
@@ -88,6 +89,37 @@ tests:
 ```
 
 `assert` supports all evaluator types, including deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/evaluation/eval-cases/#per-test-assertions) for per-test assert usage.
+
+### Suite-level Input
+
+The `input` field defines messages that are **prepended** to every test's input. This avoids repeating the same prompt or system context in each test case — following the same pattern as suite-level `assert`.
+
+```yaml
+description: Travel assistant evaluation
+input:
+  - role: user
+    content:
+      - type: file
+        value: ./system-prompt.md
+
+tests: ./cases.yaml
+```
+
+Each test in `cases.yaml` only needs its own query:
+
+```yaml
+- id: japan-spring
+  criteria: Recommends spring for cherry blossoms
+  input: When is the best time to visit Japan?
+```
+
+The effective input at runtime becomes `[...suite input, ...test input]`.
+
+Suite-level `input` accepts the same formats as test-level `input`:
+- **String** — wrapped as `[{ role: "user", content: "..." }]`
+- **Message array** — used as-is, including file references
+
+To opt out for a specific test, set `execution.skip_defaults: true` (same flag that skips suite-level `assert`).
 
 ### Tests as String Path
 

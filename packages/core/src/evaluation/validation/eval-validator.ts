@@ -64,6 +64,23 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   // Validate metadata fields
   validateMetadata(parsed, absolutePath, errors);
 
+  // Validate suite-level input (optional: string shorthand or message array)
+  const suiteInput = parsed.input;
+  if (suiteInput !== undefined) {
+    if (typeof suiteInput === 'string') {
+      // String shorthand is valid
+    } else if (Array.isArray(suiteInput)) {
+      validateMessages(suiteInput, 'input', absolutePath, errors);
+    } else {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: 'input',
+        message: "Invalid suite-level 'input' field (must be a string or array of messages)",
+      });
+    }
+  }
+
   // Resolve tests with backward-compat aliases
   let cases: JsonValue | undefined = parsed.tests;
   if (cases === undefined && 'eval_cases' in parsed) {

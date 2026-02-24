@@ -60,6 +60,60 @@
       },
       "additionalProperties": true
     },
+    "input": {
+      "description": "Suite-level input messages prepended to every test's input (unless test sets execution.skip_defaults: true). String expands to single user message, array of messages passes through.",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Shorthand: single user message content"
+        },
+        {
+          "type": "array",
+          "description": "Array of messages",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "enum": ["system", "user", "assistant", "tool"],
+                "description": "Message role"
+              },
+              "content": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "description": "Simple text content"
+                  },
+                  {
+                    "type": "array",
+                    "description": "Mixed content items (text and file references)",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": ["text", "file"],
+                          "description": "Content type: 'text' for inline content, 'file' for file references"
+                        },
+                        "value": {
+                          "type": "string",
+                          "description": "Text content or file path"
+                        }
+                      },
+                      "required": ["type", "value"],
+                      "additionalProperties": false
+                    }
+                  }
+                ]
+              }
+            },
+            "required": ["role", "content"],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
     "tests": {
       "type": "array",
       "description": "Array of evaluation tests",
