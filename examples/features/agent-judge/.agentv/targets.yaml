@@ -3,7 +3,7 @@ targets:
   # Each test gets a fresh copy of workspace-template/ as its CWD.
   - name: mock_agent
     provider: cli
-    command_template: >-
+    command: >-
       bash -c '
       mkdir -p tests &&
       printf "import { add, multiply } from \"../src/main\";\n\ndescribe(\"math functions\", () => {\n  test(\"add returns sum\", () => {\n    expect(add(2, 3)).toBe(5);\n  });\n\n  test(\"multiply returns product\", () => {\n    expect(multiply(4, 5)).toBe(20);\n  });\n});\n" > tests/math.test.ts &&

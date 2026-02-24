@@ -245,7 +245,7 @@ export class CliProvider implements Provider {
 
     const outputFilePath = generateOutputFilePath(request.evalCaseId);
     const templateValues = buildTemplateValues(request, this.config, outputFilePath);
-    const renderedCommand = renderTemplate(this.config.commandTemplate, templateValues);
+    const renderedCommand = renderTemplate(this.config.command, templateValues);
 
     if (this.verbose) {
       console.log(
@@ -337,7 +337,7 @@ export class CliProvider implements Provider {
       this.config,
       outputFilePath,
     );
-    const renderedCommand = renderTemplate(this.config.commandTemplate, templateValues);
+    const renderedCommand = renderTemplate(this.config.command, templateValues);
 
     if (this.verbose) {
       console.log(
@@ -616,7 +616,7 @@ export class CliProvider implements Provider {
 
     const timeoutMs = healthcheck.timeoutMs ?? this.config.timeoutMs;
 
-    if (healthcheck.type === 'http') {
+    if ('url' in healthcheck && healthcheck.url) {
       const controller = new AbortController();
       const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
       signal?.addEventListener('abort', () => controller.abort(), { once: true });
@@ -637,8 +637,13 @@ export class CliProvider implements Provider {
       return;
     }
 
+    const hcCommand = 'command' in healthcheck ? healthcheck.command : undefined;
+    if (!hcCommand) {
+      throw new Error(`CLI healthcheck for '${this.targetName}': 'command' or 'url' is required`);
+    }
+
     const renderedCommand = renderTemplate(
-      healthcheck.commandTemplate,
+      hcCommand,
       buildTemplateValues(
         {
           question: '',
@@ -651,14 +656,15 @@ export class CliProvider implements Provider {
         generateOutputFilePath('healthcheck'),
       ),
     );
+    const hcCwd = 'cwd' in healthcheck ? healthcheck.cwd : undefined;
     if (this.verbose) {
       console.log(
-        `[cli-provider:${this.targetName}] (healthcheck) cwd=${healthcheck.cwd ?? this.config.cwd ?? ''} command=${renderedCommand}`,
+        `[cli-provider:${this.targetName}] (healthcheck) cwd=${hcCwd ?? this.config.cwd ?? ''} command=${renderedCommand}`,
       );
     }
 
     const result = await this.runCommand(renderedCommand, {
-      cwd: healthcheck.cwd ?? this.config.cwd,
+      cwd: hcCwd ?? this.config.cwd,
       env: process.env,
       timeoutMs,
       signal,

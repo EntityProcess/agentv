@@ -15,13 +15,11 @@ import type { EnvLookup, TargetDefinition } from './types.js';
  * @example
  * ```yaml
  * healthcheck:
- *   type: http
  *   url: http://localhost:8080/health
  *   timeout_seconds: 30
  * ```
  */
 export const CliHealthcheckHttpInputSchema = z.object({
-  type: z.literal('http'),
   url: z.string().min(1, 'healthcheck URL is required'),
   timeout_seconds: z.number().positive().optional(),
   timeoutSeconds: z.number().positive().optional(),
@@ -32,35 +30,30 @@ export const CliHealthcheckHttpInputSchema = z.object({
  * Accepts both snake_case (YAML convention) and camelCase (JavaScript convention)
  * property names for flexibility in configuration files.
  *
- * Note: discriminatedUnion requires plain ZodObject, so command_template/commandTemplate
- * presence is validated during normalization rather than here.
- *
  * @example
  * ```yaml
  * healthcheck:
- *   type: command
- *   command_template: curl http://localhost:8080/health
+ *   command: curl http://localhost:8080/health
  *   cwd: /app
  *   timeout_seconds: 10
  * ```
  */
 export const CliHealthcheckCommandInputSchema = z.object({
-  type: z.literal('command'),
-  command_template: z.string().optional(),
-  commandTemplate: z.string().optional(),
+  command: z.string().min(1, 'healthcheck command is required'),
   cwd: z.string().optional(),
   timeout_seconds: z.number().positive().optional(),
   timeoutSeconds: z.number().positive().optional(),
 });
 
 /**
- * Discriminated union for healthcheck input configuration.
- * Uses the 'type' field to distinguish between HTTP and command healthchecks.
+ * Union for healthcheck input configuration.
+ * The healthcheck type is self-describing: presence of `url` indicates HTTP,
+ * presence of `command` indicates a command healthcheck.
  *
  * @see CliHealthcheckHttpInputSchema for HTTP healthcheck configuration
  * @see CliHealthcheckCommandInputSchema for command healthcheck configuration
  */
-export const CliHealthcheckInputSchema = z.discriminatedUnion('type', [
+export const CliHealthcheckInputSchema = z.union([
   CliHealthcheckHttpInputSchema,
   CliHealthcheckCommandInputSchema,
 ]);
@@ -79,10 +72,9 @@ export const CliHealthcheckInputSchema = z.discriminatedUnion('type', [
  * targets:
  *   - name: my-agent
  *     provider: cli
- *     command_template: agent run {PROMPT}
+ *     command: agent run {PROMPT}
  *     timeout_seconds: 120
  *     healthcheck:
- *       type: http
  *       url: http://localhost:8080/health
  * ```
  */
@@ -93,7 +85,8 @@ export const CliTargetInputSchema = z
       .string()
       .refine((p) => p.toLowerCase() === 'cli', { message: "provider must be 'cli'" }),
 
-    // Command template - required (accept both naming conventions)
+    // Command - required (accept both naming conventions)
+    command: z.string().optional(),
     command_template: z.string().optional(),
     commandTemplate: z.string().optional(),
 
@@ -134,18 +127,23 @@ export const CliTargetInputSchema = z
     provider_batching: z.boolean().optional(),
     providerBatching: z.boolean().optional(),
   })
-  .refine((data) => data.command_template !== undefined || data.commandTemplate !== undefined, {
-    message: 'Either command_template or commandTemplate is required',
-  });
+  .refine(
+    (data) =>
+      data.command !== undefined ||
+      data.command_template !== undefined ||
+      data.commandTemplate !== undefined,
+    {
+      message: "'command' is required",
+    },
+  );
 
 /**
  * Strict normalized schema for HTTP healthcheck configuration.
- * Uses camelCase property names only and rejects unknown properties.
+ * Rejects unknown properties.
  * This is an internal schema used as part of CliHealthcheckSchema.
  */
 const CliHealthcheckHttpSchema = z
   .object({
-    type: z.literal('http'),
     url: z.string().min(1),
     timeoutMs: z.number().positive().optional(),
   })
@@ -153,13 +151,12 @@ const CliHealthcheckHttpSchema = z
 
 /**
  * Strict normalized schema for command healthcheck configuration.
- * Uses camelCase property names only and rejects unknown properties.
+ * Rejects unknown properties.
  * This is an internal schema used as part of CliHealthcheckSchema.
  */
 const CliHealthcheckCommandSchema = z
   .object({
-    type: z.literal('command'),
-    commandTemplate: z.string().min(1),
+    command: z.string().min(1),
     cwd: z.string().optional(),
     timeoutMs: z.number().positive().optional(),
   })
@@ -167,13 +164,14 @@ const CliHealthcheckCommandSchema = z
 
 /**
  * Strict normalized schema for healthcheck configuration.
- * Discriminated union on 'type' field supporting HTTP and command healthchecks.
+ * Union supporting HTTP and command healthchecks, distinguished by the
+ * presence of `url` (HTTP) or `command` (command).
  * Rejects unknown properties to catch typos and misconfigurations.
  *
  * @see CliHealthcheckHttpSchema for HTTP healthcheck fields
  * @see CliHealthcheckCommandSchema for command healthcheck fields
  */
-export const CliHealthcheckSchema = z.discriminatedUnion('type', [
+export const CliHealthcheckSchema = z.union([
   CliHealthcheckHttpSchema,
   CliHealthcheckCommandSchema,
 ]);
@@ -189,7 +187,7 @@ export const CliHealthcheckSchema = z.discriminatedUnion('type', [
  * @example
  * ```typescript
  * const config: CliNormalizedConfig = {
- *   commandTemplate: 'agent run {PROMPT}',
+ *   command: 'agent run {PROMPT}',
  *   timeoutMs: 120000,
  *   verbose: true,
  * };
@@ -198,7 +196,7 @@ export const CliHealthcheckSchema = z.discriminatedUnion('type', [
  */
 export const CliTargetConfigSchema = z
   .object({
-    commandTemplate: z.string().min(1),
+    command: z.string().min(1),
     filesFormat: z.string().optional(),
     cwd: z.string().optional(),
     workspaceTemplate: z.string().optional(),
@@ -241,28 +239,21 @@ export function normalizeCliHealthcheck(
   const timeoutSeconds = input.timeout_seconds ?? input.timeoutSeconds;
   const timeoutMs = timeoutSeconds !== undefined ? Math.floor(timeoutSeconds * 1000) : undefined;
 
-  if (input.type === 'http') {
+  if ('url' in input && input.url) {
     const url = resolveString(input.url, env, `${targetName} healthcheck URL`);
     return {
-      type: 'http',
       url,
       timeoutMs,
     };
   }
 
-  // type === 'command'
-  const commandTemplateSource = input.command_template ?? input.commandTemplate;
-  if (commandTemplateSource === undefined) {
+  // command healthcheck
+  if (!('command' in input) || !input.command) {
     throw new Error(
-      `${targetName} healthcheck: Either command_template or commandTemplate is required for command healthcheck`,
+      `${targetName} healthcheck: Either 'command' or 'url' is required for healthcheck`,
     );
   }
-  const commandTemplate = resolveString(
-    commandTemplateSource,
-    env,
-    `${targetName} healthcheck command template`,
-    true,
-  );
+  const command = resolveString(input.command, env, `${targetName} healthcheck command`, true);
 
   let cwd = resolveOptionalString(input.cwd, env, `${targetName} healthcheck cwd`, {
     allowLiteral: true,
@@ -279,8 +270,7 @@ export function normalizeCliHealthcheck(
   }
 
   return {
-    type: 'command',
-    commandTemplate,
+    command,
     cwd,
     timeoutMs,
   };
@@ -306,17 +296,13 @@ export function normalizeCliTargetInput(
 ): CliNormalizedConfig {
   const targetName = input.name;
 
-  // Coalesce command template variants - at least one is required by schema refinement
-  const commandTemplateSource = input.command_template ?? input.commandTemplate;
-  if (commandTemplateSource === undefined) {
-    throw new Error(`${targetName}: Either command_template or commandTemplate is required`);
+  // Coalesce command variants - at least one is required by schema refinement
+  // Precedence: command > command_template > commandTemplate (backwards compat)
+  const commandSource = input.command ?? input.command_template ?? input.commandTemplate;
+  if (commandSource === undefined) {
+    throw new Error(`${targetName}: 'command' is required`);
   }
-  const commandTemplate = resolveString(
-    commandTemplateSource,
-    env,
-    `${targetName} CLI command template`,
-    true,
-  );
+  const command = resolveString(commandSource, env, `${targetName} CLI command`, true);
 
   // Coalesce files format variants
   const filesFormatSource =
@@ -384,7 +370,7 @@ export function normalizeCliTargetInput(
     : undefined;
 
   return {
-    commandTemplate,
+    command,
     filesFormat,
     cwd,
     workspaceTemplate,
@@ -1586,8 +1572,8 @@ const cliErrorMap: z.ZodErrorMap = (issue, ctx) => {
   if (issue.code === z.ZodIssueCode.unrecognized_keys) {
     return { message: `Unknown CLI provider settings: ${issue.keys.join(', ')}` };
   }
-  if (issue.code === z.ZodIssueCode.invalid_union_discriminator) {
-    return { message: "healthcheck type must be 'http' or 'command'" };
+  if (issue.code === z.ZodIssueCode.invalid_union) {
+    return { message: "healthcheck must have either 'url' (HTTP) or 'command' (command)" };
   }
   if (issue.code === z.ZodIssueCode.invalid_type && issue.expected === 'string') {
     return { message: `${ctx.defaultError} (expected a string value)` };
@@ -1601,7 +1587,7 @@ const cliErrorMap: z.ZodErrorMap = (issue, ctx) => {
  * This function:
  * 1. Parses the raw target with CliTargetInputSchema for structural validation
  * 2. Normalizes the input using normalizeCliTargetInput() for env var resolution and casing
- * 3. Validates CLI placeholders in the command template
+ * 3. Validates CLI placeholders in the command
  *
  * @param target - The raw target definition from YAML
  * @param env - Environment variable lookup for ${{ VAR }} resolution
@@ -1625,14 +1611,17 @@ function resolveCliConfig(
   // Normalize the parsed input (handles env var resolution, casing, path resolution)
   const normalized = normalizeCliTargetInput(parseResult.data, env, evalFilePath);
 
-  // Validate CLI placeholders in command template
-  assertSupportedCliPlaceholders(normalized.commandTemplate, `${target.name} CLI command template`);
+  // Validate CLI placeholders in command
+  assertSupportedCliPlaceholders(normalized.command, `${target.name} CLI command`);
 
-  // Validate CLI placeholders in healthcheck command template if present
-  if (normalized.healthcheck?.type === 'command') {
+  // Validate CLI placeholders in healthcheck command if present
+  if (
+    'command' in (normalized.healthcheck ?? {}) &&
+    (normalized.healthcheck as { command: string }).command
+  ) {
     assertSupportedCliPlaceholders(
-      normalized.healthcheck.commandTemplate,
-      `${target.name} healthcheck command template`,
+      (normalized.healthcheck as { command: string }).command,
+      `${target.name} healthcheck command`,
     );
   }
 
@@ -1644,8 +1633,8 @@ function resolveCliConfig(
  *
  * When the provider kind doesn't match any built-in provider, it is assumed
  * to be a convention-based provider discovered from `.agentv/providers/`.
- * The command template defaults to `bun run .agentv/providers/<kind>.ts {PROMPT}`
- * but can be overridden via command_template in the target definition.
+ * The command defaults to `bun run .agentv/providers/<kind>.ts {PROMPT}`
+ * but can be overridden via `command` in the target definition.
  */
 function resolveDiscoveredProviderConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
@@ -1653,10 +1642,10 @@ function resolveDiscoveredProviderConfig(
   env: EnvLookup,
   evalFilePath?: string,
 ): CliResolvedConfig {
-  // Use explicit command_template if provided, otherwise derive from convention
-  const commandTemplateSource = target.command_template ?? target.commandTemplate;
-  const commandTemplate = commandTemplateSource
-    ? resolveString(commandTemplateSource, env, `${target.name} command template`, true)
+  // Use explicit command if provided, otherwise derive from convention
+  const commandSource = target.command ?? target.command_template ?? target.commandTemplate;
+  const command = commandSource
+    ? resolveString(commandSource, env, `${target.name} command`, true)
     : `bun run .agentv/providers/${providerKind}.ts {PROMPT}`;
 
   // Resolve optional fields using the same patterns as CLI providers
@@ -1679,7 +1668,7 @@ function resolveDiscoveredProviderConfig(
   }
 
   return {
-    commandTemplate,
+    command,
     cwd,
     timeoutMs,
   };

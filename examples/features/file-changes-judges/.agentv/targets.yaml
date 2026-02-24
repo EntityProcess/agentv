@@ -3,7 +3,7 @@ targets:
   # Each test gets a fresh copy of workspace-template/ as its CWD.
   - name: mock_agent
     provider: cli
-    command_template: >-
+    command: >-
       bash -c '
       printf "export function add(a: number, b: number): number {\n  return a + b;\n}\n\nexport function subtract(a: number, b: number): number {\n  return a - b;\n}\n" > src/calculator.ts &&
       echo "Added subtract function to calculator.ts" > {OUTPUT_FILE}

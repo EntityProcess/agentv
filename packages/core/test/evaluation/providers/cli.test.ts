@@ -11,7 +11,7 @@ import {
 } from '../../../src/evaluation/providers/types.js';
 
 const baseConfig: CliResolvedConfig = {
-  commandTemplate: 'agent-cli run {PROMPT} {FILES} {OUTPUT_FILE}',
+  command: 'agent-cli run {PROMPT} {FILES} {OUTPUT_FILE}',
   filesFormat: '--file {path}',
   timeoutMs: 2000,
 };

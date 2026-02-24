@@ -278,7 +278,7 @@ console.log(JSON.stringify({
 targets:
   - name: my_agent
     provider: cli
-    command_template: "my-agent --task {INPUT_FILE} --output {OUTPUT_FILE}"
+    command: "my-agent --task {INPUT_FILE} --output {OUTPUT_FILE}"
     workspace_template: ./workspace-template
 
 # dataset.eval.yaml

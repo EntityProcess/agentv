@@ -275,24 +275,18 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     location: string,
     errors: ValidationError[],
   ): void {
-    // Critical check: command template is required
-    const commandTemplate = target.command_template ?? target.commandTemplate;
-    if (typeof commandTemplate !== 'string' || commandTemplate.trim().length === 0) {
+    // Critical check: command is required (accept legacy command_template/commandTemplate too)
+    const command = target.command ?? target.command_template ?? target.commandTemplate;
+    if (typeof command !== 'string' || command.trim().length === 0) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
-        location: `${location}.commandTemplate`,
-        message:
-          "CLI provider requires 'command_template' or 'commandTemplate' as a non-empty string",
+        location: `${location}.command`,
+        message: "CLI provider requires 'command' as a non-empty string",
       });
     } else {
       // Validate CLI placeholders early to give helpful feedback
-      recordUnknownPlaceholders(
-        commandTemplate,
-        absolutePath,
-        `${location}.commandTemplate`,
-        errors,
-      );
+      recordUnknownPlaceholders(command, absolutePath, `${location}.command`, errors);
     }
 
     // Early validation of healthcheck structure and placeholders
@@ -318,17 +312,6 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       return;
     }
 
-    const type = healthcheck.type;
-    if (type !== 'http' && type !== 'command') {
-      errors.push({
-        severity: 'error',
-        filePath: absolutePath,
-        location: `${location}.type`,
-        message: "healthcheck.type must be either 'http' or 'command'",
-      });
-      return;
-    }
-
     const timeoutSeconds = healthcheck.timeout_seconds ?? healthcheck.timeoutSeconds;
     if (timeoutSeconds !== undefined) {
       const numericTimeout = Number(timeoutSeconds);
@@ -342,35 +325,33 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       }
     }
 
-    if (type === 'http') {
-      const url = healthcheck.url;
-      if (typeof url !== 'string' || url.trim().length === 0) {
-        errors.push({
-          severity: 'error',
-          filePath: absolutePath,
-          location: `${location}.url`,
-          message: 'healthcheck.url must be a non-empty string for http checks',
-        });
-      }
-      return;
-    }
+    // Determine healthcheck type by presence of url or command
+    const hasUrl = typeof healthcheck.url === 'string' && healthcheck.url.trim().length > 0;
+    const hasCommand =
+      typeof healthcheck.command === 'string' && healthcheck.command.trim().length > 0;
 
-    const commandTemplate = healthcheck.command_template ?? healthcheck.commandTemplate;
-    if (typeof commandTemplate !== 'string' || commandTemplate.trim().length === 0) {
+    if (!hasUrl && !hasCommand) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
-        location: `${location}.commandTemplate`,
-        message: 'healthcheck.commandTemplate must be a non-empty string for command checks',
+        location,
+        message: "healthcheck must have either 'url' (HTTP) or 'command' (command)",
       });
-    } else {
-      recordUnknownPlaceholders(
-        commandTemplate,
-        absolutePath,
-        `${location}.commandTemplate`,
-        errors,
-      );
+      return;
     }
+
+    if (hasUrl) {
+      // HTTP healthcheck — url already validated above
+      return;
+    }
+
+    // Command healthcheck
+    recordUnknownPlaceholders(
+      healthcheck.command as string,
+      absolutePath,
+      `${location}.command`,
+      errors,
+    );
 
     const cwd = healthcheck.cwd;
     if (cwd !== undefined && typeof cwd !== 'string') {

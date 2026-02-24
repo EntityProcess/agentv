@@ -415,7 +415,7 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'shell-cli',
         provider: 'cli',
-        command_template: 'code chat {PROMPT} {FILES}',
+        command: 'code chat {PROMPT} {FILES}',
         cwd: '${{ WORKDIR }}',
         timeout_seconds: 3,
         files_format: '--file {path}',
@@ -428,7 +428,7 @@ describe('resolveTargetDefinition', () => {
       throw new Error('expected cli target');
     }
 
-    expect(target.config.commandTemplate).toContain('{PROMPT}');
+    expect(target.config.command).toContain('{PROMPT}');
     expect(target.config.cwd).toBe('/tmp/project');
     expect(target.config.timeoutMs).toBe(3000);
     expect(target.config.filesFormat).toBe('--file {path}');
@@ -440,7 +440,7 @@ describe('resolveTargetDefinition', () => {
         {
           name: 'bad-cli',
           provider: 'cli',
-          command_template: 'run-task {UNKNOWN}',
+          command: 'run-task {UNKNOWN}',
         },
         {},
       ),
@@ -475,7 +475,7 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'cli-with-template',
         provider: 'cli',
-        command_template: 'echo {PROMPT}',
+        command: 'echo {PROMPT}',
         workspace_template: '/templates/my-workspace',
       },
       {},
@@ -499,7 +499,7 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'cli-with-env-template',
         provider: 'cli',
-        command_template: 'echo {PROMPT}',
+        command: 'echo {PROMPT}',
         workspace_template: '${{ WORKSPACE_DIR }}',
       },
       env,
@@ -519,7 +519,7 @@ describe('resolveTargetDefinition', () => {
         {
           name: 'cli-both',
           provider: 'cli',
-          command_template: 'echo {PROMPT}',
+          command: 'echo {PROMPT}',
           cwd: '/some/path',
           workspace_template: '/templates/my-workspace',
         },
@@ -732,7 +732,7 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'cli-camel-case',
         provider: 'cli',
-        command_template: 'echo {PROMPT}',
+        command: 'echo {PROMPT}',
         workspaceTemplate: '/templates/camel-case-workspace',
       },
       {},

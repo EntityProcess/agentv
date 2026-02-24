@@ -68,7 +68,7 @@ export async function discoverProviders(
 
     registry.register(kindName, (target) => {
       return new CliProvider(target.name, {
-        commandTemplate: `bun run ${filePath} {PROMPT}`,
+        command: `bun run ${filePath} {PROMPT}`,
       });
     });
     discoveredKinds.push(kindName);

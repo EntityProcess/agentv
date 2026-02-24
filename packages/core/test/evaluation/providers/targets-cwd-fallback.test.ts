@@ -7,7 +7,7 @@ describe('CLI cwd fallback to eval directory', () => {
     const definition = {
       name: 'test-cli',
       provider: 'cli',
-      command_template: 'echo {PROMPT}',
+      command: 'echo {PROMPT}',
       cwd: '${{ EMPTY_CWD_VAR }}',
     };
 
@@ -28,7 +28,7 @@ describe('CLI cwd fallback to eval directory', () => {
     const definition = {
       name: 'test-cli',
       provider: 'cli',
-      command_template: 'echo {PROMPT}',
+      command: 'echo {PROMPT}',
       cwd: '${{ UNDEFINED_CWD_VAR }}',
     };
 
@@ -47,7 +47,7 @@ describe('CLI cwd fallback to eval directory', () => {
     const definition = {
       name: 'test-cli',
       provider: 'cli',
-      command_template: 'echo {PROMPT}',
+      command: 'echo {PROMPT}',
       cwd: '${{ EXPLICIT_CWD }}',
     };
 
@@ -68,7 +68,7 @@ describe('CLI cwd fallback to eval directory', () => {
     const definition = {
       name: 'test-cli',
       provider: 'cli',
-      command_template: 'echo {PROMPT}',
+      command: 'echo {PROMPT}',
       cwd: '${{ MISSING_VAR }}',
     };
 
@@ -86,7 +86,7 @@ describe('CLI cwd fallback to eval directory', () => {
     const definition = {
       name: 'test-cli',
       provider: 'cli',
-      command_template: 'echo {PROMPT}',
+      command: 'echo {PROMPT}',
       cwd: '.',
     };
 
@@ -104,10 +104,9 @@ describe('CLI cwd fallback to eval directory', () => {
     const definition = {
       name: 'test-cli',
       provider: 'cli',
-      command_template: 'echo {PROMPT}',
+      command: 'echo {PROMPT}',
       healthcheck: {
-        type: 'command',
-        command_template: 'echo healthy',
+        command: 'echo healthy',
       },
     };
 
@@ -117,9 +116,10 @@ describe('CLI cwd fallback to eval directory', () => {
 
     expect(resolved.kind).toBe('cli');
     if (resolved.kind === 'cli') {
-      expect(resolved.config.healthcheck?.type).toBe('command');
-      if (resolved.config.healthcheck?.type === 'command') {
-        expect(resolved.config.healthcheck.cwd).toBe(path.resolve('/path/to/evals/my-test'));
+      const hc = resolved.config.healthcheck;
+      expect(hc).toBeDefined();
+      if (hc && 'command' in hc) {
+        expect(hc.cwd).toBe(path.resolve('/path/to/evals/my-test'));
       }
     }
   });

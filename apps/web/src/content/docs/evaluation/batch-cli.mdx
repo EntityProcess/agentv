@@ -245,7 +245,7 @@ Configure the batch CLI provider in your targets file or eval file:
 targets:
   batch_cli:
     provider: cli
-    commandTemplate: bun run ./scripts/batch-runner.ts --eval {EVAL_FILE} --output {OUTPUT_FILE}
+    command: bun run ./scripts/batch-runner.ts --eval {EVAL_FILE} --output {OUTPUT_FILE}
     provider_batching: true
 ```
 
