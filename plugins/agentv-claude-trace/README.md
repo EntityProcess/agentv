@@ -1,4 +1,4 @@
-# @agentv/trace-plugin
+# @agentv/claude-trace-plugin
 
 Claude Code session tracing plugin that exports session traces to any OTel-compatible backend.
 
@@ -20,11 +20,11 @@ Hooks into Claude Code's lifecycle events (session start/end, user prompts, tool
 
 ```bash
 # Install dependencies
-cd plugins/agentv-trace
+cd plugins/agentv-claude-trace
 bun install
 
 # Symlink into Claude Code plugins directory
-ln -s "$(pwd)" ~/.claude/plugins/agentv-trace
+ln -s "$(pwd)" ~/.claude/plugins/agentv-claude-trace
 ```
 
 ## Configuration
@@ -79,12 +79,12 @@ docker run -d --name jaeger \
 export AGENTV_TRACE_BACKEND=jaeger
 
 # Run a Claude Code session, then open http://localhost:16686
-# Look for service "agentv-trace"
+# Look for service "agentv-claude-trace"
 ```
 
 ### Langfuse
 
-Set the Langfuse env vars, run a session, then check your Langfuse dashboard for traces under the "agentv-trace" service.
+Set the Langfuse env vars, run a session, then check your Langfuse dashboard for traces under the "agentv-claude-trace" service.
 
 ## Architecture
 

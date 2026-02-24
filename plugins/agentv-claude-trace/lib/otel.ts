@@ -19,7 +19,7 @@ export async function getTracer(): Promise<{
     if (!endpoint) return null;
 
     const resource = resourceFromAttributes({
-      [ATTR_SERVICE_NAME]: 'agentv-trace',
+      [ATTR_SERVICE_NAME]: 'agentv-claude-trace',
     });
 
     const exporter = new OTLPTraceExporter({ url: endpoint, headers });
@@ -30,7 +30,7 @@ export async function getTracer(): Promise<{
     provider.register();
 
     return {
-      tracer: api.trace.getTracer('agentv-trace', '1.0.0'),
+      tracer: api.trace.getTracer('agentv-claude-trace', '1.0.0'),
       api,
     };
   } catch {
