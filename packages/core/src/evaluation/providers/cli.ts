@@ -244,7 +244,11 @@ export class CliProvider implements Provider {
     const effectiveCwd = request.cwd ?? this.config.cwd;
 
     const outputFilePath = generateOutputFilePath(request.evalCaseId);
-    const templateValues = buildTemplateValues(request, this.config, outputFilePath);
+    const { values: templateValues, promptFilePath } = await buildTemplateValues(
+      request,
+      this.config,
+      outputFilePath,
+    );
     const renderedCommand = renderTemplate(this.config.command, templateValues);
 
     if (this.verbose) {
@@ -254,49 +258,53 @@ export class CliProvider implements Provider {
     }
 
     // Measure wall-clock time as fallback for duration
-    const startTime = Date.now();
-    const result = await this.runCommand(renderedCommand, {
-      cwd: effectiveCwd,
-      env: process.env,
-      timeoutMs: this.config.timeoutMs,
-      signal: request.signal,
-    });
-    const measuredDurationMs = Date.now() - startTime;
-
-    if (result.failed || (result.exitCode ?? 0) !== 0) {
-      if (request.signal?.aborted) {
-        throw new Error('CLI provider request was aborted');
-      }
-      if (result.timedOut) {
-        throw new Error(
-          `CLI provider timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
-        );
-      }
-      const codeText = result.exitCode !== null ? result.exitCode : 'unknown';
-      const detail = result.stderr.trim() || result.stdout.trim();
-      const message = detail
-        ? `${detail} (exit code ${codeText})`
-        : `CLI exited with code ${codeText}`;
-      throw new Error(message);
-    }
-
-    // Read from output file and parse as JSON if possible
-    const responseContent = await this.readAndCleanupOutputFile(outputFilePath);
-    const parsed = this.parseOutputContent(responseContent);
-
-    return {
-      output: parsed.output,
-      tokenUsage: parsed.tokenUsage,
-      costUsd: parsed.costUsd,
-      durationMs: parsed.durationMs ?? measuredDurationMs,
-      raw: {
-        command: renderedCommand,
-        stderr: result.stderr,
-        exitCode: result.exitCode ?? 0,
+    try {
+      const startTime = Date.now();
+      const result = await this.runCommand(renderedCommand, {
         cwd: effectiveCwd,
-        outputFile: outputFilePath,
-      },
-    };
+        env: process.env,
+        timeoutMs: this.config.timeoutMs,
+        signal: request.signal,
+      });
+      const measuredDurationMs = Date.now() - startTime;
+
+      if (result.failed || (result.exitCode ?? 0) !== 0) {
+        if (request.signal?.aborted) {
+          throw new Error('CLI provider request was aborted');
+        }
+        if (result.timedOut) {
+          throw new Error(
+            `CLI provider timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
+          );
+        }
+        const codeText = result.exitCode !== null ? result.exitCode : 'unknown';
+        const detail = result.stderr.trim() || result.stdout.trim();
+        const message = detail
+          ? `${detail} (exit code ${codeText})`
+          : `CLI exited with code ${codeText}`;
+        throw new Error(message);
+      }
+
+      // Read from output file and parse as JSON if possible
+      const responseContent = await this.readAndCleanupOutputFile(outputFilePath);
+      const parsed = this.parseOutputContent(responseContent);
+
+      return {
+        output: parsed.output,
+        tokenUsage: parsed.tokenUsage,
+        costUsd: parsed.costUsd,
+        durationMs: parsed.durationMs ?? measuredDurationMs,
+        raw: {
+          command: renderedCommand,
+          stderr: result.stderr,
+          exitCode: result.exitCode ?? 0,
+          cwd: effectiveCwd,
+          outputFile: outputFilePath,
+        },
+      };
+    } finally {
+      await cleanupTempFile(promptFilePath, this.keepTempFiles);
+    }
   }
 
   async invokeBatch(requests: readonly ProviderRequest[]): Promise<readonly ProviderResponse[]> {
@@ -326,7 +334,7 @@ export class CliProvider implements Provider {
       }
     }
 
-    const templateValues = buildTemplateValues(
+    const { values: templateValues, promptFilePath } = await buildTemplateValues(
       {
         question: '',
         guidelines: '',
@@ -346,93 +354,97 @@ export class CliProvider implements Provider {
     }
 
     // Measure wall-clock time for batch (used as fallback if records don't provide duration)
-    const startTime = Date.now();
-    const result = await this.runCommand(renderedCommand, {
-      cwd: this.config.cwd,
-      env: process.env,
-      timeoutMs: this.config.timeoutMs,
-      signal: controller.signal,
-    });
-    const measuredDurationMs = Date.now() - startTime;
+    try {
+      const startTime = Date.now();
+      const result = await this.runCommand(renderedCommand, {
+        cwd: this.config.cwd,
+        env: process.env,
+        timeoutMs: this.config.timeoutMs,
+        signal: controller.signal,
+      });
+      const measuredDurationMs = Date.now() - startTime;
 
-    if (result.failed || (result.exitCode ?? 0) !== 0) {
-      if (controller.signal.aborted) {
-        throw new Error('CLI provider request was aborted');
-      }
-      if (result.timedOut) {
-        throw new Error(
-          `CLI provider timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
-        );
-      }
-      const codeText = result.exitCode !== null ? result.exitCode : 'unknown';
-      const detail = result.stderr.trim() || result.stdout.trim();
-      const message = detail
-        ? `${detail} (exit code ${codeText})`
-        : `CLI exited with code ${codeText}`;
-      throw new Error(message);
-    }
-
-    const responseContent = await this.readAndCleanupOutputFile(outputFilePath);
-    const recordsById = this.parseJsonlBatchOutput(responseContent);
-
-    // Calculate per-request fallback duration (total time / number of requests)
-    const perRequestFallbackMs = Math.round(measuredDurationMs / requests.length);
-
-    const responses: ProviderResponse[] = requests.map((request) => {
-      const evalCaseId = request.evalCaseId;
-      if (!evalCaseId) {
-        return {
-          output: [],
-          durationMs: perRequestFallbackMs,
-          raw: {
-            command: renderedCommand,
-            stderr: result.stderr,
-            exitCode: result.exitCode ?? 0,
-            cwd: this.config.cwd,
-            outputFile: outputFilePath,
-          },
-        };
-      }
-
-      const parsed = recordsById.get(evalCaseId);
-      if (!parsed) {
-        // Return error response for missing IDs instead of throwing.
-        // This allows other eval cases with matching IDs to be evaluated correctly.
-        const errorMessage = `Batch output missing id '${evalCaseId}'`;
-        if (this.verbose) {
-          console.warn(`[cli-provider:${this.targetName}] ${errorMessage}`);
+      if (result.failed || (result.exitCode ?? 0) !== 0) {
+        if (controller.signal.aborted) {
+          throw new Error('CLI provider request was aborted');
         }
+        if (result.timedOut) {
+          throw new Error(
+            `CLI provider timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
+          );
+        }
+        const codeText = result.exitCode !== null ? result.exitCode : 'unknown';
+        const detail = result.stderr.trim() || result.stdout.trim();
+        const message = detail
+          ? `${detail} (exit code ${codeText})`
+          : `CLI exited with code ${codeText}`;
+        throw new Error(message);
+      }
+
+      const responseContent = await this.readAndCleanupOutputFile(outputFilePath);
+      const recordsById = this.parseJsonlBatchOutput(responseContent);
+
+      // Calculate per-request fallback duration (total time / number of requests)
+      const perRequestFallbackMs = Math.round(measuredDurationMs / requests.length);
+
+      const responses: ProviderResponse[] = requests.map((request) => {
+        const evalCaseId = request.evalCaseId;
+        if (!evalCaseId) {
+          return {
+            output: [],
+            durationMs: perRequestFallbackMs,
+            raw: {
+              command: renderedCommand,
+              stderr: result.stderr,
+              exitCode: result.exitCode ?? 0,
+              cwd: this.config.cwd,
+              outputFile: outputFilePath,
+            },
+          };
+        }
+
+        const parsed = recordsById.get(evalCaseId);
+        if (!parsed) {
+          // Return error response for missing IDs instead of throwing.
+          // This allows other eval cases with matching IDs to be evaluated correctly.
+          const errorMessage = `Batch output missing id '${evalCaseId}'`;
+          if (this.verbose) {
+            console.warn(`[cli-provider:${this.targetName}] ${errorMessage}`);
+          }
+          return {
+            output: [{ role: 'assistant', content: `Error: ${errorMessage}` }],
+            durationMs: perRequestFallbackMs,
+            raw: {
+              command: renderedCommand,
+              stderr: result.stderr,
+              exitCode: result.exitCode ?? 0,
+              cwd: this.config.cwd,
+              outputFile: outputFilePath,
+              error: errorMessage,
+            },
+          };
+        }
+
         return {
-          output: [{ role: 'assistant', content: `Error: ${errorMessage}` }],
-          durationMs: perRequestFallbackMs,
+          output: parsed.output,
+          tokenUsage: parsed.tokenUsage,
+          costUsd: parsed.costUsd,
+          durationMs: parsed.durationMs ?? perRequestFallbackMs,
           raw: {
             command: renderedCommand,
             stderr: result.stderr,
             exitCode: result.exitCode ?? 0,
             cwd: this.config.cwd,
             outputFile: outputFilePath,
-            error: errorMessage,
+            recordId: evalCaseId,
           },
         };
-      }
+      });
 
-      return {
-        output: parsed.output,
-        tokenUsage: parsed.tokenUsage,
-        costUsd: parsed.costUsd,
-        durationMs: parsed.durationMs ?? perRequestFallbackMs,
-        raw: {
-          command: renderedCommand,
-          stderr: result.stderr,
-          exitCode: result.exitCode ?? 0,
-          cwd: this.config.cwd,
-          outputFile: outputFilePath,
-          recordId: evalCaseId,
-        },
-      };
-    });
-
-    return responses;
+      return responses;
+    } finally {
+      await cleanupTempFile(promptFilePath, this.keepTempFiles);
+    }
   }
 
   /**
@@ -642,20 +654,18 @@ export class CliProvider implements Provider {
       throw new Error(`CLI healthcheck for '${this.targetName}': 'command' or 'url' is required`);
     }
 
-    const renderedCommand = renderTemplate(
-      hcCommand,
-      buildTemplateValues(
-        {
-          question: '',
-          guidelines: '',
-          inputFiles: [],
-          evalCaseId: 'healthcheck',
-          attempt: 0,
-        },
-        this.config,
-        generateOutputFilePath('healthcheck'),
-      ),
+    const { values: templateValues, promptFilePath } = await buildTemplateValues(
+      {
+        question: '',
+        guidelines: '',
+        inputFiles: [],
+        evalCaseId: 'healthcheck',
+        attempt: 0,
+      },
+      this.config,
+      generateOutputFilePath('healthcheck'),
     );
+    const renderedCommand = renderTemplate(hcCommand, templateValues);
     const hcCwd = 'cwd' in healthcheck ? healthcheck.cwd : undefined;
     if (this.verbose) {
       console.log(
@@ -663,41 +673,64 @@ export class CliProvider implements Provider {
       );
     }
 
-    const result = await this.runCommand(renderedCommand, {
-      cwd: hcCwd ?? this.config.cwd,
-      env: process.env,
-      timeoutMs,
-      signal,
-    });
+    try {
+      const result = await this.runCommand(renderedCommand, {
+        cwd: hcCwd ?? this.config.cwd,
+        env: process.env,
+        timeoutMs,
+        signal,
+      });
 
-    if (result.failed || (result.exitCode ?? 0) !== 0) {
-      const codeText = result.exitCode !== null ? result.exitCode : 'unknown';
-      const detail = result.stderr.trim() || result.stdout.trim();
-      const message = detail
-        ? `${detail} (exit code ${codeText})`
-        : `CLI healthcheck command exited with code ${codeText}`;
-      throw new Error(`CLI healthcheck failed for '${this.targetName}': ${message}`);
+      if (result.failed || (result.exitCode ?? 0) !== 0) {
+        const codeText = result.exitCode !== null ? result.exitCode : 'unknown';
+        const detail = result.stderr.trim() || result.stdout.trim();
+        const message = detail
+          ? `${detail} (exit code ${codeText})`
+          : `CLI healthcheck command exited with code ${codeText}`;
+        throw new Error(`CLI healthcheck failed for '${this.targetName}': ${message}`);
+      }
+    } finally {
+      await cleanupTempFile(promptFilePath, this.keepTempFiles);
     }
   }
 }
 
-function buildTemplateValues(
+async function buildTemplateValues(
   request: Pick<
     ProviderRequest,
     'question' | 'guidelines' | 'inputFiles' | 'evalCaseId' | 'attempt'
   >,
   config: CliResolvedConfig,
   outputFilePath: string,
-): Record<string, string> {
+): Promise<{ values: Record<string, string>; promptFilePath: string }> {
   const inputFiles = normalizeInputFiles(request.inputFiles);
+  const promptFilePath = generateOutputFilePath(request.evalCaseId, '.prompt.txt');
+  await fs.writeFile(promptFilePath, request.question ?? '', 'utf8');
+
   return {
-    PROMPT: shellEscape(request.question ?? ''),
-    GUIDELINES: shellEscape(request.guidelines ?? ''),
-    EVAL_ID: shellEscape(request.evalCaseId ?? ''),
-    ATTEMPT: shellEscape(String(request.attempt ?? 0)),
-    FILES: formatFileList(inputFiles, config.filesFormat),
-    OUTPUT_FILE: shellEscape(outputFilePath),
+    values: {
+      PROMPT: shellEscape(request.question ?? ''),
+      PROMPT_FILE: shellEscape(promptFilePath),
+      GUIDELINES: shellEscape(request.guidelines ?? ''),
+      EVAL_ID: shellEscape(request.evalCaseId ?? ''),
+      ATTEMPT: shellEscape(String(request.attempt ?? 0)),
+      FILES: formatFileList(inputFiles, config.filesFormat),
+      OUTPUT_FILE: shellEscape(outputFilePath),
+    },
+    promptFilePath,
   };
+}
+
+async function cleanupTempFile(
+  filePath: string | undefined,
+  keepTempFiles: boolean,
+): Promise<void> {
+  if (!filePath || keepTempFiles) {
+    return;
+  }
+  await fs.unlink(filePath).catch(() => {
+    /* ignore cleanup errors */
+  });
 }
 
 function normalizeInputFiles(

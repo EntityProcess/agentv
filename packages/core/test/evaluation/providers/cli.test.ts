@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { unlink, writeFile } from 'node:fs/promises';
+import { readFile, unlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -67,6 +67,45 @@ describe('CliProvider', () => {
     const command = runner.mock.calls[0]?.[0] as string;
     expect(command).toContain('--file');
     expect(command).toContain('Hello world');
+  });
+
+  it('writes prompt to PROMPT_FILE placeholder and passes its path to the command', async () => {
+    let promptFileContent = '';
+    const promptFileConfig: CliResolvedConfig = {
+      ...baseConfig,
+      command: 'agent-cli run --prompt-file {PROMPT_FILE} {OUTPUT_FILE}',
+    };
+
+    const runner = mock(async (command: string): Promise<CommandRunResult> => {
+      const promptFileMatch = command.match(/agentv-case-1-\d+-\w+\.prompt\.txt/);
+      if (promptFileMatch) {
+        const promptFilePath = path.join(os.tmpdir(), promptFileMatch[0]);
+        promptFileContent = await readFile(promptFilePath, 'utf8');
+        createdFiles.push(promptFilePath);
+      }
+
+      const outputFileMatch = command.match(/agentv-case-1-\d+-\w+\.json/);
+      if (outputFileMatch) {
+        const outputFilePath = path.join(os.tmpdir(), outputFileMatch[0]);
+        await writeFile(outputFilePath, 'Response via prompt file', 'utf-8');
+        createdFiles.push(outputFilePath);
+      }
+
+      return {
+        stdout: command,
+        stderr: '',
+        exitCode: 0,
+        failed: false,
+      };
+    });
+
+    const provider = new CliProvider('cli-target', promptFileConfig, runner);
+    const response = await provider.invoke(baseRequest);
+
+    expect(extractLastAssistantContent(response.output)).toBe('Response via prompt file');
+    expect(promptFileContent).toBe('Hello world');
+    const command = runner.mock.calls[0]?.[0] as string;
+    expect(command).toContain('.prompt.txt');
   });
 
   it('throws on non-zero exit codes with stderr context', async () => {
