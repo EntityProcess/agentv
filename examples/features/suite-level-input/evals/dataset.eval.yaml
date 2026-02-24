@@ -1,0 +1,21 @@
+# Suite-Level Input Example
+# Demonstrates suite-level `input` that is prepended to every test's input.
+# This avoids repeating the same system prompt file in each test case.
+
+name: suite-level-input-example
+description: Suite-level input prepended to all tests (like suite-level assert)
+
+execution:
+  target: default
+
+# Suite-level input: prepended to every test's input messages.
+# Accepts the same formats as test-level input (string or message array).
+# Skipped for tests with execution.skip_defaults: true.
+input:
+  - role: user
+    content:
+      - type: file
+        value: ./system-prompt.md
+
+# Tests in an external file — suite-level input applies to all of them
+tests: ./cases.yaml

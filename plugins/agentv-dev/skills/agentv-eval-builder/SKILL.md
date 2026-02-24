@@ -29,7 +29,7 @@ tests:
 ## Eval File Structure
 
 **Required:** `tests` (array or string path)
-**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `execution`, `dataset`, `workspace`, `assert`
+**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `execution`, `dataset`, `workspace`, `assert`, `input`
 
 **Test fields:**
 
@@ -71,6 +71,28 @@ license: Apache-2.0
 requires:
   agentv: ">=0.30.0"
 ```
+
+## Suite-level Input
+
+Prepend shared input messages to every test (like suite-level `assert`). Avoids repeating the same prompt file in each test:
+
+```yaml
+input:
+  - role: user
+    content:
+      - type: file
+        value: ./system-prompt.md
+
+tests: ./cases.yaml
+
+# cases.yaml — each test only needs its own query
+# - id: test-1
+#   criteria: ...
+#   input: "User question here"
+```
+
+Effective input: `[...suite input, ...test input]`. Skipped when `execution.skip_defaults: true`.
+Accepts same formats as test `input` (string or message array).
 
 ## Tests as String Path
 

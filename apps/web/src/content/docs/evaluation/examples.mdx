@@ -306,6 +306,40 @@ tests:
 - Use `expected_output` with object fields for structured expected output
 - Each test has its own evaluator to validate its portion of the output
 
+## Suite-level Input
+
+Share a common prompt or system instruction across all tests. Suite-level `input` messages are prepended to each test's input — like suite-level `assert` for evaluators:
+
+```yaml
+description: Travel assistant evaluation
+input:
+  - role: user
+    content:
+      - type: file
+        value: ./system-prompt.md
+
+tests: ./cases.yaml
+```
+
+```yaml
+# cases.yaml — tests only need their own queries
+- id: japan-spring
+  criteria: Recommends spring for cherry blossoms and mentions visa requirements
+  input: When is the best time to visit Japan?
+
+- id: iceland-lights
+  criteria: Recommends winter for Northern Lights
+  input: I want to see the Northern Lights in Iceland. When should I go?
+
+- id: currency-only
+  criteria: Provides direct answer about currency
+  input: What currency does Thailand use?
+  execution:
+    skip_defaults: true   # no suite-level input
+```
+
+See the [suite-level-input example](https://github.com/EntityProcess/agentv/tree/main/examples/features/suite-level-input) for a complete working version.
+
 ## File Path Conventions
 
 - **Absolute paths** (start with `/`): resolved from the repository root

@@ -1,0 +1,19 @@
+- id: japan-spring
+  criteria: |-
+    Recommends visiting Japan in spring (March-April) for cherry blossoms.
+    Mentions visa requirements and includes a safety tip.
+  input: When is the best time to visit Japan?
+
+- id: iceland-northern-lights
+  criteria: |-
+    Recommends winter months (September-March) for Northern Lights.
+    Mentions practical clothing advice and includes a safety tip.
+  input: I want to see the Northern Lights in Iceland. When should I go?
+
+- id: skip-suite-input
+  criteria: Provides a direct answer about currency exchange
+  input:
+    - role: user
+      content: What currency does Thailand use?
+  execution:
+    skip_defaults: true
