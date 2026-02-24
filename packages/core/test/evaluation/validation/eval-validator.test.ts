@@ -560,6 +560,66 @@ tests:
     });
   });
 
+  describe('suite-level input validation', () => {
+    it('validates suite-level input as string', async () => {
+      const filePath = path.join(tempDir, 'suite-input-string.yaml');
+      await writeFile(
+        filePath,
+        `input: "Shared context"
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "Query"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('validates suite-level input as message array', async () => {
+      const filePath = path.join(tempDir, 'suite-input-array.yaml');
+      await writeFile(
+        filePath,
+        `input:
+  - role: system
+    content: "You are a helpful assistant."
+  - role: user
+    content: "Context message"
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "Query"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('rejects suite-level input with invalid type', async () => {
+      const filePath = path.join(tempDir, 'suite-input-invalid.yaml');
+      await writeFile(
+        filePath,
+        `input: 123
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "Query"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.message.includes("suite-level 'input'"))).toBe(true);
+    });
+  });
+
   describe('backward-compat aliases', () => {
     it('accepts eval_cases as deprecated alias for tests (with warning)', async () => {
       const filePath = path.join(tempDir, 'eval-cases-alias.yaml');

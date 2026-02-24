@@ -20,7 +20,11 @@ import {
 import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
 import { detectFormat, loadTestsFromJsonl } from './loaders/jsonl-parser.js';
 import { processExpectedMessages, processMessages } from './loaders/message-processor.js';
-import { resolveExpectedMessages, resolveInputMessages } from './loaders/shorthand-expansion.js';
+import {
+  expandInputShorthand,
+  resolveExpectedMessages,
+  resolveInputMessages,
+} from './loaders/shorthand-expansion.js';
 import { parseMetadata } from './metadata.js';
 import type {
   EvalTest,
@@ -70,6 +74,7 @@ type RawTestSuite = JsonObject & {
   readonly dataset?: JsonValue;
   readonly workspace?: JsonValue;
   readonly assert?: JsonValue;
+  readonly input?: JsonValue;
   // Suite-level metadata fields
   readonly name?: JsonValue;
   readonly description?: JsonValue;
@@ -247,6 +252,9 @@ async function loadTestsFromYaml(
 
   const suiteWorkspace = parseWorkspaceConfig(suite.workspace, evalFileDir);
 
+  // Resolve suite-level input (prepended to each test's input messages)
+  const suiteInputMessages = expandInputShorthand(suite.input);
+
   // Extract global target from execution.target (or legacy root-level target)
   const rawGlobalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
   const _globalTarget = asString(rawGlobalExecution?.target) ?? asString(suite.target);
@@ -285,16 +293,24 @@ async function loadTestsFromYaml(
     }
 
     // Resolve input with shorthand support
-    const inputMessages = resolveInputMessages(evalcase);
+    const testInputMessages = resolveInputMessages(evalcase);
     // Resolve expected_output with shorthand support
     const expectedMessages = resolveExpectedMessages(evalcase) ?? [];
 
-    if (!id || !outcome || !inputMessages || inputMessages.length === 0) {
+    if (!id || !outcome || !testInputMessages || testInputMessages.length === 0) {
       logError(
         `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, criteria, and/or input`,
       );
       continue;
     }
+
+    // Prepend suite-level input to test input (respecting skip_defaults)
+    const caseExecution = isJsonObject(evalcase.execution) ? evalcase.execution : undefined;
+    const skipDefaults = caseExecution?.skip_defaults === true;
+    const inputMessages =
+      suiteInputMessages && !skipDefaults
+        ? [...suiteInputMessages, ...testInputMessages]
+        : testInputMessages;
 
     // expected_output is optional - for outcome-only evaluation
     const hasExpectedMessages = expectedMessages.length > 0;
