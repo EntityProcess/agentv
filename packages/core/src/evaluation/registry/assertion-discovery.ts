@@ -65,7 +65,7 @@ export async function discoverAssertions(
 
     const factory: EvaluatorFactoryFn = (_config, context) => {
       return new CodeEvaluator({
-        script: ['bun', 'run', filePath],
+        command: ['bun', 'run', filePath],
         agentTimeoutMs: context.agentTimeoutMs,
       });
     };

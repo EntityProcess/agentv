@@ -26,7 +26,7 @@ tests:
         type: llm_judge
         # Executable prompt template using explicit script array (matches code_judge pattern)
         prompt:
-          script: [bun, run, ../prompts/custom-evaluator.ts]
+          command: [bun, run, ../prompts/custom-evaluator.ts]
 
   - id: prompt-template-with-config
     criteria: The CLI explains async/await correctly.
@@ -45,7 +45,7 @@ tests:
         type: llm_judge
         # Executable prompt template with config
         prompt:
-          script: [bun, run, ../prompts/custom-evaluator.ts]
+          command: [bun, run, ../prompts/custom-evaluator.ts]
           config:
             rubric: |-
               - Must mention Promises

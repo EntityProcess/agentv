@@ -157,10 +157,10 @@ Run scripts before/after each test. Define at suite level or override per case:
 workspace:
   template: ./workspace-templates/my-project
   setup:
-    script: ["bun", "run", "setup.ts"]
+    command: ["bun", "run", "setup.ts"]
     timeout_ms: 120000
   teardown:
-    script: ["bun", "run", "teardown.ts"]
+    command: ["bun", "run", "teardown.ts"]
 
 tests:
   - id: case-1
@@ -171,12 +171,12 @@ tests:
       base_commit: "abc123"
     workspace:
       setup:
-        script: ["python", "custom-setup.py"]  # overrides suite-level
+        command: ["python", "custom-setup.py"]  # overrides suite-level
 ```
 
 **Lifecycle:** template copy → setup → git baseline → agent → file changes → teardown → cleanup
 **Merge:** Case-level fields replace suite-level fields.
-**Scripts receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
+**Commands receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
 **Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
 See https://agentv.dev/targets/configuration/#workspace-setupteardown
 
@@ -188,7 +188,7 @@ Configure via `assert` array. Multiple evaluators produce a weighted average sco
 ```yaml
 - name: format_check
   type: code_judge
-  script: uv run validate.py
+  command: [uv, run, validate.py]
   cwd: ./scripts          # optional working directory
   target: {}              # optional: enable LLM target proxy (max_calls: 50)
 ```
@@ -201,9 +201,9 @@ See docs at https://agentv.dev/evaluators/code-judges/
 ```yaml
 - name: quality
   type: llm_judge
-  prompt: ./prompts/eval.md     # markdown template or script config
+  prompt: ./prompts/eval.md     # markdown template or command config
   model: gpt-5-chat            # optional model override
-  config:                       # passed to script templates as context.config
+  config:                       # passed to prompt templates as context.config
     strictness: high
 ```
 Variables: `{{question}}`, `{{criteria}}`, `{{answer}}`, `{{reference_answer}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{file_changes}}`
@@ -391,7 +391,7 @@ export default defineCodeJudge(({ trace, answer }) => ({
 }));
 ```
 
-Both are used via `type: code_judge` in YAML with `script: bun run judge.ts`.
+Both are used via `type: code_judge` in YAML with `command: [bun, run, judge.ts]`.
 
 ### Convention-Based Discovery
 
@@ -402,7 +402,7 @@ Place assertion files in `.agentv/assertions/` — they auto-register by filenam
 .agentv/assertions/sentiment.ts   →  type: sentiment
 ```
 
-No `script:` needed in YAML — just use `type: <filename>`.
+No `command:` needed in YAML — just use `type: <filename>`.
 
 ## Programmatic API
 

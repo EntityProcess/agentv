@@ -473,6 +473,7 @@ export const loadEvalCaseById = loadTestById;
 
 /**
  * Parse a WorkspaceScriptConfig from raw YAML value.
+ * Accepts both `command` (preferred) and `script` (deprecated alias).
  */
 function parseWorkspaceScriptConfig(
   raw: unknown,
@@ -480,10 +481,11 @@ function parseWorkspaceScriptConfig(
 ): WorkspaceScriptConfig | undefined {
   if (!isJsonObject(raw)) return undefined;
   const obj = raw as Record<string, unknown>;
-  const script = obj.script;
-  if (!Array.isArray(script) || script.length === 0) return undefined;
-  const scriptArr = script.filter((s): s is string => typeof s === 'string');
-  if (scriptArr.length === 0) return undefined;
+  // Precedence: command > script (deprecated)
+  const commandSource = obj.command ?? obj.script;
+  if (!Array.isArray(commandSource) || commandSource.length === 0) return undefined;
+  const commandArr = commandSource.filter((s): s is string => typeof s === 'string');
+  if (commandArr.length === 0) return undefined;
 
   const timeoutMs = typeof obj.timeout_ms === 'number' ? obj.timeout_ms : undefined;
   let cwd = typeof obj.cwd === 'string' ? obj.cwd : undefined;
@@ -493,7 +495,7 @@ function parseWorkspaceScriptConfig(
     cwd = path.resolve(evalFileDir, cwd);
   }
 
-  const config: WorkspaceScriptConfig = { script: scriptArr };
+  const config: WorkspaceScriptConfig = { command: commandArr };
   if (timeoutMs !== undefined) {
     return { ...config, timeout_ms: timeoutMs, ...(cwd !== undefined && { cwd }) };
   }

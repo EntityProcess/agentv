@@ -22,7 +22,7 @@ tests:
     assert:
       - name: rouge-score
         type: code_judge
-        script: ["bun", "run", "../judges/rouge.ts"]
+        command: ["bun", "run", "../judges/rouge.ts"]
 
   - id: translation-bleu
     criteria: Translation preserves meaning and word choice of the reference.
@@ -38,7 +38,7 @@ tests:
     assert:
       - name: bleu-score
         type: code_judge
-        script: ["bun", "run", "../judges/bleu.ts"]
+        command: ["bun", "run", "../judges/bleu.ts"]
 
   - id: paraphrase-similarity
     criteria: Paraphrase conveys the same meaning as the reference.
@@ -54,7 +54,7 @@ tests:
     assert:
       - name: cosine-similarity
         type: code_judge
-        script: ["bun", "run", "../judges/similarity.ts"]
+        command: ["bun", "run", "../judges/similarity.ts"]
 
   - id: extraction-levenshtein
     criteria: Extracted text closely matches the expected value.
@@ -70,7 +70,7 @@ tests:
     assert:
       - name: edit-distance
         type: code_judge
-        script: ["bun", "run", "../judges/levenshtein.ts"]
+        command: ["bun", "run", "../judges/levenshtein.ts"]
 
   - id: multi-metric-evaluation
     criteria: Response is evaluated by multiple NLP metrics simultaneously.
@@ -86,10 +86,10 @@ tests:
     assert:
       - name: rouge-score
         type: code_judge
-        script: ["bun", "run", "../judges/rouge.ts"]
+        command: ["bun", "run", "../judges/rouge.ts"]
       - name: cosine-similarity
         type: code_judge
-        script: ["bun", "run", "../judges/similarity.ts"]
+        command: ["bun", "run", "../judges/similarity.ts"]
       - name: edit-distance
         type: code_judge
-        script: ["bun", "run", "../judges/levenshtein.ts"]
+        command: ["bun", "run", "../judges/levenshtein.ts"]

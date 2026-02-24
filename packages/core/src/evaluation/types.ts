@@ -185,16 +185,18 @@ export type TargetAccessConfig = {
 };
 
 /**
- * Configuration for workspace lifecycle scripts (before_all, after_all, before_each, after_each).
- * Scripts are executed with workspace context passed via stdin.
+ * Configuration for workspace lifecycle commands (before_all, after_all, before_each, after_each).
+ * Commands are executed with workspace context passed via stdin.
  */
 export type WorkspaceScriptConfig = {
   /** Command array to execute (e.g., ["bun", "run", "setup.ts"]) */
-  readonly script: readonly string[];
+  readonly command: readonly string[];
+  /** @deprecated Use `command` instead */
+  readonly script?: readonly string[];
   /** Optional timeout in milliseconds (default: 60000 for setup, 30000 for teardown) */
   readonly timeout_ms?: number;
   readonly timeoutMs?: number;
-  /** Optional working directory for script execution */
+  /** Optional working directory for command execution */
   readonly cwd?: string;
 };
 
@@ -213,20 +215,22 @@ export type WorkspaceConfig = {
   /** Template directory or .code-workspace file. Directories are copied to temp workspace.
    *  .code-workspace files are used by VS Code providers; CLI providers use the parent directory. */
   readonly template?: string;
-  /** Script to run once before first test (after workspace creation, before git baseline) */
+  /** Command to run once before first test (after workspace creation, before git baseline) */
   readonly before_all?: WorkspaceScriptConfig;
-  /** Script to run once after last test (before workspace cleanup) */
+  /** Command to run once after last test (before workspace cleanup) */
   readonly after_all?: WorkspaceScriptConfig;
-  /** Script to run before each test */
+  /** Command to run before each test */
   readonly before_each?: WorkspaceScriptConfig;
-  /** Script to run after each test (e.g., git reset for workspace reuse) */
+  /** Command to run after each test (e.g., git reset for workspace reuse) */
   readonly after_each?: WorkspaceScriptConfig;
 };
 
 export type CodeEvaluatorConfig = {
   readonly name: string;
   readonly type: 'code';
-  readonly script: readonly string[];
+  readonly command: readonly string[];
+  /** @deprecated Use `command` instead */
+  readonly script?: readonly string[];
   readonly resolvedScriptPath?: string;
   readonly cwd?: string;
   readonly resolvedCwd?: string;
@@ -234,9 +238,9 @@ export type CodeEvaluatorConfig = {
   readonly required?: boolean | number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
-  /** Pass-through configuration for the code_judge script (any unrecognized YAML properties) */
+  /** Pass-through configuration for the code_judge (any unrecognized YAML properties) */
   readonly config?: JsonObject;
-  /** When present, enables target access for the script via local proxy */
+  /** When present, enables target access via local proxy */
   readonly target?: TargetAccessConfig;
 };
 
@@ -246,7 +250,9 @@ export type CodeEvaluatorConfig = {
  */
 export type PromptScriptConfig = {
   /** Command array to execute (e.g., ["bun", "run", "template.ts"]) */
-  readonly script: readonly string[];
+  readonly command: readonly string[];
+  /** @deprecated Use `command` instead */
+  readonly script?: readonly string[];
   /** Pass-through configuration for the prompt template */
   readonly config?: Record<string, unknown>;
 };

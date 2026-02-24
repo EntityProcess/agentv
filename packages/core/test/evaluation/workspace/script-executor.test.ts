@@ -71,7 +71,7 @@ process.exit(1);
 
   it('should execute workspace script successfully (fatal mode)', async () => {
     const config: WorkspaceScriptConfig = {
-      script: ['node', setupScript],
+      command: ['node', setupScript],
       timeout_ms: 5000,
     };
 
@@ -89,7 +89,7 @@ process.exit(1);
 
   it('should execute workspace script successfully (warn mode)', async () => {
     const config: WorkspaceScriptConfig = {
-      script: ['node', teardownScript],
+      command: ['node', teardownScript],
       timeout_ms: 5000,
     };
 
@@ -106,7 +106,7 @@ process.exit(1);
 
   it('should fail on script error in fatal mode', async () => {
     const config: WorkspaceScriptConfig = {
-      script: ['node', failingScript],
+      command: ['node', failingScript],
       timeout_ms: 5000,
     };
 
@@ -121,7 +121,7 @@ process.exit(1);
 
   it('should handle script error gracefully in warn mode', async () => {
     const config: WorkspaceScriptConfig = {
-      script: ['node', failingScript],
+      command: ['node', failingScript],
       timeout_ms: 5000,
     };
 
@@ -161,7 +161,7 @@ rl.on('close', () => {
     );
 
     const config: WorkspaceScriptConfig = {
-      script: ['node', contextCheckScript],
+      command: ['node', contextCheckScript],
       timeout_ms: 5000,
     };
 
@@ -203,7 +203,7 @@ rl.on('close', () => {
     );
 
     const config: WorkspaceScriptConfig = {
-      script: ['node', metadataCheckScript],
+      command: ['node', metadataCheckScript],
       timeout_ms: 5000,
     };
 
@@ -222,7 +222,7 @@ rl.on('close', () => {
 
   it('should support optional timeout_ms (defaults apply)', async () => {
     const config: WorkspaceScriptConfig = {
-      script: ['node', setupScript],
+      command: ['node', setupScript],
       // No timeout_ms specified - should use default (60000 for setup)
     };
 

@@ -214,7 +214,7 @@ tests:
       # Multi-field fuzzy match with config pass-through
       - name: party_names_fuzzy
         type: code_judge
-        script: ["bun", "run", "../judges/multi_field_fuzzy.ts"]
+        command: ["bun", "run", "../judges/multi_field_fuzzy.ts"]
         # These properties are passed to the script via stdin config
         fields:
           - path: supplier.name
@@ -394,7 +394,7 @@ tests:
     assert:
       - name: line_items_matched
         type: code_judge
-        script: ["bun", "run", "../judges/line_item_matching.ts"]
+        command: ["bun", "run", "../judges/line_item_matching.ts"]
         match_fields: ["description"]
         score_fields: ["description", "quantity", "line_total"]
         threshold: 0.8

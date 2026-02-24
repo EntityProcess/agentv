@@ -27,4 +27,4 @@ tests:
     assert:
       - name: functional-check
         type: code_judge
-        script: ["bun", "run", "../scripts/functional-check.ts"]
+        command: ["bun", "run", "../scripts/functional-check.ts"]

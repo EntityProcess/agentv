@@ -24,7 +24,7 @@ tests:
     assert:
       - name: span-count
         type: code_judge
-        script: ["bun", "run", "../judges/span-count.ts"]
+        command: ["bun", "run", "../judges/span-count.ts"]
         config:
           maxLlmCalls: 5
           maxToolCalls: 10
@@ -43,7 +43,7 @@ tests:
     assert:
       - name: error-check
         type: code_judge
-        script: ["bun", "run", "../judges/error-spans.ts"]
+        command: ["bun", "run", "../judges/error-spans.ts"]
         config:
           maxErrors: 0
 
@@ -62,7 +62,7 @@ tests:
     assert:
       - name: error-and-tool-check
         type: code_judge
-        script: ["bun", "run", "../judges/error-spans.ts"]
+        command: ["bun", "run", "../judges/error-spans.ts"]
         config:
           maxErrors: 0
           forbiddenTools:
@@ -84,7 +84,7 @@ tests:
     assert:
       - name: duration-check
         type: code_judge
-        script: ["bun", "run", "../judges/span-duration.ts"]
+        command: ["bun", "run", "../judges/span-duration.ts"]
         config:
           maxSpanMs: 3000
           maxTotalMs: 15000
@@ -104,17 +104,17 @@ tests:
     assert:
       - name: span-count
         type: code_judge
-        script: ["bun", "run", "../judges/span-count.ts"]
+        command: ["bun", "run", "../judges/span-count.ts"]
         config:
           maxLlmCalls: 8
           maxToolCalls: 20
 
       - name: error-check
         type: code_judge
-        script: ["bun", "run", "../judges/error-spans.ts"]
+        command: ["bun", "run", "../judges/error-spans.ts"]
 
       - name: duration-check
         type: code_judge
-        script: ["bun", "run", "../judges/span-duration.ts"]
+        command: ["bun", "run", "../judges/span-duration.ts"]
         config:
           maxSpanMs: 5000

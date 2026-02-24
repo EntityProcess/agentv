@@ -551,9 +551,9 @@ describe('parseEvaluators - code_judge config pass-through', () => {
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as CodeEvaluatorConfig;
     if (process.platform === 'win32') {
-      expect(config.script).toEqual(['cmd.exe', '/c', './test_script.ts']);
+      expect(config.command).toEqual(['cmd.exe', '/c', './test_script.ts']);
     } else {
-      expect(config.script).toEqual(['sh', '-lc', './test_script.ts']);
+      expect(config.command).toEqual(['sh', '-lc', './test_script.ts']);
     }
   });
 });

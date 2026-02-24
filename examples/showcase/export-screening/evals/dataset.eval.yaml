@@ -23,7 +23,7 @@ execution:
 assert:
   - name: risk_assessment_quality
     type: code_judge
-    script: ["bun", "run", "validate_risk_output.ts"]
+    command: ["bun", "run", "validate_risk_output.ts"]
 
 tests:
   # ============================================

@@ -17,26 +17,28 @@ import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 const FILE_BACKED_OUTPUT_THRESHOLD = 50_000;
 
 export interface CodeEvaluatorOptions {
-  readonly script: readonly string[];
+  readonly command: readonly string[];
+  /** @deprecated Use `command` instead */
+  readonly script?: readonly string[];
   readonly cwd?: string;
   readonly agentTimeoutMs?: number;
   /** Pass-through configuration from YAML (any unrecognized properties) */
   readonly config?: Record<string, unknown>;
-  /** Target access config - when present, enables target invocation for the script */
+  /** Target access config - when present, enables target invocation */
   readonly target?: TargetAccessConfig;
 }
 
 export class CodeEvaluator implements Evaluator {
   readonly kind = 'code';
 
-  private readonly script: readonly string[];
+  private readonly command: readonly string[];
   private readonly cwd?: string;
   private readonly agentTimeoutMs?: number;
   private readonly config?: Record<string, unknown>;
   private readonly target?: TargetAccessConfig;
 
   constructor(options: CodeEvaluatorOptions) {
-    this.script = options.script;
+    this.command = options.command ?? options.script ?? [];
     this.cwd = options.cwd;
     this.agentTimeoutMs = options.agentTimeoutMs;
     this.config = options.config;
@@ -111,7 +113,7 @@ export class CodeEvaluator implements Evaluator {
 
     try {
       const stdout = await executeScript(
-        this.script,
+        this.command,
         inputPayload,
         this.agentTimeoutMs,
         this.cwd,
@@ -131,7 +133,7 @@ export class CodeEvaluator implements Evaluator {
       // Build evaluator raw request with proxy metadata if used
       const proxyUsage = getProxyUsage?.();
       const evaluatorRawRequest: JsonObject = {
-        script: this.script,
+        command: this.command,
         ...(this.cwd ? { cwd: this.cwd } : {}),
         ...(proxyUsage
           ? {
@@ -164,7 +166,7 @@ export class CodeEvaluator implements Evaluator {
         expectedAspectCount: 1,
         reasoning: message,
         evaluatorRawRequest: {
-          script: this.script,
+          command: this.command,
           ...(this.cwd ? { cwd: this.cwd } : {}),
           ...(proxyUsage
             ? {

@@ -97,7 +97,7 @@ console.log(JSON.stringify({
 assert:
   - name: my_validator
     type: code_judge
-    script: ./validators/check_answer.py
+    command: [./validators/check_answer.py]
 ```
 
 ## @agentv/eval SDK
@@ -142,7 +142,7 @@ Add a `target` block to the evaluator config:
 assert:
   - name: contextual-precision
     type: code_judge
-    script: bun scripts/contextual-precision.ts
+    command: [bun, scripts/contextual-precision.ts]
     target:
       max_calls: 10  # Default: 50
 ```
@@ -289,7 +289,7 @@ tests:
     assert:
       - name: functional-check
         type: code_judge
-        script: bun scripts/functional-check.ts
+        command: [bun, scripts/functional-check.ts]
 ```
 
 See `examples/features/functional-grading/` for a complete working example.

@@ -6,11 +6,11 @@ tags: [showcase, workspace, cross-repo]
 workspace:
   template: ../workspace-template
   before_each:
-    script: ["bash", "../scripts/run-ts.sh", "../scripts/setup.ts"]
+    command: ["bash", "../scripts/run-ts.sh", "../scripts/setup.ts"]
     timeout_ms: 900000
     cwd: .
   after_each:
-    script: ["bash", "../scripts/run-ts.sh", "../scripts/reset.ts"]
+    command: ["bash", "../scripts/run-ts.sh", "../scripts/reset.ts"]
     timeout_ms: 5000
     cwd: .
 
@@ -34,7 +34,7 @@ tests:
     assert:
       - name: sync-check
         type: code_judge
-        script: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
+        command: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
         expected_files_modified:
           - agentevals/docs/src/content/docs/specification/evaluators.mdx
           - agentevals/docs/src/content/docs/specification/eval-format.mdx
@@ -54,7 +54,7 @@ tests:
     assert:
       - name: sync-check
         type: code_judge
-        script: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
+        command: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
         expected_files_modified:
           - agentevals/docs/src/content/docs/specification/eval-format.mdx
           - agentevals/docs/src/content/docs/specification/evalcase-schema.mdx
@@ -75,7 +75,7 @@ tests:
     assert:
       - name: sync-check
         type: code_judge
-        script: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
+        command: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
         expected_files_modified:
           - agentevals/docs/src/content/docs/specification/eval-format.mdx
           - agentevals/docs/src/content/docs/specification/evalcase-schema.mdx

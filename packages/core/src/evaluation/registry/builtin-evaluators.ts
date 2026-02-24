@@ -87,7 +87,7 @@ export const llmJudgeFactory: EvaluatorFactoryFn = (config, context) => {
 export const codeFactory: EvaluatorFactoryFn = (config, context) => {
   const c = config as CodeEvaluatorConfig;
   return new CodeEvaluator({
-    script: c.script,
+    command: c.command ?? c.script ?? [],
     cwd: c.resolvedCwd ?? c.cwd,
     agentTimeoutMs: context.agentTimeoutMs,
     config: c.config,

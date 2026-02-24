@@ -14,11 +14,11 @@ AgentV provides two SDK functions for custom evaluation logic:
 | Function | Best For | Discovery |
 |----------|----------|-----------|
 | `defineAssertion()` | Pass/fail checks, reusable assertion types | Convention-based (`.agentv/assertions/`) |
-| `defineCodeJudge()` | Full scoring control with explicit hits/misses | Referenced via `type: code_judge` + `script:` |
+| `defineCodeJudge()` | Full scoring control with explicit hits/misses | Referenced via `type: code_judge` + `command:` |
 
-**Use `defineAssertion()`** when you want a named assertion type that can be referenced across eval files without specifying a script path. It uses a simplified result contract focused on `pass` and optional `score`.
+**Use `defineAssertion()`** when you want a named assertion type that can be referenced across eval files without specifying a command path. It uses a simplified result contract focused on `pass` and optional `score`.
 
-**Use `defineCodeJudge()`** when you need full control over scoring with explicit `hits`/`misses` arrays, or when the evaluator is a one-off script tied to a specific eval. See [Code Judges](/evaluators/code-judges/) for details.
+**Use `defineCodeJudge()`** when you need full control over scoring with explicit `hits`/`misses` arrays, or when the evaluator is a one-off judge tied to a specific eval. See [Code Judges](/evaluators/code-judges/) for details.
 
 Both functions handle stdin/stdout JSON parsing, snake_case-to-camelCase conversion, Zod validation, and error handling automatically.
 
@@ -46,7 +46,7 @@ Custom assertion types cannot override built-in types (`contains`, `equals`, `is
 
 ### Using in YAML
 
-Reference the assertion by type name directly -- no `script:` path needed:
+Reference the assertion by type name directly -- no `command:` path needed:
 
 ```yaml
 assert:

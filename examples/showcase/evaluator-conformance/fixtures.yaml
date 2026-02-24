@@ -8,7 +8,7 @@
 # The evaluator under test receives: question, criteria, answer, expected_output
 
 evaluator:
-  script: ["bun", "run", "evaluators/keyword-judge.ts"]
+  command: ["bun", "run", "evaluators/keyword-judge.ts"]
 
 fixtures:
   # ── Unambiguous Pass Cases ─────────────────────────────────────────────

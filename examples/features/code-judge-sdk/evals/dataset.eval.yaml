@@ -32,4 +32,4 @@ tests:
     assert:
       - name: attachment-check
         type: code_judge
-        script: ["bun", "run", "../scripts/verify-attachments.ts"]
+        command: ["bun", "run", "../scripts/verify-attachments.ts"]

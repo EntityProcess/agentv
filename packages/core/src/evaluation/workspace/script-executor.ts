@@ -15,13 +15,13 @@ export interface ScriptExecutionContext {
 export type ScriptFailureMode = 'fatal' | 'warn';
 
 /**
- * Executes a workspace lifecycle script (before_all, after_all, before_each, after_each).
+ * Executes a workspace lifecycle command (before_all, after_all, before_each, after_each).
  *
- * @param config - Workspace script configuration (script, timeout_ms, cwd)
- * @param context - Context passed to script via stdin (JSON)
+ * @param config - Workspace command configuration (command, timeout_ms, cwd)
+ * @param context - Context passed to command via stdin (JSON)
  * @param failureMode - 'fatal' throws on non-zero exit; 'warn' logs warning
- * @returns Captured stdout from the script
- * @throws Error if script exits with non-zero code (fatal mode) or times out
+ * @returns Captured stdout from the command
+ * @throws Error if command exits with non-zero code (fatal mode) or times out
  */
 export async function executeWorkspaceScript(
   config: WorkspaceScriptConfig,
@@ -39,7 +39,10 @@ export async function executeWorkspaceScript(
   const timeoutMs = config.timeout_ms ?? (failureMode === 'fatal' ? 60000 : 30000);
   const cwd = config.cwd;
 
-  const result = await execFileWithStdin(config.script, stdin, {
+  // Support both command (canonical) and script (deprecated alias)
+  const commandArray = config.command ?? config.script ?? [];
+
+  const result = await execFileWithStdin(commandArray, stdin, {
     timeoutMs,
     cwd,
   });
