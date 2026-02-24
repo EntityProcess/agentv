@@ -105,20 +105,20 @@ When `workspace_template` is set:
 
 ### Workspace Lifecycle Hooks
 
-Run scripts at different points in the evaluation lifecycle using the `workspace` block. This can be defined at the suite level (applies to all tests) or per test (overrides suite-level).
+Run commands at different points in the evaluation lifecycle using the `workspace` block. This can be defined at the suite level (applies to all tests) or per test (overrides suite-level).
 
 ```yaml
 workspace:
   template: ./workspace-templates/my-project
   before_all:
-    script: ["bun", "run", "setup.ts"]
+    command: ["bun", "run", "setup.ts"]
     timeout_ms: 120000
     cwd: ./scripts
   after_each:
-    script: ["bun", "run", "reset.ts"]
+    command: ["bun", "run", "reset.ts"]
     timeout_ms: 5000
   after_all:
-    script: ["bun", "run", "cleanup.ts"]
+    command: ["bun", "run", "cleanup.ts"]
     timeout_ms: 30000
 ```
 
@@ -130,11 +130,11 @@ workspace:
 | `before_each` | Runs before each test |
 | `after_each` | Runs after each test (e.g., reset workspace state for reuse) |
 
-Each script config accepts:
+Each hook config accepts:
 
 | Field | Description |
 |-------|-------------|
-| `script` | Command array (e.g., `["bun", "run", "setup.ts"]`) |
+| `command` | Command array (e.g., `["bun", "run", "setup.ts"]`) |
 | `timeout_ms` | Timeout in milliseconds (default: 60000 for `before_all`, 30000 for others) |
 | `cwd` | Working directory (relative paths resolved against eval file directory) |
 

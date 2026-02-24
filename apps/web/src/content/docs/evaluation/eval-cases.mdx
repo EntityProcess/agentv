@@ -120,7 +120,7 @@ Override the suite-level workspace config for individual tests. Test-level field
 ```yaml
 workspace:
   before_all:
-    script: ["bun", "run", "default-setup.ts"]
+    command: ["bun", "run", "default-setup.ts"]
 
 tests:
   - id: case-1
@@ -128,7 +128,7 @@ tests:
     input: Do something
     workspace:
       before_all:
-        script: ["bun", "run", "custom-setup.ts"]
+        command: ["bun", "run", "custom-setup.ts"]
 
   - id: case-2
     criteria: Should also work
@@ -140,7 +140,7 @@ See [Workspace Lifecycle Hooks](/targets/configuration/#workspace-lifecycle-hook
 
 ## Per-Case Metadata
 
-Pass arbitrary key-value pairs to lifecycle scripts via the `metadata` field. This is useful for benchmark datasets where each case needs repo info, commit hashes, or other context:
+Pass arbitrary key-value pairs to lifecycle commands via the `metadata` field. This is useful for benchmark datasets where each case needs repo info, commit hashes, or other context:
 
 ```yaml
 tests:
@@ -152,10 +152,10 @@ tests:
       base_commit: "abc123def"
     workspace:
       before_all:
-        script: ["python", "checkout_repo.py"]
+        command: ["python", "checkout_repo.py"]
 ```
 
-The `metadata` field is included in the stdin JSON passed to lifecycle scripts as `case_metadata`.
+The `metadata` field is included in the stdin JSON passed to lifecycle commands as `case_metadata`.
 
 ## Per-Test Assertions
 

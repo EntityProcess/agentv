@@ -56,7 +56,7 @@ tests:
     assert:
       - name: decision-check
         type: code_judge
-        script: bun run ./scripts/check-output.ts
+        command: [bun, run, ./scripts/check-output.ts]
         cwd: .
 
   - id: case-002
@@ -84,7 +84,7 @@ tests:
     assert:
       - name: decision-check
         type: code_judge
-        script: bun run ./scripts/check-output.ts
+        command: [bun, run, ./scripts/check-output.ts]
         cwd: .
 ```
 

@@ -60,7 +60,7 @@ tests:
 # assert:
 #   - name: accuracy
 #     type: code_judge
-#     script: ./scripts/check_conversion.py
+#     command: [./scripts/check_conversion.py]
 #   - name: quality
 #     type: llm_judge
 #     prompt: ./prompts/quality.md

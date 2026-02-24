@@ -85,7 +85,7 @@ tests:
     assert:
       - name: json_format_validator
         type: code_judge
-        script: uv run validate_json.py
+        command: [uv, run, validate_json.py]
         cwd: ./evaluators
       - name: content_evaluator
         type: llm_judge
@@ -261,7 +261,7 @@ tests:
     assert:
       - name: decision-check
         type: code_judge
-        script: bun run ./scripts/check-batch-cli-output.ts
+        command: [bun, run, ./scripts/check-batch-cli-output.ts]
         cwd: .
 
   - id: aml-002
@@ -294,7 +294,7 @@ tests:
     assert:
       - name: decision-check
         type: code_judge
-        script: bun run ./scripts/check-batch-cli-output.ts
+        command: [bun, run, ./scripts/check-batch-cli-output.ts]
         cwd: .
 ```
 

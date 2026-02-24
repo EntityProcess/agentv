@@ -99,7 +99,7 @@ async function processEvaluator(
   switch (config.type) {
     case 'code': {
       const codeConfig = config as Extract<EvaluatorConfig, { type: 'code' }>;
-      const script = codeConfig.script;
+      const script = codeConfig.command ?? codeConfig.script ?? [];
       const scriptCwd = codeConfig.resolvedCwd ?? codeConfig.cwd;
 
       const payload = {

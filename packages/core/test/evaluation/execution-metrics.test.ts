@@ -278,7 +278,7 @@ describe('Code Judge Metrics Integration', () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-trace-summary.cjs')];
 
-    const evaluator = new CodeEvaluator({ script });
+    const evaluator = new CodeEvaluator({ command: script });
 
     const trace: TraceSummary = {
       eventCount: 3,
@@ -312,7 +312,7 @@ describe('Code Judge Metrics Integration', () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-no-trace-summary.cjs')];
 
-    const evaluator = new CodeEvaluator({ script });
+    const evaluator = new CodeEvaluator({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,

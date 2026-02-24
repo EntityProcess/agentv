@@ -68,7 +68,7 @@ tests:
 #     prompt: ./prompts/quality.md
 #   - name: accuracy
 #     type: code_judge
-#     script: ./scripts/check_accuracy.py
+#     command: [./scripts/check_accuracy.py]
 ```
 
 ## When to Use

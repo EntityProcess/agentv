@@ -100,7 +100,7 @@ Append a commented evaluator configuration based on the test content:
 #     prompt: ./prompts/quality.md
 #   - name: accuracy
 #     type: code_judge
-#     script: ./scripts/check_accuracy.py
+#     command: [./scripts/check_accuracy.py]
 ```
 
 - Recommend `llm_judge` for subjective quality (tone, helpfulness, completeness)

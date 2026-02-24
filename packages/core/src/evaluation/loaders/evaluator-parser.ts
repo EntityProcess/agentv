@@ -125,26 +125,27 @@ async function parseEvaluatorList(
     }
 
     if (typeValue === 'code_judge') {
-      let script: string[] | undefined;
-      const rawScript = rawEvaluator.script;
+      let command: string[] | undefined;
+      // Precedence: command > script (deprecated alias)
+      const rawCommand = rawEvaluator.command ?? rawEvaluator.script;
 
-      if (typeof rawScript === 'string') {
-        const trimmed = rawScript.trim();
+      if (typeof rawCommand === 'string') {
+        const trimmed = rawCommand.trim();
         if (trimmed.length === 0) {
           throw new Error(
-            `Invalid code_judge script for evaluator '${name}' in '${evalId}': script cannot be empty`,
+            `Invalid code_judge command for evaluator '${name}' in '${evalId}': command cannot be empty`,
           );
         }
-        script = parseCommandToArgv(trimmed);
+        command = parseCommandToArgv(trimmed);
       } else {
-        script = asStringArray(
-          rawScript,
-          `code_judge script for evaluator '${name}' in '${evalId}'`,
+        command = asStringArray(
+          rawCommand,
+          `code_judge command for evaluator '${name}' in '${evalId}'`,
         );
       }
 
-      if (!script) {
-        logWarning(`Skipping code_judge evaluator '${name}' in '${evalId}': missing script`);
+      if (!command) {
+        logWarning(`Skipping code_judge evaluator '${name}' in '${evalId}': missing command`);
         continue;
       }
 
@@ -200,6 +201,7 @@ async function parseEvaluatorList(
       const knownProps = new Set([
         'name',
         'type',
+        'command',
         'script',
         'cwd',
         'weight',
@@ -217,7 +219,7 @@ async function parseEvaluatorList(
       evaluators.push({
         name,
         type: 'code',
-        script,
+        command,
         cwd,
         resolvedCwd,
         ...(weight !== undefined ? { weight } : {}),
@@ -983,26 +985,27 @@ async function parseEvaluatorList(
     let promptScriptConfig: Record<string, unknown> | undefined;
 
     if (isJsonObject(rawPrompt)) {
-      // Executable prompt template: { script: [...], config: {...} }
-      const scriptArray = asStringArray(
-        rawPrompt.script,
-        `prompt.script for evaluator '${name}' in '${evalId}'`,
+      // Executable prompt template: { command: [...], config: {...} }
+      // Precedence: command > script (deprecated alias)
+      const commandArray = asStringArray(
+        rawPrompt.command ?? rawPrompt.script,
+        `prompt.command for evaluator '${name}' in '${evalId}'`,
       );
 
-      if (!scriptArray) {
-        throw new Error(`Evaluator '${name}' in '${evalId}': prompt object requires script array`);
+      if (!commandArray) {
+        throw new Error(`Evaluator '${name}' in '${evalId}': prompt object requires command array`);
       }
 
-      // Resolve the script path (last element is typically the file path)
-      const scriptPath = scriptArray[scriptArray.length - 1];
-      const resolved = await resolveFileReference(scriptPath, searchRoots);
+      // Resolve the command path (last element is typically the file path)
+      const commandPath = commandArray[commandArray.length - 1];
+      const resolved = await resolveFileReference(commandPath, searchRoots);
 
       if (resolved.resolvedPath) {
         // Replace the last element with the resolved path
-        resolvedPromptScript = [...scriptArray.slice(0, -1), path.resolve(resolved.resolvedPath)];
+        resolvedPromptScript = [...commandArray.slice(0, -1), path.resolve(resolved.resolvedPath)];
       } else {
         throw new Error(
-          `Evaluator '${name}' in '${evalId}': prompt script file not found: ${resolved.displayPath}`,
+          `Evaluator '${name}' in '${evalId}': prompt command file not found: ${resolved.displayPath}`,
         );
       }
 

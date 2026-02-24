@@ -45,7 +45,7 @@ tests:
     assert:
       - name: decision-check
         type: code_judge
-        script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
+        command: ["bun", "run", "../judges/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
       - name: tool-trajectory-check
@@ -84,7 +84,7 @@ tests:
     assert:
       - name: decision-check
         type: code_judge
-        script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
+        command: ["bun", "run", "../judges/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
       - name: tool-trajectory-check
@@ -123,7 +123,7 @@ tests:
     assert:
       - name: decision-check
         type: code_judge
-        script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
+        command: ["bun", "run", "../judges/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
       - name: tool-trajectory-check
@@ -162,7 +162,7 @@ tests:
     assert:
       - name: decision-check
         type: code_judge
-        script: ["bun", "run", "../judges/check-batch-cli-output.ts"]
+        command: ["bun", "run", "../judges/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
       - name: tool-trajectory-check

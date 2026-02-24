@@ -17,7 +17,7 @@ tests:
     assert:
       - name: keyword-judge
         type: code_judge
-        script: ["bun", "run", "evaluators/keyword-judge.ts"]
+        command: ["bun", "run", "evaluators/keyword-judge.ts"]
 
   - id: partial-match
     criteria: "Answer must mention red, blue, and yellow."
@@ -26,4 +26,4 @@ tests:
     assert:
       - name: keyword-judge
         type: code_judge
-        script: ["bun", "run", "evaluators/keyword-judge.ts"]
+        command: ["bun", "run", "evaluators/keyword-judge.ts"]

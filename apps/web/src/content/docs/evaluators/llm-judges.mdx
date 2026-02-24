@@ -90,16 +90,16 @@ Evaluate and provide a score from 0 to 1.`;
 3. The LLM returns a structured evaluation with score, hits, misses, and reasoning
 4. Results are recorded in the output JSONL
 
-## Script Configuration
+## Command Configuration
 
-When using TypeScript templates, configure them in YAML with optional `config` data passed to the script:
+When using TypeScript templates, configure them in YAML with optional `config` data passed to the command:
 
 ```yaml
 assert:
   - name: custom-eval
     type: llm_judge
     prompt:
-      script: [bun, run, ../prompts/custom-evaluator.ts]
+      command: [bun, run, ../prompts/custom-evaluator.ts]
       config:
         rubric: "Your rubric here"
         strictMode: true

@@ -65,7 +65,7 @@ describe('CodeEvaluator file-backed output', () => {
     const script = await createEchoJudge(tmpDir);
     const smallOutput = [{ role: 'assistant' as const, content: 'short response' }];
 
-    const evaluator = new CodeEvaluator({ script: ['bash', script] });
+    const evaluator = new CodeEvaluator({ command: ['bash', script] });
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
       candidate: 'answer',
@@ -82,7 +82,7 @@ describe('CodeEvaluator file-backed output', () => {
     const largeContent = 'x'.repeat(60_000);
     const largeOutput = [{ role: 'assistant' as const, content: largeContent }];
 
-    const evaluator = new CodeEvaluator({ script: ['bash', script] });
+    const evaluator = new CodeEvaluator({ command: ['bash', script] });
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
       candidate: 'answer',
@@ -103,7 +103,7 @@ describe('CodeEvaluator file-backed output', () => {
     const largeContent = 'x'.repeat(60_000);
     const largeOutput = [{ role: 'assistant' as const, content: largeContent }];
 
-    const evaluator = new CodeEvaluator({ script: ['bash', script] });
+    const evaluator = new CodeEvaluator({ command: ['bash', script] });
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
       candidate: 'answer',

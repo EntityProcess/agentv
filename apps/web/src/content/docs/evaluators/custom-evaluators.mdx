@@ -11,7 +11,7 @@ AgentV supports multiple evaluator types that can be combined for comprehensive 
 
 | Type | Description | Use Case |
 |------|-------------|----------|
-| `code_judge` | Deterministic script (Python/TS/any) | Exact matching, format validation, programmatic checks |
+| `code_judge` | Deterministic command (Python/TS/any) | Exact matching, format validation, programmatic checks |
 | `llm_judge` | LLM-based evaluation with custom prompt | Semantic evaluation, nuance, subjective quality |
 | `rubrics` | Structured rubric evaluator via `assert` | Multi-criterion grading with weights |
 
@@ -44,7 +44,7 @@ tests:
     assert:
       - name: json_check
         type: code_judge
-        script: ./validators/check_json.py
+        command: [./validators/check_json.py]
 ```
 
 ## Combining Evaluators
@@ -64,7 +64,7 @@ tests:
           - Uses appropriate algorithm
       - name: syntax_check
         type: code_judge
-        script: ./validators/check_syntax.py
+        command: [./validators/check_syntax.py]
       - name: quality_review
         type: llm_judge
         prompt: ./judges/code_quality.md

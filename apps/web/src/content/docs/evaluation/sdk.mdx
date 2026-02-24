@@ -64,7 +64,7 @@ Convention-based discovery maps filename → assertion type:
 .agentv/assertions/sentiment.ts   →  type: sentiment
 ```
 
-Reference directly in your eval file — no `script:` needed:
+Reference directly in your eval file — no `command:` needed:
 
 ```yaml
 assert:
@@ -87,7 +87,7 @@ export default defineCodeJudge(({ trace, answer }) => ({
 }));
 ```
 
-`defineCodeJudge` scripts are referenced in YAML with `type: code_judge` and `script: bun run judge.ts`. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
+`defineCodeJudge` judges are referenced in YAML with `type: code_judge` and `command: [bun, run, judge.ts]`. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
 
 For detailed patterns, input/output contracts, and language-agnostic examples, see [Code Judges](/evaluators/code-judges/).
 

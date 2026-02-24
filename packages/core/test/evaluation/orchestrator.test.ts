@@ -1406,7 +1406,7 @@ rl.on('close', () => {
       workspace: {
         template: templateDir,
         before_all: {
-          script: ['node', setupScript],
+          command: ['node', setupScript],
           timeout_ms: 10000,
         },
       },
@@ -1446,7 +1446,7 @@ rl.on('close', () => {
       workspace: {
         template: templateDir,
         before_all: {
-          script: ['node', failingScript],
+          command: ['node', failingScript],
           timeout_ms: 5000,
         },
       },
@@ -1503,7 +1503,7 @@ rl.on('close', () => {
       workspace: {
         template: templateDir,
         after_each: {
-          script: ['node', teardownScript],
+          command: ['node', teardownScript],
           timeout_ms: 10000,
         },
       },

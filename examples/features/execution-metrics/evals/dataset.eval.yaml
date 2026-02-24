@@ -154,4 +154,4 @@ tests:
       # Custom evaluation logic (for more complex checks)
       - name: custom-check
         type: code_judge
-        script: ["bun", "run", "../scripts/check-metrics-present.ts"]
+        command: ["bun", "run", "../scripts/check-metrics-present.ts"]

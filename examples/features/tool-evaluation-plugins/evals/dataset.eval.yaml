@@ -29,7 +29,7 @@ tests:
     assert:
       - name: tool-f1
         type: code_judge
-        script: ["bun", "run", "../judges/tool-call-f1.ts"]
+        command: ["bun", "run", "../judges/tool-call-f1.ts"]
         expected_tools: ["search", "fetch"]
 
   # ==========================================
@@ -47,7 +47,7 @@ tests:
     assert:
       - name: tool-args-f1
         type: code_judge
-        script: ["bun", "run", "../judges/tool-args-f1.ts"]
+        command: ["bun", "run", "../judges/tool-args-f1.ts"]
         expected_tools:
           - tool: search
             args: { query: "weather tokyo" }
@@ -76,5 +76,5 @@ tests:
       # Plugin: F1 score over expected tools
       - name: tool-f1
         type: code_judge
-        script: ["bun", "run", "../judges/tool-call-f1.ts"]
+        command: ["bun", "run", "../judges/tool-call-f1.ts"]
         expected_tools: ["search", "validate", "process"]

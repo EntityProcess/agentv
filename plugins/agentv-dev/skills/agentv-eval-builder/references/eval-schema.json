@@ -44,9 +44,10 @@
                 ],
                 "description": "Evaluator type: 'code' for scripts/regex/keywords, 'llm_judge' for LLM-based evaluation"
               },
-              "script": {
-                "type": "string",
-                "description": "Path to evaluator script (for type: code)"
+              "command": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Command array to execute evaluator (for type: code), e.g. [\"bun\", \"run\", \"judge.ts\"]"
               },
               "prompt": {
                 "type": "string",
@@ -277,9 +278,10 @@
                       "enum": ["code", "llm_judge"],
                       "description": "Evaluator type: 'code' for scripts/regex/keywords, 'llm_judge' for LLM-based evaluation"
                     },
-                    "script": {
-                      "type": "string",
-                      "description": "Path to evaluator script (for type: code)"
+                    "command": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "Command array to execute evaluator (for type: code), e.g. [\"bun\", \"run\", \"judge.ts\"]"
                     },
                     "prompt": {
                       "type": "string",

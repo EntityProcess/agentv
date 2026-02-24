@@ -13,7 +13,7 @@ sidebar:
 
 - Works standalone — no Braintrust platform account required
 - Uses any OpenAI-compatible endpoint for LLM-based scorers
-- Integrates with AgentV via `code_judge` evaluator type: wrap any autoevals scorer in a script that reads stdin and writes the AgentV judge result to stdout
+- Integrates with AgentV via `code_judge` evaluator type: wrap any autoevals scorer in a command that reads stdin and writes the AgentV judge result to stdout
 
 ## Installation
 
@@ -64,7 +64,7 @@ tests:
     assert:
       - name: factuality
         type: code_judge
-        script: ["bun", "run", "judges/factuality.ts"]
+        command: ["bun", "run", "judges/factuality.ts"]
 ```
 
 **judges/factuality.ts:**
@@ -113,7 +113,7 @@ tests:
     assert:
       - name: faithfulness
         type: code_judge
-        script: ["python", "judges/faithfulness.py"]
+        command: ["python", "judges/faithfulness.py"]
 ```
 
 **judges/faithfulness.py:**
@@ -201,7 +201,7 @@ tests:
     assert:
       - name: rag-quality
         type: code_judge
-        script: ["bun", "run", "judges/rag-suite.ts"]
+        command: ["bun", "run", "judges/rag-suite.ts"]
         weight: 1.0
 ```
 

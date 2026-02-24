@@ -21,7 +21,7 @@ assert:
         prompt: ./prompts/check1.md
       - name: evaluator_2
         type: code_judge
-        script: uv run check2.py
+        command: [uv, run, check2.py]
     aggregator:
       type: weighted_average
       weights:
@@ -59,7 +59,7 @@ final_score = sum(score_i * weight_i) / sum(weight_i)
 
 ### Code Judge Aggregator
 
-Run a custom script to decide the final score based on all evaluator results:
+Run a custom command to decide the final score based on all evaluator results:
 
 ```yaml
 aggregator:
@@ -68,7 +68,7 @@ aggregator:
   cwd: ./evaluators  # optional working directory
 ```
 
-The script receives the evaluator results on stdin and must print a result to stdout.
+The command receives the evaluator results on stdin and must print a result to stdout.
 
 **Input (stdin):**
 ```json
@@ -131,7 +131,7 @@ tests:
           path: ./scripts/safety-gate.js
 ```
 
-The `safety-gate.js` script can return a score of 0.0 whenever the safety evaluator fails, regardless of the quality score.
+The `safety-gate.js` command can return a score of 0.0 whenever the safety evaluator fails, regardless of the quality score.
 
 ### Multi-Criteria Weighted
 
@@ -146,7 +146,7 @@ Assign different importance to each evaluation dimension:
       prompt: ./prompts/correctness.md
     - name: style
       type: code_judge
-      script: uv run style_checker.py
+      command: [uv, run, style_checker.py]
     - name: security
       type: llm_judge
       prompt: ./prompts/security.md

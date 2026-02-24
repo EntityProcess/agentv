@@ -452,7 +452,7 @@ describe('CodeEvaluator', () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-judge.cjs')];
 
-    const evaluator = new CodeEvaluator({ script });
+    const evaluator = new CodeEvaluator({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: evalCaseWithExpectedMessages,
@@ -477,7 +477,7 @@ describe('CodeEvaluator', () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-judge-error.cjs')];
 
-    const evaluator = new CodeEvaluator({ script });
+    const evaluator = new CodeEvaluator({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
@@ -500,7 +500,7 @@ describe('CodeEvaluator', () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['bun', 'run', join(__dirname, '../fixtures/test-define-judge.ts')];
 
-    const evaluator = new CodeEvaluator({ script });
+    const evaluator = new CodeEvaluator({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
@@ -524,7 +524,7 @@ describe('CodeEvaluator', () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-judge-with-details.cjs')];
 
-    const evaluator = new CodeEvaluator({ script });
+    const evaluator = new CodeEvaluator({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: {
@@ -555,7 +555,7 @@ describe('CodeEvaluator', () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-judge-workspace.cjs')];
 
-    const evaluator = new CodeEvaluator({ script });
+    const evaluator = new CodeEvaluator({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
@@ -581,7 +581,7 @@ describe('CodeEvaluator', () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-judge.cjs')];
 
-    const evaluator = new CodeEvaluator({ script });
+    const evaluator = new CodeEvaluator({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: {

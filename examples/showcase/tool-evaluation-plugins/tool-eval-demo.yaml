@@ -40,7 +40,7 @@ tests:
       # Plugin: Semantic tool selection evaluation
       - name: selection-quality
         type: code_judge
-        script: ["bun", "run", "scripts/tool-selection-judge.ts"]
+        command: ["bun", "run", "scripts/tool-selection-judge.ts"]
 
   # ==========================================
   # Example 2: Efficiency Scoring
@@ -61,7 +61,7 @@ tests:
       # Plugin: Efficiency metrics scoring
       - name: efficiency-check
         type: code_judge
-        script: ["bun", "run", "scripts/efficiency-scorer.ts"]
+        command: ["bun", "run", "scripts/efficiency-scorer.ts"]
 
   # ==========================================
   # Example 3: Combined Built-in + Plugin Evaluation
@@ -94,12 +94,12 @@ tests:
       # Plugin: Check if tools were appropriate choices
       - name: selection-check
         type: code_judge
-        script: ["bun", "run", "scripts/tool-selection-judge.ts"]
+        command: ["bun", "run", "scripts/tool-selection-judge.ts"]
 
       # Plugin: Evaluate efficiency
       - name: efficiency
         type: code_judge
-        script: ["bun", "run", "scripts/efficiency-scorer.ts"]
+        command: ["bun", "run", "scripts/efficiency-scorer.ts"]
 
   # ==========================================
   # Example 4: Pairwise Comparison
@@ -129,4 +129,4 @@ tests:
       # Plugin: Pairwise comparison with position bias mitigation
       - name: pairwise-quality
         type: code_judge
-        script: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
+        command: ["bun", "run", "scripts/pairwise-tool-compare.ts"]

@@ -40,11 +40,11 @@ tests:
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace).toBeDefined();
     expect(cases[0].workspace?.before_all).toEqual({
-      script: ['bun', 'run', 'setup.ts'],
+      command: ['bun', 'run', 'setup.ts'],
       timeout_ms: 120000,
     });
     expect(cases[0].workspace?.after_each).toEqual({
-      script: ['bun', 'run', 'teardown.ts'],
+      command: ['bun', 'run', 'teardown.ts'],
       timeout_ms: 30000,
     });
   });
@@ -95,10 +95,10 @@ tests:
     expect(cases).toHaveLength(2);
     // Both cases should inherit suite-level workspace
     expect(cases[0].workspace?.before_all).toEqual({
-      script: ['bun', 'run', 'default-setup.ts'],
+      command: ['bun', 'run', 'default-setup.ts'],
     });
     expect(cases[1].workspace?.before_all).toEqual({
-      script: ['bun', 'run', 'default-setup.ts'],
+      command: ['bun', 'run', 'default-setup.ts'],
     });
   });
 
@@ -131,14 +131,14 @@ tests:
     const overrideCase = cases.find((c) => c.id === 'case-override');
     expect(overrideCase).toBeDefined();
     expect(overrideCase.workspace?.before_all).toEqual({
-      script: ['bun', 'run', 'custom-setup.ts'],
+      command: ['bun', 'run', 'custom-setup.ts'],
     });
 
     // case-default: inherits suite-level workspace entirely
     const defaultCase = cases.find((c) => c.id === 'case-default');
     expect(defaultCase).toBeDefined();
     expect(defaultCase.workspace?.before_all).toEqual({
-      script: ['bun', 'run', 'default-setup.ts'],
+      command: ['bun', 'run', 'default-setup.ts'],
     });
   });
 
