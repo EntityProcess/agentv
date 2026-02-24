@@ -11,7 +11,7 @@ import {
 } from '../../../src/evaluation/providers/types.js';
 
 const baseConfig: CliResolvedConfig = {
-  commandTemplate: 'agent-cli run {PROMPT} {FILES} {OUTPUT_FILE}',
+  command: 'agent-cli run {PROMPT} {FILES} {OUTPUT_FILE}',
   filesFormat: '--file {path}',
   timeoutMs: 2000,
 };
@@ -73,7 +73,7 @@ describe('CliProvider', () => {
     let promptFileContent = '';
     const promptFileConfig: CliResolvedConfig = {
       ...baseConfig,
-      commandTemplate: 'agent-cli run --prompt-file {PROMPT_FILE} {OUTPUT_FILE}',
+      command: 'agent-cli run --prompt-file {PROMPT_FILE} {OUTPUT_FILE}',
     };
 
     const runner = mock(async (command: string): Promise<CommandRunResult> => {

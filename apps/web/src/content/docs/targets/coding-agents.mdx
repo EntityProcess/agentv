@@ -106,14 +106,14 @@ Evaluate any command-line agent:
 targets:
   - name: local_agent
     provider: cli
-    command_template: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
+    command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
     workspace_template: ./workspace-templates/my-project
     judge_target: azure_base
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `command_template` | Yes | Command to run. `{PROMPT}` is inline prompt text and `{PROMPT_FILE}` is a temp file path containing the prompt. |
+| `command` | Yes | Command to run. `{PROMPT}` is inline prompt text and `{PROMPT_FILE}` is a temp file path containing the prompt. |
 | `workspace_template` | No | Path to workspace template directory |
 | `cwd` | No | Working directory (mutually exclusive with workspace_template) |
 | `judge_target` | Yes | LLM target for evaluation |

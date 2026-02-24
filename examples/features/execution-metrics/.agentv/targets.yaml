@@ -8,10 +8,9 @@ targets:
 
   - name: mock_metrics_agent
     provider: cli
-    command_template: bun run ./mock-metrics-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}
+    command: bun run ./mock-metrics-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}
     cwd: ..
     timeout_seconds: 30
     healthcheck:
-      type: command
-      command_template: bun run ./mock-metrics-agent.ts --healthcheck
+      command: bun run ./mock-metrics-agent.ts --healthcheck
       cwd: ..

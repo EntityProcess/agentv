@@ -74,7 +74,7 @@ const PROVIDER_TEMPLATE = `#!/usr/bin/env bun
  *   targets:
  *     - name: my-target
  *       provider: cli
- *       command_template: "bun run .agentv/providers/<name>.ts {PROMPT}"
+ *       command: "bun run .agentv/providers/<name>.ts {PROMPT}"
  *
  * This script receives the prompt as a CLI argument and prints the response to stdout.
  */
@@ -159,7 +159,7 @@ export const createProviderCommand = command({
     await writeFile(filePath, PROVIDER_TEMPLATE);
     console.log(`Created ${path.relative(process.cwd(), filePath)} (template: ${templateName})`);
     console.log(
-      `\nConfigure in .agentv/targets.yaml:\n  targets:\n    - name: ${name}\n      provider: cli\n      command_template: "bun run .agentv/providers/${name}.ts {PROMPT}"`,
+      `\nConfigure in .agentv/targets.yaml:\n  targets:\n    - name: ${name}\n      provider: cli\n      command: "bun run .agentv/providers/${name}.ts {PROMPT}"`,
     );
   },
 });
