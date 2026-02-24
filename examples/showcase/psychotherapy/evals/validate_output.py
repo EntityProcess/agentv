@@ -229,7 +229,7 @@ def main():
         sys.exit(1)
     
     # Extract candidate answer - we only validate the candidate's structure
-    candidate_answer = eval_data.get("candidate_answer", "")
+    candidate_answer = eval_data.get("answer", "")
     
     # Auto-detect required keys from candidate answer
     required_keys = detect_framework_keys(candidate_answer)
