@@ -21,9 +21,9 @@
       "category": "development"
     },
     {
-      "name": "agentv-trace",
+      "name": "agentv-claude-trace",
       "description": "Session tracing plugin — exports Claude Code session traces via OpenTelemetry",
-      "source": "./plugins/agentv-trace",
+      "source": "./plugins/agentv-claude-trace",
       "strict": false,
       "hooks": "./hooks.json",
       "category": "observability"
