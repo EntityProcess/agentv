@@ -52,3 +52,65 @@ bun agentv compare ./by-target/results.gpt-4.1.jsonl ./by-target/results.claude-
 ```
 
 The `compare` command matches records by `test_id`, calculates score deltas, and classifies each as win/loss/tie. It exits non-zero on regressions, making it suitable for CI gates.
+
+## win-rate-summary
+
+Computes aggregate win/loss/tie rates from `agentv compare --json` output, making comparison results decision-ready at a glance.
+
+### Usage
+
+```bash
+# Save comparison output to a file
+bun agentv compare baseline.jsonl candidate.jsonl --json > comparison.json
+
+# Print a human-readable summary table
+bun examples/features/benchmark-tooling/scripts/win-rate-summary.ts comparison.json
+
+# Machine-readable JSON output
+bun examples/features/benchmark-tooling/scripts/win-rate-summary.ts comparison.json --json
+
+# Custom tie tolerance (default: 0.1)
+bun examples/features/benchmark-tooling/scripts/win-rate-summary.ts comparison.json --tolerance 0.05
+```
+
+### Per-Metric Breakdown
+
+Pass a directory of comparison JSON files to get per-metric win rates. Each file is treated as a separate metric, with the filename as the label:
+
+```bash
+# Run comparisons for different metrics
+bun agentv compare base.jsonl cand.jsonl --json > comparisons/accuracy.json
+bun agentv compare base-latency.jsonl cand-latency.jsonl --json > comparisons/latency.json
+
+# Aggregate across all metrics
+bun examples/features/benchmark-tooling/scripts/win-rate-summary.ts comparisons/
+```
+
+### Tie Policy
+
+A result is classified as a **tie** when `|delta| < tolerance`.
+
+| Tolerance | Effect |
+|---|---|
+| `0.1` (default) | Matches `agentv compare` default threshold |
+| `0.05` | Stricter — only small deltas are ties |
+| `0` | No ties unless delta is exactly 0 |
+
+### End-to-End Workflow
+
+```bash
+# 1. Run multi-model evaluation
+bun agentv eval my-eval.yaml
+
+# 2. Split results by target
+bun examples/features/benchmark-tooling/scripts/split-by-target.ts results.jsonl ./by-target
+
+# 3. Compare two targets
+bun agentv compare ./by-target/results.gpt-4.1.jsonl ./by-target/results.claude-sonnet-4.jsonl --json > comparison.json
+
+# 4. Get win-rate summary
+bun examples/features/benchmark-tooling/scripts/win-rate-summary.ts comparison.json
+
+# 5. CI gate: use JSON output for programmatic checks
+bun examples/features/benchmark-tooling/scripts/win-rate-summary.ts comparison.json --json
+```
