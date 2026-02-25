@@ -96,6 +96,62 @@ A result is classified as a **tie** when `|delta| < tolerance`.
 | `0.05` | Stricter — only small deltas are ties |
 | `0` | No ties unless delta is exactly 0 |
 
+## significance-test
+
+Performs a **paired bootstrap significance test** on two result JSONL files. Records are aligned by `test_id`; unmatched IDs are reported and skipped. This answers the question: *"Is the score difference between baseline and candidate statistically significant, or just sampling noise?"*
+
+### Method
+
+The test uses **paired bootstrap resampling**:
+
+1. Align baseline and candidate records by `test_id` to form paired differences.
+2. Resample the paired differences with replacement (default: 10,000 iterations).
+3. Compute a confidence interval from the bootstrap distribution (percentile method).
+4. Derive a two-sided p-value from the proportion of bootstrap means crossing zero.
+5. Report Cohen's d effect size for practical significance.
+
+### Usage
+
+```bash
+# Basic test
+bun examples/features/benchmark-tooling/scripts/significance-test.ts baseline.jsonl candidate.jsonl
+
+# Machine-readable JSON output
+bun examples/features/benchmark-tooling/scripts/significance-test.ts baseline.jsonl candidate.jsonl --json
+
+# Custom settings
+bun examples/features/benchmark-tooling/scripts/significance-test.ts baseline.jsonl candidate.jsonl \
+  --alpha 0.01 --iterations 50000 --metric accuracy --seed 42
+```
+
+### Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--metric <name>` | `score` | Label for the metric being tested |
+| `--iterations <n>` | `10000` | Number of bootstrap resampling iterations |
+| `--alpha <n>` | `0.05` | Significance level (e.g., 0.05 = 95% confidence) |
+| `--json` | — | Output machine-readable JSON only |
+| `--seed <n>` | — | RNG seed for reproducible results |
+
+### Interpreting Results
+
+| Field | Meaning |
+|---|---|
+| `observed_mean_diff` | Average score difference (candidate − baseline) |
+| `effect_size_cohens_d` | Standardized effect size (small ≈ 0.2, medium ≈ 0.5, large ≈ 0.8) |
+| `p_value` | Probability of observing this difference under the null hypothesis |
+| `ci_lower` / `ci_upper` | Confidence interval for the true mean difference |
+| `significant` | `true` if p-value < α |
+| `verdict` | Human-readable interpretation |
+
+### Edge Cases
+
+- **Unmatched test IDs**: Reported to stderr, skipped from analysis.
+- **Too few pairs (< 5)**: Warning in verdict that result may be unreliable.
+- **Identical scores**: p-value = 1, not significant (correct behavior).
+- **< 2 pairs**: Cannot test; exits with code 1.
+
 ### End-to-End Workflow
 
 ```bash
@@ -111,6 +167,12 @@ bun agentv compare ./by-target/results.gpt-4.1.jsonl ./by-target/results.claude-
 # 4. Get win-rate summary
 bun examples/features/benchmark-tooling/scripts/win-rate-summary.ts comparison.json
 
-# 5. CI gate: use JSON output for programmatic checks
+# 5. Statistical significance test
+bun examples/features/benchmark-tooling/scripts/significance-test.ts \
+  ./by-target/results.gpt-4.1.jsonl ./by-target/results.claude-sonnet-4.jsonl
+
+# 6. CI gate: use JSON output for programmatic checks
 bun examples/features/benchmark-tooling/scripts/win-rate-summary.ts comparison.json --json
+bun examples/features/benchmark-tooling/scripts/significance-test.ts \
+  ./by-target/results.gpt-4.1.jsonl ./by-target/results.claude-sonnet-4.jsonl --json
 ```
