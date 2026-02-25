@@ -1,0 +1,99 @@
+# Trial Output Consistency Evaluator
+# Measures how consistent an agent's outputs are across repeated trials
+# using pairwise cosine similarity (embedding-based or token-overlap fallback).
+#
+# Run:
+#   bun agentv eval examples/features/trial-output-consistency/evals/dataset.eval.yaml --dry-run
+
+description: Trial output consistency via embedding similarity
+
+execution:
+  target: default
+
+tests:
+  # ── High consistency: semantically identical outputs ──────────────
+  - id: high-consistency
+    criteria: Agent produces consistent answers across trials.
+
+    input:
+      - role: user
+        content: What is the capital of France?
+
+    expected_output:
+      - role: assistant
+        content: The capital of France is Paris.
+
+    assert:
+      - name: trial-consistency
+        type: code_judge
+        command: ["bun", "run", "../judges/trial-consistency.ts"]
+        config:
+          fallback: token
+          trialOutputs:
+            - "The capital of France is Paris."
+            - "Paris is the capital of France."
+            - "France's capital city is Paris."
+
+  # ── Low consistency: divergent outputs ────────────────────────────
+  - id: low-consistency
+    criteria: Agent produces inconsistent answers across trials.
+
+    input:
+      - role: user
+        content: Write a creative tagline for a coffee shop.
+
+    expected_output:
+      - role: assistant
+        content: Any creative tagline.
+
+    assert:
+      - name: trial-consistency
+        type: code_judge
+        command: ["bun", "run", "../judges/trial-consistency.ts"]
+        config:
+          fallback: token
+          trialOutputs:
+            - "Wake up and smell the magic."
+            - "Brewed with love, served with a smile."
+            - "Where every cup tells a story."
+
+  # ── Edge case: single trial ──────────────────────────────────────
+  - id: single-trial
+    criteria: Single trial returns perfect consistency.
+
+    input:
+      - role: user
+        content: What is 2 + 2?
+
+    expected_output:
+      - role: assistant
+        content: "4"
+
+    assert:
+      - name: trial-consistency
+        type: code_judge
+        command: ["bun", "run", "../judges/trial-consistency.ts"]
+        config:
+          fallback: token
+          trialOutputs:
+            - "The answer is 4."
+
+  # ── Edge case: zero trials ──────────────────────────────────────
+  - id: zero-trials
+    criteria: Zero trials returns an error score.
+
+    input:
+      - role: user
+        content: Hello
+
+    expected_output:
+      - role: assistant
+        content: Hi
+
+    assert:
+      - name: trial-consistency
+        type: code_judge
+        command: ["bun", "run", "../judges/trial-consistency.ts"]
+        config:
+          fallback: token
+          trialOutputs: []
