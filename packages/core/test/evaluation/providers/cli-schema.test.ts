@@ -54,17 +54,6 @@ describe('CliTargetInputSchema', () => {
     }
   });
 
-  it('accepts legacy command_template field', () => {
-    const input = {
-      name: 'test-target',
-      provider: 'cli',
-      command_template: 'agent run {PROMPT}', // legacy field
-    };
-
-    const result = CliTargetInputSchema.safeParse(input);
-    expect(result.success).toBe(true);
-  });
-
   it('allows unknown properties (passthrough mode)', () => {
     const input = {
       name: 'test-target',
@@ -179,11 +168,6 @@ describe('CliTargetConfigSchema (strict)', () => {
     const input = { command: 'agent run {PROMPT}', unknownField: 'value' };
     expect(CliTargetConfigSchema.safeParse(input).success).toBe(false);
   });
-
-  it('rejects legacy commandTemplate in strict config', () => {
-    const input = { commandTemplate: 'agent run {PROMPT}' };
-    expect(CliTargetConfigSchema.safeParse(input).success).toBe(false);
-  });
 });
 
 describe('normalizeCliHealthcheck', () => {
@@ -254,33 +238,6 @@ describe('normalizeCliTargetInput', () => {
     expect(result.timeoutMs).toBe(60000);
     expect(result.keepTempFiles).toBe(true);
     expect(result.verbose).toBe(true);
-  });
-
-  it('prefers command over legacy command_template', () => {
-    const input = {
-      name: 'test-target',
-      provider: 'cli',
-      command: 'new command',
-      command_template: 'legacy command',
-    };
-
-    const result = normalizeCliTargetInput(input, {});
-
-    expect(result.command).toBe('new command');
-  });
-
-  it('accepts legacy command_template field', () => {
-    const input = {
-      name: 'test-target',
-      provider: 'cli',
-      command_template: 'legacy version',
-      commandTemplate: 'camel version',
-    };
-
-    const result = normalizeCliTargetInput(input, {});
-
-    // command_template takes precedence over commandTemplate
-    expect(result.command).toBe('legacy version');
   });
 
   it('resolves environment variables in command and cwd', () => {
