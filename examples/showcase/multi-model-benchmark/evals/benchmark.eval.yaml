@@ -1,0 +1,102 @@
+# Multi-Model Benchmark Evaluation
+#
+# Demonstrates multi-model × multi-metric × variability workflow:
+#   - Targets matrix: runs every test against multiple models
+#   - Weighted evaluators: accuracy (3×), completeness (2×), clarity (1×)
+#   - Trials: pass@k with 2 trials to measure variability
+#
+# Default targets use low-cost models for safe experimentation.
+# Override with: agentv eval ... --target <name>
+#
+# Usage:
+#   agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml
+
+description: Multi-model benchmark — accuracy, completeness, and clarity across models
+
+execution:
+  targets:
+    - copilot
+    - claude
+    - gemini_base
+  trials:
+    count: 2
+    strategy: pass_at_k
+    cost_limit_usd: 2.00
+
+assert:
+  - name: accuracy
+    type: llm_judge
+    prompt: ../prompts/accuracy-rubric.md
+    weight: 3.0
+  - name: completeness
+    type: llm_judge
+    prompt: ../prompts/completeness-rubric.md
+    weight: 2.0
+  - name: clarity
+    type: llm_judge
+    prompt: ../prompts/clarity-rubric.md
+    weight: 1.0
+
+tests:
+  # --- Factual reasoning ---
+  - id: factual-geography
+    criteria: |
+      Correctly identifies that Mount Everest is the tallest mountain
+      above sea level and provides its height (~8,849 m / 29,032 ft).
+    input: What is the tallest mountain in the world and how tall is it?
+    expected_output: |
+      Mount Everest is the tallest mountain in the world, standing at
+      approximately 8,849 meters (29,032 feet) above sea level.
+
+  - id: factual-science
+    criteria: |
+      Correctly explains photosynthesis as the process by which plants
+      convert sunlight, water, and CO2 into glucose and oxygen.
+    input: Explain how photosynthesis works in 2-3 sentences.
+    expected_output: |
+      Photosynthesis is the process by which plants convert sunlight,
+      water, and carbon dioxide into glucose and oxygen. It occurs
+      primarily in the chloroplasts of plant cells, using chlorophyll
+      to capture light energy.
+
+  # --- Analytical reasoning ---
+  - id: analytical-comparison
+    criteria: |
+      Provides a balanced comparison covering key differences: typing
+      (static vs dynamic), performance, use cases, and ecosystem.
+    input: Compare Python and Rust. What are the key differences?
+    expected_output: |
+      Python is dynamically typed, interpreted, and prioritizes
+      developer productivity and readability. Rust is statically typed,
+      compiled, and prioritizes memory safety and performance. Python
+      excels in scripting, data science, and prototyping, while Rust
+      is suited for systems programming, embedded systems, and
+      performance-critical applications.
+
+  # --- Creative / open-ended ---
+  - id: creative-explanation
+    criteria: |
+      Uses a clear, accessible analogy to explain recursion. The analogy
+      should convey the concept of a function calling itself with a
+      base case that stops the recursion.
+    input: Explain recursion using an everyday analogy.
+    expected_output: |
+      Recursion is like looking up a word in a dictionary and finding
+      the definition uses another word you don't know, so you look that
+      up too. You keep looking up words until you find one you already
+      understand (the base case), then work your way back to the
+      original word.
+
+  # --- Structured output ---
+  - id: structured-list
+    criteria: |
+      Returns exactly 3 distinct advantages of version control. Each
+      advantage should be clearly stated and relevant.
+    input: List 3 advantages of using version control in software development.
+    expected_output: |
+      1. History tracking — every change is recorded, allowing you to
+         review, revert, or audit modifications over time.
+      2. Collaboration — multiple developers can work on the same
+         codebase simultaneously without overwriting each other's work.
+      3. Branching and experimentation — you can create isolated branches
+         to develop features or test ideas without affecting the main code.
