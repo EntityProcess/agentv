@@ -64,7 +64,7 @@ describe('execFileWithStdin', () => {
     writeFileSync(scriptPath, 'setInterval(() => {}, 1000);');
 
     try {
-      await expect(execFileWithStdin(['node', scriptPath], '', { timeoutMs: 50 })).rejects.toThrow(
+      await expect(execFileWithStdin(['node', scriptPath], '', { timeoutMs: 500 })).rejects.toThrow(
         'Process timed out',
       );
     } finally {
