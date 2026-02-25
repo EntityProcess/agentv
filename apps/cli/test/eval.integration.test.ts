@@ -1,9 +1,12 @@
-import { afterEach, beforeAll, describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execa } from 'execa';
+import { assertCoreBuild } from './setup-core-build.js';
+
+assertCoreBuild();
 
 interface EvalFixture {
   readonly baseDir: string;
@@ -17,14 +20,6 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../../..');
 const CLI_ENTRY = path.join(projectRoot, 'apps/cli/src/cli.ts');
 const MOCK_RUNNER = path.join(projectRoot, 'apps/cli/test/fixtures/mock-run-evaluation.ts');
-let coreBuilt = false;
-
-beforeAll(async () => {
-  if (!coreBuilt) {
-    await execa('bun', ['run', '--filter', '@agentv/core', 'build'], { cwd: projectRoot });
-    coreBuilt = true;
-  }
-}, 30000); // 30 second timeout for building core package
 
 async function createFixture(): Promise<EvalFixture> {
   const baseDir = await mkdtemp(path.join(tmpdir(), 'agentv-cli-test-'));

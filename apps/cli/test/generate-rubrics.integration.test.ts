@@ -4,12 +4,15 @@
  * These tests verify that the command correctly updates YAML files with generated rubrics.
  */
 
-import { afterEach, beforeAll, describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execa } from 'execa';
+import { assertCoreBuild } from './setup-core-build.js';
+
+assertCoreBuild();
 
 interface GenerateFixture {
   readonly baseDir: string;
@@ -22,14 +25,6 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../../..');
 const CLI_ENTRY = path.join(projectRoot, 'apps/cli/src/cli.ts');
 const MOCK_GENERATOR = path.join(projectRoot, 'apps/cli/test/fixtures/mock-rubric-generator.ts');
-let coreBuilt = false;
-
-beforeAll(async () => {
-  if (!coreBuilt) {
-    await execa('bun', ['run', '--filter', '@agentv/core', 'build'], { cwd: projectRoot });
-    coreBuilt = true;
-  }
-}, 30000); // 30 second timeout for building core package
 
 async function createFixture(withComments = false): Promise<GenerateFixture> {
   const baseDir = await mkdtemp(path.join(tmpdir(), 'agentv-generate-test-'));
