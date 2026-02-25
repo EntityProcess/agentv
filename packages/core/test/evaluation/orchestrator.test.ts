@@ -2049,3 +2049,160 @@ describe('workspace.template .code-workspace resolution', () => {
     }
   });
 });
+
+describe('suite-level total budget guardrail', () => {
+  it('completes normally when totalBudgetUsd is not set', async () => {
+    const provider: Provider = {
+      id: 'budget:mock',
+      kind: 'mock' as const,
+      targetName: 'mock',
+      async invoke(): Promise<ProviderResponse> {
+        return {
+          output: [{ role: 'assistant', content: 'response' }],
+          costUsd: 1.0,
+        };
+      },
+    };
+
+    const evalCases: EvalTest[] = [
+      { ...baseTestCase, id: 'case-1' },
+      { ...baseTestCase, id: 'case-2' },
+      { ...baseTestCase, id: 'case-3' },
+    ];
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases,
+    });
+
+    expect(results).toHaveLength(3);
+    expect(results.every((r) => r.budgetExceeded === undefined)).toBe(true);
+  });
+
+  it('completes normally when budget is not exceeded', async () => {
+    const provider: Provider = {
+      id: 'budget:mock',
+      kind: 'mock' as const,
+      targetName: 'mock',
+      async invoke(): Promise<ProviderResponse> {
+        return {
+          output: [{ role: 'assistant', content: 'response' }],
+          costUsd: 1.0,
+        };
+      },
+    };
+
+    const evalCases: EvalTest[] = [
+      { ...baseTestCase, id: 'case-1' },
+      { ...baseTestCase, id: 'case-2' },
+    ];
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases,
+      totalBudgetUsd: 10.0,
+    });
+
+    expect(results).toHaveLength(2);
+    expect(results.every((r) => r.budgetExceeded === undefined)).toBe(true);
+  });
+
+  it('stops dispatching when budget is exceeded mid-run', async () => {
+    const provider: Provider = {
+      id: 'budget:mock',
+      kind: 'mock' as const,
+      targetName: 'mock',
+      async invoke(): Promise<ProviderResponse> {
+        return {
+          output: [{ role: 'assistant', content: 'response' }],
+          costUsd: 3.0,
+        };
+      },
+    };
+
+    const evalCases: EvalTest[] = [
+      { ...baseTestCase, id: 'case-1' },
+      { ...baseTestCase, id: 'case-2' },
+      { ...baseTestCase, id: 'case-3' },
+      { ...baseTestCase, id: 'case-4' },
+    ];
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases,
+      totalBudgetUsd: 5.0,
+      maxConcurrency: 1,
+    });
+
+    expect(results).toHaveLength(4);
+
+    // First two should run normally ($3 + $3 = $6 >= $5)
+    expect(results[0].budgetExceeded).toBeUndefined();
+    expect(results[1].budgetExceeded).toBeUndefined();
+
+    // Remaining should be budget-exceeded
+    expect(results[2].budgetExceeded).toBe(true);
+    expect(results[3].budgetExceeded).toBe(true);
+    expect(results[2].error).toContain('Suite budget exceeded');
+    expect(results[3].error).toContain('Suite budget exceeded');
+    expect(results[2].score).toBe(0);
+    expect(results[3].score).toBe(0);
+  });
+
+  it('works correctly with trials and budget', async () => {
+    const provider: Provider = {
+      id: 'budget:mock',
+      kind: 'mock' as const,
+      targetName: 'mock',
+      async invoke(): Promise<ProviderResponse> {
+        return {
+          output: [{ role: 'assistant', content: 'response' }],
+          costUsd: 2.0,
+        };
+      },
+    };
+
+    const evalCases: EvalTest[] = [
+      { ...baseTestCase, id: 'case-1' },
+      { ...baseTestCase, id: 'case-2' },
+      { ...baseTestCase, id: 'case-3' },
+      { ...baseTestCase, id: 'case-4' },
+    ];
+
+    // evaluatorRegistry always returns 0.8 (pass), so pass_at_k exits after 1 trial per case.
+    // Each case costs $2. Budget of $5 is exceeded after case-3 ($6 >= $5).
+    // Case-4 should be budget-exceeded.
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases,
+      totalBudgetUsd: 5.0,
+      maxConcurrency: 1,
+      trials: { count: 2, strategy: 'pass_at_k' },
+    });
+
+    expect(results).toHaveLength(4);
+    // First three run normally
+    expect(results[0].budgetExceeded).toBeUndefined();
+    expect(results[1].budgetExceeded).toBeUndefined();
+    expect(results[2].budgetExceeded).toBeUndefined();
+    // Fourth should be budget-exceeded
+    expect(results[3].budgetExceeded).toBe(true);
+    expect(results[3].error).toContain('Suite budget exceeded');
+  });
+});

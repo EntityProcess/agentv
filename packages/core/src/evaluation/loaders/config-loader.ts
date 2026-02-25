@@ -262,6 +262,33 @@ export function extractCacheConfig(suite: JsonObject): CacheConfig | undefined {
   return { enabled: cache, cachePath: resolvedCachePath };
 }
 
+/**
+ * Extract suite-level total budget from parsed eval suite's execution block.
+ * Returns undefined when not specified.
+ */
+export function extractTotalBudgetUsd(suite: JsonObject): number | undefined {
+  const execution = suite.execution;
+  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+    return undefined;
+  }
+
+  const executionObj = execution as Record<string, unknown>;
+  const rawBudget = executionObj.total_budget_usd ?? executionObj.totalBudgetUsd;
+
+  if (rawBudget === undefined || rawBudget === null) {
+    return undefined;
+  }
+
+  if (typeof rawBudget === 'number' && rawBudget > 0) {
+    return rawBudget;
+  }
+
+  logWarning(
+    `Invalid execution.total_budget_usd: ${rawBudget}. Must be a positive number. Ignoring.`,
+  );
+  return undefined;
+}
+
 function logWarning(message: string): void {
   console.warn(`${ANSI_YELLOW}Warning: ${message}${ANSI_RESET}`);
 }

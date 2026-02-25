@@ -293,6 +293,7 @@ async function prepareFileMetadata(params: {
   readonly suiteTargets?: readonly string[];
   readonly yamlCache?: boolean;
   readonly yamlCachePath?: string;
+  readonly totalBudgetUsd?: number;
 }> {
   const { testFilePath, repoRoot, cwd, options } = params;
 
@@ -383,6 +384,7 @@ async function prepareFileMetadata(params: {
     suiteTargets,
     yamlCache: suite.cacheConfig?.enabled,
     yamlCachePath: suite.cacheConfig?.cachePath,
+    totalBudgetUsd: suite.totalBudgetUsd,
   };
 }
 
@@ -423,6 +425,7 @@ async function runSingleEvalFile(params: {
   readonly evalCases: readonly EvalTest[];
   readonly trialsConfig?: TrialsConfig;
   readonly matrixMode?: boolean;
+  readonly totalBudgetUsd?: number;
 }): Promise<{ results: EvaluationResult[] }> {
   const {
     testFilePath,
@@ -442,6 +445,7 @@ async function runSingleEvalFile(params: {
     evalCases,
     trialsConfig,
     matrixMode,
+    totalBudgetUsd,
   } = params;
 
   const targetName = selection.targetName;
@@ -523,6 +527,7 @@ async function runSingleEvalFile(params: {
     keepWorkspaces: options.keepWorkspaces,
     cleanupWorkspaces: options.cleanupWorkspaces,
     trials: trialsConfig,
+    totalBudgetUsd,
     streamCallbacks: streamingObserver?.getStreamCallbacks(),
     onResult: async (result: EvaluationResult) => {
       // Finalize streaming observer span with score
@@ -721,6 +726,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       readonly suiteTargets?: readonly string[];
       readonly yamlCache?: boolean;
       readonly yamlCachePath?: string;
+      readonly totalBudgetUsd?: number;
     }
   >();
   for (const testFilePath of resolvedTestFiles) {
@@ -861,6 +867,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
           evalCases: applicableEvalCases,
           trialsConfig: targetPrep.trialsConfig,
           matrixMode: targetPrep.selections.length > 1,
+          totalBudgetUsd: targetPrep.totalBudgetUsd,
         });
 
         allResults.push(...result.results);

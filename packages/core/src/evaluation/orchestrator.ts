@@ -153,6 +153,8 @@ export interface RunEvaluationOptions {
   readonly trials?: TrialsConfig;
   /** Real-time observability callbacks passed to the provider */
   readonly streamCallbacks?: ProviderStreamCallbacks;
+  /** Suite-level total cost budget in USD (stops dispatching when exceeded) */
+  readonly totalBudgetUsd?: number;
 }
 
 export async function runEvaluation(
@@ -179,6 +181,7 @@ export async function runEvaluation(
     cleanupWorkspaces,
     trials,
     streamCallbacks,
+    totalBudgetUsd,
   } = options;
 
   // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
@@ -403,12 +406,46 @@ export async function runEvaluation(
   const workerIdByEvalId = new Map<string, number>();
   let beforeAllOutputAttached = false;
 
+  // Suite-level budget tracking
+  let cumulativeBudgetCost = 0;
+  let budgetExhausted = false;
+
   // Map test cases to limited promises for parallel execution
   const promises = filteredEvalCases.map((evalCase) =>
     limit(async () => {
       // Assign worker ID when test starts executing
       const workerId = nextWorkerId++;
       workerIdByEvalId.set(evalCase.id, workerId);
+
+      // Check suite-level budget before dispatching
+      if (totalBudgetUsd !== undefined && budgetExhausted) {
+        const budgetResult: EvaluationResult = {
+          timestamp: (now ?? (() => new Date()))().toISOString(),
+          testId: evalCase.id,
+          dataset: evalCase.dataset,
+          score: 0,
+          hits: [],
+          misses: [],
+          answer: '',
+          target: target.name,
+          error: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
+          budgetExceeded: true,
+        };
+
+        if (onProgress) {
+          await onProgress({
+            workerId,
+            testId: evalCase.id,
+            status: 'failed',
+            completedAt: Date.now(),
+            error: budgetResult.error,
+          });
+        }
+        if (onResult) {
+          await onResult(budgetResult);
+        }
+        return budgetResult;
+      }
 
       if (onProgress) {
         await onProgress({
@@ -447,6 +484,26 @@ export async function runEvaluation(
           trials && trials.count > 1
             ? await runEvalCaseWithTrials(runCaseOptions, trials)
             : await runEvalCase(runCaseOptions);
+
+        // Track suite-level budget
+        if (totalBudgetUsd !== undefined) {
+          // Sum all trial costs when trials are used, otherwise use trace cost
+          let caseCost: number | undefined;
+          if (result.trials && result.trials.length > 0) {
+            const trialCostSum = result.trials.reduce((sum, t) => sum + (t.costUsd ?? 0), 0);
+            if (trialCostSum > 0) {
+              caseCost = trialCostSum;
+            }
+          } else {
+            caseCost = result.trace?.costUsd;
+          }
+          if (caseCost !== undefined) {
+            cumulativeBudgetCost += caseCost;
+            if (cumulativeBudgetCost >= totalBudgetUsd) {
+              budgetExhausted = true;
+            }
+          }
+        }
 
         // Attach beforeAllOutput to first result only
         if (beforeAllOutput && !beforeAllOutputAttached) {
