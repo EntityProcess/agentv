@@ -716,6 +716,8 @@ export interface EvaluationResult {
   readonly aggregation?: TrialAggregation;
   /** Whether the trial loop was terminated early due to cost limit */
   readonly costLimited?: boolean;
+  /** Whether the evaluation was skipped due to suite-level budget exhaustion */
+  readonly budgetExceeded?: boolean;
 }
 
 export type EvaluationVerdict = 'pass' | 'fail' | 'borderline';

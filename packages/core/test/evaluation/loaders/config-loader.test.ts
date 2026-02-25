@@ -4,6 +4,7 @@ import {
   extractTargetFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
+  extractTotalBudgetUsd,
   extractTrialsConfig,
 } from '../../../src/evaluation/loaders/config-loader.js';
 import type { JsonObject } from '../../../src/evaluation/types.js';
@@ -222,5 +223,42 @@ describe('extractTargetsFromTestCase', () => {
       execution: { targets: [] },
     };
     expect(extractTargetsFromTestCase(testCase)).toBeUndefined();
+  });
+});
+
+describe('extractTotalBudgetUsd', () => {
+  it('returns undefined when no execution block', () => {
+    const suite: JsonObject = { tests: [] };
+    expect(extractTotalBudgetUsd(suite)).toBeUndefined();
+  });
+
+  it('returns undefined when no total_budget_usd in execution', () => {
+    const suite: JsonObject = { execution: { target: 'default' } };
+    expect(extractTotalBudgetUsd(suite)).toBeUndefined();
+  });
+
+  it('parses valid total_budget_usd (snake_case)', () => {
+    const suite: JsonObject = { execution: { total_budget_usd: 10.0 } };
+    expect(extractTotalBudgetUsd(suite)).toBe(10.0);
+  });
+
+  it('parses valid totalBudgetUsd (camelCase)', () => {
+    const suite: JsonObject = { execution: { totalBudgetUsd: 5.5 } };
+    expect(extractTotalBudgetUsd(suite)).toBe(5.5);
+  });
+
+  it('returns undefined for zero budget', () => {
+    const suite: JsonObject = { execution: { total_budget_usd: 0 } };
+    expect(extractTotalBudgetUsd(suite)).toBeUndefined();
+  });
+
+  it('returns undefined for negative budget', () => {
+    const suite: JsonObject = { execution: { total_budget_usd: -1 } };
+    expect(extractTotalBudgetUsd(suite)).toBeUndefined();
+  });
+
+  it('returns undefined for non-number budget', () => {
+    const suite: JsonObject = { execution: { total_budget_usd: 'ten' } };
+    expect(extractTotalBudgetUsd(suite)).toBeUndefined();
   });
 });

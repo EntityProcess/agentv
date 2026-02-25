@@ -9,6 +9,7 @@ import {
   extractTargetFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
+  extractTotalBudgetUsd,
   extractTrialsConfig,
   loadConfig,
 } from './loaders/config-loader.js';
@@ -153,6 +154,8 @@ export type EvalSuiteResult = {
   readonly cacheConfig?: import('./loaders/config-loader.js').CacheConfig;
   /** Suite-level metadata (name, description, version, etc.) */
   readonly metadata?: import('./metadata.js').EvalMetadata;
+  /** Suite-level total cost budget in USD */
+  readonly totalBudgetUsd?: number;
 };
 
 /**
@@ -175,6 +178,7 @@ export async function loadTestSuite(
     trials: extractTrialsConfig(parsed),
     targets: extractTargetsFromSuite(parsed),
     cacheConfig: extractCacheConfig(parsed),
+    totalBudgetUsd: extractTotalBudgetUsd(parsed),
     ...(metadata !== undefined && { metadata }),
   };
 }
