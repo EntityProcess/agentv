@@ -152,6 +152,42 @@ bun examples/features/benchmark-tooling/scripts/significance-test.ts baseline.js
 - **Identical scores**: p-value = 1, not significant (correct behavior).
 - **< 2 pairs**: Cannot test; exits with code 1.
 
+## benchmark-report
+
+Generates a consolidated benchmark summary across models and metrics from result JSONL files. Produces per-target aggregates (mean, std dev, median, pass rate, 95% CI) and per-metric breakdowns when evaluator-level scores are present.
+
+### Usage
+
+```bash
+# Summarize all result files in a directory
+bun examples/features/benchmark-tooling/scripts/benchmark-report.ts ./by-target/
+
+# Summarize specific files
+bun examples/features/benchmark-tooling/scripts/benchmark-report.ts results.gpt-4.1.jsonl results.claude-sonnet-4.jsonl
+
+# Machine-readable JSON output
+bun examples/features/benchmark-tooling/scripts/benchmark-report.ts ./by-target/ --json
+
+# Sort by score (descending) and set custom pass threshold
+bun examples/features/benchmark-tooling/scripts/benchmark-report.ts ./by-target/ --sort score --pass-threshold 0.7
+```
+
+### Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--json` | — | Output machine-readable JSON only |
+| `--sort <field>` | `name` | Sort targets by: `name`, `score`, `pass_rate` |
+| `--pass-threshold <n>` | `0.5` | Score threshold to count as pass |
+
+### Output
+
+**Per-Target Summary** includes for each model: record count, mean score, standard deviation, median, min, max, pass rate, and 95% confidence interval.
+
+**Per-Target Metric Breakdown** appears when records contain evaluator-level `scores[]` arrays, showing mean and spread for each evaluator (e.g., accuracy, latency) per target.
+
+**Machine-readable JSON** output (`--json`) returns a structured `BenchmarkReport` object with `summary`, `per_target`, `per_target_metrics`, and `overall` fields.
+
 ### End-to-End Workflow
 
 ```bash
@@ -171,7 +207,11 @@ bun examples/features/benchmark-tooling/scripts/win-rate-summary.ts comparison.j
 bun examples/features/benchmark-tooling/scripts/significance-test.ts \
   ./by-target/results.gpt-4.1.jsonl ./by-target/results.claude-sonnet-4.jsonl
 
-# 6. CI gate: use JSON output for programmatic checks
+# 6. Consolidated benchmark report
+bun examples/features/benchmark-tooling/scripts/benchmark-report.ts ./by-target/
+
+# 7. CI gate: use JSON output for programmatic checks
+bun examples/features/benchmark-tooling/scripts/benchmark-report.ts ./by-target/ --json
 bun examples/features/benchmark-tooling/scripts/win-rate-summary.ts comparison.json --json
 bun examples/features/benchmark-tooling/scripts/significance-test.ts \
   ./by-target/results.gpt-4.1.jsonl ./by-target/results.claude-sonnet-4.jsonl --json
