@@ -137,11 +137,12 @@ describe('ToolTrajectoryEvaluator', () => {
     });
   });
 
-  describe('in_order mode', () => {
-    it('passes when tools appear in expected order', () => {
-      const output: Message[] = [
+  describe.each([
+    {
+      mode: 'in_order' as const,
+      passOutput: [
         {
-          role: 'assistant',
+          role: 'assistant' as const,
           toolCalls: [
             { tool: 'init', input: {}, output: {} },
             { tool: 'search', input: {}, output: {} },
@@ -149,28 +150,146 @@ describe('ToolTrajectoryEvaluator', () => {
             { tool: 'report', input: {}, output: {} },
           ],
         },
-      ];
+      ],
+      passExpected: [{ tool: 'search' }, { tool: 'analyze' }, { tool: 'report' }],
+      passHitCount: 3,
+      failOutput: [
+        {
+          role: 'assistant' as const,
+          toolCalls: [{ tool: 'search', input: {}, output: {} }],
+        },
+      ],
+      failExpected: [{ tool: 'search' }, { tool: 'analyze' }],
+      failScore: 0.5,
+      failMissPattern: 'analyze',
+    },
+    {
+      mode: 'exact' as const,
+      passOutput: [
+        {
+          role: 'assistant' as const,
+          toolCalls: [
+            { tool: 'search', input: {}, output: {} },
+            { tool: 'analyze', input: {}, output: {} },
+          ],
+        },
+      ],
+      passExpected: [{ tool: 'search' }, { tool: 'analyze' }],
+      passHitCount: 2,
+      failOutput: [
+        {
+          role: 'assistant' as const,
+          toolCalls: [
+            { tool: 'search', input: {}, output: {} },
+            { tool: 'wrong', input: {}, output: {} },
+          ],
+        },
+      ],
+      failExpected: [{ tool: 'search' }, { tool: 'analyze' }],
+      failScore: 0.5,
+      failMissPattern: 'expected analyze, got wrong',
+    },
+    {
+      mode: 'superset' as const,
+      passOutput: [
+        {
+          role: 'assistant' as const,
+          toolCalls: [
+            { tool: 'init', input: {} },
+            { tool: 'search', input: {} },
+            { tool: 'analyze', input: {} },
+          ],
+        },
+      ],
+      passExpected: [{ tool: 'search' }, { tool: 'analyze' }],
+      passHitCount: 2,
+      failOutput: [
+        {
+          role: 'assistant' as const,
+          toolCalls: [
+            { tool: 'search', input: {} },
+            { tool: 'cleanup', input: {} },
+          ],
+        },
+      ],
+      failExpected: [{ tool: 'search' }, { tool: 'analyze' }],
+      failScore: 0.5,
+      failMissPattern: 'analyze',
+    },
+    {
+      mode: 'subset' as const,
+      passOutput: [
+        {
+          role: 'assistant' as const,
+          toolCalls: [
+            { tool: 'read', input: {} },
+            { tool: 'search', input: {} },
+          ],
+        },
+      ],
+      passExpected: [{ tool: 'read' }, { tool: 'search' }, { tool: 'analyze' }],
+      passHitCount: 2,
+      failOutput: [
+        {
+          role: 'assistant' as const,
+          toolCalls: [
+            { tool: 'read', input: {} },
+            { tool: 'delete', input: {} },
+          ],
+        },
+      ],
+      failExpected: [{ tool: 'read' }, { tool: 'search' }],
+      failScore: 0.5,
+      failMissPattern: 'delete',
+    },
+  ])(
+    '$mode mode — basic pass/fail',
+    ({
+      mode,
+      passOutput,
+      passExpected,
+      passHitCount,
+      failOutput,
+      failExpected,
+      failScore,
+      failMissPattern,
+    }) => {
+      it('passes when expected tools are satisfied', () => {
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode,
+          expected: passExpected,
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
 
-      const config: ToolTrajectoryEvaluatorConfig = {
-        name: 'test',
-        type: 'tool_trajectory',
-        mode: 'in_order',
-        expected: [{ tool: 'search' }, { tool: 'analyze' }, { tool: 'report' }],
-      };
-      const evaluator = new ToolTrajectoryEvaluator({ config });
+        const result = evaluator.evaluate(createContext({ output: passOutput }));
 
-      const result = evaluator.evaluate(
-        createContext({
-          output,
-        }),
-      );
+        expect(result.score).toBe(1);
+        expect(result.verdict).toBe('pass');
+        expect(result.hits.length).toBe(passHitCount);
+      });
 
-      expect(result.score).toBe(1);
-      expect(result.verdict).toBe('pass');
-      expect(result.hits.length).toBe(3);
-    });
+      it('fails when expected tools are not satisfied', () => {
+        const config: ToolTrajectoryEvaluatorConfig = {
+          name: 'test',
+          type: 'tool_trajectory',
+          mode,
+          expected: failExpected,
+        };
+        const evaluator = new ToolTrajectoryEvaluator({ config });
 
-    it('fails when expected tool is missing', () => {
+        const result = evaluator.evaluate(createContext({ output: failOutput }));
+
+        expect(result.score).toBe(failScore);
+        expect(result.verdict).toBe('fail');
+        expect(result.misses.some((m) => m.includes(failMissPattern))).toBe(true);
+      });
+    },
+  );
+
+  describe('in_order mode', () => {
+    it('fails when expected tool is missing (scan-forward semantics)', () => {
       const output: Message[] = [
         {
           role: 'assistant',
@@ -229,44 +348,13 @@ describe('ToolTrajectoryEvaluator', () => {
         }),
       );
 
-      // search is at position 1, but we look from position 0
-      // After finding report at 0, we search from 1 but report is not found again
-      // Actually in_order logic: finds search at position 1, then tries to find report at position >= 2 which doesn't exist
+      // in_order logic: finds search at position 1, then tries to find report at position >= 2 which doesn't exist
       expect(result.score).toBe(0.5); // Only one tool found in order
       expect(result.verdict).toBe('fail');
     });
   });
 
   describe('exact mode', () => {
-    it('passes when trace exactly matches expected', () => {
-      const output: Message[] = [
-        {
-          role: 'assistant',
-          toolCalls: [
-            { tool: 'search', input: {}, output: {} },
-            { tool: 'analyze', input: {}, output: {} },
-          ],
-        },
-      ];
-
-      const config: ToolTrajectoryEvaluatorConfig = {
-        name: 'test',
-        type: 'tool_trajectory',
-        mode: 'exact',
-        expected: [{ tool: 'search' }, { tool: 'analyze' }],
-      };
-      const evaluator = new ToolTrajectoryEvaluator({ config });
-
-      const result = evaluator.evaluate(
-        createContext({
-          output,
-        }),
-      );
-
-      expect(result.score).toBe(1);
-      expect(result.verdict).toBe('pass');
-    });
-
     it('fails when trace has extra tools', () => {
       const output: Message[] = [
         {
@@ -295,36 +383,6 @@ describe('ToolTrajectoryEvaluator', () => {
 
       expect(result.score).toBe(1); // All expected found at correct positions
       expect(result.misses.some((m) => m.includes('Expected 2 tool calls, got 3'))).toBe(true);
-    });
-
-    it('fails when trace has wrong tool at position', () => {
-      const output: Message[] = [
-        {
-          role: 'assistant',
-          toolCalls: [
-            { tool: 'search', input: {}, output: {} },
-            { tool: 'wrong', input: {}, output: {} },
-          ],
-        },
-      ];
-
-      const config: ToolTrajectoryEvaluatorConfig = {
-        name: 'test',
-        type: 'tool_trajectory',
-        mode: 'exact',
-        expected: [{ tool: 'search' }, { tool: 'analyze' }],
-      };
-      const evaluator = new ToolTrajectoryEvaluator({ config });
-
-      const result = evaluator.evaluate(
-        createContext({
-          output,
-        }),
-      );
-
-      expect(result.score).toBe(0.5); // Only position 0 matches
-      expect(result.verdict).toBe('fail');
-      expect(result.misses.some((m) => m.includes('expected analyze, got wrong'))).toBe(true);
     });
   });
 
@@ -1201,61 +1259,6 @@ describe('ToolTrajectoryEvaluator', () => {
   });
 
   describe('superset trajectory mode', () => {
-    it('passes when all expected tools found in actual (extras OK)', () => {
-      const output: Message[] = [
-        {
-          role: 'assistant',
-          toolCalls: [
-            { tool: 'init', input: {} },
-            { tool: 'search', input: { query: 'test' } },
-            { tool: 'analyze', input: {} },
-            { tool: 'cleanup', input: {} },
-          ],
-        },
-      ];
-
-      const config: ToolTrajectoryEvaluatorConfig = {
-        name: 'test',
-        type: 'tool_trajectory',
-        mode: 'superset',
-        argsMatch: 'superset',
-        expected: [{ tool: 'search', args: { query: 'test' } }, { tool: 'analyze' }],
-      };
-      const evaluator = new ToolTrajectoryEvaluator({ config });
-
-      const result = evaluator.evaluate(createContext({ output }));
-
-      expect(result.score).toBe(1);
-      expect(result.verdict).toBe('pass');
-      expect(result.hits.length).toBe(2);
-    });
-
-    it('fails when expected tool not found in actual', () => {
-      const output: Message[] = [
-        {
-          role: 'assistant',
-          toolCalls: [
-            { tool: 'search', input: {} },
-            { tool: 'cleanup', input: {} },
-          ],
-        },
-      ];
-
-      const config: ToolTrajectoryEvaluatorConfig = {
-        name: 'test',
-        type: 'tool_trajectory',
-        mode: 'superset',
-        expected: [{ tool: 'search' }, { tool: 'analyze' }],
-      };
-      const evaluator = new ToolTrajectoryEvaluator({ config });
-
-      const result = evaluator.evaluate(createContext({ output }));
-
-      expect(result.score).toBe(0.5);
-      expect(result.verdict).toBe('fail');
-      expect(result.misses.some((m) => m.includes('analyze'))).toBe(true);
-    });
-
     it('consumes matched calls (greedy, no reuse)', () => {
       const output: Message[] = [
         {
@@ -1328,61 +1331,6 @@ describe('ToolTrajectoryEvaluator', () => {
   });
 
   describe('subset trajectory mode', () => {
-    it('passes when all actual calls are in allowed set', () => {
-      const output: Message[] = [
-        {
-          role: 'assistant',
-          toolCalls: [
-            { tool: 'read', input: {} },
-            { tool: 'search', input: {} },
-          ],
-        },
-      ];
-
-      const config: ToolTrajectoryEvaluatorConfig = {
-        name: 'test',
-        type: 'tool_trajectory',
-        mode: 'subset',
-        expected: [
-          { tool: 'read' },
-          { tool: 'search' },
-          { tool: 'analyze' }, // Allowed but not used
-        ],
-      };
-      const evaluator = new ToolTrajectoryEvaluator({ config });
-
-      const result = evaluator.evaluate(createContext({ output }));
-
-      expect(result.score).toBe(1);
-      expect(result.verdict).toBe('pass');
-    });
-
-    it('fails when actual call is not in allowed set', () => {
-      const output: Message[] = [
-        {
-          role: 'assistant',
-          toolCalls: [
-            { tool: 'read', input: {} },
-            { tool: 'delete', input: {} }, // Not in allowed set
-          ],
-        },
-      ];
-
-      const config: ToolTrajectoryEvaluatorConfig = {
-        name: 'test',
-        type: 'tool_trajectory',
-        mode: 'subset',
-        expected: [{ tool: 'read' }, { tool: 'search' }],
-      };
-      const evaluator = new ToolTrajectoryEvaluator({ config });
-
-      const result = evaluator.evaluate(createContext({ output }));
-
-      expect(result.score).toBe(0.5);
-      expect(result.verdict).toBe('fail');
-      expect(result.misses.some((m) => m.includes('delete'))).toBe(true);
-    });
-
     it('expected items are reusable (not consumed)', () => {
       const output: Message[] = [
         {
