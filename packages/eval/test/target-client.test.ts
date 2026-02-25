@@ -12,19 +12,19 @@ describe('createTargetClient', () => {
   const originalToken = process.env.AGENTV_TARGET_PROXY_TOKEN;
 
   beforeEach(() => {
-    process.env.AGENTV_TARGET_PROXY_URL = '';
-    process.env.AGENTV_TARGET_PROXY_TOKEN = '';
+    process.env.AGENTV_TARGET_PROXY_URL = undefined;
+    process.env.AGENTV_TARGET_PROXY_TOKEN = undefined;
   });
 
   afterEach(() => {
     if (originalUrl === undefined) {
-      process.env.AGENTV_TARGET_PROXY_URL = '';
+      process.env.AGENTV_TARGET_PROXY_URL = undefined;
     } else {
       process.env.AGENTV_TARGET_PROXY_URL = originalUrl;
     }
 
     if (originalToken === undefined) {
-      process.env.AGENTV_TARGET_PROXY_TOKEN = '';
+      process.env.AGENTV_TARGET_PROXY_TOKEN = undefined;
     } else {
       process.env.AGENTV_TARGET_PROXY_TOKEN = originalToken;
     }

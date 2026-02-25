@@ -1537,216 +1537,117 @@ describe('deterministic assertion evaluators in orchestrator', () => {
     criteria: '',
   };
 
-  it('contains evaluator scores 1 when output contains value', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [
-        {
-          output: [{ role: 'assistant', content: 'The answer is hello world today' }],
+  it.each([
+    {
+      label: 'contains pass',
+      type: 'contains' as const,
+      evaluator: { name: 'has-hello', type: 'contains' as const, value: 'hello world' },
+      output: 'The answer is hello world today',
+      expectedScore: 1,
+      expectedVerdict: 'pass',
+      expectedHit: 'Output contains "hello world"',
+      expectedMissCount: 0,
+    },
+    {
+      label: 'contains fail',
+      type: 'contains' as const,
+      evaluator: { name: 'has-hello', type: 'contains' as const, value: 'hello world' },
+      output: 'The answer is goodbye',
+      expectedScore: 0,
+      expectedVerdict: 'fail',
+      expectedMiss: 'Output does not contain "hello world"',
+    },
+    {
+      label: 'regex pass',
+      type: 'regex' as const,
+      evaluator: { name: 'has-number', type: 'regex' as const, value: '\\d+' },
+      output: 'The result is 42 units',
+      expectedScore: 1,
+      expectedVerdict: 'pass',
+    },
+    {
+      label: 'regex fail',
+      type: 'regex' as const,
+      evaluator: { name: 'has-number', type: 'regex' as const, value: '^\\d+$' },
+      output: 'No numbers here',
+      expectedScore: 0,
+      expectedVerdict: 'fail',
+    },
+    {
+      label: 'is_json pass',
+      type: 'is_json' as const,
+      evaluator: { name: 'valid-json', type: 'is_json' as const },
+      output: '{"key": "value"}',
+      expectedScore: 1,
+      expectedVerdict: 'pass',
+    },
+    {
+      label: 'is_json fail',
+      type: 'is_json' as const,
+      evaluator: { name: 'valid-json', type: 'is_json' as const },
+      output: 'not json at all',
+      expectedScore: 0,
+      expectedVerdict: 'fail',
+    },
+    {
+      label: 'equals pass (trimmed)',
+      type: 'equals' as const,
+      evaluator: { name: 'exact', type: 'equals' as const, value: 'exact match' },
+      output: '  exact match  ',
+      expectedScore: 1,
+      expectedVerdict: 'pass',
+    },
+    {
+      label: 'equals fail',
+      type: 'equals' as const,
+      evaluator: { name: 'exact', type: 'equals' as const, value: 'exact match' },
+      output: 'different text',
+      expectedScore: 0,
+      expectedVerdict: 'fail',
+    },
+  ])(
+    '$label: $type evaluator scores $expectedScore',
+    async ({
+      evaluator,
+      output,
+      type,
+      expectedScore,
+      expectedVerdict,
+      expectedHit,
+      expectedMiss,
+      expectedMissCount,
+    }) => {
+      const provider = new SequenceProvider('mock', {
+        responses: [{ output: [{ role: 'assistant', content: output }] }],
+      });
+
+      const result = await runEvalCase({
+        evalCase: {
+          ...assertionTestCase,
+          evaluators: [evaluator],
         },
-      ],
-    });
+        provider,
+        target: baseTarget,
+        evaluators: evaluatorRegistry,
+      });
 
-    const result = await runEvalCase({
-      evalCase: {
-        ...assertionTestCase,
-        evaluators: [{ name: 'has-hello', type: 'contains', value: 'hello world' }],
-      },
-      provider,
-      target: baseTarget,
-      evaluators: evaluatorRegistry,
-    });
+      expect(result.score).toBe(expectedScore);
+      expect(result.scores).toHaveLength(1);
+      expect(result.scores?.[0].type).toBe(type);
+      expect(result.scores?.[0].score).toBe(expectedScore);
+      expect(result.scores?.[0].verdict).toBe(expectedVerdict);
 
-    expect(result.score).toBe(1);
-    expect(result.hits).toContain('Output contains "hello world"');
-    expect(result.misses).toHaveLength(0);
-    expect(result.scores).toHaveLength(1);
-    expect(result.scores?.[0].type).toBe('contains');
-    expect(result.scores?.[0].score).toBe(1);
-    expect(result.scores?.[0].verdict).toBe('pass');
-  });
-
-  it('contains evaluator scores 0 when output does not contain value', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [
-        {
-          output: [{ role: 'assistant', content: 'The answer is goodbye' }],
-        },
-      ],
-    });
-
-    const result = await runEvalCase({
-      evalCase: {
-        ...assertionTestCase,
-        evaluators: [{ name: 'has-hello', type: 'contains', value: 'hello world' }],
-      },
-      provider,
-      target: baseTarget,
-      evaluators: evaluatorRegistry,
-    });
-
-    expect(result.score).toBe(0);
-    expect(result.misses).toContain('Output does not contain "hello world"');
-    expect(result.scores).toHaveLength(1);
-    expect(result.scores?.[0].type).toBe('contains');
-    expect(result.scores?.[0].score).toBe(0);
-    expect(result.scores?.[0].verdict).toBe('fail');
-  });
-
-  it('regex evaluator scores 1 when output matches pattern', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [
-        {
-          output: [{ role: 'assistant', content: 'The result is 42 units' }],
-        },
-      ],
-    });
-
-    const result = await runEvalCase({
-      evalCase: {
-        ...assertionTestCase,
-        evaluators: [{ name: 'has-number', type: 'regex', value: '\\d+' }],
-      },
-      provider,
-      target: baseTarget,
-      evaluators: evaluatorRegistry,
-    });
-
-    expect(result.score).toBe(1);
-    expect(result.scores).toHaveLength(1);
-    expect(result.scores?.[0].type).toBe('regex');
-    expect(result.scores?.[0].score).toBe(1);
-    expect(result.scores?.[0].verdict).toBe('pass');
-  });
-
-  it('regex evaluator scores 0 when output does not match pattern', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [
-        {
-          output: [{ role: 'assistant', content: 'No numbers here' }],
-        },
-      ],
-    });
-
-    const result = await runEvalCase({
-      evalCase: {
-        ...assertionTestCase,
-        evaluators: [{ name: 'has-number', type: 'regex', value: '^\\d+$' }],
-      },
-      provider,
-      target: baseTarget,
-      evaluators: evaluatorRegistry,
-    });
-
-    expect(result.score).toBe(0);
-    expect(result.scores).toHaveLength(1);
-    expect(result.scores?.[0].type).toBe('regex');
-    expect(result.scores?.[0].score).toBe(0);
-    expect(result.scores?.[0].verdict).toBe('fail');
-  });
-
-  it('is_json evaluator scores 1 when output is valid JSON', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [
-        {
-          output: [{ role: 'assistant', content: '{"key": "value"}' }],
-        },
-      ],
-    });
-
-    const result = await runEvalCase({
-      evalCase: {
-        ...assertionTestCase,
-        evaluators: [{ name: 'valid-json', type: 'is_json' }],
-      },
-      provider,
-      target: baseTarget,
-      evaluators: evaluatorRegistry,
-    });
-
-    expect(result.score).toBe(1);
-    expect(result.scores).toHaveLength(1);
-    expect(result.scores?.[0].type).toBe('is_json');
-    expect(result.scores?.[0].score).toBe(1);
-    expect(result.scores?.[0].verdict).toBe('pass');
-  });
-
-  it('is_json evaluator scores 0 when output is not valid JSON', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [
-        {
-          output: [{ role: 'assistant', content: 'not json at all' }],
-        },
-      ],
-    });
-
-    const result = await runEvalCase({
-      evalCase: {
-        ...assertionTestCase,
-        evaluators: [{ name: 'valid-json', type: 'is_json' }],
-      },
-      provider,
-      target: baseTarget,
-      evaluators: evaluatorRegistry,
-    });
-
-    expect(result.score).toBe(0);
-    expect(result.scores).toHaveLength(1);
-    expect(result.scores?.[0].type).toBe('is_json');
-    expect(result.scores?.[0].score).toBe(0);
-    expect(result.scores?.[0].verdict).toBe('fail');
-  });
-
-  it('equals evaluator scores 1 when output exactly matches value (trimmed)', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [
-        {
-          output: [{ role: 'assistant', content: '  exact match  ' }],
-        },
-      ],
-    });
-
-    const result = await runEvalCase({
-      evalCase: {
-        ...assertionTestCase,
-        evaluators: [{ name: 'exact', type: 'equals', value: 'exact match' }],
-      },
-      provider,
-      target: baseTarget,
-      evaluators: evaluatorRegistry,
-    });
-
-    expect(result.score).toBe(1);
-    expect(result.scores).toHaveLength(1);
-    expect(result.scores?.[0].type).toBe('equals');
-    expect(result.scores?.[0].score).toBe(1);
-    expect(result.scores?.[0].verdict).toBe('pass');
-  });
-
-  it('equals evaluator scores 0 when output does not match value', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [
-        {
-          output: [{ role: 'assistant', content: 'different text' }],
-        },
-      ],
-    });
-
-    const result = await runEvalCase({
-      evalCase: {
-        ...assertionTestCase,
-        evaluators: [{ name: 'exact', type: 'equals', value: 'exact match' }],
-      },
-      provider,
-      target: baseTarget,
-      evaluators: evaluatorRegistry,
-    });
-
-    expect(result.score).toBe(0);
-    expect(result.scores).toHaveLength(1);
-    expect(result.scores?.[0].type).toBe('equals');
-    expect(result.scores?.[0].score).toBe(0);
-    expect(result.scores?.[0].verdict).toBe('fail');
-  });
+      if (expectedHit !== undefined) {
+        expect(result.hits).toContain(expectedHit);
+      }
+      if (expectedMiss !== undefined) {
+        expect(result.misses).toContain(expectedMiss);
+      }
+      if (expectedMissCount !== undefined) {
+        expect(result.misses).toHaveLength(expectedMissCount);
+      }
+    },
+  );
 
   it('supports custom weight on assertion evaluators', async () => {
     const provider = new SequenceProvider('mock', {
@@ -1813,122 +1714,94 @@ describe('required gates', () => {
     criteria: '',
   };
 
-  it('scores 0 when a required evaluator fails', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [
+  it.each([
+    {
+      label: 'boolean required gate triggers when required evaluator fails',
+      output: 'The answer is goodbye',
+      evaluators: [
         {
-          output: [{ role: 'assistant', content: 'The answer is goodbye' }],
+          name: 'must-have',
+          type: 'contains' as const,
+          value: 'hello',
+          required: true as boolean | number,
         },
+        { name: 'nice-to-have', type: 'contains' as const, value: 'goodbye' },
       ],
-    });
-
-    const result = await runEvalCase({
-      evalCase: {
-        ...assertionTestCase,
-        evaluators: [
-          { name: 'must-have', type: 'contains', value: 'hello', required: true },
-          { name: 'nice-to-have', type: 'contains', value: 'goodbye' },
-        ],
-      },
-      provider,
-      target: baseTarget,
-      evaluators: evaluatorRegistry,
-    });
-
-    // The "must-have" evaluator fails (output doesn't contain "hello") and is required.
-    // The "nice-to-have" evaluator passes (output contains "goodbye").
-    // Because the required evaluator fails, the aggregate score should be 0.
-    expect(result.score).toBe(0);
-    expect(result.scores).toHaveLength(2);
-    // Individual evaluator scores are still reported correctly
-    expect(result.scores?.[0]?.score).toBe(0); // must-have fails
-    expect(result.scores?.[1]?.score).toBe(1); // nice-to-have passes
-  });
-
-  it('scores normally when all required evaluators pass', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [
+      expectedScore: 0,
+      expectedIndividualScores: [0, 1],
+    },
+    {
+      label: 'boolean required gate passes when required evaluator passes',
+      output: 'hello world',
+      evaluators: [
         {
-          output: [{ role: 'assistant', content: 'hello world' }],
+          name: 'must-have',
+          type: 'contains' as const,
+          value: 'hello',
+          required: true as boolean | number,
         },
+        { name: 'nice-to-have', type: 'contains' as const, value: 'foo' },
       ],
-    });
-
-    const result = await runEvalCase({
-      evalCase: {
-        ...assertionTestCase,
-        evaluators: [
-          { name: 'must-have', type: 'contains', value: 'hello', required: true },
-          { name: 'nice-to-have', type: 'contains', value: 'foo' },
-        ],
-      },
-      provider,
-      target: baseTarget,
-      evaluators: evaluatorRegistry,
-    });
-
-    // The "must-have" evaluator passes (output contains "hello") and is required.
-    // The "nice-to-have" evaluator fails (output doesn't contain "foo").
-    // Because the required evaluator passes, the aggregate should be normal weighted average.
-    // (1 + 0) / 2 = 0.5
-    expect(result.score).toBe(0.5);
-    expect(result.scores).toHaveLength(2);
-  });
-
-  it('supports numeric required threshold', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [
+      expectedScore: 0.5,
+      expectedIndividualScores: undefined,
+    },
+    {
+      label: 'numeric required threshold triggers gate when score is below threshold',
+      output: 'The answer is goodbye',
+      evaluators: [
         {
-          output: [{ role: 'assistant', content: 'The answer is goodbye' }],
+          name: 'must-pass',
+          type: 'contains' as const,
+          value: 'hello',
+          required: 0.6 as boolean | number,
         },
+        { name: 'optional', type: 'contains' as const, value: 'goodbye' },
       ],
-    });
-
-    const result = await runEvalCase({
-      evalCase: {
-        ...assertionTestCase,
-        evaluators: [
-          // contains evaluator returns 0 or 1; with required: 0.6, a score of 0 triggers the gate
-          { name: 'must-pass', type: 'contains', value: 'hello', required: 0.6 },
-          { name: 'optional', type: 'contains', value: 'goodbye' },
-        ],
-      },
-      provider,
-      target: baseTarget,
-      evaluators: evaluatorRegistry,
-    });
-
-    // "must-pass" fails (score 0 < threshold 0.6) -> gate triggers
-    expect(result.score).toBe(0);
-  });
-
-  it('numeric required threshold passes when score meets threshold', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [
+      expectedScore: 0,
+      expectedIndividualScores: undefined,
+    },
+    {
+      label: 'numeric required threshold passes when score meets threshold',
+      output: 'hello world',
+      evaluators: [
         {
-          output: [{ role: 'assistant', content: 'hello world' }],
+          name: 'must-pass',
+          type: 'contains' as const,
+          value: 'hello',
+          required: 0.6 as boolean | number,
         },
+        { name: 'optional', type: 'contains' as const, value: 'foo' },
       ],
-    });
+      expectedScore: 0.5,
+      expectedIndividualScores: undefined,
+    },
+  ])(
+    '$label',
+    async ({ output, evaluators: evalEvaluators, expectedScore, expectedIndividualScores }) => {
+      const provider = new SequenceProvider('mock', {
+        responses: [{ output: [{ role: 'assistant', content: output }] }],
+      });
 
-    const result = await runEvalCase({
-      evalCase: {
-        ...assertionTestCase,
-        evaluators: [
-          // contains evaluator returns 1 (pass); with required: 0.6, score of 1 >= 0.6 so no gate
-          { name: 'must-pass', type: 'contains', value: 'hello', required: 0.6 },
-          { name: 'optional', type: 'contains', value: 'foo' },
-        ],
-      },
-      provider,
-      target: baseTarget,
-      evaluators: evaluatorRegistry,
-    });
+      const result = await runEvalCase({
+        evalCase: {
+          ...assertionTestCase,
+          evaluators: evalEvaluators,
+        },
+        provider,
+        target: baseTarget,
+        evaluators: evaluatorRegistry,
+      });
 
-    // "must-pass" passes (score 1 >= threshold 0.6) -> no gate
-    // Normal weighted average: (1 + 0) / 2 = 0.5
-    expect(result.score).toBe(0.5);
-  });
+      expect(result.score).toBe(expectedScore);
+      expect(result.scores).toHaveLength(evalEvaluators.length);
+
+      if (expectedIndividualScores !== undefined) {
+        for (let i = 0; i < expectedIndividualScores.length; i++) {
+          expect(result.scores?.[i]?.score).toBe(expectedIndividualScores[i]);
+        }
+      }
+    },
+  );
 
   it('does not gate when non-required evaluator fails', async () => {
     const provider = new SequenceProvider('mock', {
