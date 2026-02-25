@@ -439,7 +439,7 @@ describe('resolveTargetDefinition', () => {
       {
         name: 'shell-cli-prompt-file',
         provider: 'cli',
-        command_template: 'agent run --prompt-file {PROMPT_FILE} --out {OUTPUT_FILE}',
+        command: 'agent run --prompt-file {PROMPT_FILE} --out {OUTPUT_FILE}',
       },
       {},
     );

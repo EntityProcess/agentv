@@ -275,8 +275,8 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     location: string,
     errors: ValidationError[],
   ): void {
-    // Critical check: command is required (accept legacy command_template/commandTemplate too)
-    const command = target.command ?? target.command_template ?? target.commandTemplate;
+    // Critical check: command is required
+    const command = target.command;
     if (typeof command !== 'string' || command.trim().length === 0) {
       errors.push({
         severity: 'error',

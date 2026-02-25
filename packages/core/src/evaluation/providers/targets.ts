@@ -78,64 +78,52 @@ export const CliHealthcheckInputSchema = z.union([
  *       url: http://localhost:8080/health
  * ```
  */
-export const CliTargetInputSchema = z
-  .object({
-    name: z.string().min(1, 'target name is required'),
-    provider: z
-      .string()
-      .refine((p) => p.toLowerCase() === 'cli', { message: "provider must be 'cli'" }),
+export const CliTargetInputSchema = z.object({
+  name: z.string().min(1, 'target name is required'),
+  provider: z
+    .string()
+    .refine((p) => p.toLowerCase() === 'cli', { message: "provider must be 'cli'" }),
 
-    // Command - required (accept both naming conventions)
-    command: z.string().optional(),
-    command_template: z.string().optional(),
-    commandTemplate: z.string().optional(),
+  // Command - required
+  command: z.string(),
 
-    // Files format - optional
-    files_format: z.string().optional(),
-    filesFormat: z.string().optional(),
-    attachments_format: z.string().optional(),
-    attachmentsFormat: z.string().optional(),
+  // Files format - optional
+  files_format: z.string().optional(),
+  filesFormat: z.string().optional(),
+  attachments_format: z.string().optional(),
+  attachmentsFormat: z.string().optional(),
 
-    // Working directory - optional
-    cwd: z.string().optional(),
+  // Working directory - optional
+  cwd: z.string().optional(),
 
-    // Workspace template directory - optional (mutually exclusive with cwd)
-    workspace_template: z.string().optional(),
-    workspaceTemplate: z.string().optional(),
+  // Workspace template directory - optional (mutually exclusive with cwd)
+  workspace_template: z.string().optional(),
+  workspaceTemplate: z.string().optional(),
 
-    // Timeout in seconds - optional
-    timeout_seconds: z.number().positive().optional(),
-    timeoutSeconds: z.number().positive().optional(),
+  // Timeout in seconds - optional
+  timeout_seconds: z.number().positive().optional(),
+  timeoutSeconds: z.number().positive().optional(),
 
-    // Healthcheck configuration - optional
-    healthcheck: CliHealthcheckInputSchema.optional(),
+  // Healthcheck configuration - optional
+  healthcheck: CliHealthcheckInputSchema.optional(),
 
-    // Verbose mode - optional
-    verbose: z.boolean().optional(),
-    cli_verbose: z.boolean().optional(),
-    cliVerbose: z.boolean().optional(),
+  // Verbose mode - optional
+  verbose: z.boolean().optional(),
+  cli_verbose: z.boolean().optional(),
+  cliVerbose: z.boolean().optional(),
 
-    // Keep temp files - optional
-    keep_temp_files: z.boolean().optional(),
-    keepTempFiles: z.boolean().optional(),
-    keep_output_files: z.boolean().optional(),
-    keepOutputFiles: z.boolean().optional(),
+  // Keep temp files - optional
+  keep_temp_files: z.boolean().optional(),
+  keepTempFiles: z.boolean().optional(),
+  keep_output_files: z.boolean().optional(),
+  keepOutputFiles: z.boolean().optional(),
 
-    // Common target fields
-    judge_target: z.string().optional(),
-    workers: z.number().int().min(1).optional(),
-    provider_batching: z.boolean().optional(),
-    providerBatching: z.boolean().optional(),
-  })
-  .refine(
-    (data) =>
-      data.command !== undefined ||
-      data.command_template !== undefined ||
-      data.commandTemplate !== undefined,
-    {
-      message: "'command' is required",
-    },
-  );
+  // Common target fields
+  judge_target: z.string().optional(),
+  workers: z.number().int().min(1).optional(),
+  provider_batching: z.boolean().optional(),
+  providerBatching: z.boolean().optional(),
+});
 
 /**
  * Strict normalized schema for HTTP healthcheck configuration.
@@ -296,13 +284,7 @@ export function normalizeCliTargetInput(
 ): CliNormalizedConfig {
   const targetName = input.name;
 
-  // Coalesce command variants - at least one is required by schema refinement
-  // Precedence: command > command_template > commandTemplate (backwards compat)
-  const commandSource = input.command ?? input.command_template ?? input.commandTemplate;
-  if (commandSource === undefined) {
-    throw new Error(`${targetName}: 'command' is required`);
-  }
-  const command = resolveString(commandSource, env, `${targetName} CLI command`, true);
+  const command = resolveString(input.command, env, `${targetName} CLI command`, true);
 
   // Coalesce files format variants
   const filesFormatSource =
@@ -1644,9 +1626,8 @@ function resolveDiscoveredProviderConfig(
   evalFilePath?: string,
 ): CliResolvedConfig {
   // Use explicit command if provided, otherwise derive from convention
-  const commandSource = target.command ?? target.command_template ?? target.commandTemplate;
-  const command = commandSource
-    ? resolveString(commandSource, env, `${target.name} command`, true)
+  const command = target.command
+    ? resolveString(target.command, env, `${target.name} command`, true)
     : `bun run .agentv/providers/${providerKind}.ts {PROMPT}`;
 
   // Resolve optional fields using the same patterns as CLI providers

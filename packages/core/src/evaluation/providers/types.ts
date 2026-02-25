@@ -317,9 +317,7 @@ export interface TargetDefinition {
   readonly subagentRoot?: string | unknown | undefined;
   readonly workspace_template?: string | unknown | undefined;
   readonly workspaceTemplate?: string | unknown | undefined;
-  // CLI fields (command is the canonical field; command_template/commandTemplate are deprecated aliases)
-  readonly command_template?: string | unknown | undefined;
-  readonly commandTemplate?: string | unknown | undefined;
+  // CLI fields
   readonly files_format?: string | unknown | undefined;
   readonly filesFormat?: string | unknown | undefined;
   readonly attachments_format?: string | unknown | undefined;
