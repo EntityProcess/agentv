@@ -49,51 +49,41 @@ To run against a single target first:
 bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml --target copilot
 ```
 
-### Saving Results for Comparison
-
-Save per-target results to separate files for the compare workflow:
-
-```bash
-# Run each target and save results
-bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-  --target copilot --out results-copilot.jsonl
-
-bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-  --target claude --out results-claude.jsonl
-
-bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-  --target gemini_base --out results-gemini.jsonl
-```
-
 ## Comparing Models
 
-Use `agentv compare` to see score deltas between any two runs:
+The eval produces a combined results file with a `target` field per record. Use `agentv compare` to see all models side by side:
 
 ```bash
-# Compare copilot vs claude
-bun agentv compare results-copilot.jsonl results-claude.jsonl
+# N-way matrix — see all models at once
+agentv compare results.jsonl
 
-# Compare copilot vs gemini
-bun agentv compare results-copilot.jsonl results-gemini.jsonl
+# Designate a baseline for CI regression gating
+agentv compare results.jsonl --baseline copilot
+
+# Pairwise: compare two specific targets
+agentv compare results.jsonl --baseline copilot --candidate claude
 
 # JSON output for CI integration
-bun agentv compare results-copilot.jsonl results-claude.jsonl --json
+agentv compare results.jsonl --json
 ```
 
 ### Expected Output
 
 ```
-Comparing: results-copilot.jsonl → results-claude.jsonl
+Score Matrix
 
-  Test ID                Baseline  Candidate     Delta  Result
-  ─────────────────────  ────────  ─────────  ────────  ────────
-  factual-geography          0.92       0.95     +0.03  = tie
-  factual-science            0.88       0.91     +0.03  = tie
-  analytical-comparison      0.78       0.85     +0.07  = tie
-  creative-explanation       0.82       0.80     -0.02  = tie
-  structured-list            0.90       0.88     -0.02  = tie
+  Test ID                copilot  claude  gemini_base
+  ─────────────────────  ───────  ──────  ───────────
+  factual-geography         0.92    0.95         0.87
+  factual-science           0.88    0.91         0.85
+  analytical-comparison     0.78    0.85         0.80
+  creative-explanation      0.82    0.80         0.83
+  structured-list           0.90    0.88         0.86
 
-Summary: 0 wins, 0 losses, 5 ties | Mean Δ: +0.018 | Status: no change
+Pairwise Summary:
+  claude → copilot:       0 wins, 0 losses, 5 ties  (Δ -0.018)
+  claude → gemini_base:   0 wins, 0 losses, 5 ties  (Δ -0.044)
+  copilot → gemini_base:  0 wins, 0 losses, 5 ties  (Δ -0.026)
 ```
 
 > **Note:** Actual scores will vary — LLM outputs are non-deterministic. The trials configuration helps surface this variability. Scores above are illustrative.
@@ -144,11 +134,13 @@ This surfaces non-determinism — if a model passes on trial 1 but fails on tria
 
 ### 4. Compare
 
-The `agentv compare` command reads two JSONL result files and computes per-test score deltas:
+The `agentv compare` command reads a combined JSONL (with `target` field) and shows an N-way matrix with pairwise summaries. Each pair classifies per-test deltas:
 
 - **Win**: candidate score exceeds baseline by threshold (default 0.10)
 - **Loss**: baseline score exceeds candidate by threshold
 - **Tie**: scores within threshold
+
+With `--baseline`, exit code 1 signals regression (CI-friendly).
 
 ## Evaluation Flow
 
@@ -161,19 +153,14 @@ benchmark.eval.yaml
 │  (per target × trials)  │
 └────────┬────────────────┘
          │
-    ┌────┼────────┐
-    ▼    ▼        ▼
-copilot claude  gemini
-    │    │        │
-    ▼    ▼        ▼
- .jsonl .jsonl  .jsonl
-    │    │        │
-    └────┼────────┘
+         ▼
+   combined results.jsonl
+   (all targets in one file)
          │
          ▼
 ┌─────────────────────────┐
 │  agentv compare          │
-│  (pairwise deltas)      │
+│  (N-way matrix + deltas)│
 └─────────────────────────┘
 ```
 

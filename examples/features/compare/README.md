@@ -1,26 +1,42 @@
 # Baseline vs Candidate Comparison
 
-Demonstrates comparing evaluation results between baseline and candidate versions using the `agentv compare` command.
+Demonstrates comparing evaluation results using the `agentv compare` command.
 
 ## What This Shows
 
-- Comparing two evaluation result files
+- N-way matrix comparison from a combined JSONL file
+- Two-file pairwise comparison (baseline vs candidate)
 - Score delta calculation and win/loss classification
-- Regression detection via exit codes
+- Baseline regression detection via exit codes
 - Human-readable and JSON output formats
 
 ## Running
 
 ```bash
 # From repository root
-# Compare baseline vs candidate results
-bun agentv compare examples/features/compare/evals/baseline-results.jsonl examples/features/compare/evals/candidate-results.jsonl
+
+# N-way matrix from a combined results file (see ../benchmark-tooling/ for fixture)
+agentv compare examples/features/benchmark-tooling/fixtures/combined-results.jsonl
+
+# Pairwise from combined file
+agentv compare examples/features/benchmark-tooling/fixtures/combined-results.jsonl \
+  --baseline gpt-4.1 --candidate gpt-5-mini
+
+# CI regression gate: exit 1 if any target regresses vs baseline
+agentv compare examples/features/benchmark-tooling/fixtures/combined-results.jsonl \
+  --baseline gpt-4.1
+
+# Two-file pairwise comparison (legacy)
+agentv compare examples/features/compare/evals/baseline-results.jsonl \
+  examples/features/compare/evals/candidate-results.jsonl
 
 # With custom threshold for win/loss classification
-bun agentv compare examples/features/compare/evals/baseline-results.jsonl examples/features/compare/evals/candidate-results.jsonl --threshold 0.05
+agentv compare examples/features/compare/evals/baseline-results.jsonl \
+  examples/features/compare/evals/candidate-results.jsonl --threshold 0.05
 
 # JSON output for CI pipelines
-bun agentv compare examples/features/compare/evals/baseline-results.jsonl examples/features/compare/evals/candidate-results.jsonl --json
+agentv compare examples/features/compare/evals/baseline-results.jsonl \
+  examples/features/compare/evals/candidate-results.jsonl --json
 ```
 
 ## Key Files
@@ -28,3 +44,4 @@ bun agentv compare examples/features/compare/evals/baseline-results.jsonl exampl
 - `evals/baseline-results.jsonl` - Results from baseline configuration
 - `evals/candidate-results.jsonl` - Results from candidate configuration
 - `evals/README.md` - Detailed usage documentation
+- `../benchmark-tooling/fixtures/combined-results.jsonl` - Combined multi-target fixture for N-way matrix
