@@ -23,15 +23,14 @@
 
 **1. Hybrid Judge System (Code + LLM with Custom Prompts)**
 ```yaml
-execution:
-  evaluators:
-    - name: format_check
-      type: code_judge           # Deterministic: checks concrete outputs
-      script: ./validators/check_format.py
+assert:
+  - name: format_check
+    type: code_judge           # Deterministic: checks concrete outputs
+    script: ./validators/check_format.py
 
-    - name: correctness
-      type: llm_judge            # Subjective: uses customizable judge prompt
-      prompt: ./judges/correctness.md  # Edit the prompt, not the code
+  - name: correctness
+    type: llm_judge            # Subjective: uses customizable judge prompt
+    prompt: ./judges/correctness.md  # Edit the prompt, not the code
 ```
 
 This is more powerful than:
@@ -57,7 +56,9 @@ No network round-trips, no waiting for managed infrastructure:
 # AgentV workflow
 agentv eval evals/my-eval.yaml
 agentv eval evals/**/*.yaml --workers 10  # Parallel
-agentv compare before.jsonl after.jsonl   # A/B testing
+agentv compare results.jsonl              # N-way matrix comparison
+agentv compare results.jsonl --baseline gpt-4.1  # CI regression gate
+agentv compare before.jsonl after.jsonl   # Two-file pairwise A/B testing
 ```
 
 ```bash
@@ -117,17 +118,16 @@ Alternative approaches:
 ### Scenario: Deterministic + Subjective Evaluation
 
 ```yaml
-execution:
-  evaluators:
-    - name: syntax_check
-      type: code_judge
-      script: ["python", "check_syntax.py"]
-    - name: logic_check
-      type: code_judge
-      script: ["python", "check_logic.py"]
-    - name: explanation_quality
-      type: llm_judge
-      prompt: judges/explanation.md
+assert:
+  - name: syntax_check
+    type: code_judge
+    script: ["python", "check_syntax.py"]
+  - name: logic_check
+    type: code_judge
+    script: ["python", "check_logic.py"]
+  - name: explanation_quality
+    type: llm_judge
+    prompt: judges/explanation.md
 ```
 
 Single eval run scores all three dimensions. Other approaches:
@@ -140,8 +140,10 @@ Single eval run scores all three dimensions. Other approaches:
 ```yaml
 # .github/workflows/eval.yml
 - run: agentv eval evals/**/*.yaml --out results.jsonl
+- run: agentv compare results.jsonl --baseline gpt-4.1
+  # Exit 1 if any target regresses vs baseline (N-way matrix)
 - run: agentv compare baseline.jsonl results.jsonl --threshold 0.05
-  # Fail if performance drops > 5%
+  # Or two-file pairwise: fail if performance drops > 5%
 ```
 
 Other tools face challenges here:

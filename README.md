@@ -278,16 +278,34 @@ agentv create eval my-eval          # → evals/my-eval.eval.yaml + .cases.jsonl
 
 ### Compare Evaluation Results
 
-Run two evaluations and compare them:
+Compare a combined results file across all targets (N-way matrix):
 
 ```bash
-agentv eval evals/my-eval.yaml --out before.jsonl
-# ... make changes to your agent ...
-agentv eval evals/my-eval.yaml --out after.jsonl
-agentv compare before.jsonl after.jsonl --threshold 0.1
+agentv compare results.jsonl
 ```
 
-Output shows wins, losses, ties, and mean delta to identify improvements.
+```
+Score Matrix
+
+  Test ID          gemini-3-flash-preview  gpt-4.1  gpt-5-mini
+  ───────────────  ──────────────────────  ───────  ──────────
+  code-generation                    0.70     0.80        0.75
+  greeting                           0.90     0.85        0.95
+  summarization                      0.85     0.90        0.80
+
+Pairwise Summary:
+  gemini-3-flash-preview → gpt-4.1:     1 win, 0 losses, 2 ties  (Δ +0.033)
+  gemini-3-flash-preview → gpt-5-mini:  0 wins, 0 losses, 3 ties  (Δ +0.017)
+  gpt-4.1 → gpt-5-mini:                 0 wins, 0 losses, 3 ties  (Δ -0.017)
+```
+
+Designate a baseline for CI regression gating, or compare two specific targets:
+
+```bash
+agentv compare results.jsonl --baseline gpt-4.1                          # exit 1 on regression
+agentv compare results.jsonl --baseline gpt-4.1 --candidate gpt-5-mini  # pairwise
+agentv compare before.jsonl after.jsonl                                  # two-file pairwise
+```
 
 ## Targets Configuration
 

@@ -355,8 +355,11 @@ agentv prompt eval judge <file.yaml> --test-id <id> --answer-file f # judge prom
 # Validate eval file
 agentv validate <file.yaml>
 
-# Compare results between runs
-agentv compare <results1.jsonl> <results2.jsonl>
+# Compare results — N-way matrix from combined JSONL
+agentv compare <combined-results.jsonl>
+agentv compare <combined-results.jsonl> --baseline <target>                   # CI regression gate
+agentv compare <combined-results.jsonl> --baseline <target> --candidate <target>  # pairwise
+agentv compare <results1.jsonl> <results2.jsonl>                              # two-file pairwise
 
 # Generate rubrics from criteria
 agentv generate rubrics <file.yaml> [--target <name>]
