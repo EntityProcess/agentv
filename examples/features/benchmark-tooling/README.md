@@ -6,24 +6,76 @@ Utilities for multi-model benchmarking workflows with AgentV.
 
 `agentv compare` natively supports combined JSONL files with a `target` field, enabling N-way matrix comparison without splitting files.
 
+### Quick Start
+
+```bash
+# Try it now — fixture included, no API keys needed
+agentv compare examples/features/benchmark-tooling/fixtures/combined-results.jsonl
+```
+
+Output:
+
+```
+Score Matrix
+
+  Test ID          gemini-3-flash-preview  gpt-4.1  gpt-5-mini
+  ───────────────  ──────────────────────  ───────  ──────────
+  code-generation                    0.70     0.80        0.75
+  greeting                           0.90     0.85        0.95
+  summarization                      0.85     0.90        0.80
+
+Pairwise Summary:
+  gemini-3-flash-preview → gpt-4.1:     1 win, 0 losses, 2 ties  (Δ +0.033)
+  gemini-3-flash-preview → gpt-5-mini:  0 wins, 0 losses, 3 ties  (Δ +0.017)
+  gpt-4.1 → gpt-5-mini:                 0 wins, 0 losses, 3 ties  (Δ -0.017)
+```
+
 ### Usage
 
 ```bash
 # N-way matrix (all targets)
-bun agentv compare fixtures/combined-results.jsonl
+agentv compare results.jsonl
 
 # With baseline regression check (exits 1 if any target regresses)
-bun agentv compare fixtures/combined-results.jsonl --baseline gpt-4.1
+agentv compare results.jsonl --baseline gpt-4.1
 
 # Pairwise from combined file
-bun agentv compare fixtures/combined-results.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
+agentv compare results.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
 
 # Filter to specific targets
-bun agentv compare fixtures/combined-results.jsonl --targets gpt-4.1 --targets gpt-5-mini
+agentv compare results.jsonl --targets gpt-4.1 --targets gpt-5-mini
 
 # JSON output
-bun agentv compare fixtures/combined-results.jsonl --json
+agentv compare results.jsonl --json
 ```
+
+### Pairwise Mode
+
+Extract a head-to-head comparison between two specific targets:
+
+```bash
+agentv compare results.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
+```
+
+```
+Comparing: gpt-4.1 → gpt-5-mini
+
+  Test ID          Baseline  Candidate     Delta  Result
+  ───────────────  ────────  ─────────  ────────  ────────
+  greeting             0.85       0.95     +0.10  = tie
+  code-generation      0.80       0.75     -0.05  = tie
+  summarization        0.90       0.80     -0.10  = tie
+
+Summary: 0 wins, 0 losses, 3 ties | Mean Δ: -0.017 | Status: regressed
+```
+
+### Exit Codes
+
+| Mode | Exit Code |
+|---|---|
+| Two-file pairwise (`a.jsonl b.jsonl`) | Exit 1 on regression |
+| Combined with `--baseline` | Exit 1 if any target regresses vs baseline |
+| Combined without `--baseline` | Exit 0 (informational) |
 
 ### Combined JSONL Format
 
