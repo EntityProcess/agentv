@@ -28,7 +28,7 @@ import type {
 } from './providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
 import { createBuiltinRegistry, discoverAssertions } from './registry/index.js';
-import { type TraceSummary, computeTraceSummary, mergeExecutionMetrics } from './trace.js';
+import { type MetricsSummary, computeMetricsSummary, mergeExecutionMetrics } from './metrics.js';
 import { aggregateTrials } from './trials.js';
 import type {
   EvalTest,
@@ -487,7 +487,7 @@ export async function runEvaluation(
 
         // Track suite-level budget
         if (totalBudgetUsd !== undefined) {
-          // Sum all trial costs when trials are used, otherwise use trace cost
+          // Sum all trial costs when trials are used, otherwise use metrics cost
           let caseCost: number | undefined;
           if (result.trials && result.trials.length > 0) {
             const trialCostSum = result.trials.reduce((sum, t) => sum + (t.costUsd ?? 0), 0);
@@ -495,7 +495,7 @@ export async function runEvaluation(
               caseCost = trialCostSum;
             }
           } else {
-            caseCost = result.trace?.costUsd;
+            caseCost = result.metrics?.costUsd;
           }
           if (caseCost !== undefined) {
             cumulativeBudgetCost += caseCost;
@@ -702,7 +702,7 @@ async function runBatchEvaluation(options: {
       providerResponse.durationMs !== undefined;
 
     const baseSummary = output
-      ? computeTraceSummary(output)
+      ? computeMetricsSummary(output)
       : hasExecutionMetrics
         ? {
             eventCount: 0,
@@ -712,7 +712,7 @@ async function runBatchEvaluation(options: {
           }
         : undefined;
     // Merge execution metrics from provider response
-    const trace = baseSummary
+    const metrics = baseSummary
       ? mergeExecutionMetrics(baseSummary, {
           tokenUsage: providerResponse.tokenUsage,
           costUsd: providerResponse.costUsd,
@@ -740,7 +740,7 @@ async function runBatchEvaluation(options: {
         judgeProvider: await resolveJudgeProvider(target),
         agentTimeoutMs,
         output,
-        trace,
+        metrics,
         targetResolver,
         availableTargets,
       });
@@ -1009,9 +1009,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     providerResponse.costUsd !== undefined ||
     providerResponse.durationMs !== undefined;
 
-  // Compute trace summary if output available. If not, still preserve execution metrics.
+  // Compute metrics summary if output available. If not, still preserve execution metrics.
   const baseSummary = output
-    ? computeTraceSummary(output)
+    ? computeMetricsSummary(output)
     : hasExecutionMetrics
       ? {
           eventCount: 0,
@@ -1021,7 +1021,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         }
       : undefined;
   // Merge execution metrics from provider response
-  const trace = baseSummary
+  const metrics = baseSummary
     ? mergeExecutionMetrics(baseSummary, {
         tokenUsage: providerResponse.tokenUsage,
         costUsd: providerResponse.costUsd,
@@ -1081,7 +1081,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       judgeProvider,
       agentTimeoutMs,
       output,
-      trace,
+      metrics,
       targetResolver,
       availableTargets,
       fileChanges,
@@ -1156,8 +1156,8 @@ async function runEvalCaseWithTrials(
     const result = await runEvalCase(trialOptions);
     allResults.push(result);
 
-    // Extract cost from trace summary if available
-    const trialCost = result.trace?.costUsd;
+    // Extract cost from metrics summary if available
+    const trialCost = result.metrics?.costUsd;
 
     const trialVerdict = scoreToVerdict(result.score);
     const trial: TrialResult = {
@@ -1225,7 +1225,7 @@ async function evaluateCandidate(options: {
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
-  readonly trace?: TraceSummary;
+  readonly metrics?: MetricsSummary;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
@@ -1244,7 +1244,7 @@ async function evaluateCandidate(options: {
     judgeProvider,
     agentTimeoutMs,
     output,
-    trace,
+    metrics,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1265,7 +1265,7 @@ async function evaluateCandidate(options: {
     judgeProvider,
     agentTimeoutMs,
     output,
-    trace,
+    metrics,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1320,7 +1320,7 @@ async function evaluateCandidate(options: {
     requests,
     input,
     scores: scores,
-    trace: trace,
+    metrics: metrics,
     output: output,
     fileChanges,
   };
@@ -1339,7 +1339,7 @@ async function runEvaluatorsForCase(options: {
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
-  readonly trace?: TraceSummary;
+  readonly metrics?: MetricsSummary;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
@@ -1358,7 +1358,7 @@ async function runEvaluatorsForCase(options: {
     judgeProvider,
     agentTimeoutMs,
     output,
-    trace,
+    metrics,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1380,7 +1380,7 @@ async function runEvaluatorsForCase(options: {
       judgeProvider,
       agentTimeoutMs,
       output,
-      trace,
+      metrics,
       targetResolver,
       availableTargets,
       fileChanges,
@@ -1404,7 +1404,7 @@ async function runEvaluatorsForCase(options: {
     now,
     judgeProvider,
     output,
-    trace,
+    metrics,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1430,7 +1430,7 @@ async function runEvaluatorList(options: {
   readonly judgeProvider?: Provider;
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
-  readonly trace?: TraceSummary;
+  readonly metrics?: MetricsSummary;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
@@ -1450,7 +1450,7 @@ async function runEvaluatorList(options: {
     judgeProvider,
     agentTimeoutMs,
     output,
-    trace,
+    metrics,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1477,7 +1477,7 @@ async function runEvaluatorList(options: {
     now,
     judgeProvider,
     output,
-    trace,
+    metrics,
     targetResolver,
     availableTargets,
     fileChanges,

@@ -1,4 +1,4 @@
-import type { TokenUsage, ToolTrajectoryEvaluatorConfig, TraceSummary } from './trace.js';
+import type { MetricsSummary, TokenUsage, ToolTrajectoryEvaluatorConfig } from './metrics.js';
 
 /**
  * JSON primitive values appearing in AgentV payloads.
@@ -692,8 +692,8 @@ export interface EvaluationResult {
   };
   readonly scores?: readonly EvaluatorResult[];
   readonly error?: string;
-  /** Lightweight summary of the execution trace (always included when available) */
-  readonly trace?: TraceSummary;
+  /** Lightweight summary of execution metrics (always included when available) */
+  readonly metrics?: MetricsSummary;
   /** Path to the temporary workspace directory (included on failure for debugging) */
   readonly workspacePath?: string;
   /** Input messages or prompt string sent to the agent */

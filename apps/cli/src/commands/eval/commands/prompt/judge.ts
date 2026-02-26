@@ -112,7 +112,7 @@ async function processEvaluator(
         guidelineFiles: evalCase.guideline_paths,
         inputFiles: evalCase.file_paths.filter((p) => !evalCase.guideline_paths.includes(p)),
         input: evalCase.input,
-        trace: null,
+        metrics: null,
         fileChanges: null,
         workspacePath: null,
         config: codeConfig.config ?? null,

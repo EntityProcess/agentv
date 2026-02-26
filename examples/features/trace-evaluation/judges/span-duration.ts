@@ -3,18 +3,18 @@
  * Span Duration Judge
  *
  * Validates that no individual tool execution exceeds a time threshold
- * using trace.toolDurations data.
+ * using metrics.toolDurations data.
  */
 import { defineCodeJudge } from '@agentv/eval';
 
 const DEFAULT_MAX_SPAN_MS = 5000;
 
-export default defineCodeJudge(({ trace, config }) => {
-  if (!trace) {
+export default defineCodeJudge(({ metrics, config }) => {
+  if (!metrics) {
     return {
       score: 0,
-      misses: ['No trace available'],
-      reasoning: 'Cannot evaluate durations without trace data',
+      misses: ['No metrics available'],
+      reasoning: 'Cannot evaluate durations without metrics data',
     };
   }
 
@@ -23,18 +23,18 @@ export default defineCodeJudge(({ trace, config }) => {
   const misses: string[] = [];
 
   // Check overall duration
-  if (trace.durationMs !== undefined) {
+  if (metrics.durationMs !== undefined) {
     const maxTotalMs = (config?.maxTotalMs as number) ?? maxSpanMs * 5;
-    if (trace.durationMs <= maxTotalMs) {
-      hits.push(`Total duration (${trace.durationMs}ms) within limit (${maxTotalMs}ms)`);
+    if (metrics.durationMs <= maxTotalMs) {
+      hits.push(`Total duration (${metrics.durationMs}ms) within limit (${maxTotalMs}ms)`);
     } else {
-      misses.push(`Total duration too long: ${trace.durationMs}ms (max: ${maxTotalMs}ms)`);
+      misses.push(`Total duration too long: ${metrics.durationMs}ms (max: ${maxTotalMs}ms)`);
     }
   }
 
   // Check individual tool durations
-  if (trace.toolDurations) {
-    for (const [tool, durations] of Object.entries(trace.toolDurations)) {
+  if (metrics.toolDurations) {
+    for (const [tool, durations] of Object.entries(metrics.toolDurations)) {
       for (const duration of durations) {
         if (duration <= maxSpanMs) {
           hits.push(`${tool} (${duration}ms) within limit`);

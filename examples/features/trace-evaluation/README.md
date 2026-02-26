@@ -1,6 +1,6 @@
 # Trace-Based Evaluation
 
-Demonstrates how to evaluate agent internals — LLM call counts, tool executions, errors, and step durations — using code judges that inspect `context.trace`.
+Demonstrates how to evaluate agent internals — LLM call counts, tool executions, errors, and step durations — using code judges that inspect `context.metrics`.
 
 ## Judges
 
@@ -10,12 +10,12 @@ Demonstrates how to evaluate agent internals — LLM call counts, tool execution
 | **Error Spans** | `judges/error-spans.ts` | No errors in the trace; optionally checks for forbidden tool usage |
 | **Span Duration** | `judges/span-duration.ts` | No individual tool call exceeds a time threshold |
 
-## Available Trace Data
+## Available Metrics Data
 
-Code judges receive `trace` with these fields:
+Code judges receive `metrics` with these fields:
 
 ```typescript
-interface TraceSummary {
+interface MetricsSummary {
   eventCount: number;                        // Total tool call events
   toolNames: string[];                       // Unique tool names used
   toolCallsByName: Record<string, number>;   // Call count per tool

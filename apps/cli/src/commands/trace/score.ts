@@ -9,7 +9,7 @@ import {
   type Provider,
   type ProviderRequest,
   type ProviderResponse,
-  type TraceSummary,
+  type MetricsSummary,
   createBuiltinRegistry,
   toCamelCaseDeep,
 } from '@agentv/core';
@@ -123,11 +123,11 @@ export function parseAssertSpec(spec: string): EvaluatorConfig {
 }
 
 /**
- * Convert a snake_case RawResult trace to camelCase TraceSummary.
+ * Convert a snake_case RawResult metrics to camelCase MetricsSummary.
  */
-function toTraceSummary(raw: RawResult): TraceSummary | undefined {
-  if (!raw.trace) return undefined;
-  return toCamelCaseDeep(raw.trace) as TraceSummary;
+function toMetricsSummary(raw: RawResult): MetricsSummary | undefined {
+  if (!raw.metrics) return undefined;
+  return toCamelCaseDeep(raw.metrics) as MetricsSummary;
 }
 
 /**
@@ -210,7 +210,7 @@ async function runScore(
   for (const raw of results) {
     if (testIdFilter && raw.test_id !== testIdFilter) continue;
 
-    const trace = toTraceSummary(raw);
+    const metrics = toMetricsSummary(raw);
     const candidate = extractCandidate(raw);
     const output = raw.output as readonly Message[] | undefined;
 
@@ -223,7 +223,7 @@ async function runScore(
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
       output: Array.isArray(output) ? output : undefined,
-      trace,
+      metrics,
     };
 
     const score = await evaluator.evaluate(evalContext);
@@ -345,15 +345,15 @@ export const traceScoreCommand = command({
       process.exit(0);
     }
 
-    // Check for trace data if evaluator needs it
-    const traceRequired = ['latency', 'cost', 'token_usage', 'execution_metrics'].includes(
+    // Check for metrics data if evaluator needs it
+    const metricsRequired = ['latency', 'cost', 'token_usage', 'execution_metrics'].includes(
       evaluatorConfig.type,
     );
-    if (traceRequired) {
-      const hasTrace = results.some((r) => r.trace);
-      if (!hasTrace) {
+    if (metricsRequired) {
+      const hasMetrics = results.some((r) => r.metrics);
+      if (!hasMetrics) {
         console.error(
-          `${c.red}Error:${c.reset} Result file lacks trace data. Re-run eval with ${c.bold}--trace${c.reset} to capture trace summaries.`,
+          `${c.red}Error:${c.reset} Result file lacks metrics data. Re-run eval with ${c.bold}--trace${c.reset} to capture metrics summaries.`,
         );
         process.exit(1);
       }

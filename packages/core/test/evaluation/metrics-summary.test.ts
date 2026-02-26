@@ -1,12 +1,12 @@
 /**
- * Tests for computeTraceSummary function.
+ * Tests for computeMetricsSummary function.
  * Verifies span-based timing derivation, tool duration computation, and LLM call counting.
  */
 
 import { describe, expect, it } from 'bun:test';
-import { computeTraceSummary } from '../../src/evaluation/trace.js';
+import { computeMetricsSummary } from '../../src/evaluation/metrics.js';
 
-describe('computeTraceSummary', () => {
+describe('computeMetricsSummary', () => {
   describe('startTime/endTime derivation', () => {
     it('derives startTime from earliest message startTime', () => {
       const messages = [
@@ -15,7 +15,7 @@ describe('computeTraceSummary', () => {
         { role: 'assistant', startTime: '2024-01-01T10:00:10Z' },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       expect(summary.startTime).toBe('2024-01-01T10:00:00.000Z');
     });
@@ -27,7 +27,7 @@ describe('computeTraceSummary', () => {
         { role: 'assistant', startTime: '2024-01-01T10:00:10Z', endTime: '2024-01-01T10:00:15Z' },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       expect(summary.endTime).toBe('2024-01-01T10:00:15.000Z');
     });
@@ -43,7 +43,7 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       expect(summary.startTime).toBe('2024-01-01T10:00:02.000Z');
       expect(summary.endTime).toBe('2024-01-01T10:00:06.000Z');
@@ -61,7 +61,7 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       expect(summary.startTime).toBe('2024-01-01T10:00:01.000Z');
       expect(summary.endTime).toBe('2024-01-01T10:00:10.000Z');
@@ -70,7 +70,7 @@ describe('computeTraceSummary', () => {
     it('returns undefined for startTime/endTime when no timing data available', () => {
       const messages = [{ role: 'user' }, { role: 'assistant', toolCalls: [{ tool: 'search' }] }];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       expect(summary.startTime).toBeUndefined();
       expect(summary.endTime).toBeUndefined();
@@ -90,7 +90,7 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       expect(summary.toolDurations).toEqual({
         search: [100, 150],
@@ -113,7 +113,7 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       expect(summary.toolDurations).toEqual({
         search: [2000],
@@ -136,7 +136,7 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       expect(summary.toolDurations).toEqual({
         search: [1500],
@@ -151,7 +151,7 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       expect(summary.toolDurations).toBeUndefined();
     });
@@ -168,7 +168,7 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       // Only includes tools that have duration data
       expect(summary.toolDurations).toEqual({
@@ -188,7 +188,7 @@ describe('computeTraceSummary', () => {
         { role: 'assistant' },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       expect(summary.llmCallCount).toBe(3);
     });
@@ -196,13 +196,13 @@ describe('computeTraceSummary', () => {
     it('returns 0 for llmCallCount when no assistant messages', () => {
       const messages = [{ role: 'user' }, { role: 'system' }, { role: 'tool' }];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       expect(summary.llmCallCount).toBe(0);
     });
 
     it('returns 0 for llmCallCount on empty messages', () => {
-      const summary = computeTraceSummary([]);
+      const summary = computeMetricsSummary([]);
 
       expect(summary.llmCallCount).toBe(0);
     });
@@ -236,7 +236,7 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       expect(summary.eventCount).toBe(3);
       expect(summary.toolNames).toEqual(['analyze', 'search']);
@@ -258,7 +258,7 @@ describe('computeTraceSummary', () => {
         { role: 'assistant' },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const summary = computeMetricsSummary(messages);
 
       expect(summary.eventCount).toBe(1);
       expect(summary.toolNames).toEqual(['search']);

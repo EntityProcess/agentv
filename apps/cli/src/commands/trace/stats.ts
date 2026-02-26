@@ -44,7 +44,7 @@ function collectMetrics(results: RawResult[]): MetricRow[] {
 
   // Latency
   const latencies = results
-    .map((r) => r.trace?.duration_ms)
+    .map((r) => r.metrics?.duration_ms)
     .filter((v): v is number => v !== undefined);
   if (latencies.length > 0) {
     rows.push({
@@ -55,7 +55,7 @@ function collectMetrics(results: RawResult[]): MetricRow[] {
   }
 
   // Cost
-  const costs = results.map((r) => r.trace?.cost_usd).filter((v): v is number => v !== undefined);
+  const costs = results.map((r) => r.metrics?.cost_usd).filter((v): v is number => v !== undefined);
   if (costs.length > 0) {
     rows.push({ name: 'cost_usd', values: costs, formatter: (n) => formatCost(n) });
   }
@@ -63,8 +63,8 @@ function collectMetrics(results: RawResult[]): MetricRow[] {
   // Total tokens
   const tokens = results
     .map((r) => {
-      if (!r.trace?.token_usage) return undefined;
-      return r.trace.token_usage.input + r.trace.token_usage.output;
+      if (!r.metrics?.token_usage) return undefined;
+      return r.metrics.token_usage.input + r.metrics.token_usage.output;
     })
     .filter((v): v is number => v !== undefined);
   if (tokens.length > 0) {
@@ -77,7 +77,7 @@ function collectMetrics(results: RawResult[]): MetricRow[] {
 
   // Tool calls
   const toolCalls = results
-    .map((r) => r.trace?.event_count)
+    .map((r) => r.metrics?.event_count)
     .filter((v): v is number => v !== undefined);
   if (toolCalls.length > 0) {
     rows.push({ name: 'tool_calls', values: toolCalls, formatter: (n) => String(Math.round(n)) });
@@ -85,7 +85,7 @@ function collectMetrics(results: RawResult[]): MetricRow[] {
 
   // LLM calls
   const llmCalls = results
-    .map((r) => r.trace?.llm_call_count)
+    .map((r) => r.metrics?.llm_call_count)
     .filter((v): v is number => v !== undefined);
   if (llmCalls.length > 0) {
     rows.push({ name: 'llm_calls', values: llmCalls, formatter: (n) => String(Math.round(n)) });
@@ -148,7 +148,7 @@ function formatStatsTable(groups: GroupedResults[], filePath: string): string {
     const metrics = collectMetrics(group.results);
 
     if (metrics.length === 0) {
-      lines.push(`${c.yellow}No trace metrics available${c.reset}`);
+      lines.push(`${c.yellow}No metrics data available${c.reset}`);
       continue;
     }
 

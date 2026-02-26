@@ -25,7 +25,7 @@ import {
 } from '../evaluators.js';
 import { resolveCustomPrompt } from '../evaluators/prompt-resolution.js';
 import type { Provider } from '../providers/types.js';
-import type { ToolTrajectoryEvaluatorConfig } from '../trace.js';
+import type { ToolTrajectoryEvaluatorConfig } from '../metrics.js';
 import type {
   AgentJudgeEvaluatorConfig,
   CodeEvaluatorConfig,
@@ -67,7 +67,7 @@ export const llmJudgeFactory: EvaluatorFactoryFn = (config, context) => {
           evalCase: evalContext.evalCase,
           candidate: evalContext.candidate,
           output: evalContext.output,
-          trace: evalContext.trace,
+          metrics: evalContext.metrics,
           config: c.config,
           fileChanges: evalContext.fileChanges,
           workspacePath: evalContext.workspacePath,

@@ -19,8 +19,8 @@
  * #!/usr/bin/env bun
  * import { defineCodeJudge } from '@agentv/eval';
  *
- * export default defineCodeJudge(({ trace, answer }) => ({
- *   score: trace?.eventCount <= 5 ? 1.0 : 0.5,
+ * export default defineCodeJudge(({ metrics, answer }) => ({
+ *   score: metrics?.eventCount <= 5 ? 1.0 : 0.5,
  *   hits: ['Efficient tool usage'],
  *   misses: [],
  * }));
@@ -54,14 +54,14 @@
 export {
   CodeJudgeInputSchema,
   CodeJudgeResultSchema,
-  TraceSummarySchema,
+  MetricsSummarySchema,
   MessageSchema,
   ToolCallSchema,
   TokenUsageSchema,
   PromptTemplateInputSchema,
   type CodeJudgeInput,
   type CodeJudgeResult,
-  type TraceSummary,
+  type MetricsSummary,
   type Message,
   type ToolCall,
   type TokenUsage,
@@ -113,12 +113,12 @@ export type { PromptTemplateHandler };
  * ```typescript
  * import { defineCodeJudge } from '@agentv/eval';
  *
- * export default defineCodeJudge(({ trace }) => {
- *   if (!trace) {
- *     return { score: 0.5, reasoning: 'No trace available' };
+ * export default defineCodeJudge(({ metrics }) => {
+ *   if (!metrics) {
+ *     return { score: 0.5, reasoning: 'No metrics available' };
  *   }
  *
- *   const efficient = trace.eventCount <= 10;
+ *   const efficient = metrics.eventCount <= 10;
  *   return {
  *     score: efficient ? 1.0 : 0.5,
  *     hits: efficient ? ['Efficient execution'] : [],
@@ -135,7 +135,7 @@ export type { PromptTemplateHandler };
  *   maxToolCalls: z.number().default(10),
  * });
  *
- * export default defineCodeJudge(({ trace, config }) => {
+ * export default defineCodeJudge(({ metrics, config }) => {
  *   const { maxToolCalls } = ConfigSchema.parse(config ?? {});
  *   // Use maxToolCalls...
  * });
@@ -220,9 +220,9 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  * ```typescript
  * import { defineAssertion } from '@agentv/eval';
  *
- * export default defineAssertion(({ answer, trace }) => {
+ * export default defineAssertion(({ answer, metrics }) => {
  *   const hasContent = answer.length > 0 ? 0.5 : 0;
- *   const isEfficient = (trace?.eventCount ?? 0) <= 5 ? 0.5 : 0;
+ *   const isEfficient = (metrics?.eventCount ?? 0) <= 5 ? 0.5 : 0;
  *   return {
  *     score: hasContent + isEfficient,
  *     hits: [

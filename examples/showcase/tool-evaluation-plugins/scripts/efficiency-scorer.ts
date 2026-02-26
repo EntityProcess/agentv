@@ -19,7 +19,7 @@
  *       type: code_judge
  *       script: ["bun", "run", "scripts/efficiency-scorer.ts"]
  */
-import { type TraceSummary, defineCodeJudge } from '@agentv/eval';
+import { type MetricsSummary, defineCodeJudge } from '@agentv/eval';
 
 // Configurable thresholds (customize for your domain)
 const THRESHOLDS = {
@@ -62,8 +62,8 @@ function estimateTaskComplexity(criteria: string): 'simple' | 'complex' {
   return complexIndicators.some((i) => text.includes(i)) ? 'complex' : 'simple';
 }
 
-function calculateExplorationRatio(trace: TraceSummary): number {
-  const toolCalls = trace.toolCallsByName;
+function calculateExplorationRatio(metrics: MetricsSummary): number {
+  const toolCalls = metrics.toolCallsByName;
   const total = Object.values(toolCalls).reduce((sum, count) => sum + count, 0);
   if (total === 0) return 0;
 
@@ -77,14 +77,14 @@ function calculateExplorationRatio(trace: TraceSummary): number {
   return explorationCount / total;
 }
 
-export default defineCodeJudge(({ trace, criteria }) => {
+export default defineCodeJudge(({ metrics, criteria }) => {
   const hits: string[] = [];
   const misses: string[] = [];
   const scores: number[] = [];
 
   const complexity = estimateTaskComplexity(criteria);
 
-  if (!trace) {
+  if (!metrics) {
     return {
       score: 0.5,
       hits: ['No efficiency metrics available'],
@@ -94,7 +94,7 @@ export default defineCodeJudge(({ trace, criteria }) => {
   }
 
   // 1. Tool call count evaluation
-  const toolCount = trace.eventCount;
+  const toolCount = metrics.eventCount;
   const maxCalls = THRESHOLDS.maxToolCalls;
 
   if (toolCount <= maxCalls) {
@@ -107,7 +107,7 @@ export default defineCodeJudge(({ trace, criteria }) => {
   }
 
   // 2. Exploration ratio evaluation
-  const expRatio = calculateExplorationRatio(trace);
+  const expRatio = calculateExplorationRatio(metrics);
   const target = THRESHOLDS.targetExplorationRatio;
   const tolerance = THRESHOLDS.explorationTolerance;
 
@@ -123,8 +123,8 @@ export default defineCodeJudge(({ trace, criteria }) => {
   }
 
   // 3. Token usage evaluation
-  if (trace.tokenUsage) {
-    const tokens = trace.tokenUsage;
+  if (metrics.tokenUsage) {
+    const tokens = metrics.tokenUsage;
     const totalTokens = tokens.input + tokens.output;
     const maxTokens =
       complexity === 'complex' ? THRESHOLDS.maxTokensComplex : THRESHOLDS.maxTokensSimple;
@@ -140,8 +140,8 @@ export default defineCodeJudge(({ trace, criteria }) => {
   }
 
   // 4. Cost evaluation
-  if (trace.costUsd !== undefined) {
-    const cost = trace.costUsd;
+  if (metrics.costUsd !== undefined) {
+    const cost = metrics.costUsd;
     const maxCost = complexity === 'complex' ? THRESHOLDS.maxCostComplex : THRESHOLDS.maxCostSimple;
 
     if (cost <= maxCost) {

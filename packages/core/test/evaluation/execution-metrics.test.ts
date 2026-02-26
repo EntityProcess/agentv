@@ -5,18 +5,18 @@ import { fileURLToPath } from 'node:url';
 import { CodeEvaluator } from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import {
-  type TraceSummary,
+  type MetricsSummary,
   avgToolDurationMs,
   explorationRatio,
   mergeExecutionMetrics,
   tokensPerTool,
-} from '../../src/evaluation/trace.js';
+} from '../../src/evaluation/metrics.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
 describe('Execution Metrics', () => {
   describe('explorationRatio', () => {
     it('returns undefined when there are no tool calls', () => {
-      const summary: TraceSummary = {
+      const summary: MetricsSummary = {
         eventCount: 0,
         toolNames: [],
         toolCallsByName: {},
@@ -27,7 +27,7 @@ describe('Execution Metrics', () => {
     });
 
     it('returns 1.0 when all calls are exploration tools', () => {
-      const summary: TraceSummary = {
+      const summary: MetricsSummary = {
         eventCount: 5,
         toolNames: ['Read', 'Grep', 'Glob'],
         toolCallsByName: { Read: 2, Grep: 2, Glob: 1 },
@@ -38,7 +38,7 @@ describe('Execution Metrics', () => {
     });
 
     it('returns 0.0 when no calls are exploration tools', () => {
-      const summary: TraceSummary = {
+      const summary: MetricsSummary = {
         eventCount: 3,
         toolNames: ['Edit', 'Write', 'Bash'],
         toolCallsByName: { Edit: 1, Write: 1, Bash: 1 },
@@ -49,7 +49,7 @@ describe('Execution Metrics', () => {
     });
 
     it('returns correct ratio for mixed tool usage', () => {
-      const summary: TraceSummary = {
+      const summary: MetricsSummary = {
         eventCount: 10,
         toolNames: ['Edit', 'Grep', 'Read', 'Write'],
         toolCallsByName: { Read: 4, Grep: 2, Edit: 3, Write: 1 },
@@ -61,7 +61,7 @@ describe('Execution Metrics', () => {
     });
 
     it('accepts custom exploration tools list', () => {
-      const summary: TraceSummary = {
+      const summary: MetricsSummary = {
         eventCount: 6,
         toolNames: ['CustomTool', 'Edit', 'OtherTool'],
         toolCallsByName: { CustomTool: 3, Edit: 2, OtherTool: 1 },
@@ -75,7 +75,7 @@ describe('Execution Metrics', () => {
 
   describe('tokensPerTool', () => {
     it('returns undefined when tokenUsage is not available', () => {
-      const summary: TraceSummary = {
+      const summary: MetricsSummary = {
         eventCount: 5,
         toolNames: ['Read'],
         toolCallsByName: { Read: 5 },
@@ -86,7 +86,7 @@ describe('Execution Metrics', () => {
     });
 
     it('returns undefined when there are no tool calls', () => {
-      const summary: TraceSummary = {
+      const summary: MetricsSummary = {
         eventCount: 0,
         toolNames: [],
         toolCallsByName: {},
@@ -98,7 +98,7 @@ describe('Execution Metrics', () => {
     });
 
     it('computes correct tokens per tool', () => {
-      const summary: TraceSummary = {
+      const summary: MetricsSummary = {
         eventCount: 5,
         toolNames: ['Read', 'Edit'],
         toolCallsByName: { Read: 3, Edit: 2 },
@@ -111,7 +111,7 @@ describe('Execution Metrics', () => {
     });
 
     it('handles cached tokens in total calculation', () => {
-      const summary: TraceSummary = {
+      const summary: MetricsSummary = {
         eventCount: 4,
         toolNames: ['Read'],
         toolCallsByName: { Read: 4 },
@@ -126,7 +126,7 @@ describe('Execution Metrics', () => {
 
   describe('avgToolDurationMs', () => {
     it('returns undefined when toolDurations is not available', () => {
-      const summary: TraceSummary = {
+      const summary: MetricsSummary = {
         eventCount: 5,
         toolNames: ['Read'],
         toolCallsByName: { Read: 5 },
@@ -137,7 +137,7 @@ describe('Execution Metrics', () => {
     });
 
     it('returns undefined when toolDurations is empty', () => {
-      const summary: TraceSummary = {
+      const summary: MetricsSummary = {
         eventCount: 0,
         toolNames: [],
         toolCallsByName: {},
@@ -149,7 +149,7 @@ describe('Execution Metrics', () => {
     });
 
     it('computes correct average duration', () => {
-      const summary: TraceSummary = {
+      const summary: MetricsSummary = {
         eventCount: 4,
         toolNames: ['Read', 'Edit'],
         toolCallsByName: { Read: 3, Edit: 1 },
@@ -167,7 +167,7 @@ describe('Execution Metrics', () => {
     });
 
     it('handles single tool with multiple calls', () => {
-      const summary: TraceSummary = {
+      const summary: MetricsSummary = {
         eventCount: 3,
         toolNames: ['Grep'],
         toolCallsByName: { Grep: 3 },
@@ -182,7 +182,7 @@ describe('Execution Metrics', () => {
   });
 
   describe('mergeExecutionMetrics', () => {
-    const baseSummary: TraceSummary = {
+    const baseSummary: MetricsSummary = {
       eventCount: 5,
       toolNames: ['Read', 'Edit'],
       toolCallsByName: { Read: 3, Edit: 2 },
@@ -228,7 +228,7 @@ describe('Execution Metrics', () => {
     });
 
     it('preserves existing summary fields', () => {
-      const summaryWithError: TraceSummary = {
+      const summaryWithError: MetricsSummary = {
         ...baseSummary,
         errorCount: 2,
       };
@@ -280,7 +280,7 @@ describe('Code Judge Metrics Integration', () => {
 
     const evaluator = new CodeEvaluator({ command: script });
 
-    const trace: TraceSummary = {
+    const trace: MetricsSummary = {
       eventCount: 3,
       toolNames: ['Read', 'Edit'],
       toolCallsByName: { Read: 2, Edit: 1 },
@@ -297,7 +297,7 @@ describe('Code Judge Metrics Integration', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace,
+      metrics: trace,
     });
 
     expect(result.score).toBe(1);

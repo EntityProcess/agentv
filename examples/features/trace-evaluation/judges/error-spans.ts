@@ -2,17 +2,17 @@
 /**
  * Error Spans Judge
  *
- * Detects errors in agent traces by inspecting trace.errorCount
+ * Detects errors in agent traces by inspecting metrics.errorCount
  * and optionally checking for specific tool failures.
  */
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ trace, config }) => {
-  if (!trace) {
+export default defineCodeJudge(({ metrics, config }) => {
+  if (!metrics) {
     return {
       score: 0,
-      misses: ['No trace available'],
-      reasoning: 'Cannot detect errors without trace data',
+      misses: ['No metrics available'],
+      reasoning: 'Cannot detect errors without metrics data',
     };
   }
 
@@ -21,16 +21,16 @@ export default defineCodeJudge(({ trace, config }) => {
   const misses: string[] = [];
 
   // Check error count
-  if (trace.errorCount <= maxErrors) {
-    hits.push(`Error count (${trace.errorCount}) within limit (${maxErrors})`);
+  if (metrics.errorCount <= maxErrors) {
+    hits.push(`Error count (${metrics.errorCount}) within limit (${maxErrors})`);
   } else {
-    misses.push(`Too many errors: ${trace.errorCount} (max: ${maxErrors})`);
+    misses.push(`Too many errors: ${metrics.errorCount} (max: ${maxErrors})`);
   }
 
   // Check for tools that might indicate errors (if configured)
   const forbiddenTools = (config?.forbiddenTools as string[]) ?? [];
   for (const tool of forbiddenTools) {
-    const count = trace.toolCallsByName[tool];
+    const count = metrics.toolCallsByName[tool];
     if (count !== undefined && count > 0) {
       misses.push(`Forbidden tool "${tool}" was called ${count} time(s)`);
     } else {
@@ -46,8 +46,8 @@ export default defineCodeJudge(({ trace, config }) => {
     hits,
     misses,
     reasoning:
-      trace.errorCount === 0
+      metrics.errorCount === 0
         ? 'No errors detected in trace'
-        : `Found ${trace.errorCount} error(s) in trace`,
+        : `Found ${metrics.errorCount} error(s) in trace`,
   };
 });

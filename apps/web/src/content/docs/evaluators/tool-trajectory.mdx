@@ -111,7 +111,7 @@ Each `max_duration_ms` assertion counts as a separate scoring aspect. The rules:
 |-----------|--------|
 | `actual_duration <= max_duration_ms` | Pass (counts as hit) |
 | `actual_duration > max_duration_ms` | Fail (counts as miss) |
-| No `duration_ms` in trace output | Warning logged, neutral (neither hit nor miss) |
+| No `duration_ms` in metrics output | Warning logged, neutral (neither hit nor miss) |
 
 Set generous thresholds to avoid flaky tests from timing variance. Only add latency assertions where timing matters on critical paths.
 

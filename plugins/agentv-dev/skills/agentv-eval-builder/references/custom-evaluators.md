@@ -15,7 +15,7 @@
   "input": [{"role": "user", "content": "..."}],
   "expected_output": [{"role": "assistant", "content": "..."}],
   "output": [{"role": "assistant", "content": "..."}],
-  "trace": {
+  "metrics": {
     "event_count": 5,
     "tool_names": ["fetch"],
     "tool_calls_by_name": {"fetch": 1},
@@ -54,7 +54,7 @@ import { defineCodeJudge, createTargetClient, definePromptTemplate } from '@agen
   - `.invoke({question, systemPrompt})` - Single LLM call
   - `.invokeBatch(requests)` - Batch LLM calls
 - `definePromptTemplate(fn)` - Wraps prompt generation function
-  - Context fields: `question`, `answer`, `referenceAnswer`, `criteria`, `expectedOutput`, `output`, `config`, `trace`
+  - Context fields: `question`, `answer`, `referenceAnswer`, `criteria`, `expectedOutput`, `output`, `config`, `metrics`
 
 ## Python Example
 

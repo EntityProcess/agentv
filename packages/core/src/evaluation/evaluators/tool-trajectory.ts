@@ -1,10 +1,10 @@
 import type { Message } from '../providers/types.js';
 import type {
   ArgsMatchMode,
+  MetricsSummary,
   ToolTrajectoryEvaluatorConfig,
   ToolTrajectoryExpectedItem,
-  TraceSummary,
-} from '../trace.js';
+} from '../metrics.js';
 import { deepEqual, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
@@ -162,7 +162,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
   }
 
   evaluate(context: EvaluationContext): EvaluationScore {
-    const { output, trace } = context;
+    const { output, metrics: trace } = context;
 
     // Extract tool calls from output (primary source)
     const toolCalls = this.extractToolCallsFromMessages(output);
@@ -243,7 +243,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
   /**
    * Build a summary from extracted tool calls.
    */
-  private buildSummary(toolCalls: readonly ExtractedToolCall[]): TraceSummary {
+  private buildSummary(toolCalls: readonly ExtractedToolCall[]): MetricsSummary {
     const toolCallsByName: Record<string, number> = {};
     for (const call of toolCalls) {
       toolCallsByName[call.name] = (toolCallsByName[call.name] ?? 0) + 1;
@@ -257,7 +257,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     };
   }
 
-  private evaluateAnyOrder(summary: TraceSummary): EvaluationScore {
+  private evaluateAnyOrder(summary: MetricsSummary): EvaluationScore {
     const minimums = this.config.minimums ?? {};
     const toolNames = Object.keys(minimums);
 

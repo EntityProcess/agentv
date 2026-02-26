@@ -1,5 +1,5 @@
 /**
- * Trace event types for capturing agent execution traces.
+ * Execution metrics types for capturing agent performance data.
  * Provides a normalized, provider-agnostic model for tool-call trajectories.
  */
 
@@ -16,10 +16,10 @@ export interface TokenUsage {
 }
 
 /**
- * Compact summary of a trace for lightweight persistence.
+ * Compact summary of execution metrics for lightweight persistence.
  * Included in results by default to avoid payload bloat.
  */
-export interface TraceSummary {
+export interface MetricsSummary {
   /** Total number of events in trace */
   readonly eventCount: number;
   /** Unique tool names, sorted alphabetically */
@@ -88,7 +88,7 @@ export interface ToolTrajectoryExpectedItem {
 }
 
 /**
- * Simplified input type for computeTraceSummary.
+ * Simplified input type for computeMetricsSummary.
  * Matches Message structure without requiring full provider/types import.
  */
 interface MessageLike {
@@ -113,7 +113,7 @@ interface MessageLike {
  * - toolDurations: per-tool duration arrays (from durationMs or computed from start/end)
  * - llmCallCount: count of assistant messages
  */
-export function computeTraceSummary(messages: readonly MessageLike[]): TraceSummary {
+export function computeMetricsSummary(messages: readonly MessageLike[]): MetricsSummary {
   const toolCallCounts: Record<string, number> = {};
   const toolDurations: Record<string, number[]> = {};
   let totalToolCalls = 0;
@@ -215,12 +215,12 @@ export const DEFAULT_EXPLORATION_TOOLS = [
  * Ratio of exploration tool calls to total tool calls.
  * Returns undefined if there are no tool calls.
  *
- * @param summary - Trace summary with tool call counts
+ * @param summary - Metrics summary with tool call counts
  * @param explorationTools - Tool names considered exploration (defaults to DEFAULT_EXPLORATION_TOOLS)
  * @returns Ratio between 0 and 1, or undefined if no tool calls
  */
 export function explorationRatio(
-  summary: TraceSummary,
+  summary: MetricsSummary,
   explorationTools: readonly string[] = DEFAULT_EXPLORATION_TOOLS,
 ): number | undefined {
   if (summary.eventCount === 0) return undefined;
@@ -237,10 +237,10 @@ export function explorationRatio(
  * Average tokens consumed per tool call.
  * Returns undefined if tokenUsage is not available or no tool calls.
  *
- * @param summary - Trace summary with optional token usage
+ * @param summary - Metrics summary with optional token usage
  * @returns Average tokens per tool call, or undefined
  */
-export function tokensPerTool(summary: TraceSummary): number | undefined {
+export function tokensPerTool(summary: MetricsSummary): number | undefined {
   if (!summary.tokenUsage || summary.eventCount === 0) return undefined;
 
   const totalTokens = summary.tokenUsage.input + summary.tokenUsage.output;
@@ -251,10 +251,10 @@ export function tokensPerTool(summary: TraceSummary): number | undefined {
  * Average tool duration across all tool calls.
  * Returns undefined if toolDurations is not available or empty.
  *
- * @param summary - Trace summary with optional tool durations
+ * @param summary - Metrics summary with optional tool durations
  * @returns Average duration in milliseconds, or undefined
  */
-export function avgToolDurationMs(summary: TraceSummary): number | undefined {
+export function avgToolDurationMs(summary: MetricsSummary): number | undefined {
   if (!summary.toolDurations) return undefined;
 
   let totalDuration = 0;
@@ -285,18 +285,18 @@ export interface ExecutionMetrics {
 }
 
 /**
- * Merge execution metrics from provider response into a trace summary.
- * Returns a new TraceSummary with metrics fields populated.
+ * Merge execution metrics from provider response into a metrics summary.
+ * Returns a new MetricsSummary with metrics fields populated.
  * Provider-level timing takes precedence over span-derived timing.
  *
- * @param summary - Base trace summary from computeTraceSummary
+ * @param summary - Base metrics summary from computeMetricsSummary
  * @param metrics - Optional execution metrics from provider
- * @returns TraceSummary with merged metrics
+ * @returns MetricsSummary with merged metrics
  */
 export function mergeExecutionMetrics(
-  summary: TraceSummary,
+  summary: MetricsSummary,
   metrics?: ExecutionMetrics,
-): TraceSummary {
+): MetricsSummary {
   if (!metrics) return summary;
 
   return {

@@ -48,13 +48,13 @@ Read the percentile table. Key signals:
 ### 3. Investigate failures
 
 ```bash
-agentv trace show <result-file> --format json | jq '[.[] | select(.score < 0.8) | {test_id, score, misses, trace: {tools: .trace.tool_names, duration_ms: .trace.duration_ms, cost_usd: .trace.cost_usd}}]'
+agentv trace show <result-file> --format json | jq '[.[] | select(.score < 0.8) | {test_id, score, misses, metrics: {tools: .metrics.tool_names, duration_ms: .metrics.duration_ms, cost_usd: .metrics.cost_usd}}]'
 ```
 
 For each failing test, examine:
 - **misses**: What criteria were not met?
-- **trace.tool_names**: Did the agent use expected tools?
-- **trace.duration_ms**: Did it time out or run too long?
+- **metrics.tool_names**: Did the agent use expected tools?
+- **metrics.duration_ms**: Did it time out or run too long?
 - **reasoning**: Why did the evaluator score it low?
 
 ### 4. Inspect specific tests
@@ -102,11 +102,11 @@ All commands support `--format json` for piping to `jq`:
 ```bash
 # Top 3 most expensive tests
 agentv trace show results.jsonl --format json \
-  | jq 'sort_by(-.trace.cost_usd) | .[0:3] | .[] | {test_id, cost: .trace.cost_usd, score}'
+  | jq 'sort_by(-.metrics.cost_usd) | .[0:3] | .[] | {test_id, cost: .metrics.cost_usd, score}'
 
 # Tests where token usage exceeds 10k
 agentv trace show results.jsonl --format json \
-  | jq '[.[] | select(.trace.token_usage.input + .trace.token_usage.output > 10000) | {test_id, tokens: (.trace.token_usage.input + .trace.token_usage.output)}]'
+  | jq '[.[] | select(.metrics.token_usage.input + .metrics.token_usage.output > 10000) | {test_id, tokens: (.metrics.token_usage.input + .metrics.token_usage.output)}]'
 
 # Score distribution by dataset
 agentv trace show results.jsonl --format json \
@@ -114,7 +114,7 @@ agentv trace show results.jsonl --format json \
 
 # Tool usage frequency across all tests
 agentv trace show results.jsonl --format json \
-  | jq '[.[].trace.tool_calls_by_name // {} | to_entries[]] | group_by(.key) | .[] | {tool: .[0].key, total_calls: ([.[].value] | add)}'
+  | jq '[.[].metrics.tool_calls_by_name // {} | to_entries[]] | group_by(.key) | .[] | {tool: .[0].key, total_calls: ([.[].value] | add)}'
 
 # Find regressions > 0.1 between two runs
 agentv compare baseline.jsonl candidate.jsonl --format json \

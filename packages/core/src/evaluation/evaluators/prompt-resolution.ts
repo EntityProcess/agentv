@@ -9,7 +9,7 @@ import path from 'node:path';
 import { toSnakeCaseDeep } from '../case-conversion.js';
 import { readTextFile } from '../file-utils.js';
 import type { Message } from '../providers/types.js';
-import type { TraceSummary } from '../trace.js';
+import type { MetricsSummary } from '../metrics.js';
 import type { EvalTest, PromptScriptConfig } from '../types.js';
 import { executeScript } from './code-evaluator.js';
 
@@ -17,7 +17,7 @@ export interface ResolveCustomPromptContext {
   readonly evalCase: EvalTest;
   readonly candidate: string;
   readonly output?: readonly Message[];
-  readonly trace?: TraceSummary;
+  readonly metrics?: MetricsSummary;
   readonly config?: Record<string, unknown>;
   readonly fileChanges?: string;
   readonly workspacePath?: string;
@@ -84,7 +84,7 @@ async function executePromptTemplate(
       (p) => !context.evalCase.guideline_paths.includes(p),
     ),
     input: context.evalCase.input,
-    trace: context.trace ?? null,
+    metrics: context.metrics ?? null,
     fileChanges: context.fileChanges ?? null,
     workspacePath: context.workspacePath ?? null,
     config: config ?? context.config ?? null,

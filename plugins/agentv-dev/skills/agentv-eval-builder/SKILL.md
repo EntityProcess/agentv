@@ -193,7 +193,7 @@ Configure via `assert` array. Multiple evaluators produce a weighted average sco
   target: {}              # optional: enable LLM target proxy (max_calls: 50)
 ```
 Contract: stdin JSON -> stdout JSON `{score, hits, misses, reasoning}`
-Input includes: `question`, `criteria`, `answer`, `reference_answer`, `output`, `trace`, `file_changes`, `workspace_path`, `config`
+Input includes: `question`, `criteria`, `answer`, `reference_answer`, `output`, `metrics`, `file_changes`, `workspace_path`, `config`
 When `workspace_template` is configured, `workspace_path` is the absolute path to the workspace dir (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the workspace).
 See docs at https://agentv.dev/evaluators/code-judges/
 
@@ -374,8 +374,8 @@ Use `@agentv/eval` to build custom evaluators in TypeScript/JavaScript:
 #!/usr/bin/env bun
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ answer, trace }) => ({
-  pass: answer.length > 0 && (trace?.eventCount ?? 0) <= 10,
+export default defineAssertion(({ answer, metrics }) => ({
+  pass: answer.length > 0 && (metrics?.eventCount ?? 0) <= 10,
   reasoning: 'Checks content exists and is efficient',
 }));
 ```
@@ -387,8 +387,8 @@ Assertions support both `pass: boolean` and `score: number` (0-1). If only `pass
 #!/usr/bin/env bun
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ trace, answer }) => ({
-  score: trace?.eventCount <= 5 ? 1.0 : 0.5,
+export default defineCodeJudge(({ metrics, answer }) => ({
+  score: metrics?.eventCount <= 5 ? 1.0 : 0.5,
   hits: ['Efficient tool usage'],
   misses: [],
 }));

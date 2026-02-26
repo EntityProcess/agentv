@@ -140,8 +140,8 @@ export class OtelTraceExporter {
     const captureContent = this.options.captureContent ?? false;
 
     // Determine timing
-    const startHr = toHrTime(result.trace?.startTime ?? result.timestamp);
-    const endHr = toHrTime(result.trace?.endTime ?? result.timestamp);
+    const startHr = toHrTime(result.metrics?.startTime ?? result.timestamp);
+    const endHr = toHrTime(result.metrics?.endTime ?? result.timestamp);
 
     // Support trace composition via W3C traceparent propagation
     let parentCtx = api.ROOT_CONTEXT;
@@ -183,9 +183,9 @@ export class OtelTraceExporter {
         rootSpan.setAttribute('agentv.score', result.score);
         if (captureContent) rootSpan.setAttribute('agentv.answer', result.answer);
 
-        // Trace summary attributes
-        if (result.trace) {
-          const t = result.trace;
+        // Metrics summary attributes
+        if (result.metrics) {
+          const t = result.metrics;
           rootSpan.setAttribute('agentv.trace.event_count', t.eventCount);
           rootSpan.setAttribute('agentv.trace.tool_names', t.toolNames.join(','));
           if (t.durationMs != null) rootSpan.setAttribute('agentv.trace.duration_ms', t.durationMs);

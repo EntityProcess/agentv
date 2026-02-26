@@ -7,7 +7,7 @@ export interface LatencyEvaluatorOptions {
 
 /**
  * Evaluator that checks execution duration against a threshold.
- * Uses trace.durationMs from the evaluation context.
+ * Uses metrics.durationMs from the evaluation context.
  */
 export class LatencyEvaluator implements Evaluator {
   readonly kind = 'latency';
@@ -20,7 +20,7 @@ export class LatencyEvaluator implements Evaluator {
 
   evaluate(context: EvaluationContext): EvaluationScore {
     const { threshold } = this.config;
-    const durationMs = context.trace?.durationMs;
+    const durationMs = context.metrics?.durationMs;
 
     // If no duration data available, we can't evaluate
     if (durationMs === undefined) {
@@ -28,7 +28,7 @@ export class LatencyEvaluator implements Evaluator {
         score: 0,
         verdict: 'fail',
         hits: [],
-        misses: ['No duration data available in trace'],
+        misses: ['No duration data available in metrics'],
         expectedAspectCount: 1,
         reasoning: 'Execution duration not reported by provider',
         evaluatorRawRequest: {

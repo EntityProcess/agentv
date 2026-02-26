@@ -13,7 +13,7 @@ import { type IncomingMessage, type Server, type ServerResponse, createServer } 
 import type { AddressInfo } from 'node:net';
 
 import type { Provider } from '../evaluation/providers/types.js';
-import type { TokenUsage } from '../evaluation/trace.js';
+import type { TokenUsage } from '../evaluation/metrics.js';
 
 /**
  * Request body for /invoke endpoint

@@ -82,9 +82,9 @@ Return a `score` (0 to 1) for granular evaluation instead of binary pass/fail:
 // .agentv/assertions/efficiency.ts
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ answer, trace }) => {
+export default defineAssertion(({ answer, metrics }) => {
   const hasContent = answer.length > 0 ? 0.5 : 0;
-  const isEfficient = (trace?.eventCount ?? 0) <= 5 ? 0.5 : 0;
+  const isEfficient = (metrics?.eventCount ?? 0) <= 5 ? 0.5 : 0;
   return {
     score: hasContent + isEfficient,
     hits: [
@@ -120,7 +120,7 @@ The handler receives an `AssertionContext` with the same fields as a code judge:
 | `criteria` | `string` | Evaluation criteria from the test case |
 | `answer` | `string` | The agent's text response |
 | `referenceAnswer` | `string` | Expected/reference answer |
-| `trace` | `TraceSummary` | Execution metrics (tool calls, tokens, duration, cost) |
+| `metrics` | `MetricsSummary` | Execution metrics (tool calls, tokens, duration, cost) |
 | `input` | `Message[]` | Full resolved input messages |
 | `expectedOutput` | `Message[]` | Expected output messages |
 | `output` | `Message[]` | Actual agent output messages |

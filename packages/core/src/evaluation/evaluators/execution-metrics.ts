@@ -1,4 +1,4 @@
-import { explorationRatio } from '../trace.js';
+import { explorationRatio } from '../metrics.js';
 import type { ExecutionMetricsEvaluatorConfig } from '../types.js';
 import { scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
@@ -24,7 +24,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
   }
 
   evaluate(context: EvaluationContext): EvaluationScore {
-    const { trace } = context;
+    const { metrics: trace } = context;
     const {
       max_tool_calls,
       max_llm_calls,
@@ -41,9 +41,9 @@ export class ExecutionMetricsEvaluator implements Evaluator {
         score: 0,
         verdict: 'fail',
         hits: [],
-        misses: ['No trace summary available'],
+        misses: ['No metrics summary available'],
         expectedAspectCount: 1,
-        reasoning: 'Execution metrics not available - no trace summary provided',
+        reasoning: 'Execution metrics not available - no metrics summary provided',
         evaluatorRawRequest: {
           type: 'execution_metrics',
           config: this.extractConfiguredThresholds(),

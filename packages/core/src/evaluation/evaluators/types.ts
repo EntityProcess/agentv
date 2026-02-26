@@ -1,6 +1,6 @@
 import type { ResolvedTarget } from '../providers/targets.js';
 import type { ChatPrompt, Message, Provider } from '../providers/types.js';
-import type { TokenUsage, TraceSummary } from '../trace.js';
+import type { MetricsSummary, TokenUsage } from '../metrics.js';
 import type { EvalTest, EvaluationVerdict, EvaluatorConfig, JsonObject } from '../types.js';
 
 export type { EvaluationVerdict };
@@ -29,8 +29,8 @@ export interface EvaluationContext {
   readonly evaluator?: EvaluatorConfig;
   /** Output messages from agent execution (primary source for tool trajectory) */
   readonly output?: readonly Message[];
-  /** Lightweight summary of trace events (if available) */
-  readonly trace?: TraceSummary;
+  /** Lightweight summary of execution metrics (if available) */
+  readonly metrics?: MetricsSummary;
   /** Resolver for target override in code judges */
   readonly targetResolver?: TargetResolver;
   /** List of available target names for code judges */

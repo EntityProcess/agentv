@@ -42,28 +42,28 @@ describe('PromptTemplateInputSchema', () => {
     expect(result.referenceAnswer).toBe('The sum of 2 and 2 is 4');
   });
 
-  it('accepts optional trace', () => {
-    const inputWithTrace = {
+  it('accepts optional metrics', () => {
+    const inputWithMetrics = {
       ...validInput,
-      trace: {
+      metrics: {
         eventCount: 3,
         toolNames: ['read', 'write'],
         toolCallsByName: { read: 2, write: 1 },
         errorCount: 0,
       },
     };
-    const result = PromptTemplateInputSchema.parse(inputWithTrace);
-    expect(result.trace?.eventCount).toBe(3);
-    expect(result.trace?.toolNames).toEqual(['read', 'write']);
+    const result = PromptTemplateInputSchema.parse(inputWithMetrics);
+    expect(result.metrics?.eventCount).toBe(3);
+    expect(result.metrics?.toolNames).toEqual(['read', 'write']);
   });
 
-  it('accepts null trace', () => {
-    const inputWithNullTrace = {
+  it('accepts null metrics', () => {
+    const inputWithNullMetrics = {
       ...validInput,
-      trace: null,
+      metrics: null,
     };
-    const result = PromptTemplateInputSchema.parse(inputWithNullTrace);
-    expect(result.trace).toBeNull();
+    const result = PromptTemplateInputSchema.parse(inputWithNullMetrics);
+    expect(result.metrics).toBeNull();
   });
 
   it('accepts optional config', () => {
@@ -137,7 +137,7 @@ describe('PromptTemplateInputSchema', () => {
       guidelineFiles: ['/path/to/guideline.txt'],
       inputFiles: ['/path/to/input.txt'],
       input: [{ role: 'user', content: 'What is 2+2?' }],
-      trace: {
+      metrics: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -171,7 +171,7 @@ describe('Schema type inference', () => {
     const _q: string = input.question;
     const _c: string = input.answer;
     const _outcome: string = input.criteria;
-    const _trace: PromptTemplateInput['trace'] = undefined;
+    const _metrics: PromptTemplateInput['metrics'] = undefined;
     const _config: PromptTemplateInput['config'] = null;
     const _ref: PromptTemplateInput['referenceAnswer'] = undefined;
 
@@ -201,7 +201,7 @@ describe('Schema type inference', () => {
     // Optional fields can be omitted
     expect(input.referenceAnswer).toBeUndefined();
     expect(input.output).toBeUndefined();
-    expect(input.trace).toBeUndefined();
+    expect(input.metrics).toBeUndefined();
     expect(input.config).toBeUndefined();
   });
 });

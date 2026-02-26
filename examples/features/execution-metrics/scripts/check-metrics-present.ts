@@ -2,7 +2,7 @@
 /**
  * Check Metrics Present - Code Judge Plugin
  *
- * Verifies that execution metrics are present in the trace payload.
+ * Verifies that execution metrics are present in the metrics payload.
  * This is a simple sanity check that metrics collection is working.
  *
  * Usage in eval YAML:
@@ -13,36 +13,36 @@
  */
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ trace }) => {
+export default defineCodeJudge(({ metrics }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
-  if (!trace) {
+  if (!metrics) {
     return {
       score: 0,
       hits: [],
-      misses: ['No trace provided'],
-      reasoning: 'Execution metrics collection failed - no trace',
+      misses: ['No metrics provided'],
+      reasoning: 'Execution metrics collection failed - no metrics',
     };
   }
 
   // Check for tokenUsage
-  if (trace.tokenUsage) {
-    hits.push(`tokenUsage present: ${trace.tokenUsage.input}/${trace.tokenUsage.output}`);
+  if (metrics.tokenUsage) {
+    hits.push(`tokenUsage present: ${metrics.tokenUsage.input}/${metrics.tokenUsage.output}`);
   } else {
     misses.push('tokenUsage not present');
   }
 
   // Check for costUsd
-  if (trace.costUsd !== undefined) {
-    hits.push(`costUsd present: $${trace.costUsd.toFixed(4)}`);
+  if (metrics.costUsd !== undefined) {
+    hits.push(`costUsd present: $${metrics.costUsd.toFixed(4)}`);
   } else {
     misses.push('costUsd not present');
   }
 
   // Check for durationMs
-  if (trace.durationMs !== undefined) {
-    hits.push(`durationMs present: ${trace.durationMs}ms`);
+  if (metrics.durationMs !== undefined) {
+    hits.push(`durationMs present: ${metrics.durationMs}ms`);
   } else {
     misses.push('durationMs not present');
   }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 
 import { ExecutionMetricsEvaluator } from '../../../src/evaluation/evaluators/execution-metrics.js';
 import type { ResolvedTarget } from '../../../src/evaluation/providers/targets.js';
-import type { TraceSummary } from '../../../src/evaluation/trace.js';
+import type { MetricsSummary } from '../../../src/evaluation/metrics.js';
 import type { EvalTest, ExecutionMetricsEvaluatorConfig } from '../../../src/evaluation/types.js';
 
 const baseTestCase: EvalTest = {
@@ -31,7 +31,7 @@ const baseMockProvider = {
   invoke: async () => ({ output: [{ role: 'assistant' as const, content: 'test' }] }),
 };
 
-function createContext(trace?: TraceSummary) {
+function createContext(metrics?: MetricsSummary) {
   return {
     evalCase: baseTestCase,
     candidate: 'Test answer',
@@ -40,7 +40,7 @@ function createContext(trace?: TraceSummary) {
     attempt: 0,
     promptInputs: { question: '', guidelines: '' },
     now: new Date(),
-    trace,
+    metrics,
   };
 }
 
@@ -464,7 +464,7 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(0);
       expect(result.verdict).toBe('fail');
-      expect(result.misses).toContain('No trace summary available');
+      expect(result.misses).toContain('No metrics summary available');
     });
 
     it('fails threshold check when required metric is missing', () => {

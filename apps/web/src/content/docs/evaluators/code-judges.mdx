@@ -128,7 +128,7 @@ export default defineCodeJudge(({ answer, criteria }) => {
 });
 ```
 
-**SDK exports:** `defineCodeJudge`, `Message`, `ToolCall`, `TraceSummary`, `CodeJudgeInput`, `CodeJudgeResult`
+**SDK exports:** `defineCodeJudge`, `Message`, `ToolCall`, `MetricsSummary`, `CodeJudgeInput`, `CodeJudgeResult`
 
 ## Target Access
 
@@ -189,11 +189,11 @@ Beyond the basic `question`, `criteria`, `answer`, and `reference_answer` fields
 | `input` | `Message[]` | Full resolved input message array |
 | `expected_output` | `Message[]` | Expected agent behavior including tool calls |
 | `output` | `Message[]` | Actual agent execution trace with tool calls |
-| `trace` | `TraceSummary` | Lightweight execution metrics |
+| `metrics` | `MetricsSummary` | Lightweight execution metrics |
 | `file_changes` | `string \| null` | Unified diff of workspace file changes (when `workspace_template` is configured) |
 | `workspace_path` | `string \| null` | Absolute path to the workspace directory (when `workspace_template` is configured) |
 
-### trace structure
+### metrics structure
 
 ```json
 {

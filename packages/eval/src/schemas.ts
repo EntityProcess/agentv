@@ -14,9 +14,9 @@ export const TokenUsageSchema = z.object({
 });
 
 /**
- * Trace summary schema (camelCase for TypeScript ergonomics).
+ * Metrics summary schema (camelCase for TypeScript ergonomics).
  */
-export const TraceSummarySchema = z.object({
+export const MetricsSummarySchema = z.object({
   eventCount: z.number(),
   toolNames: z.array(z.string()),
   toolCallsByName: z.record(z.string(), z.number()),
@@ -72,7 +72,7 @@ export const CodeJudgeInputSchema = z.object({
   guidelineFiles: z.array(z.string()),
   inputFiles: z.array(z.string()),
   input: z.array(MessageSchema),
-  trace: TraceSummarySchema.nullable().optional(),
+  metrics: MetricsSummarySchema.nullable().optional(),
   fileChanges: z.string().nullable().optional(),
   workspacePath: z.string().nullable().optional(),
   config: z.record(z.unknown()).nullable().optional(),
@@ -95,7 +95,7 @@ export const CodeJudgeResultSchema = z.object({
  */
 export type CodeJudgeInput = z.infer<typeof CodeJudgeInputSchema>;
 export type CodeJudgeResult = z.infer<typeof CodeJudgeResultSchema>;
-export type TraceSummary = z.infer<typeof TraceSummarySchema>;
+export type MetricsSummary = z.infer<typeof MetricsSummarySchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type ToolCall = z.infer<typeof ToolCallSchema>;
 export type TokenUsage = z.infer<typeof TokenUsageSchema>;

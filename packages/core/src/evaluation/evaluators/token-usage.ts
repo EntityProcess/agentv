@@ -7,7 +7,7 @@ export interface TokenUsageEvaluatorOptions {
 
 /**
  * Evaluator that checks provider-reported token usage against configured limits.
- * Uses trace.tokenUsage from the evaluation context.
+ * Uses metrics.tokenUsage from the evaluation context.
  */
 export class TokenUsageEvaluator implements Evaluator {
   readonly kind = 'token_usage';
@@ -19,7 +19,7 @@ export class TokenUsageEvaluator implements Evaluator {
   }
 
   evaluate(context: EvaluationContext): EvaluationScore {
-    const usage = context.trace?.tokenUsage;
+    const usage = context.metrics?.tokenUsage;
 
     const maxTotal = this.config.max_total;
     const maxInput = this.config.max_input;
@@ -35,7 +35,7 @@ export class TokenUsageEvaluator implements Evaluator {
         score: 0,
         verdict: 'fail',
         hits: [],
-        misses: ['No token usage data available in trace'],
+        misses: ['No token usage data available in metrics'],
         expectedAspectCount,
         reasoning: 'Token usage not reported by provider',
         evaluatorRawRequest: {

@@ -52,7 +52,7 @@ export interface RawResult {
   reasoning?: string;
   error?: string;
   scores?: RawEvaluatorScore[];
-  trace?: RawTraceSummary;
+  metrics?: RawMetricsSummary;
   input?: unknown;
   output?: unknown;
   trials?: unknown[];
@@ -70,7 +70,7 @@ export interface RawEvaluatorScore {
   weight?: number;
 }
 
-export interface RawTraceSummary {
+export interface RawMetricsSummary {
   event_count?: number;
   tool_names?: string[];
   tool_calls_by_name?: Record<string, number>;

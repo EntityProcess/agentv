@@ -4,8 +4,8 @@ import { ToolTrajectoryEvaluator } from '../../src/evaluation/evaluators.js';
 import type { EvaluationContext } from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type { Message, Provider } from '../../src/evaluation/providers/types.js';
-import type { ToolTrajectoryEvaluatorConfig, TraceSummary } from '../../src/evaluation/trace.js';
-import { computeTraceSummary } from '../../src/evaluation/trace.js';
+import type { MetricsSummary, ToolTrajectoryEvaluatorConfig } from '../../src/evaluation/metrics.js';
+import { computeMetricsSummary } from '../../src/evaluation/metrics.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
 // Minimal mock objects
@@ -36,7 +36,7 @@ const mockEvalCase: EvalTest = {
 };
 
 function createContext(options: {
-  trace?: TraceSummary;
+  metrics?: MetricsSummary;
   output?: readonly Message[];
 }): EvaluationContext {
   return {
@@ -47,7 +47,7 @@ function createContext(options: {
     attempt: 0,
     promptInputs: { question: '', guidelines: '' },
     now: new Date(),
-    trace: options.trace,
+    metrics: options.metrics,
     output: options.output,
   };
 }
@@ -84,7 +84,7 @@ describe('ToolTrajectoryEvaluator', () => {
           ],
         },
       ];
-      const summary = computeTraceSummary(output);
+      const summary = computeMetricsSummary(output);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -96,7 +96,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          trace: summary,
+          metrics: summary,
         }),
       );
 
@@ -113,7 +113,7 @@ describe('ToolTrajectoryEvaluator', () => {
           toolCalls: [{ tool: 'search' }, { tool: 'analyze' }],
         },
       ];
-      const summary = computeTraceSummary(output);
+      const summary = computeMetricsSummary(output);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -125,7 +125,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          trace: summary,
+          metrics: summary,
         }),
       );
 

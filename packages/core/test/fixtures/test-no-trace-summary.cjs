@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
-const hasSummary = input.trace !== null && input.trace !== undefined;
+const hasSummary = input.metrics !== null && input.metrics !== undefined;
 
 console.log(
   JSON.stringify({

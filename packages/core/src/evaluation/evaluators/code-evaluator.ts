@@ -74,7 +74,7 @@ export class CodeEvaluator implements Evaluator {
         (path) => !context.evalCase.guideline_paths.includes(path),
       ),
       input: context.evalCase.input,
-      trace: context.trace ?? null,
+      metrics: context.metrics ?? null,
       fileChanges: context.fileChanges ?? null,
       workspacePath: context.workspacePath ?? null,
       config: this.config ?? null,

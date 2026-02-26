@@ -84,7 +84,7 @@ All code judges receive a JSON object on stdin with:
       ]
     }
   ],
-  "trace": {
+  "metrics": {
     "event_count": 5,
     "tool_names": ["fetch", "search"],
     "tool_calls_by_name": { "search": 2, "fetch": 1 },
@@ -96,7 +96,7 @@ All code judges receive a JSON object on stdin with:
 }
 ```
 
-**Note:** `trace` is a lightweight summary (just counts). To access tool call arguments, use `output[].tool_calls[].input`.
+**Note:** `metrics` is a lightweight summary (just counts). To access tool call arguments, use `output[].tool_calls[].input`.
 
 ## Output Contract
 

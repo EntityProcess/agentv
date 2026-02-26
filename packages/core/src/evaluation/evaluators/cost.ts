@@ -7,7 +7,7 @@ export interface CostEvaluatorOptions {
 
 /**
  * Evaluator that checks execution cost against a budget.
- * Uses trace.costUsd from the evaluation context.
+ * Uses metrics.costUsd from the evaluation context.
  */
 export class CostEvaluator implements Evaluator {
   readonly kind = 'cost';
@@ -20,7 +20,7 @@ export class CostEvaluator implements Evaluator {
 
   evaluate(context: EvaluationContext): EvaluationScore {
     const { budget } = this.config;
-    const costUsd = context.trace?.costUsd;
+    const costUsd = context.metrics?.costUsd;
 
     // If no cost data available, we can't evaluate
     if (costUsd === undefined) {
@@ -28,7 +28,7 @@ export class CostEvaluator implements Evaluator {
         score: 0,
         verdict: 'fail',
         hits: [],
-        misses: ['No cost data available in trace'],
+        misses: ['No cost data available in metrics'],
         expectedAspectCount: 1,
         reasoning: 'Execution cost not reported by provider',
         evaluatorRawRequest: {

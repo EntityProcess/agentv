@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { parseEvaluators } from '../../../src/evaluation/loaders/evaluator-parser.js';
-import type { ToolTrajectoryEvaluatorConfig } from '../../../src/evaluation/trace.js';
+import type { ToolTrajectoryEvaluatorConfig } from '../../../src/evaluation/metrics.js';
 import type {
   CodeEvaluatorConfig,
   CompositeEvaluatorConfig,

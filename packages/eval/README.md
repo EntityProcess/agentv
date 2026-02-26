@@ -30,7 +30,7 @@ Assertions support `pass: boolean` for simple checks and `score: number` (0-1) f
 #!/usr/bin/env bun
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ answer, trace }) => ({
+export default defineCodeJudge(({ answer, metrics }) => ({
   score: answer.length > 0 ? 1.0 : 0.0,
   hits: ['Output received'],
 }));
@@ -45,7 +45,7 @@ Both functions handle stdin/stdout parsing, snake_case conversion, Zod validatio
 - `definePromptTemplate(handler)` - Define a dynamic prompt template
 - `AssertionContext`, `AssertionScore` - Assertion types
 - `CodeJudgeInput`, `CodeJudgeResult` - Code judge types
-- `TraceSummary`, `Message`, `ToolCall` - Trace data types
+- `MetricsSummary`, `Message`, `ToolCall` - Metrics data types
 - `createTargetClient()` - LLM target proxy for evaluators
 - `z` - Re-exported Zod for custom config schemas
 

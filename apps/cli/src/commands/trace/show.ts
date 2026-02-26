@@ -1,7 +1,7 @@
 import { command, flag, oneOf, option, optional, positional, string } from 'cmd-ts';
 import {
+  type RawMetricsSummary,
   type RawResult,
-  type RawTraceSummary,
   c,
   formatCost,
   formatDuration,
@@ -11,34 +11,34 @@ import {
 } from './utils.js';
 
 /**
- * Render flat trace summary line (fallback when full output messages not available).
+ * Render flat metrics summary line (fallback when full output messages not available).
  */
-function renderFlatTrace(trace: RawTraceSummary): string {
+function renderFlatMetrics(metrics: RawMetricsSummary): string {
   const parts: string[] = [];
 
-  if (trace.tool_names && trace.tool_names.length > 0) {
-    const toolParts = trace.tool_names.map((name) => {
-      const count = trace.tool_calls_by_name?.[name] ?? 0;
+  if (metrics.tool_names && metrics.tool_names.length > 0) {
+    const toolParts = metrics.tool_names.map((name) => {
+      const count = metrics.tool_calls_by_name?.[name] ?? 0;
       return count > 1 ? `${name} ×${count}` : name;
     });
     parts.push(`Tools: ${toolParts.join(', ')}`);
   }
 
-  if (trace.duration_ms !== undefined) {
-    parts.push(`Duration: ${formatDuration(trace.duration_ms)}`);
+  if (metrics.duration_ms !== undefined) {
+    parts.push(`Duration: ${formatDuration(metrics.duration_ms)}`);
   }
 
-  if (trace.token_usage) {
-    const total = trace.token_usage.input + trace.token_usage.output;
+  if (metrics.token_usage) {
+    const total = metrics.token_usage.input + metrics.token_usage.output;
     parts.push(`Tokens: ${formatNumber(total)}`);
   }
 
-  if (trace.cost_usd !== undefined) {
-    parts.push(`Cost: ${formatCost(trace.cost_usd)}`);
+  if (metrics.cost_usd !== undefined) {
+    parts.push(`Cost: ${formatCost(metrics.cost_usd)}`);
   }
 
-  if (trace.llm_call_count !== undefined) {
-    parts.push(`LLM calls: ${trace.llm_call_count}`);
+  if (metrics.llm_call_count !== undefined) {
+    parts.push(`LLM calls: ${metrics.llm_call_count}`);
   }
 
   return parts.join(' | ');
@@ -85,24 +85,24 @@ function renderTree(result: RawResult): string {
 
   if (!messages || messages.length === 0) {
     // Fallback to flat summary
-    if (result.trace) {
-      return renderFlatTrace(result.trace);
+    if (result.metrics) {
+      return renderFlatMetrics(result.metrics);
     }
-    return `${c.dim}No trace data available${c.reset}`;
+    return `${c.dim}No metrics data available${c.reset}`;
   }
 
   const lines: string[] = [];
   const testId = result.test_id ?? result.eval_id ?? 'unknown';
 
   // Root node: test execution
-  const totalDuration = result.trace?.duration_ms;
-  const totalTokens = result.trace?.token_usage
-    ? result.trace.token_usage.input + result.trace.token_usage.output
+  const totalDuration = result.metrics?.duration_ms;
+  const totalTokens = result.metrics?.token_usage
+    ? result.metrics.token_usage.input + result.metrics.token_usage.output
     : undefined;
   const rootParts: string[] = [testId];
   if (totalDuration !== undefined) rootParts.push(formatDuration(totalDuration));
   if (totalTokens !== undefined) rootParts.push(`${formatNumber(totalTokens)} tok`);
-  if (result.trace?.cost_usd !== undefined) rootParts.push(formatCost(result.trace.cost_usd));
+  if (result.metrics?.cost_usd !== undefined) rootParts.push(formatCost(result.metrics.cost_usd));
   lines.push(`${c.bold}${rootParts.join(', ')}${c.reset}`);
 
   // Filter to meaningful messages (assistant with tool calls, or assistant responses)
@@ -204,8 +204,8 @@ function formatResultDetail(result: RawResult, index: number, tree: boolean): st
     lines.push(`  ${c.dim}Scores:${c.reset} ${renderScores(result.scores)}`);
   }
 
-  if (result.trace) {
-    lines.push(`  ${c.dim}Trace:${c.reset} ${renderFlatTrace(result.trace)}`);
+  if (result.metrics) {
+    lines.push(`  ${c.dim}Metrics:${c.reset} ${renderFlatMetrics(result.metrics)}`);
   }
 
   if (result.reasoning) {

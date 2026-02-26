@@ -24,28 +24,28 @@ describe('CodeJudgeInputSchema', () => {
     expect(result.answer).toBe('The answer is 4');
   });
 
-  it('accepts optional trace', () => {
-    const inputWithTrace = {
+  it('accepts optional metrics', () => {
+    const inputWithMetrics = {
       ...validInput,
-      trace: {
+      metrics: {
         eventCount: 3,
         toolNames: ['read', 'write'],
         toolCallsByName: { read: 2, write: 1 },
         errorCount: 0,
       },
     };
-    const result = CodeJudgeInputSchema.parse(inputWithTrace);
-    expect(result.trace?.eventCount).toBe(3);
-    expect(result.trace?.toolNames).toEqual(['read', 'write']);
+    const result = CodeJudgeInputSchema.parse(inputWithMetrics);
+    expect(result.metrics?.eventCount).toBe(3);
+    expect(result.metrics?.toolNames).toEqual(['read', 'write']);
   });
 
-  it('accepts null trace', () => {
-    const inputWithNullTrace = {
+  it('accepts null metrics', () => {
+    const inputWithNullMetrics = {
       ...validInput,
-      trace: null,
+      metrics: null,
     };
-    const result = CodeJudgeInputSchema.parse(inputWithNullTrace);
-    expect(result.trace).toBeNull();
+    const result = CodeJudgeInputSchema.parse(inputWithNullMetrics);
+    expect(result.metrics).toBeNull();
   });
 
   it('accepts optional config', () => {
@@ -180,7 +180,7 @@ describe('Schema type inference', () => {
     // These should all type-check correctly
     const _q: string = input.question;
     const _c: string = input.answer;
-    const _trace: CodeJudgeInput['trace'] = undefined;
+    const _metrics: CodeJudgeInput['metrics'] = undefined;
     const _config: CodeJudgeInput['config'] = null;
 
     expect(input.question).toBe('test');

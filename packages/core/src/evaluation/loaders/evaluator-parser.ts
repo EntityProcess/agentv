@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import type { ToolTrajectoryEvaluatorConfig, ToolTrajectoryExpectedItem } from '../trace.js';
+import type { ToolTrajectoryEvaluatorConfig, ToolTrajectoryExpectedItem } from '../metrics.js';
 import type { EvaluatorConfig, EvaluatorKind, JsonObject, JsonValue } from '../types.js';
 import { isEvaluatorKind } from '../types.js';
 import { validateCustomPromptContent } from '../validation/prompt-validator.js';
@@ -411,7 +411,7 @@ async function parseEvaluatorList(
 
       // Parse args_match at evaluator level (snake_case from YAML -> camelCase)
       const rawArgsMatch = rawEvaluator.args_match ?? rawEvaluator.argsMatch;
-      let argsMatch: import('../trace.js').ArgsMatchMode | readonly string[] | undefined;
+      let argsMatch: import('../metrics.js').ArgsMatchMode | readonly string[] | undefined;
       if (rawArgsMatch !== undefined) {
         if (Array.isArray(rawArgsMatch)) {
           // Field list mode: string array of field paths
@@ -466,7 +466,7 @@ async function parseEvaluatorList(
 
             // Parse per-item args_match (snake_case from YAML -> camelCase)
             const rawItemArgsMatch = item.args_match ?? item.argsMatch;
-            let itemArgsMatch: import('../trace.js').ArgsMatchMode | readonly string[] | undefined;
+            let itemArgsMatch: import('../metrics.js').ArgsMatchMode | readonly string[] | undefined;
             if (rawItemArgsMatch !== undefined) {
               if (Array.isArray(rawItemArgsMatch)) {
                 const fieldList = rawItemArgsMatch.filter(
