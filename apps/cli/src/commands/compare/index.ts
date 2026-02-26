@@ -242,10 +242,20 @@ export function determineMatrixExitCode(
     return 0; // Informational mode
   }
 
-  // Exit 1 if any target regresses vs baseline
-  const baselinePairs = matrixOutput.pairwise.filter((p) => p.baseline === baselineTarget);
-  const anyRegression = baselinePairs.some((p) => p.summary.meanDelta < 0);
-  return anyRegression ? 1 : 0;
+  // Exit 1 if any target regresses vs baseline.
+  // Pairwise pairs are generated in sorted order, so the designated baseline
+  // may appear as either .baseline or .candidate depending on alphabetical position.
+  for (const p of matrixOutput.pairwise) {
+    if (p.baseline === baselineTarget && p.summary.meanDelta < 0) {
+      // candidate scored lower than baseline → regression
+      return 1;
+    }
+    if (p.candidate === baselineTarget && p.summary.meanDelta > 0) {
+      // baseline scored higher than the other target → other regressed
+      return 1;
+    }
+  }
+  return 0;
 }
 
 function formatDelta(delta: number): string {
@@ -414,14 +424,14 @@ export function formatMatrix(matrixOutput: MatrixOutput, baselineTarget?: string
     lines.push('');
     lines.push(`${c.bold}Pairwise Summary:${c.reset}`);
 
+    const maxLabelLen = Math.max(
+      ...pairwise.map((pw) => `  ${pw.baseline} → ${pw.candidate}:`.length),
+    );
     for (const p of pairwise) {
       const { wins, losses, ties, meanDelta } = p.summary;
       const sign = meanDelta >= 0 ? '+' : '';
       const deltaColor = meanDelta > 0 ? c.green : meanDelta < 0 ? c.red : c.gray;
       const label = `  ${p.baseline} → ${p.candidate}:`;
-      const maxLabelLen = Math.max(
-        ...pairwise.map((pw) => `  ${pw.baseline} → ${pw.candidate}:`.length),
-      );
       lines.push(
         `${padRight(label, maxLabelLen)}  ${wins} win${wins !== 1 ? 's' : ''}, ${losses} loss${losses !== 1 ? 'es' : ''}, ${ties} tie${ties !== 1 ? 's' : ''}  (${c.bold}Δ${c.reset} ${deltaColor}${sign}${meanDelta.toFixed(3)}${c.reset})`,
       );
@@ -512,7 +522,27 @@ export const compareCommand = command({
               filtered.set(t, group);
             }
           }
+          if (filtered.size === 0) {
+            const available = [...groups.keys()].join(', ');
+            throw new Error(
+              `None of the specified targets found in results. Available targets: ${available}`,
+            );
+          }
           groups = filtered;
+        }
+
+        // Validate --baseline target exists in (possibly filtered) groups
+        if (baseline && !groups.has(baseline)) {
+          const available = [...groups.keys()].join(', ');
+          throw new Error(
+            `Baseline target "${baseline}" not found in results. Available targets: ${available}`,
+          );
+        }
+
+        if (candidate && !baseline) {
+          throw new Error(
+            '--candidate requires --baseline. Use both flags for pairwise comparison.',
+          );
         }
 
         if (baseline && candidate) {
