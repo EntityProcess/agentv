@@ -34,7 +34,8 @@
     "fix": "biome check --write .",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "diagnostics:azure": "bun src/diagnostics/azure-deployment-diag.ts"
+    "diagnostics:azure": "bun src/diagnostics/azure-deployment-diag.ts",
+    "generate:schema": "bun scripts/generate-eval-schema.ts"
   },
   "files": ["dist", "README.md"],
   "dependencies": {
