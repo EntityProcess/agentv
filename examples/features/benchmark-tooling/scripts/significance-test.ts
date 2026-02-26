@@ -16,8 +16,8 @@
  *   --seed <n>             RNG seed for reproducibility
  */
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -95,8 +95,8 @@ function makeRng(seed: number): () => number {
 // ---------------------------------------------------------------------------
 
 function readResultFile(filePath: string): Map<string, number> {
-  const content = readFileSync(filePath, "utf-8");
-  const lines = content.split("\n").filter((l) => l.trim().length > 0);
+  const content = readFileSync(filePath, 'utf-8');
+  const lines = content.split('\n').filter((l) => l.trim().length > 0);
   const records = new Map<string, number>();
 
   for (const line of lines) {
@@ -107,7 +107,7 @@ function readResultFile(filePath: string): Map<string, number> {
       continue; // skip non-JSON lines
     }
     const id = record.test_id ?? record.eval_id;
-    if (id == null || typeof record.score !== "number") continue;
+    if (id == null || typeof record.score !== 'number') continue;
     records.set(id, record.score);
   }
 
@@ -156,8 +156,7 @@ function pairedBootstrapTest(
   rng: () => number,
 ): { ci_lower: number; ci_upper: number; p_value: number } {
   const n = differences.length;
-  const observedMean =
-    differences.reduce((a, b) => a + b, 0) / n;
+  const observedMean = differences.reduce((a, b) => a + b, 0) / n;
 
   const bootstrapMeans: number[] = new Array(iterations);
 
@@ -205,8 +204,7 @@ function cohensD(differences: number[]): number | null {
   const n = differences.length;
   if (n < 2) return null;
   const mean = differences.reduce((a, b) => a + b, 0) / n;
-  const variance =
-    differences.reduce((sum, d) => sum + (d - mean) ** 2, 0) / (n - 1);
+  const variance = differences.reduce((sum, d) => sum + (d - mean) ** 2, 0) / (n - 1);
   const sd = Math.sqrt(variance);
   if (sd === 0) return null;
   return round(mean / sd, 4);
@@ -222,16 +220,15 @@ function round(value: number, decimals: number): number {
 // ---------------------------------------------------------------------------
 
 function formatVerdict(result: SignificanceResult): string {
-  if (result.n_paired === 0) return "No paired observations — cannot test.";
-  if (result.n_paired < 5)
-    return `Only ${result.n_paired} pairs — result unreliable.`;
+  if (result.n_paired === 0) return 'No paired observations — cannot test.';
+  if (result.n_paired < 5) return `Only ${result.n_paired} pairs — result unreliable.`;
 
   const dir =
     result.observed_mean_diff > 0
-      ? "candidate outperforms baseline"
+      ? 'candidate outperforms baseline'
       : result.observed_mean_diff < 0
-        ? "baseline outperforms candidate"
-        : "no difference";
+        ? 'baseline outperforms candidate'
+        : 'no difference';
 
   if (result.significant) {
     return `Significant (p=${result.bootstrap.p_value}): ${dir} by ${Math.abs(result.observed_mean_diff).toFixed(4)} (${result.metric}).`;
@@ -240,10 +237,10 @@ function formatVerdict(result: SignificanceResult): string {
 }
 
 function printHumanReadable(result: SignificanceResult): void {
-  const divider = "─".repeat(72);
+  const divider = '─'.repeat(72);
 
   console.log(`\n${divider}`);
-  console.log("  Paired Bootstrap Significance Test");
+  console.log('  Paired Bootstrap Significance Test');
   console.log(divider);
   console.log(`  Metric:               ${result.metric}`);
   console.log(`  Paired observations:  ${result.n_paired}`);
@@ -260,21 +257,15 @@ function printHumanReadable(result: SignificanceResult): void {
   );
 
   if (result.effect_size_cohens_d !== null) {
-    console.log(
-      `  Effect size (d):      ${result.effect_size_cohens_d.toFixed(4)}`,
-    );
+    console.log(`  Effect size (d):      ${result.effect_size_cohens_d.toFixed(4)}`);
   }
 
   console.log(
     `  Bootstrap CI (${((1 - result.alpha) * 100).toFixed(0)}%):  [${result.bootstrap.ci_lower.toFixed(6)}, ${result.bootstrap.ci_upper.toFixed(6)}]`,
   );
-  console.log(
-    `  p-value:              ${result.bootstrap.p_value.toFixed(6)}`,
-  );
+  console.log(`  p-value:              ${result.bootstrap.p_value.toFixed(6)}`);
   console.log(`  α (significance):    ${result.alpha}`);
-  console.log(
-    `  Iterations:           ${result.bootstrap.iterations.toLocaleString()}`,
-  );
+  console.log(`  Iterations:           ${result.bootstrap.iterations.toLocaleString()}`);
   console.log(divider);
   console.log(`  ▸ ${result.verdict}`);
   console.log(`${divider}\n`);
@@ -287,7 +278,7 @@ function printHumanReadable(result: SignificanceResult): void {
 function main(): void {
   const args = process.argv.slice(2);
 
-  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
+  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
     console.log(
       `Usage: bun significance-test.ts <baseline.jsonl> <candidate.jsonl> [options]
 
@@ -310,9 +301,9 @@ Examples:
   }
 
   // Parse CLI args
-  let baselinePath = "";
-  let candidatePath = "";
-  let metric = "score";
+  let baselinePath = '';
+  let candidatePath = '';
+  let metric = 'score';
   let iterations = 10000;
   let alpha = 0.05;
   let jsonOutput = false;
@@ -322,36 +313,36 @@ Examples:
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
-      case "--metric":
-      case "-m":
+      case '--metric':
+      case '-m':
         metric = args[++i];
         break;
-      case "--iterations":
-      case "-n":
+      case '--iterations':
+      case '-n':
         iterations = Number.parseInt(args[++i], 10);
         if (Number.isNaN(iterations) || iterations < 100) {
-          console.error("Error: --iterations must be ≥ 100");
+          console.error('Error: --iterations must be ≥ 100');
           process.exit(1);
         }
         break;
-      case "--alpha":
-      case "-a": {
+      case '--alpha':
+      case '-a': {
         const val = Number.parseFloat(args[++i]);
         if (Number.isNaN(val) || val <= 0 || val >= 1) {
-          console.error("Error: --alpha must be between 0 and 1 (exclusive)");
+          console.error('Error: --alpha must be between 0 and 1 (exclusive)');
           process.exit(1);
         }
         alpha = val;
         break;
       }
-      case "--json":
+      case '--json':
         jsonOutput = true;
         break;
-      case "--seed":
-      case "-s":
+      case '--seed':
+      case '-s':
         seed = Number.parseInt(args[++i], 10);
         if (Number.isNaN(seed)) {
-          console.error("Error: --seed must be an integer");
+          console.error('Error: --seed must be an integer');
           process.exit(1);
         }
         break;
@@ -361,9 +352,7 @@ Examples:
   }
 
   if (positional.length < 2) {
-    console.error(
-      "Error: two input files required (baseline.jsonl and candidate.jsonl).",
-    );
+    console.error('Error: two input files required (baseline.jsonl and candidate.jsonl).');
     process.exit(1);
   }
 
@@ -379,16 +368,11 @@ Examples:
     process.exit(1);
   }
   if (candidate.size === 0) {
-    console.error(
-      `Error: no valid records in candidate file: ${candidatePath}`,
-    );
+    console.error(`Error: no valid records in candidate file: ${candidatePath}`);
     process.exit(1);
   }
 
-  const { pairs, baselineOnly, candidateOnly } = alignPairs(
-    baseline,
-    candidate,
-  );
+  const { pairs, baselineOnly, candidateOnly } = alignPairs(baseline, candidate);
 
   // Warn about unmatched pairs to stderr (doesn't interfere with JSON output)
   if (baselineOnly.length > 0 || candidateOnly.length > 0) {
@@ -402,15 +386,11 @@ Examples:
 
   const observedMeanDiff =
     differences.length > 0
-      ? round(
-          differences.reduce((a, b) => a + b, 0) / differences.length,
-          6,
-        )
+      ? round(differences.reduce((a, b) => a + b, 0) / differences.length, 6)
       : 0;
 
   // Use provided seed or generate a deterministic one from data characteristics
-  const effectiveSeed =
-    seed ?? Math.abs(Math.imul(differences.length, 2654435761)) | 1;
+  const effectiveSeed = seed ?? Math.abs(Math.imul(differences.length, 2654435761)) | 1;
   const rng = makeRng(effectiveSeed);
 
   let bootstrapResult = { ci_lower: 0, ci_upper: 0, p_value: 1 };
@@ -419,7 +399,7 @@ Examples:
   }
 
   const result: SignificanceResult = {
-    method: "paired_bootstrap",
+    method: 'paired_bootstrap',
     metric,
     n_paired: pairs.length,
     n_unpaired_baseline: baselineOnly.length,
@@ -439,7 +419,7 @@ Examples:
     },
     alpha,
     significant: bootstrapResult.p_value < alpha,
-    verdict: "",
+    verdict: '',
     seed: seed,
   };
 

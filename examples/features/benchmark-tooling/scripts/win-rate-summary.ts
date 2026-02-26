@@ -16,8 +16,8 @@
  *   Set --tolerance 0 for strict comparison (no ties unless delta == 0).
  */
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { resolve, basename } from "node:path";
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { basename, resolve } from 'node:path';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,20 +67,13 @@ interface WinRateSummary {
 // Core logic
 // ---------------------------------------------------------------------------
 
-function classifyOutcome(
-  delta: number,
-  tolerance: number,
-): "win" | "loss" | "tie" {
-  if (delta >= tolerance) return "win";
-  if (delta <= -tolerance) return "loss";
-  return "tie";
+function classifyOutcome(delta: number, tolerance: number): 'win' | 'loss' | 'tie' {
+  if (delta >= tolerance) return 'win';
+  if (delta <= -tolerance) return 'loss';
+  return 'tie';
 }
 
-function computeBucket(
-  label: string,
-  records: MatchedRecord[],
-  tolerance: number,
-): WinRateBucket {
+function computeBucket(label: string, records: MatchedRecord[], tolerance: number): WinRateBucket {
   let wins = 0;
   let losses = 0;
   let ties = 0;
@@ -88,8 +81,8 @@ function computeBucket(
 
   for (const r of records) {
     const outcome = classifyOutcome(r.delta, tolerance);
-    if (outcome === "win") wins++;
-    else if (outcome === "loss") losses++;
+    if (outcome === 'win') wins++;
+    else if (outcome === 'loss') losses++;
     else ties++;
     sumDelta += r.delta;
   }
@@ -122,7 +115,7 @@ function pct(rate: number): string {
 // ---------------------------------------------------------------------------
 
 function readComparisonFile(filePath: string): ComparisonInput {
-  const raw = readFileSync(filePath, "utf-8").trim();
+  const raw = readFileSync(filePath, 'utf-8').trim();
   try {
     return JSON.parse(raw) as ComparisonInput;
   } catch {
@@ -131,26 +124,24 @@ function readComparisonFile(filePath: string): ComparisonInput {
   }
 }
 
-function loadInputs(
-  inputPath: string,
-): { label: string; data: ComparisonInput }[] {
+function loadInputs(inputPath: string): { label: string; data: ComparisonInput }[] {
   const stat = statSync(inputPath);
 
   if (stat.isDirectory()) {
     const files = readdirSync(inputPath)
-      .filter((f) => f.endsWith(".json"))
+      .filter((f) => f.endsWith('.json'))
       .sort();
     if (files.length === 0) {
       console.error(`Error: no .json files found in ${inputPath}`);
       process.exit(1);
     }
     return files.map((f) => ({
-      label: basename(f, ".json"),
+      label: basename(f, '.json'),
       data: readComparisonFile(resolve(inputPath, f)),
     }));
   }
 
-  return [{ label: "overall", data: readComparisonFile(inputPath) }];
+  return [{ label: 'overall', data: readComparisonFile(inputPath) }];
 }
 
 // ---------------------------------------------------------------------------
@@ -158,26 +149,26 @@ function loadInputs(
 // ---------------------------------------------------------------------------
 
 function printTable(summary: WinRateSummary): void {
-  const divider = "─".repeat(72);
+  const divider = '─'.repeat(72);
 
   console.log(`\n${divider}`);
-  console.log("  Win-Rate Summary");
+  console.log('  Win-Rate Summary');
   console.log(divider);
   console.log(`  Tolerance: ${summary.tolerance}  (${summary.tie_policy})`);
   console.log(divider);
 
   const header = [
-    pad("Metric", 20),
-    pad("Total", 7),
-    pad("Wins", 7),
-    pad("Losses", 7),
-    pad("Ties", 7),
-    pad("Win%", 8),
-    pad("Loss%", 8),
-    pad("Tie%", 8),
-  ].join("");
+    pad('Metric', 20),
+    pad('Total', 7),
+    pad('Wins', 7),
+    pad('Losses', 7),
+    pad('Ties', 7),
+    pad('Win%', 8),
+    pad('Loss%', 8),
+    pad('Tie%', 8),
+  ].join('');
   console.log(header);
-  console.log("─".repeat(72));
+  console.log('─'.repeat(72));
 
   const printRow = (b: WinRateBucket) => {
     const row = [
@@ -189,7 +180,7 @@ function printTable(summary: WinRateSummary): void {
       pad(pct(b.win_rate), 8),
       pad(pct(b.loss_rate), 8),
       pad(pct(b.tie_rate), 8),
-    ].join("");
+    ].join('');
     console.log(row);
   };
 
@@ -197,7 +188,7 @@ function printTable(summary: WinRateSummary): void {
     for (const bucket of summary.per_metric) {
       printRow(bucket);
     }
-    console.log("─".repeat(72));
+    console.log('─'.repeat(72));
   }
 
   printRow(summary.overall);
@@ -206,7 +197,7 @@ function printTable(summary: WinRateSummary): void {
 }
 
 function pad(str: string, width: number): string {
-  return str.length >= width ? str : str + " ".repeat(width - str.length);
+  return str.length >= width ? str : str + ' '.repeat(width - str.length);
 }
 
 // ---------------------------------------------------------------------------
@@ -216,7 +207,7 @@ function pad(str: string, width: number): string {
 function main(): void {
   const args = process.argv.slice(2);
 
-  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
+  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
     console.log(
       `Usage: bun win-rate-summary.ts <comparison.json | dir/> [--tolerance <n>] [--json]
 
@@ -244,19 +235,19 @@ Examples:
   }
 
   // Parse CLI args
-  let inputPath = "";
+  let inputPath = '';
   let tolerance = 0.1;
   let jsonOutput = false;
 
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--tolerance" || args[i] === "-t") {
+    if (args[i] === '--tolerance' || args[i] === '-t') {
       const val = Number.parseFloat(args[++i]);
       if (Number.isNaN(val) || val < 0) {
-        console.error("Error: --tolerance must be a non-negative number");
+        console.error('Error: --tolerance must be a non-negative number');
         process.exit(1);
       }
       tolerance = val;
-    } else if (args[i] === "--json") {
+    } else if (args[i] === '--json') {
       jsonOutput = true;
     } else if (!inputPath) {
       inputPath = resolve(args[i]);
@@ -264,7 +255,7 @@ Examples:
   }
 
   if (!inputPath) {
-    console.error("Error: no input file or directory specified.");
+    console.error('Error: no input file or directory specified.');
     process.exit(1);
   }
 
@@ -284,7 +275,7 @@ Examples:
     perMetric.push(computeBucket(label, data.matched, tolerance));
   }
 
-  const overall = computeBucket("overall", allRecords, tolerance);
+  const overall = computeBucket('overall', allRecords, tolerance);
 
   const summary: WinRateSummary = {
     tolerance,

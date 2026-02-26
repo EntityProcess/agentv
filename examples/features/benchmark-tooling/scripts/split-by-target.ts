@@ -8,24 +8,24 @@
  * Output directory defaults to the same directory as the input file.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { resolve, dirname, basename } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, resolve } from 'node:path';
 
 function normalizeTargetName(target: string): string {
   return target
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-") // replace unsafe chars with hyphens
-    .replace(/-+/g, "-") // collapse consecutive hyphens
-    .replace(/^-|-$/g, ""); // strip leading/trailing hyphens
+    .replace(/[^a-z0-9._-]+/g, '-') // replace unsafe chars with hyphens
+    .replace(/-+/g, '-') // collapse consecutive hyphens
+    .replace(/^-|-$/g, ''); // strip leading/trailing hyphens
 }
 
 function splitByTarget(inputPath: string, outputDir: string): void {
-  const content = readFileSync(inputPath, "utf-8");
-  const lines = content.split("\n").filter((line) => line.trim().length > 0);
+  const content = readFileSync(inputPath, 'utf-8');
+  const lines = content.split('\n').filter((line) => line.trim().length > 0);
 
   if (lines.length === 0) {
-    console.error("Error: input file is empty or contains no valid lines.");
+    console.error('Error: input file is empty or contains no valid lines.');
     process.exit(1);
   }
 
@@ -40,23 +40,23 @@ function splitByTarget(inputPath: string, outputDir: string): void {
       continue;
     }
 
-    const target = record.target ?? "unknown";
+    const target = record.target ?? 'unknown';
     if (!groups.has(target)) {
       groups.set(target, []);
     }
-    groups.get(target)!.push(line);
+    groups.get(target)?.push(line);
   }
 
   if (!existsSync(outputDir)) {
     mkdirSync(outputDir, { recursive: true });
   }
 
-  const inputBase = basename(inputPath, ".jsonl");
+  const inputBase = basename(inputPath, '.jsonl');
 
   for (const [target, records] of groups) {
-    const safeName = normalizeTargetName(target) || "unknown";
+    const safeName = normalizeTargetName(target) || 'unknown';
     const outFile = resolve(outputDir, `${inputBase}.${safeName}.jsonl`);
-    writeFileSync(outFile, records.join("\n") + "\n");
+    writeFileSync(outFile, `${records.join('\n')}\n`);
     console.log(`  ${outFile} (${records.length} records)`);
   }
 
@@ -67,9 +67,9 @@ function splitByTarget(inputPath: string, outputDir: string): void {
 
 const args = process.argv.slice(2);
 
-if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
+if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
   console.log(
-    "Usage: bun split-by-target.ts <input.jsonl> [output-dir]\n\nSplits a combined results JSONL into one file per target.",
+    'Usage: bun split-by-target.ts <input.jsonl> [output-dir]\n\nSplits a combined results JSONL into one file per target.',
   );
   process.exit(0);
 }

@@ -5,8 +5,12 @@ import path from 'node:path';
 
 import {
   classifyOutcome,
+  compareMatrix,
   compareResults,
   determineExitCode,
+  determineMatrixExitCode,
+  formatMatrix,
+  loadCombinedResults,
   loadJsonlResults,
 } from '../../../src/commands/compare/index.js';
 
@@ -76,6 +80,92 @@ describe('compare command', () => {
       writeFileSync(filePath, '{"test_id": "case-1"}\n');
 
       expect(() => loadJsonlResults(filePath)).toThrow('Missing or invalid score');
+    });
+  });
+
+  describe('loadCombinedResults', () => {
+    it('should group records by target field', () => {
+      const filePath = path.join(tempDir, 'combined.jsonl');
+      writeFileSync(
+        filePath,
+        [
+          '{"test_id": "t1", "score": 0.8, "target": "model-a"}',
+          '{"test_id": "t2", "score": 0.9, "target": "model-a"}',
+          '{"test_id": "t1", "score": 0.7, "target": "model-b"}',
+          '{"test_id": "t2", "score": 0.85, "target": "model-b"}',
+        ].join('\n'),
+      );
+
+      const groups = loadCombinedResults(filePath);
+
+      expect(groups.size).toBe(2);
+      expect(groups.get('model-a')).toEqual([
+        { testId: 't1', score: 0.8 },
+        { testId: 't2', score: 0.9 },
+      ]);
+      expect(groups.get('model-b')).toEqual([
+        { testId: 't1', score: 0.7 },
+        { testId: 't2', score: 0.85 },
+      ]);
+    });
+
+    it('should handle three or more targets', () => {
+      const filePath = path.join(tempDir, 'combined.jsonl');
+      writeFileSync(
+        filePath,
+        [
+          '{"test_id": "t1", "score": 0.8, "target": "a"}',
+          '{"test_id": "t1", "score": 0.7, "target": "b"}',
+          '{"test_id": "t1", "score": 0.9, "target": "c"}',
+        ].join('\n'),
+      );
+
+      const groups = loadCombinedResults(filePath);
+
+      expect(groups.size).toBe(3);
+      expect(groups.has('a')).toBe(true);
+      expect(groups.has('b')).toBe(true);
+      expect(groups.has('c')).toBe(true);
+    });
+
+    it('should throw error for missing target field', () => {
+      const filePath = path.join(tempDir, 'combined.jsonl');
+      writeFileSync(filePath, '{"test_id": "t1", "score": 0.8}\n');
+
+      expect(() => loadCombinedResults(filePath)).toThrow('Missing target field');
+    });
+
+    it('should throw error for missing test_id', () => {
+      const filePath = path.join(tempDir, 'combined.jsonl');
+      writeFileSync(filePath, '{"score": 0.8, "target": "a"}\n');
+
+      expect(() => loadCombinedResults(filePath)).toThrow('Missing test_id');
+    });
+
+    it('should throw error for missing score', () => {
+      const filePath = path.join(tempDir, 'combined.jsonl');
+      writeFileSync(filePath, '{"test_id": "t1", "target": "a"}\n');
+
+      expect(() => loadCombinedResults(filePath)).toThrow('Missing or invalid score');
+    });
+
+    it('should handle empty lines', () => {
+      const filePath = path.join(tempDir, 'combined.jsonl');
+      writeFileSync(
+        filePath,
+        '{"test_id": "t1", "score": 0.8, "target": "a"}\n\n{"test_id": "t2", "score": 0.9, "target": "a"}\n',
+      );
+
+      const groups = loadCombinedResults(filePath);
+      expect(groups.get('a')).toHaveLength(2);
+    });
+
+    it('should support legacy eval_id field', () => {
+      const filePath = path.join(tempDir, 'combined.jsonl');
+      writeFileSync(filePath, '{"eval_id": "t1", "score": 0.8, "target": "a"}\n');
+
+      const groups = loadCombinedResults(filePath);
+      expect(groups.get('a')).toEqual([{ testId: 't1', score: 0.8 }]);
     });
   });
 
@@ -182,6 +272,114 @@ describe('compare command', () => {
     });
   });
 
+  describe('compareMatrix', () => {
+    it('should produce matrix with all test IDs and targets', () => {
+      const groups = new Map([
+        [
+          'model-a',
+          [
+            { testId: 't1', score: 0.8 },
+            { testId: 't2', score: 0.9 },
+          ],
+        ],
+        [
+          'model-b',
+          [
+            { testId: 't1', score: 0.7 },
+            { testId: 't2', score: 0.85 },
+          ],
+        ],
+      ]);
+
+      const result = compareMatrix(groups, 0.1);
+
+      expect(result.targets).toEqual(['model-a', 'model-b']);
+      expect(result.matrix).toHaveLength(2);
+      expect(result.matrix[0].testId).toBe('t1');
+      expect(result.matrix[0].scores).toEqual({ 'model-a': 0.8, 'model-b': 0.7 });
+      expect(result.matrix[1].testId).toBe('t2');
+      expect(result.matrix[1].scores).toEqual({ 'model-a': 0.9, 'model-b': 0.85 });
+    });
+
+    it('should generate pairwise comparisons for all target pairs', () => {
+      const groups = new Map([
+        ['a', [{ testId: 't1', score: 0.8 }]],
+        ['b', [{ testId: 't1', score: 0.7 }]],
+        ['c', [{ testId: 't1', score: 0.9 }]],
+      ]);
+
+      const result = compareMatrix(groups, 0.1);
+
+      // 3 targets = 3 pairwise comparisons: a→b, a→c, b→c
+      expect(result.pairwise).toHaveLength(3);
+      expect(result.pairwise[0].baseline).toBe('a');
+      expect(result.pairwise[0].candidate).toBe('b');
+      expect(result.pairwise[1].baseline).toBe('a');
+      expect(result.pairwise[1].candidate).toBe('c');
+      expect(result.pairwise[2].baseline).toBe('b');
+      expect(result.pairwise[2].candidate).toBe('c');
+    });
+
+    it('should handle missing test IDs in some targets', () => {
+      const groups = new Map([
+        [
+          'a',
+          [
+            { testId: 't1', score: 0.8 },
+            { testId: 't2', score: 0.9 },
+          ],
+        ],
+        ['b', [{ testId: 't1', score: 0.7 }]], // missing t2
+      ]);
+
+      const result = compareMatrix(groups, 0.1);
+
+      expect(result.matrix).toHaveLength(2);
+      expect(result.matrix[0].scores).toEqual({ a: 0.8, b: 0.7 });
+      // t2 has no score for b
+      expect(result.matrix[1].scores).toEqual({ a: 0.9 });
+    });
+
+    it('should sort targets alphabetically', () => {
+      const groups = new Map([
+        ['z-model', [{ testId: 't1', score: 0.5 }]],
+        ['a-model', [{ testId: 't1', score: 0.5 }]],
+        ['m-model', [{ testId: 't1', score: 0.5 }]],
+      ]);
+
+      const result = compareMatrix(groups, 0.1);
+      expect(result.targets).toEqual(['a-model', 'm-model', 'z-model']);
+    });
+
+    it('should sort test IDs alphabetically', () => {
+      const groups = new Map([
+        [
+          'a',
+          [
+            { testId: 'z-test', score: 0.5 },
+            { testId: 'a-test', score: 0.5 },
+          ],
+        ],
+      ]);
+
+      const result = compareMatrix(groups, 0.1);
+      expect(result.matrix[0].testId).toBe('a-test');
+      expect(result.matrix[1].testId).toBe('z-test');
+    });
+
+    it('should compute correct pairwise deltas', () => {
+      const groups = new Map([
+        ['baseline', [{ testId: 't1', score: 0.5 }]],
+        ['candidate', [{ testId: 't1', score: 0.75 }]],
+      ]);
+
+      const result = compareMatrix(groups, 0.1);
+
+      expect(result.pairwise).toHaveLength(1);
+      expect(result.pairwise[0].summary.meanDelta).toBeCloseTo(0.25, 10);
+    });
+  });
+
   describe('determineExitCode', () => {
     it('should return 0 when file2 has better or equal mean score', () => {
       expect(determineExitCode(0)).toBe(0);
@@ -193,6 +391,159 @@ describe('compare command', () => {
       expect(determineExitCode(-0.1)).toBe(1);
       expect(determineExitCode(-0.001)).toBe(1);
       expect(determineExitCode(-1.0)).toBe(1);
+    });
+  });
+
+  describe('determineMatrixExitCode', () => {
+    it('should return 0 when no baseline is specified', () => {
+      const matrixOutput: ReturnType<typeof compareMatrix> = {
+        matrix: [],
+        pairwise: [],
+        targets: ['a', 'b'],
+      };
+      expect(determineMatrixExitCode(matrixOutput)).toBe(0);
+    });
+
+    it('should return 0 when no target regresses vs baseline', () => {
+      const matrixOutput: ReturnType<typeof compareMatrix> = {
+        matrix: [],
+        pairwise: [
+          {
+            matched: [],
+            unmatched: { file1: 0, file2: 0 },
+            summary: { total: 2, matched: 1, wins: 1, losses: 0, ties: 0, meanDelta: 0.1 },
+            baseline: 'base',
+            candidate: 'cand',
+          },
+        ],
+        targets: ['base', 'cand'],
+      };
+      expect(determineMatrixExitCode(matrixOutput, 'base')).toBe(0);
+    });
+
+    it('should return 1 when any target regresses vs baseline', () => {
+      const matrixOutput: ReturnType<typeof compareMatrix> = {
+        matrix: [],
+        pairwise: [
+          {
+            matched: [],
+            unmatched: { file1: 0, file2: 0 },
+            summary: { total: 2, matched: 1, wins: 0, losses: 1, ties: 0, meanDelta: -0.1 },
+            baseline: 'base',
+            candidate: 'cand1',
+          },
+          {
+            matched: [],
+            unmatched: { file1: 0, file2: 0 },
+            summary: { total: 2, matched: 1, wins: 1, losses: 0, ties: 0, meanDelta: 0.1 },
+            baseline: 'base',
+            candidate: 'cand2',
+          },
+        ],
+        targets: ['base', 'cand1', 'cand2'],
+      };
+      expect(determineMatrixExitCode(matrixOutput, 'base')).toBe(1);
+    });
+
+    it('should only check pairs involving the baseline target', () => {
+      const matrixOutput: ReturnType<typeof compareMatrix> = {
+        matrix: [],
+        pairwise: [
+          {
+            matched: [],
+            unmatched: { file1: 0, file2: 0 },
+            summary: { total: 2, matched: 1, wins: 1, losses: 0, ties: 0, meanDelta: 0.05 },
+            baseline: 'base',
+            candidate: 'cand1',
+          },
+          {
+            matched: [],
+            unmatched: { file1: 0, file2: 0 },
+            summary: { total: 2, matched: 1, wins: 0, losses: 1, ties: 0, meanDelta: -0.2 },
+            baseline: 'cand1',
+            candidate: 'cand2',
+          },
+        ],
+        targets: ['base', 'cand1', 'cand2'],
+      };
+      // Only the base→cand1 pair matters; cand1→cand2 regression is irrelevant
+      expect(determineMatrixExitCode(matrixOutput, 'base')).toBe(0);
+    });
+  });
+
+  describe('formatMatrix', () => {
+    it('should render matrix table with test IDs as rows and targets as columns', () => {
+      const matrixOutput: ReturnType<typeof compareMatrix> = {
+        matrix: [
+          { testId: 'greeting', scores: { 'model-a': 0.9, 'model-b': 0.85 } },
+          { testId: 'code-gen', scores: { 'model-a': 0.7, 'model-b': 0.8 } },
+        ],
+        pairwise: [
+          {
+            matched: [],
+            unmatched: { file1: 0, file2: 0 },
+            summary: { total: 4, matched: 2, wins: 1, losses: 1, ties: 0, meanDelta: 0.025 },
+            baseline: 'model-a',
+            candidate: 'model-b',
+          },
+        ],
+        targets: ['model-a', 'model-b'],
+      };
+
+      const output = formatMatrix(matrixOutput);
+
+      expect(output).toContain('Score Matrix');
+      expect(output).toContain('model-a');
+      expect(output).toContain('model-b');
+      expect(output).toContain('greeting');
+      expect(output).toContain('code-gen');
+      expect(output).toContain('0.90');
+      expect(output).toContain('0.85');
+      expect(output).toContain('Pairwise Summary');
+    });
+
+    it('should display empty results message when no data', () => {
+      const matrixOutput: ReturnType<typeof compareMatrix> = {
+        matrix: [],
+        pairwise: [],
+        targets: [],
+      };
+
+      const output = formatMatrix(matrixOutput);
+      expect(output).toContain('No results found');
+    });
+
+    it('should include pairwise summary with win/loss/tie counts and delta', () => {
+      const matrixOutput: ReturnType<typeof compareMatrix> = {
+        matrix: [{ testId: 't1', scores: { a: 0.8, b: 0.9 } }],
+        pairwise: [
+          {
+            matched: [],
+            unmatched: { file1: 0, file2: 0 },
+            summary: { total: 2, matched: 1, wins: 1, losses: 0, ties: 0, meanDelta: 0.1 },
+            baseline: 'a',
+            candidate: 'b',
+          },
+        ],
+        targets: ['a', 'b'],
+      };
+
+      const output = formatMatrix(matrixOutput);
+      expect(output).toContain('a');
+      expect(output).toContain('b');
+      expect(output).toContain('1 win');
+      expect(output).toContain('0 losses');
+    });
+
+    it('should handle missing scores with dashes', () => {
+      const matrixOutput: ReturnType<typeof compareMatrix> = {
+        matrix: [{ testId: 't1', scores: { a: 0.8 } }], // no score for b
+        pairwise: [],
+        targets: ['a', 'b'],
+      };
+
+      const output = formatMatrix(matrixOutput);
+      expect(output).toContain('--');
     });
   });
 });

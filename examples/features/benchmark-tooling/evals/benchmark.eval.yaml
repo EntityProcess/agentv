@@ -1,0 +1,21 @@
+name: Multi-Model Benchmark
+description: Compare greeting, code generation, and summarization across three model targets
+
+tests:
+  - test_id: greeting
+    input: Generate a friendly greeting for a new user
+    expected: A warm, welcoming greeting that is professional and helpful
+    scores:
+      - type: llm_judge
+
+  - test_id: code-generation
+    input: Write a function to reverse a linked list
+    expected: A correct, efficient implementation of linked list reversal
+    scores:
+      - type: llm_judge
+
+  - test_id: summarization
+    input: Summarize the key points of the quarterly earnings report
+    expected: A concise summary covering revenue, margins, and guidance
+    scores:
+      - type: llm_judge

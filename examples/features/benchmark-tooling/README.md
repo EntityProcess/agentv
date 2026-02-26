@@ -2,9 +2,45 @@
 
 Utilities for multi-model benchmarking workflows with AgentV.
 
+## N-Way Multi-Model Comparison (built-in)
+
+`agentv compare` natively supports combined JSONL files with a `target` field, enabling N-way matrix comparison without splitting files.
+
+### Usage
+
+```bash
+# N-way matrix (all targets)
+bun agentv compare fixtures/combined-results.jsonl
+
+# With baseline regression check (exits 1 if any target regresses)
+bun agentv compare fixtures/combined-results.jsonl --baseline gpt-4.1
+
+# Pairwise from combined file
+bun agentv compare fixtures/combined-results.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
+
+# Filter to specific targets
+bun agentv compare fixtures/combined-results.jsonl --targets gpt-4.1 --targets gpt-5-mini
+
+# JSON output
+bun agentv compare fixtures/combined-results.jsonl --json
+```
+
+### Combined JSONL Format
+
+Each line includes a `target` field to identify which model produced the result:
+
+```json
+{"test_id": "greeting", "score": 0.90, "target": "gemini-3-flash-preview", "input": "...", "answer": "..."}
+```
+
+### Key Files
+
+- `evals/benchmark.eval.yaml` - Example eval config with 3 tests
+- `fixtures/combined-results.jsonl` - Sample combined output (9 records: 3 tests x 3 targets)
+
 ## split-by-target
 
-Splits a combined results JSONL file into one file per `target`, enabling pairwise comparison with `agentv compare`.
+Splits a combined results JSONL file into one file per `target`, enabling pairwise comparison with `agentv compare`. This is an alternative to the built-in N-way comparison above, useful when you need separate files per target for other tools.
 
 ### Usage
 
