@@ -177,7 +177,10 @@
             "description": "(Deprecated: use assert with type: rubrics instead) Inline rubric items. Supports string shorthand or rubric item objects.",
             "items": {
               "oneOf": [
-                { "type": "string", "description": "Shorthand: criterion text (auto-generates id, weight 1.0, required true)" },
+                {
+                  "type": "string",
+                  "description": "Shorthand: criterion text (auto-generates id, weight 1.0, required true)"
+                },
                 { "$ref": "#/$defs/rubric_item" }
               ]
             }
@@ -558,7 +561,10 @@
           "minItems": 1,
           "items": {
             "oneOf": [
-              { "type": "string", "description": "Shorthand: criterion text (auto-generates id, weight 1.0, required true)" },
+              {
+                "type": "string",
+                "description": "Shorthand: criterion text (auto-generates id, weight 1.0, required true)"
+              },
               { "$ref": "#/$defs/rubric_item" }
             ]
           }
@@ -701,10 +707,7 @@
               "tool": { "type": "string", "description": "Expected tool name" },
               "args": {
                 "description": "Argument matching: 'any' skips validation, object performs partial deep equality",
-                "oneOf": [
-                  { "const": "any" },
-                  { "type": "object" }
-                ]
+                "oneOf": [{ "const": "any" }, { "type": "object" }]
               },
               "max_duration_ms": {
                 "type": "number",
@@ -715,7 +718,11 @@
                 "description": "Per-item argument matching mode override",
                 "oneOf": [
                   { "type": "string", "enum": ["exact", "superset", "subset", "ignore"] },
-                  { "type": "array", "items": { "type": "string" }, "description": "Field list: specific field paths to compare" }
+                  {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Field list: specific field paths to compare"
+                  }
                 ]
               }
             },
@@ -727,7 +734,11 @@
           "description": "Default argument matching mode for all expected items",
           "oneOf": [
             { "type": "string", "enum": ["exact", "superset", "subset", "ignore"] },
-            { "type": "array", "items": { "type": "string" }, "description": "Field list: specific field paths to compare" }
+            {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Field list: specific field paths to compare"
+            }
           ]
         },
         "weight": { "type": "number", "minimum": 0 },
