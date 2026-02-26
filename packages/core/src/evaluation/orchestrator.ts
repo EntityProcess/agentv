@@ -1527,6 +1527,7 @@ async function runEvaluatorList(options: {
         evaluatorProviderRequest: score.evaluatorRawRequest,
         details: score.details,
         scores: mapChildResults(score.scores),
+        tokenUsage: score.tokenUsage,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1852,6 +1853,7 @@ function mapChildResults(
     evaluatorProviderRequest: child.evaluatorRawRequest,
     scores: mapChildResults(child.scores),
     details: child.details,
+    tokenUsage: child.tokenUsage,
   }));
 }
 

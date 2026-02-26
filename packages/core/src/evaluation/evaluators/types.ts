@@ -1,6 +1,6 @@
 import type { ResolvedTarget } from '../providers/targets.js';
 import type { ChatPrompt, Message, Provider } from '../providers/types.js';
-import type { TraceSummary } from '../trace.js';
+import type { TokenUsage, TraceSummary } from '../trace.js';
 import type { EvalTest, EvaluationVerdict, EvaluatorConfig, JsonObject } from '../types.js';
 
 export type { EvaluationVerdict };
@@ -52,6 +52,8 @@ export interface EvaluationScore {
   readonly scores?: readonly ChildEvaluatorResult[];
   /** Optional structured details from code judges (e.g., TP/TN/FP/FN counts, alignments). */
   readonly details?: JsonObject;
+  /** Token usage from LLM calls made by this evaluator (optional). */
+  readonly tokenUsage?: TokenUsage;
 }
 
 export interface ChildEvaluatorResult {
@@ -67,6 +69,8 @@ export interface ChildEvaluatorResult {
   readonly scores?: readonly ChildEvaluatorResult[];
   /** Optional structured details from code judges (e.g., TP/TN/FP/FN counts, alignments). */
   readonly details?: JsonObject;
+  /** Token usage from LLM calls made by this evaluator (optional). */
+  readonly tokenUsage?: TokenUsage;
 }
 
 export interface Evaluator {

@@ -302,10 +302,17 @@ async function invokeModel(options: {
 
 function mapResponse(result: TextResult): ProviderResponse {
   const content = result.text ?? '';
+  const rawUsage = result.totalUsage ?? result.usage;
+  const tokenUsage =
+    rawUsage?.inputTokens != null && rawUsage?.outputTokens != null
+      ? { input: rawUsage.inputTokens, output: rawUsage.outputTokens }
+      : undefined;
+
   return {
     raw: result,
-    usage: toJsonObject(result.totalUsage ?? result.usage),
+    usage: toJsonObject(rawUsage),
     output: [{ role: 'assistant' as const, content }],
+    tokenUsage,
   };
 }
 

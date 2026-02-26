@@ -119,6 +119,7 @@ export class CompositeEvaluator implements Evaluator {
         evaluatorRawRequest: member.result.evaluatorRawRequest,
         scores: member.result.scores,
         details: member.result.details,
+        tokenUsage: member.result.tokenUsage,
       });
     }
 
@@ -173,6 +174,7 @@ export class CompositeEvaluator implements Evaluator {
         evaluatorRawRequest: member.result.evaluatorRawRequest,
         scores: member.result.scores,
         details: member.result.details,
+        tokenUsage: member.result.tokenUsage,
       });
     }
 

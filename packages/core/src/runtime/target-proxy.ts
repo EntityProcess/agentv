@@ -13,6 +13,7 @@ import { type IncomingMessage, type Server, type ServerResponse, createServer } 
 import type { AddressInfo } from 'node:net';
 
 import type { Provider } from '../evaluation/providers/types.js';
+import type { TokenUsage } from '../evaluation/trace.js';
 
 /**
  * Request body for /invoke endpoint
@@ -32,6 +33,7 @@ export interface TargetProxyInvokeRequest {
 export interface TargetProxyInvokeResponse {
   readonly output: readonly unknown[];
   readonly rawText?: string;
+  readonly tokenUsage?: TokenUsage;
 }
 
 /**
@@ -40,6 +42,7 @@ export interface TargetProxyInvokeResponse {
 export interface TargetProxyUsageMetadata {
   readonly callCount: number;
   readonly maxCalls: number;
+  readonly tokenUsage?: TokenUsage;
 }
 
 /**
@@ -93,6 +96,8 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
 
   let callCount = 0;
   let isShutdown = false;
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
 
   // Build available targets list - always includes default
   const targetsList: readonly string[] = availableTargets ?? [defaultProvider.targetName];
@@ -202,6 +207,11 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
         attempt: request.attempt ?? 1,
       });
 
+      if (response.tokenUsage) {
+        totalInputTokens += response.tokenUsage.input;
+        totalOutputTokens += response.tokenUsage.output;
+      }
+
       // Extract output messages and rawText
       const output = response.output ?? [];
       const rawText = extractLastAssistantContent(output);
@@ -209,6 +219,7 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
       const result: TargetProxyInvokeResponse = {
         output,
         rawText,
+        tokenUsage: response.tokenUsage,
       };
 
       sendJson(res, 200, result);
@@ -267,10 +278,16 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
             attempt: request.attempt ?? 1,
           });
 
+          if (response.tokenUsage) {
+            totalInputTokens += response.tokenUsage.input;
+            totalOutputTokens += response.tokenUsage.output;
+          }
+
           const output = response.output ?? [];
           responses.push({
             output,
             rawText: extractLastAssistantContent(output),
+            tokenUsage: response.tokenUsage,
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
@@ -315,6 +332,10 @@ export async function createTargetProxy(options: TargetProxyOptions): Promise<Ta
     getUsageMetadata: () => ({
       callCount,
       maxCalls,
+      tokenUsage:
+        totalInputTokens > 0 || totalOutputTokens > 0
+          ? { input: totalInputTokens, output: totalOutputTokens }
+          : undefined,
     }),
   };
 }
