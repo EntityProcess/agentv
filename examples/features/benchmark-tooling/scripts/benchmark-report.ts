@@ -17,8 +17,8 @@
  *   --pass-threshold  Score threshold to count as pass (default: 0.5)
  */
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { resolve, basename } from "node:path";
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { basename, resolve } from 'node:path';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -112,8 +112,7 @@ function mean(values: number[]): number {
 function stdDev(values: number[]): number {
   if (values.length < 2) return 0;
   const m = mean(values);
-  const variance =
-    values.reduce((sum, v) => sum + (v - m) ** 2, 0) / (values.length - 1);
+  const variance = values.reduce((sum, v) => sum + (v - m) ** 2, 0) / (values.length - 1);
   return Math.sqrt(variance);
 }
 
@@ -121,9 +120,7 @@ function median(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 !== 0
-    ? sorted[mid]
-    : (sorted[mid - 1] + sorted[mid]) / 2;
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 function ci95(values: number[]): { lower: number; upper: number } | null {
@@ -143,13 +140,26 @@ function ci95(values: number[]): { lower: number; upper: number } | null {
 function tValue95(df: number): number {
   // Pre-computed t-values for small degrees of freedom (two-tailed 95%)
   const table: Record<number, number> = {
-    1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571,
-    6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,
-    15: 2.131, 20: 2.086, 25: 2.06, 29: 2.045,
+    1: 12.706,
+    2: 4.303,
+    3: 3.182,
+    4: 2.776,
+    5: 2.571,
+    6: 2.447,
+    7: 2.365,
+    8: 2.306,
+    9: 2.262,
+    10: 2.228,
+    15: 2.131,
+    20: 2.086,
+    25: 2.06,
+    29: 2.045,
   };
   if (table[df]) return table[df];
   // Find nearest lower df in table
-  const keys = Object.keys(table).map(Number).sort((a, b) => a - b);
+  const keys = Object.keys(table)
+    .map(Number)
+    .sort((a, b) => a - b);
   for (let i = keys.length - 1; i >= 0; i--) {
     if (keys[i] <= df) return table[keys[i]];
   }
@@ -165,12 +175,9 @@ function round(value: number, decimals: number): number {
 // Core logic
 // ---------------------------------------------------------------------------
 
-function readResultFile(
-  filePath: string,
-  fallbackTarget: string,
-): ResultRecord[] {
-  const content = readFileSync(filePath, "utf-8");
-  const lines = content.split("\n").filter((l) => l.trim().length > 0);
+function readResultFile(filePath: string, fallbackTarget: string): ResultRecord[] {
+  const content = readFileSync(filePath, 'utf-8');
+  const lines = content.split('\n').filter((l) => l.trim().length > 0);
   const records: ResultRecord[] = [];
 
   for (const line of lines) {
@@ -180,7 +187,7 @@ function readResultFile(
     } catch {
       continue;
     }
-    if (typeof raw.score !== "number") continue;
+    if (typeof raw.score !== 'number') continue;
 
     const record: ResultRecord = {
       test_id: (raw.test_id ?? raw.eval_id) as string | undefined,
@@ -194,7 +201,7 @@ function readResultFile(
     if (Array.isArray(raw.trials)) {
       record.trials = raw.trials as TrialRecord[];
     }
-    if (raw.aggregation && typeof raw.aggregation === "object") {
+    if (raw.aggregation && typeof raw.aggregation === 'object') {
       record.aggregation = raw.aggregation as AggregationInfo;
     }
 
@@ -212,7 +219,7 @@ function loadRecords(inputPaths: string[]): ResultRecord[] {
 
     if (stat.isDirectory()) {
       const files = readdirSync(inputPath)
-        .filter((f) => f.endsWith(".jsonl"))
+        .filter((f) => f.endsWith('.jsonl'))
         .sort();
       if (files.length === 0) {
         console.error(`Warning: no .jsonl files found in ${inputPath}`);
@@ -220,11 +227,11 @@ function loadRecords(inputPaths: string[]): ResultRecord[] {
       }
       for (const f of files) {
         const fullPath = resolve(inputPath, f);
-        const fallback = basename(f, ".jsonl").replace(/^results\./, "");
+        const fallback = basename(f, '.jsonl').replace(/^results\./, '');
         all.push(...readResultFile(fullPath, fallback));
       }
     } else {
-      const fallback = basename(inputPath, ".jsonl").replace(/^results\./, "");
+      const fallback = basename(inputPath, '.jsonl').replace(/^results\./, '');
       all.push(...readResultFile(inputPath, fallback));
     }
   }
@@ -267,16 +274,14 @@ function computeTargetStats(
   };
 }
 
-function computeMetricStats(
-  records: ResultRecord[],
-): Map<string, number[]> | null {
+function computeMetricStats(records: ResultRecord[]): Map<string, number[]> | null {
   const metricScores = new Map<string, number[]>();
   let hasMetrics = false;
 
   for (const r of records) {
     if (!r.scores || !Array.isArray(r.scores)) continue;
     for (const s of r.scores) {
-      if (!s.name || typeof s.score !== "number") continue;
+      if (!s.name || typeof s.score !== 'number') continue;
       hasMetrics = true;
       const existing = metricScores.get(s.name) ?? [];
       existing.push(s.score);
@@ -297,7 +302,7 @@ function buildReport(
   const testIds = new Set<string>();
 
   for (const r of records) {
-    const target = r.target ?? "unknown";
+    const target = r.target ?? 'unknown';
     const group = byTarget.get(target) ?? [];
     group.push(r);
     byTarget.set(target, group);
@@ -312,10 +317,10 @@ function buildReport(
 
   // Sort
   switch (sortBy) {
-    case "score":
+    case 'score':
       perTarget.sort((a, b) => b.mean_score - a.mean_score);
       break;
-    case "pass_rate":
+    case 'pass_rate':
       perTarget.sort((a, b) => b.pass_rate - a.pass_rate);
       break;
     default:
@@ -356,7 +361,7 @@ function buildReport(
   }
 
   // Overall stats
-  const overall = computeTargetStats("overall", records, passThreshold);
+  const overall = computeTargetStats('overall', records, passThreshold);
 
   return {
     summary: {
@@ -380,23 +385,23 @@ function pct(rate: number): string {
 }
 
 function pad(str: string, width: number): string {
-  return str.length >= width ? str : str + " ".repeat(width - str.length);
+  return str.length >= width ? str : str + ' '.repeat(width - str.length);
 }
 
 function padLeft(str: string, width: number): string {
-  return str.length >= width ? str : " ".repeat(width - str.length) + str;
+  return str.length >= width ? str : ' '.repeat(width - str.length) + str;
 }
 
 function formatCI(lower: number | null, upper: number | null): string {
-  if (lower == null || upper == null) return "—";
+  if (lower == null || upper == null) return '—';
   return `[${lower.toFixed(4)}, ${upper.toFixed(4)}]`;
 }
 
 function printMarkdown(report: BenchmarkReport): void {
-  const divider = "─".repeat(80);
+  const divider = '─'.repeat(80);
 
   console.log(`\n${divider}`);
-  console.log("  Benchmark Report");
+  console.log('  Benchmark Report');
   console.log(divider);
   console.log(
     `  Records: ${report.summary.total_records}  |  Targets: ${report.summary.total_targets}  |  Test IDs: ${report.summary.total_test_ids}  |  Pass threshold: ${report.summary.pass_threshold}`,
@@ -404,21 +409,21 @@ function printMarkdown(report: BenchmarkReport): void {
   console.log(divider);
 
   // Per-target table
-  console.log("\n## Per-Target Summary\n");
+  console.log('\n## Per-Target Summary\n');
   console.log(
     [
-      pad("Target", 22),
-      padLeft("N", 5),
-      padLeft("Mean", 8),
-      padLeft("Std", 8),
-      padLeft("Med", 8),
-      padLeft("Min", 8),
-      padLeft("Max", 8),
-      padLeft("Pass%", 8),
-      pad("  95% CI", 24),
-    ].join(""),
+      pad('Target', 22),
+      padLeft('N', 5),
+      padLeft('Mean', 8),
+      padLeft('Std', 8),
+      padLeft('Med', 8),
+      padLeft('Min', 8),
+      padLeft('Max', 8),
+      padLeft('Pass%', 8),
+      pad('  95% CI', 24),
+    ].join(''),
   );
-  console.log("─".repeat(99));
+  console.log('─'.repeat(99));
 
   for (const t of report.per_target) {
     console.log(
@@ -432,17 +437,17 @@ function printMarkdown(report: BenchmarkReport): void {
         padLeft(t.max_score.toFixed(4), 8),
         padLeft(pct(t.pass_rate), 8),
         `  ${formatCI(t.ci95_lower, t.ci95_upper)}`,
-      ].join(""),
+      ].join(''),
     );
   }
 
-  console.log("─".repeat(99));
+  console.log('─'.repeat(99));
 
   // Overall row
   const o = report.overall;
   console.log(
     [
-      pad("overall", 22),
+      pad('overall', 22),
       padLeft(String(o.n), 5),
       padLeft(o.mean_score.toFixed(4), 8),
       padLeft(o.std_dev.toFixed(4), 8),
@@ -451,26 +456,26 @@ function printMarkdown(report: BenchmarkReport): void {
       padLeft(o.max_score.toFixed(4), 8),
       padLeft(pct(o.pass_rate), 8),
       `  ${formatCI(o.ci95_lower, o.ci95_upper)}`,
-    ].join(""),
+    ].join(''),
   );
 
   // Per-target per-metric breakdown
   if (report.per_target_metrics && report.per_target_metrics.length > 0) {
-    console.log("\n## Per-Target Metric Breakdown\n");
+    console.log('\n## Per-Target Metric Breakdown\n');
 
     for (const tm of report.per_target_metrics) {
       console.log(`### ${tm.target}\n`);
       console.log(
         [
-          pad("Metric", 22),
-          padLeft("N", 5),
-          padLeft("Mean", 8),
-          padLeft("Std", 8),
-          padLeft("Min", 8),
-          padLeft("Max", 8),
-        ].join(""),
+          pad('Metric', 22),
+          padLeft('N', 5),
+          padLeft('Mean', 8),
+          padLeft('Std', 8),
+          padLeft('Min', 8),
+          padLeft('Max', 8),
+        ].join(''),
       );
-      console.log("─".repeat(59));
+      console.log('─'.repeat(59));
 
       for (const m of tm.metrics) {
         console.log(
@@ -481,7 +486,7 @@ function printMarkdown(report: BenchmarkReport): void {
             padLeft(m.std_dev.toFixed(4), 8),
             padLeft(m.min_score.toFixed(4), 8),
             padLeft(m.max_score.toFixed(4), 8),
-          ].join(""),
+          ].join(''),
         );
       }
       console.log();
@@ -498,7 +503,7 @@ function printMarkdown(report: BenchmarkReport): void {
 function main(): void {
   const args = process.argv.slice(2);
 
-  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
+  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
     console.log(
       `Usage: bun benchmark-report.ts <file.jsonl ...> [options]
        bun benchmark-report.ts <dir/> [options]
@@ -527,36 +532,34 @@ Examples:
 
   // Parse CLI args
   let jsonOutput = false;
-  let sortBy = "name";
+  let sortBy = 'name';
   let passThreshold = 0.5;
   const inputPaths: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
-      case "--json":
+      case '--json':
         jsonOutput = true;
         break;
-      case "--format":
-      case "-f": {
+      case '--format':
+      case '-f': {
         const fmt = args[++i];
-        if (fmt === "json") jsonOutput = true;
+        if (fmt === 'json') jsonOutput = true;
         break;
       }
-      case "--sort":
-      case "-s":
+      case '--sort':
+      case '-s':
         sortBy = args[++i];
-        if (!["name", "score", "pass_rate"].includes(sortBy)) {
-          console.error(
-            'Error: --sort must be one of: "name", "score", "pass_rate"',
-          );
+        if (!['name', 'score', 'pass_rate'].includes(sortBy)) {
+          console.error('Error: --sort must be one of: "name", "score", "pass_rate"');
           process.exit(1);
         }
         break;
-      case "--pass-threshold":
-      case "-p": {
+      case '--pass-threshold':
+      case '-p': {
         const val = Number.parseFloat(args[++i]);
         if (Number.isNaN(val) || val < 0 || val > 1) {
-          console.error("Error: --pass-threshold must be between 0 and 1");
+          console.error('Error: --pass-threshold must be between 0 and 1');
           process.exit(1);
         }
         passThreshold = val;
@@ -568,7 +571,7 @@ Examples:
   }
 
   if (inputPaths.length === 0) {
-    console.error("Error: no input files or directories specified.");
+    console.error('Error: no input files or directories specified.');
     process.exit(1);
   }
 
@@ -576,7 +579,7 @@ Examples:
   const records = loadRecords(inputPaths);
 
   if (records.length === 0) {
-    console.error("Error: no valid result records found in input files.");
+    console.error('Error: no valid result records found in input files.');
     process.exit(1);
   }
 

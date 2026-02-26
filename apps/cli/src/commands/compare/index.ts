@@ -1,5 +1,16 @@
 import { readFileSync } from 'node:fs';
-import { command, flag, number, oneOf, option, optional, positional, string } from 'cmd-ts';
+import {
+  array,
+  command,
+  flag,
+  multioption,
+  number,
+  oneOf,
+  option,
+  optional,
+  restPositionals,
+  string,
+} from 'cmd-ts';
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 
 // ANSI color codes (no dependency needed)
@@ -18,7 +29,7 @@ const colors = {
 const noColor = process.env.NO_COLOR !== undefined || !process.stdout.isTTY;
 const c = noColor ? Object.fromEntries(Object.keys(colors).map((k) => [k, ''])) : colors;
 
-interface EvalResult {
+export interface EvalResult {
   testId: string;
   score: number;
 }
@@ -31,7 +42,7 @@ interface MatchedResult {
   outcome: 'win' | 'loss' | 'tie';
 }
 
-interface ComparisonOutput {
+export interface ComparisonOutput {
   matched: MatchedResult[];
   unmatched: { file1: number; file2: number };
   summary: {
@@ -42,6 +53,19 @@ interface ComparisonOutput {
     ties: number;
     meanDelta: number;
   };
+  baseline?: string;
+  candidate?: string;
+}
+
+interface MatrixRow {
+  testId: string;
+  scores: Record<string, number>;
+}
+
+export interface MatrixOutput {
+  matrix: MatrixRow[];
+  pairwise: ComparisonOutput[];
+  targets: string[];
 }
 
 export function loadJsonlResults(filePath: string): EvalResult[] {
@@ -62,6 +86,43 @@ export function loadJsonlResults(filePath: string): EvalResult[] {
     }
     return { testId, score: record.score };
   });
+}
+
+export function loadCombinedResults(filePath: string): Map<string, EvalResult[]> {
+  const content = readFileSync(filePath, 'utf8');
+  const lines = content
+    .trim()
+    .split('\n')
+    .filter((line) => line.trim());
+
+  const groups = new Map<string, EvalResult[]>();
+
+  for (const line of lines) {
+    const record = JSON.parse(line) as {
+      test_id?: string;
+      eval_id?: string;
+      score?: number;
+      target?: string;
+    };
+    const testId = record.test_id ?? record.eval_id;
+    if (typeof testId !== 'string') {
+      throw new Error(`Missing test_id in result: ${line}`);
+    }
+    if (typeof record.score !== 'number') {
+      throw new Error(`Missing or invalid score in result: ${line}`);
+    }
+    if (typeof record.target !== 'string') {
+      throw new Error(`Missing target field in combined result: ${line}`);
+    }
+
+    const target = record.target;
+    if (!groups.has(target)) {
+      groups.set(target, []);
+    }
+    groups.get(target)?.push({ testId, score: record.score });
+  }
+
+  return groups;
 }
 
 export function classifyOutcome(delta: number, threshold: number): 'win' | 'loss' | 'tie' {
@@ -120,9 +181,71 @@ export function compareResults(
   };
 }
 
+export function compareMatrix(groups: Map<string, EvalResult[]>, threshold: number): MatrixOutput {
+  const targets = [...groups.keys()].sort();
+
+  // Collect all test IDs across all targets
+  const allTestIds = new Set<string>();
+  for (const results of groups.values()) {
+    for (const r of results) {
+      allTestIds.add(r.testId);
+    }
+  }
+  const sortedTestIds = [...allTestIds].sort();
+
+  // Build score lookup: target -> testId -> score
+  const scoreLookup = new Map<string, Map<string, number>>();
+  for (const [target, results] of groups) {
+    scoreLookup.set(target, new Map(results.map((r) => [r.testId, r.score])));
+  }
+
+  // Build matrix rows
+  const matrix: MatrixRow[] = sortedTestIds.map((testId) => {
+    const scores: Record<string, number> = {};
+    for (const target of targets) {
+      const score = scoreLookup.get(target)?.get(testId);
+      if (score !== undefined) {
+        scores[target] = score;
+      }
+    }
+    return { testId, scores };
+  });
+
+  // Run pairwise comparisons for all target pairs
+  const pairwise: ComparisonOutput[] = [];
+  for (let i = 0; i < targets.length; i++) {
+    for (let j = i + 1; j < targets.length; j++) {
+      const t1 = targets[i];
+      const t2 = targets[j];
+      const r1 = groups.get(t1) ?? [];
+      const r2 = groups.get(t2) ?? [];
+      const comparison = compareResults(r1, r2, threshold);
+      comparison.baseline = t1;
+      comparison.candidate = t2;
+      pairwise.push(comparison);
+    }
+  }
+
+  return { matrix, pairwise, targets };
+}
+
 export function determineExitCode(meanDelta: number): number {
   // Exit 0 if file2 >= file1 (meanDelta >= 0), exit 1 if file1 > file2
   return meanDelta >= 0 ? 0 : 1;
+}
+
+export function determineMatrixExitCode(
+  matrixOutput: MatrixOutput,
+  baselineTarget?: string,
+): number {
+  if (!baselineTarget) {
+    return 0; // Informational mode
+  }
+
+  // Exit 1 if any target regresses vs baseline
+  const baselinePairs = matrixOutput.pairwise.filter((p) => p.baseline === baselineTarget);
+  const anyRegression = baselinePairs.some((p) => p.summary.meanDelta < 0);
+  return anyRegression ? 1 : 0;
 }
 
 function formatDelta(delta: number): string {
@@ -229,25 +352,118 @@ export function formatTable(comparison: ComparisonOutput, file1: string, file2: 
   return lines.join('\n');
 }
 
+export function formatMatrix(matrixOutput: MatrixOutput, baselineTarget?: string): string {
+  const { matrix, pairwise, targets } = matrixOutput;
+  const lines: string[] = [];
+
+  lines.push('');
+  lines.push(`${c.bold}Score Matrix${c.reset}`);
+  lines.push('');
+
+  if (matrix.length === 0) {
+    lines.push(`${c.yellow}No results found.${c.reset}`);
+    return lines.join('\n');
+  }
+
+  // Calculate column widths
+  const testIdWidth = Math.max(
+    7, // "Test ID"
+    ...matrix.map((r) => r.testId.length),
+  );
+  const targetWidths = targets.map((t) => Math.max(t.length, 6));
+
+  // Header row
+  let header = `  ${padRight('Test ID', testIdWidth)}`;
+  for (let i = 0; i < targets.length; i++) {
+    header += `  ${padLeft(targets[i], targetWidths[i])}`;
+  }
+  lines.push(`${c.dim}${header}${c.reset}`);
+
+  // Separator
+  let sep = `  ${'─'.repeat(testIdWidth)}`;
+  for (let i = 0; i < targets.length; i++) {
+    sep += `  ${'─'.repeat(targetWidths[i])}`;
+  }
+  lines.push(`${c.dim}${sep}${c.reset}`);
+
+  // Data rows
+  for (const row of matrix) {
+    let line = `  ${padRight(row.testId, testIdWidth)}`;
+    for (let i = 0; i < targets.length; i++) {
+      const score = row.scores[targets[i]];
+      const scoreStr = score !== undefined ? score.toFixed(2) : '  --';
+      // Highlight regressions vs baseline
+      if (baselineTarget && targets[i] !== baselineTarget && score !== undefined) {
+        const baselineScore = row.scores[baselineTarget];
+        if (baselineScore !== undefined && score < baselineScore) {
+          line += `  ${padLeft(`${c.red}${scoreStr}${c.reset}`, targetWidths[i])}`;
+        } else if (baselineScore !== undefined && score > baselineScore) {
+          line += `  ${padLeft(`${c.green}${scoreStr}${c.reset}`, targetWidths[i])}`;
+        } else {
+          line += `  ${padLeft(scoreStr, targetWidths[i])}`;
+        }
+      } else {
+        line += `  ${padLeft(scoreStr, targetWidths[i])}`;
+      }
+    }
+    lines.push(line);
+  }
+
+  // Pairwise summary
+  if (pairwise.length > 0) {
+    lines.push('');
+    lines.push(`${c.bold}Pairwise Summary:${c.reset}`);
+
+    for (const p of pairwise) {
+      const { wins, losses, ties, meanDelta } = p.summary;
+      const sign = meanDelta >= 0 ? '+' : '';
+      const deltaColor = meanDelta > 0 ? c.green : meanDelta < 0 ? c.red : c.gray;
+      const label = `  ${p.baseline} → ${p.candidate}:`;
+      const maxLabelLen = Math.max(
+        ...pairwise.map((pw) => `  ${pw.baseline} → ${pw.candidate}:`.length),
+      );
+      lines.push(
+        `${padRight(label, maxLabelLen)}  ${wins} win${wins !== 1 ? 's' : ''}, ${losses} loss${losses !== 1 ? 'es' : ''}, ${ties} tie${ties !== 1 ? 's' : ''}  (${c.bold}Δ${c.reset} ${deltaColor}${sign}${meanDelta.toFixed(3)}${c.reset})`,
+      );
+    }
+  }
+
+  lines.push('');
+  return lines.join('\n');
+}
+
 export const compareCommand = command({
   name: 'compare',
-  description: 'Compare two evaluation result files and compute score differences',
+  description:
+    'Compare evaluation result files: two-file pairwise, combined JSONL pairwise, or N-way matrix',
   args: {
-    result1: positional({
+    results: restPositionals({
       type: string,
-      displayName: 'result1',
-      description: 'Path to first JSONL result file (baseline)',
-    }),
-    result2: positional({
-      type: string,
-      displayName: 'result2',
-      description: 'Path to second JSONL result file (candidate)',
+      displayName: 'results',
+      description: 'JSONL result file path(s). One file: combined mode. Two files: pairwise mode.',
     }),
     threshold: option({
       type: optional(number),
       long: 'threshold',
       short: 't',
       description: 'Score delta threshold for win/loss classification (default: 0.1)',
+    }),
+    baseline: option({
+      type: optional(string),
+      long: 'baseline',
+      short: 'b',
+      description: 'Target name to use as baseline (filters combined JSONL)',
+    }),
+    candidate: option({
+      type: optional(string),
+      long: 'candidate',
+      short: 'c',
+      description: 'Target name to use as candidate (filters combined JSONL)',
+    }),
+    targets: multioption({
+      type: array(string),
+      long: 'targets',
+      description: 'Target names to include in matrix comparison (repeatable)',
     }),
     format: option({
       type: optional(oneOf(['table', 'json'])),
@@ -260,26 +476,82 @@ export const compareCommand = command({
       description: 'Output JSON format (shorthand for --format=json)',
     }),
   },
-  handler: async ({ result1, result2, threshold, format, json }) => {
+  handler: async ({ results, threshold, baseline, candidate, targets, format, json }) => {
     const effectiveThreshold = threshold ?? 0.1;
-    // --json flag or --format=json triggers JSON output
     const outputFormat = json ? 'json' : (format ?? 'table');
 
     try {
-      const results1 = loadJsonlResults(result1);
-      const results2 = loadJsonlResults(result2);
-
-      const comparison = compareResults(results1, results2, effectiveThreshold);
-
-      if (outputFormat === 'json') {
-        // Convert to snake_case for Python ecosystem compatibility
-        console.log(JSON.stringify(toSnakeCaseDeep(comparison), null, 2));
-      } else {
-        console.log(formatTable(comparison, result1, result2));
+      if (results.length === 0) {
+        throw new Error('At least one JSONL result file is required');
       }
 
-      const exitCode = determineExitCode(comparison.summary.meanDelta);
-      process.exit(exitCode);
+      if (results.length === 2) {
+        // Two-file pairwise mode (existing behavior)
+        const results1 = loadJsonlResults(results[0]);
+        const results2 = loadJsonlResults(results[1]);
+        const comparison = compareResults(results1, results2, effectiveThreshold);
+
+        if (outputFormat === 'json') {
+          console.log(JSON.stringify(toSnakeCaseDeep(comparison), null, 2));
+        } else {
+          console.log(formatTable(comparison, results[0], results[1]));
+        }
+
+        const exitCode = determineExitCode(comparison.summary.meanDelta);
+        process.exit(exitCode);
+      } else if (results.length === 1) {
+        // Combined JSONL mode
+        let groups = loadCombinedResults(results[0]);
+
+        // Filter by --targets if specified
+        if (targets.length > 0) {
+          const filtered = new Map<string, EvalResult[]>();
+          for (const t of targets) {
+            const group = groups.get(t);
+            if (group) {
+              filtered.set(t, group);
+            }
+          }
+          groups = filtered;
+        }
+
+        if (baseline && candidate) {
+          // Pairwise mode from combined JSONL
+          const baselineResults = groups.get(baseline);
+          const candidateResults = groups.get(candidate);
+          if (!baselineResults) {
+            throw new Error(`Baseline target "${baseline}" not found in results`);
+          }
+          if (!candidateResults) {
+            throw new Error(`Candidate target "${candidate}" not found in results`);
+          }
+
+          const comparison = compareResults(baselineResults, candidateResults, effectiveThreshold);
+
+          if (outputFormat === 'json') {
+            console.log(JSON.stringify(toSnakeCaseDeep(comparison), null, 2));
+          } else {
+            console.log(formatTable(comparison, baseline, candidate));
+          }
+
+          const exitCode = determineExitCode(comparison.summary.meanDelta);
+          process.exit(exitCode);
+        } else {
+          // N-way matrix mode
+          const matrixOutput = compareMatrix(groups, effectiveThreshold);
+
+          if (outputFormat === 'json') {
+            console.log(JSON.stringify(toSnakeCaseDeep(matrixOutput), null, 2));
+          } else {
+            console.log(formatMatrix(matrixOutput, baseline));
+          }
+
+          const exitCode = determineMatrixExitCode(matrixOutput, baseline);
+          process.exit(exitCode);
+        }
+      } else {
+        throw new Error('Expected 1 or 2 JSONL result files');
+      }
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
       process.exit(1);
