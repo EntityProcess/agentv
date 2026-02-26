@@ -34,7 +34,8 @@
     "fix": "biome check --write .",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "diagnostics:azure": "bun src/diagnostics/azure-deployment-diag.ts"
+    "diagnostics:azure": "bun src/diagnostics/azure-deployment-diag.ts",
+    "generate:schema": "bun scripts/generate-eval-schema.ts"
   },
   "files": ["dist", "README.md"],
   "dependencies": {
@@ -64,6 +65,7 @@
     "@opentelemetry/semantic-conventions": "^1.39.0"
   },
   "devDependencies": {
-    "@types/micromatch": "^4.0.10"
+    "@types/micromatch": "^4.0.10",
+    "zod-to-json-schema": "^3.25.1"
   }
 }
