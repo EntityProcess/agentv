@@ -1853,6 +1853,7 @@ function mapChildResults(
     evaluatorProviderRequest: child.evaluatorRawRequest,
     scores: mapChildResults(child.scores),
     details: child.details,
+    tokenUsage: child.tokenUsage,
   }));
 }
 

@@ -13,6 +13,7 @@ import { type IncomingMessage, type Server, type ServerResponse, createServer } 
 import type { AddressInfo } from 'node:net';
 
 import type { Provider } from '../evaluation/providers/types.js';
+import type { TokenUsage } from '../evaluation/trace.js';
 
 /**
  * Request body for /invoke endpoint
@@ -32,7 +33,7 @@ export interface TargetProxyInvokeRequest {
 export interface TargetProxyInvokeResponse {
   readonly output: readonly unknown[];
   readonly rawText?: string;
-  readonly tokenUsage?: { readonly input: number; readonly output: number };
+  readonly tokenUsage?: TokenUsage;
 }
 
 /**
@@ -41,7 +42,7 @@ export interface TargetProxyInvokeResponse {
 export interface TargetProxyUsageMetadata {
   readonly callCount: number;
   readonly maxCalls: number;
-  readonly tokenUsage?: { readonly input: number; readonly output: number };
+  readonly tokenUsage?: TokenUsage;
 }
 
 /**

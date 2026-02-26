@@ -1,9 +1,10 @@
 import { generateText } from 'ai';
 import { z } from 'zod';
 
-import type { Provider, ProviderResponse, ProviderTokenUsage } from '../providers/types.js';
+import type { Provider, ProviderResponse } from '../providers/types.js';
 import { extractLastAssistantContent } from '../providers/types.js';
 import { TEMPLATE_VARIABLES } from '../template-variables.js';
+import type { TokenUsage } from '../trace.js';
 import type { JsonObject, RubricItem } from '../types.js';
 import { clampScore, isNonEmptyString, parseJsonFromText, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
@@ -392,7 +393,7 @@ export class LlmJudgeEvaluator implements Evaluator {
     readonly systemPrompt: string;
     readonly userPrompt: string;
     readonly schema: z.ZodSchema<T>;
-  }): Promise<{ data: T; providerResponse?: ProviderResponse; tokenUsage?: ProviderTokenUsage }> {
+  }): Promise<{ data: T; providerResponse?: ProviderResponse; tokenUsage?: TokenUsage }> {
     const { context, judgeProvider, systemPrompt, userPrompt, schema } = options;
 
     let lastError: Error | undefined;

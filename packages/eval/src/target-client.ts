@@ -6,6 +6,8 @@
  * - AGENTV_TARGET_PROXY_TOKEN: Bearer token for authentication
  */
 
+import type { TokenUsage } from './schemas.js';
+
 /**
  * Request to invoke the target
  */
@@ -24,7 +26,7 @@ export interface TargetInvokeRequest {
 export interface TargetInvokeResponse {
   readonly output: readonly unknown[];
   readonly rawText?: string;
-  readonly tokenUsage?: { readonly input: number; readonly output: number };
+  readonly tokenUsage?: TokenUsage;
 }
 
 /**
