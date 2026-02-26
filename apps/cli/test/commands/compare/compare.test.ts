@@ -469,6 +469,60 @@ describe('compare command', () => {
       // Only the base→cand1 pair matters; cand1→cand2 regression is irrelevant
       expect(determineMatrixExitCode(matrixOutput, 'base')).toBe(0);
     });
+
+    it('should detect regression when baseline sorts after another target', () => {
+      // Bug regression: when the designated baseline sorts alphabetically AFTER
+      // another target, it appears as .candidate in the pair, not .baseline.
+      // e.g. targets: [alpha, zeta] → pair: alpha→zeta, baseline="zeta"
+      // delta = zeta_score - alpha_score. If delta > 0, zeta > alpha → alpha regressed.
+      const matrixOutput: ReturnType<typeof compareMatrix> = {
+        matrix: [],
+        pairwise: [
+          {
+            matched: [],
+            unmatched: { file1: 0, file2: 0 },
+            // delta > 0 means candidate (zeta/baseline) scored higher → alpha regressed
+            summary: { total: 2, matched: 1, wins: 1, losses: 0, ties: 0, meanDelta: 0.2 },
+            baseline: 'alpha',
+            candidate: 'zeta',
+          },
+        ],
+        targets: ['alpha', 'zeta'],
+      };
+      // zeta is the designated baseline; alpha regressed vs zeta
+      expect(determineMatrixExitCode(matrixOutput, 'zeta')).toBe(1);
+    });
+
+    it('should return 0 when baseline sorts after but no regression', () => {
+      const matrixOutput: ReturnType<typeof compareMatrix> = {
+        matrix: [],
+        pairwise: [
+          {
+            matched: [],
+            unmatched: { file1: 0, file2: 0 },
+            // delta < 0 means candidate (zeta/baseline) scored lower → alpha is better
+            // That means alpha did NOT regress vs baseline zeta
+            summary: { total: 2, matched: 1, wins: 0, losses: 1, ties: 0, meanDelta: -0.1 },
+            baseline: 'alpha',
+            candidate: 'zeta',
+          },
+        ],
+        targets: ['alpha', 'zeta'],
+      };
+      expect(determineMatrixExitCode(matrixOutput, 'zeta')).toBe(0);
+    });
+
+    it('should detect regression with real compareMatrix output where baseline sorts last', () => {
+      // End-to-end: use compareMatrix to generate pairs, then check exit code.
+      // gemini sorts before gpt-4.1, so gpt-4.1 is the candidate in that pair.
+      const groups = new Map([
+        ['gemini', [{ testId: 't1', score: 0.5 }]], // gemini regressed vs gpt-4.1
+        ['gpt-4.1', [{ testId: 't1', score: 0.9 }]], // baseline
+      ]);
+      const result = compareMatrix(groups, 0.1);
+      // gpt-4.1 is baseline; gemini scored 0.5 vs 0.9 → regression
+      expect(determineMatrixExitCode(result, 'gpt-4.1')).toBe(1);
+    });
   });
 
   describe('formatMatrix', () => {
