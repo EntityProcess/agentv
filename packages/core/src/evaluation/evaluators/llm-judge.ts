@@ -1,7 +1,7 @@
 import { generateText } from 'ai';
 import { z } from 'zod';
 
-import type { Provider, ProviderResponse } from '../providers/types.js';
+import type { Provider, ProviderResponse, ProviderTokenUsage } from '../providers/types.js';
 import { extractLastAssistantContent } from '../providers/types.js';
 import { TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { JsonObject, RubricItem } from '../types.js';
@@ -148,7 +148,7 @@ export class LlmJudgeEvaluator implements Evaluator {
     };
 
     try {
-      const { data } = await this.runWithRetry({
+      const { data, tokenUsage } = await this.runWithRetry({
         context,
         judgeProvider,
         systemPrompt,
@@ -173,6 +173,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         expectedAspectCount,
         reasoning,
         evaluatorRawRequest,
+        tokenUsage,
       };
     } catch {
       // Deliberate: parse failures yield score 0 silently — no warning emitted,
@@ -215,7 +216,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       target: judgeProvider.targetName,
     };
 
-    const { data } = await this.runWithRetry({
+    const { data, tokenUsage } = await this.runWithRetry({
       context,
       judgeProvider,
       systemPrompt,
@@ -233,6 +234,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       expectedAspectCount: rubrics.length,
       reasoning: data.overall_reasoning,
       evaluatorRawRequest,
+      tokenUsage,
     };
   }
 
@@ -254,7 +256,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       target: judgeProvider.targetName,
     };
 
-    const { data } = await this.runWithRetry({
+    const { data, tokenUsage } = await this.runWithRetry({
       context,
       judgeProvider,
       systemPrompt,
@@ -273,6 +275,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       reasoning: data.overall_reasoning,
       evaluatorRawRequest,
       details,
+      tokenUsage,
     };
   }
 
@@ -389,7 +392,7 @@ export class LlmJudgeEvaluator implements Evaluator {
     readonly systemPrompt: string;
     readonly userPrompt: string;
     readonly schema: z.ZodSchema<T>;
-  }): Promise<{ data: T; providerResponse?: ProviderResponse }> {
+  }): Promise<{ data: T; providerResponse?: ProviderResponse; tokenUsage?: ProviderTokenUsage }> {
     const { context, judgeProvider, systemPrompt, userPrompt, schema } = options;
 
     let lastError: Error | undefined;
@@ -399,7 +402,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         // Prefer Vercel AI SDK language model if available.
         const model = judgeProvider.asLanguageModel?.();
         if (model) {
-          const { text } = await generateText({
+          const result = await generateText({
             model,
             system: systemPrompt,
             prompt: userPrompt,
@@ -407,8 +410,13 @@ export class LlmJudgeEvaluator implements Evaluator {
             ...(typeof this.temperature === 'number' ? { temperature: this.temperature } : {}),
           });
 
-          const data = schema.parse(parseJsonFromText(text));
-          return { data };
+          const data = schema.parse(parseJsonFromText(result.text));
+          const rawUsage = result.usage;
+          const tokenUsage =
+            rawUsage?.inputTokens != null && rawUsage?.outputTokens != null
+              ? { input: rawUsage.inputTokens, output: rawUsage.outputTokens }
+              : undefined;
+          return { data, tokenUsage };
         }
 
         const response = await judgeProvider.invoke({
@@ -421,7 +429,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         });
 
         const data = schema.parse(parseJsonFromText(extractLastAssistantContent(response.output)));
-        return { data, providerResponse: response };
+        return { data, providerResponse: response, tokenUsage: response.tokenUsage };
       } catch (e: unknown) {
         lastError = e instanceof Error ? e : new Error(String(e));
       }

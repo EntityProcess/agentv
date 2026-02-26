@@ -1527,6 +1527,7 @@ async function runEvaluatorList(options: {
         evaluatorProviderRequest: score.evaluatorRawRequest,
         details: score.details,
         scores: mapChildResults(score.scores),
+        tokenUsage: score.tokenUsage,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

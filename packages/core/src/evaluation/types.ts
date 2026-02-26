@@ -736,6 +736,8 @@ export interface EvaluatorResult {
   readonly scores?: readonly EvaluatorResult[];
   /** Optional structured details from code judges (e.g., TP/TN/FP/FN counts). */
   readonly details?: JsonObject;
+  /** Token usage from LLM calls made by this evaluator (optional). */
+  readonly tokenUsage?: { readonly input: number; readonly output: number };
 }
 
 /**

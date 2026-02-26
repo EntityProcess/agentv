@@ -154,6 +154,7 @@ export class CodeEvaluator implements Evaluator {
         reasoning,
         evaluatorRawRequest,
         ...(details ? { details } : {}),
+        tokenUsage: proxyUsage?.tokenUsage,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -178,6 +179,7 @@ export class CodeEvaluator implements Evaluator {
             : {}),
           error: message,
         },
+        tokenUsage: proxyUsage?.tokenUsage,
       };
     } finally {
       // Always shut down the proxy when done

@@ -24,6 +24,7 @@ export interface TargetInvokeRequest {
 export interface TargetInvokeResponse {
   readonly output: readonly unknown[];
   readonly rawText?: string;
+  readonly tokenUsage?: { readonly input: number; readonly output: number };
 }
 
 /**
