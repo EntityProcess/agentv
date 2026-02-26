@@ -24,7 +24,7 @@
     },
     "apps/cli": {
       "name": "agentv",
-      "version": "2.7.1-next.3",
+      "version": "2.7.1-next.6",
       "bin": {
         "agentv": "./dist/cli.js",
       },
@@ -59,7 +59,7 @@
     },
     "packages/core": {
       "name": "@agentv/core",
-      "version": "2.7.1-next.3",
+      "version": "2.7.1-next.6",
       "dependencies": {
         "@agentclientprotocol/sdk": "^0.14.1",
         "@agentv/eval": "workspace:*",
@@ -80,6 +80,7 @@
       },
       "devDependencies": {
         "@types/micromatch": "^4.0.10",
+        "zod-to-json-schema": "^3.25.1",
       },
       "optionalDependencies": {
         "@opentelemetry/api": "^1.9.0",
@@ -92,7 +93,7 @@
     },
     "packages/eval": {
       "name": "@agentv/eval",
-      "version": "2.7.1-next.3",
+      "version": "2.7.1-next.6",
       "dependencies": {
         "zod": "^3.23.8",
       },

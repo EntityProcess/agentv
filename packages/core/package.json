@@ -64,6 +64,7 @@
     "@opentelemetry/semantic-conventions": "^1.39.0"
   },
   "devDependencies": {
-    "@types/micromatch": "^4.0.10"
+    "@types/micromatch": "^4.0.10",
+    "zod-to-json-schema": "^3.25.1"
   }
 }
