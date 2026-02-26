@@ -19,7 +19,7 @@ function makeFullResult(overrides: Partial<EvaluationResult> = {}): EvaluationRe
       agent: { model: 'gpt-4' },
       evaluator: { user_prompt: 'evaluate this', system_prompt: 'you are a judge' },
     },
-    trace: {
+    metrics: {
       event_count: 5,
       tool_names: ['Read'],
       tool_calls_by_name: { Read: 5 },
@@ -68,7 +68,7 @@ describe('trimBaselineResult', () => {
 
     expect(trimmed.answer).toBeUndefined();
     expect(trimmed.requests).toBeUndefined();
-    expect(trimmed.trace).toBeUndefined();
+    expect(trimmed.metrics).toBeUndefined();
     expect(trimmed.workspacePath).toBeUndefined();
     expect(trimmed.output).toBeUndefined();
     expect(trimmed.beforeAllOutput).toBeUndefined();

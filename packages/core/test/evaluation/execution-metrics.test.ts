@@ -3,7 +3,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { CodeEvaluator } from '../../src/evaluation/evaluators.js';
-import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import {
   type MetricsSummary,
   avgToolDurationMs,
@@ -11,6 +10,7 @@ import {
   mergeExecutionMetrics,
   tokensPerTool,
 } from '../../src/evaluation/metrics.js';
+import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
 describe('Execution Metrics', () => {

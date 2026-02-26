@@ -2,10 +2,13 @@ import { describe, expect, it } from 'bun:test';
 
 import { ToolTrajectoryEvaluator } from '../../src/evaluation/evaluators.js';
 import type { EvaluationContext } from '../../src/evaluation/evaluators.js';
+import type {
+  MetricsSummary,
+  ToolTrajectoryEvaluatorConfig,
+} from '../../src/evaluation/metrics.js';
+import { computeMetricsSummary } from '../../src/evaluation/metrics.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type { Message, Provider } from '../../src/evaluation/providers/types.js';
-import type { MetricsSummary, ToolTrajectoryEvaluatorConfig } from '../../src/evaluation/metrics.js';
-import { computeMetricsSummary } from '../../src/evaluation/metrics.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
 // Minimal mock objects

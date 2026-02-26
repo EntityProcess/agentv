@@ -613,14 +613,14 @@ describe('runEvalCase trace integration', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.trace).toBeDefined();
-    expect(result.trace?.eventCount).toBe(1);
-    expect(result.trace?.toolNames).toEqual(['getWeather']);
-    expect(result.trace?.toolCallsByName).toEqual({ getWeather: 1 });
-    expect(result.trace?.errorCount).toBe(0);
+    expect(result.metrics).toBeDefined();
+    expect(result.metrics?.eventCount).toBe(1);
+    expect(result.metrics?.toolNames).toEqual(['getWeather']);
+    expect(result.metrics?.toolCallsByName).toEqual({ getWeather: 1 });
+    expect(result.metrics?.errorCount).toBe(0);
   });
 
-  it('omits trace when provider returns no output', async () => {
+  it('omits metrics when provider returns no output', async () => {
     const provider = new TraceProvider('mock', {
       output: [{ role: 'assistant', content: 'The weather is sunny' }],
     });
@@ -632,10 +632,10 @@ describe('runEvalCase trace integration', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.trace).toBeUndefined();
+    expect(result.metrics).toBeUndefined();
   });
 
-  it('includes trace when provider reports tokenUsage without output', async () => {
+  it('includes metrics when provider reports tokenUsage without output', async () => {
     const provider = new TraceProvider('mock', {
       tokenUsage: { input: 10, output: 20, cached: 5 },
     });
@@ -656,8 +656,8 @@ describe('runEvalCase trace integration', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.trace).toBeDefined();
-    expect(result.trace?.tokenUsage).toEqual({ input: 10, output: 20, cached: 5 });
+    expect(result.metrics).toBeDefined();
+    expect(result.metrics?.tokenUsage).toEqual({ input: 10, output: 20, cached: 5 });
     expect(result.score).toBe(1);
   });
 
@@ -828,11 +828,11 @@ describe('runEvalCase trace integration', () => {
       evaluators: evaluatorRegistry,
     });
 
-    expect(result.trace).toBeDefined();
-    expect(result.trace?.eventCount).toBe(4);
-    expect(result.trace?.toolNames).toEqual(['toolA', 'toolB', 'toolC']);
-    expect(result.trace?.toolCallsByName).toEqual({ toolA: 2, toolB: 1, toolC: 1 });
-    expect(result.trace?.errorCount).toBe(0);
+    expect(result.metrics).toBeDefined();
+    expect(result.metrics?.eventCount).toBe(4);
+    expect(result.metrics?.toolNames).toEqual(['toolA', 'toolB', 'toolC']);
+    expect(result.metrics?.toolCallsByName).toEqual({ toolA: 2, toolB: 1, toolC: 1 });
+    expect(result.metrics?.errorCount).toBe(0);
   });
 
   describe('weighted evaluators', () => {

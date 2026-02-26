@@ -12,8 +12,8 @@ import { randomBytes } from 'node:crypto';
 import { type IncomingMessage, type Server, type ServerResponse, createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-import type { Provider } from '../evaluation/providers/types.js';
 import type { TokenUsage } from '../evaluation/metrics.js';
+import type { Provider } from '../evaluation/providers/types.js';
 
 /**
  * Request body for /invoke endpoint

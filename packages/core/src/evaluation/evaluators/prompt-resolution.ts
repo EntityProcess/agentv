@@ -8,8 +8,8 @@ import path from 'node:path';
 
 import { toSnakeCaseDeep } from '../case-conversion.js';
 import { readTextFile } from '../file-utils.js';
-import type { Message } from '../providers/types.js';
 import type { MetricsSummary } from '../metrics.js';
+import type { Message } from '../providers/types.js';
 import type { EvalTest, PromptScriptConfig } from '../types.js';
 import { executeScript } from './code-evaluator.js';
 

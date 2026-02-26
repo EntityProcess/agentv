@@ -7,7 +7,7 @@ import type { EvaluationResult, EvaluatorResult } from './types.js';
 const STRIPPED_TOP_LEVEL_FIELDS = new Set([
   'answer',
   'requests',
-  'trace',
+  'metrics',
   'workspacePath',
   'output',
   'beforeAllOutput',

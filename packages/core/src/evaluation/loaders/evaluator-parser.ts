@@ -466,7 +466,10 @@ async function parseEvaluatorList(
 
             // Parse per-item args_match (snake_case from YAML -> camelCase)
             const rawItemArgsMatch = item.args_match ?? item.argsMatch;
-            let itemArgsMatch: import('../metrics.js').ArgsMatchMode | readonly string[] | undefined;
+            let itemArgsMatch:
+              | import('../metrics.js').ArgsMatchMode
+              | readonly string[]
+              | undefined;
             if (rawItemArgsMatch !== undefined) {
               if (Array.isArray(rawItemArgsMatch)) {
                 const fieldList = rawItemArgsMatch.filter(

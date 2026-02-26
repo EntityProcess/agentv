@@ -14,6 +14,7 @@ import {
   scoreToVerdict,
 } from './evaluators.js';
 import { readJsonFile } from './file-utils.js';
+import { type MetricsSummary, computeMetricsSummary, mergeExecutionMetrics } from './metrics.js';
 import { createBuiltinProviderRegistry, createProvider } from './providers/index.js';
 import { discoverProviders } from './providers/provider-discovery.js';
 import { type ResolvedTarget, resolveTargetDefinition } from './providers/targets.js';
@@ -28,7 +29,6 @@ import type {
 } from './providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
 import { createBuiltinRegistry, discoverAssertions } from './registry/index.js';
-import { type MetricsSummary, computeMetricsSummary, mergeExecutionMetrics } from './metrics.js';
 import { aggregateTrials } from './trials.js';
 import type {
   EvalTest,

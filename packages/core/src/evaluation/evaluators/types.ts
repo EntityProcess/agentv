@@ -1,6 +1,6 @@
+import type { MetricsSummary, TokenUsage } from '../metrics.js';
 import type { ResolvedTarget } from '../providers/targets.js';
 import type { ChatPrompt, Message, Provider } from '../providers/types.js';
-import type { MetricsSummary, TokenUsage } from '../metrics.js';
 import type { EvalTest, EvaluationVerdict, EvaluatorConfig, JsonObject } from '../types.js';
 
 export type { EvaluationVerdict };

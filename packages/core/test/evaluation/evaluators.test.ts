@@ -948,7 +948,7 @@ describe('LatencyEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
+      metrics: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -979,7 +979,7 @@ describe('LatencyEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
+      metrics: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -1010,7 +1010,7 @@ describe('LatencyEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      // No trace
+      // No metrics
     });
 
     expect(result.score).toBe(0);
@@ -1035,7 +1035,7 @@ describe('LatencyEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
+      metrics: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -1067,7 +1067,7 @@ describe('CostEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
+      metrics: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -1098,7 +1098,7 @@ describe('CostEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
+      metrics: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -1129,7 +1129,7 @@ describe('CostEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      // No trace
+      // No metrics
     });
 
     expect(result.score).toBe(0);
@@ -1154,7 +1154,7 @@ describe('CostEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
+      metrics: {
         eventCount: 1,
         toolNames: [],
         toolCallsByName: {},
@@ -1182,7 +1182,7 @@ describe('TokenUsageEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
+      metrics: {
         eventCount: 0,
         toolNames: [],
         toolCallsByName: {},
@@ -1209,7 +1209,7 @@ describe('TokenUsageEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
+      metrics: {
         eventCount: 0,
         toolNames: [],
         toolCallsByName: {},

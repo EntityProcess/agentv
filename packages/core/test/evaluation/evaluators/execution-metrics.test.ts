@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 
 import { ExecutionMetricsEvaluator } from '../../../src/evaluation/evaluators/execution-metrics.js';
-import type { ResolvedTarget } from '../../../src/evaluation/providers/targets.js';
 import type { MetricsSummary } from '../../../src/evaluation/metrics.js';
+import type { ResolvedTarget } from '../../../src/evaluation/providers/targets.js';
 import type { EvalTest, ExecutionMetricsEvaluatorConfig } from '../../../src/evaluation/types.js';
 
 const baseTestCase: EvalTest = {

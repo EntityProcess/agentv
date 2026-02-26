@@ -1,10 +1,10 @@
 import { generateText } from 'ai';
 import { z } from 'zod';
 
+import type { TokenUsage } from '../metrics.js';
 import type { Provider, ProviderResponse } from '../providers/types.js';
 import { extractLastAssistantContent } from '../providers/types.js';
 import { TEMPLATE_VARIABLES } from '../template-variables.js';
-import type { TokenUsage } from '../metrics.js';
 import type { JsonObject, RubricItem } from '../types.js';
 import { clampScore, isNonEmptyString, parseJsonFromText, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';

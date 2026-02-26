@@ -24,8 +24,8 @@ import {
   runRegexAssertion,
 } from '../evaluators.js';
 import { resolveCustomPrompt } from '../evaluators/prompt-resolution.js';
-import type { Provider } from '../providers/types.js';
 import type { ToolTrajectoryEvaluatorConfig } from '../metrics.js';
+import type { Provider } from '../providers/types.js';
 import type {
   AgentJudgeEvaluatorConfig,
   CodeEvaluatorConfig,

@@ -1,10 +1,10 @@
-import type { Message } from '../providers/types.js';
 import type {
   ArgsMatchMode,
   MetricsSummary,
   ToolTrajectoryEvaluatorConfig,
   ToolTrajectoryExpectedItem,
 } from '../metrics.js';
+import type { Message } from '../providers/types.js';
 import { deepEqual, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
