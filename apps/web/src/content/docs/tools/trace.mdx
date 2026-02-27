@@ -83,7 +83,7 @@ All commands support `--format json` for piping to `jq`:
 ```bash
 # Find tests costing more than $0.10
 agentv trace show results.jsonl --format json \
-  | jq '[.[] | select(.trace.cost_usd > 0.10) | {test_id, score, cost: .trace.cost_usd}]'
+  | jq '[.[] | select(.cost_usd > 0.10) | {test_id, score, cost: .cost_usd}]'
 
 # Compare providers
 agentv trace stats results.jsonl --group-by target --format json \
