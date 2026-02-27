@@ -20,7 +20,7 @@ export class LatencyEvaluator implements Evaluator {
 
   evaluate(context: EvaluationContext): EvaluationScore {
     const { threshold } = this.config;
-    const durationMs = context.trace?.durationMs;
+    const durationMs = context.durationMs;
 
     // If no duration data available, we can't evaluate
     if (durationMs === undefined) {

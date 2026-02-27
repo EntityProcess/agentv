@@ -20,7 +20,7 @@ export class CostEvaluator implements Evaluator {
 
   evaluate(context: EvaluationContext): EvaluationScore {
     const { budget } = this.config;
-    const costUsd = context.trace?.costUsd;
+    const costUsd = context.costUsd;
 
     // If no cost data available, we can't evaluate
     if (costUsd === undefined) {

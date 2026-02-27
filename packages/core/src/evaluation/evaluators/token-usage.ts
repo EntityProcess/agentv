@@ -19,7 +19,7 @@ export class TokenUsageEvaluator implements Evaluator {
   }
 
   evaluate(context: EvaluationContext): EvaluationScore {
-    const usage = context.trace?.tokenUsage;
+    const usage = context.tokenUsage;
 
     const maxTotal = this.config.max_total;
     const maxInput = this.config.max_input;
