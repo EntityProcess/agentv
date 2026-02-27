@@ -27,11 +27,11 @@ const RESULT_WITH_TRACE = JSON.stringify({
     tool_names: ['read', 'write'],
     tool_calls_by_name: { read: 3, write: 2 },
     error_count: 0,
-    token_usage: { input: 1000, output: 500 },
-    cost_usd: 0.05,
-    duration_ms: 3200,
     llm_call_count: 2,
   },
+  token_usage: { input: 1000, output: 500 },
+  cost_usd: 0.05,
+  duration_ms: 3200,
 });
 
 const RESULT_WITHOUT_TRACE = JSON.stringify({
@@ -79,7 +79,7 @@ describe('trace utils', () => {
       expect(results[0].score).toBe(1);
       expect(results[0].trace).toBeDefined();
       expect(results[0].trace?.event_count).toBe(5);
-      expect(results[0].trace?.cost_usd).toBe(0.05);
+      expect(results[0].cost_usd).toBe(0.05);
 
       expect(results[1].test_id).toBe('test-2');
       expect(results[1].score).toBe(0.75);
