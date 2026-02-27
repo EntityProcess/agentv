@@ -15,7 +15,7 @@ const THRESHOLDS = {
   maxDurationMs: 10000,
 };
 
-export default defineCodeJudge(({ trace }) => {
+export default defineCodeJudge(({ trace, tokenUsage, costUsd, durationMs }) => {
   const hits: string[] = [];
   const misses: string[] = [];
   const checks: boolean[] = [];
@@ -39,8 +39,8 @@ export default defineCodeJudge(({ trace }) => {
   }
 
   // Check token usage if available
-  if (trace.tokenUsage) {
-    const totalTokens = trace.tokenUsage.input + trace.tokenUsage.output;
+  if (tokenUsage) {
+    const totalTokens = tokenUsage.input + tokenUsage.output;
     if (totalTokens <= THRESHOLDS.maxTokens) {
       hits.push(`Token usage (${totalTokens}) within limit`);
       checks.push(true);
@@ -51,23 +51,23 @@ export default defineCodeJudge(({ trace }) => {
   }
 
   // Check cost if available
-  if (trace.costUsd !== undefined) {
-    if (trace.costUsd <= THRESHOLDS.maxCostUsd) {
-      hits.push(`Cost ($${trace.costUsd.toFixed(4)}) within budget`);
+  if (costUsd !== undefined) {
+    if (costUsd <= THRESHOLDS.maxCostUsd) {
+      hits.push(`Cost ($${costUsd.toFixed(4)}) within budget`);
       checks.push(true);
     } else {
-      misses.push(`High cost: $${trace.costUsd.toFixed(4)} (max: $${THRESHOLDS.maxCostUsd})`);
+      misses.push(`High cost: $${costUsd.toFixed(4)} (max: $${THRESHOLDS.maxCostUsd})`);
       checks.push(false);
     }
   }
 
   // Check duration if available
-  if (trace.durationMs !== undefined) {
-    if (trace.durationMs <= THRESHOLDS.maxDurationMs) {
-      hits.push(`Duration (${trace.durationMs}ms) within limit`);
+  if (durationMs !== undefined) {
+    if (durationMs <= THRESHOLDS.maxDurationMs) {
+      hits.push(`Duration (${durationMs}ms) within limit`);
       checks.push(true);
     } else {
-      misses.push(`Slow execution: ${trace.durationMs}ms (max: ${THRESHOLDS.maxDurationMs}ms)`);
+      misses.push(`Slow execution: ${durationMs}ms (max: ${THRESHOLDS.maxDurationMs}ms)`);
       checks.push(false);
     }
   }

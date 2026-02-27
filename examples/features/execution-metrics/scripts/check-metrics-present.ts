@@ -13,7 +13,7 @@
  */
 import { defineCodeJudge } from '@agentv/eval';
 
-export default defineCodeJudge(({ trace }) => {
+export default defineCodeJudge(({ trace, tokenUsage, costUsd, durationMs }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
@@ -27,22 +27,22 @@ export default defineCodeJudge(({ trace }) => {
   }
 
   // Check for tokenUsage
-  if (trace.tokenUsage) {
-    hits.push(`tokenUsage present: ${trace.tokenUsage.input}/${trace.tokenUsage.output}`);
+  if (tokenUsage) {
+    hits.push(`tokenUsage present: ${tokenUsage.input}/${tokenUsage.output}`);
   } else {
     misses.push('tokenUsage not present');
   }
 
   // Check for costUsd
-  if (trace.costUsd !== undefined) {
-    hits.push(`costUsd present: $${trace.costUsd.toFixed(4)}`);
+  if (costUsd !== undefined) {
+    hits.push(`costUsd present: $${costUsd.toFixed(4)}`);
   } else {
     misses.push('costUsd not present');
   }
 
   // Check for durationMs
-  if (trace.durationMs !== undefined) {
-    hits.push(`durationMs present: ${trace.durationMs}ms`);
+  if (durationMs !== undefined) {
+    hits.push(`durationMs present: ${durationMs}ms`);
   } else {
     misses.push('durationMs not present');
   }

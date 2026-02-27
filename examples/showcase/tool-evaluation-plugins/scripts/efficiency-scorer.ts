@@ -77,7 +77,7 @@ function calculateExplorationRatio(trace: TraceSummary): number {
   return explorationCount / total;
 }
 
-export default defineCodeJudge(({ trace, criteria }) => {
+export default defineCodeJudge(({ trace, criteria, tokenUsage, costUsd }) => {
   const hits: string[] = [];
   const misses: string[] = [];
   const scores: number[] = [];
@@ -123,8 +123,8 @@ export default defineCodeJudge(({ trace, criteria }) => {
   }
 
   // 3. Token usage evaluation
-  if (trace.tokenUsage) {
-    const tokens = trace.tokenUsage;
+  if (tokenUsage) {
+    const tokens = tokenUsage;
     const totalTokens = tokens.input + tokens.output;
     const maxTokens =
       complexity === 'complex' ? THRESHOLDS.maxTokensComplex : THRESHOLDS.maxTokensSimple;
@@ -140,8 +140,8 @@ export default defineCodeJudge(({ trace, criteria }) => {
   }
 
   // 4. Cost evaluation
-  if (trace.costUsd !== undefined) {
-    const cost = trace.costUsd;
+  if (costUsd !== undefined) {
+    const cost = costUsd;
     const maxCost = complexity === 'complex' ? THRESHOLDS.maxCostComplex : THRESHOLDS.maxCostSimple;
 
     if (cost <= maxCost) {
