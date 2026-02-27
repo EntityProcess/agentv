@@ -140,8 +140,8 @@ export class OtelTraceExporter {
     const captureContent = this.options.captureContent ?? false;
 
     // Determine timing
-    const startHr = toHrTime(result.trace?.startTime ?? result.timestamp);
-    const endHr = toHrTime(result.trace?.endTime ?? result.timestamp);
+    const startHr = toHrTime(result.startTime ?? result.timestamp);
+    const endHr = toHrTime(result.endTime ?? result.timestamp);
 
     // Support trace composition via W3C traceparent propagation
     let parentCtx = api.ROOT_CONTEXT;
@@ -183,13 +183,15 @@ export class OtelTraceExporter {
         rootSpan.setAttribute('agentv.score', result.score);
         if (captureContent) rootSpan.setAttribute('agentv.answer', result.answer);
 
-        // Trace summary attributes
+        // Flat execution metrics
+        if (result.durationMs != null) rootSpan.setAttribute('agentv.trace.duration_ms', result.durationMs);
+        if (result.costUsd != null) rootSpan.setAttribute('agentv.trace.cost_usd', result.costUsd);
+
+        // Trace summary attributes (tool-specific)
         if (result.trace) {
           const t = result.trace;
           rootSpan.setAttribute('agentv.trace.event_count', t.eventCount);
           rootSpan.setAttribute('agentv.trace.tool_names', t.toolNames.join(','));
-          if (t.durationMs != null) rootSpan.setAttribute('agentv.trace.duration_ms', t.durationMs);
-          if (t.costUsd != null) rootSpan.setAttribute('agentv.trace.cost_usd', t.costUsd);
           if (t.llmCallCount != null)
             rootSpan.setAttribute('agentv.trace.llm_call_count', t.llmCallCount);
         }
