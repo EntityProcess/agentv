@@ -657,7 +657,7 @@ describe('runEvalCase trace integration', () => {
     });
 
     expect(result.trace).toBeDefined();
-    expect(result.trace?.tokenUsage).toEqual({ input: 10, output: 20, cached: 5 });
+    expect(result.tokenUsage).toEqual({ input: 10, output: 20, cached: 5 });
     expect(result.score).toBe(1);
   });
 

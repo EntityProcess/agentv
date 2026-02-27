@@ -948,13 +948,7 @@ describe('LatencyEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
-        eventCount: 1,
-        toolNames: [],
-        toolCallsByName: {},
-        errorCount: 0,
-        durationMs: 1500,
-      },
+      durationMs: 1500,
     });
 
     expect(result.score).toBe(1);
@@ -979,13 +973,7 @@ describe('LatencyEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
-        eventCount: 1,
-        toolNames: [],
-        toolCallsByName: {},
-        errorCount: 0,
-        durationMs: 2500,
-      },
+      durationMs: 2500,
     });
 
     expect(result.score).toBe(0);
@@ -1035,13 +1023,7 @@ describe('LatencyEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
-        eventCount: 1,
-        toolNames: [],
-        toolCallsByName: {},
-        errorCount: 0,
-        durationMs: 1000,
-      },
+      durationMs: 1000,
     });
 
     expect(result.score).toBe(1);
@@ -1067,13 +1049,7 @@ describe('CostEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
-        eventCount: 1,
-        toolNames: [],
-        toolCallsByName: {},
-        errorCount: 0,
-        costUsd: 0.05,
-      },
+      costUsd: 0.05,
     });
 
     expect(result.score).toBe(1);
@@ -1098,13 +1074,7 @@ describe('CostEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
-        eventCount: 1,
-        toolNames: [],
-        toolCallsByName: {},
-        errorCount: 0,
-        costUsd: 0.15,
-      },
+      costUsd: 0.15,
     });
 
     expect(result.score).toBe(0);
@@ -1154,13 +1124,7 @@ describe('CostEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
-        eventCount: 1,
-        toolNames: [],
-        toolCallsByName: {},
-        errorCount: 0,
-        costUsd: 0.1,
-      },
+      costUsd: 0.1,
     });
 
     expect(result.score).toBe(1);
@@ -1182,13 +1146,7 @@ describe('TokenUsageEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
-        eventCount: 0,
-        toolNames: [],
-        toolCallsByName: {},
-        errorCount: 0,
-        tokenUsage: { input: 400, output: 500, cached: 0 },
-      },
+      tokenUsage: { input: 400, output: 500, cached: 0 },
     });
 
     expect(result.score).toBe(1);
@@ -1209,13 +1167,7 @@ describe('TokenUsageEvaluator', () => {
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
-      trace: {
-        eventCount: 0,
-        toolNames: [],
-        toolCallsByName: {},
-        errorCount: 0,
-        tokenUsage: { input: 10, output: 150 },
-      },
+      tokenUsage: { input: 10, output: 150 },
     });
 
     expect(result.score).toBe(0);

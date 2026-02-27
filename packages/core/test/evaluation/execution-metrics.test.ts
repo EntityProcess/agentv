@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { CodeEvaluator } from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import {
+  type TraceComputeResult,
   type TraceSummary,
   avgToolDurationMs,
   explorationRatio,
@@ -91,10 +92,9 @@ describe('Execution Metrics', () => {
         toolNames: [],
         toolCallsByName: {},
         errorCount: 0,
-        tokenUsage: { input: 1000, output: 500 },
       };
 
-      expect(tokensPerTool(summary)).toBeUndefined();
+      expect(tokensPerTool(summary, { input: 1000, output: 500 })).toBeUndefined();
     });
 
     it('computes correct tokens per tool', () => {
@@ -103,11 +103,10 @@ describe('Execution Metrics', () => {
         toolNames: ['Read', 'Edit'],
         toolCallsByName: { Read: 3, Edit: 2 },
         errorCount: 0,
-        tokenUsage: { input: 1000, output: 500 },
       };
 
       // Total tokens: 1500, divided by 5 tool calls = 300 tokens per tool
-      expect(tokensPerTool(summary)).toBe(300);
+      expect(tokensPerTool(summary, { input: 1000, output: 500 })).toBe(300);
     });
 
     it('handles cached tokens in total calculation', () => {
@@ -116,11 +115,10 @@ describe('Execution Metrics', () => {
         toolNames: ['Read'],
         toolCallsByName: { Read: 4 },
         errorCount: 0,
-        tokenUsage: { input: 800, output: 400, cached: 200 },
       };
 
       // Total tokens: 800 + 400 = 1200 (cached not added to total)
-      expect(tokensPerTool(summary)).toBe(300);
+      expect(tokensPerTool(summary, { input: 800, output: 400, cached: 200 })).toBe(300);
     });
   });
 
@@ -182,71 +180,75 @@ describe('Execution Metrics', () => {
   });
 
   describe('mergeExecutionMetrics', () => {
-    const baseSummary: TraceSummary = {
-      eventCount: 5,
-      toolNames: ['Read', 'Edit'],
-      toolCallsByName: { Read: 3, Edit: 2 },
-      errorCount: 0,
+    const baseComputed: TraceComputeResult = {
+      trace: {
+        eventCount: 5,
+        toolNames: ['Read', 'Edit'],
+        toolCallsByName: { Read: 3, Edit: 2 },
+        errorCount: 0,
+      },
     };
 
-    it('returns the same summary when no metrics provided', () => {
-      const result = mergeExecutionMetrics(baseSummary);
+    it('returns the same result when no metrics provided', () => {
+      const result = mergeExecutionMetrics(baseComputed);
 
-      expect(result).toBe(baseSummary);
+      expect(result).toBe(baseComputed);
     });
 
-    it('returns the same summary when metrics is undefined', () => {
-      const result = mergeExecutionMetrics(baseSummary, undefined);
+    it('returns the same result when metrics is undefined', () => {
+      const result = mergeExecutionMetrics(baseComputed, undefined);
 
-      expect(result).toBe(baseSummary);
+      expect(result).toBe(baseComputed);
     });
 
-    it('merges tokenUsage into summary', () => {
-      const result = mergeExecutionMetrics(baseSummary, {
+    it('merges tokenUsage into result', () => {
+      const result = mergeExecutionMetrics(baseComputed, {
         tokenUsage: { input: 1000, output: 500 },
       });
 
-      expect(result.eventCount).toBe(5);
-      expect(result.toolNames).toEqual(['Read', 'Edit']);
+      expect(result.trace.eventCount).toBe(5);
+      expect(result.trace.toolNames).toEqual(['Read', 'Edit']);
       expect(result.tokenUsage).toEqual({ input: 1000, output: 500 });
       expect(result.costUsd).toBeUndefined();
       expect(result.durationMs).toBeUndefined();
     });
 
-    it('merges all metrics into summary', () => {
-      const result = mergeExecutionMetrics(baseSummary, {
+    it('merges all metrics into result', () => {
+      const result = mergeExecutionMetrics(baseComputed, {
         tokenUsage: { input: 1000, output: 500, cached: 100 },
         costUsd: 0.05,
         durationMs: 12000,
       });
 
-      expect(result.eventCount).toBe(5);
-      expect(result.toolNames).toEqual(['Read', 'Edit']);
+      expect(result.trace.eventCount).toBe(5);
+      expect(result.trace.toolNames).toEqual(['Read', 'Edit']);
       expect(result.tokenUsage).toEqual({ input: 1000, output: 500, cached: 100 });
       expect(result.costUsd).toBe(0.05);
       expect(result.durationMs).toBe(12000);
     });
 
-    it('preserves existing summary fields', () => {
-      const summaryWithError: TraceSummary = {
-        ...baseSummary,
-        errorCount: 2,
+    it('preserves existing trace fields', () => {
+      const computedWithError: TraceComputeResult = {
+        trace: {
+          ...baseComputed.trace,
+          errorCount: 2,
+        },
       };
 
-      const result = mergeExecutionMetrics(summaryWithError, {
+      const result = mergeExecutionMetrics(computedWithError, {
         costUsd: 0.1,
       });
 
-      expect(result.errorCount).toBe(2);
+      expect(result.trace.errorCount).toBe(2);
       expect(result.costUsd).toBe(0.1);
     });
 
-    it('does not mutate the original summary', () => {
-      const result = mergeExecutionMetrics(baseSummary, {
+    it('does not mutate the original result', () => {
+      const result = mergeExecutionMetrics(baseComputed, {
         tokenUsage: { input: 1000, output: 500 },
       });
 
-      expect(baseSummary.tokenUsage).toBeUndefined();
+      expect(baseComputed.tokenUsage).toBeUndefined();
       expect(result.tokenUsage).toEqual({ input: 1000, output: 500 });
     });
   });
@@ -285,9 +287,6 @@ describe('Code Judge Metrics Integration', () => {
       toolNames: ['Read', 'Edit'],
       toolCallsByName: { Read: 2, Edit: 1 },
       errorCount: 0,
-      tokenUsage: { input: 1000, output: 500 },
-      costUsd: 0.005,
-      durationMs: 2500,
     };
 
     const result = await evaluator.evaluate({
@@ -298,6 +297,9 @@ describe('Code Judge Metrics Integration', () => {
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
       trace,
+      tokenUsage: { input: 1000, output: 500 },
+      costUsd: 0.005,
+      durationMs: 2500,
     });
 
     expect(result.score).toBe(1);
