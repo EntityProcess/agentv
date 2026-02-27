@@ -53,6 +53,12 @@ export interface RawResult {
   error?: string;
   scores?: RawEvaluatorScore[];
   trace?: RawTraceSummary;
+  // Promoted execution metrics (snake_case from JSONL)
+  token_usage?: { input: number; output: number; cached?: number };
+  cost_usd?: number;
+  duration_ms?: number;
+  start_time?: string;
+  end_time?: string;
   input?: unknown;
   output?: unknown;
   trials?: unknown[];
@@ -75,12 +81,7 @@ export interface RawTraceSummary {
   tool_names?: string[];
   tool_calls_by_name?: Record<string, number>;
   error_count?: number;
-  token_usage?: { input: number; output: number; cached?: number };
-  cost_usd?: number;
-  duration_ms?: number;
   tool_durations?: Record<string, number[]>;
-  start_time?: string;
-  end_time?: string;
   llm_call_count?: number;
 }
 

@@ -44,7 +44,7 @@ function collectMetrics(results: RawResult[]): MetricRow[] {
 
   // Latency
   const latencies = results
-    .map((r) => r.trace?.duration_ms)
+    .map((r) => r.duration_ms)
     .filter((v): v is number => v !== undefined);
   if (latencies.length > 0) {
     rows.push({
@@ -55,7 +55,7 @@ function collectMetrics(results: RawResult[]): MetricRow[] {
   }
 
   // Cost
-  const costs = results.map((r) => r.trace?.cost_usd).filter((v): v is number => v !== undefined);
+  const costs = results.map((r) => r.cost_usd).filter((v): v is number => v !== undefined);
   if (costs.length > 0) {
     rows.push({ name: 'cost_usd', values: costs, formatter: (n) => formatCost(n) });
   }
@@ -63,8 +63,8 @@ function collectMetrics(results: RawResult[]): MetricRow[] {
   // Total tokens
   const tokens = results
     .map((r) => {
-      if (!r.trace?.token_usage) return undefined;
-      return r.trace.token_usage.input + r.trace.token_usage.output;
+      if (!r.token_usage) return undefined;
+      return r.token_usage.input + r.token_usage.output;
     })
     .filter((v): v is number => v !== undefined);
   if (tokens.length > 0) {
