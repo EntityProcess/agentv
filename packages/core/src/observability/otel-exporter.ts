@@ -184,7 +184,8 @@ export class OtelTraceExporter {
         if (captureContent) rootSpan.setAttribute('agentv.answer', result.answer);
 
         // Flat execution metrics
-        if (result.durationMs != null) rootSpan.setAttribute('agentv.trace.duration_ms', result.durationMs);
+        if (result.durationMs != null)
+          rootSpan.setAttribute('agentv.trace.duration_ms', result.durationMs);
         if (result.costUsd != null) rootSpan.setAttribute('agentv.trace.cost_usd', result.costUsd);
 
         // Trace summary attributes (tool-specific)

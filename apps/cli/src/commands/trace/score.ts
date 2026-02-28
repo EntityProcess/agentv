@@ -224,7 +224,9 @@ async function runScore(
       now: new Date(),
       output: Array.isArray(output) ? output : undefined,
       trace,
-      tokenUsage: raw.token_usage ? (toCamelCaseDeep(raw.token_usage) as EvaluationContext['tokenUsage']) : undefined,
+      tokenUsage: raw.token_usage
+        ? (toCamelCaseDeep(raw.token_usage) as EvaluationContext['tokenUsage'])
+        : undefined,
       costUsd: raw.cost_usd,
       durationMs: raw.duration_ms,
       startTime: raw.start_time,
@@ -355,7 +357,13 @@ export const traceScoreCommand = command({
       evaluatorConfig.type,
     );
     if (traceRequired) {
-      const hasTrace = results.some((r) => r.trace || r.cost_usd !== undefined || r.duration_ms !== undefined || r.token_usage !== undefined);
+      const hasTrace = results.some(
+        (r) =>
+          r.trace ||
+          r.cost_usd !== undefined ||
+          r.duration_ms !== undefined ||
+          r.token_usage !== undefined,
+      );
       if (!hasTrace) {
         console.error(
           `${c.red}Error:${c.reset} Result file lacks trace data. Re-run eval with ${c.bold}--trace${c.reset} to capture trace summaries.`,

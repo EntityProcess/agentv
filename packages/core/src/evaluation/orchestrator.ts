@@ -28,7 +28,12 @@ import type {
 } from './providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
 import { createBuiltinRegistry, discoverAssertions } from './registry/index.js';
-import { type TokenUsage, type TraceSummary, computeTraceSummary, mergeExecutionMetrics } from './trace.js';
+import {
+  type TokenUsage,
+  type TraceSummary,
+  computeTraceSummary,
+  mergeExecutionMetrics,
+} from './trace.js';
 import { aggregateTrials } from './trials.js';
 import type {
   EvalTest,

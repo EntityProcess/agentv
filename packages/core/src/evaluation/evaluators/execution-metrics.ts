@@ -56,13 +56,16 @@ export class ExecutionMetricsEvaluator implements Evaluator {
       };
     }
 
+    // After the guard, trace is guaranteed to be defined when needed
+    const narrowedTrace = trace;
+
     const hits: string[] = [];
     const misses: string[] = [];
     const actualMetrics: Record<string, number | undefined> = {};
 
     // Check max_tool_calls
-    if (max_tool_calls !== undefined) {
-      const toolCalls = trace?.eventCount;
+    if (max_tool_calls !== undefined && narrowedTrace) {
+      const toolCalls = narrowedTrace.eventCount;
       actualMetrics.tool_calls = toolCalls;
 
       if (toolCalls <= max_tool_calls) {
@@ -73,8 +76,8 @@ export class ExecutionMetricsEvaluator implements Evaluator {
     }
 
     // Check max_llm_calls
-    if (max_llm_calls !== undefined) {
-      const llmCalls = trace?.llmCallCount;
+    if (max_llm_calls !== undefined && narrowedTrace) {
+      const llmCalls = narrowedTrace.llmCallCount;
 
       if (llmCalls === undefined) {
         misses.push('LLM call count data not available');
@@ -137,8 +140,8 @@ export class ExecutionMetricsEvaluator implements Evaluator {
     }
 
     // Check target_exploration_ratio
-    if (target_exploration_ratio !== undefined) {
-      const ratio = explorationRatio(trace!);
+    if (target_exploration_ratio !== undefined && narrowedTrace) {
+      const ratio = explorationRatio(narrowedTrace);
 
       if (ratio === undefined) {
         misses.push('Exploration ratio not available (no tool calls)');

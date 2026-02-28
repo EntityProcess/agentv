@@ -43,9 +43,7 @@ function collectMetrics(results: RawResult[]): MetricRow[] {
   }
 
   // Latency
-  const latencies = results
-    .map((r) => r.duration_ms)
-    .filter((v): v is number => v !== undefined);
+  const latencies = results.map((r) => r.duration_ms).filter((v): v is number => v !== undefined);
   if (latencies.length > 0) {
     rows.push({
       name: 'latency_s',

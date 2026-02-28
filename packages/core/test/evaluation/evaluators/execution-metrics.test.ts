@@ -31,9 +31,7 @@ const baseMockProvider = {
   invoke: async () => ({ output: [{ role: 'assistant' as const, content: 'test' }] }),
 };
 
-function createContext(
-  traceAndMetrics?: TraceSummary & Record<string, unknown>,
-) {
+function createContext(traceAndMetrics?: TraceSummary & Record<string, unknown>) {
   if (!traceAndMetrics) {
     return {
       evalCase: baseTestCase,
