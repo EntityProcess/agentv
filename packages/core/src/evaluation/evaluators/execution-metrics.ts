@@ -62,7 +62,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
 
     // Check max_tool_calls
     if (max_tool_calls !== undefined) {
-      const toolCalls = trace!.eventCount;
+      const toolCalls = trace?.eventCount;
       actualMetrics.tool_calls = toolCalls;
 
       if (toolCalls <= max_tool_calls) {
@@ -74,7 +74,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
 
     // Check max_llm_calls
     if (max_llm_calls !== undefined) {
-      const llmCalls = trace!.llmCallCount;
+      const llmCalls = trace?.llmCallCount;
 
       if (llmCalls === undefined) {
         misses.push('LLM call count data not available');
