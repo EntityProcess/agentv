@@ -6,7 +6,7 @@ AgentV evaluates your agents locally with multi-objective scoring (correctness, 
 
 ## Installation
 
-### Claude Plugin Manager (Canonical)
+### All Agents Plugin Manager
 
 **1. Add AgentV marketplace source:**
 ```bash
