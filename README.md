@@ -155,7 +155,10 @@ description: Math evaluation dataset
 dataset: math-tests
 execution:
   target: azure_base
-evaluator: llm_judge
+assert:
+  - name: correctness
+    type: llm_judge
+    prompt: ./judges/correctness.md
 ```
 
 Benefits: Streaming-friendly, Git-friendly diffs, programmatic generation, industry standard (DeepEval, LangWatch, Hugging Face).
