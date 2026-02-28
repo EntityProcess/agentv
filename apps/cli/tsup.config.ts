@@ -6,6 +6,7 @@ const SKILLS_TO_INCLUDE = [
   'agentv-chat-to-eval',
   'agentv-eval-builder',
   'agentv-eval-orchestrator',
+  'agentv-onboarding',
   'agentv-prompt-optimizer',
 ];
 

@@ -16,6 +16,7 @@
         "./skills/agentv-chat-to-eval",
         "./skills/agentv-eval-builder",
         "./skills/agentv-eval-orchestrator",
+        "./skills/agentv-onboarding",
         "./skills/agentv-prompt-optimizer"
       ],
       "category": "development"
