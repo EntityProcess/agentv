@@ -31,9 +31,6 @@ async function promptYesNo(message: string): Promise<boolean> {
 }
 
 export async function initCommand(options: InitCommandOptions = {}): Promise<void> {
-  console.warn(
-    'Warning: `agentv init` is deprecated and will be replaced by AI skill-driven onboarding.',
-  );
   printSkillFirstInstructions();
   const targetPath = path.resolve(options.targetPath ?? '.');
   const agentvDir = path.join(targetPath, '.agentv');
@@ -126,7 +123,7 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
 
 export const initCmdTsCommand = command({
   name: 'init',
-  description: 'Deprecated: initialize legacy AgentV bootstrap files',
+  description: 'Initialize AgentV bootstrap files in your project',
   args: {
     path: option({
       type: optional(string),
