@@ -455,36 +455,6 @@ Automatically retries on rate limits, transient 5xx errors, and network failures
 
 ## Troubleshooting
 
-### Claude plugin setup fails or onboarding skill is missing
-
-Re-run plugin-manager setup:
-
-```bash
-npx allagents plugin marketplace add EntityProcess/agentv
-npm install agentv
-```
-
-Then ask Claude again:
-
-```text
-Set up AgentV in this repo.
-```
-
-Manual recovery:
-
-```bash
-agentv init
-```
-
-Verification checks:
-
-```bash
-agentv --version
-test -f .env.example
-test -f .agentv/config.yaml
-test -f .agentv/targets.yaml
-```
-
 ### `EACCES` permission error on global install
 
 If you see `EACCES: permission denied` when running `npm install -g agentv`, npm is trying to write to a system directory. Fix this by configuring npm to use a user-owned directory:
