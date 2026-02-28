@@ -1,82 +1,12 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import * as readline from 'node:readline/promises';
-import { command, flag, option, optional, string } from 'cmd-ts';
+import { command, option, optional, string } from 'cmd-ts';
 
 import { getAgentsTemplates, getAgentvTemplates } from '../../templates/index.js';
 
 export interface InitCommandOptions {
   targetPath?: string;
-  skipExisting?: boolean;
-  replaceExisting?: boolean;
-}
-
-export type InitMode = 'prompt' | 'skip-existing' | 'replace-existing';
-
-export interface InitActionInput {
-  templatePaths: string[];
-  existingPaths: Set<string>;
-  mode: InitMode;
-}
-
-export interface InitActionPlan {
-  needsPrompt: boolean;
-  toWrite: string[];
-  toSkip: string[];
-}
-
-interface TemplateInstall {
-  relativePath: string;
-  absolutePath: string;
-  content: string;
-}
-
-function normalizePath(filePath: string): string {
-  return filePath.split(path.sep).join('/');
-}
-
-export function resolveInitMode(options: {
-  skipExisting: boolean;
-  replaceExisting: boolean;
-}): InitMode {
-  if (options.skipExisting && options.replaceExisting) {
-    throw new Error('Cannot specify both --skip-existing and --replace-existing');
-  }
-  if (options.skipExisting) {
-    return 'skip-existing';
-  }
-  if (options.replaceExisting) {
-    return 'replace-existing';
-  }
-  return 'prompt';
-}
-
-export function computeInitActions(input: InitActionInput): InitActionPlan {
-  const { templatePaths, existingPaths, mode } = input;
-
-  if (mode === 'prompt' && existingPaths.size > 0) {
-    return {
-      needsPrompt: true,
-      toWrite: [],
-      toSkip: [],
-    };
-  }
-
-  if (mode === 'replace-existing' || mode === 'prompt') {
-    return {
-      needsPrompt: false,
-      toWrite: [...templatePaths],
-      toSkip: [],
-    };
-  }
-
-  const toWrite = templatePaths.filter((templatePath) => !existingPaths.has(templatePath));
-  const toSkip = templatePaths.filter((templatePath) => existingPaths.has(templatePath));
-  return {
-    needsPrompt: false,
-    toWrite,
-    toSkip,
-  };
 }
 
 async function promptYesNo(message: string): Promise<boolean> {
@@ -95,12 +25,8 @@ async function promptYesNo(message: string): Promise<boolean> {
 
 export async function initCommand(options: InitCommandOptions = {}): Promise<void> {
   const targetPath = path.resolve(options.targetPath ?? '.');
-  const agentvDir = normalizePath(path.relative(targetPath, path.join(targetPath, '.agentv')));
-  const agentsDir = normalizePath(path.relative(targetPath, path.join(targetPath, '.agents')));
-  const initMode = resolveInitMode({
-    skipExisting: options.skipExisting ?? false,
-    replaceExisting: options.replaceExisting ?? false,
-  });
+  const agentvDir = path.join(targetPath, '.agentv');
+  const agentsDir = path.join(targetPath, '.agents');
 
   // Get templates
   const agentvTemplates = getAgentvTemplates();
@@ -110,44 +36,36 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   const envTemplate = agentvTemplates.find((t) => t.path === '.env.example');
   const otherAgentvTemplates = agentvTemplates.filter((t) => t.path !== '.env.example');
 
-  const templates: TemplateInstall[] = [];
+  // Check if any files already exist
+  const existingFiles: string[] = [];
 
+  // Check for .env.example in root
   if (envTemplate) {
-    templates.push({
-      relativePath: '.env.example',
-      absolutePath: path.join(targetPath, '.env.example'),
-      content: envTemplate.content,
-    });
+    const envFilePath = path.join(targetPath, '.env.example');
+    if (existsSync(envFilePath)) {
+      existingFiles.push('.env.example');
+    }
   }
 
-  for (const template of otherAgentvTemplates) {
-    templates.push({
-      relativePath: normalizePath(path.join('.agentv', template.path)),
-      absolutePath: path.join(targetPath, '.agentv', template.path),
-      content: template.content,
-    });
+  if (existsSync(agentvDir)) {
+    for (const template of otherAgentvTemplates) {
+      const targetFilePath = path.join(agentvDir, template.path);
+      if (existsSync(targetFilePath)) {
+        existingFiles.push(path.relative(targetPath, targetFilePath));
+      }
+    }
+  }
+  if (existsSync(agentsDir)) {
+    for (const template of agentsTemplates) {
+      const targetFilePath = path.join(agentsDir, template.path);
+      if (existsSync(targetFilePath)) {
+        existingFiles.push(path.relative(targetPath, targetFilePath));
+      }
+    }
   }
 
-  for (const template of agentsTemplates) {
-    templates.push({
-      relativePath: normalizePath(path.join('.agents', template.path)),
-      absolutePath: path.join(targetPath, '.agents', template.path),
-      content: template.content,
-    });
-  }
-
-  const existingFiles = templates
-    .map((template) => template.relativePath)
-    .filter((relativePath) => existsSync(path.join(targetPath, relativePath)));
-  const existingFilesSet = new Set(existingFiles);
-  const templatePaths = templates.map((template) => template.relativePath);
-  let actionPlan = computeInitActions({
-    templatePaths,
-    existingPaths: existingFilesSet,
-    mode: initMode,
-  });
-
-  if (actionPlan.needsPrompt) {
+  // If files exist, prompt user
+  if (existingFiles.length > 0) {
     console.log('We detected an existing setup:');
     for (const file of existingFiles) {
       console.log(`  - ${file}`);
@@ -160,57 +78,68 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
       return;
     }
     console.log();
-
-    actionPlan = computeInitActions({
-      templatePaths,
-      existingPaths: existingFilesSet,
-      mode: 'replace-existing',
-    });
   }
 
-  const filesToWrite = new Set(actionPlan.toWrite);
-  const filesToSkip = new Set(actionPlan.toSkip);
-  let createdCount = 0;
-  let replacedCount = 0;
-  let skippedCount = 0;
+  // Create .agentv directory if it doesn't exist
+  if (!existsSync(agentvDir)) {
+    mkdirSync(agentvDir, { recursive: true });
+  }
 
-  for (const template of templates) {
-    if (filesToSkip.has(template.relativePath)) {
-      console.log(`Skipped existing ${template.relativePath}`);
-      skippedCount += 1;
-      continue;
-    }
+  // Create .agents directory if it doesn't exist
+  if (!existsSync(agentsDir)) {
+    mkdirSync(agentsDir, { recursive: true });
+  }
 
-    if (!filesToWrite.has(template.relativePath)) {
-      continue;
-    }
+  // Create .env.example in the current working directory
+  if (envTemplate) {
+    const envFilePath = path.join(targetPath, '.env.example');
+    writeFileSync(envFilePath, envTemplate.content, 'utf-8');
+    console.log('Created .env.example');
+  }
 
-    const targetDirPath = path.dirname(template.absolutePath);
+  // Copy remaining .agentv templates (excluding .env.example)
+  for (const template of otherAgentvTemplates) {
+    const targetFilePath = path.join(agentvDir, template.path);
+    const targetDirPath = path.dirname(targetFilePath);
+
+    // Create directory if needed
     if (!existsSync(targetDirPath)) {
       mkdirSync(targetDirPath, { recursive: true });
     }
 
-    const wasExisting = existingFilesSet.has(template.relativePath);
-    writeFileSync(template.absolutePath, template.content, 'utf-8');
-    if (wasExisting) {
-      console.log(`Replaced ${template.relativePath}`);
-      replacedCount += 1;
-    } else {
-      console.log(`Created ${template.relativePath}`);
-      createdCount += 1;
-    }
+    // Write file
+    writeFileSync(targetFilePath, template.content, 'utf-8');
+    console.log(`Created ${path.relative(targetPath, targetFilePath)}`);
   }
 
-  if (filesToWrite.size === 0 && filesToSkip.size > 0) {
-    console.log('\nAgentV initialization complete (no changes required).');
-  } else {
-    console.log('\nAgentV initialized successfully!');
+  // Copy each .agents template
+  for (const template of agentsTemplates) {
+    const targetFilePath = path.join(agentsDir, template.path);
+    const targetDirPath = path.dirname(targetFilePath);
+
+    // Create directory if needed
+    if (!existsSync(targetDirPath)) {
+      mkdirSync(targetDirPath, { recursive: true });
+    }
+
+    // Write file
+    writeFileSync(targetFilePath, template.content, 'utf-8');
+    console.log(`Created ${path.relative(targetPath, targetFilePath)}`);
   }
-  console.log('\nSummary:');
-  console.log(`  - created: ${createdCount}`);
-  console.log(`  - replaced: ${replacedCount}`);
-  console.log(`  - skipped: ${skippedCount}`);
-  console.log(`\nFiles managed in ${agentvDir} and ${agentsDir}.`);
+
+  console.log('\nAgentV initialized successfully!');
+  console.log('\nFiles installed to root:');
+  if (envTemplate) {
+    console.log('  - .env.example');
+  }
+  console.log(`\nFiles installed to ${path.relative(targetPath, agentvDir)}:`);
+  for (const t of otherAgentvTemplates) {
+    console.log(`  - ${t.path}`);
+  }
+  console.log(`\nFiles installed to ${path.relative(targetPath, agentsDir)}:`);
+  for (const t of agentsTemplates) {
+    console.log(`  - ${t.path}`);
+  }
   console.log('\nYou can now:');
   console.log('  1. Copy .env.example to .env and add your API credentials');
   console.log('  2. Configure targets in .agentv/targets.yaml');
@@ -226,18 +155,10 @@ export const initCmdTsCommand = command({
       long: 'path',
       description: 'Target directory for initialization (default: current directory)',
     }),
-    skipExisting: flag({
-      long: 'skip-existing',
-      description: 'Create only missing files and keep existing files unchanged',
-    }),
-    replaceExisting: flag({
-      long: 'replace-existing',
-      description: 'Replace existing files without prompting',
-    }),
   },
-  handler: async ({ path: targetPath, skipExisting, replaceExisting }) => {
+  handler: async ({ path: targetPath }) => {
     try {
-      await initCommand({ targetPath, skipExisting, replaceExisting });
+      await initCommand({ targetPath });
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
       process.exit(1);

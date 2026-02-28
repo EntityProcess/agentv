@@ -28,9 +28,9 @@ Set up AgentV in this repo.
 
 The `agentv-onboarding` skill bootstraps setup automatically:
 - verifies `agentv` CLI availability
-- installs or updates the CLI if needed
-- runs `agentv init --skip-existing` (idempotent; preserves existing files)
-- reports what was created, replaced, or skipped
+- installs the CLI if needed
+- runs `agentv init`
+- verifies setup artifacts
 
 ### CLI-Only Setup (Fallback)
 
@@ -43,7 +43,7 @@ npm install -g agentv
 
 **2. Initialize your workspace:**
 ```bash
-agentv init --skip-existing
+agentv init
 ```
 
 **3. Configure environment variables:**
@@ -442,7 +442,7 @@ Automatically retries on rate limits, transient 5xx errors, and network failures
 ## Documentation & Learning
 
 **Getting Started:**
-- Run `agentv init --skip-existing` to set up your first evaluation workspace
+- Run `agentv init` to set up your first evaluation workspace
 - Check [examples/README.md](examples/README.md) for demos (math, code generation, tool use)
 - AI agents: Ask Claude Code to `/agentv-eval-builder` to create and iterate on evals
 
@@ -477,10 +477,10 @@ Then ask Claude again:
 Set up AgentV in this repo.
 ```
 
-Manual recovery (same idempotent bootstrap used by the onboarding skill):
+Manual recovery:
 
 ```bash
-agentv init --skip-existing
+agentv init
 ```
 
 Verification checks:
@@ -488,8 +488,8 @@ Verification checks:
 ```bash
 agentv --version
 test -f .env.example
+test -f .agentv/config.yaml
 test -f .agentv/targets.yaml
-test -f .agents/skills/agentv-onboarding/SKILL.md
 ```
 
 ### `EACCES` permission error on global install

@@ -29,8 +29,8 @@ Set up AgentV in this repo.
 
 The onboarding skill will:
 - verify `agentv` CLI availability
-- install or update `agentv` if needed
-- run `agentv init --skip-existing` (idempotent)
+- install `agentv` if needed
+- run `agentv init`
 - verify setup artifacts
 
 ## CLI-Only Setup (Fallback)
@@ -39,7 +39,7 @@ If you are not using Claude plugins:
 
 ```bash
 npm install -g agentv
-agentv init --skip-existing
+agentv init
 ```
 
 Verify the CLI:
@@ -51,14 +51,14 @@ agentv --version
 ## Verify Workspace Files
 
 After setup, you should have:
+- `.agentv/config.yaml`
 - `.agentv/targets.yaml`
 - `.env.example`
-- `.agents/skills/agentv-onboarding/SKILL.md`
 
 ```bash
 test -f .env.example
+test -f .agentv/config.yaml
 test -f .agentv/targets.yaml
-test -f .agents/skills/agentv-onboarding/SKILL.md
 ```
 
 ## Troubleshooting
@@ -80,8 +80,8 @@ Set up AgentV in this repo.
 
 ### Recover setup manually
 
-Run the same idempotent bootstrap command used by the skill:
+Run:
 
 ```bash
-agentv init --skip-existing
+agentv init
 ```
