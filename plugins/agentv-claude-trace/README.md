@@ -23,16 +23,6 @@ claude plugin marketplace add EntityProcess/agentv
 claude plugin install agentv-claude-trace@agentv
 ```
 
-### Local Development Fallback (manual symlink)
-
-Use this only when iterating on the plugin locally:
-
-```bash
-cd plugins/agentv-claude-trace
-bun install
-ln -s "$(pwd)" ~/.claude/plugins/agentv-claude-trace
-```
-
 ## Configuration
 
 Set environment variables to configure the tracing backend.
