@@ -3,10 +3,17 @@ import path from 'node:path';
 import * as readline from 'node:readline/promises';
 import { command, option, optional, string } from 'cmd-ts';
 
-import { getAgentsTemplates, getAgentvTemplates } from '../../templates/index.js';
+import { getAgentvTemplates } from '../../templates/index.js';
 
 export interface InitCommandOptions {
   targetPath?: string;
+}
+
+function printSkillFirstInstructions(): void {
+  console.log('\nAI-skills-first setup (recommended):');
+  console.log('  npx allagents plugin marketplace add EntityProcess/agentv');
+  console.log('  npx allagents plugin install agentv-dev@agentv');
+  console.log('  Then ask your agent: "Set up AgentV in this repo."');
 }
 
 async function promptYesNo(message: string): Promise<boolean> {
@@ -24,13 +31,15 @@ async function promptYesNo(message: string): Promise<boolean> {
 }
 
 export async function initCommand(options: InitCommandOptions = {}): Promise<void> {
+  console.warn(
+    'Warning: `agentv init` is deprecated and will be replaced by AI skill-driven onboarding.',
+  );
+  printSkillFirstInstructions();
   const targetPath = path.resolve(options.targetPath ?? '.');
   const agentvDir = path.join(targetPath, '.agentv');
-  const agentsDir = path.join(targetPath, '.agents');
 
-  // Get templates
+  // Get templates for legacy bootstrap files only.
   const agentvTemplates = getAgentvTemplates();
-  const agentsTemplates = getAgentsTemplates();
 
   // Separate .env.example from other .agentv templates
   const envTemplate = agentvTemplates.find((t) => t.path === '.env.example');
@@ -55,15 +64,6 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
       }
     }
   }
-  if (existsSync(agentsDir)) {
-    for (const template of agentsTemplates) {
-      const targetFilePath = path.join(agentsDir, template.path);
-      if (existsSync(targetFilePath)) {
-        existingFiles.push(path.relative(targetPath, targetFilePath));
-      }
-    }
-  }
-
   // If files exist, prompt user
   if (existingFiles.length > 0) {
     console.log('We detected an existing setup:');
@@ -75,6 +75,7 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     const shouldReplace = await promptYesNo('Do you want to replace these files?');
     if (!shouldReplace) {
       console.log('\nInit cancelled. No files were changed.');
+      printSkillFirstInstructions();
       return;
     }
     console.log();
@@ -83,11 +84,6 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   // Create .agentv directory if it doesn't exist
   if (!existsSync(agentvDir)) {
     mkdirSync(agentvDir, { recursive: true });
-  }
-
-  // Create .agents directory if it doesn't exist
-  if (!existsSync(agentsDir)) {
-    mkdirSync(agentsDir, { recursive: true });
   }
 
   // Create .env.example in the current working directory
@@ -112,21 +108,6 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
     console.log(`Created ${path.relative(targetPath, targetFilePath)}`);
   }
 
-  // Copy each .agents template
-  for (const template of agentsTemplates) {
-    const targetFilePath = path.join(agentsDir, template.path);
-    const targetDirPath = path.dirname(targetFilePath);
-
-    // Create directory if needed
-    if (!existsSync(targetDirPath)) {
-      mkdirSync(targetDirPath, { recursive: true });
-    }
-
-    // Write file
-    writeFileSync(targetFilePath, template.content, 'utf-8');
-    console.log(`Created ${path.relative(targetPath, targetFilePath)}`);
-  }
-
   console.log('\nAgentV initialized successfully!');
   console.log('\nFiles installed to root:');
   if (envTemplate) {
@@ -136,19 +117,16 @@ export async function initCommand(options: InitCommandOptions = {}): Promise<voi
   for (const t of otherAgentvTemplates) {
     console.log(`  - ${t.path}`);
   }
-  console.log(`\nFiles installed to ${path.relative(targetPath, agentsDir)}:`);
-  for (const t of agentsTemplates) {
-    console.log(`  - ${t.path}`);
-  }
   console.log('\nYou can now:');
   console.log('  1. Copy .env.example to .env and add your API credentials');
   console.log('  2. Configure targets in .agentv/targets.yaml');
-  console.log('  3. Create eval files using the schema and prompt templates');
+  console.log('  3. Use AI skills to create and run evals');
+  printSkillFirstInstructions();
 }
 
 export const initCmdTsCommand = command({
   name: 'init',
-  description: 'Initialize AgentV in your project (installs config files and skills)',
+  description: 'Deprecated: initialize legacy AgentV bootstrap files',
   args: {
     path: option({
       type: optional(string),
