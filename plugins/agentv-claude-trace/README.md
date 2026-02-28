@@ -19,11 +19,17 @@ Hooks into Claude Code's lifecycle events (session start/end, user prompts, tool
 ## Installation
 
 ```bash
-# Install dependencies
+npx allagents plugin marketplace add EntityProcess/agentv
+npx allagents plugin install agentv-claude-trace@agentv
+```
+
+### Local Development Fallback (manual symlink)
+
+Use this only when iterating on the plugin locally:
+
+```bash
 cd plugins/agentv-claude-trace
 bun install
-
-# Symlink into Claude Code plugins directory
 ln -s "$(pwd)" ~/.claude/plugins/agentv-claude-trace
 ```
 

@@ -6,6 +6,36 @@ AgentV evaluates your agents locally with multi-objective scoring (correctness, 
 
 ## Installation
 
+### Claude Plugin Manager (Canonical)
+
+**1. Add AgentV marketplace source:**
+```bash
+npx allagents plugin marketplace add EntityProcess/agentv
+```
+
+**2. Install the AgentV development plugin:**
+```bash
+npx allagents plugin install agentv-dev@agentv
+```
+
+`npx allagents` uses the same plugin command surface as `claude` and `copilot`.
+
+**3. Ask Claude to set up AgentV in your current repository**
+Example prompt:
+```text
+Set up AgentV in this repo.
+```
+
+The `agentv-onboarding` skill bootstraps setup automatically:
+- verifies `agentv` CLI availability
+- installs or updates the CLI if needed
+- runs `agentv init --skip-existing` (idempotent; preserves existing files)
+- reports what was created, replaced, or skipped
+
+### CLI-Only Setup (Fallback)
+
+If you are not using Claude plugins, use the CLI directly.
+
 **1. Install:**
 ```bash
 npm install -g agentv
@@ -13,7 +43,7 @@ npm install -g agentv
 
 **2. Initialize your workspace:**
 ```bash
-agentv init
+agentv init --skip-existing
 ```
 
 **3. Configure environment variables:**
@@ -54,7 +84,7 @@ Learn more in the [examples/](examples/README.md) directory. For a detailed comp
 
 | Feature | AgentV | [LangWatch](https://github.com/langwatch/langwatch) | [LangSmith](https://github.com/langchain-ai/langsmith-sdk) | [LangFuse](https://github.com/langfuse/langfuse) |
 |---------|--------|-----------|-----------|----------|
-| **Setup** | `npm install` | Cloud account + API key | Cloud account + API key | Cloud account + API key |
+| **Setup** | `npx allagents plugin install` | Cloud account + API key | Cloud account + API key | Cloud account + API key |
 | **Server** | None (local) | Managed cloud | Managed cloud | Managed cloud |
 | **Privacy** | All local | Cloud-hosted | Cloud-hosted | Cloud-hosted |
 | **CLI-first** | ✓ | ✗ | Limited | Limited |
@@ -412,7 +442,7 @@ Automatically retries on rate limits, transient 5xx errors, and network failures
 ## Documentation & Learning
 
 **Getting Started:**
-- Run `agentv init` to set up your first evaluation workspace
+- Run `agentv init --skip-existing` to set up your first evaluation workspace
 - Check [examples/README.md](examples/README.md) for demos (math, code generation, tool use)
 - AI agents: Ask Claude Code to `/agentv-eval-builder` to create and iterate on evals
 
@@ -431,6 +461,36 @@ Automatically retries on rate limits, transient 5xx errors, and network failures
 - Monorepo structure: `packages/core/` (engine), `packages/eval/` (evaluation logic), `apps/cli/` (commands)
 
 ## Troubleshooting
+
+### Claude plugin setup fails or onboarding skill is missing
+
+Re-run plugin-manager setup:
+
+```bash
+npx allagents plugin marketplace add EntityProcess/agentv
+npx allagents plugin install agentv-dev@agentv
+```
+
+Then ask Claude again:
+
+```text
+Set up AgentV in this repo.
+```
+
+Manual recovery (same idempotent bootstrap used by the onboarding skill):
+
+```bash
+agentv init --skip-existing
+```
+
+Verification checks:
+
+```bash
+agentv --version
+test -f .env.example
+test -f .agentv/targets.yaml
+test -f .agents/skills/agentv-onboarding/SKILL.md
+```
 
 ### `EACCES` permission error on global install
 

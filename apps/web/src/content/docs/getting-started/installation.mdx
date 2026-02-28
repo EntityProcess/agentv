@@ -1,37 +1,87 @@
 ---
 title: Installation
-description: Install AgentV CLI
+description: Install AgentV with Claude plugin manager or CLI
 sidebar:
   order: 2
 ---
 
 ## Prerequisites
 
+- **Claude Code** with plugin manager support
 - **Node.js** 20 or later
 
-## Install
+## Canonical Setup (Claude Plugin Manager)
 
-Install AgentV globally via npm:
+Install the AgentV marketplace and plugin:
+
+```bash
+npx allagents plugin marketplace add EntityProcess/agentv
+npx allagents plugin install agentv-dev@agentv
+```
+
+`npx allagents` is command-surface compatible with `claude` and `copilot`.
+
+Then ask Claude to bootstrap AgentV in your current repository:
+
+```text
+Set up AgentV in this repo.
+```
+
+The onboarding skill will:
+- verify `agentv` CLI availability
+- install or update `agentv` if needed
+- run `agentv init --skip-existing` (idempotent)
+- verify setup artifacts
+
+## CLI-Only Setup (Fallback)
+
+If you are not using Claude plugins:
 
 ```bash
 npm install -g agentv
+agentv init --skip-existing
 ```
 
-Verify the installation:
+Verify the CLI:
 
 ```bash
 agentv --version
 ```
 
-## Initialize a Workspace
+## Verify Workspace Files
 
-Set up your first evaluation workspace:
+After setup, you should have:
+- `.agentv/targets.yaml`
+- `.env.example`
+- `.agents/skills/agentv-onboarding/SKILL.md`
 
 ```bash
-agentv init
+test -f .env.example
+test -f .agentv/targets.yaml
+test -f .agents/skills/agentv-onboarding/SKILL.md
 ```
 
-This creates:
+## Troubleshooting
 
-- `.agentv/targets.yaml` — target configurations for providers and agents
-- `.env.example` — template for environment variables (API keys, endpoints)
+### Plugin installed but setup skill does not run
+
+Reinstall and retry:
+
+```bash
+npx allagents plugin marketplace add EntityProcess/agentv
+npx allagents plugin install agentv-dev@agentv
+```
+
+Then ask Claude:
+
+```text
+Set up AgentV in this repo.
+```
+
+### Recover setup manually
+
+Run the same idempotent bootstrap command used by the skill:
+
+```bash
+agentv init --skip-existing
+```
