@@ -6,6 +6,29 @@ AgentV evaluates your agents locally with multi-objective scoring (correctness, 
 
 ## Installation
 
+### All Agents Plugin Manager
+
+**1. Add AgentV marketplace source:**
+```bash
+npx allagents plugin marketplace add EntityProcess/agentv
+```
+
+**2. Ask Claude to set up AgentV in your current repository**
+Example prompt:
+```text
+Set up AgentV in this repo.
+```
+
+The `agentv-onboarding` skill bootstraps setup automatically:
+- verifies `agentv` CLI availability
+- installs the CLI if needed
+- runs `agentv init`
+- verifies setup artifacts
+
+### CLI-Only Setup (Fallback)
+
+If you are not using Claude plugins, use the CLI directly.
+
 **1. Install:**
 ```bash
 npm install -g agentv
@@ -54,7 +77,7 @@ Learn more in the [examples/](examples/README.md) directory. For a detailed comp
 
 | Feature | AgentV | [LangWatch](https://github.com/langwatch/langwatch) | [LangSmith](https://github.com/langchain-ai/langsmith-sdk) | [LangFuse](https://github.com/langfuse/langfuse) |
 |---------|--------|-----------|-----------|----------|
-| **Setup** | `npm install` | Cloud account + API key | Cloud account + API key | Cloud account + API key |
+| **Setup** | `npm install agentv` | Cloud account + API key | Cloud account + API key | Cloud account + API key |
 | **Server** | None (local) | Managed cloud | Managed cloud | Managed cloud |
 | **Privacy** | All local | Cloud-hosted | Cloud-hosted | Cloud-hosted |
 | **CLI-first** | ✓ | ✗ | Limited | Limited |
@@ -132,7 +155,10 @@ description: Math evaluation dataset
 dataset: math-tests
 execution:
   target: azure_base
-evaluator: llm_judge
+assert:
+  - name: correctness
+    type: llm_judge
+    prompt: ./judges/correctness.md
 ```
 
 Benefits: Streaming-friendly, Git-friendly diffs, programmatic generation, industry standard (DeepEval, LangWatch, Hugging Face).

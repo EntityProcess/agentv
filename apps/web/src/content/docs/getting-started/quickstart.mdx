@@ -7,13 +7,20 @@ sidebar:
 
 Follow these steps to create and run your first evaluation.
 
-## 1. Install AgentV
+## 1. Install AgentV plugin
 
 ```bash
-npm install -g agentv
+npx allagents plugin marketplace add EntityProcess/agentv
+npx allagents plugin install agentv-dev@agentv
 ```
 
-## 2. Initialize your workspace
+## 2. Ask Claude to bootstrap AgentV in this repo
+
+```text
+Set up AgentV in this repo.
+```
+
+The onboarding skill ensures CLI/setup prerequisites and runs:
 
 ```bash
 agentv init
@@ -63,3 +70,4 @@ Results appear in `.agentv/results/eval_<timestamp>.jsonl` with scores, reasonin
 - Learn about [eval file formats](/evaluation/eval-files/)
 - Configure [targets](/targets/configuration/) for different providers
 - Create [custom evaluators](/evaluators/custom-evaluators/)
+- If setup drifts, rerun: `agentv init`

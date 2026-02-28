@@ -19,12 +19,8 @@ Hooks into Claude Code's lifecycle events (session start/end, user prompts, tool
 ## Installation
 
 ```bash
-# Install dependencies
-cd plugins/agentv-claude-trace
-bun install
-
-# Symlink into Claude Code plugins directory
-ln -s "$(pwd)" ~/.claude/plugins/agentv-claude-trace
+claude plugin marketplace add EntityProcess/agentv
+claude plugin install agentv-claude-trace@agentv
 ```
 
 ## Configuration
