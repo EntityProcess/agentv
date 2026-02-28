@@ -13,12 +13,10 @@ AgentV evaluates your agents locally with multi-objective scoring (correctness, 
 npx allagents plugin marketplace add EntityProcess/agentv
 ```
 
-**2. Install the AgentV development plugin:**
+**2. Install AgentV:**
 ```bash
-npx allagents plugin install agentv-dev@agentv
+npm install agentv
 ```
-
-`npx allagents` uses the same plugin command surface as `claude` and `copilot`.
 
 **3. Ask Claude to set up AgentV in your current repository**
 Example prompt:
@@ -84,7 +82,7 @@ Learn more in the [examples/](examples/README.md) directory. For a detailed comp
 
 | Feature | AgentV | [LangWatch](https://github.com/langwatch/langwatch) | [LangSmith](https://github.com/langchain-ai/langsmith-sdk) | [LangFuse](https://github.com/langfuse/langfuse) |
 |---------|--------|-----------|-----------|----------|
-| **Setup** | `npx allagents plugin install` | Cloud account + API key | Cloud account + API key | Cloud account + API key |
+| **Setup** | `npm install agentv` | Cloud account + API key | Cloud account + API key | Cloud account + API key |
 | **Server** | None (local) | Managed cloud | Managed cloud | Managed cloud |
 | **Privacy** | All local | Cloud-hosted | Cloud-hosted | Cloud-hosted |
 | **CLI-first** | ✓ | ✗ | Limited | Limited |
@@ -468,7 +466,7 @@ Re-run plugin-manager setup:
 
 ```bash
 npx allagents plugin marketplace add EntityProcess/agentv
-npx allagents plugin install agentv-dev@agentv
+npm install agentv
 ```
 
 Then ask Claude again:
