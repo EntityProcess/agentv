@@ -13,12 +13,7 @@ AgentV evaluates your agents locally with multi-objective scoring (correctness, 
 npx allagents plugin marketplace add EntityProcess/agentv
 ```
 
-**2. Install AgentV:**
-```bash
-npm install agentv
-```
-
-**3. Ask Claude to set up AgentV in your current repository**
+**2. Ask Claude to set up AgentV in your current repository**
 Example prompt:
 ```text
 Set up AgentV in this repo.
