@@ -7,7 +7,7 @@ export interface LatencyEvaluatorOptions {
 
 /**
  * Evaluator that checks execution duration against a threshold.
- * Uses trace.durationMs from the evaluation context.
+ * Uses durationMs from the evaluation context.
  */
 export class LatencyEvaluator implements Evaluator {
   readonly kind = 'latency';

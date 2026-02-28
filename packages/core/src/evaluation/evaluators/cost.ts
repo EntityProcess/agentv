@@ -7,7 +7,7 @@ export interface CostEvaluatorOptions {
 
 /**
  * Evaluator that checks execution cost against a budget.
- * Uses trace.costUsd from the evaluation context.
+ * Uses costUsd from the evaluation context.
  */
 export class CostEvaluator implements Evaluator {
   readonly kind = 'cost';
