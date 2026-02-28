@@ -16,52 +16,48 @@ Set up AgentV in the current workspace:
 
 ## Workflow
 
-### 1. Verify `agentv` CLI
+### 1. Resolve Script Path
 
-Run:
+Find the directory that contains this `SKILL.md`, then resolve script paths relative to it.
 
-```bash
-agentv --version
-```
+Packaged scripts:
+- `scripts/onboard-agentv.sh` for bash/zsh
+- `scripts/onboard-agentv.ps1` for PowerShell
 
-If command is missing:
+### 2. Run the Platform Script
 
-```bash
-if command -v bun >/dev/null 2>&1; then
-  bun add -g agentv@latest
-else
-  npm install -g agentv@latest
-fi
-```
+Run from the repository root where AgentV should be initialized.
 
-### 2. Bootstrap Workspace
-
-Run:
+POSIX shells:
 
 ```bash
-agentv init
+bash <skill-dir>/scripts/onboard-agentv.sh
 ```
 
-### 3. Verify Expected Artifacts
+PowerShell:
 
-Check:
-
-```bash
-test -f .env.example
-test -f .agentv/config.yaml
-test -f .agentv/targets.yaml
+```powershell
+pwsh -File <skill-dir>/scripts/onboard-agentv.ps1
 ```
 
-If any check fails, report which files are missing and rerun `agentv init`.
+If `pwsh` is unavailable on Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File <skill-dir>/scripts/onboard-agentv.ps1
+```
+
+### 3. Handle Errors
+
+If the script fails, report the exact error and stop. Do not claim setup succeeded.
 
 ### 4. Report Outcome Clearly
 
 Summarize:
 - `agentv` version in use
-- whether CLI was installed
+- whether CLI was installed during this run
 - whether `agentv init` completed
 - whether setup verification passed
 
 ## Re-run Behavior
 
-If setup is re-run in a repo with existing AgentV files, `agentv init` may prompt before replacing files.
+Re-running is safe. The scripts run `agentv init`, and if setup artifacts are still missing they rerun once automatically before failing.
