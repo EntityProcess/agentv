@@ -19,8 +19,8 @@ Hooks into Claude Code's lifecycle events (session start/end, user prompts, tool
 ## Installation
 
 ```bash
-npx allagents plugin marketplace add EntityProcess/agentv
-npx allagents plugin install agentv-claude-trace@agentv
+claude plugin marketplace add EntityProcess/agentv
+claude plugin install agentv-claude-trace@agentv
 ```
 
 ### Local Development Fallback (manual symlink)
