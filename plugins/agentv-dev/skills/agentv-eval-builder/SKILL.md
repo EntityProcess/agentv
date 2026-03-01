@@ -193,7 +193,7 @@ Configure via `assert` array. Multiple evaluators produce a weighted average sco
   target: {}              # optional: enable LLM target proxy (max_calls: 50)
 ```
 Contract: stdin JSON -> stdout JSON `{score, hits, misses, reasoning}`
-Input includes: `question`, `criteria`, `answer`, `reference_answer`, `output`, `trace`, `file_changes`, `workspace_path`, `config`
+Input includes: `question`, `criteria`, `answer`, `reference_answer`, `output`, `trace`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, `end_time`, `file_changes`, `workspace_path`, `config`
 When `workspace_template` is configured, `workspace_path` is the absolute path to the workspace dir (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the workspace).
 See docs at https://agentv.dev/evaluators/code-judges/
 
