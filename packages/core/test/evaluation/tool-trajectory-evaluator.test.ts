@@ -84,7 +84,7 @@ describe('ToolTrajectoryEvaluator', () => {
           ],
         },
       ];
-      const summary = computeTraceSummary(output);
+      const { trace } = computeTraceSummary(output);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -96,7 +96,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          trace: summary,
+          trace,
         }),
       );
 
@@ -113,7 +113,7 @@ describe('ToolTrajectoryEvaluator', () => {
           toolCalls: [{ tool: 'search' }, { tool: 'analyze' }],
         },
       ];
-      const summary = computeTraceSummary(output);
+      const { trace } = computeTraceSummary(output);
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
@@ -125,7 +125,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const result = evaluator.evaluate(
         createContext({
-          trace: summary,
+          trace,
         }),
       );
 

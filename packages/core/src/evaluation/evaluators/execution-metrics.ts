@@ -24,7 +24,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
   }
 
   evaluate(context: EvaluationContext): EvaluationScore {
-    const { trace } = context;
+    const { trace, tokenUsage, costUsd, durationMs } = context;
     const {
       max_tool_calls,
       max_llm_calls,
@@ -35,8 +35,12 @@ export class ExecutionMetricsEvaluator implements Evaluator {
       exploration_tolerance = 0.2,
     } = this.config;
 
-    // If no trace summary, we can't evaluate
-    if (!trace) {
+    // Guard: need trace for tool-specific checks
+    const needsTrace =
+      max_tool_calls !== undefined ||
+      max_llm_calls !== undefined ||
+      target_exploration_ratio !== undefined;
+    if (needsTrace && !trace) {
       return {
         score: 0,
         verdict: 'fail',
@@ -52,13 +56,16 @@ export class ExecutionMetricsEvaluator implements Evaluator {
       };
     }
 
+    // After the guard, trace is guaranteed to be defined when needed
+    const narrowedTrace = trace;
+
     const hits: string[] = [];
     const misses: string[] = [];
     const actualMetrics: Record<string, number | undefined> = {};
 
     // Check max_tool_calls
-    if (max_tool_calls !== undefined) {
-      const toolCalls = trace.eventCount;
+    if (max_tool_calls !== undefined && narrowedTrace) {
+      const toolCalls = narrowedTrace.eventCount;
       actualMetrics.tool_calls = toolCalls;
 
       if (toolCalls <= max_tool_calls) {
@@ -69,8 +76,8 @@ export class ExecutionMetricsEvaluator implements Evaluator {
     }
 
     // Check max_llm_calls
-    if (max_llm_calls !== undefined) {
-      const llmCalls = trace.llmCallCount;
+    if (max_llm_calls !== undefined && narrowedTrace) {
+      const llmCalls = narrowedTrace.llmCallCount;
 
       if (llmCalls === undefined) {
         misses.push('LLM call count data not available');
@@ -87,8 +94,6 @@ export class ExecutionMetricsEvaluator implements Evaluator {
 
     // Check max_tokens
     if (max_tokens !== undefined) {
-      const tokenUsage = trace.tokenUsage;
-
       if (!tokenUsage) {
         misses.push('Token usage data not available');
       } else {
@@ -105,8 +110,6 @@ export class ExecutionMetricsEvaluator implements Evaluator {
 
     // Check max_cost_usd
     if (max_cost_usd !== undefined) {
-      const costUsd = trace.costUsd;
-
       if (costUsd === undefined) {
         misses.push('Cost data not available');
       } else {
@@ -123,8 +126,6 @@ export class ExecutionMetricsEvaluator implements Evaluator {
 
     // Check max_duration_ms
     if (max_duration_ms !== undefined) {
-      const durationMs = trace.durationMs;
-
       if (durationMs === undefined) {
         misses.push('Duration data not available');
       } else {
@@ -139,8 +140,8 @@ export class ExecutionMetricsEvaluator implements Evaluator {
     }
 
     // Check target_exploration_ratio
-    if (target_exploration_ratio !== undefined) {
-      const ratio = explorationRatio(trace);
+    if (target_exploration_ratio !== undefined && narrowedTrace) {
+      const ratio = explorationRatio(narrowedTrace);
 
       if (ratio === undefined) {
         misses.push('Exploration ratio not available (no tool calls)');

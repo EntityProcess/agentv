@@ -685,6 +685,16 @@ export interface EvaluationResult {
   readonly answer: string;
   readonly target: string;
   readonly reasoning?: string;
+  /** Token usage metrics from provider (optional) */
+  readonly tokenUsage?: TokenUsage;
+  /** Total cost in USD (optional, from provider) */
+  readonly costUsd?: number;
+  /** Total execution duration in milliseconds (optional) */
+  readonly durationMs?: number;
+  /** ISO 8601 timestamp when execution started */
+  readonly startTime?: string;
+  /** ISO 8601 timestamp when execution ended */
+  readonly endTime?: string;
   readonly requests?: {
     readonly agent?: JsonObject;
     readonly lm?: JsonObject;

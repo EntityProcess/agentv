@@ -5,8 +5,8 @@ const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
 const summary = input.trace;
 const hasEventCount = summary && typeof summary.event_count === 'number';
-const hasTokenUsage = summary?.token_usage && typeof summary.token_usage.input === 'number';
-const hasCostUsd = summary && typeof summary.cost_usd === 'number';
+const hasTokenUsage = input.token_usage && typeof input.token_usage.input === 'number';
+const hasCostUsd = typeof input.cost_usd === 'number';
 const score = hasEventCount && hasTokenUsage && hasCostUsd ? 1 : 0;
 
 console.log(

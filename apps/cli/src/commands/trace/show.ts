@@ -1,7 +1,6 @@
 import { command, flag, oneOf, option, optional, positional, string } from 'cmd-ts';
 import {
   type RawResult,
-  type RawTraceSummary,
   c,
   formatCost,
   formatDuration,
@@ -13,10 +12,11 @@ import {
 /**
  * Render flat trace summary line (fallback when full output messages not available).
  */
-function renderFlatTrace(trace: RawTraceSummary): string {
+function renderFlatTrace(result: RawResult): string {
+  const trace = result.trace;
   const parts: string[] = [];
 
-  if (trace.tool_names && trace.tool_names.length > 0) {
+  if (trace?.tool_names && trace.tool_names.length > 0) {
     const toolParts = trace.tool_names.map((name) => {
       const count = trace.tool_calls_by_name?.[name] ?? 0;
       return count > 1 ? `${name} ×${count}` : name;
@@ -24,20 +24,20 @@ function renderFlatTrace(trace: RawTraceSummary): string {
     parts.push(`Tools: ${toolParts.join(', ')}`);
   }
 
-  if (trace.duration_ms !== undefined) {
-    parts.push(`Duration: ${formatDuration(trace.duration_ms)}`);
+  if (result.duration_ms !== undefined) {
+    parts.push(`Duration: ${formatDuration(result.duration_ms)}`);
   }
 
-  if (trace.token_usage) {
-    const total = trace.token_usage.input + trace.token_usage.output;
+  if (result.token_usage) {
+    const total = result.token_usage.input + result.token_usage.output;
     parts.push(`Tokens: ${formatNumber(total)}`);
   }
 
-  if (trace.cost_usd !== undefined) {
-    parts.push(`Cost: ${formatCost(trace.cost_usd)}`);
+  if (result.cost_usd !== undefined) {
+    parts.push(`Cost: ${formatCost(result.cost_usd)}`);
   }
 
-  if (trace.llm_call_count !== undefined) {
+  if (trace?.llm_call_count !== undefined) {
     parts.push(`LLM calls: ${trace.llm_call_count}`);
   }
 
@@ -85,8 +85,8 @@ function renderTree(result: RawResult): string {
 
   if (!messages || messages.length === 0) {
     // Fallback to flat summary
-    if (result.trace) {
-      return renderFlatTrace(result.trace);
+    if (result.trace || result.duration_ms !== undefined || result.cost_usd !== undefined) {
+      return renderFlatTrace(result);
     }
     return `${c.dim}No trace data available${c.reset}`;
   }
@@ -95,14 +95,14 @@ function renderTree(result: RawResult): string {
   const testId = result.test_id ?? result.eval_id ?? 'unknown';
 
   // Root node: test execution
-  const totalDuration = result.trace?.duration_ms;
-  const totalTokens = result.trace?.token_usage
-    ? result.trace.token_usage.input + result.trace.token_usage.output
+  const totalDuration = result.duration_ms;
+  const totalTokens = result.token_usage
+    ? result.token_usage.input + result.token_usage.output
     : undefined;
   const rootParts: string[] = [testId];
   if (totalDuration !== undefined) rootParts.push(formatDuration(totalDuration));
   if (totalTokens !== undefined) rootParts.push(`${formatNumber(totalTokens)} tok`);
-  if (result.trace?.cost_usd !== undefined) rootParts.push(formatCost(result.trace.cost_usd));
+  if (result.cost_usd !== undefined) rootParts.push(formatCost(result.cost_usd));
   lines.push(`${c.bold}${rootParts.join(', ')}${c.reset}`);
 
   // Filter to meaningful messages (assistant with tool calls, or assistant responses)
@@ -204,8 +204,8 @@ function formatResultDetail(result: RawResult, index: number, tree: boolean): st
     lines.push(`  ${c.dim}Scores:${c.reset} ${renderScores(result.scores)}`);
   }
 
-  if (result.trace) {
-    lines.push(`  ${c.dim}Trace:${c.reset} ${renderFlatTrace(result.trace)}`);
+  if (result.trace || result.duration_ms !== undefined || result.cost_usd !== undefined) {
+    lines.push(`  ${c.dim}Trace:${c.reset} ${renderFlatTrace(result)}`);
   }
 
   if (result.reasoning) {

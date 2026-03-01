@@ -189,7 +189,12 @@ Beyond the basic `question`, `criteria`, `answer`, and `reference_answer` fields
 | `input` | `Message[]` | Full resolved input message array |
 | `expected_output` | `Message[]` | Expected agent behavior including tool calls |
 | `output` | `Message[]` | Actual agent execution trace with tool calls |
-| `trace` | `TraceSummary` | Lightweight execution metrics |
+| `trace` | `TraceSummary` | Lightweight execution metrics (tool calls, errors) |
+| `token_usage` | `{input, output}` | Token consumption |
+| `cost_usd` | `number` | Estimated cost in USD |
+| `duration_ms` | `number` | Total execution duration |
+| `start_time` | `string` | ISO timestamp of first event |
+| `end_time` | `string` | ISO timestamp of last event |
 | `file_changes` | `string \| null` | Unified diff of workspace file changes (when `workspace_template` is configured) |
 | `workspace_path` | `string \| null` | Absolute path to the workspace directory (when `workspace_template` is configured) |
 
@@ -201,12 +206,7 @@ Beyond the basic `question`, `criteria`, `answer`, and `reference_answer` fields
   "tool_names": ["fetch", "search"],
   "tool_calls_by_name": { "search": 2, "fetch": 1 },
   "error_count": 0,
-  "llm_call_count": 2,
-  "token_usage": { "input": 1000, "output": 500 },
-  "cost_usd": 0.0015,
-  "duration_ms": 3500,
-  "start_time": "2026-02-13T10:00:00.000Z",
-  "end_time": "2026-02-13T10:00:03.500Z"
+  "llm_call_count": 2
 }
 ```
 
@@ -217,11 +217,6 @@ Beyond the basic `question`, `criteria`, `answer`, and `reference_answer` fields
 | `tool_calls_by_name` | `Record<string, number>` | Count per tool |
 | `error_count` | `number` | Failed tool calls |
 | `llm_call_count` | `number` | Number of LLM calls (assistant messages) |
-| `token_usage` | `{input, output}` | Token consumption |
-| `cost_usd` | `number` | Estimated cost |
-| `duration_ms` | `number` | Total execution duration |
-| `start_time` | `string` | ISO timestamp of first event |
-| `end_time` | `string` | ISO timestamp of last event |
 
 Use `expected_output` for retrieval context in RAG evals (tool calls with outputs) and `output` for the actual agent execution trace from live runs.
 

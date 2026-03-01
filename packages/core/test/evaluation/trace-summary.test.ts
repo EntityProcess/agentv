@@ -15,9 +15,9 @@ describe('computeTraceSummary', () => {
         { role: 'assistant', startTime: '2024-01-01T10:00:10Z' },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
-      expect(summary.startTime).toBe('2024-01-01T10:00:00.000Z');
+      expect(result.startTime).toBe('2024-01-01T10:00:00.000Z');
     });
 
     it('derives endTime from latest message endTime', () => {
@@ -27,9 +27,9 @@ describe('computeTraceSummary', () => {
         { role: 'assistant', startTime: '2024-01-01T10:00:10Z', endTime: '2024-01-01T10:00:15Z' },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
-      expect(summary.endTime).toBe('2024-01-01T10:00:15.000Z');
+      expect(result.endTime).toBe('2024-01-01T10:00:15.000Z');
     });
 
     it('derives timing from tool call spans when messages lack timing', () => {
@@ -43,10 +43,10 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
-      expect(summary.startTime).toBe('2024-01-01T10:00:02.000Z');
-      expect(summary.endTime).toBe('2024-01-01T10:00:06.000Z');
+      expect(result.startTime).toBe('2024-01-01T10:00:02.000Z');
+      expect(result.endTime).toBe('2024-01-01T10:00:06.000Z');
     });
 
     it('combines message and tool call timing to find boundaries', () => {
@@ -61,19 +61,19 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
-      expect(summary.startTime).toBe('2024-01-01T10:00:01.000Z');
-      expect(summary.endTime).toBe('2024-01-01T10:00:10.000Z');
+      expect(result.startTime).toBe('2024-01-01T10:00:01.000Z');
+      expect(result.endTime).toBe('2024-01-01T10:00:10.000Z');
     });
 
     it('returns undefined for startTime/endTime when no timing data available', () => {
       const messages = [{ role: 'user' }, { role: 'assistant', toolCalls: [{ tool: 'search' }] }];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
-      expect(summary.startTime).toBeUndefined();
-      expect(summary.endTime).toBeUndefined();
+      expect(result.startTime).toBeUndefined();
+      expect(result.endTime).toBeUndefined();
     });
   });
 
@@ -90,9 +90,9 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
-      expect(summary.toolDurations).toEqual({
+      expect(result.trace.toolDurations).toEqual({
         search: [100, 150],
         analyze: [200],
       });
@@ -113,9 +113,9 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
-      expect(summary.toolDurations).toEqual({
+      expect(result.trace.toolDurations).toEqual({
         search: [2000],
         analyze: [500],
       });
@@ -136,9 +136,9 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
-      expect(summary.toolDurations).toEqual({
+      expect(result.trace.toolDurations).toEqual({
         search: [1500],
       });
     });
@@ -151,9 +151,9 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
-      expect(summary.toolDurations).toBeUndefined();
+      expect(result.trace.toolDurations).toBeUndefined();
     });
 
     it('handles mixed tool calls with and without duration data', () => {
@@ -168,10 +168,10 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
       // Only includes tools that have duration data
-      expect(summary.toolDurations).toEqual({
+      expect(result.trace.toolDurations).toEqual({
         search: [100],
         analyze: [1000],
       });
@@ -188,23 +188,23 @@ describe('computeTraceSummary', () => {
         { role: 'assistant' },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
-      expect(summary.llmCallCount).toBe(3);
+      expect(result.trace.llmCallCount).toBe(3);
     });
 
     it('returns 0 for llmCallCount when no assistant messages', () => {
       const messages = [{ role: 'user' }, { role: 'system' }, { role: 'tool' }];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
-      expect(summary.llmCallCount).toBe(0);
+      expect(result.trace.llmCallCount).toBe(0);
     });
 
     it('returns 0 for llmCallCount on empty messages', () => {
-      const summary = computeTraceSummary([]);
+      const result = computeTraceSummary([]);
 
-      expect(summary.llmCallCount).toBe(0);
+      expect(result.trace.llmCallCount).toBe(0);
     });
   });
 
@@ -236,16 +236,16 @@ describe('computeTraceSummary', () => {
         },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
-      expect(summary.eventCount).toBe(3);
-      expect(summary.toolNames).toEqual(['analyze', 'search']);
-      expect(summary.toolCallsByName).toEqual({ search: 2, analyze: 1 });
-      expect(summary.errorCount).toBe(0);
-      expect(summary.startTime).toBe('2024-01-01T10:00:00.000Z');
-      expect(summary.endTime).toBe('2024-01-01T10:00:10.000Z');
-      expect(summary.llmCallCount).toBe(2);
-      expect(summary.toolDurations).toEqual({
+      expect(result.trace.eventCount).toBe(3);
+      expect(result.trace.toolNames).toEqual(['analyze', 'search']);
+      expect(result.trace.toolCallsByName).toEqual({ search: 2, analyze: 1 });
+      expect(result.trace.errorCount).toBe(0);
+      expect(result.startTime).toBe('2024-01-01T10:00:00.000Z');
+      expect(result.endTime).toBe('2024-01-01T10:00:10.000Z');
+      expect(result.trace.llmCallCount).toBe(2);
+      expect(result.trace.toolDurations).toEqual({
         search: [1500, 1000],
         analyze: [2000],
       });
@@ -258,16 +258,16 @@ describe('computeTraceSummary', () => {
         { role: 'assistant' },
       ];
 
-      const summary = computeTraceSummary(messages);
+      const result = computeTraceSummary(messages);
 
-      expect(summary.eventCount).toBe(1);
-      expect(summary.toolNames).toEqual(['search']);
-      expect(summary.toolCallsByName).toEqual({ search: 1 });
-      expect(summary.errorCount).toBe(0);
-      expect(summary.startTime).toBeUndefined();
-      expect(summary.endTime).toBeUndefined();
-      expect(summary.llmCallCount).toBe(2);
-      expect(summary.toolDurations).toBeUndefined();
+      expect(result.trace.eventCount).toBe(1);
+      expect(result.trace.toolNames).toEqual(['search']);
+      expect(result.trace.toolCallsByName).toEqual({ search: 1 });
+      expect(result.trace.errorCount).toBe(0);
+      expect(result.startTime).toBeUndefined();
+      expect(result.endTime).toBeUndefined();
+      expect(result.trace.llmCallCount).toBe(2);
+      expect(result.trace.toolDurations).toBeUndefined();
     });
   });
 });

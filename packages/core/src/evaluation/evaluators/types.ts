@@ -31,6 +31,16 @@ export interface EvaluationContext {
   readonly output?: readonly Message[];
   /** Lightweight summary of trace events (if available) */
   readonly trace?: TraceSummary;
+  /** Token usage from provider execution (promoted from TraceSummary) */
+  readonly tokenUsage?: TokenUsage;
+  /** Total cost in USD (from provider) */
+  readonly costUsd?: number;
+  /** Execution duration in milliseconds */
+  readonly durationMs?: number;
+  /** ISO 8601 timestamp when execution started */
+  readonly startTime?: string;
+  /** ISO 8601 timestamp when execution ended */
+  readonly endTime?: string;
   /** Resolver for target override in code judges */
   readonly targetResolver?: TargetResolver;
   /** List of available target names for code judges */

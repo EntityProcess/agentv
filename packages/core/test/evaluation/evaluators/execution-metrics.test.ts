@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 
 import { ExecutionMetricsEvaluator } from '../../../src/evaluation/evaluators/execution-metrics.js';
 import type { ResolvedTarget } from '../../../src/evaluation/providers/targets.js';
-import type { TraceSummary } from '../../../src/evaluation/trace.js';
+import type { TokenUsage, TraceSummary } from '../../../src/evaluation/trace.js';
 import type { EvalTest, ExecutionMetricsEvaluatorConfig } from '../../../src/evaluation/types.js';
 
 const baseTestCase: EvalTest = {
@@ -31,7 +31,19 @@ const baseMockProvider = {
   invoke: async () => ({ output: [{ role: 'assistant' as const, content: 'test' }] }),
 };
 
-function createContext(trace?: TraceSummary) {
+function createContext(traceAndMetrics?: TraceSummary & Record<string, unknown>) {
+  if (!traceAndMetrics) {
+    return {
+      evalCase: baseTestCase,
+      candidate: 'Test answer',
+      target: baseTarget,
+      provider: baseMockProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    };
+  }
+  const { tokenUsage, costUsd, durationMs, ...trace } = traceAndMetrics;
   return {
     evalCase: baseTestCase,
     candidate: 'Test answer',
@@ -40,7 +52,10 @@ function createContext(trace?: TraceSummary) {
     attempt: 0,
     promptInputs: { question: '', guidelines: '' },
     now: new Date(),
-    trace,
+    trace: trace as TraceSummary,
+    tokenUsage: tokenUsage as TokenUsage | undefined,
+    costUsd: costUsd as number | undefined,
+    durationMs: durationMs as number | undefined,
   };
 }
 

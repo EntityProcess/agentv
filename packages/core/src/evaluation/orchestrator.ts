@@ -28,7 +28,12 @@ import type {
 } from './providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
 import { createBuiltinRegistry, discoverAssertions } from './registry/index.js';
-import { type TraceSummary, computeTraceSummary, mergeExecutionMetrics } from './trace.js';
+import {
+  type TokenUsage,
+  type TraceSummary,
+  computeTraceSummary,
+  mergeExecutionMetrics,
+} from './trace.js';
 import { aggregateTrials } from './trials.js';
 import type {
   EvalTest,
@@ -495,7 +500,7 @@ export async function runEvaluation(
               caseCost = trialCostSum;
             }
           } else {
-            caseCost = result.trace?.costUsd;
+            caseCost = result.costUsd;
           }
           if (caseCost !== undefined) {
             cumulativeBudgetCost += caseCost;
@@ -701,24 +706,24 @@ async function runBatchEvaluation(options: {
       providerResponse.costUsd !== undefined ||
       providerResponse.durationMs !== undefined;
 
-    const baseSummary = output
+    const computed = output
       ? computeTraceSummary(output)
       : hasExecutionMetrics
-        ? {
-            eventCount: 0,
-            toolNames: [],
-            toolCallsByName: {},
-            errorCount: 0,
-          }
+        ? { trace: { eventCount: 0, toolNames: [], toolCallsByName: {}, errorCount: 0 } }
         : undefined;
-    // Merge execution metrics from provider response
-    const trace = baseSummary
-      ? mergeExecutionMetrics(baseSummary, {
+    const merged = computed
+      ? mergeExecutionMetrics(computed, {
           tokenUsage: providerResponse.tokenUsage,
           costUsd: providerResponse.costUsd,
           durationMs: providerResponse.durationMs,
         })
       : undefined;
+    const trace = merged?.trace;
+    const costUsd = merged?.costUsd;
+    const durationMs = merged?.durationMs;
+    const tokenUsage = merged?.tokenUsage;
+    const startTime = merged?.startTime;
+    const endTime = merged?.endTime;
 
     // Extract candidate from last assistant message in output
     const candidate = extractLastAssistantContent(output);
@@ -741,6 +746,11 @@ async function runBatchEvaluation(options: {
         agentTimeoutMs,
         output,
         trace,
+        costUsd,
+        durationMs,
+        tokenUsage,
+        startTime,
+        endTime,
         targetResolver,
         availableTargets,
       });
@@ -1010,24 +1020,24 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     providerResponse.durationMs !== undefined;
 
   // Compute trace summary if output available. If not, still preserve execution metrics.
-  const baseSummary = output
+  const computed = output
     ? computeTraceSummary(output)
     : hasExecutionMetrics
-      ? {
-          eventCount: 0,
-          toolNames: [],
-          toolCallsByName: {},
-          errorCount: 0,
-        }
+      ? { trace: { eventCount: 0, toolNames: [], toolCallsByName: {}, errorCount: 0 } }
       : undefined;
-  // Merge execution metrics from provider response
-  const trace = baseSummary
-    ? mergeExecutionMetrics(baseSummary, {
+  const merged = computed
+    ? mergeExecutionMetrics(computed, {
         tokenUsage: providerResponse.tokenUsage,
         costUsd: providerResponse.costUsd,
         durationMs: providerResponse.durationMs,
       })
     : undefined;
+  const trace = merged?.trace;
+  const costUsd = merged?.costUsd;
+  const durationMs = merged?.durationMs;
+  const tokenUsage = merged?.tokenUsage;
+  const startTime = merged?.startTime;
+  const endTime = merged?.endTime;
 
   // Extract candidate from last assistant message in output
   const candidate = extractLastAssistantContent(output);
@@ -1082,6 +1092,11 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       agentTimeoutMs,
       output,
       trace,
+      costUsd,
+      durationMs,
+      tokenUsage,
+      startTime,
+      endTime,
       targetResolver,
       availableTargets,
       fileChanges,
@@ -1157,7 +1172,7 @@ async function runEvalCaseWithTrials(
     allResults.push(result);
 
     // Extract cost from trace summary if available
-    const trialCost = result.trace?.costUsd;
+    const trialCost = result.costUsd;
 
     const trialVerdict = scoreToVerdict(result.score);
     const trial: TrialResult = {
@@ -1226,6 +1241,11 @@ async function evaluateCandidate(options: {
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
   readonly trace?: TraceSummary;
+  readonly costUsd?: number;
+  readonly durationMs?: number;
+  readonly tokenUsage?: TokenUsage;
+  readonly startTime?: string;
+  readonly endTime?: string;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
@@ -1245,6 +1265,11 @@ async function evaluateCandidate(options: {
     agentTimeoutMs,
     output,
     trace,
+    costUsd,
+    durationMs,
+    tokenUsage,
+    startTime,
+    endTime,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1266,6 +1291,11 @@ async function evaluateCandidate(options: {
     agentTimeoutMs,
     output,
     trace,
+    costUsd,
+    durationMs,
+    tokenUsage,
+    startTime,
+    endTime,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1317,6 +1347,11 @@ async function evaluateCandidate(options: {
     answer: candidate,
     target: target.name,
     reasoning: score.reasoning,
+    tokenUsage,
+    costUsd,
+    durationMs,
+    startTime,
+    endTime,
     requests,
     input,
     scores: scores,
@@ -1340,6 +1375,11 @@ async function runEvaluatorsForCase(options: {
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
   readonly trace?: TraceSummary;
+  readonly costUsd?: number;
+  readonly durationMs?: number;
+  readonly tokenUsage?: TokenUsage;
+  readonly startTime?: string;
+  readonly endTime?: string;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
@@ -1359,6 +1399,11 @@ async function runEvaluatorsForCase(options: {
     agentTimeoutMs,
     output,
     trace,
+    costUsd,
+    durationMs,
+    tokenUsage,
+    startTime,
+    endTime,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1381,6 +1426,11 @@ async function runEvaluatorsForCase(options: {
       agentTimeoutMs,
       output,
       trace,
+      costUsd,
+      durationMs,
+      tokenUsage,
+      startTime,
+      endTime,
       targetResolver,
       availableTargets,
       fileChanges,
@@ -1405,6 +1455,11 @@ async function runEvaluatorsForCase(options: {
     judgeProvider,
     output,
     trace,
+    tokenUsage,
+    costUsd,
+    durationMs,
+    startTime,
+    endTime,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1431,6 +1486,11 @@ async function runEvaluatorList(options: {
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
   readonly trace?: TraceSummary;
+  readonly costUsd?: number;
+  readonly durationMs?: number;
+  readonly tokenUsage?: TokenUsage;
+  readonly startTime?: string;
+  readonly endTime?: string;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
@@ -1451,6 +1511,11 @@ async function runEvaluatorList(options: {
     agentTimeoutMs,
     output,
     trace,
+    costUsd,
+    durationMs,
+    tokenUsage,
+    startTime,
+    endTime,
     targetResolver,
     availableTargets,
     fileChanges,
@@ -1478,6 +1543,11 @@ async function runEvaluatorList(options: {
     judgeProvider,
     output,
     trace,
+    tokenUsage,
+    costUsd,
+    durationMs,
+    startTime,
+    endTime,
     targetResolver,
     availableTargets,
     fileChanges,

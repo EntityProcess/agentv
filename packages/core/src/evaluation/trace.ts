@@ -28,20 +28,23 @@ export interface TraceSummary {
   readonly toolCallsByName: Readonly<Record<string, number>>;
   /** Number of error events */
   readonly errorCount: number;
-  /** Token usage metrics (optional, from provider) */
-  readonly tokenUsage?: TokenUsage;
-  /** Total cost in USD (optional, from provider) */
-  readonly costUsd?: number;
-  /** Total execution duration in milliseconds (optional) */
-  readonly durationMs?: number;
   /** Per-tool duration arrays in milliseconds (optional) */
   readonly toolDurations?: Readonly<Record<string, readonly number[]>>;
-  /** ISO 8601 timestamp when execution started (derived from earliest span) */
-  readonly startTime?: string;
-  /** ISO 8601 timestamp when execution ended (derived from latest span) */
-  readonly endTime?: string;
   /** Number of LLM calls (assistant messages) */
   readonly llmCallCount?: number;
+}
+
+/**
+ * Combined result of trace computation + execution metrics merge.
+ * Returned by computeTraceSummaryWithMetrics().
+ */
+export interface TraceComputeResult {
+  readonly trace: TraceSummary;
+  readonly tokenUsage?: TokenUsage;
+  readonly costUsd?: number;
+  readonly durationMs?: number;
+  readonly startTime?: string;
+  readonly endTime?: string;
 }
 
 /**
@@ -113,7 +116,7 @@ interface MessageLike {
  * - toolDurations: per-tool duration arrays (from durationMs or computed from start/end)
  * - llmCallCount: count of assistant messages
  */
-export function computeTraceSummary(messages: readonly MessageLike[]): TraceSummary {
+export function computeTraceSummary(messages: readonly MessageLike[]): TraceComputeResult {
   const toolCallCounts: Record<string, number> = {};
   const toolDurations: Record<string, number[]> = {};
   let totalToolCalls = 0;
@@ -183,14 +186,16 @@ export function computeTraceSummary(messages: readonly MessageLike[]): TraceSumm
   const toolNames = Object.keys(toolCallCounts).sort();
 
   return {
-    eventCount: totalToolCalls,
-    toolNames,
-    toolCallsByName: toolCallCounts,
-    errorCount: 0,
+    trace: {
+      eventCount: totalToolCalls,
+      toolNames,
+      toolCallsByName: toolCallCounts,
+      errorCount: 0,
+      llmCallCount,
+      ...(hasAnyDuration ? { toolDurations } : {}),
+    },
     startTime: earliestStart?.toISOString(),
     endTime: latestEnd?.toISOString(),
-    llmCallCount,
-    ...(hasAnyDuration ? { toolDurations } : {}),
   };
 }
 
@@ -240,10 +245,10 @@ export function explorationRatio(
  * @param summary - Trace summary with optional token usage
  * @returns Average tokens per tool call, or undefined
  */
-export function tokensPerTool(summary: TraceSummary): number | undefined {
-  if (!summary.tokenUsage || summary.eventCount === 0) return undefined;
+export function tokensPerTool(summary: TraceSummary, tokenUsage?: TokenUsage): number | undefined {
+  if (!tokenUsage || summary.eventCount === 0) return undefined;
 
-  const totalTokens = summary.tokenUsage.input + summary.tokenUsage.output;
+  const totalTokens = tokenUsage.input + tokenUsage.output;
   return totalTokens / summary.eventCount;
 }
 
@@ -285,27 +290,26 @@ export interface ExecutionMetrics {
 }
 
 /**
- * Merge execution metrics from provider response into a trace summary.
- * Returns a new TraceSummary with metrics fields populated.
+ * Merge execution metrics from provider response into a trace compute result.
+ * Returns a new TraceComputeResult with metrics fields populated.
  * Provider-level timing takes precedence over span-derived timing.
  *
- * @param summary - Base trace summary from computeTraceSummary
+ * @param computed - Base trace compute result from computeTraceSummary
  * @param metrics - Optional execution metrics from provider
- * @returns TraceSummary with merged metrics
+ * @returns TraceComputeResult with merged metrics
  */
 export function mergeExecutionMetrics(
-  summary: TraceSummary,
+  computed: TraceComputeResult,
   metrics?: ExecutionMetrics,
-): TraceSummary {
-  if (!metrics) return summary;
+): TraceComputeResult {
+  if (!metrics) return computed;
 
   return {
-    ...summary,
+    trace: computed.trace,
     tokenUsage: metrics.tokenUsage,
     costUsd: metrics.costUsd,
     durationMs: metrics.durationMs,
-    // Provider-level timing takes precedence over span-derived timing
-    startTime: metrics.startTime ?? summary.startTime,
-    endTime: metrics.endTime ?? summary.endTime,
+    startTime: metrics.startTime ?? computed.startTime,
+    endTime: metrics.endTime ?? computed.endTime,
   };
 }

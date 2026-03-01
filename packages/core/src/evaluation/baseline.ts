@@ -15,6 +15,12 @@ const STRIPPED_TOP_LEVEL_FIELDS = new Set([
   'afterAllOutput',
   'afterEachOutput',
   'fileChanges',
+  // Promoted execution metrics (debug, not needed for regression comparison)
+  'tokenUsage',
+  'costUsd',
+  'durationMs',
+  'startTime',
+  'endTime',
 ]);
 
 /**

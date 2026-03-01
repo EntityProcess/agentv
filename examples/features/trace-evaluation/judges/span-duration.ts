@@ -9,7 +9,7 @@ import { defineCodeJudge } from '@agentv/eval';
 
 const DEFAULT_MAX_SPAN_MS = 5000;
 
-export default defineCodeJudge(({ trace, config }) => {
+export default defineCodeJudge(({ trace, config, durationMs }) => {
   if (!trace) {
     return {
       score: 0,
@@ -23,12 +23,12 @@ export default defineCodeJudge(({ trace, config }) => {
   const misses: string[] = [];
 
   // Check overall duration
-  if (trace.durationMs !== undefined) {
+  if (durationMs !== undefined) {
     const maxTotalMs = (config?.maxTotalMs as number) ?? maxSpanMs * 5;
-    if (trace.durationMs <= maxTotalMs) {
-      hits.push(`Total duration (${trace.durationMs}ms) within limit (${maxTotalMs}ms)`);
+    if (durationMs <= maxTotalMs) {
+      hits.push(`Total duration (${durationMs}ms) within limit (${maxTotalMs}ms)`);
     } else {
-      misses.push(`Total duration too long: ${trace.durationMs}ms (max: ${maxTotalMs}ms)`);
+      misses.push(`Total duration too long: ${durationMs}ms (max: ${maxTotalMs}ms)`);
     }
   }
 

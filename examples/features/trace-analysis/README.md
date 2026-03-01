@@ -48,7 +48,7 @@ Pipe JSON output to `jq` for complex queries:
 ```bash
 # Find tests that cost more than $0.10
 bun agentv trace show evals/multi-agent.eval.results.jsonl --format json \
-  | jq '[.[] | select(.trace.cost_usd > 0.10) | {test_id, score, cost: .trace.cost_usd}]'
+  | jq '[.[] | select(.cost_usd > 0.10) | {test_id, score, cost: .cost_usd}]'
 
 # Compare scores by target provider
 bun agentv trace stats evals/multi-agent.eval.results.jsonl --group-by target --format json \
