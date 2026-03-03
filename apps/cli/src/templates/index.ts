@@ -11,32 +11,6 @@ export function getAgentvTemplates(): Template[] {
   return getTemplatesFromDir('.agentv');
 }
 
-export function getAgentsTemplates(): Template[] {
-  if (isDistRuntime()) {
-    return getTemplatesFromDir('.agents');
-  }
-
-  // Dev mode: use repo-root plugins/agentv-dev/skills/ folder (marketplace-compatible location)
-  const repoRoot = getRepoRootFromDev();
-  const skillsRoot = path.join(repoRoot, 'plugins', 'agentv-dev', 'skills');
-
-  const skillsToInclude = [
-    'agentv-chat-to-eval',
-    'agentv-eval-builder',
-    'agentv-eval-orchestrator',
-    'agentv-prompt-optimizer',
-  ];
-
-  const templates: Template[] = [];
-  for (const skill of skillsToInclude) {
-    const skillDir = path.join(skillsRoot, skill);
-    const skillTemplates = readTemplatesRecursively(skillDir, path.join('skills', skill));
-    templates.push(...skillTemplates);
-  }
-
-  return templates;
-}
-
 function getTemplatesFromDir(subdir: string): Template[] {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -51,17 +25,6 @@ function getTemplatesFromDir(subdir: string): Template[] {
   }
 
   return readTemplatesRecursively(templatesDir, '');
-}
-
-function isDistRuntime(): boolean {
-  const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  return currentDir.includes(`${path.sep}dist`);
-}
-
-function getRepoRootFromDev(): string {
-  const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  // currentDir is apps/cli/src/templates
-  return path.resolve(currentDir, '..', '..', '..', '..');
 }
 
 function readTemplatesRecursively(dir: string, relativePath: string): Template[] {
