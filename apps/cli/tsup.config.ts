@@ -1,13 +1,6 @@
-import { cpSync, existsSync, mkdirSync } from 'node:fs';
+import { cpSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'tsup';
-
-const SKILLS_TO_INCLUDE = [
-  'agentv-chat-to-eval',
-  'agentv-eval-builder',
-  'agentv-eval-orchestrator',
-  'agentv-prompt-optimizer',
-];
 
 export default defineConfig({
   entry: ['src/index.ts', 'src/cli.ts'],
@@ -37,9 +30,6 @@ export default defineConfig({
     const srcTemplatesDir = path.join('src', 'templates');
     const distTemplatesDir = path.join('dist', 'templates');
 
-    const repoRootDir = path.resolve('..', '..');
-    const rootSkillsDir = path.join(repoRootDir, 'plugins', 'agentv-dev', 'skills');
-
     // Copy entire templates directory structure recursively
     cpSync(srcTemplatesDir, distTemplatesDir, {
       recursive: true,
@@ -48,16 +38,6 @@ export default defineConfig({
         return !src.endsWith('.ts');
       },
     });
-
-    // Also copy agentv skills from repo root (source of truth)
-    const distSkillsDir = path.join(distTemplatesDir, '.agents', 'skills');
-    for (const skill of SKILLS_TO_INCLUDE) {
-      const source = path.join(rootSkillsDir, skill);
-      const target = path.join(distSkillsDir, skill);
-      if (!existsSync(source)) continue;
-      mkdirSync(path.dirname(target), { recursive: true });
-      cpSync(source, target, { recursive: true });
-    }
 
     console.log('✓ Template files copied to dist/templates');
   },
