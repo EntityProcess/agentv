@@ -31,7 +31,6 @@ async function promptYesNo(message: string): Promise<boolean> {
 }
 
 export async function initCommand(options: InitCommandOptions = {}): Promise<void> {
-  printSkillFirstInstructions();
   const targetPath = path.resolve(options.targetPath ?? '.');
   const agentvDir = path.join(targetPath, '.agentv');
 
