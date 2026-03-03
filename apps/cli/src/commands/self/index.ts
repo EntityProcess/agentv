@@ -19,7 +19,7 @@ function detectPackageManager(): 'bun' | 'npm' {
 
 function runCommand(cmd: string, args: string[]): Promise<{ exitCode: number; stdout: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: ['inherit', 'pipe', 'inherit'] });
+    const child = spawn(cmd, args, { stdio: ['inherit', 'pipe', 'inherit'], shell: true });
     let stdout = '';
     child.stdout?.on('data', (data: Buffer) => {
       process.stdout.write(data);
