@@ -12,6 +12,7 @@ import { selfCommand } from './commands/self/index.js';
 import { traceCommand } from './commands/trace/index.js';
 import { trimCommand } from './commands/trim/index.js';
 import { validateCommand } from './commands/validate/index.js';
+import { getUpdateNotice } from './update-check.js';
 
 export const app = subcommands({
   name: 'agentv',
@@ -74,6 +75,17 @@ export function preprocessArgv(argv: string[]): string[] {
 }
 
 export async function runCli(argv: string[] = process.argv): Promise<void> {
+  // Kick off update check: reads from local cache (fast), spawns a detached
+  // child to refresh if stale. The notice is printed on process exit so it
+  // appears after command output, even if the command calls process.exit().
+  let updateNotice: string | null = null;
+  process.on('exit', () => {
+    if (updateNotice) process.stderr.write(`\n${updateNotice}\n`);
+  });
+  getUpdateNotice(packageJson.version).then((n) => {
+    updateNotice = n;
+  });
+
   const processedArgv = preprocessArgv(argv);
   await run(binary(app), processedArgv);
 }
