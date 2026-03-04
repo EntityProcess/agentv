@@ -1,7 +1,6 @@
 import { binary, run, subcommands } from 'cmd-ts';
 
 import packageJson from '../package.json' with { type: 'json' };
-import { getUpdateNotice } from './update-check.js';
 import { compareCommand } from './commands/compare/index.js';
 import { convertCommand } from './commands/convert/index.js';
 import { createCommand } from './commands/create/index.js';
@@ -13,6 +12,7 @@ import { selfCommand } from './commands/self/index.js';
 import { traceCommand } from './commands/trace/index.js';
 import { trimCommand } from './commands/trim/index.js';
 import { validateCommand } from './commands/validate/index.js';
+import { getUpdateNotice } from './update-check.js';
 
 export const app = subcommands({
   name: 'agentv',
