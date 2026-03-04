@@ -1,6 +1,7 @@
 import { binary, run, subcommands } from 'cmd-ts';
 
 import packageJson from '../package.json' with { type: 'json' };
+import { getUpdateNotice } from './update-check.js';
 import { compareCommand } from './commands/compare/index.js';
 import { convertCommand } from './commands/convert/index.js';
 import { createCommand } from './commands/create/index.js';
@@ -74,6 +75,17 @@ export function preprocessArgv(argv: string[]): string[] {
 }
 
 export async function runCli(argv: string[] = process.argv): Promise<void> {
+  // Kick off update check: reads from local cache (fast), spawns a detached
+  // child to refresh if stale. The notice is printed on process exit so it
+  // appears after command output, even if the command calls process.exit().
+  let updateNotice: string | null = null;
+  process.on('exit', () => {
+    if (updateNotice) process.stderr.write(`\n${updateNotice}\n`);
+  });
+  getUpdateNotice(packageJson.version).then((n) => {
+    updateNotice = n;
+  });
+
   const processedArgv = preprocessArgv(argv);
   await run(binary(app), processedArgv);
 }
