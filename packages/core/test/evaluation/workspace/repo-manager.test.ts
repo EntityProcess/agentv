@@ -162,6 +162,35 @@ describe('RepoManager', () => {
       expect(headSha).toBe(firstSha);
     });
 
+    it('creates shallow cache when clone.depth is specified', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir);
+      for (let i = 0; i < 5; i++) {
+        writeFileSync(path.join(repoDir, `file-${i}.txt`), `content-${i}`);
+        execSync(`git add -A && git commit -m "commit-${i}"`, { cwd: repoDir, ...EXEC_OPTS });
+      }
+
+      await manager.materialize(
+        {
+          path: './my-repo',
+          source: { type: 'local', path: repoDir },
+          clone: { depth: 2 },
+        },
+        workspaceDir,
+      );
+
+      // Verify the cache itself is shallow (not just the materialized clone)
+      const cacheEntries = execSync('ls', { cwd: cacheDir, env: cleanGitEnv() })
+        .toString()
+        .trim()
+        .split('\n')
+        .filter((e) => !e.endsWith('.lock'));
+      expect(cacheEntries.length).toBe(1);
+      const cachePath = path.join(cacheDir, cacheEntries[0]);
+      const isShallow = gitExec('git rev-parse --is-shallow-repository', cachePath);
+      expect(isShallow).toBe('true');
+    });
+
     it('supports shallow clone with depth', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
       createTestRepo(repoDir);
