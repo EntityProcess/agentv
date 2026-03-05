@@ -21,16 +21,6 @@ import type {
 const WORKSPACE_PREFIX = 'agentv-pi-';
 const PROMPT_FILENAME = 'prompt.md';
 
-/**
- * Default system prompt for Pi Coding Agent evaluations.
- * Ensures the agent returns code in its response rather than just writing files.
- */
-const DEFAULT_SYSTEM_PROMPT = `**IMPORTANT**: Follow these instructions for your response:
-- Do NOT create any additional output files in the workspace.
-- All intended file outputs/changes MUST be written in your response.
-- For each intended file, include the relative path and unified git diff following the convention \`diff --git ...\`.
-This is required for evaluation scoring.`;
-
 interface PiRunOptions {
   readonly executable: string;
   readonly args: readonly string[];
@@ -151,7 +141,7 @@ export class PiCodingAgentProvider implements Provider {
   private buildPiArgs(
     prompt: string,
     inputFiles: readonly string[] | undefined,
-    captureFileChanges?: boolean,
+    _captureFileChanges?: boolean,
   ): string[] {
     const args: string[] = [];
 
@@ -197,9 +187,7 @@ export class PiCodingAgentProvider implements Provider {
       }
     }
 
-    // Prepend system prompt (skip forced diff prompt when AgentV captures file changes)
-    const systemPrompt =
-      this.config.systemPrompt ?? (captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT);
+    const systemPrompt = this.config.systemPrompt;
     const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 
     // Escape @ symbols in prompt that aren't file references

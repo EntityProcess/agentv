@@ -27,16 +27,6 @@ import type {
   ToolCall,
 } from './types.js';
 
-/**
- * Default system prompt for Copilot CLI evaluations.
- * Ensures the agent returns code in its response rather than just writing files.
- */
-const DEFAULT_SYSTEM_PROMPT = `**IMPORTANT**: Follow these instructions for your response:
-- Do NOT create any additional output files in the workspace.
-- All intended file outputs/changes MUST be written in your response.
-- For each intended file, include the relative path and unified git diff following the convention \`diff --git ...\`.
-This is required for evaluation scoring.`;
-
 interface ToolCallInProgress {
   readonly tool: string;
   readonly input?: unknown;
@@ -301,10 +291,8 @@ export class CopilotCliProvider implements Provider {
     return args;
   }
 
-  private resolveSystemPrompt(request: ProviderRequest): string | undefined {
-    return (
-      this.config.systemPrompt ?? (request.captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT)
-    );
+  private resolveSystemPrompt(_request: ProviderRequest): string | undefined {
+    return this.config.systemPrompt;
   }
 
   private async raceWithTimeout(

@@ -34,16 +34,6 @@ async function loadCodexSdk(): Promise<typeof import('@openai/codex-sdk')> {
 }
 
 /**
- * Default system prompt for Codex SDK evaluations.
- * Ensures the agent returns code in its response rather than just writing files.
- */
-const DEFAULT_SYSTEM_PROMPT = `**IMPORTANT**: Follow these instructions for your response:
-- Do NOT create any additional output files in the workspace.
-- All intended file outputs/changes MUST be written in your response.
-- For each intended file, include the relative path and unified git diff following the convention \`diff --git ...\`.
-This is required for evaluation scoring.`;
-
-/**
  * Codex SDK provider using the @openai/codex-sdk library directly.
  * This provides typed event access for structured tool calls, token usage, and clean thread lifecycle.
  *
@@ -102,9 +92,7 @@ export class CodexProvider implements Provider {
     const inputFiles = normalizeInputFiles(request.inputFiles);
     const basePrompt = buildPromptDocument(request, inputFiles);
 
-    // Skip forced diff prompt when AgentV captures file changes
-    const systemPrompt =
-      this.config.systemPrompt ?? (request.captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT);
+    const systemPrompt = this.config.systemPrompt;
     const prompt = systemPrompt ? `${systemPrompt}\n\n${basePrompt}` : basePrompt;
 
     // Track events
