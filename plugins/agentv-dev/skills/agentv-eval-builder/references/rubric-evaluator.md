@@ -1,6 +1,16 @@
 # Rubric Evaluator
 
+Rubrics are defined as `assert` entries with `type: rubrics`. They support binary checklist grading and score-range analytic grading.
+
 ## Field Reference
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `type` | string | required | Must be `rubrics` |
+| `criteria` | array | required | List of criterion strings or objects |
+| `required` | boolean or number | - | Gate: `true` requires score >= 0.8; a number (0–1) sets a custom threshold |
+
+### Criterion Object Fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -14,16 +24,18 @@
 ## Checklist Mode
 
 ```yaml
-rubrics:
-  - Mentions divide-and-conquer approach
-  - id: complexity
-    outcome: States time complexity correctly
-    weight: 2.0
-    required: true
-  - id: examples
-    outcome: Includes code examples
-    weight: 1.0
-    required: false
+assert:
+  - type: rubrics
+    criteria:
+      - Mentions divide-and-conquer approach
+      - id: complexity
+        outcome: States time complexity correctly
+        weight: 2.0
+        required: true
+      - id: examples
+        outcome: Includes code examples
+        weight: 1.0
+        required: false
 ```
 
 ## Score-Range Mode
@@ -31,15 +43,17 @@ rubrics:
 Shorthand map format (recommended):
 
 ```yaml
-rubrics:
-  - id: correctness
-    weight: 2.0
-    required_min_score: 7
-    score_ranges:
-      0: Critical bugs
-      3: Minor bugs
-      6: Correct with minor issues
-      9: Fully correct
+assert:
+  - type: rubrics
+    criteria:
+      - id: correctness
+        weight: 2.0
+        required_min_score: 7
+        score_ranges:
+          0: Critical bugs
+          3: Minor bugs
+          6: Correct with minor issues
+          9: Fully correct
 ```
 
 Map keys are lower bounds (0-10). Each range extends from its key to (next key - 1), with the last extending to 10. Must start at 0.
