@@ -17,6 +17,7 @@ import {
   shouldEnableCache,
   shouldSkipCacheForTemperature,
   subscribeToCodexLogEntries,
+  subscribeToCopilotCliLogEntries,
   subscribeToCopilotSdkLogEntries,
   subscribeToPiLogEntries,
 } from '@agentv/core';
@@ -798,7 +799,14 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     progressReporter.addLogPaths([entry.filePath], 'pi');
   });
   const seenCopilotLogPaths = new Set<string>();
-  const unsubscribeCopilotLogs = subscribeToCopilotSdkLogEntries((entry) => {
+  const unsubscribeCopilotSdkLogs = subscribeToCopilotSdkLogEntries((entry) => {
+    if (!entry.filePath || seenCopilotLogPaths.has(entry.filePath)) {
+      return;
+    }
+    seenCopilotLogPaths.add(entry.filePath);
+    progressReporter.addLogPaths([entry.filePath], 'copilot');
+  });
+  const unsubscribeCopilotCliLogs = subscribeToCopilotCliLogEntries((entry) => {
     if (!entry.filePath || seenCopilotLogPaths.has(entry.filePath)) {
       return;
     }
@@ -908,7 +916,8 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   } finally {
     unsubscribeCodexLogs();
     unsubscribePiLogs();
-    unsubscribeCopilotLogs();
+    unsubscribeCopilotSdkLogs();
+    unsubscribeCopilotCliLogs();
     await outputWriter.close().catch(() => undefined);
     if (otelExporter) {
       try {
