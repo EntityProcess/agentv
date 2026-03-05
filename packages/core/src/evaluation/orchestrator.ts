@@ -259,6 +259,17 @@ export async function runEvaluation(
     return getOrCreateProvider(resolvedJudge);
   };
 
+  // Validate judge_target: error if an agent provider would be used as judge.
+  // Agent providers can't return structured JSON for judging — they respond with
+  // tool calls and markdown, causing silent score-0 failures.
+  if (isAgentProvider(getOrCreateProvider(target)) && !target.judgeTarget) {
+    throw new Error(
+      `Target "${target.name}" is an agent provider ("${target.kind}") with no judge_target — ` +
+        `agent providers cannot return structured JSON for judging. ` +
+        `Set judge_target to an LLM provider (e.g., azure_base).`,
+    );
+  }
+
   // Create a target resolver for code judges to support target override
   const targetResolver = (name: string): Provider | undefined => {
     const resolved = resolveTargetByName(name);
@@ -1657,11 +1668,13 @@ async function runEvaluatorList(options: {
     return entry.score.score < minScore;
   });
 
+  // Exclude skipped evaluators from score aggregation
+  const scorable = scored.filter((entry) => entry.score.verdict !== 'skip');
   const aggregateScore = hasRequiredFailure
     ? 0
-    : scored.length > 0
+    : scorable.length > 0
       ? computeWeightedMean(
-          scored.map((entry) => ({ score: entry.score.score, weight: entry.weight })),
+          scorable.map((entry) => ({ score: entry.score.score, weight: entry.weight })),
         )
       : 0;
   const hits = scored.flatMap((entry) => entry.score.hits);

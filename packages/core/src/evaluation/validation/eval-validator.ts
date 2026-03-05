@@ -9,8 +9,14 @@ type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
 type JsonArray = readonly JsonValue[];
 
-/** Assertion evaluator types that require a `value` field. */
-const ASSERTION_TYPES_WITH_VALUE = new Set(['contains', 'equals', 'regex']);
+/** Assertion evaluator types that require a string `value` field. */
+const ASSERTION_TYPES_WITH_STRING_VALUE = new Set([
+  'contains', 'icontains', 'starts_with', 'ends_with', 'equals', 'regex',
+]);
+/** Assertion evaluator types that require a string[] `value` field. */
+const ASSERTION_TYPES_WITH_ARRAY_VALUE = new Set([
+  'contains_any', 'contains_all', 'icontains_any', 'icontains_all',
+]);
 
 /** Valid file extensions for external test files. */
 const VALID_TEST_FILE_EXTENSIONS = new Set(['.yaml', '.yml', '.jsonl']);
@@ -429,8 +435,8 @@ function validateAssertArray(
       continue;
     }
 
-    // Validate value field for types that require it
-    if (ASSERTION_TYPES_WITH_VALUE.has(typeValue)) {
+    // Validate value field for types that require a string value
+    if (ASSERTION_TYPES_WITH_STRING_VALUE.has(typeValue)) {
       const value = item.value;
       if (value === undefined || typeof value !== 'string') {
         errors.push({
@@ -454,6 +460,20 @@ function validateAssertArray(
             message: `Invalid regex pattern '${value}': not a valid regular expression.`,
           });
         }
+      }
+    }
+
+    // Validate value field for types that require a string array value
+    if (ASSERTION_TYPES_WITH_ARRAY_VALUE.has(typeValue)) {
+      const value = item.value;
+      if (!Array.isArray(value) || value.length === 0) {
+        errors.push({
+          severity: 'warning',
+          filePath,
+          location: `${location}.value`,
+          message: `Assertion type '${typeValue}' requires a 'value' field (non-empty string array).`,
+        });
+        continue;
       }
     }
 

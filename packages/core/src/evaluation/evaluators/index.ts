@@ -67,6 +67,13 @@ export type { ToolTrajectoryEvaluatorOptions } from './tool-trajectory.js';
 // Deterministic assertions
 export {
   runContainsAssertion,
+  runContainsAnyAssertion,
+  runContainsAllAssertion,
+  runIcontainsAssertion,
+  runIcontainsAnyAssertion,
+  runIcontainsAllAssertion,
+  runStartsWithAssertion,
+  runEndsWithAssertion,
   runEqualsAssertion,
   runIsJsonAssertion,
   runRegexAssertion,

@@ -176,15 +176,17 @@ export class LlmJudgeEvaluator implements Evaluator {
         evaluatorRawRequest,
         tokenUsage,
       };
-    } catch {
-      // Deliberate: parse failures yield score 0 silently — no warning emitted,
-      // the zeroed score itself signals the failure to downstream consumers.
+    } catch (e: unknown) {
+      // Judge parse failure → skip (not silent zero).
+      // Signals infrastructure error to downstream consumers, excluded from score averages.
+      const message = e instanceof Error ? e.message : String(e);
       return {
         score: 0,
-        verdict: 'fail',
+        verdict: 'skip' as const,
         hits: [],
-        misses: [],
+        misses: [`Judge parse failure after 3 attempts: ${message}`],
         expectedAspectCount: 1,
+        reasoning: `Judge parse failure after 3 attempts: ${message}`,
         evaluatorRawRequest,
       };
     }
@@ -483,7 +485,7 @@ export function calculateRubricScore(
   rubrics: readonly RubricItem[],
 ): {
   score: number;
-  verdict: 'pass' | 'fail' | 'borderline';
+  verdict: import('../types.js').EvaluationVerdict;
   hits: string[];
   misses: string[];
 } {
@@ -549,7 +551,7 @@ function calculateScoreRangeResult(
   rubrics: readonly RubricItem[],
 ): {
   score: number;
-  verdict: 'pass' | 'fail' | 'borderline';
+  verdict: import('../types.js').EvaluationVerdict;
   hits: string[];
   misses: string[];
   details: JsonObject;

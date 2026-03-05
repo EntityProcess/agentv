@@ -889,18 +889,96 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'regex') {
-      const value = asString(rawEvaluator.value);
-      if (!value) {
-        logWarning(`Skipping regex evaluator '${name}' in '${evalId}': missing value`);
+    if (typeValue === 'contains_any' || typeValue === 'contains_all') {
+      const value = asStringArrayStrict(rawEvaluator.value);
+      if (!value || value.length === 0) {
+        logWarning(`Skipping ${typeValue} evaluator '${name}' in '${evalId}': value must be a non-empty string array`);
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
       const required = parseRequired(rawEvaluator.required);
       evaluators.push({
         name,
+        type: typeValue,
+        value,
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
+      } as import('../types.js').EvaluatorConfig);
+      continue;
+    }
+
+    if (typeValue === 'icontains') {
+      const value = asString(rawEvaluator.value);
+      if (!value) {
+        logWarning(`Skipping icontains evaluator '${name}' in '${evalId}': missing value`);
+        continue;
+      }
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
+      evaluators.push({
+        name,
+        type: 'icontains',
+        value,
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
+      } as import('../types.js').EvaluatorConfig);
+      continue;
+    }
+
+    if (typeValue === 'icontains_any' || typeValue === 'icontains_all') {
+      const value = asStringArrayStrict(rawEvaluator.value);
+      if (!value || value.length === 0) {
+        logWarning(`Skipping ${typeValue} evaluator '${name}' in '${evalId}': value must be a non-empty string array`);
+        continue;
+      }
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
+      evaluators.push({
+        name,
+        type: typeValue,
+        value,
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
+      } as import('../types.js').EvaluatorConfig);
+      continue;
+    }
+
+    if (typeValue === 'starts_with' || typeValue === 'ends_with') {
+      const value = asString(rawEvaluator.value);
+      if (!value) {
+        logWarning(`Skipping ${typeValue} evaluator '${name}' in '${evalId}': missing value`);
+        continue;
+      }
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
+      evaluators.push({
+        name,
+        type: typeValue,
+        value,
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
+      } as import('../types.js').EvaluatorConfig);
+      continue;
+    }
+
+    if (typeValue === 'regex') {
+      const value = asString(rawEvaluator.value);
+      if (!value) {
+        logWarning(`Skipping regex evaluator '${name}' in '${evalId}': missing value`);
+        continue;
+      }
+      const flags = asString(rawEvaluator.flags);
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
+      evaluators.push({
+        name,
         type: 'regex',
         value,
+        ...(flags !== undefined ? { flags } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(negate !== undefined ? { negate } : {}),
@@ -1121,7 +1199,12 @@ async function parseEvaluatorList(
 }
 
 /** Assertion evaluator types that support auto-generated names. */
-const ASSERTION_TYPES = new Set(['contains', 'regex', 'is_json', 'equals', 'rubrics']);
+const ASSERTION_TYPES = new Set([
+  'contains', 'contains_any', 'contains_all',
+  'icontains', 'icontains_any', 'icontains_all',
+  'starts_with', 'ends_with',
+  'regex', 'is_json', 'equals', 'rubrics',
+]);
 
 /**
  * Generate a descriptive name for assertion-type evaluators when no explicit name is given.
@@ -1133,10 +1216,25 @@ function generateAssertionName(typeValue: string, rawEvaluator: JsonObject): str
   }
 
   const value = asString(rawEvaluator.value);
+  const arrayValue = Array.isArray(rawEvaluator.value) ? rawEvaluator.value : undefined;
 
   switch (typeValue) {
     case 'contains':
       return value ? `contains-${value}` : 'contains';
+    case 'contains_any':
+      return arrayValue ? `contains_any-${arrayValue.length}` : 'contains_any';
+    case 'contains_all':
+      return arrayValue ? `contains_all-${arrayValue.length}` : 'contains_all';
+    case 'icontains':
+      return value ? `icontains-${value}` : 'icontains';
+    case 'icontains_any':
+      return arrayValue ? `icontains_any-${arrayValue.length}` : 'icontains_any';
+    case 'icontains_all':
+      return arrayValue ? `icontains_all-${arrayValue.length}` : 'icontains_all';
+    case 'starts_with':
+      return value ? `starts_with-${value}` : 'starts_with';
+    case 'ends_with':
+      return value ? `ends_with-${value}` : 'ends_with';
     case 'regex':
       return value ? `regex-${value.length > 30 ? value.slice(0, 30) : value}` : 'regex';
     case 'is_json':
@@ -1169,6 +1267,15 @@ export function coerceEvaluator(
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
+}
+
+/** Parse a value as a string array (for assertion value fields like contains_any). */
+function asStringArrayStrict(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const result = value.filter((v): v is string => typeof v === 'string');
+  return result.length > 0 ? result : undefined;
 }
 
 function asStringArray(value: unknown, description: string): string[] | undefined {

@@ -19,6 +19,13 @@ import {
   TokenUsageEvaluator,
   ToolTrajectoryEvaluator,
   runContainsAssertion,
+  runContainsAnyAssertion,
+  runContainsAllAssertion,
+  runIcontainsAssertion,
+  runIcontainsAnyAssertion,
+  runIcontainsAllAssertion,
+  runStartsWithAssertion,
+  runEndsWithAssertion,
   runEqualsAssertion,
   runIsJsonAssertion,
   runRegexAssertion,
@@ -31,15 +38,22 @@ import type {
   CodeEvaluatorConfig,
   CompositeEvaluatorConfig,
   ContainsEvaluatorConfig,
+  ContainsAnyEvaluatorConfig,
+  ContainsAllEvaluatorConfig,
   CostEvaluatorConfig,
+  EndsWithEvaluatorConfig,
   EqualsEvaluatorConfig,
   EvaluatorConfig,
   ExecutionMetricsEvaluatorConfig,
   FieldAccuracyEvaluatorConfig,
+  IcontainsEvaluatorConfig,
+  IcontainsAnyEvaluatorConfig,
+  IcontainsAllEvaluatorConfig,
   IsJsonEvaluatorConfig,
   LatencyEvaluatorConfig,
   LlmJudgeEvaluatorConfig,
   RegexEvaluatorConfig,
+  StartsWithEvaluatorConfig,
   TokenUsageEvaluatorConfig,
 } from '../types.js';
 import {
@@ -221,7 +235,7 @@ export const containsFactory: EvaluatorFactoryFn = (config) => {
 export const regexFactory: EvaluatorFactoryFn = (config) => {
   const c = config as RegexEvaluatorConfig;
   return new DeterministicAssertionEvaluator('regex', (ctx) => {
-    const result = runRegexAssertion(ctx.candidate, c.value);
+    const result = runRegexAssertion(ctx.candidate, c.value, c.flags);
     return {
       score: result.score,
       verdict: result.score === 1 ? 'pass' : 'fail',
@@ -229,8 +243,8 @@ export const regexFactory: EvaluatorFactoryFn = (config) => {
       misses: result.misses,
       reasoning:
         result.score === 1
-          ? `Output matches pattern /${c.value}/`
-          : `Output does not match pattern /${c.value}/`,
+          ? `Output matches pattern /${c.value}/${c.flags ?? ''}`
+          : `Output does not match pattern /${c.value}/${c.flags ?? ''}`,
       expectedAspectCount: 1,
     };
   });
@@ -268,6 +282,118 @@ export const equalsFactory: EvaluatorFactoryFn = (config) => {
   });
 };
 
+/** Factory for `contains_any` deterministic assertion. */
+export const containsAnyFactory: EvaluatorFactoryFn = (config) => {
+  const c = config as ContainsAnyEvaluatorConfig;
+  return new DeterministicAssertionEvaluator('contains_any', (ctx) => {
+    const result = runContainsAnyAssertion(ctx.candidate, c.value);
+    return {
+      score: result.score,
+      verdict: result.score === 1 ? 'pass' : 'fail',
+      hits: result.hits,
+      misses: result.misses,
+      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      expectedAspectCount: 1,
+    };
+  });
+};
+
+/** Factory for `contains_all` deterministic assertion. */
+export const containsAllFactory: EvaluatorFactoryFn = (config) => {
+  const c = config as ContainsAllEvaluatorConfig;
+  return new DeterministicAssertionEvaluator('contains_all', (ctx) => {
+    const result = runContainsAllAssertion(ctx.candidate, c.value);
+    return {
+      score: result.score,
+      verdict: result.score === 1 ? 'pass' : 'fail',
+      hits: result.hits,
+      misses: result.misses,
+      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      expectedAspectCount: 1,
+    };
+  });
+};
+
+/** Factory for `icontains` deterministic assertion. */
+export const icontainsFactory: EvaluatorFactoryFn = (config) => {
+  const c = config as IcontainsEvaluatorConfig;
+  return new DeterministicAssertionEvaluator('icontains', (ctx) => {
+    const result = runIcontainsAssertion(ctx.candidate, c.value);
+    return {
+      score: result.score,
+      verdict: result.score === 1 ? 'pass' : 'fail',
+      hits: result.hits,
+      misses: result.misses,
+      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      expectedAspectCount: 1,
+    };
+  });
+};
+
+/** Factory for `icontains_any` deterministic assertion. */
+export const icontainsAnyFactory: EvaluatorFactoryFn = (config) => {
+  const c = config as IcontainsAnyEvaluatorConfig;
+  return new DeterministicAssertionEvaluator('icontains_any', (ctx) => {
+    const result = runIcontainsAnyAssertion(ctx.candidate, c.value);
+    return {
+      score: result.score,
+      verdict: result.score === 1 ? 'pass' : 'fail',
+      hits: result.hits,
+      misses: result.misses,
+      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      expectedAspectCount: 1,
+    };
+  });
+};
+
+/** Factory for `icontains_all` deterministic assertion. */
+export const icontainsAllFactory: EvaluatorFactoryFn = (config) => {
+  const c = config as IcontainsAllEvaluatorConfig;
+  return new DeterministicAssertionEvaluator('icontains_all', (ctx) => {
+    const result = runIcontainsAllAssertion(ctx.candidate, c.value);
+    return {
+      score: result.score,
+      verdict: result.score === 1 ? 'pass' : 'fail',
+      hits: result.hits,
+      misses: result.misses,
+      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      expectedAspectCount: 1,
+    };
+  });
+};
+
+/** Factory for `starts_with` deterministic assertion. */
+export const startsWithFactory: EvaluatorFactoryFn = (config) => {
+  const c = config as StartsWithEvaluatorConfig;
+  return new DeterministicAssertionEvaluator('starts_with', (ctx) => {
+    const result = runStartsWithAssertion(ctx.candidate, c.value);
+    return {
+      score: result.score,
+      verdict: result.score === 1 ? 'pass' : 'fail',
+      hits: result.hits,
+      misses: result.misses,
+      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      expectedAspectCount: 1,
+    };
+  });
+};
+
+/** Factory for `ends_with` deterministic assertion. */
+export const endsWithFactory: EvaluatorFactoryFn = (config) => {
+  const c = config as EndsWithEvaluatorConfig;
+  return new DeterministicAssertionEvaluator('ends_with', (ctx) => {
+    const result = runEndsWithAssertion(ctx.candidate, c.value);
+    return {
+      score: result.score,
+      verdict: result.score === 1 ? 'pass' : 'fail',
+      hits: result.hits,
+      misses: result.misses,
+      reasoning: result.score === 1 ? result.hits[0] : result.misses[0],
+      expectedAspectCount: 1,
+    };
+  });
+};
+
 /**
  * Create a new EvaluatorRegistry with all built-in evaluator types registered.
  */
@@ -286,6 +412,13 @@ export function createBuiltinRegistry(): EvaluatorRegistry {
     .register('execution_metrics', executionMetricsFactory)
     .register('agent_judge', agentJudgeFactory)
     .register('contains', containsFactory)
+    .register('contains_any', containsAnyFactory)
+    .register('contains_all', containsAllFactory)
+    .register('icontains', icontainsFactory)
+    .register('icontains_any', icontainsAnyFactory)
+    .register('icontains_all', icontainsAllFactory)
+    .register('starts_with', startsWithFactory)
+    .register('ends_with', endsWithFactory)
     .register('regex', regexFactory)
     .register('is_json', isJsonFactory)
     .register('equals', equalsFactory);
