@@ -29,6 +29,33 @@
         "description": "Glob pattern (e.g., '**/evals/**/dataset*.yaml', '**/evals/**/eval.yaml')"
       },
       "examples": [["**/evals/**/dataset*.yaml", "**/evals/**/eval.yaml"], ["**/evals/**/*.yaml"]]
+    },
+    "execution": {
+      "type": "object",
+      "description": "Default execution options. CLI flags take precedence over these values.",
+      "properties": {
+        "verbose": {
+          "type": "boolean",
+          "description": "Enable verbose logging (equivalent to --verbose)",
+          "default": false
+        },
+        "trace_file": {
+          "type": "string",
+          "description": "Write human-readable trace JSONL to this path (equivalent to --trace-file). Supports {timestamp} placeholder.",
+          "examples": [".agentv/results/trace-{timestamp}.jsonl"]
+        },
+        "keep_workspaces": {
+          "type": "boolean",
+          "description": "Always keep temp workspaces after eval (equivalent to --keep-workspaces)",
+          "default": false
+        },
+        "otel_file": {
+          "type": "string",
+          "description": "Write OTLP JSON trace to this path (equivalent to --otel-file). Supports {timestamp} placeholder.",
+          "examples": [".agentv/results/otel-{timestamp}.json"]
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": ["$schema"],
