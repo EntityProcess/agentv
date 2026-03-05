@@ -31,13 +31,14 @@ function gitEnv(): Record<string, string | undefined> {
   };
 }
 
-function normalizeUrl(url: string): string {
-  return url.toLowerCase().replace(/\.git$/, '');
-}
-
 function cacheKey(source: RepoSource): string {
-  const raw = source.type === 'git' ? source.url : source.path;
-  return createHash('sha256').update(normalizeUrl(raw)).digest('hex');
+  const raw =
+    source.type === 'git'
+      ? source.url
+          .toLowerCase()
+          .replace(/\.git$/, '') // Normalize git URLs (case-insensitive)
+      : source.path; // Keep local paths case-sensitive
+  return createHash('sha256').update(raw).digest('hex');
 }
 
 function getSourceUrl(source: RepoSource): string {

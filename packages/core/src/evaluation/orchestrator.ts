@@ -365,10 +365,11 @@ export async function runEvaluation(
 
   // Resolve worker count: CLI option > target setting > default (1)
   // Force workers=1 when shared workspace is used to prevent data corruption
+  const isPerTestIsolation = suiteWorkspace?.isolation === 'per_test';
   const hasSharedWorkspace = !!(
     workspaceTemplate ||
     suiteWorkspace?.before_all ||
-    suiteWorkspace?.repos?.length
+    (suiteWorkspace?.repos?.length && !isPerTestIsolation)
   );
   const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
   const workers = hasSharedWorkspace ? 1 : requestedWorkers;
@@ -389,15 +390,15 @@ export async function runEvaluation(
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to create shared workspace: ${message}`);
     }
-  } else if (suiteWorkspace?.before_all || suiteWorkspace?.repos?.length) {
+  } else if (suiteWorkspace?.before_all || (suiteWorkspace?.repos?.length && !isPerTestIsolation)) {
     // No template but before_all or repos is configured: create empty workspace
     sharedWorkspacePath = getWorkspacePath(evalRunId, 'shared');
     await mkdir(sharedWorkspacePath, { recursive: true });
   }
 
-  // Materialize repos into shared workspace
+  // Materialize repos into shared workspace (skip for per_test — repos are materialized per case)
   const repoManager = suiteWorkspace?.repos?.length ? new RepoManager() : undefined;
-  if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos) {
+  if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation) {
     try {
       await repoManager.materializeAll(suiteWorkspace.repos, sharedWorkspacePath);
     } catch (error) {
