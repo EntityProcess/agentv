@@ -174,11 +174,40 @@ tests:
         command: ["python", "custom-setup.py"]  # overrides suite-level
 ```
 
-**Lifecycle:** template copy → setup → git baseline → agent → file changes → teardown → cleanup
+**Lifecycle:** template copy → repo clone → setup → git baseline → agent → file changes → teardown → repo reset → cleanup
 **Merge:** Case-level fields replace suite-level fields.
 **Commands receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
 **Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
-See https://agentv.dev/targets/configuration/#workspace-setupteardown
+
+### Repository Lifecycle
+
+Clone repos into workspace automatically with bare-mirror caching:
+
+```yaml
+workspace:
+  repos:
+    - path: ./repo
+      source:
+        type: git
+        url: https://github.com/org/repo.git
+      checkout:
+        ref: main
+        ancestor: 1       # parent commit
+      clone:
+        depth: 10
+  reset:
+    strategy: hard         # none | hard | recreate
+    after_each: true
+  isolation: shared        # shared | per_test
+```
+
+- `source.type`: `git` (URL) or `local` (path)
+- `checkout.resolve`: `remote` (ls-remote) or `local`
+- `clone.filter`: partial clone filter (e.g., `blob:none`)
+- `clone.sparse`: sparse checkout paths array
+- Cache: `~/.agentv/git-cache/`, clear with `agentv cache clean`
+
+See https://agentv.dev/targets/configuration/#repository-lifecycle
 
 ## Evaluator Types
 

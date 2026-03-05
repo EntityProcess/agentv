@@ -1,6 +1,7 @@
 import { binary, run, subcommands } from 'cmd-ts';
 
 import packageJson from '../package.json' with { type: 'json' };
+import { cacheCommand } from './commands/cache/index.js';
 import { compareCommand } from './commands/compare/index.js';
 import { convertCommand } from './commands/convert/index.js';
 import { createCommand } from './commands/create/index.js';
@@ -19,6 +20,7 @@ export const app = subcommands({
   description: 'AgentV CLI',
   version: packageJson.version,
   cmds: {
+    cache: cacheCommand,
     eval: evalRunCommand,
     prompt: evalPromptCommand,
     compare: compareCommand,

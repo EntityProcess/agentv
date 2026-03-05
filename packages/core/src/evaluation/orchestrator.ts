@@ -57,6 +57,7 @@ import {
   createTempWorkspace,
   getWorkspacePath,
 } from './workspace/manager.js';
+import { RepoManager } from './workspace/repo-manager.js';
 import { resolveWorkspaceTemplate } from './workspace/resolve.js';
 import {
   type ScriptExecutionContext,
@@ -119,6 +120,8 @@ export interface RunEvalCaseOptions {
   readonly streamCallbacks?: ProviderStreamCallbacks;
   /** Evaluator type registry (with custom assertions discovered) */
   readonly typeRegistry?: import('./registry/evaluator-registry.js').EvaluatorRegistry;
+  /** RepoManager instance for repo lifecycle (shared workspace mode) */
+  readonly repoManager?: RepoManager;
 }
 
 export interface ProgressEvent {
@@ -362,7 +365,12 @@ export async function runEvaluation(
 
   // Resolve worker count: CLI option > target setting > default (1)
   // Force workers=1 when shared workspace is used to prevent data corruption
-  const hasSharedWorkspace = !!(workspaceTemplate || suiteWorkspace?.before_all);
+  const isPerTestIsolation = suiteWorkspace?.isolation === 'per_test';
+  const hasSharedWorkspace = !!(
+    workspaceTemplate ||
+    suiteWorkspace?.before_all ||
+    (suiteWorkspace?.repos?.length && !isPerTestIsolation)
+  );
   const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
   const workers = hasSharedWorkspace ? 1 : requestedWorkers;
   if (hasSharedWorkspace && requestedWorkers > 1) {
@@ -382,10 +390,24 @@ export async function runEvaluation(
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to create shared workspace: ${message}`);
     }
-  } else if (suiteWorkspace?.before_all) {
-    // No template but before_all is configured: create empty workspace
+  } else if (suiteWorkspace?.before_all || (suiteWorkspace?.repos?.length && !isPerTestIsolation)) {
+    // No template but before_all or repos is configured: create empty workspace
     sharedWorkspacePath = getWorkspacePath(evalRunId, 'shared');
     await mkdir(sharedWorkspacePath, { recursive: true });
+  }
+
+  // Materialize repos into shared workspace (skip for per_test — repos are materialized per case)
+  const repoManager = suiteWorkspace?.repos?.length ? new RepoManager() : undefined;
+  if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation) {
+    try {
+      await repoManager.materializeAll(suiteWorkspace.repos, sharedWorkspacePath);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (sharedWorkspacePath) {
+        await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+      }
+      throw new Error(`Failed to materialize repos: ${message}`);
+    }
   }
 
   // Execute before_all (runs ONCE before first test)
@@ -493,6 +515,7 @@ export async function runEvaluation(
           suiteWorkspaceFile,
           streamCallbacks,
           typeRegistry,
+          repoManager,
         };
         let result =
           trials && trials.count > 1
@@ -834,6 +857,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     sharedBaselineCommit,
     suiteWorkspaceFile,
     typeRegistry: providedTypeRegistry,
+    repoManager,
   } = options;
 
   const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
@@ -879,10 +903,32 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       }
     }
 
-    // If no template but before_all is configured per-case, create empty workspace
-    if (!workspacePath && evalCase.workspace?.before_all && evalRunId) {
+    // If no template but before_all or repos is configured per-case, create empty workspace
+    if (
+      !workspacePath &&
+      (evalCase.workspace?.before_all || evalCase.workspace?.repos?.length) &&
+      evalRunId
+    ) {
       workspacePath = getWorkspacePath(evalRunId, evalCase.id);
       await mkdir(workspacePath, { recursive: true });
+    }
+
+    // Materialize repos into per-case workspace
+    if (evalCase.workspace?.repos?.length && workspacePath) {
+      const perCaseRepoManager = new RepoManager();
+      try {
+        await perCaseRepoManager.materializeAll(evalCase.workspace.repos, workspacePath);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return buildErrorResult(
+          evalCase,
+          target.name,
+          nowFn(),
+          new Error(`Failed to materialize repos: ${message}`),
+          promptInputs,
+          provider,
+        );
+      }
     }
 
     // Execute per-case before_all (only when not using shared workspace)
@@ -1065,6 +1111,26 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   const providerError = extractProviderError(providerResponse);
+
+  // Reset repos before after_each hook (if configured)
+  if (
+    repoManager &&
+    workspacePath &&
+    evalCase.workspace?.reset?.after_each &&
+    evalCase.workspace.reset.strategy &&
+    evalCase.workspace.reset.strategy !== 'none' &&
+    evalCase.workspace.repos
+  ) {
+    try {
+      await repoManager.reset(
+        evalCase.workspace.repos,
+        workspacePath,
+        evalCase.workspace.reset.strategy,
+      );
+    } catch {
+      // Reset failures are non-fatal (like after_each)
+    }
+  }
 
   // Execute after_each hook (runs after evaluation, before cleanup)
   if (workspacePath && evalCase.workspace?.after_each) {

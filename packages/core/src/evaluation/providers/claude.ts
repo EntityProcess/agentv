@@ -34,16 +34,6 @@ async function loadClaudeSdk(): Promise<typeof import('@anthropic-ai/claude-agen
 }
 
 /**
- * Default system prompt for Claude SDK evaluations.
- * Ensures the agent returns code in its response rather than just writing files.
- */
-const DEFAULT_SYSTEM_PROMPT = `**IMPORTANT**: Follow these instructions for your response:
-- Do NOT create any additional output files in the workspace.
-- All intended file outputs/changes MUST be written in your response.
-- For each intended file, include the relative path and unified git diff following the convention \`diff --git ...\`.
-This is required for evaluation scoring.`;
-
-/**
  * Claude Agent SDK provider using the @anthropic-ai/claude-agent-sdk library directly.
  * This replaces the old CLI subprocess provider with typed SDK access for structured
  * tool calls, token usage, and clean session lifecycle.
@@ -82,8 +72,7 @@ export class ClaudeProvider implements Provider {
     const prompt = buildPromptDocument(request, inputFiles);
 
     // Skip forced diff prompt when AgentV captures file changes
-    const systemPrompt =
-      this.config.systemPrompt ?? (request.captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT);
+    const systemPrompt = this.config.systemPrompt;
 
     // Build query options
     // biome-ignore lint/suspicious/noExplicitAny: SDK options type is dynamically loaded

@@ -37,16 +37,6 @@ async function loadCopilotSdk(): Promise<typeof import('@github/copilot-sdk')> {
   return copilotSdkModule;
 }
 
-/**
- * Default system prompt for Copilot SDK evaluations.
- * Ensures the agent returns code in its response rather than just writing files.
- */
-const DEFAULT_SYSTEM_PROMPT = `**IMPORTANT**: Follow these instructions for your response:
-- Do NOT create any additional output files in the workspace.
-- All intended file outputs/changes MUST be written in your response.
-- For each intended file, include the relative path and unified git diff following the convention \`diff --git ...\`.
-This is required for evaluation scoring.`;
-
 interface ToolCallInProgress {
   readonly tool: string;
   readonly input?: unknown;
@@ -106,9 +96,7 @@ export class CopilotSdkProvider implements Provider {
       sessionOptions.workingDirectory = cwd;
     }
 
-    // Skip forced diff prompt when AgentV captures file changes
-    const systemPrompt =
-      this.config.systemPrompt ?? (request.captureFileChanges ? undefined : DEFAULT_SYSTEM_PROMPT);
+    const systemPrompt = this.config.systemPrompt;
 
     if (systemPrompt) {
       sessionOptions.systemMessage = {

@@ -218,10 +218,44 @@ export type WorkspaceScriptConfig = {
  * - before_each: runs before each test (optional)
  * - after_each: runs after each test (e.g., reset git state)
  */
+export type RepoSource =
+  | { readonly type: 'git'; readonly url: string }
+  | { readonly type: 'local'; readonly path: string };
+
+export type RepoCheckout = {
+  readonly ref?: string;
+  readonly resolve?: 'remote' | 'local';
+  readonly ancestor?: number;
+};
+
+export type RepoClone = {
+  readonly depth?: number;
+  readonly filter?: string;
+  readonly sparse?: readonly string[];
+};
+
+export type RepoConfig = {
+  readonly path: string;
+  readonly source: RepoSource;
+  readonly checkout?: RepoCheckout;
+  readonly clone?: RepoClone;
+};
+
+export type ResetConfig = {
+  readonly strategy?: 'none' | 'hard' | 'recreate';
+  readonly after_each?: boolean;
+};
+
 export type WorkspaceConfig = {
   /** Template directory or .code-workspace file. Directories are copied to temp workspace.
    *  .code-workspace files are used by VS Code providers; CLI providers use the parent directory. */
   readonly template?: string;
+  /** Isolation strategy for workspace: shared (default) or per_test */
+  readonly isolation?: 'shared' | 'per_test';
+  /** Repository definitions to clone/checkout into workspace */
+  readonly repos?: readonly RepoConfig[];
+  /** Reset configuration for repos between test runs */
+  readonly reset?: ResetConfig;
   /** Command to run once before first test (after workspace creation, before git baseline) */
   readonly before_all?: WorkspaceScriptConfig;
   /** Command to run once after last test (before workspace cleanup) */

@@ -11,7 +11,6 @@ export const AGENTV_REQUEST_TEMPLATE = `[[ ## task ## ]]
 
 **IMPORTANT**: Follow these exact steps:
 1. Create and write your complete response to: {{responseFileTmp}}
-    - Do NOT create any additional output files in the workspace.
     - All intended file outputs/changes MUST be written in your response file.
     - For each intended file, include the repo name, relative path and unified git diff following the convention \`diff --git ...\`.
 2. When completely finished, run these PowerShell commands to signal completion:
@@ -31,7 +30,6 @@ export const AGENTV_BATCH_REQUEST_TEMPLATE = `[[ ## task ## ]]
 
 **IMPORTANT**: Follow these exact steps:
 1. Create and write your complete response to: {{responseFileTmp}}
-    - Do NOT create any additional output files in the workspace.
     - All intended file outputs/changes MUST be written in your response file.
     - For each intended file, include the repo name, relative path and unified git diff following the convention \`diff --git ...\`.
 2. When completely finished and the response is stable, rename it to: {{responseFileFinal}}

@@ -31,6 +31,11 @@ import type {
   EvalTest,
   JsonObject,
   JsonValue,
+  RepoCheckout,
+  RepoClone,
+  RepoConfig,
+  RepoSource,
+  ResetConfig,
   TestMessage,
   TrialsConfig,
   WorkspaceConfig,
@@ -506,6 +511,79 @@ function parseWorkspaceScriptConfig(
   return cwd ? { ...config, cwd } : config;
 }
 
+function parseRepoSource(raw: unknown): RepoSource | undefined {
+  if (!isJsonObject(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+  if (obj.type === 'git' && typeof obj.url === 'string') {
+    return { type: 'git', url: obj.url };
+  }
+  if (obj.type === 'local' && typeof obj.path === 'string') {
+    return { type: 'local', path: obj.path };
+  }
+  return undefined;
+}
+
+function parseRepoCheckout(raw: unknown): RepoCheckout | undefined {
+  if (!isJsonObject(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+  const ref = typeof obj.ref === 'string' ? obj.ref : undefined;
+  const resolve = obj.resolve === 'remote' || obj.resolve === 'local' ? obj.resolve : undefined;
+  const ancestor = typeof obj.ancestor === 'number' ? obj.ancestor : undefined;
+  if (!ref && !resolve && ancestor === undefined) return undefined;
+  return {
+    ...(ref !== undefined && { ref }),
+    ...(resolve !== undefined && { resolve }),
+    ...(ancestor !== undefined && { ancestor }),
+  };
+}
+
+function parseRepoClone(raw: unknown): RepoClone | undefined {
+  if (!isJsonObject(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+  const depth = typeof obj.depth === 'number' ? obj.depth : undefined;
+  const filter = typeof obj.filter === 'string' ? obj.filter : undefined;
+  const sparse = Array.isArray(obj.sparse)
+    ? obj.sparse.filter((s): s is string => typeof s === 'string')
+    : undefined;
+  if (depth === undefined && !filter && !sparse) return undefined;
+  return {
+    ...(depth !== undefined && { depth }),
+    ...(filter !== undefined && { filter }),
+    ...(sparse !== undefined && { sparse }),
+  };
+}
+
+function parseRepoConfig(raw: unknown): RepoConfig | undefined {
+  if (!isJsonObject(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+  const repoPath = typeof obj.path === 'string' ? obj.path : undefined;
+  const source = parseRepoSource(obj.source);
+  if (!repoPath || !source) return undefined;
+  const checkout = parseRepoCheckout(obj.checkout);
+  const clone = parseRepoClone(obj.clone);
+  return {
+    path: repoPath,
+    source,
+    ...(checkout !== undefined && { checkout }),
+    ...(clone !== undefined && { clone }),
+  };
+}
+
+function parseResetConfig(raw: unknown): ResetConfig | undefined {
+  if (!isJsonObject(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+  const strategy =
+    obj.strategy === 'none' || obj.strategy === 'hard' || obj.strategy === 'recreate'
+      ? obj.strategy
+      : undefined;
+  const afterEach = typeof obj.after_each === 'boolean' ? obj.after_each : undefined;
+  if (!strategy && afterEach === undefined) return undefined;
+  return {
+    ...(strategy !== undefined && { strategy }),
+    ...(afterEach !== undefined && { after_each: afterEach }),
+  };
+}
+
 /**
  * Parse a WorkspaceConfig from raw YAML value.
  */
@@ -518,15 +596,39 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     template = path.resolve(evalFileDir, template);
   }
 
+  const isolation =
+    obj.isolation === 'shared' || obj.isolation === 'per_test' ? obj.isolation : undefined;
+
+  const repos = Array.isArray(obj.repos)
+    ? ((obj.repos as Record<string, unknown>[])
+        .map(parseRepoConfig)
+        .filter(Boolean) as RepoConfig[])
+    : undefined;
+
+  const reset = parseResetConfig(obj.reset);
+
   const beforeAll = parseWorkspaceScriptConfig(obj.before_all, evalFileDir);
   const afterAll = parseWorkspaceScriptConfig(obj.after_all, evalFileDir);
   const beforeEach = parseWorkspaceScriptConfig(obj.before_each, evalFileDir);
   const afterEach = parseWorkspaceScriptConfig(obj.after_each, evalFileDir);
 
-  if (!template && !beforeAll && !afterAll && !beforeEach && !afterEach) return undefined;
+  if (
+    !template &&
+    !isolation &&
+    !repos &&
+    !reset &&
+    !beforeAll &&
+    !afterAll &&
+    !beforeEach &&
+    !afterEach
+  )
+    return undefined;
 
   return {
     ...(template !== undefined && { template }),
+    ...(isolation !== undefined && { isolation }),
+    ...(repos !== undefined && { repos }),
+    ...(reset !== undefined && { reset }),
     ...(beforeAll !== undefined && { before_all: beforeAll }),
     ...(afterAll !== undefined && { after_all: afterAll }),
     ...(beforeEach !== undefined && { before_each: beforeEach }),
@@ -548,6 +650,9 @@ function mergeWorkspaceConfigs(
 
   return {
     template: caseLevel.template ?? suiteLevel.template,
+    isolation: caseLevel.isolation ?? suiteLevel.isolation,
+    repos: caseLevel.repos ?? suiteLevel.repos,
+    reset: caseLevel.reset ?? suiteLevel.reset,
     before_all: caseLevel.before_all ?? suiteLevel.before_all,
     after_all: caseLevel.after_all ?? suiteLevel.after_all,
     before_each: caseLevel.before_each ?? suiteLevel.before_each,
