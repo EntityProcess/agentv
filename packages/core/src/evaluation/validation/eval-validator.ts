@@ -11,11 +11,19 @@ type JsonArray = readonly JsonValue[];
 
 /** Assertion evaluator types that require a string `value` field. */
 const ASSERTION_TYPES_WITH_STRING_VALUE = new Set([
-  'contains', 'icontains', 'starts_with', 'ends_with', 'equals', 'regex',
+  'contains',
+  'icontains',
+  'starts_with',
+  'ends_with',
+  'equals',
+  'regex',
 ]);
 /** Assertion evaluator types that require a string[] `value` field. */
 const ASSERTION_TYPES_WITH_ARRAY_VALUE = new Set([
-  'contains_any', 'contains_all', 'icontains_any', 'icontains_all',
+  'contains_any',
+  'contains_all',
+  'icontains_any',
+  'icontains_all',
 ]);
 
 /** Valid file extensions for external test files. */

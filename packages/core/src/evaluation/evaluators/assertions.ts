@@ -22,18 +22,26 @@ export function runContainsAssertion(output: string, value: string): AssertionRe
 }
 
 /** Checks if `output` contains ANY of the given `values`. */
-export function runContainsAnyAssertion(output: string, values: readonly string[]): AssertionResult {
+export function runContainsAnyAssertion(
+  output: string,
+  values: readonly string[],
+): AssertionResult {
   const matched = values.filter((v) => output.includes(v));
   const passed = matched.length > 0;
   return {
     score: passed ? 1 : 0,
     hits: passed ? [`Output contains "${matched[0]}"`] : [],
-    misses: passed ? [] : [`Output does not contain any of: ${values.map((v) => `"${v}"`).join(', ')}`],
+    misses: passed
+      ? []
+      : [`Output does not contain any of: ${values.map((v) => `"${v}"`).join(', ')}`],
   };
 }
 
 /** Checks if `output` contains ALL of the given `values`. */
-export function runContainsAllAssertion(output: string, values: readonly string[]): AssertionResult {
+export function runContainsAllAssertion(
+  output: string,
+  values: readonly string[],
+): AssertionResult {
   const missing = values.filter((v) => !output.includes(v));
   const passed = missing.length === 0;
   return {
@@ -54,26 +62,40 @@ export function runIcontainsAssertion(output: string, value: string): AssertionR
 }
 
 /** Case-insensitive check if `output` contains ANY of the given `values`. */
-export function runIcontainsAnyAssertion(output: string, values: readonly string[]): AssertionResult {
+export function runIcontainsAnyAssertion(
+  output: string,
+  values: readonly string[],
+): AssertionResult {
   const lower = output.toLowerCase();
   const matched = values.filter((v) => lower.includes(v.toLowerCase()));
   const passed = matched.length > 0;
   return {
     score: passed ? 1 : 0,
     hits: passed ? [`Output contains "${matched[0]}" (case-insensitive)`] : [],
-    misses: passed ? [] : [`Output does not contain any of: ${values.map((v) => `"${v}"`).join(', ')} (case-insensitive)`],
+    misses: passed
+      ? []
+      : [
+          `Output does not contain any of: ${values.map((v) => `"${v}"`).join(', ')} (case-insensitive)`,
+        ],
   };
 }
 
 /** Case-insensitive check if `output` contains ALL of the given `values`. */
-export function runIcontainsAllAssertion(output: string, values: readonly string[]): AssertionResult {
+export function runIcontainsAllAssertion(
+  output: string,
+  values: readonly string[],
+): AssertionResult {
   const lower = output.toLowerCase();
   const missing = values.filter((v) => !lower.includes(v.toLowerCase()));
   const passed = missing.length === 0;
   return {
     score: passed ? 1 : 0,
-    hits: passed ? [`Output contains all ${values.length} expected strings (case-insensitive)`] : [],
-    misses: passed ? [] : [`Output missing (case-insensitive): ${missing.map((v) => `"${v}"`).join(', ')}`],
+    hits: passed
+      ? [`Output contains all ${values.length} expected strings (case-insensitive)`]
+      : [],
+    misses: passed
+      ? []
+      : [`Output missing (case-insensitive): ${missing.map((v) => `"${v}"`).join(', ')}`],
   };
 }
 
@@ -98,7 +120,11 @@ export function runEndsWithAssertion(output: string, value: string): AssertionRe
 }
 
 /** Checks if `output` matches the given regex `pattern` with optional `flags`. */
-export function runRegexAssertion(output: string, pattern: string, flags?: string): AssertionResult {
+export function runRegexAssertion(
+  output: string,
+  pattern: string,
+  flags?: string,
+): AssertionResult {
   const regex = new RegExp(pattern, flags);
   const passed = regex.test(output);
   const flagsLabel = flags ? ` (flags: ${flags})` : '';

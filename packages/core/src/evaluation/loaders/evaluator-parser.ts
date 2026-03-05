@@ -892,7 +892,9 @@ async function parseEvaluatorList(
     if (typeValue === 'contains_any' || typeValue === 'contains_all') {
       const value = asStringArrayStrict(rawEvaluator.value);
       if (!value || value.length === 0) {
-        logWarning(`Skipping ${typeValue} evaluator '${name}' in '${evalId}': value must be a non-empty string array`);
+        logWarning(
+          `Skipping ${typeValue} evaluator '${name}' in '${evalId}': value must be a non-empty string array`,
+        );
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
@@ -930,7 +932,9 @@ async function parseEvaluatorList(
     if (typeValue === 'icontains_any' || typeValue === 'icontains_all') {
       const value = asStringArrayStrict(rawEvaluator.value);
       if (!value || value.length === 0) {
-        logWarning(`Skipping ${typeValue} evaluator '${name}' in '${evalId}': value must be a non-empty string array`);
+        logWarning(
+          `Skipping ${typeValue} evaluator '${name}' in '${evalId}': value must be a non-empty string array`,
+        );
         continue;
       }
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
@@ -1200,10 +1204,18 @@ async function parseEvaluatorList(
 
 /** Assertion evaluator types that support auto-generated names. */
 const ASSERTION_TYPES = new Set([
-  'contains', 'contains_any', 'contains_all',
-  'icontains', 'icontains_any', 'icontains_all',
-  'starts_with', 'ends_with',
-  'regex', 'is_json', 'equals', 'rubrics',
+  'contains',
+  'contains_any',
+  'contains_all',
+  'icontains',
+  'icontains_any',
+  'icontains_all',
+  'starts_with',
+  'ends_with',
+  'regex',
+  'is_json',
+  'equals',
+  'rubrics',
 ]);
 
 /**
