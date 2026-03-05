@@ -600,7 +600,9 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     obj.isolation === 'shared' || obj.isolation === 'per_test' ? obj.isolation : undefined;
 
   const repos = Array.isArray(obj.repos)
-    ? ((obj.repos as Record<string, unknown>[]).map(parseRepoConfig).filter(Boolean) as RepoConfig[])
+    ? ((obj.repos as Record<string, unknown>[])
+        .map(parseRepoConfig)
+        .filter(Boolean) as RepoConfig[])
     : undefined;
 
   const reset = parseResetConfig(obj.reset);
@@ -610,7 +612,16 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   const beforeEach = parseWorkspaceScriptConfig(obj.before_each, evalFileDir);
   const afterEach = parseWorkspaceScriptConfig(obj.after_each, evalFileDir);
 
-  if (!template && !isolation && !repos && !reset && !beforeAll && !afterAll && !beforeEach && !afterEach)
+  if (
+    !template &&
+    !isolation &&
+    !repos &&
+    !reset &&
+    !beforeAll &&
+    !afterAll &&
+    !beforeEach &&
+    !afterEach
+  )
     return undefined;
 
   return {

@@ -215,7 +215,10 @@ tests:
     const workspace = cases[0].workspace;
     expect(workspace?.repos).toHaveLength(1);
     expect(workspace?.repos?.[0].path).toBe('./repo-a');
-    expect(workspace?.repos?.[0].source).toEqual({ type: 'git', url: 'https://github.com/org/repo.git' });
+    expect(workspace?.repos?.[0].source).toEqual({
+      type: 'git',
+      url: 'https://github.com/org/repo.git',
+    });
     expect(workspace?.repos?.[0].checkout?.ref).toBe('main');
     expect(workspace?.repos?.[0].checkout?.resolve).toBe('remote');
     expect(workspace?.repos?.[0].checkout?.ancestor).toBe(1);
