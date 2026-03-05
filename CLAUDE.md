@@ -253,15 +253,7 @@ Design documents and implementation plans are stored in `.claude/plans/`. These 
 
 #### Git Worktrees
 
-When creating a git worktree, place it in a **sibling folder** using the naming convention `projectname_branchname`:
-
-```bash
-# From the repository root
-git worktree add ../agentv_docs-update docs/update-readme
-git worktree add ../agentv_feat-new-evaluator feat/new-evaluator
-```
-
-**IMPORTANT: After creating a worktree, copy `.env` from the main worktree:**
+Use the default `.worktrees/` directory (managed by the superpowers skill). After creating a worktree, copy `.env`:
 ```bash
 cp /home/christso/projects/agentv/.env .env
 ```
