@@ -250,8 +250,44 @@ const WorkspaceScriptSchema = z.object({
   cwd: z.string().optional(),
 });
 
+// ---------------------------------------------------------------------------
+// Repo lifecycle
+// ---------------------------------------------------------------------------
+
+const RepoSourceSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('git'), url: z.string().url() }),
+  z.object({ type: z.literal('local'), path: z.string() }),
+]);
+
+const RepoCheckoutSchema = z.object({
+  ref: z.string().optional(),
+  resolve: z.enum(['remote', 'local']).optional(),
+  ancestor: z.number().int().min(0).optional(),
+});
+
+const RepoCloneSchema = z.object({
+  depth: z.number().int().min(1).optional(),
+  filter: z.string().optional(),
+  sparse: z.array(z.string()).optional(),
+});
+
+const RepoSchema = z.object({
+  path: z.string(),
+  source: RepoSourceSchema,
+  checkout: RepoCheckoutSchema.optional(),
+  clone: RepoCloneSchema.optional(),
+});
+
+const ResetSchema = z.object({
+  strategy: z.enum(['none', 'hard', 'recreate']).optional(),
+  after_each: z.boolean().optional(),
+});
+
 const WorkspaceSchema = z.object({
   template: z.string().optional(),
+  isolation: z.enum(['shared', 'per_test']).optional(),
+  repos: z.array(RepoSchema).optional(),
+  reset: ResetSchema.optional(),
   before_all: WorkspaceScriptSchema.optional(),
   after_all: WorkspaceScriptSchema.optional(),
   before_each: WorkspaceScriptSchema.optional(),
