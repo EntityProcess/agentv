@@ -183,6 +183,93 @@ tests:
     expect(cases[0].workspace?.template).toBe(path.join(testDir, 'workspace-template'));
   });
 
+  it('parses workspace repos from YAML', async () => {
+    const evalFile = path.join(testDir, 'workspace-repos.yaml');
+    await writeFile(
+      evalFile,
+      `
+description: test
+workspace:
+  repos:
+    - path: ./repo-a
+      source:
+        type: git
+        url: https://github.com/org/repo.git
+      checkout:
+        ref: main
+        resolve: remote
+        ancestor: 1
+      clone:
+        depth: 2
+        filter: blob:none
+        sparse:
+          - src/**
+tests:
+  - id: test-1
+    input: "hello"
+    criteria: "world"
+`,
+    );
+
+    const cases = await loadTests(evalFile, testDir);
+    const workspace = cases[0].workspace;
+    expect(workspace?.repos).toHaveLength(1);
+    expect(workspace?.repos?.[0].path).toBe('./repo-a');
+    expect(workspace?.repos?.[0].source).toEqual({ type: 'git', url: 'https://github.com/org/repo.git' });
+    expect(workspace?.repos?.[0].checkout?.ref).toBe('main');
+    expect(workspace?.repos?.[0].checkout?.resolve).toBe('remote');
+    expect(workspace?.repos?.[0].checkout?.ancestor).toBe(1);
+    expect(workspace?.repos?.[0].clone?.depth).toBe(2);
+    expect(workspace?.repos?.[0].clone?.filter).toBe('blob:none');
+    expect(workspace?.repos?.[0].clone?.sparse).toEqual(['src/**']);
+  });
+
+  it('parses workspace reset config', async () => {
+    const evalFile = path.join(testDir, 'workspace-reset.yaml');
+    await writeFile(
+      evalFile,
+      `
+description: test
+workspace:
+  reset:
+    strategy: hard
+    after_each: true
+tests:
+  - id: test-1
+    input: "hello"
+    criteria: "world"
+`,
+    );
+
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases[0].workspace?.reset?.strategy).toBe('hard');
+    expect(cases[0].workspace?.reset?.after_each).toBe(true);
+  });
+
+  it('parses workspace isolation field', async () => {
+    const evalFile = path.join(testDir, 'workspace-isolation.yaml');
+    await writeFile(
+      evalFile,
+      `
+description: test
+workspace:
+  isolation: per_test
+  repos:
+    - path: ./repo-a
+      source:
+        type: git
+        url: https://github.com/org/repo.git
+tests:
+  - id: test-1
+    input: "hello"
+    criteria: "world"
+`,
+    );
+
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases[0].workspace?.isolation).toBe('per_test');
+  });
+
   it('should handle case with no workspace config', async () => {
     const evalFile = path.join(testDir, 'no-workspace.yaml');
     await writeFile(
