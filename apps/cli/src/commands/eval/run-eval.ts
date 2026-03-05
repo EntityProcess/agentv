@@ -193,6 +193,8 @@ function normalizeOptions(
     maxRetries: cliMaxRetries ?? configMaxRetries ?? 2,
     cache: resolvedCache,
     noCache: resolvedNoCache,
+    // Boolean OR: config `true` cannot be overridden to `false` from CLI.
+    // Intentional — there are no --no-verbose / --no-keep-workspaces flags.
     verbose: normalizeBoolean(rawOptions.verbose) || yamlExecution?.verbose === true,
     keepWorkspaces:
       normalizeBoolean(rawOptions.keepWorkspaces) || yamlExecution?.keep_workspaces === true,
@@ -614,7 +616,9 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
 
   const repoRoot = await findRepoRoot(cwd);
 
-  // Load .agentv/config.yaml for execution defaults
+  // Load .agentv/config.yaml for execution defaults.
+  // loadConfig expects an eval file path and walks up from its directory.
+  // Pass a dummy file in cwd so the search starts from the working directory.
   const yamlConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
 
   const options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
