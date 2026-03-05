@@ -1,0 +1,32 @@
+description: >-
+  Demonstrates workspace repo lifecycle: clone a git repo into the workspace,
+  check out a specific commit, and have the agent work on it.
+
+workspace:
+  repos:
+    - path: ./repo
+      source:
+        type: git
+        url: https://github.com/EntityProcess/agentv.git
+      checkout:
+        ref: main
+        resolve: local
+      clone:
+        depth: 1
+
+execution:
+  target: copilot
+
+tests:
+  - id: describe-package
+    criteria: >-
+      The agent should read packages/core/package.json from the cloned repo
+      and correctly report the package name and version.
+    input: >-
+      Read the file at repo/packages/core/package.json and tell me the
+      exact package name and version number.
+    assert:
+      - type: contains
+        value: "@agentv/core"
+      - type: regex
+        value: "\\d+\\.\\d+\\.\\d+"
