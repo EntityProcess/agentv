@@ -1,0 +1,226 @@
+import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { mkdir, rm, unlink, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+import type { RepoConfig, RepoSource } from '../types.js';
+
+const execFileAsync = promisify(execFile);
+
+const DEFAULT_CACHE_DIR = path.join(os.homedir(), '.agentv', 'git-cache');
+const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
+const LOCK_TIMEOUT_MS = 60_000; // 1 minute
+
+/** Environment vars to force non-interactive git */
+const GIT_ENV = {
+  ...process.env,
+  GIT_TERMINAL_PROMPT: '0',
+  GIT_ASKPASS: '',
+  GIT_SSH_COMMAND: 'ssh -o BatchMode=yes',
+};
+
+function normalizeUrl(url: string): string {
+  return url.toLowerCase().replace(/\.git$/, '');
+}
+
+function cacheKey(source: RepoSource): string {
+  const raw = source.type === 'git' ? source.url : source.path;
+  return createHash('sha256').update(normalizeUrl(raw)).digest('hex');
+}
+
+function getSourceUrl(source: RepoSource): string {
+  return source.type === 'git' ? source.url : source.path;
+}
+
+async function git(args: string[], opts?: { cwd?: string; timeout?: number }): Promise<string> {
+  const { stdout } = await execFileAsync('git', args, {
+    cwd: opts?.cwd,
+    timeout: opts?.timeout ?? DEFAULT_TIMEOUT_MS,
+    env: GIT_ENV,
+    maxBuffer: 50 * 1024 * 1024, // 50MB
+  });
+  return stdout.trim();
+}
+
+async function acquireLock(lockPath: string): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < LOCK_TIMEOUT_MS) {
+    try {
+      await writeFile(lockPath, String(process.pid), { flag: 'wx' });
+      return;
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+        await new Promise((r) => setTimeout(r, 200));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error(`Timed out waiting for lock: ${lockPath}`);
+}
+
+async function releaseLock(lockPath: string): Promise<void> {
+  try {
+    await unlink(lockPath);
+  } catch {
+    // Lock file may already be removed
+  }
+}
+
+export class RepoManager {
+  private readonly cacheDir: string;
+
+  constructor(cacheDir?: string) {
+    this.cacheDir = cacheDir ?? DEFAULT_CACHE_DIR;
+  }
+
+  /**
+   * Ensure a bare mirror cache exists for the given source.
+   * Creates on first access, fetches updates on subsequent calls.
+   * Returns the absolute path to the cache directory.
+   */
+  async ensureCache(source: RepoSource): Promise<string> {
+    const key = cacheKey(source);
+    const cachePath = path.join(this.cacheDir, key);
+    const lockPath = `${cachePath}.lock`;
+
+    await mkdir(this.cacheDir, { recursive: true });
+    await acquireLock(lockPath);
+
+    try {
+      if (existsSync(path.join(cachePath, 'HEAD'))) {
+        // Cache exists — fetch updates
+        await git(['fetch', '--prune'], { cwd: cachePath });
+      } else {
+        // Clone as bare mirror
+        await git(['clone', '--mirror', '--bare', getSourceUrl(source), cachePath]);
+      }
+    } finally {
+      await releaseLock(lockPath);
+    }
+
+    return cachePath;
+  }
+
+  /**
+   * Clone a repo from cache into the workspace at the configured path.
+   * Handles checkout, ref resolution, ancestor walking, shallow clone, sparse checkout.
+   */
+  async materialize(repo: RepoConfig, workspacePath: string): Promise<void> {
+    const targetDir = path.join(workspacePath, repo.path);
+    const cachePath = await this.ensureCache(repo.source);
+
+    // Build clone args — always clone from the bare cache
+    const cloneArgs = ['clone'];
+
+    if (repo.clone?.depth) {
+      cloneArgs.push('--depth', String(repo.clone.depth));
+    }
+    if (repo.clone?.filter) {
+      cloneArgs.push('--filter', repo.clone.filter);
+    }
+
+    // Clone with no checkout so we can control the checkout step
+    cloneArgs.push('--no-checkout');
+    // Use file:// protocol to force smart transport (required for --depth to work)
+    const cloneUrl =
+      repo.clone?.depth || repo.clone?.filter ? `file://${cachePath}` : cachePath;
+    cloneArgs.push(cloneUrl, targetDir);
+
+    await git(cloneArgs);
+
+    // Sparse checkout setup (before actual checkout)
+    if (repo.clone?.sparse?.length) {
+      await git(['sparse-checkout', 'init', '--cone'], { cwd: targetDir });
+      await git(['sparse-checkout', 'set', ...repo.clone.sparse], { cwd: targetDir });
+    }
+
+    // Resolve ref
+    const ref = repo.checkout?.ref ?? 'HEAD';
+    const resolve = repo.checkout?.resolve ?? 'remote';
+
+    let resolvedSha: string;
+    if (resolve === 'remote' && repo.source.type === 'git') {
+      // Resolve via ls-remote for remote refs
+      const url = getSourceUrl(repo.source);
+      try {
+        const lsOutput = await git(['ls-remote', url, ref]);
+        const match = lsOutput.split('\t')[0];
+        if (!match) {
+          throw new Error(`Ref '${ref}' not found on remote ${url}`);
+        }
+        resolvedSha = match;
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('not found')) throw err;
+        // Might be a SHA already — try direct checkout
+        resolvedSha = ref;
+      }
+    } else {
+      // Resolve locally from the cloned repo
+      resolvedSha = ref;
+    }
+
+    // Checkout
+    await git(['checkout', resolvedSha], { cwd: targetDir });
+
+    // Walk ancestors if requested
+    const ancestor = repo.checkout?.ancestor ?? 0;
+    if (ancestor > 0) {
+      try {
+        const ancestorSha = await git(['rev-parse', `HEAD~${ancestor}`], { cwd: targetDir });
+        await git(['checkout', ancestorSha], { cwd: targetDir });
+      } catch {
+        // Try to deepen if shallow
+        if (repo.clone?.depth) {
+          await git(['fetch', '--deepen', String(ancestor)], { cwd: targetDir });
+          const ancestorSha = await git(['rev-parse', `HEAD~${ancestor}`], { cwd: targetDir });
+          await git(['checkout', ancestorSha], { cwd: targetDir });
+        } else {
+          throw new Error(
+            `Cannot resolve ancestor ${ancestor} of ref '${ref}'. ` +
+              `If using shallow clone, increase clone.depth to at least ${ancestor + 1}.`,
+          );
+        }
+      }
+    }
+  }
+
+  /** Materialize all repos into the workspace. */
+  async materializeAll(repos: readonly RepoConfig[], workspacePath: string): Promise<void> {
+    for (const repo of repos) {
+      await this.materialize(repo, workspacePath);
+    }
+  }
+
+  /** Reset repos in workspace to their checkout state. */
+  async reset(
+    repos: readonly RepoConfig[],
+    workspacePath: string,
+    strategy: 'hard' | 'recreate',
+  ): Promise<void> {
+    if (strategy === 'recreate') {
+      // Remove and re-materialize
+      for (const repo of repos) {
+        const targetDir = path.join(workspacePath, repo.path);
+        await rm(targetDir, { recursive: true, force: true });
+      }
+      await this.materializeAll(repos, workspacePath);
+      return;
+    }
+
+    // strategy === 'hard'
+    for (const repo of repos) {
+      const targetDir = path.join(workspacePath, repo.path);
+      await git(['reset', '--hard', 'HEAD'], { cwd: targetDir });
+      await git(['clean', '-fd'], { cwd: targetDir });
+    }
+  }
+
+  /** Remove the entire cache directory. */
+  async cleanCache(): Promise<void> {
+    await rm(this.cacheDir, { recursive: true, force: true });
+  }
+}
