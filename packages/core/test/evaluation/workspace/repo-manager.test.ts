@@ -70,6 +70,24 @@ describe('RepoManager', () => {
       expect(isBare).toBe('true');
     });
 
+    it('creates shallow bare mirror when depth is specified', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir);
+      for (let i = 0; i < 5; i++) {
+        writeFileSync(path.join(repoDir, `file-${i}.txt`), `content-${i}`);
+        execSync(`git add -A && git commit -m "commit-${i}"`, { cwd: repoDir, ...EXEC_OPTS });
+      }
+
+      const cachePath = await manager.ensureCache({ type: 'local', path: repoDir }, 2);
+
+      expect(existsSync(cachePath)).toBe(true);
+      const isBare = gitExec('git rev-parse --is-bare-repository', cachePath);
+      expect(isBare).toBe('true');
+      // Shallow mirror should have limited history
+      const isShallow = gitExec('git rev-parse --is-shallow-repository', cachePath);
+      expect(isShallow).toBe('true');
+    });
+
     it('reuses existing cache on second call', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
       createTestRepo(repoDir);

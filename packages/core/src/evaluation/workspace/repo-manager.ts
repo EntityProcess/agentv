@@ -92,7 +92,7 @@ export class RepoManager {
    * Creates on first access, fetches updates on subsequent calls.
    * Returns the absolute path to the cache directory.
    */
-  async ensureCache(source: RepoSource): Promise<string> {
+  async ensureCache(source: RepoSource, depth?: number): Promise<string> {
     const key = cacheKey(source);
     const cachePath = path.join(this.cacheDir, key);
     const lockPath = `${cachePath}.lock`;
@@ -103,10 +103,22 @@ export class RepoManager {
     try {
       if (existsSync(path.join(cachePath, 'HEAD'))) {
         // Cache exists — fetch updates
-        await git(['fetch', '--prune'], { cwd: cachePath });
+        const fetchArgs = ['fetch', '--prune'];
+        if (depth) {
+          fetchArgs.push('--depth', String(depth));
+        }
+        await git(fetchArgs, { cwd: cachePath });
       } else {
         // Clone as bare mirror
-        await git(['clone', '--mirror', '--bare', getSourceUrl(source), cachePath]);
+        const cloneArgs = ['clone', '--mirror', '--bare'];
+        if (depth) {
+          cloneArgs.push('--depth', String(depth));
+        }
+        // Use file:// protocol for local sources with depth (required for smart transport)
+        const sourceUrl = getSourceUrl(source);
+        const cloneUrl = depth && source.type === 'local' ? `file://${sourceUrl}` : sourceUrl;
+        cloneArgs.push(cloneUrl, cachePath);
+        await git(cloneArgs);
       }
     } finally {
       await releaseLock(lockPath);
