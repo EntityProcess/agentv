@@ -160,6 +160,75 @@ Each hook config accepts:
 
 **Suite vs per-test:** When both are defined, test-level fields replace suite-level fields. See [Per-Test Workspace Config](/evaluation/eval-cases/#per-case-workspace-config) for examples.
 
+### Repository Lifecycle
+
+Clone git repositories into the workspace automatically, with caching for fast repeat runs. Define repos at the suite level or per test:
+
+```yaml
+workspace:
+  repos:
+    - path: ./my-repo
+      source:
+        type: git
+        url: https://github.com/org/repo.git
+      checkout:
+        ref: main
+        ancestor: 1          # check out the parent commit
+      clone:
+        depth: 10             # shallow clone
+    - path: ./local-copy
+      source:
+        type: local
+        path: /home/user/projects/my-project
+  reset:
+    strategy: hard            # none | hard | recreate
+    after_each: true          # reset repos between tests
+  isolation: shared           # shared (default) | per_test
+```
+
+| Field | Description |
+|-------|-------------|
+| `repos[].path` | Directory within the workspace to clone into |
+| `repos[].source.type` | `git` (remote URL) or `local` (absolute path) |
+| `repos[].checkout.ref` | Branch, tag, or SHA to check out (default: `HEAD`) |
+| `repos[].checkout.resolve` | `remote` (ls-remote, default for git) or `local` |
+| `repos[].checkout.ancestor` | Walk N commits back from ref (e.g., `1` for parent) |
+| `repos[].clone.depth` | Shallow clone depth |
+| `repos[].clone.filter` | Partial clone filter (e.g., `blob:none`) |
+| `repos[].clone.sparse` | Sparse checkout paths |
+| `reset.strategy` | How to reset repos: `none`, `hard` (git reset), `recreate` (re-clone) |
+| `reset.after_each` | Reset after each test (default: `false`) |
+| `isolation` | `shared` reuses one workspace; `per_test` creates a fresh copy per test |
+
+**Caching:** Repos are cached as bare mirrors in `~/.agentv/git-cache/`. Subsequent runs fetch only new objects. Use `agentv cache clean` to clear the cache.
+
+**Common patterns:**
+
+```yaml
+# Pinned commit with shallow clone (fast CI runs)
+workspace:
+  repos:
+    - path: ./repo
+      source:
+        type: git
+        url: https://github.com/org/repo.git
+      checkout:
+        ref: abc123def
+      clone:
+        depth: 1
+
+# Multi-repo shared workspace with reset
+workspace:
+  repos:
+    - path: ./frontend
+      source: { type: git, url: https://github.com/org/frontend.git }
+    - path: ./backend
+      source: { type: git, url: https://github.com/org/backend.git }
+  reset:
+    strategy: hard
+    after_each: true
+```
+
 ### Cleanup Behavior
 
 By default:
