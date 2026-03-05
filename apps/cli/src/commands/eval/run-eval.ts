@@ -68,7 +68,6 @@ interface NormalizedOptions {
   readonly verbose: boolean;
   readonly keepWorkspaces: boolean;
   readonly cleanupWorkspaces: boolean;
-  readonly trace: boolean;
   readonly otelFile?: string;
   readonly traceFile?: string;
   readonly exportOtel: boolean;
@@ -195,18 +194,32 @@ function normalizeOptions(
     noCache: resolvedNoCache,
     // Boolean OR: config `true` cannot be overridden to `false` from CLI.
     // Intentional — there are no --no-verbose / --no-keep-workspaces flags.
-    verbose: normalizeBoolean(rawOptions.verbose) || yamlExecution?.verbose === true,
+    // Precedence: CLI > YAML config > TS config
+    verbose:
+      normalizeBoolean(rawOptions.verbose) ||
+      yamlExecution?.verbose === true ||
+      config?.execution?.verbose === true,
     keepWorkspaces:
-      normalizeBoolean(rawOptions.keepWorkspaces) || yamlExecution?.keep_workspaces === true,
+      normalizeBoolean(rawOptions.keepWorkspaces) ||
+      yamlExecution?.keep_workspaces === true ||
+      config?.execution?.keepWorkspaces === true,
     cleanupWorkspaces: normalizeBoolean(rawOptions.cleanupWorkspaces),
-    trace: normalizeBoolean(rawOptions.trace),
+    // Precedence: CLI > YAML config > TS config
     otelFile:
       normalizeString(rawOptions.otelFile) ??
-      (yamlExecution?.otel_file ? resolveTimestampPlaceholder(yamlExecution.otel_file) : undefined),
+      (yamlExecution?.otel_file
+        ? resolveTimestampPlaceholder(yamlExecution.otel_file)
+        : undefined) ??
+      (config?.execution?.otelFile
+        ? resolveTimestampPlaceholder(config.execution.otelFile)
+        : undefined),
     traceFile:
       normalizeString(rawOptions.traceFile) ??
       (yamlExecution?.trace_file
         ? resolveTimestampPlaceholder(yamlExecution.trace_file)
+        : undefined) ??
+      (config?.execution?.traceFile
+        ? resolveTimestampPlaceholder(config.execution.traceFile)
         : undefined),
     exportOtel: normalizeBoolean(rawOptions.exportOtel),
     otelBackend: normalizeString(rawOptions.otelBackend),

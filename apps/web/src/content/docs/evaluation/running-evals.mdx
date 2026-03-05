@@ -138,7 +138,9 @@ Runs code judges deterministically and returns LLM judge prompts for the agent t
 
 ## Config File Defaults
 
-Set default execution options in `.agentv/config.yaml` so you don't have to pass them on every CLI invocation:
+Set default execution options so you don't have to pass them on every CLI invocation. Both `.agentv/config.yaml` and `agentv.config.ts` are supported.
+
+### YAML config (`.agentv/config.yaml`)
 
 ```yaml
 execution:
@@ -155,9 +157,24 @@ execution:
 | `keep_workspaces` | `--keep-workspaces` | boolean | `false` | Always keep temp workspaces after eval |
 | `otel_file` | `--otel-file` | string | none | Write OTLP JSON trace to file |
 
+### TypeScript config (`agentv.config.ts`)
+
+```typescript
+import { defineConfig } from '@agentv/core';
+
+export default defineConfig({
+  execution: {
+    verbose: true,
+    traceFile: '.agentv/results/trace-{timestamp}.jsonl',
+    keepWorkspaces: false,
+    otelFile: '.agentv/results/otel-{timestamp}.json',
+  },
+});
+```
+
 The `{timestamp}` placeholder is replaced with an ISO-like timestamp (e.g., `2026-03-05T14-30-00-000Z`) at execution time.
 
-**Precedence:** CLI flags > `.agentv/config.yaml` > built-in defaults. A CLI flag always wins over the config file value.
+**Precedence:** CLI flags > `.agentv/config.yaml` > `agentv.config.ts` > built-in defaults.
 
 ## All Options
 

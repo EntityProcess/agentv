@@ -18,11 +18,11 @@ eval_patterns:
   - "**/evals/**/eval.yaml"
 
 # Execution defaults (overridden by CLI flags)
-# execution:
-#   verbose: false
-#   trace_file: .agentv/results/trace-{timestamp}.jsonl
-#   keep_workspaces: false
-#   otel_file: .agentv/results/otel-{timestamp}.json
+execution:
+  verbose: false
+  trace_file: .agentv/results/trace-{timestamp}.jsonl
+  keep_workspaces: false
+  otel_file: .agentv/results/otel-{timestamp}.json
 
 # Notes:
 # - Patterns use standard glob syntax (via fast-glob)
