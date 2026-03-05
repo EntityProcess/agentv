@@ -70,6 +70,24 @@ describe('RepoManager', () => {
       expect(isBare).toBe('true');
     });
 
+    it('creates shallow bare mirror when depth is specified', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir);
+      for (let i = 0; i < 5; i++) {
+        writeFileSync(path.join(repoDir, `file-${i}.txt`), `content-${i}`);
+        execSync(`git add -A && git commit -m "commit-${i}"`, { cwd: repoDir, ...EXEC_OPTS });
+      }
+
+      const cachePath = await manager.ensureCache({ type: 'local', path: repoDir }, 2);
+
+      expect(existsSync(cachePath)).toBe(true);
+      const isBare = gitExec('git rev-parse --is-bare-repository', cachePath);
+      expect(isBare).toBe('true');
+      // Shallow mirror should have limited history
+      const isShallow = gitExec('git rev-parse --is-shallow-repository', cachePath);
+      expect(isShallow).toBe('true');
+    });
+
     it('reuses existing cache on second call', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
       createTestRepo(repoDir);
@@ -144,6 +162,35 @@ describe('RepoManager', () => {
       expect(headSha).toBe(firstSha);
     });
 
+    it('creates shallow cache when clone.depth is specified', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir);
+      for (let i = 0; i < 5; i++) {
+        writeFileSync(path.join(repoDir, `file-${i}.txt`), `content-${i}`);
+        execSync(`git add -A && git commit -m "commit-${i}"`, { cwd: repoDir, ...EXEC_OPTS });
+      }
+
+      await manager.materialize(
+        {
+          path: './my-repo',
+          source: { type: 'local', path: repoDir },
+          clone: { depth: 2 },
+        },
+        workspaceDir,
+      );
+
+      // Verify the cache itself is shallow (not just the materialized clone)
+      const cacheEntries = execSync('ls', { cwd: cacheDir, env: cleanGitEnv() })
+        .toString()
+        .trim()
+        .split('\n')
+        .filter((e) => !e.endsWith('.lock'));
+      expect(cacheEntries.length).toBe(1);
+      const cachePath = path.join(cacheDir, cacheEntries[0]);
+      const isShallow = gitExec('git rev-parse --is-shallow-repository', cachePath);
+      expect(isShallow).toBe('true');
+    });
+
     it('supports shallow clone with depth', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
       createTestRepo(repoDir);
@@ -205,6 +252,71 @@ describe('RepoManager', () => {
       expect(existsSync(path.join(targetDir, 'agent-created.txt'))).toBe(false);
       const content = readFileSync(path.join(targetDir, 'original.txt'), 'utf-8');
       expect(content).toBe('original');
+    });
+  });
+
+  describe('seedCache', () => {
+    it('creates cache from local repo with remote URL', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir, { 'hello.txt': 'hello' });
+
+      const remoteUrl = 'https://github.com/example/repo.git';
+      const cachePath = await manager.seedCache(repoDir, remoteUrl);
+
+      expect(existsSync(cachePath)).toBe(true);
+      const isBare = gitExec('git rev-parse --is-bare-repository', cachePath);
+      expect(isBare).toBe('true');
+
+      // Verify remote origin points to the provided URL
+      const remoteOrigin = gitExec('git remote get-url origin', cachePath);
+      expect(remoteOrigin).toBe(remoteUrl);
+    });
+
+    it('errors if cache already exists without force', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir);
+
+      const remoteUrl = 'https://github.com/example/repo.git';
+      await manager.seedCache(repoDir, remoteUrl);
+
+      await expect(manager.seedCache(repoDir, remoteUrl)).rejects.toThrow(/already exists/);
+    });
+
+    it('overwrites existing cache with force', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir, { 'v1.txt': 'v1' });
+
+      const remoteUrl = 'https://github.com/example/repo.git';
+      await manager.seedCache(repoDir, remoteUrl);
+
+      // Add more commits to source
+      writeFileSync(path.join(repoDir, 'v2.txt'), 'v2');
+      execSync('git add -A && git commit -m "v2"', { cwd: repoDir, ...EXEC_OPTS });
+
+      const cachePath = await manager.seedCache(repoDir, remoteUrl, { force: true });
+
+      // Verify new content is in cache
+      const refs = gitExec('git log --oneline --all', cachePath);
+      expect(refs).toContain('v2');
+    });
+
+    it('uses URL-based cache key so ensureCache finds seeded cache', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir);
+
+      const remoteUrl = 'https://github.com/example/repo.git';
+      const cachePath = await manager.seedCache(repoDir, remoteUrl);
+
+      // The seeded cache should be at the same path ensureCache would use.
+      // Verify by checking the cache directory contains HEAD (ensureCache's existence check).
+      expect(existsSync(path.join(cachePath, 'HEAD'))).toBe(true);
+
+      // Verify the cache key is derived from the URL (normalized: lowercase, no .git suffix)
+      const { createHash } = await import('node:crypto');
+      const expectedKey = createHash('sha256')
+        .update(remoteUrl.toLowerCase().replace(/\.git$/, ''))
+        .digest('hex');
+      expect(cachePath).toBe(path.join(cacheDir, expectedKey));
     });
   });
 

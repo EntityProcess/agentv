@@ -203,9 +203,10 @@ workspace:
 
 - `source.type`: `git` (URL) or `local` (path)
 - `checkout.resolve`: `remote` (ls-remote) or `local`
+- `clone.depth`: shallow clone depth (applies to both cache and workspace)
 - `clone.filter`: partial clone filter (e.g., `blob:none`)
 - `clone.sparse`: sparse checkout paths array
-- Cache: `~/.agentv/git-cache/`, clear with `agentv cache clean`
+- Cache: `~/.agentv/git-cache/`, manage with `agentv cache clean` or `agentv cache add --url <url> --from <local-path>`
 
 See https://agentv.dev/targets/configuration/#repository-lifecycle
 

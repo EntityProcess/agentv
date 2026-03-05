@@ -92,7 +92,7 @@ export class RepoManager {
    * Creates on first access, fetches updates on subsequent calls.
    * Returns the absolute path to the cache directory.
    */
-  async ensureCache(source: RepoSource): Promise<string> {
+  async ensureCache(source: RepoSource, depth?: number): Promise<string> {
     const key = cacheKey(source);
     const cachePath = path.join(this.cacheDir, key);
     const lockPath = `${cachePath}.lock`;
@@ -103,10 +103,22 @@ export class RepoManager {
     try {
       if (existsSync(path.join(cachePath, 'HEAD'))) {
         // Cache exists — fetch updates
-        await git(['fetch', '--prune'], { cwd: cachePath });
+        const fetchArgs = ['fetch', '--prune'];
+        if (depth) {
+          fetchArgs.push('--depth', String(depth));
+        }
+        await git(fetchArgs, { cwd: cachePath });
       } else {
         // Clone as bare mirror
-        await git(['clone', '--mirror', '--bare', getSourceUrl(source), cachePath]);
+        const cloneArgs = ['clone', '--mirror', '--bare'];
+        if (depth) {
+          cloneArgs.push('--depth', String(depth));
+        }
+        // Use file:// protocol for local sources with depth (required for smart transport)
+        const sourceUrl = getSourceUrl(source);
+        const cloneUrl = depth && source.type === 'local' ? `file://${sourceUrl}` : sourceUrl;
+        cloneArgs.push(cloneUrl, cachePath);
+        await git(cloneArgs);
       }
     } finally {
       await releaseLock(lockPath);
@@ -121,7 +133,7 @@ export class RepoManager {
    */
   async materialize(repo: RepoConfig, workspacePath: string): Promise<void> {
     const targetDir = path.join(workspacePath, repo.path);
-    const cachePath = await this.ensureCache(repo.source);
+    const cachePath = await this.ensureCache(repo.source, repo.clone?.depth);
 
     // Build clone args — always clone from the bare cache
     const cloneArgs = ['clone'];
@@ -226,6 +238,45 @@ export class RepoManager {
       await git(['reset', '--hard', 'HEAD'], { cwd: targetDir });
       await git(['clean', '-fd'], { cwd: targetDir });
     }
+  }
+
+  /**
+   * Seed the cache from a local repository, setting the remote to a given URL.
+   * Useful for avoiding slow network clones when a local clone already exists.
+   */
+  async seedCache(
+    localPath: string,
+    remoteUrl: string,
+    opts?: { force?: boolean },
+  ): Promise<string> {
+    const source: RepoSource = { type: 'git', url: remoteUrl };
+    const key = cacheKey(source);
+    const cachePath = path.join(this.cacheDir, key);
+    const lockPath = `${cachePath}.lock`;
+
+    await mkdir(this.cacheDir, { recursive: true });
+    await acquireLock(lockPath);
+
+    try {
+      if (existsSync(path.join(cachePath, 'HEAD'))) {
+        if (!opts?.force) {
+          throw new Error(
+            `Cache already exists for ${remoteUrl} at ${cachePath}. Use force to overwrite.`,
+          );
+        }
+        await rm(cachePath, { recursive: true, force: true });
+      }
+
+      // Clone bare mirror from local path
+      await git(['clone', '--mirror', '--bare', localPath, cachePath]);
+
+      // Point remote origin to the actual remote URL for future fetches
+      await git(['remote', 'set-url', 'origin', remoteUrl], { cwd: cachePath });
+    } finally {
+      await releaseLock(lockPath);
+    }
+
+    return cachePath;
   }
 
   /** Remove the entire cache directory. */
