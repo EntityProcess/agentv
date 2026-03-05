@@ -14,13 +14,22 @@ const DEFAULT_CACHE_DIR = path.join(os.homedir(), '.agentv', 'git-cache');
 const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
 const LOCK_TIMEOUT_MS = 60_000; // 1 minute
 
-/** Environment vars to force non-interactive git */
-const GIT_ENV = {
-  ...process.env,
-  GIT_TERMINAL_PROMPT: '0',
-  GIT_ASKPASS: '',
-  GIT_SSH_COMMAND: 'ssh -o BatchMode=yes',
-};
+/** Environment vars to force non-interactive git, stripped of hook-injected vars */
+function gitEnv(): Record<string, string | undefined> {
+  const env = { ...process.env };
+  // Remove git hook environment variables that interfere with subprocess git operations
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('GIT_') && key !== 'GIT_SSH_COMMAND') {
+      delete env[key];
+    }
+  }
+  return {
+    ...env,
+    GIT_TERMINAL_PROMPT: '0',
+    GIT_ASKPASS: '',
+    GIT_SSH_COMMAND: 'ssh -o BatchMode=yes',
+  };
+}
 
 function normalizeUrl(url: string): string {
   return url.toLowerCase().replace(/\.git$/, '');
@@ -39,7 +48,7 @@ async function git(args: string[], opts?: { cwd?: string; timeout?: number }): P
   const { stdout } = await execFileAsync('git', args, {
     cwd: opts?.cwd,
     timeout: opts?.timeout ?? DEFAULT_TIMEOUT_MS,
-    env: GIT_ENV,
+    env: gitEnv(),
     maxBuffer: 50 * 1024 * 1024, // 50MB
   });
   return stdout.trim();

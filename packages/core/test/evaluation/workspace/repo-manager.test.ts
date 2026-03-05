@@ -7,19 +7,36 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { RepoManager } from '../../../src/evaluation/workspace/repo-manager.js';
 
+/** Clean env without git hook variables (GIT_DIR, GIT_WORK_TREE, etc.) that break subprocess git */
+function cleanGitEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined && !(key.startsWith('GIT_') && key !== 'GIT_SSH_COMMAND')) {
+      env[key] = value;
+    }
+  }
+  return env;
+}
+
+const EXEC_OPTS = { stdio: 'ignore' as const, env: cleanGitEnv() };
+
+function gitExec(cmd: string, cwd: string): string {
+  return execSync(cmd, { cwd, env: cleanGitEnv() }).toString().trim();
+}
+
 function createTestRepo(dir: string, files?: Record<string, string>): string {
   mkdirSync(dir, { recursive: true });
-  execSync('git init', { cwd: dir, stdio: 'ignore' });
-  execSync('git config user.email "test@test.com"', { cwd: dir, stdio: 'ignore' });
-  execSync('git config user.name "Test"', { cwd: dir, stdio: 'ignore' });
+  execSync('git init', { cwd: dir, ...EXEC_OPTS });
+  execSync('git config user.email "test@test.com"', { cwd: dir, ...EXEC_OPTS });
+  execSync('git config user.name "Test"', { cwd: dir, ...EXEC_OPTS });
   const defaultFiles = { 'README.md': '# Test', ...files };
   for (const [name, content] of Object.entries(defaultFiles)) {
     const filePath = path.join(dir, name);
     mkdirSync(path.dirname(filePath), { recursive: true });
     writeFileSync(filePath, content);
   }
-  execSync('git add -A && git commit -m "initial"', { cwd: dir, stdio: 'ignore' });
-  return execSync('git rev-parse HEAD', { cwd: dir }).toString().trim();
+  execSync('git add -A && git commit -m "initial"', { cwd: dir, ...EXEC_OPTS });
+  return gitExec('git rev-parse HEAD', dir);
 }
 
 describe('RepoManager', () => {
@@ -49,9 +66,7 @@ describe('RepoManager', () => {
 
       expect(existsSync(cachePath)).toBe(true);
       // Verify it's a bare repo
-      const isBare = execSync('git rev-parse --is-bare-repository', { cwd: cachePath })
-        .toString()
-        .trim();
+      const isBare = gitExec('git rev-parse --is-bare-repository', cachePath);
       expect(isBare).toBe('true');
     });
 
@@ -87,11 +102,11 @@ describe('RepoManager', () => {
       createTestRepo(repoDir);
       // Create a second commit
       writeFileSync(path.join(repoDir, 'second.txt'), 'second');
-      execSync('git add -A && git commit -m "second"', { cwd: repoDir, stdio: 'ignore' });
-      const secondSha = execSync('git rev-parse HEAD', { cwd: repoDir }).toString().trim();
+      execSync('git add -A && git commit -m "second"', { cwd: repoDir, ...EXEC_OPTS });
+      const secondSha = gitExec('git rev-parse HEAD', repoDir);
       // Create a third commit
       writeFileSync(path.join(repoDir, 'third.txt'), 'third');
-      execSync('git add -A && git commit -m "third"', { cwd: repoDir, stdio: 'ignore' });
+      execSync('git add -A && git commit -m "third"', { cwd: repoDir, ...EXEC_OPTS });
 
       await manager.materialize(
         {
@@ -103,7 +118,7 @@ describe('RepoManager', () => {
       );
 
       const targetDir = path.join(workspaceDir, 'my-repo');
-      const headSha = execSync('git rev-parse HEAD', { cwd: targetDir }).toString().trim();
+      const headSha = gitExec('git rev-parse HEAD', targetDir);
       expect(headSha).toBe(secondSha);
       expect(existsSync(path.join(targetDir, 'second.txt'))).toBe(true);
       expect(existsSync(path.join(targetDir, 'third.txt'))).toBe(false);
@@ -113,7 +128,7 @@ describe('RepoManager', () => {
       const repoDir = path.join(tmpDir, 'source-repo');
       const firstSha = createTestRepo(repoDir);
       writeFileSync(path.join(repoDir, 'second.txt'), 'second');
-      execSync('git add -A && git commit -m "second"', { cwd: repoDir, stdio: 'ignore' });
+      execSync('git add -A && git commit -m "second"', { cwd: repoDir, ...EXEC_OPTS });
 
       await manager.materialize(
         {
@@ -125,7 +140,7 @@ describe('RepoManager', () => {
       );
 
       const targetDir = path.join(workspaceDir, 'my-repo');
-      const headSha = execSync('git rev-parse HEAD', { cwd: targetDir }).toString().trim();
+      const headSha = gitExec('git rev-parse HEAD', targetDir);
       expect(headSha).toBe(firstSha);
     });
 
@@ -134,7 +149,7 @@ describe('RepoManager', () => {
       createTestRepo(repoDir);
       for (let i = 0; i < 5; i++) {
         writeFileSync(path.join(repoDir, `file-${i}.txt`), `content-${i}`);
-        execSync(`git add -A && git commit -m "commit-${i}"`, { cwd: repoDir, stdio: 'ignore' });
+        execSync(`git add -A && git commit -m "commit-${i}"`, { cwd: repoDir, ...EXEC_OPTS });
       }
 
       await manager.materialize(
@@ -147,7 +162,7 @@ describe('RepoManager', () => {
       );
 
       const targetDir = path.join(workspaceDir, 'my-repo');
-      const logCount = execSync('git rev-list --count HEAD', { cwd: targetDir }).toString().trim();
+      const logCount = gitExec('git rev-list --count HEAD', targetDir);
       expect(Number(logCount)).toBe(2);
     });
   });
