@@ -15,9 +15,17 @@ export const DEFAULT_EVAL_PATTERNS: readonly string[] = [
   '**/evals/**/eval.yaml',
 ];
 
+export type ExecutionDefaults = {
+  readonly verbose?: boolean;
+  readonly trace_file?: string;
+  readonly keep_workspaces?: boolean;
+  readonly otel_file?: string;
+};
+
 export type AgentVConfig = {
   readonly guideline_patterns?: readonly string[];
   readonly eval_patterns?: readonly string[];
+  readonly execution?: ExecutionDefaults;
 };
 
 /**
@@ -73,9 +81,15 @@ export async function loadConfig(
         continue;
       }
 
+      const executionDefaults = parseExecutionDefaults(
+        (parsed as Record<string, unknown>).execution,
+        configPath,
+      );
+
       return {
         guideline_patterns: guidelinePatterns as readonly string[] | undefined,
         eval_patterns: evalPatterns as readonly string[] | undefined,
+        execution: executionDefaults,
       };
     } catch (error) {
       logWarning(
@@ -287,6 +301,46 @@ export function extractTotalBudgetUsd(suite: JsonObject): number | undefined {
     `Invalid execution.total_budget_usd: ${rawBudget}. Must be a positive number. Ignoring.`,
   );
   return undefined;
+}
+
+export function parseExecutionDefaults(
+  raw: unknown,
+  configPath: string,
+): ExecutionDefaults | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return undefined;
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+
+  if (typeof obj.verbose === 'boolean') {
+    result.verbose = obj.verbose;
+  } else if (obj.verbose !== undefined) {
+    logWarning(`Invalid execution.verbose in ${configPath}, expected boolean`);
+  }
+
+  const traceFile = obj.trace_file;
+  if (typeof traceFile === 'string' && traceFile.trim().length > 0) {
+    result.trace_file = traceFile.trim();
+  } else if (traceFile !== undefined) {
+    logWarning(`Invalid execution.trace_file in ${configPath}, expected non-empty string`);
+  }
+
+  if (typeof obj.keep_workspaces === 'boolean') {
+    result.keep_workspaces = obj.keep_workspaces;
+  } else if (obj.keep_workspaces !== undefined) {
+    logWarning(`Invalid execution.keep_workspaces in ${configPath}, expected boolean`);
+  }
+
+  const otelFile = obj.otel_file;
+  if (typeof otelFile === 'string' && otelFile.trim().length > 0) {
+    result.otel_file = otelFile.trim();
+  } else if (otelFile !== undefined) {
+    logWarning(`Invalid execution.otel_file in ${configPath}, expected non-empty string`);
+  }
+
+  return Object.keys(result).length > 0 ? (result as ExecutionDefaults) : undefined;
 }
 
 function logWarning(message: string): void {

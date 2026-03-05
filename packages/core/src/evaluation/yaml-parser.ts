@@ -55,7 +55,7 @@ export {
   isGuidelineFile,
   loadConfig,
 } from './loaders/config-loader.js';
-export type { AgentVConfig, CacheConfig } from './loaders/config-loader.js';
+export type { AgentVConfig, CacheConfig, ExecutionDefaults } from './loaders/config-loader.js';
 export { detectFormat } from './loaders/jsonl-parser.js';
 export type { EvalMetadata } from './metadata.js';
 
