@@ -7,6 +7,60 @@ sidebar:
 
 Coding agent targets evaluate AI coding assistants and CLI-based agents. These targets require a `judge_target` to run LLM-based evaluators.
 
+## Prompt format
+
+Agent providers receive a structured prompt document with two sections: a **preread block** listing files the agent must read, and the **user query** containing the eval input.
+
+### File handling
+
+When an eval test includes `type: file` inputs, agent providers do **not** receive the file content inline. Instead, they receive:
+
+1. A preread block with `file://` URIs pointing to absolute paths on disk
+2. The user query with `<file: path="...">` reference tags
+
+The agent is expected to read the files itself using its filesystem tools.
+
+This differs from [LLM providers](/targets/llm-providers), which receive file content embedded directly in the prompt as XML:
+
+```xml
+<file path="src/example.ts">
+// file content is inlined here
+</file>
+```
+
+### Example prompt
+
+Given an eval with a guideline file and a file input:
+
+```yaml
+input:
+  - role: user
+    content:
+      - type: file
+        value: ./src/example.ts
+      - type: text
+        value: Review this code
+```
+
+The agent receives a prompt like:
+
+```
+Read all guideline files:
+* [guidelines.md](file:///abs/path/guidelines.md).
+
+Read all input files:
+* [example.ts](file:///abs/path/src/example.ts).
+
+If any file is missing, fail with ERROR: missing-file <filename> and stop.
+Then apply system_instructions on the user query below.
+
+[[ ## user_query ## ]]
+<file: path="./src/example.ts">
+Review this code
+```
+
+The preread block instructs the agent to read both guideline and input files before processing the query. If a `system_prompt` is configured on the target, it is passed separately via the provider SDK (not in the prompt document).
+
 ## Claude
 
 ```yaml

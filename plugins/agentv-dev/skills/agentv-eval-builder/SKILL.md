@@ -54,6 +54,7 @@ tests:
 **Message format:** `{role, content}` where role is `system`, `user`, `assistant`, or `tool`
 **Content types:** inline text, `{type: "file", value: "./path.md"}`
 **File paths:** relative from eval file dir, or absolute with `/` prefix from repo root
+**File handling by provider type:** LLM providers receive file content inlined in XML tags. Agent providers receive a preread block with `file://` URIs and must read files themselves. See [Coding Agents > Prompt format](https://agentv.dev/targets/coding-agents#prompt-format).
 
 **JSONL format:** One test per line as JSON. Optional `.yaml` sidecar for shared defaults. See `examples/features/basic-jsonl/`.
 
