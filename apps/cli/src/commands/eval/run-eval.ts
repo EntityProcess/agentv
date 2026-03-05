@@ -4,13 +4,11 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
-  AGENT_PROVIDER_KINDS,
   type EvalTest,
   type EvaluationCache,
   type EvaluationResult,
   type ExecutionDefaults,
   type OtelTraceExporter as OtelTraceExporterType,
-  type ProviderKind,
   ResponseCache,
   type TrialsConfig,
   runEvaluation as defaultRunEvaluation,
@@ -70,7 +68,6 @@ interface NormalizedOptions {
   readonly verbose: boolean;
   readonly keepWorkspaces: boolean;
   readonly cleanupWorkspaces: boolean;
-  readonly trace: boolean;
   readonly otelFile?: string;
   readonly traceFile?: string;
   readonly exportOtel: boolean;
@@ -207,7 +204,6 @@ function normalizeOptions(
       yamlExecution?.keep_workspaces === true ||
       config?.execution?.keepWorkspaces === true,
     cleanupWorkspaces: normalizeBoolean(rawOptions.cleanupWorkspaces),
-    trace: normalizeBoolean(rawOptions.trace),
     // Precedence: CLI > YAML config > TS config
     otelFile:
       normalizeString(rawOptions.otelFile) ??
@@ -638,7 +634,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   // Pass a dummy file in cwd so the search starts from the working directory.
   const yamlConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
 
-  let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
+  const options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
 
   if (options.keepWorkspaces && options.cleanupWorkspaces) {
     console.warn(
@@ -648,97 +644,6 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
 
   if (options.verbose) {
     console.log(`Repository root: ${repoRoot}`);
-  }
-
-  const outputPath = options.outPath
-    ? path.resolve(options.outPath)
-    : buildDefaultOutputPath(cwd, options.format);
-
-  // Resolve -o / --output paths (new multi-format support)
-  const extraOutputPaths = options.outputPaths.map((p) => path.resolve(p));
-
-  // Build the primary output writer (from --out / default)
-  // When extra --output paths are provided, combine all into a multi-writer
-  const allOutputPaths =
-    extraOutputPaths.length > 0 ? [outputPath, ...extraOutputPaths] : [outputPath];
-  const uniqueOutputPaths = [...new Set(allOutputPaths)];
-
-  let outputWriter: OutputWriter;
-  if (uniqueOutputPaths.length === 1) {
-    outputWriter = await createOutputWriter(outputPath, options.format);
-    console.log(`Output path: ${outputPath}`);
-  } else {
-    outputWriter = await createMultiWriter(uniqueOutputPaths);
-    console.log('Output paths:');
-    for (const p of uniqueOutputPaths) {
-      console.log(`  ${p}`);
-    }
-  }
-
-  const resolvedTestFiles = input.testFiles.map((file) => path.resolve(file));
-
-  // Determine cache state after loading file metadata (need YAML config)
-  // We defer cache creation until after file metadata is loaded
-  const evaluationRunner = await resolveEvaluationRunner();
-  const allResults: EvaluationResult[] = [];
-  const seenEvalCases = new Set<string>();
-  const displayIdTracker = createDisplayIdTracker();
-
-  // Derive file-level concurrency from worker count (global) when provided
-  const totalWorkers = options.workers ?? DEFAULT_WORKERS;
-  const fileConcurrency = Math.min(
-    Math.max(1, totalWorkers),
-    Math.max(1, resolvedTestFiles.length),
-  );
-  const perFileWorkers = options.workers
-    ? Math.max(1, Math.floor(totalWorkers / fileConcurrency))
-    : undefined;
-  const fileMetadata = new Map<
-    string,
-    {
-      readonly evalIds: readonly string[];
-      readonly evalCases: readonly EvalTest[];
-      readonly selections: readonly {
-        selection: TargetSelection;
-        inlineTargetLabel: string;
-      }[];
-      readonly trialsConfig?: TrialsConfig;
-      readonly suiteTargets?: readonly string[];
-      readonly yamlCache?: boolean;
-      readonly yamlCachePath?: string;
-      readonly totalBudgetUsd?: number;
-    }
-  >();
-  for (const testFilePath of resolvedTestFiles) {
-    const meta = await prepareFileMetadata({
-      testFilePath,
-      repoRoot,
-      cwd,
-      options,
-    });
-    fileMetadata.set(testFilePath, meta);
-  }
-
-  // Auto-enable trace file for agent targets when no trace output is configured.
-  // Agent evals are opaque without traces, and trace files have zero performance cost.
-  if (!options.traceFile && !options.otelFile) {
-    const hasAgentTarget = Array.from(fileMetadata.values()).some((meta) =>
-      meta.selections.some((s) =>
-        AGENT_PROVIDER_KINDS.includes(s.selection.resolvedTarget.kind as ProviderKind),
-      ),
-    );
-    if (hasAgentTarget) {
-      const autoTracePath = resolveTimestampPlaceholder('.agentv/results/trace-{timestamp}.jsonl');
-      options = { ...options, traceFile: autoTracePath };
-    }
-  }
-
-  // Log file export paths
-  if (options.otelFile) {
-    console.log(`OTLP JSON file: ${path.resolve(options.otelFile)}`);
-  }
-  if (options.traceFile) {
-    console.log(`Trace file: ${path.resolve(options.traceFile)}`);
   }
 
   // Initialize OTel exporter if --export-otel flag is set or file export flags are used
@@ -796,6 +701,82 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       );
       otelExporter = null;
     }
+  }
+
+  const outputPath = options.outPath
+    ? path.resolve(options.outPath)
+    : buildDefaultOutputPath(cwd, options.format);
+
+  // Resolve -o / --output paths (new multi-format support)
+  const extraOutputPaths = options.outputPaths.map((p) => path.resolve(p));
+
+  // Build the primary output writer (from --out / default)
+  // When extra --output paths are provided, combine all into a multi-writer
+  const allOutputPaths =
+    extraOutputPaths.length > 0 ? [outputPath, ...extraOutputPaths] : [outputPath];
+  const uniqueOutputPaths = [...new Set(allOutputPaths)];
+
+  let outputWriter: OutputWriter;
+  if (uniqueOutputPaths.length === 1) {
+    outputWriter = await createOutputWriter(outputPath, options.format);
+    console.log(`Output path: ${outputPath}`);
+  } else {
+    outputWriter = await createMultiWriter(uniqueOutputPaths);
+    console.log('Output paths:');
+    for (const p of uniqueOutputPaths) {
+      console.log(`  ${p}`);
+    }
+  }
+
+  // Log file export paths
+  const resolvedTestFiles = input.testFiles.map((file) => path.resolve(file));
+  if (options.otelFile) {
+    console.log(`OTLP JSON file: ${path.resolve(options.otelFile)}`);
+  }
+  if (options.traceFile) {
+    console.log(`Trace file: ${path.resolve(options.traceFile)}`);
+  }
+
+  // Determine cache state after loading file metadata (need YAML config)
+  // We defer cache creation until after file metadata is loaded
+  const evaluationRunner = await resolveEvaluationRunner();
+  const allResults: EvaluationResult[] = [];
+  const seenEvalCases = new Set<string>();
+  const displayIdTracker = createDisplayIdTracker();
+
+  // Derive file-level concurrency from worker count (global) when provided
+  const totalWorkers = options.workers ?? DEFAULT_WORKERS;
+  const fileConcurrency = Math.min(
+    Math.max(1, totalWorkers),
+    Math.max(1, resolvedTestFiles.length),
+  );
+  const perFileWorkers = options.workers
+    ? Math.max(1, Math.floor(totalWorkers / fileConcurrency))
+    : undefined;
+  const fileMetadata = new Map<
+    string,
+    {
+      readonly evalIds: readonly string[];
+      readonly evalCases: readonly EvalTest[];
+      readonly selections: readonly {
+        selection: TargetSelection;
+        inlineTargetLabel: string;
+      }[];
+      readonly trialsConfig?: TrialsConfig;
+      readonly suiteTargets?: readonly string[];
+      readonly yamlCache?: boolean;
+      readonly yamlCachePath?: string;
+      readonly totalBudgetUsd?: number;
+    }
+  >();
+  for (const testFilePath of resolvedTestFiles) {
+    const meta = await prepareFileMetadata({
+      testFilePath,
+      repoRoot,
+      cwd,
+      options,
+    });
+    fileMetadata.set(testFilePath, meta);
   }
 
   // Resolve cache: combine CLI flags with YAML config
