@@ -6,6 +6,7 @@ import {
   extractTargetsFromTestCase,
   extractTotalBudgetUsd,
   extractTrialsConfig,
+  parseExecutionDefaults,
 } from '../../../src/evaluation/loaders/config-loader.js';
 import type { JsonObject } from '../../../src/evaluation/types.js';
 
@@ -260,5 +261,87 @@ describe('extractTotalBudgetUsd', () => {
   it('returns undefined for non-number budget', () => {
     const suite: JsonObject = { execution: { total_budget_usd: 'ten' } };
     expect(extractTotalBudgetUsd(suite)).toBeUndefined();
+  });
+});
+
+describe('parseExecutionDefaults', () => {
+  it('returns undefined when no execution block', () => {
+    expect(parseExecutionDefaults(undefined, '/test/config.yaml')).toBeUndefined();
+  });
+
+  it('returns undefined when execution is not an object', () => {
+    expect(parseExecutionDefaults('invalid', '/test/config.yaml')).toBeUndefined();
+  });
+
+  it('parses verbose boolean', () => {
+    const result = parseExecutionDefaults({ verbose: true }, '/test/config.yaml');
+    expect(result?.verbose).toBe(true);
+  });
+
+  it('parses trace_file string', () => {
+    const result = parseExecutionDefaults(
+      { trace_file: '.agentv/results/trace.jsonl' },
+      '/test/config.yaml',
+    );
+    expect(result?.trace_file).toBe('.agentv/results/trace.jsonl');
+  });
+
+  it('parses keep_workspaces boolean', () => {
+    const result = parseExecutionDefaults({ keep_workspaces: true }, '/test/config.yaml');
+    expect(result?.keep_workspaces).toBe(true);
+  });
+
+  it('parses otel_file string', () => {
+    const result = parseExecutionDefaults(
+      { otel_file: '.agentv/results/otel.json' },
+      '/test/config.yaml',
+    );
+    expect(result?.otel_file).toBe('.agentv/results/otel.json');
+  });
+
+  it('parses all fields together', () => {
+    const result = parseExecutionDefaults(
+      {
+        verbose: true,
+        trace_file: 'trace.jsonl',
+        keep_workspaces: false,
+        otel_file: 'otel.json',
+      },
+      '/test/config.yaml',
+    );
+    expect(result).toEqual({
+      verbose: true,
+      trace_file: 'trace.jsonl',
+      keep_workspaces: false,
+      otel_file: 'otel.json',
+    });
+  });
+
+  it('ignores non-boolean verbose', () => {
+    const result = parseExecutionDefaults({ verbose: 'yes' }, '/test/config.yaml');
+    expect(result?.verbose).toBeUndefined();
+  });
+
+  it('ignores non-string trace_file', () => {
+    const result = parseExecutionDefaults({ trace_file: 123 }, '/test/config.yaml');
+    expect(result?.trace_file).toBeUndefined();
+  });
+
+  it('ignores empty trace_file', () => {
+    const result = parseExecutionDefaults({ trace_file: '  ' }, '/test/config.yaml');
+    expect(result?.trace_file).toBeUndefined();
+  });
+
+  it('returns undefined when all fields are invalid', () => {
+    const result = parseExecutionDefaults({ verbose: 'yes', trace_file: 123 }, '/test/config.yaml');
+    expect(result).toBeUndefined();
+  });
+
+  it('ignores unknown fields', () => {
+    const result = parseExecutionDefaults(
+      { verbose: true, unknown_field: 'value' },
+      '/test/config.yaml',
+    );
+    expect(result).toEqual({ verbose: true });
   });
 });

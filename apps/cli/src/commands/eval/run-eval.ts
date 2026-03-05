@@ -7,11 +7,13 @@ import {
   type EvalTest,
   type EvaluationCache,
   type EvaluationResult,
+  type ExecutionDefaults,
   type OtelTraceExporter as OtelTraceExporterType,
   ResponseCache,
   type TrialsConfig,
   runEvaluation as defaultRunEvaluation,
   ensureVSCodeSubagents,
+  loadConfig,
   loadTestSuite,
   loadTsConfig,
   shouldEnableCache,
@@ -87,6 +89,14 @@ function normalizeString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+export function resolveTimestampPlaceholder(value: string): string {
+  if (!value.includes('{timestamp}')) {
+    return value;
+  }
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  return value.replaceAll('{timestamp}', timestamp);
+}
+
 function normalizeNumber(value: unknown, fallback: number): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -116,6 +126,7 @@ function normalizeOptionalNumber(value: unknown): number | undefined {
 function normalizeOptions(
   rawOptions: Record<string, unknown>,
   config?: Awaited<ReturnType<typeof loadTsConfig>>,
+  yamlExecution?: ExecutionDefaults,
 ): NormalizedOptions {
   const cliFormat = normalizeString(rawOptions.outputFormat);
   const configFormat = config?.output?.format;
@@ -182,12 +193,21 @@ function normalizeOptions(
     maxRetries: cliMaxRetries ?? configMaxRetries ?? 2,
     cache: resolvedCache,
     noCache: resolvedNoCache,
-    verbose: normalizeBoolean(rawOptions.verbose),
-    keepWorkspaces: normalizeBoolean(rawOptions.keepWorkspaces),
+    // Boolean OR: config `true` cannot be overridden to `false` from CLI.
+    // Intentional — there are no --no-verbose / --no-keep-workspaces flags.
+    verbose: normalizeBoolean(rawOptions.verbose) || yamlExecution?.verbose === true,
+    keepWorkspaces:
+      normalizeBoolean(rawOptions.keepWorkspaces) || yamlExecution?.keep_workspaces === true,
     cleanupWorkspaces: normalizeBoolean(rawOptions.cleanupWorkspaces),
     trace: normalizeBoolean(rawOptions.trace),
-    otelFile: normalizeString(rawOptions.otelFile),
-    traceFile: normalizeString(rawOptions.traceFile),
+    otelFile:
+      normalizeString(rawOptions.otelFile) ??
+      (yamlExecution?.otel_file ? resolveTimestampPlaceholder(yamlExecution.otel_file) : undefined),
+    traceFile:
+      normalizeString(rawOptions.traceFile) ??
+      (yamlExecution?.trace_file
+        ? resolveTimestampPlaceholder(yamlExecution.trace_file)
+        : undefined),
     exportOtel: normalizeBoolean(rawOptions.exportOtel),
     otelBackend: normalizeString(rawOptions.otelBackend),
     otelCaptureContent: normalizeBoolean(rawOptions.otelCaptureContent),
@@ -594,8 +614,14 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     );
   }
 
-  const options = normalizeOptions(input.rawOptions, config);
   const repoRoot = await findRepoRoot(cwd);
+
+  // Load .agentv/config.yaml for execution defaults.
+  // loadConfig expects an eval file path and walks up from its directory.
+  // Pass a dummy file in cwd so the search starts from the working directory.
+  const yamlConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
+
+  const options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
 
   if (options.keepWorkspaces && options.cleanupWorkspaces) {
     console.warn(

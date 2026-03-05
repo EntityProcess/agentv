@@ -241,6 +241,18 @@ export class CopilotCliProvider implements Provider {
       const endTime = new Date().toISOString();
       const durationMs = Date.now() - startMs;
 
+      // Detect rejected tool calls — copilot's permission system blocked a tool
+      const rejectedCalls = completedToolCalls.filter((tc) => {
+        const out = tc.output as Record<string, unknown> | undefined;
+        return out && (out.code === 'rejected' || out.code === 'denied');
+      });
+      if (rejectedCalls.length > 0) {
+        const tools = rejectedCalls.map((tc) => tc.tool).join(', ');
+        throw new Error(
+          `Copilot rejected ${rejectedCalls.length} tool call(s): ${tools}. Add args: ["--yolo"] to your target config or re-run with --yolo to bypass permission checks.`,
+        );
+      }
+
       // Build output messages
       const outputMessages: Message[] = [];
 
@@ -277,7 +289,9 @@ export class CopilotCliProvider implements Provider {
   }
 
   private buildCliArgs(): string[] {
-    const args = ['--acp', '--stdio', '--allow-all-tools'];
+    // --yolo bypasses copilot's permission system so file reads and tool calls
+    // are not rejected during eval runs (see #421).
+    const args = ['--acp', '--stdio', '--allow-all-tools', '--yolo'];
 
     if (this.config.model) {
       args.push('--model', this.config.model);

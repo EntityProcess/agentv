@@ -136,6 +136,29 @@ Runs code judges deterministically and returns LLM judge prompts for the agent t
 | Have API keys, want end-to-end automation | `agentv eval` |
 | No API keys, agent can act as the LLM | `agentv prompt` |
 
+## Config File Defaults
+
+Set default execution options in `.agentv/config.yaml` so you don't have to pass them on every CLI invocation:
+
+```yaml
+execution:
+  verbose: true
+  trace_file: .agentv/results/trace-{timestamp}.jsonl
+  keep_workspaces: false
+  otel_file: .agentv/results/otel-{timestamp}.json
+```
+
+| Field | CLI equivalent | Type | Default | Description |
+|-------|---------------|------|---------|-------------|
+| `verbose` | `--verbose` | boolean | `false` | Enable verbose logging |
+| `trace_file` | `--trace-file` | string | none | Write human-readable trace JSONL |
+| `keep_workspaces` | `--keep-workspaces` | boolean | `false` | Always keep temp workspaces after eval |
+| `otel_file` | `--otel-file` | string | none | Write OTLP JSON trace to file |
+
+The `{timestamp}` placeholder is replaced with an ISO-like timestamp (e.g., `2026-03-05T14-30-00-000Z`) at execution time.
+
+**Precedence:** CLI flags > `.agentv/config.yaml` > built-in defaults. A CLI flag always wins over the config file value.
+
 ## All Options
 
 Run `agentv eval --help` for the full list of options including workers, timeouts, output formats, and trace dumping.
