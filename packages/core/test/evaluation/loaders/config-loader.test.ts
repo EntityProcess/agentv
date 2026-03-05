@@ -333,10 +333,7 @@ describe('parseExecutionDefaults', () => {
   });
 
   it('returns undefined when all fields are invalid', () => {
-    const result = parseExecutionDefaults(
-      { verbose: 'yes', trace_file: 123 },
-      '/test/config.yaml',
-    );
+    const result = parseExecutionDefaults({ verbose: 'yes', trace_file: 123 }, '/test/config.yaml');
     expect(result).toBeUndefined();
   });
 

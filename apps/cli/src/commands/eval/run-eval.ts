@@ -193,12 +193,19 @@ function normalizeOptions(
     maxRetries: cliMaxRetries ?? configMaxRetries ?? 2,
     cache: resolvedCache,
     noCache: resolvedNoCache,
-    verbose: normalizeBoolean(rawOptions.verbose) || (yamlExecution?.verbose === true),
-    keepWorkspaces: normalizeBoolean(rawOptions.keepWorkspaces) || (yamlExecution?.keep_workspaces === true),
+    verbose: normalizeBoolean(rawOptions.verbose) || yamlExecution?.verbose === true,
+    keepWorkspaces:
+      normalizeBoolean(rawOptions.keepWorkspaces) || yamlExecution?.keep_workspaces === true,
     cleanupWorkspaces: normalizeBoolean(rawOptions.cleanupWorkspaces),
     trace: normalizeBoolean(rawOptions.trace),
-    otelFile: normalizeString(rawOptions.otelFile) ?? (yamlExecution?.otel_file ? resolveTimestampPlaceholder(yamlExecution.otel_file) : undefined),
-    traceFile: normalizeString(rawOptions.traceFile) ?? (yamlExecution?.trace_file ? resolveTimestampPlaceholder(yamlExecution.trace_file) : undefined),
+    otelFile:
+      normalizeString(rawOptions.otelFile) ??
+      (yamlExecution?.otel_file ? resolveTimestampPlaceholder(yamlExecution.otel_file) : undefined),
+    traceFile:
+      normalizeString(rawOptions.traceFile) ??
+      (yamlExecution?.trace_file
+        ? resolveTimestampPlaceholder(yamlExecution.trace_file)
+        : undefined),
     exportOtel: normalizeBoolean(rawOptions.exportOtel),
     otelBackend: normalizeString(rawOptions.otelBackend),
     otelCaptureContent: normalizeBoolean(rawOptions.otelCaptureContent),
