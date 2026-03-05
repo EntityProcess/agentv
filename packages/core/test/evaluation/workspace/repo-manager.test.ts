@@ -255,6 +255,71 @@ describe('RepoManager', () => {
     });
   });
 
+  describe('seedCache', () => {
+    it('creates cache from local repo with remote URL', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir, { 'hello.txt': 'hello' });
+
+      const remoteUrl = 'https://github.com/example/repo.git';
+      const cachePath = await manager.seedCache(repoDir, remoteUrl);
+
+      expect(existsSync(cachePath)).toBe(true);
+      const isBare = gitExec('git rev-parse --is-bare-repository', cachePath);
+      expect(isBare).toBe('true');
+
+      // Verify remote origin points to the provided URL
+      const remoteOrigin = gitExec('git remote get-url origin', cachePath);
+      expect(remoteOrigin).toBe(remoteUrl);
+    });
+
+    it('errors if cache already exists without force', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir);
+
+      const remoteUrl = 'https://github.com/example/repo.git';
+      await manager.seedCache(repoDir, remoteUrl);
+
+      await expect(manager.seedCache(repoDir, remoteUrl)).rejects.toThrow(/already exists/);
+    });
+
+    it('overwrites existing cache with force', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir, { 'v1.txt': 'v1' });
+
+      const remoteUrl = 'https://github.com/example/repo.git';
+      await manager.seedCache(repoDir, remoteUrl);
+
+      // Add more commits to source
+      writeFileSync(path.join(repoDir, 'v2.txt'), 'v2');
+      execSync('git add -A && git commit -m "v2"', { cwd: repoDir, ...EXEC_OPTS });
+
+      const cachePath = await manager.seedCache(repoDir, remoteUrl, { force: true });
+
+      // Verify new content is in cache
+      const refs = gitExec('git log --oneline --all', cachePath);
+      expect(refs).toContain('v2');
+    });
+
+    it('uses URL-based cache key so ensureCache finds seeded cache', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir);
+
+      const remoteUrl = 'https://github.com/example/repo.git';
+      const cachePath = await manager.seedCache(repoDir, remoteUrl);
+
+      // The seeded cache should be at the same path ensureCache would use.
+      // Verify by checking the cache directory contains HEAD (ensureCache's existence check).
+      expect(existsSync(path.join(cachePath, 'HEAD'))).toBe(true);
+
+      // Verify the cache key is derived from the URL (normalized: lowercase, no .git suffix)
+      const { createHash } = await import('node:crypto');
+      const expectedKey = createHash('sha256')
+        .update(remoteUrl.toLowerCase().replace(/\.git$/, ''))
+        .digest('hex');
+      expect(cachePath).toBe(path.join(cacheDir, expectedKey));
+    });
+  });
+
   describe('cleanCache', () => {
     it('removes the entire cache directory', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');

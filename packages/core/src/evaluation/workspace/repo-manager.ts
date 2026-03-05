@@ -240,6 +240,39 @@ export class RepoManager {
     }
   }
 
+  /**
+   * Seed the cache from a local repository, setting the remote to a given URL.
+   * Useful for avoiding slow network clones when a local clone already exists.
+   */
+  async seedCache(
+    localPath: string,
+    remoteUrl: string,
+    opts?: { force?: boolean },
+  ): Promise<string> {
+    const source: RepoSource = { type: 'git', url: remoteUrl };
+    const key = cacheKey(source);
+    const cachePath = path.join(this.cacheDir, key);
+
+    await mkdir(this.cacheDir, { recursive: true });
+
+    if (existsSync(path.join(cachePath, 'HEAD'))) {
+      if (!opts?.force) {
+        throw new Error(
+          `Cache already exists for ${remoteUrl} at ${cachePath}. Use force to overwrite.`,
+        );
+      }
+      await rm(cachePath, { recursive: true, force: true });
+    }
+
+    // Clone bare mirror from local path
+    await git(['clone', '--mirror', '--bare', localPath, cachePath]);
+
+    // Point remote origin to the actual remote URL for future fetches
+    await git(['remote', 'set-url', 'origin', remoteUrl], { cwd: cachePath });
+
+    return cachePath;
+  }
+
   /** Remove the entire cache directory. */
   async cleanCache(): Promise<void> {
     await rm(this.cacheDir, { recursive: true, force: true });
