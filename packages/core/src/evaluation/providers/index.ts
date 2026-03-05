@@ -83,7 +83,7 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
     .register('gemini', (t) => new GeminiProvider(t.name, t.config as never))
     .register('cli', (t) => new CliProvider(t.name, t.config as never))
     .register('codex', (t) => new CodexProvider(t.name, t.config as never))
-    .register('copilot', (t) => new CopilotSdkProvider(t.name, t.config as never))
+    .register('copilot-sdk', (t) => new CopilotSdkProvider(t.name, t.config as never))
     .register('copilot-cli', (t) => new CopilotCliProvider(t.name, t.config as never))
     .register('pi-coding-agent', (t) => new PiCodingAgentProvider(t.name, t.config as never))
     .register('pi-agent-sdk', (t) => new PiAgentSdkProvider(t.name, t.config as never))

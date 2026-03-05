@@ -69,9 +69,9 @@ targets:
     log_format: json  # 'summary' (default) or 'json' for raw event logs
     # system_prompt: optional override (default instructs agent to include code in response)
 
-  # GitHub Copilot (uses @github/copilot-sdk)
+  # GitHub Copilot SDK (uses @github/copilot-sdk)
   - name: copilot
-    provider: copilot
+    provider: copilot-sdk
     judge_target: azure_base
     model: gpt-5-mini
     # cli_path: /path/to/copilot  # Optional: defaults to bundled @github/copilot binary

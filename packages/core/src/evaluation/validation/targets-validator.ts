@@ -123,6 +123,27 @@ const COPILOT_SDK_SETTINGS = new Set([
   'workspaceTemplate',
 ]);
 
+const COPILOT_CLI_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  'executable',
+  'command',
+  'binary',
+  'args',
+  'arguments',
+  'model',
+  'cwd',
+  'timeout_seconds',
+  'timeoutSeconds',
+  'log_dir',
+  'logDir',
+  'log_format',
+  'logFormat',
+  'system_prompt',
+  'systemPrompt',
+  'workspace_template',
+  'workspaceTemplate',
+]);
+
 const VSCODE_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'executable',
@@ -188,11 +209,12 @@ function getKnownSettings(provider: string): Set<string> | null {
     case 'codex':
     case 'codex-cli':
       return CODEX_SETTINGS;
-    case 'copilot':
     case 'copilot-sdk':
     case 'copilot_sdk':
-    case 'copilot-cli':
       return COPILOT_SDK_SETTINGS;
+    case 'copilot':
+    case 'copilot-cli':
+      return COPILOT_CLI_SETTINGS;
     case 'claude':
     case 'claude-code':
     case 'claude-sdk':
