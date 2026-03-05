@@ -27,6 +27,8 @@ export type {
   ToolCall,
 } from './types.js';
 
+export { AGENT_PROVIDER_KINDS } from './types.js';
+
 export type {
   AnthropicResolvedConfig,
   AzureResolvedConfig,
