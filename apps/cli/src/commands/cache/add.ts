@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { command, flag, option, string } from 'cmd-ts';
 
 import { RepoManager } from '@agentv/core';
@@ -28,6 +28,10 @@ export const addCommand = command({
     const localPath = resolve(from);
     if (!existsSync(localPath)) {
       console.error(`Error: local path does not exist: ${localPath}`);
+      process.exit(1);
+    }
+    if (!existsSync(join(localPath, '.git')) && !existsSync(join(localPath, 'HEAD'))) {
+      console.error(`Error: ${localPath} does not appear to be a git repository`);
       process.exit(1);
     }
 

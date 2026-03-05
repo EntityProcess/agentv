@@ -252,23 +252,29 @@ export class RepoManager {
     const source: RepoSource = { type: 'git', url: remoteUrl };
     const key = cacheKey(source);
     const cachePath = path.join(this.cacheDir, key);
+    const lockPath = `${cachePath}.lock`;
 
     await mkdir(this.cacheDir, { recursive: true });
+    await acquireLock(lockPath);
 
-    if (existsSync(path.join(cachePath, 'HEAD'))) {
-      if (!opts?.force) {
-        throw new Error(
-          `Cache already exists for ${remoteUrl} at ${cachePath}. Use force to overwrite.`,
-        );
+    try {
+      if (existsSync(path.join(cachePath, 'HEAD'))) {
+        if (!opts?.force) {
+          throw new Error(
+            `Cache already exists for ${remoteUrl} at ${cachePath}. Use force to overwrite.`,
+          );
+        }
+        await rm(cachePath, { recursive: true, force: true });
       }
-      await rm(cachePath, { recursive: true, force: true });
+
+      // Clone bare mirror from local path
+      await git(['clone', '--mirror', '--bare', localPath, cachePath]);
+
+      // Point remote origin to the actual remote URL for future fetches
+      await git(['remote', 'set-url', 'origin', remoteUrl], { cwd: cachePath });
+    } finally {
+      await releaseLock(lockPath);
     }
-
-    // Clone bare mirror from local path
-    await git(['clone', '--mirror', '--bare', localPath, cachePath]);
-
-    // Point remote origin to the actual remote URL for future fetches
-    await git(['remote', 'set-url', 'origin', remoteUrl], { cwd: cachePath });
 
     return cachePath;
   }
