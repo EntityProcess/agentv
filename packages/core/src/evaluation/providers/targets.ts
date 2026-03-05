@@ -557,7 +557,7 @@ export type ResolvedTarget =
       readonly config: CodexResolvedConfig;
     }
   | {
-      readonly kind: 'copilot';
+      readonly kind: 'copilot-sdk';
       readonly name: string;
       readonly judgeTarget?: string;
       readonly workers?: number;
@@ -742,17 +742,17 @@ export function resolveTargetDefinition(
         providerBatching,
         config: resolveCodexConfig(parsed, env, evalFilePath),
       };
-    case 'copilot':
     case 'copilot-sdk':
     case 'copilot_sdk':
       return {
-        kind: 'copilot',
+        kind: 'copilot-sdk',
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveCopilotSdkConfig(parsed, env, evalFilePath),
       };
+    case 'copilot':
     case 'copilot-cli':
       return {
         kind: 'copilot-cli',

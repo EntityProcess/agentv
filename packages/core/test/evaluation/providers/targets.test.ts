@@ -611,36 +611,48 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/mutually exclusive/i);
   });
 
-  it('resolves copilot workspace_template', () => {
+  it('resolves copilot-sdk workspace_template', () => {
     const target = resolveTargetDefinition(
       {
         name: 'copilot-with-template',
-        provider: 'copilot',
+        provider: 'copilot-sdk',
         workspace_template: '/templates/copilot-workspace',
       },
       {},
     );
 
-    expect(target.kind).toBe('copilot');
-    if (target.kind !== 'copilot') {
-      throw new Error('expected copilot target');
+    expect(target.kind).toBe('copilot-sdk');
+    if (target.kind !== 'copilot-sdk') {
+      throw new Error('expected copilot-sdk target');
     }
 
     expect(target.config.workspaceTemplate).toBe('/templates/copilot-workspace');
   });
 
-  it('throws when both cwd and workspace_template are specified for copilot', () => {
+  it('throws when both cwd and workspace_template are specified for copilot-sdk', () => {
     expect(() =>
       resolveTargetDefinition(
         {
           name: 'copilot-both',
-          provider: 'copilot',
+          provider: 'copilot-sdk',
           cwd: '/some/path',
           workspace_template: '/templates/workspace',
         },
         {},
       ),
     ).toThrow(/mutually exclusive/i);
+  });
+
+  it('resolves copilot alias to copilot-cli', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'copilot-alias',
+        provider: 'copilot',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('copilot-cli');
   });
 
   it('resolves copilot-cli as its own provider kind', () => {
