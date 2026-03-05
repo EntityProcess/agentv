@@ -2,6 +2,8 @@ import { command, flag, subcommands } from 'cmd-ts';
 
 import { RepoManager } from '@agentv/core';
 
+import { addCommand } from './add.js';
+
 const cleanCommand = command({
   name: 'clean',
   description: 'Remove all cached git repositories',
@@ -36,6 +38,7 @@ export const cacheCommand = subcommands({
   name: 'cache',
   description: 'Manage AgentV cache',
   cmds: {
+    add: addCommand,
     clean: cleanCommand,
   },
 });
