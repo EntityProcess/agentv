@@ -160,6 +160,13 @@ const EVALUATOR_KIND_VALUES = [
   'execution_metrics',
   'agent_judge',
   'contains',
+  'contains_any',
+  'contains_all',
+  'icontains',
+  'icontains_any',
+  'icontains_all',
+  'starts_with',
+  'ends_with',
   'regex',
   'is_json',
   'equals',
@@ -510,6 +517,104 @@ export type ContainsEvaluatorConfig = {
 };
 
 /**
+ * Configuration for the contains_any assertion evaluator.
+ * Checks whether the candidate output contains ANY of the specified substrings.
+ */
+export type ContainsAnyEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'contains_any';
+  readonly value: readonly string[];
+  readonly weight?: number;
+  readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
+};
+
+/**
+ * Configuration for the contains_all assertion evaluator.
+ * Checks whether the candidate output contains ALL of the specified substrings.
+ */
+export type ContainsAllEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'contains_all';
+  readonly value: readonly string[];
+  readonly weight?: number;
+  readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
+};
+
+/**
+ * Configuration for the icontains assertion evaluator.
+ * Case-insensitive check whether the candidate output contains a specified substring.
+ */
+export type IcontainsEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'icontains';
+  readonly value: string;
+  readonly weight?: number;
+  readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
+};
+
+/**
+ * Configuration for the icontains_any assertion evaluator.
+ * Case-insensitive check whether the candidate output contains ANY of the specified substrings.
+ */
+export type IcontainsAnyEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'icontains_any';
+  readonly value: readonly string[];
+  readonly weight?: number;
+  readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
+};
+
+/**
+ * Configuration for the icontains_all assertion evaluator.
+ * Case-insensitive check whether the candidate output contains ALL of the specified substrings.
+ */
+export type IcontainsAllEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'icontains_all';
+  readonly value: readonly string[];
+  readonly weight?: number;
+  readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
+};
+
+/**
+ * Configuration for the starts_with assertion evaluator.
+ * Checks whether the candidate output starts with a specified string (both trimmed).
+ */
+export type StartsWithEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'starts_with';
+  readonly value: string;
+  readonly weight?: number;
+  readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
+};
+
+/**
+ * Configuration for the ends_with assertion evaluator.
+ * Checks whether the candidate output ends with a specified string (both trimmed).
+ */
+export type EndsWithEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'ends_with';
+  readonly value: string;
+  readonly weight?: number;
+  readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
+};
+
+/**
  * Configuration for the regex assertion evaluator.
  * Checks whether the candidate output matches a regular expression pattern.
  */
@@ -517,6 +622,8 @@ export type RegexEvaluatorConfig = {
   readonly name: string;
   readonly type: 'regex';
   readonly value: string;
+  /** Optional regex flags (e.g., "i" for case-insensitive, "m" for multiline) */
+  readonly flags?: string;
   readonly weight?: number;
   readonly required?: boolean | number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
@@ -576,6 +683,13 @@ export type EvaluatorConfig =
   | ExecutionMetricsEvaluatorConfig
   | AgentJudgeEvaluatorConfig
   | ContainsEvaluatorConfig
+  | ContainsAnyEvaluatorConfig
+  | ContainsAllEvaluatorConfig
+  | IcontainsEvaluatorConfig
+  | IcontainsAnyEvaluatorConfig
+  | IcontainsAllEvaluatorConfig
+  | StartsWithEvaluatorConfig
+  | EndsWithEvaluatorConfig
   | RegexEvaluatorConfig
   | IsJsonEvaluatorConfig
   | EqualsEvaluatorConfig
@@ -730,7 +844,7 @@ export interface EvaluationResult {
   readonly budgetExceeded?: boolean;
 }
 
-export type EvaluationVerdict = 'pass' | 'fail' | 'borderline';
+export type EvaluationVerdict = 'pass' | 'fail' | 'borderline' | 'skip';
 
 export interface EvaluatorResult {
   readonly name: string;

@@ -173,11 +173,11 @@ describe('LlmJudgeEvaluator', () => {
       now: new Date(),
     });
 
-    // Should fall back to defaults when validation fails
+    // Should skip when judge parse fails (not silent zero)
     expect(result.score).toBe(0);
-    expect(result.verdict).toBe('fail');
+    expect(result.verdict).toBe('skip');
     expect(result.hits).toHaveLength(0);
-    expect(result.misses).toHaveLength(0);
+    expect(result.misses).toHaveLength(1);
   });
 
   it('enforces max 4 entries for hits and misses', async () => {
@@ -306,14 +306,14 @@ describe('LlmJudgeEvaluator', () => {
       now: new Date(),
     });
 
-    // Should fall back to defaults when validation fails
+    // Should skip when judge parse fails (not silent zero)
     expect(result.score).toBe(0);
-    expect(result.verdict).toBe('fail');
+    expect(result.verdict).toBe('skip');
     expect(result.hits).toHaveLength(0);
-    expect(result.misses).toHaveLength(0);
+    expect(result.misses).toHaveLength(1);
   });
 
-  it('tolerates non-JSON output by falling back to defaults', async () => {
+  it('tolerates non-JSON output by falling back to skip', async () => {
     const judgeProvider = new StubProvider(textResponse('Final score: 0.5'));
     const evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async () => judgeProvider,
@@ -330,9 +330,9 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     expect(result.score).toBe(0);
-    expect(result.verdict).toBe('fail');
+    expect(result.verdict).toBe('skip');
     expect(result.hits).toHaveLength(0);
-    expect(result.misses).toHaveLength(0);
+    expect(result.misses).toHaveLength(1);
   });
 
   it('supports rubric mode when rubrics are provided in config', async () => {

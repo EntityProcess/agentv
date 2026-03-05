@@ -375,6 +375,69 @@ For complete examples and patterns, see:
 - [custom-evaluators](https://agentv.dev/evaluators/custom-evaluators/)
 - [code-judge-sdk example](examples/features/code-judge-sdk)
 
+### Deterministic Assertions
+
+Built-in assertion types for common text-matching patterns — no LLM judge or code_judge needed:
+
+| Type | Value | Behavior |
+|------|-------|----------|
+| `contains` | `string` | Pass if output includes the substring |
+| `contains_any` | `string[]` | Pass if output includes ANY of the strings |
+| `contains_all` | `string[]` | Pass if output includes ALL of the strings |
+| `icontains` | `string` | Case-insensitive `contains` |
+| `icontains_any` | `string[]` | Case-insensitive `contains_any` |
+| `icontains_all` | `string[]` | Case-insensitive `contains_all` |
+| `starts_with` | `string` | Pass if output starts with value (trimmed) |
+| `ends_with` | `string` | Pass if output ends with value (trimmed) |
+| `regex` | `string` | Pass if output matches regex (optional `flags: "i"`) |
+| `equals` | `string` | Pass if output exactly equals value (trimmed) |
+| `is_json` | — | Pass if output is valid JSON |
+
+All assertions support `weight`, `required`, and `negate` flags. Use `negate: true` to invert (no `not_` prefix needed).
+
+```yaml
+assert:
+  # Case-insensitive matching for natural language variation
+  - type: icontains_any
+    value: ["missing rule code", "need rule code", "provide rule code"]
+    required: true
+
+  # Multiple required terms
+  - type: icontains_all
+    value: ["country code", "rule codes"]
+
+  # Case-insensitive regex
+  - type: regex
+    value: "[a-z]+@[a-z]+\\.[a-z]+"
+    flags: "i"
+```
+
+See the [assert-extended example](examples/features/assert-extended) for complete patterns.
+
+### Target Configuration: `judge_target`
+
+Agent provider targets (`codex`, `copilot`, `claude`, `vscode`) **must** specify `judge_target` when using `llm_judge` or `rubrics` evaluators. Without it, AgentV errors at startup — agent providers can't return structured JSON for judging.
+
+```yaml
+targets:
+  # Agent target — requires judge_target for LLM-based evaluation
+  - name: codex_local
+    provider: codex
+    judge_target: azure_base  # Required: LLM provider for judging
+
+  # LLM target — no judge_target needed (judges itself)
+  - name: azure_base
+    provider: azure
+```
+
+### Agentic Eval Patterns
+
+When agents respond via tool calls instead of text, use `tool_trajectory` instead of text assertions:
+
+- **Agent takes workspace actions** (creates files, runs commands) → `tool_trajectory` evaluator
+- **Agent responds in text** (answers questions, asks for info) → `contains`/`icontains_any`/`llm_judge`
+- **Agent does both** → `composite` evaluator combining both
+
 ### LLM Judges
 
 Create markdown judge files with evaluation criteria and scoring guidelines:
