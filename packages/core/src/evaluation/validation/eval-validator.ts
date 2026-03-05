@@ -251,12 +251,73 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     }
   }
 
+  // Validate workspace repo lifecycle config
+  if (isObject(parsed.workspace)) {
+    validateWorkspaceRepoConfig(parsed.workspace, absolutePath, errors);
+  }
+
   return {
     valid: errors.filter((e) => e.severity === 'error').length === 0,
     filePath: absolutePath,
     fileType: 'eval',
     errors,
   };
+}
+
+function validateWorkspaceRepoConfig(
+  workspace: JsonObject,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  const repos = workspace.repos;
+  const reset = workspace.reset;
+  const isolation = workspace.isolation;
+
+  // Depth vs ancestor warning
+  if (Array.isArray(repos)) {
+    for (const repo of repos) {
+      if (!isObject(repo)) continue;
+      const checkout = repo.checkout;
+      const clone = repo.clone;
+      if (isObject(checkout) && isObject(clone)) {
+        const ancestor = checkout.ancestor;
+        const depth = clone.depth;
+        if (typeof ancestor === 'number' && typeof depth === 'number' && depth < ancestor + 1) {
+          errors.push({
+            severity: 'warning',
+            filePath,
+            location: `workspace.repos[path=${repo.path}]`,
+            message:
+              `clone.depth (${depth}) may be insufficient for checkout.ancestor (${ancestor}). ` +
+              `Recommend depth >= ${ancestor + 1}.`,
+          });
+        }
+      }
+    }
+  }
+
+  // Reset without repos warning
+  if (isObject(reset) && reset.strategy && reset.strategy !== 'none') {
+    if (!Array.isArray(repos) || repos.length === 0) {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location: 'workspace.reset',
+        message: `reset.strategy '${reset.strategy}' has no effect without repos.`,
+      });
+    }
+  }
+
+  // Reset after_each with per_test isolation warning
+  if (isObject(reset) && reset.after_each === true && isolation === 'per_test') {
+    errors.push({
+      severity: 'warning',
+      filePath,
+      location: 'workspace.reset',
+      message:
+        'reset.after_each is redundant with isolation: per_test (each test gets a fresh workspace).',
+    });
+  }
 }
 
 function validateMessages(
