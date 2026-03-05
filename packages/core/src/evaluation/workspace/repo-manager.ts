@@ -1,9 +1,9 @@
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, rm, unlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import type { RepoConfig, RepoSource } from '../types.js';
@@ -126,8 +126,7 @@ export class RepoManager {
     // Clone with no checkout so we can control the checkout step
     cloneArgs.push('--no-checkout');
     // Use file:// protocol to force smart transport (required for --depth to work)
-    const cloneUrl =
-      repo.clone?.depth || repo.clone?.filter ? `file://${cachePath}` : cachePath;
+    const cloneUrl = repo.clone?.depth || repo.clone?.filter ? `file://${cachePath}` : cachePath;
     cloneArgs.push(cloneUrl, targetDir);
 
     await git(cloneArgs);

@@ -365,7 +365,11 @@ export async function runEvaluation(
 
   // Resolve worker count: CLI option > target setting > default (1)
   // Force workers=1 when shared workspace is used to prevent data corruption
-  const hasSharedWorkspace = !!(workspaceTemplate || suiteWorkspace?.before_all || suiteWorkspace?.repos?.length);
+  const hasSharedWorkspace = !!(
+    workspaceTemplate ||
+    suiteWorkspace?.before_all ||
+    suiteWorkspace?.repos?.length
+  );
   const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
   const workers = hasSharedWorkspace ? 1 : requestedWorkers;
   if (hasSharedWorkspace && requestedWorkers > 1) {
@@ -899,7 +903,11 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
 
     // If no template but before_all or repos is configured per-case, create empty workspace
-    if (!workspacePath && (evalCase.workspace?.before_all || evalCase.workspace?.repos?.length) && evalRunId) {
+    if (
+      !workspacePath &&
+      (evalCase.workspace?.before_all || evalCase.workspace?.repos?.length) &&
+      evalRunId
+    ) {
       workspacePath = getWorkspacePath(evalRunId, evalCase.id);
       await mkdir(workspacePath, { recursive: true });
     }

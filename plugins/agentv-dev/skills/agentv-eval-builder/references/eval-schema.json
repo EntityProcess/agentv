@@ -53,12 +53,7 @@
                 "properties": {
                   "role": {
                     "type": "string",
-                    "enum": [
-                      "system",
-                      "user",
-                      "assistant",
-                      "tool"
-                    ]
+                    "enum": ["system", "user", "assistant", "tool"]
                   },
                   "content": {
                     "anyOf": [
@@ -72,29 +67,20 @@
                           "properties": {
                             "type": {
                               "type": "string",
-                              "enum": [
-                                "text",
-                                "file"
-                              ]
+                              "enum": ["text", "file"]
                             },
                             "value": {
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type",
-                            "value"
-                          ],
+                          "required": ["type", "value"],
                           "additionalProperties": false
                         }
                       }
                     ]
                   }
                 },
-                "required": [
-                  "role",
-                  "content"
-                ],
+                "required": ["role", "content"],
                 "additionalProperties": false
               }
             }
@@ -129,12 +115,7 @@
                           "properties": {
                             "role": {
                               "type": "string",
-                              "enum": [
-                                "system",
-                                "user",
-                                "assistant",
-                                "tool"
-                              ]
+                              "enum": ["system", "user", "assistant", "tool"]
                             },
                             "content": {
                               "anyOf": [
@@ -148,29 +129,20 @@
                                     "properties": {
                                       "type": {
                                         "type": "string",
-                                        "enum": [
-                                          "text",
-                                          "file"
-                                        ]
+                                        "enum": ["text", "file"]
                                       },
                                       "value": {
                                         "type": "string"
                                       }
                                     },
-                                    "required": [
-                                      "type",
-                                      "value"
-                                    ],
+                                    "required": ["type", "value"],
                                     "additionalProperties": false
                                   }
                                 }
                               ]
                             }
                           },
-                          "required": [
-                            "role",
-                            "content"
-                          ],
+                          "required": ["role", "content"],
                           "additionalProperties": false
                         }
                       }
@@ -192,12 +164,7 @@
                           "properties": {
                             "role": {
                               "type": "string",
-                              "enum": [
-                                "system",
-                                "user",
-                                "assistant",
-                                "tool"
-                              ]
+                              "enum": ["system", "user", "assistant", "tool"]
                             },
                             "content": {
                               "anyOf": [
@@ -211,29 +178,20 @@
                                     "properties": {
                                       "type": {
                                         "type": "string",
-                                        "enum": [
-                                          "text",
-                                          "file"
-                                        ]
+                                        "enum": ["text", "file"]
                                       },
                                       "value": {
                                         "type": "string"
                                       }
                                     },
-                                    "required": [
-                                      "type",
-                                      "value"
-                                    ],
+                                    "required": ["type", "value"],
                                     "additionalProperties": false
                                   }
                                 }
                               ]
                             }
                           },
-                          "required": [
-                            "role",
-                            "content"
-                          ],
+                          "required": ["role", "content"],
                           "additionalProperties": false
                         }
                       }
@@ -322,10 +280,7 @@
                               "additionalProperties": {}
                             }
                           },
-                          "required": [
-                            "type",
-                            "command"
-                          ],
+                          "required": ["type", "command"],
                           "additionalProperties": false
                         },
                         {
@@ -449,10 +404,7 @@
                                           "minLength": 1
                                         }
                                       },
-                                      "required": [
-                                        "score_range",
-                                        "outcome"
-                                      ],
+                                      "required": ["score_range", "outcome"],
                                       "additionalProperties": false
                                     }
                                   }
@@ -468,9 +420,7 @@
                               "additionalProperties": {}
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -526,9 +476,7 @@
                                       }
                                     }
                                   },
-                                  "required": [
-                                    "type"
-                                  ],
+                                  "required": ["type"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -544,10 +492,7 @@
                                       "maximum": 1
                                     }
                                   },
-                                  "required": [
-                                    "type",
-                                    "threshold"
-                                  ],
+                                  "required": ["type", "threshold"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -564,10 +509,7 @@
                                       "type": "string"
                                     }
                                   },
-                                  "required": [
-                                    "type",
-                                    "path"
-                                  ],
+                                  "required": ["type", "path"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -584,18 +526,13 @@
                                       "type": "string"
                                     }
                                   },
-                                  "required": [
-                                    "type"
-                                  ],
+                                  "required": ["type"],
                                   "additionalProperties": false
                                 }
                               ]
                             }
                           },
-                          "required": [
-                            "type",
-                            "aggregator"
-                          ],
+                          "required": ["type", "aggregator"],
                           "additionalProperties": false
                         },
                         {
@@ -629,13 +566,7 @@
                             },
                             "mode": {
                               "type": "string",
-                              "enum": [
-                                "any_order",
-                                "in_order",
-                                "exact",
-                                "subset",
-                                "superset"
-                              ]
+                              "enum": ["any_order", "in_order", "exact", "subset", "superset"]
                             },
                             "minimums": {
                               "type": "object",
@@ -676,12 +607,7 @@
                                     "anyOf": [
                                       {
                                         "type": "string",
-                                        "enum": [
-                                          "exact",
-                                          "ignore",
-                                          "subset",
-                                          "superset"
-                                        ]
+                                        "enum": ["exact", "ignore", "subset", "superset"]
                                       },
                                       {
                                         "type": "array",
@@ -695,12 +621,7 @@
                                     "anyOf": [
                                       {
                                         "type": "string",
-                                        "enum": [
-                                          "exact",
-                                          "ignore",
-                                          "subset",
-                                          "superset"
-                                        ]
+                                        "enum": ["exact", "ignore", "subset", "superset"]
                                       },
                                       {
                                         "type": "array",
@@ -711,9 +632,7 @@
                                     ]
                                   }
                                 },
-                                "required": [
-                                  "tool"
-                                ],
+                                "required": ["tool"],
                                 "additionalProperties": false
                               }
                             },
@@ -721,12 +640,7 @@
                               "anyOf": [
                                 {
                                   "type": "string",
-                                  "enum": [
-                                    "exact",
-                                    "ignore",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["exact", "ignore", "subset", "superset"]
                                 },
                                 {
                                   "type": "array",
@@ -740,12 +654,7 @@
                               "anyOf": [
                                 {
                                   "type": "string",
-                                  "enum": [
-                                    "exact",
-                                    "ignore",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["exact", "ignore", "subset", "superset"]
                                 },
                                 {
                                   "type": "array",
@@ -756,10 +665,7 @@
                               ]
                             }
                           },
-                          "required": [
-                            "type",
-                            "mode"
-                          ],
+                          "required": ["type", "mode"],
                           "additionalProperties": false
                         },
                         {
@@ -801,11 +707,7 @@
                                   },
                                   "match": {
                                     "type": "string",
-                                    "enum": [
-                                      "exact",
-                                      "numeric_tolerance",
-                                      "date"
-                                    ]
+                                    "enum": ["exact", "numeric_tolerance", "date"]
                                   },
                                   "required": {
                                     "type": "boolean"
@@ -827,26 +729,17 @@
                                     }
                                   }
                                 },
-                                "required": [
-                                  "path",
-                                  "match"
-                                ],
+                                "required": ["path", "match"],
                                 "additionalProperties": false
                               },
                               "minItems": 1
                             },
                             "aggregation": {
                               "type": "string",
-                              "enum": [
-                                "weighted_average",
-                                "all_or_nothing"
-                              ]
+                              "enum": ["weighted_average", "all_or_nothing"]
                             }
                           },
-                          "required": [
-                            "type",
-                            "fields"
-                          ],
+                          "required": ["type", "fields"],
                           "additionalProperties": false
                         },
                         {
@@ -883,10 +776,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type",
-                            "threshold"
-                          ],
+                          "required": ["type", "threshold"],
                           "additionalProperties": false
                         },
                         {
@@ -923,10 +813,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type",
-                            "budget"
-                          ],
+                          "required": ["type", "budget"],
                           "additionalProperties": false
                         },
                         {
@@ -971,9 +858,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -1035,9 +920,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -1121,10 +1004,7 @@
                                           "minLength": 1
                                         }
                                       },
-                                      "required": [
-                                        "score_range",
-                                        "outcome"
-                                      ],
+                                      "required": ["score_range", "outcome"],
                                       "additionalProperties": false
                                     }
                                   }
@@ -1146,9 +1026,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -1184,10 +1062,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type",
-                            "value"
-                          ],
+                          "required": ["type", "value"],
                           "additionalProperties": false
                         },
                         {
@@ -1223,10 +1098,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type",
-                            "value"
-                          ],
+                          "required": ["type", "value"],
                           "additionalProperties": false
                         },
                         {
@@ -1259,9 +1131,7 @@
                               "const": "is_json"
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -1297,10 +1167,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type",
-                            "value"
-                          ],
+                          "required": ["type", "value"],
                           "additionalProperties": false
                         },
                         {
@@ -1381,10 +1248,7 @@
                                           "minLength": 1
                                         }
                                       },
-                                      "required": [
-                                        "score_range",
-                                        "outcome"
-                                      ],
+                                      "required": ["score_range", "outcome"],
                                       "additionalProperties": false
                                     }
                                   }
@@ -1394,10 +1258,7 @@
                               "minItems": 1
                             }
                           },
-                          "required": [
-                            "type",
-                            "criteria"
-                          ],
+                          "required": ["type", "criteria"],
                           "additionalProperties": false
                         }
                       ]
@@ -1486,10 +1347,7 @@
                               "additionalProperties": {}
                             }
                           },
-                          "required": [
-                            "type",
-                            "command"
-                          ],
+                          "required": ["type", "command"],
                           "additionalProperties": false
                         },
                         {
@@ -1613,10 +1471,7 @@
                                           "minLength": 1
                                         }
                                       },
-                                      "required": [
-                                        "score_range",
-                                        "outcome"
-                                      ],
+                                      "required": ["score_range", "outcome"],
                                       "additionalProperties": false
                                     }
                                   }
@@ -1632,9 +1487,7 @@
                               "additionalProperties": {}
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -1690,9 +1543,7 @@
                                       }
                                     }
                                   },
-                                  "required": [
-                                    "type"
-                                  ],
+                                  "required": ["type"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -1708,10 +1559,7 @@
                                       "maximum": 1
                                     }
                                   },
-                                  "required": [
-                                    "type",
-                                    "threshold"
-                                  ],
+                                  "required": ["type", "threshold"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -1728,10 +1576,7 @@
                                       "type": "string"
                                     }
                                   },
-                                  "required": [
-                                    "type",
-                                    "path"
-                                  ],
+                                  "required": ["type", "path"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -1748,18 +1593,13 @@
                                       "type": "string"
                                     }
                                   },
-                                  "required": [
-                                    "type"
-                                  ],
+                                  "required": ["type"],
                                   "additionalProperties": false
                                 }
                               ]
                             }
                           },
-                          "required": [
-                            "type",
-                            "aggregator"
-                          ],
+                          "required": ["type", "aggregator"],
                           "additionalProperties": false
                         },
                         {
@@ -1793,13 +1633,7 @@
                             },
                             "mode": {
                               "type": "string",
-                              "enum": [
-                                "any_order",
-                                "in_order",
-                                "exact",
-                                "subset",
-                                "superset"
-                              ]
+                              "enum": ["any_order", "in_order", "exact", "subset", "superset"]
                             },
                             "minimums": {
                               "type": "object",
@@ -1840,12 +1674,7 @@
                                     "anyOf": [
                                       {
                                         "type": "string",
-                                        "enum": [
-                                          "exact",
-                                          "ignore",
-                                          "subset",
-                                          "superset"
-                                        ]
+                                        "enum": ["exact", "ignore", "subset", "superset"]
                                       },
                                       {
                                         "type": "array",
@@ -1859,12 +1688,7 @@
                                     "anyOf": [
                                       {
                                         "type": "string",
-                                        "enum": [
-                                          "exact",
-                                          "ignore",
-                                          "subset",
-                                          "superset"
-                                        ]
+                                        "enum": ["exact", "ignore", "subset", "superset"]
                                       },
                                       {
                                         "type": "array",
@@ -1875,9 +1699,7 @@
                                     ]
                                   }
                                 },
-                                "required": [
-                                  "tool"
-                                ],
+                                "required": ["tool"],
                                 "additionalProperties": false
                               }
                             },
@@ -1885,12 +1707,7 @@
                               "anyOf": [
                                 {
                                   "type": "string",
-                                  "enum": [
-                                    "exact",
-                                    "ignore",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["exact", "ignore", "subset", "superset"]
                                 },
                                 {
                                   "type": "array",
@@ -1904,12 +1721,7 @@
                               "anyOf": [
                                 {
                                   "type": "string",
-                                  "enum": [
-                                    "exact",
-                                    "ignore",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["exact", "ignore", "subset", "superset"]
                                 },
                                 {
                                   "type": "array",
@@ -1920,10 +1732,7 @@
                               ]
                             }
                           },
-                          "required": [
-                            "type",
-                            "mode"
-                          ],
+                          "required": ["type", "mode"],
                           "additionalProperties": false
                         },
                         {
@@ -1965,11 +1774,7 @@
                                   },
                                   "match": {
                                     "type": "string",
-                                    "enum": [
-                                      "exact",
-                                      "numeric_tolerance",
-                                      "date"
-                                    ]
+                                    "enum": ["exact", "numeric_tolerance", "date"]
                                   },
                                   "required": {
                                     "type": "boolean"
@@ -1991,26 +1796,17 @@
                                     }
                                   }
                                 },
-                                "required": [
-                                  "path",
-                                  "match"
-                                ],
+                                "required": ["path", "match"],
                                 "additionalProperties": false
                               },
                               "minItems": 1
                             },
                             "aggregation": {
                               "type": "string",
-                              "enum": [
-                                "weighted_average",
-                                "all_or_nothing"
-                              ]
+                              "enum": ["weighted_average", "all_or_nothing"]
                             }
                           },
-                          "required": [
-                            "type",
-                            "fields"
-                          ],
+                          "required": ["type", "fields"],
                           "additionalProperties": false
                         },
                         {
@@ -2047,10 +1843,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type",
-                            "threshold"
-                          ],
+                          "required": ["type", "threshold"],
                           "additionalProperties": false
                         },
                         {
@@ -2087,10 +1880,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type",
-                            "budget"
-                          ],
+                          "required": ["type", "budget"],
                           "additionalProperties": false
                         },
                         {
@@ -2135,9 +1925,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -2199,9 +1987,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -2285,10 +2071,7 @@
                                           "minLength": 1
                                         }
                                       },
-                                      "required": [
-                                        "score_range",
-                                        "outcome"
-                                      ],
+                                      "required": ["score_range", "outcome"],
                                       "additionalProperties": false
                                     }
                                   }
@@ -2310,9 +2093,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -2348,10 +2129,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type",
-                            "value"
-                          ],
+                          "required": ["type", "value"],
                           "additionalProperties": false
                         },
                         {
@@ -2387,10 +2165,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type",
-                            "value"
-                          ],
+                          "required": ["type", "value"],
                           "additionalProperties": false
                         },
                         {
@@ -2423,9 +2198,7 @@
                               "const": "is_json"
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -2461,10 +2234,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type",
-                            "value"
-                          ],
+                          "required": ["type", "value"],
                           "additionalProperties": false
                         },
                         {
@@ -2545,10 +2315,7 @@
                                           "minLength": 1
                                         }
                                       },
-                                      "required": [
-                                        "score_range",
-                                        "outcome"
-                                      ],
+                                      "required": ["score_range", "outcome"],
                                       "additionalProperties": false
                                     }
                                   }
@@ -2558,10 +2325,7 @@
                               "minItems": 1
                             }
                           },
-                          "required": [
-                            "type",
-                            "criteria"
-                          ],
+                          "required": ["type", "criteria"],
                           "additionalProperties": false
                         }
                       ]
@@ -2662,10 +2426,7 @@
                                   "additionalProperties": {}
                                 }
                               },
-                              "required": [
-                                "type",
-                                "command"
-                              ],
+                              "required": ["type", "command"],
                               "additionalProperties": false
                             },
                             {
@@ -2789,10 +2550,7 @@
                                               "minLength": 1
                                             }
                                           },
-                                          "required": [
-                                            "score_range",
-                                            "outcome"
-                                          ],
+                                          "required": ["score_range", "outcome"],
                                           "additionalProperties": false
                                         }
                                       }
@@ -2808,9 +2566,7 @@
                                   "additionalProperties": {}
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -2866,9 +2622,7 @@
                                           }
                                         }
                                       },
-                                      "required": [
-                                        "type"
-                                      ],
+                                      "required": ["type"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -2884,10 +2638,7 @@
                                           "maximum": 1
                                         }
                                       },
-                                      "required": [
-                                        "type",
-                                        "threshold"
-                                      ],
+                                      "required": ["type", "threshold"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -2904,10 +2655,7 @@
                                           "type": "string"
                                         }
                                       },
-                                      "required": [
-                                        "type",
-                                        "path"
-                                      ],
+                                      "required": ["type", "path"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -2924,18 +2672,13 @@
                                           "type": "string"
                                         }
                                       },
-                                      "required": [
-                                        "type"
-                                      ],
+                                      "required": ["type"],
                                       "additionalProperties": false
                                     }
                                   ]
                                 }
                               },
-                              "required": [
-                                "type",
-                                "aggregator"
-                              ],
+                              "required": ["type", "aggregator"],
                               "additionalProperties": false
                             },
                             {
@@ -2969,13 +2712,7 @@
                                 },
                                 "mode": {
                                   "type": "string",
-                                  "enum": [
-                                    "any_order",
-                                    "in_order",
-                                    "exact",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["any_order", "in_order", "exact", "subset", "superset"]
                                 },
                                 "minimums": {
                                   "type": "object",
@@ -3016,12 +2753,7 @@
                                         "anyOf": [
                                           {
                                             "type": "string",
-                                            "enum": [
-                                              "exact",
-                                              "ignore",
-                                              "subset",
-                                              "superset"
-                                            ]
+                                            "enum": ["exact", "ignore", "subset", "superset"]
                                           },
                                           {
                                             "type": "array",
@@ -3035,12 +2767,7 @@
                                         "anyOf": [
                                           {
                                             "type": "string",
-                                            "enum": [
-                                              "exact",
-                                              "ignore",
-                                              "subset",
-                                              "superset"
-                                            ]
+                                            "enum": ["exact", "ignore", "subset", "superset"]
                                           },
                                           {
                                             "type": "array",
@@ -3051,9 +2778,7 @@
                                         ]
                                       }
                                     },
-                                    "required": [
-                                      "tool"
-                                    ],
+                                    "required": ["tool"],
                                     "additionalProperties": false
                                   }
                                 },
@@ -3061,12 +2786,7 @@
                                   "anyOf": [
                                     {
                                       "type": "string",
-                                      "enum": [
-                                        "exact",
-                                        "ignore",
-                                        "subset",
-                                        "superset"
-                                      ]
+                                      "enum": ["exact", "ignore", "subset", "superset"]
                                     },
                                     {
                                       "type": "array",
@@ -3080,12 +2800,7 @@
                                   "anyOf": [
                                     {
                                       "type": "string",
-                                      "enum": [
-                                        "exact",
-                                        "ignore",
-                                        "subset",
-                                        "superset"
-                                      ]
+                                      "enum": ["exact", "ignore", "subset", "superset"]
                                     },
                                     {
                                       "type": "array",
@@ -3096,10 +2811,7 @@
                                   ]
                                 }
                               },
-                              "required": [
-                                "type",
-                                "mode"
-                              ],
+                              "required": ["type", "mode"],
                               "additionalProperties": false
                             },
                             {
@@ -3141,11 +2853,7 @@
                                       },
                                       "match": {
                                         "type": "string",
-                                        "enum": [
-                                          "exact",
-                                          "numeric_tolerance",
-                                          "date"
-                                        ]
+                                        "enum": ["exact", "numeric_tolerance", "date"]
                                       },
                                       "required": {
                                         "type": "boolean"
@@ -3167,26 +2875,17 @@
                                         }
                                       }
                                     },
-                                    "required": [
-                                      "path",
-                                      "match"
-                                    ],
+                                    "required": ["path", "match"],
                                     "additionalProperties": false
                                   },
                                   "minItems": 1
                                 },
                                 "aggregation": {
                                   "type": "string",
-                                  "enum": [
-                                    "weighted_average",
-                                    "all_or_nothing"
-                                  ]
+                                  "enum": ["weighted_average", "all_or_nothing"]
                                 }
                               },
-                              "required": [
-                                "type",
-                                "fields"
-                              ],
+                              "required": ["type", "fields"],
                               "additionalProperties": false
                             },
                             {
@@ -3223,10 +2922,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type",
-                                "threshold"
-                              ],
+                              "required": ["type", "threshold"],
                               "additionalProperties": false
                             },
                             {
@@ -3263,10 +2959,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type",
-                                "budget"
-                              ],
+                              "required": ["type", "budget"],
                               "additionalProperties": false
                             },
                             {
@@ -3311,9 +3004,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -3375,9 +3066,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -3461,10 +3150,7 @@
                                               "minLength": 1
                                             }
                                           },
-                                          "required": [
-                                            "score_range",
-                                            "outcome"
-                                          ],
+                                          "required": ["score_range", "outcome"],
                                           "additionalProperties": false
                                         }
                                       }
@@ -3486,9 +3172,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -3524,10 +3208,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type",
-                                "value"
-                              ],
+                              "required": ["type", "value"],
                               "additionalProperties": false
                             },
                             {
@@ -3563,10 +3244,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type",
-                                "value"
-                              ],
+                              "required": ["type", "value"],
                               "additionalProperties": false
                             },
                             {
@@ -3599,9 +3277,7 @@
                                   "const": "is_json"
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -3637,10 +3313,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type",
-                                "value"
-                              ],
+                              "required": ["type", "value"],
                               "additionalProperties": false
                             },
                             {
@@ -3721,10 +3394,7 @@
                                               "minLength": 1
                                             }
                                           },
-                                          "required": [
-                                            "score_range",
-                                            "outcome"
-                                          ],
+                                          "required": ["score_range", "outcome"],
                                           "additionalProperties": false
                                         }
                                       }
@@ -3734,10 +3404,7 @@
                                   "minItems": 1
                                 }
                               },
-                              "required": [
-                                "type",
-                                "criteria"
-                              ],
+                              "required": ["type", "criteria"],
                               "additionalProperties": false
                             }
                           ]
@@ -3826,10 +3493,7 @@
                                   "additionalProperties": {}
                                 }
                               },
-                              "required": [
-                                "type",
-                                "command"
-                              ],
+                              "required": ["type", "command"],
                               "additionalProperties": false
                             },
                             {
@@ -3953,10 +3617,7 @@
                                               "minLength": 1
                                             }
                                           },
-                                          "required": [
-                                            "score_range",
-                                            "outcome"
-                                          ],
+                                          "required": ["score_range", "outcome"],
                                           "additionalProperties": false
                                         }
                                       }
@@ -3972,9 +3633,7 @@
                                   "additionalProperties": {}
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -4030,9 +3689,7 @@
                                           }
                                         }
                                       },
-                                      "required": [
-                                        "type"
-                                      ],
+                                      "required": ["type"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -4048,10 +3705,7 @@
                                           "maximum": 1
                                         }
                                       },
-                                      "required": [
-                                        "type",
-                                        "threshold"
-                                      ],
+                                      "required": ["type", "threshold"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -4068,10 +3722,7 @@
                                           "type": "string"
                                         }
                                       },
-                                      "required": [
-                                        "type",
-                                        "path"
-                                      ],
+                                      "required": ["type", "path"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -4088,18 +3739,13 @@
                                           "type": "string"
                                         }
                                       },
-                                      "required": [
-                                        "type"
-                                      ],
+                                      "required": ["type"],
                                       "additionalProperties": false
                                     }
                                   ]
                                 }
                               },
-                              "required": [
-                                "type",
-                                "aggregator"
-                              ],
+                              "required": ["type", "aggregator"],
                               "additionalProperties": false
                             },
                             {
@@ -4133,13 +3779,7 @@
                                 },
                                 "mode": {
                                   "type": "string",
-                                  "enum": [
-                                    "any_order",
-                                    "in_order",
-                                    "exact",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["any_order", "in_order", "exact", "subset", "superset"]
                                 },
                                 "minimums": {
                                   "type": "object",
@@ -4180,12 +3820,7 @@
                                         "anyOf": [
                                           {
                                             "type": "string",
-                                            "enum": [
-                                              "exact",
-                                              "ignore",
-                                              "subset",
-                                              "superset"
-                                            ]
+                                            "enum": ["exact", "ignore", "subset", "superset"]
                                           },
                                           {
                                             "type": "array",
@@ -4199,12 +3834,7 @@
                                         "anyOf": [
                                           {
                                             "type": "string",
-                                            "enum": [
-                                              "exact",
-                                              "ignore",
-                                              "subset",
-                                              "superset"
-                                            ]
+                                            "enum": ["exact", "ignore", "subset", "superset"]
                                           },
                                           {
                                             "type": "array",
@@ -4215,9 +3845,7 @@
                                         ]
                                       }
                                     },
-                                    "required": [
-                                      "tool"
-                                    ],
+                                    "required": ["tool"],
                                     "additionalProperties": false
                                   }
                                 },
@@ -4225,12 +3853,7 @@
                                   "anyOf": [
                                     {
                                       "type": "string",
-                                      "enum": [
-                                        "exact",
-                                        "ignore",
-                                        "subset",
-                                        "superset"
-                                      ]
+                                      "enum": ["exact", "ignore", "subset", "superset"]
                                     },
                                     {
                                       "type": "array",
@@ -4244,12 +3867,7 @@
                                   "anyOf": [
                                     {
                                       "type": "string",
-                                      "enum": [
-                                        "exact",
-                                        "ignore",
-                                        "subset",
-                                        "superset"
-                                      ]
+                                      "enum": ["exact", "ignore", "subset", "superset"]
                                     },
                                     {
                                       "type": "array",
@@ -4260,10 +3878,7 @@
                                   ]
                                 }
                               },
-                              "required": [
-                                "type",
-                                "mode"
-                              ],
+                              "required": ["type", "mode"],
                               "additionalProperties": false
                             },
                             {
@@ -4305,11 +3920,7 @@
                                       },
                                       "match": {
                                         "type": "string",
-                                        "enum": [
-                                          "exact",
-                                          "numeric_tolerance",
-                                          "date"
-                                        ]
+                                        "enum": ["exact", "numeric_tolerance", "date"]
                                       },
                                       "required": {
                                         "type": "boolean"
@@ -4331,26 +3942,17 @@
                                         }
                                       }
                                     },
-                                    "required": [
-                                      "path",
-                                      "match"
-                                    ],
+                                    "required": ["path", "match"],
                                     "additionalProperties": false
                                   },
                                   "minItems": 1
                                 },
                                 "aggregation": {
                                   "type": "string",
-                                  "enum": [
-                                    "weighted_average",
-                                    "all_or_nothing"
-                                  ]
+                                  "enum": ["weighted_average", "all_or_nothing"]
                                 }
                               },
-                              "required": [
-                                "type",
-                                "fields"
-                              ],
+                              "required": ["type", "fields"],
                               "additionalProperties": false
                             },
                             {
@@ -4387,10 +3989,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type",
-                                "threshold"
-                              ],
+                              "required": ["type", "threshold"],
                               "additionalProperties": false
                             },
                             {
@@ -4427,10 +4026,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type",
-                                "budget"
-                              ],
+                              "required": ["type", "budget"],
                               "additionalProperties": false
                             },
                             {
@@ -4475,9 +4071,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -4539,9 +4133,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -4625,10 +4217,7 @@
                                               "minLength": 1
                                             }
                                           },
-                                          "required": [
-                                            "score_range",
-                                            "outcome"
-                                          ],
+                                          "required": ["score_range", "outcome"],
                                           "additionalProperties": false
                                         }
                                       }
@@ -4650,9 +4239,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -4688,10 +4275,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type",
-                                "value"
-                              ],
+                              "required": ["type", "value"],
                               "additionalProperties": false
                             },
                             {
@@ -4727,10 +4311,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type",
-                                "value"
-                              ],
+                              "required": ["type", "value"],
                               "additionalProperties": false
                             },
                             {
@@ -4763,9 +4344,7 @@
                                   "const": "is_json"
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -4801,10 +4380,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type",
-                                "value"
-                              ],
+                              "required": ["type", "value"],
                               "additionalProperties": false
                             },
                             {
@@ -4885,10 +4461,7 @@
                                               "minLength": 1
                                             }
                                           },
-                                          "required": [
-                                            "score_range",
-                                            "outcome"
-                                          ],
+                                          "required": ["score_range", "outcome"],
                                           "additionalProperties": false
                                         }
                                       }
@@ -4898,10 +4471,7 @@
                                   "minItems": 1
                                 }
                               },
-                              "required": [
-                                "type",
-                                "criteria"
-                              ],
+                              "required": ["type", "criteria"],
                               "additionalProperties": false
                             }
                           ]
@@ -4922,11 +4492,7 @@
                           },
                           "strategy": {
                             "type": "string",
-                            "enum": [
-                              "pass_at_k",
-                              "mean",
-                              "confidence_interval"
-                            ]
+                            "enum": ["pass_at_k", "mean", "confidence_interval"]
                           },
                           "cost_limit_usd": {
                             "type": "number",
@@ -4937,9 +4503,7 @@
                             "minimum": 0
                           }
                         },
-                        "required": [
-                          "count"
-                        ],
+                        "required": ["count"],
                         "additionalProperties": false
                       },
                       "total_budget_usd": {
@@ -4961,10 +4525,7 @@
                       },
                       "isolation": {
                         "type": "string",
-                        "enum": [
-                          "shared",
-                          "per_test"
-                        ]
+                        "enum": ["shared", "per_test"]
                       },
                       "repos": {
                         "type": "array",
@@ -4988,10 +4549,7 @@
                                       "format": "uri"
                                     }
                                   },
-                                  "required": [
-                                    "type",
-                                    "url"
-                                  ],
+                                  "required": ["type", "url"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -5005,10 +4563,7 @@
                                       "type": "string"
                                     }
                                   },
-                                  "required": [
-                                    "type",
-                                    "path"
-                                  ],
+                                  "required": ["type", "path"],
                                   "additionalProperties": false
                                 }
                               ]
@@ -5021,10 +4576,7 @@
                                 },
                                 "resolve": {
                                   "type": "string",
-                                  "enum": [
-                                    "remote",
-                                    "local"
-                                  ]
+                                  "enum": ["remote", "local"]
                                 },
                                 "ancestor": {
                                   "type": "integer",
@@ -5053,10 +4605,7 @@
                               "additionalProperties": false
                             }
                           },
-                          "required": [
-                            "path",
-                            "source"
-                          ],
+                          "required": ["path", "source"],
                           "additionalProperties": false
                         }
                       },
@@ -5065,11 +4614,7 @@
                         "properties": {
                           "strategy": {
                             "type": "string",
-                            "enum": [
-                              "none",
-                              "hard",
-                              "recreate"
-                            ]
+                            "enum": ["none", "hard", "recreate"]
                           },
                           "after_each": {
                             "type": "boolean"
@@ -5250,9 +4795,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "id"
-                ],
+                "required": ["id"],
                 "additionalProperties": false
               }
             },
@@ -5290,12 +4833,7 @@
                           "properties": {
                             "role": {
                               "type": "string",
-                              "enum": [
-                                "system",
-                                "user",
-                                "assistant",
-                                "tool"
-                              ]
+                              "enum": ["system", "user", "assistant", "tool"]
                             },
                             "content": {
                               "anyOf": [
@@ -5309,29 +4847,20 @@
                                     "properties": {
                                       "type": {
                                         "type": "string",
-                                        "enum": [
-                                          "text",
-                                          "file"
-                                        ]
+                                        "enum": ["text", "file"]
                                       },
                                       "value": {
                                         "type": "string"
                                       }
                                     },
-                                    "required": [
-                                      "type",
-                                      "value"
-                                    ],
+                                    "required": ["type", "value"],
                                     "additionalProperties": false
                                   }
                                 }
                               ]
                             }
                           },
-                          "required": [
-                            "role",
-                            "content"
-                          ],
+                          "required": ["role", "content"],
                           "additionalProperties": false
                         }
                       }
@@ -5353,12 +4882,7 @@
                           "properties": {
                             "role": {
                               "type": "string",
-                              "enum": [
-                                "system",
-                                "user",
-                                "assistant",
-                                "tool"
-                              ]
+                              "enum": ["system", "user", "assistant", "tool"]
                             },
                             "content": {
                               "anyOf": [
@@ -5372,29 +4896,20 @@
                                     "properties": {
                                       "type": {
                                         "type": "string",
-                                        "enum": [
-                                          "text",
-                                          "file"
-                                        ]
+                                        "enum": ["text", "file"]
                                       },
                                       "value": {
                                         "type": "string"
                                       }
                                     },
-                                    "required": [
-                                      "type",
-                                      "value"
-                                    ],
+                                    "required": ["type", "value"],
                                     "additionalProperties": false
                                   }
                                 }
                               ]
                             }
                           },
-                          "required": [
-                            "role",
-                            "content"
-                          ],
+                          "required": ["role", "content"],
                           "additionalProperties": false
                         }
                       }
@@ -5483,10 +4998,7 @@
                               "additionalProperties": {}
                             }
                           },
-                          "required": [
-                            "type",
-                            "command"
-                          ],
+                          "required": ["type", "command"],
                           "additionalProperties": false
                         },
                         {
@@ -5610,10 +5122,7 @@
                                           "minLength": 1
                                         }
                                       },
-                                      "required": [
-                                        "score_range",
-                                        "outcome"
-                                      ],
+                                      "required": ["score_range", "outcome"],
                                       "additionalProperties": false
                                     }
                                   }
@@ -5629,9 +5138,7 @@
                               "additionalProperties": {}
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -5687,9 +5194,7 @@
                                       }
                                     }
                                   },
-                                  "required": [
-                                    "type"
-                                  ],
+                                  "required": ["type"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -5705,10 +5210,7 @@
                                       "maximum": 1
                                     }
                                   },
-                                  "required": [
-                                    "type",
-                                    "threshold"
-                                  ],
+                                  "required": ["type", "threshold"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -5725,10 +5227,7 @@
                                       "type": "string"
                                     }
                                   },
-                                  "required": [
-                                    "type",
-                                    "path"
-                                  ],
+                                  "required": ["type", "path"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -5745,18 +5244,13 @@
                                       "type": "string"
                                     }
                                   },
-                                  "required": [
-                                    "type"
-                                  ],
+                                  "required": ["type"],
                                   "additionalProperties": false
                                 }
                               ]
                             }
                           },
-                          "required": [
-                            "type",
-                            "aggregator"
-                          ],
+                          "required": ["type", "aggregator"],
                           "additionalProperties": false
                         },
                         {
@@ -5790,13 +5284,7 @@
                             },
                             "mode": {
                               "type": "string",
-                              "enum": [
-                                "any_order",
-                                "in_order",
-                                "exact",
-                                "subset",
-                                "superset"
-                              ]
+                              "enum": ["any_order", "in_order", "exact", "subset", "superset"]
                             },
                             "minimums": {
                               "type": "object",
@@ -5837,12 +5325,7 @@
                                     "anyOf": [
                                       {
                                         "type": "string",
-                                        "enum": [
-                                          "exact",
-                                          "ignore",
-                                          "subset",
-                                          "superset"
-                                        ]
+                                        "enum": ["exact", "ignore", "subset", "superset"]
                                       },
                                       {
                                         "type": "array",
@@ -5856,12 +5339,7 @@
                                     "anyOf": [
                                       {
                                         "type": "string",
-                                        "enum": [
-                                          "exact",
-                                          "ignore",
-                                          "subset",
-                                          "superset"
-                                        ]
+                                        "enum": ["exact", "ignore", "subset", "superset"]
                                       },
                                       {
                                         "type": "array",
@@ -5872,9 +5350,7 @@
                                     ]
                                   }
                                 },
-                                "required": [
-                                  "tool"
-                                ],
+                                "required": ["tool"],
                                 "additionalProperties": false
                               }
                             },
@@ -5882,12 +5358,7 @@
                               "anyOf": [
                                 {
                                   "type": "string",
-                                  "enum": [
-                                    "exact",
-                                    "ignore",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["exact", "ignore", "subset", "superset"]
                                 },
                                 {
                                   "type": "array",
@@ -5901,12 +5372,7 @@
                               "anyOf": [
                                 {
                                   "type": "string",
-                                  "enum": [
-                                    "exact",
-                                    "ignore",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["exact", "ignore", "subset", "superset"]
                                 },
                                 {
                                   "type": "array",
@@ -5917,10 +5383,7 @@
                               ]
                             }
                           },
-                          "required": [
-                            "type",
-                            "mode"
-                          ],
+                          "required": ["type", "mode"],
                           "additionalProperties": false
                         },
                         {
@@ -5962,11 +5425,7 @@
                                   },
                                   "match": {
                                     "type": "string",
-                                    "enum": [
-                                      "exact",
-                                      "numeric_tolerance",
-                                      "date"
-                                    ]
+                                    "enum": ["exact", "numeric_tolerance", "date"]
                                   },
                                   "required": {
                                     "type": "boolean"
@@ -5988,26 +5447,17 @@
                                     }
                                   }
                                 },
-                                "required": [
-                                  "path",
-                                  "match"
-                                ],
+                                "required": ["path", "match"],
                                 "additionalProperties": false
                               },
                               "minItems": 1
                             },
                             "aggregation": {
                               "type": "string",
-                              "enum": [
-                                "weighted_average",
-                                "all_or_nothing"
-                              ]
+                              "enum": ["weighted_average", "all_or_nothing"]
                             }
                           },
-                          "required": [
-                            "type",
-                            "fields"
-                          ],
+                          "required": ["type", "fields"],
                           "additionalProperties": false
                         },
                         {
@@ -6044,10 +5494,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type",
-                            "threshold"
-                          ],
+                          "required": ["type", "threshold"],
                           "additionalProperties": false
                         },
                         {
@@ -6084,10 +5531,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type",
-                            "budget"
-                          ],
+                          "required": ["type", "budget"],
                           "additionalProperties": false
                         },
                         {
@@ -6132,9 +5576,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -6196,9 +5638,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -6282,10 +5722,7 @@
                                           "minLength": 1
                                         }
                                       },
-                                      "required": [
-                                        "score_range",
-                                        "outcome"
-                                      ],
+                                      "required": ["score_range", "outcome"],
                                       "additionalProperties": false
                                     }
                                   }
@@ -6307,9 +5744,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -6345,10 +5780,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type",
-                            "value"
-                          ],
+                          "required": ["type", "value"],
                           "additionalProperties": false
                         },
                         {
@@ -6384,10 +5816,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type",
-                            "value"
-                          ],
+                          "required": ["type", "value"],
                           "additionalProperties": false
                         },
                         {
@@ -6420,9 +5849,7 @@
                               "const": "is_json"
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -6458,10 +5885,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type",
-                            "value"
-                          ],
+                          "required": ["type", "value"],
                           "additionalProperties": false
                         },
                         {
@@ -6542,10 +5966,7 @@
                                           "minLength": 1
                                         }
                                       },
-                                      "required": [
-                                        "score_range",
-                                        "outcome"
-                                      ],
+                                      "required": ["score_range", "outcome"],
                                       "additionalProperties": false
                                     }
                                   }
@@ -6555,10 +5976,7 @@
                               "minItems": 1
                             }
                           },
-                          "required": [
-                            "type",
-                            "criteria"
-                          ],
+                          "required": ["type", "criteria"],
                           "additionalProperties": false
                         }
                       ]
@@ -6647,10 +6065,7 @@
                               "additionalProperties": {}
                             }
                           },
-                          "required": [
-                            "type",
-                            "command"
-                          ],
+                          "required": ["type", "command"],
                           "additionalProperties": false
                         },
                         {
@@ -6774,10 +6189,7 @@
                                           "minLength": 1
                                         }
                                       },
-                                      "required": [
-                                        "score_range",
-                                        "outcome"
-                                      ],
+                                      "required": ["score_range", "outcome"],
                                       "additionalProperties": false
                                     }
                                   }
@@ -6793,9 +6205,7 @@
                               "additionalProperties": {}
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -6851,9 +6261,7 @@
                                       }
                                     }
                                   },
-                                  "required": [
-                                    "type"
-                                  ],
+                                  "required": ["type"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -6869,10 +6277,7 @@
                                       "maximum": 1
                                     }
                                   },
-                                  "required": [
-                                    "type",
-                                    "threshold"
-                                  ],
+                                  "required": ["type", "threshold"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -6889,10 +6294,7 @@
                                       "type": "string"
                                     }
                                   },
-                                  "required": [
-                                    "type",
-                                    "path"
-                                  ],
+                                  "required": ["type", "path"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -6909,18 +6311,13 @@
                                       "type": "string"
                                     }
                                   },
-                                  "required": [
-                                    "type"
-                                  ],
+                                  "required": ["type"],
                                   "additionalProperties": false
                                 }
                               ]
                             }
                           },
-                          "required": [
-                            "type",
-                            "aggregator"
-                          ],
+                          "required": ["type", "aggregator"],
                           "additionalProperties": false
                         },
                         {
@@ -6954,13 +6351,7 @@
                             },
                             "mode": {
                               "type": "string",
-                              "enum": [
-                                "any_order",
-                                "in_order",
-                                "exact",
-                                "subset",
-                                "superset"
-                              ]
+                              "enum": ["any_order", "in_order", "exact", "subset", "superset"]
                             },
                             "minimums": {
                               "type": "object",
@@ -7001,12 +6392,7 @@
                                     "anyOf": [
                                       {
                                         "type": "string",
-                                        "enum": [
-                                          "exact",
-                                          "ignore",
-                                          "subset",
-                                          "superset"
-                                        ]
+                                        "enum": ["exact", "ignore", "subset", "superset"]
                                       },
                                       {
                                         "type": "array",
@@ -7020,12 +6406,7 @@
                                     "anyOf": [
                                       {
                                         "type": "string",
-                                        "enum": [
-                                          "exact",
-                                          "ignore",
-                                          "subset",
-                                          "superset"
-                                        ]
+                                        "enum": ["exact", "ignore", "subset", "superset"]
                                       },
                                       {
                                         "type": "array",
@@ -7036,9 +6417,7 @@
                                     ]
                                   }
                                 },
-                                "required": [
-                                  "tool"
-                                ],
+                                "required": ["tool"],
                                 "additionalProperties": false
                               }
                             },
@@ -7046,12 +6425,7 @@
                               "anyOf": [
                                 {
                                   "type": "string",
-                                  "enum": [
-                                    "exact",
-                                    "ignore",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["exact", "ignore", "subset", "superset"]
                                 },
                                 {
                                   "type": "array",
@@ -7065,12 +6439,7 @@
                               "anyOf": [
                                 {
                                   "type": "string",
-                                  "enum": [
-                                    "exact",
-                                    "ignore",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["exact", "ignore", "subset", "superset"]
                                 },
                                 {
                                   "type": "array",
@@ -7081,10 +6450,7 @@
                               ]
                             }
                           },
-                          "required": [
-                            "type",
-                            "mode"
-                          ],
+                          "required": ["type", "mode"],
                           "additionalProperties": false
                         },
                         {
@@ -7126,11 +6492,7 @@
                                   },
                                   "match": {
                                     "type": "string",
-                                    "enum": [
-                                      "exact",
-                                      "numeric_tolerance",
-                                      "date"
-                                    ]
+                                    "enum": ["exact", "numeric_tolerance", "date"]
                                   },
                                   "required": {
                                     "type": "boolean"
@@ -7152,26 +6514,17 @@
                                     }
                                   }
                                 },
-                                "required": [
-                                  "path",
-                                  "match"
-                                ],
+                                "required": ["path", "match"],
                                 "additionalProperties": false
                               },
                               "minItems": 1
                             },
                             "aggregation": {
                               "type": "string",
-                              "enum": [
-                                "weighted_average",
-                                "all_or_nothing"
-                              ]
+                              "enum": ["weighted_average", "all_or_nothing"]
                             }
                           },
-                          "required": [
-                            "type",
-                            "fields"
-                          ],
+                          "required": ["type", "fields"],
                           "additionalProperties": false
                         },
                         {
@@ -7208,10 +6561,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type",
-                            "threshold"
-                          ],
+                          "required": ["type", "threshold"],
                           "additionalProperties": false
                         },
                         {
@@ -7248,10 +6598,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type",
-                            "budget"
-                          ],
+                          "required": ["type", "budget"],
                           "additionalProperties": false
                         },
                         {
@@ -7296,9 +6643,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -7360,9 +6705,7 @@
                               "minimum": 0
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -7446,10 +6789,7 @@
                                           "minLength": 1
                                         }
                                       },
-                                      "required": [
-                                        "score_range",
-                                        "outcome"
-                                      ],
+                                      "required": ["score_range", "outcome"],
                                       "additionalProperties": false
                                     }
                                   }
@@ -7471,9 +6811,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -7509,10 +6847,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type",
-                            "value"
-                          ],
+                          "required": ["type", "value"],
                           "additionalProperties": false
                         },
                         {
@@ -7548,10 +6883,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type",
-                            "value"
-                          ],
+                          "required": ["type", "value"],
                           "additionalProperties": false
                         },
                         {
@@ -7584,9 +6916,7 @@
                               "const": "is_json"
                             }
                           },
-                          "required": [
-                            "type"
-                          ],
+                          "required": ["type"],
                           "additionalProperties": false
                         },
                         {
@@ -7622,10 +6952,7 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "type",
-                            "value"
-                          ],
+                          "required": ["type", "value"],
                           "additionalProperties": false
                         },
                         {
@@ -7706,10 +7033,7 @@
                                           "minLength": 1
                                         }
                                       },
-                                      "required": [
-                                        "score_range",
-                                        "outcome"
-                                      ],
+                                      "required": ["score_range", "outcome"],
                                       "additionalProperties": false
                                     }
                                   }
@@ -7719,10 +7043,7 @@
                               "minItems": 1
                             }
                           },
-                          "required": [
-                            "type",
-                            "criteria"
-                          ],
+                          "required": ["type", "criteria"],
                           "additionalProperties": false
                         }
                       ]
@@ -7823,10 +7144,7 @@
                                   "additionalProperties": {}
                                 }
                               },
-                              "required": [
-                                "type",
-                                "command"
-                              ],
+                              "required": ["type", "command"],
                               "additionalProperties": false
                             },
                             {
@@ -7950,10 +7268,7 @@
                                               "minLength": 1
                                             }
                                           },
-                                          "required": [
-                                            "score_range",
-                                            "outcome"
-                                          ],
+                                          "required": ["score_range", "outcome"],
                                           "additionalProperties": false
                                         }
                                       }
@@ -7969,9 +7284,7 @@
                                   "additionalProperties": {}
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -8027,9 +7340,7 @@
                                           }
                                         }
                                       },
-                                      "required": [
-                                        "type"
-                                      ],
+                                      "required": ["type"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -8045,10 +7356,7 @@
                                           "maximum": 1
                                         }
                                       },
-                                      "required": [
-                                        "type",
-                                        "threshold"
-                                      ],
+                                      "required": ["type", "threshold"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -8065,10 +7373,7 @@
                                           "type": "string"
                                         }
                                       },
-                                      "required": [
-                                        "type",
-                                        "path"
-                                      ],
+                                      "required": ["type", "path"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -8085,18 +7390,13 @@
                                           "type": "string"
                                         }
                                       },
-                                      "required": [
-                                        "type"
-                                      ],
+                                      "required": ["type"],
                                       "additionalProperties": false
                                     }
                                   ]
                                 }
                               },
-                              "required": [
-                                "type",
-                                "aggregator"
-                              ],
+                              "required": ["type", "aggregator"],
                               "additionalProperties": false
                             },
                             {
@@ -8130,13 +7430,7 @@
                                 },
                                 "mode": {
                                   "type": "string",
-                                  "enum": [
-                                    "any_order",
-                                    "in_order",
-                                    "exact",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["any_order", "in_order", "exact", "subset", "superset"]
                                 },
                                 "minimums": {
                                   "type": "object",
@@ -8177,12 +7471,7 @@
                                         "anyOf": [
                                           {
                                             "type": "string",
-                                            "enum": [
-                                              "exact",
-                                              "ignore",
-                                              "subset",
-                                              "superset"
-                                            ]
+                                            "enum": ["exact", "ignore", "subset", "superset"]
                                           },
                                           {
                                             "type": "array",
@@ -8196,12 +7485,7 @@
                                         "anyOf": [
                                           {
                                             "type": "string",
-                                            "enum": [
-                                              "exact",
-                                              "ignore",
-                                              "subset",
-                                              "superset"
-                                            ]
+                                            "enum": ["exact", "ignore", "subset", "superset"]
                                           },
                                           {
                                             "type": "array",
@@ -8212,9 +7496,7 @@
                                         ]
                                       }
                                     },
-                                    "required": [
-                                      "tool"
-                                    ],
+                                    "required": ["tool"],
                                     "additionalProperties": false
                                   }
                                 },
@@ -8222,12 +7504,7 @@
                                   "anyOf": [
                                     {
                                       "type": "string",
-                                      "enum": [
-                                        "exact",
-                                        "ignore",
-                                        "subset",
-                                        "superset"
-                                      ]
+                                      "enum": ["exact", "ignore", "subset", "superset"]
                                     },
                                     {
                                       "type": "array",
@@ -8241,12 +7518,7 @@
                                   "anyOf": [
                                     {
                                       "type": "string",
-                                      "enum": [
-                                        "exact",
-                                        "ignore",
-                                        "subset",
-                                        "superset"
-                                      ]
+                                      "enum": ["exact", "ignore", "subset", "superset"]
                                     },
                                     {
                                       "type": "array",
@@ -8257,10 +7529,7 @@
                                   ]
                                 }
                               },
-                              "required": [
-                                "type",
-                                "mode"
-                              ],
+                              "required": ["type", "mode"],
                               "additionalProperties": false
                             },
                             {
@@ -8302,11 +7571,7 @@
                                       },
                                       "match": {
                                         "type": "string",
-                                        "enum": [
-                                          "exact",
-                                          "numeric_tolerance",
-                                          "date"
-                                        ]
+                                        "enum": ["exact", "numeric_tolerance", "date"]
                                       },
                                       "required": {
                                         "type": "boolean"
@@ -8328,26 +7593,17 @@
                                         }
                                       }
                                     },
-                                    "required": [
-                                      "path",
-                                      "match"
-                                    ],
+                                    "required": ["path", "match"],
                                     "additionalProperties": false
                                   },
                                   "minItems": 1
                                 },
                                 "aggregation": {
                                   "type": "string",
-                                  "enum": [
-                                    "weighted_average",
-                                    "all_or_nothing"
-                                  ]
+                                  "enum": ["weighted_average", "all_or_nothing"]
                                 }
                               },
-                              "required": [
-                                "type",
-                                "fields"
-                              ],
+                              "required": ["type", "fields"],
                               "additionalProperties": false
                             },
                             {
@@ -8384,10 +7640,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type",
-                                "threshold"
-                              ],
+                              "required": ["type", "threshold"],
                               "additionalProperties": false
                             },
                             {
@@ -8424,10 +7677,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type",
-                                "budget"
-                              ],
+                              "required": ["type", "budget"],
                               "additionalProperties": false
                             },
                             {
@@ -8472,9 +7722,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -8536,9 +7784,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -8622,10 +7868,7 @@
                                               "minLength": 1
                                             }
                                           },
-                                          "required": [
-                                            "score_range",
-                                            "outcome"
-                                          ],
+                                          "required": ["score_range", "outcome"],
                                           "additionalProperties": false
                                         }
                                       }
@@ -8647,9 +7890,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -8685,10 +7926,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type",
-                                "value"
-                              ],
+                              "required": ["type", "value"],
                               "additionalProperties": false
                             },
                             {
@@ -8724,10 +7962,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type",
-                                "value"
-                              ],
+                              "required": ["type", "value"],
                               "additionalProperties": false
                             },
                             {
@@ -8760,9 +7995,7 @@
                                   "const": "is_json"
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -8798,10 +8031,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type",
-                                "value"
-                              ],
+                              "required": ["type", "value"],
                               "additionalProperties": false
                             },
                             {
@@ -8882,10 +8112,7 @@
                                               "minLength": 1
                                             }
                                           },
-                                          "required": [
-                                            "score_range",
-                                            "outcome"
-                                          ],
+                                          "required": ["score_range", "outcome"],
                                           "additionalProperties": false
                                         }
                                       }
@@ -8895,10 +8122,7 @@
                                   "minItems": 1
                                 }
                               },
-                              "required": [
-                                "type",
-                                "criteria"
-                              ],
+                              "required": ["type", "criteria"],
                               "additionalProperties": false
                             }
                           ]
@@ -8987,10 +8211,7 @@
                                   "additionalProperties": {}
                                 }
                               },
-                              "required": [
-                                "type",
-                                "command"
-                              ],
+                              "required": ["type", "command"],
                               "additionalProperties": false
                             },
                             {
@@ -9114,10 +8335,7 @@
                                               "minLength": 1
                                             }
                                           },
-                                          "required": [
-                                            "score_range",
-                                            "outcome"
-                                          ],
+                                          "required": ["score_range", "outcome"],
                                           "additionalProperties": false
                                         }
                                       }
@@ -9133,9 +8351,7 @@
                                   "additionalProperties": {}
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -9191,9 +8407,7 @@
                                           }
                                         }
                                       },
-                                      "required": [
-                                        "type"
-                                      ],
+                                      "required": ["type"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -9209,10 +8423,7 @@
                                           "maximum": 1
                                         }
                                       },
-                                      "required": [
-                                        "type",
-                                        "threshold"
-                                      ],
+                                      "required": ["type", "threshold"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -9229,10 +8440,7 @@
                                           "type": "string"
                                         }
                                       },
-                                      "required": [
-                                        "type",
-                                        "path"
-                                      ],
+                                      "required": ["type", "path"],
                                       "additionalProperties": false
                                     },
                                     {
@@ -9249,18 +8457,13 @@
                                           "type": "string"
                                         }
                                       },
-                                      "required": [
-                                        "type"
-                                      ],
+                                      "required": ["type"],
                                       "additionalProperties": false
                                     }
                                   ]
                                 }
                               },
-                              "required": [
-                                "type",
-                                "aggregator"
-                              ],
+                              "required": ["type", "aggregator"],
                               "additionalProperties": false
                             },
                             {
@@ -9294,13 +8497,7 @@
                                 },
                                 "mode": {
                                   "type": "string",
-                                  "enum": [
-                                    "any_order",
-                                    "in_order",
-                                    "exact",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["any_order", "in_order", "exact", "subset", "superset"]
                                 },
                                 "minimums": {
                                   "type": "object",
@@ -9341,12 +8538,7 @@
                                         "anyOf": [
                                           {
                                             "type": "string",
-                                            "enum": [
-                                              "exact",
-                                              "ignore",
-                                              "subset",
-                                              "superset"
-                                            ]
+                                            "enum": ["exact", "ignore", "subset", "superset"]
                                           },
                                           {
                                             "type": "array",
@@ -9360,12 +8552,7 @@
                                         "anyOf": [
                                           {
                                             "type": "string",
-                                            "enum": [
-                                              "exact",
-                                              "ignore",
-                                              "subset",
-                                              "superset"
-                                            ]
+                                            "enum": ["exact", "ignore", "subset", "superset"]
                                           },
                                           {
                                             "type": "array",
@@ -9376,9 +8563,7 @@
                                         ]
                                       }
                                     },
-                                    "required": [
-                                      "tool"
-                                    ],
+                                    "required": ["tool"],
                                     "additionalProperties": false
                                   }
                                 },
@@ -9386,12 +8571,7 @@
                                   "anyOf": [
                                     {
                                       "type": "string",
-                                      "enum": [
-                                        "exact",
-                                        "ignore",
-                                        "subset",
-                                        "superset"
-                                      ]
+                                      "enum": ["exact", "ignore", "subset", "superset"]
                                     },
                                     {
                                       "type": "array",
@@ -9405,12 +8585,7 @@
                                   "anyOf": [
                                     {
                                       "type": "string",
-                                      "enum": [
-                                        "exact",
-                                        "ignore",
-                                        "subset",
-                                        "superset"
-                                      ]
+                                      "enum": ["exact", "ignore", "subset", "superset"]
                                     },
                                     {
                                       "type": "array",
@@ -9421,10 +8596,7 @@
                                   ]
                                 }
                               },
-                              "required": [
-                                "type",
-                                "mode"
-                              ],
+                              "required": ["type", "mode"],
                               "additionalProperties": false
                             },
                             {
@@ -9466,11 +8638,7 @@
                                       },
                                       "match": {
                                         "type": "string",
-                                        "enum": [
-                                          "exact",
-                                          "numeric_tolerance",
-                                          "date"
-                                        ]
+                                        "enum": ["exact", "numeric_tolerance", "date"]
                                       },
                                       "required": {
                                         "type": "boolean"
@@ -9492,26 +8660,17 @@
                                         }
                                       }
                                     },
-                                    "required": [
-                                      "path",
-                                      "match"
-                                    ],
+                                    "required": ["path", "match"],
                                     "additionalProperties": false
                                   },
                                   "minItems": 1
                                 },
                                 "aggregation": {
                                   "type": "string",
-                                  "enum": [
-                                    "weighted_average",
-                                    "all_or_nothing"
-                                  ]
+                                  "enum": ["weighted_average", "all_or_nothing"]
                                 }
                               },
-                              "required": [
-                                "type",
-                                "fields"
-                              ],
+                              "required": ["type", "fields"],
                               "additionalProperties": false
                             },
                             {
@@ -9548,10 +8707,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type",
-                                "threshold"
-                              ],
+                              "required": ["type", "threshold"],
                               "additionalProperties": false
                             },
                             {
@@ -9588,10 +8744,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type",
-                                "budget"
-                              ],
+                              "required": ["type", "budget"],
                               "additionalProperties": false
                             },
                             {
@@ -9636,9 +8789,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -9700,9 +8851,7 @@
                                   "minimum": 0
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -9786,10 +8935,7 @@
                                               "minLength": 1
                                             }
                                           },
-                                          "required": [
-                                            "score_range",
-                                            "outcome"
-                                          ],
+                                          "required": ["score_range", "outcome"],
                                           "additionalProperties": false
                                         }
                                       }
@@ -9811,9 +8957,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -9849,10 +8993,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type",
-                                "value"
-                              ],
+                              "required": ["type", "value"],
                               "additionalProperties": false
                             },
                             {
@@ -9888,10 +9029,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type",
-                                "value"
-                              ],
+                              "required": ["type", "value"],
                               "additionalProperties": false
                             },
                             {
@@ -9924,9 +9062,7 @@
                                   "const": "is_json"
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
+                              "required": ["type"],
                               "additionalProperties": false
                             },
                             {
@@ -9962,10 +9098,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type",
-                                "value"
-                              ],
+                              "required": ["type", "value"],
                               "additionalProperties": false
                             },
                             {
@@ -10046,10 +9179,7 @@
                                               "minLength": 1
                                             }
                                           },
-                                          "required": [
-                                            "score_range",
-                                            "outcome"
-                                          ],
+                                          "required": ["score_range", "outcome"],
                                           "additionalProperties": false
                                         }
                                       }
@@ -10059,10 +9189,7 @@
                                   "minItems": 1
                                 }
                               },
-                              "required": [
-                                "type",
-                                "criteria"
-                              ],
+                              "required": ["type", "criteria"],
                               "additionalProperties": false
                             }
                           ]
@@ -10083,11 +9210,7 @@
                           },
                           "strategy": {
                             "type": "string",
-                            "enum": [
-                              "pass_at_k",
-                              "mean",
-                              "confidence_interval"
-                            ]
+                            "enum": ["pass_at_k", "mean", "confidence_interval"]
                           },
                           "cost_limit_usd": {
                             "type": "number",
@@ -10098,9 +9221,7 @@
                             "minimum": 0
                           }
                         },
-                        "required": [
-                          "count"
-                        ],
+                        "required": ["count"],
                         "additionalProperties": false
                       },
                       "total_budget_usd": {
@@ -10122,10 +9243,7 @@
                       },
                       "isolation": {
                         "type": "string",
-                        "enum": [
-                          "shared",
-                          "per_test"
-                        ]
+                        "enum": ["shared", "per_test"]
                       },
                       "repos": {
                         "type": "array",
@@ -10149,10 +9267,7 @@
                                       "format": "uri"
                                     }
                                   },
-                                  "required": [
-                                    "type",
-                                    "url"
-                                  ],
+                                  "required": ["type", "url"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -10166,10 +9281,7 @@
                                       "type": "string"
                                     }
                                   },
-                                  "required": [
-                                    "type",
-                                    "path"
-                                  ],
+                                  "required": ["type", "path"],
                                   "additionalProperties": false
                                 }
                               ]
@@ -10182,10 +9294,7 @@
                                 },
                                 "resolve": {
                                   "type": "string",
-                                  "enum": [
-                                    "remote",
-                                    "local"
-                                  ]
+                                  "enum": ["remote", "local"]
                                 },
                                 "ancestor": {
                                   "type": "integer",
@@ -10214,10 +9323,7 @@
                               "additionalProperties": false
                             }
                           },
-                          "required": [
-                            "path",
-                            "source"
-                          ],
+                          "required": ["path", "source"],
                           "additionalProperties": false
                         }
                       },
@@ -10226,11 +9332,7 @@
                         "properties": {
                           "strategy": {
                             "type": "string",
-                            "enum": [
-                              "none",
-                              "hard",
-                              "recreate"
-                            ]
+                            "enum": ["none", "hard", "recreate"]
                           },
                           "after_each": {
                             "type": "boolean"
@@ -10411,9 +9513,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "id"
-                ],
+                "required": ["id"],
                 "additionalProperties": false
               }
             },
@@ -10520,10 +9620,7 @@
                         "additionalProperties": {}
                       }
                     },
-                    "required": [
-                      "type",
-                      "command"
-                    ],
+                    "required": ["type", "command"],
                     "additionalProperties": false
                   },
                   {
@@ -10647,10 +9744,7 @@
                                     "minLength": 1
                                   }
                                 },
-                                "required": [
-                                  "score_range",
-                                  "outcome"
-                                ],
+                                "required": ["score_range", "outcome"],
                                 "additionalProperties": false
                               }
                             }
@@ -10666,9 +9760,7 @@
                         "additionalProperties": {}
                       }
                     },
-                    "required": [
-                      "type"
-                    ],
+                    "required": ["type"],
                     "additionalProperties": false
                   },
                   {
@@ -10724,9 +9816,7 @@
                                 }
                               }
                             },
-                            "required": [
-                              "type"
-                            ],
+                            "required": ["type"],
                             "additionalProperties": false
                           },
                           {
@@ -10742,10 +9832,7 @@
                                 "maximum": 1
                               }
                             },
-                            "required": [
-                              "type",
-                              "threshold"
-                            ],
+                            "required": ["type", "threshold"],
                             "additionalProperties": false
                           },
                           {
@@ -10762,10 +9849,7 @@
                                 "type": "string"
                               }
                             },
-                            "required": [
-                              "type",
-                              "path"
-                            ],
+                            "required": ["type", "path"],
                             "additionalProperties": false
                           },
                           {
@@ -10782,18 +9866,13 @@
                                 "type": "string"
                               }
                             },
-                            "required": [
-                              "type"
-                            ],
+                            "required": ["type"],
                             "additionalProperties": false
                           }
                         ]
                       }
                     },
-                    "required": [
-                      "type",
-                      "aggregator"
-                    ],
+                    "required": ["type", "aggregator"],
                     "additionalProperties": false
                   },
                   {
@@ -10827,13 +9906,7 @@
                       },
                       "mode": {
                         "type": "string",
-                        "enum": [
-                          "any_order",
-                          "in_order",
-                          "exact",
-                          "subset",
-                          "superset"
-                        ]
+                        "enum": ["any_order", "in_order", "exact", "subset", "superset"]
                       },
                       "minimums": {
                         "type": "object",
@@ -10874,12 +9947,7 @@
                               "anyOf": [
                                 {
                                   "type": "string",
-                                  "enum": [
-                                    "exact",
-                                    "ignore",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["exact", "ignore", "subset", "superset"]
                                 },
                                 {
                                   "type": "array",
@@ -10893,12 +9961,7 @@
                               "anyOf": [
                                 {
                                   "type": "string",
-                                  "enum": [
-                                    "exact",
-                                    "ignore",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["exact", "ignore", "subset", "superset"]
                                 },
                                 {
                                   "type": "array",
@@ -10909,9 +9972,7 @@
                               ]
                             }
                           },
-                          "required": [
-                            "tool"
-                          ],
+                          "required": ["tool"],
                           "additionalProperties": false
                         }
                       },
@@ -10919,12 +9980,7 @@
                         "anyOf": [
                           {
                             "type": "string",
-                            "enum": [
-                              "exact",
-                              "ignore",
-                              "subset",
-                              "superset"
-                            ]
+                            "enum": ["exact", "ignore", "subset", "superset"]
                           },
                           {
                             "type": "array",
@@ -10938,12 +9994,7 @@
                         "anyOf": [
                           {
                             "type": "string",
-                            "enum": [
-                              "exact",
-                              "ignore",
-                              "subset",
-                              "superset"
-                            ]
+                            "enum": ["exact", "ignore", "subset", "superset"]
                           },
                           {
                             "type": "array",
@@ -10954,10 +10005,7 @@
                         ]
                       }
                     },
-                    "required": [
-                      "type",
-                      "mode"
-                    ],
+                    "required": ["type", "mode"],
                     "additionalProperties": false
                   },
                   {
@@ -10999,11 +10047,7 @@
                             },
                             "match": {
                               "type": "string",
-                              "enum": [
-                                "exact",
-                                "numeric_tolerance",
-                                "date"
-                              ]
+                              "enum": ["exact", "numeric_tolerance", "date"]
                             },
                             "required": {
                               "type": "boolean"
@@ -11025,26 +10069,17 @@
                               }
                             }
                           },
-                          "required": [
-                            "path",
-                            "match"
-                          ],
+                          "required": ["path", "match"],
                           "additionalProperties": false
                         },
                         "minItems": 1
                       },
                       "aggregation": {
                         "type": "string",
-                        "enum": [
-                          "weighted_average",
-                          "all_or_nothing"
-                        ]
+                        "enum": ["weighted_average", "all_or_nothing"]
                       }
                     },
-                    "required": [
-                      "type",
-                      "fields"
-                    ],
+                    "required": ["type", "fields"],
                     "additionalProperties": false
                   },
                   {
@@ -11081,10 +10116,7 @@
                         "minimum": 0
                       }
                     },
-                    "required": [
-                      "type",
-                      "threshold"
-                    ],
+                    "required": ["type", "threshold"],
                     "additionalProperties": false
                   },
                   {
@@ -11121,10 +10153,7 @@
                         "minimum": 0
                       }
                     },
-                    "required": [
-                      "type",
-                      "budget"
-                    ],
+                    "required": ["type", "budget"],
                     "additionalProperties": false
                   },
                   {
@@ -11169,9 +10198,7 @@
                         "minimum": 0
                       }
                     },
-                    "required": [
-                      "type"
-                    ],
+                    "required": ["type"],
                     "additionalProperties": false
                   },
                   {
@@ -11233,9 +10260,7 @@
                         "minimum": 0
                       }
                     },
-                    "required": [
-                      "type"
-                    ],
+                    "required": ["type"],
                     "additionalProperties": false
                   },
                   {
@@ -11319,10 +10344,7 @@
                                     "minLength": 1
                                   }
                                 },
-                                "required": [
-                                  "score_range",
-                                  "outcome"
-                                ],
+                                "required": ["score_range", "outcome"],
                                 "additionalProperties": false
                               }
                             }
@@ -11344,9 +10366,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "type"
-                    ],
+                    "required": ["type"],
                     "additionalProperties": false
                   },
                   {
@@ -11382,10 +10402,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "type",
-                      "value"
-                    ],
+                    "required": ["type", "value"],
                     "additionalProperties": false
                   },
                   {
@@ -11421,10 +10438,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "type",
-                      "value"
-                    ],
+                    "required": ["type", "value"],
                     "additionalProperties": false
                   },
                   {
@@ -11457,9 +10471,7 @@
                         "const": "is_json"
                       }
                     },
-                    "required": [
-                      "type"
-                    ],
+                    "required": ["type"],
                     "additionalProperties": false
                   },
                   {
@@ -11495,10 +10507,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "type",
-                      "value"
-                    ],
+                    "required": ["type", "value"],
                     "additionalProperties": false
                   },
                   {
@@ -11579,10 +10588,7 @@
                                     "minLength": 1
                                   }
                                 },
-                                "required": [
-                                  "score_range",
-                                  "outcome"
-                                ],
+                                "required": ["score_range", "outcome"],
                                 "additionalProperties": false
                               }
                             }
@@ -11592,10 +10598,7 @@
                         "minItems": 1
                       }
                     },
-                    "required": [
-                      "type",
-                      "criteria"
-                    ],
+                    "required": ["type", "criteria"],
                     "additionalProperties": false
                   }
                 ]
@@ -11684,10 +10687,7 @@
                         "additionalProperties": {}
                       }
                     },
-                    "required": [
-                      "type",
-                      "command"
-                    ],
+                    "required": ["type", "command"],
                     "additionalProperties": false
                   },
                   {
@@ -11811,10 +10811,7 @@
                                     "minLength": 1
                                   }
                                 },
-                                "required": [
-                                  "score_range",
-                                  "outcome"
-                                ],
+                                "required": ["score_range", "outcome"],
                                 "additionalProperties": false
                               }
                             }
@@ -11830,9 +10827,7 @@
                         "additionalProperties": {}
                       }
                     },
-                    "required": [
-                      "type"
-                    ],
+                    "required": ["type"],
                     "additionalProperties": false
                   },
                   {
@@ -11888,9 +10883,7 @@
                                 }
                               }
                             },
-                            "required": [
-                              "type"
-                            ],
+                            "required": ["type"],
                             "additionalProperties": false
                           },
                           {
@@ -11906,10 +10899,7 @@
                                 "maximum": 1
                               }
                             },
-                            "required": [
-                              "type",
-                              "threshold"
-                            ],
+                            "required": ["type", "threshold"],
                             "additionalProperties": false
                           },
                           {
@@ -11926,10 +10916,7 @@
                                 "type": "string"
                               }
                             },
-                            "required": [
-                              "type",
-                              "path"
-                            ],
+                            "required": ["type", "path"],
                             "additionalProperties": false
                           },
                           {
@@ -11946,18 +10933,13 @@
                                 "type": "string"
                               }
                             },
-                            "required": [
-                              "type"
-                            ],
+                            "required": ["type"],
                             "additionalProperties": false
                           }
                         ]
                       }
                     },
-                    "required": [
-                      "type",
-                      "aggregator"
-                    ],
+                    "required": ["type", "aggregator"],
                     "additionalProperties": false
                   },
                   {
@@ -11991,13 +10973,7 @@
                       },
                       "mode": {
                         "type": "string",
-                        "enum": [
-                          "any_order",
-                          "in_order",
-                          "exact",
-                          "subset",
-                          "superset"
-                        ]
+                        "enum": ["any_order", "in_order", "exact", "subset", "superset"]
                       },
                       "minimums": {
                         "type": "object",
@@ -12038,12 +11014,7 @@
                               "anyOf": [
                                 {
                                   "type": "string",
-                                  "enum": [
-                                    "exact",
-                                    "ignore",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["exact", "ignore", "subset", "superset"]
                                 },
                                 {
                                   "type": "array",
@@ -12057,12 +11028,7 @@
                               "anyOf": [
                                 {
                                   "type": "string",
-                                  "enum": [
-                                    "exact",
-                                    "ignore",
-                                    "subset",
-                                    "superset"
-                                  ]
+                                  "enum": ["exact", "ignore", "subset", "superset"]
                                 },
                                 {
                                   "type": "array",
@@ -12073,9 +11039,7 @@
                               ]
                             }
                           },
-                          "required": [
-                            "tool"
-                          ],
+                          "required": ["tool"],
                           "additionalProperties": false
                         }
                       },
@@ -12083,12 +11047,7 @@
                         "anyOf": [
                           {
                             "type": "string",
-                            "enum": [
-                              "exact",
-                              "ignore",
-                              "subset",
-                              "superset"
-                            ]
+                            "enum": ["exact", "ignore", "subset", "superset"]
                           },
                           {
                             "type": "array",
@@ -12102,12 +11061,7 @@
                         "anyOf": [
                           {
                             "type": "string",
-                            "enum": [
-                              "exact",
-                              "ignore",
-                              "subset",
-                              "superset"
-                            ]
+                            "enum": ["exact", "ignore", "subset", "superset"]
                           },
                           {
                             "type": "array",
@@ -12118,10 +11072,7 @@
                         ]
                       }
                     },
-                    "required": [
-                      "type",
-                      "mode"
-                    ],
+                    "required": ["type", "mode"],
                     "additionalProperties": false
                   },
                   {
@@ -12163,11 +11114,7 @@
                             },
                             "match": {
                               "type": "string",
-                              "enum": [
-                                "exact",
-                                "numeric_tolerance",
-                                "date"
-                              ]
+                              "enum": ["exact", "numeric_tolerance", "date"]
                             },
                             "required": {
                               "type": "boolean"
@@ -12189,26 +11136,17 @@
                               }
                             }
                           },
-                          "required": [
-                            "path",
-                            "match"
-                          ],
+                          "required": ["path", "match"],
                           "additionalProperties": false
                         },
                         "minItems": 1
                       },
                       "aggregation": {
                         "type": "string",
-                        "enum": [
-                          "weighted_average",
-                          "all_or_nothing"
-                        ]
+                        "enum": ["weighted_average", "all_or_nothing"]
                       }
                     },
-                    "required": [
-                      "type",
-                      "fields"
-                    ],
+                    "required": ["type", "fields"],
                     "additionalProperties": false
                   },
                   {
@@ -12245,10 +11183,7 @@
                         "minimum": 0
                       }
                     },
-                    "required": [
-                      "type",
-                      "threshold"
-                    ],
+                    "required": ["type", "threshold"],
                     "additionalProperties": false
                   },
                   {
@@ -12285,10 +11220,7 @@
                         "minimum": 0
                       }
                     },
-                    "required": [
-                      "type",
-                      "budget"
-                    ],
+                    "required": ["type", "budget"],
                     "additionalProperties": false
                   },
                   {
@@ -12333,9 +11265,7 @@
                         "minimum": 0
                       }
                     },
-                    "required": [
-                      "type"
-                    ],
+                    "required": ["type"],
                     "additionalProperties": false
                   },
                   {
@@ -12397,9 +11327,7 @@
                         "minimum": 0
                       }
                     },
-                    "required": [
-                      "type"
-                    ],
+                    "required": ["type"],
                     "additionalProperties": false
                   },
                   {
@@ -12483,10 +11411,7 @@
                                     "minLength": 1
                                   }
                                 },
-                                "required": [
-                                  "score_range",
-                                  "outcome"
-                                ],
+                                "required": ["score_range", "outcome"],
                                 "additionalProperties": false
                               }
                             }
@@ -12508,9 +11433,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "type"
-                    ],
+                    "required": ["type"],
                     "additionalProperties": false
                   },
                   {
@@ -12546,10 +11469,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "type",
-                      "value"
-                    ],
+                    "required": ["type", "value"],
                     "additionalProperties": false
                   },
                   {
@@ -12585,10 +11505,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "type",
-                      "value"
-                    ],
+                    "required": ["type", "value"],
                     "additionalProperties": false
                   },
                   {
@@ -12621,9 +11538,7 @@
                         "const": "is_json"
                       }
                     },
-                    "required": [
-                      "type"
-                    ],
+                    "required": ["type"],
                     "additionalProperties": false
                   },
                   {
@@ -12659,10 +11574,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "type",
-                      "value"
-                    ],
+                    "required": ["type", "value"],
                     "additionalProperties": false
                   },
                   {
@@ -12743,10 +11655,7 @@
                                     "minLength": 1
                                   }
                                 },
-                                "required": [
-                                  "score_range",
-                                  "outcome"
-                                ],
+                                "required": ["score_range", "outcome"],
                                 "additionalProperties": false
                               }
                             }
@@ -12756,10 +11665,7 @@
                         "minItems": 1
                       }
                     },
-                    "required": [
-                      "type",
-                      "criteria"
-                    ],
+                    "required": ["type", "criteria"],
                     "additionalProperties": false
                   }
                 ]
@@ -12780,11 +11686,7 @@
                 },
                 "strategy": {
                   "type": "string",
-                  "enum": [
-                    "pass_at_k",
-                    "mean",
-                    "confidence_interval"
-                  ]
+                  "enum": ["pass_at_k", "mean", "confidence_interval"]
                 },
                 "cost_limit_usd": {
                   "type": "number",
@@ -12795,9 +11697,7 @@
                   "minimum": 0
                 }
               },
-              "required": [
-                "count"
-              ],
+              "required": ["count"],
               "additionalProperties": false
             },
             "total_budget_usd": {
@@ -12894,10 +11794,7 @@
                     "additionalProperties": {}
                   }
                 },
-                "required": [
-                  "type",
-                  "command"
-                ],
+                "required": ["type", "command"],
                 "additionalProperties": false
               },
               {
@@ -13021,10 +11918,7 @@
                                 "minLength": 1
                               }
                             },
-                            "required": [
-                              "score_range",
-                              "outcome"
-                            ],
+                            "required": ["score_range", "outcome"],
                             "additionalProperties": false
                           }
                         }
@@ -13040,9 +11934,7 @@
                     "additionalProperties": {}
                   }
                 },
-                "required": [
-                  "type"
-                ],
+                "required": ["type"],
                 "additionalProperties": false
               },
               {
@@ -13098,9 +11990,7 @@
                             }
                           }
                         },
-                        "required": [
-                          "type"
-                        ],
+                        "required": ["type"],
                         "additionalProperties": false
                       },
                       {
@@ -13116,10 +12006,7 @@
                             "maximum": 1
                           }
                         },
-                        "required": [
-                          "type",
-                          "threshold"
-                        ],
+                        "required": ["type", "threshold"],
                         "additionalProperties": false
                       },
                       {
@@ -13136,10 +12023,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "type",
-                          "path"
-                        ],
+                        "required": ["type", "path"],
                         "additionalProperties": false
                       },
                       {
@@ -13156,18 +12040,13 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "type"
-                        ],
+                        "required": ["type"],
                         "additionalProperties": false
                       }
                     ]
                   }
                 },
-                "required": [
-                  "type",
-                  "aggregator"
-                ],
+                "required": ["type", "aggregator"],
                 "additionalProperties": false
               },
               {
@@ -13201,13 +12080,7 @@
                   },
                   "mode": {
                     "type": "string",
-                    "enum": [
-                      "any_order",
-                      "in_order",
-                      "exact",
-                      "subset",
-                      "superset"
-                    ]
+                    "enum": ["any_order", "in_order", "exact", "subset", "superset"]
                   },
                   "minimums": {
                     "type": "object",
@@ -13248,12 +12121,7 @@
                           "anyOf": [
                             {
                               "type": "string",
-                              "enum": [
-                                "exact",
-                                "ignore",
-                                "subset",
-                                "superset"
-                              ]
+                              "enum": ["exact", "ignore", "subset", "superset"]
                             },
                             {
                               "type": "array",
@@ -13267,12 +12135,7 @@
                           "anyOf": [
                             {
                               "type": "string",
-                              "enum": [
-                                "exact",
-                                "ignore",
-                                "subset",
-                                "superset"
-                              ]
+                              "enum": ["exact", "ignore", "subset", "superset"]
                             },
                             {
                               "type": "array",
@@ -13283,9 +12146,7 @@
                           ]
                         }
                       },
-                      "required": [
-                        "tool"
-                      ],
+                      "required": ["tool"],
                       "additionalProperties": false
                     }
                   },
@@ -13293,12 +12154,7 @@
                     "anyOf": [
                       {
                         "type": "string",
-                        "enum": [
-                          "exact",
-                          "ignore",
-                          "subset",
-                          "superset"
-                        ]
+                        "enum": ["exact", "ignore", "subset", "superset"]
                       },
                       {
                         "type": "array",
@@ -13312,12 +12168,7 @@
                     "anyOf": [
                       {
                         "type": "string",
-                        "enum": [
-                          "exact",
-                          "ignore",
-                          "subset",
-                          "superset"
-                        ]
+                        "enum": ["exact", "ignore", "subset", "superset"]
                       },
                       {
                         "type": "array",
@@ -13328,10 +12179,7 @@
                     ]
                   }
                 },
-                "required": [
-                  "type",
-                  "mode"
-                ],
+                "required": ["type", "mode"],
                 "additionalProperties": false
               },
               {
@@ -13373,11 +12221,7 @@
                         },
                         "match": {
                           "type": "string",
-                          "enum": [
-                            "exact",
-                            "numeric_tolerance",
-                            "date"
-                          ]
+                          "enum": ["exact", "numeric_tolerance", "date"]
                         },
                         "required": {
                           "type": "boolean"
@@ -13399,26 +12243,17 @@
                           }
                         }
                       },
-                      "required": [
-                        "path",
-                        "match"
-                      ],
+                      "required": ["path", "match"],
                       "additionalProperties": false
                     },
                     "minItems": 1
                   },
                   "aggregation": {
                     "type": "string",
-                    "enum": [
-                      "weighted_average",
-                      "all_or_nothing"
-                    ]
+                    "enum": ["weighted_average", "all_or_nothing"]
                   }
                 },
-                "required": [
-                  "type",
-                  "fields"
-                ],
+                "required": ["type", "fields"],
                 "additionalProperties": false
               },
               {
@@ -13455,10 +12290,7 @@
                     "minimum": 0
                   }
                 },
-                "required": [
-                  "type",
-                  "threshold"
-                ],
+                "required": ["type", "threshold"],
                 "additionalProperties": false
               },
               {
@@ -13495,10 +12327,7 @@
                     "minimum": 0
                   }
                 },
-                "required": [
-                  "type",
-                  "budget"
-                ],
+                "required": ["type", "budget"],
                 "additionalProperties": false
               },
               {
@@ -13543,9 +12372,7 @@
                     "minimum": 0
                   }
                 },
-                "required": [
-                  "type"
-                ],
+                "required": ["type"],
                 "additionalProperties": false
               },
               {
@@ -13607,9 +12434,7 @@
                     "minimum": 0
                   }
                 },
-                "required": [
-                  "type"
-                ],
+                "required": ["type"],
                 "additionalProperties": false
               },
               {
@@ -13693,10 +12518,7 @@
                                 "minLength": 1
                               }
                             },
-                            "required": [
-                              "score_range",
-                              "outcome"
-                            ],
+                            "required": ["score_range", "outcome"],
                             "additionalProperties": false
                           }
                         }
@@ -13718,9 +12540,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "type"
-                ],
+                "required": ["type"],
                 "additionalProperties": false
               },
               {
@@ -13756,10 +12576,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "type",
-                  "value"
-                ],
+                "required": ["type", "value"],
                 "additionalProperties": false
               },
               {
@@ -13795,10 +12612,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "type",
-                  "value"
-                ],
+                "required": ["type", "value"],
                 "additionalProperties": false
               },
               {
@@ -13831,9 +12645,7 @@
                     "const": "is_json"
                   }
                 },
-                "required": [
-                  "type"
-                ],
+                "required": ["type"],
                 "additionalProperties": false
               },
               {
@@ -13869,10 +12681,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "type",
-                  "value"
-                ],
+                "required": ["type", "value"],
                 "additionalProperties": false
               },
               {
@@ -13953,10 +12762,7 @@
                                 "minLength": 1
                               }
                             },
-                            "required": [
-                              "score_range",
-                              "outcome"
-                            ],
+                            "required": ["score_range", "outcome"],
                             "additionalProperties": false
                           }
                         }
@@ -13966,10 +12772,7 @@
                     "minItems": 1
                   }
                 },
-                "required": [
-                  "type",
-                  "criteria"
-                ],
+                "required": ["type", "criteria"],
                 "additionalProperties": false
               }
             ]
@@ -13983,10 +12786,7 @@
             },
             "isolation": {
               "type": "string",
-              "enum": [
-                "shared",
-                "per_test"
-              ]
+              "enum": ["shared", "per_test"]
             },
             "repos": {
               "type": "array",
@@ -14010,10 +12810,7 @@
                             "format": "uri"
                           }
                         },
-                        "required": [
-                          "type",
-                          "url"
-                        ],
+                        "required": ["type", "url"],
                         "additionalProperties": false
                       },
                       {
@@ -14027,10 +12824,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "type",
-                          "path"
-                        ],
+                        "required": ["type", "path"],
                         "additionalProperties": false
                       }
                     ]
@@ -14043,10 +12837,7 @@
                       },
                       "resolve": {
                         "type": "string",
-                        "enum": [
-                          "remote",
-                          "local"
-                        ]
+                        "enum": ["remote", "local"]
                       },
                       "ancestor": {
                         "type": "integer",
@@ -14075,10 +12866,7 @@
                     "additionalProperties": false
                   }
                 },
-                "required": [
-                  "path",
-                  "source"
-                ],
+                "required": ["path", "source"],
                 "additionalProperties": false
               }
             },
@@ -14087,11 +12875,7 @@
               "properties": {
                 "strategy": {
                   "type": "string",
-                  "enum": [
-                    "none",
-                    "hard",
-                    "recreate"
-                  ]
+                  "enum": ["none", "hard", "recreate"]
                 },
                 "after_each": {
                   "type": "boolean"
@@ -14259,9 +13043,7 @@
           "additionalProperties": false
         }
       },
-      "required": [
-        "tests"
-      ],
+      "required": ["tests"],
       "additionalProperties": false
     }
   }
