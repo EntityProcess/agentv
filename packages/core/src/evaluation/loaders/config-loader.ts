@@ -325,9 +325,7 @@ export function extractFailOnError(suite: JsonObject): FailOnError | undefined {
     return raw;
   }
 
-  logWarning(
-    `Invalid execution.fail_on_error: ${raw}. Must be true or false. Ignoring.`,
-  );
+  logWarning(`Invalid execution.fail_on_error: ${raw}. Must be true or false. Ignoring.`);
   return undefined;
 }
 
