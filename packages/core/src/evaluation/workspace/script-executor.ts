@@ -22,10 +22,7 @@ export type ScriptFailureMode = 'fatal' | 'warn';
  * Note: optional fields (case_input, case_metadata) coerce to empty string for arg interpolation,
  * while stdin JSON uses null — empty string is more useful as a command arg than "null".
  */
-function interpolateArgs(
-  args: readonly string[],
-  context: ScriptExecutionContext,
-): string[] {
+function interpolateArgs(args: readonly string[], context: ScriptExecutionContext): string[] {
   const vars: Record<string, string> = {
     workspace_path: context.workspacePath,
     test_id: context.testId,
@@ -34,9 +31,7 @@ function interpolateArgs(
     case_metadata: context.caseMetadata ? JSON.stringify(context.caseMetadata) : '',
   };
 
-  return args.map((arg) =>
-    arg.replace(/\{\{(\w+)\}\}/g, (match, name) => vars[name] ?? match),
-  );
+  return args.map((arg) => arg.replace(/\{\{(\w+)\}\}/g, (match, name) => vars[name] ?? match));
 }
 
 /**

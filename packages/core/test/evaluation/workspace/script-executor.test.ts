@@ -294,10 +294,7 @@ process.stdout.write(JSON.stringify(args));
     try {
       // Script that prints process.cwd() to stdout
       const cwdScript = path.join(testDir, 'print-cwd.js');
-      await writeFile(
-        cwdScript,
-        `process.stdout.write(process.cwd());`,
-      );
+      await writeFile(cwdScript, 'process.stdout.write(process.cwd());');
 
       const config: WorkspaceScriptConfig = {
         command: ['node', cwdScript],
@@ -326,10 +323,7 @@ process.stdout.write(JSON.stringify(args));
 
     try {
       const cwdScript = path.join(testDir, 'print-cwd2.js');
-      await writeFile(
-        cwdScript,
-        `process.stdout.write(process.cwd());`,
-      );
+      await writeFile(cwdScript, 'process.stdout.write(process.cwd());');
 
       const config: WorkspaceScriptConfig = {
         command: ['node', cwdScript],
