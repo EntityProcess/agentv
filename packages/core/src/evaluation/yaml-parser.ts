@@ -6,6 +6,7 @@ import { parse } from 'yaml';
 import { expandFileReferences, loadCasesFromFile } from './loaders/case-file-loader.js';
 import {
   extractCacheConfig,
+  extractFailOnError,
   extractTargetFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
@@ -48,6 +49,7 @@ export { buildPromptInputs, type PromptInputs } from './formatting/prompt-builde
 export {
   DEFAULT_EVAL_PATTERNS,
   extractCacheConfig,
+  extractFailOnError,
   extractTargetFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
@@ -161,6 +163,8 @@ export type EvalSuiteResult = {
   readonly metadata?: import('./metadata.js').EvalMetadata;
   /** Suite-level total cost budget in USD */
   readonly totalBudgetUsd?: number;
+  /** Execution error tolerance: true or false */
+  readonly failOnError?: import('./types.js').FailOnError;
 };
 
 /**
@@ -178,6 +182,7 @@ export async function loadTestSuite(
   }
   const { tests, parsed } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
   const metadata = parseMetadata(parsed);
+  const failOnError = extractFailOnError(parsed);
   return {
     tests,
     trials: extractTrialsConfig(parsed),
@@ -185,6 +190,7 @@ export async function loadTestSuite(
     cacheConfig: extractCacheConfig(parsed),
     totalBudgetUsd: extractTotalBudgetUsd(parsed),
     ...(metadata !== undefined && { metadata }),
+    ...(failOnError !== undefined && { failOnError }),
   };
 }
 

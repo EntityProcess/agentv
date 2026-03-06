@@ -847,6 +847,13 @@ export interface ExecutionError {
 }
 
 /**
+ * Tolerance for execution errors in an eval run.
+ * - `true`: halt on first execution error
+ * - `false`: never halt on errors (default)
+ */
+export type FailOnError = boolean;
+
+/**
  * Evaluator scorecard for a single eval case run.
  */
 export interface EvaluationResult {

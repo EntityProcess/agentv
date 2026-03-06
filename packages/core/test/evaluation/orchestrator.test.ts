@@ -2223,3 +2223,85 @@ describe('suite-level total budget guardrail', () => {
     expect(results[3].error).toContain('Suite budget exceeded');
   });
 });
+
+describe('fail_on_error tolerance', () => {
+  it('fail_on_error: true halts on first execution error', async () => {
+    let callCount = 0;
+    const errorOnFirstProvider: Provider = {
+      id: 'mock:error-on-first',
+      kind: 'mock' as const,
+      targetName: 'error-on-first',
+      async invoke(): Promise<ProviderResponse> {
+        callCount++;
+        if (callCount === 1) {
+          throw new Error('Provider failed');
+        }
+        return { output: [{ role: 'assistant', content: 'ok' }] };
+      },
+    };
+
+    const evalCases: EvalTest[] = [
+      { ...baseTestCase, id: 'fail-case' },
+      { ...baseTestCase, id: 'skip-case-1' },
+      { ...baseTestCase, id: 'skip-case-2' },
+    ];
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => errorOnFirstProvider,
+      evaluators: evaluatorRegistry,
+      evalCases,
+      failOnError: true,
+      maxConcurrency: 1,
+    });
+
+    expect(results).toHaveLength(3);
+    // First case is execution_error from provider
+    expect(results[0].executionStatus).toBe('execution_error');
+    expect(results[0].failureReasonCode).toBe('provider_error');
+    // Remaining cases should be halted by error_threshold_exceeded
+    expect(results[1].executionStatus).toBe('execution_error');
+    expect(results[1].failureReasonCode).toBe('error_threshold_exceeded');
+    expect(results[2].executionStatus).toBe('execution_error');
+    expect(results[2].failureReasonCode).toBe('error_threshold_exceeded');
+  });
+
+  it('fail_on_error: false never halts on errors', async () => {
+    let callCount = 0;
+    const alwaysErrorProvider: Provider = {
+      id: 'mock:always-error',
+      kind: 'mock' as const,
+      targetName: 'always-error',
+      async invoke(): Promise<ProviderResponse> {
+        callCount++;
+        throw new Error(`Provider failed call ${callCount}`);
+      },
+    };
+
+    const evalCases: EvalTest[] = [
+      { ...baseTestCase, id: 'err-1' },
+      { ...baseTestCase, id: 'err-2' },
+      { ...baseTestCase, id: 'err-3' },
+    ];
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => alwaysErrorProvider,
+      evaluators: evaluatorRegistry,
+      evalCases,
+      failOnError: false,
+      maxConcurrency: 1,
+    });
+
+    expect(results).toHaveLength(3);
+    // All are actual provider errors, none are halted
+    for (const r of results) {
+      expect(r.executionStatus).toBe('execution_error');
+      expect(r.failureReasonCode).toBe('provider_error');
+    }
+  });
+});

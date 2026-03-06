@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
+  extractFailOnError,
   extractTargetFromSuite,
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
@@ -261,6 +262,43 @@ describe('extractTotalBudgetUsd', () => {
   it('returns undefined for non-number budget', () => {
     const suite: JsonObject = { execution: { total_budget_usd: 'ten' } };
     expect(extractTotalBudgetUsd(suite)).toBeUndefined();
+  });
+});
+
+describe('extractFailOnError', () => {
+  it('returns undefined when no execution block', () => {
+    const suite: JsonObject = { tests: [] };
+    expect(extractFailOnError(suite)).toBeUndefined();
+  });
+
+  it('returns undefined when fail_on_error not set', () => {
+    const suite: JsonObject = { execution: { target: 'default' } };
+    expect(extractFailOnError(suite)).toBeUndefined();
+  });
+
+  it('returns true for fail_on_error: true', () => {
+    const suite: JsonObject = { execution: { fail_on_error: true } };
+    expect(extractFailOnError(suite)).toBe(true);
+  });
+
+  it('returns false for fail_on_error: false', () => {
+    const suite: JsonObject = { execution: { fail_on_error: false } };
+    expect(extractFailOnError(suite)).toBe(false);
+  });
+
+  it('returns undefined for numeric value', () => {
+    const suite: JsonObject = { execution: { fail_on_error: 0.3 } };
+    expect(extractFailOnError(suite)).toBeUndefined();
+  });
+
+  it('returns undefined for invalid string value', () => {
+    const suite: JsonObject = { execution: { fail_on_error: 'always' } };
+    expect(extractFailOnError(suite)).toBeUndefined();
+  });
+
+  it('supports camelCase failOnError alias', () => {
+    const suite: JsonObject = { execution: { failOnError: true } };
+    expect(extractFailOnError(suite)).toBe(true);
   });
 });
 

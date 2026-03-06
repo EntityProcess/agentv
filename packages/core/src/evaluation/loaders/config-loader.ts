@@ -3,7 +3,7 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import { parse } from 'yaml';
 
-import type { JsonObject, TrialStrategy, TrialsConfig } from '../types.js';
+import type { FailOnError, JsonObject, TrialStrategy, TrialsConfig } from '../types.js';
 import { isJsonObject } from '../types.js';
 import { buildDirectoryChain, fileExists } from './file-resolver.js';
 
@@ -300,6 +300,32 @@ export function extractTotalBudgetUsd(suite: JsonObject): number | undefined {
   logWarning(
     `Invalid execution.total_budget_usd: ${rawBudget}. Must be a positive number. Ignoring.`,
   );
+  return undefined;
+}
+
+/**
+ * Extract `execution.fail_on_error` from parsed eval suite.
+ * Accepts `true` or `false`.
+ * Returns undefined when not specified.
+ */
+export function extractFailOnError(suite: JsonObject): FailOnError | undefined {
+  const execution = suite.execution;
+  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+    return undefined;
+  }
+
+  const executionObj = execution as Record<string, unknown>;
+  const raw = executionObj.fail_on_error ?? executionObj.failOnError;
+
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+
+  if (typeof raw === 'boolean') {
+    return raw;
+  }
+
+  logWarning(`Invalid execution.fail_on_error: ${raw}. Must be true or false. Ignoring.`);
   return undefined;
 }
 

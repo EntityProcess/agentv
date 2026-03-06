@@ -4513,6 +4513,12 @@
                       "totalBudgetUsd": {
                         "type": "number",
                         "minimum": 0
+                      },
+                      "fail_on_error": {
+                        "type": "boolean"
+                      },
+                      "failOnError": {
+                        "type": "boolean"
                       }
                     },
                     "additionalProperties": false
@@ -9231,6 +9237,12 @@
                       "totalBudgetUsd": {
                         "type": "number",
                         "minimum": 0
+                      },
+                      "fail_on_error": {
+                        "type": "boolean"
+                      },
+                      "failOnError": {
+                        "type": "boolean"
                       }
                     },
                     "additionalProperties": false
@@ -11707,6 +11719,12 @@
             "totalBudgetUsd": {
               "type": "number",
               "minimum": 0
+            },
+            "fail_on_error": {
+              "type": "boolean"
+            },
+            "failOnError": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false

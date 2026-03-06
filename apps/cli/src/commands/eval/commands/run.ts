@@ -142,6 +142,11 @@ export const evalRunCommand = command({
       description:
         'Group messages into turn spans for multi-turn evaluations (requires --export-otel)',
     }),
+    retryErrors: option({
+      type: optional(string),
+      long: 'retry-errors',
+      description: 'Path to previous output JSONL — re-run only execution_error test cases',
+    }),
   },
   handler: async (args) => {
     // Launch interactive wizard when no eval paths and stdin is a TTY
@@ -178,6 +183,7 @@ export const evalRunCommand = command({
       otelBackend: args.otelBackend,
       otelCaptureContent: args.otelCaptureContent,
       otelGroupTurns: args.otelGroupTurns,
+      retryErrors: args.retryErrors,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },

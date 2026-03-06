@@ -43,6 +43,7 @@ import type {
   EvaluatorKind,
   EvaluatorResult,
   ExecutionStatus,
+  FailOnError,
   FailureStage,
   JsonObject,
   JsonValue,
@@ -174,6 +175,8 @@ export interface RunEvaluationOptions {
   readonly streamCallbacks?: ProviderStreamCallbacks;
   /** Suite-level total cost budget in USD (stops dispatching when exceeded) */
   readonly totalBudgetUsd?: number;
+  /** Execution error tolerance: true halts on first error */
+  readonly failOnError?: FailOnError;
 }
 
 export async function runEvaluation(
@@ -201,6 +204,7 @@ export async function runEvaluation(
     trials,
     streamCallbacks,
     totalBudgetUsd,
+    failOnError,
   } = options;
 
   // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
@@ -460,6 +464,9 @@ export async function runEvaluation(
   let cumulativeBudgetCost = 0;
   let budgetExhausted = false;
 
+  // fail_on_error tracking (best-effort under concurrency > 1, matching budgetExhausted semantics)
+  let failOnErrorTriggered = false;
+
   // Map test cases to limited promises for parallel execution
   const promises = filteredEvalCases.map((evalCase) =>
     limit(async () => {
@@ -502,6 +509,40 @@ export async function runEvaluation(
           await onResult(budgetResult);
         }
         return budgetResult;
+      }
+
+      // Check fail_on_error before dispatching
+      if (failOnError === true && failOnErrorTriggered) {
+        const errorMsg = 'Halted: execution error encountered with fail_on_error enabled';
+        const haltResult: EvaluationResult = {
+          timestamp: (now ?? (() => new Date()))().toISOString(),
+          testId: evalCase.id,
+          dataset: evalCase.dataset,
+          score: 0,
+          hits: [],
+          misses: [],
+          answer: '',
+          target: target.name,
+          error: errorMsg,
+          executionStatus: 'execution_error',
+          failureStage: 'setup',
+          failureReasonCode: 'error_threshold_exceeded',
+          executionError: { message: errorMsg, stage: 'setup' },
+        };
+
+        if (onProgress) {
+          await onProgress({
+            workerId,
+            testId: evalCase.id,
+            status: 'failed',
+            completedAt: Date.now(),
+            error: haltResult.error,
+          });
+        }
+        if (onResult) {
+          await onResult(haltResult);
+        }
+        return haltResult;
       }
 
       if (onProgress) {
@@ -562,6 +603,11 @@ export async function runEvaluation(
               budgetExhausted = true;
             }
           }
+        }
+
+        // Track fail_on_error
+        if (failOnError === true && result.executionStatus === 'execution_error') {
+          failOnErrorTriggered = true;
         }
 
         // Attach beforeAllOutput to first result only

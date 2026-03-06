@@ -35,10 +35,13 @@ If a feature serves a niche use case or adds conditional logic, it belongs in a 
 ### 3. Align with Industry Standards
 Before adding features, research how peer frameworks solve the problem. Prefer the **lowest common denominator** that covers most use cases. Novel features without industry precedent require strong justification and should default to plugin implementation.
 
-### 4. Non-Breaking Extensions
+### 4. YAGNI — You Aren't Gonna Need It
+Don't build features until there's a concrete need. Before adding a new capability, ask: "Is there real demand for this today, or am I anticipating future needs?" Numeric thresholds, extra tracking fields, and configurable knobs should be omitted until users actually request them. Start with the simplest version (e.g., boolean over numeric range) and extend later if needed.
+
+### 5. Non-Breaking Extensions
 New fields should be optional. Existing configurations must continue working unchanged.
 
-### 5. AI-First Design
+### 6. AI-First Design
 AI agents are the primary users of AgentV—not humans reading docs. Design for AI comprehension and composability.
 
 **Skills over rigid commands:**
