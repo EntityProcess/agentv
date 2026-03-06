@@ -30,6 +30,7 @@ function makeFullResult(overrides: Partial<EvaluationResult> = {}): EvaluationRe
     beforeAllOutput: 'setup done',
     afterEachOutput: 'teardown done',
     fileChanges: '--- a/file\n+++ b/file\n@@ -1 +1 @@\n-old\n+new',
+    executionStatus: 'ok',
     ...overrides,
   };
 }
