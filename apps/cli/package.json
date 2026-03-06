@@ -39,10 +39,12 @@
     "fast-glob": "^3.3.3",
     "json5": "^2.2.3",
     "micromatch": "^4.0.8",
+    "semver": "^7.7.4",
     "yaml": "^2.6.1"
   },
   "devDependencies": {
     "@agentv/core": "workspace:*",
+    "@types/semver": "^7.7.1",
     "execa": "^9.3.0"
   }
 }

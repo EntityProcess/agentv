@@ -25,6 +25,7 @@ import {
   subscribeToPiLogEntries,
 } from '@agentv/core';
 
+import { enforceRequiredVersion } from '../../version-check.js';
 import { loadEnvFromHierarchy } from './env.js';
 import {
   type OutputFormat,
@@ -642,6 +643,13 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   // loadConfig expects an eval file path and walks up from its directory.
   // Pass a dummy file in cwd so the search starts from the working directory.
   const yamlConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
+
+  // Check required_version before proceeding with eval
+  if (yamlConfig?.required_version) {
+    await enforceRequiredVersion(yamlConfig.required_version, {
+      strict: normalizeBoolean(input.rawOptions.strict),
+    });
+  }
 
   let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
 
