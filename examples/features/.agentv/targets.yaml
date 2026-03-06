@@ -72,6 +72,7 @@ targets:
   # GitHub Copilot (uses copilot CLI)
   - name: copilot
     provider: copilot
+    model: gpt-5-mini
     judge_target: azure_base
     log_format: json
 
