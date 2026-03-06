@@ -92,16 +92,32 @@ export class RepoManager {
    * Creates on first access, fetches updates on subsequent calls.
    * Returns the absolute path to the cache directory.
    */
-  async ensureCache(source: RepoSource, depth?: number): Promise<string> {
+  async ensureCache(
+    source: RepoSource,
+    depth?: number,
+    resolve?: 'remote' | 'local',
+  ): Promise<string> {
     const key = cacheKey(source);
     const cachePath = path.join(this.cacheDir, key);
     const lockPath = `${cachePath}.lock`;
+    const cacheExists = existsSync(path.join(cachePath, 'HEAD'));
+
+    // Local resolve: use existing cache as-is, no remote operations
+    if (resolve === 'local') {
+      if (cacheExists) {
+        return cachePath;
+      }
+      const url = getSourceUrl(source);
+      throw new Error(
+        `No cache found for \`${url}\`. Run \`agentv cache add --url ${url} --from <local-path>\` to seed it.`,
+      );
+    }
 
     await mkdir(this.cacheDir, { recursive: true });
     await acquireLock(lockPath);
 
     try {
-      if (existsSync(path.join(cachePath, 'HEAD'))) {
+      if (cacheExists) {
         // Cache exists — fetch updates
         const fetchArgs = ['fetch', '--prune'];
         if (depth) {
@@ -133,7 +149,11 @@ export class RepoManager {
    */
   async materialize(repo: RepoConfig, workspacePath: string): Promise<void> {
     const targetDir = path.join(workspacePath, repo.path);
-    const cachePath = await this.ensureCache(repo.source, repo.clone?.depth);
+    const cachePath = await this.ensureCache(
+      repo.source,
+      repo.clone?.depth,
+      repo.checkout?.resolve,
+    );
 
     // Build clone args — always clone from the bare cache
     const cloneArgs = ['clone'];

@@ -96,6 +96,36 @@ describe('RepoManager', () => {
       const second = await manager.ensureCache({ type: 'local', path: repoDir });
       expect(first).toBe(second);
     });
+
+    it('skips fetch when resolve is local and cache exists', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir);
+
+      // Seed the cache first (simulates `agentv cache add`)
+      const source: { type: 'local'; path: string } = { type: 'local', path: repoDir };
+      const cachePath = await manager.ensureCache(source);
+
+      // Add a new commit to the source repo — local resolve should NOT fetch it
+      writeFileSync(path.join(repoDir, 'new-file.txt'), 'new content');
+      execSync('git add -A && git commit -m "new commit"', { cwd: repoDir, ...EXEC_OPTS });
+      const newSha = gitExec('git rev-parse HEAD', repoDir);
+
+      // With resolve: 'local', cache should be returned as-is (no fetch)
+      const localCachePath = await manager.ensureCache(source, undefined, 'local');
+      expect(localCachePath).toBe(cachePath);
+
+      // The new commit should NOT be in the cache (fetch was skipped)
+      const cacheRefs = gitExec('git log --oneline --all', localCachePath);
+      expect(cacheRefs).not.toContain(newSha.slice(0, 7));
+    });
+
+    it('throws when resolve is local and cache does not exist', async () => {
+      const source = { type: 'git' as const, url: 'https://github.com/example/nonexistent.git' };
+
+      await expect(manager.ensureCache(source, undefined, 'local')).rejects.toThrow(
+        /No cache found for .+nonexistent.+agentv cache add/,
+      );
+    });
   });
 
   describe('materialize', () => {
