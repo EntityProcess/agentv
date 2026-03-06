@@ -15,6 +15,29 @@ export interface ScriptExecutionContext {
 export type ScriptFailureMode = 'fatal' | 'warn';
 
 /**
+ * Interpolates {{variable}} placeholders in command args with values from the script context.
+ * Unrecognized variables are left as-is.
+ * Note: optional fields (case_input, case_metadata) coerce to empty string for arg interpolation,
+ * while stdin JSON uses null — empty string is more useful as a command arg than "null".
+ */
+function interpolateArgs(
+  args: readonly string[],
+  context: ScriptExecutionContext,
+): string[] {
+  const vars: Record<string, string> = {
+    workspace_path: context.workspacePath,
+    test_id: context.testId,
+    eval_run_id: context.evalRunId,
+    case_input: context.caseInput ?? '',
+    case_metadata: context.caseMetadata ? JSON.stringify(context.caseMetadata) : '',
+  };
+
+  return args.map((arg) =>
+    arg.replace(/\{\{(\w+)\}\}/g, (match, name) => vars[name] ?? match),
+  );
+}
+
+/**
  * Executes a workspace lifecycle command (before_all, after_all, before_each, after_each).
  *
  * @param config - Workspace command configuration (command, timeout_ms, cwd)
@@ -40,7 +63,8 @@ export async function executeWorkspaceScript(
   const cwd = config.cwd;
 
   // Support both command (canonical) and script (deprecated alias)
-  const commandArray = config.command ?? config.script ?? [];
+  const rawCommand = config.command ?? config.script ?? [];
+  const commandArray = interpolateArgs(rawCommand, context);
 
   const result = await execFileWithStdin(commandArray, stdin, {
     timeoutMs,

@@ -236,4 +236,54 @@ rl.on('close', () => {
     const output = await executeWorkspaceScript(config, context);
     expect(output).toBeDefined();
   });
+
+  it('interpolates {{workspace_path}} in command args', async () => {
+    const echoScript = path.join(testDir, 'echo-args.mjs');
+    await writeFile(
+      echoScript,
+      `
+const args = process.argv.slice(2);
+process.stdout.write(JSON.stringify(args));
+`,
+    );
+
+    const config: WorkspaceScriptConfig = {
+      command: ['node', echoScript, '{{workspace_path}}', '--flag', '{{test_id}}'],
+    };
+
+    const context: ScriptExecutionContext = {
+      workspacePath: '/tmp/test-workspace',
+      testId: 'case-001',
+      evalRunId: 'run-123',
+    };
+
+    const output = await executeWorkspaceScript(config, context, 'fatal');
+    const args = JSON.parse(output);
+    expect(args).toEqual(['/tmp/test-workspace', '--flag', 'case-001']);
+  });
+
+  it('leaves unrecognized {{variables}} as-is', async () => {
+    const echoScript = path.join(testDir, 'echo-args2.mjs');
+    await writeFile(
+      echoScript,
+      `
+const args = process.argv.slice(2);
+process.stdout.write(JSON.stringify(args));
+`,
+    );
+
+    const config: WorkspaceScriptConfig = {
+      command: ['node', echoScript, '{{unknown_var}}'],
+    };
+
+    const context: ScriptExecutionContext = {
+      workspacePath: '/tmp/ws',
+      testId: 'test-1',
+      evalRunId: 'run-1',
+    };
+
+    const output = await executeWorkspaceScript(config, context, 'fatal');
+    const args = JSON.parse(output);
+    expect(args).toEqual(['{{unknown_var}}']);
+  });
 });
