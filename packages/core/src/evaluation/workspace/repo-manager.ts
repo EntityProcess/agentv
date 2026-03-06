@@ -149,7 +149,11 @@ export class RepoManager {
    */
   async materialize(repo: RepoConfig, workspacePath: string): Promise<void> {
     const targetDir = path.join(workspacePath, repo.path);
-    const cachePath = await this.ensureCache(repo.source, repo.clone?.depth, repo.checkout?.resolve);
+    const cachePath = await this.ensureCache(
+      repo.source,
+      repo.clone?.depth,
+      repo.checkout?.resolve,
+    );
 
     // Build clone args — always clone from the bare cache
     const cloneArgs = ['clone'];
