@@ -1307,6 +1307,9 @@ async function runEvalCaseWithTrials(
       scores: result.scores,
       error: result.error,
       costUsd: trialCost,
+      executionStatus: result.executionStatus,
+      failureStage: result.failureStage,
+      failureReasonCode: result.failureReasonCode,
     };
     trialResults.push(trial);
 
@@ -1343,12 +1346,37 @@ async function runEvalCaseWithTrials(
   );
   const baseResult = allResults[bestTrialIndex];
 
+  // Determine aggregate executionStatus from trial results:
+  // - If ANY trial succeeded → ok
+  // - If ALL trials had execution_error → execution_error
+  // - Otherwise → quality_failure
+  const hasOk = trialResults.some((t) => t.executionStatus === 'ok');
+  const allExecutionError =
+    trialResults.length > 0 && trialResults.every((t) => t.executionStatus === 'execution_error');
+  const aggregateExecutionStatus: ExecutionStatus = hasOk
+    ? 'ok'
+    : allExecutionError
+      ? 'execution_error'
+      : 'quality_failure';
+
+  // When the aggregate status differs from baseResult, clear failure fields that no longer apply
+  const aggregateFailureStage =
+    aggregateExecutionStatus === 'ok' ? undefined : baseResult.failureStage;
+  const aggregateFailureReasonCode =
+    aggregateExecutionStatus === 'ok' ? undefined : baseResult.failureReasonCode;
+  const aggregateExecutionError =
+    aggregateExecutionStatus === 'execution_error' ? baseResult.executionError : undefined;
+
   return {
     ...baseResult,
     score,
     trials: trialResults,
     aggregation,
     costLimited: costLimited || undefined,
+    executionStatus: aggregateExecutionStatus,
+    failureStage: aggregateFailureStage,
+    failureReasonCode: aggregateFailureReasonCode,
+    executionError: aggregateExecutionError,
   };
 }
 
