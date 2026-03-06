@@ -1,0 +1,38 @@
+description: >-
+  Demonstrates using a before_all workspace setup script to clean and
+  re-initialize an allagents workspace before evaluation runs.
+
+workspace:
+  template: ./workspace-template
+  before_all:
+    command:
+      - node
+      - ../scripts/workspace-setup.mjs
+  repos:
+    - path: ./my-repo
+      source:
+        type: git
+        url: https://github.com/EntityProcess/agentv.git
+      checkout:
+        ref: main
+        resolve: local
+      clone:
+        depth: 1
+  reset:
+    strategy: hard
+    after_each: true
+
+execution:
+  target: copilot
+
+tests:
+  - id: verify-workspace
+    criteria: >-
+      The agent should confirm that the workspace contains a cloned repository
+      at my-repo/ with a valid package.json.
+    input: >-
+      List the files in the my-repo/ directory and read my-repo/package.json.
+      Report the package name.
+    assert:
+      - type: contains
+        value: "@agentv/core"

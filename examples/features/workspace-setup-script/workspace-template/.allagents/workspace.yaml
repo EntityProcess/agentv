@@ -1,0 +1,7 @@
+repositories:
+  - path: ./my-repo
+    owner: EntityProcess
+    repo: agentv
+    description: Example repository for workspace setup demo
+
+plugins: []
