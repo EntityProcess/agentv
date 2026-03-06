@@ -16,9 +16,9 @@
 //         - node
 //         - ../scripts/workspace-setup.mjs
 
+import { spawnSync } from 'node:child_process';
 import { readFileSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 // --- stdin context from AgentV ---
@@ -34,7 +34,11 @@ const templatePath = resolve(scriptDir, '../workspace-template/.allagents/worksp
 
 // --- run allagents workspace init ---
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-const result = spawnSync(npx, ['allagents', 'workspace', 'init', workspace_path, '--from', templatePath], {
-  stdio: 'inherit',
-});
+const result = spawnSync(
+  npx,
+  ['allagents', 'workspace', 'init', workspace_path, '--from', templatePath],
+  {
+    stdio: 'inherit',
+  },
+);
 if (result.status !== 0) process.exit(result.status ?? 1);
