@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { checkVersion } from '../src/version-check.js';
+import packageJson from '../package.json' with { type: 'json' };
+
+const [major, minor] = packageJson.version.split('.').map(Number);
 
 describe('checkVersion', () => {
-  // Note: checkVersion uses the actual package.json version (currently 2.12.0).
-  // Tests are written relative to that.
-
   test('satisfies range when current version is within range', () => {
     const result = checkVersion('>=2.0.0');
     expect(result.satisfied).toBe(true);
@@ -18,22 +18,22 @@ describe('checkVersion', () => {
   });
 
   test('supports caret ranges', () => {
-    const result = checkVersion('^2.0.0');
+    const result = checkVersion(`^${major}.0.0`);
     expect(result.satisfied).toBe(true);
   });
 
   test('supports tilde ranges', () => {
-    const result = checkVersion('~2.12.0');
+    const result = checkVersion(`~${major}.${minor}.0`);
     expect(result.satisfied).toBe(true);
   });
 
   test('supports range intersections', () => {
-    const result = checkVersion('>=2.0.0 <3.0.0');
+    const result = checkVersion(`>=${major}.0.0 <${major + 1}.0.0`);
     expect(result.satisfied).toBe(true);
   });
 
   test('fails range intersection when current version is outside', () => {
-    const result = checkVersion('>=3.0.0 <4.0.0');
+    const result = checkVersion(`>=${major + 1}.0.0 <${major + 2}.0.0`);
     expect(result.satisfied).toBe(false);
   });
 
