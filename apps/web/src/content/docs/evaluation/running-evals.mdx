@@ -87,6 +87,35 @@ agentv eval evals/my-eval.yaml --cleanup-workspaces
 
 Workspaces are stored at `~/.agentv/workspaces/<eval-run-id>/<test-id>/`.
 
+### Retry Execution Errors
+
+Re-run only the tests that had infrastructure/execution errors from a previous output:
+
+```bash
+agentv eval evals/my-eval.yaml --retry-errors .agentv/results/eval_previous.jsonl
+```
+
+This reads the previous JSONL, filters for `executionStatus === 'execution_error'`, and re-runs only those test cases. Non-error results from the previous run are preserved and merged into the new output.
+
+### Execution Error Tolerance
+
+Control whether the eval run halts on execution errors using `execution.fail_on_error` in the eval YAML:
+
+```yaml
+execution:
+  fail_on_error: false    # never halt on errors (default)
+  # fail_on_error: true   # halt on first execution error
+  # fail_on_error: 0.3    # halt when error ratio exceeds 30%
+```
+
+| Value | Behavior |
+|-------|----------|
+| `true` | Halt immediately on first execution error |
+| `false` | Continue despite errors (default) |
+| `0.0–1.0` | Halt when error proportion exceeds threshold |
+
+When halted, remaining tests are recorded with `failureReasonCode: 'error_threshold_exceeded'`.
+
 ## Validate Before Running
 
 Check eval files for schema errors without executing:

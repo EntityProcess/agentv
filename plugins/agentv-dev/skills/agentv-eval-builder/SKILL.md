@@ -366,6 +366,19 @@ LLM-judged structured evaluation with weighted criteria. Criteria items support 
 Top-level `rubrics:` field is deprecated. Use `type: rubrics` under `assert` instead.
 See `references/rubric-evaluator.md` for score-range mode and scoring formula.
 
+## Execution Error Tolerance
+
+Control how the runner handles execution errors (infrastructure failures, not quality failures):
+
+```yaml
+execution:
+  fail_on_error: false    # never halt (default)
+  # fail_on_error: true   # halt on first execution error
+  # fail_on_error: 0.3    # halt when >30% of completed tests are errors
+```
+
+When halted, remaining tests get `executionStatus: 'execution_error'` with `failureReasonCode: 'error_threshold_exceeded'`.
+
 ## CLI Commands
 
 ```bash
@@ -382,6 +395,9 @@ agentv eval <file.yaml> --otel-file traces/eval.otlp.json
 agentv prompt eval <file.yaml>                                      # orchestration overview
 agentv prompt eval input <file.yaml> --test-id <id>                 # task input JSON (file paths, not embedded content)
 agentv prompt eval judge <file.yaml> --test-id <id> --answer-file f # judge prompts / code judge results
+
+# Re-run only execution errors from a previous output
+agentv eval <file.yaml> --retry-errors <previous-output.jsonl>
 
 # Validate eval file
 agentv validate <file.yaml>

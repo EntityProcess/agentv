@@ -4513,6 +4513,20 @@
                       "totalBudgetUsd": {
                         "type": "number",
                         "minimum": 0
+                      },
+                      "fail_on_error": {
+                        "description": "Execution error tolerance: true halts on first error, false never halts, number (0.0-1.0) halts when error ratio exceeds threshold",
+                        "oneOf": [
+                          { "type": "boolean" },
+                          { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+                        ]
+                      },
+                      "failOnError": {
+                        "description": "Camel-case alias for fail_on_error",
+                        "oneOf": [
+                          { "type": "boolean" },
+                          { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+                        ]
                       }
                     },
                     "additionalProperties": false
@@ -9231,6 +9245,20 @@
                       "totalBudgetUsd": {
                         "type": "number",
                         "minimum": 0
+                      },
+                      "fail_on_error": {
+                        "description": "Execution error tolerance: true halts on first error, false never halts, number (0.0-1.0) halts when error ratio exceeds threshold",
+                        "oneOf": [
+                          { "type": "boolean" },
+                          { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+                        ]
+                      },
+                      "failOnError": {
+                        "description": "Camel-case alias for fail_on_error",
+                        "oneOf": [
+                          { "type": "boolean" },
+                          { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+                        ]
                       }
                     },
                     "additionalProperties": false
@@ -11707,6 +11735,20 @@
             "totalBudgetUsd": {
               "type": "number",
               "minimum": 0
+            },
+            "fail_on_error": {
+              "description": "Execution error tolerance: true halts on first error, false never halts, number (0.0-1.0) halts when error ratio exceeds threshold",
+              "oneOf": [
+                { "type": "boolean" },
+                { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+              ]
+            },
+            "failOnError": {
+              "description": "Camel-case alias for fail_on_error",
+              "oneOf": [
+                { "type": "boolean" },
+                { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+              ]
             }
           },
           "additionalProperties": false
