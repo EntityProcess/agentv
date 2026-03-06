@@ -305,6 +305,9 @@ const TrialsSchema = z.object({
   costLimitUsd: z.number().min(0).optional(),
 });
 
+/** Execution error tolerance: true, false, or threshold ratio (0.0-1.0) */
+const FailOnErrorSchema = z.union([z.boolean(), z.number().gt(0).lte(1)]);
+
 const ExecutionSchema = z.object({
   target: z.string().optional(),
   targets: z.array(z.string()).optional(),
@@ -315,6 +318,8 @@ const ExecutionSchema = z.object({
   trials: TrialsSchema.optional(),
   total_budget_usd: z.number().min(0).optional(),
   totalBudgetUsd: z.number().min(0).optional(),
+  fail_on_error: FailOnErrorSchema.optional(),
+  failOnError: FailOnErrorSchema.optional(),
 });
 
 // ---------------------------------------------------------------------------
