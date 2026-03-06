@@ -305,7 +305,7 @@ export function extractTotalBudgetUsd(suite: JsonObject): number | undefined {
 
 /**
  * Extract `execution.fail_on_error` from parsed eval suite.
- * Accepts `true`, `false`, or a number between 0.0 and 1.0.
+ * Accepts `true` or `false`.
  * Returns undefined when not specified.
  */
 export function extractFailOnError(suite: JsonObject): FailOnError | undefined {
@@ -325,14 +325,8 @@ export function extractFailOnError(suite: JsonObject): FailOnError | undefined {
     return raw;
   }
 
-  // 0 is excluded: "halt when ratio > 0%" is equivalent to true (halt on first error).
-  // 1.0 is included: "halt when 100% fail" is a valid (if unusual) threshold.
-  if (typeof raw === 'number' && raw > 0 && raw <= 1) {
-    return raw;
-  }
-
   logWarning(
-    `Invalid execution.fail_on_error: ${raw}. Must be true, false, or a number between 0.0 (exclusive) and 1.0. Use true to halt on first error. Ignoring.`,
+    `Invalid execution.fail_on_error: ${raw}. Must be true or false. Ignoring.`,
   );
   return undefined;
 }

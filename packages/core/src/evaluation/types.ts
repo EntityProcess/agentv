@@ -850,9 +850,8 @@ export interface ExecutionError {
  * Tolerance for execution errors in an eval run.
  * - `true`: halt on first execution error
  * - `false`: never halt on errors (default)
- * - number (0.0-1.0): halt when error ratio exceeds threshold
  */
-export type FailOnError = boolean | number;
+export type FailOnError = boolean;
 
 /**
  * Record of a transient error that was retried during provider invocation.

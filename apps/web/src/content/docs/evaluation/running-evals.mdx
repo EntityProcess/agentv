@@ -105,14 +105,12 @@ Control whether the eval run halts on execution errors using `execution.fail_on_
 execution:
   fail_on_error: false    # never halt on errors (default)
   # fail_on_error: true   # halt on first execution error
-  # fail_on_error: 0.3    # halt when error ratio exceeds 30%
 ```
 
 | Value | Behavior |
 |-------|----------|
 | `true` | Halt immediately on first execution error |
 | `false` | Continue despite errors (default) |
-| `>0.0–1.0` | Halt when error proportion exceeds threshold (exclusive of 0, inclusive of 1) |
 
 When halted, remaining tests are recorded with `failureReasonCode: 'error_threshold_exceeded'`. With concurrency > 1, a few additional tests may complete before halting takes effect.
 

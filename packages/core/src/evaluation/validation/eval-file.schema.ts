@@ -305,8 +305,8 @@ const TrialsSchema = z.object({
   costLimitUsd: z.number().min(0).optional(),
 });
 
-/** Execution error tolerance: true, false, or threshold ratio (0.0-1.0) */
-const FailOnErrorSchema = z.union([z.boolean(), z.number().gt(0).lte(1)]);
+/** Execution error tolerance: true or false */
+const FailOnErrorSchema = z.boolean();
 
 const ExecutionSchema = z.object({
   target: z.string().optional(),

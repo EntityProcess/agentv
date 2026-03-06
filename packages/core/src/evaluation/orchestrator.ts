@@ -174,7 +174,7 @@ export interface RunEvaluationOptions {
   readonly streamCallbacks?: ProviderStreamCallbacks;
   /** Suite-level total cost budget in USD (stops dispatching when exceeded) */
   readonly totalBudgetUsd?: number;
-  /** Execution error tolerance: true halts on first error, number is threshold ratio */
+  /** Execution error tolerance: true halts on first error */
   readonly failOnError?: FailOnError;
 }
 
@@ -461,8 +461,6 @@ export async function runEvaluation(
   let budgetExhausted = false;
 
   // fail_on_error tracking (best-effort under concurrency > 1, matching budgetExhausted semantics)
-  let errorCount = 0;
-  let completedCount = 0;
   let failOnErrorTriggered = false;
 
   // Map test cases to limited promises for parallel execution
@@ -509,9 +507,9 @@ export async function runEvaluation(
         return budgetResult;
       }
 
-      // Check fail_on_error threshold before dispatching
-      if (failOnError !== undefined && failOnError !== false && failOnErrorTriggered) {
-        const errorMsg = `Halted: execution error threshold exceeded (${errorCount}/${completedCount} errors)`;
+      // Check fail_on_error before dispatching
+      if (failOnError === true && failOnErrorTriggered) {
+        const errorMsg = 'Halted: execution error encountered with fail_on_error enabled';
         const haltResult: EvaluationResult = {
           timestamp: (now ?? (() => new Date()))().toISOString(),
           testId: evalCase.id,
@@ -602,21 +600,9 @@ export async function runEvaluation(
           }
         }
 
-        // Track fail_on_error threshold
-        if (failOnError !== undefined && failOnError !== false) {
-          completedCount++;
-          if (result.executionStatus === 'execution_error') {
-            errorCount++;
-          }
-          if (failOnError === true && result.executionStatus === 'execution_error') {
-            failOnErrorTriggered = true;
-          } else if (
-            typeof failOnError === 'number' &&
-            completedCount > 0 &&
-            errorCount / completedCount > failOnError
-          ) {
-            failOnErrorTriggered = true;
-          }
+        // Track fail_on_error
+        if (failOnError === true && result.executionStatus === 'execution_error') {
+          failOnErrorTriggered = true;
         }
 
         // Attach beforeAllOutput to first result only

@@ -374,7 +374,6 @@ Control how the runner handles execution errors (infrastructure failures, not qu
 execution:
   fail_on_error: false    # never halt (default)
   # fail_on_error: true   # halt on first execution error
-  # fail_on_error: 0.3    # halt when >30% of completed tests are errors
 ```
 
 When halted, remaining tests get `executionStatus: 'execution_error'` with `failureReasonCode: 'error_threshold_exceeded'`.

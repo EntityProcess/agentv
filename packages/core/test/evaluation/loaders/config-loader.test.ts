@@ -286,18 +286,8 @@ describe('extractFailOnError', () => {
     expect(extractFailOnError(suite)).toBe(false);
   });
 
-  it('returns number for valid threshold', () => {
+  it('returns undefined for numeric value', () => {
     const suite: JsonObject = { execution: { fail_on_error: 0.3 } };
-    expect(extractFailOnError(suite)).toBe(0.3);
-  });
-
-  it('returns number for threshold of 1.0', () => {
-    const suite: JsonObject = { execution: { fail_on_error: 1.0 } };
-    expect(extractFailOnError(suite)).toBe(1.0);
-  });
-
-  it('returns undefined for 0 (not in valid range)', () => {
-    const suite: JsonObject = { execution: { fail_on_error: 0 } };
     expect(extractFailOnError(suite)).toBeUndefined();
   });
 
@@ -307,8 +297,8 @@ describe('extractFailOnError', () => {
   });
 
   it('supports camelCase failOnError alias', () => {
-    const suite: JsonObject = { execution: { failOnError: 0.5 } };
-    expect(extractFailOnError(suite)).toBe(0.5);
+    const suite: JsonObject = { execution: { failOnError: true } };
+    expect(extractFailOnError(suite)).toBe(true);
   });
 });
 

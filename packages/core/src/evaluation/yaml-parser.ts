@@ -163,7 +163,7 @@ export type EvalSuiteResult = {
   readonly metadata?: import('./metadata.js').EvalMetadata;
   /** Suite-level total cost budget in USD */
   readonly totalBudgetUsd?: number;
-  /** Execution error tolerance: true, false, or threshold ratio (0.0-1.0) */
+  /** Execution error tolerance: true or false */
   readonly failOnError?: import('./types.js').FailOnError;
 };
 

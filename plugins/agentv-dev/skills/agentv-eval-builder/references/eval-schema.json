@@ -4515,28 +4515,10 @@
                         "minimum": 0
                       },
                       "fail_on_error": {
-                        "anyOf": [
-                          {
-                            "type": "boolean"
-                          },
-                          {
-                            "type": "number",
-                            "exclusiveMinimum": 0,
-                            "maximum": 1
-                          }
-                        ]
+                        "type": "boolean"
                       },
                       "failOnError": {
-                        "anyOf": [
-                          {
-                            "type": "boolean"
-                          },
-                          {
-                            "type": "number",
-                            "exclusiveMinimum": 0,
-                            "maximum": 1
-                          }
-                        ]
+                        "type": "boolean"
                       }
                     },
                     "additionalProperties": false
@@ -9257,28 +9239,10 @@
                         "minimum": 0
                       },
                       "fail_on_error": {
-                        "anyOf": [
-                          {
-                            "type": "boolean"
-                          },
-                          {
-                            "type": "number",
-                            "exclusiveMinimum": 0,
-                            "maximum": 1
-                          }
-                        ]
+                        "type": "boolean"
                       },
                       "failOnError": {
-                        "anyOf": [
-                          {
-                            "type": "boolean"
-                          },
-                          {
-                            "type": "number",
-                            "exclusiveMinimum": 0,
-                            "maximum": 1
-                          }
-                        ]
+                        "type": "boolean"
                       }
                     },
                     "additionalProperties": false
@@ -11757,28 +11721,10 @@
               "minimum": 0
             },
             "fail_on_error": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "number",
-                  "exclusiveMinimum": 0,
-                  "maximum": 1
-                }
-              ]
+              "type": "boolean"
             },
             "failOnError": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "number",
-                  "exclusiveMinimum": 0,
-                  "maximum": 1
-                }
-              ]
+              "type": "boolean"
             }
           },
           "additionalProperties": false
