@@ -17,6 +17,11 @@ export interface EvaluationSummary {
   readonly bottomResults: readonly EvaluationResult[];
   readonly errorCount: number;
   readonly errors: readonly { readonly testId: string; readonly error: string }[];
+  readonly executionErrorCount: number;
+  readonly qualityFailureCount: number;
+  readonly passedCount: number;
+  readonly byFailureStage: Readonly<Record<string, number>>;
+  readonly byFailureReason: Readonly<Record<string, number>>;
 }
 
 const HISTOGRAM_BREAKPOINTS = [0, 0.2, 0.4, 0.6, 0.8, 1];
@@ -80,7 +85,6 @@ function buildHistogram(values: readonly number[]): readonly HistogramBin[] {
 export function calculateEvaluationSummary(
   results: readonly EvaluationResult[],
 ): EvaluationSummary {
-  const scores = results.map((result) => result.score);
   const total = results.length;
 
   // Track errors
@@ -102,19 +106,51 @@ export function calculateEvaluationSummary(
       bottomResults: [],
       errorCount: 0,
       errors: [],
+      executionErrorCount: 0,
+      qualityFailureCount: 0,
+      passedCount: 0,
+      byFailureStage: {},
+      byFailureReason: {},
     };
   }
 
-  const mean = computeMean(scores);
-  const median = computeMedian(scores);
-  const min = Math.min(...scores);
-  const max = Math.max(...scores);
-  const standardDeviation = computeStandardDeviation(scores);
-  const histogram = buildHistogram(scores);
+  // Separate execution errors from quality results
+  const executionErrors = results.filter((r) => r.executionStatus === 'execution_error');
+  const qualityResults = results.filter((r) => r.executionStatus !== 'execution_error');
+  const qualityScores = qualityResults.map((r) => r.score);
 
-  const sortedResults = [...results].sort((a, b) => b.score - a.score);
+  // Compute quality metrics from non-execution-error results only
+  const mean = computeMean(qualityScores);
+  const median = computeMedian(qualityScores);
+  const min = qualityScores.length > 0 ? Math.min(...qualityScores) : 0;
+  const max = qualityScores.length > 0 ? Math.max(...qualityScores) : 0;
+  const standardDeviation = computeStandardDeviation(qualityScores);
+  const histogram = buildHistogram(qualityScores);
+
+  // Top/bottom results consider only non-execution-error results
+  const sortedResults = [...qualityResults].sort((a, b) => b.score - a.score);
   const topResults = sortedResults.slice(0, Math.min(3, sortedResults.length));
   const bottomResults = sortedResults.slice(-Math.min(3, sortedResults.length));
+
+  // Count by execution status
+  const executionErrorCount = executionErrors.length;
+  const qualityFailureCount = results.filter(
+    (r) => r.executionStatus === 'quality_failure',
+  ).length;
+  const passedCount = results.filter((r) => r.executionStatus === 'ok').length;
+
+  // Aggregate by failure stage and reason
+  const byFailureStage: Record<string, number> = {};
+  const byFailureReason: Record<string, number> = {};
+  for (const result of results) {
+    if (result.failureStage) {
+      byFailureStage[result.failureStage] = (byFailureStage[result.failureStage] ?? 0) + 1;
+    }
+    if (result.failureReasonCode) {
+      byFailureReason[result.failureReasonCode] =
+        (byFailureReason[result.failureReasonCode] ?? 0) + 1;
+    }
+  }
 
   return {
     total,
@@ -128,6 +164,11 @@ export function calculateEvaluationSummary(
     bottomResults,
     errorCount,
     errors,
+    executionErrorCount,
+    qualityFailureCount,
+    passedCount,
+    byFailureStage,
+    byFailureReason,
   };
 }
 
@@ -145,7 +186,7 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
   // Display errors first if any exist
   if (summary.errorCount > 0) {
     lines.push('\n==================================================');
-    lines.push('ERRORS');
+    lines.push('EXECUTION ERRORS');
     lines.push('==================================================');
     for (const error of summary.errors) {
       lines.push(`\n❌ ${error.testId}`);
@@ -158,13 +199,22 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
   lines.push('EVALUATION SUMMARY');
   lines.push('==================================================');
   lines.push(`Total tests: ${summary.total}`);
-
-  if (summary.errorCount > 0) {
-    lines.push(`Failed: ${summary.errorCount}`);
-    lines.push(`Passed: ${summary.total - summary.errorCount}`);
+  lines.push(`Passed: ${summary.passedCount}`);
+  if (summary.qualityFailureCount > 0) {
+    lines.push(`Quality failures: ${summary.qualityFailureCount}`);
+  }
+  if (summary.executionErrorCount > 0) {
+    lines.push(`Execution errors: ${summary.executionErrorCount}`);
   }
 
-  lines.push(`Mean score: ${formatScore(summary.mean)}`);
+  if (summary.executionErrorCount > 0) {
+    const qualityCount = summary.total - summary.executionErrorCount;
+    lines.push(
+      `Mean score: ${formatScore(summary.mean)} (${qualityCount} quality tests, ${summary.executionErrorCount} execution errors excluded)`,
+    );
+  } else {
+    lines.push(`Mean score: ${formatScore(summary.mean)}`);
+  }
   lines.push(`Median score: ${formatScore(summary.median)}`);
   lines.push(`Min score: ${formatScore(summary.min)}`);
   lines.push(`Max score: ${formatScore(summary.max)}`);
@@ -187,6 +237,22 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
   summary.bottomResults.forEach((result, index) => {
     lines.push(`  ${index + 1}. ${result.testId}: ${formatScore(result.score)}`);
   });
+
+  const failureStageEntries = Object.entries(summary.byFailureStage);
+  if (failureStageEntries.length > 0) {
+    lines.push('\nExecution errors by stage:');
+    for (const [stage, count] of failureStageEntries) {
+      lines.push(`  ${stage}: ${count}`);
+    }
+  }
+
+  const failureReasonEntries = Object.entries(summary.byFailureReason);
+  if (failureReasonEntries.length > 0) {
+    lines.push('\nExecution errors by reason:');
+    for (const [reason, count] of failureReasonEntries) {
+      lines.push(`  ${reason}: ${count}`);
+    }
+  }
 
   return lines.join('\n');
 }
