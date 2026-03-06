@@ -3,13 +3,13 @@ description: >-
   re-initialize an allagents workspace before evaluation runs.
 
 workspace:
-  template: ./workspace-template
+  template: ../workspace-template
   before_all:
     command:
       - node
       - ../scripts/workspace-setup.mjs
       - --from
-      - ./workspace-template/.allagents/workspace.yaml
+      - ../workspace-template/.allagents/workspace.yaml
   repos:
     - path: ./my-repo
       source:
@@ -25,7 +25,7 @@ workspace:
     after_each: true
 
 execution:
-  target: copilot
+  target: copilot-haiku
 
 tests:
   - id: verify-workspace
@@ -37,4 +37,4 @@ tests:
       Report the package name.
     assert:
       - type: contains
-        value: "@agentv/core"
+        value: "@agentv/workspace"
