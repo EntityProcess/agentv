@@ -147,6 +147,10 @@ export const evalRunCommand = command({
       long: 'retry-errors',
       description: 'Path to previous output JSONL — re-run only execution_error test cases',
     }),
+    strict: flag({
+      long: 'strict',
+      description: 'Exit with error on version mismatch (instead of warning)',
+    }),
   },
   handler: async (args) => {
     // Launch interactive wizard when no eval paths and stdin is a TTY
@@ -184,6 +188,7 @@ export const evalRunCommand = command({
       otelCaptureContent: args.otelCaptureContent,
       otelGroupTurns: args.otelGroupTurns,
       retryErrors: args.retryErrors,
+      strict: args.strict,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },

@@ -23,6 +23,7 @@ export type ExecutionDefaults = {
 };
 
 export type AgentVConfig = {
+  readonly required_version?: string;
   readonly guideline_patterns?: readonly string[];
   readonly eval_patterns?: readonly string[];
   readonly execution?: ExecutionDefaults;
@@ -56,6 +57,12 @@ export async function loadConfig(
 
       const config = parsed as AgentVConfig;
 
+      const requiredVersion = (parsed as Record<string, unknown>).required_version;
+      if (requiredVersion !== undefined && typeof requiredVersion !== 'string') {
+        logWarning(`Invalid required_version in ${configPath}, expected string`);
+        continue;
+      }
+
       const guidelinePatterns = config.guideline_patterns;
       if (guidelinePatterns !== undefined && !Array.isArray(guidelinePatterns)) {
         logWarning(`Invalid guideline_patterns in ${configPath}, expected array`);
@@ -87,6 +94,7 @@ export async function loadConfig(
       );
 
       return {
+        required_version: requiredVersion as string | undefined,
         guideline_patterns: guidelinePatterns as readonly string[] | undefined,
         eval_patterns: evalPatterns as readonly string[] | undefined,
         execution: executionDefaults,

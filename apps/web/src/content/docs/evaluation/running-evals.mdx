@@ -163,6 +163,30 @@ Runs code judges deterministically and returns LLM judge prompts for the agent t
 | Have API keys, want end-to-end automation | `agentv eval` |
 | No API keys, agent can act as the LLM | `agentv prompt` |
 
+## Version Requirements
+
+Declare the minimum AgentV version needed by your eval project in `.agentv/config.yaml`:
+
+```yaml
+required_version: ">=2.12.0"
+```
+
+The value is a **semver range** using standard npm syntax (e.g., `>=2.12.0`, `^2.12.0`, `~2.12`, `>=2.12.0 <3.0.0`).
+
+| Condition | Interactive (TTY) | Non-interactive (CI) |
+|-----------|-------------------|---------------------|
+| Version satisfies range | Runs silently | Runs silently |
+| Version below range | Warns + prompts to continue | Warns to stderr, continues |
+| `--strict` flag + mismatch | Warns + exits 1 | Warns + exits 1 |
+| No `required_version` set | Runs silently | Runs silently |
+| Malformed semver range | Error + exits 1 | Error + exits 1 |
+
+Use `--strict` in CI pipelines to enforce version requirements:
+
+```bash
+agentv eval --strict evals/my-eval.yaml
+```
+
 ## Config File Defaults
 
 Set default execution options so you don't have to pass them on every CLI invocation. Both `.agentv/config.yaml` and `agentv.config.ts` are supported.
