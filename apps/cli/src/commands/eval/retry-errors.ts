@@ -44,9 +44,10 @@ export async function loadNonErrorResults(jsonlPath: string): Promise<readonly E
     const trimmed = line.trim();
     if (!trimmed) continue;
     try {
-      const parsed = JSON.parse(trimmed) as EvaluationResult;
+      const parsed = JSON.parse(trimmed) as Partial<EvaluationResult>;
+      if (!parsed.testId || parsed.score === undefined) continue;
       if (parsed.executionStatus !== 'execution_error') {
-        results.push(parsed);
+        results.push(parsed as EvaluationResult);
       }
     } catch {
       // Skip malformed lines

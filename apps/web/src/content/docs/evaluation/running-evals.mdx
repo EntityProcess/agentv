@@ -112,9 +112,9 @@ execution:
 |-------|----------|
 | `true` | Halt immediately on first execution error |
 | `false` | Continue despite errors (default) |
-| `0.0–1.0` | Halt when error proportion exceeds threshold |
+| `>0.0–1.0` | Halt when error proportion exceeds threshold (exclusive of 0, inclusive of 1) |
 
-When halted, remaining tests are recorded with `failureReasonCode: 'error_threshold_exceeded'`.
+When halted, remaining tests are recorded with `failureReasonCode: 'error_threshold_exceeded'`. With concurrency > 1, a few additional tests may complete before halting takes effect.
 
 ## Validate Before Running
 

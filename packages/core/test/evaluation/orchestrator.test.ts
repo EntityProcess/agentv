@@ -2270,14 +2270,17 @@ describe('fail_on_error tolerance', () => {
 
   it('fail_on_error: 0.5 halts when error ratio exceeds 50%', async () => {
     let callCount = 0;
-    const errorOnOddProvider: Provider = {
-      id: 'mock:error-on-odd',
+    const mixedProvider: Provider = {
+      id: 'mock:mixed',
       kind: 'mock' as const,
-      targetName: 'error-on-odd',
+      targetName: 'mixed',
       async invoke(): Promise<ProviderResponse> {
         callCount++;
-        // First call fails, second succeeds, third fails (ratio at 2/3 > 0.5 → halt)
-        if (callCount % 2 === 1) {
+        // case-1: succeed, case-2: succeed, case-3: fail, case-4: fail
+        // After case-3: ratio 1/3 = 0.33, not > 0.5 → continue
+        // After case-4: ratio 2/4 = 0.50, not > 0.5 → continue
+        // case-5: fail → ratio 3/5 = 0.60 > 0.5 → halt
+        if (callCount >= 3) {
           throw new Error('Provider failed');
         }
         return { output: [{ role: 'assistant', content: 'ok' }] };
@@ -2289,27 +2292,36 @@ describe('fail_on_error tolerance', () => {
       { ...baseTestCase, id: 'case-2' },
       { ...baseTestCase, id: 'case-3' },
       { ...baseTestCase, id: 'case-4' },
+      { ...baseTestCase, id: 'case-5' },
+      { ...baseTestCase, id: 'case-6' },
     ];
 
     const results = await runEvaluation({
       testFilePath: 'in-memory.yaml',
       repoRoot: 'in-memory',
       target: baseTarget,
-      providerFactory: () => errorOnOddProvider,
+      providerFactory: () => mixedProvider,
       evaluators: evaluatorRegistry,
       evalCases,
       failOnError: 0.5,
       maxConcurrency: 1,
     });
 
-    expect(results).toHaveLength(4);
-    // case-1 errors (ratio 1/1 = 1.0 > 0.5 → triggers halt)
-    expect(results[0].executionStatus).toBe('execution_error');
-    expect(results[0].failureReasonCode).toBe('provider_error');
-    // Remaining halted
-    expect(results[1].failureReasonCode).toBe('error_threshold_exceeded');
-    expect(results[2].failureReasonCode).toBe('error_threshold_exceeded');
-    expect(results[3].failureReasonCode).toBe('error_threshold_exceeded');
+    expect(results).toHaveLength(6);
+    // case-1, case-2: succeed
+    expect(results[0].executionStatus).toBe('ok');
+    expect(results[1].executionStatus).toBe('ok');
+    // case-3: error (ratio 1/3 = 0.33, not > 0.5 → continue)
+    expect(results[2].executionStatus).toBe('execution_error');
+    expect(results[2].failureReasonCode).toBe('provider_error');
+    // case-4: error (ratio 2/4 = 0.50, not > 0.5 → continue)
+    expect(results[3].executionStatus).toBe('execution_error');
+    expect(results[3].failureReasonCode).toBe('provider_error');
+    // case-5: error (ratio 3/5 = 0.60 > 0.5 → triggers halt)
+    expect(results[4].executionStatus).toBe('execution_error');
+    expect(results[4].failureReasonCode).toBe('provider_error');
+    // case-6: halted
+    expect(results[5].failureReasonCode).toBe('error_threshold_exceeded');
   });
 
   it('fail_on_error: false never halts on errors', async () => {

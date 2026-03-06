@@ -325,6 +325,8 @@ export function extractFailOnError(suite: JsonObject): FailOnError | undefined {
     return raw;
   }
 
+  // 0 is excluded: "halt when ratio > 0%" is equivalent to true (halt on first error).
+  // 1.0 is included: "halt when 100% fail" is a valid (if unusual) threshold.
   if (typeof raw === 'number' && raw > 0 && raw <= 1) {
     return raw;
   }
