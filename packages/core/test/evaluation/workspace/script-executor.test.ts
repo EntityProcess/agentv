@@ -286,4 +286,68 @@ process.stdout.write(JSON.stringify(args));
     const args = JSON.parse(output);
     expect(args).toEqual(['{{unknown_var}}']);
   });
+
+  it('defaults cwd to evalDir when cwd is not specified', async () => {
+    const evalDir = path.join(tmpdir(), `agentv-evaldir-${randomUUID()}`);
+    await mkdir(evalDir, { recursive: true });
+
+    try {
+      // Script that prints process.cwd() to stdout
+      const cwdScript = path.join(testDir, 'print-cwd.js');
+      await writeFile(
+        cwdScript,
+        `process.stdout.write(process.cwd());`,
+      );
+
+      const config: WorkspaceScriptConfig = {
+        command: ['node', cwdScript],
+        // No cwd specified — should default to evalDir
+      };
+
+      const context: ScriptExecutionContext = {
+        workspacePath: '/tmp/workspace',
+        testId: 'cwd-default-test',
+        evalRunId: 'run-cwd-1',
+        evalDir,
+      };
+
+      const output = await executeWorkspaceScript(config, context, 'fatal');
+      expect(output).toBe(evalDir);
+    } finally {
+      await rm(evalDir, { recursive: true, force: true });
+    }
+  });
+
+  it('uses explicit cwd over evalDir default', async () => {
+    const evalDir = path.join(tmpdir(), `agentv-evaldir-${randomUUID()}`);
+    const explicitDir = path.join(tmpdir(), `agentv-explicit-${randomUUID()}`);
+    await mkdir(evalDir, { recursive: true });
+    await mkdir(explicitDir, { recursive: true });
+
+    try {
+      const cwdScript = path.join(testDir, 'print-cwd2.js');
+      await writeFile(
+        cwdScript,
+        `process.stdout.write(process.cwd());`,
+      );
+
+      const config: WorkspaceScriptConfig = {
+        command: ['node', cwdScript],
+        cwd: explicitDir, // Explicit cwd should override evalDir
+      };
+
+      const context: ScriptExecutionContext = {
+        workspacePath: '/tmp/workspace',
+        testId: 'cwd-override-test',
+        evalRunId: 'run-cwd-2',
+        evalDir,
+      };
+
+      const output = await executeWorkspaceScript(config, context, 'fatal');
+      expect(output).toBe(explicitDir);
+    } finally {
+      await rm(evalDir, { recursive: true, force: true });
+      await rm(explicitDir, { recursive: true, force: true });
+    }
+  });
 });

@@ -10,6 +10,8 @@ export interface ScriptExecutionContext {
   readonly evalRunId: string;
   readonly caseInput?: string;
   readonly caseMetadata?: Record<string, unknown>;
+  /** Directory containing the eval YAML file. Used as default cwd. */
+  readonly evalDir?: string;
 }
 
 export type ScriptFailureMode = 'fatal' | 'warn';
@@ -60,7 +62,7 @@ export async function executeWorkspaceScript(
   });
 
   const timeoutMs = config.timeout_ms ?? (failureMode === 'fatal' ? 60000 : 30000);
-  const cwd = config.cwd;
+  const cwd = config.cwd ?? context.evalDir;
 
   // Support both command (canonical) and script (deprecated alias)
   const rawCommand = config.command ?? config.script ?? [];

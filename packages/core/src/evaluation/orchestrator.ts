@@ -131,6 +131,8 @@ export interface RunEvalCaseOptions {
   readonly typeRegistry?: import('./registry/evaluator-registry.js').EvaluatorRegistry;
   /** RepoManager instance for repo lifecycle (shared workspace mode) */
   readonly repoManager?: RepoManager;
+  /** Directory containing the eval YAML file. Used as default cwd for workspace scripts. */
+  readonly evalDir?: string;
 }
 
 export interface ProgressEvent {
@@ -300,6 +302,8 @@ export async function runEvaluation(
 
   // Discover custom assertions and providers from .agentv/ directory
   const discoveryBaseDir = evalFilePath ? path.dirname(path.resolve(evalFilePath)) : process.cwd();
+  // Directory containing the eval YAML file, used as default cwd for workspace scripts
+  const evalDir = discoveryBaseDir;
   await discoverAssertions(typeRegistry, discoveryBaseDir);
 
   // Discover custom providers from .agentv/providers/ directory
@@ -425,6 +429,7 @@ export async function runEvaluation(
       workspacePath: sharedWorkspacePath,
       testId: '__before_all__',
       evalRunId,
+      evalDir,
     };
     try {
       beforeAllOutput = await executeWorkspaceScript(suiteWorkspace.before_all, scriptContext);
@@ -532,6 +537,7 @@ export async function runEvaluation(
           streamCallbacks,
           typeRegistry,
           repoManager,
+          evalDir,
         };
         let result =
           trials && trials.count > 1
@@ -631,6 +637,7 @@ export async function runEvaluation(
       workspacePath: sharedWorkspacePath,
       testId: '__after_all__',
       evalRunId,
+      evalDir,
     };
     try {
       const afterAllOutput = await executeWorkspaceScript(
@@ -885,6 +892,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     suiteWorkspaceFile,
     typeRegistry: providedTypeRegistry,
     repoManager,
+    evalDir,
   } = options;
 
   const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
@@ -970,6 +978,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         evalRunId: evalRunId ?? '',
         caseInput: evalCase.question,
         caseMetadata: evalCase.metadata,
+        evalDir,
       };
       try {
         beforeAllOutput = await executeWorkspaceScript(
@@ -1003,6 +1012,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       evalRunId: evalRunId ?? '',
       caseInput: evalCase.question,
       caseMetadata: evalCase.metadata,
+      evalDir,
     };
     try {
       beforeEachOutput = await executeWorkspaceScript(
@@ -1179,6 +1189,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       evalRunId: evalRunId ?? '',
       caseInput: evalCase.question,
       caseMetadata: evalCase.metadata,
+      evalDir,
     };
     try {
       afterEachOutput = await executeWorkspaceScript(
