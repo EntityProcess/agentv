@@ -782,6 +782,12 @@ export interface TrialResult {
   readonly scores?: readonly EvaluatorResult[];
   readonly error?: string;
   readonly costUsd?: number;
+  /** Primary classification for this trial attempt */
+  readonly executionStatus?: ExecutionStatus;
+  /** Pipeline stage where failure occurred */
+  readonly failureStage?: FailureStage;
+  /** Machine-readable failure reason code */
+  readonly failureReasonCode?: string;
 }
 
 /**
@@ -818,6 +824,27 @@ export interface ConfidenceIntervalAggregation {
  * Discriminated union of trial aggregation results.
  */
 export type TrialAggregation = PassAtKAggregation | MeanAggregation | ConfidenceIntervalAggregation;
+
+/**
+ * Primary classification of evaluation outcome.
+ * - 'ok': evaluation completed, score reflects model quality (score >= 0.8)
+ * - 'quality_failure': evaluation completed but model scored below threshold
+ * - 'execution_error': evaluation could not complete due to infrastructure/tooling error
+ */
+export type ExecutionStatus = 'ok' | 'quality_failure' | 'execution_error';
+
+/**
+ * Pipeline stage where the failure occurred.
+ */
+export type FailureStage = 'setup' | 'repo_setup' | 'agent' | 'evaluator' | 'teardown';
+
+/**
+ * Structured error detail for execution failures.
+ */
+export interface ExecutionError {
+  readonly message: string;
+  readonly stage: FailureStage;
+}
 
 /**
  * Evaluator scorecard for a single eval case run.
@@ -876,6 +903,14 @@ export interface EvaluationResult {
   readonly costLimited?: boolean;
   /** Whether the evaluation was skipped due to suite-level budget exhaustion */
   readonly budgetExceeded?: boolean;
+  /** Primary classification: ok, quality_failure, or execution_error */
+  readonly executionStatus: ExecutionStatus;
+  /** Pipeline stage where failure occurred (only when executionStatus !== 'ok') */
+  readonly failureStage?: FailureStage;
+  /** Machine-readable failure reason code (only when executionStatus !== 'ok') */
+  readonly failureReasonCode?: string;
+  /** Structured error detail (only when executionStatus === 'execution_error') */
+  readonly executionError?: ExecutionError;
 }
 
 export type EvaluationVerdict = 'pass' | 'fail' | 'borderline' | 'skip';
