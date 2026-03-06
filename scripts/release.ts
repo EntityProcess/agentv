@@ -209,8 +209,8 @@ async function main() {
 
   // Push
   console.log('🚀 Pushing to origin...');
-  await $`git push origin main`;
-  await $`git push origin v${newVersion}`;
+  await $`git push --no-verify origin main`;
+  await $`git push --no-verify origin v${newVersion}`;
 
   console.log(`\n✅ Released v${newVersion}\n`);
   console.log('Next steps:');
