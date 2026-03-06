@@ -853,7 +853,6 @@ export interface ExecutionError {
  */
 export type FailOnError = boolean;
 
-
 /**
  * Evaluator scorecard for a single eval case run.
  */

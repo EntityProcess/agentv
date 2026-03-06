@@ -224,5 +224,4 @@ describe('execution status classification', () => {
     expect(result.executionStatus).toBe('quality_failure');
     expect(result.score).toBe(0.79);
   });
-
 });
