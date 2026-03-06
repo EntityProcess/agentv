@@ -8,6 +8,8 @@ workspace:
     command:
       - node
       - ../scripts/workspace-setup.mjs
+      - --from
+      - ./workspace-template/.allagents/workspace.yaml
   repos:
     - path: ./my-repo
       source:
