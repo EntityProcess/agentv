@@ -8,6 +8,7 @@ import {
   type EvaluationCache,
   type EvaluationResult,
   type ExecutionDefaults,
+  type FailOnError,
   type OtelTraceExporter as OtelTraceExporterType,
   ResponseCache,
   type TrialsConfig,
@@ -33,6 +34,7 @@ import {
   getDefaultExtension,
 } from './output-writer.js';
 import { ProgressDisplay, type WorkerProgress } from './progress-display.js';
+import { loadErrorTestIds, loadNonErrorResults } from './retry-errors.js';
 import { findRepoRoot } from './shared.js';
 import {
   calculateEvaluationSummary,
@@ -74,6 +76,7 @@ interface NormalizedOptions {
   readonly otelBackend?: string;
   readonly otelCaptureContent: boolean;
   readonly otelGroupTurns: boolean;
+  readonly retryErrors?: string;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -225,6 +228,7 @@ function normalizeOptions(
     otelBackend: normalizeString(rawOptions.otelBackend),
     otelCaptureContent: normalizeBoolean(rawOptions.otelCaptureContent),
     otelGroupTurns: normalizeBoolean(rawOptions.otelGroupTurns),
+    retryErrors: normalizeString(rawOptions.retryErrors),
   } satisfies NormalizedOptions;
 }
 
@@ -328,6 +332,7 @@ async function prepareFileMetadata(params: {
   readonly yamlCache?: boolean;
   readonly yamlCachePath?: string;
   readonly totalBudgetUsd?: number;
+  readonly failOnError?: FailOnError;
 }> {
   const { testFilePath, repoRoot, cwd, options } = params;
 
@@ -419,6 +424,7 @@ async function prepareFileMetadata(params: {
     yamlCache: suite.cacheConfig?.enabled,
     yamlCachePath: suite.cacheConfig?.cachePath,
     totalBudgetUsd: suite.totalBudgetUsd,
+    failOnError: suite.failOnError,
   };
 }
 
@@ -460,6 +466,7 @@ async function runSingleEvalFile(params: {
   readonly trialsConfig?: TrialsConfig;
   readonly matrixMode?: boolean;
   readonly totalBudgetUsd?: number;
+  readonly failOnError?: FailOnError;
 }): Promise<{ results: EvaluationResult[] }> {
   const {
     testFilePath,
@@ -480,6 +487,7 @@ async function runSingleEvalFile(params: {
     trialsConfig,
     matrixMode,
     totalBudgetUsd,
+    failOnError,
   } = params;
 
   const targetName = selection.targetName;
@@ -562,6 +570,7 @@ async function runSingleEvalFile(params: {
     cleanupWorkspaces: options.cleanupWorkspaces,
     trials: trialsConfig,
     totalBudgetUsd,
+    failOnError,
     streamCallbacks: streamingObserver?.getStreamCallbacks(),
     onResult: async (result: EvaluationResult) => {
       // Finalize streaming observer span with score
@@ -634,7 +643,26 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   // Pass a dummy file in cwd so the search starts from the working directory.
   const yamlConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
 
-  const options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
+  let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
+
+  // --retry-errors: override filter to only re-run execution_error test cases.
+  // IMPORTANT: JSONL must be fully loaded here, before the output writer is created below,
+  // since the retry source and output destination may refer to the same file.
+  let retryNonErrorResults: readonly EvaluationResult[] | undefined;
+  if (options.retryErrors) {
+    const retryPath = path.resolve(options.retryErrors);
+    await ensureFileExists(retryPath, 'Retry-errors JSONL file');
+    const errorIds = await loadErrorTestIds(retryPath);
+    if (errorIds.length === 0) {
+      console.log('No execution errors found in the previous output. Nothing to retry.');
+      return;
+    }
+    console.log(`Retrying ${errorIds.length} execution-error test(s): ${errorIds.join(', ')}`);
+    // Override the filter to match only error test IDs using micromatch brace expansion
+    const filterPattern = errorIds.length === 1 ? errorIds[0] : `{${errorIds.join(',')}}`;
+    options = { ...options, filter: filterPattern };
+    retryNonErrorResults = await loadNonErrorResults(retryPath);
+  }
 
   if (options.keepWorkspaces && options.cleanupWorkspaces) {
     console.warn(
@@ -767,6 +795,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       readonly yamlCache?: boolean;
       readonly yamlCachePath?: string;
       readonly totalBudgetUsd?: number;
+      readonly failOnError?: FailOnError;
     }
   >();
   for (const testFilePath of resolvedTestFiles) {
@@ -915,6 +944,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
           trialsConfig: targetPrep.trialsConfig,
           matrixMode: targetPrep.selections.length > 1,
           totalBudgetUsd: targetPrep.totalBudgetUsd,
+          failOnError: targetPrep.failOnError,
         });
 
         allResults.push(...result.results);
@@ -922,6 +952,17 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     });
 
     progressReporter.finish();
+
+    // Merge non-error results from previous run when using --retry-errors
+    if (retryNonErrorResults && retryNonErrorResults.length > 0) {
+      for (const preserved of retryNonErrorResults) {
+        await outputWriter.append(preserved);
+      }
+      allResults.push(...retryNonErrorResults);
+      console.log(
+        `Merged ${retryNonErrorResults.length} non-error result(s) from previous output.`,
+      );
+    }
 
     const summary = calculateEvaluationSummary(allResults);
     console.log(formatEvaluationSummary(summary));

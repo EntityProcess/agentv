@@ -36,6 +36,7 @@ import {
 } from './trace.js';
 import { aggregateTrials } from './trials.js';
 import type {
+  ErrorRetry,
   EvalTest,
   EvaluationResult,
   EvaluationVerdict,
@@ -43,6 +44,7 @@ import type {
   EvaluatorKind,
   EvaluatorResult,
   ExecutionStatus,
+  FailOnError,
   FailureStage,
   JsonObject,
   JsonValue,
@@ -172,6 +174,8 @@ export interface RunEvaluationOptions {
   readonly streamCallbacks?: ProviderStreamCallbacks;
   /** Suite-level total cost budget in USD (stops dispatching when exceeded) */
   readonly totalBudgetUsd?: number;
+  /** Execution error tolerance: true halts on first error, number is threshold ratio */
+  readonly failOnError?: FailOnError;
 }
 
 export async function runEvaluation(
@@ -199,6 +203,7 @@ export async function runEvaluation(
     trials,
     streamCallbacks,
     totalBudgetUsd,
+    failOnError,
   } = options;
 
   // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
@@ -455,6 +460,11 @@ export async function runEvaluation(
   let cumulativeBudgetCost = 0;
   let budgetExhausted = false;
 
+  // fail_on_error tracking (best-effort under concurrency > 1, matching budgetExhausted semantics)
+  let errorCount = 0;
+  let completedCount = 0;
+  let failOnErrorTriggered = false;
+
   // Map test cases to limited promises for parallel execution
   const promises = filteredEvalCases.map((evalCase) =>
     limit(async () => {
@@ -497,6 +507,40 @@ export async function runEvaluation(
           await onResult(budgetResult);
         }
         return budgetResult;
+      }
+
+      // Check fail_on_error threshold before dispatching
+      if (failOnError !== undefined && failOnError !== false && failOnErrorTriggered) {
+        const errorMsg = `Halted: execution error threshold exceeded (${errorCount}/${completedCount} errors)`;
+        const haltResult: EvaluationResult = {
+          timestamp: (now ?? (() => new Date()))().toISOString(),
+          testId: evalCase.id,
+          dataset: evalCase.dataset,
+          score: 0,
+          hits: [],
+          misses: [],
+          answer: '',
+          target: target.name,
+          error: errorMsg,
+          executionStatus: 'execution_error',
+          failureStage: 'setup',
+          failureReasonCode: 'error_threshold_exceeded',
+          executionError: { message: errorMsg, stage: 'setup' },
+        };
+
+        if (onProgress) {
+          await onProgress({
+            workerId,
+            testId: evalCase.id,
+            status: 'failed',
+            completedAt: Date.now(),
+            error: haltResult.error,
+          });
+        }
+        if (onResult) {
+          await onResult(haltResult);
+        }
+        return haltResult;
       }
 
       if (onProgress) {
@@ -555,6 +599,23 @@ export async function runEvaluation(
             if (cumulativeBudgetCost >= totalBudgetUsd) {
               budgetExhausted = true;
             }
+          }
+        }
+
+        // Track fail_on_error threshold
+        if (failOnError !== undefined && failOnError !== false) {
+          completedCount++;
+          if (result.executionStatus === 'execution_error') {
+            errorCount++;
+          }
+          if (failOnError === true && result.executionStatus === 'execution_error') {
+            failOnErrorTriggered = true;
+          } else if (
+            typeof failOnError === 'number' &&
+            completedCount > 0 &&
+            errorCount / completedCount > failOnError
+          ) {
+            failOnErrorTriggered = true;
           }
         }
 
@@ -1038,6 +1099,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   let attempt = 0;
   let providerResponse: ProviderResponse | undefined = cachedResponse;
   let lastError: unknown;
+  const errorRetries: ErrorRetry[] = [];
 
   while (!providerResponse && attempt < attemptBudget) {
     try {
@@ -1056,6 +1118,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     } catch (error) {
       lastError = error;
       if (isTimeoutLike(error) && attempt + 1 < attemptBudget) {
+        const message = error instanceof Error ? error.message : String(error);
+        errorRetries.push({ message, attempt, timestamp: nowFn().toISOString() });
         attempt += 1;
         continue;
       }
@@ -1221,6 +1285,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       ? 'execution_error'
       : classifyQualityStatus(result.score);
 
+    const retryFields = errorRetries.length > 0 ? { errorRetries } : {};
+
     const finalResult = providerError
       ? {
           ...result,
@@ -1232,8 +1298,16 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           beforeAllOutput,
           beforeEachOutput,
           afterEachOutput,
+          ...retryFields,
         }
-      : { ...result, executionStatus, beforeAllOutput, beforeEachOutput, afterEachOutput };
+      : {
+          ...result,
+          executionStatus,
+          beforeAllOutput,
+          beforeEachOutput,
+          afterEachOutput,
+          ...retryFields,
+        };
 
     // Determine if this is a failure (has error or low score)
     const isFailure = !!finalResult.error || finalResult.score < 0.5;
