@@ -47,6 +47,7 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 - [local-cli](features/local-cli/) - Local CLI targets
 - [compare](features/compare/) - Baseline comparison
 - [deterministic-evaluators](features/deterministic-evaluators/) - Deterministic assertions (contains, regex, JSON validation)
+- [workspace-setup-script](features/workspace-setup-script/) - Multi-step workspace setup with `before_all` lifecycle hook
 
 ### SDK
 
