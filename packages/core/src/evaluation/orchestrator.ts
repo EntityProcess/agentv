@@ -42,6 +42,8 @@ import type {
   EvaluatorConfig,
   EvaluatorKind,
   EvaluatorResult,
+  ExecutionStatus,
+  FailureStage,
   JsonObject,
   JsonValue,
   TrialResult,
@@ -66,6 +68,13 @@ import {
 import { type PromptInputs, buildPromptInputs, loadTests } from './yaml-parser.js';
 
 type MaybePromise<T> = T | Promise<T>;
+
+/** Threshold for classifying ok vs quality_failure (score >= threshold → ok). */
+const QUALITY_PASS_THRESHOLD = 0.8;
+
+function classifyQualityStatus(score: number): ExecutionStatus {
+  return score >= QUALITY_PASS_THRESHOLD ? 'ok' : 'quality_failure';
+}
 
 function usesFileReferencePrompt(provider: Provider): boolean {
   return isAgentProvider(provider) || provider.kind === 'cli';
@@ -466,6 +475,13 @@ export async function runEvaluation(
           target: target.name,
           error: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
           budgetExceeded: true,
+          executionStatus: 'execution_error',
+          failureStage: 'setup',
+          failureReasonCode: 'budget_exceeded',
+          executionError: {
+            message: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
+            stage: 'setup',
+          },
         };
 
         if (onProgress) {
@@ -599,6 +615,8 @@ export async function runEvaluation(
         outcome.reason,
         promptInputs,
         primaryProvider,
+        'agent',
+        'provider_error',
       );
       results.push(errorResult);
       if (onResult) {
@@ -788,7 +806,14 @@ async function runBatchEvaluation(options: {
       });
 
       if (providerError) {
-        result = { ...result, error: providerError };
+        result = {
+          ...result,
+          error: providerError,
+          executionStatus: 'execution_error' as const,
+          failureStage: 'agent' as const,
+          failureReasonCode: 'provider_error',
+          executionError: { message: providerError, stage: 'agent' as const },
+        };
       }
     } catch (error) {
       const errorResult = buildErrorResult(
@@ -798,6 +823,8 @@ async function runBatchEvaluation(options: {
         error,
         promptInputs,
         provider,
+        'evaluator',
+        'evaluator_error',
       );
       results.push(errorResult);
       if (onResult) {
@@ -899,6 +926,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           new Error(`Failed to create workspace: ${message}`),
           promptInputs,
           provider,
+          'setup',
+          'template_error',
         );
       }
     }
@@ -927,6 +956,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           new Error(`Failed to materialize repos: ${message}`),
           promptInputs,
           provider,
+          'repo_setup',
+          'clone_error',
         );
       }
     }
@@ -957,6 +988,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           new Error(`before_all script failed: ${message}`),
           promptInputs,
           provider,
+          'setup',
+          'script_error',
         );
       }
     }
@@ -985,6 +1018,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         new Error(`before_each script failed: ${message}`),
         promptInputs,
         provider,
+        'setup',
+        'script_error',
       );
     }
   }
@@ -1032,6 +1067,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         error,
         promptInputs,
         provider,
+        'agent',
+        'provider_error',
       );
       if (workspacePath) {
         if (forceCleanup) {
@@ -1051,6 +1088,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       lastError ?? new Error('Provider did not return a response'),
       promptInputs,
       provider,
+      'agent',
+      'provider_error',
     );
     // On error, keep workspace for debugging (unless forceCleanup is set)
     if (workspacePath) {
@@ -1178,9 +1217,23 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       workspacePath,
     });
 
+    const executionStatus: ExecutionStatus = providerError
+      ? 'execution_error'
+      : classifyQualityStatus(result.score);
+
     const finalResult = providerError
-      ? { ...result, error: providerError, beforeAllOutput, beforeEachOutput, afterEachOutput }
-      : { ...result, beforeAllOutput, beforeEachOutput, afterEachOutput };
+      ? {
+          ...result,
+          error: providerError,
+          executionStatus,
+          failureStage: 'agent' as const,
+          failureReasonCode: 'provider_error',
+          executionError: { message: providerError, stage: 'agent' as const },
+          beforeAllOutput,
+          beforeEachOutput,
+          afterEachOutput,
+        }
+      : { ...result, executionStatus, beforeAllOutput, beforeEachOutput, afterEachOutput };
 
     // Determine if this is a failure (has error or low score)
     const isFailure = !!finalResult.error || finalResult.score < 0.5;
@@ -1205,6 +1258,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       error,
       promptInputs,
       provider,
+      'evaluator',
+      'evaluator_error',
     );
     // On error, keep workspace for debugging (only for per-case workspaces)
     if (workspacePath && !isSharedWorkspace) {
@@ -1257,6 +1312,9 @@ async function runEvalCaseWithTrials(
       scores: result.scores,
       error: result.error,
       costUsd: trialCost,
+      executionStatus: result.executionStatus,
+      failureStage: result.failureStage,
+      failureReasonCode: result.failureReasonCode,
     };
     trialResults.push(trial);
 
@@ -1293,12 +1351,37 @@ async function runEvalCaseWithTrials(
   );
   const baseResult = allResults[bestTrialIndex];
 
+  // Determine aggregate executionStatus from trial results:
+  // - If ANY trial succeeded → ok
+  // - If ALL trials had execution_error → execution_error
+  // - Otherwise → quality_failure
+  const hasOk = trialResults.some((t) => t.executionStatus === 'ok');
+  const allExecutionError =
+    trialResults.length > 0 && trialResults.every((t) => t.executionStatus === 'execution_error');
+  const aggregateExecutionStatus: ExecutionStatus = hasOk
+    ? 'ok'
+    : allExecutionError
+      ? 'execution_error'
+      : 'quality_failure';
+
+  // When the aggregate status differs from baseResult, clear failure fields that no longer apply
+  const aggregateFailureStage =
+    aggregateExecutionStatus === 'ok' ? undefined : baseResult.failureStage;
+  const aggregateFailureReasonCode =
+    aggregateExecutionStatus === 'ok' ? undefined : baseResult.failureReasonCode;
+  const aggregateExecutionError =
+    aggregateExecutionStatus === 'execution_error' ? baseResult.executionError : undefined;
+
   return {
     ...baseResult,
     score,
     trials: trialResults,
     aggregation,
     costLimited: costLimited || undefined,
+    executionStatus: aggregateExecutionStatus,
+    failureStage: aggregateFailureStage,
+    failureReasonCode: aggregateFailureReasonCode,
+    executionError: aggregateExecutionError,
   };
 }
 
@@ -1433,6 +1516,7 @@ async function evaluateCandidate(options: {
     trace: trace,
     output: output,
     fileChanges,
+    executionStatus: classifyQualityStatus(score.score),
   };
 }
 
@@ -1861,7 +1945,9 @@ function buildErrorResult(
   timestamp: Date,
   error: unknown,
   promptInputs: PromptInputs,
-  provider?: Provider,
+  provider: Provider | undefined,
+  failureStage: FailureStage,
+  failureReasonCode: string,
 ): EvaluationResult {
   const message = error instanceof Error ? error.message : String(error);
 
@@ -1913,6 +1999,10 @@ function buildErrorResult(
     requests,
     input,
     error: message,
+    executionStatus: 'execution_error',
+    failureStage,
+    failureReasonCode,
+    executionError: { message, stage: failureStage },
   } satisfies EvaluationResult;
 }
 

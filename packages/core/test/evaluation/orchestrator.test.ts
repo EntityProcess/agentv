@@ -177,6 +177,9 @@ describe('runTestCase', () => {
     expect(result.misses).toHaveLength(0);
     expect(result.timestamp).toBe('2024-01-01T00:00:00.000Z');
     expect(result.input).toBe('Explain logging improvements');
+    expect(result.executionStatus).toBe('ok');
+    expect(result.failureStage).toBeUndefined();
+    expect(result.failureReasonCode).toBeUndefined();
   });
 
   it('reuses cached provider response when available', async () => {
@@ -258,6 +261,11 @@ describe('runTestCase', () => {
     expect(result.score).toBe(0);
     expect(result.misses[0]).toContain('Provider failure');
     expect(result.input).toBe('Explain logging improvements');
+    expect(result.executionStatus).toBe('execution_error');
+    expect(result.failureStage).toBe('agent');
+    expect(result.failureReasonCode).toBe('provider_error');
+    expect(result.executionError).toBeDefined();
+    expect(result.executionError?.message).toContain('Provider failure');
   });
 
   it('surfaces provider raw.error as evaluation error', async () => {
@@ -278,6 +286,9 @@ describe('runTestCase', () => {
     });
 
     expect(result.error).toBe("Batch output missing id 'case-1'");
+    expect(result.executionStatus).toBe('execution_error');
+    expect(result.failureStage).toBe('agent');
+    expect(result.failureReasonCode).toBe('provider_error');
   });
 
   it('reports failed progress status for batch item errors', async () => {
@@ -1423,6 +1434,7 @@ rl.on('close', () => {
 
     expect(result.beforeAllOutput).toContain('Setup done for case-1');
     expect(result.error).toBeUndefined();
+    expect(result.executionStatus).toBe('ok');
   });
 
   it('returns error result when setup script fails', async () => {
@@ -1463,6 +1475,10 @@ rl.on('close', () => {
 
     expect(result.error).toContain('before_all script failed');
     expect(result.score).toBe(0);
+    expect(result.executionStatus).toBe('execution_error');
+    expect(result.failureStage).toBe('setup');
+    expect(result.failureReasonCode).toBe('script_error');
+    expect(result.executionError).toBeDefined();
   });
 
   it('executes teardown script and captures output in result', async () => {
@@ -1520,6 +1536,7 @@ rl.on('close', () => {
 
     expect(result.afterEachOutput).toContain('Teardown done for case-1');
     expect(result.error).toBeUndefined();
+    expect(result.executionStatus).toBe('ok');
   });
 });
 
