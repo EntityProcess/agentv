@@ -2,10 +2,7 @@ import { describe, expect, it } from 'bun:test';
 
 import { runEvalCase } from '../../src/evaluation/orchestrator.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
-import type {
-  Provider,
-  ProviderResponse,
-} from '../../src/evaluation/providers/types.js';
+import type { Provider, ProviderResponse } from '../../src/evaluation/providers/types.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
 // ---------------------------------------------------------------------------
@@ -119,9 +116,7 @@ describe('execution status classification', () => {
   });
 
   it('classifies high-scoring results as ok', async () => {
-    const provider = new FixedResponseProvider(
-      'Add structured logging and avoid global state.',
-    );
+    const provider = new FixedResponseProvider('Add structured logging and avoid global state.');
 
     const result = await runEvalCase({
       evalCase: baseTestCase,

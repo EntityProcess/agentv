@@ -134,9 +134,7 @@ export function calculateEvaluationSummary(
 
   // Count by execution status
   const executionErrorCount = executionErrors.length;
-  const qualityFailureCount = results.filter(
-    (r) => r.executionStatus === 'quality_failure',
-  ).length;
+  const qualityFailureCount = results.filter((r) => r.executionStatus === 'quality_failure').length;
   const passedCount = results.filter((r) => r.executionStatus === 'ok').length;
 
   // Aggregate by failure stage and reason (execution errors only)
