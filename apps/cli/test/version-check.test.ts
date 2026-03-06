@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { checkVersion } from '../src/version-check.js';
 import packageJson from '../package.json' with { type: 'json' };
+import { checkVersion } from '../src/version-check.js';
 
 const [major, minor] = packageJson.version.split('.').map(Number);
 
