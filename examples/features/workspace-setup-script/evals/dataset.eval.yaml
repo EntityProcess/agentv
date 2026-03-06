@@ -25,7 +25,7 @@ workspace:
     after_each: true
 
 execution:
-  target: copilot-haiku
+  target: copilot
 
 tests:
   - id: verify-workspace
