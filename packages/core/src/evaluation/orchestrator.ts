@@ -69,6 +69,13 @@ import { type PromptInputs, buildPromptInputs, loadTests } from './yaml-parser.j
 
 type MaybePromise<T> = T | Promise<T>;
 
+/** Threshold for classifying ok vs quality_failure (score >= threshold → ok). */
+const QUALITY_PASS_THRESHOLD = 0.8;
+
+function classifyQualityStatus(score: number): ExecutionStatus {
+  return score >= QUALITY_PASS_THRESHOLD ? 'ok' : 'quality_failure';
+}
+
 function usesFileReferencePrompt(provider: Provider): boolean {
   return isAgentProvider(provider) || provider.kind === 'cli';
 }
@@ -1212,9 +1219,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
     const executionStatus: ExecutionStatus = providerError
       ? 'execution_error'
-      : result.score >= 0.8
-        ? 'ok'
-        : 'quality_failure';
+      : classifyQualityStatus(result.score);
 
     const finalResult = providerError
       ? {
@@ -1511,7 +1516,7 @@ async function evaluateCandidate(options: {
     trace: trace,
     output: output,
     fileChanges,
-    executionStatus: score.score >= 0.8 ? 'ok' as const : 'quality_failure' as const,
+    executionStatus: classifyQualityStatus(score.score),
   };
 }
 

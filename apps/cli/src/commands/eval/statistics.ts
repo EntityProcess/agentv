@@ -139,10 +139,10 @@ export function calculateEvaluationSummary(
   ).length;
   const passedCount = results.filter((r) => r.executionStatus === 'ok').length;
 
-  // Aggregate by failure stage and reason
+  // Aggregate by failure stage and reason (execution errors only)
   const byFailureStage: Record<string, number> = {};
   const byFailureReason: Record<string, number> = {};
-  for (const result of results) {
+  for (const result of executionErrors) {
     if (result.failureStage) {
       byFailureStage[result.failureStage] = (byFailureStage[result.failureStage] ?? 0) + 1;
     }
