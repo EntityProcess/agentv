@@ -36,7 +36,6 @@ import {
 } from './trace.js';
 import { aggregateTrials } from './trials.js';
 import type {
-  ErrorRetry,
   EvalTest,
   EvaluationResult,
   EvaluationVerdict,
@@ -1085,7 +1084,6 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   let attempt = 0;
   let providerResponse: ProviderResponse | undefined = cachedResponse;
   let lastError: unknown;
-  const errorRetries: ErrorRetry[] = [];
 
   while (!providerResponse && attempt < attemptBudget) {
     try {
@@ -1104,8 +1102,6 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     } catch (error) {
       lastError = error;
       if (isTimeoutLike(error) && attempt + 1 < attemptBudget) {
-        const message = error instanceof Error ? error.message : String(error);
-        errorRetries.push({ message, attempt, timestamp: nowFn().toISOString() });
         attempt += 1;
         continue;
       }
@@ -1271,8 +1267,6 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       ? 'execution_error'
       : classifyQualityStatus(result.score);
 
-    const retryFields = errorRetries.length > 0 ? { errorRetries } : {};
-
     const finalResult = providerError
       ? {
           ...result,
@@ -1284,16 +1278,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           beforeAllOutput,
           beforeEachOutput,
           afterEachOutput,
-          ...retryFields,
         }
-      : {
-          ...result,
-          executionStatus,
-          beforeAllOutput,
-          beforeEachOutput,
-          afterEachOutput,
-          ...retryFields,
-        };
+      : { ...result, executionStatus, beforeAllOutput, beforeEachOutput, afterEachOutput };
 
     // Determine if this is a failure (has error or low score)
     const isFailure = !!finalResult.error || finalResult.score < 0.5;

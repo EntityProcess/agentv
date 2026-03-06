@@ -853,14 +853,6 @@ export interface ExecutionError {
  */
 export type FailOnError = boolean;
 
-/**
- * Record of a transient error that was retried during provider invocation.
- */
-export interface ErrorRetry {
-  readonly message: string;
-  readonly attempt: number;
-  readonly timestamp: string;
-}
 
 /**
  * Evaluator scorecard for a single eval case run.
@@ -927,8 +919,6 @@ export interface EvaluationResult {
   readonly failureReasonCode?: string;
   /** Structured error detail (only when executionStatus === 'execution_error') */
   readonly executionError?: ExecutionError;
-  /** Transient errors that were retried before the final result */
-  readonly errorRetries?: readonly ErrorRetry[];
 }
 
 export type EvaluationVerdict = 'pass' | 'fail' | 'borderline' | 'skip';

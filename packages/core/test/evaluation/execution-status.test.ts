@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test';
 import { runEvalCase } from '../../src/evaluation/orchestrator.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type { Provider, ProviderResponse } from '../../src/evaluation/providers/types.js';
-import type { ErrorRetry, EvalTest } from '../../src/evaluation/types.js';
+import type { EvalTest } from '../../src/evaluation/types.js';
 
 // ---------------------------------------------------------------------------
 // Mock providers
@@ -16,25 +16,6 @@ class ErrorProvider implements Provider {
 
   async invoke(): Promise<ProviderResponse> {
     throw new Error('Provider failed');
-  }
-}
-
-/** Throws a timeout-like error on the first call, succeeds on subsequent calls. */
-class TimeoutThenSuccessProvider implements Provider {
-  readonly id = 'mock:timeout-then-success';
-  readonly kind = 'mock' as const;
-  readonly targetName = 'timeout-target';
-  private callCount = 0;
-
-  async invoke(): Promise<ProviderResponse> {
-    this.callCount++;
-    if (this.callCount === 1) {
-      const err = new DOMException('The operation was aborted', 'AbortError');
-      throw err;
-    }
-    return {
-      output: [{ role: 'assistant', content: 'Recovered after timeout' }],
-    };
   }
 }
 
@@ -244,41 +225,4 @@ describe('execution status classification', () => {
     expect(result.score).toBe(0.79);
   });
 
-  it('records errorRetries when a transient timeout is retried', async () => {
-    const provider = new TimeoutThenSuccessProvider();
-
-    const result = await runEvalCase({
-      evalCase: baseTestCase,
-      provider,
-      target: baseTarget,
-      evaluators: highScoreEvaluators,
-      maxRetries: 2,
-    });
-
-    // Should succeed after retry
-    expect(result.executionStatus).toBe('ok');
-    expect(result.score).toBeGreaterThanOrEqual(0.8);
-
-    // Should have one error retry recorded
-    expect(result.errorRetries).toBeDefined();
-    expect(result.errorRetries).toHaveLength(1);
-    const retry = result.errorRetries?.[0] as ErrorRetry;
-    expect(retry.attempt).toBe(0);
-    expect(retry.message).toContain('aborted');
-    expect(retry.timestamp).toBeTruthy();
-  });
-
-  it('does not include errorRetries when no retries occurred', async () => {
-    const provider = new FixedResponseProvider('Direct success');
-
-    const result = await runEvalCase({
-      evalCase: baseTestCase,
-      provider,
-      target: baseTarget,
-      evaluators: highScoreEvaluators,
-    });
-
-    expect(result.executionStatus).toBe('ok');
-    expect(result.errorRetries).toBeUndefined();
-  });
 });
