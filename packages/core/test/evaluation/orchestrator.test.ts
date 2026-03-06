@@ -1717,6 +1717,175 @@ describe('deterministic assertion evaluators in orchestrator', () => {
   });
 });
 
+describe('implicit judge when criteria defined with assert (#447)', () => {
+  const criteriaTestCase: EvalTest = {
+    id: 'implicit-judge-1',
+    dataset: 'test-dataset',
+    question: 'Test question',
+    input: [{ role: 'user', content: 'Test question' }],
+    input_segments: [{ type: 'text', value: 'Test question' }],
+    expected_output: [],
+    reference_answer: '',
+    guideline_paths: [],
+    file_paths: [],
+    criteria: 'Response should be polite',
+  };
+
+  it('prepends implicit llm_judge when criteria is non-empty and target has judgeTarget', async () => {
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
+    });
+
+    const targetWithJudge: ResolvedTarget = {
+      ...baseTarget,
+      judgeTarget: 'judge-target',
+    };
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...criteriaTestCase,
+        criteria: 'Response should be polite',
+        evaluators: [{ name: 'has-hello', type: 'contains' as const, value: 'hello' }],
+      },
+      provider,
+      target: targetWithJudge,
+      evaluators: evaluatorRegistry,
+    });
+
+    // Should have 2 scores: implicit llm_judge + contains assertion
+    expect(result.scores).toHaveLength(2);
+    expect(result.scores?.[0].type).toBe('llm_judge');
+    expect(result.scores?.[1].type).toBe('contains');
+  });
+
+  it('does NOT add implicit judge when criteria is empty', async () => {
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
+    });
+
+    const targetWithJudge: ResolvedTarget = {
+      ...baseTarget,
+      judgeTarget: 'judge-target',
+    };
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...criteriaTestCase,
+        criteria: '',
+        evaluators: [{ name: 'has-hello', type: 'contains' as const, value: 'hello' }],
+      },
+      provider,
+      target: targetWithJudge,
+      evaluators: evaluatorRegistry,
+    });
+
+    // Only the contains assertion — no implicit judge
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0].type).toBe('contains');
+  });
+
+  it('does NOT add implicit judge when target lacks judgeTarget', async () => {
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
+    });
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...criteriaTestCase,
+        criteria: 'Response should be polite',
+        evaluators: [{ name: 'has-hello', type: 'contains' as const, value: 'hello' }],
+      },
+      provider,
+      target: baseTarget, // no judgeTarget
+      evaluators: evaluatorRegistry,
+    });
+
+    // Only the contains assertion — no implicit judge
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0].type).toBe('contains');
+  });
+
+  it('does NOT add implicit judge when only expected_output is defined (no criteria)', async () => {
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
+    });
+
+    const targetWithJudge: ResolvedTarget = {
+      ...baseTarget,
+      judgeTarget: 'judge-target',
+    };
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...criteriaTestCase,
+        criteria: '',
+        expected_output: [{ answer: 'hello world' }],
+        evaluators: [{ name: 'has-hello', type: 'contains' as const, value: 'hello' }],
+      },
+      provider,
+      target: targetWithJudge,
+      evaluators: evaluatorRegistry,
+    });
+
+    // Only the contains assertion — expected_output alone does not trigger implicit judge
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0].type).toBe('contains');
+  });
+
+  it('implicit judge score is weighted equally with assert evaluators', async () => {
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
+    });
+
+    const targetWithJudge: ResolvedTarget = {
+      ...baseTarget,
+      judgeTarget: 'judge-target',
+    };
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...criteriaTestCase,
+        criteria: 'Response should be polite',
+        evaluators: [{ name: 'has-hello', type: 'contains' as const, value: 'hello' }],
+      },
+      provider,
+      target: targetWithJudge,
+      evaluators: evaluatorRegistry,
+    });
+
+    // llm_judge mock returns 0.8, contains returns 1.0
+    // Weighted average: (0.8 + 1.0) / 2 = 0.9
+    expect(result.score).toBeCloseTo(0.9);
+    expect(result.scores?.[0].weight).toBe(1);
+    expect(result.scores?.[1].weight).toBe(1);
+  });
+
+  it('does NOT add implicit judge when criteria is whitespace-only', async () => {
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
+    });
+
+    const targetWithJudge: ResolvedTarget = {
+      ...baseTarget,
+      judgeTarget: 'judge-target',
+    };
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...criteriaTestCase,
+        criteria: '   ',
+        evaluators: [{ name: 'has-hello', type: 'contains' as const, value: 'hello' }],
+      },
+      provider,
+      target: targetWithJudge,
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0].type).toBe('contains');
+  });
+});
+
 describe('required gates', () => {
   const assertionTestCase: EvalTest = {
     id: 'required-gate-1',

@@ -1627,9 +1627,19 @@ async function runEvaluatorsForCase(options: {
   } = options;
 
   if (evalCase.evaluators && evalCase.evaluators.length > 0) {
+    // #447: If criteria is non-empty and target has a judge, prepend an implicit
+    // llm_judge so criteria are always evaluated qualitatively. Assert is additive.
+    const hasCriteria = evalCase.criteria?.trim().length > 0;
+    const hasJudge = Boolean(target.judgeTarget);
+
+    const evaluatorsWithImplicitJudge =
+      hasCriteria && hasJudge
+        ? [{ name: 'implicit_judge', type: 'llm_judge' as const }, ...evalCase.evaluators]
+        : evalCase.evaluators;
+
     return runEvaluatorList({
       evalCase,
-      evaluators: evalCase.evaluators,
+      evaluators: evaluatorsWithImplicitJudge,
       candidate,
       target,
       provider,
