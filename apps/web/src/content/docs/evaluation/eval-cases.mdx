@@ -237,6 +237,34 @@ assert:
 
 Required gates are evaluated after all evaluators run. If any required evaluator falls below its threshold, the verdict is forced to `fail`.
 
+### Implicit LLM Judge
+
+When a test has all three of these conditions:
+
+1. Non-empty `criteria` field
+2. An `assert` block with one or more evaluators
+3. Target has a `judge_target` configured
+
+AgentV automatically prepends an implicit `llm_judge` evaluator to the assert list. This ensures `criteria` is always evaluated qualitatively, even when explicit assertions are defined — `assert` is additive with criteria-based evaluation, not a replacement.
+
+```yaml
+tests:
+  - id: json-api
+    criteria: Returns a helpful, well-structured JSON response
+    input: Return the system status as JSON
+    assert:
+      - type: is_json
+      - type: contains
+        value: '"status"'
+      # implicit llm_judge is automatically prepended
+      # evaluating criteria via the judge_target
+```
+
+The implicit judge does not apply when:
+- `criteria` is empty or whitespace-only
+- The target does not have a `judge_target` (e.g., LLM provider targets that are their own judge)
+- There is no `assert` block (criteria is evaluated by the default evaluator)
+
 ### Assert Merge Behavior
 
 `assert` can be defined at both suite and test levels:

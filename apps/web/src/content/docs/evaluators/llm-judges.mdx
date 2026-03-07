@@ -83,6 +83,10 @@ Evaluate and provide a score from 0 to 1.`;
 });
 ```
 
+## Implicit LLM Judge
+
+When a test defines both `criteria` and an `assert` block, and the target has a `judge_target` configured, AgentV automatically prepends an implicit `llm_judge` to evaluate the criteria. This means `assert` is additive — explicit assertions don't replace criteria-based evaluation. See [Tests > Implicit LLM Judge](/evaluation/eval-cases/#implicit-llm-judge) for details.
+
 ## How It Works
 
 1. AgentV renders the prompt template with variables from the test

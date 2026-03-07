@@ -131,6 +131,8 @@ tests:
 
 `execution.evaluators` is deprecated. When both `assert` and `execution.evaluators` are present, `assert` takes precedence.
 
+**Implicit LLM judge:** When a test has non-empty `criteria`, an `assert` block, and the target has `judge_target` configured, an implicit `llm_judge` is automatically prepended. This makes `assert` additive — criteria are always evaluated qualitatively alongside explicit assertions.
+
 ## Required Gates
 
 Any evaluator can be marked `required` to enforce a minimum score:
