@@ -29,7 +29,9 @@ workspace:
     after_each: true
 
 execution:
-  target: vscode
+  targets:
+    - vscode
+    - copilot
 
 tests:
   - id: verify-multi-repo
