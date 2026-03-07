@@ -282,7 +282,7 @@ export async function runEvaluation(
   // tool calls and markdown, causing silent score-0 failures.
   if (isAgentProvider(getOrCreateProvider(target)) && !target.judgeTarget) {
     throw new Error(
-      `Target "${target.name}" is an agent provider ("${target.kind}") with no judge_target — agent providers cannot return structured JSON for judging. Set judge_target to an LLM provider (e.g., azure_base).`,
+      `Target "${target.name}" is an agent provider ("${target.kind}") with no judge_target — agent providers cannot return structured JSON for judging. Set judge_target to an LLM provider (e.g., azure-base).`,
     );
   }
 

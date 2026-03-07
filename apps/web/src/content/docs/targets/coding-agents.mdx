@@ -68,7 +68,7 @@ targets:
   - name: claude_agent
     provider: claude
     workspace_template: ./workspace-templates/my-project
-    judge_target: azure_base
+    judge_target: azure-base
 ```
 
 | Field | Required | Description |
@@ -84,7 +84,7 @@ targets:
   - name: codex_target
     provider: codex
     workspace_template: ./workspace-templates/my-project
-    judge_target: azure_base
+    judge_target: azure-base
 ```
 
 | Field | Required | Description |
@@ -100,7 +100,7 @@ targets:
   - name: pi_target
     provider: pi-coding-agent
     workspace_template: ./workspace-templates/my-project
-    judge_target: azure_base
+    judge_target: azure-base
 ```
 
 | Field | Required | Description |
@@ -116,7 +116,7 @@ targets:
   - name: vscode_dev
     provider: vscode
     workspace_template: ${{ WORKSPACE_PATH }}
-    judge_target: azure_base
+    judge_target: azure-base
 ```
 
 | Field | Required | Description |
@@ -133,7 +133,7 @@ targets:
     provider: vscode
     executable: ${{ VSCODE_CMD }}
     workspace_template: ${{ WORKSPACE_PATH }}
-    judge_target: azure_base
+    judge_target: azure-base
 ```
 
 :::note
@@ -147,7 +147,7 @@ targets:
   - name: vscode_insiders
     provider: vscode-insiders
     workspace_template: ${{ WORKSPACE_PATH }}
-    judge_target: azure_base
+    judge_target: azure-base
 ```
 
 Same configuration as VS Code.
@@ -162,7 +162,7 @@ targets:
     provider: cli
     command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
     workspace_template: ./workspace-templates/my-project
-    judge_target: azure_base
+    judge_target: azure-base
 ```
 
 | Field | Required | Description |

@@ -71,7 +71,7 @@ tests:
 
     execution:
       # Override file-level target for this specific test
-      target: azure_base
+      target: azure-base
 
     # Multiple evaluators - supports both code-based and LLM judges
     assert:
