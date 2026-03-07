@@ -2060,8 +2060,6 @@ describe('workspace.template .code-workspace resolution', () => {
     try {
       expect(result.error).toBeUndefined();
       expect(provider.lastRequest).toBeDefined();
-      // workspaceFile should be the .code-workspace file path
-      expect(provider.lastRequest?.workspaceFile).toBe(wsFile);
       // cwd should be a temp workspace directory (copied from the parent of the .code-workspace file)
       expect(capturedCwd).toBeDefined();
       expect(capturedCwd).not.toBe(templateDir);
@@ -2069,6 +2067,10 @@ describe('workspace.template .code-workspace resolution', () => {
       const cwdContents = readdirSync(capturedCwd as string);
       expect(cwdContents).toContain('index.ts');
       expect(cwdContents).toContain('project.code-workspace');
+      // workspaceFile should point to the copy in the temp workspace, not the original
+      expect(provider.lastRequest?.workspaceFile).toBe(
+        path.join(capturedCwd as string, 'project.code-workspace'),
+      );
     } finally {
       if (capturedCwd) {
         await rm(capturedCwd, { recursive: true, force: true }).catch(() => {});
@@ -2114,11 +2116,11 @@ describe('workspace.template .code-workspace resolution', () => {
     try {
       expect(result.error).toBeUndefined();
       expect(provider.lastRequest).toBeDefined();
-      // Auto-detected workspaceFile from directory
-      expect(provider.lastRequest?.workspaceFile).toBe(
-        path.join(templateDir, 'auto-detected.code-workspace'),
-      );
       expect(capturedCwd).toBeDefined();
+      // Auto-detected workspaceFile should point to the copy in the temp workspace
+      expect(provider.lastRequest?.workspaceFile).toBe(
+        path.join(capturedCwd as string, 'auto-detected.code-workspace'),
+      );
     } finally {
       if (capturedCwd) {
         await rm(capturedCwd, { recursive: true, force: true }).catch(() => {});

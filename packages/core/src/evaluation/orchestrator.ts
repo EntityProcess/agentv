@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
@@ -378,7 +378,7 @@ export async function runEvaluation(
   const rawTemplate = suiteWorkspace?.template ?? getWorkspaceTemplate(target);
   const resolvedTemplate = await resolveWorkspaceTemplate(rawTemplate);
   const workspaceTemplate = resolvedTemplate?.dir;
-  const suiteWorkspaceFile = resolvedTemplate?.workspaceFile;
+  let suiteWorkspaceFile = resolvedTemplate?.workspaceFile;
 
   // Resolve worker count: CLI option > target setting > default (1)
   // Force workers=1 when shared workspace is used to prevent data corruption
@@ -406,6 +406,18 @@ export async function runEvaluation(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to create shared workspace: ${message}`);
+    }
+
+    // Re-resolve workspaceFile from the temp workspace so relative paths in
+    // .code-workspace resolve against where repos are cloned, not the original template.
+    if (suiteWorkspaceFile && sharedWorkspacePath) {
+      const copiedWorkspaceFile = path.join(sharedWorkspacePath, path.basename(suiteWorkspaceFile));
+      try {
+        await stat(copiedWorkspaceFile);
+        suiteWorkspaceFile = copiedWorkspaceFile;
+      } catch {
+        // Keep original if copy doesn't exist
+      }
     }
   } else if (suiteWorkspace?.before_all || (suiteWorkspace?.repos?.length && !isPerTestIsolation)) {
     // No template but before_all or repos is configured: create empty workspace
@@ -983,6 +995,17 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           'setup',
           'template_error',
         );
+      }
+
+      // Re-resolve workspaceFile from the temp workspace
+      if (caseWorkspaceFile && workspacePath) {
+        const copiedFile = path.join(workspacePath, path.basename(caseWorkspaceFile));
+        try {
+          await stat(copiedFile);
+          caseWorkspaceFile = copiedFile;
+        } catch {
+          // Keep original if copy doesn't exist
+        }
       }
     }
 

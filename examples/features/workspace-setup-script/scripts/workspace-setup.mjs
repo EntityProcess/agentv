@@ -41,7 +41,7 @@ rmSync(join(workspace_path, '.allagents'), { recursive: true, force: true });
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const result = spawnSync(
   npx,
-  ['allagents', 'workspace', 'init', workspace_path, '--from', templatePath],
+  ['--yes', 'allagents', 'workspace', 'init', workspace_path, '--from', templatePath],
   { stdio: 'inherit' },
 );
 process.exit(result.status ?? 1);
