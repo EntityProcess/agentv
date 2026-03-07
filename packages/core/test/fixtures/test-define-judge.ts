@@ -2,7 +2,7 @@
 /**
  * Test fixture for defineCodeJudge integration test.
  */
-import { defineCodeJudge } from '@agentv/eval';
+import { defineCodeJudge } from '../../../eval/src/index.js';
 
 export default defineCodeJudge(({ answer, criteria }) => {
   const hits: string[] = [];
