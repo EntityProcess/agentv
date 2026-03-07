@@ -131,6 +131,31 @@ tests:
 
 `execution.evaluators` is deprecated. When both `assert` and `execution.evaluators` are present, `assert` takes precedence.
 
+## Default Evaluation (no assert)
+
+When a test has **no `assert` field**, a default `llm-judge` evaluator runs automatically against the `criteria` field. This is the zero-config path for simple evaluations:
+
+```yaml
+tests:
+  - id: simple-eval
+    criteria: Assistant correctly explains the bug and proposes a fix
+    input: "Debug this function..."
+    # No assert → default llm-judge evaluates against criteria
+```
+
+When `assert` **is** present, only the declared evaluators run — no default judge is added. If you want an LLM judge alongside deterministic checks, declare it explicitly:
+
+```yaml
+tests:
+  - id: mixed-eval
+    criteria: Response is helpful and mentions the fix
+    input: "Debug this function..."
+    assert:
+      - type: llm-judge        # must be explicit when assert is present
+      - type: contains
+        value: "fix"
+```
+
 ## Required Gates
 
 Any evaluator can be marked `required` to enforce a minimum score:
