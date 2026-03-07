@@ -1,5 +1,5 @@
 /**
- * Local HTTP proxy server for target invocations from code_judge scripts.
+ * Local HTTP proxy server for target invocations from code-judge scripts.
  *
  * Security properties:
  * - Binds to loopback only (127.0.0.1)

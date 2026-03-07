@@ -99,12 +99,12 @@ const AggregatorSchema = z.discriminatedUnion('type', [
     threshold: z.number().min(0).max(1),
   }),
   z.object({
-    type: z.literal('code_judge'),
+    type: z.literal('code-judge'),
     path: z.string(),
     cwd: z.string().optional(),
   }),
   z.object({
-    type: z.literal('llm_judge'),
+    type: z.literal('llm-judge'),
     prompt: z.string().optional(),
     model: z.string().optional(),
   }),

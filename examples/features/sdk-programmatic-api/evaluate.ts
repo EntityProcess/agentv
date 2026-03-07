@@ -25,7 +25,7 @@ const { results, summary } = await evaluate({
       ],
       expected_output: '{"status": "ok"}',
       assert: [
-        { type: 'is_json', required: true },
+        { type: 'is-json', required: true },
         { type: 'contains', value: 'ok' },
       ],
     },

@@ -153,7 +153,7 @@ export interface ToolTrajectoryEvaluatorOptions {
 }
 
 export class ToolTrajectoryEvaluator implements Evaluator {
-  readonly kind = 'tool_trajectory';
+  readonly kind = 'tool-trajectory';
 
   private readonly config: ToolTrajectoryEvaluatorConfig;
 
@@ -380,7 +380,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
 
     // Log warnings for missing duration data
     for (const warning of warnings) {
-      console.warn(`[tool_trajectory] ${warning}`);
+      console.warn(`[tool-trajectory] ${warning}`);
     }
 
     // Calculate score: sequence assertions + effective latency assertions (excluding skipped)
@@ -476,7 +476,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
 
     // Log warnings for missing duration data
     for (const warning of warnings) {
-      console.warn(`[tool_trajectory] ${warning}`);
+      console.warn(`[tool-trajectory] ${warning}`);
     }
 
     // Calculate score: sequence assertions + effective latency assertions (excluding skipped)

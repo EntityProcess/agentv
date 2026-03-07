@@ -13,17 +13,17 @@ type JsonArray = readonly JsonValue[];
 const ASSERTION_TYPES_WITH_STRING_VALUE = new Set([
   'contains',
   'icontains',
-  'starts_with',
-  'ends_with',
+  'starts-with',
+  'ends-with',
   'equals',
   'regex',
 ]);
 /** Assertion evaluator types that require a string[] `value` field. */
 const ASSERTION_TYPES_WITH_ARRAY_VALUE = new Set([
-  'contains_any',
-  'contains_all',
-  'icontains_any',
-  'icontains_all',
+  'contains-any',
+  'contains-all',
+  'icontains-any',
+  'icontains-all',
 ]);
 
 /** Valid file extensions for external test files. */
@@ -483,8 +483,8 @@ function validateAssertArray(
     }
 
     // Validate type field
-    const typeValue = item.type;
-    if (typeValue === undefined || typeof typeValue !== 'string') {
+    const rawTypeValue = item.type;
+    if (rawTypeValue === undefined || typeof rawTypeValue !== 'string') {
       errors.push({
         severity: 'warning',
         filePath,
@@ -494,12 +494,15 @@ function validateAssertArray(
       continue;
     }
 
+    // Normalize snake_case to kebab-case for backward compatibility
+    const typeValue = rawTypeValue.replace(/_/g, '-');
+
     if (!isEvaluatorKind(typeValue)) {
       errors.push({
         severity: 'warning',
         filePath,
         location: `${location}.type`,
-        message: `Unknown assertion type '${typeValue}'.`,
+        message: `Unknown assertion type '${rawTypeValue}'.`,
       });
       continue;
     }

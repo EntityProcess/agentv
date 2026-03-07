@@ -57,7 +57,7 @@ describe('ToolTrajectoryEvaluator', () => {
     it('returns score 0 when no trace is provided', () => {
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'any_order',
         minimums: { search: 1 },
       };
@@ -88,7 +88,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'any_order',
         minimums: { search: 3, analyze: 1 },
       };
@@ -117,7 +117,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'any_order',
         minimums: { search: 3, analyze: 1 },
       };
@@ -257,7 +257,7 @@ describe('ToolTrajectoryEvaluator', () => {
       it('passes when expected tools are satisfied', () => {
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode,
           expected: passExpected,
         };
@@ -273,7 +273,7 @@ describe('ToolTrajectoryEvaluator', () => {
       it('fails when expected tools are not satisfied', () => {
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode,
           expected: failExpected,
         };
@@ -302,7 +302,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'in_order',
         expected: [{ tool: 'search' }, { tool: 'analyze' }, { tool: 'report' }],
       };
@@ -336,7 +336,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'in_order',
         expected: [{ tool: 'search' }, { tool: 'report' }],
       };
@@ -369,7 +369,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'exact',
         expected: [{ tool: 'search' }, { tool: 'analyze' }],
       };
@@ -401,7 +401,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [
             { tool: 'search', args: { query: 'test', limit: 10 } },
@@ -426,7 +426,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'search', args: { query: 'test', limit: 10 } }],
         };
@@ -450,7 +450,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'search', args: { query: 'test', limit: 10 } }],
         };
@@ -473,7 +473,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'search', args: 'any' }],
         };
@@ -495,7 +495,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'search' }],
         };
@@ -519,7 +519,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'search', args: { query: 'test', limit: 10 }, argsMatch: 'superset' }],
         };
@@ -541,7 +541,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'search', args: { query: 'test', limit: 10 }, argsMatch: 'superset' }],
         };
@@ -565,7 +565,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'search', args: { query: 'test', limit: 10 }, argsMatch: 'subset' }],
         };
@@ -587,7 +587,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'search', args: { query: 'test' }, argsMatch: 'subset' }],
         };
@@ -611,7 +611,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'search', args: { query: 'test', limit: 10 }, argsMatch: 'ignore' }],
         };
@@ -640,7 +640,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [
             {
@@ -674,7 +674,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [
             {
@@ -710,7 +710,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [
             {
@@ -744,7 +744,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [
             {
@@ -778,7 +778,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           argsMatch: 'superset',
           expected: [
@@ -808,7 +808,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           argsMatch: 'superset',
           expected: [
@@ -840,7 +840,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           argsMatch: ['query', 'format'],
           expected: [
@@ -872,7 +872,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'in_order',
           argsMatch: 'superset',
           expected: [
@@ -901,7 +901,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'search', args: { tags: ['a', 'b', 'c'] } }],
         };
@@ -923,7 +923,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'search', args: { tags: ['a', 'b', 'c'] } }],
         };
@@ -947,7 +947,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'search', args: {} }],
         };
@@ -969,7 +969,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'search', args: { query: 'test' } }],
         };
@@ -998,7 +998,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [
             {
@@ -1029,7 +1029,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'in_order',
           expected: [{ tool: 'Read', maxDurationMs: 100 }],
         };
@@ -1052,7 +1052,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'in_order',
           expected: [{ tool: 'Read', maxDurationMs: 50 }],
         };
@@ -1075,7 +1075,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'in_order',
           expected: [{ tool: 'Read', maxDurationMs: 100 }],
         };
@@ -1106,7 +1106,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'in_order',
           expected: [
             { tool: 'Read', maxDurationMs: 100 },
@@ -1141,7 +1141,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [
             { tool: 'Read', maxDurationMs: 100 },
@@ -1167,7 +1167,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'Read', maxDurationMs: 100 }],
         };
@@ -1190,7 +1190,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'Read', maxDurationMs: 100 }],
         };
@@ -1217,7 +1217,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'Read', maxDurationMs: 100 }],
         };
@@ -1243,7 +1243,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const config: ToolTrajectoryEvaluatorConfig = {
           name: 'test',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'Read', args: { file_path: 'config.json' }, maxDurationMs: 100 }],
         };
@@ -1269,7 +1269,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'superset',
         expected: [
           { tool: 'search' },
@@ -1294,7 +1294,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'superset',
         expected: [],
       };
@@ -1316,7 +1316,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'superset',
         argsMatch: 'superset',
         expected: [{ tool: 'search', args: { query: 'test' } }],
@@ -1345,7 +1345,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'subset',
         expected: [
           { tool: 'read' }, // Single expected item allows any number of reads
@@ -1369,7 +1369,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'subset',
         expected: [{ tool: 'read' }, { tool: 'search' }],
       };
@@ -1391,7 +1391,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'subset',
         expected: [],
       };
@@ -1413,7 +1413,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'subset',
         expected: [{ tool: 'search', args: { query: 'test' }, argsMatch: 'superset' }],
       };
@@ -1435,7 +1435,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name: 'test',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'subset',
         expected: [{ tool: 'search', args: { query: 'test' } }],
       };

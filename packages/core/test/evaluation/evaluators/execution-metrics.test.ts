@@ -64,7 +64,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('passes when tool calls are within limit', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_tool_calls: 10,
       };
 
@@ -87,7 +87,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('fails when tool calls exceed limit', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_tool_calls: 5,
       };
 
@@ -112,7 +112,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('passes when LLM calls are within limit', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_llm_calls: 5,
       };
 
@@ -135,7 +135,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('fails when LLM calls exceed limit', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_llm_calls: 2,
       };
 
@@ -160,7 +160,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('passes when token usage is within limit', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_tokens: 2000,
       };
 
@@ -183,7 +183,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('fails when token usage exceeds limit', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_tokens: 1000,
       };
 
@@ -208,7 +208,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('passes when cost is within budget', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_cost_usd: 0.1,
       };
 
@@ -231,7 +231,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('fails when cost exceeds budget', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_cost_usd: 0.05,
       };
 
@@ -256,7 +256,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('passes when duration is within limit', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_duration_ms: 5000,
       };
 
@@ -279,7 +279,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('fails when duration exceeds limit', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_duration_ms: 2000,
       };
 
@@ -304,7 +304,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('passes when exploration ratio is within tolerance of target', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         target_exploration_ratio: 0.6,
         exploration_tolerance: 0.2,
       };
@@ -327,7 +327,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('fails when exploration ratio is outside tolerance', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         target_exploration_ratio: 0.8,
         exploration_tolerance: 0.1,
       };
@@ -350,7 +350,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('uses default tolerance of 0.2 when not specified', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         target_exploration_ratio: 0.5,
         // No exploration_tolerance specified, should default to 0.2
       };
@@ -374,7 +374,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('passes when all specified thresholds are within limits', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_tool_calls: 10,
         max_llm_calls: 5,
         max_tokens: 2000,
@@ -405,7 +405,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('calculates proportional score based on hits and misses', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_tool_calls: 10,
         max_llm_calls: 2, // Will fail
         max_tokens: 2000,
@@ -439,7 +439,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('only checks specified thresholds', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_tool_calls: 10,
         // Other thresholds not specified
       };
@@ -470,7 +470,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('fails when no trace is available', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_tool_calls: 10,
       };
 
@@ -485,7 +485,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('fails threshold check when required metric is missing', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_cost_usd: 0.1, // Checking cost
       };
 
@@ -508,7 +508,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('fails when tokenUsage is missing for max_tokens check', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_tokens: 1000,
       };
 
@@ -531,7 +531,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('fails when durationMs is missing for max_duration_ms check', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_duration_ms: 5000,
       };
 
@@ -554,7 +554,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('fails when llmCallCount is missing for max_llm_calls check', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_llm_calls: 5,
       };
 
@@ -579,7 +579,7 @@ describe('ExecutionMetricsEvaluator', () => {
     it('includes all config values and actual metrics in rawRequest', () => {
       const config: ExecutionMetricsEvaluatorConfig = {
         name: 'test-metrics',
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         max_tool_calls: 10,
         max_tokens: 2000,
         weight: 2.0,
@@ -597,7 +597,7 @@ describe('ExecutionMetricsEvaluator', () => {
       );
 
       expect(result.evaluatorRawRequest).toEqual({
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         config: {
           max_tool_calls: 10,
           max_tokens: 2000,

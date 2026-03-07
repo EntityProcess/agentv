@@ -500,7 +500,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "code_judge"
+                                      "const": "code-judge"
                                     },
                                     "path": {
                                       "type": "string"
@@ -517,7 +517,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "llm_judge"
+                                      "const": "llm-judge"
                                     },
                                     "prompt": {
                                       "type": "string"
@@ -1567,7 +1567,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "code_judge"
+                                      "const": "code-judge"
                                     },
                                     "path": {
                                       "type": "string"
@@ -1584,7 +1584,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "llm_judge"
+                                      "const": "llm-judge"
                                     },
                                     "prompt": {
                                       "type": "string"
@@ -2646,7 +2646,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "code_judge"
+                                          "const": "code-judge"
                                         },
                                         "path": {
                                           "type": "string"
@@ -2663,7 +2663,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "llm_judge"
+                                          "const": "llm-judge"
                                         },
                                         "prompt": {
                                           "type": "string"
@@ -3713,7 +3713,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "code_judge"
+                                          "const": "code-judge"
                                         },
                                         "path": {
                                           "type": "string"
@@ -3730,7 +3730,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "llm_judge"
+                                          "const": "llm-judge"
                                         },
                                         "prompt": {
                                           "type": "string"
@@ -5224,7 +5224,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "code_judge"
+                                      "const": "code-judge"
                                     },
                                     "path": {
                                       "type": "string"
@@ -5241,7 +5241,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "llm_judge"
+                                      "const": "llm-judge"
                                     },
                                     "prompt": {
                                       "type": "string"
@@ -6291,7 +6291,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "code_judge"
+                                      "const": "code-judge"
                                     },
                                     "path": {
                                       "type": "string"
@@ -6308,7 +6308,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "llm_judge"
+                                      "const": "llm-judge"
                                     },
                                     "prompt": {
                                       "type": "string"
@@ -7370,7 +7370,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "code_judge"
+                                          "const": "code-judge"
                                         },
                                         "path": {
                                           "type": "string"
@@ -7387,7 +7387,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "llm_judge"
+                                          "const": "llm-judge"
                                         },
                                         "prompt": {
                                           "type": "string"
@@ -8437,7 +8437,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "code_judge"
+                                          "const": "code-judge"
                                         },
                                         "path": {
                                           "type": "string"
@@ -8454,7 +8454,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "llm_judge"
+                                          "const": "llm-judge"
                                         },
                                         "prompt": {
                                           "type": "string"
@@ -9852,7 +9852,7 @@
                             "properties": {
                               "type": {
                                 "type": "string",
-                                "const": "code_judge"
+                                "const": "code-judge"
                               },
                               "path": {
                                 "type": "string"
@@ -9869,7 +9869,7 @@
                             "properties": {
                               "type": {
                                 "type": "string",
-                                "const": "llm_judge"
+                                "const": "llm-judge"
                               },
                               "prompt": {
                                 "type": "string"
@@ -10919,7 +10919,7 @@
                             "properties": {
                               "type": {
                                 "type": "string",
-                                "const": "code_judge"
+                                "const": "code-judge"
                               },
                               "path": {
                                 "type": "string"
@@ -10936,7 +10936,7 @@
                             "properties": {
                               "type": {
                                 "type": "string",
-                                "const": "llm_judge"
+                                "const": "llm-judge"
                               },
                               "prompt": {
                                 "type": "string"
@@ -12032,7 +12032,7 @@
                         "properties": {
                           "type": {
                             "type": "string",
-                            "const": "code_judge"
+                            "const": "code-judge"
                           },
                           "path": {
                             "type": "string"
@@ -12049,7 +12049,7 @@
                         "properties": {
                           "type": {
                             "type": "string",
-                            "const": "llm_judge"
+                            "const": "llm-judge"
                           },
                           "prompt": {
                             "type": "string"

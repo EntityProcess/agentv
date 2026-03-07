@@ -48,7 +48,7 @@ export interface TraceComputeResult {
 }
 
 /**
- * Argument matching mode for tool_trajectory expected items.
+ * Argument matching mode for tool-trajectory expected items.
  * - 'exact': bidirectional deep equality, no extra keys allowed (default)
  * - 'superset': actual args must contain all expected keys (extras OK)
  * - 'subset': actual args must be a subset of expected keys (no unexpected keys)
@@ -57,11 +57,11 @@ export interface TraceComputeResult {
 export type ArgsMatchMode = 'exact' | 'ignore' | 'subset' | 'superset';
 
 /**
- * Configuration for tool_trajectory evaluator.
+ * Configuration for tool-trajectory evaluator.
  */
 export interface ToolTrajectoryEvaluatorConfig {
   readonly name: string;
-  readonly type: 'tool_trajectory';
+  readonly type: 'tool-trajectory';
   /** Matching mode */
   readonly mode: 'any_order' | 'in_order' | 'exact' | 'subset' | 'superset';
   /** Minimum call counts per tool (for any_order mode) */

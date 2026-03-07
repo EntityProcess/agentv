@@ -10,7 +10,7 @@ export interface TokenUsageEvaluatorOptions {
  * Uses tokenUsage from the evaluation context.
  */
 export class TokenUsageEvaluator implements Evaluator {
-  readonly kind = 'token_usage';
+  readonly kind = 'token-usage';
 
   private readonly config: TokenUsageEvaluatorConfig;
 
@@ -39,7 +39,7 @@ export class TokenUsageEvaluator implements Evaluator {
         expectedAspectCount,
         reasoning: 'Token usage not reported by provider',
         evaluatorRawRequest: {
-          type: 'token_usage',
+          type: 'token-usage',
           max_total: maxTotal ?? null,
           max_input: maxInput ?? null,
           max_output: maxOutput ?? null,
@@ -88,9 +88,9 @@ export class TokenUsageEvaluator implements Evaluator {
       hits,
       misses,
       expectedAspectCount,
-      reasoning: `token_usage input=${input}, output=${output}, cached=${cached}, total=${total}`,
+      reasoning: `token-usage input=${input}, output=${output}, cached=${cached}, total=${total}`,
       evaluatorRawRequest: {
-        type: 'token_usage',
+        type: 'token-usage',
         max_total: maxTotal ?? null,
         max_input: maxInput ?? null,
         max_output: maxOutput ?? null,

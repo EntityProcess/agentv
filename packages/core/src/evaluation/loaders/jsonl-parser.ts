@@ -156,7 +156,7 @@ export async function loadTestsFromJsonl(
     sidecar.dataset && sidecar.dataset.trim().length > 0 ? sidecar.dataset : fallbackDataset;
 
   // Global defaults from sidecar
-  const globalEvaluator = coerceEvaluator(sidecar.evaluator, 'sidecar') ?? 'llm_judge';
+  const globalEvaluator = coerceEvaluator(sidecar.evaluator, 'sidecar') ?? 'llm-judge';
   const globalExecution = sidecar.execution;
 
   if (verbose) {

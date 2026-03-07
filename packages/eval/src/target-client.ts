@@ -1,5 +1,5 @@
 /**
- * Client for invoking configured targets from code_judge scripts.
+ * Client for invoking configured targets from code-judge scripts.
  *
  * Environment variables (set automatically by AgentV when `target` config is present):
  * - AGENTV_TARGET_PROXY_URL: The URL of the local proxy server

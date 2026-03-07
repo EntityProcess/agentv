@@ -153,7 +153,7 @@ describe('loadTestsFromJsonl', () => {
 
     expect(cases).toHaveLength(1);
     expect(cases[0].dataset).toBe('my-tests');
-    expect(cases[0].evaluator).toBe('llm_judge');
+    expect(cases[0].evaluator).toBe('llm-judge');
   });
 
   it('uses default dataset name from filename when no sidecar', async () => {
@@ -194,7 +194,7 @@ describe('loadTestsFromJsonl', () => {
 
     expect(cases).toHaveLength(1);
     expect(cases[0].evaluators).toHaveLength(1);
-    expect(cases[0].evaluators?.[0].type).toBe('llm_judge');
+    expect(cases[0].evaluators?.[0].type).toBe('llm-judge');
     const rubricEvaluator = cases[0].evaluators?.[0] as { type: string; rubrics?: unknown[] };
     expect(rubricEvaluator.rubrics).toHaveLength(2);
   });

@@ -164,7 +164,7 @@ const MOCK_SETTINGS = new Set([
   'delayMs',
   'delayMinMs',
   'delayMaxMs',
-  'trace', // For testing tool_trajectory evaluator
+  'trace', // For testing tool-trajectory evaluator
 ]);
 
 // CLI_SETTINGS removed - Zod schema validation now handles CLI provider settings validation

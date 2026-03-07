@@ -64,7 +64,7 @@ import {
 } from './evaluator-registry.js';
 
 /**
- * Factory for `llm_judge` evaluators.
+ * Factory for `llm-judge` evaluators.
  * Creates a wrapper that resolves custom prompts at evaluation time,
  * then delegates to the shared LLM judge instance.
  */
@@ -73,7 +73,7 @@ export const llmJudgeFactory: EvaluatorFactoryFn = (config, context) => {
   const { llmJudge, agentTimeoutMs } = context;
 
   return {
-    kind: 'llm_judge',
+    kind: 'llm-judge',
     async evaluate(evalContext) {
       const customPrompt = await resolveCustomPrompt(
         c,
@@ -97,7 +97,7 @@ export const llmJudgeFactory: EvaluatorFactoryFn = (config, context) => {
   };
 };
 
-/** Factory for `code_judge` evaluators. */
+/** Factory for `code-judge` evaluators. */
 export const codeFactory: EvaluatorFactoryFn = (config, context) => {
   const c = config as CodeEvaluatorConfig;
   return new CodeEvaluator({
@@ -137,14 +137,14 @@ export const compositeFactory: EvaluatorFactoryFn = (config, context) => {
   });
 };
 
-/** Factory for `tool_trajectory` evaluators. */
+/** Factory for `tool-trajectory` evaluators. */
 export const toolTrajectoryFactory: EvaluatorFactoryFn = (config) => {
   return new ToolTrajectoryEvaluator({
     config: config as ToolTrajectoryEvaluatorConfig,
   });
 };
 
-/** Factory for `field_accuracy` evaluators. */
+/** Factory for `field-accuracy` evaluators. */
 export const fieldAccuracyFactory: EvaluatorFactoryFn = (config) => {
   return new FieldAccuracyEvaluator({
     config: config as FieldAccuracyEvaluatorConfig,
@@ -161,19 +161,19 @@ export const costFactory: EvaluatorFactoryFn = (config) => {
   return new CostEvaluator({ config: config as CostEvaluatorConfig });
 };
 
-/** Factory for `token_usage` evaluators. */
+/** Factory for `token-usage` evaluators. */
 export const tokenUsageFactory: EvaluatorFactoryFn = (config) => {
   return new TokenUsageEvaluator({ config: config as TokenUsageEvaluatorConfig });
 };
 
-/** Factory for `execution_metrics` evaluators. */
+/** Factory for `execution-metrics` evaluators. */
 export const executionMetricsFactory: EvaluatorFactoryFn = (config) => {
   return new ExecutionMetricsEvaluator({
     config: config as ExecutionMetricsEvaluatorConfig,
   });
 };
 
-/** Factory for `agent_judge` evaluators. */
+/** Factory for `agent-judge` evaluators. */
 export const agentJudgeFactory: EvaluatorFactoryFn = (config, context) => {
   const c = config as AgentJudgeEvaluatorConfig;
   const { judgeProvider, targetResolver } = context;
@@ -184,7 +184,7 @@ export const agentJudgeFactory: EvaluatorFactoryFn = (config, context) => {
       customPrompt = readFileSync(c.resolvedPromptPath, 'utf-8');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(`Could not read agent_judge prompt at ${c.resolvedPromptPath}: ${message}`);
+      console.warn(`Could not read agent-judge prompt at ${c.resolvedPromptPath}: ${message}`);
     }
   } else if (c.prompt) {
     customPrompt = c.prompt;
@@ -195,7 +195,7 @@ export const agentJudgeFactory: EvaluatorFactoryFn = (config, context) => {
     judgeTargetProvider = targetResolver(c.target);
     if (!judgeTargetProvider) {
       throw new Error(
-        `agent_judge evaluator '${c.name}': target '${c.target}' not found in targets`,
+        `agent-judge evaluator '${c.name}': target '${c.target}' not found in targets`,
       );
     }
   }
@@ -250,9 +250,9 @@ export const regexFactory: EvaluatorFactoryFn = (config) => {
   });
 };
 
-/** Factory for `is_json` deterministic assertion. */
+/** Factory for `is-json` deterministic assertion. */
 export const isJsonFactory: EvaluatorFactoryFn = () => {
-  return new DeterministicAssertionEvaluator('is_json', (ctx) => {
+  return new DeterministicAssertionEvaluator('is-json', (ctx) => {
     const result = runIsJsonAssertion(ctx.candidate);
     return {
       score: result.score,
@@ -282,10 +282,10 @@ export const equalsFactory: EvaluatorFactoryFn = (config) => {
   });
 };
 
-/** Factory for `contains_any` deterministic assertion. */
+/** Factory for `contains-any` deterministic assertion. */
 export const containsAnyFactory: EvaluatorFactoryFn = (config) => {
   const c = config as ContainsAnyEvaluatorConfig;
-  return new DeterministicAssertionEvaluator('contains_any', (ctx) => {
+  return new DeterministicAssertionEvaluator('contains-any', (ctx) => {
     const result = runContainsAnyAssertion(ctx.candidate, c.value);
     return {
       score: result.score,
@@ -298,10 +298,10 @@ export const containsAnyFactory: EvaluatorFactoryFn = (config) => {
   });
 };
 
-/** Factory for `contains_all` deterministic assertion. */
+/** Factory for `contains-all` deterministic assertion. */
 export const containsAllFactory: EvaluatorFactoryFn = (config) => {
   const c = config as ContainsAllEvaluatorConfig;
-  return new DeterministicAssertionEvaluator('contains_all', (ctx) => {
+  return new DeterministicAssertionEvaluator('contains-all', (ctx) => {
     const result = runContainsAllAssertion(ctx.candidate, c.value);
     return {
       score: result.score,
@@ -330,10 +330,10 @@ export const icontainsFactory: EvaluatorFactoryFn = (config) => {
   });
 };
 
-/** Factory for `icontains_any` deterministic assertion. */
+/** Factory for `icontains-any` deterministic assertion. */
 export const icontainsAnyFactory: EvaluatorFactoryFn = (config) => {
   const c = config as IcontainsAnyEvaluatorConfig;
-  return new DeterministicAssertionEvaluator('icontains_any', (ctx) => {
+  return new DeterministicAssertionEvaluator('icontains-any', (ctx) => {
     const result = runIcontainsAnyAssertion(ctx.candidate, c.value);
     return {
       score: result.score,
@@ -346,10 +346,10 @@ export const icontainsAnyFactory: EvaluatorFactoryFn = (config) => {
   });
 };
 
-/** Factory for `icontains_all` deterministic assertion. */
+/** Factory for `icontains-all` deterministic assertion. */
 export const icontainsAllFactory: EvaluatorFactoryFn = (config) => {
   const c = config as IcontainsAllEvaluatorConfig;
-  return new DeterministicAssertionEvaluator('icontains_all', (ctx) => {
+  return new DeterministicAssertionEvaluator('icontains-all', (ctx) => {
     const result = runIcontainsAllAssertion(ctx.candidate, c.value);
     return {
       score: result.score,
@@ -362,10 +362,10 @@ export const icontainsAllFactory: EvaluatorFactoryFn = (config) => {
   });
 };
 
-/** Factory for `starts_with` deterministic assertion. */
+/** Factory for `starts-with` deterministic assertion. */
 export const startsWithFactory: EvaluatorFactoryFn = (config) => {
   const c = config as StartsWithEvaluatorConfig;
-  return new DeterministicAssertionEvaluator('starts_with', (ctx) => {
+  return new DeterministicAssertionEvaluator('starts-with', (ctx) => {
     const result = runStartsWithAssertion(ctx.candidate, c.value);
     return {
       score: result.score,
@@ -378,10 +378,10 @@ export const startsWithFactory: EvaluatorFactoryFn = (config) => {
   });
 };
 
-/** Factory for `ends_with` deterministic assertion. */
+/** Factory for `ends-with` deterministic assertion. */
 export const endsWithFactory: EvaluatorFactoryFn = (config) => {
   const c = config as EndsWithEvaluatorConfig;
-  return new DeterministicAssertionEvaluator('ends_with', (ctx) => {
+  return new DeterministicAssertionEvaluator('ends-with', (ctx) => {
     const result = runEndsWithAssertion(ctx.candidate, c.value);
     return {
       score: result.score,
@@ -401,26 +401,26 @@ export function createBuiltinRegistry(): EvaluatorRegistry {
   const registry = new EvaluatorRegistry();
 
   registry
-    .register('llm_judge', llmJudgeFactory)
-    .register('code_judge', codeFactory)
+    .register('llm-judge', llmJudgeFactory)
+    .register('code-judge', codeFactory)
     .register('composite', compositeFactory)
-    .register('tool_trajectory', toolTrajectoryFactory)
-    .register('field_accuracy', fieldAccuracyFactory)
+    .register('tool-trajectory', toolTrajectoryFactory)
+    .register('field-accuracy', fieldAccuracyFactory)
     .register('latency', latencyFactory)
     .register('cost', costFactory)
-    .register('token_usage', tokenUsageFactory)
-    .register('execution_metrics', executionMetricsFactory)
-    .register('agent_judge', agentJudgeFactory)
+    .register('token-usage', tokenUsageFactory)
+    .register('execution-metrics', executionMetricsFactory)
+    .register('agent-judge', agentJudgeFactory)
     .register('contains', containsFactory)
-    .register('contains_any', containsAnyFactory)
-    .register('contains_all', containsAllFactory)
+    .register('contains-any', containsAnyFactory)
+    .register('contains-all', containsAllFactory)
     .register('icontains', icontainsFactory)
-    .register('icontains_any', icontainsAnyFactory)
-    .register('icontains_all', icontainsAllFactory)
-    .register('starts_with', startsWithFactory)
-    .register('ends_with', endsWithFactory)
+    .register('icontains-any', icontainsAnyFactory)
+    .register('icontains-all', icontainsAllFactory)
+    .register('starts-with', startsWithFactory)
+    .register('ends-with', endsWithFactory)
     .register('regex', regexFactory)
-    .register('is_json', isJsonFactory)
+    .register('is-json', isJsonFactory)
     .register('equals', equalsFactory);
 
   return registry;

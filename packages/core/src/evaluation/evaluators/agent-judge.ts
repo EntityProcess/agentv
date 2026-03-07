@@ -72,7 +72,7 @@ export interface AgentJudgeEvaluatorOptions {
 }
 
 export class AgentJudgeEvaluator implements Evaluator {
-  readonly kind = 'agent_judge';
+  readonly kind = 'agent-judge';
 
   private readonly resolveJudgeProvider: (ctx: EvaluationContext) => Promise<Provider | undefined>;
   private readonly maxSteps: number;
@@ -101,20 +101,20 @@ export class AgentJudgeEvaluator implements Evaluator {
   private async evaluateBuiltIn(context: EvaluationContext): Promise<EvaluationScore> {
     const judgeProvider = await this.resolveJudgeProvider(context);
     if (!judgeProvider) {
-      throw new Error('No judge provider available for agent_judge evaluation');
+      throw new Error('No judge provider available for agent-judge evaluation');
     }
 
     const model = judgeProvider.asLanguageModel?.();
     if (!model) {
       throw new Error(
-        `Judge provider '${judgeProvider.targetName}' does not support asLanguageModel() — required for built-in agent_judge mode`,
+        `Judge provider '${judgeProvider.targetName}' does not support asLanguageModel() — required for built-in agent-judge mode`,
       );
     }
 
     const workspacePath = context.workspacePath;
     if (!workspacePath) {
       throw new Error(
-        'agent_judge evaluator requires a workspace_template target (workspacePath is not set)',
+        'agent-judge evaluator requires a workspace_template target (workspacePath is not set)',
       );
     }
 
@@ -122,7 +122,7 @@ export class AgentJudgeEvaluator implements Evaluator {
     const userPrompt = this.buildUserPrompt(context);
 
     const config = context.evaluator;
-    const rubrics = config?.type === 'agent_judge' ? config.rubrics : undefined;
+    const rubrics = config?.type === 'agent-judge' ? config.rubrics : undefined;
 
     const fsTools = createFilesystemTools(workspacePath);
 
@@ -159,7 +159,7 @@ export class AgentJudgeEvaluator implements Evaluator {
         score: 0,
         verdict: 'fail',
         hits: [],
-        misses: [`agent_judge built-in evaluation failed: ${message}`],
+        misses: [`agent-judge built-in evaluation failed: ${message}`],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         details: { mode: 'built-in', error: message },
@@ -196,7 +196,7 @@ export class AgentJudgeEvaluator implements Evaluator {
           score: 0,
           verdict: 'fail',
           hits: [],
-          misses: ['agent_judge judge_target returned no assistant response'],
+          misses: ['agent-judge judge_target returned no assistant response'],
           expectedAspectCount: 1,
           evaluatorRawRequest,
           details: { mode: 'judge_target', judge_target: provider.targetName },
@@ -204,7 +204,7 @@ export class AgentJudgeEvaluator implements Evaluator {
       }
 
       const config = context.evaluator;
-      const rubrics = config?.type === 'agent_judge' ? config.rubrics : undefined;
+      const rubrics = config?.type === 'agent-judge' ? config.rubrics : undefined;
 
       const details: JsonObject = {
         mode: 'judge_target',
@@ -218,7 +218,7 @@ export class AgentJudgeEvaluator implements Evaluator {
         score: 0,
         verdict: 'fail',
         hits: [],
-        misses: [`agent_judge judge_target evaluation failed: ${message}`],
+        misses: [`agent-judge judge_target evaluation failed: ${message}`],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         details: {
@@ -280,7 +280,7 @@ export class AgentJudgeEvaluator implements Evaluator {
         score: 0,
         verdict: 'fail',
         hits: [],
-        misses: ['Failed to parse agent_judge response as valid evaluation JSON'],
+        misses: ['Failed to parse agent-judge response as valid evaluation JSON'],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         details,
@@ -294,7 +294,7 @@ export class AgentJudgeEvaluator implements Evaluator {
    */
   private buildSystemPrompt(context: EvaluationContext): string {
     const config = context.evaluator;
-    const rubrics = config?.type === 'agent_judge' ? config.rubrics : undefined;
+    const rubrics = config?.type === 'agent-judge' ? config.rubrics : undefined;
 
     const parts: string[] = [
       'You are an expert evaluator with access to the workspace filesystem.',
@@ -335,7 +335,7 @@ export class AgentJudgeEvaluator implements Evaluator {
     }
 
     const config = context.evaluator;
-    const rubrics = config?.type === 'agent_judge' ? config.rubrics : undefined;
+    const rubrics = config?.type === 'agent-judge' ? config.rubrics : undefined;
 
     const parts: string[] = [
       'Evaluate the candidate answer by investigating the workspace.',
@@ -389,7 +389,7 @@ export class AgentJudgeEvaluator implements Evaluator {
         : context.evalCase.question;
 
     const config = context.evaluator;
-    const rubrics = config?.type === 'agent_judge' ? config.rubrics : undefined;
+    const rubrics = config?.type === 'agent-judge' ? config.rubrics : undefined;
 
     if (this.evaluatorTemplate) {
       const variables: Record<string, string> = {

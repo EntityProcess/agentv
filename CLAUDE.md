@@ -17,8 +17,8 @@ These principles guide all feature decisions. **Follow these when proposing or i
 AgentV's core should remain minimal. Complex or domain-specific logic belongs in plugins, not built-in features.
 
 **Extension points (prefer these over adding built-ins):**
-- `code_judge` scripts for custom evaluation logic
-- `llm_judge` evaluators with custom prompt files for domain-specific LLM grading
+- `code-judge` scripts for custom evaluation logic
+- `llm-judge` evaluators with custom prompt files for domain-specific LLM grading
 - CLI wrappers that consume AgentV's JSON/JSONL output for post-processing (aggregation, comparison, reporting)
 
 **Ask yourself:** "Can this be achieved with existing primitives + a plugin or wrapper?" If yes, it should not be a built-in.

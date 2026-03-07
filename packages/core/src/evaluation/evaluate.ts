@@ -70,7 +70,7 @@ export interface EvalTestInput {
  * Matches the YAML `assert` block structure.
  */
 export interface EvalAssertionInput {
-  /** Assertion type (e.g., 'contains', 'llm_judge', 'code_judge') */
+  /** Assertion type (e.g., 'contains', 'llm-judge', 'code-judge') */
   readonly type: string;
   /** Display name */
   readonly name?: string;
@@ -297,10 +297,10 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
 
 /**
  * Map user-facing assertion type names to internal evaluator type names.
- * Handles kebab-case to snake_case normalization (e.g., 'llm-judge' -> 'llm_judge').
+ * Handles snake_case to kebab-case normalization (e.g., 'llm_judge' -> 'llm-judge').
  */
 function mapAssertionType(type: string): string {
-  return type.replace(/-/g, '_');
+  return type.replace(/_/g, '-');
 }
 
 /**

@@ -283,9 +283,9 @@ describe('parseAssertSpec', () => {
       expect(() => parseAssertSpec('regex')).toThrow('regex requires a pattern');
     });
 
-    it('should parse is_json spec', () => {
-      const config = parseAssertSpec('is_json');
-      expect(config.type).toBe('is_json');
+    it('should parse is-json spec', () => {
+      const config = parseAssertSpec('is-json');
+      expect(config.type).toBe('is-json');
     });
 
     it('should parse equals spec', () => {
@@ -324,21 +324,21 @@ describe('parseAssertSpec', () => {
       expect(() => parseAssertSpec('cost')).toThrow('cost requires a budget');
     });
 
-    it('should parse token_usage spec with params', () => {
+    it('should parse token-usage spec with params', () => {
       const config = parseAssertSpec('token_usage:max_total=2000,max_input=1500');
-      expect(config.type).toBe('token_usage');
+      expect(config.type).toBe('token-usage');
       expect((config as { max_total: number }).max_total).toBe(2000);
       expect((config as { max_input: number }).max_input).toBe(1500);
     });
 
-    it('should parse token_usage spec without params', () => {
-      const config = parseAssertSpec('token_usage');
-      expect(config.type).toBe('token_usage');
+    it('should parse token-usage spec without params', () => {
+      const config = parseAssertSpec('token-usage');
+      expect(config.type).toBe('token-usage');
     });
 
-    it('should parse execution_metrics spec', () => {
+    it('should parse execution-metrics spec', () => {
       const config = parseAssertSpec('execution_metrics:max_tool_calls=10,max_tokens=3000');
-      expect(config.type).toBe('execution_metrics');
+      expect(config.type).toBe('execution-metrics');
       expect((config as { max_tool_calls: number }).max_tool_calls).toBe(10);
       expect((config as { max_tokens: number }).max_tokens).toBe(3000);
     });
@@ -346,7 +346,7 @@ describe('parseAssertSpec', () => {
 
   describe('unsupported types', () => {
     it('should throw on unknown evaluator type', () => {
-      expect(() => parseAssertSpec('llm_judge')).toThrow('Unsupported evaluator type');
+      expect(() => parseAssertSpec('llm-judge')).toThrow('Unsupported evaluator type');
     });
 
     it('should throw on empty spec', () => {

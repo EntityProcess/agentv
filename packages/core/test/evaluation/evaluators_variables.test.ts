@@ -34,7 +34,7 @@ const baseTestCase: EvalTest = {
   guideline_paths: [],
   file_paths: [],
   criteria: 'Expected Outcome Text',
-  evaluator: 'llm_judge',
+  evaluator: 'llm-judge',
 };
 
 const baseTarget: ResolvedTarget = {
@@ -73,7 +73,7 @@ File Changes: {{file_changes}}
     const answer = 'Candidate Answer Text';
 
     await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
       candidate: answer,
       target: baseTarget,
       provider: judgeProvider,
@@ -125,7 +125,7 @@ File Changes: {{file_changes}}
     });
 
     await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
       candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
@@ -172,7 +172,7 @@ Expected Messages: {{ expected_output }}
     const answer = 'Candidate Answer Text';
 
     await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
       candidate: answer,
       target: baseTarget,
       provider: judgeProvider,
