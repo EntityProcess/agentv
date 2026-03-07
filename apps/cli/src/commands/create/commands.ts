@@ -54,7 +54,7 @@ tests:
     input: "Hello, how are you?"
     expected_output: "I'm doing well, thank you for asking!"
     assert:
-      - type: llm_judge
+      - type: llm-judge
         rubric:
           accuracy:
             weight: 0.6

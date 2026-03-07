@@ -51,7 +51,7 @@ tests:
 
     assert:
       - name: fast-read
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         expected:
           - tool: Read
@@ -71,7 +71,7 @@ tests:
 
     assert:
       - name: slow-read
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         expected:
           - tool: Read
@@ -92,7 +92,7 @@ tests:
 
     assert:
       - name: data-pipeline-perf
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         expected:
           - tool: fetchData
@@ -117,7 +117,7 @@ tests:
 
     assert:
       - name: auth-perf
-        type: tool_trajectory
+        type: tool-trajectory
         mode: exact
         expected:
           - tool: checkCredentials
@@ -141,7 +141,7 @@ tests:
 
     assert:
       - name: weather-perf
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         expected:
           - tool: search

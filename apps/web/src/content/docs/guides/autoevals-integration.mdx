@@ -63,7 +63,7 @@ tests:
     expected_output: "Paris is the capital of France."
     assert:
       - name: factuality
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "judges/factuality.ts"]
 ```
 
@@ -112,7 +112,7 @@ tests:
     expected_output: "The paper found that transformer models outperform RNNs on long-range tasks."
     assert:
       - name: faithfulness
-        type: code_judge
+        type: code-judge
         command: ["python", "judges/faithfulness.py"]
 ```
 
@@ -200,7 +200,7 @@ tests:
     expected_output: "Exercise improves cardiovascular health, mental well-being, and longevity."
     assert:
       - name: rag-quality
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "judges/rag-suite.ts"]
         weight: 1.0
 ```

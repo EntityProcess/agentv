@@ -256,7 +256,7 @@ describe('validateEvalFile', () => {
       expect(warnings.some((e) => e.message.includes("'value'"))).toBe(true);
     });
 
-    it('validates is_json needs no additional fields', async () => {
+    it('validates is-json needs no additional fields', async () => {
       const filePath = path.join(tempDir, 'assert-is-json.yaml');
       await writeFile(
         filePath,

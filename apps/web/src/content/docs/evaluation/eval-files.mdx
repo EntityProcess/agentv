@@ -18,7 +18,7 @@ execution:
 
 assert:
   - name: correctness
-    type: llm_judge
+    type: llm-judge
     prompt: ./judges/correctness.md
 
 tests:
@@ -77,7 +77,7 @@ The `assert` field is the canonical way to define suite-level evaluators. Suite-
 ```yaml
 description: API response validation
 assert:
-  - type: is_json
+  - type: is-json
     required: true
   - type: contains
     value: "status"
@@ -157,7 +157,7 @@ execution:
   target: azure_base
 assert:
   - name: correctness
-    type: llm_judge
+    type: llm-judge
     prompt: ./judges/correctness.md
 ```
 

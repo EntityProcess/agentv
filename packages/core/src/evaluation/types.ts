@@ -148,27 +148,27 @@ export function isTestMessage(value: unknown): value is TestMessage {
 }
 
 const EVALUATOR_KIND_VALUES = [
-  'code_judge',
-  'llm_judge',
+  'code-judge',
+  'llm-judge',
   'rubric',
   'composite',
-  'tool_trajectory',
-  'field_accuracy',
+  'tool-trajectory',
+  'field-accuracy',
   'latency',
   'cost',
-  'token_usage',
-  'execution_metrics',
-  'agent_judge',
+  'token-usage',
+  'execution-metrics',
+  'agent-judge',
   'contains',
-  'contains_any',
-  'contains_all',
+  'contains-any',
+  'contains-all',
   'icontains',
-  'icontains_any',
-  'icontains_all',
-  'starts_with',
-  'ends_with',
+  'icontains-any',
+  'icontains-all',
+  'starts-with',
+  'ends-with',
   'regex',
-  'is_json',
+  'is-json',
   'equals',
   'rubrics',
 ] as const;
@@ -182,7 +182,7 @@ export function isEvaluatorKind(value: unknown): value is EvaluatorKind {
 }
 
 /**
- * Configuration for enabling target access in code_judge evaluators.
+ * Configuration for enabling target access in code-judge evaluators.
  * When present, the runtime will start a local proxy server that allows
  * the script to invoke configured targets without direct credential access.
  */
@@ -268,7 +268,7 @@ export type WorkspaceConfig = {
 
 export type CodeEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'code';
+  readonly type: 'code-judge';
   readonly command: readonly string[];
   /** @deprecated Use `command` instead */
   readonly script?: readonly string[];
@@ -279,7 +279,7 @@ export type CodeEvaluatorConfig = {
   readonly required?: boolean | number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
-  /** Pass-through configuration for the code_judge (any unrecognized YAML properties) */
+  /** Pass-through configuration for the code-judge (any unrecognized YAML properties) */
   readonly config?: JsonObject;
   /** When present, enables target access via local proxy */
   readonly target?: TargetAccessConfig;
@@ -287,7 +287,7 @@ export type CodeEvaluatorConfig = {
 
 /**
  * Executable prompt template configuration.
- * Matches code_judge pattern for consistency.
+ * Matches code-judge pattern for consistency.
  */
 export type PromptScriptConfig = {
   /** Command array to execute (e.g., ["bun", "run", "template.ts"]) */
@@ -300,13 +300,13 @@ export type PromptScriptConfig = {
 
 export type LlmJudgeEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'llm_judge';
+  readonly type: 'llm-judge';
   /** Text prompt (inline or file path) or executable script config */
   readonly prompt?: string | PromptScriptConfig;
   readonly promptPath?: string;
   /** Resolved absolute path for prompt file (used for text template prompts) */
   readonly resolvedPromptPath?: string;
-  /** Resolved script array for executable prompts (matches code_judge pattern) */
+  /** Resolved script array for executable prompts (matches code-judge pattern) */
   readonly resolvedPromptScript?: readonly string[];
   readonly rubrics?: readonly RubricItem[];
   readonly weight?: number;
@@ -362,9 +362,9 @@ export type RubricItem = {
 
 export type CompositeAggregatorConfig =
   | { readonly type: 'weighted_average'; readonly weights?: Record<string, number> }
-  | { readonly type: 'code_judge'; readonly path: string; readonly cwd?: string }
+  | { readonly type: 'code-judge'; readonly path: string; readonly cwd?: string }
   | {
-      readonly type: 'llm_judge';
+      readonly type: 'llm-judge';
       readonly prompt?: string;
       readonly promptPath?: string;
       readonly model?: string;
@@ -384,7 +384,7 @@ export type CompositeEvaluatorConfig = {
 
 /**
  * Match type for field accuracy evaluation.
- * Note: For fuzzy string matching (Levenshtein, Jaro-Winkler, etc.), use a code_judge evaluator.
+ * Note: For fuzzy string matching (Levenshtein, Jaro-Winkler, etc.), use a code-judge evaluator.
  * See examples/features/document-extraction/fuzzy_match.ts for an example.
  */
 export type FieldMatchType = 'exact' | 'numeric_tolerance' | 'date';
@@ -415,11 +415,11 @@ export type FieldConfig = {
 };
 
 /**
- * Configuration for the field_accuracy evaluator.
+ * Configuration for the field-accuracy evaluator.
  */
 export type FieldAccuracyEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'field_accuracy';
+  readonly type: 'field-accuracy';
   /** Fields to compare between candidate and expected */
   readonly fields: readonly FieldConfig[];
   /** Strategy for combining field scores (default: weighted_average) */
@@ -461,12 +461,12 @@ export type CostEvaluatorConfig = {
 };
 
 /**
- * Configuration for the token_usage evaluator.
+ * Configuration for the token-usage evaluator.
  * Checks provider-reported token usage against configured limits.
  */
 export type TokenUsageEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'token_usage';
+  readonly type: 'token-usage';
   /** Maximum allowed total tokens (input + output + cached, when present) */
   readonly max_total?: number;
   /** Maximum allowed input tokens (prompt) */
@@ -480,13 +480,13 @@ export type TokenUsageEvaluatorConfig = {
 };
 
 /**
- * Configuration for the execution_metrics evaluator.
+ * Configuration for the execution-metrics evaluator.
  * Provides declarative threshold-based checks on execution metrics.
  * Only specified thresholds are checked; omitted ones are ignored.
  */
 export type ExecutionMetricsEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'execution_metrics';
+  readonly type: 'execution-metrics';
   /** Maximum allowed number of tool calls */
   readonly max_tool_calls?: number;
   /** Maximum allowed number of LLM calls (assistant messages) */
@@ -508,7 +508,7 @@ export type ExecutionMetricsEvaluatorConfig = {
 };
 
 /**
- * Configuration for the agent_judge evaluator.
+ * Configuration for the agent-judge evaluator.
  * Runs an agentic investigation loop to audit workspaces and verify criteria.
  * Two modes:
  * - Built-in: Uses AI SDK generateText() with sandboxed filesystem tools
@@ -516,13 +516,13 @@ export type ExecutionMetricsEvaluatorConfig = {
  */
 export type AgentJudgeEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'agent_judge';
+  readonly type: 'agent-judge';
   /** Custom evaluation prompt (inline text or file path) */
   readonly prompt?: string;
   readonly promptPath?: string;
   /** Resolved absolute path for prompt file */
   readonly resolvedPromptPath?: string;
-  /** Rubric items for structured evaluation (reuses llm_judge rubric infra) */
+  /** Rubric items for structured evaluation (reuses llm-judge rubric infra) */
   readonly rubrics?: readonly RubricItem[];
   /** Maximum agent steps for built-in mode (default 10, max 50) */
   readonly max_steps?: number;
@@ -556,7 +556,7 @@ export type ContainsEvaluatorConfig = {
  */
 export type ContainsAnyEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'contains_any';
+  readonly type: 'contains-any';
   readonly value: readonly string[];
   readonly weight?: number;
   readonly required?: boolean | number;
@@ -570,7 +570,7 @@ export type ContainsAnyEvaluatorConfig = {
  */
 export type ContainsAllEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'contains_all';
+  readonly type: 'contains-all';
   readonly value: readonly string[];
   readonly weight?: number;
   readonly required?: boolean | number;
@@ -598,7 +598,7 @@ export type IcontainsEvaluatorConfig = {
  */
 export type IcontainsAnyEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'icontains_any';
+  readonly type: 'icontains-any';
   readonly value: readonly string[];
   readonly weight?: number;
   readonly required?: boolean | number;
@@ -612,7 +612,7 @@ export type IcontainsAnyEvaluatorConfig = {
  */
 export type IcontainsAllEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'icontains_all';
+  readonly type: 'icontains-all';
   readonly value: readonly string[];
   readonly weight?: number;
   readonly required?: boolean | number;
@@ -626,7 +626,7 @@ export type IcontainsAllEvaluatorConfig = {
  */
 export type StartsWithEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'starts_with';
+  readonly type: 'starts-with';
   readonly value: string;
   readonly weight?: number;
   readonly required?: boolean | number;
@@ -640,7 +640,7 @@ export type StartsWithEvaluatorConfig = {
  */
 export type EndsWithEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'ends_with';
+  readonly type: 'ends-with';
   readonly value: string;
   readonly weight?: number;
   readonly required?: boolean | number;
@@ -670,7 +670,7 @@ export type RegexEvaluatorConfig = {
  */
 export type IsJsonEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'is_json';
+  readonly type: 'is-json';
   readonly weight?: number;
   readonly required?: boolean | number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */

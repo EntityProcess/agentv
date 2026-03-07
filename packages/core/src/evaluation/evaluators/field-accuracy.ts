@@ -65,7 +65,7 @@ export interface FieldAccuracyEvaluatorOptions {
  * with configurable matching strategies (exact, fuzzy, numeric_tolerance, date).
  */
 export class FieldAccuracyEvaluator implements Evaluator {
-  readonly kind = 'field_accuracy';
+  readonly kind = 'field-accuracy';
 
   private readonly config: FieldAccuracyEvaluatorConfig;
 

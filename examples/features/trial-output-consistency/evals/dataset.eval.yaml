@@ -25,7 +25,7 @@ tests:
 
     assert:
       - name: trial-consistency
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/trial-consistency.ts"]
         config:
           fallback: token
@@ -48,7 +48,7 @@ tests:
 
     assert:
       - name: trial-consistency
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/trial-consistency.ts"]
         config:
           fallback: token
@@ -71,7 +71,7 @@ tests:
 
     assert:
       - name: trial-consistency
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/trial-consistency.ts"]
         config:
           fallback: token
@@ -92,7 +92,7 @@ tests:
 
     assert:
       - name: trial-consistency
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/trial-consistency.ts"]
         config:
           fallback: token

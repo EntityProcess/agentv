@@ -74,9 +74,9 @@ export class CompositeEvaluator implements Evaluator {
     const aggregator = this.config.aggregator;
 
     switch (aggregator.type) {
-      case 'code_judge':
+      case 'code-judge':
         return this.runCodeAggregator(results, aggregator.path, aggregator.cwd ?? this.cwd);
-      case 'llm_judge':
+      case 'llm-judge':
         return this.runLlmAggregator(results, context, aggregator);
       case 'threshold':
         return this.runThreshold(results, aggregator.threshold);
@@ -251,7 +251,7 @@ export class CompositeEvaluator implements Evaluator {
         expectedAspectCount: hits.length + misses.length || 1,
         reasoning,
         evaluatorRawRequest: {
-          aggregator: 'code_judge',
+          aggregator: 'code-judge',
           script: scriptPath,
         },
         scores,
@@ -266,7 +266,7 @@ export class CompositeEvaluator implements Evaluator {
         expectedAspectCount: 1,
         reasoning: message,
         evaluatorRawRequest: {
-          aggregator: 'code_judge',
+          aggregator: 'code-judge',
           script: scriptPath,
           error: message,
         },
@@ -278,7 +278,7 @@ export class CompositeEvaluator implements Evaluator {
   private async runLlmAggregator(
     results: readonly MemberResult[],
     context: EvaluationContext,
-    config: Extract<CompositeAggregatorConfig, { type: 'llm_judge' }>,
+    config: Extract<CompositeAggregatorConfig, { type: 'llm-judge' }>,
   ): Promise<EvaluationScore> {
     const judgeProvider = context.judgeProvider;
     if (!judgeProvider) {
@@ -309,7 +309,7 @@ export class CompositeEvaluator implements Evaluator {
     const systemPrompt = buildOutputSchema();
 
     const evaluatorRawRequest: JsonObject = {
-      aggregator: 'llm_judge',
+      aggregator: 'llm-judge',
       userPrompt,
       systemPrompt,
       target: judgeProvider.targetName,

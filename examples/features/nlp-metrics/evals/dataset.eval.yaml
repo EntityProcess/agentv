@@ -21,7 +21,7 @@ tests:
 
     assert:
       - name: rouge-score
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/rouge.ts"]
 
   - id: translation-bleu
@@ -37,7 +37,7 @@ tests:
 
     assert:
       - name: bleu-score
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/bleu.ts"]
 
   - id: paraphrase-similarity
@@ -53,7 +53,7 @@ tests:
 
     assert:
       - name: cosine-similarity
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/similarity.ts"]
 
   - id: extraction-levenshtein
@@ -69,7 +69,7 @@ tests:
 
     assert:
       - name: edit-distance
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/levenshtein.ts"]
 
   - id: multi-metric-evaluation
@@ -85,11 +85,11 @@ tests:
 
     assert:
       - name: rouge-score
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/rouge.ts"]
       - name: cosine-similarity
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/similarity.ts"]
       - name: edit-distance
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/levenshtein.ts"]

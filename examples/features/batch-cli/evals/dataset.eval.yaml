@@ -44,12 +44,12 @@ tests:
 
     assert:
       - name: decision-check
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
       - name: tool-trajectory-check
-        type: tool_trajectory
+        type: tool-trajectory
         mode: any_order
         minimums:
           aml_screening: 1
@@ -83,12 +83,12 @@ tests:
 
     assert:
       - name: decision-check
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
       - name: tool-trajectory-check
-        type: tool_trajectory
+        type: tool-trajectory
         mode: any_order
         minimums:
           aml_screening: 1
@@ -122,12 +122,12 @@ tests:
 
     assert:
       - name: decision-check
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
       - name: tool-trajectory-check
-        type: tool_trajectory
+        type: tool-trajectory
         mode: any_order
         minimums:
           aml_screening: 1
@@ -161,12 +161,12 @@ tests:
 
     assert:
       - name: decision-check
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
       - name: tool-trajectory-check
-        type: tool_trajectory
+        type: tool-trajectory
         mode: any_order
         minimums:
           aml_screening: 1

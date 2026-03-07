@@ -15,7 +15,7 @@ export interface ExecutionMetricsEvaluatorOptions {
  * Score is proportional: hits.length / (hits.length + misses.length)
  */
 export class ExecutionMetricsEvaluator implements Evaluator {
-  readonly kind = 'execution_metrics';
+  readonly kind = 'execution-metrics';
 
   private readonly config: ExecutionMetricsEvaluatorConfig;
 
@@ -49,7 +49,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
         expectedAspectCount: 1,
         reasoning: 'Execution metrics not available - no trace summary provided',
         evaluatorRawRequest: {
-          type: 'execution_metrics',
+          type: 'execution-metrics',
           config: this.extractConfiguredThresholds(),
           actual: null,
         },
@@ -188,7 +188,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
 
     const reasoning =
       reasoningParts.length > 0
-        ? `execution_metrics ${reasoningParts.join(', ')}`
+        ? `execution-metrics ${reasoningParts.join(', ')}`
         : 'No metrics evaluated';
 
     return {
@@ -199,7 +199,7 @@ export class ExecutionMetricsEvaluator implements Evaluator {
       expectedAspectCount: totalChecks || 1,
       reasoning,
       evaluatorRawRequest: {
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         config: this.extractConfiguredThresholds(),
         actual: this.filterDefinedMetrics(actualMetrics),
       },

@@ -248,7 +248,7 @@ async function loadTestsFromYaml(
 
   const rawTestcases = resolveTests(suite);
 
-  const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm_judge';
+  const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm-judge';
 
   // Parse suite-level workspace config (default for all cases)
   const evalFileDir = path.dirname(absoluteTestPath);

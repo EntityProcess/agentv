@@ -55,7 +55,7 @@ tests:
 
     assert:
       - name: tool-usage-check
-        type: tool_trajectory
+        type: tool-trajectory
         mode: any_order
         minimums:
           knowledgeSearch: 2    # Mock agent calls this 2 times
@@ -78,7 +78,7 @@ tests:
 
     assert:
       - name: workflow-sequence
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         expected:
           - tool: fetchData
@@ -103,7 +103,7 @@ tests:
 
     assert:
       - name: auth-sequence-exact
-        type: tool_trajectory
+        type: tool-trajectory
         mode: exact
         expected:
           - tool: checkCredentials
@@ -127,7 +127,7 @@ tests:
 
     assert:
       - name: metrics-tools
-        type: tool_trajectory
+        type: tool-trajectory
         mode: any_order
         minimums:
           getCpuMetrics: 1
@@ -150,7 +150,7 @@ tests:
 
     assert:
       - name: tool-check
-        type: tool_trajectory
+        type: tool-trajectory
         mode: any_order
         minimums:
           knowledgeSearch: 1    # Present in research trace (will pass)
@@ -178,7 +178,7 @@ tests:
 
     assert:
       - name: arg-validation
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         # Use superset args matching to allow extra keys in actual args
         args_match: superset
@@ -205,7 +205,7 @@ tests:
 
     assert:
       - name: workflow-sequence-only
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         expected:
           # Superset match: must include this key, extras OK
@@ -240,7 +240,7 @@ tests:
 
     assert:
       - name: required-tools
-        type: tool_trajectory
+        type: tool-trajectory
         mode: superset
         args_match: superset
         expected:
@@ -263,7 +263,7 @@ tests:
 
     assert:
       - name: safe-tools-only
-        type: tool_trajectory
+        type: tool-trajectory
         mode: subset
         expected:
           - tool: getCpuMetrics
@@ -286,7 +286,7 @@ tests:
 
     assert:
       - name: mixed-precision
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         args_match: ignore  # Default: don't check args
         expected:
@@ -311,7 +311,7 @@ tests:
 
     assert:
       - name: check-source-only
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         expected:
           - tool: fetchData

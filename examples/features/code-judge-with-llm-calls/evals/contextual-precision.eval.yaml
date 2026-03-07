@@ -19,7 +19,7 @@
 
 assert:
   - name: contextual_precision
-    type: code_judge
+    type: code-judge
     command: [bun, run, ../scripts/contextual-precision.ts]
     # Target access config - allows script to invoke configured targets
     # max_calls should be >= number of retrieval context nodes

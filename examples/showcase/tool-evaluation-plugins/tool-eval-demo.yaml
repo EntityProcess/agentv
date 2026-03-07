@@ -31,7 +31,7 @@ tests:
     assert:
       # Built-in: Check minimum tool calls
       - name: trajectory-check
-        type: tool_trajectory
+        type: tool-trajectory
         mode: any_order
         minimums:
           search: 1
@@ -39,7 +39,7 @@ tests:
 
       # Plugin: Semantic tool selection evaluation
       - name: selection-quality
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "scripts/tool-selection-judge.ts"]
 
   # ==========================================
@@ -60,7 +60,7 @@ tests:
     assert:
       # Plugin: Efficiency metrics scoring
       - name: efficiency-check
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "scripts/efficiency-scorer.ts"]
 
   # ==========================================
@@ -84,7 +84,7 @@ tests:
     assert:
       # Built-in: Verify required workflow sequence
       - name: workflow-trajectory
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         expected:
           - tool: search
@@ -93,12 +93,12 @@ tests:
 
       # Plugin: Check if tools were appropriate choices
       - name: selection-check
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "scripts/tool-selection-judge.ts"]
 
       # Plugin: Evaluate efficiency
       - name: efficiency
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "scripts/efficiency-scorer.ts"]
 
   # ==========================================
@@ -128,5 +128,5 @@ tests:
     assert:
       # Plugin: Pairwise comparison with position bias mitigation
       - name: pairwise-quality
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "scripts/pairwise-tool-compare.ts"]

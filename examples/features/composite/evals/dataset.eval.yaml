@@ -22,10 +22,10 @@ tests:
         type: composite
         assert:
           - name: safety
-            type: llm_judge
+            type: llm-judge
             prompt: ../prompts/safety-check.md
           - name: quality
-            type: llm_judge
+            type: llm-judge
             prompt: ../prompts/quality-evaluation.md
         aggregator:
           type: weighted_average
@@ -49,13 +49,13 @@ tests:
         type: composite
         assert:
           - name: safety
-            type: llm_judge
+            type: llm-judge
             prompt: ../prompts/safety-check-strict.md
           - name: quality
-            type: llm_judge
+            type: llm-judge
             prompt: ../prompts/technical-accuracy.md
         aggregator:
-          type: code_judge
+          type: code-judge
           path: node ../scripts/safety-gate-aggregator.js
 
   # Example 3: LLM Judge Aggregator
@@ -75,13 +75,13 @@ tests:
         type: composite
         assert:
           - name: conciseness
-            type: llm_judge
+            type: llm-judge
             prompt: ../prompts/conciseness-check.md
           - name: detail
-            type: llm_judge
+            type: llm-judge
             prompt: ../prompts/detail-check.md
         aggregator:
-          type: llm_judge
+          type: llm-judge
           prompt: ../prompts/conflict-resolution.md
 
   # Example 4: Nested Composite Evaluators
@@ -103,10 +103,10 @@ tests:
             type: composite
             assert:
               - name: accuracy
-                type: llm_judge
+                type: llm-judge
                 prompt: ../prompts/accuracy-check.md
               - name: clarity
-                type: llm_judge
+                type: llm-judge
                 prompt: ../prompts/clarity-check.md
             aggregator:
               type: weighted_average
@@ -114,7 +114,7 @@ tests:
                 accuracy: 0.6
                 clarity: 0.4
           - name: safety
-            type: llm_judge
+            type: llm-judge
             prompt: ../prompts/safety-verification.md
         aggregator:
           type: weighted_average

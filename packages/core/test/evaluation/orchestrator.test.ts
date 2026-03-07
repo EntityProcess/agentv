@@ -121,7 +121,7 @@ const baseTestCase: EvalTest = {
   guideline_paths: [],
   file_paths: [],
   criteria: 'Logging improved',
-  evaluator: 'llm_judge',
+  evaluator: 'llm-judge',
 };
 
 const baseTarget: ResolvedTarget = {
@@ -131,8 +131,8 @@ const baseTarget: ResolvedTarget = {
 };
 
 const evaluatorRegistry = {
-  llm_judge: {
-    kind: 'llm_judge',
+  'llm-judge': {
+    kind: 'llm-judge',
     async evaluate() {
       return {
         score: 0.8,
@@ -379,7 +379,7 @@ describe('runTestCase', () => {
     });
 
     const evaluatorRegistry = {
-      llm_judge: new LlmJudgeEvaluator({
+      'llm-judge': new LlmJudgeEvaluator({
         resolveJudgeProvider: async () => judgeProvider,
       }),
     };
@@ -387,7 +387,7 @@ describe('runTestCase', () => {
     const result = await runEvalCase({
       evalCase: {
         ...baseTestCase,
-        evaluators: [{ name: 'semantic', type: 'llm_judge', promptPath }],
+        evaluators: [{ name: 'semantic', type: 'llm-judge', promptPath }],
       },
       provider,
       target: baseTarget,
@@ -445,7 +445,7 @@ describe('runTestCase', () => {
         guideline_paths: [],
         file_paths: [],
         criteria: '',
-        evaluator: 'llm_judge',
+        evaluator: 'llm-judge',
       },
       provider,
       target: baseTarget,
@@ -482,7 +482,7 @@ describe('runTestCase', () => {
         guideline_paths: [],
         file_paths: [],
         criteria: '',
-        evaluator: 'llm_judge',
+        evaluator: 'llm-judge',
       },
       provider,
       target: baseTarget,
@@ -591,7 +591,7 @@ describe('runEvalCase trace integration', () => {
     guideline_paths: [],
     file_paths: [],
     criteria: 'Weather information provided',
-    evaluator: 'llm_judge',
+    evaluator: 'llm-judge',
   };
 
   it('includes trace in result when provider returns output with tool calls', async () => {
@@ -657,7 +657,7 @@ describe('runEvalCase trace integration', () => {
         evaluators: [
           {
             name: 'token-budget',
-            type: 'token_usage',
+            type: 'token-usage',
             max_total: 1000,
           },
         ],
@@ -672,7 +672,7 @@ describe('runEvalCase trace integration', () => {
     expect(result.score).toBe(1);
   });
 
-  it('runs tool_trajectory evaluator with output', async () => {
+  it('runs tool-trajectory evaluator with output', async () => {
     const output: Message[] = [
       {
         role: 'assistant',
@@ -705,7 +705,7 @@ describe('runEvalCase trace integration', () => {
     const trajectoryEvaluator = new ToolTrajectoryEvaluator({
       config: {
         name: 'tool-check',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'any_order',
         minimums: { search: 1, analyze: 1 },
       },
@@ -717,7 +717,7 @@ describe('runEvalCase trace integration', () => {
         evaluators: [
           {
             name: 'tool-check',
-            type: 'tool_trajectory',
+            type: 'tool-trajectory',
             mode: 'any_order',
             minimums: { search: 1, analyze: 1 },
           },
@@ -726,8 +726,8 @@ describe('runEvalCase trace integration', () => {
       provider,
       target: baseTarget,
       evaluators: {
-        llm_judge: evaluatorRegistry.llm_judge,
-        tool_trajectory: trajectoryEvaluator,
+        'llm-judge': evaluatorRegistry['llm-judge'],
+        'tool-trajectory': trajectoryEvaluator,
       },
     });
 
@@ -737,7 +737,7 @@ describe('runEvalCase trace integration', () => {
     expect(result.scores?.[0]?.verdict).toBe('pass');
   });
 
-  it('fails tool_trajectory evaluator when no trace available', async () => {
+  it('fails tool-trajectory evaluator when no trace available', async () => {
     const provider = new TraceProvider('mock', {
       output: [{ role: 'assistant', content: 'Result' }],
     });
@@ -745,7 +745,7 @@ describe('runEvalCase trace integration', () => {
     const trajectoryEvaluator = new ToolTrajectoryEvaluator({
       config: {
         name: 'tool-check',
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode: 'any_order',
         minimums: { search: 1 },
       },
@@ -757,7 +757,7 @@ describe('runEvalCase trace integration', () => {
         evaluators: [
           {
             name: 'tool-check',
-            type: 'tool_trajectory',
+            type: 'tool-trajectory',
             mode: 'any_order',
             minimums: { search: 1 },
           },
@@ -766,8 +766,8 @@ describe('runEvalCase trace integration', () => {
       provider,
       target: baseTarget,
       evaluators: {
-        llm_judge: evaluatorRegistry.llm_judge,
-        tool_trajectory: trajectoryEvaluator,
+        'llm-judge': evaluatorRegistry['llm-judge'],
+        'tool-trajectory': trajectoryEvaluator,
       },
     });
 
@@ -860,8 +860,8 @@ describe('runEvalCase trace integration', () => {
         evalCase: {
           ...baseTestCase,
           evaluators: [
-            { name: 'eval1', type: 'llm_judge', weight: 2.0 },
-            { name: 'eval2', type: 'llm_judge', weight: 1.0 },
+            { name: 'eval1', type: 'llm-judge', weight: 2.0 },
+            { name: 'eval2', type: 'llm-judge', weight: 1.0 },
           ],
         },
         provider,
@@ -892,8 +892,8 @@ describe('runEvalCase trace integration', () => {
         evalCase: {
           ...baseTestCase,
           evaluators: [
-            { name: 'eval1', type: 'llm_judge', weight: 3.0 },
-            { name: 'eval2', type: 'llm_judge' }, // no weight specified
+            { name: 'eval1', type: 'llm-judge', weight: 3.0 },
+            { name: 'eval2', type: 'llm-judge' }, // no weight specified
           ],
         },
         provider,
@@ -923,8 +923,8 @@ describe('runEvalCase trace integration', () => {
         evalCase: {
           ...baseTestCase,
           evaluators: [
-            { name: 'eval1', type: 'llm_judge', weight: 0 },
-            { name: 'eval2', type: 'llm_judge', weight: 1.0 },
+            { name: 'eval1', type: 'llm-judge', weight: 0 },
+            { name: 'eval2', type: 'llm-judge', weight: 1.0 },
           ],
         },
         provider,
@@ -954,8 +954,8 @@ describe('runEvalCase trace integration', () => {
         evalCase: {
           ...baseTestCase,
           evaluators: [
-            { name: 'eval1', type: 'llm_judge', weight: 0 },
-            { name: 'eval2', type: 'llm_judge', weight: 0 },
+            { name: 'eval1', type: 'llm-judge', weight: 0 },
+            { name: 'eval2', type: 'llm-judge', weight: 0 },
           ],
         },
         provider,
@@ -989,7 +989,7 @@ Reference: \${input.reference_answer ?? 'none'}\`);
       // Custom judge that captures the prompt it receives
       let receivedQuestion = '';
       const captureJudge = {
-        kind: 'llm_judge' as const,
+        kind: 'llm-judge' as const,
         async evaluate(context: { evalCase: EvalTest; evaluatorTemplateOverride?: string }) {
           // The evaluatorTemplateOverride should contain our custom prompt
           receivedQuestion = context.evaluatorTemplateOverride ?? '';
@@ -1019,15 +1019,15 @@ Reference: \${input.reference_answer ?? 'none'}\`);
           evaluators: [
             {
               name: 'ts-prompt-eval',
-              type: 'llm_judge',
-              // Use explicit script array (matches code_judge pattern)
+              type: 'llm-judge',
+              // Use explicit script array (matches code-judge pattern)
               resolvedPromptScript: ['bun', 'run', promptPath],
             },
           ],
         },
         provider,
         target: baseTarget,
-        evaluators: { llm_judge: captureJudge },
+        evaluators: { 'llm-judge': captureJudge },
       });
 
       expect(result.score).toBe(1.0);
@@ -1052,7 +1052,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
 
       let receivedPrompt = '';
       const captureJudge = {
-        kind: 'llm_judge' as const,
+        kind: 'llm-judge' as const,
         async evaluate(context: { evaluatorTemplateOverride?: string }) {
           receivedPrompt = context.evaluatorTemplateOverride ?? '';
           return {
@@ -1080,7 +1080,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
           evaluators: [
             {
               name: 'js-prompt-eval',
-              type: 'llm_judge',
+              type: 'llm-judge',
               // Use explicit script array - node for JavaScript files
               resolvedPromptScript: ['node', promptPath],
             },
@@ -1088,7 +1088,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
         },
         provider,
         target: baseTarget,
-        evaluators: { llm_judge: captureJudge },
+        evaluators: { 'llm-judge': captureJudge },
       });
 
       expect(result.score).toBe(1.0);
@@ -1105,7 +1105,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
 
       let receivedPrompt = '';
       const captureJudge = {
-        kind: 'llm_judge' as const,
+        kind: 'llm-judge' as const,
         async evaluate(context: { evaluatorTemplateOverride?: string }) {
           receivedPrompt = context.evaluatorTemplateOverride ?? '';
           return {
@@ -1132,7 +1132,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
           evaluators: [
             {
               name: 'txt-prompt-eval',
-              type: 'llm_judge',
+              type: 'llm-judge',
               promptPath: promptPath,
               resolvedPromptPath: promptPath,
             },
@@ -1140,7 +1140,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
         },
         provider,
         target: baseTarget,
-        evaluators: { llm_judge: captureJudge },
+        evaluators: { 'llm-judge': captureJudge },
       });
 
       expect(result.score).toBe(1.0);
@@ -1169,8 +1169,8 @@ describe('runEvaluation with trials', () => {
   function createScoringEvaluator(scores: number[]) {
     let callIndex = 0;
     return {
-      llm_judge: {
-        kind: 'llm_judge' as const,
+      'llm-judge': {
+        kind: 'llm-judge' as const,
         async evaluate() {
           const score = scores[callIndex] ?? scores[scores.length - 1];
           callIndex += 1;
@@ -1591,17 +1591,17 @@ describe('deterministic assertion evaluators in orchestrator', () => {
       expectedVerdict: 'fail',
     },
     {
-      label: 'is_json pass',
-      type: 'is_json' as const,
-      evaluator: { name: 'valid-json', type: 'is_json' as const },
+      label: 'is-json pass',
+      type: 'is-json' as const,
+      evaluator: { name: 'valid-json', type: 'is-json' as const },
       output: '{"key": "value"}',
       expectedScore: 1,
       expectedVerdict: 'pass',
     },
     {
-      label: 'is_json fail',
-      type: 'is_json' as const,
-      evaluator: { name: 'valid-json', type: 'is_json' as const },
+      label: 'is-json fail',
+      type: 'is-json' as const,
+      evaluator: { name: 'valid-json', type: 'is-json' as const },
       output: 'not json at all',
       expectedScore: 0,
       expectedVerdict: 'fail',
@@ -1731,7 +1731,7 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
     criteria: 'Response should be polite',
   };
 
-  it('does NOT inject implicit llm_judge when criteria is present with assert', async () => {
+  it('does NOT inject implicit llm-judge when criteria is present with assert', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
     });
@@ -1752,7 +1752,7 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
       evaluators: evaluatorRegistry,
     });
 
-    // Only the declared contains evaluator — no implicit llm_judge
+    // Only the declared contains evaluator — no implicit llm-judge
     expect(result.scores).toHaveLength(1);
     expect(result.scores?.[0].type).toBe('contains');
   });
@@ -1798,13 +1798,13 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
       judgeTarget: 'judge-target',
     };
 
-    // When user explicitly adds llm_judge to assert, it runs and reads criteria
+    // When user explicitly adds llm-judge to assert, it runs and reads criteria
     const result = await runEvalCase({
       evalCase: {
         ...criteriaTestCase,
         criteria: 'Response should be polite',
         evaluators: [
-          { name: 'quality-check', type: 'llm_judge' as const },
+          { name: 'quality-check', type: 'llm-judge' as const },
           { name: 'has-hello', type: 'contains' as const, value: 'hello' },
         ],
       },
@@ -1813,9 +1813,9 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
       evaluators: evaluatorRegistry,
     });
 
-    // Both run: explicit llm_judge + contains
+    // Both run: explicit llm-judge + contains
     expect(result.scores).toHaveLength(2);
-    expect(result.scores?.[0].type).toBe('llm_judge');
+    expect(result.scores?.[0].type).toBe('llm-judge');
     expect(result.scores?.[1].type).toBe('contains');
   });
 });
@@ -1950,11 +1950,11 @@ describe('required gates', () => {
     expect(result.scores).toHaveLength(2);
   });
 
-  it('required: true uses 0.8 threshold (llm_judge score below 0.8 triggers gate)', async () => {
-    // Create an evaluator registry where llm_judge returns 0.7 (below 0.8 threshold)
+  it('required: true uses 0.8 threshold (llm-judge score below 0.8 triggers gate)', async () => {
+    // Create an evaluator registry where llm-judge returns 0.7 (below 0.8 threshold)
     const lowScoreEvaluatorRegistry = {
-      llm_judge: {
-        kind: 'llm_judge' as const,
+      'llm-judge': {
+        kind: 'llm-judge' as const,
         async evaluate() {
           return {
             score: 0.7,
@@ -1978,14 +1978,14 @@ describe('required gates', () => {
     const result = await runEvalCase({
       evalCase: {
         ...assertionTestCase,
-        evaluators: [{ name: 'quality-check', type: 'llm_judge', required: true }],
+        evaluators: [{ name: 'quality-check', type: 'llm-judge', required: true }],
       },
       provider,
       target: baseTarget,
       evaluators: lowScoreEvaluatorRegistry,
     });
 
-    // llm_judge returns 0.7 which is below the 0.8 default threshold for required: true
+    // llm-judge returns 0.7 which is below the 0.8 default threshold for required: true
     expect(result.score).toBe(0);
   });
 

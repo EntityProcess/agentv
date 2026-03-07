@@ -48,7 +48,7 @@ const baseTestCase: EvalTest = {
   guideline_paths: [],
   file_paths: [],
   criteria: 'Logging improved',
-  evaluator: 'llm_judge',
+  evaluator: 'llm-judge',
 };
 
 const baseTarget: ResolvedTarget = {
@@ -59,8 +59,8 @@ const baseTarget: ResolvedTarget = {
 
 /** Returns a score >= 0.8 → executionStatus 'ok' */
 const highScoreEvaluators = {
-  llm_judge: {
-    kind: 'llm_judge',
+  'llm-judge': {
+    kind: 'llm-judge',
     async evaluate() {
       return {
         score: 0.9,
@@ -75,8 +75,8 @@ const highScoreEvaluators = {
 
 /** Returns a score < 0.8 → executionStatus 'quality_failure' */
 const lowScoreEvaluators = {
-  llm_judge: {
-    kind: 'llm_judge',
+  'llm-judge': {
+    kind: 'llm-judge',
     async evaluate() {
       return {
         score: 0.3,
@@ -169,8 +169,8 @@ describe('execution status classification', () => {
 
   it('sets executionStatus to ok at exact 0.8 threshold', async () => {
     const thresholdEvaluators = {
-      llm_judge: {
-        kind: 'llm_judge',
+      'llm-judge': {
+        kind: 'llm-judge',
         async evaluate() {
           return {
             score: 0.8,
@@ -198,8 +198,8 @@ describe('execution status classification', () => {
 
   it('sets executionStatus to quality_failure just below threshold', async () => {
     const belowThresholdEvaluators = {
-      llm_judge: {
-        kind: 'llm_judge',
+      'llm-judge': {
+        kind: 'llm-judge',
         async evaluate() {
           return {
             score: 0.79,

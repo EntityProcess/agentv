@@ -29,7 +29,7 @@ export interface CodeEvaluatorOptions {
 }
 
 export class CodeEvaluator implements Evaluator {
-  readonly kind = 'code';
+  readonly kind = 'code-judge';
 
   private readonly command: readonly string[];
   private readonly cwd?: string;

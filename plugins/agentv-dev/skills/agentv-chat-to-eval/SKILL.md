@@ -96,10 +96,10 @@ Append a commented evaluator configuration based on the test content:
 # Suggested additional evaluators:
 # assert:
 #   - name: quality
-#     type: llm_judge
+#     type: llm-judge
 #     prompt: ./prompts/quality.md
 #   - name: accuracy
-#     type: code_judge
+#     type: code-judge
 #     command: [./scripts/check_accuracy.py]
 ```
 

@@ -102,7 +102,7 @@ export interface RunEvalCaseOptions {
   readonly evalCase: EvalTest;
   readonly provider: Provider;
   readonly target: ResolvedTarget;
-  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
+  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-judge': Evaluator };
   readonly now?: () => Date;
   readonly maxRetries?: number;
   readonly agentTimeoutMs?: number;
@@ -724,7 +724,7 @@ async function runBatchEvaluation(options: {
   readonly provider: Provider;
   readonly target: ResolvedTarget;
   readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
-    readonly llm_judge: Evaluator;
+    readonly 'llm-judge': Evaluator;
   };
   readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
   readonly nowFn: () => Date;
@@ -1447,7 +1447,7 @@ async function evaluateCandidate(options: {
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
-  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
+  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-judge': Evaluator };
   readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
   readonly promptInputs: PromptInputs;
   readonly nowFn: () => Date;
@@ -1582,7 +1582,7 @@ async function runEvaluatorsForCase(options: {
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
-  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator };
+  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-judge': Evaluator };
   readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
   readonly attempt: number;
   readonly promptInputs: PromptInputs;
@@ -1654,8 +1654,8 @@ async function runEvaluatorsForCase(options: {
     });
   }
 
-  const evaluatorKind = evalCase.evaluator ?? 'llm_judge';
-  const activeEvaluator = evaluators[evaluatorKind] ?? evaluators.llm_judge;
+  const evaluatorKind = evalCase.evaluator ?? 'llm-judge';
+  const activeEvaluator = evaluators[evaluatorKind] ?? evaluators['llm-judge'];
   if (!activeEvaluator) {
     throw new Error(`No evaluator registered for kind '${evaluatorKind}'`);
   }
@@ -1692,7 +1692,7 @@ async function runEvaluatorList(options: {
   readonly target: ResolvedTarget;
   readonly provider: Provider;
   readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
-    readonly llm_judge: Evaluator;
+    readonly 'llm-judge': Evaluator;
   };
   readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
   readonly attempt: number;
@@ -1780,7 +1780,7 @@ async function runEvaluatorList(options: {
     availableTargets,
     agentTimeoutMs,
     evalFileDir,
-    llmJudge: evaluatorRegistry.llm_judge,
+    llmJudge: evaluatorRegistry['llm-judge'],
     registry: typeRegistry,
   };
 
@@ -1790,20 +1790,18 @@ async function runEvaluatorList(options: {
       const evaluatorInstance = await typeRegistry.create(evaluatorConfig, dispatchContext);
       const score = await evaluatorInstance.evaluate(evalContext);
 
-      // Determine result type (code evaluators report as code_judge)
-      const resultType = evaluatorConfig.type === 'code' ? 'code_judge' : evaluatorConfig.type;
       const weight = evaluatorConfig.weight ?? 1.0;
 
       scored.push({
         score,
         name: evaluatorConfig.name,
-        type: resultType,
+        type: evaluatorConfig.type,
         weight,
         ...(evaluatorConfig.required !== undefined ? { required: evaluatorConfig.required } : {}),
       });
       scores.push({
         name: evaluatorConfig.name,
-        type: resultType,
+        type: evaluatorConfig.type,
         score: score.score,
         weight,
         verdict: score.verdict,
@@ -1825,18 +1823,17 @@ async function runEvaluatorList(options: {
         expectedAspectCount: 1,
         reasoning: message,
       };
-      const resultType = evaluatorConfig.type === 'code' ? 'code_judge' : evaluatorConfig.type;
       const weight = evaluatorConfig.weight ?? 1.0;
       scored.push({
         score: fallbackScore,
         name: evaluatorConfig.name ?? 'unknown',
-        type: resultType ?? 'llm_judge',
+        type: evaluatorConfig.type ?? 'llm-judge',
         weight,
         ...(evaluatorConfig.required !== undefined ? { required: evaluatorConfig.required } : {}),
       });
       scores.push({
         name: evaluatorConfig.name ?? 'unknown',
-        type: resultType ?? 'llm_judge',
+        type: evaluatorConfig.type ?? 'llm-judge',
         score: 0,
         weight,
         verdict: 'fail',
@@ -1915,9 +1912,9 @@ function filterEvalCases(evalCases: readonly EvalTest[], filter?: string): reado
 function buildEvaluatorRegistry(
   overrides: Partial<Record<string, Evaluator>> | undefined,
   resolveJudgeProvider: (target: ResolvedTarget) => Promise<Provider | undefined>,
-): Partial<Record<string, Evaluator>> & { readonly llm_judge: Evaluator } {
+): Partial<Record<string, Evaluator>> & { readonly 'llm-judge': Evaluator } {
   const llmJudge =
-    overrides?.llm_judge ??
+    overrides?.['llm-judge'] ??
     new LlmJudgeEvaluator({
       resolveJudgeProvider: async (context) => {
         if (context.judgeProvider) {
@@ -1929,7 +1926,7 @@ function buildEvaluatorRegistry(
 
   return {
     ...overrides,
-    llm_judge: llmJudge,
+    'llm-judge': llmJudge,
   };
 }
 

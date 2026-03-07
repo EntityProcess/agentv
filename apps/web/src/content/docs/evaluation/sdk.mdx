@@ -87,7 +87,7 @@ export default defineCodeJudge(({ trace, answer }) => ({
 }));
 ```
 
-`defineCodeJudge` judges are referenced in YAML with `type: code_judge` and `command: [bun, run, judge.ts]`. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
+`defineCodeJudge` judges are referenced in YAML with `type: code-judge` and `command: [bun, run, judge.ts]`. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
 
 For detailed patterns, input/output contracts, and language-agnostic examples, see [Code Judges](/evaluators/code-judges/).
 

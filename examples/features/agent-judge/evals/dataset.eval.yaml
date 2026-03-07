@@ -27,7 +27,7 @@ tests:
 
     assert:
       - name: workspace-audit
-        type: agent_judge
+        type: agent-judge
         max_steps: 5
         temperature: 0
 
@@ -44,7 +44,7 @@ tests:
 
     assert:
       - name: workspace-audit-rubric
-        type: agent_judge
+        type: agent-judge
         max_steps: 5
         temperature: 0
         rubrics:

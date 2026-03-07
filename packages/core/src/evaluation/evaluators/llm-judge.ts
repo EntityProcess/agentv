@@ -76,7 +76,7 @@ const scoreRangeEvaluationSchema = z.object({
 export { freeformEvaluationSchema, rubricEvaluationSchema };
 
 export class LlmJudgeEvaluator implements Evaluator {
-  readonly kind = 'llm_judge';
+  readonly kind = 'llm-judge';
 
   private readonly resolveJudgeProvider: JudgeProviderResolver;
   private readonly maxOutputTokens?: number;
@@ -97,7 +97,7 @@ export class LlmJudgeEvaluator implements Evaluator {
     }
 
     const config = context.evaluator;
-    if (config?.type === 'llm_judge' && config.rubrics && config.rubrics.length > 0) {
+    if (config?.type === 'llm-judge' && config.rubrics && config.rubrics.length > 0) {
       return this.evaluateWithRubrics(context, judgeProvider, config.rubrics);
     }
 
@@ -199,7 +199,7 @@ export class LlmJudgeEvaluator implements Evaluator {
   ): Promise<EvaluationScore> {
     if (!rubrics || rubrics.length === 0) {
       throw new Error(
-        `No rubrics found for evaluator "${context.evaluator?.name ?? 'llm_judge'}". Run "agentv generate rubrics" first.`,
+        `No rubrics found for evaluator "${context.evaluator?.name ?? 'llm-judge'}". Run "agentv generate rubrics" first.`,
       );
     }
 

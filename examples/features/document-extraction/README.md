@@ -35,7 +35,7 @@ Uses the built-in `field_accuracy` evaluator for per-evalcase scoring:
 ```yaml
 evaluators:
   - name: invoice_field_accuracy
-    type: field_accuracy
+    type: field-accuracy
     fields:
       - path: invoice_number
         match: exact
@@ -58,7 +58,7 @@ Uses a custom `code_judge` that emits `details.metrics` with TP/TN/FP/FN per fie
 ```yaml
 evaluators:
   - name: header_confusion
-    type: code_judge
+    type: code-judge
     script: ["bun", "run", "../judges/header_confusion_metrics.ts"]
     fields:
       - path: invoice_number

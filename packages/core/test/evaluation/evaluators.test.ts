@@ -62,7 +62,7 @@ const baseTestCase: EvalTest = {
   guideline_paths: [],
   file_paths: [],
   criteria: 'Logging improvements applied',
-  evaluator: 'llm_judge',
+  evaluator: 'llm-judge',
 };
 
 const baseTarget: ResolvedTarget = {
@@ -92,7 +92,7 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
       candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
@@ -129,7 +129,7 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
       candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
@@ -164,7 +164,7 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
       candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
@@ -200,7 +200,7 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
       candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
@@ -251,7 +251,7 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
       candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
@@ -297,7 +297,7 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
       candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
@@ -320,7 +320,7 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
       candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
@@ -356,7 +356,7 @@ describe('LlmJudgeEvaluator', () => {
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
       candidate: 'Answer',
       target: baseTarget,
       provider: judgeProvider,
@@ -365,7 +365,7 @@ describe('LlmJudgeEvaluator', () => {
       now: new Date(),
       evaluator: {
         name: 'rubric',
-        type: 'llm_judge',
+        type: 'llm-judge',
         rubrics: [
           { id: 'r1', outcome: 'Mentions logging', weight: 1.0, required: true },
           { id: 'r2', outcome: 'Mentions tests', weight: 1.0, required: false },
@@ -394,7 +394,7 @@ describe('LlmJudgeEvaluator', () => {
       '@[System]:\nFollow the coding guidelines.\n\n@[User]:\nDebug the failing test.\n\n@[Assistant]:\nPlease share the stack trace.';
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
       candidate: 'Candidate answer',
       target: baseTarget,
       provider: judgeProvider,
@@ -421,7 +421,7 @@ describe('LlmJudgeEvaluator', () => {
     const flatQuestion = 'Summarize the architecture in two sentences.';
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm_judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
       candidate: 'Candidate answer',
       target: baseTarget,
       provider: judgeProvider,
@@ -438,7 +438,7 @@ describe('LlmJudgeEvaluator', () => {
 });
 
 describe('CodeEvaluator', () => {
-  it('passes required fields to code_judge scripts', async () => {
+  it('passes required fields to code-judge scripts', async () => {
     const judgeProvider = new StubProvider(textResponse('{}'));
 
     const evalCaseWithExpectedMessages: EvalTest = {
@@ -623,7 +623,7 @@ describe('FieldAccuracyEvaluator', () => {
     const evaluator = new FieldAccuracyEvaluator({
       config: {
         name: 'test',
-        type: 'field_accuracy',
+        type: 'field-accuracy',
         fields: [
           { path: 'invoice_number', match: 'exact', required: true, weight: 1.0 },
           { path: 'amount', match: 'exact', required: true, weight: 1.0 },
@@ -651,7 +651,7 @@ describe('FieldAccuracyEvaluator', () => {
     const evaluator = new FieldAccuracyEvaluator({
       config: {
         name: 'test',
-        type: 'field_accuracy',
+        type: 'field-accuracy',
         fields: [
           { path: 'invoice_number', match: 'exact', required: true, weight: 1.0 },
           { path: 'amount', match: 'exact', required: true, weight: 1.0 },
@@ -681,7 +681,7 @@ describe('FieldAccuracyEvaluator', () => {
     const evaluator = new FieldAccuracyEvaluator({
       config: {
         name: 'test',
-        type: 'field_accuracy',
+        type: 'field-accuracy',
         fields: [
           {
             path: 'amount',
@@ -714,7 +714,7 @@ describe('FieldAccuracyEvaluator', () => {
     const evaluator = new FieldAccuracyEvaluator({
       config: {
         name: 'test',
-        type: 'field_accuracy',
+        type: 'field-accuracy',
         fields: [
           {
             path: 'amount',
@@ -748,7 +748,7 @@ describe('FieldAccuracyEvaluator', () => {
     const evaluator = new FieldAccuracyEvaluator({
       config: {
         name: 'test',
-        type: 'field_accuracy',
+        type: 'field-accuracy',
         fields: [
           {
             path: 'date',
@@ -780,7 +780,7 @@ describe('FieldAccuracyEvaluator', () => {
     const evaluator = new FieldAccuracyEvaluator({
       config: {
         name: 'test',
-        type: 'field_accuracy',
+        type: 'field-accuracy',
         fields: [
           { path: 'invoice_number', match: 'exact', required: true, weight: 2.0 }, // 2x weight
           { path: 'amount', match: 'exact', required: true, weight: 1.0 },
@@ -809,7 +809,7 @@ describe('FieldAccuracyEvaluator', () => {
     const evaluator = new FieldAccuracyEvaluator({
       config: {
         name: 'test',
-        type: 'field_accuracy',
+        type: 'field-accuracy',
         fields: [
           { path: 'invoice_number', match: 'exact', required: true, weight: 1.0 },
           { path: 'amount', match: 'exact', required: true, weight: 1.0 },
@@ -837,7 +837,7 @@ describe('FieldAccuracyEvaluator', () => {
     const evaluator = new FieldAccuracyEvaluator({
       config: {
         name: 'test',
-        type: 'field_accuracy',
+        type: 'field-accuracy',
         fields: [
           { path: 'vendor.name', match: 'exact', required: true, weight: 1.0 },
           { path: 'vendor.address', match: 'exact', required: true, weight: 1.0 },
@@ -878,7 +878,7 @@ describe('FieldAccuracyEvaluator', () => {
     const evaluator = new FieldAccuracyEvaluator({
       config: {
         name: 'test',
-        type: 'field_accuracy',
+        type: 'field-accuracy',
         fields: [
           { path: 'items[0].name', match: 'exact', required: true, weight: 1.0 },
           { path: 'items[1].price', match: 'exact', required: true, weight: 1.0 },
@@ -909,7 +909,7 @@ describe('FieldAccuracyEvaluator', () => {
     const evaluator = new FieldAccuracyEvaluator({
       config: {
         name: 'test',
-        type: 'field_accuracy',
+        type: 'field-accuracy',
         fields: [{ path: 'invoice_number', match: 'exact', required: true, weight: 1.0 }],
       },
     });
@@ -1135,7 +1135,7 @@ describe('CostEvaluator', () => {
 describe('TokenUsageEvaluator', () => {
   it('passes when total tokens are under max_total', () => {
     const evaluator = new TokenUsageEvaluator({
-      config: { name: 'token_budget', type: 'token_usage', max_total: 1000 },
+      config: { name: 'token_budget', type: 'token-usage', max_total: 1000 },
     });
 
     const result = evaluator.evaluate({
@@ -1156,7 +1156,7 @@ describe('TokenUsageEvaluator', () => {
 
   it('fails when output tokens exceed max_output', () => {
     const evaluator = new TokenUsageEvaluator({
-      config: { name: 'token_budget', type: 'token_usage', max_output: 100 },
+      config: { name: 'token_budget', type: 'token-usage', max_output: 100 },
     });
 
     const result = evaluator.evaluate({
@@ -1177,7 +1177,7 @@ describe('TokenUsageEvaluator', () => {
 
   it('fails when no token usage data available', () => {
     const evaluator = new TokenUsageEvaluator({
-      config: { name: 'token_budget', type: 'token_usage', max_total: 1000 },
+      config: { name: 'token_budget', type: 'token-usage', max_total: 1000 },
     });
 
     const result = evaluator.evaluate({

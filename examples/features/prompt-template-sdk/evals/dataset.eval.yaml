@@ -23,7 +23,7 @@ tests:
 
     assert:
       - name: custom-prompt-eval
-        type: llm_judge
+        type: llm-judge
         # Executable prompt template using explicit script array (matches code_judge pattern)
         prompt:
           command: [bun, run, ../prompts/custom-evaluator.ts]
@@ -42,7 +42,7 @@ tests:
 
     assert:
       - name: strict-eval
-        type: llm_judge
+        type: llm-judge
         # Executable prompt template with config
         prompt:
           command: [bun, run, ../prompts/custom-evaluator.ts]

@@ -14,7 +14,7 @@ AgentV provides two SDK functions for custom evaluation logic:
 | Function | Best For | Discovery |
 |----------|----------|-----------|
 | `defineAssertion()` | Pass/fail checks, reusable assertion types | Convention-based (`.agentv/assertions/`) |
-| `defineCodeJudge()` | Full scoring control with explicit hits/misses | Referenced via `type: code_judge` + `command:` |
+| `defineCodeJudge()` | Full scoring control with explicit hits/misses | Referenced via `type: code-judge` + `command:` |
 
 **Use `defineAssertion()`** when you want a named assertion type that can be referenced across eval files without specifying a command path. It uses a simplified result contract focused on `pass` and optional `score`.
 

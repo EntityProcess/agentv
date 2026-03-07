@@ -63,7 +63,7 @@ tests:
         content: "Return a JSON object with a status field set to ok and code 200."
     expected_output: '{"status": "ok", "code": 200}'
     assert:
-      - type: is_json
+      - type: is-json
 
   # --- combining multiple assertions on one test ---
   - id: multi-assertion
@@ -75,7 +75,7 @@ tests:
         content: 'Return a JSON object with a "result" key set to the number 42.'
     expected_output: '{"result": 42}'
     assert:
-      - type: is_json
+      - type: is-json
         required: true
       - type: contains
         value: '"result"'
@@ -90,7 +90,7 @@ tests:
         content: 'Return a JSON object with a "message" field set to "success".'
     expected_output: '{"message": "success"}'
     assert:
-      - type: is_json
+      - type: is-json
         required: true
       - type: contains
         value: '"message"'

@@ -96,6 +96,6 @@ tests:
 # Suggested additional evaluators:
 # assert:
 #   - name: quality
-#     type: llm_judge
+#     type: llm-judge
 #     prompt: ./prompts/quality.md
 ```

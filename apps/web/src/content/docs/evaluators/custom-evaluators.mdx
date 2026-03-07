@@ -25,7 +25,7 @@ Evaluators are configured using `assert` — either top-level (applies to all te
 description: My evaluation
 assert:
   - name: correctness
-    type: llm_judge
+    type: llm-judge
     prompt: ./judges/correctness.md
 
 tests:
@@ -43,7 +43,7 @@ tests:
     input: Generate a JSON config
     assert:
       - name: json_check
-        type: code_judge
+        type: code-judge
         command: [./validators/check_json.py]
 ```
 
@@ -63,10 +63,10 @@ tests:
           - Handles edge cases (empty list, single element)
           - Uses appropriate algorithm
       - name: syntax_check
-        type: code_judge
+        type: code-judge
         command: [./validators/check_syntax.py]
       - name: quality_review
-        type: llm_judge
+        type: llm-judge
         prompt: ./judges/code_quality.md
 ```
 

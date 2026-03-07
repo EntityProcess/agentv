@@ -30,7 +30,7 @@ execution:
 assert:
   # Primary evaluator: Correctness via field-level accuracy
   - name: invoice_field_accuracy
-    type: field_accuracy
+    type: field-accuracy
     fields:
       # Header fields
       - path: invoice_number
@@ -213,7 +213,7 @@ tests:
     assert:
       # Multi-field fuzzy match with config pass-through
       - name: party_names_fuzzy
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/multi_field_fuzzy.ts"]
         # These properties are passed to the script via stdin config
         fields:
@@ -224,7 +224,7 @@ tests:
         algorithm: levenshtein
       # Exact/numeric matching for other fields
       - name: other_fields
-        type: field_accuracy
+        type: field-accuracy
         fields:
           - path: invoice_number
             match: exact
@@ -341,7 +341,7 @@ tests:
       Field paths like line_items[0].description should resolve correctly.
     assert:
       - name: line_items_check
-        type: field_accuracy
+        type: field-accuracy
         fields:
           - path: line_items[0].description
             match: exact
@@ -393,7 +393,7 @@ tests:
       but greedy matching correctly aligns items by description similarity.
     assert:
       - name: line_items_matched
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../judges/line_item_matching.ts"]
         match_fields: ["description"]
         score_fields: ["description", "quantity", "line_total"]

@@ -32,7 +32,7 @@ execution:
 
 assert:
   - name: header_confusion
-    type: code_judge
+    type: code-judge
     command: ["bun", "run", "../judges/header_confusion_metrics.ts"]
     fields:
       - path: invoice_number

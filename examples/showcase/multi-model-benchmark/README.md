@@ -186,7 +186,7 @@ Add a new judge prompt in `prompts/` and reference it in the eval's `assert` blo
 ```yaml
 assert:
   - name: safety
-    type: llm_judge
+    type: llm-judge
     prompt: ../prompts/safety-rubric.md
     weight: 4.0    # Highest priority
 ```

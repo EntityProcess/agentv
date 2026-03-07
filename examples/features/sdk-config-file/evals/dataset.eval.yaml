@@ -25,4 +25,4 @@ tests:
         content: "Return status ok"
     expected_output: '{"status": "ok"}'
     assert:
-      - type: is_json
+      - type: is-json

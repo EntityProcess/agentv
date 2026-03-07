@@ -51,7 +51,7 @@ export const evalPromptOverviewCommand = command({
       '',
       'The output contains an `evaluators` array. Each evaluator has a `status`:',
       '',
-      '- **`"completed"`** — Score is final (code_judge ran deterministically). Read `result.score` (0.0–1.0).',
+      '- **`"completed"`** — Score is final (code-judge ran deterministically). Read `result.score` (0.0–1.0).',
       '- **`"prompt_ready"`** — LLM grading required. Send `prompt.system_prompt` as system and',
       '  `prompt.user_prompt` as user to your LLM. Parse the JSON response to get `score`, `hits`, `misses`.',
       '',

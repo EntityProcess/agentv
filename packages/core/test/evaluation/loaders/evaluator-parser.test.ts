@@ -126,25 +126,25 @@ describe('parseEvaluators - deterministic assertion types', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('parses type: is_json', async () => {
+  it('parses type: is-json', async () => {
     const evaluators = await parseEvaluators(
       {
-        evaluators: [{ name: 'json-check', type: 'is_json' }],
+        evaluators: [{ name: 'json-check', type: 'is-json' }],
       },
       undefined,
       [tempDir],
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('is_json');
+    expect(evaluators?.[0].type).toBe('is-json');
     const config = evaluators?.[0] as IsJsonEvaluatorConfig;
     expect(config.name).toBe('json-check');
   });
 
-  it('auto-generates name for is_json when not provided', async () => {
+  it('auto-generates name for is-json when not provided', async () => {
     const evaluators = await parseEvaluators(
       {
-        evaluators: [{ type: 'is_json' }],
+        evaluators: [{ type: 'is-json' }],
       },
       undefined,
       [tempDir],
@@ -152,13 +152,13 @@ describe('parseEvaluators - deterministic assertion types', () => {
     );
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0].name).toBeTruthy();
-    expect(evaluators?.[0].type).toBe('is_json');
+    expect(evaluators?.[0].type).toBe('is-json');
   });
 
-  it('parses type: is_json with weight', async () => {
+  it('parses type: is-json with weight', async () => {
     const evaluators = await parseEvaluators(
       {
-        evaluators: [{ name: 'json-weighted', type: 'is_json', weight: 0.5 }],
+        evaluators: [{ name: 'json-weighted', type: 'is-json', weight: 0.5 }],
       },
       undefined,
       [tempDir],
@@ -211,7 +211,7 @@ describe('parseEvaluators - deterministic assertion types', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('parses type: rubrics with criteria as llm_judge', async () => {
+  it('parses type: rubrics with criteria as llm-judge', async () => {
     const evaluators = await parseEvaluators(
       {
         evaluators: [
@@ -227,7 +227,7 @@ describe('parseEvaluators - deterministic assertion types', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('llm_judge');
+    expect(evaluators?.[0].type).toBe('llm-judge');
     expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(1);
   });
 
@@ -237,7 +237,7 @@ describe('parseEvaluators - deterministic assertion types', () => {
         evaluators: [
           { name: 'c1', type: 'contains', value: 'hello' },
           { name: 'r1', type: 'regex', value: '\\d+' },
-          { name: 'j1', type: 'is_json' },
+          { name: 'j1', type: 'is-json' },
           { name: 'e1', type: 'equals', value: 'exact' },
         ],
       },
@@ -248,12 +248,12 @@ describe('parseEvaluators - deterministic assertion types', () => {
     expect(evaluators).toHaveLength(4);
     expect(evaluators?.[0].type).toBe('contains');
     expect(evaluators?.[1].type).toBe('regex');
-    expect(evaluators?.[2].type).toBe('is_json');
+    expect(evaluators?.[2].type).toBe('is-json');
     expect(evaluators?.[3].type).toBe('equals');
   });
 });
 
-describe('parseEvaluators - tool_trajectory', () => {
+describe('parseEvaluators - tool-trajectory', () => {
   let tempDir: string;
 
   beforeAll(async () => {
@@ -265,12 +265,12 @@ describe('parseEvaluators - tool_trajectory', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('parses tool_trajectory evaluator with any_order mode and minimums', async () => {
+  it('parses tool-trajectory evaluator with any_order mode and minimums', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'tool-usage-check',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'any_order',
           minimums: {
             knowledgeSearch: 3,
@@ -284,19 +284,19 @@ describe('parseEvaluators - tool_trajectory', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as ToolTrajectoryEvaluatorConfig;
-    expect(config.type).toBe('tool_trajectory');
+    expect(config.type).toBe('tool-trajectory');
     expect(config.name).toBe('tool-usage-check');
     expect(config.mode).toBe('any_order');
     expect(config.minimums).toEqual({ knowledgeSearch: 3, getTime: 1 });
     expect(config.expected).toBeUndefined();
   });
 
-  it('parses tool_trajectory evaluator with in_order mode and expected', async () => {
+  it('parses tool-trajectory evaluator with in_order mode and expected', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'sequence-check',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'in_order',
           expected: [{ tool: 'search' }, { tool: 'analyze' }, { tool: 'report' }],
         },
@@ -307,17 +307,17 @@ describe('parseEvaluators - tool_trajectory', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as ToolTrajectoryEvaluatorConfig;
-    expect(config.type).toBe('tool_trajectory');
+    expect(config.type).toBe('tool-trajectory');
     expect(config.mode).toBe('in_order');
     expect(config.expected).toEqual([{ tool: 'search' }, { tool: 'analyze' }, { tool: 'report' }]);
   });
 
-  it('parses tool_trajectory evaluator with exact mode', async () => {
+  it('parses tool-trajectory evaluator with exact mode', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'exact-sequence',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
           expected: [{ tool: 'toolA' }, { tool: 'toolB' }],
         },
@@ -328,17 +328,17 @@ describe('parseEvaluators - tool_trajectory', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as ToolTrajectoryEvaluatorConfig;
-    expect(config.type).toBe('tool_trajectory');
+    expect(config.type).toBe('tool-trajectory');
     expect(config.mode).toBe('exact');
     expect(config.expected).toEqual([{ tool: 'toolA' }, { tool: 'toolB' }]);
   });
 
-  it('skips tool_trajectory with invalid mode', async () => {
+  it('skips tool-trajectory with invalid mode', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'invalid-mode',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'invalid_mode',
         },
       ],
@@ -349,12 +349,12 @@ describe('parseEvaluators - tool_trajectory', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('skips tool_trajectory with any_order mode but no minimums', async () => {
+  it('skips tool-trajectory with any_order mode but no minimums', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'missing-minimums',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'any_order',
         },
       ],
@@ -365,12 +365,12 @@ describe('parseEvaluators - tool_trajectory', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('skips tool_trajectory with in_order mode but no expected', async () => {
+  it('skips tool-trajectory with in_order mode but no expected', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'missing-expected',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'in_order',
         },
       ],
@@ -381,12 +381,12 @@ describe('parseEvaluators - tool_trajectory', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('skips tool_trajectory with exact mode but no expected', async () => {
+  it('skips tool-trajectory with exact mode but no expected', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'missing-expected',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'exact',
         },
       ],
@@ -402,7 +402,7 @@ describe('parseEvaluators - tool_trajectory', () => {
       evaluators: [
         {
           name: 'filtered-minimums',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'any_order',
           minimums: {
             validTool: 5,
@@ -427,7 +427,7 @@ describe('parseEvaluators - tool_trajectory', () => {
       evaluators: [
         {
           name: 'filtered-expected',
-          type: 'tool_trajectory',
+          type: 'tool-trajectory',
           mode: 'in_order',
           expected: [
             { tool: 'validTool' },
@@ -447,7 +447,7 @@ describe('parseEvaluators - tool_trajectory', () => {
   });
 });
 
-describe('parseEvaluators - code_judge config pass-through', () => {
+describe('parseEvaluators - code-judge config pass-through', () => {
   let tempDir: string;
 
   beforeAll(async () => {
@@ -466,7 +466,7 @@ describe('parseEvaluators - code_judge config pass-through', () => {
       evaluators: [
         {
           name: 'fuzzy-matcher',
-          type: 'code_judge',
+          type: 'code-judge',
           script: ['bun', 'run', './test_script.ts'],
           fields: [
             { path: 'supplier.name', threshold: 0.85 },
@@ -482,7 +482,7 @@ describe('parseEvaluators - code_judge config pass-through', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as CodeEvaluatorConfig;
-    expect(config.type).toBe('code');
+    expect(config.type).toBe('code-judge');
     expect(config.name).toBe('fuzzy-matcher');
     expect(config.config).toEqual({
       fields: [
@@ -499,7 +499,7 @@ describe('parseEvaluators - code_judge config pass-through', () => {
       evaluators: [
         {
           name: 'simple-judge',
-          type: 'code_judge',
+          type: 'code-judge',
           script: ['bun', 'run', './test_script.ts'],
         },
       ],
@@ -509,7 +509,7 @@ describe('parseEvaluators - code_judge config pass-through', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as CodeEvaluatorConfig;
-    expect(config.type).toBe('code');
+    expect(config.type).toBe('code-judge');
     expect(config.config).toBeUndefined();
   });
 
@@ -518,7 +518,7 @@ describe('parseEvaluators - code_judge config pass-through', () => {
       evaluators: [
         {
           name: 'with-weight',
-          type: 'code_judge',
+          type: 'code-judge',
           script: ['bun', 'run', './test_script.ts'],
           cwd: tempDir,
           weight: 2.0,
@@ -540,7 +540,7 @@ describe('parseEvaluators - code_judge config pass-through', () => {
       evaluators: [
         {
           name: 'legacy-script',
-          type: 'code_judge',
+          type: 'code-judge',
           script: './test_script.ts',
         },
       ],
@@ -558,13 +558,101 @@ describe('parseEvaluators - code_judge config pass-through', () => {
   });
 });
 
+describe('parseEvaluators - kebab-case type normalization', () => {
+  const tempDir = '/tmp';
+
+  it('normalizes kebab-case evaluator types to snake_case', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'kebab-llm',
+          type: 'llm-judge',
+          prompt: 'test prompt',
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('llm-judge');
+  });
+
+  it('accepts code-judge kebab-case as canonical form', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'kebab-code',
+          type: 'code-judge',
+          script: ['bun', 'run', './test_script.ts'],
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('code-judge');
+  });
+
+  it('accepts is-json kebab-case as canonical form', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'kebab-json',
+          type: 'is-json',
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('is-json');
+  });
+
+  it('normalizes snake_case types to kebab-case (backward compatible)', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'snake-llm',
+          type: 'llm_judge',
+          prompt: 'test prompt',
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('llm-judge');
+  });
+
+  it('leaves single-word types unchanged', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'contains-check',
+          type: 'contains',
+          value: 'hello',
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+});
+
 describe('parseEvaluators - score_ranges rubrics', () => {
   it('parses valid score_ranges with required_min_score', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'correctness',
-          type: 'llm_judge',
+          type: 'llm-judge',
           rubrics: [
             {
               id: 'accuracy',
@@ -586,8 +674,8 @@ describe('parseEvaluators - score_ranges rubrics', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0];
-    expect(config?.type).toBe('llm_judge');
-    if (config?.type === 'llm_judge') {
+    expect(config?.type).toBe('llm-judge');
+    if (config?.type === 'llm-judge') {
       expect(config.rubrics).toHaveLength(1);
       const rubric = config.rubrics?.[0];
       expect(rubric?.id).toBe('accuracy');
@@ -602,7 +690,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
       evaluators: [
         {
           name: 'overlapping',
-          type: 'llm_judge',
+          type: 'llm-judge',
           rubrics: [
             {
               id: 'test',
@@ -626,7 +714,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
       evaluators: [
         {
           name: 'incomplete',
-          type: 'llm_judge',
+          type: 'llm-judge',
           rubrics: [
             {
               id: 'test',
@@ -650,7 +738,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
       evaluators: [
         {
           name: 'legacy',
-          type: 'llm_judge',
+          type: 'llm-judge',
           rubrics: [
             {
               id: 'r1',
@@ -667,7 +755,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0];
-    if (config?.type === 'llm_judge') {
+    if (config?.type === 'llm-judge') {
       // Rubric should be skipped since it has no 'outcome' field
       expect(config.rubrics ?? []).toHaveLength(0);
     }
@@ -680,7 +768,7 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
       evaluators: [
         {
           name: 'shorthand-test',
-          type: 'llm_judge',
+          type: 'llm-judge',
           rubrics: [
             {
               id: 'accuracy',
@@ -702,8 +790,8 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0];
-    expect(config?.type).toBe('llm_judge');
-    if (config?.type === 'llm_judge') {
+    expect(config?.type).toBe('llm-judge');
+    if (config?.type === 'llm-judge') {
       expect(config.rubrics).toHaveLength(1);
       const rubric = config.rubrics?.[0];
       expect(rubric?.id).toBe('accuracy');
@@ -733,7 +821,7 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
       evaluators: [
         {
           name: 'bad-start',
-          type: 'llm_judge',
+          type: 'llm-judge',
           rubrics: [
             {
               id: 'test',
@@ -758,7 +846,7 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
       evaluators: [
         {
           name: 'array-format',
-          type: 'llm_judge',
+          type: 'llm-judge',
           rubrics: [
             {
               id: 'accuracy',
@@ -778,19 +866,19 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0];
-    if (config?.type === 'llm_judge') {
+    if (config?.type === 'llm-judge') {
       expect(config.rubrics?.[0]?.score_ranges).toHaveLength(4);
     }
   });
 });
 
-describe('parseEvaluators - token_usage', () => {
-  it('parses token_usage evaluator with limits', async () => {
+describe('parseEvaluators - token-usage', () => {
+  it('parses token-usage evaluator with limits', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'token-budget',
-          type: 'token_usage',
+          type: 'token-usage',
           max_total: 1000,
           max_output: 200,
         },
@@ -802,7 +890,7 @@ describe('parseEvaluators - token_usage', () => {
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0]).toEqual({
       name: 'token-budget',
-      type: 'token_usage',
+      type: 'token-usage',
       max_total: 1000,
       max_output: 200,
     });
@@ -821,7 +909,7 @@ describe('parseEvaluators - token_usage', () => {
       evaluators: [
         {
           name: 'token-budget',
-          type: 'token_usage',
+          type: 'token-usage',
           max_total: 1000,
           max_output: 200,
         },
@@ -833,20 +921,20 @@ describe('parseEvaluators - token_usage', () => {
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0]).toEqual({
       name: 'token-budget',
-      type: 'token_usage',
+      type: 'token-usage',
       max_total: 1000,
       max_output: 200,
     });
   });
 });
 
-describe('parseEvaluators - execution_metrics', () => {
-  it('parses execution_metrics evaluator with all thresholds', async () => {
+describe('parseEvaluators - execution-metrics', () => {
+  it('parses execution-metrics evaluator with all thresholds', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'efficiency-check',
-          type: 'execution_metrics',
+          type: 'execution-metrics',
           max_tool_calls: 10,
           max_llm_calls: 5,
           max_tokens: 2000,
@@ -864,7 +952,7 @@ describe('parseEvaluators - execution_metrics', () => {
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0]).toEqual({
       name: 'efficiency-check',
-      type: 'execution_metrics',
+      type: 'execution-metrics',
       max_tool_calls: 10,
       max_llm_calls: 5,
       max_tokens: 2000,
@@ -876,12 +964,12 @@ describe('parseEvaluators - execution_metrics', () => {
     });
   });
 
-  it('parses execution_metrics with only max_tool_calls', async () => {
+  it('parses execution-metrics with only max_tool_calls', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'tool-limit',
-          type: 'execution_metrics',
+          type: 'execution-metrics',
           max_tool_calls: 15,
         },
       ],
@@ -892,17 +980,17 @@ describe('parseEvaluators - execution_metrics', () => {
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0]).toEqual({
       name: 'tool-limit',
-      type: 'execution_metrics',
+      type: 'execution-metrics',
       max_tool_calls: 15,
     });
   });
 
-  it('parses execution_metrics with camelCase aliases', async () => {
+  it('parses execution-metrics with camelCase aliases', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'camel-case',
-          type: 'execution_metrics',
+          type: 'execution-metrics',
           maxToolCalls: 10,
           maxLlmCalls: 5,
           maxTokens: 2000,
@@ -917,7 +1005,7 @@ describe('parseEvaluators - execution_metrics', () => {
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0]).toEqual({
       name: 'camel-case',
-      type: 'execution_metrics',
+      type: 'execution-metrics',
       max_tool_calls: 10,
       max_llm_calls: 5,
       max_tokens: 2000,
@@ -926,12 +1014,12 @@ describe('parseEvaluators - execution_metrics', () => {
     });
   });
 
-  it('skips execution_metrics with no thresholds specified', async () => {
+  it('skips execution-metrics with no thresholds specified', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'no-thresholds',
-          type: 'execution_metrics',
+          type: 'execution-metrics',
         },
       ],
     };
@@ -941,12 +1029,12 @@ describe('parseEvaluators - execution_metrics', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('skips execution_metrics when only exploration_tolerance is set (no threshold)', async () => {
+  it('skips execution-metrics when only exploration_tolerance is set (no threshold)', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'only-tolerance',
-          type: 'execution_metrics',
+          type: 'execution-metrics',
           exploration_tolerance: 0.2,
         },
       ],
@@ -957,12 +1045,12 @@ describe('parseEvaluators - execution_metrics', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('skips execution_metrics with invalid threshold value (negative)', async () => {
+  it('skips execution-metrics with invalid threshold value (negative)', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'negative-threshold',
-          type: 'execution_metrics',
+          type: 'execution-metrics',
           max_tool_calls: -5,
         },
       ],
@@ -973,12 +1061,12 @@ describe('parseEvaluators - execution_metrics', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('skips execution_metrics with invalid threshold value (non-number)', async () => {
+  it('skips execution-metrics with invalid threshold value (non-number)', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'string-threshold',
-          type: 'execution_metrics',
+          type: 'execution-metrics',
           max_tool_calls: 'ten',
         },
       ],
@@ -989,12 +1077,12 @@ describe('parseEvaluators - execution_metrics', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('skips execution_metrics with Infinity threshold value', async () => {
+  it('skips execution-metrics with Infinity threshold value', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'infinity-threshold',
-          type: 'execution_metrics',
+          type: 'execution-metrics',
           max_tokens: Number.POSITIVE_INFINITY,
         },
       ],
@@ -1005,12 +1093,12 @@ describe('parseEvaluators - execution_metrics', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('parses execution_metrics with target_exploration_ratio', async () => {
+  it('parses execution-metrics with target_exploration_ratio', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'exploration-check',
-          type: 'execution_metrics',
+          type: 'execution-metrics',
           target_exploration_ratio: 0.7,
         },
       ],
@@ -1021,7 +1109,7 @@ describe('parseEvaluators - execution_metrics', () => {
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0]).toEqual({
       name: 'exploration-check',
-      type: 'execution_metrics',
+      type: 'execution-metrics',
       target_exploration_ratio: 0.7,
     });
   });
@@ -1287,7 +1375,7 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('llm_judge');
+    expect(evaluators?.[0].type).toBe('llm-judge');
     expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(2);
     expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).weight).toBe(4.0);
   });
@@ -1431,13 +1519,13 @@ describe('parseEvaluators - required field', () => {
     expect(config.required).toBe(true);
   });
 
-  it('parses required on code_judge evaluator', async () => {
+  it('parses required on code-judge evaluator', async () => {
     const evaluators = await parseEvaluators(
       {
         evaluators: [
           {
             name: 'code-check',
-            type: 'code_judge',
+            type: 'code-judge',
             script: ['bun', 'run', './test_script.ts'],
             required: true,
           },
@@ -1452,10 +1540,10 @@ describe('parseEvaluators - required field', () => {
     expect(config.required).toBe(true);
   });
 
-  it('parses required on llm_judge evaluator', async () => {
+  it('parses required on llm-judge evaluator', async () => {
     const evaluators = await parseEvaluators(
       {
-        evaluators: [{ name: 'judge', type: 'llm_judge', required: 0.7 }],
+        evaluators: [{ name: 'judge', type: 'llm-judge', required: 0.7 }],
       },
       undefined,
       [tempDir],
@@ -1494,7 +1582,7 @@ describe('parseEvaluators - composite assert field', () => {
   beforeAll(async () => {
     tempDir = path.join(os.tmpdir(), `agentv-test-composite-assert-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
-    // Create dummy prompt files for llm_judge members (must include required template fields)
+    // Create dummy prompt files for llm-judge members (must include required template fields)
     await writeFile(path.join(tempDir, 'safety.md'), 'Evaluate safety of {{ answer }}');
     await writeFile(path.join(tempDir, 'quality.md'), 'Evaluate quality of {{ answer }}');
   });
@@ -1511,8 +1599,8 @@ describe('parseEvaluators - composite assert field', () => {
             name: 'combined',
             type: 'composite',
             assert: [
-              { name: 'safety', type: 'llm_judge', prompt: './safety.md' },
-              { name: 'quality', type: 'llm_judge', prompt: './quality.md' },
+              { name: 'safety', type: 'llm-judge', prompt: './safety.md' },
+              { name: 'quality', type: 'llm-judge', prompt: './quality.md' },
             ],
             aggregator: { type: 'weighted_average' },
           },
@@ -1534,8 +1622,8 @@ describe('parseEvaluators - composite assert field', () => {
             name: 'combined',
             type: 'composite',
             evaluators: [
-              { name: 'safety', type: 'llm_judge', prompt: './safety.md' },
-              { name: 'quality', type: 'llm_judge', prompt: './quality.md' },
+              { name: 'safety', type: 'llm-judge', prompt: './safety.md' },
+              { name: 'quality', type: 'llm-judge', prompt: './quality.md' },
             ],
             aggregator: { type: 'weighted_average' },
           },
@@ -1556,8 +1644,8 @@ describe('parseEvaluators - composite assert field', () => {
           {
             name: 'combined',
             type: 'composite',
-            assert: [{ name: 'safety', type: 'llm_judge', prompt: './safety.md' }],
-            evaluators: [{ name: 'quality', type: 'llm_judge', prompt: './quality.md' }],
+            assert: [{ name: 'safety', type: 'llm-judge', prompt: './safety.md' }],
+            evaluators: [{ name: 'quality', type: 'llm-judge', prompt: './quality.md' }],
             aggregator: { type: 'weighted_average' },
           },
         ],

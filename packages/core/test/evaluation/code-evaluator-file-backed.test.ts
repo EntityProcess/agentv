@@ -18,7 +18,7 @@ const baseTestCase: EvalTest = {
   guideline_paths: [],
   file_paths: [],
   criteria: 'Test criteria',
-  evaluator: 'code_judge',
+  evaluator: 'code-judge',
 };
 
 /** Create a judge script that echoes the received stdin payload. */

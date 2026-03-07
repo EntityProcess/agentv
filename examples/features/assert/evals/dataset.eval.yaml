@@ -38,7 +38,7 @@ tests:
       - role: assistant
         content: '{"status": "ok", "code": 200}'
     assert:
-      - type: is_json
+      - type: is-json
         required: true
       - type: contains
         value: '"status"'

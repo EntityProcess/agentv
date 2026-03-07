@@ -72,7 +72,7 @@ const RubricItemSchema = z.object({
 // --- Type-specific evaluator schemas ---
 
 const CodeJudgeSchema = EvaluatorCommonSchema.extend({
-  type: z.literal('code_judge'),
+  type: z.enum(['code-judge', 'code_judge']),
   command: z.union([z.string(), z.array(z.string())]),
   script: z.union([z.string(), z.array(z.string())]).optional(),
   cwd: z.string().optional(),
@@ -81,7 +81,7 @@ const CodeJudgeSchema = EvaluatorCommonSchema.extend({
 });
 
 const LlmJudgeSchema = EvaluatorCommonSchema.extend({
-  type: z.literal('llm_judge'),
+  type: z.enum(['llm-judge', 'llm_judge']),
   prompt: PromptSchema.optional(),
   rubrics: z.array(RubricItemSchema).optional(),
   model: z.string().optional(),
@@ -99,12 +99,12 @@ const AggregatorSchema = z.discriminatedUnion('type', [
     threshold: z.number().min(0).max(1),
   }),
   z.object({
-    type: z.literal('code_judge'),
+    type: z.literal('code-judge'),
     path: z.string(),
     cwd: z.string().optional(),
   }),
   z.object({
-    type: z.literal('llm_judge'),
+    type: z.literal('llm-judge'),
     prompt: z.string().optional(),
     model: z.string().optional(),
   }),
@@ -135,7 +135,7 @@ const ToolTrajectoryExpectedItemSchema = z.object({
 });
 
 const ToolTrajectorySchema = EvaluatorCommonSchema.extend({
-  type: z.literal('tool_trajectory'),
+  type: z.enum(['tool-trajectory', 'tool_trajectory']),
   mode: z.enum(['any_order', 'in_order', 'exact', 'subset', 'superset']),
   minimums: z.record(z.number().int().min(0)).optional(),
   expected: z.array(ToolTrajectoryExpectedItemSchema).optional(),
@@ -154,7 +154,7 @@ const FieldConfigSchema = z.object({
 });
 
 const FieldAccuracySchema = EvaluatorCommonSchema.extend({
-  type: z.literal('field_accuracy'),
+  type: z.enum(['field-accuracy', 'field_accuracy']),
   fields: z.array(FieldConfigSchema).min(1),
   aggregation: z.enum(['weighted_average', 'all_or_nothing']).optional(),
 });
@@ -170,14 +170,14 @@ const CostSchema = EvaluatorCommonSchema.extend({
 });
 
 const TokenUsageSchema = EvaluatorCommonSchema.extend({
-  type: z.literal('token_usage'),
+  type: z.enum(['token-usage', 'token_usage']),
   max_total: z.number().min(0).optional(),
   max_input: z.number().min(0).optional(),
   max_output: z.number().min(0).optional(),
 });
 
 const ExecutionMetricsSchema = EvaluatorCommonSchema.extend({
-  type: z.literal('execution_metrics'),
+  type: z.enum(['execution-metrics', 'execution_metrics']),
   max_tool_calls: z.number().min(0).optional(),
   max_llm_calls: z.number().min(0).optional(),
   max_tokens: z.number().min(0).optional(),
@@ -188,7 +188,7 @@ const ExecutionMetricsSchema = EvaluatorCommonSchema.extend({
 });
 
 const AgentJudgeSchema = EvaluatorCommonSchema.extend({
-  type: z.literal('agent_judge'),
+  type: z.enum(['agent-judge', 'agent_judge']),
   prompt: z.string().optional(),
   rubrics: z.array(RubricItemSchema).optional(),
   max_steps: z.number().int().min(1).max(50).optional(),
@@ -207,7 +207,7 @@ const RegexSchema = EvaluatorCommonSchema.extend({
 });
 
 const IsJsonSchema = EvaluatorCommonSchema.extend({
-  type: z.literal('is_json'),
+  type: z.enum(['is-json', 'is_json']),
 });
 
 const EqualsSchema = EvaluatorCommonSchema.extend({

@@ -22,12 +22,12 @@ import { type RawResult, c, formatScore, loadResultFile, padLeft, padRight } fro
 const SUPPORTED_TYPES = [
   'contains',
   'regex',
-  'is_json',
+  'is-json',
   'equals',
   'latency',
   'cost',
-  'token_usage',
-  'execution_metrics',
+  'token-usage',
+  'execution-metrics',
 ] as const;
 
 /**
@@ -50,16 +50,17 @@ function parseKeyValues(s: string): Record<string, string> {
  * Supported formats:
  *   contains:value
  *   regex:pattern
- *   is_json
+ *   is-json
  *   equals:value
  *   latency:<threshold_ms>
  *   cost:<budget_usd>
- *   token_usage:max_total=N,max_input=N,max_output=N
- *   execution_metrics:max_tool_calls=N,max_tokens=N,max_llm_calls=N,...
+ *   token-usage:max_total=N,max_input=N,max_output=N
+ *   execution-metrics:max_tool_calls=N,max_tokens=N,max_llm_calls=N,...
  */
 export function parseAssertSpec(spec: string): EvaluatorConfig {
   const colonIdx = spec.indexOf(':');
-  const type = colonIdx === -1 ? spec : spec.slice(0, colonIdx);
+  // Normalize snake_case to kebab-case for backward compat
+  const type = (colonIdx === -1 ? spec : spec.slice(0, colonIdx)).replace(/_/g, '-');
   const params = colonIdx === -1 ? '' : spec.slice(colonIdx + 1);
 
   switch (type) {
@@ -71,8 +72,8 @@ export function parseAssertSpec(spec: string): EvaluatorConfig {
       if (!params) throw new Error('regex requires a pattern: regex:<pattern>');
       return { name: 'regex', type: 'regex', value: params } as EvaluatorConfig;
 
-    case 'is_json':
-      return { name: 'is_json', type: 'is_json' } as EvaluatorConfig;
+    case 'is-json':
+      return { name: 'is-json', type: 'is-json' } as EvaluatorConfig;
 
     case 'equals':
       if (!params) throw new Error('equals requires a value: equals:<value>');
@@ -92,20 +93,20 @@ export function parseAssertSpec(spec: string): EvaluatorConfig {
       return { name: 'cost', type: 'cost', budget } as EvaluatorConfig;
     }
 
-    case 'token_usage': {
+    case 'token-usage': {
       const kv = parseKeyValues(params);
-      const config: Record<string, unknown> = { name: 'token_usage', type: 'token_usage' };
+      const config: Record<string, unknown> = { name: 'token-usage', type: 'token-usage' };
       if (kv.max_total) config.max_total = Number(kv.max_total);
       if (kv.max_input) config.max_input = Number(kv.max_input);
       if (kv.max_output) config.max_output = Number(kv.max_output);
       return config as EvaluatorConfig;
     }
 
-    case 'execution_metrics': {
+    case 'execution-metrics': {
       const kv = parseKeyValues(params);
       const config: Record<string, unknown> = {
-        name: 'execution_metrics',
-        type: 'execution_metrics',
+        name: 'execution-metrics',
+        type: 'execution-metrics',
       };
       if (kv.max_tool_calls) config.max_tool_calls = Number(kv.max_tool_calls);
       if (kv.max_llm_calls) config.max_llm_calls = Number(kv.max_llm_calls);
@@ -175,7 +176,7 @@ const stubProvider: Provider = {
  * A no-op evaluator stub used as the required llmJudge in the dispatch context.
  */
 const stubLlmJudge: Evaluator = {
-  kind: 'llm_judge',
+  kind: 'llm-judge',
   evaluate(): EvaluationScore {
     throw new Error('trace score does not support LLM-based evaluators');
   },
@@ -312,7 +313,7 @@ export const traceScoreCommand = command({
       long: 'assert',
       short: 'a',
       description:
-        'Evaluator spec: contains:<val>, regex:<pat>, is_json, equals:<val>, latency:<ms>, cost:<usd>, token_usage:<params>, execution_metrics:<params>',
+        'Evaluator spec: contains:<val>, regex:<pat>, is-json, equals:<val>, latency:<ms>, cost:<usd>, token-usage:<params>, execution-metrics:<params>',
     }),
     testId: option({
       type: optional(string),
@@ -353,7 +354,7 @@ export const traceScoreCommand = command({
     }
 
     // Check for trace data if evaluator needs it
-    const traceRequired = ['latency', 'cost', 'token_usage', 'execution_metrics'].includes(
+    const traceRequired = ['latency', 'cost', 'token-usage', 'execution-metrics'].includes(
       evaluatorConfig.type,
     );
     if (traceRequired) {

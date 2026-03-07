@@ -35,6 +35,6 @@ tests:
         content: "Return a JSON object with name and age fields."
     expected_output: '{"name": "Alice", "age": 30}'
     assert:
-      - type: is_json
+      - type: is-json
         required: true
       - type: word-count

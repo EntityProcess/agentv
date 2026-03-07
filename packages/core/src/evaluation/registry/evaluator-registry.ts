@@ -93,7 +93,7 @@ export class EvaluatorRegistry {
 
 /**
  * Adapter that wraps a synchronous assertion function as an Evaluator.
- * Used for deterministic assertions (contains, regex, is_json, equals).
+ * Used for deterministic assertions (contains, regex, is-json, equals).
  */
 export class DeterministicAssertionEvaluator implements Evaluator {
   readonly kind: string;

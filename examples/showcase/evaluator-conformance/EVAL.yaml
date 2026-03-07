@@ -16,7 +16,7 @@ tests:
     expected_output: "Paris"
     assert:
       - name: keyword-judge
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "evaluators/keyword-judge.ts"]
 
   - id: partial-match
@@ -25,5 +25,5 @@ tests:
     expected_output: "red, blue, yellow"
     assert:
       - name: keyword-judge
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "evaluators/keyword-judge.ts"]

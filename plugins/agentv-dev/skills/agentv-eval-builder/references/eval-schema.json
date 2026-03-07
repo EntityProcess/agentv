@@ -228,7 +228,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "code_judge"
+                              "enum": ["code-judge", "code_judge"]
                             },
                             "command": {
                               "anyOf": [
@@ -310,7 +310,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "llm_judge"
+                              "enum": ["llm-judge", "llm_judge"]
                             },
                             "prompt": {
                               "anyOf": [
@@ -500,7 +500,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "code_judge"
+                                      "const": "code-judge"
                                     },
                                     "path": {
                                       "type": "string"
@@ -517,7 +517,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "llm_judge"
+                                      "const": "llm-judge"
                                     },
                                     "prompt": {
                                       "type": "string"
@@ -562,7 +562,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "tool_trajectory"
+                              "enum": ["tool-trajectory", "tool_trajectory"]
                             },
                             "mode": {
                               "type": "string",
@@ -695,7 +695,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "field_accuracy"
+                              "enum": ["field-accuracy", "field_accuracy"]
                             },
                             "fields": {
                               "type": "array",
@@ -843,7 +843,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "token_usage"
+                              "enum": ["token-usage", "token_usage"]
                             },
                             "max_total": {
                               "type": "number",
@@ -888,7 +888,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "execution_metrics"
+                              "enum": ["execution-metrics", "execution_metrics"]
                             },
                             "max_tool_calls": {
                               "type": "number",
@@ -950,7 +950,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "agent_judge"
+                              "enum": ["agent-judge", "agent_judge"]
                             },
                             "prompt": {
                               "type": "string"
@@ -1128,7 +1128,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "is_json"
+                              "enum": ["is-json", "is_json"]
                             }
                           },
                           "required": ["type"],
@@ -1295,7 +1295,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "code_judge"
+                              "enum": ["code-judge", "code_judge"]
                             },
                             "command": {
                               "anyOf": [
@@ -1377,7 +1377,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "llm_judge"
+                              "enum": ["llm-judge", "llm_judge"]
                             },
                             "prompt": {
                               "anyOf": [
@@ -1567,7 +1567,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "code_judge"
+                                      "const": "code-judge"
                                     },
                                     "path": {
                                       "type": "string"
@@ -1584,7 +1584,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "llm_judge"
+                                      "const": "llm-judge"
                                     },
                                     "prompt": {
                                       "type": "string"
@@ -1629,7 +1629,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "tool_trajectory"
+                              "enum": ["tool-trajectory", "tool_trajectory"]
                             },
                             "mode": {
                               "type": "string",
@@ -1762,7 +1762,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "field_accuracy"
+                              "enum": ["field-accuracy", "field_accuracy"]
                             },
                             "fields": {
                               "type": "array",
@@ -1910,7 +1910,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "token_usage"
+                              "enum": ["token-usage", "token_usage"]
                             },
                             "max_total": {
                               "type": "number",
@@ -1955,7 +1955,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "execution_metrics"
+                              "enum": ["execution-metrics", "execution_metrics"]
                             },
                             "max_tool_calls": {
                               "type": "number",
@@ -2017,7 +2017,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "agent_judge"
+                              "enum": ["agent-judge", "agent_judge"]
                             },
                             "prompt": {
                               "type": "string"
@@ -2195,7 +2195,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "is_json"
+                              "enum": ["is-json", "is_json"]
                             }
                           },
                           "required": ["type"],
@@ -2374,7 +2374,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "code_judge"
+                                  "enum": ["code-judge", "code_judge"]
                                 },
                                 "command": {
                                   "anyOf": [
@@ -2456,7 +2456,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "llm_judge"
+                                  "enum": ["llm-judge", "llm_judge"]
                                 },
                                 "prompt": {
                                   "anyOf": [
@@ -2646,7 +2646,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "code_judge"
+                                          "const": "code-judge"
                                         },
                                         "path": {
                                           "type": "string"
@@ -2663,7 +2663,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "llm_judge"
+                                          "const": "llm-judge"
                                         },
                                         "prompt": {
                                           "type": "string"
@@ -2708,7 +2708,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "tool_trajectory"
+                                  "enum": ["tool-trajectory", "tool_trajectory"]
                                 },
                                 "mode": {
                                   "type": "string",
@@ -2841,7 +2841,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "field_accuracy"
+                                  "enum": ["field-accuracy", "field_accuracy"]
                                 },
                                 "fields": {
                                   "type": "array",
@@ -2989,7 +2989,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "token_usage"
+                                  "enum": ["token-usage", "token_usage"]
                                 },
                                 "max_total": {
                                   "type": "number",
@@ -3034,7 +3034,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "execution_metrics"
+                                  "enum": ["execution-metrics", "execution_metrics"]
                                 },
                                 "max_tool_calls": {
                                   "type": "number",
@@ -3096,7 +3096,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "agent_judge"
+                                  "enum": ["agent-judge", "agent_judge"]
                                 },
                                 "prompt": {
                                   "type": "string"
@@ -3274,7 +3274,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "is_json"
+                                  "enum": ["is-json", "is_json"]
                                 }
                               },
                               "required": ["type"],
@@ -3441,7 +3441,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "code_judge"
+                                  "enum": ["code-judge", "code_judge"]
                                 },
                                 "command": {
                                   "anyOf": [
@@ -3523,7 +3523,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "llm_judge"
+                                  "enum": ["llm-judge", "llm_judge"]
                                 },
                                 "prompt": {
                                   "anyOf": [
@@ -3713,7 +3713,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "code_judge"
+                                          "const": "code-judge"
                                         },
                                         "path": {
                                           "type": "string"
@@ -3730,7 +3730,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "llm_judge"
+                                          "const": "llm-judge"
                                         },
                                         "prompt": {
                                           "type": "string"
@@ -3775,7 +3775,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "tool_trajectory"
+                                  "enum": ["tool-trajectory", "tool_trajectory"]
                                 },
                                 "mode": {
                                   "type": "string",
@@ -3908,7 +3908,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "field_accuracy"
+                                  "enum": ["field-accuracy", "field_accuracy"]
                                 },
                                 "fields": {
                                   "type": "array",
@@ -4056,7 +4056,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "token_usage"
+                                  "enum": ["token-usage", "token_usage"]
                                 },
                                 "max_total": {
                                   "type": "number",
@@ -4101,7 +4101,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "execution_metrics"
+                                  "enum": ["execution-metrics", "execution_metrics"]
                                 },
                                 "max_tool_calls": {
                                   "type": "number",
@@ -4163,7 +4163,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "agent_judge"
+                                  "enum": ["agent-judge", "agent_judge"]
                                 },
                                 "prompt": {
                                   "type": "string"
@@ -4341,7 +4341,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "is_json"
+                                  "enum": ["is-json", "is_json"]
                                 }
                               },
                               "required": ["type"],
@@ -4952,7 +4952,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "code_judge"
+                              "enum": ["code-judge", "code_judge"]
                             },
                             "command": {
                               "anyOf": [
@@ -5034,7 +5034,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "llm_judge"
+                              "enum": ["llm-judge", "llm_judge"]
                             },
                             "prompt": {
                               "anyOf": [
@@ -5224,7 +5224,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "code_judge"
+                                      "const": "code-judge"
                                     },
                                     "path": {
                                       "type": "string"
@@ -5241,7 +5241,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "llm_judge"
+                                      "const": "llm-judge"
                                     },
                                     "prompt": {
                                       "type": "string"
@@ -5286,7 +5286,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "tool_trajectory"
+                              "enum": ["tool-trajectory", "tool_trajectory"]
                             },
                             "mode": {
                               "type": "string",
@@ -5419,7 +5419,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "field_accuracy"
+                              "enum": ["field-accuracy", "field_accuracy"]
                             },
                             "fields": {
                               "type": "array",
@@ -5567,7 +5567,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "token_usage"
+                              "enum": ["token-usage", "token_usage"]
                             },
                             "max_total": {
                               "type": "number",
@@ -5612,7 +5612,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "execution_metrics"
+                              "enum": ["execution-metrics", "execution_metrics"]
                             },
                             "max_tool_calls": {
                               "type": "number",
@@ -5674,7 +5674,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "agent_judge"
+                              "enum": ["agent-judge", "agent_judge"]
                             },
                             "prompt": {
                               "type": "string"
@@ -5852,7 +5852,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "is_json"
+                              "enum": ["is-json", "is_json"]
                             }
                           },
                           "required": ["type"],
@@ -6019,7 +6019,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "code_judge"
+                              "enum": ["code-judge", "code_judge"]
                             },
                             "command": {
                               "anyOf": [
@@ -6101,7 +6101,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "llm_judge"
+                              "enum": ["llm-judge", "llm_judge"]
                             },
                             "prompt": {
                               "anyOf": [
@@ -6291,7 +6291,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "code_judge"
+                                      "const": "code-judge"
                                     },
                                     "path": {
                                       "type": "string"
@@ -6308,7 +6308,7 @@
                                   "properties": {
                                     "type": {
                                       "type": "string",
-                                      "const": "llm_judge"
+                                      "const": "llm-judge"
                                     },
                                     "prompt": {
                                       "type": "string"
@@ -6353,7 +6353,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "tool_trajectory"
+                              "enum": ["tool-trajectory", "tool_trajectory"]
                             },
                             "mode": {
                               "type": "string",
@@ -6486,7 +6486,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "field_accuracy"
+                              "enum": ["field-accuracy", "field_accuracy"]
                             },
                             "fields": {
                               "type": "array",
@@ -6634,7 +6634,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "token_usage"
+                              "enum": ["token-usage", "token_usage"]
                             },
                             "max_total": {
                               "type": "number",
@@ -6679,7 +6679,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "execution_metrics"
+                              "enum": ["execution-metrics", "execution_metrics"]
                             },
                             "max_tool_calls": {
                               "type": "number",
@@ -6741,7 +6741,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "agent_judge"
+                              "enum": ["agent-judge", "agent_judge"]
                             },
                             "prompt": {
                               "type": "string"
@@ -6919,7 +6919,7 @@
                             },
                             "type": {
                               "type": "string",
-                              "const": "is_json"
+                              "enum": ["is-json", "is_json"]
                             }
                           },
                           "required": ["type"],
@@ -7098,7 +7098,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "code_judge"
+                                  "enum": ["code-judge", "code_judge"]
                                 },
                                 "command": {
                                   "anyOf": [
@@ -7180,7 +7180,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "llm_judge"
+                                  "enum": ["llm-judge", "llm_judge"]
                                 },
                                 "prompt": {
                                   "anyOf": [
@@ -7370,7 +7370,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "code_judge"
+                                          "const": "code-judge"
                                         },
                                         "path": {
                                           "type": "string"
@@ -7387,7 +7387,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "llm_judge"
+                                          "const": "llm-judge"
                                         },
                                         "prompt": {
                                           "type": "string"
@@ -7432,7 +7432,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "tool_trajectory"
+                                  "enum": ["tool-trajectory", "tool_trajectory"]
                                 },
                                 "mode": {
                                   "type": "string",
@@ -7565,7 +7565,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "field_accuracy"
+                                  "enum": ["field-accuracy", "field_accuracy"]
                                 },
                                 "fields": {
                                   "type": "array",
@@ -7713,7 +7713,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "token_usage"
+                                  "enum": ["token-usage", "token_usage"]
                                 },
                                 "max_total": {
                                   "type": "number",
@@ -7758,7 +7758,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "execution_metrics"
+                                  "enum": ["execution-metrics", "execution_metrics"]
                                 },
                                 "max_tool_calls": {
                                   "type": "number",
@@ -7820,7 +7820,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "agent_judge"
+                                  "enum": ["agent-judge", "agent_judge"]
                                 },
                                 "prompt": {
                                   "type": "string"
@@ -7998,7 +7998,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "is_json"
+                                  "enum": ["is-json", "is_json"]
                                 }
                               },
                               "required": ["type"],
@@ -8165,7 +8165,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "code_judge"
+                                  "enum": ["code-judge", "code_judge"]
                                 },
                                 "command": {
                                   "anyOf": [
@@ -8247,7 +8247,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "llm_judge"
+                                  "enum": ["llm-judge", "llm_judge"]
                                 },
                                 "prompt": {
                                   "anyOf": [
@@ -8437,7 +8437,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "code_judge"
+                                          "const": "code-judge"
                                         },
                                         "path": {
                                           "type": "string"
@@ -8454,7 +8454,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "llm_judge"
+                                          "const": "llm-judge"
                                         },
                                         "prompt": {
                                           "type": "string"
@@ -8499,7 +8499,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "tool_trajectory"
+                                  "enum": ["tool-trajectory", "tool_trajectory"]
                                 },
                                 "mode": {
                                   "type": "string",
@@ -8632,7 +8632,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "field_accuracy"
+                                  "enum": ["field-accuracy", "field_accuracy"]
                                 },
                                 "fields": {
                                   "type": "array",
@@ -8780,7 +8780,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "token_usage"
+                                  "enum": ["token-usage", "token_usage"]
                                 },
                                 "max_total": {
                                   "type": "number",
@@ -8825,7 +8825,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "execution_metrics"
+                                  "enum": ["execution-metrics", "execution_metrics"]
                                 },
                                 "max_tool_calls": {
                                   "type": "number",
@@ -8887,7 +8887,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "agent_judge"
+                                  "enum": ["agent-judge", "agent_judge"]
                                 },
                                 "prompt": {
                                   "type": "string"
@@ -9065,7 +9065,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "const": "is_json"
+                                  "enum": ["is-json", "is_json"]
                                 }
                               },
                               "required": ["type"],
@@ -9580,7 +9580,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "code_judge"
+                        "enum": ["code-judge", "code_judge"]
                       },
                       "command": {
                         "anyOf": [
@@ -9662,7 +9662,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "llm_judge"
+                        "enum": ["llm-judge", "llm_judge"]
                       },
                       "prompt": {
                         "anyOf": [
@@ -9852,7 +9852,7 @@
                             "properties": {
                               "type": {
                                 "type": "string",
-                                "const": "code_judge"
+                                "const": "code-judge"
                               },
                               "path": {
                                 "type": "string"
@@ -9869,7 +9869,7 @@
                             "properties": {
                               "type": {
                                 "type": "string",
-                                "const": "llm_judge"
+                                "const": "llm-judge"
                               },
                               "prompt": {
                                 "type": "string"
@@ -9914,7 +9914,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "tool_trajectory"
+                        "enum": ["tool-trajectory", "tool_trajectory"]
                       },
                       "mode": {
                         "type": "string",
@@ -10047,7 +10047,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "field_accuracy"
+                        "enum": ["field-accuracy", "field_accuracy"]
                       },
                       "fields": {
                         "type": "array",
@@ -10195,7 +10195,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "token_usage"
+                        "enum": ["token-usage", "token_usage"]
                       },
                       "max_total": {
                         "type": "number",
@@ -10240,7 +10240,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "execution_metrics"
+                        "enum": ["execution-metrics", "execution_metrics"]
                       },
                       "max_tool_calls": {
                         "type": "number",
@@ -10302,7 +10302,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "agent_judge"
+                        "enum": ["agent-judge", "agent_judge"]
                       },
                       "prompt": {
                         "type": "string"
@@ -10480,7 +10480,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "is_json"
+                        "enum": ["is-json", "is_json"]
                       }
                     },
                     "required": ["type"],
@@ -10647,7 +10647,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "code_judge"
+                        "enum": ["code-judge", "code_judge"]
                       },
                       "command": {
                         "anyOf": [
@@ -10729,7 +10729,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "llm_judge"
+                        "enum": ["llm-judge", "llm_judge"]
                       },
                       "prompt": {
                         "anyOf": [
@@ -10919,7 +10919,7 @@
                             "properties": {
                               "type": {
                                 "type": "string",
-                                "const": "code_judge"
+                                "const": "code-judge"
                               },
                               "path": {
                                 "type": "string"
@@ -10936,7 +10936,7 @@
                             "properties": {
                               "type": {
                                 "type": "string",
-                                "const": "llm_judge"
+                                "const": "llm-judge"
                               },
                               "prompt": {
                                 "type": "string"
@@ -10981,7 +10981,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "tool_trajectory"
+                        "enum": ["tool-trajectory", "tool_trajectory"]
                       },
                       "mode": {
                         "type": "string",
@@ -11114,7 +11114,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "field_accuracy"
+                        "enum": ["field-accuracy", "field_accuracy"]
                       },
                       "fields": {
                         "type": "array",
@@ -11262,7 +11262,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "token_usage"
+                        "enum": ["token-usage", "token_usage"]
                       },
                       "max_total": {
                         "type": "number",
@@ -11307,7 +11307,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "execution_metrics"
+                        "enum": ["execution-metrics", "execution_metrics"]
                       },
                       "max_tool_calls": {
                         "type": "number",
@@ -11369,7 +11369,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "agent_judge"
+                        "enum": ["agent-judge", "agent_judge"]
                       },
                       "prompt": {
                         "type": "string"
@@ -11547,7 +11547,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "const": "is_json"
+                        "enum": ["is-json", "is_json"]
                       }
                     },
                     "required": ["type"],
@@ -11760,7 +11760,7 @@
                   },
                   "type": {
                     "type": "string",
-                    "const": "code_judge"
+                    "enum": ["code-judge", "code_judge"]
                   },
                   "command": {
                     "anyOf": [
@@ -11842,7 +11842,7 @@
                   },
                   "type": {
                     "type": "string",
-                    "const": "llm_judge"
+                    "enum": ["llm-judge", "llm_judge"]
                   },
                   "prompt": {
                     "anyOf": [
@@ -12032,7 +12032,7 @@
                         "properties": {
                           "type": {
                             "type": "string",
-                            "const": "code_judge"
+                            "const": "code-judge"
                           },
                           "path": {
                             "type": "string"
@@ -12049,7 +12049,7 @@
                         "properties": {
                           "type": {
                             "type": "string",
-                            "const": "llm_judge"
+                            "const": "llm-judge"
                           },
                           "prompt": {
                             "type": "string"
@@ -12094,7 +12094,7 @@
                   },
                   "type": {
                     "type": "string",
-                    "const": "tool_trajectory"
+                    "enum": ["tool-trajectory", "tool_trajectory"]
                   },
                   "mode": {
                     "type": "string",
@@ -12227,7 +12227,7 @@
                   },
                   "type": {
                     "type": "string",
-                    "const": "field_accuracy"
+                    "enum": ["field-accuracy", "field_accuracy"]
                   },
                   "fields": {
                     "type": "array",
@@ -12375,7 +12375,7 @@
                   },
                   "type": {
                     "type": "string",
-                    "const": "token_usage"
+                    "enum": ["token-usage", "token_usage"]
                   },
                   "max_total": {
                     "type": "number",
@@ -12420,7 +12420,7 @@
                   },
                   "type": {
                     "type": "string",
-                    "const": "execution_metrics"
+                    "enum": ["execution-metrics", "execution_metrics"]
                   },
                   "max_tool_calls": {
                     "type": "number",
@@ -12482,7 +12482,7 @@
                   },
                   "type": {
                     "type": "string",
-                    "const": "agent_judge"
+                    "enum": ["agent-judge", "agent_judge"]
                   },
                   "prompt": {
                     "type": "string"
@@ -12660,7 +12660,7 @@
                   },
                   "type": {
                     "type": "string",
-                    "const": "is_json"
+                    "enum": ["is-json", "is_json"]
                   }
                 },
                 "required": ["type"],

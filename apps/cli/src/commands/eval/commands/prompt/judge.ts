@@ -71,7 +71,7 @@ export const evalPromptJudgeCommand = command({
 
       outputs.push({
         name: 'default_llm_judge',
-        type: 'llm_judge',
+        type: 'llm-judge',
         status: 'prompt_ready',
         prompt: {
           system_prompt: assembly.systemPrompt,
@@ -97,8 +97,8 @@ async function processEvaluator(
   promptInputs: Awaited<ReturnType<typeof buildPromptInputs>>,
 ): Promise<EvaluatorOutput> {
   switch (config.type) {
-    case 'code': {
-      const codeConfig = config as Extract<EvaluatorConfig, { type: 'code' }>;
+    case 'code-judge': {
+      const codeConfig = config as Extract<EvaluatorConfig, { type: 'code-judge' }>;
       const script = codeConfig.command ?? codeConfig.script ?? [];
       const scriptCwd = codeConfig.resolvedCwd ?? codeConfig.cwd;
 
@@ -125,14 +125,14 @@ async function processEvaluator(
         const parsed = JSON.parse(stdout);
         return {
           name: codeConfig.name,
-          type: 'code_judge',
+          type: 'code-judge',
           status: 'completed',
           result: parsed,
         };
       } catch (error) {
         return {
           name: codeConfig.name,
-          type: 'code_judge',
+          type: 'code-judge',
           status: 'completed',
           result: {
             score: 0,
@@ -142,8 +142,8 @@ async function processEvaluator(
       }
     }
 
-    case 'llm_judge': {
-      const llmConfig = config as Extract<EvaluatorConfig, { type: 'llm_judge' }>;
+    case 'llm-judge': {
+      const llmConfig = config as Extract<EvaluatorConfig, { type: 'llm-judge' }>;
       const assembly = assembleLlmJudgePrompt({
         evalCase,
         candidate,
@@ -153,7 +153,7 @@ async function processEvaluator(
 
       return {
         name: llmConfig.name,
-        type: 'llm_judge',
+        type: 'llm-judge',
         status: 'prompt_ready',
         prompt: {
           system_prompt: assembly.systemPrompt,

@@ -84,7 +84,7 @@ tests:
       target: gpt4_target
     assert:
       - name: depth_check
-        type: llm_judge
+        type: llm-judge
         prompt: ./judges/depth.md
 ```
 
@@ -109,7 +109,7 @@ tests:
       skip_defaults: true
     assert:
       - name: custom_eval
-        type: llm_judge
+        type: llm-judge
     # Does NOT get latency_check
 ```
 
@@ -178,7 +178,7 @@ tests:
     criteria: Returns valid JSON with status field
     input: Return the system status as JSON
     assert:
-      - type: is_json
+      - type: is-json
       - type: contains
         value: '"status"'
 ```

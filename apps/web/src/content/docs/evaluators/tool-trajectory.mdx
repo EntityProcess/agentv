@@ -16,7 +16,7 @@ Validates that each tool was called at least N times, regardless of order:
 ```yaml
 assert:
   - name: tool-usage
-    type: tool_trajectory
+    type: tool-trajectory
     mode: any_order
     minimums:
       knowledgeSearch: 2    # Must be called at least twice
@@ -32,7 +32,7 @@ Validates tools appear in the expected sequence, but allows gaps (other tools ca
 ```yaml
 assert:
   - name: workflow-sequence
-    type: tool_trajectory
+    type: tool-trajectory
     mode: in_order
     expected:
       - tool: fetchData
@@ -50,7 +50,7 @@ Validates the exact tool sequence with no gaps or extra tools:
 ```yaml
 assert:
   - name: auth-sequence
-    type: tool_trajectory
+    type: tool-trajectory
     mode: exact
     expected:
       - tool: checkCredentials
@@ -67,7 +67,7 @@ For `in_order` and `exact` modes, you can optionally validate tool arguments:
 ```yaml
 assert:
   - name: search-validation
-    type: tool_trajectory
+    type: tool-trajectory
     mode: in_order
     expected:
       # Partial match — only specified keys are checked
@@ -95,7 +95,7 @@ For `in_order` and `exact` modes, you can validate per-tool timing with `max_dur
 ```yaml
 assert:
   - name: perf-check
-    type: tool_trajectory
+    type: tool-trajectory
     mode: in_order
     expected:
       - tool: Read
@@ -192,7 +192,7 @@ tests:
     assert:
       # Check minimum tool usage
       - name: coverage
-        type: tool_trajectory
+        type: tool-trajectory
         mode: any_order
         minimums:
           webSearch: 1
@@ -201,7 +201,7 @@ tests:
 
       # Check workflow order
       - name: workflow
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         expected:
           - tool: webSearch
@@ -220,7 +220,7 @@ tests:
 
     assert:
       - name: pipeline-check
-        type: tool_trajectory
+        type: tool-trajectory
         mode: exact
         expected:
           - tool: loadData
@@ -240,7 +240,7 @@ tests:
 
     assert:
       - name: pipeline-perf
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         expected:
           - tool: loadData

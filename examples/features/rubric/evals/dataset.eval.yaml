@@ -145,7 +145,7 @@ tests:
 
       # Additional code evaluator for syntax checking
       - name: python_syntax
-        type: code_judge
+        type: code-judge
         command: ["uv", "run", "python", "check_syntax.py"]
 
   # ==========================================

@@ -10,6 +10,17 @@ const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RESET = '\u001b[0m';
 
 /**
+ * Normalize evaluator type names from legacy snake_case to internal kebab-case.
+ * Accepts both forms for backward compatibility:
+ *   - snake_case: 'llm_judge' -> 'llm-judge' (legacy, still accepted)
+ *   - kebab-case: 'llm-judge' -> 'llm-judge' (preferred, passes through)
+ *   - single-word: 'contains' -> 'contains' (unchanged)
+ */
+export function normalizeEvaluatorType(type: string): string {
+  return type.replace(/_/g, '-');
+}
+
+/**
  * Parse evaluators from eval case configuration.
  */
 export async function parseEvaluators(
@@ -78,7 +89,9 @@ async function parseEvaluatorList(
     }
 
     const rawName = asString(rawEvaluator.name);
-    const typeValue = rawEvaluator.type;
+    const rawType = rawEvaluator.type;
+    // Normalize legacy snake_case YAML type names to internal kebab-case (e.g., 'llm_judge' -> 'llm-judge')
+    const typeValue = typeof rawType === 'string' ? normalizeEvaluatorType(rawType) : rawType;
 
     // Unknown types are treated as custom assertion types (resolved via registry discovery)
     const isCustomType = typeof typeValue === 'string' && !isEvaluatorKind(typeValue);
@@ -124,7 +137,7 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'code_judge') {
+    if (typeValue === 'code-judge') {
       let command: string[] | undefined;
       // Precedence: command > script (deprecated alias)
       const rawCommand = rawEvaluator.command ?? rawEvaluator.script;
@@ -133,19 +146,19 @@ async function parseEvaluatorList(
         const trimmed = rawCommand.trim();
         if (trimmed.length === 0) {
           throw new Error(
-            `Invalid code_judge command for evaluator '${name}' in '${evalId}': command cannot be empty`,
+            `Invalid code-judge command for evaluator '${name}' in '${evalId}': command cannot be empty`,
           );
         }
         command = parseCommandToArgv(trimmed);
       } else {
         command = asStringArray(
           rawCommand,
-          `code_judge command for evaluator '${name}' in '${evalId}'`,
+          `code-judge command for evaluator '${name}' in '${evalId}'`,
         );
       }
 
       if (!command) {
-        logWarning(`Skipping code_judge evaluator '${name}' in '${evalId}': missing command`);
+        logWarning(`Skipping code-judge evaluator '${name}' in '${evalId}': missing command`);
         continue;
       }
 
@@ -218,7 +231,7 @@ async function parseEvaluatorList(
 
       evaluators.push({
         name,
-        type: 'code',
+        type: 'code-judge',
         command,
         cwd,
         resolvedCwd,
@@ -250,8 +263,8 @@ async function parseEvaluatorList(
       const aggregatorType = asString(rawAggregator.type);
       if (
         aggregatorType !== 'weighted_average' &&
-        aggregatorType !== 'code_judge' &&
-        aggregatorType !== 'llm_judge' &&
+        aggregatorType !== 'code-judge' &&
+        aggregatorType !== 'llm-judge' &&
         aggregatorType !== 'threshold'
       ) {
         logWarning(
@@ -276,7 +289,7 @@ async function parseEvaluatorList(
           continue;
         }
 
-        // Parse member evaluator (reuse existing logic for code, llm_judge, code_judge)
+        // Parse member evaluator (reuse existing logic for code, llm-judge, code-judge)
         const memberConfigs = await parseEvaluators(
           { evaluators: [rawMember] },
           undefined,
@@ -315,11 +328,11 @@ async function parseEvaluatorList(
           type: 'weighted_average',
           ...(Object.keys(parsedWeights).length > 0 ? { weights: parsedWeights } : {}),
         };
-      } else if (aggregatorType === 'code_judge') {
+      } else if (aggregatorType === 'code-judge') {
         const aggregatorPath = asString(rawAggregator.path);
         if (!aggregatorPath) {
           logWarning(
-            `Skipping composite evaluator '${name}' in '${evalId}': code_judge aggregator missing path`,
+            `Skipping composite evaluator '${name}' in '${evalId}': code-judge aggregator missing path`,
           );
           continue;
         }
@@ -327,7 +340,7 @@ async function parseEvaluatorList(
         // Set cwd to eval file directory (first search root)
         // Paths are resolved relative to this directory
         aggregator = {
-          type: 'code_judge',
+          type: 'code-judge',
           path: aggregatorPath,
           cwd: searchRoots[0],
         };
@@ -344,7 +357,7 @@ async function parseEvaluatorList(
           threshold: thresholdValue,
         };
       } else {
-        // llm_judge aggregator
+        // llm-judge aggregator
         const aggregatorPrompt = asString(rawAggregator.prompt);
         let promptPath: string | undefined;
 
@@ -356,7 +369,7 @@ async function parseEvaluatorList(
         }
 
         aggregator = {
-          type: 'llm_judge',
+          type: 'llm-judge',
           ...(aggregatorPrompt ? { prompt: aggregatorPrompt } : {}),
           ...(promptPath ? { promptPath } : {}),
         };
@@ -377,7 +390,7 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'tool_trajectory') {
+    if (typeValue === 'tool-trajectory') {
       const mode = asString(rawEvaluator.mode);
       if (
         mode !== 'any_order' &&
@@ -387,7 +400,7 @@ async function parseEvaluatorList(
         mode !== 'superset'
       ) {
         logWarning(
-          `Skipping tool_trajectory evaluator '${name}' in '${evalId}': invalid mode '${mode}' (must be any_order, in_order, exact, subset, or superset)`,
+          `Skipping tool-trajectory evaluator '${name}' in '${evalId}': invalid mode '${mode}' (must be any_order, in_order, exact, subset, or superset)`,
         );
         continue;
       }
@@ -397,7 +410,7 @@ async function parseEvaluatorList(
       if (rawMinimums !== undefined) {
         if (!isJsonObject(rawMinimums)) {
           logWarning(
-            `Skipping tool_trajectory evaluator '${name}' in '${evalId}': minimums must be an object`,
+            `Skipping tool-trajectory evaluator '${name}' in '${evalId}': minimums must be an object`,
           );
           continue;
         }
@@ -431,7 +444,7 @@ async function parseEvaluatorList(
             argsMatch = rawArgsMatch;
           } else {
             logWarning(
-              `Invalid args_match '${rawArgsMatch}' for tool_trajectory evaluator '${name}' in '${evalId}': must be exact, superset, subset, ignore, or a string array`,
+              `Invalid args_match '${rawArgsMatch}' for tool-trajectory evaluator '${name}' in '${evalId}': must be exact, superset, subset, ignore, or a string array`,
             );
           }
         }
@@ -442,7 +455,7 @@ async function parseEvaluatorList(
       if (rawExpected !== undefined) {
         if (!Array.isArray(rawExpected)) {
           logWarning(
-            `Skipping tool_trajectory evaluator '${name}' in '${evalId}': expected must be an array`,
+            `Skipping tool-trajectory evaluator '${name}' in '${evalId}': expected must be an array`,
           );
           continue;
         }
@@ -504,7 +517,7 @@ async function parseEvaluatorList(
       // Validate config completeness based on mode
       if (mode === 'any_order' && !minimums) {
         logWarning(
-          `Skipping tool_trajectory evaluator '${name}' in '${evalId}': any_order mode requires minimums`,
+          `Skipping tool-trajectory evaluator '${name}' in '${evalId}': any_order mode requires minimums`,
         );
         continue;
       }
@@ -514,7 +527,7 @@ async function parseEvaluatorList(
         !expected
       ) {
         logWarning(
-          `Skipping tool_trajectory evaluator '${name}' in '${evalId}': ${mode} mode requires expected`,
+          `Skipping tool-trajectory evaluator '${name}' in '${evalId}': ${mode} mode requires expected`,
         );
         continue;
       }
@@ -524,7 +537,7 @@ async function parseEvaluatorList(
 
       const config: ToolTrajectoryEvaluatorConfig = {
         name,
-        type: 'tool_trajectory',
+        type: 'tool-trajectory',
         mode,
         ...(minimums ? { minimums } : {}),
         ...(expected ? { expected } : {}),
@@ -538,18 +551,18 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'field_accuracy') {
+    if (typeValue === 'field-accuracy') {
       const rawFields = rawEvaluator.fields;
       if (!Array.isArray(rawFields)) {
         logWarning(
-          `Skipping field_accuracy evaluator '${name}' in '${evalId}': missing fields array`,
+          `Skipping field-accuracy evaluator '${name}' in '${evalId}': missing fields array`,
         );
         continue;
       }
 
       if (rawFields.length === 0) {
         logWarning(
-          `Skipping field_accuracy evaluator '${name}' in '${evalId}': fields array is empty`,
+          `Skipping field-accuracy evaluator '${name}' in '${evalId}': fields array is empty`,
         );
         continue;
       }
@@ -558,7 +571,7 @@ async function parseEvaluatorList(
       for (const rawField of rawFields) {
         if (!isJsonObject(rawField)) {
           logWarning(
-            `Skipping invalid field entry in field_accuracy evaluator '${name}' (expected object)`,
+            `Skipping invalid field entry in field-accuracy evaluator '${name}' (expected object)`,
           );
           continue;
         }
@@ -568,14 +581,14 @@ async function parseEvaluatorList(
 
         if (!fieldPath) {
           logWarning(
-            `Skipping field without path in field_accuracy evaluator '${name}' in '${evalId}'`,
+            `Skipping field without path in field-accuracy evaluator '${name}' in '${evalId}'`,
           );
           continue;
         }
 
         if (!match || !isValidFieldMatchType(match)) {
           logWarning(
-            `Skipping field '${fieldPath}' with invalid match type '${match}' in evaluator '${name}' (must be exact, numeric_tolerance, or date). For fuzzy matching, use a code_judge evaluator.`,
+            `Skipping field '${fieldPath}' with invalid match type '${match}' in evaluator '${name}' (must be exact, numeric_tolerance, or date). For fuzzy matching, use a code-judge evaluator.`,
           );
           continue;
         }
@@ -597,7 +610,7 @@ async function parseEvaluatorList(
 
       if (fields.length === 0) {
         logWarning(
-          `Skipping field_accuracy evaluator '${name}' in '${evalId}': no valid fields found`,
+          `Skipping field-accuracy evaluator '${name}' in '${evalId}': no valid fields found`,
         );
         continue;
       }
@@ -610,7 +623,7 @@ async function parseEvaluatorList(
 
       evaluators.push({
         name,
-        type: 'field_accuracy',
+        type: 'field-accuracy',
         fields,
         ...(validAggregation ? { aggregation: validAggregation } : {}),
         ...(weight !== undefined ? { weight } : {}),
@@ -666,7 +679,7 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'token_usage') {
+    if (typeValue === 'token-usage') {
       const maxTotal = rawEvaluator.max_total ?? rawEvaluator.maxTotal;
       const maxInput = rawEvaluator.max_input ?? rawEvaluator.maxInput;
       const maxOutput = rawEvaluator.max_output ?? rawEvaluator.maxOutput;
@@ -683,7 +696,7 @@ async function parseEvaluatorList(
         if (raw === undefined) continue;
         if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0) {
           logWarning(
-            `Skipping token_usage evaluator '${name}' in '${evalId}': ${key} must be a non-negative finite number`,
+            `Skipping token-usage evaluator '${name}' in '${evalId}': ${key} must be a non-negative finite number`,
           );
           continue;
         }
@@ -696,7 +709,7 @@ async function parseEvaluatorList(
         validLimits.max_output === undefined
       ) {
         logWarning(
-          `Skipping token_usage evaluator '${name}' in '${evalId}': must set at least one of max_total, max_input, max_output`,
+          `Skipping token-usage evaluator '${name}' in '${evalId}': must set at least one of max_total, max_input, max_output`,
         );
         continue;
       }
@@ -706,7 +719,7 @@ async function parseEvaluatorList(
 
       evaluators.push({
         name,
-        type: 'token_usage',
+        type: 'token-usage',
         ...validLimits,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
@@ -715,7 +728,7 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'execution_metrics') {
+    if (typeValue === 'execution-metrics') {
       const maxToolCalls = rawEvaluator.max_tool_calls ?? rawEvaluator.maxToolCalls;
       const maxLlmCalls = rawEvaluator.max_llm_calls ?? rawEvaluator.maxLlmCalls;
       const maxTokens = rawEvaluator.max_tokens ?? rawEvaluator.maxTokens;
@@ -752,7 +765,7 @@ async function parseEvaluatorList(
         if (raw === undefined) continue;
         if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0) {
           logWarning(
-            `Skipping execution_metrics evaluator '${name}' in '${evalId}': ${key} must be a non-negative finite number`,
+            `Skipping execution-metrics evaluator '${name}' in '${evalId}': ${key} must be a non-negative finite number`,
           );
           hasError = true;
           break;
@@ -775,7 +788,7 @@ async function parseEvaluatorList(
 
       if (!hasThreshold) {
         logWarning(
-          `Skipping execution_metrics evaluator '${name}' in '${evalId}': must set at least one threshold (max_tool_calls, max_llm_calls, max_tokens, max_cost_usd, max_duration_ms, or target_exploration_ratio)`,
+          `Skipping execution-metrics evaluator '${name}' in '${evalId}': must set at least one threshold (max_tool_calls, max_llm_calls, max_tokens, max_cost_usd, max_duration_ms, or target_exploration_ratio)`,
         );
         continue;
       }
@@ -785,7 +798,7 @@ async function parseEvaluatorList(
 
       evaluators.push({
         name,
-        type: 'execution_metrics',
+        type: 'execution-metrics',
         ...validThresholds,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
@@ -794,7 +807,7 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'agent_judge') {
+    if (typeValue === 'agent-judge') {
       // Validate max_steps (1-50)
       const rawMaxSteps = rawEvaluator.max_steps ?? rawEvaluator.maxSteps;
       let maxSteps: number | undefined;
@@ -806,7 +819,7 @@ async function parseEvaluatorList(
           rawMaxSteps > 50
         ) {
           logWarning(
-            `Skipping agent_judge evaluator '${name}' in '${evalId}': max_steps must be an integer 1-50`,
+            `Skipping agent-judge evaluator '${name}' in '${evalId}': max_steps must be an integer 1-50`,
           );
           continue;
         }
@@ -819,7 +832,7 @@ async function parseEvaluatorList(
       if (rawTemperature !== undefined) {
         if (typeof rawTemperature !== 'number' || rawTemperature < 0 || rawTemperature > 2) {
           logWarning(
-            `Skipping agent_judge evaluator '${name}' in '${evalId}': temperature must be a number 0-2`,
+            `Skipping agent-judge evaluator '${name}' in '${evalId}': temperature must be a number 0-2`,
           );
           continue;
         }
@@ -852,7 +865,7 @@ async function parseEvaluatorList(
 
       evaluators.push({
         name,
-        type: 'agent_judge',
+        type: 'agent-judge',
         ...(agentPrompt ? { prompt: agentPrompt } : {}),
         ...(agentPromptPath
           ? { promptPath: agentPromptPath, resolvedPromptPath: agentPromptPath }
@@ -889,7 +902,7 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'contains_any' || typeValue === 'contains_all') {
+    if (typeValue === 'contains-any' || typeValue === 'contains-all') {
       const value = asStringArrayStrict(rawEvaluator.value);
       if (!value || value.length === 0) {
         logWarning(
@@ -929,7 +942,7 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'icontains_any' || typeValue === 'icontains_all') {
+    if (typeValue === 'icontains-any' || typeValue === 'icontains-all') {
       const value = asStringArrayStrict(rawEvaluator.value);
       if (!value || value.length === 0) {
         logWarning(
@@ -950,7 +963,7 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'starts_with' || typeValue === 'ends_with') {
+    if (typeValue === 'starts-with' || typeValue === 'ends-with') {
       const value = asString(rawEvaluator.value);
       if (!value) {
         logWarning(`Skipping ${typeValue} evaluator '${name}' in '${evalId}': missing value`);
@@ -990,12 +1003,12 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'is_json') {
+    if (typeValue === 'is-json') {
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
       const required = parseRequired(rawEvaluator.required);
       evaluators.push({
         name,
-        type: 'is_json',
+        type: 'is-json',
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(negate !== undefined ? { negate } : {}),
@@ -1050,7 +1063,7 @@ async function parseEvaluatorList(
 
       evaluators.push({
         name,
-        type: 'llm_judge',
+        type: 'llm-judge',
         rubrics: parsedCriteria,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
@@ -1139,10 +1152,10 @@ async function parseEvaluatorList(
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
       const required = parseRequired(rawEvaluator.required);
 
-      // deprecated: `type: rubric` maps to `type: llm_judge` with `rubrics`. Use `type: rubrics` with `criteria` instead.
+      // deprecated: `type: rubric` maps to `type: llm-judge` with `rubrics`. Use `type: rubrics` with `criteria` instead.
       evaluators.push({
         name,
-        type: 'llm_judge',
+        type: 'llm-judge',
         rubrics: parsedRubrics,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
@@ -1186,7 +1199,7 @@ async function parseEvaluatorList(
 
     evaluators.push({
       name,
-      type: 'llm_judge',
+      type: 'llm-judge',
       prompt,
       promptPath,
       ...(promptPath ? { resolvedPromptPath: promptPath } : {}),
@@ -1205,15 +1218,15 @@ async function parseEvaluatorList(
 /** Assertion evaluator types that support auto-generated names. */
 const ASSERTION_TYPES = new Set([
   'contains',
-  'contains_any',
-  'contains_all',
+  'contains-any',
+  'contains-all',
   'icontains',
-  'icontains_any',
-  'icontains_all',
-  'starts_with',
-  'ends_with',
+  'icontains-any',
+  'icontains-all',
+  'starts-with',
+  'ends-with',
   'regex',
-  'is_json',
+  'is-json',
   'equals',
   'rubrics',
 ]);
@@ -1233,24 +1246,24 @@ function generateAssertionName(typeValue: string, rawEvaluator: JsonObject): str
   switch (typeValue) {
     case 'contains':
       return value ? `contains-${value}` : 'contains';
-    case 'contains_any':
-      return arrayValue ? `contains_any-${arrayValue.length}` : 'contains_any';
-    case 'contains_all':
-      return arrayValue ? `contains_all-${arrayValue.length}` : 'contains_all';
+    case 'contains-any':
+      return arrayValue ? `contains-any-${arrayValue.length}` : 'contains-any';
+    case 'contains-all':
+      return arrayValue ? `contains-all-${arrayValue.length}` : 'contains-all';
     case 'icontains':
       return value ? `icontains-${value}` : 'icontains';
-    case 'icontains_any':
-      return arrayValue ? `icontains_any-${arrayValue.length}` : 'icontains_any';
-    case 'icontains_all':
-      return arrayValue ? `icontains_all-${arrayValue.length}` : 'icontains_all';
-    case 'starts_with':
-      return value ? `starts_with-${value}` : 'starts_with';
-    case 'ends_with':
-      return value ? `ends_with-${value}` : 'ends_with';
+    case 'icontains-any':
+      return arrayValue ? `icontains-any-${arrayValue.length}` : 'icontains-any';
+    case 'icontains-all':
+      return arrayValue ? `icontains-all-${arrayValue.length}` : 'icontains-all';
+    case 'starts-with':
+      return value ? `starts-with-${value}` : 'starts-with';
+    case 'ends-with':
+      return value ? `ends-with-${value}` : 'ends-with';
     case 'regex':
       return value ? `regex-${value.length > 30 ? value.slice(0, 30) : value}` : 'regex';
-    case 'is_json':
-      return 'is_json';
+    case 'is-json':
+      return 'is-json';
     case 'equals':
       return value ? `equals-${value}` : 'equals';
     case 'rubrics':
@@ -1270,8 +1283,10 @@ export function coerceEvaluator(
   if (typeof candidate !== 'string') {
     return undefined;
   }
-  if (isEvaluatorKind(candidate)) {
-    return candidate;
+  // Normalize legacy snake_case to kebab-case
+  const normalized = normalizeEvaluatorType(candidate);
+  if (isEvaluatorKind(normalized)) {
+    return normalized;
   }
   logWarning(`Unknown evaluator '${candidate}' in ${contextId}, falling back to default`);
   return undefined;
@@ -1281,7 +1296,7 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-/** Parse a value as a string array (for assertion value fields like contains_any). */
+/** Parse a value as a string array (for assertion value fields like contains-any). */
 function asStringArrayStrict(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
@@ -1328,9 +1343,8 @@ function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Evaluator types that consume evalCase.criteria during evaluation.
- * Note: code_judge is parsed to type 'code' by parseEvaluatorList. */
-const CRITERIA_CONSUMER_TYPES = new Set(['llm_judge', 'agent_judge', 'code']);
+/** Evaluator types that consume evalCase.criteria during evaluation. */
+const CRITERIA_CONSUMER_TYPES = new Set(['llm-judge', 'agent-judge', 'code-judge']);
 
 /**
  * Warn when criteria is defined but no evaluator in assert will consume it.
@@ -1345,7 +1359,7 @@ export function warnUnconsumedCriteria(
   const hasConsumer = evaluators.some((e) => CRITERIA_CONSUMER_TYPES.has(e.type));
   if (!hasConsumer) {
     logWarning(
-      `Test '${testId}': criteria is defined but no evaluator in assert will evaluate it. Add 'type: llm_judge' to assert, or remove criteria if it is documentation-only.`,
+      `Test '${testId}': criteria is defined but no evaluator in assert will evaluate it. Add 'type: llm-judge' to assert, or remove criteria if it is documentation-only.`,
     );
   }
 }
@@ -1751,7 +1765,7 @@ export function parseInlineRubrics(
 
   return {
     name: 'rubric',
-    type: 'llm_judge',
+    type: 'llm-judge',
     rubrics: rubricItems,
   };
 }

@@ -20,7 +20,7 @@ describe('token usage type contracts', () => {
   it('EvaluatorResult accepts tokenUsage', () => {
     const result: EvaluatorResult = {
       name: 'test',
-      type: 'llm_judge',
+      type: 'llm-judge',
       score: 0.9,
       hits: ['good'],
       misses: [],
@@ -32,7 +32,7 @@ describe('token usage type contracts', () => {
   it('EvaluatorResult tokenUsage is optional', () => {
     const result: EvaluatorResult = {
       name: 'test',
-      type: 'llm_judge',
+      type: 'llm-judge',
       score: 0.9,
       hits: [],
       misses: [],
@@ -50,7 +50,7 @@ describe('token usage type contracts', () => {
       scores: [
         {
           name: 'child-judge',
-          type: 'llm_judge',
+          type: 'llm-judge',
           score: 0.8,
           hits: [],
           misses: [],

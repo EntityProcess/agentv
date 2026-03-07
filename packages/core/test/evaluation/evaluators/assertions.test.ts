@@ -36,7 +36,7 @@ describe('deterministic assertions', () => {
     });
   });
 
-  describe('is_json', () => {
+  describe('is-json', () => {
     it('scores 1 for valid JSON', () => {
       const result = runIsJsonAssertion('{"key": "value"}');
       expect(result.score).toBe(1);
