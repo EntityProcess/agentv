@@ -1,0 +1,44 @@
+description: >-
+  Demonstrates a multi-repo workspace with VSCode. Two repos (agentv and
+  allagents) are cloned into the workspace and opened as separate folders
+  in a single VSCode window via the .code-workspace file.
+
+workspace:
+  template: ../workspace-template
+  repos:
+    - path: ./agentv
+      source:
+        type: git
+        url: https://github.com/EntityProcess/agentv.git
+      checkout:
+        ref: main
+        resolve: local
+      clone:
+        depth: 1
+    - path: ./allagents
+      source:
+        type: git
+        url: https://github.com/EntityProcess/allagents.git
+      checkout:
+        ref: main
+        resolve: local
+      clone:
+        depth: 1
+  reset:
+    strategy: hard
+    after_each: true
+
+execution:
+  target: vscode
+
+tests:
+  - id: verify-multi-repo
+    criteria: >-
+      The agent should confirm both repos are present in the workspace and
+      report the package name from each repo's package.json.
+    input: >-
+      Read agentv/package.json and allagents/package.json. Report the name
+      field from each.
+    assert:
+      - type: contains
+        value: agentv

@@ -1,0 +1,12 @@
+repositories:
+  - path: ./agentv
+    owner: EntityProcess
+    repo: agentv
+    description: AI agent evaluation framework
+
+  - path: ./allagents
+    owner: EntityProcess
+    repo: allagents
+    description: Workspace initialization tool
+
+plugins: []
