@@ -11,7 +11,7 @@ Targets define which agent or LLM provider to evaluate. They are configured in `
 
 ```yaml
 targets:
-  - name: azure_base
+  - name: azure-base
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
@@ -20,12 +20,12 @@ targets:
   - name: vscode_dev
     provider: vscode
     workspace_template: ${{ WORKSPACE_PATH }}
-    judge_target: azure_base
+    judge_target: azure-base
 
   - name: local_agent
     provider: cli
     command: 'python agent.py --prompt {PROMPT}'
-    judge_target: azure_base
+    judge_target: azure-base
 ```
 
 ## Environment Variables
@@ -64,11 +64,11 @@ Set the default target at the top level or override per case:
 ```yaml
 # Top-level default
 execution:
-  target: azure_base
+  target: azure-base
 
 tests:
   - id: test-1
-    # Uses azure_base
+    # Uses azure-base
 
   - id: test-2
     execution:
@@ -83,7 +83,7 @@ Agent targets that need LLM-based evaluation specify a `judge_target` — the LL
 targets:
   - name: codex_target
     provider: codex
-    judge_target: azure_base  # LLM used for judging
+    judge_target: azure-base  # LLM used for judging
 ```
 
 ## Workspace Template
@@ -95,7 +95,7 @@ targets:
   - name: claude_agent
     provider: claude
     workspace_template: ./workspace-templates/my-project
-    judge_target: azure_base
+    judge_target: azure-base
 ```
 
 When `workspace_template` is set:

@@ -12,11 +12,11 @@ targets:
 
   - name: vscode
     provider: vscode
-    judge_target: azure_base
+    judge_target: azure-base
 
   - name: codex
     provider: codex
-    judge_target: azure_base
+    judge_target: azure-base
     # Uses the Codex CLI (defaults to `codex` on PATH)
     # executable: ${{ CODEX_CLI_PATH }}        # Optional: override executable path
     # args:                             # Optional additional CLI arguments
@@ -34,7 +34,7 @@ targets:
   # Claude - Anthropic's Claude Agent SDK
   - name: claude
     provider: claude
-    judge_target: azure_base
+    judge_target: azure-base
     # Uses the @anthropic-ai/claude-agent-sdk
     # model: claude-sonnet-4-20250514          # Optional: override model
     timeout_seconds: 180
@@ -49,15 +49,15 @@ targets:
     provider: vscode
     workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
     provider_batching: false
-    judge_target: azure_base
+    judge_target: azure-base
 
   - name: vscode_insiders_projectx
     provider: vscode-insiders
     workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
     provider_batching: false
-    judge_target: azure_base
+    judge_target: azure-base
 
-  - name: azure_base
+  - name: azure-base
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
@@ -71,7 +71,7 @@ targets:
 
   - name: local_cli
     provider: cli
-    judge_target: azure_base
+    judge_target: azure-base
     # Passes the fully rendered prompt and any attached files to a local Python script
     # NOTE: Do not add quotes around {PROMPT} or {FILES} - they are already shell-escaped
     command: uv run ./mock_cli.py --prompt {PROMPT} {FILES} --output {OUTPUT_FILE}
