@@ -915,47 +915,52 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
         throw new Error(`Missing metadata for ${testFilePath}`);
       }
 
-      // Run once per target selection (matrix mode)
-      for (const { selection, inlineTargetLabel } of targetPrep.selections) {
-        // Filter eval cases to those applicable to this target
-        const targetName = selection.targetName;
-        const applicableEvalCases =
-          targetPrep.selections.length > 1
-            ? targetPrep.evalCases.filter((test) => {
-                if (test.targets && test.targets.length > 0) {
-                  return test.targets.includes(targetName);
-                }
-                return true;
-              })
-            : targetPrep.evalCases;
+      // Run all targets concurrently (each target has its own worker limit)
+      const targetResults = await Promise.all(
+        targetPrep.selections.map(async ({ selection, inlineTargetLabel }) => {
+          // Filter eval cases to those applicable to this target
+          const targetName = selection.targetName;
+          const applicableEvalCases =
+            targetPrep.selections.length > 1
+              ? targetPrep.evalCases.filter((test) => {
+                  if (test.targets && test.targets.length > 0) {
+                    return test.targets.includes(targetName);
+                  }
+                  return true;
+                })
+              : targetPrep.evalCases;
 
-        if (applicableEvalCases.length === 0) {
-          continue;
-        }
+          if (applicableEvalCases.length === 0) {
+            return [];
+          }
 
-        const result = await runSingleEvalFile({
-          testFilePath,
-          cwd,
-          repoRoot,
-          options,
-          outputWriter,
-          otelExporter,
-          cache,
-          evaluationRunner,
-          workersOverride: perFileWorkers,
-          progressReporter,
-          seenEvalCases,
-          displayIdTracker,
-          selection,
-          inlineTargetLabel,
-          evalCases: applicableEvalCases,
-          trialsConfig: targetPrep.trialsConfig,
-          matrixMode: targetPrep.selections.length > 1,
-          totalBudgetUsd: targetPrep.totalBudgetUsd,
-          failOnError: targetPrep.failOnError,
-        });
+          const result = await runSingleEvalFile({
+            testFilePath,
+            cwd,
+            repoRoot,
+            options,
+            outputWriter,
+            otelExporter,
+            cache,
+            evaluationRunner,
+            workersOverride: perFileWorkers,
+            progressReporter,
+            seenEvalCases,
+            displayIdTracker,
+            selection,
+            inlineTargetLabel,
+            evalCases: applicableEvalCases,
+            trialsConfig: targetPrep.trialsConfig,
+            matrixMode: targetPrep.selections.length > 1,
+            totalBudgetUsd: targetPrep.totalBudgetUsd,
+            failOnError: targetPrep.failOnError,
+          });
 
-        allResults.push(...result.results);
+          return result.results;
+        }),
+      );
+      for (const results of targetResults) {
+        allResults.push(...results);
       }
     });
 

@@ -201,7 +201,7 @@ targets:
 
 The VS Code provider uses a **subagent file-messaging architecture**. AgentV provisions pre-configured VS Code workspace directories (subagents), dispatches requests by writing prompt files, and the AI agent writes its response to a file. Lock files control concurrency.
 
-- **Sequential execution**: VS Code evals run with 1 worker because the provider requires window focus to dispatch requests. Subagents are provisioned automatically if needed.
+- **Per-target worker limit**: VS Code evals run with 1 worker per target because the provider requires window focus to dispatch requests. When multiple targets are configured (e.g., `vscode` + `copilot`), they run concurrently — the single-worker limit only applies within each VS Code target. Subagents are provisioned automatically if needed.
 - **Windows only**: VS Code is not available on Linux CI. E2E testing must be done on a Windows machine.
 - **`.code-workspace` support**: When your eval uses `workspace.template` with a `.code-workspace` file, the template folders are opened in the VS Code window alongside the subagent directory.
 
@@ -212,3 +212,4 @@ The VS Code provider uses a **subagent file-messaging architecture**. AgentV pro
 ### Claude Code
 
 - **Run evals externally**: Run agentv evals from **outside** Claude Code. Running `agentv eval` with the `claude` target from within a Claude Code session can cause unintended behavior — the spawned Claude agent may interfere with the parent session.
+- **`ANTHROPIC_API_KEY` overrides subscription auth**: Claude Code loads `.env` from the working directory on startup. If your `.env` contains `ANTHROPIC_API_KEY`, the spawned Claude Code process will use that API key instead of your Claude subscription (Max/Pro). If the API key has insufficient credits, evals will fail with "Credit balance is too low". To use subscription auth, remove `ANTHROPIC_API_KEY` from your `.env` file.
