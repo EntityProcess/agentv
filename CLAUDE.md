@@ -114,10 +114,11 @@ When making changes to functionality:
 
 When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` directly as it may run the globally installed npm version. Instead:
 
-- **From repository root:** Use `bun agentv <args>` to run the locally built version
-- **From apps/cli directory:** Use `bun run dev -- <args>` to run from TypeScript source
+- **From TypeScript source (preferred):** `bun apps/cli/src/cli.ts <args>` — always runs current code, no build step needed
+- **From built dist:** `bun apps/cli/dist/cli.js <args>` — requires `bun run build` first, can be stale
+- **From repository root:** `bun agentv <args>` — runs the locally built version (also requires build)
 
-This ensures you're testing your local changes, not the published npm package.
+**Prefer running from source** (`src/cli.ts`) during development. The dist build can silently serve stale code if you forget to rebuild after changes.
 
 ## Browser E2E Testing (Docs Site)
 
@@ -137,15 +138,34 @@ Unit tests alone are insufficient for evaluator changes. After implementing or m
 
 2. **Run an actual eval** with a real example file:
    ```bash
-   bun agentv eval examples/features/rubric/evals/dataset.eval.yaml --test-id <test-id>
+   bun apps/cli/src/cli.ts eval examples/features/rubric/evals/dataset.eval.yaml --test-id <test-id>
    ```
 
-2. **Inspect the results JSONL** to verify:
+3. **Inspect the results JSONL** to verify:
    - The correct evaluator type is invoked (check `scores[].type`)
    - Scores are calculated as expected
    - Hits/misses reflect the evaluation logic
 
-3. **Note:** `--dry-run` returns mock responses that don't match evaluator output schemas. Use it only for testing harness flow, not evaluator logic.
+4. **Update baseline files** if output format changes (e.g., type name renames). Baseline files live alongside eval YAML files as `*.baseline.jsonl` and contain expected `scores[].type` values. There are 30+ baseline files across `examples/`.
+
+5. **Note:** `--dry-run` returns mock responses that don't match evaluator output schemas. Use it only for testing harness flow, not evaluator logic.
+
+## Evaluator Type System
+
+Evaluator types use **kebab-case** everywhere (matching promptfoo convention):
+
+- **YAML config:** `type: llm-judge`, `type: is-json`, `type: execution-metrics`
+- **Internal TypeScript:** `EvaluatorKind = 'llm-judge' | 'is-json' | ...`
+- **Output `scores[].type`:** `"llm-judge"`, `"is-json"`
+- **Registry keys:** `registry.register('llm-judge', ...)`
+
+**Source of truth:** `EVALUATOR_KIND_VALUES` array in `packages/core/src/evaluation/types.ts`
+
+**Backward compatibility:** Snake_case is accepted in YAML (`llm_judge` → `llm-judge`) via `normalizeEvaluatorType()` in `evaluator-parser.ts`. Single-word types (`contains`, `equals`, `regex`, `latency`, `cost`) have no separator and are unchanged.
+
+**Two type definitions exist:**
+- `EvaluatorKind` in `packages/core/src/evaluation/types.ts` — internal, canonical
+- `AssertionType` in `packages/eval/src/assertion.ts` — SDK-facing, must stay in sync
 
 ## TypeScript Guidelines
 - Target ES2022 with Node 20+
