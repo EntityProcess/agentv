@@ -12,7 +12,7 @@ workspace:
         url: https://github.com/EntityProcess/agentv.git
       checkout:
         ref: main
-        resolve: local
+        resolve: remote
       clone:
         depth: 1
     - path: ./allagents
@@ -21,7 +21,7 @@ workspace:
         url: https://github.com/EntityProcess/allagents.git
       checkout:
         ref: main
-        resolve: local
+        resolve: remote
       clone:
         depth: 1
   reset:
