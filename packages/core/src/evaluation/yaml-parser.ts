@@ -18,6 +18,7 @@ import {
   coerceEvaluator,
   parseEvaluators,
   parseInlineRubrics,
+  warnUnconsumedCriteria,
 } from './loaders/evaluator-parser.js';
 import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
 import { detectFormat, loadTestsFromJsonl } from './loaders/jsonl-parser.js';
@@ -400,6 +401,8 @@ async function loadTestsFromYaml(
         evaluators = evaluators ? [rubricEvaluator, ...evaluators] : [rubricEvaluator];
       }
     }
+
+    warnUnconsumedCriteria(outcome, evaluators, id ?? 'unknown');
 
     // Extract file paths from all input segments (non-guideline files)
     const userFilePaths: string[] = [];
