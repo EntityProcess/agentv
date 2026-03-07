@@ -77,6 +77,10 @@ targets:
 | `cwd` | No | Working directory (mutually exclusive with workspace_template) |
 | `judge_target` | Yes | LLM target for evaluation |
 
+:::caution
+Run agentv evals from **outside** Claude Code. Running `agentv eval` with the `claude` target from within a Claude Code session can cause unintended behavior — the spawned Claude agent may interfere with the parent session.
+:::
+
 ## Codex CLI
 
 ```yaml
@@ -109,7 +113,36 @@ targets:
 | `cwd` | No | Working directory (mutually exclusive with workspace_template) |
 | `judge_target` | Yes | LLM target for evaluation |
 
-## VS Code / Copilot
+## Copilot CLI
+
+```yaml
+targets:
+  - name: copilot
+    provider: copilot
+    model: gpt-5-mini
+    judge_target: azure-base
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `model` | No | Model to use (defaults to copilot's default) |
+| `workspace_template` | No | Path to workspace template directory |
+| `cwd` | No | Working directory (mutually exclusive with workspace_template) |
+| `judge_target` | Yes | LLM target for evaluation |
+
+:::caution[MCP servers with OAuth]
+If your copilot CLI has MCP servers configured that use OAuth authentication, **expired tokens will block eval execution**. The copilot CLI attempts to re-authenticate via a browser OAuth flow, which cannot complete in non-interactive mode and causes the eval to hang indefinitely.
+
+**Before running evals**, either:
+- Re-authenticate your MCP servers manually (`copilot` → `/mcp`)
+- Remove MCP servers with expired tokens from your copilot configuration
+
+See [copilot-cli#1797](https://github.com/github/copilot-cli/issues/1797) and [copilot-cli#1491](https://github.com/github/copilot-cli/issues/1491) for upstream tracking.
+:::
+
+## VS Code
+
+The VS Code provider uses a **subagent workspace** architecture. AgentV provisions pre-configured VS Code workspace directories, dispatches requests via file-based messaging, and uses lock files for concurrency control.
 
 ```yaml
 targets:
@@ -122,7 +155,7 @@ targets:
 | Field | Required | Description |
 |-------|----------|-------------|
 | `executable` | No | Path to VS Code binary. Supports `${{ ENV_VAR }}` syntax or literal paths. Defaults to `code` (or `code-insiders` for the insiders provider). |
-| `workspace_template` | Yes | Path to workspace template directory |
+| `workspace_template` | No | Path to workspace template directory or `.code-workspace` file |
 | `judge_target` | Yes | LLM target for evaluation |
 
 Using a custom executable path:
@@ -137,7 +170,7 @@ targets:
 ```
 
 :::note
-VS Code provider requires `workspace_template` because it needs a workspace to open.
+VS Code evals run sequentially (1 worker) because the provider requires window focus to dispatch requests. Subagents are provisioned automatically if needed.
 :::
 
 ## VS Code Insiders
