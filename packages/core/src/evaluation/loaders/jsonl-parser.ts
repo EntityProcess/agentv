@@ -6,7 +6,12 @@ import { parse as parseYaml } from 'yaml';
 import type { EvalTest, JsonObject, JsonValue, TestMessage } from '../types.js';
 import { isJsonObject, isTestMessage } from '../types.js';
 import { loadConfig } from './config-loader.js';
-import { coerceEvaluator, parseEvaluators, parseInlineRubrics } from './evaluator-parser.js';
+import {
+  coerceEvaluator,
+  parseEvaluators,
+  parseInlineRubrics,
+  warnUnconsumedCriteria,
+} from './evaluator-parser.js';
 import { buildSearchRoots, fileExists, resolveToAbsolutePath } from './file-resolver.js';
 import { processExpectedMessages, processMessages } from './message-processor.js';
 import { resolveExpectedMessages, resolveInputMessages } from './shorthand-expansion.js';
@@ -275,6 +280,8 @@ export async function loadTestsFromJsonl(
         evaluators = evaluators ? [rubricEvaluator, ...evaluators] : [rubricEvaluator];
       }
     }
+
+    warnUnconsumedCriteria(outcome, evaluators, id ?? 'unknown');
 
     // Extract file paths from all input segments (non-guideline files)
     const userFilePaths: string[] = [];
