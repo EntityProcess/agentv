@@ -13,7 +13,7 @@ Add `max_duration_ms` to any expected tool item:
 ```yaml
 evaluators:
   - name: perf-check
-    type: tool_trajectory
+    type: tool-trajectory
     mode: in_order
     expected:
       - tool: Read

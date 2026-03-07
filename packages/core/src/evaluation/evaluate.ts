@@ -297,10 +297,10 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
 
 /**
  * Map user-facing assertion type names to internal evaluator type names.
+ * Handles kebab-case to snake_case normalization (e.g., 'llm-judge' -> 'llm_judge').
  */
 function mapAssertionType(type: string): string {
-  // All types map 1:1 now that internal types match YAML names.
-  return type;
+  return type.replace(/-/g, '_');
 }
 
 /**

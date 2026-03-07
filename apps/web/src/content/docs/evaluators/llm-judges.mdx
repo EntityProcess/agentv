@@ -14,7 +14,7 @@ Reference an LLM judge in your eval file:
 ```yaml
 assert:
   - name: semantic_check
-    type: llm_judge
+    type: llm-judge
     prompt: ./judges/correctness.md
 ```
 
@@ -97,7 +97,7 @@ When using TypeScript templates, configure them in YAML with optional `config` d
 ```yaml
 assert:
   - name: custom-eval
-    type: llm_judge
+    type: llm-judge
     prompt:
       command: [bun, run, ../prompts/custom-evaluator.ts]
       config:

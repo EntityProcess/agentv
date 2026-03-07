@@ -11,10 +11,10 @@ execution:
 
 assert:
   - name: json_schema_validator
-    type: code_judge
+    type: code-judge
     command: ["uv", "run", "validate_output.py"]
   - name: content_evaluator
-    type: llm_judge
+    type: llm-judge
 
 tests:
   # ==========================================

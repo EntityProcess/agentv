@@ -10,6 +10,17 @@ const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RESET = '\u001b[0m';
 
 /**
+ * Normalize evaluator type names from YAML kebab-case to internal snake_case.
+ * Accepts both forms for backward compatibility:
+ *   - kebab-case: 'llm-judge' -> 'llm_judge' (preferred in YAML)
+ *   - snake_case: 'llm_judge' -> 'llm_judge' (legacy, still accepted)
+ *   - single-word: 'contains' -> 'contains' (unchanged)
+ */
+export function normalizeEvaluatorType(type: string): string {
+  return type.replace(/-/g, '_');
+}
+
+/**
  * Parse evaluators from eval case configuration.
  */
 export async function parseEvaluators(
@@ -78,7 +89,9 @@ async function parseEvaluatorList(
     }
 
     const rawName = asString(rawEvaluator.name);
-    const typeValue = rawEvaluator.type;
+    const rawType = rawEvaluator.type;
+    // Normalize kebab-case YAML type names to internal snake_case (e.g., 'llm-judge' -> 'llm_judge')
+    const typeValue = typeof rawType === 'string' ? normalizeEvaluatorType(rawType) : rawType;
 
     // Unknown types are treated as custom assertion types (resolved via registry discovery)
     const isCustomType = typeof typeValue === 'string' && !isEvaluatorKind(typeValue);

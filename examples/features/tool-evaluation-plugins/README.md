@@ -15,7 +15,7 @@ Computes precision, recall, and F1 by comparing expected tool names against actu
 ```yaml
 evaluators:
   - name: tool-f1
-    type: code_judge
+    type: code-judge
     script: ["bun", "run", "../judges/tool-call-f1.ts"]
     expected_tools: ["search", "fetch"]
 ```
@@ -27,7 +27,7 @@ Extends the name-only judge by also validating tool arguments. A call is a hit o
 ```yaml
 evaluators:
   - name: tool-args-f1
-    type: code_judge
+    type: code-judge
     script: ["bun", "run", "../judges/tool-args-f1.ts"]
     expected_tools:
       - tool: search

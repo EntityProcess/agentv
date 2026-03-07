@@ -31,5 +31,5 @@ tests:
 
     assert:
       - name: attachment-check
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../scripts/verify-attachments.ts"]

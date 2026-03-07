@@ -76,11 +76,11 @@ tests:
     # Multiple evaluators - supports both code-based and LLM judges
     assert:
       - name: keyword_check
-        type: code_judge  # Code evaluators handle regex, keywords, linting, etc.
+        type: code-judge  # Code evaluators handle regex, keywords, linting, etc.
         command: ["uv", "run", "check_python_keywords.py"]
         cwd: .  # Working directory for script execution
       - name: code_correctness
-        type: llm_judge  # LLM-based evaluation
+        type: llm-judge  # LLM-based evaluation
         prompt: code-correctness-judge.md
     
     input:

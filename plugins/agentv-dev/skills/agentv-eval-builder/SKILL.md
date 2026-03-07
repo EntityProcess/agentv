@@ -114,7 +114,7 @@ The external file can be YAML (array of test objects) or JSONL.
 ```yaml
 # Suite-level (appended to every test)
 assert:
-  - type: is_json
+  - type: is-json
     required: true
   - type: contains
     value: "status"
@@ -218,7 +218,7 @@ Configure via `assert` array. Multiple evaluators produce a weighted average sco
 ### code_judge
 ```yaml
 - name: format_check
-  type: code_judge
+  type: code-judge
   command: [uv, run, validate.py]
   cwd: ./scripts          # optional working directory
   target: {}              # optional: enable LLM target proxy (max_calls: 50)
@@ -231,7 +231,7 @@ See docs at https://agentv.dev/evaluators/code-judges/
 ### llm_judge
 ```yaml
 - name: quality
-  type: llm_judge
+  type: llm-judge
   prompt: ./prompts/eval.md     # markdown template or command config
   model: gpt-5-chat            # optional model override
   config:                       # passed to prompt templates as context.config
@@ -247,10 +247,10 @@ Variables: `{{question}}`, `{{criteria}}`, `{{answer}}`, `{{reference_answer}}`,
   type: composite
   assert:
     - name: safety
-      type: llm_judge
+      type: llm-judge
       prompt: ./safety.md
     - name: quality
-      type: llm_judge
+      type: llm-judge
   aggregator:
     type: weighted_average
     weights: { safety: 0.3, quality: 0.7 }
@@ -261,7 +261,7 @@ Aggregator types: `weighted_average`, `all_or_nothing`, `minimum`, `maximum`, `s
 ### tool_trajectory
 ```yaml
 - name: tool_check
-  type: tool_trajectory
+  type: tool-trajectory
   mode: any_order            # any_order | in_order | exact
   minimums:                  # for any_order
     knowledgeSearch: 2
@@ -277,7 +277,7 @@ Aggregator types: `weighted_average`, `all_or_nothing`, `minimum`, `maximum`, `s
 ### field_accuracy
 ```yaml
 - name: fields
-  type: field_accuracy
+  type: field-accuracy
   match_type: exact          # exact | date | numeric_tolerance
   numeric_tolerance: 0.01    # for numeric_tolerance match_type
   aggregation: weighted_average  # weighted_average | all_or_nothing
@@ -301,14 +301,14 @@ Compares `output` fields against `expected_output` fields.
 ### token_usage
 ```yaml
 - name: tokens
-  type: token_usage
+  type: token-usage
   max_total_tokens: 4000
 ```
 
 ### execution_metrics
 ```yaml
 - name: efficiency
-  type: execution_metrics
+  type: execution-metrics
   max_tool_calls: 10        # Maximum tool invocations
   max_llm_calls: 5          # Maximum LLM calls (assistant messages)
   max_tokens: 5000          # Maximum total tokens (input + output)
@@ -344,7 +344,7 @@ Binary check: does output exactly equal the value (both trimmed)?
 
 ### is_json
 ```yaml
-- type: is_json
+- type: is-json
   required: true
 ```
 Binary check: is the output valid JSON?
@@ -440,7 +440,7 @@ export default defineCodeJudge(({ trace, answer }) => ({
 }));
 ```
 
-Both are used via `type: code_judge` in YAML with `command: [bun, run, judge.ts]`.
+Both are used via `type: code-judge` in YAML with `command: [bun, run, judge.ts]`.
 
 ### Convention-Based Discovery
 

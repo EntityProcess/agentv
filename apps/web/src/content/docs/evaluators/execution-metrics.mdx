@@ -14,7 +14,7 @@ The `execution_metrics` evaluator provides declarative threshold-based checks on
 ```yaml
 assert:
   - name: efficiency
-    type: execution_metrics
+    type: execution-metrics
     max_tool_calls: 10        # Maximum tool invocations
     max_llm_calls: 5          # Maximum LLM calls (assistant messages)
     max_tokens: 5000          # Maximum total tokens (input + output)
@@ -52,7 +52,7 @@ tests:
     input: Research the topic and provide a summary
     assert:
       - name: efficiency
-        type: execution_metrics
+        type: execution-metrics
         max_tool_calls: 15
         max_llm_calls: 5
         max_tokens: 8000
@@ -67,7 +67,7 @@ Check that an agent maintains a good balance between reading (exploration) and w
 ```yaml
 assert:
   - name: exploration-balance
-    type: execution_metrics
+    type: execution-metrics
     target_exploration_ratio: 0.6  # 60% should be read-only tools
     exploration_tolerance: 0.2     # Allow ±20% variance
 ```
@@ -100,7 +100,7 @@ Fails if execution cost exceeds the threshold.
 
 ```yaml
 - name: tokens
-  type: token_usage
+  type: token-usage
   max_total_tokens: 4000
 ```
 
@@ -126,12 +126,12 @@ tests:
     assert:
       # Semantic quality
       - name: quality
-        type: llm_judge
+        type: llm-judge
         prompt: ./prompts/code-quality.md
 
       # Efficiency constraints
       - name: efficiency
-        type: execution_metrics
+        type: execution-metrics
         max_tool_calls: 10
         max_duration_ms: 30000
 ```

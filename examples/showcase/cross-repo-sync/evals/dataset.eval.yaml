@@ -33,7 +33,7 @@ tests:
           gates, assert field at test/suite level, tests-as-string-path.
     assert:
       - name: sync-check
-        type: code_judge
+        type: code-judge
         command: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
         expected_files_modified:
           - agentevals/docs/src/content/docs/specification/evaluators.mdx
@@ -53,7 +53,7 @@ tests:
           Update all agentevals spec docs to match.
     assert:
       - name: sync-check
-        type: code_judge
+        type: code-judge
         command: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
         expected_files_modified:
           - agentevals/docs/src/content/docs/specification/eval-format.mdx
@@ -74,7 +74,7 @@ tests:
           Update agentevals spec docs accordingly.
     assert:
       - name: sync-check
-        type: code_judge
+        type: code-judge
         command: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
         expected_files_modified:
           - agentevals/docs/src/content/docs/specification/eval-format.mdx

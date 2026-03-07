@@ -59,9 +59,9 @@ tests:
 # Suggested additional evaluators:
 # assert:
 #   - name: accuracy
-#     type: code_judge
+#     type: code-judge
 #     command: [./scripts/check_conversion.py]
 #   - name: quality
-#     type: llm_judge
+#     type: llm-judge
 #     prompt: ./prompts/quality.md
 ```

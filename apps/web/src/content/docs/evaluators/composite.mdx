@@ -17,10 +17,10 @@ assert:
     type: composite
     assert:
       - name: evaluator_1
-        type: llm_judge
+        type: llm-judge
         prompt: ./prompts/check1.md
       - name: evaluator_2
-        type: code_judge
+        type: code-judge
         command: [uv, run, check2.py]
     aggregator:
       type: weighted_average
@@ -63,7 +63,7 @@ Run a custom command to decide the final score based on all evaluator results:
 
 ```yaml
 aggregator:
-  type: code_judge
+  type: code-judge
   path: node ./scripts/safety-gate.js
   cwd: ./evaluators  # optional working directory
 ```
@@ -97,7 +97,7 @@ Use an LLM to resolve conflicts or make nuanced decisions across evaluator resul
 
 ```yaml
 aggregator:
-  type: llm_judge
+  type: llm-judge
   prompt: ./prompts/conflict-resolution.md
 ```
 
@@ -121,13 +121,13 @@ tests:
         type: composite
         assert:
           - name: safety
-            type: llm_judge
+            type: llm-judge
             prompt: ./prompts/safety-check.md
           - name: quality
-            type: llm_judge
+            type: llm-judge
             prompt: ./prompts/quality-check.md
         aggregator:
-          type: code_judge
+          type: code-judge
           path: ./scripts/safety-gate.js
 ```
 
@@ -142,13 +142,13 @@ Assign different importance to each evaluation dimension:
   type: composite
   assert:
     - name: correctness
-      type: llm_judge
+      type: llm-judge
       prompt: ./prompts/correctness.md
     - name: style
-      type: code_judge
+      type: code-judge
       command: [uv, run, style_checker.py]
     - name: security
-      type: llm_judge
+      type: llm-judge
       prompt: ./prompts/security.md
   aggregator:
     type: weighted_average
@@ -170,10 +170,10 @@ Composites can contain other composites for hierarchical evaluation:
       type: composite
       assert:
         - name: accuracy
-          type: llm_judge
+          type: llm-judge
           prompt: ./prompts/accuracy.md
         - name: clarity
-          type: llm_judge
+          type: llm-judge
           prompt: ./prompts/clarity.md
       aggregator:
         type: weighted_average
@@ -181,7 +181,7 @@ Composites can contain other composites for hierarchical evaluation:
           accuracy: 0.6
           clarity: 0.4
     - name: safety
-      type: llm_judge
+      type: llm-judge
       prompt: ./prompts/safety.md
   aggregator:
     type: weighted_average

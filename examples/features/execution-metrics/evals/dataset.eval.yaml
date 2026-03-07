@@ -37,7 +37,7 @@ tests:
 
     assert:
       - name: efficiency-check
-        type: execution_metrics
+        type: execution-metrics
         max_tool_calls: 10
         max_tokens: 2000
         max_duration_ms: 10000
@@ -57,7 +57,7 @@ tests:
 
     assert:
       - name: full-efficiency-check
-        type: execution_metrics
+        type: execution-metrics
         max_tool_calls: 15
         max_llm_calls: 5
         max_tokens: 3000
@@ -81,14 +81,14 @@ tests:
     assert:
       # Check tool trajectory
       - name: trajectory-check
-        type: tool_trajectory
+        type: tool-trajectory
         mode: any_order
         minimums:
           search: 1
 
       # Check execution efficiency
       - name: metrics-check
-        type: execution_metrics
+        type: execution-metrics
         max_tool_calls: 20
         max_tokens: 5000
 
@@ -108,7 +108,7 @@ tests:
 
     assert:
       - name: exploration-balance
-        type: execution_metrics
+        type: execution-metrics
         target_exploration_ratio: 0.5  # 50% should be read-only tools
         exploration_tolerance: 0.3      # Allow +/- 30% variance
 
@@ -127,7 +127,7 @@ tests:
 
     assert:
       - name: cost-check
-        type: execution_metrics
+        type: execution-metrics
         max_cost_usd: 0.05
         weight: 2.0  # Double weight for cost compliance
 
@@ -147,11 +147,11 @@ tests:
     assert:
       # Declarative threshold checks
       - name: metric-thresholds
-        type: execution_metrics
+        type: execution-metrics
         max_tool_calls: 10
         max_duration_ms: 5000
 
       # Custom evaluation logic (for more complex checks)
       - name: custom-check
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../scripts/check-metrics-present.ts"]

@@ -60,7 +60,7 @@ tests:
 
     assert:
       - name: math_check
-        type: code_judge
+        type: code-judge
         script: ./validators/check_math.py
 ```
 
@@ -157,7 +157,7 @@ execution:
   target: azure_base
 assert:
   - name: correctness
-    type: llm_judge
+    type: llm-judge
     prompt: ./judges/correctness.md
 ```
 
@@ -219,7 +219,7 @@ Reference evaluators in your eval file:
 ```yaml
 assert:
   - name: my_validator
-    type: code_judge
+    type: code-judge
     script: ./validators/check_answer.py
 ```
 
@@ -398,12 +398,12 @@ All assertions support `weight`, `required`, and `negate` flags. Use `negate: tr
 ```yaml
 assert:
   # Case-insensitive matching for natural language variation
-  - type: icontains_any
+  - type: icontains-any
     value: ["missing rule code", "need rule code", "provide rule code"]
     required: true
 
   # Multiple required terms
-  - type: icontains_all
+  - type: icontains-all
     value: ["country code", "rule codes"]
 
   # Case-insensitive regex
@@ -445,7 +445,7 @@ Create markdown judge files with evaluation criteria and scoring guidelines:
 ```yaml
 assert:
   - name: semantic_check
-    type: llm_judge
+    type: llm-judge
     prompt: ./judges/correctness.md
 ```
 

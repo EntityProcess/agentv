@@ -26,5 +26,5 @@ tests:
       with working implementations.
     assert:
       - name: functional-check
-        type: code_judge
+        type: code-judge
         command: ["bun", "run", "../scripts/functional-check.ts"]

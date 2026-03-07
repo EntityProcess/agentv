@@ -36,6 +36,7 @@ export type AssertionContext = CodeJudgeInput;
  * for known types while accepting any string.
  */
 export type AssertionType =
+  // snake_case (internal / legacy YAML)
   | 'llm_judge'
   | 'code_judge'
   | 'rubrics'
@@ -48,9 +49,31 @@ export type AssertionType =
   | 'execution_metrics'
   | 'agent_judge'
   | 'contains'
+  | 'contains_any'
+  | 'contains_all'
+  | 'icontains'
+  | 'icontains_any'
+  | 'icontains_all'
+  | 'starts_with'
+  | 'ends_with'
   | 'equals'
   | 'regex'
   | 'is_json'
+  // kebab-case (preferred YAML form)
+  | 'llm-judge'
+  | 'code-judge'
+  | 'tool-trajectory'
+  | 'field-accuracy'
+  | 'token-usage'
+  | 'execution-metrics'
+  | 'agent-judge'
+  | 'contains-any'
+  | 'contains-all'
+  | 'icontains-any'
+  | 'icontains-all'
+  | 'starts-with'
+  | 'ends-with'
+  | 'is-json'
   | (string & {});
 
 /**

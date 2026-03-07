@@ -9,7 +9,7 @@ AgentV's design philosophy keeps the core minimal. Instead of adding `contains`,
 ```yaml
 evaluators:
   - name: has-keyword
-    type: code_judge
+    type: code-judge
     script: ["bun", "run", "../judges/assertions.ts"]
     config:
       type: contains

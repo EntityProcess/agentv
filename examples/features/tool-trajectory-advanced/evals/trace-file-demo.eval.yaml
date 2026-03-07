@@ -37,7 +37,7 @@ tests:
 
     assert:
       - name: search-then-fetch
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         expected:
           - tool: webSearch
@@ -62,7 +62,7 @@ tests:
 
     assert:
       - name: exact-workflow
-        type: tool_trajectory
+        type: tool-trajectory
         mode: exact
         expected:
           - tool: webSearch
@@ -89,7 +89,7 @@ tests:
 
     assert:
       - name: research-depth
-        type: tool_trajectory
+        type: tool-trajectory
         mode: any_order
         minimums:
           webSearch: 2
@@ -114,7 +114,7 @@ tests:
 
     assert:
       - name: input-validator
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         expected:
           - tool: webSearch
@@ -143,7 +143,7 @@ tests:
 
     assert:
       - name: output-validator
-        type: tool_trajectory
+        type: tool-trajectory
         mode: in_order
         expected:
           - tool: webSearch
@@ -250,7 +250,7 @@ tests:
     assert:
       # Validate the research workflow sequence
       - name: workflow-validator
-        type: tool_trajectory
+        type: tool-trajectory
         mode: exact
         expected:
           - tool: webSearch
@@ -260,7 +260,7 @@ tests:
 
       # Ensure adequate research depth
       - name: research-depth
-        type: tool_trajectory
+        type: tool-trajectory
         mode: any_order
         minimums:
           webSearch: 2

@@ -31,7 +31,7 @@ Use `field_accuracy` to compare fields in the candidate JSON against the ground-
 ```yaml
 assert:
   - name: invoice_fields
-    type: field_accuracy
+    type: field-accuracy
     aggregation: weighted_average
     fields:
       - path: invoice_number
@@ -92,7 +92,7 @@ Gate on provider-reported token usage. Useful when cost is unavailable or model 
 ```yaml
 assert:
   - name: token-budget
-    type: token_usage
+    type: token-usage
     max_total: 10000
     # or:
     # max_input: 8000
@@ -109,7 +109,7 @@ assert:
     type: composite
     assert:
       - name: correctness
-        type: field_accuracy
+        type: field-accuracy
         fields:
           - path: invoice_number
             match: exact
@@ -120,7 +120,7 @@ assert:
         type: cost
         budget: 0.10
       - name: tokens
-        type: token_usage
+        type: token-usage
         max_total: 10000
     aggregator:
       type: weighted_average

@@ -23,7 +23,7 @@ Evaluates whether the agent selected the **right tools** for the task. Uses heur
 ```yaml
 evaluators:
   - name: tool-selection
-    type: code_judge
+    type: code-judge
     script: ["bun", "run", "scripts/tool-selection-judge.ts"]
 ```
 
@@ -34,7 +34,7 @@ Computes efficiency metrics and scores based on configurable thresholds. Demonst
 ```yaml
 evaluators:
   - name: efficiency
-    type: code_judge
+    type: code-judge
     script: ["bun", "run", "scripts/efficiency-scorer.ts"]
 ```
 
@@ -45,7 +45,7 @@ Compares two agent responses for tool usage quality with position bias mitigatio
 ```yaml
 evaluators:
   - name: pairwise-compare
-    type: code_judge
+    type: code-judge
     script: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
 ```
 

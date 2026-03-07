@@ -558,6 +558,94 @@ describe('parseEvaluators - code_judge config pass-through', () => {
   });
 });
 
+describe('parseEvaluators - kebab-case type normalization', () => {
+  const tempDir = '/tmp';
+
+  it('normalizes kebab-case evaluator types to snake_case', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'kebab-llm',
+          type: 'llm-judge',
+          prompt: 'test prompt',
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('llm_judge');
+  });
+
+  it('normalizes code-judge kebab-case to code_judge', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'kebab-code',
+          type: 'code-judge',
+          script: ['bun', 'run', './test_script.ts'],
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('code_judge');
+  });
+
+  it('normalizes is-json kebab-case to is_json', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'kebab-json',
+          type: 'is-json',
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('is_json');
+  });
+
+  it('leaves snake_case types unchanged (backward compatible)', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'snake-llm',
+          type: 'llm_judge',
+          prompt: 'test prompt',
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('llm_judge');
+  });
+
+  it('leaves single-word types unchanged', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'contains-check',
+          type: 'contains',
+          value: 'hello',
+        },
+      ],
+    };
+
+    const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+});
+
 describe('parseEvaluators - score_ranges rubrics', () => {
   it('parses valid score_ranges with required_min_score', async () => {
     const rawEvalCase = {

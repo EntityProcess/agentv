@@ -154,12 +154,12 @@ Enable target access by adding a `target` block to your `code_judge` evaluator:
 ```yaml
 evaluators:
   - name: contextual_precision
-    type: code_judge
+    type: code-judge
     script: [bun, run, scripts/contextual-precision.ts]
     target:
       max_calls: 10  # At least N nodes to evaluate
   - name: contextual_recall
-    type: code_judge
+    type: code-judge
     script: [bun, run, scripts/contextual-recall.ts]
     target:
       max_calls: 15  # 1 for extraction + N statements for attribution

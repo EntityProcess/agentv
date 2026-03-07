@@ -96,7 +96,7 @@ console.log(JSON.stringify({
 ```yaml
 assert:
   - name: my_validator
-    type: code_judge
+    type: code-judge
     command: [./validators/check_answer.py]
 ```
 
@@ -141,7 +141,7 @@ Add a `target` block to the evaluator config:
 ```yaml
 assert:
   - name: contextual-precision
-    type: code_judge
+    type: code-judge
     command: [bun, scripts/contextual-precision.ts]
     target:
       max_calls: 10  # Default: 50
@@ -283,7 +283,7 @@ tests:
     input: "Implement the TODO functions in src/index.ts"
     assert:
       - name: functional-check
-        type: code_judge
+        type: code-judge
         command: [bun, scripts/functional-check.ts]
 ```
 
