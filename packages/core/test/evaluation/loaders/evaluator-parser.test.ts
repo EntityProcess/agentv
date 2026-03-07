@@ -482,7 +482,7 @@ describe('parseEvaluators - code_judge config pass-through', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as CodeEvaluatorConfig;
-    expect(config.type).toBe('code');
+    expect(config.type).toBe('code_judge');
     expect(config.name).toBe('fuzzy-matcher');
     expect(config.config).toEqual({
       fields: [
@@ -509,7 +509,7 @@ describe('parseEvaluators - code_judge config pass-through', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as CodeEvaluatorConfig;
-    expect(config.type).toBe('code');
+    expect(config.type).toBe('code_judge');
     expect(config.config).toBeUndefined();
   });
 

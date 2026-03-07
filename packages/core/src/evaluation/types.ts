@@ -268,7 +268,7 @@ export type WorkspaceConfig = {
 
 export type CodeEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'code';
+  readonly type: 'code_judge';
   readonly command: readonly string[];
   /** @deprecated Use `command` instead */
   readonly script?: readonly string[];

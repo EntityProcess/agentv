@@ -97,8 +97,8 @@ async function processEvaluator(
   promptInputs: Awaited<ReturnType<typeof buildPromptInputs>>,
 ): Promise<EvaluatorOutput> {
   switch (config.type) {
-    case 'code': {
-      const codeConfig = config as Extract<EvaluatorConfig, { type: 'code' }>;
+    case 'code_judge': {
+      const codeConfig = config as Extract<EvaluatorConfig, { type: 'code_judge' }>;
       const script = codeConfig.command ?? codeConfig.script ?? [];
       const scriptCwd = codeConfig.resolvedCwd ?? codeConfig.cwd;
 

@@ -218,7 +218,7 @@ async function parseEvaluatorList(
 
       evaluators.push({
         name,
-        type: 'code',
+        type: 'code_judge',
         command,
         cwd,
         resolvedCwd,
@@ -1328,9 +1328,8 @@ function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Evaluator types that consume evalCase.criteria during evaluation.
- * Note: code_judge is parsed to type 'code' by parseEvaluatorList. */
-const CRITERIA_CONSUMER_TYPES = new Set(['llm_judge', 'agent_judge', 'code']);
+/** Evaluator types that consume evalCase.criteria during evaluation. */
+const CRITERIA_CONSUMER_TYPES = new Set(['llm_judge', 'agent_judge', 'code_judge']);
 
 /**
  * Warn when criteria is defined but no evaluator in assert will consume it.

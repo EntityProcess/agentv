@@ -1790,20 +1790,18 @@ async function runEvaluatorList(options: {
       const evaluatorInstance = await typeRegistry.create(evaluatorConfig, dispatchContext);
       const score = await evaluatorInstance.evaluate(evalContext);
 
-      // Determine result type (code evaluators report as code_judge)
-      const resultType = evaluatorConfig.type === 'code' ? 'code_judge' : evaluatorConfig.type;
       const weight = evaluatorConfig.weight ?? 1.0;
 
       scored.push({
         score,
         name: evaluatorConfig.name,
-        type: resultType,
+        type: evaluatorConfig.type,
         weight,
         ...(evaluatorConfig.required !== undefined ? { required: evaluatorConfig.required } : {}),
       });
       scores.push({
         name: evaluatorConfig.name,
-        type: resultType,
+        type: evaluatorConfig.type,
         score: score.score,
         weight,
         verdict: score.verdict,
@@ -1825,18 +1823,17 @@ async function runEvaluatorList(options: {
         expectedAspectCount: 1,
         reasoning: message,
       };
-      const resultType = evaluatorConfig.type === 'code' ? 'code_judge' : evaluatorConfig.type;
       const weight = evaluatorConfig.weight ?? 1.0;
       scored.push({
         score: fallbackScore,
         name: evaluatorConfig.name ?? 'unknown',
-        type: resultType ?? 'llm_judge',
+        type: evaluatorConfig.type ?? 'llm_judge',
         weight,
         ...(evaluatorConfig.required !== undefined ? { required: evaluatorConfig.required } : {}),
       });
       scores.push({
         name: evaluatorConfig.name ?? 'unknown',
-        type: resultType ?? 'llm_judge',
+        type: evaluatorConfig.type ?? 'llm_judge',
         score: 0,
         weight,
         verdict: 'fail',

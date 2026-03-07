@@ -299,13 +299,8 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
  * Map user-facing assertion type names to internal evaluator type names.
  */
 function mapAssertionType(type: string): string {
-  // Most types map 1:1. Handle known aliases.
-  switch (type) {
-    case 'code_judge':
-      return 'code';
-    default:
-      return type;
-  }
+  // All types map 1:1 now that internal types match YAML names.
+  return type;
 }
 
 /**

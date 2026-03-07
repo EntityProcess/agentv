@@ -97,7 +97,7 @@ export const llmJudgeFactory: EvaluatorFactoryFn = (config, context) => {
   };
 };
 
-/** Factory for `code` (code_judge) evaluators. */
+/** Factory for `code_judge` evaluators. */
 export const codeFactory: EvaluatorFactoryFn = (config, context) => {
   const c = config as CodeEvaluatorConfig;
   return new CodeEvaluator({
@@ -402,7 +402,7 @@ export function createBuiltinRegistry(): EvaluatorRegistry {
 
   registry
     .register('llm_judge', llmJudgeFactory)
-    .register('code', codeFactory)
+    .register('code_judge', codeFactory)
     .register('composite', compositeFactory)
     .register('tool_trajectory', toolTrajectoryFactory)
     .register('field_accuracy', fieldAccuracyFactory)
