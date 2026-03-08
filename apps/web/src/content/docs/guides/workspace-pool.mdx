@@ -187,7 +187,7 @@ This bypasses clone, copy, and pool entirely. AgentV never deletes a user-provid
 
 ## Interaction with keep/cleanup flags
 
-`retain_on_success` and `retain_on_failure` (or CLI `--retain-on-success` / `--retain-on-failure`) control temporary eval-run workspaces under `~/.agentv/workspaces/...` (non-pooled paths).
+`workspace.on_finish.success|failure` (or CLI `--retain-on-success` / `--retain-on-failure`) controls temporary eval-run workspaces under `~/.agentv/workspaces/...` (non-pooled paths).
 
 - In pooled mode, pool slots are retained for reuse regardless of retention settings.
 - Retention settings do not remove pool entries; use `agentv workspace clean` for pool cleanup.

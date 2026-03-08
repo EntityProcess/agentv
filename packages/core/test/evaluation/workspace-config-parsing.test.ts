@@ -215,7 +215,7 @@ tests:
     expect(cases[0].workspace?.on_reuse?.reset).toBe('strict');
   });
 
-  it('should parse and merge workspace mode and retention settings', async () => {
+  it('should parse and merge workspace mode and on_finish settings', async () => {
     const evalFile = path.join(testDir, 'workspace-mode-retention.yaml');
     await writeFile(
       evalFile,
@@ -224,17 +224,17 @@ workspace:
   mode: pooled
   on_reuse:
     reset: strict
-  retention:
-    on_success: cleanup
-    on_failure: keep
+  on_finish:
+    success: clean
+    failure: keep
 
 tests:
   - id: case-retain-override
     input: "Do something"
     criteria: "Should work"
     workspace:
-      retention:
-        on_failure: cleanup
+      on_finish:
+        failure: clean
   - id: case-default
     input: "Do something else"
     criteria: "Should also work"
@@ -247,14 +247,14 @@ tests:
     const overrideCase = cases.find((c) => c.id === 'case-retain-override');
     expect(overrideCase?.workspace?.mode).toBe('pooled');
     expect(overrideCase?.workspace?.on_reuse?.reset).toBe('strict');
-    expect(overrideCase?.workspace?.retention?.on_success).toBe('cleanup');
-    expect(overrideCase?.workspace?.retention?.on_failure).toBe('cleanup');
+    expect(overrideCase?.workspace?.on_finish?.success).toBe('clean');
+    expect(overrideCase?.workspace?.on_finish?.failure).toBe('clean');
 
     const defaultCase = cases.find((c) => c.id === 'case-default');
     expect(defaultCase?.workspace?.mode).toBe('pooled');
     expect(defaultCase?.workspace?.on_reuse?.reset).toBe('strict');
-    expect(defaultCase?.workspace?.retention?.on_success).toBe('cleanup');
-    expect(defaultCase?.workspace?.retention?.on_failure).toBe('keep');
+    expect(defaultCase?.workspace?.on_finish?.success).toBe('clean');
+    expect(defaultCase?.workspace?.on_finish?.failure).toBe('keep');
   });
 
   it('should resolve before_all cwd relative to eval file directory', async () => {

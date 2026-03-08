@@ -266,10 +266,10 @@ export type WorkspaceConfig = {
     /** Reset policy when a pooled workspace is reused */
     readonly reset?: 'none' | 'fast' | 'strict';
   };
-  /** Workspace retention policy for temporary eval-run workspaces */
-  readonly retention?: {
-    readonly on_success?: 'keep' | 'cleanup';
-    readonly on_failure?: 'keep' | 'cleanup';
+  /** Final workspace cleanup policy for temporary eval-run workspaces */
+  readonly on_finish?: {
+    readonly success?: 'keep' | 'clean';
+    readonly failure?: 'keep' | 'clean';
   };
   /** @deprecated Use mode=pooled|ephemeral|static */
   readonly pool?: boolean;

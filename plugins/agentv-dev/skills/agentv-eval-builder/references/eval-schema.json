@@ -4645,16 +4645,16 @@
                         },
                         "additionalProperties": false
                       },
-                      "retention": {
+                      "on_finish": {
                         "type": "object",
                         "properties": {
-                          "on_success": {
+                          "success": {
                             "type": "string",
-                            "enum": ["keep", "cleanup"]
+                            "enum": ["keep", "clean"]
                           },
-                          "on_failure": {
+                          "failure": {
                             "type": "string",
-                            "enum": ["keep", "cleanup"]
+                            "enum": ["keep", "clean"]
                           }
                         },
                         "additionalProperties": false
@@ -9403,16 +9403,16 @@
                         },
                         "additionalProperties": false
                       },
-                      "retention": {
+                      "on_finish": {
                         "type": "object",
                         "properties": {
-                          "on_success": {
+                          "success": {
                             "type": "string",
-                            "enum": ["keep", "cleanup"]
+                            "enum": ["keep", "clean"]
                           },
-                          "on_failure": {
+                          "failure": {
                             "type": "string",
-                            "enum": ["keep", "cleanup"]
+                            "enum": ["keep", "clean"]
                           }
                         },
                         "additionalProperties": false
@@ -12988,16 +12988,16 @@
                   },
                   "additionalProperties": false
                 },
-                "retention": {
+                "on_finish": {
                   "type": "object",
                   "properties": {
-                    "on_success": {
+                    "success": {
                       "type": "string",
-                      "enum": ["keep", "cleanup"]
+                      "enum": ["keep", "clean"]
                     },
-                    "on_failure": {
+                    "failure": {
                       "type": "string",
-                      "enum": ["keep", "cleanup"]
+                      "enum": ["keep", "clean"]
                     }
                   },
                   "additionalProperties": false

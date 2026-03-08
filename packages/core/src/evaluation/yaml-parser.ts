@@ -679,13 +679,13 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
           : {}),
       }
     : undefined;
-  const retention = isJsonObject(obj.retention)
+  const onFinish = isJsonObject(obj.on_finish)
     ? {
-        ...(obj.retention.on_success === 'keep' || obj.retention.on_success === 'cleanup'
-          ? { on_success: obj.retention.on_success }
+        ...(obj.on_finish.success === 'keep' || obj.on_finish.success === 'clean'
+          ? { success: obj.on_finish.success }
           : {}),
-        ...(obj.retention.on_failure === 'keep' || obj.retention.on_failure === 'cleanup'
-          ? { on_failure: obj.retention.on_failure }
+        ...(obj.on_finish.failure === 'keep' || obj.on_finish.failure === 'clean'
+          ? { failure: obj.on_finish.failure }
           : {}),
       }
     : undefined;
@@ -705,7 +705,7 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     !mode &&
     !staticPath &&
     !onReuse &&
-    !retention &&
+    !onFinish &&
     pool === undefined &&
     !beforeAll &&
     !afterAll &&
@@ -725,9 +725,9 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
       Object.keys(onReuse).length > 0 && {
         on_reuse: onReuse as NonNullable<WorkspaceConfig['on_reuse']>,
       }),
-    ...(retention !== undefined &&
-      Object.keys(retention).length > 0 && {
-        retention: retention as NonNullable<WorkspaceConfig['retention']>,
+    ...(onFinish !== undefined &&
+      Object.keys(onFinish).length > 0 && {
+        on_finish: onFinish as NonNullable<WorkspaceConfig['on_finish']>,
       }),
     ...(pool !== undefined && { pool }),
     ...(beforeAll !== undefined && { before_all: beforeAll }),
@@ -750,8 +750,8 @@ function mergeWorkspaceConfigs(
   if (!caseLevel) return suiteLevel;
 
   const onReuseReset = caseLevel.on_reuse?.reset ?? suiteLevel.on_reuse?.reset;
-  const retentionOnSuccess = caseLevel.retention?.on_success ?? suiteLevel.retention?.on_success;
-  const retentionOnFailure = caseLevel.retention?.on_failure ?? suiteLevel.retention?.on_failure;
+  const finishOnSuccess = caseLevel.on_finish?.success ?? suiteLevel.on_finish?.success;
+  const finishOnFailure = caseLevel.on_finish?.failure ?? suiteLevel.on_finish?.failure;
 
   return {
     template: caseLevel.template ?? suiteLevel.template,
@@ -761,10 +761,10 @@ function mergeWorkspaceConfigs(
     mode: caseLevel.mode ?? suiteLevel.mode,
     static_path: caseLevel.static_path ?? suiteLevel.static_path,
     ...(onReuseReset !== undefined && { on_reuse: { reset: onReuseReset } }),
-    ...((retentionOnSuccess !== undefined || retentionOnFailure !== undefined) && {
-      retention: {
-        ...(retentionOnSuccess !== undefined && { on_success: retentionOnSuccess }),
-        ...(retentionOnFailure !== undefined && { on_failure: retentionOnFailure }),
+    ...((finishOnSuccess !== undefined || finishOnFailure !== undefined) && {
+      on_finish: {
+        ...(finishOnSuccess !== undefined && { success: finishOnSuccess }),
+        ...(finishOnFailure !== undefined && { failure: finishOnFailure }),
       },
     }),
     pool: caseLevel.pool ?? suiteLevel.pool,

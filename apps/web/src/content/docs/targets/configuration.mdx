@@ -188,9 +188,9 @@ workspace:
   static_path: /tmp/my-ws     # required when mode=static
   on_reuse:
     reset: fast               # none | fast | strict
-  retention:
-    on_success: cleanup       # keep | cleanup
-    on_failure: keep          # keep | cleanup
+  on_finish:
+    success: clean            # keep | clean
+    failure: keep             # keep | clean
 ```
 
 | Field | Description |
@@ -209,8 +209,8 @@ workspace:
 | `mode` | Workspace mode: `pooled`, `ephemeral`, `static` |
 | `static_path` | Existing workspace path used when `mode=static` |
 | `on_reuse.reset` | Pooled workspace slot reset policy on reuse: `none`, `fast` (`git clean -fd`), `strict` (`git clean -fdx`) |
-| `retention.on_success` | Temp workspace retention on success: `keep` or `cleanup` |
-| `retention.on_failure` | Temp workspace retention on failure: `keep` or `cleanup` |
+| `on_finish.success` | Temp workspace behavior on success: `keep` or `clean` |
+| `on_finish.failure` | Temp workspace behavior on failure: `keep` or `clean` |
 
 **Pooling:** `mode: pooled` (or default shared repo mode) reuses pool slots between runs. Use `mode: ephemeral` to disable pooling for fresh clone/checkouts each run.
 
@@ -240,20 +240,20 @@ workspace:
       source: { type: git, url: https://github.com/org/frontend.git }
     - path: ./backend
       source: { type: git, url: https://github.com/org/backend.git }
-  reset:
-    strategy: hard
+  between_tests:
+    reset: fast
     after_each: true
 ```
 
 ### Cleanup Behavior
 
-Default retention:
+Default finish behavior:
 - **Success**: cleanup
 - **Failure**: keep
 
-Override with retention policy:
-- `retention.on_success: keep|cleanup`
-- `retention.on_failure: keep|cleanup`
+Override with workspace finish policy:
+- `on_finish.success: keep|clean`
+- `on_finish.failure: keep|clean`
 
 CLI overrides:
 - `--retain-on-success keep|cleanup`

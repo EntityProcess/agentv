@@ -73,9 +73,9 @@ The `--trace-file` format writes JSONL records containing:
 
 The `--otel-file` format writes standard OTLP JSON that can be imported into any OpenTelemetry-compatible backend.
 
-### Workspace Modes and Retention
+### Workspace Modes and Finish Policy
 
-Use workspace mode and retention policies instead of multiple conflicting booleans:
+Use workspace mode and finish policies instead of multiple conflicting booleans:
 
 ```bash
 # Mode: pooled | ephemeral | static
@@ -87,7 +87,7 @@ agentv eval evals/my-eval.yaml --workspace-mode static --workspace-path /path/to
 # Pooled reset policy override: standard | full (CLI override)
 agentv eval evals/my-eval.yaml --workspace-clean full
 
-# Retention policy: keep | cleanup
+# Finish policy overrides: keep | cleanup (CLI)
 agentv eval evals/my-eval.yaml --retain-on-success cleanup --retain-on-failure keep
 ```
 
@@ -102,16 +102,16 @@ workspace:
   between_tests:
     reset: fast          # none | fast | strict
     after_each: true
-  retention:
-    on_success: cleanup  # keep | cleanup
-    on_failure: keep     # keep | cleanup
+  on_finish:
+    success: clean       # keep | clean
+    failure: keep        # keep | clean
 ```
 
 Notes:
 - Pooling is default for shared workspaces with repos when mode is not specified.
 - `mode: static` (or `--workspace-mode static`) requires `static_path` / `--workspace-path`.
 - Static mode is incompatible with `isolation: per_test`.
-- `retain_on_*` controls temp eval-run workspaces under `~/.agentv/workspaces/...`.
+- `on_finish.*` controls temp eval-run workspaces under `~/.agentv/workspaces/...`.
 - Pool slots are managed separately (`agentv workspace list|clean`).
 
 ### Retry Execution Errors

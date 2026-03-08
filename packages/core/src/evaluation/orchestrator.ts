@@ -455,11 +455,15 @@ export async function runEvaluation(
     !useStaticWorkspace;
 
   const resolvedRetainOnSuccess =
-    suiteWorkspace?.retention?.on_success ??
+    (suiteWorkspace?.on_finish?.success === 'clean'
+      ? 'cleanup'
+      : suiteWorkspace?.on_finish?.success) ??
     retainOnSuccess ??
     (keepWorkspaces ? 'keep' : 'cleanup');
   const resolvedRetainOnFailure =
-    suiteWorkspace?.retention?.on_failure ??
+    (suiteWorkspace?.on_finish?.failure === 'clean'
+      ? 'cleanup'
+      : suiteWorkspace?.on_finish?.failure) ??
     retainOnFailure ??
     (cleanupWorkspaces ? 'cleanup' : 'keep');
 

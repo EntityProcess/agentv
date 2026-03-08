@@ -283,9 +283,9 @@ const BetweenTestsSchema = z.object({
   after_each: z.boolean().optional(),
 });
 
-const WorkspaceRetentionSchema = z.object({
-  on_success: z.enum(['keep', 'cleanup']).optional(),
-  on_failure: z.enum(['keep', 'cleanup']).optional(),
+const WorkspaceOnFinishSchema = z.object({
+  success: z.enum(['keep', 'clean']).optional(),
+  failure: z.enum(['keep', 'clean']).optional(),
 });
 
 const WorkspaceSchema = z.object({
@@ -300,7 +300,7 @@ const WorkspaceSchema = z.object({
       reset: z.enum(['none', 'fast', 'strict']).optional(),
     })
     .optional(),
-  retention: WorkspaceRetentionSchema.optional(),
+  on_finish: WorkspaceOnFinishSchema.optional(),
   pool: z.boolean().optional(),
   before_all: WorkspaceScriptSchema.optional(),
   after_all: WorkspaceScriptSchema.optional(),
