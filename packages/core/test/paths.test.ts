@@ -1,75 +1,79 @@
+import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import {
+  _resetLoggedForTesting,
+  getAgentvHome,
+  getGitCacheRoot,
+  getSubagentsRoot,
+  getTraceStateRoot,
+  getWorkspacesRoot,
+} from '../src/paths.js';
 
 describe('paths', () => {
   const originalEnv = process.env.AGENTV_HOME;
 
   beforeEach(() => {
-    vi.resetModules();
+    _resetLoggedForTesting();
+    process.env.AGENTV_HOME = undefined;
   });
 
   afterEach(() => {
-    if (originalEnv === undefined) {
-      delete process.env.AGENTV_HOME;
-    } else {
+    if (originalEnv !== undefined) {
       process.env.AGENTV_HOME = originalEnv;
+    } else {
+      process.env.AGENTV_HOME = undefined;
     }
   });
 
-  it('returns ~/.agentv when AGENTV_HOME is not set', async () => {
-    delete process.env.AGENTV_HOME;
-    const { getAgentvHome } = await import('../src/paths.js');
+  it('returns ~/.agentv when AGENTV_HOME is not set', () => {
     expect(getAgentvHome()).toBe(path.join(os.homedir(), '.agentv'));
   });
 
-  it('returns AGENTV_HOME when set', async () => {
+  it('returns custom path when AGENTV_HOME is set', () => {
     process.env.AGENTV_HOME = '/custom/agentv';
-    const { getAgentvHome } = await import('../src/paths.js');
     expect(getAgentvHome()).toBe('/custom/agentv');
   });
 
-  it('getWorkspacesRoot returns correct subpath', async () => {
-    process.env.AGENTV_HOME = '/custom/agentv';
-    const { getWorkspacesRoot } = await import('../src/paths.js');
-    expect(getWorkspacesRoot()).toBe('/custom/agentv/workspaces');
+  it('getWorkspacesRoot returns correct subpath', () => {
+    expect(getWorkspacesRoot()).toBe(path.join(os.homedir(), '.agentv', 'workspaces'));
   });
 
-  it('getGitCacheRoot returns correct subpath', async () => {
-    process.env.AGENTV_HOME = '/custom/agentv';
-    const { getGitCacheRoot } = await import('../src/paths.js');
-    expect(getGitCacheRoot()).toBe('/custom/agentv/git-cache');
+  it('getGitCacheRoot returns correct subpath', () => {
+    expect(getGitCacheRoot()).toBe(path.join(os.homedir(), '.agentv', 'git-cache'));
   });
 
-  it('getSubagentsRoot returns correct subpath', async () => {
-    process.env.AGENTV_HOME = '/custom/agentv';
-    const { getSubagentsRoot } = await import('../src/paths.js');
-    expect(getSubagentsRoot()).toBe('/custom/agentv/subagents');
+  it('getSubagentsRoot returns correct subpath', () => {
+    expect(getSubagentsRoot()).toBe(path.join(os.homedir(), '.agentv', 'subagents'));
   });
 
-  it('getTraceStateRoot returns correct subpath', async () => {
-    process.env.AGENTV_HOME = '/custom/agentv';
-    const { getTraceStateRoot } = await import('../src/paths.js');
-    expect(getTraceStateRoot()).toBe('/custom/agentv/trace-state');
+  it('getTraceStateRoot returns correct subpath', () => {
+    expect(getTraceStateRoot()).toBe(path.join(os.homedir(), '.agentv', 'trace-state'));
   });
 
-  it('logs once when AGENTV_HOME is set', async () => {
+  it('convenience functions respect AGENTV_HOME', () => {
+    process.env.AGENTV_HOME = '/custom/home';
+    expect(getWorkspacesRoot()).toBe('/custom/home/workspaces');
+    expect(getGitCacheRoot()).toBe('/custom/home/git-cache');
+    expect(getSubagentsRoot()).toBe('/custom/home/subagents');
+    expect(getTraceStateRoot()).toBe('/custom/home/trace-state');
+  });
+
+  it('logs once when AGENTV_HOME is set', () => {
     process.env.AGENTV_HOME = '/custom/agentv';
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { getAgentvHome } = await import('../src/paths.js');
+    const spy = spyOn(console, 'warn').mockImplementation(() => {});
     getAgentvHome();
     getAgentvHome();
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy).toHaveBeenCalledWith('Using AGENTV_HOME: /custom/agentv');
-    warnSpy.mockRestore();
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith('Using AGENTV_HOME: /custom/agentv');
+    spy.mockRestore();
   });
 
-  it('does not log when AGENTV_HOME is not set', async () => {
-    delete process.env.AGENTV_HOME;
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { getAgentvHome } = await import('../src/paths.js');
+  it('does not log when AGENTV_HOME is not set', () => {
+    const spy = spyOn(console, 'warn').mockImplementation(() => {});
     getAgentvHome();
-    expect(warnSpy).not.toHaveBeenCalled();
-    warnSpy.mockRestore();
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

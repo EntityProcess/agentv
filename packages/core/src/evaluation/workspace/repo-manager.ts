@@ -5,8 +5,8 @@ import { mkdir, rm, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import type { RepoConfig, RepoSource } from '../types.js';
 import { getGitCacheRoot } from '../../paths.js';
+import type { RepoConfig, RepoSource } from '../types.js';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
