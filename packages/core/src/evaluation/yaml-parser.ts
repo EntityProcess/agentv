@@ -722,6 +722,8 @@ function mergeWorkspaceConfigs(
     isolation: caseLevel.isolation ?? suiteLevel.isolation,
     repos: caseLevel.repos ?? suiteLevel.repos,
     reset: caseLevel.reset ?? suiteLevel.reset,
+    pool: caseLevel.pool ?? suiteLevel.pool,
+    pool_clean: caseLevel.pool_clean ?? suiteLevel.pool_clean,
     before_all: caseLevel.before_all ?? suiteLevel.before_all,
     after_all: caseLevel.after_all ?? suiteLevel.after_all,
     before_each: caseLevel.before_each ?? suiteLevel.before_each,

@@ -142,6 +142,76 @@ tests:
     });
   });
 
+  it('should inherit pool settings from suite-level workspace when case-level workspace is present', async () => {
+    const evalFile = path.join(testDir, 'workspace-pool-inherit.yaml');
+    await writeFile(
+      evalFile,
+      `
+workspace:
+  pool: false
+  pool_clean: full
+  repos:
+    - path: ./repo
+      source:
+        type: git
+        url: https://github.com/org/repo.git
+
+tests:
+  - id: case-override-script
+    input: "Do something"
+    criteria: "Should work"
+    workspace:
+      before_all:
+        script: ["bun", "run", "custom-setup.ts"]
+  - id: case-default
+    input: "Do something else"
+    criteria: "Should also work"
+`,
+    );
+
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases).toHaveLength(2);
+
+    const overrideCase = cases.find((c) => c.id === 'case-override-script');
+    expect(overrideCase).toBeDefined();
+    expect(overrideCase.workspace?.pool).toBe(false);
+    expect(overrideCase.workspace?.pool_clean).toBe('full');
+    expect(overrideCase.workspace?.repos).toHaveLength(1);
+    expect(overrideCase.workspace?.before_all).toEqual({
+      command: ['bun', 'run', 'custom-setup.ts'],
+    });
+
+    const defaultCase = cases.find((c) => c.id === 'case-default');
+    expect(defaultCase).toBeDefined();
+    expect(defaultCase.workspace?.pool).toBe(false);
+    expect(defaultCase.workspace?.pool_clean).toBe('full');
+  });
+
+  it('should allow case-level workspace to override suite-level pool settings', async () => {
+    const evalFile = path.join(testDir, 'workspace-pool-override.yaml');
+    await writeFile(
+      evalFile,
+      `
+workspace:
+  pool: true
+  pool_clean: standard
+
+tests:
+  - id: case-disable-pool
+    input: "Do something"
+    criteria: "Should work"
+    workspace:
+      pool: false
+      pool_clean: full
+`,
+    );
+
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases).toHaveLength(1);
+    expect(cases[0].workspace?.pool).toBe(false);
+    expect(cases[0].workspace?.pool_clean).toBe('full');
+  });
+
   it('should resolve before_all cwd relative to eval file directory', async () => {
     const evalFile = path.join(testDir, 'workspace-cwd.yaml');
     await writeFile(
