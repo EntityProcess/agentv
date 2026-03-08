@@ -180,6 +180,8 @@ export class LlmJudgeEvaluator implements Evaluator {
       // Judge parse failure → skip (not silent zero).
       // Signals infrastructure error to downstream consumers, excluded from score averages.
       const message = e instanceof Error ? e.message : String(e);
+      const evalName = context.evaluator?.name ?? 'llm-judge';
+      console.warn(`⚠ LLM judge "${evalName}" failed after 3 attempts (${message}) — skipped`);
       return {
         score: 0,
         verdict: 'skip' as const,
@@ -242,6 +244,8 @@ export class LlmJudgeEvaluator implements Evaluator {
       };
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
+      const evalName = context.evaluator?.name ?? 'llm-judge';
+      console.warn(`⚠ LLM judge "${evalName}" failed after 3 attempts (${message}) — skipped`);
       return {
         score: 0,
         verdict: 'skip' as const,
@@ -296,6 +300,8 @@ export class LlmJudgeEvaluator implements Evaluator {
       };
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
+      const evalName = context.evaluator?.name ?? 'llm-judge';
+      console.warn(`⚠ LLM judge "${evalName}" failed after 3 attempts (${message}) — skipped`);
       return {
         score: 0,
         verdict: 'skip' as const,

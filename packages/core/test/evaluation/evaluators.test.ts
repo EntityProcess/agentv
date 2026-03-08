@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, spyOn } from 'bun:test';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -501,6 +501,61 @@ describe('LlmJudgeEvaluator', () => {
     expect(result.verdict).toBe('skip');
     expect(result.misses.length).toBeGreaterThan(0);
     expect(result.misses[0]).toContain('Judge parse failure');
+  });
+
+  it('emits stderr warning on judge parse failure', async () => {
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+
+    const judgeProvider = new StubProvider(textResponse('not valid json at all'));
+
+    const evaluator = new LlmJudgeEvaluator({
+      resolveJudgeProvider: async () => judgeProvider,
+    });
+
+    await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      evaluator: {
+        name: 'my-custom-judge',
+        type: 'llm-judge',
+      },
+    });
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0][0]).toContain('LLM judge');
+    expect(warnSpy.mock.calls[0][0]).toContain('my-custom-judge');
+    expect(warnSpy.mock.calls[0][0]).toContain('skipped');
+    warnSpy.mockRestore();
+  });
+
+  it('emits stderr warning with default name when evaluator name is not set', async () => {
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+
+    const judgeProvider = new StubProvider(textResponse('garbage'));
+
+    const evaluator = new LlmJudgeEvaluator({
+      resolveJudgeProvider: async () => judgeProvider,
+    });
+
+    await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0][0]).toContain('llm-judge');
+    expect(warnSpy.mock.calls[0][0]).toContain('skipped');
+    warnSpy.mockRestore();
   });
 });
 
