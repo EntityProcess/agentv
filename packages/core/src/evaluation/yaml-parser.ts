@@ -668,6 +668,10 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
 
   const reset = parseResetConfig(obj.reset);
 
+  const pool = typeof obj.pool === 'boolean' ? obj.pool : undefined;
+  const poolClean =
+    obj.pool_clean === 'standard' || obj.pool_clean === 'full' ? obj.pool_clean : undefined;
+
   const beforeAll = parseWorkspaceScriptConfig(obj.before_all, evalFileDir);
   const afterAll = parseWorkspaceScriptConfig(obj.after_all, evalFileDir);
   const beforeEach = parseWorkspaceScriptConfig(obj.before_each, evalFileDir);
@@ -678,6 +682,8 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     !isolation &&
     !repos &&
     !reset &&
+    pool === undefined &&
+    poolClean === undefined &&
     !beforeAll &&
     !afterAll &&
     !beforeEach &&
@@ -690,6 +696,8 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     ...(isolation !== undefined && { isolation }),
     ...(repos !== undefined && { repos }),
     ...(reset !== undefined && { reset }),
+    ...(pool !== undefined && { pool }),
+    ...(poolClean !== undefined && { pool_clean: poolClean }),
     ...(beforeAll !== undefined && { before_all: beforeAll }),
     ...(afterAll !== undefined && { after_all: afterAll }),
     ...(beforeEach !== undefined && { before_each: beforeEach }),

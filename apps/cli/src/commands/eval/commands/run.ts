@@ -116,7 +116,11 @@ export const evalRunCommand = command({
     }),
     poolWorkspaces: flag({
       long: 'pool-workspaces',
-      description: 'Reuse materialized workspaces across eval runs',
+      description: 'Enable workspace pooling (default for shared workspaces with repos)',
+    }),
+    noPool: flag({
+      long: 'no-pool',
+      description: 'Disable workspace pooling (clone fresh each run)',
     }),
     workspace: option({
       type: optional(string),
@@ -190,6 +194,7 @@ export const evalRunCommand = command({
       keepWorkspaces: args.keepWorkspaces,
       cleanupWorkspaces: args.cleanupWorkspaces,
       poolWorkspaces: args.poolWorkspaces,
+      noPool: args.noPool,
       workspace: args.workspace,
       trace: false,
       otelFile: args.otelFile,

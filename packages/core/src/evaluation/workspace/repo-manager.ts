@@ -1,16 +1,12 @@
 import { execFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { mkdir, rm, unlink, writeFile } from 'node:fs/promises';
+import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { getGitCacheRoot } from '../../paths.js';
 import type { RepoConfig, RepoSource } from '../types.js';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
-const LOCK_TIMEOUT_MS = 60_000; // 1 minute
 
 /** Environment vars to force non-interactive git, stripped of hook-injected vars */
 function gitEnv(): Record<string, string | undefined> {
@@ -29,16 +25,6 @@ function gitEnv(): Record<string, string | undefined> {
   };
 }
 
-function cacheKey(source: RepoSource): string {
-  const raw =
-    source.type === 'git'
-      ? source.url
-          .toLowerCase()
-          .replace(/\.git$/, '') // Normalize git URLs (case-insensitive)
-      : source.path; // Keep local paths case-sensitive
-  return createHash('sha256').update(raw).digest('hex');
-}
-
 function getSourceUrl(source: RepoSource): string {
   return source.type === 'git' ? source.url : source.path;
 }
@@ -53,37 +39,10 @@ async function git(args: string[], opts?: { cwd?: string; timeout?: number }): P
   return stdout.trim();
 }
 
-async function acquireLock(lockPath: string): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < LOCK_TIMEOUT_MS) {
-    try {
-      await writeFile(lockPath, String(process.pid), { flag: 'wx' });
-      return;
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
-        await new Promise((r) => setTimeout(r, 200));
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error(`Timed out waiting for lock: ${lockPath}`);
-}
-
-async function releaseLock(lockPath: string): Promise<void> {
-  try {
-    await unlink(lockPath);
-  } catch {
-    // Lock file may already be removed
-  }
-}
-
 export class RepoManager {
-  private readonly cacheDir: string;
   private readonly verbose: boolean;
 
-  constructor(cacheDir?: string, verbose = false) {
-    this.cacheDir = cacheDir ?? getGitCacheRoot();
+  constructor(verbose = false) {
     this.verbose = verbose;
   }
 
@@ -111,102 +70,20 @@ export class RepoManager {
   }
 
   /**
-   * Ensure a bare mirror cache exists for the given source.
-   * Creates on first access, fetches updates on subsequent calls.
-   * Returns the absolute path to the cache directory.
-   */
-  async ensureCache(
-    source: RepoSource,
-    depth?: number,
-    resolve?: 'remote' | 'local',
-  ): Promise<string> {
-    const key = cacheKey(source);
-    const cachePath = path.join(this.cacheDir, key);
-    const lockPath = `${cachePath}.lock`;
-    const cacheExists = existsSync(path.join(cachePath, 'HEAD'));
-
-    if (this.verbose) {
-      console.log(
-        `[repo] ensureCache source=${getSourceUrl(source)} resolve=${resolve ?? 'remote'} cache=${cachePath}`,
-      );
-    }
-
-    // Local resolve: use existing cache as-is, no remote operations
-    if (resolve === 'local') {
-      if (cacheExists) {
-        if (this.verbose) {
-          console.log(`[repo] using existing local cache ${cachePath}`);
-        }
-        return cachePath;
-      }
-      const url = getSourceUrl(source);
-      throw new Error(
-        `No cache found for \`${url}\`. Run \`agentv cache add --url ${url} --from <local-path>\` to seed it.`,
-      );
-    }
-
-    await mkdir(this.cacheDir, { recursive: true });
-    const lockStartedAt = Date.now();
-    await acquireLock(lockPath);
-    if (this.verbose) {
-      console.log(`[repo] lock acquired path=${lockPath} waitedMs=${Date.now() - lockStartedAt}`);
-    }
-
-    try {
-      if (cacheExists) {
-        if (this.verbose) {
-          console.log(`[repo] refreshing existing cache ${cachePath}`);
-        }
-        // Cache exists — fetch updates
-        const fetchArgs = ['fetch', '--prune'];
-        if (depth) {
-          fetchArgs.push('--depth', String(depth));
-        }
-        await this.runGit(fetchArgs, { cwd: cachePath });
-      } else {
-        if (this.verbose) {
-          console.log(`[repo] creating new cache ${cachePath}`);
-        }
-        // Clone as bare mirror
-        const cloneArgs = ['clone', '--mirror', '--bare'];
-        if (depth) {
-          cloneArgs.push('--depth', String(depth));
-        }
-        // Use file:// protocol for local sources with depth (required for smart transport)
-        const sourceUrl = getSourceUrl(source);
-        const cloneUrl = depth && source.type === 'local' ? `file://${sourceUrl}` : sourceUrl;
-        cloneArgs.push(cloneUrl, cachePath);
-        await this.runGit(cloneArgs);
-      }
-    } finally {
-      await releaseLock(lockPath);
-      if (this.verbose) {
-        console.log(`[repo] lock released path=${lockPath}`);
-      }
-    }
-
-    return cachePath;
-  }
-
-  /**
-   * Clone a repo from cache into the workspace at the configured path.
+   * Clone a repo directly from source into the workspace at the configured path.
    * Handles checkout, ref resolution, ancestor walking, shallow clone, sparse checkout.
    */
   async materialize(repo: RepoConfig, workspacePath: string): Promise<void> {
     const targetDir = path.join(workspacePath, repo.path);
+    const sourceUrl = getSourceUrl(repo.source);
     const startedAt = Date.now();
     if (this.verbose) {
       console.log(
-        `[repo] materialize start path=${repo.path} source=${getSourceUrl(repo.source)} workspace=${workspacePath}`,
+        `[repo] materialize start path=${repo.path} source=${sourceUrl} workspace=${workspacePath}`,
       );
     }
-    const cachePath = await this.ensureCache(
-      repo.source,
-      repo.clone?.depth,
-      repo.checkout?.resolve,
-    );
 
-    // Build clone args — always clone from the bare cache
+    // Build clone args — clone directly from source
     const cloneArgs = ['clone'];
 
     if (repo.clone?.depth) {
@@ -218,8 +95,11 @@ export class RepoManager {
 
     // Clone with no checkout so we can control the checkout step
     cloneArgs.push('--no-checkout');
-    // Use file:// protocol to force smart transport (required for --depth to work)
-    const cloneUrl = repo.clone?.depth || repo.clone?.filter ? `file://${cachePath}` : cachePath;
+    // Use file:// protocol for local sources with depth/filter (required for smart transport)
+    const cloneUrl =
+      (repo.clone?.depth || repo.clone?.filter) && repo.source.type === 'local'
+        ? `file://${sourceUrl}`
+        : sourceUrl;
     cloneArgs.push(cloneUrl, targetDir);
 
     await this.runGit(cloneArgs);
@@ -330,49 +210,5 @@ export class RepoManager {
       await this.runGit(['reset', '--hard', 'HEAD'], { cwd: targetDir });
       await this.runGit(['clean', '-fd'], { cwd: targetDir });
     }
-  }
-
-  /**
-   * Seed the cache from a local repository, setting the remote to a given URL.
-   * Useful for avoiding slow network clones when a local clone already exists.
-   */
-  async seedCache(
-    localPath: string,
-    remoteUrl: string,
-    opts?: { force?: boolean },
-  ): Promise<string> {
-    const source: RepoSource = { type: 'git', url: remoteUrl };
-    const key = cacheKey(source);
-    const cachePath = path.join(this.cacheDir, key);
-    const lockPath = `${cachePath}.lock`;
-
-    await mkdir(this.cacheDir, { recursive: true });
-    await acquireLock(lockPath);
-
-    try {
-      if (existsSync(path.join(cachePath, 'HEAD'))) {
-        if (!opts?.force) {
-          throw new Error(
-            `Cache already exists for ${remoteUrl} at ${cachePath}. Use force to overwrite.`,
-          );
-        }
-        await rm(cachePath, { recursive: true, force: true });
-      }
-
-      // Clone bare mirror from local path
-      await git(['clone', '--mirror', '--bare', localPath, cachePath]);
-
-      // Point remote origin to the actual remote URL for future fetches
-      await git(['remote', 'set-url', 'origin', remoteUrl], { cwd: cachePath });
-    } finally {
-      await releaseLock(lockPath);
-    }
-
-    return cachePath;
-  }
-
-  /** Remove the entire cache directory. */
-  async cleanCache(): Promise<void> {
-    await rm(this.cacheDir, { recursive: true, force: true });
   }
 }

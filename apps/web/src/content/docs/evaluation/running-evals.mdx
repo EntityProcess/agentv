@@ -89,13 +89,15 @@ Workspaces are stored at `~/.agentv/workspaces/<eval-run-id>/<test-id>/` (or `$A
 
 ### Workspace Pooling
 
-Reuse materialized workspaces across eval runs instead of cloning from scratch each time:
+Workspace pooling is **enabled by default** for shared workspaces that define repos. Pooled workspaces reset in-place (`git reset --hard` + `git clean -fd`) and preserve build artifacts. Multiple eval files with the same workspace config share the same pool.
+
+To disable pooling for a run:
 
 ```bash
-agentv eval evals/my-eval.yaml --pool-workspaces
+agentv eval evals/my-eval.yaml --no-pool
 ```
 
-Pooled workspaces reset in-place (`git reset --hard` + `git clean -fd`) and preserve build artifacts. Multiple eval files with the same workspace config share the same pool. See the [Workspace Pool](/guides/workspace-pool/) guide for details.
+See the [Workspace Pool](/guides/workspace-pool/) guide for details.
 
 ### Static Workspace
 

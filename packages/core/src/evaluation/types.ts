@@ -256,6 +256,10 @@ export type WorkspaceConfig = {
   readonly repos?: readonly RepoConfig[];
   /** Reset configuration for repos between test runs */
   readonly reset?: ResetConfig;
+  /** Enable workspace pooling (default: true for shared workspaces with repos) */
+  readonly pool?: boolean;
+  /** Clean strategy for pool reset: 'standard' (git clean -fd, default) or 'full' (git clean -fdx) */
+  readonly pool_clean?: 'standard' | 'full';
   /** Command to run once before first test (after workspace creation, before git baseline) */
   readonly before_all?: WorkspaceScriptConfig;
   /** Command to run once after last test (before workspace cleanup) */

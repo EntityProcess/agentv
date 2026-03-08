@@ -288,6 +288,8 @@ const WorkspaceSchema = z.object({
   isolation: z.enum(['shared', 'per_test']).optional(),
   repos: z.array(RepoSchema).optional(),
   reset: ResetSchema.optional(),
+  pool: z.boolean().optional(),
+  pool_clean: z.enum(['standard', 'full']).optional(),
   before_all: WorkspaceScriptSchema.optional(),
   after_all: WorkspaceScriptSchema.optional(),
   before_each: WorkspaceScriptSchema.optional(),

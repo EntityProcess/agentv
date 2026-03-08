@@ -29,7 +29,6 @@ export { toSnakeCaseDeep, toCamelCaseDeep } from './evaluation/case-conversion.j
 export {
   getAgentvHome,
   getWorkspacesRoot,
-  getGitCacheRoot,
   getSubagentsRoot,
   getTraceStateRoot,
   getWorkspacePoolRoot,

@@ -257,7 +257,8 @@ workspace:
 - `clone.depth`: shallow clone depth (applies to both cache and workspace)
 - `clone.filter`: partial clone filter (e.g., `blob:none`)
 - `clone.sparse`: sparse checkout paths array
-- Cache: `~/.agentv/git-cache/`, manage with `agentv cache clean` or `agentv cache add --url <url> --from <local-path>`
+- Pool: workspace pooling is default for shared workspaces with repos; manage with `agentv workspace list` or `agentv workspace clean`
+- `pool: false` disables pooling; `pool_clean: full` uses `git clean -fdx` on reset
 
 See https://agentv.dev/targets/configuration/#repository-lifecycle
 

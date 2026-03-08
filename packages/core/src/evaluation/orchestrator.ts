@@ -180,7 +180,7 @@ export interface RunEvaluationOptions {
   readonly totalBudgetUsd?: number;
   /** Execution error tolerance: true halts on first error */
   readonly failOnError?: FailOnError;
-  /** Opt-in: reuse materialized workspaces across eval runs */
+  /** Workspace pooling: true (default) enables pool, false disables, undefined defaults to true */
   readonly poolWorkspaces?: boolean;
   /** Maximum number of pool slots on disk (default: 10, max: 50) */
   readonly poolMaxSlots?: number;
@@ -414,10 +414,12 @@ export async function runEvaluation(
     (suiteWorkspace?.repos?.length && !isPerTestIsolation)
   );
 
-  // Pool support: reuse materialized workspaces across eval runs (CLI-only, not YAML)
-  // --workspace takes precedence over pool
+  // Pool support: reuse materialized workspaces across eval runs.
+  // YAML workspace.pool overrides CLI --pool-workspaces / --no-pool; default is true.
+  // --workspace takes precedence over pool.
+  const poolEnabled = suiteWorkspace?.pool ?? poolWorkspaces ?? true;
   const usePool =
-    poolWorkspaces === true &&
+    poolEnabled !== false &&
     !!suiteWorkspace?.repos?.length &&
     !isPerTestIsolation &&
     !userWorkspacePath;
@@ -459,7 +461,7 @@ export async function runEvaluation(
     const slotsNeeded = workers;
     setupLog(`acquiring ${slotsNeeded} workspace pool slot(s) (pool capacity: ${poolMaxSlots})`);
     poolManager = new WorkspacePoolManager(getWorkspacePoolRoot());
-    const poolRepoManager = new RepoManager(undefined, verbose);
+    const poolRepoManager = new RepoManager(verbose);
 
     for (let i = 0; i < slotsNeeded; i++) {
       const slot = await poolManager.acquireWorkspace({
@@ -467,6 +469,7 @@ export async function runEvaluation(
         repos: suiteWorkspace.repos,
         maxSlots: poolMaxSlots,
         repoManager: poolRepoManager,
+        poolClean: suiteWorkspace.pool_clean,
       });
       poolSlots.push(slot);
       setupLog(`pool slot ${i} acquired at: ${slot.path} (existing=${slot.isExisting})`);
@@ -513,7 +516,7 @@ export async function runEvaluation(
     // Materialize repos into shared workspace (skip for per_test, pool, and user-provided workspace)
     const repoManager =
       suiteWorkspace?.repos?.length && !usePool && !userWorkspacePath
-        ? new RepoManager(undefined, verbose)
+        ? new RepoManager(verbose)
         : undefined;
     if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation) {
       setupLog(
@@ -1195,7 +1198,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
     // Materialize repos into per-case workspace
     if (evalCase.workspace?.repos?.length && workspacePath) {
-      const perCaseRepoManager = new RepoManager(undefined, setupDebug);
+      const perCaseRepoManager = new RepoManager(setupDebug);
       try {
         if (setupDebug) {
           console.log(

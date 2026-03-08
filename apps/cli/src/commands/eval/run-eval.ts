@@ -78,7 +78,7 @@ interface NormalizedOptions {
   readonly otelCaptureContent: boolean;
   readonly otelGroupTurns: boolean;
   readonly retryErrors?: string;
-  readonly poolWorkspaces: boolean;
+  readonly poolWorkspaces?: boolean;
   readonly poolMaxSlots?: number;
   readonly workspace?: string;
 }
@@ -233,9 +233,12 @@ function normalizeOptions(
     otelCaptureContent: normalizeBoolean(rawOptions.otelCaptureContent),
     otelGroupTurns: normalizeBoolean(rawOptions.otelGroupTurns),
     retryErrors: normalizeString(rawOptions.retryErrors),
-    // Pool: CLI flag > YAML config
-    poolWorkspaces:
-      normalizeBoolean(rawOptions.poolWorkspaces) || yamlExecution?.pool_workspaces === true,
+    // Pool: --no-pool explicitly disables; --pool-workspaces explicitly enables; YAML config; default undefined (orchestrator defaults to true)
+    poolWorkspaces: normalizeBoolean(rawOptions.noPool)
+      ? false
+      : normalizeBoolean(rawOptions.poolWorkspaces)
+        ? true
+        : yamlExecution?.pool_workspaces,
     poolMaxSlots: yamlExecution?.pool_slots,
     workspace: normalizeString(rawOptions.workspace),
   } satisfies NormalizedOptions;

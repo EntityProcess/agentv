@@ -5,7 +5,6 @@ import path from 'node:path';
 import {
   _resetLoggedForTesting,
   getAgentvHome,
-  getGitCacheRoot,
   getSubagentsRoot,
   getTraceStateRoot,
   getWorkspacesRoot,
@@ -40,10 +39,6 @@ describe('paths', () => {
     expect(getWorkspacesRoot()).toBe(path.join(os.homedir(), '.agentv', 'workspaces'));
   });
 
-  it('getGitCacheRoot returns correct subpath', () => {
-    expect(getGitCacheRoot()).toBe(path.join(os.homedir(), '.agentv', 'git-cache'));
-  });
-
   it('getSubagentsRoot returns correct subpath', () => {
     expect(getSubagentsRoot()).toBe(path.join(os.homedir(), '.agentv', 'subagents'));
   });
@@ -55,7 +50,6 @@ describe('paths', () => {
   it('convenience functions respect AGENTV_HOME', () => {
     process.env.AGENTV_HOME = '/custom/home';
     expect(getWorkspacesRoot()).toBe('/custom/home/workspaces');
-    expect(getGitCacheRoot()).toBe('/custom/home/git-cache');
     expect(getSubagentsRoot()).toBe('/custom/home/subagents');
     expect(getTraceStateRoot()).toBe('/custom/home/trace-state');
   });
