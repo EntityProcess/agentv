@@ -5,14 +5,15 @@ tags: [showcase, workspace, cross-repo]
 
 workspace:
   template: ../workspace-template
-  before_each:
-    command: ["bash", "../scripts/run-ts.sh", "../scripts/setup.ts"]
-    timeout_ms: 900000
-    cwd: .
-  after_each:
-    command: ["bash", "../scripts/run-ts.sh", "../scripts/reset.ts"]
-    timeout_ms: 5000
-    cwd: .
+  hooks:
+    before_each_test:
+      command: ["bash", "../scripts/run-ts.sh", "../scripts/setup.ts"]
+      timeout_ms: 900000
+      cwd: .
+    after_each_test:
+      command: ["bash", "../scripts/run-ts.sh", "../scripts/reset.ts"]
+      timeout_ms: 5000
+      cwd: .
 
 execution:
   target: mock_agent

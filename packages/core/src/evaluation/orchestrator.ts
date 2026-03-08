@@ -50,6 +50,8 @@ import type {
   JsonValue,
   TrialResult,
   TrialsConfig,
+  WorkspaceHookConfig,
+  WorkspaceScriptConfig,
 } from './types.js';
 import {
   captureFileChanges as captureWorkspaceFileChanges,
@@ -82,6 +84,24 @@ function classifyQualityStatus(score: number): ExecutionStatus {
 
 function usesFileReferencePrompt(provider: Provider): boolean {
   return isAgentProvider(provider) || provider.kind === 'cli';
+}
+
+function toScriptConfig(
+  hook: WorkspaceHookConfig,
+  hookName: string,
+  context: string,
+): WorkspaceScriptConfig {
+  const command = hook.command ?? hook.script;
+  if (!command || command.length === 0) {
+    throw new Error(`${hookName} hook in ${context} requires command or script`);
+  }
+  return {
+    command,
+    ...(hook.timeout_ms !== undefined && { timeout_ms: hook.timeout_ms }),
+    ...(hook.timeoutMs !== undefined && { timeoutMs: hook.timeoutMs }),
+    ...(hook.cwd !== undefined && { cwd: hook.cwd }),
+    ...(hook.script !== undefined && { script: hook.script }),
+  };
 }
 
 /**
@@ -437,7 +457,7 @@ export async function runEvaluation(
   const hasSharedWorkspace = !!(
     useStaticWorkspace ||
     workspaceTemplate ||
-    suiteWorkspace?.before_all ||
+    suiteWorkspace?.hooks ||
     (suiteWorkspace?.repos?.length && !isPerTestIsolation)
   );
 
@@ -454,16 +474,21 @@ export async function runEvaluation(
     !isPerTestIsolation &&
     !useStaticWorkspace;
 
+  const finishCleanPolicy = suiteWorkspace?.hooks?.on_finish?.clean;
   const resolvedRetainOnSuccess =
-    (suiteWorkspace?.on_finish?.success === 'clean'
+    (finishCleanPolicy === 'always' || finishCleanPolicy === 'on_success'
       ? 'cleanup'
-      : suiteWorkspace?.on_finish?.success) ??
+      : finishCleanPolicy === 'on_failure' || finishCleanPolicy === 'never'
+        ? 'keep'
+        : undefined) ??
     retainOnSuccess ??
     (keepWorkspaces ? 'keep' : 'cleanup');
   const resolvedRetainOnFailure =
-    (suiteWorkspace?.on_finish?.failure === 'clean'
+    (finishCleanPolicy === 'always' || finishCleanPolicy === 'on_failure'
       ? 'cleanup'
-      : suiteWorkspace?.on_finish?.failure) ??
+      : finishCleanPolicy === 'on_success' || finishCleanPolicy === 'never'
+        ? 'keep'
+        : undefined) ??
     retainOnFailure ??
     (cleanupWorkspaces ? 'cleanup' : 'keep');
 
@@ -514,7 +539,7 @@ export async function runEvaluation(
         repoManager: poolRepoManager,
         poolReset:
           (workspaceClean === 'full' ? 'strict' : workspaceClean === 'standard' ? 'fast' : null) ??
-          suiteWorkspace.on_reuse?.reset ??
+          suiteWorkspace.hooks?.on_reuse?.reset ??
           'fast',
       });
       poolSlots.push(slot);
@@ -538,8 +563,8 @@ export async function runEvaluation(
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to create shared workspace: ${message}`);
     }
-  } else if (suiteWorkspace?.before_all || (suiteWorkspace?.repos?.length && !isPerTestIsolation)) {
-    // No template but before_all or repos is configured: create empty workspace
+  } else if (suiteWorkspace?.hooks || (suiteWorkspace?.repos?.length && !isPerTestIsolation)) {
+    // No template but hooks or repos are configured: create empty workspace
     sharedWorkspacePath = getWorkspacePath(evalRunId, 'shared');
     await mkdir(sharedWorkspacePath, { recursive: true });
     setupLog(`created empty shared workspace at: ${sharedWorkspacePath}`);
@@ -581,14 +606,11 @@ export async function runEvaluation(
     }
 
     // Execute before_all (runs ONCE before first test per workspace)
-    if (sharedWorkspacePath && suiteWorkspace?.before_all) {
-      const beforeAllCommand = (
-        suiteWorkspace.before_all.command ??
-        suiteWorkspace.before_all.script ??
-        []
-      ).join(' ');
+    if (sharedWorkspacePath && suiteWorkspace?.hooks?.before_all_tests) {
+      const beforeAllHook = suiteWorkspace.hooks.before_all_tests;
+      const beforeAllCommand = (beforeAllHook.command ?? beforeAllHook.script ?? []).join(' ');
       setupLog(
-        `running shared before_all in cwd=${suiteWorkspace.before_all.cwd ?? evalDir} command=${beforeAllCommand}`,
+        `running shared before_all in cwd=${beforeAllHook.cwd ?? evalDir} command=${beforeAllCommand}`,
       );
       const scriptContext: ScriptExecutionContext = {
         workspacePath: sharedWorkspacePath,
@@ -597,7 +619,10 @@ export async function runEvaluation(
         evalDir,
       };
       try {
-        beforeAllOutput = await executeWorkspaceScript(suiteWorkspace.before_all, scriptContext);
+        beforeAllOutput = await executeWorkspaceScript(
+          toScriptConfig(beforeAllHook, 'before_all_tests', 'suite workspace'),
+          scriptContext,
+        );
         setupLog('shared before_all completed');
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -609,7 +634,8 @@ export async function runEvaluation(
     }
 
     // Multi-slot pool: run before_all on each slot and initialize baselines
-    if (availablePoolSlots.length > 0 && suiteWorkspace?.before_all) {
+    if (availablePoolSlots.length > 0 && suiteWorkspace?.hooks?.before_all_tests) {
+      const beforeAllHook = suiteWorkspace.hooks.before_all_tests;
       for (const slot of availablePoolSlots) {
         setupLog(`running before_all on pool slot ${slot.index}`);
         const scriptContext: ScriptExecutionContext = {
@@ -619,7 +645,10 @@ export async function runEvaluation(
           evalDir,
         };
         try {
-          const output = await executeWorkspaceScript(suiteWorkspace.before_all, scriptContext);
+          const output = await executeWorkspaceScript(
+            toScriptConfig(beforeAllHook, 'before_all_tests', 'suite workspace'),
+            scriptContext,
+          );
           // Capture first slot's output for result attachment
           if (!beforeAllOutput) beforeAllOutput = output;
           setupLog(`before_all completed on pool slot ${slot.index}`);
@@ -899,7 +928,8 @@ export async function runEvaluation(
           ? [sharedWorkspacePath]
           : [];
 
-    if (afterAllWorkspaces.length > 0 && suiteWorkspace?.after_all) {
+    if (afterAllWorkspaces.length > 0 && suiteWorkspace?.hooks?.after_all_tests) {
+      const afterAllHook = suiteWorkspace.hooks.after_all_tests;
       for (const wsPath of afterAllWorkspaces) {
         const scriptContext: ScriptExecutionContext = {
           workspacePath: wsPath,
@@ -909,7 +939,7 @@ export async function runEvaluation(
         };
         try {
           const afterAllOutput = await executeWorkspaceScript(
-            suiteWorkspace.after_all,
+            toScriptConfig(afterAllHook, 'after_all_tests', 'suite workspace'),
             scriptContext,
             'warn',
           );
@@ -1237,10 +1267,10 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       }
     }
 
-    // If no template but before_all or repos is configured per-case, create empty workspace
+    // If no template but hooks or repos are configured per-case, create empty workspace
     if (
       !workspacePath &&
-      (evalCase.workspace?.before_all || evalCase.workspace?.repos?.length) &&
+      (evalCase.workspace?.hooks || evalCase.workspace?.repos?.length) &&
       evalRunId
     ) {
       workspacePath = getWorkspacePath(evalRunId, evalCase.id);
@@ -1276,15 +1306,12 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
 
     // Execute per-case before_all (only when not using shared workspace)
-    if (workspacePath && evalCase.workspace?.before_all) {
-      const beforeAllCommand = (
-        evalCase.workspace.before_all.command ??
-        evalCase.workspace.before_all.script ??
-        []
-      ).join(' ');
+    if (workspacePath && evalCase.workspace?.hooks?.before_all_tests) {
+      const beforeAllHook = evalCase.workspace.hooks.before_all_tests;
+      const beforeAllCommand = (beforeAllHook.command ?? beforeAllHook.script ?? []).join(' ');
       if (setupDebug) {
         console.log(
-          `[setup] test=${evalCase.id} running before_all in cwd=${evalCase.workspace.before_all.cwd ?? evalDir} command=${beforeAllCommand}`,
+          `[setup] test=${evalCase.id} running before_all in cwd=${beforeAllHook.cwd ?? evalDir} command=${beforeAllCommand}`,
         );
       }
       const scriptContext: ScriptExecutionContext = {
@@ -1297,7 +1324,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       };
       try {
         beforeAllOutput = await executeWorkspaceScript(
-          evalCase.workspace.before_all,
+          toScriptConfig(beforeAllHook, 'before_all_tests', `test '${evalCase.id}'`),
           scriptContext,
         );
         if (setupDebug) {
@@ -1323,7 +1350,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   // Execute before_each hook (runs before each test for any workspace)
-  if (workspacePath && evalCase.workspace?.before_each) {
+  if (workspacePath && evalCase.workspace?.hooks?.before_each_test) {
+    const beforeEachHook = evalCase.workspace.hooks.before_each_test;
     const scriptContext: ScriptExecutionContext = {
       workspacePath,
       testId: evalCase.id,
@@ -1334,7 +1362,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     };
     try {
       beforeEachOutput = await executeWorkspaceScript(
-        evalCase.workspace.before_each,
+        toScriptConfig(beforeEachHook, 'before_each_test', `test '${evalCase.id}'`),
         scriptContext,
       );
     } catch (error) {
@@ -1483,16 +1511,15 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   if (
     repoManager &&
     workspacePath &&
-    evalCase.workspace?.between_tests?.after_each &&
-    evalCase.workspace.between_tests.reset &&
-    evalCase.workspace.between_tests.reset !== 'none' &&
+    evalCase.workspace?.hooks?.after_each_test?.reset &&
+    evalCase.workspace.hooks.after_each_test.reset !== 'none' &&
     evalCase.workspace.repos
   ) {
     try {
       await repoManager.reset(
         evalCase.workspace.repos,
         workspacePath,
-        evalCase.workspace.between_tests.reset,
+        evalCase.workspace.hooks.after_each_test.reset,
       );
     } catch {
       // Reset failures are non-fatal (like after_each)
@@ -1500,7 +1527,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   // Execute after_each hook (runs after evaluation, before cleanup)
-  if (workspacePath && evalCase.workspace?.after_each) {
+  if (workspacePath && evalCase.workspace?.hooks?.after_each_test) {
+    const afterEachHook = evalCase.workspace.hooks.after_each_test;
     const scriptContext: ScriptExecutionContext = {
       workspacePath,
       testId: evalCase.id,
@@ -1511,7 +1539,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     };
     try {
       afterEachOutput = await executeWorkspaceScript(
-        evalCase.workspace.after_each,
+        toScriptConfig(afterEachHook, 'after_each_test', `test '${evalCase.id}'`),
         scriptContext,
         'warn',
       );

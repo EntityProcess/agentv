@@ -17,7 +17,7 @@ describe('Workspace config parsing', () => {
     await rm(testDir, { recursive: true, force: true });
   });
 
-  it('should parse per-case workspace config with before_all and after_each scripts', async () => {
+  it('should parse per-case workspace config with before_all_tests and after_each_test hooks', async () => {
     const evalFile = path.join(testDir, 'workspace-case.yaml');
     await writeFile(
       evalFile,
@@ -27,23 +27,24 @@ tests:
     input: "Do something"
     criteria: "Should do the thing"
     workspace:
-      before_all:
-        script: ["bun", "run", "setup.ts"]
-        timeout_ms: 120000
-      after_each:
-        script: ["bun", "run", "teardown.ts"]
-        timeout_ms: 30000
+      hooks:
+        before_all_tests:
+          script: ["bun", "run", "setup.ts"]
+          timeout_ms: 120000
+        after_each_test:
+          script: ["bun", "run", "teardown.ts"]
+          timeout_ms: 30000
 `,
     );
 
     const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace).toBeDefined();
-    expect(cases[0].workspace?.before_all).toEqual({
+    expect(cases[0].workspace?.hooks?.before_all_tests).toEqual({
       command: ['bun', 'run', 'setup.ts'],
       timeout_ms: 120000,
     });
-    expect(cases[0].workspace?.after_each).toEqual({
+    expect(cases[0].workspace?.hooks?.after_each_test).toEqual({
       command: ['bun', 'run', 'teardown.ts'],
       timeout_ms: 30000,
     });
@@ -78,8 +79,9 @@ tests:
       evalFile,
       `
 workspace:
-  before_all:
-    script: ["bun", "run", "default-setup.ts"]
+  hooks:
+    before_all_tests:
+      script: ["bun", "run", "default-setup.ts"]
 
 tests:
   - id: case-1
@@ -94,10 +96,10 @@ tests:
     const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(2);
     // Both cases should inherit suite-level workspace
-    expect(cases[0].workspace?.before_all).toEqual({
+    expect(cases[0].workspace?.hooks?.before_all_tests).toEqual({
       command: ['bun', 'run', 'default-setup.ts'],
     });
-    expect(cases[1].workspace?.before_all).toEqual({
+    expect(cases[1].workspace?.hooks?.before_all_tests).toEqual({
       command: ['bun', 'run', 'default-setup.ts'],
     });
   });
@@ -108,16 +110,18 @@ tests:
       evalFile,
       `
 workspace:
-  before_all:
-    script: ["bun", "run", "default-setup.ts"]
+  hooks:
+    before_all_tests:
+      script: ["bun", "run", "default-setup.ts"]
 
 tests:
   - id: case-override
     input: "Do something"
     criteria: "Should work"
     workspace:
-      before_all:
-        script: ["bun", "run", "custom-setup.ts"]
+      hooks:
+        before_all_tests:
+          script: ["bun", "run", "custom-setup.ts"]
   - id: case-default
     input: "Do something else"
     criteria: "Should work"
@@ -130,14 +134,14 @@ tests:
     // case-override: before_all replaced
     const overrideCase = cases.find((c) => c.id === 'case-override');
     expect(overrideCase).toBeDefined();
-    expect(overrideCase.workspace?.before_all).toEqual({
+    expect(overrideCase.workspace?.hooks?.before_all_tests).toEqual({
       command: ['bun', 'run', 'custom-setup.ts'],
     });
 
     // case-default: inherits suite-level workspace entirely
     const defaultCase = cases.find((c) => c.id === 'case-default');
     expect(defaultCase).toBeDefined();
-    expect(defaultCase.workspace?.before_all).toEqual({
+    expect(defaultCase.workspace?.hooks?.before_all_tests).toEqual({
       command: ['bun', 'run', 'default-setup.ts'],
     });
   });
@@ -149,8 +153,9 @@ tests:
       `
 workspace:
   pool: false
-  on_reuse:
-    reset: strict
+  hooks:
+    on_reuse:
+      reset: strict
   repos:
     - path: ./repo
       source:
@@ -162,8 +167,9 @@ tests:
     input: "Do something"
     criteria: "Should work"
     workspace:
-      before_all:
-        script: ["bun", "run", "custom-setup.ts"]
+      hooks:
+        before_all_tests:
+          script: ["bun", "run", "custom-setup.ts"]
   - id: case-default
     input: "Do something else"
     criteria: "Should also work"
@@ -176,16 +182,16 @@ tests:
     const overrideCase = cases.find((c) => c.id === 'case-override-script');
     expect(overrideCase).toBeDefined();
     expect(overrideCase.workspace?.pool).toBe(false);
-    expect(overrideCase.workspace?.on_reuse?.reset).toBe('strict');
+    expect(overrideCase.workspace?.hooks?.on_reuse?.reset).toBe('strict');
     expect(overrideCase.workspace?.repos).toHaveLength(1);
-    expect(overrideCase.workspace?.before_all).toEqual({
+    expect(overrideCase.workspace?.hooks?.before_all_tests).toEqual({
       command: ['bun', 'run', 'custom-setup.ts'],
     });
 
     const defaultCase = cases.find((c) => c.id === 'case-default');
     expect(defaultCase).toBeDefined();
     expect(defaultCase.workspace?.pool).toBe(false);
-    expect(defaultCase.workspace?.on_reuse?.reset).toBe('strict');
+    expect(defaultCase.workspace?.hooks?.on_reuse?.reset).toBe('strict');
   });
 
   it('should allow case-level workspace to override suite-level on_reuse reset settings', async () => {
@@ -195,8 +201,9 @@ tests:
       `
 workspace:
   pool: true
-  on_reuse:
-    reset: fast
+  hooks:
+    on_reuse:
+      reset: fast
 
 tests:
   - id: case-disable-pool
@@ -204,15 +211,16 @@ tests:
     criteria: "Should work"
     workspace:
       pool: false
-      on_reuse:
-        reset: strict
+      hooks:
+        on_reuse:
+          reset: strict
 `,
     );
 
     const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace?.pool).toBe(false);
-    expect(cases[0].workspace?.on_reuse?.reset).toBe('strict');
+    expect(cases[0].workspace?.hooks?.on_reuse?.reset).toBe('strict');
   });
 
   it('should parse and merge workspace mode and on_finish settings', async () => {
@@ -222,19 +230,20 @@ tests:
       `
 workspace:
   mode: pooled
-  on_reuse:
-    reset: strict
-  on_finish:
-    success: clean
-    failure: keep
+  hooks:
+    on_reuse:
+      reset: strict
+    on_finish:
+      clean: on_success
 
 tests:
   - id: case-retain-override
     input: "Do something"
     criteria: "Should work"
     workspace:
-      on_finish:
-        failure: clean
+      hooks:
+        on_finish:
+          clean: always
   - id: case-default
     input: "Do something else"
     criteria: "Should also work"
@@ -246,18 +255,16 @@ tests:
 
     const overrideCase = cases.find((c) => c.id === 'case-retain-override');
     expect(overrideCase?.workspace?.mode).toBe('pooled');
-    expect(overrideCase?.workspace?.on_reuse?.reset).toBe('strict');
-    expect(overrideCase?.workspace?.on_finish?.success).toBe('clean');
-    expect(overrideCase?.workspace?.on_finish?.failure).toBe('clean');
+    expect(overrideCase?.workspace?.hooks?.on_reuse?.reset).toBe('strict');
+    expect(overrideCase?.workspace?.hooks?.on_finish?.clean).toBe('always');
 
     const defaultCase = cases.find((c) => c.id === 'case-default');
     expect(defaultCase?.workspace?.mode).toBe('pooled');
-    expect(defaultCase?.workspace?.on_reuse?.reset).toBe('strict');
-    expect(defaultCase?.workspace?.on_finish?.success).toBe('clean');
-    expect(defaultCase?.workspace?.on_finish?.failure).toBe('keep');
+    expect(defaultCase?.workspace?.hooks?.on_reuse?.reset).toBe('strict');
+    expect(defaultCase?.workspace?.hooks?.on_finish?.clean).toBe('on_success');
   });
 
-  it('should resolve before_all cwd relative to eval file directory', async () => {
+  it('should resolve before_all_tests cwd relative to eval file directory', async () => {
     const evalFile = path.join(testDir, 'workspace-cwd.yaml');
     await writeFile(
       evalFile,
@@ -267,15 +274,16 @@ tests:
     input: "Do something"
     criteria: "Should work"
     workspace:
-      before_all:
-        script: ["bun", "run", "setup.ts"]
-        cwd: ./scripts
+      hooks:
+        before_all_tests:
+          script: ["bun", "run", "setup.ts"]
+          cwd: ./scripts
 `,
     );
 
     const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
-    expect(cases[0].workspace?.before_all?.cwd).toBe(path.join(testDir, 'scripts'));
+    expect(cases[0].workspace?.hooks?.before_all_tests?.cwd).toBe(path.join(testDir, 'scripts'));
   });
 
   it('should parse workspace template path', async () => {
@@ -342,16 +350,16 @@ tests:
     expect(workspace?.repos?.[0].clone?.sparse).toEqual(['src/**']);
   });
 
-  it('parses workspace between_tests config', async () => {
+  it('parses workspace hooks after_each_test reset config', async () => {
     const evalFile = path.join(testDir, 'workspace-reset.yaml');
     await writeFile(
       evalFile,
       `
 description: test
 workspace:
-  between_tests:
-    reset: fast
-    after_each: true
+  hooks:
+    after_each_test:
+      reset: fast
 tests:
   - id: test-1
     input: "hello"
@@ -360,8 +368,7 @@ tests:
     );
 
     const cases = await loadTests(evalFile, testDir);
-    expect(cases[0].workspace?.between_tests?.reset).toBe('fast');
-    expect(cases[0].workspace?.between_tests?.after_each).toBe(true);
+    expect(cases[0].workspace?.hooks?.after_each_test?.reset).toBe('fast');
   });
 
   it('parses workspace isolation field', async () => {
@@ -423,9 +430,9 @@ repos:
     checkout:
       ref: main
       resolve: remote
-between_tests:
-  reset: fast
-  after_each: true
+hooks:
+  after_each_test:
+    reset: fast
 `,
       );
 
@@ -459,8 +466,7 @@ tests:
           url: 'https://github.com/org/repo.git',
         });
         expect(c.workspace?.repos?.[0].checkout?.ref).toBe('main');
-        expect(c.workspace?.between_tests?.reset).toBe('fast');
-        expect(c.workspace?.between_tests?.after_each).toBe(true);
+        expect(c.workspace?.hooks?.after_each_test?.reset).toBe('fast');
       }
     });
 
@@ -473,9 +479,10 @@ tests:
         workspaceFile,
         `
 template: ./my-template
-before_all:
-  command: ["node", "setup.mjs"]
-  cwd: ./scripts
+hooks:
+  before_all_tests:
+    command: ["node", "setup.mjs"]
+    cwd: ./scripts
 `,
       );
 
@@ -497,7 +504,7 @@ tests:
       // template resolved relative to workspace file dir (nested/config/)
       expect(cases[0].workspace?.template).toBe(path.join(wsDir, 'my-template'));
       // cwd resolved relative to workspace file dir
-      expect(cases[0].workspace?.before_all?.cwd).toBe(path.join(wsDir, 'scripts'));
+      expect(cases[0].workspace?.hooks?.before_all_tests?.cwd).toBe(path.join(wsDir, 'scripts'));
     });
 
     it('should throw a clear error when workspace file is not found', async () => {
@@ -528,11 +535,11 @@ tests:
         workspaceFile,
         `
 template: ./base-template
-before_all:
-  command: ["node", "base-setup.mjs"]
-between_tests:
-  reset: fast
-  after_each: true
+hooks:
+  before_all_tests:
+    command: ["node", "base-setup.mjs"]
+  after_each_test:
+    reset: fast
 `,
       );
 
@@ -550,8 +557,9 @@ tests:
     input: "Do something else"
     criteria: "Should work"
     workspace:
-      before_all:
-        command: ["node", "custom-setup.mjs"]
+      hooks:
+        before_all_tests:
+          command: ["node", "custom-setup.mjs"]
 `,
       );
 
@@ -560,15 +568,21 @@ tests:
 
       // default-case inherits external workspace
       const defaultCase = cases.find((c) => c.id === 'default-case');
-      expect(defaultCase?.workspace?.before_all?.command).toEqual(['node', 'base-setup.mjs']);
+      expect(defaultCase?.workspace?.hooks?.before_all_tests?.command).toEqual([
+        'node',
+        'base-setup.mjs',
+      ]);
       expect(defaultCase?.workspace?.template).toBe(path.join(wsDir, 'base-template'));
-      expect(defaultCase?.workspace?.between_tests?.reset).toBe('fast');
+      expect(defaultCase?.workspace?.hooks?.after_each_test?.reset).toBe('fast');
 
-      // override-case: before_all replaced, template and between_tests inherited
+      // override-case: before_all_tests replaced, template and after_each_test inherited
       const overrideCase = cases.find((c) => c.id === 'override-case');
-      expect(overrideCase?.workspace?.before_all?.command).toEqual(['node', 'custom-setup.mjs']);
+      expect(overrideCase?.workspace?.hooks?.before_all_tests?.command).toEqual([
+        'node',
+        'custom-setup.mjs',
+      ]);
       expect(overrideCase?.workspace?.template).toBe(path.join(wsDir, 'base-template'));
-      expect(overrideCase?.workspace?.between_tests?.reset).toBe('fast');
+      expect(overrideCase?.workspace?.hooks?.after_each_test?.reset).toBe('fast');
     });
   });
 });

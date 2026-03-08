@@ -4615,15 +4615,218 @@
                           "additionalProperties": false
                         }
                       },
-                      "between_tests": {
+                      "hooks": {
                         "type": "object",
                         "properties": {
-                          "reset": {
-                            "type": "string",
-                            "enum": ["none", "fast", "strict"]
+                          "before_all_tests": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "script": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              },
+                              "clean": {
+                                "type": "string",
+                                "enum": ["always", "on_success", "on_failure", "never"]
+                              }
+                            },
+                            "additionalProperties": false
                           },
-                          "after_each": {
-                            "type": "boolean"
+                          "before_each_test": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "script": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              },
+                              "clean": {
+                                "type": "string",
+                                "enum": ["always", "on_success", "on_failure", "never"]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "after_each_test": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "script": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              },
+                              "clean": {
+                                "type": "string",
+                                "enum": ["always", "on_success", "on_failure", "never"]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "after_all_tests": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "script": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              },
+                              "clean": {
+                                "type": "string",
+                                "enum": ["always", "on_success", "on_failure", "never"]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "on_reuse": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "script": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              },
+                              "clean": {
+                                "type": "string",
+                                "enum": ["always", "on_success", "on_failure", "never"]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "on_finish": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "script": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              },
+                              "clean": {
+                                "type": "string",
+                                "enum": ["always", "on_success", "on_failure", "never"]
+                              }
+                            },
+                            "additionalProperties": false
                           }
                         },
                         "additionalProperties": false
@@ -4635,188 +4838,8 @@
                       "static_path": {
                         "type": "string"
                       },
-                      "on_reuse": {
-                        "type": "object",
-                        "properties": {
-                          "reset": {
-                            "type": "string",
-                            "enum": ["none", "fast", "strict"]
-                          }
-                        },
-                        "additionalProperties": false
-                      },
-                      "on_finish": {
-                        "type": "object",
-                        "properties": {
-                          "success": {
-                            "type": "string",
-                            "enum": ["keep", "clean"]
-                          },
-                          "failure": {
-                            "type": "string",
-                            "enum": ["keep", "clean"]
-                          }
-                        },
-                        "additionalProperties": false
-                      },
                       "pool": {
                         "type": "boolean"
-                      },
-                      "before_all": {
-                        "type": "object",
-                        "properties": {
-                          "command": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "script": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "timeout_ms": {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          "cwd": {
-                            "type": "string"
-                          }
-                        },
-                        "additionalProperties": false
-                      },
-                      "after_all": {
-                        "type": "object",
-                        "properties": {
-                          "command": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "script": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "timeout_ms": {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          "cwd": {
-                            "type": "string"
-                          }
-                        },
-                        "additionalProperties": false
-                      },
-                      "before_each": {
-                        "type": "object",
-                        "properties": {
-                          "command": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "script": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "timeout_ms": {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          "cwd": {
-                            "type": "string"
-                          }
-                        },
-                        "additionalProperties": false
-                      },
-                      "after_each": {
-                        "type": "object",
-                        "properties": {
-                          "command": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "script": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "timeout_ms": {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          "cwd": {
-                            "type": "string"
-                          }
-                        },
-                        "additionalProperties": false
                       }
                     },
                     "additionalProperties": false
@@ -9373,15 +9396,218 @@
                           "additionalProperties": false
                         }
                       },
-                      "between_tests": {
+                      "hooks": {
                         "type": "object",
                         "properties": {
-                          "reset": {
-                            "type": "string",
-                            "enum": ["none", "fast", "strict"]
+                          "before_all_tests": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "script": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              },
+                              "clean": {
+                                "type": "string",
+                                "enum": ["always", "on_success", "on_failure", "never"]
+                              }
+                            },
+                            "additionalProperties": false
                           },
-                          "after_each": {
-                            "type": "boolean"
+                          "before_each_test": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "script": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              },
+                              "clean": {
+                                "type": "string",
+                                "enum": ["always", "on_success", "on_failure", "never"]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "after_each_test": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "script": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              },
+                              "clean": {
+                                "type": "string",
+                                "enum": ["always", "on_success", "on_failure", "never"]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "after_all_tests": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "script": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              },
+                              "clean": {
+                                "type": "string",
+                                "enum": ["always", "on_success", "on_failure", "never"]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "on_reuse": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "script": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              },
+                              "clean": {
+                                "type": "string",
+                                "enum": ["always", "on_success", "on_failure", "never"]
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          "on_finish": {
+                            "type": "object",
+                            "properties": {
+                              "command": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "script": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "timeout_ms": {
+                                "type": "number"
+                              },
+                              "timeoutMs": {
+                                "type": "number"
+                              },
+                              "cwd": {
+                                "type": "string"
+                              },
+                              "reset": {
+                                "type": "string",
+                                "enum": ["none", "fast", "strict"]
+                              },
+                              "clean": {
+                                "type": "string",
+                                "enum": ["always", "on_success", "on_failure", "never"]
+                              }
+                            },
+                            "additionalProperties": false
                           }
                         },
                         "additionalProperties": false
@@ -9393,188 +9619,8 @@
                       "static_path": {
                         "type": "string"
                       },
-                      "on_reuse": {
-                        "type": "object",
-                        "properties": {
-                          "reset": {
-                            "type": "string",
-                            "enum": ["none", "fast", "strict"]
-                          }
-                        },
-                        "additionalProperties": false
-                      },
-                      "on_finish": {
-                        "type": "object",
-                        "properties": {
-                          "success": {
-                            "type": "string",
-                            "enum": ["keep", "clean"]
-                          },
-                          "failure": {
-                            "type": "string",
-                            "enum": ["keep", "clean"]
-                          }
-                        },
-                        "additionalProperties": false
-                      },
                       "pool": {
                         "type": "boolean"
-                      },
-                      "before_all": {
-                        "type": "object",
-                        "properties": {
-                          "command": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "script": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "timeout_ms": {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          "cwd": {
-                            "type": "string"
-                          }
-                        },
-                        "additionalProperties": false
-                      },
-                      "after_all": {
-                        "type": "object",
-                        "properties": {
-                          "command": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "script": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "timeout_ms": {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          "cwd": {
-                            "type": "string"
-                          }
-                        },
-                        "additionalProperties": false
-                      },
-                      "before_each": {
-                        "type": "object",
-                        "properties": {
-                          "command": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "script": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "timeout_ms": {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          "cwd": {
-                            "type": "string"
-                          }
-                        },
-                        "additionalProperties": false
-                      },
-                      "after_each": {
-                        "type": "object",
-                        "properties": {
-                          "command": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "script": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
-                          "timeout_ms": {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          "cwd": {
-                            "type": "string"
-                          }
-                        },
-                        "additionalProperties": false
                       }
                     },
                     "additionalProperties": false
@@ -12958,15 +13004,218 @@
                     "additionalProperties": false
                   }
                 },
-                "between_tests": {
+                "hooks": {
                   "type": "object",
                   "properties": {
-                    "reset": {
-                      "type": "string",
-                      "enum": ["none", "fast", "strict"]
+                    "before_all_tests": {
+                      "type": "object",
+                      "properties": {
+                        "command": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "script": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "timeout_ms": {
+                          "type": "number"
+                        },
+                        "timeoutMs": {
+                          "type": "number"
+                        },
+                        "cwd": {
+                          "type": "string"
+                        },
+                        "reset": {
+                          "type": "string",
+                          "enum": ["none", "fast", "strict"]
+                        },
+                        "clean": {
+                          "type": "string",
+                          "enum": ["always", "on_success", "on_failure", "never"]
+                        }
+                      },
+                      "additionalProperties": false
                     },
-                    "after_each": {
-                      "type": "boolean"
+                    "before_each_test": {
+                      "type": "object",
+                      "properties": {
+                        "command": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "script": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "timeout_ms": {
+                          "type": "number"
+                        },
+                        "timeoutMs": {
+                          "type": "number"
+                        },
+                        "cwd": {
+                          "type": "string"
+                        },
+                        "reset": {
+                          "type": "string",
+                          "enum": ["none", "fast", "strict"]
+                        },
+                        "clean": {
+                          "type": "string",
+                          "enum": ["always", "on_success", "on_failure", "never"]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "after_each_test": {
+                      "type": "object",
+                      "properties": {
+                        "command": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "script": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "timeout_ms": {
+                          "type": "number"
+                        },
+                        "timeoutMs": {
+                          "type": "number"
+                        },
+                        "cwd": {
+                          "type": "string"
+                        },
+                        "reset": {
+                          "type": "string",
+                          "enum": ["none", "fast", "strict"]
+                        },
+                        "clean": {
+                          "type": "string",
+                          "enum": ["always", "on_success", "on_failure", "never"]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "after_all_tests": {
+                      "type": "object",
+                      "properties": {
+                        "command": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "script": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "timeout_ms": {
+                          "type": "number"
+                        },
+                        "timeoutMs": {
+                          "type": "number"
+                        },
+                        "cwd": {
+                          "type": "string"
+                        },
+                        "reset": {
+                          "type": "string",
+                          "enum": ["none", "fast", "strict"]
+                        },
+                        "clean": {
+                          "type": "string",
+                          "enum": ["always", "on_success", "on_failure", "never"]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "on_reuse": {
+                      "type": "object",
+                      "properties": {
+                        "command": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "script": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "timeout_ms": {
+                          "type": "number"
+                        },
+                        "timeoutMs": {
+                          "type": "number"
+                        },
+                        "cwd": {
+                          "type": "string"
+                        },
+                        "reset": {
+                          "type": "string",
+                          "enum": ["none", "fast", "strict"]
+                        },
+                        "clean": {
+                          "type": "string",
+                          "enum": ["always", "on_success", "on_failure", "never"]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "on_finish": {
+                      "type": "object",
+                      "properties": {
+                        "command": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "script": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "timeout_ms": {
+                          "type": "number"
+                        },
+                        "timeoutMs": {
+                          "type": "number"
+                        },
+                        "cwd": {
+                          "type": "string"
+                        },
+                        "reset": {
+                          "type": "string",
+                          "enum": ["none", "fast", "strict"]
+                        },
+                        "clean": {
+                          "type": "string",
+                          "enum": ["always", "on_success", "on_failure", "never"]
+                        }
+                      },
+                      "additionalProperties": false
                     }
                   },
                   "additionalProperties": false
@@ -12978,188 +13227,8 @@
                 "static_path": {
                   "type": "string"
                 },
-                "on_reuse": {
-                  "type": "object",
-                  "properties": {
-                    "reset": {
-                      "type": "string",
-                      "enum": ["none", "fast", "strict"]
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "on_finish": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "string",
-                      "enum": ["keep", "clean"]
-                    },
-                    "failure": {
-                      "type": "string",
-                      "enum": ["keep", "clean"]
-                    }
-                  },
-                  "additionalProperties": false
-                },
                 "pool": {
                   "type": "boolean"
-                },
-                "before_all": {
-                  "type": "object",
-                  "properties": {
-                    "command": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        }
-                      ]
-                    },
-                    "script": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        }
-                      ]
-                    },
-                    "timeout_ms": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "cwd": {
-                      "type": "string"
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "after_all": {
-                  "type": "object",
-                  "properties": {
-                    "command": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        }
-                      ]
-                    },
-                    "script": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        }
-                      ]
-                    },
-                    "timeout_ms": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "cwd": {
-                      "type": "string"
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "before_each": {
-                  "type": "object",
-                  "properties": {
-                    "command": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        }
-                      ]
-                    },
-                    "script": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        }
-                      ]
-                    },
-                    "timeout_ms": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "cwd": {
-                      "type": "string"
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "after_each": {
-                  "type": "object",
-                  "properties": {
-                    "command": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        }
-                      ]
-                    },
-                    "script": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        }
-                      ]
-                    },
-                    "timeout_ms": {
-                      "type": "number",
-                      "minimum": 0
-                    },
-                    "cwd": {
-                      "type": "string"
-                    }
-                  },
-                  "additionalProperties": false
                 }
               },
               "additionalProperties": false

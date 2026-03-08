@@ -30,7 +30,6 @@ import {
 } from './loaders/shorthand-expansion.js';
 import { parseMetadata } from './metadata.js';
 import type {
-  BetweenTestsConfig,
   EvalTest,
   JsonObject,
   JsonValue,
@@ -41,6 +40,8 @@ import type {
   TestMessage,
   TrialsConfig,
   WorkspaceConfig,
+  WorkspaceHookConfig,
+  WorkspaceHooksConfig,
   WorkspaceScriptConfig,
 } from './types.js';
 import { isJsonObject, isTestMessage } from './types.js';
@@ -597,17 +598,51 @@ function parseRepoConfig(raw: unknown): RepoConfig | undefined {
   };
 }
 
-function parseBetweenTestsConfig(raw: unknown): BetweenTestsConfig | undefined {
+function parseWorkspaceHookConfig(
+  raw: unknown,
+  evalFileDir: string,
+): WorkspaceHookConfig | undefined {
   if (!isJsonObject(raw)) return undefined;
+  const script = parseWorkspaceScriptConfig(raw, evalFileDir);
   const obj = raw as Record<string, unknown>;
   const reset =
     obj.reset === 'none' || obj.reset === 'fast' || obj.reset === 'strict' ? obj.reset : undefined;
-  const afterEach = typeof obj.after_each === 'boolean' ? obj.after_each : undefined;
-  if (!reset && afterEach === undefined) return undefined;
+  const clean =
+    obj.clean === 'always' ||
+    obj.clean === 'on_success' ||
+    obj.clean === 'on_failure' ||
+    obj.clean === 'never'
+      ? obj.clean
+      : undefined;
+  if (!script && !reset && !clean) return undefined;
   return {
+    ...(script ?? {}),
     ...(reset !== undefined && { reset }),
-    ...(afterEach !== undefined && { after_each: afterEach }),
+    ...(clean !== undefined && { clean }),
   };
+}
+
+function parseWorkspaceHooksConfig(
+  raw: unknown,
+  evalFileDir: string,
+): WorkspaceHooksConfig | undefined {
+  if (!isJsonObject(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+  const beforeAllTests = parseWorkspaceHookConfig(obj.before_all_tests, evalFileDir);
+  const beforeEachTest = parseWorkspaceHookConfig(obj.before_each_test, evalFileDir);
+  const afterEachTest = parseWorkspaceHookConfig(obj.after_each_test, evalFileDir);
+  const afterAllTests = parseWorkspaceHookConfig(obj.after_all_tests, evalFileDir);
+  const onReuse = parseWorkspaceHookConfig(obj.on_reuse, evalFileDir);
+  const onFinish = parseWorkspaceHookConfig(obj.on_finish, evalFileDir);
+  const hooks: WorkspaceHooksConfig = {
+    ...(beforeAllTests !== undefined && { before_all_tests: beforeAllTests }),
+    ...(beforeEachTest !== undefined && { before_each_test: beforeEachTest }),
+    ...(afterEachTest !== undefined && { after_each_test: afterEachTest }),
+    ...(afterAllTests !== undefined && { after_all_tests: afterAllTests }),
+    ...(onReuse !== undefined && { on_reuse: onReuse }),
+    ...(onFinish !== undefined && { on_finish: onFinish }),
+  };
+  return Object.keys(hooks).length > 0 ? hooks : undefined;
 }
 
 /**
@@ -664,76 +699,25 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
         .filter(Boolean) as RepoConfig[])
     : undefined;
 
-  const betweenTests = parseBetweenTestsConfig(obj.between_tests);
+  const hooks = parseWorkspaceHooksConfig(obj.hooks, evalFileDir);
   const mode =
     obj.mode === 'pooled' || obj.mode === 'ephemeral' || obj.mode === 'static'
       ? obj.mode
       : undefined;
   const staticPath = typeof obj.static_path === 'string' ? obj.static_path : undefined;
-  const onReuse = isJsonObject(obj.on_reuse)
-    ? {
-        ...(obj.on_reuse.reset === 'none' ||
-        obj.on_reuse.reset === 'fast' ||
-        obj.on_reuse.reset === 'strict'
-          ? { reset: obj.on_reuse.reset }
-          : {}),
-      }
-    : undefined;
-  const onFinish = isJsonObject(obj.on_finish)
-    ? {
-        ...(obj.on_finish.success === 'keep' || obj.on_finish.success === 'clean'
-          ? { success: obj.on_finish.success }
-          : {}),
-        ...(obj.on_finish.failure === 'keep' || obj.on_finish.failure === 'clean'
-          ? { failure: obj.on_finish.failure }
-          : {}),
-      }
-    : undefined;
-
   const pool = typeof obj.pool === 'boolean' ? obj.pool : undefined;
 
-  const beforeAll = parseWorkspaceScriptConfig(obj.before_all, evalFileDir);
-  const afterAll = parseWorkspaceScriptConfig(obj.after_all, evalFileDir);
-  const beforeEach = parseWorkspaceScriptConfig(obj.before_each, evalFileDir);
-  const afterEach = parseWorkspaceScriptConfig(obj.after_each, evalFileDir);
-
-  if (
-    !template &&
-    !isolation &&
-    !repos &&
-    !betweenTests &&
-    !mode &&
-    !staticPath &&
-    !onReuse &&
-    !onFinish &&
-    pool === undefined &&
-    !beforeAll &&
-    !afterAll &&
-    !beforeEach &&
-    !afterEach
-  )
+  if (!template && !isolation && !repos && !hooks && !mode && !staticPath && pool === undefined)
     return undefined;
 
   return {
     ...(template !== undefined && { template }),
     ...(isolation !== undefined && { isolation }),
     ...(repos !== undefined && { repos }),
-    ...(betweenTests !== undefined && { between_tests: betweenTests }),
+    ...(hooks !== undefined && { hooks }),
     ...(mode !== undefined && { mode }),
     ...(staticPath !== undefined && { static_path: staticPath }),
-    ...(onReuse !== undefined &&
-      Object.keys(onReuse).length > 0 && {
-        on_reuse: onReuse as NonNullable<WorkspaceConfig['on_reuse']>,
-      }),
-    ...(onFinish !== undefined &&
-      Object.keys(onFinish).length > 0 && {
-        on_finish: onFinish as NonNullable<WorkspaceConfig['on_finish']>,
-      }),
     ...(pool !== undefined && { pool }),
-    ...(beforeAll !== undefined && { before_all: beforeAll }),
-    ...(afterAll !== undefined && { after_all: afterAll }),
-    ...(beforeEach !== undefined && { before_each: beforeEach }),
-    ...(afterEach !== undefined && { after_each: afterEach }),
   };
 }
 
@@ -749,29 +733,40 @@ function mergeWorkspaceConfigs(
   if (!suiteLevel) return caseLevel;
   if (!caseLevel) return suiteLevel;
 
-  const onReuseReset = caseLevel.on_reuse?.reset ?? suiteLevel.on_reuse?.reset;
-  const finishOnSuccess = caseLevel.on_finish?.success ?? suiteLevel.on_finish?.success;
-  const finishOnFailure = caseLevel.on_finish?.failure ?? suiteLevel.on_finish?.failure;
+  const mergeHook = (
+    suiteHook: WorkspaceHookConfig | undefined,
+    caseHook: WorkspaceHookConfig | undefined,
+  ): WorkspaceHookConfig | undefined => {
+    if (!suiteHook && !caseHook) return undefined;
+    return {
+      ...(suiteHook ?? {}),
+      ...(caseHook ?? {}),
+    };
+  };
+  const mergedHooks = {
+    before_all_tests: mergeHook(
+      suiteLevel.hooks?.before_all_tests,
+      caseLevel.hooks?.before_all_tests,
+    ),
+    before_each_test: mergeHook(
+      suiteLevel.hooks?.before_each_test,
+      caseLevel.hooks?.before_each_test,
+    ),
+    after_each_test: mergeHook(suiteLevel.hooks?.after_each_test, caseLevel.hooks?.after_each_test),
+    after_all_tests: mergeHook(suiteLevel.hooks?.after_all_tests, caseLevel.hooks?.after_all_tests),
+    on_reuse: mergeHook(suiteLevel.hooks?.on_reuse, caseLevel.hooks?.on_reuse),
+    on_finish: mergeHook(suiteLevel.hooks?.on_finish, caseLevel.hooks?.on_finish),
+  };
+  const hasHooks = Object.values(mergedHooks).some((hook) => hook !== undefined);
 
   return {
     template: caseLevel.template ?? suiteLevel.template,
     isolation: caseLevel.isolation ?? suiteLevel.isolation,
     repos: caseLevel.repos ?? suiteLevel.repos,
-    between_tests: caseLevel.between_tests ?? suiteLevel.between_tests,
+    ...(hasHooks && { hooks: mergedHooks as WorkspaceHooksConfig }),
     mode: caseLevel.mode ?? suiteLevel.mode,
     static_path: caseLevel.static_path ?? suiteLevel.static_path,
-    ...(onReuseReset !== undefined && { on_reuse: { reset: onReuseReset } }),
-    ...((finishOnSuccess !== undefined || finishOnFailure !== undefined) && {
-      on_finish: {
-        ...(finishOnSuccess !== undefined && { success: finishOnSuccess }),
-        ...(finishOnFailure !== undefined && { failure: finishOnFailure }),
-      },
-    }),
     pool: caseLevel.pool ?? suiteLevel.pool,
-    before_all: caseLevel.before_all ?? suiteLevel.before_all,
-    after_all: caseLevel.after_all ?? suiteLevel.after_all,
-    before_each: caseLevel.before_each ?? suiteLevel.before_each,
-    after_each: caseLevel.after_each ?? suiteLevel.after_each,
   };
 }
 
