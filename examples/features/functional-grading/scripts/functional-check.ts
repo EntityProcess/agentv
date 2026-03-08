@@ -5,7 +5,8 @@
  * Uses workspace_path to run commands in the agent's workspace:
  * 1. Install dependencies (npm install)
  * 2. Typecheck (npx tsc --noEmit)
- * 3. Run tests (npm test)
+ * 3. Compile (npx tsc)
+ * 4. Run functional checks (npm test)
  *
  * Each stage contributes to the overall score.
  */
@@ -54,9 +55,9 @@ runStage('typecheck', 'npx', ['tsc', '--noEmit']);
 // Stage 3: Compile
 const compiled = runStage('compile', 'npx', ['tsc']);
 
-// Stage 4: Run tests (only if compile succeeded)
+// Stage 4: Run functional checks (only if compile succeeded)
 if (compiled) {
-  runStage('tests', 'node', ['test/index.test.js']);
+  runStage('tests', 'npm', ['test']);
 }
 
 const total = hits.length + misses.length;
