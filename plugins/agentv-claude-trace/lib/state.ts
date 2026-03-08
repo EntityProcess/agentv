@@ -3,7 +3,7 @@ import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/pro
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-const STATE_DIR = join(homedir(), '.agentv', 'trace-state');
+const STATE_DIR = join(process.env.AGENTV_HOME ?? join(homedir(), '.agentv'), 'trace-state');
 
 export interface SessionState {
   sessionId: string;

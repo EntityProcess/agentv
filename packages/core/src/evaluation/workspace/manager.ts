@@ -1,13 +1,7 @@
 import { cp, mkdir, readdir, rm, stat } from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
+import { getWorkspacesRoot } from '../../paths.js';
 import { fileExists } from '../file-utils.js';
-
-/**
- * Default workspace root directory for temporary eval workspaces.
- * Located at ~/.agentv/workspaces
- */
-const DEFAULT_WORKSPACE_ROOT = path.join(os.homedir(), '.agentv', 'workspaces');
 
 /**
  * Error thrown when the template path does not exist.
@@ -73,7 +67,7 @@ export function getWorkspacePath(
   caseId: string,
   workspaceRoot?: string,
 ): string {
-  const root = workspaceRoot ?? DEFAULT_WORKSPACE_ROOT;
+  const root = workspaceRoot ?? getWorkspacesRoot();
   return path.join(root, evalRunId, caseId);
 }
 
@@ -218,7 +212,7 @@ export async function cleanupEvalWorkspaces(
   evalRunId: string,
   workspaceRoot?: string,
 ): Promise<void> {
-  const root = workspaceRoot ?? DEFAULT_WORKSPACE_ROOT;
+  const root = workspaceRoot ?? getWorkspacesRoot();
   const evalDir = path.join(root, evalRunId);
 
   if (await fileExists(evalDir)) {

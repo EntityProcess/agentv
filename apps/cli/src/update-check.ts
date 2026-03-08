@@ -1,10 +1,10 @@
 import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { getAgentvHome } from '@agentv/core';
 
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const AGENTV_DIR = join(homedir(), '.agentv');
+const AGENTV_DIR = getAgentvHome();
 const CACHE_FILE = 'version-check.json';
 const NPM_REGISTRY_URL = 'https://registry.npmjs.org/agentv/latest';
 

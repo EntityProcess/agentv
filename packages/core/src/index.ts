@@ -26,6 +26,13 @@ export {
   shouldSkipCacheForTemperature,
 } from './evaluation/cache/response-cache.js';
 export { toSnakeCaseDeep, toCamelCaseDeep } from './evaluation/case-conversion.js';
+export {
+  getAgentvHome,
+  getWorkspacesRoot,
+  getGitCacheRoot,
+  getSubagentsRoot,
+  getTraceStateRoot,
+} from './paths.js';
 export { trimBaselineResult } from './evaluation/baseline.js';
 export * from './observability/index.js';
 

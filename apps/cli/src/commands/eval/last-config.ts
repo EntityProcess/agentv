@@ -1,8 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import path from 'node:path';
+import { getAgentvHome } from '@agentv/core';
 
-const AGENTV_DIR = path.join(homedir(), '.agentv');
+const AGENTV_DIR = getAgentvHome();
 const LAST_CONFIG_PATH = path.join(AGENTV_DIR, 'last-config.json');
 
 export interface LastConfig {
