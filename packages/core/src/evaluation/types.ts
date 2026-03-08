@@ -241,8 +241,9 @@ export type RepoConfig = {
   readonly clone?: RepoClone;
 };
 
-export type ResetConfig = {
-  readonly strategy?: 'none' | 'hard' | 'recreate';
+export type BetweenTestsConfig = {
+  /** Reset policy applied between tests */
+  readonly reset?: 'none' | 'fast' | 'strict';
   readonly after_each?: boolean;
 };
 
@@ -254,23 +255,24 @@ export type WorkspaceConfig = {
   readonly isolation?: 'shared' | 'per_test';
   /** Repository definitions to clone/checkout into workspace */
   readonly repos?: readonly RepoConfig[];
-  /** Reset configuration for repos between test runs */
-  readonly reset?: ResetConfig;
+  /** Repo reset strategy between tests */
+  readonly between_tests?: BetweenTestsConfig;
   /** Workspace materialization mode */
   readonly mode?: 'pooled' | 'ephemeral' | 'static';
   /** Required when mode=static: use this existing directory directly */
   readonly static_path?: string;
-  /** Reset clean policy for pooled reuse cycles */
-  readonly reset_clean?: 'standard' | 'full';
+  /** Reset policy when a pooled workspace slot is reused */
+  readonly on_reuse?: {
+    /** Reset policy when a pooled workspace is reused */
+    readonly reset?: 'none' | 'fast' | 'strict';
+  };
   /** Workspace retention policy for temporary eval-run workspaces */
   readonly retention?: {
     readonly on_success?: 'keep' | 'cleanup';
     readonly on_failure?: 'keep' | 'cleanup';
   };
-  /** Enable workspace pooling (default: true for shared workspaces with repos) */
+  /** @deprecated Use mode=pooled|ephemeral|static */
   readonly pool?: boolean;
-  /** Clean strategy for pool reset: 'standard' (git clean -fd, default) or 'full' (git clean -fdx) */
-  readonly pool_clean?: 'standard' | 'full';
   /** Command to run once before first test (after workspace creation, before git baseline) */
   readonly before_all?: WorkspaceScriptConfig;
   /** Command to run once after last test (before workspace cleanup) */

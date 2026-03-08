@@ -84,7 +84,7 @@ agentv eval evals/my-eval.yaml --workspace-mode pooled
 # Static mode path
 agentv eval evals/my-eval.yaml --workspace-mode static --workspace-path /path/to/workspace
 
-# Pooled reset clean policy: standard | full
+# Pooled reset policy override: standard | full (CLI override)
 agentv eval evals/my-eval.yaml --workspace-clean full
 
 # Retention policy: keep | cleanup
@@ -97,7 +97,11 @@ Equivalent eval YAML:
 workspace:
   mode: pooled           # pooled | ephemeral | static
   static_path: null      # required when mode=static
-  reset_clean: standard  # standard | full
+  on_reuse:
+    reset: fast          # none | fast | strict
+  between_tests:
+    reset: fast          # none | fast | strict
+    after_each: true
   retention:
     on_success: cleanup  # keep | cleanup
     on_failure: keep     # keep | cleanup

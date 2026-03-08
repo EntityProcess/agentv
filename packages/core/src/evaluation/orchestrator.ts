@@ -508,7 +508,10 @@ export async function runEvaluation(
         repos: suiteWorkspace.repos,
         maxSlots: poolMaxSlots,
         repoManager: poolRepoManager,
-        poolClean: workspaceClean ?? suiteWorkspace.reset_clean ?? suiteWorkspace.pool_clean,
+        poolReset:
+          (workspaceClean === 'full' ? 'strict' : workspaceClean === 'standard' ? 'fast' : null) ??
+          suiteWorkspace.on_reuse?.reset ??
+          'fast',
       });
       poolSlots.push(slot);
       setupLog(`pool slot ${i} acquired at: ${slot.path} (existing=${slot.isExisting})`);
@@ -1476,16 +1479,16 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   if (
     repoManager &&
     workspacePath &&
-    evalCase.workspace?.reset?.after_each &&
-    evalCase.workspace.reset.strategy &&
-    evalCase.workspace.reset.strategy !== 'none' &&
+    evalCase.workspace?.between_tests?.after_each &&
+    evalCase.workspace.between_tests.reset &&
+    evalCase.workspace.between_tests.reset !== 'none' &&
     evalCase.workspace.repos
   ) {
     try {
       await repoManager.reset(
         evalCase.workspace.repos,
         workspacePath,
-        evalCase.workspace.reset.strategy,
+        evalCase.workspace.between_tests.reset,
       );
     } catch {
       // Reset failures are non-fatal (like after_each)

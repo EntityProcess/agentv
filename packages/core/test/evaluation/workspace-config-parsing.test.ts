@@ -142,14 +142,15 @@ tests:
     });
   });
 
-  it('should inherit pool settings from suite-level workspace when case-level workspace is present', async () => {
+  it('should inherit on_reuse reset settings from suite-level workspace when case-level workspace is present', async () => {
     const evalFile = path.join(testDir, 'workspace-pool-inherit.yaml');
     await writeFile(
       evalFile,
       `
 workspace:
   pool: false
-  pool_clean: full
+  on_reuse:
+    reset: strict
   repos:
     - path: ./repo
       source:
@@ -175,7 +176,7 @@ tests:
     const overrideCase = cases.find((c) => c.id === 'case-override-script');
     expect(overrideCase).toBeDefined();
     expect(overrideCase.workspace?.pool).toBe(false);
-    expect(overrideCase.workspace?.pool_clean).toBe('full');
+    expect(overrideCase.workspace?.on_reuse?.reset).toBe('strict');
     expect(overrideCase.workspace?.repos).toHaveLength(1);
     expect(overrideCase.workspace?.before_all).toEqual({
       command: ['bun', 'run', 'custom-setup.ts'],
@@ -184,17 +185,18 @@ tests:
     const defaultCase = cases.find((c) => c.id === 'case-default');
     expect(defaultCase).toBeDefined();
     expect(defaultCase.workspace?.pool).toBe(false);
-    expect(defaultCase.workspace?.pool_clean).toBe('full');
+    expect(defaultCase.workspace?.on_reuse?.reset).toBe('strict');
   });
 
-  it('should allow case-level workspace to override suite-level pool settings', async () => {
+  it('should allow case-level workspace to override suite-level on_reuse reset settings', async () => {
     const evalFile = path.join(testDir, 'workspace-pool-override.yaml');
     await writeFile(
       evalFile,
       `
 workspace:
   pool: true
-  pool_clean: standard
+  on_reuse:
+    reset: fast
 
 tests:
   - id: case-disable-pool
@@ -202,14 +204,15 @@ tests:
     criteria: "Should work"
     workspace:
       pool: false
-      pool_clean: full
+      on_reuse:
+        reset: strict
 `,
     );
 
     const cases = await loadTests(evalFile, testDir);
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace?.pool).toBe(false);
-    expect(cases[0].workspace?.pool_clean).toBe('full');
+    expect(cases[0].workspace?.on_reuse?.reset).toBe('strict');
   });
 
   it('should parse and merge workspace mode and retention settings', async () => {
@@ -219,7 +222,8 @@ tests:
       `
 workspace:
   mode: pooled
-  reset_clean: full
+  on_reuse:
+    reset: strict
   retention:
     on_success: cleanup
     on_failure: keep
@@ -242,13 +246,13 @@ tests:
 
     const overrideCase = cases.find((c) => c.id === 'case-retain-override');
     expect(overrideCase?.workspace?.mode).toBe('pooled');
-    expect(overrideCase?.workspace?.reset_clean).toBe('full');
+    expect(overrideCase?.workspace?.on_reuse?.reset).toBe('strict');
     expect(overrideCase?.workspace?.retention?.on_success).toBe('cleanup');
     expect(overrideCase?.workspace?.retention?.on_failure).toBe('cleanup');
 
     const defaultCase = cases.find((c) => c.id === 'case-default');
     expect(defaultCase?.workspace?.mode).toBe('pooled');
-    expect(defaultCase?.workspace?.reset_clean).toBe('full');
+    expect(defaultCase?.workspace?.on_reuse?.reset).toBe('strict');
     expect(defaultCase?.workspace?.retention?.on_success).toBe('cleanup');
     expect(defaultCase?.workspace?.retention?.on_failure).toBe('keep');
   });
@@ -338,15 +342,15 @@ tests:
     expect(workspace?.repos?.[0].clone?.sparse).toEqual(['src/**']);
   });
 
-  it('parses workspace reset config', async () => {
+  it('parses workspace between_tests config', async () => {
     const evalFile = path.join(testDir, 'workspace-reset.yaml');
     await writeFile(
       evalFile,
       `
 description: test
 workspace:
-  reset:
-    strategy: hard
+  between_tests:
+    reset: fast
     after_each: true
 tests:
   - id: test-1
@@ -356,8 +360,8 @@ tests:
     );
 
     const cases = await loadTests(evalFile, testDir);
-    expect(cases[0].workspace?.reset?.strategy).toBe('hard');
-    expect(cases[0].workspace?.reset?.after_each).toBe(true);
+    expect(cases[0].workspace?.between_tests?.reset).toBe('fast');
+    expect(cases[0].workspace?.between_tests?.after_each).toBe(true);
   });
 
   it('parses workspace isolation field', async () => {
@@ -419,8 +423,8 @@ repos:
     checkout:
       ref: main
       resolve: remote
-reset:
-  strategy: hard
+between_tests:
+  reset: fast
   after_each: true
 `,
       );
@@ -455,8 +459,8 @@ tests:
           url: 'https://github.com/org/repo.git',
         });
         expect(c.workspace?.repos?.[0].checkout?.ref).toBe('main');
-        expect(c.workspace?.reset?.strategy).toBe('hard');
-        expect(c.workspace?.reset?.after_each).toBe(true);
+        expect(c.workspace?.between_tests?.reset).toBe('fast');
+        expect(c.workspace?.between_tests?.after_each).toBe(true);
       }
     });
 
@@ -526,8 +530,8 @@ tests:
 template: ./base-template
 before_all:
   command: ["node", "base-setup.mjs"]
-reset:
-  strategy: hard
+between_tests:
+  reset: fast
   after_each: true
 `,
       );
@@ -558,13 +562,13 @@ tests:
       const defaultCase = cases.find((c) => c.id === 'default-case');
       expect(defaultCase?.workspace?.before_all?.command).toEqual(['node', 'base-setup.mjs']);
       expect(defaultCase?.workspace?.template).toBe(path.join(wsDir, 'base-template'));
-      expect(defaultCase?.workspace?.reset?.strategy).toBe('hard');
+      expect(defaultCase?.workspace?.between_tests?.reset).toBe('fast');
 
-      // override-case: before_all replaced, template and reset inherited
+      // override-case: before_all replaced, template and between_tests inherited
       const overrideCase = cases.find((c) => c.id === 'override-case');
       expect(overrideCase?.workspace?.before_all?.command).toEqual(['node', 'custom-setup.mjs']);
       expect(overrideCase?.workspace?.template).toBe(path.join(wsDir, 'base-template'));
-      expect(overrideCase?.workspace?.reset?.strategy).toBe('hard');
+      expect(overrideCase?.workspace?.between_tests?.reset).toBe('fast');
     });
   });
 });

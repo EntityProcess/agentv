@@ -180,13 +180,14 @@ workspace:
       source:
         type: local
         path: /home/user/projects/my-project
-  reset:
-    strategy: hard            # none | hard | recreate
+  between_tests:
+    reset: fast               # none | fast | strict
     after_each: true          # reset repos between tests
   isolation: shared           # shared (default) | per_test
   mode: pooled                # pooled | ephemeral | static
   static_path: /tmp/my-ws     # required when mode=static
-  reset_clean: standard       # standard | full
+  on_reuse:
+    reset: fast               # none | fast | strict
   retention:
     on_success: cleanup       # keep | cleanup
     on_failure: keep          # keep | cleanup
@@ -202,12 +203,12 @@ workspace:
 | `repos[].clone.depth` | Shallow clone depth |
 | `repos[].clone.filter` | Partial clone filter (e.g., `blob:none`) |
 | `repos[].clone.sparse` | Sparse checkout paths |
-| `reset.strategy` | How to reset repos: `none`, `hard` (git reset), `recreate` (re-clone) |
-| `reset.after_each` | Reset after each test (default: `false`) |
+| `between_tests.reset` | Reset policy between tests: `none`, `fast`, `strict` |
+| `between_tests.after_each` | Apply between-test reset after each test (default: `false`) |
 | `isolation` | `shared` reuses one workspace; `per_test` creates a fresh copy per test |
 | `mode` | Workspace mode: `pooled`, `ephemeral`, `static` |
 | `static_path` | Existing workspace path used when `mode=static` |
-| `reset_clean` | Pooled reset clean mode: `standard` (`git clean -fd`) or `full` (`git clean -fdx`) |
+| `on_reuse.reset` | Pooled workspace slot reset policy on reuse: `none`, `fast` (`git clean -fd`), `strict` (`git clean -fdx`) |
 | `retention.on_success` | Temp workspace retention on success: `keep` or `cleanup` |
 | `retention.on_failure` | Temp workspace retention on failure: `keep` or `cleanup` |
 

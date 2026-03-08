@@ -278,8 +278,8 @@ const RepoSchema = z.object({
   clone: RepoCloneSchema.optional(),
 });
 
-const ResetSchema = z.object({
-  strategy: z.enum(['none', 'hard', 'recreate']).optional(),
+const BetweenTestsSchema = z.object({
+  reset: z.enum(['none', 'fast', 'strict']).optional(),
   after_each: z.boolean().optional(),
 });
 
@@ -292,13 +292,16 @@ const WorkspaceSchema = z.object({
   template: z.string().optional(),
   isolation: z.enum(['shared', 'per_test']).optional(),
   repos: z.array(RepoSchema).optional(),
-  reset: ResetSchema.optional(),
+  between_tests: BetweenTestsSchema.optional(),
   mode: z.enum(['pooled', 'ephemeral', 'static']).optional(),
   static_path: z.string().optional(),
-  reset_clean: z.enum(['standard', 'full']).optional(),
+  on_reuse: z
+    .object({
+      reset: z.enum(['none', 'fast', 'strict']).optional(),
+    })
+    .optional(),
   retention: WorkspaceRetentionSchema.optional(),
   pool: z.boolean().optional(),
-  pool_clean: z.enum(['standard', 'full']).optional(),
   before_all: WorkspaceScriptSchema.optional(),
   after_all: WorkspaceScriptSchema.optional(),
   before_each: WorkspaceScriptSchema.optional(),

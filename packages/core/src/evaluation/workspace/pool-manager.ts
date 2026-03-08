@@ -42,7 +42,7 @@ export interface AcquireWorkspaceOptions {
   repos: readonly RepoConfig[];
   maxSlots: number;
   repoManager: RepoManager;
-  poolClean?: 'standard' | 'full';
+  poolReset?: 'none' | 'fast' | 'strict';
 }
 
 export interface PoolSlot {
@@ -169,7 +169,7 @@ export class WorkspacePoolManager {
    * 7. Return the slot (with path, index, isExisting)
    */
   async acquireWorkspace(options: AcquireWorkspaceOptions): Promise<PoolSlot> {
-    const { templatePath, repos, maxSlots, repoManager, poolClean } = options;
+    const { templatePath, repos, maxSlots, repoManager, poolReset } = options;
 
     const fingerprint = computeWorkspaceFingerprint(templatePath, repos);
     const poolDir = path.join(this.poolRoot, fingerprint);
@@ -198,7 +198,7 @@ export class WorkspacePoolManager {
 
       if (slotExists) {
         // Reuse existing slot: reset repos and re-copy template
-        await this.resetSlot(slotPath, templatePath, repos, poolClean);
+        await this.resetSlot(slotPath, templatePath, repos, poolReset);
         return {
           index: i,
           path: slotPath,
@@ -363,7 +363,7 @@ export class WorkspacePoolManager {
     slotPath: string,
     templatePath: string | undefined,
     repos: readonly RepoConfig[],
-    poolClean?: 'standard' | 'full',
+    poolReset: 'none' | 'fast' | 'strict' = 'fast',
   ): Promise<void> {
     // Reset each repo
     for (const repo of repos) {
@@ -371,12 +371,15 @@ export class WorkspacePoolManager {
       if (!existsSync(repoDir)) {
         continue;
       }
+      if (poolReset === 'none') {
+        continue;
+      }
       const ref = repo.checkout?.ref ?? 'HEAD';
       await git(['reset', '--hard', ref], { cwd: repoDir });
-      // 'full' mode uses -fdx to also remove .gitignored files (node_modules, build outputs).
-      // Default 'standard' mode uses -fd to preserve .gitignored files, letting before_all
+      // strict removes .gitignored files (node_modules, build outputs).
+      // fast preserves .gitignored files, letting before_all
       // build steps survive across pool reuse cycles and avoiding expensive rebuilds.
-      const cleanFlag = poolClean === 'full' ? '-fdx' : '-fd';
+      const cleanFlag = poolReset === 'strict' ? '-fdx' : '-fd';
       await git(['clean', cleanFlag], { cwd: repoDir });
     }
 

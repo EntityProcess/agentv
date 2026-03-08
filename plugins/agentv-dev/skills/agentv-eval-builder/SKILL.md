@@ -246,12 +246,13 @@ workspace:
         ancestor: 1       # parent commit
       clone:
         depth: 10
-  reset:
-    strategy: hard         # none | hard | recreate
+  between_tests:
+    reset: fast            # none | fast | strict
     after_each: true
   isolation: shared        # shared | per_test
   mode: pooled             # pooled | ephemeral | static
-  reset_clean: standard    # standard | full (pooled reset clean mode)
+  on_reuse:
+    reset: fast            # none | fast | strict (pooled slot reuse reset mode)
   retention:
     on_success: cleanup    # keep | cleanup
     on_failure: keep       # keep | cleanup
@@ -264,7 +265,7 @@ workspace:
 - `clone.sparse`: sparse checkout paths array
 - `mode`: `pooled` (default for shared repos), `ephemeral`, or `static`
 - `static_path`: required when `mode: static`
-- `reset_clean: full` uses `git clean -fdx` on pooled reset (`standard` uses `-fd`)
+- `on_reuse.reset: strict` uses `git clean -fdx` on pooled slot reuse (`fast` uses `-fd`)
 - `retention.on_success` / `retention.on_failure` controls temp workspace retention
 - Pool entries are managed separately via `agentv workspace list` and `agentv workspace clean`
 

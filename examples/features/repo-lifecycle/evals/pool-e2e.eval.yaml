@@ -4,7 +4,8 @@ description: >-
 
 workspace:
   mode: pooled
-  reset_clean: standard
+  on_reuse:
+    reset: fast
   repos:
     - path: ./repo
       source:

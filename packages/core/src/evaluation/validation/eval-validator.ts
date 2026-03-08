@@ -270,7 +270,7 @@ function validateWorkspaceRepoConfig(
   errors: ValidationError[],
 ): void {
   const repos = workspace.repos;
-  const reset = workspace.reset;
+  const betweenTests = workspace.between_tests;
   const isolation = workspace.isolation;
 
   // Depth vs ancestor warning
@@ -297,25 +297,25 @@ function validateWorkspaceRepoConfig(
   }
 
   // Reset without repos warning
-  if (isObject(reset) && reset.strategy && reset.strategy !== 'none') {
+  if (isObject(betweenTests) && betweenTests.reset && betweenTests.reset !== 'none') {
     if (!Array.isArray(repos) || repos.length === 0) {
       errors.push({
         severity: 'warning',
         filePath,
-        location: 'workspace.reset',
-        message: `reset.strategy '${reset.strategy}' has no effect without repos.`,
+        location: 'workspace.between_tests',
+        message: `between_tests.reset '${betweenTests.reset}' has no effect without repos.`,
       });
     }
   }
 
-  // Reset after_each with per_test isolation warning
-  if (isObject(reset) && reset.after_each === true && isolation === 'per_test') {
+  // between_tests.after_each with per_test isolation warning
+  if (isObject(betweenTests) && betweenTests.after_each === true && isolation === 'per_test') {
     errors.push({
       severity: 'warning',
       filePath,
-      location: 'workspace.reset',
+      location: 'workspace.between_tests',
       message:
-        'reset.after_each is redundant with isolation: per_test (each test gets a fresh workspace).',
+        'between_tests.after_each is redundant with isolation: per_test (each test gets a fresh workspace).',
     });
   }
 }

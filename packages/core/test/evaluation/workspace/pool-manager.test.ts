@@ -698,8 +698,8 @@ describe('WorkspacePoolManager', () => {
     });
   });
 
-  describe('pool_clean option', () => {
-    it('pool_clean full removes gitignored files on reuse', async () => {
+  describe('pool reset policy', () => {
+    it('strict reset removes gitignored files on reuse', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
       // Create a repo with a .gitignore that ignores build/
       createTestRepo(repoDir, {
@@ -723,12 +723,12 @@ describe('WorkspacePoolManager', () => {
 
       await manager.releaseSlot(slot1);
 
-      // Second acquisition with pool_clean: 'full' — should remove gitignored files
+      // Second acquisition with strict reset — should remove gitignored files
       const slot2 = await manager.acquireWorkspace({
         repos,
         maxSlots: 3,
         repoManager,
-        poolClean: 'full',
+        poolReset: 'strict',
       });
 
       // Build output should be removed (git clean -fdx removes gitignored files too)
@@ -737,7 +737,7 @@ describe('WorkspacePoolManager', () => {
       await manager.releaseSlot(slot2);
     });
 
-    it('default pool_clean preserves gitignored files on reuse', async () => {
+    it('default fast reset preserves gitignored files on reuse', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
       createTestRepo(repoDir, {
         '.gitignore': 'build/',
@@ -760,7 +760,7 @@ describe('WorkspacePoolManager', () => {
 
       await manager.releaseSlot(slot1);
 
-      // Second acquisition with default pool_clean — should preserve gitignored files
+      // Second acquisition with default fast reset — should preserve gitignored files
       const slot2 = await manager.acquireWorkspace({
         repos,
         maxSlots: 3,

@@ -30,6 +30,7 @@ import {
 } from './loaders/shorthand-expansion.js';
 import { parseMetadata } from './metadata.js';
 import type {
+  BetweenTestsConfig,
   EvalTest,
   JsonObject,
   JsonValue,
@@ -37,7 +38,6 @@ import type {
   RepoClone,
   RepoConfig,
   RepoSource,
-  ResetConfig,
   TestMessage,
   TrialsConfig,
   WorkspaceConfig,
@@ -597,17 +597,15 @@ function parseRepoConfig(raw: unknown): RepoConfig | undefined {
   };
 }
 
-function parseResetConfig(raw: unknown): ResetConfig | undefined {
+function parseBetweenTestsConfig(raw: unknown): BetweenTestsConfig | undefined {
   if (!isJsonObject(raw)) return undefined;
   const obj = raw as Record<string, unknown>;
-  const strategy =
-    obj.strategy === 'none' || obj.strategy === 'hard' || obj.strategy === 'recreate'
-      ? obj.strategy
-      : undefined;
+  const reset =
+    obj.reset === 'none' || obj.reset === 'fast' || obj.reset === 'strict' ? obj.reset : undefined;
   const afterEach = typeof obj.after_each === 'boolean' ? obj.after_each : undefined;
-  if (!strategy && afterEach === undefined) return undefined;
+  if (!reset && afterEach === undefined) return undefined;
   return {
-    ...(strategy !== undefined && { strategy }),
+    ...(reset !== undefined && { reset }),
     ...(afterEach !== undefined && { after_each: afterEach }),
   };
 }
@@ -666,14 +664,21 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
         .filter(Boolean) as RepoConfig[])
     : undefined;
 
-  const reset = parseResetConfig(obj.reset);
+  const betweenTests = parseBetweenTestsConfig(obj.between_tests);
   const mode =
     obj.mode === 'pooled' || obj.mode === 'ephemeral' || obj.mode === 'static'
       ? obj.mode
       : undefined;
   const staticPath = typeof obj.static_path === 'string' ? obj.static_path : undefined;
-  const resetClean =
-    obj.reset_clean === 'standard' || obj.reset_clean === 'full' ? obj.reset_clean : undefined;
+  const onReuse = isJsonObject(obj.on_reuse)
+    ? {
+        ...(obj.on_reuse.reset === 'none' ||
+        obj.on_reuse.reset === 'fast' ||
+        obj.on_reuse.reset === 'strict'
+          ? { reset: obj.on_reuse.reset }
+          : {}),
+      }
+    : undefined;
   const retention = isJsonObject(obj.retention)
     ? {
         ...(obj.retention.on_success === 'keep' || obj.retention.on_success === 'cleanup'
@@ -686,8 +691,6 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     : undefined;
 
   const pool = typeof obj.pool === 'boolean' ? obj.pool : undefined;
-  const poolClean =
-    obj.pool_clean === 'standard' || obj.pool_clean === 'full' ? obj.pool_clean : undefined;
 
   const beforeAll = parseWorkspaceScriptConfig(obj.before_all, evalFileDir);
   const afterAll = parseWorkspaceScriptConfig(obj.after_all, evalFileDir);
@@ -698,13 +701,12 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     !template &&
     !isolation &&
     !repos &&
-    !reset &&
+    !betweenTests &&
     !mode &&
     !staticPath &&
-    !resetClean &&
+    !onReuse &&
     !retention &&
     pool === undefined &&
-    poolClean === undefined &&
     !beforeAll &&
     !afterAll &&
     !beforeEach &&
@@ -716,16 +718,18 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     ...(template !== undefined && { template }),
     ...(isolation !== undefined && { isolation }),
     ...(repos !== undefined && { repos }),
-    ...(reset !== undefined && { reset }),
+    ...(betweenTests !== undefined && { between_tests: betweenTests }),
     ...(mode !== undefined && { mode }),
     ...(staticPath !== undefined && { static_path: staticPath }),
-    ...(resetClean !== undefined && { reset_clean: resetClean }),
+    ...(onReuse !== undefined &&
+      Object.keys(onReuse).length > 0 && {
+        on_reuse: onReuse as NonNullable<WorkspaceConfig['on_reuse']>,
+      }),
     ...(retention !== undefined &&
       Object.keys(retention).length > 0 && {
         retention: retention as NonNullable<WorkspaceConfig['retention']>,
       }),
     ...(pool !== undefined && { pool }),
-    ...(poolClean !== undefined && { pool_clean: poolClean }),
     ...(beforeAll !== undefined && { before_all: beforeAll }),
     ...(afterAll !== undefined && { after_all: afterAll }),
     ...(beforeEach !== undefined && { before_each: beforeEach }),
@@ -745,20 +749,25 @@ function mergeWorkspaceConfigs(
   if (!suiteLevel) return caseLevel;
   if (!caseLevel) return suiteLevel;
 
+  const onReuseReset = caseLevel.on_reuse?.reset ?? suiteLevel.on_reuse?.reset;
+  const retentionOnSuccess = caseLevel.retention?.on_success ?? suiteLevel.retention?.on_success;
+  const retentionOnFailure = caseLevel.retention?.on_failure ?? suiteLevel.retention?.on_failure;
+
   return {
     template: caseLevel.template ?? suiteLevel.template,
     isolation: caseLevel.isolation ?? suiteLevel.isolation,
     repos: caseLevel.repos ?? suiteLevel.repos,
-    reset: caseLevel.reset ?? suiteLevel.reset,
+    between_tests: caseLevel.between_tests ?? suiteLevel.between_tests,
     mode: caseLevel.mode ?? suiteLevel.mode,
     static_path: caseLevel.static_path ?? suiteLevel.static_path,
-    reset_clean: caseLevel.reset_clean ?? suiteLevel.reset_clean,
-    retention: {
-      on_success: caseLevel.retention?.on_success ?? suiteLevel.retention?.on_success,
-      on_failure: caseLevel.retention?.on_failure ?? suiteLevel.retention?.on_failure,
-    },
+    ...(onReuseReset !== undefined && { on_reuse: { reset: onReuseReset } }),
+    ...((retentionOnSuccess !== undefined || retentionOnFailure !== undefined) && {
+      retention: {
+        ...(retentionOnSuccess !== undefined && { on_success: retentionOnSuccess }),
+        ...(retentionOnFailure !== undefined && { on_failure: retentionOnFailure }),
+      },
+    }),
     pool: caseLevel.pool ?? suiteLevel.pool,
-    pool_clean: caseLevel.pool_clean ?? suiteLevel.pool_clean,
     before_all: caseLevel.before_all ?? suiteLevel.before_all,
     after_all: caseLevel.after_all ?? suiteLevel.after_all,
     before_each: caseLevel.before_each ?? suiteLevel.before_each,

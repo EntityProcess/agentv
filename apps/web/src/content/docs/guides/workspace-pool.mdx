@@ -55,15 +55,16 @@ workspace:
 
 `workspace.mode` controls materialization behavior directly (`pooled`, `ephemeral`, or `static`).
 
-## Pool clean mode
+## Pool reset mode
 
 By default, pool reset uses `git clean -fd` which **preserves `.gitignore`d files** like `node_modules/`, `build/`, and compiled binaries. This means `before_all` build steps survive across reuse cycles.
 
-For a full clean that also removes `.gitignore`d files, set `reset_clean: full`:
+For strict reset that also removes `.gitignore`d files, set `workspace.on_reuse.reset: strict`:
 
 ```yaml
 workspace:
-  reset_clean: full
+  on_reuse:
+    reset: strict
   repos:
     - path: ./my-repo
       source:
@@ -73,8 +74,8 @@ workspace:
 
 | Mode | Git command | `.gitignore`d files | Use case |
 |------|------------|-------------------|----------|
-| `standard` (default) | `git clean -fd` | Preserved | Fast reuse with cached build artifacts |
-| `full` | `git clean -fdx` | Removed | Clean slate between runs |
+| `fast` (default) | `git clean -fd` | Preserved | Fast reuse with cached build artifacts |
+| `strict` | `git clean -fdx` | Removed | Clean slate between runs |
 
 ## Sharing pools across eval files
 

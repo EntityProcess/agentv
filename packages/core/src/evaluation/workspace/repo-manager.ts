@@ -1,5 +1,4 @@
 import { execFile } from 'node:child_process';
-import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -192,23 +191,13 @@ export class RepoManager {
   async reset(
     repos: readonly RepoConfig[],
     workspacePath: string,
-    strategy: 'hard' | 'recreate',
+    reset: 'fast' | 'strict',
   ): Promise<void> {
-    if (strategy === 'recreate') {
-      // Remove and re-materialize
-      for (const repo of repos) {
-        const targetDir = path.join(workspacePath, repo.path);
-        await rm(targetDir, { recursive: true, force: true });
-      }
-      await this.materializeAll(repos, workspacePath);
-      return;
-    }
-
-    // strategy === 'hard'
+    const cleanFlag = reset === 'strict' ? '-fdx' : '-fd';
     for (const repo of repos) {
       const targetDir = path.join(workspacePath, repo.path);
       await this.runGit(['reset', '--hard', 'HEAD'], { cwd: targetDir });
-      await this.runGit(['clean', '-fd'], { cwd: targetDir });
+      await this.runGit(['clean', cleanFlag], { cwd: targetDir });
     }
   }
 }
