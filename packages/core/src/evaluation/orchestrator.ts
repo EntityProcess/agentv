@@ -391,20 +391,28 @@ export async function runEvaluation(
     }
   };
 
-  // Resolve worker count: CLI option > target setting > default (1)
-  // Force workers=1 when shared workspace is used to prevent data corruption
+  // Resolve worker count and pool mode
   const isPerTestIsolation = suiteWorkspace?.isolation === 'per_test';
   const hasSharedWorkspace = !!(
     workspaceTemplate ||
     suiteWorkspace?.before_all ||
     (suiteWorkspace?.repos?.length && !isPerTestIsolation)
   );
+
+  // Pool support: reuse materialized workspaces across eval runs
+  const usePool =
+    (suiteWorkspace?.pool === true || poolWorkspaces === true) &&
+    !!suiteWorkspace?.repos?.length &&
+    !isPerTestIsolation;
+
   const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
-  const workers = hasSharedWorkspace ? 1 : requestedWorkers;
+  // Pool-enabled workspaces support concurrent workers (each worker gets its own slot).
+  // Non-pool shared workspaces must be sequential to prevent data corruption.
+  const workers = hasSharedWorkspace && !usePool ? 1 : requestedWorkers;
   setupLog(
-    `sharedWorkspace=${hasSharedWorkspace} perTestIsolation=${isPerTestIsolation} requestedWorkers=${requestedWorkers} effectiveWorkers=${workers}`,
+    `sharedWorkspace=${hasSharedWorkspace} perTestIsolation=${isPerTestIsolation} usePool=${usePool} requestedWorkers=${requestedWorkers} effectiveWorkers=${workers}`,
   );
-  if (hasSharedWorkspace && requestedWorkers > 1) {
+  if (hasSharedWorkspace && !usePool && requestedWorkers > 1) {
     console.warn(
       `Warning: Shared workspace requires sequential execution. Overriding workers from ${requestedWorkers} to 1.`,
     );
@@ -414,28 +422,40 @@ export async function runEvaluation(
   let sharedBaselineCommit: string | undefined;
   let beforeAllOutput: string | undefined;
 
-  // Pool support: reuse materialized workspaces across eval runs
-  const usePool =
-    (suiteWorkspace?.pool === true || poolWorkspaces === true) &&
-    !!suiteWorkspace?.repos?.length &&
-    !isPerTestIsolation;
-
   let poolManager: WorkspacePoolManager | undefined;
+  // Single-slot pool (workers=1 or non-concurrent fallback)
   let poolSlot: PoolSlot | undefined;
+  // Multi-slot pool for concurrent workers
+  const poolSlots: PoolSlot[] = [];
+  const availablePoolSlots: PoolSlot[] = [];
+  const poolSlotBaselines = new Map<string, string>();
 
   if (usePool && suiteWorkspace?.repos) {
-    setupLog('acquiring workspace from pool');
+    const maxSlots = suiteWorkspace.pool_max_slots ?? 3;
+    const slotCount = Math.min(workers, maxSlots);
+    setupLog(`acquiring ${slotCount} workspace pool slot(s)`);
     poolManager = new WorkspacePoolManager(getWorkspacePoolRoot());
-    poolSlot = await poolManager.acquireWorkspace({
-      templatePath: workspaceTemplate,
-      repos: suiteWorkspace.repos,
-      maxSlots: suiteWorkspace.pool_max_slots ?? 3,
-      repoManager: new RepoManager(undefined, verbose),
-    });
-    sharedWorkspacePath = poolSlot.path;
-    setupLog(
-      `pool workspace acquired at: ${sharedWorkspacePath} (existing=${poolSlot.isExisting})`,
-    );
+    const poolRepoManager = new RepoManager(undefined, verbose);
+
+    for (let i = 0; i < slotCount; i++) {
+      const slot = await poolManager.acquireWorkspace({
+        templatePath: workspaceTemplate,
+        repos: suiteWorkspace.repos,
+        maxSlots,
+        repoManager: poolRepoManager,
+      });
+      poolSlots.push(slot);
+      setupLog(`pool slot ${i} acquired at: ${slot.path} (existing=${slot.isExisting})`);
+    }
+
+    if (slotCount === 1) {
+      // Single-slot: use shared workspace path (existing behavior)
+      poolSlot = poolSlots[0];
+      sharedWorkspacePath = poolSlot.path;
+    } else {
+      // Multi-slot: tests will grab slots dynamically
+      availablePoolSlots.push(...poolSlots);
+    }
   } else if (workspaceTemplate) {
     setupLog(`creating shared workspace from template: ${workspaceTemplate}`);
     try {
@@ -485,7 +505,7 @@ export async function runEvaluation(
       }
     }
 
-    // Execute before_all (runs ONCE before first test)
+    // Execute before_all (runs ONCE before first test per workspace)
     if (sharedWorkspacePath && suiteWorkspace?.before_all) {
       const beforeAllCommand = (
         suiteWorkspace.before_all.command ??
@@ -513,6 +533,28 @@ export async function runEvaluation(
       }
     }
 
+    // Multi-slot pool: run before_all on each slot and initialize baselines
+    if (availablePoolSlots.length > 0 && suiteWorkspace?.before_all) {
+      for (const slot of availablePoolSlots) {
+        setupLog(`running before_all on pool slot ${slot.index}`);
+        const scriptContext: ScriptExecutionContext = {
+          workspacePath: slot.path,
+          testId: '__before_all__',
+          evalRunId,
+          evalDir,
+        };
+        try {
+          const output = await executeWorkspaceScript(suiteWorkspace.before_all, scriptContext);
+          // Capture first slot's output for result attachment
+          if (!beforeAllOutput) beforeAllOutput = output;
+          setupLog(`before_all completed on pool slot ${slot.index}`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          throw new Error(`before_all script failed on pool slot ${slot.index}: ${message}`);
+        }
+      }
+    }
+
     // Initialize git baseline for shared workspace
     if (sharedWorkspacePath) {
       try {
@@ -521,6 +563,19 @@ export async function runEvaluation(
       } catch {
         // Non-fatal: file change tracking is best-effort
         setupLog('shared baseline initialization skipped (non-fatal)');
+      }
+    }
+
+    // Multi-slot pool: initialize baselines per slot
+    if (availablePoolSlots.length > 0) {
+      for (const slot of availablePoolSlots) {
+        try {
+          const baseline = await initializeBaseline(slot.path);
+          poolSlotBaselines.set(slot.path, baseline);
+          setupLog(`pool slot ${slot.index} baseline initialized: ${baseline}`);
+        } catch {
+          setupLog(`pool slot ${slot.index} baseline initialization skipped (non-fatal)`);
+        }
       }
     }
 
@@ -623,6 +678,13 @@ export async function runEvaluation(
           });
         }
 
+        // Multi-slot pool: each test grabs its own pool slot
+        const testPoolSlot = availablePoolSlots.length > 0 ? availablePoolSlots.pop() : undefined;
+        const testWorkspacePath = testPoolSlot?.path ?? sharedWorkspacePath;
+        const testBaselineCommit = testPoolSlot
+          ? poolSlotBaselines.get(testPoolSlot.path)
+          : sharedBaselineCommit;
+
         try {
           const judgeProvider = await resolveJudgeProvider(target);
           const runCaseOptions: RunEvalCaseOptions = {
@@ -641,8 +703,8 @@ export async function runEvaluation(
             evalRunId,
             keepWorkspaces,
             cleanupWorkspaces,
-            sharedWorkspacePath,
-            sharedBaselineCommit,
+            sharedWorkspacePath: testWorkspacePath,
+            sharedBaselineCommit: testBaselineCommit,
             suiteWorkspaceFile,
             streamCallbacks,
             typeRegistry,
@@ -711,6 +773,11 @@ export async function runEvaluation(
             });
           }
           throw error;
+        } finally {
+          // Return pool slot for reuse by next test
+          if (testPoolSlot) {
+            availablePoolSlots.push(testPoolSlot);
+          }
         }
       }),
     );
@@ -770,7 +837,7 @@ export async function runEvaluation(
     }
 
     // Cleanup shared workspace (skip for pooled workspaces — they persist for reuse)
-    if (sharedWorkspacePath && !poolSlot) {
+    if (sharedWorkspacePath && !poolSlot && poolSlots.length === 0) {
       const hasFailure = results.some((r) => !!r.error || r.score < 0.5);
       if (cleanupWorkspaces) {
         await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
@@ -787,9 +854,16 @@ export async function runEvaluation(
 
     return results;
   } finally {
-    // Release workspace pool slot (keep workspace for future reuse)
-    if (poolSlot && poolManager) {
-      await poolManager.releaseSlot(poolSlot);
+    // Release all workspace pool slots (keep workspaces for future reuse)
+    if (poolManager) {
+      if (poolSlot) {
+        await poolManager.releaseSlot(poolSlot);
+      }
+      for (const slot of poolSlots) {
+        if (slot !== poolSlot) {
+          await poolManager.releaseSlot(slot).catch(() => {});
+        }
+      }
     }
   }
 }
