@@ -4,6 +4,7 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
 
+import { getWorkspacePoolRoot } from '../paths.js';
 import {
   type ChildEvaluatorResult,
   type EvaluationScore,
@@ -63,7 +64,6 @@ import {
 import { WorkspacePoolManager } from './workspace/pool-manager.js';
 import type { PoolSlot } from './workspace/pool-manager.js';
 import { RepoManager } from './workspace/repo-manager.js';
-import { getWorkspacePoolRoot } from '../paths.js';
 import { resolveWorkspaceTemplate } from './workspace/resolve.js';
 import {
   type ScriptExecutionContext,
@@ -415,9 +415,10 @@ export async function runEvaluation(
   let beforeAllOutput: string | undefined;
 
   // Pool support: reuse materialized workspaces across eval runs
-  const usePool = (suiteWorkspace?.pool === true || poolWorkspaces === true)
-    && !!suiteWorkspace?.repos?.length
-    && !isPerTestIsolation;
+  const usePool =
+    (suiteWorkspace?.pool === true || poolWorkspaces === true) &&
+    !!suiteWorkspace?.repos?.length &&
+    !isPerTestIsolation;
 
   let poolManager: WorkspacePoolManager | undefined;
   let poolSlot: PoolSlot | undefined;
@@ -432,7 +433,9 @@ export async function runEvaluation(
       repoManager: new RepoManager(undefined, verbose),
     });
     sharedWorkspacePath = poolSlot.path;
-    setupLog(`pool workspace acquired at: ${sharedWorkspacePath} (existing=${poolSlot.isExisting})`);
+    setupLog(
+      `pool workspace acquired at: ${sharedWorkspacePath} (existing=${poolSlot.isExisting})`,
+    );
 
     // Re-resolve workspaceFile from the pool workspace so relative paths in
     // .code-workspace resolve against where repos are cloned, not the original template.
@@ -475,321 +478,326 @@ export async function runEvaluation(
 
   // Wrap remaining logic in try/finally to ensure pool slot is always released on error
   try {
-
-  // Materialize repos into shared workspace (skip for per_test and pool — pool handles its own materialization)
-  const repoManager = suiteWorkspace?.repos?.length && !usePool ? new RepoManager(undefined, verbose) : undefined;
-  if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation) {
-    setupLog(`materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`);
-    try {
-      await repoManager.materializeAll(suiteWorkspace.repos, sharedWorkspacePath);
-      setupLog('shared repo materialization complete');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (sharedWorkspacePath) {
-        await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
-      }
-      throw new Error(`Failed to materialize repos: ${message}`);
-    }
-  }
-
-  // Execute before_all (runs ONCE before first test)
-  if (sharedWorkspacePath && suiteWorkspace?.before_all) {
-    const beforeAllCommand = (suiteWorkspace.before_all.command ?? suiteWorkspace.before_all.script ?? []).join(' ');
-    setupLog(
-      `running shared before_all in cwd=${suiteWorkspace.before_all.cwd ?? evalDir} command=${beforeAllCommand}`,
-    );
-    const scriptContext: ScriptExecutionContext = {
-      workspacePath: sharedWorkspacePath,
-      testId: '__before_all__',
-      evalRunId,
-      evalDir,
-    };
-    try {
-      beforeAllOutput = await executeWorkspaceScript(suiteWorkspace.before_all, scriptContext);
-      setupLog('shared before_all completed');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (sharedWorkspacePath) {
-        await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
-      }
-      throw new Error(`before_all script failed: ${message}`);
-    }
-  }
-
-  // Initialize git baseline for shared workspace
-  if (sharedWorkspacePath) {
-    try {
-      sharedBaselineCommit = await initializeBaseline(sharedWorkspacePath);
-      setupLog(`shared baseline initialized: ${sharedBaselineCommit}`);
-    } catch {
-      // Non-fatal: file change tracking is best-effort
-      setupLog('shared baseline initialization skipped (non-fatal)');
-    }
-  }
-
-  // Track worker assignments for progress reporting
-  let nextWorkerId = 1;
-  const workerIdByEvalId = new Map<string, number>();
-  let beforeAllOutputAttached = false;
-
-  // Suite-level budget tracking
-  let cumulativeBudgetCost = 0;
-  let budgetExhausted = false;
-
-  // fail_on_error tracking (best-effort under concurrency > 1, matching budgetExhausted semantics)
-  let failOnErrorTriggered = false;
-
-  // Map test cases to limited promises for parallel execution
-  const promises = filteredEvalCases.map((evalCase) =>
-    limit(async () => {
-      // Assign worker ID when test starts executing
-      const workerId = nextWorkerId++;
-      workerIdByEvalId.set(evalCase.id, workerId);
-
-      // Check suite-level budget before dispatching
-      if (totalBudgetUsd !== undefined && budgetExhausted) {
-        const budgetResult: EvaluationResult = {
-          timestamp: (now ?? (() => new Date()))().toISOString(),
-          testId: evalCase.id,
-          dataset: evalCase.dataset,
-          score: 0,
-          hits: [],
-          misses: [],
-          answer: '',
-          target: target.name,
-          error: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
-          budgetExceeded: true,
-          executionStatus: 'execution_error',
-          failureStage: 'setup',
-          failureReasonCode: 'budget_exceeded',
-          executionError: {
-            message: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
-            stage: 'setup',
-          },
-        };
-
-        if (onProgress) {
-          await onProgress({
-            workerId,
-            testId: evalCase.id,
-            status: 'failed',
-            completedAt: Date.now(),
-            error: budgetResult.error,
-          });
-        }
-        if (onResult) {
-          await onResult(budgetResult);
-        }
-        return budgetResult;
-      }
-
-      // Check fail_on_error before dispatching
-      if (failOnError === true && failOnErrorTriggered) {
-        const errorMsg = 'Halted: execution error encountered with fail_on_error enabled';
-        const haltResult: EvaluationResult = {
-          timestamp: (now ?? (() => new Date()))().toISOString(),
-          testId: evalCase.id,
-          dataset: evalCase.dataset,
-          score: 0,
-          hits: [],
-          misses: [],
-          answer: '',
-          target: target.name,
-          error: errorMsg,
-          executionStatus: 'execution_error',
-          failureStage: 'setup',
-          failureReasonCode: 'error_threshold_exceeded',
-          executionError: { message: errorMsg, stage: 'setup' },
-        };
-
-        if (onProgress) {
-          await onProgress({
-            workerId,
-            testId: evalCase.id,
-            status: 'failed',
-            completedAt: Date.now(),
-            error: haltResult.error,
-          });
-        }
-        if (onResult) {
-          await onResult(haltResult);
-        }
-        return haltResult;
-      }
-
-      if (onProgress) {
-        await onProgress({
-          workerId,
-          testId: evalCase.id,
-          status: 'running',
-          startedAt: Date.now(),
-        });
-      }
-
+    // Materialize repos into shared workspace (skip for per_test and pool — pool handles its own materialization)
+    const repoManager =
+      suiteWorkspace?.repos?.length && !usePool ? new RepoManager(undefined, verbose) : undefined;
+    if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation) {
+      setupLog(
+        `materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`,
+      );
       try {
-        const judgeProvider = await resolveJudgeProvider(target);
-        const runCaseOptions: RunEvalCaseOptions = {
-          evalCase: evalCase,
-          provider: primaryProvider,
-          target,
-          evaluators: evaluatorRegistry,
-          maxRetries,
-          agentTimeoutMs,
-          cache,
-          useCache,
-          now,
-          judgeProvider,
-          targetResolver,
-          availableTargets,
-          evalRunId,
-          keepWorkspaces,
-          cleanupWorkspaces,
-          sharedWorkspacePath,
-          sharedBaselineCommit,
-          suiteWorkspaceFile,
-          streamCallbacks,
-          typeRegistry,
-          repoManager,
-          evalDir,
-        };
-        let result =
-          trials && trials.count > 1
-            ? await runEvalCaseWithTrials(runCaseOptions, trials)
-            : await runEvalCase(runCaseOptions);
-
-        // Track suite-level budget
-        if (totalBudgetUsd !== undefined) {
-          // Sum all trial costs when trials are used, otherwise use trace cost
-          let caseCost: number | undefined;
-          if (result.trials && result.trials.length > 0) {
-            const trialCostSum = result.trials.reduce((sum, t) => sum + (t.costUsd ?? 0), 0);
-            if (trialCostSum > 0) {
-              caseCost = trialCostSum;
-            }
-          } else {
-            caseCost = result.costUsd;
-          }
-          if (caseCost !== undefined) {
-            cumulativeBudgetCost += caseCost;
-            if (cumulativeBudgetCost >= totalBudgetUsd) {
-              budgetExhausted = true;
-            }
-          }
-        }
-
-        // Track fail_on_error
-        if (failOnError === true && result.executionStatus === 'execution_error') {
-          failOnErrorTriggered = true;
-        }
-
-        // Attach beforeAllOutput to first result only
-        if (beforeAllOutput && !beforeAllOutputAttached) {
-          result = { ...result, beforeAllOutput };
-          beforeAllOutputAttached = true;
-        }
-
-        if (onProgress) {
-          await onProgress({
-            workerId,
-            testId: evalCase.id,
-            status: result.error ? 'failed' : 'completed',
-            startedAt: 0, // Not used for completed status
-            completedAt: Date.now(),
-            error: result.error,
-          });
-        }
-
-        if (onResult) {
-          await onResult(result);
-        }
-        return result;
+        await repoManager.materializeAll(suiteWorkspace.repos, sharedWorkspacePath);
+        setupLog('shared repo materialization complete');
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (sharedWorkspacePath) {
+          await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+        }
+        throw new Error(`Failed to materialize repos: ${message}`);
+      }
+    }
+
+    // Execute before_all (runs ONCE before first test)
+    if (sharedWorkspacePath && suiteWorkspace?.before_all) {
+      const beforeAllCommand = (
+        suiteWorkspace.before_all.command ??
+        suiteWorkspace.before_all.script ??
+        []
+      ).join(' ');
+      setupLog(
+        `running shared before_all in cwd=${suiteWorkspace.before_all.cwd ?? evalDir} command=${beforeAllCommand}`,
+      );
+      const scriptContext: ScriptExecutionContext = {
+        workspacePath: sharedWorkspacePath,
+        testId: '__before_all__',
+        evalRunId,
+        evalDir,
+      };
+      try {
+        beforeAllOutput = await executeWorkspaceScript(suiteWorkspace.before_all, scriptContext);
+        setupLog('shared before_all completed');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (sharedWorkspacePath) {
+          await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+        }
+        throw new Error(`before_all script failed: ${message}`);
+      }
+    }
+
+    // Initialize git baseline for shared workspace
+    if (sharedWorkspacePath) {
+      try {
+        sharedBaselineCommit = await initializeBaseline(sharedWorkspacePath);
+        setupLog(`shared baseline initialized: ${sharedBaselineCommit}`);
+      } catch {
+        // Non-fatal: file change tracking is best-effort
+        setupLog('shared baseline initialization skipped (non-fatal)');
+      }
+    }
+
+    // Track worker assignments for progress reporting
+    let nextWorkerId = 1;
+    const workerIdByEvalId = new Map<string, number>();
+    let beforeAllOutputAttached = false;
+
+    // Suite-level budget tracking
+    let cumulativeBudgetCost = 0;
+    let budgetExhausted = false;
+
+    // fail_on_error tracking (best-effort under concurrency > 1, matching budgetExhausted semantics)
+    let failOnErrorTriggered = false;
+
+    // Map test cases to limited promises for parallel execution
+    const promises = filteredEvalCases.map((evalCase) =>
+      limit(async () => {
+        // Assign worker ID when test starts executing
+        const workerId = nextWorkerId++;
+        workerIdByEvalId.set(evalCase.id, workerId);
+
+        // Check suite-level budget before dispatching
+        if (totalBudgetUsd !== undefined && budgetExhausted) {
+          const budgetResult: EvaluationResult = {
+            timestamp: (now ?? (() => new Date()))().toISOString(),
+            testId: evalCase.id,
+            dataset: evalCase.dataset,
+            score: 0,
+            hits: [],
+            misses: [],
+            answer: '',
+            target: target.name,
+            error: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
+            budgetExceeded: true,
+            executionStatus: 'execution_error',
+            failureStage: 'setup',
+            failureReasonCode: 'budget_exceeded',
+            executionError: {
+              message: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
+              stage: 'setup',
+            },
+          };
+
+          if (onProgress) {
+            await onProgress({
+              workerId,
+              testId: evalCase.id,
+              status: 'failed',
+              completedAt: Date.now(),
+              error: budgetResult.error,
+            });
+          }
+          if (onResult) {
+            await onResult(budgetResult);
+          }
+          return budgetResult;
+        }
+
+        // Check fail_on_error before dispatching
+        if (failOnError === true && failOnErrorTriggered) {
+          const errorMsg = 'Halted: execution error encountered with fail_on_error enabled';
+          const haltResult: EvaluationResult = {
+            timestamp: (now ?? (() => new Date()))().toISOString(),
+            testId: evalCase.id,
+            dataset: evalCase.dataset,
+            score: 0,
+            hits: [],
+            misses: [],
+            answer: '',
+            target: target.name,
+            error: errorMsg,
+            executionStatus: 'execution_error',
+            failureStage: 'setup',
+            failureReasonCode: 'error_threshold_exceeded',
+            executionError: { message: errorMsg, stage: 'setup' },
+          };
+
+          if (onProgress) {
+            await onProgress({
+              workerId,
+              testId: evalCase.id,
+              status: 'failed',
+              completedAt: Date.now(),
+              error: haltResult.error,
+            });
+          }
+          if (onResult) {
+            await onResult(haltResult);
+          }
+          return haltResult;
+        }
+
         if (onProgress) {
           await onProgress({
             workerId,
             testId: evalCase.id,
-            status: 'failed',
-            completedAt: Date.now(),
-            error: error instanceof Error ? error.message : String(error),
+            status: 'running',
+            startedAt: Date.now(),
           });
         }
-        throw error;
-      }
-    }),
-  );
 
-  // Wait for all workers to complete
-  const settled = await Promise.allSettled(promises);
+        try {
+          const judgeProvider = await resolveJudgeProvider(target);
+          const runCaseOptions: RunEvalCaseOptions = {
+            evalCase: evalCase,
+            provider: primaryProvider,
+            target,
+            evaluators: evaluatorRegistry,
+            maxRetries,
+            agentTimeoutMs,
+            cache,
+            useCache,
+            now,
+            judgeProvider,
+            targetResolver,
+            availableTargets,
+            evalRunId,
+            keepWorkspaces,
+            cleanupWorkspaces,
+            sharedWorkspacePath,
+            sharedBaselineCommit,
+            suiteWorkspaceFile,
+            streamCallbacks,
+            typeRegistry,
+            repoManager,
+            evalDir,
+          };
+          let result =
+            trials && trials.count > 1
+              ? await runEvalCaseWithTrials(runCaseOptions, trials)
+              : await runEvalCase(runCaseOptions);
 
-  // Extract results, handling both fulfilled and rejected promises
-  const results: EvaluationResult[] = [];
-  for (let i = 0; i < settled.length; i++) {
-    const outcome = settled[i];
-    if (outcome.status === 'fulfilled') {
-      results.push(outcome.value);
-    } else {
-      // Build error result for rejected promise
-      const evalCase = filteredEvalCases[i];
-      const formattingMode = usesFileReferencePrompt(primaryProvider) ? 'agent' : 'lm';
-      const promptInputs = await buildPromptInputs(evalCase, formattingMode);
-      const errorResult = buildErrorResult(
-        evalCase,
-        target.name,
-        (now ?? (() => new Date()))(),
-        outcome.reason,
-        promptInputs,
-        primaryProvider,
-        'agent',
-        'provider_error',
-      );
-      results.push(errorResult);
-      if (onResult) {
-        await onResult(errorResult);
+          // Track suite-level budget
+          if (totalBudgetUsd !== undefined) {
+            // Sum all trial costs when trials are used, otherwise use trace cost
+            let caseCost: number | undefined;
+            if (result.trials && result.trials.length > 0) {
+              const trialCostSum = result.trials.reduce((sum, t) => sum + (t.costUsd ?? 0), 0);
+              if (trialCostSum > 0) {
+                caseCost = trialCostSum;
+              }
+            } else {
+              caseCost = result.costUsd;
+            }
+            if (caseCost !== undefined) {
+              cumulativeBudgetCost += caseCost;
+              if (cumulativeBudgetCost >= totalBudgetUsd) {
+                budgetExhausted = true;
+              }
+            }
+          }
+
+          // Track fail_on_error
+          if (failOnError === true && result.executionStatus === 'execution_error') {
+            failOnErrorTriggered = true;
+          }
+
+          // Attach beforeAllOutput to first result only
+          if (beforeAllOutput && !beforeAllOutputAttached) {
+            result = { ...result, beforeAllOutput };
+            beforeAllOutputAttached = true;
+          }
+
+          if (onProgress) {
+            await onProgress({
+              workerId,
+              testId: evalCase.id,
+              status: result.error ? 'failed' : 'completed',
+              startedAt: 0, // Not used for completed status
+              completedAt: Date.now(),
+              error: result.error,
+            });
+          }
+
+          if (onResult) {
+            await onResult(result);
+          }
+          return result;
+        } catch (error) {
+          if (onProgress) {
+            await onProgress({
+              workerId,
+              testId: evalCase.id,
+              status: 'failed',
+              completedAt: Date.now(),
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+          throw error;
+        }
+      }),
+    );
+
+    // Wait for all workers to complete
+    const settled = await Promise.allSettled(promises);
+
+    // Extract results, handling both fulfilled and rejected promises
+    const results: EvaluationResult[] = [];
+    for (let i = 0; i < settled.length; i++) {
+      const outcome = settled[i];
+      if (outcome.status === 'fulfilled') {
+        results.push(outcome.value);
+      } else {
+        // Build error result for rejected promise
+        const evalCase = filteredEvalCases[i];
+        const formattingMode = usesFileReferencePrompt(primaryProvider) ? 'agent' : 'lm';
+        const promptInputs = await buildPromptInputs(evalCase, formattingMode);
+        const errorResult = buildErrorResult(
+          evalCase,
+          target.name,
+          (now ?? (() => new Date()))(),
+          outcome.reason,
+          promptInputs,
+          primaryProvider,
+          'agent',
+          'provider_error',
+        );
+        results.push(errorResult);
+        if (onResult) {
+          await onResult(errorResult);
+        }
       }
     }
-  }
 
-  // --- Shared workspace after_all + cleanup ---
-  if (sharedWorkspacePath && suiteWorkspace?.after_all) {
-    const scriptContext: ScriptExecutionContext = {
-      workspacePath: sharedWorkspacePath,
-      testId: '__after_all__',
-      evalRunId,
-      evalDir,
-    };
-    try {
-      const afterAllOutput = await executeWorkspaceScript(
-        suiteWorkspace.after_all,
-        scriptContext,
-        'warn',
-      );
-      // Attach afterAllOutput to last result
-      if (afterAllOutput && results.length > 0) {
-        results[results.length - 1] = { ...results[results.length - 1], afterAllOutput };
+    // --- Shared workspace after_all + cleanup ---
+    if (sharedWorkspacePath && suiteWorkspace?.after_all) {
+      const scriptContext: ScriptExecutionContext = {
+        workspacePath: sharedWorkspacePath,
+        testId: '__after_all__',
+        evalRunId,
+        evalDir,
+      };
+      try {
+        const afterAllOutput = await executeWorkspaceScript(
+          suiteWorkspace.after_all,
+          scriptContext,
+          'warn',
+        );
+        // Attach afterAllOutput to last result
+        if (afterAllOutput && results.length > 0) {
+          results[results.length - 1] = { ...results[results.length - 1], afterAllOutput };
+        }
+      } catch {
+        // after_all failures are non-fatal
       }
-    } catch {
-      // after_all failures are non-fatal
     }
-  }
 
-  // Cleanup shared workspace (skip for pooled workspaces — they persist for reuse)
-  if (sharedWorkspacePath && !poolSlot) {
-    const hasFailure = results.some((r) => !!r.error || r.score < 0.5);
+    // Cleanup shared workspace (skip for pooled workspaces — they persist for reuse)
+    if (sharedWorkspacePath && !poolSlot) {
+      const hasFailure = results.some((r) => !!r.error || r.score < 0.5);
+      if (cleanupWorkspaces) {
+        await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+      } else if (!hasFailure && !keepWorkspaces) {
+        await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+      }
+      // If failure and not forceCleanup: keep for debugging
+    }
+
+    // Fallback cleanup for any per-case workspaces
     if (cleanupWorkspaces) {
-      await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
-    } else if (!hasFailure && !keepWorkspaces) {
-      await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+      await cleanupEvalWorkspaces(evalRunId).catch(() => {});
     }
-    // If failure and not forceCleanup: keep for debugging
-  }
 
-  // Fallback cleanup for any per-case workspaces
-  if (cleanupWorkspaces) {
-    await cleanupEvalWorkspaces(evalRunId).catch(() => {});
-  }
-
-  return results;
-
+    return results;
   } finally {
     // Release workspace pool slot (keep workspace for future reuse)
     if (poolSlot && poolManager) {
@@ -1117,7 +1125,11 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
     // Execute per-case before_all (only when not using shared workspace)
     if (workspacePath && evalCase.workspace?.before_all) {
-      const beforeAllCommand = (evalCase.workspace.before_all.command ?? evalCase.workspace.before_all.script ?? []).join(' ');
+      const beforeAllCommand = (
+        evalCase.workspace.before_all.command ??
+        evalCase.workspace.before_all.script ??
+        []
+      ).join(' ');
       if (setupDebug) {
         console.log(
           `[setup] test=${evalCase.id} running before_all in cwd=${evalCase.workspace.before_all.cwd ?? evalDir} command=${beforeAllCommand}`,

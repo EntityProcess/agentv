@@ -5,12 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { RepoManager } from '../../../src/evaluation/workspace/repo-manager.js';
+import type { RepoConfig } from '../../../src/evaluation/types.js';
 import {
   WorkspacePoolManager,
   computeWorkspaceFingerprint,
 } from '../../../src/evaluation/workspace/pool-manager.js';
-import type { RepoConfig } from '../../../src/evaluation/types.js';
+import { RepoManager } from '../../../src/evaluation/workspace/repo-manager.js';
 
 /** Clean env without git hook variables that break subprocess git */
 function cleanGitEnv(): Record<string, string> {
@@ -87,9 +87,7 @@ describe('computeWorkspaceFingerprint', () => {
     };
 
     const fp1 = computeWorkspaceFingerprint(null, [baseRepo]);
-    const fp2 = computeWorkspaceFingerprint(null, [
-      { ...baseRepo, checkout: { ref: 'v1.0.0' } },
-    ]);
+    const fp2 = computeWorkspaceFingerprint(null, [{ ...baseRepo, checkout: { ref: 'v1.0.0' } }]);
 
     expect(fp1).not.toBe(fp2);
   });
@@ -118,9 +116,7 @@ describe('computeWorkspaceFingerprint', () => {
     };
 
     const fp1 = computeWorkspaceFingerprint(null, [baseRepo]);
-    const fp2 = computeWorkspaceFingerprint(null, [
-      { ...baseRepo, clone: { depth: 1 } },
-    ]);
+    const fp2 = computeWorkspaceFingerprint(null, [{ ...baseRepo, clone: { depth: 1 } }]);
 
     expect(fp1).not.toBe(fp2);
   });
@@ -225,9 +221,7 @@ describe('WorkspacePoolManager', () => {
       createTestRepo(repoDir, { 'hello.txt': 'hello world' });
 
       const manager = new WorkspacePoolManager(poolRoot);
-      const repos: RepoConfig[] = [
-        { path: './my-repo', source: { type: 'local', path: repoDir } },
-      ];
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
 
       // First acquisition
       const slot1 = await manager.acquireWorkspace({
@@ -256,9 +250,7 @@ describe('WorkspacePoolManager', () => {
       createTestRepo(repoDir, { 'hello.txt': 'hello world' });
 
       const manager = new WorkspacePoolManager(poolRoot);
-      const repos: RepoConfig[] = [
-        { path: './my-repo', source: { type: 'local', path: repoDir } },
-      ];
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
 
       // Acquire slot-0 and keep it locked
       const slot0 = await manager.acquireWorkspace({
@@ -286,9 +278,7 @@ describe('WorkspacePoolManager', () => {
       createTestRepo(repoDir, { 'hello.txt': 'hello world' });
 
       const manager = new WorkspacePoolManager(poolRoot);
-      const repos: RepoConfig[] = [
-        { path: './my-repo', source: { type: 'local', path: repoDir } },
-      ];
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
 
       // First acquire normally to create the slot
       const slot = await manager.acquireWorkspace({
@@ -320,9 +310,7 @@ describe('WorkspacePoolManager', () => {
       createTestRepo(repoDir, { 'hello.txt': 'hello world' });
 
       const manager = new WorkspacePoolManager(poolRoot);
-      const repos: RepoConfig[] = [
-        { path: './my-repo', source: { type: 'local', path: repoDir } },
-      ];
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
 
       // Acquire both available slots
       const slot0 = await manager.acquireWorkspace({
@@ -337,9 +325,9 @@ describe('WorkspacePoolManager', () => {
       });
 
       // Third acquisition should fail
-      await expect(
-        manager.acquireWorkspace({ repos, maxSlots: 2, repoManager }),
-      ).rejects.toThrow(/All 2 pool slots are locked/);
+      await expect(manager.acquireWorkspace({ repos, maxSlots: 2, repoManager })).rejects.toThrow(
+        /All 2 pool slots are locked/,
+      );
 
       await manager.releaseSlot(slot0);
       await manager.releaseSlot(slot1);
@@ -352,9 +340,7 @@ describe('WorkspacePoolManager', () => {
       createTestRepo(repoDir, { 'hello.txt': 'hello world' });
 
       const manager = new WorkspacePoolManager(poolRoot);
-      const repos: RepoConfig[] = [
-        { path: './my-repo', source: { type: 'local', path: repoDir } },
-      ];
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
 
       const slot = await manager.acquireWorkspace({
         repos,
@@ -374,9 +360,7 @@ describe('WorkspacePoolManager', () => {
       createTestRepo(repoDir, { 'hello.txt': 'hello world' });
 
       const manager = new WorkspacePoolManager(poolRoot);
-      const repos: RepoConfig[] = [
-        { path: './my-repo', source: { type: 'local', path: repoDir } },
-      ];
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
 
       // First acquisition writes metadata
       const slot1 = await manager.acquireWorkspace({
@@ -403,9 +387,7 @@ describe('WorkspacePoolManager', () => {
       createTestRepo(repoDir, { 'hello.txt': 'hello world' });
 
       const manager = new WorkspacePoolManager(poolRoot);
-      const repos: RepoConfig[] = [
-        { path: './my-repo', source: { type: 'local', path: repoDir } },
-      ];
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
 
       // First acquisition
       const slot1 = await manager.acquireWorkspace({
@@ -439,9 +421,7 @@ describe('WorkspacePoolManager', () => {
       createTestRepo(repoDir, { 'hello.txt': 'hello world' });
 
       const manager = new WorkspacePoolManager(poolRoot);
-      const repos: RepoConfig[] = [
-        { path: './my-repo', source: { type: 'local', path: repoDir } },
-      ];
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
 
       // Create a slot
       const slot1 = await manager.acquireWorkspace({
@@ -502,9 +482,7 @@ describe('WorkspacePoolManager', () => {
       );
 
       // Verify metadata.json is written
-      const metadata = JSON.parse(
-        readFileSync(path.join(slot.poolDir, 'metadata.json'), 'utf-8'),
-      );
+      const metadata = JSON.parse(readFileSync(path.join(slot.poolDir, 'metadata.json'), 'utf-8'));
       expect(metadata.fingerprint).toBe(slot.fingerprint);
       expect(metadata.templatePath).toBe(templateDir);
 
@@ -520,9 +498,7 @@ describe('WorkspacePoolManager', () => {
       writeFileSync(path.join(templateDir, 'template-file.txt'), 'template content v1');
 
       const manager = new WorkspacePoolManager(poolRoot);
-      const repos: RepoConfig[] = [
-        { path: './my-repo', source: { type: 'local', path: repoDir } },
-      ];
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
 
       // First acquisition
       const slot1 = await manager.acquireWorkspace({
@@ -566,9 +542,7 @@ describe('WorkspacePoolManager', () => {
       createTestRepo(repoDir, { 'original.txt': 'original content' });
 
       const manager = new WorkspacePoolManager(poolRoot);
-      const repos: RepoConfig[] = [
-        { path: './my-repo', source: { type: 'local', path: repoDir } },
-      ];
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
 
       // First acquisition
       const slot1 = await manager.acquireWorkspace({
@@ -601,9 +575,7 @@ describe('WorkspacePoolManager', () => {
       createTestRepo(repoDir, { 'original.txt': 'original content' });
 
       const manager = new WorkspacePoolManager(poolRoot);
-      const repos: RepoConfig[] = [
-        { path: './my-repo', source: { type: 'local', path: repoDir } },
-      ];
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
 
       // First acquisition
       const slot1 = await manager.acquireWorkspace({
@@ -641,9 +613,7 @@ describe('WorkspacePoolManager', () => {
       writeFileSync(path.join(templateDir, 'config.yaml'), 'version: 1');
 
       const manager = new WorkspacePoolManager(poolRoot);
-      const repos: RepoConfig[] = [
-        { path: './my-repo', source: { type: 'local', path: repoDir } },
-      ];
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
 
       // First acquisition
       const slot1 = await manager.acquireWorkspace({

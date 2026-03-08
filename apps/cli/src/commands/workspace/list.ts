@@ -64,9 +64,7 @@ export const listCommand = command({
 
       // Count slots
       const poolEntries = await readdir(poolDir, { withFileTypes: true });
-      const slots = poolEntries.filter(
-        (e) => e.isDirectory() && e.name.startsWith('slot-'),
-      );
+      const slots = poolEntries.filter((e) => e.isDirectory() && e.name.startsWith('slot-'));
 
       // Read metadata
       const metadataPath = path.join(poolDir, 'metadata.json');

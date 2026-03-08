@@ -376,12 +376,14 @@ export class WorkspacePoolManager {
 
     // Re-copy template files, skipping repo directories
     if (templatePath) {
-      const repoDirNames = new Set(repos.map((r) => {
-        // Get the top-level directory name from the repo path
-        // e.g., './my-repo' -> 'my-repo', 'repos/foo' -> 'repos'
-        const normalized = r.path.replace(/^\.\//, '');
-        return normalized.split('/')[0];
-      }));
+      const repoDirNames = new Set(
+        repos.map((r) => {
+          // Get the top-level directory name from the repo path
+          // e.g., './my-repo' -> 'my-repo', 'repos/foo' -> 'repos'
+          const normalized = r.path.replace(/^\.\//, '');
+          return normalized.split('/')[0];
+        }),
+      );
       await copyDirectoryRecursive(templatePath, slotPath, repoDirNames);
     }
   }

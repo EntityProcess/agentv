@@ -97,9 +97,7 @@ export const cleanCommand = command({
     } else {
       // Remove entire pool root
       if (!force) {
-        const confirmed = await confirm(
-          `Remove all workspace pool entries from ${poolRoot}?`,
-        );
+        const confirmed = await confirm(`Remove all workspace pool entries from ${poolRoot}?`);
         if (!confirmed) {
           console.log('Cancelled.');
           return;
