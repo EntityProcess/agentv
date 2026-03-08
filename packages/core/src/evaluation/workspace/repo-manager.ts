@@ -87,23 +87,16 @@ export class RepoManager {
     this.verbose = verbose;
   }
 
-  private async runGit(
-    args: string[],
-    opts?: { cwd?: string; timeout?: number },
-  ): Promise<string> {
+  private async runGit(args: string[], opts?: { cwd?: string; timeout?: number }): Promise<string> {
     const startedAt = Date.now();
     if (this.verbose) {
-      console.log(
-        `[repo] git start cwd=${opts?.cwd ?? process.cwd()} args=${args.join(' ')}`,
-      );
+      console.log(`[repo] git start cwd=${opts?.cwd ?? process.cwd()} args=${args.join(' ')}`);
     }
 
     try {
       const output = await git(args, opts);
       if (this.verbose) {
-        console.log(
-          `[repo] git ok durationMs=${Date.now() - startedAt} args=${args.join(' ')}`,
-        );
+        console.log(`[repo] git ok durationMs=${Date.now() - startedAt} args=${args.join(' ')}`);
       }
       return output;
     } catch (error) {
@@ -156,9 +149,7 @@ export class RepoManager {
     const lockStartedAt = Date.now();
     await acquireLock(lockPath);
     if (this.verbose) {
-      console.log(
-        `[repo] lock acquired path=${lockPath} waitedMs=${Date.now() - lockStartedAt}`,
-      );
+      console.log(`[repo] lock acquired path=${lockPath} waitedMs=${Date.now() - lockStartedAt}`);
     }
 
     try {
@@ -248,7 +239,7 @@ export class RepoManager {
       // Resolve via ls-remote for remote refs
       const url = getSourceUrl(repo.source);
       try {
-      const lsOutput = await this.runGit(['ls-remote', url, ref]);
+        const lsOutput = await this.runGit(['ls-remote', url, ref]);
         const match = lsOutput.split('\t')[0];
         if (!match) {
           throw new Error(`Ref '${ref}' not found on remote ${url}`);
