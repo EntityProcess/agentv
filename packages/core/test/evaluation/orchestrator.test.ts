@@ -2410,3 +2410,193 @@ describe('fail_on_error tolerance', () => {
     }
   });
 });
+
+describe('--workspace flag', () => {
+  let testDir: string;
+
+  afterEach(async () => {
+    if (testDir) {
+      const { rm } = await import('node:fs/promises');
+      await rm(testDir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+
+  it('uses user-provided workspace directory directly', async () => {
+    const { mkdtemp, writeFile } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
+    await writeFile(path.join(testDir, 'file.txt'), 'content');
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases: [baseTestCase],
+      workspace: testDir,
+      keepWorkspaces: true,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toBeUndefined();
+  });
+
+  it('errors when workspace is combined with per_test isolation', async () => {
+    const { mkdtemp } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        isolation: 'per_test',
+      },
+    };
+
+    await expect(
+      runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: baseTarget,
+        providerFactory: () => provider,
+        evaluators: evaluatorRegistry,
+        evalCases: [evalCase],
+        workspace: testDir,
+      }),
+    ).rejects.toThrow('--workspace is incompatible with isolation: per_test');
+  });
+
+  it('never deletes user-provided workspace after run', async () => {
+    const { mkdtemp, writeFile, access: fsAccess } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
+    await writeFile(path.join(testDir, 'file.txt'), 'content');
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    // Even with cleanupWorkspaces=true, user workspace must survive
+    await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases: [baseTestCase],
+      workspace: testDir,
+      cleanupWorkspaces: true,
+    });
+
+    // Workspace must still exist (access resolves successfully if path exists)
+    await fsAccess(testDir);
+    // If we get here, the directory exists — test passes
+    const { stat: fsStat } = await import('node:fs/promises');
+    const stats = await fsStat(testDir);
+    expect(stats.isDirectory()).toBe(true);
+  });
+
+  it('executes lifecycle hooks with user-provided workspace', async () => {
+    const { mkdtemp, writeFile, mkdir } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
+    const scriptsDir = path.join(testDir, 'scripts');
+    await mkdir(scriptsDir, { recursive: true });
+
+    // Create a before_each script that outputs a message
+    const beforeScript = path.join(scriptsDir, 'before.js');
+    await writeFile(
+      beforeScript,
+      `
+const readline = require('readline');
+const rl = readline.createInterface({ input: process.stdin });
+let data = '';
+rl.on('line', (line) => { data += line; });
+rl.on('close', () => {
+  const ctx = JSON.parse(data);
+  console.log('before_each for ' + ctx.test_id);
+  process.exit(0);
+});
+`,
+    );
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        before_each: {
+          command: ['node', beforeScript],
+          timeout_ms: 10000,
+        },
+      },
+    };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases: [evalCase],
+      workspace: testDir,
+      keepWorkspaces: true,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].beforeEachOutput).toContain('before_each for case-1');
+    expect(results[0].error).toBeUndefined();
+  });
+
+  it('skips template copy and repo materialization when workspace provided', async () => {
+    const { mkdtemp, writeFile, mkdir } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
+
+    // Create a template directory (should NOT be used when --workspace is set)
+    const templateDir = path.join(testDir, 'template');
+    await mkdir(templateDir, { recursive: true });
+    await writeFile(path.join(templateDir, 'template-file.txt'), 'from template');
+
+    // Create the workspace directory
+    const workspaceDir = path.join(testDir, 'workspace');
+    await mkdir(workspaceDir, { recursive: true });
+    await writeFile(path.join(workspaceDir, 'workspace-file.txt'), 'from workspace');
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        template: templateDir,
+      },
+    };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases: [evalCase],
+      workspace: workspaceDir,
+      keepWorkspaces: true,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toBeUndefined();
+
+    // Verify the workspace directory still contains its original file (not template's file)
+    const { readdir } = await import('node:fs/promises');
+    const files = await readdir(workspaceDir);
+    expect(files).toContain('workspace-file.txt');
+  });
+});

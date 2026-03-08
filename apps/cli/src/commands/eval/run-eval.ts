@@ -1,5 +1,5 @@
 import { constants } from 'node:fs';
-import { access } from 'node:fs/promises';
+import { access, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -80,6 +80,7 @@ interface NormalizedOptions {
   readonly retryErrors?: string;
   readonly poolWorkspaces: boolean;
   readonly poolMaxSlots?: number;
+  readonly workspace?: string;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -236,6 +237,7 @@ function normalizeOptions(
     poolWorkspaces:
       normalizeBoolean(rawOptions.poolWorkspaces) || yamlExecution?.pool_workspaces === true,
     poolMaxSlots: yamlExecution?.pool_slots,
+    workspace: normalizeString(rawOptions.workspace),
   } satisfies NormalizedOptions;
 }
 
@@ -577,6 +579,7 @@ async function runSingleEvalFile(params: {
     cleanupWorkspaces: options.cleanupWorkspaces,
     poolWorkspaces: options.poolWorkspaces,
     poolMaxSlots: options.poolMaxSlots,
+    workspace: options.workspace,
     trials: trialsConfig,
     totalBudgetUsd,
     failOnError,
@@ -684,6 +687,24 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     console.warn(
       'Warning: Both --keep-workspaces and --cleanup-workspaces specified. --cleanup-workspaces takes precedence.',
     );
+  }
+
+  // Validate --workspace path exists and is a directory
+  if (options.workspace) {
+    const resolvedWorkspace = path.resolve(options.workspace);
+    try {
+      const stats = await stat(resolvedWorkspace);
+      if (!stats.isDirectory()) {
+        throw new Error(`--workspace path is not a directory: ${resolvedWorkspace}`);
+      }
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw new Error(`--workspace path does not exist: ${resolvedWorkspace}`);
+      }
+      throw err;
+    }
+    // Update workspace to resolved absolute path
+    options = { ...options, workspace: resolvedWorkspace };
   }
 
   if (options.verbose) {
