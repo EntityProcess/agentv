@@ -408,13 +408,24 @@ export async function runEvaluation(
   const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
   // Pool-enabled workspaces support concurrent workers (each worker gets its own slot).
   // Non-pool shared workspaces must be sequential to prevent data corruption.
-  const workers = hasSharedWorkspace && !usePool ? 1 : requestedWorkers;
+  // Pool concurrency is capped at pool_max_slots to prevent slot exhaustion.
+  const poolMaxSlots = suiteWorkspace?.pool_max_slots ?? 3;
+  const workers = usePool
+    ? Math.min(requestedWorkers, poolMaxSlots)
+    : hasSharedWorkspace
+      ? 1
+      : requestedWorkers;
   setupLog(
     `sharedWorkspace=${hasSharedWorkspace} perTestIsolation=${isPerTestIsolation} usePool=${usePool} requestedWorkers=${requestedWorkers} effectiveWorkers=${workers}`,
   );
   if (hasSharedWorkspace && !usePool && requestedWorkers > 1) {
     console.warn(
       `Warning: Shared workspace requires sequential execution. Overriding workers from ${requestedWorkers} to 1.`,
+    );
+  }
+  if (usePool && requestedWorkers > poolMaxSlots) {
+    console.warn(
+      `Warning: Pool concurrency limited to ${poolMaxSlots} slot(s) (pool_max_slots=${poolMaxSlots}). Requested workers: ${requestedWorkers}.`,
     );
   }
   const limit = pLimit(workers);
@@ -431,8 +442,7 @@ export async function runEvaluation(
   const poolSlotBaselines = new Map<string, string>();
 
   if (usePool && suiteWorkspace?.repos) {
-    const maxSlots = suiteWorkspace.pool_max_slots ?? 3;
-    const slotCount = Math.min(workers, maxSlots);
+    const slotCount = workers; // already capped at poolMaxSlots
     setupLog(`acquiring ${slotCount} workspace pool slot(s)`);
     poolManager = new WorkspacePoolManager(getWorkspacePoolRoot());
     const poolRepoManager = new RepoManager(undefined, verbose);
@@ -441,7 +451,7 @@ export async function runEvaluation(
       const slot = await poolManager.acquireWorkspace({
         templatePath: workspaceTemplate,
         repos: suiteWorkspace.repos,
-        maxSlots,
+        maxSlots: poolMaxSlots,
         repoManager: poolRepoManager,
       });
       poolSlots.push(slot);
@@ -814,25 +824,35 @@ export async function runEvaluation(
     }
 
     // --- Shared workspace after_all + cleanup ---
-    if (sharedWorkspacePath && suiteWorkspace?.after_all) {
-      const scriptContext: ScriptExecutionContext = {
-        workspacePath: sharedWorkspacePath,
-        testId: '__after_all__',
-        evalRunId,
-        evalDir,
-      };
-      try {
-        const afterAllOutput = await executeWorkspaceScript(
-          suiteWorkspace.after_all,
-          scriptContext,
-          'warn',
-        );
-        // Attach afterAllOutput to last result
-        if (afterAllOutput && results.length > 0) {
-          results[results.length - 1] = { ...results[results.length - 1], afterAllOutput };
+    // For multi-slot pool, run after_all on each slot (symmetric with before_all)
+    const afterAllWorkspaces =
+      poolSlots.length > 1
+        ? poolSlots.map((s) => s.path)
+        : sharedWorkspacePath
+          ? [sharedWorkspacePath]
+          : [];
+
+    if (afterAllWorkspaces.length > 0 && suiteWorkspace?.after_all) {
+      for (const wsPath of afterAllWorkspaces) {
+        const scriptContext: ScriptExecutionContext = {
+          workspacePath: wsPath,
+          testId: '__after_all__',
+          evalRunId,
+          evalDir,
+        };
+        try {
+          const afterAllOutput = await executeWorkspaceScript(
+            suiteWorkspace.after_all,
+            scriptContext,
+            'warn',
+          );
+          // Attach afterAllOutput to last result (first slot only)
+          if (afterAllOutput && results.length > 0 && wsPath === afterAllWorkspaces[0]) {
+            results[results.length - 1] = { ...results[results.length - 1], afterAllOutput };
+          }
+        } catch {
+          // after_all failures are non-fatal
         }
-      } catch {
-        // after_all failures are non-fatal
       }
     }
 
