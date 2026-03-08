@@ -1,0 +1,16 @@
+description: >-
+  Regression eval that references the same shared workspace config file.
+  Demonstrates workspace config reuse across eval files in different directories.
+
+workspace: ../../workspace.yaml
+
+tests:
+  - id: verify-readme-exists
+    criteria: >-
+      The agent should confirm the workspace template README exists
+      and report its contents.
+    input: >-
+      Read the README.md file in the workspace root and report its contents.
+    assert:
+      - type: contains
+        value: Shared Workspace Template
