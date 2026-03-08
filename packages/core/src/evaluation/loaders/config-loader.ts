@@ -383,7 +383,12 @@ export function parseExecutionDefaults(
   }
 
   const poolSlots = obj.pool_slots;
-  if (typeof poolSlots === 'number' && Number.isInteger(poolSlots) && poolSlots >= 1 && poolSlots <= 50) {
+  if (
+    typeof poolSlots === 'number' &&
+    Number.isInteger(poolSlots) &&
+    poolSlots >= 1 &&
+    poolSlots <= 50
+  ) {
     result.pool_slots = poolSlots;
   } else if (poolSlots !== undefined) {
     logWarning(`Invalid execution.pool_slots in ${configPath}, expected integer 1-50`);
