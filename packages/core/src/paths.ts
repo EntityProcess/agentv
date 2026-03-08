@@ -30,8 +30,3 @@ export function getSubagentsRoot(): string {
 export function getTraceStateRoot(): string {
   return path.join(getAgentvHome(), 'trace-state');
 }
-
-/** @internal Reset module state for testing. */
-export function _resetForTesting(): void {
-  logged = false;
-}
