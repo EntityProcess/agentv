@@ -323,3 +323,149 @@ describe('CompositeEvaluator threshold aggregation', () => {
     });
   });
 });
+
+function makeSkipResult(): EvaluationScore {
+  return {
+    score: 0,
+    verdict: 'skip',
+    hits: [],
+    misses: ['Judge parse failure after 3 attempts: malformed response'],
+    expectedAspectCount: 1,
+    reasoning: 'Judge parse failure after 3 attempts: malformed response',
+  };
+}
+
+describe('CompositeEvaluator skip-verdict handling', () => {
+  it('weighted average: skip-verdict members excluded from average', async () => {
+    const factory = createMockFactory({
+      a: makeResult('pass', 1.0),
+      b: makeSkipResult(),
+      c: makeResult('pass', 0.8),
+    });
+
+    const evaluator = new CompositeEvaluator({
+      config: {
+        name: 'combo',
+        type: 'composite',
+        evaluators: [
+          { name: 'a', type: 'latency', threshold: 5000 },
+          { name: 'b', type: 'latency', threshold: 5000 },
+          { name: 'c', type: 'latency', threshold: 5000 },
+        ],
+        aggregator: { type: 'weighted_average' },
+      },
+      evaluatorFactory: factory,
+    });
+
+    const result = await evaluator.evaluate(createContext());
+    // Average of 1.0 and 0.8 = 0.9 (skip excluded)
+    expect(result.score).toBe(0.9);
+    expect(result.verdict).toBe('pass');
+  });
+
+  it('weighted average: all-skip returns verdict skip', async () => {
+    const factory = createMockFactory({
+      a: makeSkipResult(),
+      b: makeSkipResult(),
+    });
+
+    const evaluator = new CompositeEvaluator({
+      config: {
+        name: 'combo',
+        type: 'composite',
+        evaluators: [
+          { name: 'a', type: 'latency', threshold: 5000 },
+          { name: 'b', type: 'latency', threshold: 5000 },
+        ],
+        aggregator: { type: 'weighted_average' },
+      },
+      evaluatorFactory: factory,
+    });
+
+    const result = await evaluator.evaluate(createContext());
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('skip');
+    expect(result.reasoning).toContain('All evaluators skipped');
+  });
+
+  it('threshold: skip-verdict members excluded from pass/total counts', async () => {
+    const factory = createMockFactory({
+      a: makeResult('pass', 1.0),
+      b: makeSkipResult(),
+      c: makeResult('fail', 0.2),
+    });
+
+    const evaluator = new CompositeEvaluator({
+      config: {
+        name: 'gate',
+        type: 'composite',
+        evaluators: [
+          { name: 'a', type: 'latency', threshold: 5000 },
+          { name: 'b', type: 'latency', threshold: 5000 },
+          { name: 'c', type: 'latency', threshold: 5000 },
+        ],
+        aggregator: { type: 'threshold', threshold: 0.5 },
+      },
+      evaluatorFactory: factory,
+    });
+
+    const result = await evaluator.evaluate(createContext());
+    // 1/2 evaluated pass = 0.5, meets threshold
+    expect(result.score).toBe(0.5);
+    expect(result.verdict).toBe('pass');
+    expect(result.reasoning).toContain('1/2 evaluators passed');
+  });
+
+  it('threshold: all-skip returns verdict skip', async () => {
+    const factory = createMockFactory({
+      a: makeSkipResult(),
+      b: makeSkipResult(),
+    });
+
+    const evaluator = new CompositeEvaluator({
+      config: {
+        name: 'gate',
+        type: 'composite',
+        evaluators: [
+          { name: 'a', type: 'latency', threshold: 5000 },
+          { name: 'b', type: 'latency', threshold: 5000 },
+        ],
+        aggregator: { type: 'threshold', threshold: 0.5 },
+      },
+      evaluatorFactory: factory,
+    });
+
+    const result = await evaluator.evaluate(createContext());
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('skip');
+    expect(result.reasoning).toContain('All evaluators skipped');
+  });
+
+  it('skip-verdict members still appear in scores array', async () => {
+    const factory = createMockFactory({
+      a: makeResult('pass', 1.0),
+      b: makeSkipResult(),
+    });
+
+    const evaluator = new CompositeEvaluator({
+      config: {
+        name: 'combo',
+        type: 'composite',
+        evaluators: [
+          { name: 'a', type: 'latency', threshold: 5000 },
+          { name: 'b', type: 'latency', threshold: 5000 },
+        ],
+        aggregator: { type: 'weighted_average' },
+      },
+      evaluatorFactory: factory,
+    });
+
+    const result = await evaluator.evaluate(createContext());
+    expect(result.scores).toHaveLength(2);
+    const childScores = result.scores as NonNullable<typeof result.scores>;
+    expect(childScores[0].name).toBe('a');
+    expect(childScores[0].verdict).toBe('pass');
+    expect(childScores[1].name).toBe('b');
+    expect(childScores[1].verdict).toBe('skip');
+  });
+});
