@@ -32,6 +32,7 @@ export {
   getGitCacheRoot,
   getSubagentsRoot,
   getTraceStateRoot,
+  getWorkspacePoolRoot,
 } from './paths.js';
 export { trimBaselineResult } from './evaluation/baseline.js';
 export * from './observability/index.js';

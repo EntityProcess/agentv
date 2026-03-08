@@ -264,6 +264,10 @@ export type WorkspaceConfig = {
   readonly before_each?: WorkspaceScriptConfig;
   /** Command to run after each test (e.g., git reset for workspace reuse) */
   readonly after_each?: WorkspaceScriptConfig;
+  /** Opt-in: pool entire workspace for reuse across eval runs */
+  readonly pool?: boolean;
+  /** Maximum number of concurrent pool slots (default: 3) */
+  readonly pool_max_slots?: number;
 };
 
 export type CodeEvaluatorConfig = {
