@@ -457,6 +457,8 @@ async function loadTestsFromYaml(
         for (const guidelinePath of testCase.guideline_paths) {
           console.log(`    - ${guidelinePath}`);
         }
+      } else if (!guidelinePatterns || guidelinePatterns.length === 0) {
+        console.log('  No guidelines found (guideline_patterns not configured)');
       } else {
         console.log('  No guidelines found');
       }
