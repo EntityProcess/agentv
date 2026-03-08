@@ -98,15 +98,8 @@ export class CompositeEvaluator implements Evaluator {
 
     for (const member of results) {
       const weight = weights?.[member.id] ?? 1.0;
-      totalWeight += weight;
-      weightedSum += member.result.score * weight;
-      allHits.push(...member.result.hits.map((h) => `[${member.id}] ${h}`));
-      allMisses.push(...member.result.misses.map((m) => `[${member.id}] ${m}`));
-      if (member.result.reasoning) {
-        reasoningParts.push(`${member.id}: ${member.result.reasoning}`);
-      }
 
-      // Build child result entry
+      // Always build child result entry for observability
       scores.push({
         name: member.id,
         type: member.type,
@@ -121,6 +114,36 @@ export class CompositeEvaluator implements Evaluator {
         details: member.result.details,
         tokenUsage: member.result.tokenUsage,
       });
+
+      // Skip-verdict members excluded from aggregation
+      if (member.result.verdict === 'skip') {
+        continue;
+      }
+
+      totalWeight += weight;
+      weightedSum += member.result.score * weight;
+      allHits.push(...member.result.hits.map((h) => `[${member.id}] ${h}`));
+      allMisses.push(...member.result.misses.map((m) => `[${member.id}] ${m}`));
+      if (member.result.reasoning) {
+        reasoningParts.push(`${member.id}: ${member.result.reasoning}`);
+      }
+    }
+
+    // If all members skipped, propagate skip verdict
+    if (totalWeight === 0 && results.length > 0) {
+      return {
+        score: 0,
+        verdict: 'skip' as const,
+        hits: [],
+        misses: [],
+        expectedAspectCount: 1,
+        reasoning: 'All evaluators skipped (infrastructure failure)',
+        evaluatorRawRequest: {
+          aggregator: 'weighted_average',
+          ...(weights ? { weights } : {}),
+        },
+        scores,
+      };
     }
 
     const finalScore = totalWeight > 0 ? weightedSum / totalWeight : 0;
@@ -147,22 +170,10 @@ export class CompositeEvaluator implements Evaluator {
     const reasoningParts: string[] = [];
     let passingCount = 0;
     let borderlineCount = 0;
+    let evaluatedCount = 0;
 
     for (const member of results) {
-      const isPassing = member.result.verdict === 'pass' || member.result.verdict === 'borderline';
-      if (isPassing) {
-        passingCount++;
-        if (member.result.verdict === 'borderline') {
-          borderlineCount++;
-        }
-      }
-
-      allHits.push(...member.result.hits.map((h) => `[${member.id}] ${h}`));
-      allMisses.push(...member.result.misses.map((m) => `[${member.id}] ${m}`));
-      if (member.result.reasoning) {
-        reasoningParts.push(`${member.id}: ${member.result.reasoning}`);
-      }
-
+      // Always add to scores for observability
       scores.push({
         name: member.id,
         type: member.type,
@@ -176,9 +187,46 @@ export class CompositeEvaluator implements Evaluator {
         details: member.result.details,
         tokenUsage: member.result.tokenUsage,
       });
+
+      // Skip-verdict members excluded from aggregation
+      if (member.result.verdict === 'skip') {
+        continue;
+      }
+
+      evaluatedCount++;
+      const isPassing = member.result.verdict === 'pass' || member.result.verdict === 'borderline';
+      if (isPassing) {
+        passingCount++;
+        if (member.result.verdict === 'borderline') {
+          borderlineCount++;
+        }
+      }
+
+      allHits.push(...member.result.hits.map((h) => `[${member.id}] ${h}`));
+      allMisses.push(...member.result.misses.map((m) => `[${member.id}] ${m}`));
+      if (member.result.reasoning) {
+        reasoningParts.push(`${member.id}: ${member.result.reasoning}`);
+      }
     }
 
-    const totalCount = results.length;
+    // If all members skipped, propagate skip verdict
+    if (evaluatedCount === 0 && results.length > 0) {
+      return {
+        score: 0,
+        verdict: 'skip' as const,
+        hits: [],
+        misses: [],
+        expectedAspectCount: 1,
+        reasoning: 'All evaluators skipped (infrastructure failure)',
+        evaluatorRawRequest: {
+          aggregator: 'threshold',
+          threshold,
+        },
+        scores,
+      };
+    }
+
+    const totalCount = evaluatedCount;
     const score = totalCount > 0 ? passingCount / totalCount : 0;
     const pass = score >= threshold;
 
