@@ -4628,6 +4628,31 @@
                         },
                         "additionalProperties": false
                       },
+                      "mode": {
+                        "type": "string",
+                        "enum": ["pooled", "ephemeral", "static"]
+                      },
+                      "static_path": {
+                        "type": "string"
+                      },
+                      "reset_clean": {
+                        "type": "string",
+                        "enum": ["standard", "full"]
+                      },
+                      "retention": {
+                        "type": "object",
+                        "properties": {
+                          "on_success": {
+                            "type": "string",
+                            "enum": ["keep", "cleanup"]
+                          },
+                          "on_failure": {
+                            "type": "string",
+                            "enum": ["keep", "cleanup"]
+                          }
+                        },
+                        "additionalProperties": false
+                      },
                       "pool": {
                         "type": "boolean"
                       },
@@ -9359,6 +9384,31 @@
                         },
                         "additionalProperties": false
                       },
+                      "mode": {
+                        "type": "string",
+                        "enum": ["pooled", "ephemeral", "static"]
+                      },
+                      "static_path": {
+                        "type": "string"
+                      },
+                      "reset_clean": {
+                        "type": "string",
+                        "enum": ["standard", "full"]
+                      },
+                      "retention": {
+                        "type": "object",
+                        "properties": {
+                          "on_success": {
+                            "type": "string",
+                            "enum": ["keep", "cleanup"]
+                          },
+                          "on_failure": {
+                            "type": "string",
+                            "enum": ["keep", "cleanup"]
+                          }
+                        },
+                        "additionalProperties": false
+                      },
                       "pool": {
                         "type": "boolean"
                       },
@@ -12913,6 +12963,31 @@
                     },
                     "after_each": {
                       "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": ["pooled", "ephemeral", "static"]
+                },
+                "static_path": {
+                  "type": "string"
+                },
+                "reset_clean": {
+                  "type": "string",
+                  "enum": ["standard", "full"]
+                },
+                "retention": {
+                  "type": "object",
+                  "properties": {
+                    "on_success": {
+                      "type": "string",
+                      "enum": ["keep", "cleanup"]
+                    },
+                    "on_failure": {
+                      "type": "string",
+                      "enum": ["keep", "cleanup"]
                     }
                   },
                   "additionalProperties": false

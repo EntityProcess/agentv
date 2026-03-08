@@ -123,6 +123,10 @@ export interface RunEvalCaseOptions {
   readonly keepWorkspaces?: boolean;
   /** Force cleanup of workspaces even on failure */
   readonly cleanupWorkspaces?: boolean;
+  /** Retention policy for temp workspaces on successful cases */
+  readonly retainOnSuccess?: 'keep' | 'cleanup';
+  /** Retention policy for temp workspaces on failed cases */
+  readonly retainOnFailure?: 'keep' | 'cleanup';
   /** Pre-created shared workspace path (shared across tests in a suite) */
   readonly sharedWorkspacePath?: string;
   /** Pre-initialized baseline commit for shared workspace */
@@ -186,6 +190,16 @@ export interface RunEvaluationOptions {
   readonly poolMaxSlots?: number;
   /** Pre-existing workspace directory to use directly (skips clone/copy/pool) */
   readonly workspace?: string;
+  /** Workspace materialization mode override */
+  readonly workspaceMode?: 'pooled' | 'ephemeral' | 'static';
+  /** Static workspace path override (used when workspaceMode=static) */
+  readonly workspacePath?: string;
+  /** Workspace clean policy override for pooled reset */
+  readonly workspaceClean?: 'standard' | 'full';
+  /** Retention policy override for successful cases */
+  readonly retainOnSuccess?: 'keep' | 'cleanup';
+  /** Retention policy override for failed cases */
+  readonly retainOnFailure?: 'keep' | 'cleanup';
 }
 
 export async function runEvaluation(
@@ -216,7 +230,12 @@ export async function runEvaluation(
     failOnError,
     poolWorkspaces,
     poolMaxSlots: configPoolMaxSlots,
-    workspace: userWorkspacePath,
+    workspace: legacyWorkspacePath,
+    workspaceMode,
+    workspacePath,
+    workspaceClean,
+    retainOnSuccess,
+    retainOnFailure,
   } = options;
 
   // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
@@ -400,29 +419,49 @@ export async function runEvaluation(
   // Resolve worker count and pool mode
   const isPerTestIsolation = suiteWorkspace?.isolation === 'per_test';
 
-  // --workspace is incompatible with per_test isolation
-  if (userWorkspacePath && isPerTestIsolation) {
+  const configuredMode = suiteWorkspace?.mode ?? workspaceMode;
+  const configuredStaticPath = suiteWorkspace?.static_path ?? workspacePath ?? legacyWorkspacePath;
+  const useStaticWorkspace =
+    configuredMode === 'static' || (!!configuredStaticPath && !configuredMode);
+
+  // static workspace is incompatible with per_test isolation
+  if (useStaticWorkspace && isPerTestIsolation) {
     throw new Error(
-      '--workspace is incompatible with isolation: per_test. Use isolation: shared (default).',
+      'static workspace mode is incompatible with isolation: per_test. Use isolation: shared (default).',
     );
+  }
+  if (configuredMode === 'static' && !configuredStaticPath) {
+    throw new Error('workspace.mode=static requires workspace.static_path or --workspace-path');
   }
 
   const hasSharedWorkspace = !!(
-    userWorkspacePath ||
+    useStaticWorkspace ||
     workspaceTemplate ||
     suiteWorkspace?.before_all ||
     (suiteWorkspace?.repos?.length && !isPerTestIsolation)
   );
 
-  // Pool support: reuse materialized workspaces across eval runs.
-  // YAML workspace.pool overrides CLI --pool-workspaces / --no-pool; default is true.
-  // --workspace takes precedence over pool.
-  const poolEnabled = suiteWorkspace?.pool ?? poolWorkspaces ?? true;
+  // Pool support: mode-based first, then legacy pool booleans, then default.
+  const poolEnabled =
+    configuredMode === 'pooled'
+      ? true
+      : configuredMode === 'ephemeral' || useStaticWorkspace
+        ? false
+        : (suiteWorkspace?.pool ?? poolWorkspaces ?? true);
   const usePool =
     poolEnabled !== false &&
     !!suiteWorkspace?.repos?.length &&
     !isPerTestIsolation &&
-    !userWorkspacePath;
+    !useStaticWorkspace;
+
+  const resolvedRetainOnSuccess =
+    suiteWorkspace?.retention?.on_success ??
+    retainOnSuccess ??
+    (keepWorkspaces ? 'keep' : 'cleanup');
+  const resolvedRetainOnFailure =
+    suiteWorkspace?.retention?.on_failure ??
+    retainOnFailure ??
+    (cleanupWorkspaces ? 'cleanup' : 'keep');
 
   const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
   // Pool-enabled workspaces support concurrent workers (each worker gets its own slot).
@@ -454,9 +493,9 @@ export async function runEvaluation(
   const poolMaxSlots = Math.min(configPoolMaxSlots ?? 10, 50);
 
   // User-provided workspace (--workspace /path): use directly, skip all materialization
-  if (userWorkspacePath) {
-    sharedWorkspacePath = userWorkspacePath;
-    setupLog(`using user-provided workspace: ${userWorkspacePath}`);
+  if (useStaticWorkspace && configuredStaticPath) {
+    sharedWorkspacePath = configuredStaticPath;
+    setupLog(`using static workspace: ${configuredStaticPath}`);
   } else if (usePool && suiteWorkspace?.repos) {
     const slotsNeeded = workers;
     setupLog(`acquiring ${slotsNeeded} workspace pool slot(s) (pool capacity: ${poolMaxSlots})`);
@@ -469,7 +508,7 @@ export async function runEvaluation(
         repos: suiteWorkspace.repos,
         maxSlots: poolMaxSlots,
         repoManager: poolRepoManager,
-        poolClean: suiteWorkspace.pool_clean,
+        poolClean: workspaceClean ?? suiteWorkspace.reset_clean ?? suiteWorkspace.pool_clean,
       });
       poolSlots.push(slot);
       setupLog(`pool slot ${i} acquired at: ${slot.path} (existing=${slot.isExisting})`);
@@ -515,7 +554,7 @@ export async function runEvaluation(
 
     // Materialize repos into shared workspace (skip for per_test, pool, and user-provided workspace)
     const repoManager =
-      suiteWorkspace?.repos?.length && !usePool && !userWorkspacePath
+      suiteWorkspace?.repos?.length && !usePool && !useStaticWorkspace
         ? new RepoManager(verbose)
         : undefined;
     if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation) {
@@ -527,7 +566,7 @@ export async function runEvaluation(
         setupLog('shared repo materialization complete');
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        if (sharedWorkspacePath && !userWorkspacePath) {
+        if (sharedWorkspacePath && !useStaticWorkspace) {
           await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
         }
         throw new Error(`Failed to materialize repos: ${message}`);
@@ -555,7 +594,7 @@ export async function runEvaluation(
         setupLog('shared before_all completed');
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        if (sharedWorkspacePath && !userWorkspacePath) {
+        if (sharedWorkspacePath && !useStaticWorkspace) {
           await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
         }
         throw new Error(`before_all script failed: ${message}`);
@@ -732,6 +771,8 @@ export async function runEvaluation(
             evalRunId,
             keepWorkspaces,
             cleanupWorkspaces,
+            retainOnSuccess: resolvedRetainOnSuccess,
+            retainOnFailure: resolvedRetainOnFailure,
             sharedWorkspacePath: testWorkspacePath,
             sharedBaselineCommit: testBaselineCommit,
             suiteWorkspaceFile,
@@ -876,14 +917,15 @@ export async function runEvaluation(
     }
 
     // Cleanup shared workspace (skip for pooled workspaces and user-provided workspaces)
-    if (sharedWorkspacePath && !poolSlot && poolSlots.length === 0 && !userWorkspacePath) {
+    if (sharedWorkspacePath && !poolSlot && poolSlots.length === 0 && !useStaticWorkspace) {
       const hasFailure = results.some((r) => !!r.error || r.score < 0.5);
-      if (cleanupWorkspaces) {
-        await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
-      } else if (!hasFailure && !keepWorkspaces) {
+      if (hasFailure) {
+        if (resolvedRetainOnFailure === 'cleanup') {
+          await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+        }
+      } else if (resolvedRetainOnSuccess === 'cleanup') {
         await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
       }
-      // If failure and not forceCleanup: keep for debugging
     }
 
     // Fallback cleanup for any per-case workspaces
@@ -1121,6 +1163,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     evalRunId,
     keepWorkspaces,
     cleanupWorkspaces: forceCleanup,
+    retainOnSuccess,
+    retainOnFailure,
     sharedWorkspacePath,
     sharedBaselineCommit,
     suiteWorkspaceFile,
@@ -1521,8 +1565,12 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       if (forceCleanup) {
         await cleanupWorkspace(workspacePath).catch(() => {});
       } else if (isFailure) {
-        return { ...finalResult, workspacePath };
-      } else if (!keepWorkspaces) {
+        if ((retainOnFailure ?? 'keep') === 'cleanup') {
+          await cleanupWorkspace(workspacePath).catch(() => {});
+        } else {
+          return { ...finalResult, workspacePath };
+        }
+      } else if ((retainOnSuccess ?? (keepWorkspaces ? 'keep' : 'cleanup')) !== 'keep') {
         await cleanupWorkspace(workspacePath).catch(() => {});
       }
     }
@@ -1541,10 +1589,11 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     );
     // On error, keep workspace for debugging (only for per-case workspaces)
     if (workspacePath && !isSharedWorkspace) {
-      if (forceCleanup) {
+      if (forceCleanup || (retainOnFailure ?? 'keep') === 'cleanup') {
         await cleanupWorkspace(workspacePath).catch(() => {});
+      } else {
+        return { ...errorResult, workspacePath, beforeEachOutput, afterEachOutput };
       }
-      return { ...errorResult, workspacePath, beforeEachOutput, afterEachOutput };
     }
     return { ...errorResult, beforeEachOutput, afterEachOutput };
   }
@@ -1574,6 +1623,8 @@ async function runEvalCaseWithTrials(
       // Force cleanup for intermediate trials
       cleanupWorkspaces: isLastDeclaredTrial ? options.cleanupWorkspaces : true,
       keepWorkspaces: isLastDeclaredTrial ? options.keepWorkspaces : false,
+      retainOnSuccess: isLastDeclaredTrial ? options.retainOnSuccess : 'cleanup',
+      retainOnFailure: isLastDeclaredTrial ? options.retainOnFailure : 'cleanup',
     };
 
     const result = await runEvalCase(trialOptions);

@@ -184,6 +184,12 @@ workspace:
     strategy: hard            # none | hard | recreate
     after_each: true          # reset repos between tests
   isolation: shared           # shared (default) | per_test
+  mode: pooled                # pooled | ephemeral | static
+  static_path: /tmp/my-ws     # required when mode=static
+  reset_clean: standard       # standard | full
+  retention:
+    on_success: cleanup       # keep | cleanup
+    on_failure: keep          # keep | cleanup
 ```
 
 | Field | Description |
@@ -193,14 +199,19 @@ workspace:
 | `repos[].checkout.ref` | Branch, tag, or SHA to check out (default: `HEAD`) |
 | `repos[].checkout.resolve` | `remote` (ls-remote, default for git) or `local` |
 | `repos[].checkout.ancestor` | Walk N commits back from ref (e.g., `1` for parent) |
-| `repos[].clone.depth` | Shallow clone depth (applies to both cache creation and workspace clone) |
+| `repos[].clone.depth` | Shallow clone depth |
 | `repos[].clone.filter` | Partial clone filter (e.g., `blob:none`) |
 | `repos[].clone.sparse` | Sparse checkout paths |
 | `reset.strategy` | How to reset repos: `none`, `hard` (git reset), `recreate` (re-clone) |
 | `reset.after_each` | Reset after each test (default: `false`) |
 | `isolation` | `shared` reuses one workspace; `per_test` creates a fresh copy per test |
+| `mode` | Workspace mode: `pooled`, `ephemeral`, `static` |
+| `static_path` | Existing workspace path used when `mode=static` |
+| `reset_clean` | Pooled reset clean mode: `standard` (`git clean -fd`) or `full` (`git clean -fdx`) |
+| `retention.on_success` | Temp workspace retention on success: `keep` or `cleanup` |
+| `retention.on_failure` | Temp workspace retention on failure: `keep` or `cleanup` |
 
-**Pooling:** Workspace pooling is enabled by default for shared workspaces with repos. The first run clones directly from source; subsequent runs reset the pool slot in-place, skipping clone entirely. Use `--no-pool` to disable pooling, or set `pool: false` in the workspace config. Use `pool_clean: full` to also remove `.gitignore`d files on reset.
+**Pooling:** `mode: pooled` (or default shared repo mode) reuses pool slots between runs. Use `mode: ephemeral` to disable pooling for fresh clone/checkouts each run.
 
 Pool management commands:
 - `agentv workspace list` — list all pool entries with size and repo info
@@ -235,13 +246,17 @@ workspace:
 
 ### Cleanup Behavior
 
-By default:
-- **Success**: Workspace is cleaned up automatically
-- **Failure**: Workspace is preserved for debugging
+Default retention:
+- **Success**: cleanup
+- **Failure**: keep
 
-Override with CLI flags:
-- `--keep-workspaces`: Always preserve workspaces
-- `--cleanup-workspaces`: Always clean up, even on failure
+Override with retention policy:
+- `retention.on_success: keep|cleanup`
+- `retention.on_failure: keep|cleanup`
+
+CLI overrides:
+- `--retain-on-success keep|cleanup`
+- `--retain-on-failure keep|cleanup`
 
 ### cwd vs workspace_template
 

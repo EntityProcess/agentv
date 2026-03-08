@@ -283,11 +283,20 @@ const ResetSchema = z.object({
   after_each: z.boolean().optional(),
 });
 
+const WorkspaceRetentionSchema = z.object({
+  on_success: z.enum(['keep', 'cleanup']).optional(),
+  on_failure: z.enum(['keep', 'cleanup']).optional(),
+});
+
 const WorkspaceSchema = z.object({
   template: z.string().optional(),
   isolation: z.enum(['shared', 'per_test']).optional(),
   repos: z.array(RepoSchema).optional(),
   reset: ResetSchema.optional(),
+  mode: z.enum(['pooled', 'ephemeral', 'static']).optional(),
+  static_path: z.string().optional(),
+  reset_clean: z.enum(['standard', 'full']).optional(),
+  retention: WorkspaceRetentionSchema.optional(),
   pool: z.boolean().optional(),
   pool_clean: z.enum(['standard', 'full']).optional(),
   before_all: WorkspaceScriptSchema.optional(),

@@ -256,6 +256,17 @@ export type WorkspaceConfig = {
   readonly repos?: readonly RepoConfig[];
   /** Reset configuration for repos between test runs */
   readonly reset?: ResetConfig;
+  /** Workspace materialization mode */
+  readonly mode?: 'pooled' | 'ephemeral' | 'static';
+  /** Required when mode=static: use this existing directory directly */
+  readonly static_path?: string;
+  /** Reset clean policy for pooled reuse cycles */
+  readonly reset_clean?: 'standard' | 'full';
+  /** Workspace retention policy for temporary eval-run workspaces */
+  readonly retention?: {
+    readonly on_success?: 'keep' | 'cleanup';
+    readonly on_failure?: 'keep' | 'cleanup';
+  };
   /** Enable workspace pooling (default: true for shared workspaces with repos) */
   readonly pool?: boolean;
   /** Clean strategy for pool reset: 'standard' (git clean -fd, default) or 'full' (git clean -fdx) */

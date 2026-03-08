@@ -127,6 +127,31 @@ export const evalRunCommand = command({
       long: 'workspace',
       description: 'Use an existing directory as the workspace directly (skips clone/copy/pool)',
     }),
+    workspaceMode: option({
+      type: optional(string),
+      long: 'workspace-mode',
+      description: "Workspace mode: 'pooled', 'ephemeral', or 'static'",
+    }),
+    workspacePath: option({
+      type: optional(string),
+      long: 'workspace-path',
+      description: 'Static workspace directory path (used when workspace mode is static)',
+    }),
+    workspaceClean: option({
+      type: optional(string),
+      long: 'workspace-clean',
+      description: "Pooled reset clean mode: 'standard' or 'full'",
+    }),
+    retainOnSuccess: option({
+      type: optional(string),
+      long: 'retain-on-success',
+      description: "Workspace retention on success: 'keep' or 'cleanup'",
+    }),
+    retainOnFailure: option({
+      type: optional(string),
+      long: 'retain-on-failure',
+      description: "Workspace retention on failure: 'keep' or 'cleanup'",
+    }),
     otelFile: option({
       type: optional(string),
       long: 'otel-file',
@@ -196,6 +221,11 @@ export const evalRunCommand = command({
       poolWorkspaces: args.poolWorkspaces,
       noPool: args.noPool,
       workspace: args.workspace,
+      workspaceMode: args.workspaceMode,
+      workspacePath: args.workspacePath,
+      workspaceClean: args.workspaceClean,
+      retainOnSuccess: args.retainOnSuccess,
+      retainOnFailure: args.retainOnFailure,
       trace: false,
       otelFile: args.otelFile,
       traceFile: args.traceFile,

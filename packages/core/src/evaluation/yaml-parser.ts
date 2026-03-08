@@ -667,6 +667,23 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     : undefined;
 
   const reset = parseResetConfig(obj.reset);
+  const mode =
+    obj.mode === 'pooled' || obj.mode === 'ephemeral' || obj.mode === 'static'
+      ? obj.mode
+      : undefined;
+  const staticPath = typeof obj.static_path === 'string' ? obj.static_path : undefined;
+  const resetClean =
+    obj.reset_clean === 'standard' || obj.reset_clean === 'full' ? obj.reset_clean : undefined;
+  const retention = isJsonObject(obj.retention)
+    ? {
+        ...(obj.retention.on_success === 'keep' || obj.retention.on_success === 'cleanup'
+          ? { on_success: obj.retention.on_success }
+          : {}),
+        ...(obj.retention.on_failure === 'keep' || obj.retention.on_failure === 'cleanup'
+          ? { on_failure: obj.retention.on_failure }
+          : {}),
+      }
+    : undefined;
 
   const pool = typeof obj.pool === 'boolean' ? obj.pool : undefined;
   const poolClean =
@@ -682,6 +699,10 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     !isolation &&
     !repos &&
     !reset &&
+    !mode &&
+    !staticPath &&
+    !resetClean &&
+    !retention &&
     pool === undefined &&
     poolClean === undefined &&
     !beforeAll &&
@@ -696,6 +717,13 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     ...(isolation !== undefined && { isolation }),
     ...(repos !== undefined && { repos }),
     ...(reset !== undefined && { reset }),
+    ...(mode !== undefined && { mode }),
+    ...(staticPath !== undefined && { static_path: staticPath }),
+    ...(resetClean !== undefined && { reset_clean: resetClean }),
+    ...(retention !== undefined &&
+      Object.keys(retention).length > 0 && {
+        retention: retention as NonNullable<WorkspaceConfig['retention']>,
+      }),
     ...(pool !== undefined && { pool }),
     ...(poolClean !== undefined && { pool_clean: poolClean }),
     ...(beforeAll !== undefined && { before_all: beforeAll }),
@@ -722,6 +750,13 @@ function mergeWorkspaceConfigs(
     isolation: caseLevel.isolation ?? suiteLevel.isolation,
     repos: caseLevel.repos ?? suiteLevel.repos,
     reset: caseLevel.reset ?? suiteLevel.reset,
+    mode: caseLevel.mode ?? suiteLevel.mode,
+    static_path: caseLevel.static_path ?? suiteLevel.static_path,
+    reset_clean: caseLevel.reset_clean ?? suiteLevel.reset_clean,
+    retention: {
+      on_success: caseLevel.retention?.on_success ?? suiteLevel.retention?.on_success,
+      on_failure: caseLevel.retention?.on_failure ?? suiteLevel.retention?.on_failure,
+    },
     pool: caseLevel.pool ?? suiteLevel.pool,
     pool_clean: caseLevel.pool_clean ?? suiteLevel.pool_clean,
     before_all: caseLevel.before_all ?? suiteLevel.before_all,
