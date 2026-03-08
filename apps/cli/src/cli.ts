@@ -6,6 +6,13 @@ runCli()
     process.exit(0);
   })
   .catch((error) => {
-    console.error(error);
+    if (error instanceof Error) {
+      console.error(`Error: ${error.message}`);
+      if (process.env.DEBUG) {
+        console.error(error.stack);
+      }
+    } else {
+      console.error(error);
+    }
     process.exit(1);
   });

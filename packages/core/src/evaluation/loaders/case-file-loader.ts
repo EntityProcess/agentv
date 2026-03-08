@@ -127,7 +127,8 @@ export async function resolveFileReference(
 
   if (isGlobPattern(rawPath)) {
     // Glob pattern: resolve matching files
-    const matches = await fg(absolutePattern, {
+    // fast-glob requires forward slashes, even on Windows
+    const matches = await fg(absolutePattern.replaceAll('\\', '/'), {
       onlyFiles: true,
       absolute: true,
     });

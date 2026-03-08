@@ -160,7 +160,7 @@ describe('CodexProvider (SDK)', () => {
 
     const threadOptions = codexInstance.startThread.mock.calls[0][0];
     expect(threadOptions.skipGitRepoCheck).toBe(true);
-    expect(threadOptions.workingDirectory).toBe('/tmp/test-workspace');
+    expect(threadOptions.workingDirectory).toBe(path.resolve('/tmp/test-workspace'));
   });
 
   it('handles timeout', async () => {
