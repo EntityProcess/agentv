@@ -219,26 +219,39 @@ export class LlmJudgeEvaluator implements Evaluator {
       target: judgeProvider.targetName,
     };
 
-    const { data, tokenUsage } = await this.runWithRetry({
-      context,
-      judgeProvider,
-      systemPrompt,
-      userPrompt: prompt,
-      schema: rubricEvaluationSchema,
-    });
+    try {
+      const { data, tokenUsage } = await this.runWithRetry({
+        context,
+        judgeProvider,
+        systemPrompt,
+        userPrompt: prompt,
+        schema: rubricEvaluationSchema,
+      });
 
-    const { score, verdict, hits, misses } = calculateRubricScore(data, rubrics);
+      const { score, verdict, hits, misses } = calculateRubricScore(data, rubrics);
 
-    return {
-      score,
-      verdict,
-      hits,
-      misses,
-      expectedAspectCount: rubrics.length,
-      reasoning: data.overall_reasoning,
-      evaluatorRawRequest,
-      tokenUsage,
-    };
+      return {
+        score,
+        verdict,
+        hits,
+        misses,
+        expectedAspectCount: rubrics.length,
+        reasoning: data.overall_reasoning,
+        evaluatorRawRequest,
+        tokenUsage,
+      };
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      return {
+        score: 0,
+        verdict: 'skip' as const,
+        hits: [],
+        misses: [`Judge parse failure after 3 attempts: ${message}`],
+        expectedAspectCount: rubrics.length,
+        reasoning: `Judge parse failure after 3 attempts: ${message}`,
+        evaluatorRawRequest,
+      };
+    }
   }
 
   /**
@@ -259,27 +272,40 @@ export class LlmJudgeEvaluator implements Evaluator {
       target: judgeProvider.targetName,
     };
 
-    const { data, tokenUsage } = await this.runWithRetry({
-      context,
-      judgeProvider,
-      systemPrompt,
-      userPrompt: prompt,
-      schema: scoreRangeEvaluationSchema,
-    });
+    try {
+      const { data, tokenUsage } = await this.runWithRetry({
+        context,
+        judgeProvider,
+        systemPrompt,
+        userPrompt: prompt,
+        schema: scoreRangeEvaluationSchema,
+      });
 
-    const { score, verdict, hits, misses, details } = calculateScoreRangeResult(data, rubrics);
+      const { score, verdict, hits, misses, details } = calculateScoreRangeResult(data, rubrics);
 
-    return {
-      score,
-      verdict,
-      hits,
-      misses,
-      expectedAspectCount: rubrics.length,
-      reasoning: data.overall_reasoning,
-      evaluatorRawRequest,
-      details,
-      tokenUsage,
-    };
+      return {
+        score,
+        verdict,
+        hits,
+        misses,
+        expectedAspectCount: rubrics.length,
+        reasoning: data.overall_reasoning,
+        evaluatorRawRequest,
+        details,
+        tokenUsage,
+      };
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      return {
+        score: 0,
+        verdict: 'skip' as const,
+        hits: [],
+        misses: [`Judge parse failure after 3 attempts: ${message}`],
+        expectedAspectCount: rubrics.length,
+        reasoning: `Judge parse failure after 3 attempts: ${message}`,
+        evaluatorRawRequest,
+      };
+    }
   }
 
   /**
