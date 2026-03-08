@@ -131,10 +131,19 @@ Use `agent-browser` for visual verification of docs site changes. Environment-sp
 
 Unit tests alone are insufficient for evaluator changes. After implementing or modifying evaluators:
 
+0. **Preflight (MUST pass before any eval/e2e run):** if you are in a git worktree, ensure a `.env` file exists in the current worktree root.
+   - Linux/macOS check: `test -f .env`
+   - Windows PowerShell check: `Test-Path .env`
+   - If missing, copy it from the main repo before running evals.
+
 1. **Copy `.env` to the worktree** if running in a git worktree (e2e tests need environment variables):
    ```bash
    cp /path/to/main/.env .env
    ```
+   ```powershell
+   Copy-Item D:/path/to/main/.env .env
+   ```
+   Do not claim e2e or evaluator verification results unless this preflight has passed.
 
 2. **Run an actual eval** with a real example file:
    ```bash
