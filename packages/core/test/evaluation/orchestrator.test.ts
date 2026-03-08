@@ -2502,6 +2502,47 @@ describe('--workspace flag', () => {
     expect(stats.isDirectory()).toBe(true);
   });
 
+  it('does not delete user workspace when before_all fails', async () => {
+    const { mkdtemp, writeFile, mkdir } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
+    const scriptsDir = path.join(testDir, 'scripts');
+    await mkdir(scriptsDir, { recursive: true });
+
+    const failingScript = path.join(scriptsDir, 'fail.js');
+    await writeFile(failingScript, 'console.error("setup boom"); process.exit(1);');
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        before_all: {
+          command: ['node', failingScript],
+          timeout_ms: 5000,
+        },
+      },
+    };
+
+    await expect(
+      runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: baseTarget,
+        providerFactory: () => provider,
+        evaluators: evaluatorRegistry,
+        evalCases: [evalCase],
+        workspace: testDir,
+      }),
+    ).rejects.toThrow('before_all script failed');
+
+    // User workspace must still exist despite the failure
+    const { stat: fsStat } = await import('node:fs/promises');
+    const stats = await fsStat(testDir);
+    expect(stats.isDirectory()).toBe(true);
+  });
+
   it('executes lifecycle hooks with user-provided workspace', async () => {
     const { mkdtemp, writeFile, mkdir } = await import('node:fs/promises');
     testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));

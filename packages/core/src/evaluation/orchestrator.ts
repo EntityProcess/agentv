@@ -416,7 +416,11 @@ export async function runEvaluation(
 
   // Pool support: reuse materialized workspaces across eval runs (CLI-only, not YAML)
   // --workspace takes highest precedence: skip pool when user provides a workspace
-  const usePool = poolWorkspaces === true && !!suiteWorkspace?.repos?.length && !isPerTestIsolation && !userWorkspacePath;
+  const usePool =
+    poolWorkspaces === true &&
+    !!suiteWorkspace?.repos?.length &&
+    !isPerTestIsolation &&
+    !userWorkspacePath;
 
   const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
   // Pool-enabled workspaces support concurrent workers (each worker gets its own slot).
@@ -509,7 +513,13 @@ export async function runEvaluation(
     // Materialize repos into shared workspace (skip for per_test, pool, and user-provided workspace)
     const repoManager =
       suiteWorkspace?.repos?.length && !usePool ? new RepoManager(undefined, verbose) : undefined;
-    if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation && !userWorkspacePath) {
+    if (
+      repoManager &&
+      sharedWorkspacePath &&
+      suiteWorkspace?.repos &&
+      !isPerTestIsolation &&
+      !userWorkspacePath
+    ) {
       setupLog(
         `materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`,
       );
