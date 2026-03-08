@@ -5,7 +5,8 @@
  * Uses workspace_path to run commands in the agent's workspace:
  * 1. Install dependencies (npm install)
  * 2. Typecheck (npx tsc --noEmit)
- * 3. Run tests (npm test)
+ * 3. Compile (npx tsc)
+ * 4. Run functional checks against dist output (node --input-type=module -e ...)
  *
  * Each stage contributes to the overall score.
  */
@@ -54,9 +55,24 @@ runStage('typecheck', 'npx', ['tsc', '--noEmit']);
 // Stage 3: Compile
 const compiled = runStage('compile', 'npx', ['tsc']);
 
-// Stage 4: Run tests (only if compile succeeded)
+// Stage 4: Run functional checks (only if compile succeeded)
 if (compiled) {
-  runStage('tests', 'node', ['test/index.test.js']);
+  runStage('tests', 'node', [
+    '--input-type=module',
+    '-e',
+    `import assert from 'node:assert/strict';
+import { add, multiply, fibonacci } from './dist/index.js';
+assert.strictEqual(add(2, 3), 5);
+assert.strictEqual(add(-1, -2), -3);
+assert.strictEqual(add(0, 5), 5);
+assert.strictEqual(multiply(3, 4), 12);
+assert.strictEqual(multiply(5, 0), 0);
+assert.strictEqual(multiply(-2, 3), -6);
+assert.strictEqual(fibonacci(0), 0);
+assert.strictEqual(fibonacci(1), 1);
+assert.strictEqual(fibonacci(6), 8);
+assert.strictEqual(fibonacci(10), 55);`,
+  ]);
 }
 
 const total = hits.length + misses.length;
