@@ -182,6 +182,8 @@ export interface RunEvaluationOptions {
   readonly failOnError?: FailOnError;
   /** Opt-in: reuse materialized workspaces across eval runs */
   readonly poolWorkspaces?: boolean;
+  /** Maximum number of pool slots on disk (default: 10, max: 50) */
+  readonly poolMaxSlots?: number;
 }
 
 export async function runEvaluation(
@@ -211,6 +213,7 @@ export async function runEvaluation(
     totalBudgetUsd,
     failOnError,
     poolWorkspaces,
+    poolMaxSlots: configPoolMaxSlots,
   } = options;
 
   // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
@@ -429,7 +432,7 @@ export async function runEvaluation(
 
   // Pool capacity: how many slots can exist on disk (independent of worker count).
   // Workers acquire slots from the pool; the pool itself can be larger than any single run needs.
-  const poolMaxSlots = 10;
+  const poolMaxSlots = Math.min(configPoolMaxSlots ?? 10, 50);
 
   if (usePool && suiteWorkspace?.repos) {
     const slotsNeeded = workers;
