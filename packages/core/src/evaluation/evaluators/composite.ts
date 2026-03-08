@@ -91,6 +91,7 @@ export class CompositeEvaluator implements Evaluator {
   ): EvaluationScore {
     let totalWeight = 0;
     let weightedSum = 0;
+    let evaluatedCount = 0;
     const allHits: string[] = [];
     const allMisses: string[] = [];
     const reasoningParts: string[] = [];
@@ -120,6 +121,7 @@ export class CompositeEvaluator implements Evaluator {
         continue;
       }
 
+      evaluatedCount++;
       totalWeight += weight;
       weightedSum += member.result.score * weight;
       allHits.push(...member.result.hits.map((h) => `[${member.id}] ${h}`));
@@ -130,7 +132,7 @@ export class CompositeEvaluator implements Evaluator {
     }
 
     // If all members skipped, propagate skip verdict
-    if (totalWeight === 0 && results.length > 0) {
+    if (evaluatedCount === 0 && results.length > 0) {
       return {
         score: 0,
         verdict: 'skip' as const,
