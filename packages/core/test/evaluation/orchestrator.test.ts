@@ -2469,7 +2469,7 @@ describe('--workspace flag', () => {
         evalCases: [evalCase],
         workspace: testDir,
       }),
-    ).rejects.toThrow('--workspace is incompatible with isolation: per_test');
+    ).rejects.toThrow('static workspace mode is incompatible with isolation: per_test');
   });
 
   it('never deletes user-provided workspace after run', async () => {
