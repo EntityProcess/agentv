@@ -42,6 +42,7 @@ export default defineConfig({
         { label: 'Evaluators', autogenerate: { directory: 'evaluators' } },
         { label: 'Targets', autogenerate: { directory: 'targets' } },
         { label: 'Tools', autogenerate: { directory: 'tools' } },
+        { label: 'Guides', autogenerate: { directory: 'guides' } },
       ],
       editLink: {
         baseUrl: 'https://github.com/EntityProcess/agentv/edit/main/apps/web/',
