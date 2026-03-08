@@ -60,7 +60,10 @@ import {
   createTempWorkspace,
   getWorkspacePath,
 } from './workspace/manager.js';
+import { WorkspacePoolManager } from './workspace/pool-manager.js';
+import type { PoolSlot } from './workspace/pool-manager.js';
 import { RepoManager } from './workspace/repo-manager.js';
+import { getWorkspacePoolRoot } from '../paths.js';
 import { resolveWorkspaceTemplate } from './workspace/resolve.js';
 import {
   type ScriptExecutionContext,
@@ -177,6 +180,8 @@ export interface RunEvaluationOptions {
   readonly totalBudgetUsd?: number;
   /** Execution error tolerance: true halts on first error */
   readonly failOnError?: FailOnError;
+  /** Opt-in: reuse materialized workspaces across eval runs */
+  readonly poolWorkspaces?: boolean;
 }
 
 export async function runEvaluation(
@@ -205,6 +210,7 @@ export async function runEvaluation(
     streamCallbacks,
     totalBudgetUsd,
     failOnError,
+    poolWorkspaces,
   } = options;
 
   // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
@@ -408,7 +414,38 @@ export async function runEvaluation(
   let sharedBaselineCommit: string | undefined;
   let beforeAllOutput: string | undefined;
 
-  if (workspaceTemplate) {
+  // Pool support: reuse materialized workspaces across eval runs
+  const usePool = (suiteWorkspace?.pool === true || poolWorkspaces === true)
+    && !!suiteWorkspace?.repos?.length
+    && !isPerTestIsolation;
+
+  let poolManager: WorkspacePoolManager | undefined;
+  let poolSlot: PoolSlot | undefined;
+
+  if (usePool && suiteWorkspace?.repos) {
+    setupLog('acquiring workspace from pool');
+    poolManager = new WorkspacePoolManager(getWorkspacePoolRoot());
+    poolSlot = await poolManager.acquireWorkspace({
+      templatePath: workspaceTemplate,
+      repos: suiteWorkspace.repos,
+      maxSlots: suiteWorkspace.pool_max_slots ?? 3,
+      repoManager: new RepoManager(undefined, verbose),
+    });
+    sharedWorkspacePath = poolSlot.path;
+    setupLog(`pool workspace acquired at: ${sharedWorkspacePath} (existing=${poolSlot.isExisting})`);
+
+    // Re-resolve workspaceFile from the pool workspace so relative paths in
+    // .code-workspace resolve against where repos are cloned, not the original template.
+    if (suiteWorkspaceFile && sharedWorkspacePath) {
+      const copiedWorkspaceFile = path.join(sharedWorkspacePath, path.basename(suiteWorkspaceFile));
+      try {
+        await stat(copiedWorkspaceFile);
+        suiteWorkspaceFile = copiedWorkspaceFile;
+      } catch {
+        // Keep original if copy doesn't exist
+      }
+    }
+  } else if (workspaceTemplate) {
     setupLog(`creating shared workspace from template: ${workspaceTemplate}`);
     try {
       sharedWorkspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, 'shared');
@@ -436,8 +473,8 @@ export async function runEvaluation(
     setupLog(`created empty shared workspace at: ${sharedWorkspacePath}`);
   }
 
-  // Materialize repos into shared workspace (skip for per_test — repos are materialized per case)
-  const repoManager = suiteWorkspace?.repos?.length ? new RepoManager(undefined, verbose) : undefined;
+  // Materialize repos into shared workspace (skip for per_test and pool — pool handles its own materialization)
+  const repoManager = suiteWorkspace?.repos?.length && !usePool ? new RepoManager(undefined, verbose) : undefined;
   if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation) {
     setupLog(`materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`);
     try {
@@ -732,8 +769,13 @@ export async function runEvaluation(
     }
   }
 
-  // Cleanup shared workspace
-  if (sharedWorkspacePath) {
+  // Release workspace pool slot (keep workspace for future reuse)
+  if (poolSlot && poolManager) {
+    await poolManager.releaseSlot(poolSlot);
+  }
+
+  // Cleanup shared workspace (skip for pooled workspaces — they persist for reuse)
+  if (sharedWorkspacePath && !poolSlot) {
     const hasFailure = results.some((r) => !!r.error || r.score < 0.5);
     if (cleanupWorkspaces) {
       await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
