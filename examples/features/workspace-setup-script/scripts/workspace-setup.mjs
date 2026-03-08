@@ -42,6 +42,12 @@ const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const result = spawnSync(
   npx,
   ['--yes', 'allagents', 'workspace', 'init', workspace_path, '--from', templatePath],
-  { stdio: 'inherit' },
+  {
+    // This script reads AgentV stdin first, so don't pass fd 0 through.
+    // On Windows, inheriting stdin into `npx.cmd` can raise EINVAL.
+    // shell=true ensures `.cmd` is launched reliably.
+    stdio: ['ignore', 'inherit', 'inherit'],
+    shell: process.platform === 'win32',
+  },
 );
 process.exit(result.status ?? 1);

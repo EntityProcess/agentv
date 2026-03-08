@@ -80,9 +80,41 @@ async function releaseLock(lockPath: string): Promise<void> {
 
 export class RepoManager {
   private readonly cacheDir: string;
+  private readonly verbose: boolean;
 
-  constructor(cacheDir?: string) {
+  constructor(cacheDir?: string, verbose = false) {
     this.cacheDir = cacheDir ?? getGitCacheRoot();
+    this.verbose = verbose;
+  }
+
+  private async runGit(
+    args: string[],
+    opts?: { cwd?: string; timeout?: number },
+  ): Promise<string> {
+    const startedAt = Date.now();
+    if (this.verbose) {
+      console.log(
+        `[repo] git start cwd=${opts?.cwd ?? process.cwd()} args=${args.join(' ')}`,
+      );
+    }
+
+    try {
+      const output = await git(args, opts);
+      if (this.verbose) {
+        console.log(
+          `[repo] git ok durationMs=${Date.now() - startedAt} args=${args.join(' ')}`,
+        );
+      }
+      return output;
+    } catch (error) {
+      if (this.verbose) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.log(
+          `[repo] git fail durationMs=${Date.now() - startedAt} args=${args.join(' ')} error=${message}`,
+        );
+      }
+      throw error;
+    }
   }
 
   /**
@@ -100,9 +132,18 @@ export class RepoManager {
     const lockPath = `${cachePath}.lock`;
     const cacheExists = existsSync(path.join(cachePath, 'HEAD'));
 
+    if (this.verbose) {
+      console.log(
+        `[repo] ensureCache source=${getSourceUrl(source)} resolve=${resolve ?? 'remote'} cache=${cachePath}`,
+      );
+    }
+
     // Local resolve: use existing cache as-is, no remote operations
     if (resolve === 'local') {
       if (cacheExists) {
+        if (this.verbose) {
+          console.log(`[repo] using existing local cache ${cachePath}`);
+        }
         return cachePath;
       }
       const url = getSourceUrl(source);
@@ -112,17 +153,29 @@ export class RepoManager {
     }
 
     await mkdir(this.cacheDir, { recursive: true });
+    const lockStartedAt = Date.now();
     await acquireLock(lockPath);
+    if (this.verbose) {
+      console.log(
+        `[repo] lock acquired path=${lockPath} waitedMs=${Date.now() - lockStartedAt}`,
+      );
+    }
 
     try {
       if (cacheExists) {
+        if (this.verbose) {
+          console.log(`[repo] refreshing existing cache ${cachePath}`);
+        }
         // Cache exists — fetch updates
         const fetchArgs = ['fetch', '--prune'];
         if (depth) {
           fetchArgs.push('--depth', String(depth));
         }
-        await git(fetchArgs, { cwd: cachePath });
+        await this.runGit(fetchArgs, { cwd: cachePath });
       } else {
+        if (this.verbose) {
+          console.log(`[repo] creating new cache ${cachePath}`);
+        }
         // Clone as bare mirror
         const cloneArgs = ['clone', '--mirror', '--bare'];
         if (depth) {
@@ -132,10 +185,13 @@ export class RepoManager {
         const sourceUrl = getSourceUrl(source);
         const cloneUrl = depth && source.type === 'local' ? `file://${sourceUrl}` : sourceUrl;
         cloneArgs.push(cloneUrl, cachePath);
-        await git(cloneArgs);
+        await this.runGit(cloneArgs);
       }
     } finally {
       await releaseLock(lockPath);
+      if (this.verbose) {
+        console.log(`[repo] lock released path=${lockPath}`);
+      }
     }
 
     return cachePath;
@@ -147,6 +203,12 @@ export class RepoManager {
    */
   async materialize(repo: RepoConfig, workspacePath: string): Promise<void> {
     const targetDir = path.join(workspacePath, repo.path);
+    const startedAt = Date.now();
+    if (this.verbose) {
+      console.log(
+        `[repo] materialize start path=${repo.path} source=${getSourceUrl(repo.source)} workspace=${workspacePath}`,
+      );
+    }
     const cachePath = await this.ensureCache(
       repo.source,
       repo.clone?.depth,
@@ -169,12 +231,12 @@ export class RepoManager {
     const cloneUrl = repo.clone?.depth || repo.clone?.filter ? `file://${cachePath}` : cachePath;
     cloneArgs.push(cloneUrl, targetDir);
 
-    await git(cloneArgs);
+    await this.runGit(cloneArgs);
 
     // Sparse checkout setup (before actual checkout)
     if (repo.clone?.sparse?.length) {
-      await git(['sparse-checkout', 'init', '--cone'], { cwd: targetDir });
-      await git(['sparse-checkout', 'set', ...repo.clone.sparse], { cwd: targetDir });
+      await this.runGit(['sparse-checkout', 'init', '--cone'], { cwd: targetDir });
+      await this.runGit(['sparse-checkout', 'set', ...repo.clone.sparse], { cwd: targetDir });
     }
 
     // Resolve ref
@@ -186,7 +248,7 @@ export class RepoManager {
       // Resolve via ls-remote for remote refs
       const url = getSourceUrl(repo.source);
       try {
-        const lsOutput = await git(['ls-remote', url, ref]);
+      const lsOutput = await this.runGit(['ls-remote', url, ref]);
         const match = lsOutput.split('\t')[0];
         if (!match) {
           throw new Error(`Ref '${ref}' not found on remote ${url}`);
@@ -203,20 +265,29 @@ export class RepoManager {
     }
 
     // Checkout
-    await git(['checkout', resolvedSha], { cwd: targetDir });
+    if (this.verbose) {
+      console.log(
+        `[repo] checkout path=${repo.path} ref=${ref} resolved=${resolvedSha} resolve=${resolve}`,
+      );
+    }
+    await this.runGit(['checkout', resolvedSha], { cwd: targetDir });
 
     // Walk ancestors if requested
     const ancestor = repo.checkout?.ancestor ?? 0;
     if (ancestor > 0) {
       try {
-        const ancestorSha = await git(['rev-parse', `HEAD~${ancestor}`], { cwd: targetDir });
-        await git(['checkout', ancestorSha], { cwd: targetDir });
+        const ancestorSha = await this.runGit(['rev-parse', `HEAD~${ancestor}`], {
+          cwd: targetDir,
+        });
+        await this.runGit(['checkout', ancestorSha], { cwd: targetDir });
       } catch {
         // Try to deepen if shallow
         if (repo.clone?.depth) {
-          await git(['fetch', '--deepen', String(ancestor)], { cwd: targetDir });
-          const ancestorSha = await git(['rev-parse', `HEAD~${ancestor}`], { cwd: targetDir });
-          await git(['checkout', ancestorSha], { cwd: targetDir });
+          await this.runGit(['fetch', '--deepen', String(ancestor)], { cwd: targetDir });
+          const ancestorSha = await this.runGit(['rev-parse', `HEAD~${ancestor}`], {
+            cwd: targetDir,
+          });
+          await this.runGit(['checkout', ancestorSha], { cwd: targetDir });
         } else {
           throw new Error(
             `Cannot resolve ancestor ${ancestor} of ref '${ref}'. ` +
@@ -225,12 +296,24 @@ export class RepoManager {
         }
       }
     }
+
+    if (this.verbose) {
+      console.log(
+        `[repo] materialize done path=${repo.path} target=${targetDir} durationMs=${Date.now() - startedAt}`,
+      );
+    }
   }
 
   /** Materialize all repos into the workspace. */
   async materializeAll(repos: readonly RepoConfig[], workspacePath: string): Promise<void> {
+    if (this.verbose) {
+      console.log(`[repo] materializeAll count=${repos.length} workspace=${workspacePath}`);
+    }
     for (const repo of repos) {
       await this.materialize(repo, workspacePath);
+    }
+    if (this.verbose) {
+      console.log('[repo] materializeAll complete');
     }
   }
 
@@ -253,8 +336,8 @@ export class RepoManager {
     // strategy === 'hard'
     for (const repo of repos) {
       const targetDir = path.join(workspacePath, repo.path);
-      await git(['reset', '--hard', 'HEAD'], { cwd: targetDir });
-      await git(['clean', '-fd'], { cwd: targetDir });
+      await this.runGit(['reset', '--hard', 'HEAD'], { cwd: targetDir });
+      await this.runGit(['clean', '-fd'], { cwd: targetDir });
     }
   }
 
