@@ -611,9 +611,7 @@ async function resolveWorkspaceConfig(
     try {
       content = await readFile(workspaceFilePath, 'utf8');
     } catch {
-      throw new Error(
-        `Workspace file not found: ${raw} (resolved to ${workspaceFilePath})`,
-      );
+      throw new Error(`Workspace file not found: ${raw} (resolved to ${workspaceFilePath})`);
     }
     const parsed = parse(content) as unknown;
     if (!isJsonObject(parsed)) {
