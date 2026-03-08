@@ -13,6 +13,7 @@ import { selfCommand } from './commands/self/index.js';
 import { traceCommand } from './commands/trace/index.js';
 import { trimCommand } from './commands/trim/index.js';
 import { validateCommand } from './commands/validate/index.js';
+import { workspaceCommand } from './commands/workspace/index.js';
 import { getUpdateNotice } from './update-check.js';
 
 export const app = subcommands({
@@ -32,6 +33,7 @@ export const app = subcommands({
     trace: traceCommand,
     trim: trimCommand,
     validate: validateCommand,
+    workspace: workspaceCommand,
   },
 });
 

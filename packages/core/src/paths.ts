@@ -31,6 +31,10 @@ export function getTraceStateRoot(): string {
   return path.join(getAgentvHome(), 'trace-state');
 }
 
+export function getWorkspacePoolRoot(): string {
+  return path.join(getAgentvHome(), 'workspace-pool');
+}
+
 /** @internal Reset logged flag for testing. */
 export function _resetLoggedForTesting(): void {
   logged = false;

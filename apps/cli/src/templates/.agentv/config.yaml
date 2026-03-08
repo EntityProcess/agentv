@@ -8,6 +8,11 @@ guideline_patterns:
   - "**/*.prompt.md"
   - "**/SKILL.md"
   
+# Execution defaults (overridden by CLI flags)
+# execution:
+#   pool_workspaces: true    # Reuse materialized workspaces across eval runs
+#   pool_slots: 10           # Max pool slots on disk (1-50, default: 10)
+
 # Notes:
 # - Patterns use standard glob syntax (via micromatch library)
 # - Paths are normalized to forward slashes for cross-platform compatibility

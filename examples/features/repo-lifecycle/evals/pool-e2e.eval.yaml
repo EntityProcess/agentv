@@ -1,0 +1,34 @@
+description: >-
+  E2E test for workspace pool. No pool config in YAML — pool is
+  enabled via --pool-workspaces CLI flag only.
+
+workspace:
+  repos:
+    - path: ./repo
+      source:
+        type: git
+        url: https://github.com/EntityProcess/agentv.git
+      checkout:
+        ref: main
+        resolve: local
+      clone:
+        depth: 1
+
+execution:
+  target: copilot
+  workers: 2
+
+tests:
+  - id: test-1-core-name
+    criteria: Report the core package name
+    input: Read repo/packages/core/package.json and tell me the package name.
+    assert:
+      - type: contains
+        value: "@agentv/core"
+
+  - id: test-2-cli-name
+    criteria: Report the CLI package name
+    input: Read repo/apps/cli/package.json and tell me the package name.
+    assert:
+      - type: contains
+        value: "agentv"

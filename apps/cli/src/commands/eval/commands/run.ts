@@ -114,6 +114,10 @@ export const evalRunCommand = command({
       long: 'cleanup-workspaces',
       description: 'Always cleanup temporary workspaces, even on failure',
     }),
+    poolWorkspaces: flag({
+      long: 'pool-workspaces',
+      description: 'Reuse materialized workspaces across eval runs',
+    }),
     otelFile: option({
       type: optional(string),
       long: 'otel-file',
@@ -180,6 +184,7 @@ export const evalRunCommand = command({
       verbose: args.verbose,
       keepWorkspaces: args.keepWorkspaces,
       cleanupWorkspaces: args.cleanupWorkspaces,
+      poolWorkspaces: args.poolWorkspaces,
       trace: false,
       otelFile: args.otelFile,
       traceFile: args.traceFile,

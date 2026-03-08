@@ -20,6 +20,8 @@ export type ExecutionDefaults = {
   readonly trace_file?: string;
   readonly keep_workspaces?: boolean;
   readonly otel_file?: string;
+  readonly pool_workspaces?: boolean;
+  readonly pool_slots?: number;
 };
 
 export type AgentVConfig = {
@@ -372,6 +374,24 @@ export function parseExecutionDefaults(
     result.otel_file = otelFile.trim();
   } else if (otelFile !== undefined) {
     logWarning(`Invalid execution.otel_file in ${configPath}, expected non-empty string`);
+  }
+
+  if (typeof obj.pool_workspaces === 'boolean') {
+    result.pool_workspaces = obj.pool_workspaces;
+  } else if (obj.pool_workspaces !== undefined) {
+    logWarning(`Invalid execution.pool_workspaces in ${configPath}, expected boolean`);
+  }
+
+  const poolSlots = obj.pool_slots;
+  if (
+    typeof poolSlots === 'number' &&
+    Number.isInteger(poolSlots) &&
+    poolSlots >= 1 &&
+    poolSlots <= 50
+  ) {
+    result.pool_slots = poolSlots;
+  } else if (poolSlots !== undefined) {
+    logWarning(`Invalid execution.pool_slots in ${configPath}, expected integer 1-50`);
   }
 
   return Object.keys(result).length > 0 ? (result as ExecutionDefaults) : undefined;
