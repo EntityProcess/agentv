@@ -621,6 +621,12 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   const beforeEach = parseWorkspaceScriptConfig(obj.before_each, evalFileDir);
   const afterEach = parseWorkspaceScriptConfig(obj.after_each, evalFileDir);
 
+  const pool = obj.pool === true ? true : undefined;
+  const poolMaxSlots =
+    typeof obj.pool_max_slots === 'number' && Number.isFinite(obj.pool_max_slots)
+      ? obj.pool_max_slots
+      : undefined;
+
   if (
     !template &&
     !isolation &&
@@ -629,7 +635,9 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     !beforeAll &&
     !afterAll &&
     !beforeEach &&
-    !afterEach
+    !afterEach &&
+    !pool &&
+    poolMaxSlots === undefined
   )
     return undefined;
 
@@ -642,6 +650,8 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     ...(afterAll !== undefined && { after_all: afterAll }),
     ...(beforeEach !== undefined && { before_each: beforeEach }),
     ...(afterEach !== undefined && { after_each: afterEach }),
+    ...(pool !== undefined && { pool }),
+    ...(poolMaxSlots !== undefined && { pool_max_slots: poolMaxSlots }),
   };
 }
 
@@ -666,6 +676,8 @@ function mergeWorkspaceConfigs(
     after_all: caseLevel.after_all ?? suiteLevel.after_all,
     before_each: caseLevel.before_each ?? suiteLevel.before_each,
     after_each: caseLevel.after_each ?? suiteLevel.after_each,
+    pool: caseLevel.pool ?? suiteLevel.pool,
+    pool_max_slots: caseLevel.pool_max_slots ?? suiteLevel.pool_max_slots,
   };
 }
 
