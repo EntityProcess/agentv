@@ -399,33 +399,19 @@ export async function runEvaluation(
     (suiteWorkspace?.repos?.length && !isPerTestIsolation)
   );
 
-  // Pool support: reuse materialized workspaces across eval runs
-  const usePool =
-    (suiteWorkspace?.pool === true || poolWorkspaces === true) &&
-    !!suiteWorkspace?.repos?.length &&
-    !isPerTestIsolation;
+  // Pool support: reuse materialized workspaces across eval runs (CLI-only, not YAML)
+  const usePool = poolWorkspaces === true && !!suiteWorkspace?.repos?.length && !isPerTestIsolation;
 
   const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
   // Pool-enabled workspaces support concurrent workers (each worker gets its own slot).
   // Non-pool shared workspaces must be sequential to prevent data corruption.
-  // Pool concurrency is capped at pool_max_slots to prevent slot exhaustion.
-  const poolMaxSlots = suiteWorkspace?.pool_max_slots ?? 3;
-  const workers = usePool
-    ? Math.min(requestedWorkers, poolMaxSlots)
-    : hasSharedWorkspace
-      ? 1
-      : requestedWorkers;
+  const workers = hasSharedWorkspace && !usePool ? 1 : requestedWorkers;
   setupLog(
     `sharedWorkspace=${hasSharedWorkspace} perTestIsolation=${isPerTestIsolation} usePool=${usePool} requestedWorkers=${requestedWorkers} effectiveWorkers=${workers}`,
   );
   if (hasSharedWorkspace && !usePool && requestedWorkers > 1) {
     console.warn(
       `Warning: Shared workspace requires sequential execution. Overriding workers from ${requestedWorkers} to 1.`,
-    );
-  }
-  if (usePool && requestedWorkers > poolMaxSlots) {
-    console.warn(
-      `Warning: Pool concurrency limited to ${poolMaxSlots} slot(s) (pool_max_slots=${poolMaxSlots}). Requested workers: ${requestedWorkers}.`,
     );
   }
   const limit = pLimit(workers);
@@ -442,7 +428,7 @@ export async function runEvaluation(
   const poolSlotBaselines = new Map<string, string>();
 
   if (usePool && suiteWorkspace?.repos) {
-    const slotCount = workers; // already capped at poolMaxSlots
+    const slotCount = workers;
     setupLog(`acquiring ${slotCount} workspace pool slot(s)`);
     poolManager = new WorkspacePoolManager(getWorkspacePoolRoot());
     const poolRepoManager = new RepoManager(undefined, verbose);
@@ -451,7 +437,7 @@ export async function runEvaluation(
       const slot = await poolManager.acquireWorkspace({
         templatePath: workspaceTemplate,
         repos: suiteWorkspace.repos,
-        maxSlots: poolMaxSlots,
+        maxSlots: slotCount,
         repoManager: poolRepoManager,
       });
       poolSlots.push(slot);
