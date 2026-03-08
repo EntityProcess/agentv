@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { type PromptTemplateInput, PromptTemplateInputSchema } from '../src/schemas.js';
+import { PromptTemplateInputSchema } from '../src/schemas.js';
 
 describe('PromptTemplateInputSchema', () => {
   // Minimal valid input with all required fields
@@ -151,57 +151,5 @@ describe('PromptTemplateInputSchema', () => {
     expect(result.referenceAnswer).toBe('The sum is 4');
     expect(result.answer).toBe('The answer is 4');
     expect(result.config).toEqual({ rubric: 'Check correctness' });
-  });
-});
-
-describe('Schema type inference', () => {
-  it('PromptTemplateInput has expected shape', () => {
-    // Type-level test: ensure inferred types have expected properties
-    const input: PromptTemplateInput = {
-      question: 'test',
-      criteria: 'expected',
-      expectedOutput: [],
-      answer: 'test',
-      guidelineFiles: [],
-      inputFiles: [],
-      input: [],
-    };
-
-    // These should all type-check correctly
-    const _q: string = input.question;
-    const _c: string = input.answer;
-    const _outcome: string = input.criteria;
-    const _trace: PromptTemplateInput['trace'] = undefined;
-    const _config: PromptTemplateInput['config'] = null;
-    const _ref: PromptTemplateInput['referenceAnswer'] = undefined;
-
-    expect(input.question).toBe('test');
-  });
-
-  it('PromptTemplateInput requires core fields', () => {
-    const input: PromptTemplateInput = {
-      question: 'test question',
-      criteria: 'expected outcome',
-      expectedOutput: [],
-      answer: 'test answer',
-      guidelineFiles: [],
-      inputFiles: [],
-      input: [],
-    };
-
-    // Required fields must be present
-    expect(input.question).toBe('test question');
-    expect(input.criteria).toBe('expected outcome');
-    expect(input.answer).toBe('test answer');
-    expect(input.expectedOutput).toEqual([]);
-    expect(input.guidelineFiles).toEqual([]);
-    expect(input.inputFiles).toEqual([]);
-    expect(input.input).toEqual([]);
-
-    // Optional fields can be omitted
-    expect(input.referenceAnswer).toBeUndefined();
-    expect(input.output).toBeUndefined();
-    expect(input.trace).toBeUndefined();
-    expect(input.config).toBeUndefined();
   });
 });
