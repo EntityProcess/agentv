@@ -16,6 +16,7 @@ type ProcessMessagesOptions = {
   readonly repoRootPath: string;
   readonly guidelinePatterns?: readonly string[];
   readonly guidelinePaths?: string[];
+  readonly treatFileSegmentsAsGuidelines?: boolean;
   readonly textParts?: string[];
   readonly messageType: 'input' | 'output';
   readonly verbose: boolean;
@@ -31,6 +32,7 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
     repoRootPath,
     guidelinePatterns,
     guidelinePaths,
+    treatFileSegmentsAsGuidelines,
     textParts,
     messageType,
     verbose,
@@ -93,18 +95,20 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
         try {
           const fileContent = (await readFile(resolvedPath, 'utf8')).replace(/\r\n/g, '\n');
 
-          // Only check for guidelines in input messages
-          if (messageType === 'input' && guidelinePatterns && guidelinePaths) {
-            const relativeToRepo = path.relative(repoRootPath, resolvedPath);
-
-            if (isGuidelineFile(relativeToRepo, guidelinePatterns)) {
-              guidelinePaths.push(path.resolve(resolvedPath));
-              if (verbose) {
-                console.log(`  [Guideline] Found: ${displayPath}`);
-                console.log(`    Resolved to: ${resolvedPath}`);
-              }
-              continue;
+          const classifyAsGuideline = shouldTreatAsGuideline({
+            messageType,
+            resolvedPath,
+            repoRootPath,
+            guidelinePatterns,
+            treatFileSegmentsAsGuidelines,
+          });
+          if (classifyAsGuideline && guidelinePaths) {
+            guidelinePaths.push(path.resolve(resolvedPath));
+            if (verbose) {
+              console.log(`  [Guideline] Found: ${displayPath}`);
+              console.log(`    Resolved to: ${resolvedPath}`);
             }
+            continue;
           }
 
           segments.push({
@@ -136,6 +140,37 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
   }
 
   return segments;
+}
+
+function shouldTreatAsGuideline(options: {
+  readonly messageType: 'input' | 'output';
+  readonly resolvedPath: string;
+  readonly repoRootPath: string;
+  readonly guidelinePatterns?: readonly string[];
+  readonly treatFileSegmentsAsGuidelines?: boolean;
+}): boolean {
+  const {
+    messageType,
+    resolvedPath,
+    repoRootPath,
+    guidelinePatterns,
+    treatFileSegmentsAsGuidelines,
+  } = options;
+
+  if (messageType !== 'input') {
+    return false;
+  }
+
+  if (treatFileSegmentsAsGuidelines) {
+    return true;
+  }
+
+  if (!guidelinePatterns || guidelinePatterns.length === 0) {
+    return false;
+  }
+
+  const relativeToRepo = path.relative(repoRootPath, resolvedPath);
+  return isGuidelineFile(relativeToRepo, guidelinePatterns);
 }
 
 /**

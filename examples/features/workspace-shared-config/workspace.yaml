@@ -1,0 +1,14 @@
+template: ./workspace-template
+repos:
+  - path: ./agentv
+    source:
+      type: git
+      url: https://github.com/EntityProcess/agentv.git
+    checkout:
+      ref: main
+      resolve: remote
+    clone:
+      depth: 1
+reset:
+  strategy: hard
+  after_each: true
