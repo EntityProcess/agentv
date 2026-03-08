@@ -203,8 +203,12 @@ ls ~/.agentv/git-cache/
 
 Each subdirectory is a SHA-256 hash of the normalized repository URL. A populated cache directory contains standard bare-repo files (`HEAD`, `objects/`, `refs/`).
 
-## Future: persistent working-tree reuse
+## Workspace pooling
 
-Currently, each eval run creates a fresh workspace and checks out all files from scratch. A future enhancement may introduce persistent working-tree reuse — maintaining a pool of pre-materialized workspaces that can be reset (`git checkout . && git clean -fd`) rather than rebuilt. This would reduce per-run setup for large repos from minutes to seconds.
+For repos where checkout dominates setup time, **workspace pooling** eliminates repeated clone + checkout entirely by reusing materialized workspaces across runs. See the [Workspace Pool](/guides/workspace-pool/) guide for details.
 
-See [GitHub Issues](https://github.com/EntityProcess/agentv/issues) for tracking on workspace pool and worktree strategies.
+```bash
+agentv eval evals/my-eval.yaml --pool-workspaces
+```
+
+With pooling enabled, the first run materializes as normal. Subsequent runs reset the existing workspace in-place (`git reset --hard` + `git clean -fd`) — typically reducing setup from minutes to seconds. Build artifacts (`.gitignore`d files like `node_modules/` or compiled output) are preserved across reuse cycles.
