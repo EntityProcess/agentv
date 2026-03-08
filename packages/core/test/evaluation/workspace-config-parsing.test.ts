@@ -289,4 +289,171 @@ tests:
     expect(cases).toHaveLength(1);
     expect(cases[0].workspace).toBeUndefined();
   });
+
+  describe('external workspace file reference', () => {
+    it('should load workspace config from an external YAML file', async () => {
+      const wsDir = path.join(testDir, 'shared');
+      await mkdir(wsDir, { recursive: true });
+
+      const workspaceFile = path.join(wsDir, 'workspace.yaml');
+      await writeFile(
+        workspaceFile,
+        `
+template: ./workspace-template
+repos:
+  - path: ./my-repo
+    source:
+      type: git
+      url: https://github.com/org/repo.git
+    checkout:
+      ref: main
+      resolve: remote
+reset:
+  strategy: hard
+  after_each: true
+`,
+      );
+
+      const evalFile = path.join(testDir, 'ext-workspace.yaml');
+      await writeFile(
+        evalFile,
+        `
+workspace: ./shared/workspace.yaml
+
+tests:
+  - id: ext-test-1
+    input: "Do something"
+    criteria: "Should work"
+  - id: ext-test-2
+    input: "Do something else"
+    criteria: "Should also work"
+`,
+      );
+
+      const cases = await loadTests(evalFile, testDir);
+      expect(cases).toHaveLength(2);
+
+      // Both cases inherit the external workspace config
+      for (const c of cases) {
+        expect(c.workspace).toBeDefined();
+        // template resolved relative to workspace file's directory
+        expect(c.workspace?.template).toBe(path.join(wsDir, 'workspace-template'));
+        expect(c.workspace?.repos).toHaveLength(1);
+        expect(c.workspace?.repos?.[0].source).toEqual({
+          type: 'git',
+          url: 'https://github.com/org/repo.git',
+        });
+        expect(c.workspace?.repos?.[0].checkout?.ref).toBe('main');
+        expect(c.workspace?.reset?.strategy).toBe('hard');
+        expect(c.workspace?.reset?.after_each).toBe(true);
+      }
+    });
+
+    it('should resolve paths in external workspace file relative to the workspace file directory', async () => {
+      const wsDir = path.join(testDir, 'nested', 'config');
+      await mkdir(wsDir, { recursive: true });
+
+      const workspaceFile = path.join(wsDir, 'workspace.yaml');
+      await writeFile(
+        workspaceFile,
+        `
+template: ./my-template
+before_all:
+  command: ["node", "setup.mjs"]
+  cwd: ./scripts
+`,
+      );
+
+      const evalFile = path.join(testDir, 'nested-ext-workspace.yaml');
+      await writeFile(
+        evalFile,
+        `
+workspace: ./nested/config/workspace.yaml
+
+tests:
+  - id: path-test
+    input: "Do something"
+    criteria: "Should work"
+`,
+      );
+
+      const cases = await loadTests(evalFile, testDir);
+      expect(cases).toHaveLength(1);
+      // template resolved relative to workspace file dir (nested/config/)
+      expect(cases[0].workspace?.template).toBe(path.join(wsDir, 'my-template'));
+      // cwd resolved relative to workspace file dir
+      expect(cases[0].workspace?.before_all?.cwd).toBe(path.join(wsDir, 'scripts'));
+    });
+
+    it('should throw a clear error when workspace file is not found', async () => {
+      const evalFile = path.join(testDir, 'missing-workspace.yaml');
+      await writeFile(
+        evalFile,
+        `
+workspace: ./nonexistent/workspace.yaml
+
+tests:
+  - id: test-1
+    input: "Do something"
+    criteria: "Should work"
+`,
+      );
+
+      await expect(loadTests(evalFile, testDir)).rejects.toThrow(
+        /Workspace file not found.*nonexistent\/workspace\.yaml/,
+      );
+    });
+
+    it('should allow per-case workspace override with external suite workspace', async () => {
+      const wsDir = path.join(testDir, 'override-shared');
+      await mkdir(wsDir, { recursive: true });
+
+      const workspaceFile = path.join(wsDir, 'workspace.yaml');
+      await writeFile(
+        workspaceFile,
+        `
+template: ./base-template
+before_all:
+  command: ["node", "base-setup.mjs"]
+reset:
+  strategy: hard
+  after_each: true
+`,
+      );
+
+      const evalFile = path.join(testDir, 'override-ext-workspace.yaml');
+      await writeFile(
+        evalFile,
+        `
+workspace: ./override-shared/workspace.yaml
+
+tests:
+  - id: default-case
+    input: "Do something"
+    criteria: "Should work"
+  - id: override-case
+    input: "Do something else"
+    criteria: "Should work"
+    workspace:
+      before_all:
+        command: ["node", "custom-setup.mjs"]
+`,
+      );
+
+      const cases = await loadTests(evalFile, testDir);
+      expect(cases).toHaveLength(2);
+
+      // default-case inherits external workspace
+      const defaultCase = cases.find((c) => c.id === 'default-case');
+      expect(defaultCase?.workspace?.before_all?.command).toEqual(['node', 'base-setup.mjs']);
+      expect(defaultCase?.workspace?.template).toBe(path.join(wsDir, 'base-template'));
+      expect(defaultCase?.workspace?.reset?.strategy).toBe('hard');
+
+      // override-case: before_all replaced, template and reset inherited
+      const overrideCase = cases.find((c) => c.id === 'override-case');
+      expect(overrideCase?.workspace?.before_all?.command).toEqual(['node', 'custom-setup.mjs']);
+      expect(overrideCase?.workspace?.template).toBe(path.join(wsDir, 'base-template'));
+      expect(overrideCase?.workspace?.reset?.strategy).toBe('hard');
+    });
+  });
 });

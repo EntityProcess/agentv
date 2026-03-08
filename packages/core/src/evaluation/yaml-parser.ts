@@ -266,7 +266,7 @@ async function loadTestsFromYaml(
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
   }
 
-  const suiteWorkspace = parseWorkspaceConfig(suite.workspace, evalFileDir);
+  const suiteWorkspace = await resolveWorkspaceConfig(suite.workspace, evalFileDir);
 
   // Resolve suite-level input (prepended to each test's input messages)
   const suiteInputMessages = expandInputShorthand(suite.input);
@@ -419,7 +419,7 @@ async function loadTestsFromYaml(
     ];
 
     // Parse per-case workspace config and merge with suite-level
-    const caseWorkspace = parseWorkspaceConfig(evalcase.workspace, evalFileDir);
+    const caseWorkspace = await resolveWorkspaceConfig(evalcase.workspace, evalFileDir);
     const mergedWorkspace = mergeWorkspaceConfigs(suiteWorkspace, caseWorkspace);
 
     // Parse per-case metadata
@@ -591,6 +591,41 @@ function parseResetConfig(raw: unknown): ResetConfig | undefined {
     ...(strategy !== undefined && { strategy }),
     ...(afterEach !== undefined && { after_each: afterEach }),
   };
+}
+
+/**
+ * Resolve a workspace config value: either an inline object or a string path
+ * to an external workspace YAML file.
+ *
+ * When `raw` is a string, the file is loaded and parsed relative to evalFileDir.
+ * Relative paths inside the external file (template, cwd, local repo paths)
+ * are resolved relative to the workspace file's own directory.
+ */
+async function resolveWorkspaceConfig(
+  raw: unknown,
+  evalFileDir: string,
+): Promise<WorkspaceConfig | undefined> {
+  if (typeof raw === 'string') {
+    const workspaceFilePath = path.resolve(evalFileDir, raw);
+    let content: string;
+    try {
+      content = await readFile(workspaceFilePath, 'utf8');
+    } catch {
+      throw new Error(
+        `Workspace file not found: ${raw} (resolved to ${workspaceFilePath})`,
+      );
+    }
+    const parsed = parse(content) as unknown;
+    if (!isJsonObject(parsed)) {
+      throw new Error(
+        `Invalid workspace file format: ${workspaceFilePath} (expected a YAML object)`,
+      );
+    }
+    // Resolve paths relative to the workspace file's directory
+    const workspaceFileDir = path.dirname(workspaceFilePath);
+    return parseWorkspaceConfig(parsed, workspaceFileDir);
+  }
+  return parseWorkspaceConfig(raw, evalFileDir);
 }
 
 /**

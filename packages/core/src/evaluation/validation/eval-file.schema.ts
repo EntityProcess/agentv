@@ -371,6 +371,6 @@ export const EvalFileSchema = z.object({
   execution: ExecutionSchema.optional(),
   // Suite-level assertions
   assert: z.array(EvaluatorSchema).optional(),
-  // Workspace
-  workspace: WorkspaceSchema.optional(),
+  // Workspace (inline object or path to external workspace YAML file)
+  workspace: z.union([WorkspaceSchema, z.string()]).optional(),
 });
