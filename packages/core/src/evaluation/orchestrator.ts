@@ -436,18 +436,6 @@ export async function runEvaluation(
     setupLog(
       `pool workspace acquired at: ${sharedWorkspacePath} (existing=${poolSlot.isExisting})`,
     );
-
-    // Re-resolve workspaceFile from the pool workspace so relative paths in
-    // .code-workspace resolve against where repos are cloned, not the original template.
-    if (suiteWorkspaceFile && sharedWorkspacePath) {
-      const copiedWorkspaceFile = path.join(sharedWorkspacePath, path.basename(suiteWorkspaceFile));
-      try {
-        await stat(copiedWorkspaceFile);
-        suiteWorkspaceFile = copiedWorkspaceFile;
-      } catch {
-        // Keep original if copy doesn't exist
-      }
-    }
   } else if (workspaceTemplate) {
     setupLog(`creating shared workspace from template: ${workspaceTemplate}`);
     try {
@@ -456,18 +444,6 @@ export async function runEvaluation(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to create shared workspace: ${message}`);
-    }
-
-    // Re-resolve workspaceFile from the temp workspace so relative paths in
-    // .code-workspace resolve against where repos are cloned, not the original template.
-    if (suiteWorkspaceFile && sharedWorkspacePath) {
-      const copiedWorkspaceFile = path.join(sharedWorkspacePath, path.basename(suiteWorkspaceFile));
-      try {
-        await stat(copiedWorkspaceFile);
-        suiteWorkspaceFile = copiedWorkspaceFile;
-      } catch {
-        // Keep original if copy doesn't exist
-      }
     }
   } else if (suiteWorkspace?.before_all || (suiteWorkspace?.repos?.length && !isPerTestIsolation)) {
     // No template but before_all or repos is configured: create empty workspace
@@ -478,6 +454,18 @@ export async function runEvaluation(
 
   // Wrap remaining logic in try/finally to ensure pool slot is always released on error
   try {
+    // Re-resolve workspaceFile from the pool/temp workspace so relative paths in
+    // .code-workspace resolve against where repos are cloned, not the original template.
+    if (suiteWorkspaceFile && sharedWorkspacePath) {
+      const copiedWorkspaceFile = path.join(sharedWorkspacePath, path.basename(suiteWorkspaceFile));
+      try {
+        await stat(copiedWorkspaceFile);
+        suiteWorkspaceFile = copiedWorkspaceFile;
+      } catch {
+        // Keep original if copy doesn't exist
+      }
+    }
+
     // Materialize repos into shared workspace (skip for per_test and pool — pool handles its own materialization)
     const repoManager =
       suiteWorkspace?.repos?.length && !usePool ? new RepoManager(undefined, verbose) : undefined;
