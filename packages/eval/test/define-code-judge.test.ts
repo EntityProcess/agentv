@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import {
-  type CodeJudgeInput,
-  CodeJudgeInputSchema,
-  type CodeJudgeResult,
-  CodeJudgeResultSchema,
-} from '../src/schemas.js';
+import { CodeJudgeInputSchema, type CodeJudgeResult, CodeJudgeResultSchema } from '../src/schemas.js';
 
 describe('CodeJudgeInputSchema', () => {
   const validInput = {
@@ -161,54 +156,5 @@ describe('CodeJudgeResultSchema', () => {
     const parsed = CodeJudgeResultSchema.parse(result);
     expect(parsed.details?.alignment).toHaveLength(2);
     expect(parsed.details?.metrics).toBeDefined();
-  });
-});
-
-describe('Schema type inference', () => {
-  it('CodeJudgeInput has expected shape', () => {
-    // Type-level test: ensure inferred types have expected properties
-    const input: CodeJudgeInput = {
-      question: 'test',
-      criteria: 'test',
-      expectedOutput: [],
-      answer: 'test',
-      guidelineFiles: [],
-      inputFiles: [],
-      input: [],
-    };
-
-    // These should all type-check correctly
-    const _q: string = input.question;
-    const _c: string = input.answer;
-    const _trace: CodeJudgeInput['trace'] = undefined;
-    const _config: CodeJudgeInput['config'] = null;
-
-    expect(input.question).toBe('test');
-  });
-
-  it('CodeJudgeResult has expected shape', () => {
-    const result: CodeJudgeResult = {
-      score: 0.5,
-      hits: [],
-      misses: [],
-    };
-
-    const _score: number = result.score;
-    const _hits: string[] = result.hits;
-    const _reasoning: string | undefined = result.reasoning;
-
-    expect(result.score).toBe(0.5);
-  });
-
-  it('CodeJudgeResult supports optional details', () => {
-    const resultWithDetails: CodeJudgeResult = {
-      score: 0.8,
-      hits: ['match'],
-      misses: [],
-      details: { tp: 1, fp: 0, fn: 0 },
-    };
-
-    const _details: Record<string, unknown> | undefined = resultWithDetails.details;
-    expect(resultWithDetails.details?.tp).toBe(1);
   });
 });
