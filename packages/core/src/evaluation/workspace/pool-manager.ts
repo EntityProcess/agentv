@@ -355,7 +355,7 @@ export class WorkspacePoolManager {
 
   /**
    * Reset an existing slot for reuse:
-   * 1. Reset repos (git reset --hard {ref} && git clean -fdx per repo)
+   * 1. Reset repos (git reset --hard {ref} && git clean -fd per repo)
    * 2. Re-copy template files (skip repo directories)
    */
   private async resetSlot(
@@ -371,7 +371,10 @@ export class WorkspacePoolManager {
       }
       const ref = repo.checkout?.ref ?? 'HEAD';
       await git(['reset', '--hard', ref], { cwd: repoDir });
-      await git(['clean', '-fdx'], { cwd: repoDir });
+      // Use -fd (not -fdx) to preserve .gitignored files like build outputs,
+      // node_modules, and compiled binaries. This lets before_all build steps
+      // survive across pool reuse cycles, avoiding expensive rebuilds.
+      await git(['clean', '-fd'], { cwd: repoDir });
     }
 
     // Re-copy template files, skipping repo directories

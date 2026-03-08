@@ -537,7 +537,7 @@ describe('WorkspacePoolManager', () => {
       await manager.releaseSlot(slot2);
     });
 
-    it('agent-created files are cleaned by git clean -fdx', async () => {
+    it('agent-created files are cleaned by git clean -fd', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
       createTestRepo(repoDir, { 'original.txt': 'original content' });
 
@@ -564,7 +564,7 @@ describe('WorkspacePoolManager', () => {
         repoManager,
       });
 
-      // Agent-created file should be gone (git clean -fdx)
+      // Agent-created file should be gone (git clean -fd removes untracked files)
       expect(existsSync(path.join(slot2.path, 'my-repo', 'agent-output.txt'))).toBe(false);
 
       await manager.releaseSlot(slot2);
