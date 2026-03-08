@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-// Manual check script for this example. Run after compile so dist exists.
+// Functional check script for this example. Run after compile so dist exists.
 const { add, multiply, fibonacci } = await import('../dist/index.js');
 
 assert.strictEqual(add(2, 3), 5, 'add(2, 3) should be 5');
