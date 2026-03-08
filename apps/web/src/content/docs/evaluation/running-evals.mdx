@@ -87,6 +87,26 @@ agentv eval evals/my-eval.yaml --cleanup-workspaces
 
 Workspaces are stored at `~/.agentv/workspaces/<eval-run-id>/<test-id>/` (or `$AGENTV_HOME/workspaces/` when [`AGENTV_HOME`](#agentv_home) is set).
 
+### Workspace Pooling
+
+Reuse materialized workspaces across eval runs instead of cloning from scratch each time:
+
+```bash
+agentv eval evals/my-eval.yaml --pool-workspaces
+```
+
+Pooled workspaces reset in-place (`git reset --hard` + `git clean -fd`) and preserve build artifacts. Multiple eval files with the same workspace config share the same pool. See the [Workspace Pool](/guides/workspace-pool/) guide for details.
+
+### Static Workspace
+
+Use a pre-existing directory as the workspace, skipping all materialization (clone, copy, pool):
+
+```bash
+agentv eval evals/my-eval.yaml --workspace /path/to/my-workspace
+```
+
+AgentV never deletes a user-provided workspace. Lifecycle hooks (`before_all`, `after_each`, etc.) still execute. Incompatible with `isolation: per_test`.
+
 ### Retry Execution Errors
 
 Re-run only the tests that had infrastructure/execution errors from a previous output:

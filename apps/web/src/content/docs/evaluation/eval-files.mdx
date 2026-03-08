@@ -35,7 +35,7 @@ tests:
 | `description` | Human-readable description of the evaluation |
 | `dataset` | Optional dataset identifier |
 | `execution` | Default execution config (`target`, `fail_on_error`, etc.) |
-| `workspace` | Suite-level workspace config (lifecycle hooks, template) |
+| `workspace` | Suite-level workspace config — inline object or string path to an [external workspace file](/guides/workspace-pool/#external-workspace-config) |
 | `tests` | Array of individual tests, or a string path to an external file |
 | `assert` | Suite-level evaluators appended to each test unless `execution.skip_defaults: true` is set on the test |
 | `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
