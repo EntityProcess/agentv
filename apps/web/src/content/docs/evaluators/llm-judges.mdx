@@ -7,6 +7,20 @@ sidebar:
 
 LLM judges use a language model to evaluate agent responses against custom criteria defined in a prompt file.
 
+## Default Judge
+
+When a test defines `criteria` but has **no `assert` field**, a default `llm-judge` runs automatically. The built-in prompt evaluates the response against your `criteria` and `expected_output`:
+
+```yaml
+tests:
+  - id: simple-eval
+    criteria: Correctly explains the bug and proposes a fix
+    input: "Debug this function..."
+    # No assert needed — default llm-judge evaluates against criteria
+```
+
+When `assert` **is** present, no default judge is added. To use an LLM judge alongside other evaluators, declare it explicitly. See [How criteria and assert interact](/evaluation/eval-cases/#how-criteria-and-assert-interact).
+
 ## Configuration
 
 Reference an LLM judge in your eval file:

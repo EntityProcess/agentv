@@ -245,6 +245,47 @@ Required gates are evaluated after all evaluators run. If any required evaluator
 - Suite-level `assert` evaluators are appended automatically.
 - Set `execution.skip_defaults: true` on a test to skip suite-level defaults.
 
+## How `criteria` and `assert` Interact
+
+The `criteria` field is a **data field** that describes what the response should accomplish. It is not an evaluator itself — how it gets used depends on whether `assert` is present.
+
+### No `assert` — implicit LLM judge
+
+When a test has no `assert` field, a default `llm-judge` evaluator runs automatically and uses `criteria` as the evaluation prompt:
+
+```yaml
+tests:
+  - id: simple-eval
+    criteria: Assistant correctly explains the bug and proposes a fix
+    input: "Debug this function..."
+    # No assert → default llm-judge evaluates against criteria
+```
+
+### `assert` present — explicit evaluators only
+
+When `assert` is defined, only the declared evaluators run. No implicit judge is added. Judges that are declared (such as `llm-judge`, `code-judge`, `agent-judge`, or `rubrics`) receive `criteria` as input automatically.
+
+If `assert` contains only deterministic evaluators (like `contains` or `regex`), the `criteria` field is not evaluated and a warning is emitted:
+
+```
+Warning: Test 'my-test': criteria is defined but no evaluator in assert
+will evaluate it. Add 'type: llm-judge' to assert, or remove criteria
+if it is documentation-only.
+```
+
+To use `criteria` alongside deterministic checks, add a judge explicitly:
+
+```yaml
+tests:
+  - id: mixed-eval
+    criteria: Response is helpful and mentions the fix
+    input: "Debug this function..."
+    assert:
+      - type: llm-judge        # explicit — receives criteria automatically
+      - type: contains
+        value: "fix"
+```
+
 ## Sidecar Metadata
 
 Pass additional context to evaluators via the `sidecar` field:
