@@ -78,6 +78,7 @@ interface NormalizedOptions {
   readonly otelCaptureContent: boolean;
   readonly otelGroupTurns: boolean;
   readonly retryErrors?: string;
+  readonly poolWorkspaces: boolean;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -230,6 +231,7 @@ function normalizeOptions(
     otelCaptureContent: normalizeBoolean(rawOptions.otelCaptureContent),
     otelGroupTurns: normalizeBoolean(rawOptions.otelGroupTurns),
     retryErrors: normalizeString(rawOptions.retryErrors),
+    poolWorkspaces: normalizeBoolean(rawOptions.poolWorkspaces),
   } satisfies NormalizedOptions;
 }
 
@@ -569,6 +571,7 @@ async function runSingleEvalFile(params: {
     maxConcurrency: resolvedWorkers,
     keepWorkspaces: options.keepWorkspaces,
     cleanupWorkspaces: options.cleanupWorkspaces,
+    poolWorkspaces: options.poolWorkspaces,
     trials: trialsConfig,
     totalBudgetUsd,
     failOnError,
