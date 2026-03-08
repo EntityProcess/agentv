@@ -435,6 +435,73 @@ describe('LlmJudgeEvaluator', () => {
     expect(result.evaluatorRawRequest?.userPrompt).toContain(flatQuestion);
     expect(result.evaluatorRawRequest?.userPrompt).not.toContain('@[User]:');
   });
+
+  it('returns skip verdict when rubric mode receives malformed JSON', async () => {
+    const judgeProvider = new StubProvider(textResponse('not valid json at all'));
+
+    const evaluator = new LlmJudgeEvaluator({
+      resolveJudgeProvider: async () => judgeProvider,
+    });
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      evaluator: {
+        name: 'rubric',
+        type: 'llm-judge',
+        rubrics: [{ id: 'r1', outcome: 'Mentions logging', weight: 1.0, required: false }],
+      },
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('skip');
+    expect(result.misses.length).toBeGreaterThan(0);
+    expect(result.misses[0]).toContain('Judge parse failure');
+  });
+
+  it('returns skip verdict when score-range rubric mode receives malformed JSON', async () => {
+    const judgeProvider = new StubProvider(textResponse('truncated {'));
+
+    const evaluator = new LlmJudgeEvaluator({
+      resolveJudgeProvider: async () => judgeProvider,
+    });
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+      evaluator: {
+        name: 'rubric',
+        type: 'llm-judge',
+        rubrics: [
+          {
+            id: 'r1',
+            outcome: 'Completeness',
+            weight: 1.0,
+            required: false,
+            score_ranges: [
+              { score_range: [0, 3] as [number, number], outcome: 'Poor' },
+              { score_range: [7, 10] as [number, number], outcome: 'Good' },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('skip');
+    expect(result.misses.length).toBeGreaterThan(0);
+    expect(result.misses[0]).toContain('Judge parse failure');
+  });
 });
 
 describe('CodeEvaluator', () => {
