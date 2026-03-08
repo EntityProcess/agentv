@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 
-import { CodeJudgeInputSchema, type CodeJudgeResult, CodeJudgeResultSchema } from '../src/schemas.js';
+import {
+  CodeJudgeInputSchema,
+  type CodeJudgeResult,
+  CodeJudgeResultSchema,
+} from '../src/schemas.js';
 
 describe('CodeJudgeInputSchema', () => {
   const validInput = {
