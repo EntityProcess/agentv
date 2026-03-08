@@ -118,6 +118,11 @@ export const evalRunCommand = command({
       long: 'pool-workspaces',
       description: 'Reuse materialized workspaces across eval runs',
     }),
+    workspace: option({
+      type: optional(string),
+      long: 'workspace',
+      description: 'Use an existing directory as the workspace directly (skips clone/copy/pool)',
+    }),
     otelFile: option({
       type: optional(string),
       long: 'otel-file',
@@ -185,6 +190,7 @@ export const evalRunCommand = command({
       keepWorkspaces: args.keepWorkspaces,
       cleanupWorkspaces: args.cleanupWorkspaces,
       poolWorkspaces: args.poolWorkspaces,
+      workspace: args.workspace,
       trace: false,
       otelFile: args.otelFile,
       traceFile: args.traceFile,
