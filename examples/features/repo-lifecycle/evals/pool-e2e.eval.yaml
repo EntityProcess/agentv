@@ -3,6 +3,8 @@ description: >-
   enabled by default for shared workspaces with repos.
 
 workspace:
+  mode: pooled
+  reset_clean: standard
   repos:
     - path: ./repo
       source:

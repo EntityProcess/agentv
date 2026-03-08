@@ -1,4 +1,6 @@
 template: ./workspace-template
+mode: pooled
+reset_clean: standard
 repos:
   - path: ./agentv
     source:
