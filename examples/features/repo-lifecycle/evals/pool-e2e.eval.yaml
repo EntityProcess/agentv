@@ -1,8 +1,12 @@
 description: >-
-  E2E test for workspace pool. No pool config in YAML — pool is
-  enabled via --pool-workspaces CLI flag only.
+  E2E test for workspace pooling. No pool config in YAML — pooling is
+  enabled by default for shared workspaces with repos.
 
 workspace:
+  mode: pooled
+  hooks:
+    on_reuse:
+      reset: fast
   repos:
     - path: ./repo
       source:

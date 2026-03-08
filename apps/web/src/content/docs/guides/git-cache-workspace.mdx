@@ -1,94 +1,56 @@
 ---
-title: Git Cache & Workspace Architecture
-description: How AgentV caches git objects and materializes working trees for eval runs, with performance guidance for large repos on Windows.
+title: Workspace Architecture
+description: How AgentV clones and materializes working trees for eval runs, with performance guidance for large repos.
 sidebar:
   order: 3
 ---
 
-AgentV evaluations that use `workspace.repos` rely on a two-layer storage model: a **bare-mirror cache** for git objects, and a **per-run workspace** for the working tree. Understanding the separation explains why cache seeding alone does not eliminate startup cost for large repositories.
-
-## Cache vs working tree
-
-| Layer | Path | Contents | Persisted across runs |
-|-------|------|----------|----------------------|
-| Git object cache | `~/.agentv/git-cache/<sha256>` | Bare mirror (objects, refs) | Yes |
-| Workspace | `~/.agentv/workspaces/<evalRunId>/...` | Full working-tree files | No (ephemeral) |
-
-The cache stores only git objects (commits, trees, blobs) as a bare mirror — no checked-out files. When an eval run starts, AgentV clones from the local cache into a fresh workspace directory and runs `git checkout` to materialize the working tree.
-
-This means:
-
-- **Object transfer** is fast — a local clone from cache copies pack data without network I/O.
-- **Working-tree materialization** (the checkout phase) still writes every file to disk. For large repos (100k+ files), this can take minutes.
-
-### Cache seeding
-
-Pre-populate the cache from a local clone to skip the initial network fetch entirely:
-
-```bash
-agentv cache add --url https://github.com/org/large-repo.git --from /path/to/local/clone
-```
-
-Seeding is fast (typically 1-2 seconds) because it performs a bare mirror clone over the filesystem. Subsequent eval runs with `checkout.resolve: local` skip all remote operations and clone directly from the cached objects.
-
-```yaml
-workspace:
-  repos:
-    - path: ./repo
-      source:
-        type: git
-        url: https://github.com/org/large-repo.git
-      checkout:
-        ref: abc123def
-        resolve: local   # use cache only, no network
-```
-
-When `resolve: local` is set and no cache exists, AgentV fails fast with an error directing you to run `agentv cache add`.
+AgentV evaluations that use `workspace.repos` clone repositories directly from their source (git URL or local path) into a workspace directory. [Workspace pooling](/guides/workspace-pool/) (enabled by default) eliminates repeated clone costs by reusing materialized workspaces across runs.
 
 ## Eval setup lifecycle
 
-Each evaluation run proceeds through these phases. The materialization phase is where large-repo startup cost concentrates.
+Each evaluation run proceeds through these phases:
 
 ```
 eval start
   |
   v
 +---------------------------+
-| 1. Template copy          |  workspace.template dir -> ~/.agentv/workspaces/<runId>/shared/
+| 1. Pool / workspace setup |  Acquire pool slot or create temp workspace
 +---------------------------+
   |
   v
 +---------------------------+
-| 2. Repo materialization   |  For each workspace.repos entry:
-|    a. ensureCache()       |    - bare mirror: create or fetch updates
-|    b. clone --no-checkout |    - local clone from cache (fast)
-|    c. git checkout <ref>  |    - write files to disk (SLOW for large repos)
+| 2. Template copy          |  workspace.template dir -> workspace/
 +---------------------------+
   |
   v
 +---------------------------+
-| 3. before_all hook        |  workspace.before_all script executes
+| 3. Repo materialization   |  For each workspace.repos entry:
+|    a. git clone (source)  |    - clone directly from source URL or local path
+|    b. git checkout <ref>  |    - check out the specified ref
 +---------------------------+
   |
   v
 +---------------------------+
-| 4. Test loop              |  For each test case:
+| 4. before_all hook        |  workspace.before_all script executes
++---------------------------+
+  |
+  v
++---------------------------+
+| 5. Test loop              |  For each test case:
 |    before_each -> run ->  |    agent executes -> capture changes -> after_each
 +---------------------------+
   |
   v
 +---------------------------+
-| 5. after_all / cleanup    |  workspace.after_all -> workspace removed
+| 6. after_all / cleanup    |  workspace.after_all -> workspace cleanup
 +---------------------------+
 ```
 
-Phase 2c — `git checkout` — dominates startup time for repositories with a large number of files. The sections below address how to reduce this cost.
+With workspace pooling (the default), steps 2-3 only happen on the first run. Subsequent runs reset the pool slot in-place, skipping clone and checkout entirely.
 
 ## Windows performance guidance
-
-### Local cache eliminates network I/O, not checkout cost
-
-A common expectation: "I seeded the cache, so setup should be instant." In practice, cache seeding eliminates the network fetch but the checkout phase still writes every file. For a repo with 300k+ files on an SSD, this can take 90-180 seconds depending on drive type and antivirus configuration.
 
 ### Drive choice affects checkout time
 
@@ -128,41 +90,9 @@ Or add it to the repo-level config after clone (this runs automatically if your 
 git config core.longpaths true
 ```
 
-### Avoid shallow clone for local-cache path unless benchmarked
-
-Shallow clones (`clone.depth`) reduce object transfer size, which helps with remote fetches. For the local-cache path, the object transfer is already fast (local filesystem), and shallow clone adds protocol overhead (requires `file://` smart transport). Unless your benchmarks show improvement, use full-depth clones with `checkout.resolve: local`.
-
-```yaml
-# Recommended for local-cache large repos
-workspace:
-  repos:
-    - path: ./repo
-      source:
-        type: git
-        url: https://github.com/org/large-repo.git
-      checkout:
-        ref: main
-        resolve: local
-      # No clone.depth — full objects, fast local clone
-```
-
-### Benchmark reference (Windows, local SSD)
-
-These numbers are from a real-world benchmark with a ~300k-file enterprise repository:
-
-| Operation | Duration |
-|-----------|----------|
-| Cache reseed (`agentv cache add --force`) | ~1.2s |
-| Local clone from cache + checkout (C: NTFS) | ~184s |
-| Local clone from cache + checkout (D: Dev Drive) | ~119s |
-| `git worktree add` from sibling repo | ~97s |
-| `robocopy /MIR /MT:32` full copy | ~335s |
-
-The local-clone-from-cache approach is the default strategy. The worktree and robocopy numbers are provided for reference — they are not currently used by AgentV.
-
 ## Troubleshooting: eval appears stuck at startup
 
-When evaluating large repos, the eval run may appear to hang before the agent (e.g., VS Code) starts. This is typically the checkout phase materializing files.
+When evaluating large repos, the eval run may appear to hang before the agent starts. This is typically the checkout phase materializing files on the first run.
 
 ### Enable verbose logging
 
@@ -174,41 +104,31 @@ Verbose mode logs each setup phase with timestamps. Look for:
 
 ```
 [workspace] Creating shared workspace...
-[workspace] Materializing repo ./repo from cache...
-[workspace] Checkout phase started...
+[workspace] Materializing repo ./repo...
 [workspace] Checkout complete (182000ms)
 [workspace] Running before_all script...
 [workspace] Setup complete, starting test loop
 ```
 
-If the log stalls at "Checkout phase started" for minutes, the working-tree write is the bottleneck — not a hang.
+If the log stalls at checkout for minutes, the working-tree write is the bottleneck — not a hang. With pooling enabled, this only happens on the first run.
 
 ### Common causes and fixes
 
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
-| Stuck at checkout for 2+ minutes | Large repo file materialization | Expected for 100k+ files; use Dev Drive on Windows |
+| Stuck at checkout for 2+ minutes | Large repo file materialization (first run) | Expected for 100k+ files; use Dev Drive on Windows. Subsequent runs use pool. |
 | `Filename too long` during checkout | Missing `core.longpaths` | `git config --global core.longpaths true` |
-| `No cache found` error | Cache not seeded for `resolve: local` | `agentv cache add --url <url> --from <local-path>` |
-| Slow despite cache | Cache speeds up object transfer, not checkout | Move `~/.agentv` to Dev Drive or SSD |
+| Slow every run despite pooling | Pool not matching (config drift) | Check with `agentv workspace list`; ensure workspace config is stable |
 | Before_all timeout | Setup script exceeds default 60s | Increase `timeout_ms` in workspace config |
-
-### Check cache status
-
-Verify the cache exists for your repo:
-
-```bash
-ls ~/.agentv/git-cache/
-```
-
-Each subdirectory is a SHA-256 hash of the normalized repository URL. A populated cache directory contains standard bare-repo files (`HEAD`, `objects/`, `refs/`).
 
 ## Workspace pooling
 
-For repos where checkout dominates setup time, **workspace pooling** eliminates repeated clone + checkout entirely by reusing materialized workspaces across runs. See the [Workspace Pool](/guides/workspace-pool/) guide for details.
+Workspace pooling is **enabled by default** for shared workspaces with repos. The first run materializes from scratch. Subsequent runs reset the existing workspace in-place (`git reset --hard` + `git clean -fd`) — typically reducing setup from minutes to seconds.
+
+To disable pooling for a run:
 
 ```bash
-agentv eval evals/my-eval.yaml --pool-workspaces
+agentv eval evals/my-eval.yaml --no-pool
 ```
 
-With pooling enabled, the first run materializes as normal. Subsequent runs reset the existing workspace in-place (`git reset --hard` + `git clean -fd`) — typically reducing setup from minutes to seconds. Build artifacts (`.gitignore`d files like `node_modules/` or compiled output) are preserved across reuse cycles.
+See the [Workspace Pool](/guides/workspace-pool/) guide for details on pool configuration, clean modes, concurrency, and drift detection.

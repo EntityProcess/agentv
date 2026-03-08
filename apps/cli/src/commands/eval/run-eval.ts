@@ -78,9 +78,14 @@ interface NormalizedOptions {
   readonly otelCaptureContent: boolean;
   readonly otelGroupTurns: boolean;
   readonly retryErrors?: string;
-  readonly poolWorkspaces: boolean;
+  readonly poolWorkspaces?: boolean;
   readonly poolMaxSlots?: number;
   readonly workspace?: string;
+  readonly workspaceMode?: 'pooled' | 'ephemeral' | 'static';
+  readonly workspacePath?: string;
+  readonly workspaceClean?: 'standard' | 'full';
+  readonly retainOnSuccess?: 'keep' | 'cleanup';
+  readonly retainOnFailure?: 'keep' | 'cleanup';
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -127,6 +132,18 @@ function normalizeOptionalNumber(value: unknown): number | undefined {
     }
   }
   return undefined;
+}
+
+function normalizeWorkspaceMode(value: unknown): 'pooled' | 'ephemeral' | 'static' | undefined {
+  return value === 'pooled' || value === 'ephemeral' || value === 'static' ? value : undefined;
+}
+
+function normalizeWorkspaceClean(value: unknown): 'standard' | 'full' | undefined {
+  return value === 'standard' || value === 'full' ? value : undefined;
+}
+
+function normalizeRetention(value: unknown): 'keep' | 'cleanup' | undefined {
+  return value === 'keep' || value === 'cleanup' ? value : undefined;
 }
 
 function normalizeOptions(
@@ -233,11 +250,23 @@ function normalizeOptions(
     otelCaptureContent: normalizeBoolean(rawOptions.otelCaptureContent),
     otelGroupTurns: normalizeBoolean(rawOptions.otelGroupTurns),
     retryErrors: normalizeString(rawOptions.retryErrors),
-    // Pool: CLI flag > YAML config
-    poolWorkspaces:
-      normalizeBoolean(rawOptions.poolWorkspaces) || yamlExecution?.pool_workspaces === true,
+    // Pool: --no-pool explicitly disables; --pool-workspaces explicitly enables; YAML config; default undefined (orchestrator defaults to true)
+    poolWorkspaces: normalizeBoolean(rawOptions.noPool)
+      ? false
+      : normalizeBoolean(rawOptions.poolWorkspaces)
+        ? true
+        : yamlExecution?.pool_workspaces,
     poolMaxSlots: yamlExecution?.pool_slots,
     workspace: normalizeString(rawOptions.workspace),
+    workspaceMode: normalizeWorkspaceMode(rawOptions.workspaceMode),
+    workspacePath: normalizeString(rawOptions.workspacePath),
+    workspaceClean: normalizeWorkspaceClean(rawOptions.workspaceClean),
+    retainOnSuccess:
+      normalizeRetention(rawOptions.retainOnSuccess) ??
+      (normalizeBoolean(rawOptions.keepWorkspaces) ? 'keep' : undefined),
+    retainOnFailure:
+      normalizeRetention(rawOptions.retainOnFailure) ??
+      (normalizeBoolean(rawOptions.cleanupWorkspaces) ? 'cleanup' : undefined),
   } satisfies NormalizedOptions;
 }
 
@@ -580,6 +609,11 @@ async function runSingleEvalFile(params: {
     poolWorkspaces: options.poolWorkspaces,
     poolMaxSlots: options.poolMaxSlots,
     workspace: options.workspace,
+    workspaceMode: options.workspaceMode,
+    workspacePath: options.workspacePath,
+    workspaceClean: options.workspaceClean,
+    retainOnSuccess: options.retainOnSuccess,
+    retainOnFailure: options.retainOnFailure,
     trials: trialsConfig,
     totalBudgetUsd,
     failOnError,
@@ -689,9 +723,10 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     );
   }
 
-  // Validate --workspace path exists and is a directory
-  if (options.workspace) {
-    const resolvedWorkspace = path.resolve(options.workspace);
+  // Validate static workspace path exists and is a directory
+  const explicitWorkspacePath = options.workspacePath ?? options.workspace;
+  if (explicitWorkspacePath) {
+    const resolvedWorkspace = path.resolve(explicitWorkspacePath);
     try {
       const { stat } = await import('node:fs/promises');
       const stats = await stat(resolvedWorkspace);
@@ -704,8 +739,8 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       }
       throw err;
     }
-    // Update workspace to resolved absolute path
-    options = { ...options, workspace: resolvedWorkspace };
+    // Update workspace paths to resolved absolute path
+    options = { ...options, workspace: resolvedWorkspace, workspacePath: resolvedWorkspace };
   }
 
   if (options.verbose) {

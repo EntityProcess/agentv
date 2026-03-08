@@ -1416,9 +1416,11 @@ rl.on('close', () => {
       ...baseTestCase,
       workspace: {
         template: templateDir,
-        before_all: {
-          command: ['node', setupScript],
-          timeout_ms: 10000,
+        hooks: {
+          before_all_tests: {
+            command: ['node', setupScript],
+            timeout_ms: 10000,
+          },
         },
       },
     };
@@ -1457,9 +1459,11 @@ rl.on('close', () => {
       ...baseTestCase,
       workspace: {
         template: templateDir,
-        before_all: {
-          command: ['node', failingScript],
-          timeout_ms: 5000,
+        hooks: {
+          before_all_tests: {
+            command: ['node', failingScript],
+            timeout_ms: 5000,
+          },
         },
       },
     };
@@ -1518,9 +1522,11 @@ rl.on('close', () => {
       ...baseTestCase,
       workspace: {
         template: templateDir,
-        after_each: {
-          command: ['node', teardownScript],
-          timeout_ms: 10000,
+        hooks: {
+          after_each_test: {
+            command: ['node', teardownScript],
+            timeout_ms: 10000,
+          },
         },
       },
     };
@@ -1535,6 +1541,46 @@ rl.on('close', () => {
     });
 
     expect(result.afterEachOutput).toContain('Teardown done for case-1');
+    expect(result.error).toBeUndefined();
+    expect(result.executionStatus).toBe('ok');
+  });
+
+  it('does not execute script for reset-only hooks', async () => {
+    const { mkdtemp, writeFile, mkdir } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-orch-ws-'));
+    const templateDir = path.join(testDir, 'template');
+    await mkdir(templateDir, { recursive: true });
+    await writeFile(path.join(templateDir, 'hello.txt'), 'hello');
+
+    const provider = new SequenceProvider('mock', {
+      responses: [
+        {
+          output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
+        },
+      ],
+    });
+
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        template: templateDir,
+        hooks: {
+          before_each_test: {
+            reset: 'fast',
+          },
+        },
+      },
+    };
+
+    const result = await runEvalCase({
+      evalCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      evalRunId: 'test-run-reset-only-hook',
+      cleanupWorkspaces: true,
+    });
+
     expect(result.error).toBeUndefined();
     expect(result.executionStatus).toBe('ok');
   });
@@ -2469,7 +2515,7 @@ describe('--workspace flag', () => {
         evalCases: [evalCase],
         workspace: testDir,
       }),
-    ).rejects.toThrow('--workspace is incompatible with isolation: per_test');
+    ).rejects.toThrow('static workspace mode is incompatible with isolation: per_test');
   });
 
   it('never deletes user-provided workspace after run', async () => {
@@ -2511,7 +2557,7 @@ describe('--workspace flag', () => {
     const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
-        before_all: { command: ['false'] },
+        hooks: { before_all_tests: { command: ['false'] } },
       },
     };
 
@@ -2544,7 +2590,7 @@ describe('--workspace flag', () => {
     const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
-        before_each: { command: ['echo', 'setup-done'] },
+        hooks: { before_each_test: { command: ['echo', 'setup-done'] } },
       },
     };
 

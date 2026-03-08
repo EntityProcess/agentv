@@ -19,10 +19,6 @@ export function getWorkspacesRoot(): string {
   return path.join(getAgentvHome(), 'workspaces');
 }
 
-export function getGitCacheRoot(): string {
-  return path.join(getAgentvHome(), 'git-cache');
-}
-
 export function getSubagentsRoot(): string {
   return path.join(getAgentvHome(), 'subagents');
 }

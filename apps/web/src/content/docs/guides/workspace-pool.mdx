@@ -7,9 +7,11 @@ sidebar:
 
 Workspace pooling keeps materialized workspaces on disk between eval runs. Instead of cloning repos and checking out files every time, pooled workspaces reset in-place — typically reducing setup from minutes to seconds for large repositories.
 
+**Pooling is enabled by default** for shared workspaces that define `repos`. No extra flags needed.
+
 ## How it works
 
-When pooling is enabled, AgentV computes a **SHA-256 fingerprint** of your workspace configuration (template path + all repo configs) and stores the materialized workspace in a persistent slot:
+AgentV computes a **SHA-256 fingerprint** of your workspace configuration (template path + all repo configs) and stores the materialized workspace in a persistent slot:
 
 ```
 ~/.agentv/workspace-pool/
@@ -29,17 +31,52 @@ On subsequent runs:
 
 The first run materializes from scratch. Every subsequent run reuses the pool — skipping clone and checkout entirely.
 
-## Enabling pooling
+## Disabling pooling
 
-### CLI flag
+Pooling is on by default. To disable it:
+
+### CLI mode
 
 ```bash
-agentv eval evals/my-eval.yaml --pool-workspaces
+agentv eval evals/my-eval.yaml --workspace-mode ephemeral
 ```
 
-### YAML config
+### YAML workspace mode
 
-Pool support is currently CLI-only via `--pool-workspaces`. YAML-level `pool: true` config is planned for a future release (#474).
+```yaml
+workspace:
+  mode: ephemeral
+  repos:
+    - path: ./my-repo
+      source:
+        type: git
+        url: https://github.com/org/my-repo.git
+```
+
+`workspace.mode` controls materialization behavior directly (`pooled`, `ephemeral`, or `static`).
+
+## Pool reset mode
+
+By default, pool reset uses `git clean -fd` which **preserves `.gitignore`d files** like `node_modules/`, `build/`, and compiled binaries. This means `before_all` build steps survive across reuse cycles.
+
+For strict reset that also removes `.gitignore`d files, set `workspace.hooks.on_reuse.reset: strict`:
+
+```yaml
+workspace:
+  hooks:
+    on_reuse:
+      reset: strict
+  repos:
+    - path: ./my-repo
+      source:
+        type: git
+        url: https://github.com/org/my-repo.git
+```
+
+| Mode | Git command | `.gitignore`d files | Use case |
+|------|------------|-------------------|----------|
+| `fast` (default) | `git clean -fd` | Preserved | Fast reuse with cached build artifacts |
+| `strict` | `git clean -fdx` | Removed | Clean slate between runs |
 
 ## Sharing pools across eval files
 
@@ -71,10 +108,9 @@ repos:
       url: https://github.com/org/my-repo.git
     checkout:
       ref: main
-      resolve: local
-reset:
-  strategy: hard
-  after_each: true
+hooks:
+  after_each_test:
+    reset: fast
 ```
 
 Both eval files resolve to the same template + repos configuration, producing the same fingerprint. They share pool slots, and concurrent runs acquire separate slots from the same pool.
@@ -94,18 +130,12 @@ The fingerprint captures:
 
 Two configs produce different fingerprints if **any** of these fields differ. For example, changing the checkout ref from `main` to `v2.0` creates a new pool entry.
 
-## Build artifact preservation
-
-Pool reset uses `git clean -fd` (not `-fdx`), which **preserves `.gitignore`d files** like `node_modules/`, `build/`, `dist/`, and compiled binaries. This means `before_all` build steps survive across reuse cycles — avoiding expensive rebuilds on every run.
-
-If your `before_all` script runs `npm install` or compiles code, the output persists in the pool slot. Only untracked, non-ignored files are cleaned.
-
 ## Concurrency
 
 Pool slots support concurrent eval workers. When running with multiple workers (`-w N`), each worker acquires its own slot from the pool:
 
 ```bash
-agentv eval evals/my-eval.yaml --pool-workspaces -w 4
+agentv eval evals/my-eval.yaml -w 4
 ```
 
 This creates up to 4 slots (`slot-0` through `slot-3`). PID-based lock files prevent two workers from using the same slot simultaneously. If a lock file references a dead process, it's automatically cleaned up as a stale lock.
@@ -144,35 +174,38 @@ The path is resolved relative to the eval file's directory. Relative paths **ins
 
 This pattern is especially valuable with pooling: a single `workspace.yaml` guarantees all eval files that reference it produce the same fingerprint and share the same pool.
 
-## Static workspaces (`--workspace`)
+## Static workspaces (`mode: static`)
 
-For workspaces you manage entirely outside AgentV, use `--workspace` to skip all materialization:
+For workspaces you manage entirely outside AgentV, use static mode to skip all materialization:
 
 ```bash
-agentv eval evals/my-eval.yaml --workspace /path/to/my-workspace
+agentv eval evals/my-eval.yaml --workspace-mode static --workspace-path /path/to/my-workspace
 ```
 
-This bypasses clone, cache, copy, and pool entirely. AgentV never deletes a user-provided workspace. Lifecycle hooks still execute. This is useful for local development where you already have the repo checked out.
+This bypasses clone, copy, and pool entirely. AgentV never deletes a user-provided workspace. Lifecycle hooks still execute. This is useful for local development where you already have the repo checked out.
 
-**Precedence:** `--workspace` > `--pool-workspaces` > normal materialization.
+**Precedence:** `workspace.mode` / `--workspace-mode` first, then default pooled behavior for shared repo workspaces.
+
+## Interaction with keep/cleanup flags
+
+`workspace.hooks.on_finish.clean` (or CLI `--retain-on-success` / `--retain-on-failure`) controls temporary eval-run workspaces under `~/.agentv/workspaces/...` (non-pooled paths).
+
+- In pooled mode, pool slots are retained for reuse regardless of retention settings.
+- Retention settings do not remove pool entries; use `agentv workspace clean` for pool cleanup.
+- With `mode: static`, AgentV never deletes the user-provided directory.
 
 ## Comparison of workspace modes
 
 | Mode | Setup cost | Persistent | Build artifacts preserved | Concurrent workers |
 |------|-----------|-----------|--------------------------|-------------------|
-| **Ephemeral** (default) | Full clone + checkout every run | No | No | Sequential only |
-| **Pooled** (`--pool-workspaces`) | First run only; reset on reuse | Yes | Yes (`.gitignore`d files) | Yes (slot per worker) |
-| **Static** (`--workspace /path`) | None (user-managed) | Yes | User-managed | Sequential only |
+| **Pooled** (default) | First run only; reset on reuse | Yes | Yes (`.gitignore`d files) | Yes (slot per worker) |
+| **Ephemeral** (`mode: ephemeral`) | Full clone + checkout every run | No | No | Sequential only |
+| **Static** (`mode: static`) | None (user-managed) | Yes | User-managed | Sequential only |
 
-## When to use pooling
+## When to disable pooling
 
-**Use pooling when:**
-- Your workspace has large repos where clone + checkout takes minutes
-- You run evals frequently against the same repos
-- Your `before_all` script has expensive build steps (compile, install dependencies)
-- You want concurrent workers on shared workspaces
-
-**Pooling is not needed when:**
-- You use `--workspace` with a pre-existing directory
-- Your repos are small and clone quickly
-- You need `isolation: per_test` (each test gets its own workspace copy)
+**Pooling is typically the right default.** Consider disabling it when:
+- You need guaranteed clean-slate isolation between runs
+- You're debugging workspace setup issues and want fresh clones each time
+- You use `mode: static` with a pre-existing directory (pooling is automatically skipped)
+- You need `isolation: per_test` (each test gets its own workspace copy; pooling is automatically skipped)

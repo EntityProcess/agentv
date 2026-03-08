@@ -278,20 +278,33 @@ const RepoSchema = z.object({
   clone: RepoCloneSchema.optional(),
 });
 
-const ResetSchema = z.object({
-  strategy: z.enum(['none', 'hard', 'recreate']).optional(),
-  after_each: z.boolean().optional(),
+const WorkspaceHookSchema = z.object({
+  command: z.array(z.string()).optional(),
+  script: z.array(z.string()).optional(),
+  timeout_ms: z.number().optional(),
+  timeoutMs: z.number().optional(),
+  cwd: z.string().optional(),
+  reset: z.enum(['none', 'fast', 'strict']).optional(),
+  clean: z.enum(['always', 'on_success', 'on_failure', 'never']).optional(),
+});
+
+const WorkspaceHooksSchema = z.object({
+  before_all_tests: WorkspaceHookSchema.optional(),
+  before_each_test: WorkspaceHookSchema.optional(),
+  after_each_test: WorkspaceHookSchema.optional(),
+  after_all_tests: WorkspaceHookSchema.optional(),
+  on_reuse: WorkspaceHookSchema.optional(),
+  on_finish: WorkspaceHookSchema.optional(),
 });
 
 const WorkspaceSchema = z.object({
   template: z.string().optional(),
   isolation: z.enum(['shared', 'per_test']).optional(),
   repos: z.array(RepoSchema).optional(),
-  reset: ResetSchema.optional(),
-  before_all: WorkspaceScriptSchema.optional(),
-  after_all: WorkspaceScriptSchema.optional(),
-  before_each: WorkspaceScriptSchema.optional(),
-  after_each: WorkspaceScriptSchema.optional(),
+  hooks: WorkspaceHooksSchema.optional(),
+  mode: z.enum(['pooled', 'ephemeral', 'static']).optional(),
+  static_path: z.string().optional(),
+  pool: z.boolean().optional(),
 });
 
 // ---------------------------------------------------------------------------

@@ -4,12 +4,15 @@ description: >-
 
 workspace:
   template: ../workspace-template
-  before_all:
-    command:
-      - node
-      - ../scripts/workspace-setup.mjs
-      - --from
-      - ../workspace-template/.allagents/workspace.yaml
+  hooks:
+    before_all_tests:
+      command:
+        - node
+        - ../scripts/workspace-setup.mjs
+        - --from
+        - ../workspace-template/.allagents/workspace.yaml
+    after_each_test:
+      reset: fast
   repos:
     - path: ./my-repo
       source:
@@ -20,10 +23,6 @@ workspace:
         resolve: local
       clone:
         depth: 1
-  reset:
-    strategy: hard
-    after_each: true
-
 execution:
   target: copilot
 

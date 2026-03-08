@@ -181,14 +181,12 @@ describe('computeWorkspaceFingerprint', () => {
 describe('WorkspacePoolManager', () => {
   let tmpDir: string;
   let poolRoot: string;
-  let cacheDir: string;
   let repoManager: RepoManager;
 
   beforeEach(async () => {
     tmpDir = await mkdtemp(path.join(os.tmpdir(), 'pool-manager-test-'));
     poolRoot = path.join(tmpDir, 'pool');
-    cacheDir = path.join(tmpDir, 'cache');
-    repoManager = new RepoManager(cacheDir);
+    repoManager = new RepoManager();
   });
 
   afterEach(async () => {
@@ -697,6 +695,82 @@ describe('WorkspacePoolManager', () => {
       expect(readFileSync(path.join(slot.path, 'repo-b', 'b.txt'), 'utf-8')).toBe('repo-b');
 
       await manager.releaseSlot(slot);
+    });
+  });
+
+  describe('pool reset policy', () => {
+    it('strict reset removes gitignored files on reuse', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      // Create a repo with a .gitignore that ignores build/
+      createTestRepo(repoDir, {
+        '.gitignore': 'build/',
+        'src/main.ts': 'console.log("hello")',
+      });
+
+      const manager = new WorkspacePoolManager(poolRoot);
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
+
+      // First acquisition
+      const slot1 = await manager.acquireWorkspace({
+        repos,
+        maxSlots: 3,
+        repoManager,
+      });
+
+      // Simulate build output (gitignored)
+      mkdirSync(path.join(slot1.path, 'my-repo', 'build'), { recursive: true });
+      writeFileSync(path.join(slot1.path, 'my-repo', 'build', 'output.js'), 'compiled');
+
+      await manager.releaseSlot(slot1);
+
+      // Second acquisition with strict reset — should remove gitignored files
+      const slot2 = await manager.acquireWorkspace({
+        repos,
+        maxSlots: 3,
+        repoManager,
+        poolReset: 'strict',
+      });
+
+      // Build output should be removed (git clean -fdx removes gitignored files too)
+      expect(existsSync(path.join(slot2.path, 'my-repo', 'build', 'output.js'))).toBe(false);
+
+      await manager.releaseSlot(slot2);
+    });
+
+    it('default fast reset preserves gitignored files on reuse', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir, {
+        '.gitignore': 'build/',
+        'src/main.ts': 'console.log("hello")',
+      });
+
+      const manager = new WorkspacePoolManager(poolRoot);
+      const repos: RepoConfig[] = [{ path: './my-repo', source: { type: 'local', path: repoDir } }];
+
+      // First acquisition
+      const slot1 = await manager.acquireWorkspace({
+        repos,
+        maxSlots: 3,
+        repoManager,
+      });
+
+      // Simulate build output (gitignored)
+      mkdirSync(path.join(slot1.path, 'my-repo', 'build'), { recursive: true });
+      writeFileSync(path.join(slot1.path, 'my-repo', 'build', 'output.js'), 'compiled');
+
+      await manager.releaseSlot(slot1);
+
+      // Second acquisition with default fast reset — should preserve gitignored files
+      const slot2 = await manager.acquireWorkspace({
+        repos,
+        maxSlots: 3,
+        repoManager,
+      });
+
+      // Build output should be preserved (git clean -fd does not remove gitignored files)
+      expect(existsSync(path.join(slot2.path, 'my-repo', 'build', 'output.js'))).toBe(true);
+
+      await manager.releaseSlot(slot2);
     });
   });
 

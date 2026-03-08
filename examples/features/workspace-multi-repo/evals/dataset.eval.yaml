@@ -5,6 +5,9 @@ description: >-
 
 workspace:
   template: ../workspace-template
+  hooks:
+    after_each_test:
+      reset: fast
   repos:
     - path: ./agentv
       source:
@@ -24,10 +27,6 @@ workspace:
         resolve: remote
       clone:
         depth: 1
-  reset:
-    strategy: hard
-    after_each: true
-
 execution:
   targets:
     - vscode

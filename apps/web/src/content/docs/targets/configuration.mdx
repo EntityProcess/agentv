@@ -101,50 +101,60 @@ targets:
 When `workspace_template` is set:
 - The template directory is copied to `~/.agentv/workspaces/<eval-run-id>/shared/`
 - The `.git` directory is skipped during copy
-- Tests share the workspace; use `after_each` to reset state between tests
+- Tests share the workspace; use `hooks.after_each_test` to reset state between tests
 
 ### Workspace Lifecycle Hooks
 
-Run commands at different points in the evaluation lifecycle using the `workspace` block. This can be defined at the suite level (applies to all tests) or per test (overrides suite-level).
+Run commands and reset/cleanup policies at different lifecycle points using `workspace.hooks`. This can be defined at the suite level (applies to all tests) or per test (overrides suite-level).
 
 ```yaml
 workspace:
   template: ./workspace-templates/my-project
-  before_all:
-    command: ["bun", "run", "setup.ts"]
-    timeout_ms: 120000
-    cwd: ./scripts
-  after_each:
-    command: ["bun", "run", "reset.ts"]
-    timeout_ms: 5000
-  after_all:
-    command: ["bun", "run", "cleanup.ts"]
-    timeout_ms: 30000
+  hooks:
+    before_all_tests:
+      command: ["bun", "run", "setup.ts"]
+      timeout_ms: 120000
+      cwd: ./scripts
+    after_each_test:
+      command: ["bun", "run", "reset.ts"]
+      timeout_ms: 5000
+      reset: fast
+    after_all_tests:
+      command: ["bun", "run", "cleanup.ts"]
+      timeout_ms: 30000
+    on_reuse:
+      reset: fast
+    on_finish:
+      clean: on_success
 ```
 
 | Field | Description |
 |-------|-------------|
 | `template` | Directory to copy as workspace (alternative to target-level `workspace_template`) |
-| `before_all` | Runs once after workspace creation, before the first test |
-| `after_all` | Runs once after the last test, before cleanup |
-| `before_each` | Runs before each test |
-| `after_each` | Runs after each test (e.g., reset workspace state for reuse) |
+| `hooks.before_all_tests` | Runs once after workspace creation, before the first test |
+| `hooks.after_all_tests` | Runs once after the last test, before cleanup |
+| `hooks.before_each_test` | Runs before each test |
+| `hooks.after_each_test` | Runs after each test (supports both `command` and `reset`) |
+| `hooks.on_reuse` | Runs when a pooled workspace slot is reused |
+| `hooks.on_finish` | Controls final cleanup behavior |
 
 Each hook config accepts:
 
 | Field | Description |
 |-------|-------------|
 | `command` | Command array (e.g., `["bun", "run", "setup.ts"]`) |
-| `timeout_ms` | Timeout in milliseconds (default: 60000 for `before_all`, 30000 for others) |
+| `reset` | Reset mode: `none`, `fast`, `strict` |
+| `clean` | Cleanup mode: `always`, `on_success`, `on_failure`, `never` |
+| `timeout_ms` | Timeout in milliseconds (default: 60000 for setup hooks, 30000 for teardown hooks) |
 | `cwd` | Working directory (relative paths resolved against eval file directory) |
 
-**Lifecycle order:** template copy → `before_all` → git baseline → (`before_each` → agent runs → file changes captured → `after_each`) × N tests → `after_all` → cleanup
+**Lifecycle order:** template copy → `hooks.before_all_tests` → git baseline → (`hooks.before_each_test` → agent runs → file changes captured → `hooks.after_each_test`) × N tests → `hooks.after_all_tests` → cleanup
 
-**Shared workspace:** The workspace is created once and shared across all tests in a suite. Use `after_each` to reset state between tests (e.g., `git checkout . && git clean -fd`).
+**Shared workspace:** The workspace is created once and shared across all tests in a suite. Use `hooks.after_each_test.reset` to reset state between tests (e.g., `fast`/`strict`).
 
 **Error handling:**
-- `before_all` / `before_each` failure aborts the test with an error result
-- `after_all` / `after_each` failure is non-fatal (warning only)
+- `hooks.before_all_tests` / `hooks.before_each_test` command failure aborts the test with an error result
+- `hooks.after_all_tests` / `hooks.after_each_test` command failure is non-fatal (warning only)
 
 **Script context:** All scripts receive a JSON object on stdin with case context:
 
@@ -180,10 +190,16 @@ workspace:
       source:
         type: local
         path: /home/user/projects/my-project
-  reset:
-    strategy: hard            # none | hard | recreate
-    after_each: true          # reset repos between tests
+  hooks:
+    after_each_test:
+      reset: fast             # none | fast | strict
+    on_reuse:
+      reset: fast             # none | fast | strict
+    on_finish:
+      clean: on_success       # always | on_success | on_failure | never
   isolation: shared           # shared (default) | per_test
+  mode: pooled                # pooled | ephemeral | static
+  static_path: /tmp/my-ws     # required when mode=static
 ```
 
 | Field | Description |
@@ -193,18 +209,21 @@ workspace:
 | `repos[].checkout.ref` | Branch, tag, or SHA to check out (default: `HEAD`) |
 | `repos[].checkout.resolve` | `remote` (ls-remote, default for git) or `local` |
 | `repos[].checkout.ancestor` | Walk N commits back from ref (e.g., `1` for parent) |
-| `repos[].clone.depth` | Shallow clone depth (applies to both cache creation and workspace clone) |
+| `repos[].clone.depth` | Shallow clone depth |
 | `repos[].clone.filter` | Partial clone filter (e.g., `blob:none`) |
 | `repos[].clone.sparse` | Sparse checkout paths |
-| `reset.strategy` | How to reset repos: `none`, `hard` (git reset), `recreate` (re-clone) |
-| `reset.after_each` | Reset after each test (default: `false`) |
+| `hooks.after_each_test.reset` | Reset policy after each test: `none`, `fast`, `strict` |
 | `isolation` | `shared` reuses one workspace; `per_test` creates a fresh copy per test |
+| `mode` | Workspace mode: `pooled`, `ephemeral`, `static` |
+| `static_path` | Existing workspace path used when `mode=static` |
+| `hooks.on_reuse.reset` | Pooled workspace slot reset policy on reuse: `none`, `fast` (`git clean -fd`), `strict` (`git clean -fdx`) |
+| `hooks.on_finish.clean` | Temp workspace cleanup policy: `always`, `on_success`, `on_failure`, `never` |
 
-**Caching:** Repos are cached as bare mirrors in `~/.agentv/git-cache/`. Subsequent runs fetch only new objects. When `clone.depth` is set, the cache itself is created as a shallow clone, significantly speeding up initial cache creation for large repos.
+**Pooling:** `mode: pooled` (or default shared repo mode) reuses pool slots between runs. Use `mode: ephemeral` to disable pooling for fresh clone/checkouts each run.
 
-Cache management commands:
-- `agentv cache clean` — remove all cached repos
-- `agentv cache add --url <remote-url> --from <local-path>` — seed the cache from a local clone (avoids slow network clones for large repos)
+Pool management commands:
+- `agentv workspace list` — list all pool entries with size and repo info
+- `agentv workspace clean` — remove all pool entries
 
 **Common patterns:**
 
@@ -228,20 +247,23 @@ workspace:
       source: { type: git, url: https://github.com/org/frontend.git }
     - path: ./backend
       source: { type: git, url: https://github.com/org/backend.git }
-  reset:
-    strategy: hard
-    after_each: true
+  hooks:
+    after_each_test:
+      reset: fast
 ```
 
 ### Cleanup Behavior
 
-By default:
-- **Success**: Workspace is cleaned up automatically
-- **Failure**: Workspace is preserved for debugging
+Default finish behavior:
+- **Success**: cleanup
+- **Failure**: keep
 
-Override with CLI flags:
-- `--keep-workspaces`: Always preserve workspaces
-- `--cleanup-workspaces`: Always clean up, even on failure
+Override with workspace finish policy:
+- `hooks.on_finish.clean: always|on_success|on_failure|never`
+
+CLI overrides:
+- `--retain-on-success keep|cleanup`
+- `--retain-on-failure keep|cleanup`
 
 ### cwd vs workspace_template
 

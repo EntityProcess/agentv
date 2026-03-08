@@ -1,4 +1,10 @@
 template: ./workspace-template
+mode: pooled
+hooks:
+  on_reuse:
+    reset: fast
+  after_each_test:
+    reset: fast
 repos:
   - path: ./agentv
     source:
@@ -9,6 +15,3 @@ repos:
       resolve: remote
     clone:
       depth: 1
-reset:
-  strategy: hard
-  after_each: true

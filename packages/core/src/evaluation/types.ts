@@ -241,9 +241,35 @@ export type RepoConfig = {
   readonly clone?: RepoClone;
 };
 
-export type ResetConfig = {
-  readonly strategy?: 'none' | 'hard' | 'recreate';
-  readonly after_each?: boolean;
+export type WorkspaceHookConfig = {
+  /** Optional command array to execute (e.g., ["bun", "run", "setup.ts"]) */
+  readonly command?: readonly string[];
+  /** @deprecated Use `command` instead */
+  readonly script?: readonly string[];
+  /** Optional timeout in milliseconds */
+  readonly timeout_ms?: number;
+  readonly timeoutMs?: number;
+  /** Optional working directory for command execution */
+  readonly cwd?: string;
+  /** Optional reset policy for this hook */
+  readonly reset?: 'none' | 'fast' | 'strict';
+  /** Optional cleanup policy for this hook */
+  readonly clean?: 'always' | 'on_success' | 'on_failure' | 'never';
+};
+
+export type WorkspaceHooksConfig = {
+  /** Runs once before first test in the workspace lifecycle */
+  readonly before_all_tests?: WorkspaceHookConfig;
+  /** Runs before each test case */
+  readonly before_each_test?: WorkspaceHookConfig;
+  /** Runs after each test case */
+  readonly after_each_test?: WorkspaceHookConfig;
+  /** Runs once after final test in the workspace lifecycle */
+  readonly after_all_tests?: WorkspaceHookConfig;
+  /** Runs when reusing a pooled workspace slot */
+  readonly on_reuse?: WorkspaceHookConfig;
+  /** Runs/controls behavior when workspace lifecycle finishes */
+  readonly on_finish?: WorkspaceHookConfig;
 };
 
 export type WorkspaceConfig = {
@@ -254,16 +280,14 @@ export type WorkspaceConfig = {
   readonly isolation?: 'shared' | 'per_test';
   /** Repository definitions to clone/checkout into workspace */
   readonly repos?: readonly RepoConfig[];
-  /** Reset configuration for repos between test runs */
-  readonly reset?: ResetConfig;
-  /** Command to run once before first test (after workspace creation, before git baseline) */
-  readonly before_all?: WorkspaceScriptConfig;
-  /** Command to run once after last test (before workspace cleanup) */
-  readonly after_all?: WorkspaceScriptConfig;
-  /** Command to run before each test */
-  readonly before_each?: WorkspaceScriptConfig;
-  /** Command to run after each test (e.g., git reset for workspace reuse) */
-  readonly after_each?: WorkspaceScriptConfig;
+  /** Workspace lifecycle hooks */
+  readonly hooks?: WorkspaceHooksConfig;
+  /** Workspace materialization mode */
+  readonly mode?: 'pooled' | 'ephemeral' | 'static';
+  /** Required when mode=static: use this existing directory directly */
+  readonly static_path?: string;
+  /** @deprecated Use mode=pooled|ephemeral|static */
+  readonly pool?: boolean;
 };
 
 export type CodeEvaluatorConfig = {

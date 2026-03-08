@@ -73,39 +73,45 @@ The `--trace-file` format writes JSONL records containing:
 
 The `--otel-file` format writes standard OTLP JSON that can be imported into any OpenTelemetry-compatible backend.
 
-### Workspace Cleanup
+### Workspace Modes and Finish Policy
 
-When using `workspace_template` or the `workspace` config block, temporary workspaces are created for each test. By default, workspaces are cleaned up on success and preserved on failure for debugging.
-
-```bash
-# Always keep workspaces (for debugging)
-agentv eval evals/my-eval.yaml --keep-workspaces
-
-# Always cleanup workspaces (even on failure)
-agentv eval evals/my-eval.yaml --cleanup-workspaces
-```
-
-Workspaces are stored at `~/.agentv/workspaces/<eval-run-id>/<test-id>/` (or `$AGENTV_HOME/workspaces/` when [`AGENTV_HOME`](#agentv_home) is set).
-
-### Workspace Pooling
-
-Reuse materialized workspaces across eval runs instead of cloning from scratch each time:
+Use workspace mode and finish policies instead of multiple conflicting booleans:
 
 ```bash
-agentv eval evals/my-eval.yaml --pool-workspaces
+# Mode: pooled | ephemeral | static
+agentv eval evals/my-eval.yaml --workspace-mode pooled
+
+# Static mode path
+agentv eval evals/my-eval.yaml --workspace-mode static --workspace-path /path/to/workspace
+
+# Pooled reset policy override: standard | full (CLI override)
+agentv eval evals/my-eval.yaml --workspace-clean full
+
+# Finish policy overrides: keep | cleanup (CLI)
+agentv eval evals/my-eval.yaml --retain-on-success cleanup --retain-on-failure keep
 ```
 
-Pooled workspaces reset in-place (`git reset --hard` + `git clean -fd`) and preserve build artifacts. Multiple eval files with the same workspace config share the same pool. See the [Workspace Pool](/guides/workspace-pool/) guide for details.
+Equivalent eval YAML:
 
-### Static Workspace
-
-Use a pre-existing directory as the workspace, skipping all materialization (clone, copy, pool):
-
-```bash
-agentv eval evals/my-eval.yaml --workspace /path/to/my-workspace
+```yaml
+workspace:
+  mode: pooled           # pooled | ephemeral | static
+  static_path: null      # required when mode=static
+  hooks:
+    on_reuse:
+      reset: fast        # none | fast | strict
+    after_each_test:
+      reset: fast        # none | fast | strict
+    on_finish:
+      clean: on_success  # always | on_success | on_failure | never
 ```
 
-AgentV never deletes a user-provided workspace. Lifecycle hooks (`before_all`, `after_each`, etc.) still execute. Incompatible with `isolation: per_test`.
+Notes:
+- Pooling is default for shared workspaces with repos when mode is not specified.
+- `mode: static` (or `--workspace-mode static`) requires `static_path` / `--workspace-path`.
+- Static mode is incompatible with `isolation: per_test`.
+- `hooks.on_finish.clean` controls temp eval-run workspace cleanup under `~/.agentv/workspaces/...`.
+- Pool slots are managed separately (`agentv workspace list|clean`).
 
 ### Retry Execution Errors
 

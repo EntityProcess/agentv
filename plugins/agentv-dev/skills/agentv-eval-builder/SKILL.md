@@ -232,7 +232,7 @@ tests:
 
 ### Repository Lifecycle
 
-Clone repos into workspace automatically with bare-mirror caching:
+Clone repos into workspace automatically. For shared repo workspaces, pooling is the default:
 
 ```yaml
 workspace:
@@ -246,18 +246,27 @@ workspace:
         ancestor: 1       # parent commit
       clone:
         depth: 10
-  reset:
-    strategy: hard         # none | hard | recreate
-    after_each: true
+  hooks:
+    after_each_test:
+      reset: fast          # none | fast | strict
+    on_reuse:
+      reset: fast          # none | fast | strict (pooled slot reuse reset mode)
+    on_finish:
+      clean: on_success    # always | on_success | on_failure | never
   isolation: shared        # shared | per_test
+  mode: pooled             # pooled | ephemeral | static
 ```
 
 - `source.type`: `git` (URL) or `local` (path)
 - `checkout.resolve`: `remote` (ls-remote) or `local`
-- `clone.depth`: shallow clone depth (applies to both cache and workspace)
+- `clone.depth`: shallow clone depth
 - `clone.filter`: partial clone filter (e.g., `blob:none`)
 - `clone.sparse`: sparse checkout paths array
-- Cache: `~/.agentv/git-cache/`, manage with `agentv cache clean` or `agentv cache add --url <url> --from <local-path>`
+- `mode`: `pooled` (default for shared repos), `ephemeral`, or `static`
+- `static_path`: required when `mode: static`
+- `hooks.on_reuse.reset: strict` uses `git clean -fdx` on pooled slot reuse (`fast` uses `-fd`)
+- `hooks.on_finish.clean` controls temp workspace cleanup behavior
+- Pool entries are managed separately via `agentv workspace list` and `agentv workspace clean`
 
 See https://agentv.dev/targets/configuration/#repository-lifecycle
 

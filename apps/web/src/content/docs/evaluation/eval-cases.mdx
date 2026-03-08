@@ -119,21 +119,23 @@ Override the suite-level workspace config for individual tests. Test-level field
 
 ```yaml
 workspace:
-  before_all:
-    command: ["bun", "run", "default-setup.ts"]
+  hooks:
+    before_all_tests:
+      command: ["bun", "run", "default-setup.ts"]
 
 tests:
   - id: case-1
     criteria: Should work
     input: Do something
     workspace:
-      before_all:
-        command: ["bun", "run", "custom-setup.ts"]
+      hooks:
+        before_all_tests:
+          command: ["bun", "run", "custom-setup.ts"]
 
   - id: case-2
     criteria: Should also work
     input: Do something else
-    # Inherits suite-level before_all
+    # Inherits suite-level hooks.before_all_tests
 ```
 
 See [Workspace Lifecycle Hooks](/targets/configuration/#workspace-lifecycle-hooks) for the full workspace config reference.
@@ -151,8 +153,9 @@ tests:
       repo: sympy/sympy
       base_commit: "abc123def"
     workspace:
-      before_all:
-        command: ["python", "checkout_repo.py"]
+      hooks:
+        before_all_tests:
+          command: ["python", "checkout_repo.py"]
 ```
 
 The `metadata` field is included in the stdin JSON passed to lifecycle commands as `case_metadata`.

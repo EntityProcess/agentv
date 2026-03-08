@@ -116,12 +116,41 @@ export const evalRunCommand = command({
     }),
     poolWorkspaces: flag({
       long: 'pool-workspaces',
-      description: 'Reuse materialized workspaces across eval runs',
+      description: 'Enable workspace pooling (default for shared workspaces with repos)',
+    }),
+    noPool: flag({
+      long: 'no-pool',
+      description: 'Disable workspace pooling (clone fresh each run)',
     }),
     workspace: option({
       type: optional(string),
       long: 'workspace',
       description: 'Use an existing directory as the workspace directly (skips clone/copy/pool)',
+    }),
+    workspaceMode: option({
+      type: optional(string),
+      long: 'workspace-mode',
+      description: "Workspace mode: 'pooled', 'ephemeral', or 'static'",
+    }),
+    workspacePath: option({
+      type: optional(string),
+      long: 'workspace-path',
+      description: 'Static workspace directory path (used when workspace mode is static)',
+    }),
+    workspaceClean: option({
+      type: optional(string),
+      long: 'workspace-clean',
+      description: "Pooled reset clean mode: 'standard' or 'full'",
+    }),
+    retainOnSuccess: option({
+      type: optional(string),
+      long: 'retain-on-success',
+      description: "Workspace retention on success: 'keep' or 'cleanup'",
+    }),
+    retainOnFailure: option({
+      type: optional(string),
+      long: 'retain-on-failure',
+      description: "Workspace retention on failure: 'keep' or 'cleanup'",
     }),
     otelFile: option({
       type: optional(string),
@@ -190,7 +219,13 @@ export const evalRunCommand = command({
       keepWorkspaces: args.keepWorkspaces,
       cleanupWorkspaces: args.cleanupWorkspaces,
       poolWorkspaces: args.poolWorkspaces,
+      noPool: args.noPool,
       workspace: args.workspace,
+      workspaceMode: args.workspaceMode,
+      workspacePath: args.workspacePath,
+      workspaceClean: args.workspaceClean,
+      retainOnSuccess: args.retainOnSuccess,
+      retainOnFailure: args.retainOnFailure,
       trace: false,
       otelFile: args.otelFile,
       traceFile: args.traceFile,
