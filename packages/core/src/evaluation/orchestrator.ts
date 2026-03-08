@@ -379,6 +379,11 @@ export async function runEvaluation(
   const resolvedTemplate = await resolveWorkspaceTemplate(rawTemplate);
   const workspaceTemplate = resolvedTemplate?.dir;
   let suiteWorkspaceFile = resolvedTemplate?.workspaceFile;
+  const setupLog = (message: string): void => {
+    if (verbose) {
+      console.log(`[setup] ${message}`);
+    }
+  };
 
   // Resolve worker count: CLI option > target setting > default (1)
   // Force workers=1 when shared workspace is used to prevent data corruption
@@ -390,6 +395,9 @@ export async function runEvaluation(
   );
   const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
   const workers = hasSharedWorkspace ? 1 : requestedWorkers;
+  setupLog(
+    `sharedWorkspace=${hasSharedWorkspace} perTestIsolation=${isPerTestIsolation} requestedWorkers=${requestedWorkers} effectiveWorkers=${workers}`,
+  );
   if (hasSharedWorkspace && requestedWorkers > 1) {
     console.warn(
       `Warning: Shared workspace requires sequential execution. Overriding workers from ${requestedWorkers} to 1.`,
@@ -401,8 +409,10 @@ export async function runEvaluation(
   let beforeAllOutput: string | undefined;
 
   if (workspaceTemplate) {
+    setupLog(`creating shared workspace from template: ${workspaceTemplate}`);
     try {
       sharedWorkspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, 'shared');
+      setupLog(`shared workspace created at: ${sharedWorkspacePath}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to create shared workspace: ${message}`);
@@ -423,13 +433,16 @@ export async function runEvaluation(
     // No template but before_all or repos is configured: create empty workspace
     sharedWorkspacePath = getWorkspacePath(evalRunId, 'shared');
     await mkdir(sharedWorkspacePath, { recursive: true });
+    setupLog(`created empty shared workspace at: ${sharedWorkspacePath}`);
   }
 
   // Materialize repos into shared workspace (skip for per_test — repos are materialized per case)
-  const repoManager = suiteWorkspace?.repos?.length ? new RepoManager() : undefined;
+  const repoManager = suiteWorkspace?.repos?.length ? new RepoManager(undefined, verbose) : undefined;
   if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation) {
+    setupLog(`materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`);
     try {
       await repoManager.materializeAll(suiteWorkspace.repos, sharedWorkspacePath);
+      setupLog('shared repo materialization complete');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (sharedWorkspacePath) {
@@ -441,6 +454,10 @@ export async function runEvaluation(
 
   // Execute before_all (runs ONCE before first test)
   if (sharedWorkspacePath && suiteWorkspace?.before_all) {
+    const beforeAllCommand = (suiteWorkspace.before_all.command ?? suiteWorkspace.before_all.script ?? []).join(' ');
+    setupLog(
+      `running shared before_all in cwd=${suiteWorkspace.before_all.cwd ?? evalDir} command=${beforeAllCommand}`,
+    );
     const scriptContext: ScriptExecutionContext = {
       workspacePath: sharedWorkspacePath,
       testId: '__before_all__',
@@ -449,6 +466,7 @@ export async function runEvaluation(
     };
     try {
       beforeAllOutput = await executeWorkspaceScript(suiteWorkspace.before_all, scriptContext);
+      setupLog('shared before_all completed');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (sharedWorkspacePath) {
@@ -462,8 +480,10 @@ export async function runEvaluation(
   if (sharedWorkspacePath) {
     try {
       sharedBaselineCommit = await initializeBaseline(sharedWorkspacePath);
+      setupLog(`shared baseline initialized: ${sharedBaselineCommit}`);
     } catch {
       // Non-fatal: file change tracking is best-effort
+      setupLog('shared baseline initialization skipped (non-fatal)');
     }
   }
 
@@ -952,6 +972,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     repoManager,
     evalDir,
   } = options;
+  const setupDebug = process.env.AGENTV_SETUP_DEBUG === '1';
 
   const formattingMode = usesFileReferencePrompt(provider) ? 'agent' : 'lm';
   const promptInputs = await buildPromptInputs(evalCase, formattingMode);
@@ -1021,9 +1042,17 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
     // Materialize repos into per-case workspace
     if (evalCase.workspace?.repos?.length && workspacePath) {
-      const perCaseRepoManager = new RepoManager();
+      const perCaseRepoManager = new RepoManager(undefined, setupDebug);
       try {
+        if (setupDebug) {
+          console.log(
+            `[setup] test=${evalCase.id} materializing ${evalCase.workspace.repos.length} per-test repo(s) into ${workspacePath}`,
+          );
+        }
         await perCaseRepoManager.materializeAll(evalCase.workspace.repos, workspacePath);
+        if (setupDebug) {
+          console.log(`[setup] test=${evalCase.id} per-test repo materialization complete`);
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return buildErrorResult(
@@ -1041,6 +1070,12 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
     // Execute per-case before_all (only when not using shared workspace)
     if (workspacePath && evalCase.workspace?.before_all) {
+      const beforeAllCommand = (evalCase.workspace.before_all.command ?? evalCase.workspace.before_all.script ?? []).join(' ');
+      if (setupDebug) {
+        console.log(
+          `[setup] test=${evalCase.id} running before_all in cwd=${evalCase.workspace.before_all.cwd ?? evalDir} command=${beforeAllCommand}`,
+        );
+      }
       const scriptContext: ScriptExecutionContext = {
         workspacePath,
         testId: evalCase.id,
@@ -1054,6 +1089,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           evalCase.workspace.before_all,
           scriptContext,
         );
+        if (setupDebug) {
+          console.log(`[setup] test=${evalCase.id} before_all completed`);
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (forceCleanup && workspacePath) {

@@ -27,15 +27,21 @@ model: Grok Code Fast 1 (copilot)
 function spawnVsCode(
   vscodeCmd: string,
   args: string[],
-  options?: { shell?: boolean },
+  options?: { shell?: boolean; label?: string },
 ): ChildProcess {
-  const child = spawn(vscodeCmd, args, {
+  const useShell = options?.shell ?? true;
+  const command = useShell ? shellQuote(vscodeCmd) : vscodeCmd;
+  const child = spawn(command, args, {
     windowsHide: true,
-    shell: options?.shell ?? true,
+    shell: useShell,
     detached: false,
   });
-  child.on('error', () => {
-    // Handled by raceSpawnError when used, or silently ignored for fire-and-forget calls
+  child.on('error', (error) => {
+    const label = options?.label ?? 'spawn';
+    const renderedArgs = args.map((value) => JSON.stringify(value)).join(' ');
+    console.error(
+      `[vscode] ${label} failed: command=${JSON.stringify(vscodeCmd)} args=${renderedArgs} error=${error.message}`,
+    );
   });
   return child;
 }
@@ -93,7 +99,8 @@ export async function ensureWorkspaceFocused(
   const alreadyOpen = await checkWorkspaceOpened(workspaceName, vscodeCmd);
 
   if (alreadyOpen) {
-    spawnVsCode(shellQuote(vscodeCmd), [workspacePath]);
+    const child = spawnVsCode(vscodeCmd, [workspacePath], { label: 'focus-existing-workspace' });
+    await raceSpawnError(child);
     return true;
   }
 
@@ -105,7 +112,10 @@ export async function ensureWorkspaceFocused(
   const wakeupDst = path.join(githubAgentsDir, 'wakeup.md');
   await writeFile(wakeupDst, DEFAULT_WAKEUP_CONTENT, 'utf8');
 
-  spawnVsCode(shellQuote(vscodeCmd), [workspacePath]);
+  const workspaceChild = spawnVsCode(vscodeCmd, [workspacePath], {
+    label: 'open-workspace',
+  });
+  await raceSpawnError(workspaceChild);
   await sleep(100);
 
   const wakeupChatId = 'wakeup';
@@ -116,7 +126,8 @@ export async function ensureWorkspaceFocused(
     wakeupChatId,
     `create a file named .alive in the ${path.basename(subagentDir)} folder`,
   ];
-  spawnVsCode(shellQuote(vscodeCmd), chatArgs);
+  const wakeupChild = spawnVsCode(vscodeCmd, chatArgs, { label: 'send-wakeup-chat' });
+  await raceSpawnError(wakeupChild);
 
   const start = Date.now();
   while (!(await pathExists(aliveFile))) {
@@ -166,7 +177,7 @@ export async function launchVsCodeWithChat(
   }
 
   await sleep(500);
-  const child = spawnVsCode(shellQuote(vscodeCmd), chatArgs);
+  const child = spawnVsCode(vscodeCmd, chatArgs, { label: 'send-chat' });
   await raceSpawnError(child);
 }
 
@@ -200,6 +211,6 @@ export async function launchVsCodeWithBatchChat(
   }
 
   await sleep(500);
-  const child = spawnVsCode(shellQuote(vscodeCmd), chatArgs);
+  const child = spawnVsCode(vscodeCmd, chatArgs, { label: 'send-batch-chat' });
   await raceSpawnError(child);
 }

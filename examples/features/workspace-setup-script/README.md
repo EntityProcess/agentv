@@ -60,4 +60,11 @@ workspace:
 
 ## Cross-platform
 
-The script handles Windows by using `npx.cmd` instead of `npx`. Each command is spawned directly via `spawnSync` (no shell assumption).
+The script handles Windows by using `npx.cmd` instead of `npx`.
+
+Because the script first reads AgentV payload from stdin, it then launches `npx` with:
+
+- `stdio: ['ignore', 'inherit', 'inherit']`
+- `shell: process.platform === 'win32'`
+
+This avoids a Windows-specific `spawnSync npx.cmd EINVAL` failure seen when stdin is inherited after being consumed in `before_all` hooks.
