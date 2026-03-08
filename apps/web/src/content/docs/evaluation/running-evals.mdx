@@ -85,7 +85,7 @@ agentv eval evals/my-eval.yaml --keep-workspaces
 agentv eval evals/my-eval.yaml --cleanup-workspaces
 ```
 
-Workspaces are stored at `~/.agentv/workspaces/<eval-run-id>/<test-id>/`.
+Workspaces are stored at `~/.agentv/workspaces/<eval-run-id>/<test-id>/` (or `$AGENTV_HOME/workspaces/` when [`AGENTV_HOME`](#agentv_home) is set).
 
 ### Retry Execution Errors
 
@@ -226,6 +226,33 @@ export default defineConfig({
 The `{timestamp}` placeholder is replaced with an ISO-like timestamp (e.g., `2026-03-05T14-30-00-000Z`) at execution time.
 
 **Precedence:** CLI flags > `.agentv/config.yaml` > `agentv.config.ts` > built-in defaults.
+
+## Environment Variables
+
+### AGENTV_HOME
+
+Override the default `~/.agentv` directory for all global runtime data (workspaces, git cache, subagents, trace state, version check cache):
+
+```bash
+# Linux/macOS
+export AGENTV_HOME=/data/agentv
+
+# Windows (PowerShell)
+$env:AGENTV_HOME = "D:\agentv"
+
+# Windows (CMD)
+set AGENTV_HOME=D:\agentv
+```
+
+When set, AgentV logs `Using AGENTV_HOME: <path>` on startup to confirm the override is active.
+
+:::tip[Windows long paths]
+If you use a custom `AGENTV_HOME` on Windows for large monorepo workspaces, enable long path support:
+```powershell
+git config --system core.longpaths true
+```
+Or set the registry key: `HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled = 1`
+:::
 
 ## All Options
 
