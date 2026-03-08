@@ -1,6 +1,6 @@
 import { command, flag, subcommands } from 'cmd-ts';
 
-import { RepoManager } from '@agentv/core';
+import { RepoManager, getGitCacheRoot } from '@agentv/core';
 
 import { addCommand } from './add.js';
 
@@ -19,7 +19,7 @@ const cleanCommand = command({
       const readline = await import('node:readline');
       const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
       const answer = await new Promise<string>((resolve) => {
-        rl.question('Remove all cached git repos from ~/.agentv/git-cache/? [y/N] ', resolve);
+        rl.question(`Remove all cached git repos from ${getGitCacheRoot()}? [y/N] `, resolve);
       });
       rl.close();
       if (answer.toLowerCase() !== 'y') {
