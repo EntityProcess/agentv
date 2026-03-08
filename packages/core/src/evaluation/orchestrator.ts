@@ -184,6 +184,8 @@ export interface RunEvaluationOptions {
   readonly poolWorkspaces?: boolean;
   /** Maximum number of pool slots on disk (default: 10, max: 50) */
   readonly poolMaxSlots?: number;
+  /** Pre-existing workspace directory to use directly (skips clone/copy/pool) */
+  readonly workspace?: string;
 }
 
 export async function runEvaluation(
@@ -214,6 +216,7 @@ export async function runEvaluation(
     failOnError,
     poolWorkspaces,
     poolMaxSlots: configPoolMaxSlots,
+    workspace: userWorkspacePath,
   } = options;
 
   // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
@@ -396,14 +399,28 @@ export async function runEvaluation(
 
   // Resolve worker count and pool mode
   const isPerTestIsolation = suiteWorkspace?.isolation === 'per_test';
+
+  // --workspace is incompatible with per_test isolation
+  if (userWorkspacePath && isPerTestIsolation) {
+    throw new Error(
+      '--workspace is incompatible with isolation: per_test. Use isolation: shared (default).',
+    );
+  }
+
   const hasSharedWorkspace = !!(
+    userWorkspacePath ||
     workspaceTemplate ||
     suiteWorkspace?.before_all ||
     (suiteWorkspace?.repos?.length && !isPerTestIsolation)
   );
 
   // Pool support: reuse materialized workspaces across eval runs (CLI-only, not YAML)
-  const usePool = poolWorkspaces === true && !!suiteWorkspace?.repos?.length && !isPerTestIsolation;
+  // --workspace takes precedence over pool
+  const usePool =
+    poolWorkspaces === true &&
+    !!suiteWorkspace?.repos?.length &&
+    !isPerTestIsolation &&
+    !userWorkspacePath;
 
   const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
   // Pool-enabled workspaces support concurrent workers (each worker gets its own slot).
@@ -434,7 +451,11 @@ export async function runEvaluation(
   // Workers acquire slots from the pool; the pool itself can be larger than any single run needs.
   const poolMaxSlots = Math.min(configPoolMaxSlots ?? 10, 50);
 
-  if (usePool && suiteWorkspace?.repos) {
+  // User-provided workspace (--workspace /path): use directly, skip all materialization
+  if (userWorkspacePath) {
+    sharedWorkspacePath = userWorkspacePath;
+    setupLog(`using user-provided workspace: ${userWorkspacePath}`);
+  } else if (usePool && suiteWorkspace?.repos) {
     const slotsNeeded = workers;
     setupLog(`acquiring ${slotsNeeded} workspace pool slot(s) (pool capacity: ${poolMaxSlots})`);
     poolManager = new WorkspacePoolManager(getWorkspacePoolRoot());
@@ -489,9 +510,11 @@ export async function runEvaluation(
       }
     }
 
-    // Materialize repos into shared workspace (skip for per_test and pool — pool handles its own materialization)
+    // Materialize repos into shared workspace (skip for per_test, pool, and user-provided workspace)
     const repoManager =
-      suiteWorkspace?.repos?.length && !usePool ? new RepoManager(undefined, verbose) : undefined;
+      suiteWorkspace?.repos?.length && !usePool && !userWorkspacePath
+        ? new RepoManager(undefined, verbose)
+        : undefined;
     if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation) {
       setupLog(
         `materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`,
@@ -501,7 +524,7 @@ export async function runEvaluation(
         setupLog('shared repo materialization complete');
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        if (sharedWorkspacePath) {
+        if (sharedWorkspacePath && !userWorkspacePath) {
           await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
         }
         throw new Error(`Failed to materialize repos: ${message}`);
@@ -529,7 +552,7 @@ export async function runEvaluation(
         setupLog('shared before_all completed');
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        if (sharedWorkspacePath) {
+        if (sharedWorkspacePath && !userWorkspacePath) {
           await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
         }
         throw new Error(`before_all script failed: ${message}`);
@@ -849,8 +872,8 @@ export async function runEvaluation(
       }
     }
 
-    // Cleanup shared workspace (skip for pooled workspaces — they persist for reuse)
-    if (sharedWorkspacePath && !poolSlot && poolSlots.length === 0) {
+    // Cleanup shared workspace (skip for pooled workspaces and user-provided workspaces)
+    if (sharedWorkspacePath && !poolSlot && poolSlots.length === 0 && !userWorkspacePath) {
       const hasFailure = results.some((r) => !!r.error || r.score < 0.5);
       if (cleanupWorkspaces) {
         await cleanupWorkspace(sharedWorkspacePath).catch(() => {});

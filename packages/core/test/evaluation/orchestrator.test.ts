@@ -2410,3 +2410,195 @@ describe('fail_on_error tolerance', () => {
     }
   });
 });
+
+describe('--workspace flag', () => {
+  let testDir: string;
+
+  afterEach(async () => {
+    if (testDir) {
+      const { rm } = await import('node:fs/promises');
+      await rm(testDir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+
+  it('uses user-provided workspace directory directly', async () => {
+    const { mkdtemp } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases: [baseTestCase],
+      workspace: testDir,
+      keepWorkspaces: true,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toBeUndefined();
+  });
+
+  it('errors when workspace is combined with per_test isolation', async () => {
+    const { mkdtemp } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        isolation: 'per_test',
+      },
+    };
+
+    await expect(
+      runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: baseTarget,
+        providerFactory: () => provider,
+        evaluators: evaluatorRegistry,
+        evalCases: [evalCase],
+        workspace: testDir,
+      }),
+    ).rejects.toThrow('--workspace is incompatible with isolation: per_test');
+  });
+
+  it('never deletes user-provided workspace after run', async () => {
+    const { mkdtemp, writeFile, access: fsAccess } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
+    await writeFile(path.join(testDir, 'file.txt'), 'content');
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    // Even with cleanupWorkspaces=true, user workspace must survive
+    await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases: [baseTestCase],
+      workspace: testDir,
+      cleanupWorkspaces: true,
+    });
+
+    // Workspace should still exist
+    // Workspace should still exist (access resolves without throwing)
+    await fsAccess(testDir);
+    await fsAccess(path.join(testDir, 'file.txt'));
+  });
+
+  it('does not delete user workspace when before_all fails', async () => {
+    const { mkdtemp, writeFile, access: fsAccess } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
+    await writeFile(path.join(testDir, 'marker.txt'), 'keep-me');
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        before_all: { command: ['false'] },
+      },
+    };
+
+    await expect(
+      runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: baseTarget,
+        providerFactory: () => provider,
+        evaluators: evaluatorRegistry,
+        evalCases: [evalCase],
+        workspace: testDir,
+      }),
+    ).rejects.toThrow('before_all script failed');
+
+    // Workspace must still exist despite the error
+    // Workspace must still exist (access resolves without throwing)
+    await fsAccess(testDir);
+    await fsAccess(path.join(testDir, 'marker.txt'));
+  });
+
+  it('executes lifecycle hooks with user-provided workspace', async () => {
+    const { mkdtemp } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        before_each: { command: ['echo', 'setup-done'] },
+      },
+    };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases: [evalCase],
+      workspace: testDir,
+      keepWorkspaces: true,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toBeUndefined();
+    expect(results[0].beforeEachOutput).toBeDefined();
+  });
+
+  it('skips template copy and repo materialization when workspace provided', async () => {
+    const { mkdtemp } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
+
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    // Workspace config with repos — should be skipped when --workspace is provided
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        repos: [
+          {
+            path: 'repo-a',
+            source: { type: 'git', url: 'https://github.com/example/repo.git' },
+            checkout: { ref: 'main' },
+          },
+        ],
+      },
+    };
+
+    // Should succeed because repo materialization is skipped with --workspace
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases: [evalCase],
+      workspace: testDir,
+      keepWorkspaces: true,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].error).toBeUndefined();
+  });
+});
