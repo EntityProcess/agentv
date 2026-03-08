@@ -16,6 +16,7 @@ type ProcessMessagesOptions = {
   readonly repoRootPath: string;
   readonly guidelinePatterns?: readonly string[];
   readonly guidelinePaths?: string[];
+  readonly treatFileSegmentsAsGuidelines?: boolean;
   readonly textParts?: string[];
   readonly messageType: 'input' | 'output';
   readonly verbose: boolean;
@@ -31,6 +32,7 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
     repoRootPath,
     guidelinePatterns,
     guidelinePaths,
+    treatFileSegmentsAsGuidelines,
     textParts,
     messageType,
     verbose,
@@ -94,6 +96,15 @@ export async function processMessages(options: ProcessMessagesOptions): Promise<
           const fileContent = (await readFile(resolvedPath, 'utf8')).replace(/\r\n/g, '\n');
 
           // Only check for guidelines in input messages
+          if (messageType === 'input' && guidelinePaths && treatFileSegmentsAsGuidelines) {
+            guidelinePaths.push(path.resolve(resolvedPath));
+            if (verbose) {
+              console.log(`  [Guideline] Found: ${displayPath}`);
+              console.log(`    Resolved to: ${resolvedPath}`);
+            }
+            continue;
+          }
+
           if (messageType === 'input' && guidelinePatterns && guidelinePaths) {
             const relativeToRepo = path.relative(repoRootPath, resolvedPath);
 

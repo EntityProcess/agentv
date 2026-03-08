@@ -323,10 +323,11 @@ async function loadTestsFromYaml(
     // Prepend suite-level input to test input (respecting skip_defaults)
     const caseExecution = isJsonObject(evalcase.execution) ? evalcase.execution : undefined;
     const skipDefaults = caseExecution?.skip_defaults === true;
-    const inputMessages =
-      suiteInputMessages && !skipDefaults
-        ? [...suiteInputMessages, ...testInputMessages]
-        : testInputMessages;
+    const effectiveSuiteInputMessages =
+      suiteInputMessages && !skipDefaults ? suiteInputMessages : undefined;
+    const inputMessages = effectiveSuiteInputMessages
+      ? [...effectiveSuiteInputMessages, ...testInputMessages]
+      : testInputMessages;
 
     // expected_output is optional - for outcome-only evaluation
     const hasExpectedMessages = expectedMessages.length > 0;
@@ -334,9 +335,24 @@ async function loadTestsFromYaml(
     const guidelinePaths: string[] = [];
     const inputTextParts: string[] = [];
 
-    // Process all input messages to extract files and guidelines
-    const inputSegments = await processMessages({
-      messages: inputMessages,
+    // Process suite-level input first: treat suite file references as guidelines
+    const suiteInputSegments = effectiveSuiteInputMessages
+      ? await processMessages({
+          messages: effectiveSuiteInputMessages,
+          searchRoots,
+          repoRootPath,
+          guidelinePatterns,
+          guidelinePaths,
+          treatFileSegmentsAsGuidelines: true,
+          textParts: inputTextParts,
+          messageType: 'input',
+          verbose,
+        })
+      : [];
+
+    // Process test-level input: use configured guideline pattern matching
+    const testInputSegments = await processMessages({
+      messages: testInputMessages,
       searchRoots,
       repoRootPath,
       guidelinePatterns,
@@ -345,6 +361,7 @@ async function loadTestsFromYaml(
       messageType: 'input',
       verbose,
     });
+    const inputSegments = [...suiteInputSegments, ...testInputSegments];
 
     // Process expected_output into segments (only if provided)
     // Preserve full message structure including role and tool_calls for evaluator
