@@ -11,8 +11,6 @@ export const AGENTV_REQUEST_TEMPLATE = `[[ ## task ## ]]
 
 **IMPORTANT**: Follow these exact steps:
 1. Create and write your complete response to: {{responseFileTmp}}
-    - All intended file outputs/changes MUST be written in your response file.
-    - For each intended file, include the repo name, relative path and unified git diff following the convention \`diff --git ...\`.
 2. When completely finished, run these PowerShell commands to signal completion:
 \`\`\`
 Move-Item -LiteralPath '{{responseFileTmp}}' -Destination '{{responseFileFinal}}'
@@ -30,8 +28,6 @@ export const AGENTV_BATCH_REQUEST_TEMPLATE = `[[ ## task ## ]]
 
 **IMPORTANT**: Follow these exact steps:
 1. Create and write your complete response to: {{responseFileTmp}}
-    - All intended file outputs/changes MUST be written in your response file.
-    - For each intended file, include the repo name, relative path and unified git diff following the convention \`diff --git ...\`.
 2. When completely finished and the response is stable, rename it to: {{responseFileFinal}}
 3. Do not unlock the workspace from this request; batch orchestration will handle unlocking after all responses are ready.
 `;
