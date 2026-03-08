@@ -1,0 +1,16 @@
+description: >-
+  Accuracy eval that references a shared workspace config file.
+  The workspace is defined once in workspace.yaml and reused across eval files.
+
+workspace: ../../workspace.yaml
+
+tests:
+  - id: verify-repo-exists
+    criteria: >-
+      The agent should confirm the agentv repo is present in the workspace
+      and report the package name from package.json.
+    input: >-
+      Read agentv/package.json and report the name field.
+    assert:
+      - type: contains
+        value: agentv

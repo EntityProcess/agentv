@@ -437,9 +437,13 @@ export async function runEvaluation(
   }
 
   // Materialize repos into shared workspace (skip for per_test — repos are materialized per case)
-  const repoManager = suiteWorkspace?.repos?.length ? new RepoManager(undefined, verbose) : undefined;
+  const repoManager = suiteWorkspace?.repos?.length
+    ? new RepoManager(undefined, verbose)
+    : undefined;
   if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation) {
-    setupLog(`materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`);
+    setupLog(
+      `materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`,
+    );
     try {
       await repoManager.materializeAll(suiteWorkspace.repos, sharedWorkspacePath);
       setupLog('shared repo materialization complete');
@@ -454,7 +458,11 @@ export async function runEvaluation(
 
   // Execute before_all (runs ONCE before first test)
   if (sharedWorkspacePath && suiteWorkspace?.before_all) {
-    const beforeAllCommand = (suiteWorkspace.before_all.command ?? suiteWorkspace.before_all.script ?? []).join(' ');
+    const beforeAllCommand = (
+      suiteWorkspace.before_all.command ??
+      suiteWorkspace.before_all.script ??
+      []
+    ).join(' ');
     setupLog(
       `running shared before_all in cwd=${suiteWorkspace.before_all.cwd ?? evalDir} command=${beforeAllCommand}`,
     );
@@ -1070,7 +1078,11 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
     // Execute per-case before_all (only when not using shared workspace)
     if (workspacePath && evalCase.workspace?.before_all) {
-      const beforeAllCommand = (evalCase.workspace.before_all.command ?? evalCase.workspace.before_all.script ?? []).join(' ');
+      const beforeAllCommand = (
+        evalCase.workspace.before_all.command ??
+        evalCase.workspace.before_all.script ??
+        []
+      ).join(' ');
       if (setupDebug) {
         console.log(
           `[setup] test=${evalCase.id} running before_all in cwd=${evalCase.workspace.before_all.cwd ?? evalDir} command=${beforeAllCommand}`,
