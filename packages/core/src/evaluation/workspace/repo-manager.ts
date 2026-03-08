@@ -2,15 +2,13 @@ import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, rm, unlink, writeFile } from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
+import { getGitCacheRoot } from '../../paths.js';
 import type { RepoConfig, RepoSource } from '../types.js';
 
 const execFileAsync = promisify(execFile);
-
-const DEFAULT_CACHE_DIR = path.join(os.homedir(), '.agentv', 'git-cache');
 const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
 const LOCK_TIMEOUT_MS = 60_000; // 1 minute
 
@@ -84,7 +82,7 @@ export class RepoManager {
   private readonly cacheDir: string;
 
   constructor(cacheDir?: string) {
-    this.cacheDir = cacheDir ?? DEFAULT_CACHE_DIR;
+    this.cacheDir = cacheDir ?? getGitCacheRoot();
   }
 
   /**

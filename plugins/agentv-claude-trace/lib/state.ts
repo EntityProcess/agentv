@@ -3,7 +3,9 @@ import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/pro
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-const STATE_DIR = join(homedir(), '.agentv', 'trace-state');
+// Mirrors getTraceStateRoot() from packages/core/src/paths.ts — inlined to avoid
+// adding @agentv/core as a dependency for this lightweight plugin.
+const STATE_DIR = join(process.env.AGENTV_HOME ?? join(homedir(), '.agentv'), 'trace-state');
 
 export interface SessionState {
   sessionId: string;
