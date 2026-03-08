@@ -623,7 +623,9 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
 
   const pool = obj.pool === true ? true : undefined;
   const poolMaxSlots =
-    typeof obj.pool_max_slots === 'number' && Number.isFinite(obj.pool_max_slots)
+    typeof obj.pool_max_slots === 'number'
+    && Number.isInteger(obj.pool_max_slots)
+    && obj.pool_max_slots > 0
       ? obj.pool_max_slots
       : undefined;
 

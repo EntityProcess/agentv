@@ -473,6 +473,9 @@ export async function runEvaluation(
     setupLog(`created empty shared workspace at: ${sharedWorkspacePath}`);
   }
 
+  // Wrap remaining logic in try/finally to ensure pool slot is always released on error
+  try {
+
   // Materialize repos into shared workspace (skip for per_test and pool — pool handles its own materialization)
   const repoManager = suiteWorkspace?.repos?.length && !usePool ? new RepoManager(undefined, verbose) : undefined;
   if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation) {
@@ -769,11 +772,6 @@ export async function runEvaluation(
     }
   }
 
-  // Release workspace pool slot (keep workspace for future reuse)
-  if (poolSlot && poolManager) {
-    await poolManager.releaseSlot(poolSlot);
-  }
-
   // Cleanup shared workspace (skip for pooled workspaces — they persist for reuse)
   if (sharedWorkspacePath && !poolSlot) {
     const hasFailure = results.some((r) => !!r.error || r.score < 0.5);
@@ -791,6 +789,13 @@ export async function runEvaluation(
   }
 
   return results;
+
+  } finally {
+    // Release workspace pool slot (keep workspace for future reuse)
+    if (poolSlot && poolManager) {
+      await poolManager.releaseSlot(poolSlot);
+    }
+  }
 }
 
 async function runBatchEvaluation(options: {

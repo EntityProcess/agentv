@@ -249,53 +249,42 @@ export class WorkspacePoolManager {
    * Try to acquire a PID-based lock file.
    * On EEXIST, read PID and check if process is alive. If dead, stale lock — remove and retry.
    * Returns true if lock acquired, false if slot is actively locked.
+   * Uses a bounded loop (max 3 attempts) to avoid unbounded recursion.
    */
   private async tryLock(lockPath: string): Promise<boolean> {
-    try {
-      await writeFile(lockPath, String(process.pid), { flag: 'wx' });
-      return true;
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') {
-        throw err;
-      }
-
-      // Lock file exists — check if the holding process is still alive
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const pidStr = await readFile(lockPath, 'utf-8');
-        const pid = Number.parseInt(pidStr.trim(), 10);
-
-        if (Number.isNaN(pid)) {
-          // Invalid PID — treat as stale
-          await this.removeStaleLock(lockPath);
-          return this.tryLock(lockPath);
+        await writeFile(lockPath, String(process.pid), { flag: 'wx' });
+        return true;
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') {
+          throw err;
         }
 
+        // Lock file exists — check if the holding process is still alive
         try {
-          process.kill(pid, 0); // Signal 0 checks if process exists
-          // Process is alive — slot is actively locked
-          return false;
+          const pidStr = await readFile(lockPath, 'utf-8');
+          const pid = Number.parseInt(pidStr.trim(), 10);
+
+          if (!Number.isNaN(pid)) {
+            try {
+              process.kill(pid, 0); // Signal 0 checks if process exists
+              // Process is alive — slot is actively locked
+              return false;
+            } catch {
+              // Process is dead — stale lock, remove and retry
+              await unlink(lockPath).catch(() => {});
+              continue;
+            }
+          }
         } catch {
-          // Process is dead — stale lock
-          await this.removeStaleLock(lockPath);
-          return this.tryLock(lockPath);
+          // Can't read lock — treat as locked
         }
-      } catch (readErr: unknown) {
-        if ((readErr as NodeJS.ErrnoException).code === 'ENOENT') {
-          // Lock was removed between our check and read — retry
-          return this.tryLock(lockPath);
-        }
-        throw readErr;
+
+        return false;
       }
     }
-  }
-
-  /** Remove a stale lock file. */
-  private async removeStaleLock(lockPath: string): Promise<void> {
-    try {
-      await unlink(lockPath);
-    } catch {
-      // Already removed by another process
-    }
+    return false; // Exhausted retries
   }
 
   /**
@@ -333,22 +322,35 @@ export class WorkspacePoolManager {
 
   /** Remove all slot directories and their lock files from a pool directory. */
   private async removeAllSlots(poolDir: string): Promise<void> {
-    try {
-      const entries = await readdir(poolDir);
-      for (const entry of entries) {
-        if (entry.startsWith('slot-')) {
-          await rm(path.join(poolDir, entry), { recursive: true, force: true });
+    const entries = await readdir(poolDir);
+    for (const entry of entries) {
+      if (entry.startsWith('slot-') && !entry.endsWith('.lock')) {
+        const lockPath = path.join(poolDir, `${entry}.lock`);
+        // Skip slots that are actively locked by a live process
+        if (existsSync(lockPath)) {
+          try {
+            const pidStr = await readFile(lockPath, 'utf-8');
+            const pid = Number.parseInt(pidStr.trim(), 10);
+            if (!Number.isNaN(pid)) {
+              try {
+                process.kill(pid, 0);
+                console.warn(`[workspace-pool] Skipping slot ${entry}: locked by PID ${pid}`);
+                continue; // Skip this slot
+              } catch {
+                // PID dead — safe to remove
+              }
+            }
+          } catch {
+            // Can't read lock — safe to remove
+          }
         }
+        await rm(path.join(poolDir, entry), { recursive: true, force: true });
+        // Also remove the lock file if it exists
+        await rm(lockPath, { force: true }).catch(() => {});
       }
-      // Also remove metadata.json so it gets rewritten
-      try {
-        await unlink(path.join(poolDir, 'metadata.json'));
-      } catch {
-        // Might not exist
-      }
-    } catch {
-      // Pool dir might not exist yet
     }
+    // Remove metadata.json to force re-creation
+    await rm(path.join(poolDir, 'metadata.json'), { force: true }).catch(() => {});
   }
 
   /**
