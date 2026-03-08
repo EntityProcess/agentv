@@ -1544,6 +1544,46 @@ rl.on('close', () => {
     expect(result.error).toBeUndefined();
     expect(result.executionStatus).toBe('ok');
   });
+
+  it('does not execute script for reset-only hooks', async () => {
+    const { mkdtemp, writeFile, mkdir } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-orch-ws-'));
+    const templateDir = path.join(testDir, 'template');
+    await mkdir(templateDir, { recursive: true });
+    await writeFile(path.join(templateDir, 'hello.txt'), 'hello');
+
+    const provider = new SequenceProvider('mock', {
+      responses: [
+        {
+          output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
+        },
+      ],
+    });
+
+    const evalCase: EvalTest = {
+      ...baseTestCase,
+      workspace: {
+        template: templateDir,
+        hooks: {
+          before_each_test: {
+            reset: 'fast',
+          },
+        },
+      },
+    };
+
+    const result = await runEvalCase({
+      evalCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      evalRunId: 'test-run-reset-only-hook',
+      cleanupWorkspaces: true,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.executionStatus).toBe('ok');
+  });
 });
 
 describe('deterministic assertion evaluators in orchestrator', () => {

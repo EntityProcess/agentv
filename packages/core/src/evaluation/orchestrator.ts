@@ -104,6 +104,13 @@ function toScriptConfig(
   };
 }
 
+function hasHookCommand(hook: WorkspaceHookConfig | undefined): hook is WorkspaceHookConfig {
+  return !!(
+    (hook?.command && hook.command.length > 0) ||
+    (hook?.script && hook.script.length > 0)
+  );
+}
+
 /**
  * Extract workspaceTemplate from a resolved target's config.
  * Returns undefined if the target doesn't support workspace templates.
@@ -606,8 +613,9 @@ export async function runEvaluation(
     }
 
     // Execute before_all (runs ONCE before first test per workspace)
-    if (sharedWorkspacePath && suiteWorkspace?.hooks?.before_all_tests) {
-      const beforeAllHook = suiteWorkspace.hooks.before_all_tests;
+    const suiteBeforeAllHook = suiteWorkspace?.hooks?.before_all_tests;
+    if (sharedWorkspacePath && hasHookCommand(suiteBeforeAllHook)) {
+      const beforeAllHook = suiteBeforeAllHook;
       const beforeAllCommand = (beforeAllHook.command ?? beforeAllHook.script ?? []).join(' ');
       setupLog(
         `running shared before_all in cwd=${beforeAllHook.cwd ?? evalDir} command=${beforeAllCommand}`,
@@ -634,8 +642,8 @@ export async function runEvaluation(
     }
 
     // Multi-slot pool: run before_all on each slot and initialize baselines
-    if (availablePoolSlots.length > 0 && suiteWorkspace?.hooks?.before_all_tests) {
-      const beforeAllHook = suiteWorkspace.hooks.before_all_tests;
+    if (availablePoolSlots.length > 0 && hasHookCommand(suiteBeforeAllHook)) {
+      const beforeAllHook = suiteBeforeAllHook;
       for (const slot of availablePoolSlots) {
         setupLog(`running before_all on pool slot ${slot.index}`);
         const scriptContext: ScriptExecutionContext = {
@@ -928,8 +936,9 @@ export async function runEvaluation(
           ? [sharedWorkspacePath]
           : [];
 
-    if (afterAllWorkspaces.length > 0 && suiteWorkspace?.hooks?.after_all_tests) {
-      const afterAllHook = suiteWorkspace.hooks.after_all_tests;
+    const suiteAfterAllHook = suiteWorkspace?.hooks?.after_all_tests;
+    if (afterAllWorkspaces.length > 0 && hasHookCommand(suiteAfterAllHook)) {
+      const afterAllHook = suiteAfterAllHook;
       for (const wsPath of afterAllWorkspaces) {
         const scriptContext: ScriptExecutionContext = {
           workspacePath: wsPath,
@@ -1306,8 +1315,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
 
     // Execute per-case before_all (only when not using shared workspace)
-    if (workspacePath && evalCase.workspace?.hooks?.before_all_tests) {
-      const beforeAllHook = evalCase.workspace.hooks.before_all_tests;
+    const caseBeforeAllHook = evalCase.workspace?.hooks?.before_all_tests;
+    if (workspacePath && hasHookCommand(caseBeforeAllHook)) {
+      const beforeAllHook = caseBeforeAllHook;
       const beforeAllCommand = (beforeAllHook.command ?? beforeAllHook.script ?? []).join(' ');
       if (setupDebug) {
         console.log(
@@ -1350,8 +1360,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   // Execute before_each hook (runs before each test for any workspace)
-  if (workspacePath && evalCase.workspace?.hooks?.before_each_test) {
-    const beforeEachHook = evalCase.workspace.hooks.before_each_test;
+  const caseBeforeEachHook = evalCase.workspace?.hooks?.before_each_test;
+  if (workspacePath && hasHookCommand(caseBeforeEachHook)) {
+    const beforeEachHook = caseBeforeEachHook;
     const scriptContext: ScriptExecutionContext = {
       workspacePath,
       testId: evalCase.id,
@@ -1527,8 +1538,9 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   // Execute after_each hook (runs after evaluation, before cleanup)
-  if (workspacePath && evalCase.workspace?.hooks?.after_each_test) {
-    const afterEachHook = evalCase.workspace.hooks.after_each_test;
+  const caseAfterEachHook = evalCase.workspace?.hooks?.after_each_test;
+  if (workspacePath && hasHookCommand(caseAfterEachHook)) {
+    const afterEachHook = caseAfterEachHook;
     const scriptContext: ScriptExecutionContext = {
       workspacePath,
       testId: evalCase.id,
