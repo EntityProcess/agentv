@@ -105,10 +105,7 @@ function toScriptConfig(
 }
 
 function hasHookCommand(hook: WorkspaceHookConfig | undefined): hook is WorkspaceHookConfig {
-  return !!(
-    (hook?.command && hook.command.length > 0) ||
-    (hook?.script && hook.script.length > 0)
-  );
+  return !!((hook?.command && hook.command.length > 0) || (hook?.script && hook.script.length > 0));
 }
 
 /**
