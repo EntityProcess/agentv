@@ -427,24 +427,28 @@ export async function runEvaluation(
   const availablePoolSlots: PoolSlot[] = [];
   const poolSlotBaselines = new Map<string, string>();
 
+  // Pool capacity: how many slots can exist on disk (independent of worker count).
+  // Workers acquire slots from the pool; the pool itself can be larger than any single run needs.
+  const poolMaxSlots = 10;
+
   if (usePool && suiteWorkspace?.repos) {
-    const slotCount = workers;
-    setupLog(`acquiring ${slotCount} workspace pool slot(s)`);
+    const slotsNeeded = workers;
+    setupLog(`acquiring ${slotsNeeded} workspace pool slot(s) (pool capacity: ${poolMaxSlots})`);
     poolManager = new WorkspacePoolManager(getWorkspacePoolRoot());
     const poolRepoManager = new RepoManager(undefined, verbose);
 
-    for (let i = 0; i < slotCount; i++) {
+    for (let i = 0; i < slotsNeeded; i++) {
       const slot = await poolManager.acquireWorkspace({
         templatePath: workspaceTemplate,
         repos: suiteWorkspace.repos,
-        maxSlots: slotCount,
+        maxSlots: poolMaxSlots,
         repoManager: poolRepoManager,
       });
       poolSlots.push(slot);
       setupLog(`pool slot ${i} acquired at: ${slot.path} (existing=${slot.isExisting})`);
     }
 
-    if (slotCount === 1) {
+    if (slotsNeeded === 1) {
       // Single-slot: use shared workspace path (existing behavior)
       poolSlot = poolSlots[0];
       sharedWorkspacePath = poolSlot.path;
