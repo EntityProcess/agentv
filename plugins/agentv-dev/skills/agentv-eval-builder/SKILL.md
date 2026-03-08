@@ -131,9 +131,19 @@ tests:
 
 `execution.evaluators` is deprecated. When both `assert` and `execution.evaluators` are present, `assert` takes precedence.
 
-## Default Evaluation (no assert)
+## How `criteria` and `assert` Interact
 
-When a test has **no `assert` field**, a default `llm-judge` evaluator runs automatically against the `criteria` field. This is the zero-config path for simple evaluations:
+`criteria` is a **data field** — it describes what the response should accomplish. It is **not** an evaluator. How it gets evaluated depends on whether `assert` is present:
+
+| Scenario | What happens | Warning? |
+|----------|-------------|----------|
+| `criteria` + **no `assert`** | Implicit `llm-judge` runs automatically against `criteria` | No |
+| `criteria` + **`assert` with only deterministic evaluators** (contains, regex, etc.) | Only declared evaluators run. `criteria` is **not evaluated**. | Yes — warns that no evaluator will consume criteria |
+| `criteria` + **`assert` with a judge** (llm-judge, code-judge, agent-judge, rubrics) | Declared evaluators run. Judges receive `criteria` as input. | No |
+
+### No assert → implicit llm-judge
+
+The simplest path. `criteria` is automatically evaluated by the default `llm-judge`:
 
 ```yaml
 tests:
@@ -143,7 +153,9 @@ tests:
     # No assert → default llm-judge evaluates against criteria
 ```
 
-When `assert` **is** present, only the declared evaluators run — no default judge is added. If you want an LLM judge alongside deterministic checks, declare it explicitly:
+### assert present → no implicit judge
+
+When `assert` is defined, **only the declared evaluators run**. If you want an LLM judge alongside deterministic checks, declare it explicitly:
 
 ```yaml
 tests:
@@ -154,6 +166,19 @@ tests:
       - type: llm-judge        # must be explicit when assert is present
       - type: contains
         value: "fix"
+```
+
+**Common mistake:** defining `criteria` with only deterministic evaluators. The criteria will be ignored and a warning is emitted:
+
+```yaml
+tests:
+  - id: bad-example
+    criteria: Gives a thoughtful answer    # ⚠ NOT evaluated — no judge in assert
+    input: "What is 2+2?"
+    assert:
+      - type: contains
+        value: "4"
+    # Warning: criteria is defined but no evaluator in assert will evaluate it.
 ```
 
 ## Required Gates
