@@ -22,7 +22,7 @@ AgentV is early-stage, so we prioritize:
 ```bash
 bun install
 bun run build
-bun run test
+bun test
 ```
 
 Run CLI changes from source during development:
@@ -33,14 +33,11 @@ bun apps/cli/src/cli.ts --help
 
 ## Before Submitting a PR
 
-```bash
-bun run verify
-```
-
 Also ensure:
 - PR explains what changed and why
 - tests/docs are updated when relevant
 - no unrelated refactors in the same PR
+- pre-push hooks pass (`build`, `typecheck`, `lint`, `test` run automatically on push)
 
 ## Workflow
 

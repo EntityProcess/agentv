@@ -1,4 +1,14 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+// This example is intended to be run manually after building the template.
+// In repo-wide test runs, skip when dist output is not present.
+const distPath = resolve(import.meta.dirname, '../dist/index.js');
+if (!existsSync(distPath)) {
+  console.log('Skipping functional-grading workspace-template test: dist/index.js not built');
+  process.exit(0);
+}
 
 // Tests run against compiled output
 const { add, multiply, fibonacci } = await import('../dist/index.js');
