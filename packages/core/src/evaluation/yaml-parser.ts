@@ -314,9 +314,11 @@ async function loadTestsFromYaml(
     // Resolve expected_output with shorthand support
     const expectedMessages = resolveExpectedMessages(evalcase) ?? [];
 
-    if (!id || !outcome || !testInputMessages || testInputMessages.length === 0) {
+    // A test is complete when it has id, input, and at least one of: criteria, expected_output, or assert
+    const hasEvaluationSpec = !!outcome || expectedMessages.length > 0 || evalcase.assert !== undefined;
+    if (!id || !hasEvaluationSpec || !testInputMessages || testInputMessages.length === 0) {
       logError(
-        `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, criteria, and/or input`,
+        `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assert`,
       );
       continue;
     }
@@ -460,7 +462,7 @@ async function loadTestsFromYaml(
       guideline_paths: guidelinePaths.map((guidelinePath) => path.resolve(guidelinePath)),
       guideline_patterns: guidelinePatterns,
       file_paths: allFilePaths,
-      criteria: outcome,
+      criteria: outcome ?? '',
       evaluator: evalCaseEvaluatorKind,
       evaluators,
       workspace: mergedWorkspace,
