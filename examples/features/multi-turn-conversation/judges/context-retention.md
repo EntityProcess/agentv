@@ -1,10 +1,10 @@
 You are evaluating whether an AI assistant retains context from earlier turns
 in a multi-turn conversation.
 
-Below you will see the full conversation: the conversation history contains
-prior user and assistant turns, and the agent response is the final assistant
-turn. Evaluate ALL assistant turns across the entire conversation (both
-history and final response). Number turns sequentially starting from Turn 1.
+Below you will see the full conversation with role annotations (system, user,
+assistant). The conversation history contains prior turns, and the agent
+response is the final assistant turn. Evaluate ALL assistant turns across the
+entire conversation. Number assistant turns sequentially starting from Turn 1.
 
 For each assistant turn, check whether the assistant correctly references or
 builds on information introduced in previous turns (e.g., names, numbers,
@@ -31,8 +31,8 @@ Your overall `score` should be the average of per-turn scores.
 [[ ## criteria ## ]]
 {{ criteria }}
 
-[[ ## conversation history (prior turns) ## ]]
-{{ input }}
+[[ ## conversation (all turns with roles) ## ]]
+{{ conversation }}
 
 [[ ## agent response (final turn) ## ]]
 {{ answer }}

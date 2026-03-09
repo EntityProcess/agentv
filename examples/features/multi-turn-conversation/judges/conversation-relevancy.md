@@ -1,10 +1,10 @@
 You are evaluating whether each assistant response in a multi-turn conversation
 is relevant to the user's current request AND the broader conversation context.
 
-Below you will see the full conversation: the conversation history contains
-prior user and assistant turns, and the agent response is the final assistant
-turn. Evaluate ALL assistant turns across the entire conversation (both
-history and final response). Number turns sequentially starting from Turn 1.
+Below you will see the full conversation with role annotations (system, user,
+assistant). The conversation history contains prior turns, and the agent
+response is the final assistant turn. Evaluate ALL assistant turns across the
+entire conversation. Number assistant turns sequentially starting from Turn 1.
 
 For each assistant turn, assess:
 - Does the response directly address what the user asked?
@@ -32,8 +32,8 @@ Your overall `score` should be the average of per-turn scores.
 [[ ## criteria ## ]]
 {{ criteria }}
 
-[[ ## conversation history (prior turns) ## ]]
-{{ input }}
+[[ ## conversation (all turns with roles) ## ]]
+{{ conversation }}
 
 [[ ## agent response (final turn) ## ]]
 {{ answer }}

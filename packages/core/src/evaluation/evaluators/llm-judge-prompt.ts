@@ -76,6 +76,7 @@ function assembleFreeform(
     [TEMPLATE_VARIABLES.CRITERIA]: evalCase.criteria.trim(),
     [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
     [TEMPLATE_VARIABLES.FILE_CHANGES]: fileChanges ?? '',
+    [TEMPLATE_VARIABLES.CONVERSATION]: JSON.stringify(evalCase.input, null, 2),
   };
 
   const systemPrompt = buildOutputSchema();

@@ -1,0 +1,260 @@
+---
+timestamp: 2026-03-09T09:22:00.279Z
+test_id: support-troubleshooting-flow
+dataset: dataset.eval
+score: 1
+hits:
+  - "Turn 3: skipped router restart, referencing user's prior attempt"
+  - "Turn 5: provided instructions suited to technical beginner, no repeat steps"
+  - "Turn 6: referenced prior cable fix and 'simple' instructions"
+  - "Turn 6: continued to avoid repeated router restart, encouraged easy actions"
+  - "Turn 3: Directly asked about router light status to diagnose further"
+  - "Turn 5: Suggested checking and reseating WAN/Internet cable, avoiding repetition of restart step"
+  - "Turn 6: Provided clear instructions for next steps and environment checks suitable for a beginner"
+  - "Turn 6: Offered to perform remote tests/escalate if issue persists, keeping steps simple"
+  - "Turn 1: empathetic, clear, and skips router restart as instructed"
+  - "Turn 2: explains orange light in simple terms and gives an easy step"
+  - "Turn 3 (final): maintains reassuring, beginner-friendly tone and avoids repeating past instructions"
+misses: []
+target: default
+reasoning: "context_retention: All assistant turns demonstrate clear context retention: avoids repeating router restart, adapts explanations for beginner, and builds upon prior troubleshooting steps. | conversation_relevancy: All assistant turns stayed highly relevant to the user's WiFi issue, tracked previous steps, and matched instructions to the user's technical comfort level. No unnecessary repetition or off-topic details were introduced. | role_adherence: All assistant turns are consistent with the technical support role defined in the system prompt, adapt to the user's technical level, and do not repeat previously attempted steps."
+input:
+  - role: system
+    content: |-
+      You are a technical support agent for NetConnect ISP. Adapt your
+      explanations to the customer's technical level. Never suggest steps
+      the customer has already tried.
+  - role: user
+    content: |-
+      My WiFi keeps dropping every 10 minutes. I already restarted my router
+      twice today. I'm not very tech-savvy so please keep it simple.
+  - role: assistant
+    content: |-
+      I'm sorry you're dealing with that — WiFi dropping out is really
+      frustrating! Since you've already restarted the router, let's skip that
+      step. Could you tell me: does the light on the front of your router stay
+      solid green, or does it blink or turn a different color when the WiFi drops?
+  - role: user
+    content: It blinks orange for a few seconds then goes back to green.
+  - role: assistant
+    content: |-
+      That orange blinking usually means the router is briefly losing its
+      connection to our network. Let's try something simple: can you find the
+      small cable plugged into the back of your router labeled "WAN" or
+      "Internet"? Just unplug it, wait 10 seconds, and plug it back in firmly.
+      Sometimes it just needs a better connection.
+  - role: user
+    content: OK I did that. What if it happens again?
+scores:
+  - name: context_retention
+    type: llm-judge
+    score: 1
+    weight: 1
+    verdict: pass
+    hits:
+      - "Turn 3: skipped router restart, referencing user's prior attempt"
+      - "Turn 5: provided instructions suited to technical beginner, no repeat steps"
+      - "Turn 6: referenced prior cable fix and 'simple' instructions"
+      - "Turn 6: continued to avoid repeated router restart, encouraged easy actions"
+    misses: []
+    reasoning: "All assistant turns demonstrate clear context retention: avoids repeating router restart, adapts explanations for beginner, and builds upon prior troubleshooting steps."
+    details:
+      scores_per_turn:
+        - 1
+        - 1
+        - 1
+        - 1
+      relevant_turns: 4
+      total_turns: 4
+    token_usage:
+      input: 964
+      output: 174
+    duration_ms: 1563
+    started_at: 2026-03-09T09:21:52.423Z
+    ended_at: 2026-03-09T09:21:53.986Z
+  - name: conversation_relevancy
+    type: llm-judge
+    score: 1
+    weight: 2
+    verdict: pass
+    hits:
+      - "Turn 3: Directly asked about router light status to diagnose further"
+      - "Turn 5: Suggested checking and reseating WAN/Internet cable, avoiding repetition of restart step"
+      - "Turn 6: Provided clear instructions for next steps and environment checks suitable for a beginner"
+      - "Turn 6: Offered to perform remote tests/escalate if issue persists, keeping steps simple"
+    misses: []
+    reasoning: All assistant turns stayed highly relevant to the user's WiFi issue, tracked previous steps, and matched instructions to the user's technical comfort level. No unnecessary repetition or off-topic details were introduced.
+    details:
+      scores_per_turn:
+        - 1
+        - 1
+        - 1
+        - 1
+      on_topic_turns: 4
+      total_turns: 4
+    token_usage:
+      input: 985
+      output: 201
+    duration_ms: 2679
+    started_at: 2026-03-09T09:21:53.986Z
+    ended_at: 2026-03-09T09:21:56.665Z
+  - name: role_adherence
+    type: llm-judge
+    score: 1
+    weight: 1
+    verdict: pass
+    hits:
+      - "Turn 1: empathetic, clear, and skips router restart as instructed"
+      - "Turn 2: explains orange light in simple terms and gives an easy step"
+      - "Turn 3 (final): maintains reassuring, beginner-friendly tone and avoids repeating past instructions"
+    misses: []
+    reasoning: All assistant turns are consistent with the technical support role defined in the system prompt, adapt to the user's technical level, and do not repeat previously attempted steps.
+    details:
+      scores_per_turn:
+        - 1
+        - 1
+        - 1
+      consistent_turns: 3
+      total_turns: 3
+    token_usage:
+      input: 999
+      output: 164
+    duration_ms: 3613
+    started_at: 2026-03-09T09:21:56.665Z
+    ended_at: 2026-03-09T09:22:00.278Z
+execution_status: ok
+
+---
+timestamp: 2026-03-09T09:22:00.670Z
+test_id: support-context-retention
+dataset: dataset.eval
+score: 1
+hits:
+  - "Turn 3: addressed Sarah by name, referenced order #98765"
+  - "Turn 5: acknowledged delivery deadline (Friday), addressed customer by name and referenced order #98765"
+  - "Turn 5: proposed solutions relevant to urgency and birthday gift context"
+  - "Final Turn: addressed Sarah by name, referenced order #98765, confirmed express shipping, added gift wrapping and birthday message"
+  - "Turn 3: directly addressed delivery delay and offered to check expedited options"
+  - "Turn 5: provided two targeted solutions for faster delivery, referenced deadline, and used Sarah's name"
+  - "Turn 6: confirmed express shipping upgrade, added gift wrapping, and prompted for a custom message"
+  - "Turn 1: professional, empathetic greeting, addresses Sarah by name and references order number"
+  - "Turn 2: maintains tone, acknowledges urgency, uses customer's name, offers clear solutions"
+  - "Turn 3: confirms action, stays solution-oriented and personable, customizes support with offer for message"
+  - Output contains "#98765"
+misses: []
+target: default
+reasoning: "context_retention: All assistant turns consistently referenced customer name, order number, delivery deadline, and relevant preferences, maintaining a professional and empathetic persona throughout. | conversation_relevancy: All assistant responses were fully relevant, professional, referenced order details, respected the Friday delivery need, and addressed all user requests directly without off-topic information. | role_adherence: The assistant is consistently professional, empathetic, and solution-oriented across all turns. It successfully maintains context including Sarah's name, order number, and Friday deadline, never breaking tone or role. | contains-#98765: Output contains \"#98765\""
+input:
+  - role: system
+    content: |-
+      You are a customer support agent for ShopFast. Be professional, empathetic,
+      and solution-oriented. Always address customers by name once introduced.
+  - role: user
+    content: |-
+      Hi, my name is Sarah. I placed an order last week and it still hasn't arrived.
+      My order number is #98765.
+  - role: assistant
+    content: |-
+      Hello Sarah! I'm sorry to hear your order hasn't arrived yet. Let me look up
+      order #98765 for you right away. I can see it was shipped on March 3rd via
+      standard delivery. It appears there's been a delay at the regional sorting
+      facility. Would you like me to check on expedited options?
+  - role: user
+    content: Yes please. I really need it by Friday — it's a birthday gift for my daughter.
+  - role: assistant
+    content: |-
+      I completely understand the urgency, Sarah. A birthday gift definitely can't
+      be late! I've flagged order #98765 for priority handling. I can offer you two
+      options: (1) upgrade to express shipping at no extra cost, estimated delivery
+      Thursday, or (2) reroute to our nearest pickup location where it could be
+      available as early as Wednesday.
+  - role: user
+    content: The express shipping sounds great. Also, can you add gift wrapping?
+scores:
+  - name: context_retention
+    type: llm-judge
+    score: 1
+    weight: 1
+    verdict: pass
+    hits:
+      - "Turn 3: addressed Sarah by name, referenced order #98765"
+      - "Turn 5: acknowledged delivery deadline (Friday), addressed customer by name and referenced order #98765"
+      - "Turn 5: proposed solutions relevant to urgency and birthday gift context"
+      - "Final Turn: addressed Sarah by name, referenced order #98765, confirmed express shipping, added gift wrapping and birthday message"
+    misses: []
+    reasoning: All assistant turns consistently referenced customer name, order number, delivery deadline, and relevant preferences, maintaining a professional and empathetic persona throughout.
+    details:
+      scores_per_turn:
+        - 1
+        - 1
+        - 1
+        - 1
+      relevant_turns: 4
+      total_turns: 4
+    token_usage:
+      input: 873
+      output: 193
+    duration_ms: 1625
+    started_at: 2026-03-09T09:21:51.635Z
+    ended_at: 2026-03-09T09:21:53.260Z
+  - name: conversation_relevancy
+    type: llm-judge
+    score: 1
+    weight: 2
+    verdict: pass
+    hits:
+      - "Turn 3: directly addressed delivery delay and offered to check expedited options"
+      - "Turn 5: provided two targeted solutions for faster delivery, referenced deadline, and used Sarah's name"
+      - "Turn 6: confirmed express shipping upgrade, added gift wrapping, and prompted for a custom message"
+    misses: []
+    reasoning: All assistant responses were fully relevant, professional, referenced order details, respected the Friday delivery need, and addressed all user requests directly without off-topic information.
+    details:
+      scores_per_turn:
+        - 1
+        - 1
+        - 1
+      on_topic_turns: 3
+      total_turns: 3
+    token_usage:
+      input: 894
+      output: 170
+    duration_ms: 3433
+    started_at: 2026-03-09T09:21:53.260Z
+    ended_at: 2026-03-09T09:21:56.693Z
+  - name: role_adherence
+    type: llm-judge
+    score: 1
+    weight: 1
+    verdict: pass
+    hits:
+      - "Turn 1: professional, empathetic greeting, addresses Sarah by name and references order number"
+      - "Turn 2: maintains tone, acknowledges urgency, uses customer's name, offers clear solutions"
+      - "Turn 3: confirms action, stays solution-oriented and personable, customizes support with offer for message"
+    misses: []
+    reasoning: The assistant is consistently professional, empathetic, and solution-oriented across all turns. It successfully maintains context including Sarah's name, order number, and Friday deadline, never breaking tone or role.
+    details:
+      scores_per_turn:
+        - 1
+        - 1
+        - 1
+      consistent_turns: 3
+      total_turns: 3
+    token_usage:
+      input: 908
+      output: 179
+    duration_ms: 3976
+    started_at: 2026-03-09T09:21:56.693Z
+    ended_at: 2026-03-09T09:22:00.669Z
+  - name: contains-#98765
+    type: contains
+    score: 1
+    weight: 1
+    verdict: pass
+    hits:
+      - Output contains "#98765"
+    misses: []
+    reasoning: Output contains "#98765"
+    duration_ms: 1
+    started_at: 2026-03-09T09:22:00.669Z
+    ended_at: 2026-03-09T09:22:00.670Z
+execution_status: ok

@@ -11,6 +11,7 @@ export const TEMPLATE_VARIABLES = {
   INPUT: 'input',
   OUTPUT: 'output',
   FILE_CHANGES: 'file_changes',
+  CONVERSATION: 'conversation',
 } as const;
 
 /**
