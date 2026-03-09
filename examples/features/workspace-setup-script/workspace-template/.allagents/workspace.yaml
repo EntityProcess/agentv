@@ -5,3 +5,6 @@ repositories:
     description: Example repository for workspace setup demo
 
 plugins: []
+
+clients:
+  - copilot
