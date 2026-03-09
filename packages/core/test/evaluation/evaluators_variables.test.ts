@@ -200,4 +200,61 @@ Expected Messages: {{ expected_output }}
     // Verify no unreplaced template markers remain
     expect(request?.question).not.toMatch(/\{\{\s*\w+\s*\}\}/);
   });
+
+  it('resolves file references in {{ input }} using input_segments content', async () => {
+    const testCaseWithFiles: EvalTest = {
+      ...baseTestCase,
+      input: [
+        {
+          role: 'user',
+          content: [
+            { type: 'file', value: 'src/app.ts' },
+            { type: 'text', value: 'Review this code' },
+          ],
+        },
+      ],
+      input_segments: [
+        { type: 'file', path: 'src/app.ts', text: 'console.log("hello world");' },
+        { type: 'text', value: 'Review this code' },
+      ],
+    };
+
+    const customPrompt = `Input: {{ input }}`;
+
+    const judgeProvider = new CapturingProvider({
+      text: JSON.stringify({
+        score: 0.9,
+        hits: ['Good'],
+        misses: [],
+        reasoning: 'OK',
+      }),
+    });
+
+    const evaluator = new LlmJudgeEvaluator({
+      resolveJudgeProvider: async () => judgeProvider,
+      evaluatorTemplate: customPrompt,
+    });
+
+    await evaluator.evaluate({
+      evalCase: { ...testCaseWithFiles, evaluator: 'llm-judge' },
+      candidate: 'Looks good',
+      target: baseTarget,
+      provider: judgeProvider,
+      attempt: 0,
+      promptInputs: { question: 'Review this code', guidelines: '' },
+      now: new Date(),
+    });
+
+    const request = judgeProvider.lastRequest;
+    expect(request).toBeDefined();
+
+    // File content from input_segments should be resolved into the {{ input }} variable
+    // Content is JSON-stringified so quotes are escaped
+    expect(request?.question).toContain('console.log');
+    expect(request?.question).toContain('hello world');
+    // The resolved segment should have a "text" field with the file content
+    expect(request?.question).toContain('"text"');
+    // Original file path should still be present
+    expect(request?.question).toContain('src/app.ts');
+  });
 });

@@ -6,6 +6,7 @@ import { extractLastAssistantContent } from '../providers/types.js';
 import { TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { TokenUsage } from '../trace.js';
 import type { JsonObject, RubricItem } from '../types.js';
+import { isJsonObject } from '../types.js';
 import { clampScore, isNonEmptyString, parseJsonFromText, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
@@ -119,7 +120,11 @@ export class LlmJudgeEvaluator implements Evaluator {
 
     // Prepare template variables for substitution
     const variables = {
-      [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(context.evalCase.input, null, 2),
+      [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(
+        resolveInputWithFileContent(context.evalCase.input, context.evalCase.input_segments),
+        null,
+        2,
+      ),
       [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: JSON.stringify(
         context.evalCase.expected_output,
         null,
@@ -661,4 +666,56 @@ function calculateScoreRangeResult(
       aggregation: 'weighted_average',
     },
   };
+}
+
+/**
+ * Resolve file references in input messages using resolved content from input_segments.
+ *
+ * `input` (TestMessage[]) contains raw file references with paths but no content.
+ * `input_segments` (JsonObject[]) contains resolved file segments with actual file text.
+ * This function produces a copy of `input` where file segments include the resolved `text`.
+ */
+function resolveInputWithFileContent(
+  input: readonly JsonObject[],
+  inputSegments: readonly JsonObject[],
+): readonly JsonObject[] {
+  // Build a map of file path -> resolved text from input_segments
+  const fileContentsByPath = new Map<string, string>();
+  for (const segment of inputSegments) {
+    if (
+      segment.type === 'file' &&
+      typeof segment.path === 'string' &&
+      typeof segment.text === 'string'
+    ) {
+      fileContentsByPath.set(segment.path, segment.text);
+    }
+  }
+
+  if (fileContentsByPath.size === 0) {
+    return input;
+  }
+
+  return input.map((message) => {
+    const content = message.content;
+    if (!Array.isArray(content)) {
+      return message;
+    }
+
+    let modified = false;
+    const resolvedContent = (content as readonly JsonObject[]).map((segment) => {
+      if (!isJsonObject(segment)) {
+        return segment;
+      }
+      if (segment.type === 'file' && typeof segment.value === 'string') {
+        const fileText = fileContentsByPath.get(segment.value);
+        if (fileText !== undefined) {
+          modified = true;
+          return { ...segment, text: fileText };
+        }
+      }
+      return segment;
+    });
+
+    return modified ? { ...message, content: resolvedContent } : message;
+  });
 }
