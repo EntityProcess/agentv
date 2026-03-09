@@ -26,5 +26,8 @@ Your overall `score` should be the average of per-turn scores.
 [[ ## criteria ## ]]
 {{ criteria }}
 
+[[ ## answer ## ]]
+{{ answer }}
+
 [[ ## conversation ## ]]
 {{ output }}
