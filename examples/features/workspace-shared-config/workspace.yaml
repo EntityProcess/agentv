@@ -1,9 +1,7 @@
 template: ./workspace-template
 mode: pooled
 hooks:
-  on_reuse:
-    reset: fast
-  after_each_test:
+  after_each:
     reset: fast
 repos:
   - path: ./agentv

@@ -1417,7 +1417,7 @@ rl.on('close', () => {
       workspace: {
         template: templateDir,
         hooks: {
-          before_all_tests: {
+          before_all: {
             command: ['node', setupScript],
             timeout_ms: 10000,
           },
@@ -1460,7 +1460,7 @@ rl.on('close', () => {
       workspace: {
         template: templateDir,
         hooks: {
-          before_all_tests: {
+          before_all: {
             command: ['node', failingScript],
             timeout_ms: 5000,
           },
@@ -1523,7 +1523,7 @@ rl.on('close', () => {
       workspace: {
         template: templateDir,
         hooks: {
-          after_each_test: {
+          after_each: {
             command: ['node', teardownScript],
             timeout_ms: 10000,
           },
@@ -1565,7 +1565,7 @@ rl.on('close', () => {
       workspace: {
         template: templateDir,
         hooks: {
-          before_each_test: {
+          before_each: {
             reset: 'fast',
           },
         },
@@ -2557,7 +2557,7 @@ describe('--workspace flag', () => {
     const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
-        hooks: { before_all_tests: { command: ['false'] } },
+        hooks: { before_all: { command: ['false'] } },
       },
     };
 
@@ -2590,7 +2590,7 @@ describe('--workspace flag', () => {
     const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
-        hooks: { before_each_test: { command: ['echo', 'setup-done'] } },
+        hooks: { before_each: { command: ['echo', 'setup-done'] } },
       },
     };
 

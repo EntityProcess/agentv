@@ -253,23 +253,17 @@ export type WorkspaceHookConfig = {
   readonly cwd?: string;
   /** Optional reset policy for this hook */
   readonly reset?: 'none' | 'fast' | 'strict';
-  /** Optional cleanup policy for this hook */
-  readonly clean?: 'always' | 'on_success' | 'on_failure' | 'never';
 };
 
 export type WorkspaceHooksConfig = {
   /** Runs once before first test in the workspace lifecycle */
-  readonly before_all_tests?: WorkspaceHookConfig;
+  readonly before_all?: WorkspaceHookConfig;
   /** Runs before each test case */
-  readonly before_each_test?: WorkspaceHookConfig;
+  readonly before_each?: WorkspaceHookConfig;
   /** Runs after each test case */
-  readonly after_each_test?: WorkspaceHookConfig;
+  readonly after_each?: WorkspaceHookConfig;
   /** Runs once after final test in the workspace lifecycle */
-  readonly after_all_tests?: WorkspaceHookConfig;
-  /** Runs when reusing a pooled workspace slot */
-  readonly on_reuse?: WorkspaceHookConfig;
-  /** Runs/controls behavior when workspace lifecycle finishes */
-  readonly on_finish?: WorkspaceHookConfig;
+  readonly after_all?: WorkspaceHookConfig;
 };
 
 export type WorkspaceConfig = {

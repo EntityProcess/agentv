@@ -120,7 +120,7 @@ Override the suite-level workspace config for individual tests. Test-level field
 ```yaml
 workspace:
   hooks:
-    before_all_tests:
+    before_all:
       command: ["bun", "run", "default-setup.ts"]
 
 tests:
@@ -129,13 +129,13 @@ tests:
     input: Do something
     workspace:
       hooks:
-        before_all_tests:
+        before_all:
           command: ["bun", "run", "custom-setup.ts"]
 
   - id: case-2
     criteria: Should also work
     input: Do something else
-    # Inherits suite-level hooks.before_all_tests
+    # Inherits suite-level hooks.before_all
 ```
 
 See [Workspace Lifecycle Hooks](/targets/configuration/#workspace-lifecycle-hooks) for the full workspace config reference.
@@ -154,7 +154,7 @@ tests:
       base_commit: "abc123def"
     workspace:
       hooks:
-        before_all_tests:
+        before_all:
           command: ["python", "checkout_repo.py"]
 ```
 

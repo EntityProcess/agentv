@@ -59,7 +59,7 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts workspace with hooks after_each_test reset config', () => {
+  it('accepts workspace with hooks after_each reset config', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       workspace: {
@@ -69,7 +69,7 @@ describe('repo lifecycle schema validation', () => {
             source: { type: 'git', url: 'https://github.com/org/repo.git' },
           },
         ],
-        hooks: { after_each_test: { reset: 'fast' } },
+        hooks: { after_each: { reset: 'fast' } },
       },
     });
     expect(result.success).toBe(true);
@@ -106,11 +106,11 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects invalid hooks after_each_test reset mode', () => {
+  it('rejects invalid hooks after_each reset mode', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       workspace: {
-        hooks: { after_each_test: { reset: 'invalid' } },
+        hooks: { after_each: { reset: 'invalid' } },
       },
     });
     expect(result.success).toBe(false);
@@ -154,8 +154,8 @@ describe('repo lifecycle schema validation', () => {
       workspace: {
         template: './fixtures',
         hooks: {
-          before_all_tests: { command: ['bash', 'setup.sh'] },
-          after_each_test: { reset: 'fast' },
+          before_all: { command: ['bash', 'setup.sh'] },
+          after_each: { reset: 'fast' },
         },
         repos: [
           {

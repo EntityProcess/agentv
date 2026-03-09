@@ -271,7 +271,7 @@ function validateWorkspaceRepoConfig(
 ): void {
   const repos = workspace.repos;
   const hooks = workspace.hooks;
-  const afterEachHook = isObject(hooks) ? hooks.after_each_test : undefined;
+  const afterEachHook = isObject(hooks) ? hooks.after_each : undefined;
   const isolation = workspace.isolation;
 
   // Depth vs ancestor warning
@@ -303,20 +303,20 @@ function validateWorkspaceRepoConfig(
       errors.push({
         severity: 'warning',
         filePath,
-        location: 'workspace.hooks.after_each_test',
-        message: `hooks.after_each_test.reset '${afterEachHook.reset}' has no effect without repos.`,
+        location: 'workspace.hooks.after_each',
+        message: `hooks.after_each.reset '${afterEachHook.reset}' has no effect without repos.`,
       });
     }
   }
 
-  // after_each_test reset with per_test isolation warning
+  // after_each reset with per_test isolation warning
   if (isObject(afterEachHook) && afterEachHook.reset && isolation === 'per_test') {
     errors.push({
       severity: 'warning',
       filePath,
-      location: 'workspace.hooks.after_each_test',
+      location: 'workspace.hooks.after_each',
       message:
-        'hooks.after_each_test.reset is redundant with isolation: per_test (each test gets a fresh workspace).',
+        'hooks.after_each.reset is redundant with isolation: per_test (each test gets a fresh workspace).',
     });
   }
 }

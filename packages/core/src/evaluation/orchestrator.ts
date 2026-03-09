@@ -478,23 +478,8 @@ export async function runEvaluation(
     !isPerTestIsolation &&
     !useStaticWorkspace;
 
-  const finishCleanPolicy = suiteWorkspace?.hooks?.on_finish?.clean;
-  const resolvedRetainOnSuccess =
-    (finishCleanPolicy === 'always' || finishCleanPolicy === 'on_success'
-      ? 'cleanup'
-      : finishCleanPolicy === 'on_failure' || finishCleanPolicy === 'never'
-        ? 'keep'
-        : undefined) ??
-    retainOnSuccess ??
-    (keepWorkspaces ? 'keep' : 'cleanup');
-  const resolvedRetainOnFailure =
-    (finishCleanPolicy === 'always' || finishCleanPolicy === 'on_failure'
-      ? 'cleanup'
-      : finishCleanPolicy === 'on_success' || finishCleanPolicy === 'never'
-        ? 'keep'
-        : undefined) ??
-    retainOnFailure ??
-    (cleanupWorkspaces ? 'cleanup' : 'keep');
+  const resolvedRetainOnSuccess = retainOnSuccess ?? (keepWorkspaces ? 'keep' : 'cleanup');
+  const resolvedRetainOnFailure = retainOnFailure ?? (cleanupWorkspaces ? 'cleanup' : 'keep');
 
   const requestedWorkers = options.maxConcurrency ?? target.workers ?? 1;
   // Pool-enabled workspaces support concurrent workers (each worker gets its own slot).
@@ -543,7 +528,6 @@ export async function runEvaluation(
         repoManager: poolRepoManager,
         poolReset:
           (workspaceClean === 'full' ? 'strict' : workspaceClean === 'standard' ? 'fast' : null) ??
-          suiteWorkspace.hooks?.on_reuse?.reset ??
           'fast',
       });
       poolSlots.push(slot);
@@ -610,7 +594,7 @@ export async function runEvaluation(
     }
 
     // Execute before_all (runs ONCE before first test per workspace)
-    const suiteBeforeAllHook = suiteWorkspace?.hooks?.before_all_tests;
+    const suiteBeforeAllHook = suiteWorkspace?.hooks?.before_all;
     if (sharedWorkspacePath && hasHookCommand(suiteBeforeAllHook)) {
       const beforeAllHook = suiteBeforeAllHook;
       const beforeAllCommand = (beforeAllHook.command ?? beforeAllHook.script ?? []).join(' ');
@@ -625,7 +609,7 @@ export async function runEvaluation(
       };
       try {
         beforeAllOutput = await executeWorkspaceScript(
-          toScriptConfig(beforeAllHook, 'before_all_tests', 'suite workspace'),
+          toScriptConfig(beforeAllHook, 'before_all', 'suite workspace'),
           scriptContext,
         );
         setupLog('shared before_all completed');
@@ -651,7 +635,7 @@ export async function runEvaluation(
         };
         try {
           const output = await executeWorkspaceScript(
-            toScriptConfig(beforeAllHook, 'before_all_tests', 'suite workspace'),
+            toScriptConfig(beforeAllHook, 'before_all', 'suite workspace'),
             scriptContext,
           );
           // Capture first slot's output for result attachment
@@ -933,7 +917,7 @@ export async function runEvaluation(
           ? [sharedWorkspacePath]
           : [];
 
-    const suiteAfterAllHook = suiteWorkspace?.hooks?.after_all_tests;
+    const suiteAfterAllHook = suiteWorkspace?.hooks?.after_all;
     if (afterAllWorkspaces.length > 0 && hasHookCommand(suiteAfterAllHook)) {
       const afterAllHook = suiteAfterAllHook;
       for (const wsPath of afterAllWorkspaces) {
@@ -945,7 +929,7 @@ export async function runEvaluation(
         };
         try {
           const afterAllOutput = await executeWorkspaceScript(
-            toScriptConfig(afterAllHook, 'after_all_tests', 'suite workspace'),
+            toScriptConfig(afterAllHook, 'after_all', 'suite workspace'),
             scriptContext,
             'warn',
           );
@@ -1312,7 +1296,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
 
     // Execute per-case before_all (only when not using shared workspace)
-    const caseBeforeAllHook = evalCase.workspace?.hooks?.before_all_tests;
+    const caseBeforeAllHook = evalCase.workspace?.hooks?.before_all;
     if (workspacePath && hasHookCommand(caseBeforeAllHook)) {
       const beforeAllHook = caseBeforeAllHook;
       const beforeAllCommand = (beforeAllHook.command ?? beforeAllHook.script ?? []).join(' ');
@@ -1331,7 +1315,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       };
       try {
         beforeAllOutput = await executeWorkspaceScript(
-          toScriptConfig(beforeAllHook, 'before_all_tests', `test '${evalCase.id}'`),
+          toScriptConfig(beforeAllHook, 'before_all', `test '${evalCase.id}'`),
           scriptContext,
         );
         if (setupDebug) {
@@ -1357,7 +1341,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   // Execute before_each hook (runs before each test for any workspace)
-  const caseBeforeEachHook = evalCase.workspace?.hooks?.before_each_test;
+  const caseBeforeEachHook = evalCase.workspace?.hooks?.before_each;
   if (workspacePath && hasHookCommand(caseBeforeEachHook)) {
     const beforeEachHook = caseBeforeEachHook;
     const scriptContext: ScriptExecutionContext = {
@@ -1370,7 +1354,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     };
     try {
       beforeEachOutput = await executeWorkspaceScript(
-        toScriptConfig(beforeEachHook, 'before_each_test', `test '${evalCase.id}'`),
+        toScriptConfig(beforeEachHook, 'before_each', `test '${evalCase.id}'`),
         scriptContext,
       );
     } catch (error) {
@@ -1519,15 +1503,15 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   if (
     repoManager &&
     workspacePath &&
-    evalCase.workspace?.hooks?.after_each_test?.reset &&
-    evalCase.workspace.hooks.after_each_test.reset !== 'none' &&
+    evalCase.workspace?.hooks?.after_each?.reset &&
+    evalCase.workspace.hooks.after_each.reset !== 'none' &&
     evalCase.workspace.repos
   ) {
     try {
       await repoManager.reset(
         evalCase.workspace.repos,
         workspacePath,
-        evalCase.workspace.hooks.after_each_test.reset,
+        evalCase.workspace.hooks.after_each.reset,
       );
     } catch {
       // Reset failures are non-fatal (like after_each)
@@ -1535,7 +1519,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   // Execute after_each hook (runs after evaluation, before cleanup)
-  const caseAfterEachHook = evalCase.workspace?.hooks?.after_each_test;
+  const caseAfterEachHook = evalCase.workspace?.hooks?.after_each;
   if (workspacePath && hasHookCommand(caseAfterEachHook)) {
     const afterEachHook = caseAfterEachHook;
     const scriptContext: ScriptExecutionContext = {
@@ -1548,7 +1532,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     };
     try {
       afterEachOutput = await executeWorkspaceScript(
-        toScriptConfig(afterEachHook, 'after_each_test', `test '${evalCase.id}'`),
+        toScriptConfig(afterEachHook, 'after_each', `test '${evalCase.id}'`),
         scriptContext,
         'warn',
       );

@@ -607,18 +607,10 @@ function parseWorkspaceHookConfig(
   const obj = raw as Record<string, unknown>;
   const reset =
     obj.reset === 'none' || obj.reset === 'fast' || obj.reset === 'strict' ? obj.reset : undefined;
-  const clean =
-    obj.clean === 'always' ||
-    obj.clean === 'on_success' ||
-    obj.clean === 'on_failure' ||
-    obj.clean === 'never'
-      ? obj.clean
-      : undefined;
-  if (!script && !reset && !clean) return undefined;
+  if (!script && !reset) return undefined;
   return {
     ...(script ?? {}),
     ...(reset !== undefined && { reset }),
-    ...(clean !== undefined && { clean }),
   };
 }
 
@@ -628,19 +620,15 @@ function parseWorkspaceHooksConfig(
 ): WorkspaceHooksConfig | undefined {
   if (!isJsonObject(raw)) return undefined;
   const obj = raw as Record<string, unknown>;
-  const beforeAllTests = parseWorkspaceHookConfig(obj.before_all_tests, evalFileDir);
-  const beforeEachTest = parseWorkspaceHookConfig(obj.before_each_test, evalFileDir);
-  const afterEachTest = parseWorkspaceHookConfig(obj.after_each_test, evalFileDir);
-  const afterAllTests = parseWorkspaceHookConfig(obj.after_all_tests, evalFileDir);
-  const onReuse = parseWorkspaceHookConfig(obj.on_reuse, evalFileDir);
-  const onFinish = parseWorkspaceHookConfig(obj.on_finish, evalFileDir);
+  const beforeAll = parseWorkspaceHookConfig(obj.before_all, evalFileDir);
+  const beforeEach = parseWorkspaceHookConfig(obj.before_each, evalFileDir);
+  const afterEach = parseWorkspaceHookConfig(obj.after_each, evalFileDir);
+  const afterAll = parseWorkspaceHookConfig(obj.after_all, evalFileDir);
   const hooks: WorkspaceHooksConfig = {
-    ...(beforeAllTests !== undefined && { before_all_tests: beforeAllTests }),
-    ...(beforeEachTest !== undefined && { before_each_test: beforeEachTest }),
-    ...(afterEachTest !== undefined && { after_each_test: afterEachTest }),
-    ...(afterAllTests !== undefined && { after_all_tests: afterAllTests }),
-    ...(onReuse !== undefined && { on_reuse: onReuse }),
-    ...(onFinish !== undefined && { on_finish: onFinish }),
+    ...(beforeAll !== undefined && { before_all: beforeAll }),
+    ...(beforeEach !== undefined && { before_each: beforeEach }),
+    ...(afterEach !== undefined && { after_each: afterEach }),
+    ...(afterAll !== undefined && { after_all: afterAll }),
   };
   return Object.keys(hooks).length > 0 ? hooks : undefined;
 }
@@ -744,18 +732,10 @@ function mergeWorkspaceConfigs(
     };
   };
   const mergedHooks = {
-    before_all_tests: mergeHook(
-      suiteLevel.hooks?.before_all_tests,
-      caseLevel.hooks?.before_all_tests,
-    ),
-    before_each_test: mergeHook(
-      suiteLevel.hooks?.before_each_test,
-      caseLevel.hooks?.before_each_test,
-    ),
-    after_each_test: mergeHook(suiteLevel.hooks?.after_each_test, caseLevel.hooks?.after_each_test),
-    after_all_tests: mergeHook(suiteLevel.hooks?.after_all_tests, caseLevel.hooks?.after_all_tests),
-    on_reuse: mergeHook(suiteLevel.hooks?.on_reuse, caseLevel.hooks?.on_reuse),
-    on_finish: mergeHook(suiteLevel.hooks?.on_finish, caseLevel.hooks?.on_finish),
+    before_all: mergeHook(suiteLevel.hooks?.before_all, caseLevel.hooks?.before_all),
+    before_each: mergeHook(suiteLevel.hooks?.before_each, caseLevel.hooks?.before_each),
+    after_each: mergeHook(suiteLevel.hooks?.after_each, caseLevel.hooks?.after_each),
+    after_all: mergeHook(suiteLevel.hooks?.after_all, caseLevel.hooks?.after_all),
   };
   const hasHooks = Object.values(mergedHooks).some((hook) => hook !== undefined);
 

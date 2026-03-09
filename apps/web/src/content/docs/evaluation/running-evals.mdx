@@ -98,19 +98,14 @@ workspace:
   mode: pooled           # pooled | ephemeral | static
   static_path: null      # required when mode=static
   hooks:
-    on_reuse:
+    after_each:
       reset: fast        # none | fast | strict
-    after_each_test:
-      reset: fast        # none | fast | strict
-    on_finish:
-      clean: on_success  # always | on_success | on_failure | never
 ```
 
 Notes:
 - Pooling is default for shared workspaces with repos when mode is not specified.
 - `mode: static` (or `--workspace-mode static`) requires `static_path` / `--workspace-path`.
 - Static mode is incompatible with `isolation: per_test`.
-- `hooks.on_finish.clean` controls temp eval-run workspace cleanup under `~/.agentv/workspaces/...`.
 - Pool slots are managed separately (`agentv workspace list|clean`).
 
 ### Retry Execution Errors

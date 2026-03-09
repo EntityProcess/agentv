@@ -4,9 +4,6 @@ description: >-
 
 workspace:
   mode: pooled
-  hooks:
-    on_reuse:
-      reset: fast
   repos:
     - path: ./repo
       source:

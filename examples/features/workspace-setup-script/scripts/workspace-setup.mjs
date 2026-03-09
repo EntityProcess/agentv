@@ -9,7 +9,7 @@
 // Usage in eval YAML:
 //   workspace:
 //     hooks:
-//       before_all_tests:
+//       before_all:
 //         command:
 //           - node
 //           - ../scripts/workspace-setup.mjs

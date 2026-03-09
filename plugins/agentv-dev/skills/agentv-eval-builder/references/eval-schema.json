@@ -4618,7 +4618,7 @@
                       "hooks": {
                         "type": "object",
                         "properties": {
-                          "before_all_tests": {
+                          "before_all": {
                             "type": "object",
                             "properties": {
                               "command": {
@@ -4645,15 +4645,11 @@
                               "reset": {
                                 "type": "string",
                                 "enum": ["none", "fast", "strict"]
-                              },
-                              "clean": {
-                                "type": "string",
-                                "enum": ["always", "on_success", "on_failure", "never"]
                               }
                             },
                             "additionalProperties": false
                           },
-                          "before_each_test": {
+                          "before_each": {
                             "type": "object",
                             "properties": {
                               "command": {
@@ -4680,15 +4676,11 @@
                               "reset": {
                                 "type": "string",
                                 "enum": ["none", "fast", "strict"]
-                              },
-                              "clean": {
-                                "type": "string",
-                                "enum": ["always", "on_success", "on_failure", "never"]
                               }
                             },
                             "additionalProperties": false
                           },
-                          "after_each_test": {
+                          "after_each": {
                             "type": "object",
                             "properties": {
                               "command": {
@@ -4715,15 +4707,11 @@
                               "reset": {
                                 "type": "string",
                                 "enum": ["none", "fast", "strict"]
-                              },
-                              "clean": {
-                                "type": "string",
-                                "enum": ["always", "on_success", "on_failure", "never"]
                               }
                             },
                             "additionalProperties": false
                           },
-                          "after_all_tests": {
+                          "after_all": {
                             "type": "object",
                             "properties": {
                               "command": {
@@ -4750,80 +4738,6 @@
                               "reset": {
                                 "type": "string",
                                 "enum": ["none", "fast", "strict"]
-                              },
-                              "clean": {
-                                "type": "string",
-                                "enum": ["always", "on_success", "on_failure", "never"]
-                              }
-                            },
-                            "additionalProperties": false
-                          },
-                          "on_reuse": {
-                            "type": "object",
-                            "properties": {
-                              "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "timeout_ms": {
-                                "type": "number"
-                              },
-                              "timeoutMs": {
-                                "type": "number"
-                              },
-                              "cwd": {
-                                "type": "string"
-                              },
-                              "reset": {
-                                "type": "string",
-                                "enum": ["none", "fast", "strict"]
-                              },
-                              "clean": {
-                                "type": "string",
-                                "enum": ["always", "on_success", "on_failure", "never"]
-                              }
-                            },
-                            "additionalProperties": false
-                          },
-                          "on_finish": {
-                            "type": "object",
-                            "properties": {
-                              "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "timeout_ms": {
-                                "type": "number"
-                              },
-                              "timeoutMs": {
-                                "type": "number"
-                              },
-                              "cwd": {
-                                "type": "string"
-                              },
-                              "reset": {
-                                "type": "string",
-                                "enum": ["none", "fast", "strict"]
-                              },
-                              "clean": {
-                                "type": "string",
-                                "enum": ["always", "on_success", "on_failure", "never"]
                               }
                             },
                             "additionalProperties": false
@@ -9399,7 +9313,7 @@
                       "hooks": {
                         "type": "object",
                         "properties": {
-                          "before_all_tests": {
+                          "before_all": {
                             "type": "object",
                             "properties": {
                               "command": {
@@ -9426,15 +9340,11 @@
                               "reset": {
                                 "type": "string",
                                 "enum": ["none", "fast", "strict"]
-                              },
-                              "clean": {
-                                "type": "string",
-                                "enum": ["always", "on_success", "on_failure", "never"]
                               }
                             },
                             "additionalProperties": false
                           },
-                          "before_each_test": {
+                          "before_each": {
                             "type": "object",
                             "properties": {
                               "command": {
@@ -9461,15 +9371,11 @@
                               "reset": {
                                 "type": "string",
                                 "enum": ["none", "fast", "strict"]
-                              },
-                              "clean": {
-                                "type": "string",
-                                "enum": ["always", "on_success", "on_failure", "never"]
                               }
                             },
                             "additionalProperties": false
                           },
-                          "after_each_test": {
+                          "after_each": {
                             "type": "object",
                             "properties": {
                               "command": {
@@ -9496,15 +9402,11 @@
                               "reset": {
                                 "type": "string",
                                 "enum": ["none", "fast", "strict"]
-                              },
-                              "clean": {
-                                "type": "string",
-                                "enum": ["always", "on_success", "on_failure", "never"]
                               }
                             },
                             "additionalProperties": false
                           },
-                          "after_all_tests": {
+                          "after_all": {
                             "type": "object",
                             "properties": {
                               "command": {
@@ -9531,80 +9433,6 @@
                               "reset": {
                                 "type": "string",
                                 "enum": ["none", "fast", "strict"]
-                              },
-                              "clean": {
-                                "type": "string",
-                                "enum": ["always", "on_success", "on_failure", "never"]
-                              }
-                            },
-                            "additionalProperties": false
-                          },
-                          "on_reuse": {
-                            "type": "object",
-                            "properties": {
-                              "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "timeout_ms": {
-                                "type": "number"
-                              },
-                              "timeoutMs": {
-                                "type": "number"
-                              },
-                              "cwd": {
-                                "type": "string"
-                              },
-                              "reset": {
-                                "type": "string",
-                                "enum": ["none", "fast", "strict"]
-                              },
-                              "clean": {
-                                "type": "string",
-                                "enum": ["always", "on_success", "on_failure", "never"]
-                              }
-                            },
-                            "additionalProperties": false
-                          },
-                          "on_finish": {
-                            "type": "object",
-                            "properties": {
-                              "command": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "script": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              },
-                              "timeout_ms": {
-                                "type": "number"
-                              },
-                              "timeoutMs": {
-                                "type": "number"
-                              },
-                              "cwd": {
-                                "type": "string"
-                              },
-                              "reset": {
-                                "type": "string",
-                                "enum": ["none", "fast", "strict"]
-                              },
-                              "clean": {
-                                "type": "string",
-                                "enum": ["always", "on_success", "on_failure", "never"]
                               }
                             },
                             "additionalProperties": false
@@ -13007,7 +12835,7 @@
                 "hooks": {
                   "type": "object",
                   "properties": {
-                    "before_all_tests": {
+                    "before_all": {
                       "type": "object",
                       "properties": {
                         "command": {
@@ -13034,15 +12862,11 @@
                         "reset": {
                           "type": "string",
                           "enum": ["none", "fast", "strict"]
-                        },
-                        "clean": {
-                          "type": "string",
-                          "enum": ["always", "on_success", "on_failure", "never"]
                         }
                       },
                       "additionalProperties": false
                     },
-                    "before_each_test": {
+                    "before_each": {
                       "type": "object",
                       "properties": {
                         "command": {
@@ -13069,15 +12893,11 @@
                         "reset": {
                           "type": "string",
                           "enum": ["none", "fast", "strict"]
-                        },
-                        "clean": {
-                          "type": "string",
-                          "enum": ["always", "on_success", "on_failure", "never"]
                         }
                       },
                       "additionalProperties": false
                     },
-                    "after_each_test": {
+                    "after_each": {
                       "type": "object",
                       "properties": {
                         "command": {
@@ -13104,15 +12924,11 @@
                         "reset": {
                           "type": "string",
                           "enum": ["none", "fast", "strict"]
-                        },
-                        "clean": {
-                          "type": "string",
-                          "enum": ["always", "on_success", "on_failure", "never"]
                         }
                       },
                       "additionalProperties": false
                     },
-                    "after_all_tests": {
+                    "after_all": {
                       "type": "object",
                       "properties": {
                         "command": {
@@ -13139,80 +12955,6 @@
                         "reset": {
                           "type": "string",
                           "enum": ["none", "fast", "strict"]
-                        },
-                        "clean": {
-                          "type": "string",
-                          "enum": ["always", "on_success", "on_failure", "never"]
-                        }
-                      },
-                      "additionalProperties": false
-                    },
-                    "on_reuse": {
-                      "type": "object",
-                      "properties": {
-                        "command": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "script": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "timeout_ms": {
-                          "type": "number"
-                        },
-                        "timeoutMs": {
-                          "type": "number"
-                        },
-                        "cwd": {
-                          "type": "string"
-                        },
-                        "reset": {
-                          "type": "string",
-                          "enum": ["none", "fast", "strict"]
-                        },
-                        "clean": {
-                          "type": "string",
-                          "enum": ["always", "on_success", "on_failure", "never"]
-                        }
-                      },
-                      "additionalProperties": false
-                    },
-                    "on_finish": {
-                      "type": "object",
-                      "properties": {
-                        "command": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "script": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "timeout_ms": {
-                          "type": "number"
-                        },
-                        "timeoutMs": {
-                          "type": "number"
-                        },
-                        "cwd": {
-                          "type": "string"
-                        },
-                        "reset": {
-                          "type": "string",
-                          "enum": ["none", "fast", "strict"]
-                        },
-                        "clean": {
-                          "type": "string",
-                          "enum": ["always", "on_success", "on_failure", "never"]
                         }
                       },
                       "additionalProperties": false

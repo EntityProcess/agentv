@@ -285,16 +285,13 @@ const WorkspaceHookSchema = z.object({
   timeoutMs: z.number().optional(),
   cwd: z.string().optional(),
   reset: z.enum(['none', 'fast', 'strict']).optional(),
-  clean: z.enum(['always', 'on_success', 'on_failure', 'never']).optional(),
 });
 
 const WorkspaceHooksSchema = z.object({
-  before_all_tests: WorkspaceHookSchema.optional(),
-  before_each_test: WorkspaceHookSchema.optional(),
-  after_each_test: WorkspaceHookSchema.optional(),
-  after_all_tests: WorkspaceHookSchema.optional(),
-  on_reuse: WorkspaceHookSchema.optional(),
-  on_finish: WorkspaceHookSchema.optional(),
+  before_all: WorkspaceHookSchema.optional(),
+  before_each: WorkspaceHookSchema.optional(),
+  after_each: WorkspaceHookSchema.optional(),
+  after_all: WorkspaceHookSchema.optional(),
 });
 
 const WorkspaceSchema = z.object({

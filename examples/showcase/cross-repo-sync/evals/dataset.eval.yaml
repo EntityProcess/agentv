@@ -6,11 +6,11 @@ tags: [showcase, workspace, cross-repo]
 workspace:
   template: ../workspace-template
   hooks:
-    before_each_test:
+    before_each:
       command: ["bash", "../scripts/run-ts.sh", "../scripts/setup.ts"]
       timeout_ms: 900000
       cwd: .
-    after_each_test:
+    after_each:
       command: ["bash", "../scripts/run-ts.sh", "../scripts/reset.ts"]
       timeout_ms: 5000
       cwd: .
