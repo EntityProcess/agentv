@@ -38,14 +38,15 @@ tests:
       - type: contains
         value: "@agentv/workspace"
 
-  - id: verify-workspace-with-agents-md
+  - id: summarize-repo
     criteria: >-
-      The agent should follow the instructions in AGENTS.md and report the
-      package name, version, and description from my-repo/package.json.
+      The agent should follow the prompt instructions and report the
+      package name, version, description, and key dependencies from
+      my-repo/package.json.
     input:
       - role: user
         content:
           - type: file
-            value: ../guidelines/AGENTS.md
-          - type: text
-            value: Follow the instructions in the guidelines above.
+            value: ../plugins/my-plugin/AGENTS.md
+          - type: file
+            value: ../plugins/my-plugin/.github/prompts/summarize-repo.prompt.md

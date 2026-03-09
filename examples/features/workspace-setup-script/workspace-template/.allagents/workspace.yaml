@@ -10,6 +10,6 @@ clients:
   - copilot
 
 workspace:
-  source: ../guidelines/
+  source: ../plugins/my-plugin/
   files:
     - AGENTS.md
