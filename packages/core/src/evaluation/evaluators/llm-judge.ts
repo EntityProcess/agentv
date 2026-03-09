@@ -119,7 +119,7 @@ export class LlmJudgeEvaluator implements Evaluator {
 
     // Prepare template variables for substitution
     const variables = {
-      [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(context.evalCase.input_segments, null, 2),
+      [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(context.evalCase.input, null, 2),
       [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: JSON.stringify(
         context.evalCase.expected_output,
         null,
@@ -131,7 +131,6 @@ export class LlmJudgeEvaluator implements Evaluator {
       [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
       [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
       [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
-      [TEMPLATE_VARIABLES.CONVERSATION]: JSON.stringify(context.evalCase.input, null, 2),
     };
 
     // Build system prompt (only the mandatory output schema)

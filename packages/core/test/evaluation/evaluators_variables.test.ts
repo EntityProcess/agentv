@@ -94,9 +94,10 @@ File Changes: {{file_changes}}
     expect(request?.question).toContain('Reference: Reference Answer Text');
     expect(request?.question).toContain('Candidate: Candidate Answer Text');
 
-    // Verify input JSON stringification
+    // Verify input JSON stringification (includes role annotations)
     expect(request?.question).toContain('Input Messages: [');
-    expect(request?.question).toContain('"value": "Input Message"');
+    expect(request?.question).toContain('"role": "user"');
+    expect(request?.question).toContain('"content": "User Input Message"');
 
     // Verify expected_output JSON stringification
     expect(request?.question).toContain('Expected Messages: [');
@@ -190,9 +191,9 @@ Expected Messages: {{ expected_output }}
     expect(request?.question).toContain('Reference: Reference Answer Text');
     expect(request?.question).toContain('Candidate: Candidate Answer Text');
 
-    // Verify JSON stringified variables were also substituted
+    // Verify JSON stringified variables were also substituted (includes role annotations)
     expect(request?.question).toContain('Input Messages: [');
-    expect(request?.question).toContain('"value": "Input Message"');
+    expect(request?.question).toContain('"content": "User Input Message"');
     expect(request?.question).toContain('Expected Messages: [');
     expect(request?.question).toContain('"value": "Expected Output Message"');
 

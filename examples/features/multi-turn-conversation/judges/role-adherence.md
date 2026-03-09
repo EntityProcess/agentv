@@ -35,7 +35,7 @@ Your overall `score` should be the average of per-turn scores.
 {{ criteria }}
 
 [[ ## conversation (all turns with roles) ## ]]
-{{ conversation }}
+{{ input }}
 
 [[ ## agent response (final turn) ## ]]
 {{ answer }}

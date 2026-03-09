@@ -68,7 +68,7 @@ function assembleFreeform(
       : evalCase.question;
 
   const variables = {
-    [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(evalCase.input_segments, null, 2),
+    [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(evalCase.input, null, 2),
     [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: JSON.stringify(evalCase.expected_output, null, 2),
     [TEMPLATE_VARIABLES.OUTPUT]: JSON.stringify([], null, 2),
     [TEMPLATE_VARIABLES.ANSWER]: candidate.trim(),
@@ -76,7 +76,6 @@ function assembleFreeform(
     [TEMPLATE_VARIABLES.CRITERIA]: evalCase.criteria.trim(),
     [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
     [TEMPLATE_VARIABLES.FILE_CHANGES]: fileChanges ?? '',
-    [TEMPLATE_VARIABLES.CONVERSATION]: JSON.stringify(evalCase.input, null, 2),
   };
 
   const systemPrompt = buildOutputSchema();
