@@ -2687,22 +2687,22 @@ describe('--workspace flag', () => {
     const afterTest = new Date();
 
     expect(result.scores).toHaveLength(1);
-    const judgeScore = result.scores![0];
+    const judgeScore = result.scores?.[0];
 
     // durationMs should be present and reflect real wall-clock time
-    expect(judgeScore.durationMs).toBeGreaterThanOrEqual(50);
+    expect(judgeScore?.durationMs).toBeGreaterThanOrEqual(50);
 
     // startedAt and endedAt should be valid ISO 8601 UTC strings
-    expect(judgeScore.startedAt).toBeDefined();
-    expect(judgeScore.endedAt).toBeDefined();
-    const started = new Date(judgeScore.startedAt!);
-    const ended = new Date(judgeScore.endedAt!);
+    expect(judgeScore?.startedAt).toBeDefined();
+    expect(judgeScore?.endedAt).toBeDefined();
+    const started = new Date(judgeScore?.startedAt ?? '');
+    const ended = new Date(judgeScore?.endedAt ?? '');
     expect(started.getTime()).toBeGreaterThanOrEqual(beforeTest.getTime());
     expect(ended.getTime()).toBeLessThanOrEqual(afterTest.getTime());
     expect(ended.getTime()).toBeGreaterThanOrEqual(started.getTime());
 
     // durationMs should match the difference between startedAt and endedAt
-    expect(judgeScore.durationMs).toBe(ended.getTime() - started.getTime());
+    expect(judgeScore?.durationMs).toBe(ended.getTime() - started.getTime());
   });
 
   it('includes per-judge timing even when evaluator fails', async () => {
@@ -2735,11 +2735,11 @@ describe('--workspace flag', () => {
     });
 
     expect(result.scores).toHaveLength(1);
-    const judgeScore = result.scores![0];
+    const judgeScore = result.scores?.[0];
 
     // Timing should still be present even on failure
-    expect(judgeScore.durationMs).toBeGreaterThanOrEqual(20);
-    expect(judgeScore.startedAt).toBeDefined();
-    expect(judgeScore.endedAt).toBeDefined();
+    expect(judgeScore?.durationMs).toBeGreaterThanOrEqual(20);
+    expect(judgeScore?.startedAt).toBeDefined();
+    expect(judgeScore?.endedAt).toBeDefined();
   });
 });

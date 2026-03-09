@@ -11,7 +11,30 @@ sidebar:
 agentv eval evals/my-eval.yaml
 ```
 
-Results are written to `.agentv/results/eval_<timestamp>.jsonl`.
+Results are written to `.agentv/results/eval_<timestamp>.jsonl`. Each line is a JSON object with one result per test case.
+
+Each `scores[]` entry includes per-judge timing:
+
+```json
+{
+  "scores": [
+    {
+      "name": "format_structure",
+      "type": "llm-judge",
+      "score": 0.9,
+      "verdict": "pass",
+      "hits": ["clear structure"],
+      "misses": [],
+      "duration_ms": 9103,
+      "started_at": "2026-03-09T00:05:10.123Z",
+      "ended_at": "2026-03-09T00:05:19.226Z",
+      "token_usage": { "input": 2711, "output": 2535 }
+    }
+  ]
+}
+```
+
+The `duration_ms`, `started_at`, and `ended_at` fields are present on every judge result (including `code-judge`), enabling per-judge bottleneck analysis.
 
 ## Common Options
 
