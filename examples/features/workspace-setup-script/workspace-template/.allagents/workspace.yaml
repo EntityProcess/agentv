@@ -5,3 +5,11 @@ repositories:
     description: Example repository for workspace setup demo
 
 plugins: []
+
+clients:
+  - copilot
+
+workspace:
+  source: ../plugins/my-plugin/
+  files:
+    - AGENTS.md

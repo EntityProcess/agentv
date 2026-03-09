@@ -11,8 +11,8 @@ workspace:
         - ../scripts/workspace-setup.mjs
         - --from
         - ../workspace-template/.allagents/workspace.yaml
-    after_each_test:
-      reset: fast
+        - --require
+        - AGENTS.md
   repos:
     - path: ./my-repo
       source:
@@ -37,3 +37,16 @@ tests:
     assert:
       - type: contains
         value: "@agentv/workspace"
+
+  - id: summarize-repo
+    criteria: >-
+      The agent should follow the prompt instructions and report the
+      package name, version, description, and key dependencies from
+      my-repo/package.json.
+    input:
+      - role: user
+        content:
+          - type: file
+            value: ../plugins/my-plugin/AGENTS.md
+          - type: file
+            value: ../plugins/my-plugin/.github/prompts/summarize-repo.prompt.md

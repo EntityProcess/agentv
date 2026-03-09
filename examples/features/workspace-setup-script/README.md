@@ -1,6 +1,6 @@
 # Workspace Setup Script
 
-Demonstrates using a `before_all` lifecycle hook to clean and re-initialize an allagents workspace before evaluation runs.
+Demonstrates using a `before_all` lifecycle hook to clean and re-initialize an allagents workspace before evaluation runs, including sourcing plugin files (like `AGENTS.md` and prompt files) into the workspace.
 
 ## Problem
 
@@ -14,6 +14,12 @@ A generic Node.js script that any eval can reuse. It reads `workspace_path` from
 workspace-setup-script/
 ├── evals/
 │   └── dataset.eval.yaml        # Eval with before_all hook
+├── plugins/
+│   └── my-plugin/               # External plugin (sourced by allagents)
+│       ├── AGENTS.md             # Agent guidelines
+│       └── .github/
+│           └── prompts/
+│               └── summarize-repo.prompt.md
 ├── scripts/
 │   └── workspace-setup.mjs      # Generic setup script (reusable across evals)
 └── workspace-template/
@@ -21,42 +27,65 @@ workspace-setup-script/
         └── workspace.yaml       # Template for allagents init
 ```
 
+## Sourcing plugin files with allagents
+
+The `plugins/` directory lives outside `workspace-template/` as an external source. The `.allagents/workspace.yaml` uses `workspace.source` and `workspace.files` to tell allagents to copy specific files to the workspace root:
+
+```yaml
+# .allagents/workspace.yaml
+workspace:
+  source: ../plugins/my-plugin/
+  files:
+    - AGENTS.md
+```
+
+The source path is relative to the workspace template root (parent of `.allagents/`). When `npx allagents workspace init --from` runs, it resolves `../plugins/my-plugin/` from the template location and copies `AGENTS.md` to the workspace root.
+
 ## Eval YAML
 
-The template path is passed as an argument — no per-eval script needed:
+The template path is passed as an argument. Use `--require` to validate that expected artifacts exist in the workspace after initialization:
 
 ```yaml
 workspace:
   template: ./workspace-template
-  before_all:
-    command:
-      - node
-      - ../scripts/workspace-setup.mjs
-      - --from
-      - ./workspace-template/.allagents/workspace.yaml
+  hooks:
+    before_all_tests:
+      command:
+        - node
+        - ../scripts/workspace-setup.mjs
+        - --from
+        - ../workspace-template/.allagents/workspace.yaml
+        - --require
+        - AGENTS.md
 ```
+
+The `--require` flag accepts one or more file paths (relative to the workspace root). If any required file is missing after `allagents workspace init`, the script exits with an error listing the missing files.
+
+## Referencing plugin files in test inputs
+
+Reference plugin files via `type: file` in test inputs to inject them into the agent's prompt:
+
+```yaml
+tests:
+  - id: summarize-repo
+    input:
+      - role: user
+        content:
+          - type: file
+            value: ../plugins/my-plugin/AGENTS.md
+          - type: file
+            value: ../plugins/my-plugin/.github/prompts/summarize-repo.prompt.md
+```
+
+The `type: file` path is resolved from the eval file's directory up to the repo root. This injects the file contents into the agent's prompt alongside any text instructions.
 
 ## How it works
 
-1. AgentV creates a temp workspace and sends `{"workspace_path": "..."}` on stdin
-2. The script removes the `.allagents/` directory (stale config + artifacts)
-3. The script runs `npx allagents workspace init` with the `--from` template
-4. AgentV clones repos and runs tests against the initialized workspace
-
-## Reusing across evals
-
-Copy `workspace-setup.mjs` to a shared `scripts/` directory. Each eval just points `--from` at its own template:
-
-```yaml
-# evals/my-eval/eval.yaml
-workspace:
-  before_all:
-    command:
-      - node
-      - ../../scripts/workspace-setup.mjs
-      - --from
-      - ./my-template/.allagents/workspace.yaml
-```
+1. AgentV copies `workspace-template/` to a pooled workspace
+2. The setup script removes stale `.allagents/` config and runs `npx allagents workspace init`
+3. Allagents reads `workspace.source`/`workspace.files` and copies `AGENTS.md` from the plugin to the workspace root
+4. The `--require AGENTS.md` check validates the artifact exists
+5. AgentV clones repos and runs tests against the initialized workspace
 
 ## Cross-platform
 
