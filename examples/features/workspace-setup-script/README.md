@@ -17,24 +17,48 @@ workspace-setup-script/
 ├── scripts/
 │   └── workspace-setup.mjs      # Generic setup script (reusable across evals)
 └── workspace-template/
+    ├── AGENTS.md                 # Agent guidelines (injected via type: file)
     └── .allagents/
         └── workspace.yaml       # Template for allagents init
 ```
 
 ## Eval YAML
 
-The template path is passed as an argument — no per-eval script needed:
+The template path is passed as an argument. Use `--require` to validate that expected artifacts exist in the workspace after initialization:
 
 ```yaml
 workspace:
   template: ./workspace-template
-  before_all:
-    command:
-      - node
-      - ../scripts/workspace-setup.mjs
-      - --from
-      - ./workspace-template/.allagents/workspace.yaml
+  hooks:
+    before_all_tests:
+      command:
+        - node
+        - ../scripts/workspace-setup.mjs
+        - --from
+        - ../workspace-template/.allagents/workspace.yaml
+        - --require
+        - AGENTS.md
 ```
+
+The `--require` flag accepts one or more file paths (relative to the workspace root). If any required file is missing after `allagents workspace init`, the script exits with an error listing the missing files.
+
+## Referencing workspace files in test inputs
+
+Place files like `AGENTS.md` in the workspace template. They get copied to the workspace root, then reference them via `type: file` in test inputs:
+
+```yaml
+tests:
+  - id: my-test
+    input:
+      - role: user
+        content:
+          - type: file
+            value: ../workspace-template/AGENTS.md
+          - type: text
+            value: Follow the instructions above.
+```
+
+The `type: file` path is resolved from the eval file's directory up to the repo root. This injects the file contents into the agent's prompt alongside the text instruction.
 
 ## How it works
 
