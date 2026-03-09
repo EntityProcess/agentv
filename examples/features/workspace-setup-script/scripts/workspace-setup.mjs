@@ -64,11 +64,9 @@ if (result.status !== 0) {
 }
 
 // --- validate required artifacts exist in workspace ---
-const missing = requiredFiles.filter(
-  (file) => !existsSync(join(workspace_path, file)),
-);
+const missing = requiredFiles.filter((file) => !existsSync(join(workspace_path, file)));
 if (missing.length > 0) {
-  console.error(`Required artifacts not found in workspace:`);
+  console.error('Required artifacts not found in workspace:');
   for (const file of missing) {
     console.error(`  - ${file}`);
   }
