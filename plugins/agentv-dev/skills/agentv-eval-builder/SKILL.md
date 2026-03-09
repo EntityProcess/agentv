@@ -58,6 +58,8 @@ tests:
 
 **JSONL format:** One test per line as JSON. Optional `.yaml` sidecar for shared defaults. See `examples/features/basic-jsonl/`.
 
+**Environment variables:** All string fields support `${{ VAR }}` interpolation. Missing vars resolve to empty string. Works in eval files, external case files, and workspace configs. `.env` files are loaded automatically.
+
 ## Metadata
 
 When `name` is present, the suite is parsed as a metadata-bearing eval:

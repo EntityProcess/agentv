@@ -3,6 +3,7 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import { parse as parseYaml } from 'yaml';
 
+import { interpolateEnv } from '../interpolation.js';
 import type { EvalTest, JsonObject, JsonValue, TestMessage } from '../types.js';
 import { isJsonObject, isTestMessage } from '../types.js';
 import { loadConfig } from './config-loader.js';
@@ -79,7 +80,7 @@ async function loadSidecarMetadata(jsonlPath: string, verbose: boolean): Promise
 
   try {
     const content = await readFile(sidecarPath, 'utf8');
-    const parsed = parseYaml(content) as unknown;
+    const parsed = interpolateEnv(parseYaml(content), process.env) as unknown;
 
     if (!isJsonObject(parsed)) {
       logWarning(`Invalid sidecar metadata format in ${sidecarPath}`);
@@ -110,7 +111,8 @@ function parseJsonlContent(content: string, filePath: string): RawJsonlEvalCase[
     if (line === '') continue; // Skip empty lines
 
     try {
-      const parsed = JSON.parse(line) as unknown;
+      const raw = JSON.parse(line) as unknown;
+      const parsed = interpolateEnv(raw, process.env);
       if (!isJsonObject(parsed)) {
         throw new Error('Expected JSON object');
       }

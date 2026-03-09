@@ -135,6 +135,50 @@ tests: ./cases.yaml
 
 The path is resolved relative to the eval file's directory. The external file should contain a YAML array of test objects or a JSONL file with one test per line.
 
+## Environment Variable Interpolation
+
+All string fields in eval files support `${{ VAR }}` syntax for environment variable interpolation. This enables portable eval configs that work across machines and CI environments without hardcoded paths.
+
+```yaml
+workspace:
+  repos:
+    - path: ./RepoA
+      source:
+        type: local
+        path: "${{ REPO_A_PATH }}"
+
+tests:
+  - id: test-1
+    input: "Evaluate the code in ${{ PROJECT_NAME }}"
+    criteria: "${{ EVAL_CRITERIA }}"
+```
+
+### Behavior
+
+- **Syntax:** `${{ VARIABLE_NAME }}` with optional whitespace around the name
+- **Missing variables** resolve to an empty string
+- **Partial interpolation** is supported: `${{ HOME }}/repos/${{ PROJECT }}` becomes `/home/user/repos/myproject`
+- **Non-string values** (numbers, booleans) are not affected
+- Interpolation is applied recursively to all nested objects and arrays
+- Works in YAML eval files, external YAML/JSONL case files, and external workspace config files
+- `.env` files in the directory hierarchy are loaded automatically before interpolation
+
+### Example: Portable Workspace Config
+
+```yaml
+# workspace.yaml — works on any machine
+repos:
+  - path: ./my-repo
+    source:
+      type: local
+      path: "${{ MY_REPO_LOCAL_PATH }}"
+```
+
+```bash
+# .env
+MY_REPO_LOCAL_PATH=/home/dev/repos/my-repo
+```
+
 ## JSONL Format
 
 For large-scale evaluations, AgentV supports JSONL (JSON Lines) format. Each line is a single test:

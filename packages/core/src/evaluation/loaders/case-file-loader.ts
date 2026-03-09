@@ -3,6 +3,7 @@ import path from 'node:path';
 import fg from 'fast-glob';
 import { parse as parseYaml } from 'yaml';
 
+import { interpolateEnv } from '../interpolation.js';
 import type { JsonObject, JsonValue } from '../types.js';
 import { isJsonObject } from '../types.js';
 
@@ -37,7 +38,8 @@ function isGlobPattern(filePath: string): boolean {
  * Expects the file to contain an array of test objects.
  */
 function parseYamlCases(content: string, filePath: string): JsonObject[] {
-  const parsed = parseYaml(content) as unknown;
+  const raw = parseYaml(content) as unknown;
+  const parsed = interpolateEnv(raw, process.env);
   if (!Array.isArray(parsed)) {
     throw new Error(
       `External test file must contain a YAML array, got ${typeof parsed}: ${filePath}`,
@@ -66,7 +68,8 @@ function parseJsonlCases(content: string, filePath: string): JsonObject[] {
     if (line === '') continue;
 
     try {
-      const parsed = JSON.parse(line) as unknown;
+      const raw = JSON.parse(line) as unknown;
+      const parsed = interpolateEnv(raw, process.env);
       if (!isJsonObject(parsed)) {
         throw new Error('Expected JSON object');
       }

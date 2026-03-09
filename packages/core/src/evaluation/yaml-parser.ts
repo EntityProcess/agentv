@@ -3,6 +3,7 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 import { parse } from 'yaml';
 
+import { interpolateEnv } from './interpolation.js';
 import { expandFileReferences, loadCasesFromFile } from './loaders/case-file-loader.js';
 import {
   extractCacheConfig,
@@ -134,7 +135,7 @@ export async function readTestSuiteMetadata(
   try {
     const absolutePath = path.resolve(testFilePath);
     const content = await readFile(absolutePath, 'utf8');
-    const parsed = parse(content) as unknown;
+    const parsed = interpolateEnv(parse(content), process.env) as unknown;
 
     if (!isJsonObject(parsed)) {
       return {};
@@ -234,12 +235,12 @@ async function loadTestsFromYaml(
   const guidelinePatterns = config?.guideline_patterns;
 
   const rawFile = await readFile(absoluteTestPath, 'utf8');
-  const parsed = parse(rawFile) as unknown;
-  if (!isJsonObject(parsed)) {
+  const interpolated = interpolateEnv(parse(rawFile), process.env) as unknown;
+  if (!isJsonObject(interpolated)) {
     throw new Error(`Invalid test file format: ${evalFilePath}`);
   }
 
-  const suite = parsed as RawTestSuite;
+  const suite = interpolated as RawTestSuite;
   const datasetNameFromSuite = asString(suite.dataset)?.trim();
   const fallbackDataset = path.basename(absoluteTestPath).replace(/\.ya?ml$/i, '') || 'eval';
   const datasetName =
@@ -656,7 +657,7 @@ async function resolveWorkspaceConfig(
     } catch {
       throw new Error(`Workspace file not found: ${raw} (resolved to ${workspaceFilePath})`);
     }
-    const parsed = parse(content) as unknown;
+    const parsed = interpolateEnv(parse(content), process.env) as unknown;
     if (!isJsonObject(parsed)) {
       throw new Error(
         `Invalid workspace file format: ${workspaceFilePath} (expected a YAML object)`,
