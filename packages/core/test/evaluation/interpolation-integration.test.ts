@@ -93,6 +93,32 @@ describe('env interpolation in YAML loading', () => {
     });
   });
 
+  it('interpolates ${{ VAR }} in external YAML case files', async () => {
+    const casesFile = path.join(testDir, 'cases.yaml');
+    await writeFile(
+      casesFile,
+      ['- id: ext-1', '  input: "hello"', '  criteria: "${{ AGENTV_TEST_CRITERIA }}"', ''].join(
+        '\n',
+      ),
+    );
+    const evalFile = path.join(testDir, 'interp-external.eval.yaml');
+    await writeFile(evalFile, 'tests: cases.yaml\n');
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases[0].criteria).toBe('Must return correct answer');
+  });
+
+  it('interpolates ${{ VAR }} in external JSONL case files', async () => {
+    const casesFile = path.join(testDir, 'cases.jsonl');
+    await writeFile(
+      casesFile,
+      '{"id": "ext-jsonl-1", "input": "hello", "criteria": "${{ AGENTV_TEST_CRITERIA }}"}\n',
+    );
+    const evalFile = path.join(testDir, 'interp-external-jsonl.eval.yaml');
+    await writeFile(evalFile, 'tests: cases.jsonl\n');
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases[0].criteria).toBe('Must return correct answer');
+  });
+
   it('leaves strings without ${{ }} unchanged', async () => {
     const evalFile = path.join(testDir, 'interp-none.eval.yaml');
     await writeFile(
