@@ -45,6 +45,7 @@ const freeformEvaluationSchema = z.object({
   hits: z.array(z.string()).describe('Brief specific achievements').optional(),
   misses: z.array(z.string()).describe('Brief failures or omissions').optional(),
   reasoning: z.string().describe('Concise explanation (1-2 sentences)').optional(),
+  details: z.record(z.unknown()).describe('Optional structured metadata for domain-specific metrics').optional(),
 });
 
 const rubricCheckResultSchema = z.object({
@@ -174,6 +175,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         expectedAspectCount,
         reasoning,
         evaluatorRawRequest,
+        details: data.details as JsonObject | undefined,
         tokenUsage,
       };
     } catch (e: unknown) {
@@ -486,7 +488,8 @@ export function buildOutputSchema(): string {
     '  "score": <number between 0.0 and 1.0>,',
     '  "hits": [<array of strings, max 4 items, brief specific achievements>],',
     '  "misses": [<array of strings, max 4 items, brief specific failures or omissions, empty if none>],',
-    '  "reasoning": "<string, concise explanation for the score, 1-2 sentences max>"',
+    '  "reasoning": "<string, concise explanation for the score, 1-2 sentences max>",',
+    '  "details": {<optional object with domain-specific structured metrics>}',
     '}',
   ].join('\n');
 }
