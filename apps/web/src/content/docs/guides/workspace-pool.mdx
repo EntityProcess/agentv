@@ -11,7 +11,7 @@ Workspace pooling keeps materialized workspaces on disk between eval runs. Inste
 
 ## How it works
 
-AgentV computes a **SHA-256 fingerprint** of your workspace configuration (template path + all repo configs) and stores the materialized workspace in a persistent slot:
+AgentV computes a **SHA-256 fingerprint** of your repo materialization inputs (source, checkout, and clone options) and stores the materialized workspace in a persistent slot:
 
 ```
 ~/.agentv/workspace-pool/
@@ -105,22 +105,21 @@ hooks:
     reset: fast
 ```
 
-Both eval files resolve to the same template + repos configuration, producing the same fingerprint. They share pool slots, and concurrent runs acquire separate slots from the same pool.
+Both eval files resolve to the same repos configuration, producing the same fingerprint. They share pool slots, and concurrent runs acquire separate slots from the same pool.
 
 ### What determines the fingerprint
 
-The fingerprint captures:
+The fingerprint captures **repo materialization inputs only** — the fields that affect cloned checkout state. Template path is excluded because template files are re-copied on every pool reuse and don't affect the cloned repos.
 
 | Field | Normalization |
 |-------|--------------|
-| Template path | Resolved absolute path |
 | Repo path | As configured (e.g., `./my-repo`) |
 | Repo source URL | Lowercased, `.git` suffix stripped |
 | Checkout ref | As configured, defaults to `HEAD` |
 | Clone depth/filter | Included if set |
 | Sparse checkout paths | Sorted alphabetically |
 
-Two configs produce different fingerprints if **any** of these fields differ. For example, changing the checkout ref from `main` to `v2.0` creates a new pool entry.
+Two configs produce different fingerprints if **any** of these fields differ. For example, changing the checkout ref from `main` to `v2.0` creates a new pool entry. Changing the template path or template contents does **not** create a new pool entry.
 
 ## Concurrency
 
