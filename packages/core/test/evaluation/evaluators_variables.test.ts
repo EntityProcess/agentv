@@ -219,7 +219,7 @@ Expected Messages: {{ expected_output }}
       ],
     };
 
-    const customPrompt = `Input: {{ input }}`;
+    const customPrompt = 'Input: {{ input }}';
 
     const judgeProvider = new CapturingProvider({
       text: JSON.stringify({
