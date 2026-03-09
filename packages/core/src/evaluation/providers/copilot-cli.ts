@@ -75,6 +75,8 @@ export class CopilotCliProvider implements Provider {
       stdio: ['pipe', 'pipe', 'inherit'],
     });
 
+    await waitForProcessSpawn(agentProcess, executable, this.targetName);
+
     // Track events
     const toolCallsInProgress = new Map<string, ToolCallInProgress>();
     const completedToolCalls: ToolCall[] = [];
@@ -411,6 +413,66 @@ export class CopilotCliProvider implements Provider {
       return undefined;
     }
   }
+}
+
+async function waitForProcessSpawn(
+  proc: ChildProcess,
+  executable: string,
+  targetName: string,
+): Promise<void> {
+  if (proc.pid) {
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const onSpawn = () => {
+      cleanup();
+      resolve();
+    };
+
+    const onError = (error: Error & { code?: string }) => {
+      cleanup();
+      reject(new Error(formatCopilotSpawnError(error, executable, targetName)));
+    };
+
+    const cleanup = () => {
+      proc.off('spawn', onSpawn);
+      proc.off('error', onError);
+    };
+
+    proc.once('spawn', onSpawn);
+    proc.once('error', onError);
+  });
+}
+
+function formatCopilotSpawnError(
+  error: Error & { code?: string },
+  executable: string,
+  targetName: string,
+): string {
+  const code = error.code;
+  const base =
+    `Failed to start Copilot CLI executable '${executable}' for target '${targetName}'.` +
+    ` ${error.message}`;
+
+  if (process.platform !== 'win32') {
+    return base;
+  }
+
+  if (code !== 'ENOENT' && code !== 'EINVAL') {
+    return base;
+  }
+
+  return `${base}
+
+On Windows, shell commands like 'copilot -h' can work via .ps1/.bat shims, but AgentV launches a subprocess that needs a directly spawnable executable path.
+
+Fix options:
+1) Install native Copilot binary package:
+   npm install -g @github/copilot-win32-x64
+2) Set explicit executable for Copilot targets:
+   - In .env: COPILOT_EXE=C:\\Users\\<you>\\AppData\\Roaming\\npm\\node_modules\\@github\\copilot-win32-x64\\copilot.exe
+  - In .agentv/targets.yaml: executable: \${{ COPILOT_EXE }}`;
 }
 
 function summarizeAcpEvent(eventType: string, data: unknown): string | undefined {

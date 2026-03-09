@@ -208,6 +208,17 @@ The VS Code provider uses a **subagent file-messaging architecture**. AgentV pro
 ### Copilot CLI
 
 - **MCP OAuth token expiration**: If your copilot CLI has MCP servers configured that use OAuth authentication, **expired tokens will block eval execution**. The copilot CLI attempts to re-authenticate via a browser OAuth flow, which cannot complete in non-interactive mode and causes the eval to hang indefinitely. Before running evals, either re-authenticate your MCP servers manually (`copilot` → `/mcp`) or remove MCP servers with expired tokens. See [copilot-cli#1797](https://github.com/github/copilot-cli/issues/1797) and [copilot-cli#1491](https://github.com/github/copilot-cli/issues/1491) for upstream tracking.
+- **Windows shell shim vs process spawn**: On Windows, `copilot -h` may work in PowerShell while AgentV still fails with `spawn copilot ENOENT`. Shell commands can execute `copilot.ps1`/`copilot.bat`, but AgentV launches a subprocess that expects a directly spawnable executable path. If this occurs, set an explicit target executable (for example via env var):
+
+```yaml
+targets:
+  - name: copilot
+    provider: copilot
+    executable: ${{ COPILOT_EXE }}
+    judge_target: azure-base
+```
+
+Use a native binary path for `COPILOT_EXE` (for example `copilot.exe` from `@github/copilot-win32-x64`).
 
 ### Claude Code
 
