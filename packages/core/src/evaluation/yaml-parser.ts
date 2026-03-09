@@ -315,7 +315,8 @@ async function loadTestsFromYaml(
     const expectedMessages = resolveExpectedMessages(evalcase) ?? [];
 
     // A test is complete when it has id, input, and at least one of: criteria, expected_output, or assert
-    const hasEvaluationSpec = !!outcome || expectedMessages.length > 0 || evalcase.assert !== undefined;
+    const hasEvaluationSpec =
+      !!outcome || expectedMessages.length > 0 || evalcase.assert !== undefined;
     if (!id || !hasEvaluationSpec || !testInputMessages || testInputMessages.length === 0) {
       logError(
         `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assert`,
