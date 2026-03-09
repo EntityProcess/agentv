@@ -956,6 +956,12 @@ export interface EvaluatorResult {
   readonly details?: JsonObject;
   /** Token usage from LLM calls made by this evaluator (optional). */
   readonly tokenUsage?: TokenUsage;
+  /** Wall-clock duration of this judge execution in milliseconds. */
+  readonly durationMs?: number;
+  /** ISO 8601 UTC timestamp when this judge started executing. */
+  readonly startedAt?: string;
+  /** ISO 8601 UTC timestamp when this judge finished executing. */
+  readonly endedAt?: string;
 }
 
 /**

@@ -2647,4 +2647,99 @@ describe('--workspace flag', () => {
     expect(results).toHaveLength(1);
     expect(results[0].error).toBeUndefined();
   });
+
+  it('includes per-judge timing in scores', async () => {
+    const provider = new SequenceProvider('mock', {
+      responses: [
+        {
+          output: [{ role: 'assistant', content: 'Structured logging added.' }],
+        },
+      ],
+    });
+
+    // Use a slow evaluator to ensure measurable duration
+    const slowEvaluatorRegistry = {
+      'llm-judge': {
+        kind: 'llm-judge',
+        async evaluate() {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          return {
+            score: 0.9,
+            verdict: 'pass' as const,
+            hits: ['good'],
+            misses: [],
+            expectedAspectCount: 1,
+          };
+        },
+      },
+    };
+
+    const beforeTest = new Date();
+    const result = await runEvalCase({
+      evalCase: {
+        ...baseTestCase,
+        evaluators: [{ name: 'quality', type: 'llm-judge' }],
+      },
+      provider,
+      target: baseTarget,
+      evaluators: slowEvaluatorRegistry,
+    });
+    const afterTest = new Date();
+
+    expect(result.scores).toHaveLength(1);
+    const judgeScore = result.scores?.[0];
+
+    // durationMs should be present and reflect real wall-clock time
+    expect(judgeScore?.durationMs).toBeGreaterThanOrEqual(50);
+
+    // startedAt and endedAt should be valid ISO 8601 UTC strings
+    expect(judgeScore?.startedAt).toBeDefined();
+    expect(judgeScore?.endedAt).toBeDefined();
+    const started = new Date(judgeScore?.startedAt ?? '');
+    const ended = new Date(judgeScore?.endedAt ?? '');
+    expect(started.getTime()).toBeGreaterThanOrEqual(beforeTest.getTime());
+    expect(ended.getTime()).toBeLessThanOrEqual(afterTest.getTime());
+    expect(ended.getTime()).toBeGreaterThanOrEqual(started.getTime());
+
+    // durationMs should match the difference between startedAt and endedAt
+    expect(judgeScore?.durationMs).toBe(ended.getTime() - started.getTime());
+  });
+
+  it('includes per-judge timing even when evaluator fails', async () => {
+    const provider = new SequenceProvider('mock', {
+      responses: [
+        {
+          output: [{ role: 'assistant', content: 'Some response.' }],
+        },
+      ],
+    });
+
+    const failingEvaluatorRegistry = {
+      'llm-judge': {
+        kind: 'llm-judge',
+        async evaluate() {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          throw new Error('Judge crashed');
+        },
+      },
+    };
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...baseTestCase,
+        evaluators: [{ name: 'broken', type: 'llm-judge' }],
+      },
+      provider,
+      target: baseTarget,
+      evaluators: failingEvaluatorRegistry,
+    });
+
+    expect(result.scores).toHaveLength(1);
+    const judgeScore = result.scores?.[0];
+
+    // Timing should still be present even on failure
+    expect(judgeScore?.durationMs).toBeGreaterThanOrEqual(20);
+    expect(judgeScore?.startedAt).toBeDefined();
+    expect(judgeScore?.endedAt).toBeDefined();
+  });
 });

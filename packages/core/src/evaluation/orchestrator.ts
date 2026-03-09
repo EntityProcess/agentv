@@ -2085,10 +2085,12 @@ async function runEvaluatorList(options: {
   };
 
   for (const evaluatorConfig of evaluators ?? []) {
+    const startedAt = new Date();
     try {
       // Create evaluator instance via registry
       const evaluatorInstance = await typeRegistry.create(evaluatorConfig, dispatchContext);
       const score = await evaluatorInstance.evaluate(evalContext);
+      const endedAt = new Date();
 
       const weight = evaluatorConfig.weight ?? 1.0;
 
@@ -2112,8 +2114,12 @@ async function runEvaluatorList(options: {
         details: score.details,
         scores: mapChildResults(score.scores),
         tokenUsage: score.tokenUsage,
+        durationMs: endedAt.getTime() - startedAt.getTime(),
+        startedAt: startedAt.toISOString(),
+        endedAt: endedAt.toISOString(),
       });
     } catch (error) {
+      const endedAt = new Date();
       const message = error instanceof Error ? error.message : String(error);
       const fallbackScore: EvaluationScore = {
         score: 0,
@@ -2140,6 +2146,9 @@ async function runEvaluatorList(options: {
         hits: [],
         misses: [`Evaluator '${evaluatorConfig.name ?? 'unknown'}' failed: ${message}`],
         reasoning: message,
+        durationMs: endedAt.getTime() - startedAt.getTime(),
+        startedAt: startedAt.toISOString(),
+        endedAt: endedAt.toISOString(),
       });
     }
 
