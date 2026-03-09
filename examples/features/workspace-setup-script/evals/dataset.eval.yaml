@@ -11,6 +11,8 @@ workspace:
         - ../scripts/workspace-setup.mjs
         - --from
         - ../workspace-template/.allagents/workspace.yaml
+        - --require
+        - AGENTS.md
   repos:
     - path: ./my-repo
       source:
