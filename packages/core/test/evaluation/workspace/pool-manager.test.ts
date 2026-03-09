@@ -53,8 +53,8 @@ describe('computeWorkspaceFingerprint', () => {
       },
     ];
 
-    const fp1 = computeWorkspaceFingerprint('/some/template', repos);
-    const fp2 = computeWorkspaceFingerprint('/some/template', repos);
+    const fp1 = computeWorkspaceFingerprint(repos);
+    const fp2 = computeWorkspaceFingerprint(repos);
 
     expect(fp1).toBe(fp2);
     expect(fp1).toMatch(/^[a-f0-9]{64}$/);
@@ -74,8 +74,8 @@ describe('computeWorkspaceFingerprint', () => {
       },
     ];
 
-    const fp1 = computeWorkspaceFingerprint(null, repos1);
-    const fp2 = computeWorkspaceFingerprint(null, repos2);
+    const fp1 = computeWorkspaceFingerprint(repos1);
+    const fp2 = computeWorkspaceFingerprint(repos2);
 
     expect(fp1).toBe(fp2);
   });
@@ -86,20 +86,20 @@ describe('computeWorkspaceFingerprint', () => {
       source: { type: 'git', url: 'https://github.com/example/repo' },
     };
 
-    const fp1 = computeWorkspaceFingerprint(null, [baseRepo]);
-    const fp2 = computeWorkspaceFingerprint(null, [{ ...baseRepo, checkout: { ref: 'v1.0.0' } }]);
+    const fp1 = computeWorkspaceFingerprint([baseRepo]);
+    const fp2 = computeWorkspaceFingerprint([{ ...baseRepo, checkout: { ref: 'v1.0.0' } }]);
 
     expect(fp1).not.toBe(fp2);
   });
 
   it('differs when repo config changes (URL)', () => {
-    const fp1 = computeWorkspaceFingerprint(null, [
+    const fp1 = computeWorkspaceFingerprint([
       {
         path: './my-repo',
         source: { type: 'git', url: 'https://github.com/example/repo-a' },
       },
     ]);
-    const fp2 = computeWorkspaceFingerprint(null, [
+    const fp2 = computeWorkspaceFingerprint([
       {
         path: './my-repo',
         source: { type: 'git', url: 'https://github.com/example/repo-b' },
@@ -115,22 +115,8 @@ describe('computeWorkspaceFingerprint', () => {
       source: { type: 'git', url: 'https://github.com/example/repo' },
     };
 
-    const fp1 = computeWorkspaceFingerprint(null, [baseRepo]);
-    const fp2 = computeWorkspaceFingerprint(null, [{ ...baseRepo, clone: { depth: 1 } }]);
-
-    expect(fp1).not.toBe(fp2);
-  });
-
-  it('differs when template path changes', () => {
-    const repos: RepoConfig[] = [
-      {
-        path: './my-repo',
-        source: { type: 'git', url: 'https://github.com/example/repo' },
-      },
-    ];
-
-    const fp1 = computeWorkspaceFingerprint('/template/a', repos);
-    const fp2 = computeWorkspaceFingerprint('/template/b', repos);
+    const fp1 = computeWorkspaceFingerprint([baseRepo]);
+    const fp2 = computeWorkspaceFingerprint([{ ...baseRepo, clone: { depth: 1 } }]);
 
     expect(fp1).not.toBe(fp2);
   });
@@ -145,8 +131,8 @@ describe('computeWorkspaceFingerprint', () => {
       source: { type: 'git', url: 'https://github.com/example/repo-b' },
     };
 
-    const fp1 = computeWorkspaceFingerprint(null, [repoA, repoB]);
-    const fp2 = computeWorkspaceFingerprint(null, [repoB, repoA]);
+    const fp1 = computeWorkspaceFingerprint([repoA, repoB]);
+    const fp2 = computeWorkspaceFingerprint([repoB, repoA]);
 
     expect(fp1).toBe(fp2);
   });
@@ -163,16 +149,15 @@ describe('computeWorkspaceFingerprint', () => {
       clone: { sparse: ['lib', 'src'] },
     };
 
-    const fp1 = computeWorkspaceFingerprint(null, [repo1]);
-    const fp2 = computeWorkspaceFingerprint(null, [repo2]);
+    const fp1 = computeWorkspaceFingerprint([repo1]);
+    const fp2 = computeWorkspaceFingerprint([repo2]);
 
     expect(fp1).toBe(fp2);
   });
 
-  it('treats undefined and null template path the same', () => {
-    const repos: RepoConfig[] = [];
-    const fp1 = computeWorkspaceFingerprint(undefined, repos);
-    const fp2 = computeWorkspaceFingerprint(null, repos);
+  it('produces same hash for empty repos', () => {
+    const fp1 = computeWorkspaceFingerprint([]);
+    const fp2 = computeWorkspaceFingerprint([]);
 
     expect(fp1).toBe(fp2);
   });
