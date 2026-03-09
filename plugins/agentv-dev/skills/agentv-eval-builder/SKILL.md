@@ -247,12 +247,8 @@ workspace:
       clone:
         depth: 10
   hooks:
-    after_each_test:
+    after_each:
       reset: fast          # none | fast | strict
-    on_reuse:
-      reset: fast          # none | fast | strict (pooled slot reuse reset mode)
-    on_finish:
-      clean: on_success    # always | on_success | on_failure | never
   isolation: shared        # shared | per_test
   mode: pooled             # pooled | ephemeral | static
 ```
@@ -264,8 +260,7 @@ workspace:
 - `clone.sparse`: sparse checkout paths array
 - `mode`: `pooled` (default for shared repos), `ephemeral`, or `static`
 - `static_path`: required when `mode: static`
-- `hooks.on_reuse.reset: strict` uses `git clean -fdx` on pooled slot reuse (`fast` uses `-fd`)
-- `hooks.on_finish.clean` controls temp workspace cleanup behavior
+- Pool reset defaults to `fast` (`git clean -fd`); use `--workspace-clean full` for strict reset (`git clean -fdx`)
 - Pool entries are managed separately via `agentv workspace list` and `agentv workspace clean`
 
 See https://agentv.dev/targets/configuration/#repository-lifecycle

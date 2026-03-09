@@ -59,18 +59,10 @@ workspace:
 
 By default, pool reset uses `git clean -fd` which **preserves `.gitignore`d files** like `node_modules/`, `build/`, and compiled binaries. This means `before_all` build steps survive across reuse cycles.
 
-For strict reset that also removes `.gitignore`d files, set `workspace.hooks.on_reuse.reset: strict`:
+For strict reset that also removes `.gitignore`d files, use the `--workspace-clean full` CLI flag:
 
-```yaml
-workspace:
-  hooks:
-    on_reuse:
-      reset: strict
-  repos:
-    - path: ./my-repo
-      source:
-        type: git
-        url: https://github.com/org/my-repo.git
+```bash
+agentv eval evals/my-eval.yaml --workspace-clean full
 ```
 
 | Mode | Git command | `.gitignore`d files | Use case |
@@ -109,7 +101,7 @@ repos:
     checkout:
       ref: main
 hooks:
-  after_each_test:
+  after_each:
     reset: fast
 ```
 
@@ -188,7 +180,7 @@ This bypasses clone, copy, and pool entirely. AgentV never deletes a user-provid
 
 ## Interaction with keep/cleanup flags
 
-`workspace.hooks.on_finish.clean` (or CLI `--retain-on-success` / `--retain-on-failure`) controls temporary eval-run workspaces under `~/.agentv/workspaces/...` (non-pooled paths).
+CLI flags `--retain-on-success` / `--retain-on-failure` control temporary eval-run workspaces under `~/.agentv/workspaces/...` (non-pooled paths).
 
 - In pooled mode, pool slots are retained for reuse regardless of retention settings.
 - Retention settings do not remove pool entries; use `agentv workspace clean` for pool cleanup.

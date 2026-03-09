@@ -49,7 +49,7 @@ The template path is passed as an argument. Use `--require` to validate that exp
 workspace:
   template: ./workspace-template
   hooks:
-    before_all_tests:
+    before_all:
       command:
         - node
         - ../scripts/workspace-setup.mjs

@@ -6,7 +6,7 @@ description: >-
 workspace:
   template: ../workspace-template
   hooks:
-    after_each_test:
+    after_each:
       reset: fast
   repos:
     - path: ./agentv
