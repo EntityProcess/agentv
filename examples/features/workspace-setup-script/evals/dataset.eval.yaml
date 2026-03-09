@@ -13,7 +13,7 @@ workspace:
         - ../workspace-template/.allagents/workspace.yaml
         - --require
         - AGENTS.md
-    after_each_test:
+    on_reuse:
       reset: fast
   repos:
     - path: ./my-repo
