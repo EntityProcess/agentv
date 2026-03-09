@@ -24,10 +24,12 @@ AgentV computes a **SHA-256 fingerprint** of your repo materialization inputs (s
 ```
 
 On subsequent runs:
-1. AgentV computes the fingerprint from your workspace config
+1. AgentV computes the fingerprint from your repo configs
 2. If a matching pool entry exists, it acquires a slot and resets it (`git reset --hard` + `git clean -fd`)
 3. Template files are re-copied (repo directories are preserved)
 4. Lifecycle hooks (`before_all`, etc.) run as normal
+
+**Keep templates small.** Template files are re-copied into every slot on every run. Use them for lightweight setup — agent skills, configuration files, prompt templates — not large assets. Heavy dependencies belong in repos (pooled and reused) or should be installed by `before_all` hooks (cached across reuse cycles with `fast` reset).
 
 The first run materializes from scratch. Every subsequent run reuses the pool — skipping clone and checkout entirely.
 
