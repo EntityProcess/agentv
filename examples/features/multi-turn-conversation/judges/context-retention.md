@@ -26,8 +26,11 @@ Your overall `score` should be the average of per-turn scores.
 [[ ## criteria ## ]]
 {{ criteria }}
 
-[[ ## answer ## ]]
+[[ ## conversation history (prior turns) ## ]]
+{{ input }}
+
+[[ ## agent response (new output) ## ]]
 {{ answer }}
 
-[[ ## conversation ## ]]
+[[ ## full output messages ## ]]
 {{ output }}

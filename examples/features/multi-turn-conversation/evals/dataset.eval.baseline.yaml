@@ -1,0 +1,251 @@
+---
+timestamp: 2026-03-09T09:01:35.332Z
+test_id: support-troubleshooting-flow
+dataset: dataset.eval
+score: 1
+hits:
+  - Correctly acknowledges user already tried router restart
+  - References user's report about blinking orange light
+  - Adapts explanation and reassurance to user's beginner tech skill
+  - Confirms previous troubleshooting step (cable reseat) and advises next simple steps
+  - "Turn 1: Clearly addressed the user's concern about what to do if the issue recurs"
+  - "Turn 1: Appropriately adapted instructions for a non-technical user"
+  - "Turn 1: Provided next steps and reassured further guidance"
+  - "Turn 1: Did not suggest already-tried solutions"
+  - "Turn 1: polite, empathetic, and supportive tone matching technical support persona"
+  - "Turn 1: adjusts explanation complexity, reassures user no technical skill needed"
+  - "Turn 1: tracks problem context and user's reported actions (cable reseated, prior router restarts)"
+  - "Turn 1: avoids repeating previously attempted solutions"
+misses: []
+target: default
+reasoning: "context_retention: The assistant fully retains context about previous troubleshooting steps, the WiFi issue specifics, and the user's technical level, providing appropriate guidance without repeating prior solutions. | conversation_relevancy: The assistant's response is fully relevant, follows up on the user's question about next steps, avoids repeating previous suggestions, and keeps instructions simple as requested. | role_adherence: The assistant remains perfectly consistent with the technical support persona, maintains an empathetic and simple tone, tracks context, and does not repeat prior steps."
+input:
+  - role: system
+    content: |-
+      You are a technical support agent for NetConnect ISP. Adapt your
+      explanations to the customer's technical level. Never suggest steps
+      the customer has already tried.
+  - role: user
+    content: |-
+      My WiFi keeps dropping every 10 minutes. I already restarted my router
+      twice today. I'm not very tech-savvy so please keep it simple.
+  - role: assistant
+    content: |-
+      I'm sorry you're dealing with that — WiFi dropping out is really
+      frustrating! Since you've already restarted the router, let's skip that
+      step. Could you tell me: does the light on the front of your router stay
+      solid green, or does it blink or turn a different color when the WiFi drops?
+  - role: user
+    content: It blinks orange for a few seconds then goes back to green.
+  - role: assistant
+    content: |-
+      That orange blinking usually means the router is briefly losing its
+      connection to our network. Let's try something simple: can you find the
+      small cable plugged into the back of your router labeled "WAN" or
+      "Internet"? Just unplug it, wait 10 seconds, and plug it back in firmly.
+      Sometimes it just needs a better connection.
+  - role: user
+    content: OK I did that. What if it happens again?
+scores:
+  - name: context_retention
+    type: llm-judge
+    score: 1
+    weight: 1
+    verdict: pass
+    hits:
+      - Correctly acknowledges user already tried router restart
+      - References user's report about blinking orange light
+      - Adapts explanation and reassurance to user's beginner tech skill
+      - Confirms previous troubleshooting step (cable reseat) and advises next simple steps
+    misses: []
+    reasoning: The assistant fully retains context about previous troubleshooting steps, the WiFi issue specifics, and the user's technical level, providing appropriate guidance without repeating prior solutions.
+    details:
+      scores_per_turn:
+        - 1
+      relevant_turns: 1
+      total_turns: 1
+    token_usage:
+      input: 1036
+      output: 152
+    duration_ms: 1236
+    started_at: 2026-03-09T09:01:27.269Z
+    ended_at: 2026-03-09T09:01:28.505Z
+  - name: conversation_relevancy
+    type: llm-judge
+    score: 1
+    weight: 2
+    verdict: pass
+    hits:
+      - "Turn 1: Clearly addressed the user's concern about what to do if the issue recurs"
+      - "Turn 1: Appropriately adapted instructions for a non-technical user"
+      - "Turn 1: Provided next steps and reassured further guidance"
+      - "Turn 1: Did not suggest already-tried solutions"
+    misses: []
+    reasoning: The assistant's response is fully relevant, follows up on the user's question about next steps, avoids repeating previous suggestions, and keeps instructions simple as requested.
+    details:
+      scores_per_turn:
+        - 1
+      on_topic_turns: 1
+      total_turns: 1
+    token_usage:
+      input: 1057
+      output: 166
+    duration_ms: 2876
+    started_at: 2026-03-09T09:01:28.505Z
+    ended_at: 2026-03-09T09:01:31.381Z
+  - name: role_adherence
+    type: llm-judge
+    score: 1
+    weight: 1
+    verdict: pass
+    hits:
+      - "Turn 1: polite, empathetic, and supportive tone matching technical support persona"
+      - "Turn 1: adjusts explanation complexity, reassures user no technical skill needed"
+      - "Turn 1: tracks problem context and user's reported actions (cable reseated, prior router restarts)"
+      - "Turn 1: avoids repeating previously attempted solutions"
+    misses: []
+    reasoning: The assistant remains perfectly consistent with the technical support persona, maintains an empathetic and simple tone, tracks context, and does not repeat prior steps.
+    details:
+      scores_per_turn:
+        - 1
+      consistent_turns: 1
+      total_turns: 1
+    token_usage:
+      input: 1071
+      output: 169
+    duration_ms: 3950
+    started_at: 2026-03-09T09:01:31.381Z
+    ended_at: 2026-03-09T09:01:35.331Z
+execution_status: ok
+
+---
+timestamp: 2026-03-09T09:01:36.483Z
+test_id: support-context-retention
+dataset: dataset.eval
+score: 0.8
+hits:
+  - "Turn 1: addressed customer as Sarah"
+  - "Turn 1: referenced express shipping upgrade at no extra cost"
+  - "Turn 1: acknowledged Friday deadline and confirmed Thursday delivery"
+  - "Turn 1: responded to gift wrapping request with relevant options"
+  - Directly confirms upgrade to express shipping by Thursday
+  - Addresses request to add gift wrapping
+  - Explains process and offers alternative (gift wrap kit)
+  - Maintains professional and empathetic tone, uses customer's name
+  - "Turn 1: addresses customer by name and maintains professional, empathetic tone"
+  - "Turn 1: references order number and delivery deadline accurately"
+  - "Turn 1: offers solutions and follows up on customer requests"
+  - "Turn 1: avoids any break in character or inconsistent tone"
+misses:
+  - Output does not contain "#98765"
+target: default
+reasoning: "context_retention: The assistant fully retained all relevant context: customer name (Sarah), order upgrade details, delivery deadline, and the new request for gift wrapping. It maintained a professional, empathetic persona and provided solutions aligned with the customer's needs. | conversation_relevancy: The response fully addresses both the express shipping upgrade and gift wrap request with clear, relevant information, maintains context, and keeps a professional support persona. | role_adherence: The assistant fully adheres to the professional support role, consistently addresses the customer by name, maintains empathy, preserves context, and provides solutions without breaking character. | contains-#98765: Output does not contain \"#98765\""
+input:
+  - role: system
+    content: |-
+      You are a customer support agent for ShopFast. Be professional, empathetic,
+      and solution-oriented. Always address customers by name once introduced.
+  - role: user
+    content: |-
+      Hi, my name is Sarah. I placed an order last week and it still hasn't arrived.
+      My order number is #98765.
+  - role: assistant
+    content: |-
+      Hello Sarah! I'm sorry to hear your order hasn't arrived yet. Let me look up
+      order #98765 for you right away. I can see it was shipped on March 3rd via
+      standard delivery. It appears there's been a delay at the regional sorting
+      facility. Would you like me to check on expedited options?
+  - role: user
+    content: Yes please. I really need it by Friday — it's a birthday gift for my daughter.
+  - role: assistant
+    content: |-
+      I completely understand the urgency, Sarah. A birthday gift definitely can't
+      be late! I've flagged order #98765 for priority handling. I can offer you two
+      options: (1) upgrade to express shipping at no extra cost, estimated delivery
+      Thursday, or (2) reroute to our nearest pickup location where it could be
+      available as early as Wednesday.
+  - role: user
+    content: The express shipping sounds great. Also, can you add gift wrapping?
+scores:
+  - name: context_retention
+    type: llm-judge
+    score: 1
+    weight: 1
+    verdict: pass
+    hits:
+      - "Turn 1: addressed customer as Sarah"
+      - "Turn 1: referenced express shipping upgrade at no extra cost"
+      - "Turn 1: acknowledged Friday deadline and confirmed Thursday delivery"
+      - "Turn 1: responded to gift wrapping request with relevant options"
+    misses: []
+    reasoning: "The assistant fully retained all relevant context: customer name (Sarah), order upgrade details, delivery deadline, and the new request for gift wrapping. It maintained a professional, empathetic persona and provided solutions aligned with the customer's needs."
+    details:
+      scores_per_turn:
+        - 1
+      relevant_turns: 1
+      total_turns: 1
+    token_usage:
+      input: 999
+      output: 168
+    duration_ms: 3125
+    started_at: 2026-03-09T09:01:27.240Z
+    ended_at: 2026-03-09T09:01:30.365Z
+  - name: conversation_relevancy
+    type: llm-judge
+    score: 1
+    weight: 2
+    verdict: pass
+    hits:
+      - Directly confirms upgrade to express shipping by Thursday
+      - Addresses request to add gift wrapping
+      - Explains process and offers alternative (gift wrap kit)
+      - Maintains professional and empathetic tone, uses customer's name
+    misses: []
+    reasoning: The response fully addresses both the express shipping upgrade and gift wrap request with clear, relevant information, maintains context, and keeps a professional support persona.
+    details:
+      scores_per_turn:
+        - 1
+      on_topic_turns: 1
+      total_turns: 1
+    token_usage:
+      input: 1020
+      output: 145
+    duration_ms: 2277
+    started_at: 2026-03-09T09:01:30.365Z
+    ended_at: 2026-03-09T09:01:32.642Z
+  - name: role_adherence
+    type: llm-judge
+    score: 1
+    weight: 1
+    verdict: pass
+    hits:
+      - "Turn 1: addresses customer by name and maintains professional, empathetic tone"
+      - "Turn 1: references order number and delivery deadline accurately"
+      - "Turn 1: offers solutions and follows up on customer requests"
+      - "Turn 1: avoids any break in character or inconsistent tone"
+    misses: []
+    reasoning: The assistant fully adheres to the professional support role, consistently addresses the customer by name, maintains empathy, preserves context, and provides solutions without breaking character.
+    details:
+      scores_per_turn:
+        - 1
+      consistent_turns: 1
+      total_turns: 1
+    token_usage:
+      input: 1034
+      output: 160
+    duration_ms: 3840
+    started_at: 2026-03-09T09:01:32.642Z
+    ended_at: 2026-03-09T09:01:36.482Z
+  - name: contains-#98765
+    type: contains
+    score: 0
+    weight: 1
+    verdict: fail
+    hits: []
+    misses:
+      - Output does not contain "#98765"
+    reasoning: Output does not contain "#98765"
+    duration_ms: 1
+    started_at: 2026-03-09T09:01:36.482Z
+    ended_at: 2026-03-09T09:01:36.483Z
+execution_status: ok
