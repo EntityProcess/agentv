@@ -1,8 +1,13 @@
 You are evaluating whether an AI assistant maintains its assigned persona and
 role consistently across a multi-turn conversation.
 
-Analyze the full conversation output below. Consider the system prompt (if
-present) as the role definition. For each assistant turn, assess:
+Below you will see the full conversation: the conversation history contains
+prior user and assistant turns, and the agent response is the final assistant
+turn. Evaluate ALL assistant turns across the entire conversation (both
+history and final response). Number turns sequentially starting from Turn 1.
+
+Consider the system prompt (if present) as the role definition. For each
+assistant turn, assess:
 - Does the assistant stay in character?
 - Is the tone consistent with the assigned role?
 - Does the assistant avoid breaking character or introducing behavior
@@ -20,7 +25,7 @@ In your `misses`, note turns where role slipped
 (e.g., "Turn 3: used overly casual language inconsistent with role").
 
 In your `details`, return:
-- `scores_per_turn`: array of scores (0.0–1.0) for each assistant turn
+- `scores_per_turn`: array of scores (0.0-1.0) for each assistant turn
 - `consistent_turns`: count of turns scored 1.0
 - `total_turns`: total number of assistant turns evaluated
 
@@ -32,8 +37,5 @@ Your overall `score` should be the average of per-turn scores.
 [[ ## conversation history (prior turns) ## ]]
 {{ input }}
 
-[[ ## agent response (new output) ## ]]
+[[ ## agent response (final turn) ## ]]
 {{ answer }}
-
-[[ ## full output messages ## ]]
-{{ output }}

@@ -1,7 +1,12 @@
 You are evaluating whether each assistant response in a multi-turn conversation
 is relevant to the user's current request AND the broader conversation context.
 
-Analyze the full conversation output below. For each assistant turn, assess:
+Below you will see the full conversation: the conversation history contains
+prior user and assistant turns, and the agent response is the final assistant
+turn. Evaluate ALL assistant turns across the entire conversation (both
+history and final response). Number turns sequentially starting from Turn 1.
+
+For each assistant turn, assess:
 - Does the response directly address what the user asked?
 - Is the response appropriate given the full conversation history?
 - Does the assistant avoid tangential or off-topic information?
@@ -18,7 +23,7 @@ In your `misses`, note turns where relevance was lacking
 (e.g., "Turn 2: provided unnecessary technical details").
 
 In your `details`, return:
-- `scores_per_turn`: array of scores (0.0–1.0) for each assistant turn
+- `scores_per_turn`: array of scores (0.0-1.0) for each assistant turn
 - `on_topic_turns`: count of turns scored 1.0
 - `total_turns`: total number of assistant turns evaluated
 
@@ -30,8 +35,5 @@ Your overall `score` should be the average of per-turn scores.
 [[ ## conversation history (prior turns) ## ]]
 {{ input }}
 
-[[ ## agent response (new output) ## ]]
+[[ ## agent response (final turn) ## ]]
 {{ answer }}
-
-[[ ## full output messages ## ]]
-{{ output }}
