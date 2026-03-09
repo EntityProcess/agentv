@@ -1,6 +1,6 @@
 {
   "name": "agentv",
-  "version": "2.17.2",
+  "version": "2.17.3",
   "description": "CLI entry point for AgentV",
   "type": "module",
   "repository": {
