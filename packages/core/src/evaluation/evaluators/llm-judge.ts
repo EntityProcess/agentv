@@ -45,7 +45,10 @@ const freeformEvaluationSchema = z.object({
   hits: z.array(z.string()).describe('Brief specific achievements').optional(),
   misses: z.array(z.string()).describe('Brief failures or omissions').optional(),
   reasoning: z.string().describe('Concise explanation (1-2 sentences)').optional(),
-  details: z.record(z.unknown()).describe('Optional structured metadata for domain-specific metrics').optional(),
+  details: z
+    .record(z.unknown())
+    .describe('Optional structured metadata for domain-specific metrics')
+    .optional(),
 });
 
 const rubricCheckResultSchema = z.object({
