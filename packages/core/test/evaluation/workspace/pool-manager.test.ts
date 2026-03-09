@@ -121,7 +121,7 @@ describe('computeWorkspaceFingerprint', () => {
     expect(fp1).not.toBe(fp2);
   });
 
-  it('differs when template path changes', () => {
+  it('ignores template path (not a repo materialization input)', () => {
     const repos: RepoConfig[] = [
       {
         path: './my-repo',
@@ -131,8 +131,10 @@ describe('computeWorkspaceFingerprint', () => {
 
     const fp1 = computeWorkspaceFingerprint('/template/a', repos);
     const fp2 = computeWorkspaceFingerprint('/template/b', repos);
+    const fp3 = computeWorkspaceFingerprint(null, repos);
 
-    expect(fp1).not.toBe(fp2);
+    expect(fp1).toBe(fp2);
+    expect(fp1).toBe(fp3);
   });
 
   it('repos sorted by path (order-independent)', () => {

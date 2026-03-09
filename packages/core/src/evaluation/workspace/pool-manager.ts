@@ -92,14 +92,15 @@ function normalizeRepoForFingerprint(repo: RepoConfig): Record<string, unknown> 
 
 /**
  * Compute a deterministic SHA-256 fingerprint for a workspace configuration.
- * The fingerprint captures template path and all repo configs in a canonical order.
+ * The fingerprint captures only repo materialization inputs (source, checkout, clone options)
+ * in a canonical order. Template path is excluded because template files are re-copied on
+ * every pool reuse and don't affect the cloned checkout state.
  */
 export function computeWorkspaceFingerprint(
-  templatePath: string | undefined | null,
+  _templatePath: string | undefined | null,
   repos: readonly RepoConfig[],
 ): string {
   const canonical = {
-    templatePath: templatePath ?? null,
     repos: [...repos].sort((a, b) => a.path.localeCompare(b.path)).map(normalizeRepoForFingerprint),
   };
 
