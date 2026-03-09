@@ -48,6 +48,6 @@ tests:
       - role: user
         content:
           - type: file
-            value: ../workspace-template/AGENTS.md
+            value: ../guidelines/AGENTS.md
           - type: text
             value: Follow the instructions in the guidelines above.

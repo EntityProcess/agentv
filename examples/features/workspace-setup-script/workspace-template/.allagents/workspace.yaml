@@ -8,3 +8,8 @@ plugins: []
 
 clients:
   - copilot
+
+workspace:
+  source: ../guidelines/
+  files:
+    - AGENTS.md

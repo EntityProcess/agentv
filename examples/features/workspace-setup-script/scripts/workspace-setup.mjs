@@ -4,35 +4,51 @@
 // Generic workspace setup script for AgentV before_all lifecycle hook.
 //
 // Reads workspace_path from AgentV stdin JSON, removes stale .allagents/
-// config, and runs `npx allagents workspace init`.
+// config, copies source directories, and runs `npx allagents workspace init`.
 //
 // Usage in eval YAML:
 //   workspace:
-//     before_all:
-//       command:
-//         - node
-//         - ./scripts/workspace-setup.mjs
-//         - --from
-//         - ./workspace-template/.allagents/workspace.yaml
+//     hooks:
+//       before_all_tests:
+//         command:
+//           - node
+//           - ../scripts/workspace-setup.mjs
+//           - --from
+//           - ../workspace-template/.allagents/workspace.yaml
+//           - --source
+//           - ../guidelines
+//           - --require
+//           - AGENTS.md
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { cpSync, existsSync, readFileSync, rmSync } from 'node:fs';
+import { basename, join } from 'node:path';
 
 // --- parse arguments ---
 const fromIndex = process.argv.indexOf('--from');
 if (fromIndex === -1 || !process.argv[fromIndex + 1]) {
-  console.error('Usage: workspace-setup.mjs --from <template-path> [--require <file> ...]');
+  console.error(
+    'Usage: workspace-setup.mjs --from <template-path> [--source <dir> ...] [--require <file> ...]',
+  );
   process.exit(1);
 }
 const templatePath = process.argv[fromIndex + 1];
+
+// Collect --source arguments: directories to copy into the workspace before init
+const sourceDirs = [];
+for (let i = 0; i < process.argv.length; i++) {
+  if (process.argv[i] === '--source' && process.argv[i + 1]) {
+    sourceDirs.push(process.argv[i + 1]);
+    i++;
+  }
+}
 
 // Collect --require arguments: files that must exist in the workspace after init
 const requiredFiles = [];
 for (let i = 0; i < process.argv.length; i++) {
   if (process.argv[i] === '--require' && process.argv[i + 1]) {
     requiredFiles.push(process.argv[i + 1]);
-    i++; // skip next
+    i++;
   }
 }
 
@@ -41,6 +57,16 @@ const { workspace_path } = JSON.parse(readFileSync(0, 'utf8'));
 if (!workspace_path) {
   console.error('workspace_path not provided on stdin');
   process.exit(1);
+}
+
+// --- copy source directories into workspace ---
+for (const src of sourceDirs) {
+  if (!existsSync(src)) {
+    console.error(`Source directory not found: ${src}`);
+    process.exit(1);
+  }
+  const dest = join(workspace_path, basename(src));
+  cpSync(src, dest, { recursive: true });
 }
 
 // --- clean previous workspace config ---
