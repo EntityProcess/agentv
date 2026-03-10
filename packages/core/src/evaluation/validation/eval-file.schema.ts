@@ -288,6 +288,7 @@ const WorkspaceHookSchema = z.object({
 });
 
 const WorkspaceHooksSchema = z.object({
+  enabled: z.boolean().optional(),
   before_all: WorkspaceHookSchema.optional(),
   before_each: WorkspaceHookSchema.optional(),
   after_each: WorkspaceHookSchema.optional(),

@@ -624,11 +624,13 @@ function parseWorkspaceHooksConfig(
 ): WorkspaceHooksConfig | undefined {
   if (!isJsonObject(raw)) return undefined;
   const obj = raw as Record<string, unknown>;
+  const enabled = typeof obj.enabled === 'boolean' ? obj.enabled : undefined;
   const beforeAll = parseWorkspaceHookConfig(obj.before_all, evalFileDir);
   const beforeEach = parseWorkspaceHookConfig(obj.before_each, evalFileDir);
   const afterEach = parseWorkspaceHookConfig(obj.after_each, evalFileDir);
   const afterAll = parseWorkspaceHookConfig(obj.after_all, evalFileDir);
   const hooks: WorkspaceHooksConfig = {
+    ...(enabled !== undefined && { enabled }),
     ...(beforeAll !== undefined && { before_all: beforeAll }),
     ...(beforeEach !== undefined && { before_each: beforeEach }),
     ...(afterEach !== undefined && { after_each: afterEach }),
@@ -742,13 +744,17 @@ function mergeWorkspaceConfigs(
       ...(caseHook ?? {}),
     };
   };
+  const mergedEnabled = caseLevel.hooks?.enabled ?? suiteLevel.hooks?.enabled;
   const mergedHooks = {
+    ...(mergedEnabled !== undefined && { enabled: mergedEnabled }),
     before_all: mergeHook(suiteLevel.hooks?.before_all, caseLevel.hooks?.before_all),
     before_each: mergeHook(suiteLevel.hooks?.before_each, caseLevel.hooks?.before_each),
     after_each: mergeHook(suiteLevel.hooks?.after_each, caseLevel.hooks?.after_each),
     after_all: mergeHook(suiteLevel.hooks?.after_all, caseLevel.hooks?.after_all),
   };
-  const hasHooks = Object.values(mergedHooks).some((hook) => hook !== undefined);
+  const hasHooks =
+    mergedEnabled !== undefined ||
+    Object.values(mergedHooks).some((hook) => hook !== undefined && typeof hook === 'object');
 
   return {
     template: caseLevel.template ?? suiteLevel.template,
