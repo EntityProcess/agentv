@@ -11,8 +11,12 @@ workspace:
         - ../scripts/workspace-setup.mjs
         - --from
         - ../workspace-template/.allagents/workspace.yaml
+        - --marketplace-source
+        - ../marketplace
         - --require
         - AGENTS.md
+        - --require
+        - .github/prompts/summarize-repo.prompt.md
   repos:
     - path: ./my-repo
       source:

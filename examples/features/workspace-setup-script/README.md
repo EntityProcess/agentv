@@ -1,6 +1,6 @@
 # Workspace Setup Script
 
-Demonstrates using a `before_all` lifecycle hook to clean and re-initialize an allagents workspace before evaluation runs, including sourcing plugin files (like `AGENTS.md` and prompt files) into the workspace.
+Demonstrates using a `before_all` lifecycle hook to clean and re-initialize an allagents workspace before evaluation runs, then register a project-scoped marketplace and sync plugin content (including prompt files).
 
 ## Problem
 
@@ -8,18 +8,21 @@ Demonstrates using a `before_all` lifecycle hook to clean and re-initialize an a
 
 ## Solution
 
-A generic Node.js script that any eval can reuse. It reads `workspace_path` from AgentV's stdin JSON, removes the stale `.allagents/` directory, and runs `allagents workspace init` with the template path passed via `--from`.
+A generic Node.js script that any eval can reuse. It reads `workspace_path` from AgentV's stdin JSON, removes stale `.allagents/` state, runs `allagents workspace init --from`, registers a project-scoped marketplace, then runs `allagents workspace sync`.
 
 ```
 workspace-setup-script/
 ├── evals/
 │   └── dataset.eval.yaml        # Eval with before_all hook
 ├── plugins/
-│   └── my-plugin/               # External plugin (sourced by allagents)
+│   └── my-plugin/               # Plugin content (AGENTS + prompt)
 │       ├── AGENTS.md             # Agent guidelines
 │       └── .github/
 │           └── prompts/
 │               └── summarize-repo.prompt.md
+├── marketplace/
+│   └── .claude-plugin/
+│       └── marketplace.json     # Local marketplace manifest
 ├── scripts/
 │   └── workspace-setup.mjs      # Generic setup script (reusable across evals)
 └── workspace-template/
@@ -27,23 +30,27 @@ workspace-setup-script/
         └── workspace.yaml       # Template for allagents init
 ```
 
-## Sourcing plugin files with allagents
+## Plugin Installation via Project Marketplace
 
-The `plugins/` directory lives outside `workspace-template/` as an external source. The `.allagents/workspace.yaml` uses `workspace.source` and `workspace.files` to tell allagents to copy specific files to the workspace root:
+The `.allagents/workspace.yaml` installs a plugin from a named marketplace:
 
 ```yaml
 # .allagents/workspace.yaml
-workspace:
-  source: ../plugins/my-plugin/
-  files:
-    - AGENTS.md
+plugins:
+  - my-plugin@workspace-setup-script-marketplace
 ```
 
-The source path is relative to the workspace template root (parent of `.allagents/`). When `npx allagents workspace init --from` runs, it resolves `../plugins/my-plugin/` from the template location and copies `AGENTS.md` to the workspace root.
+The setup script registers that marketplace using project scope:
+
+```bash
+npx --yes allagents plugin marketplace add ../marketplace --scope project
+```
+
+This matches the project-scoped marketplace flow introduced in `allagents` (PR #224).
 
 ## Eval YAML
 
-The template path is passed as an argument. Use `--require` to validate that expected artifacts exist in the workspace after initialization:
+The template path and local marketplace path are passed as arguments. Use `--require` to validate expected artifacts after sync:
 
 ```yaml
 workspace:
@@ -55,8 +62,12 @@ workspace:
         - ../scripts/workspace-setup.mjs
         - --from
         - ../workspace-template/.allagents/workspace.yaml
+        - --marketplace-source
+        - ../marketplace
         - --require
         - AGENTS.md
+        - --require
+        - .github/prompts/summarize-repo.prompt.md
 ```
 
 The `--require` flag accepts one or more file paths (relative to the workspace root). If any required file is missing after `allagents workspace init`, the script exits with an error listing the missing files.
@@ -83,9 +94,10 @@ The `type: file` path is resolved from the eval file's directory up to the repo 
 
 1. AgentV copies `workspace-template/` to a pooled workspace
 2. The setup script removes stale `.allagents/` config and runs `npx allagents workspace init`
-3. Allagents reads `workspace.source`/`workspace.files` and copies `AGENTS.md` from the plugin to the workspace root
-4. The `--require AGENTS.md` check validates the artifact exists
-5. AgentV clones repos and runs tests against the initialized workspace
+3. The setup script registers the local marketplace with `--scope project`
+4. `allagents workspace sync` installs `my-plugin@workspace-setup-script-marketplace`
+5. `--require` checks verify `AGENTS.md` and `.github/prompts/summarize-repo.prompt.md` exist
+6. AgentV clones repos and runs tests against the initialized workspace
 
 ## Cross-platform
 
