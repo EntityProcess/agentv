@@ -347,7 +347,6 @@ targets:
 
   - name: vscode_dev
     provider: vscode
-    workspace_template: ${{ WORKSPACE_PATH }}
     judge_target: azure-base
 
   - name: local_agent
@@ -357,6 +356,8 @@ targets:
 ```
 
 Supports: `azure`, `anthropic`, `gemini`, `codex`, `copilot`, `pi-coding-agent`, `claude`, `vscode`, `vscode-insiders`, `cli`, and `mock`.
+
+Workspace templates are configured at eval-level under `workspace.template` (not per-target `workspace_template`).
 
 Use `${{ VARIABLE_NAME }}` syntax to reference your `.env` file. See `.agentv/targets.yaml` after `agentv init` for detailed examples and all provider-specific fields.
 
