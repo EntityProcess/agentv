@@ -113,7 +113,7 @@ export interface EvalConfig {
   readonly workers?: number;
   /** Maximum retries on failure (default: 2) */
   readonly maxRetries?: number;
-  /** Agent timeout in milliseconds (default: 120000) */
+  /** Agent timeout in milliseconds. No timeout if not set. */
   readonly agentTimeoutMs?: number;
   /** Enable response caching */
   readonly cache?: boolean;
@@ -275,7 +275,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
     repoRoot,
     target: resolvedTarget,
     maxRetries: config.maxRetries ?? 2,
-    agentTimeoutMs: config.agentTimeoutMs ?? 120_000,
+    agentTimeoutMs: config.agentTimeoutMs,
     verbose: config.verbose,
     maxConcurrency: config.workers ?? 3,
     filter: config.filter,

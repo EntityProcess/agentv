@@ -110,17 +110,19 @@ export class PiAgentSdkProvider implements Provider {
     });
 
     try {
-      // Set up timeout if configured
-      const timeoutMs = this.config.timeoutMs ?? 120000;
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(
-          () => reject(new Error(`Pi agent SDK timed out after ${timeoutMs}ms`)),
-          timeoutMs,
-        );
-      });
-
-      // Run the prompt with timeout
-      await Promise.race([agent.prompt(request.question), timeoutPromise]);
+      // Run the prompt, with optional timeout
+      if (this.config.timeoutMs) {
+        const timeoutMs = this.config.timeoutMs;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(
+            () => reject(new Error(`Pi agent SDK timed out after ${timeoutMs}ms`)),
+            timeoutMs,
+          );
+        });
+        await Promise.race([agent.prompt(request.question), timeoutPromise]);
+      } else {
+        await agent.prompt(request.question);
+      }
 
       // Wait for agent to finish
       await agent.waitForIdle();

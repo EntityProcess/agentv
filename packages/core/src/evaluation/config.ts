@@ -38,7 +38,7 @@ const AgentVConfigSchema = z.object({
       workers: z.number().int().min(1).max(50).optional(),
       /** Maximum retries on failure (default: 2) */
       maxRetries: z.number().int().min(0).optional(),
-      /** Agent timeout in milliseconds (default: 120000) */
+      /** Agent timeout in milliseconds. No timeout if not set. */
       agentTimeoutMs: z.number().int().min(0).optional(),
       /** Enable verbose logging */
       verbose: z.boolean().optional(),
