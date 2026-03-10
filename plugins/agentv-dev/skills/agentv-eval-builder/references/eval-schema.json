@@ -4618,6 +4618,9 @@
                       "hooks": {
                         "type": "object",
                         "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
                           "before_all": {
                             "type": "object",
                             "properties": {
@@ -9310,6 +9313,9 @@
                       "hooks": {
                         "type": "object",
                         "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          },
                           "before_all": {
                             "type": "object",
                             "properties": {
@@ -12829,6 +12835,9 @@
                 "hooks": {
                   "type": "object",
                   "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
                     "before_all": {
                       "type": "object",
                       "properties": {

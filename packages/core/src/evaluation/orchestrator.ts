@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, stat } from 'node:fs/promises';
+import { mkdir, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
@@ -60,6 +60,7 @@ import {
 import {
   cleanupEvalWorkspaces,
   cleanupWorkspace,
+  copyDirectoryRecursive,
   createTempWorkspace,
   getWorkspacePath,
 } from './workspace/manager.js';
@@ -106,6 +107,16 @@ function toScriptConfig(
 
 function hasHookCommand(hook: WorkspaceHookConfig | undefined): hook is WorkspaceHookConfig {
   return !!((hook?.command && hook.command.length > 0) || (hook?.script && hook.script.length > 0));
+}
+
+/**
+ * Check whether hooks are enabled for a workspace config.
+ * Returns true when hooks.enabled is undefined (default) or explicitly true.
+ */
+function hooksEnabled(
+  workspace: { readonly hooks?: { readonly enabled?: boolean } } | undefined,
+): boolean {
+  return workspace?.hooks?.enabled !== false;
 }
 
 /**
@@ -514,10 +525,35 @@ export async function runEvaluation(
   // Workers acquire slots from the pool; the pool itself can be larger than any single run needs.
   const poolMaxSlots = Math.min(configPoolMaxSlots ?? 10, 50);
 
-  // User-provided workspace (--workspace /path): use directly, skip all materialization
+  // Track whether a static workspace was freshly materialised (needs repo clone + hooks)
+  let staticMaterialised = false;
+
+  // Static workspace: auto-materialise if path is empty or missing, reuse if populated.
+  // Auto-materialisation only applies to YAML-configured paths (workspace.path), not CLI flags
+  // (--workspace / --workspace-path), which always reuse the directory as-is.
   if (useStaticWorkspace && configuredStaticPath) {
+    const isYamlConfiguredPath = !cliWorkspacePath && !!yamlWorkspacePath;
+    const dirExists = await stat(configuredStaticPath).then(
+      (s) => s.isDirectory(),
+      () => false,
+    );
+    const isEmpty = dirExists ? (await readdir(configuredStaticPath)).length === 0 : false;
+
+    if (isYamlConfiguredPath && (!dirExists || isEmpty)) {
+      if (!dirExists) {
+        await mkdir(configuredStaticPath, { recursive: true });
+      }
+      // Copy template contents into the static path
+      if (workspaceTemplate) {
+        await copyDirectoryRecursive(workspaceTemplate, configuredStaticPath);
+        setupLog(`copied template into static workspace: ${configuredStaticPath}`);
+      }
+      staticMaterialised = true;
+      setupLog(`materialised static workspace at: ${configuredStaticPath}`);
+    } else {
+      setupLog(`reusing existing static workspace: ${configuredStaticPath}`);
+    }
     sharedWorkspacePath = configuredStaticPath;
-    setupLog(`using static workspace: ${configuredStaticPath}`);
   } else if (usePool && suiteWorkspace?.repos) {
     const slotsNeeded = workers;
     setupLog(`acquiring ${slotsNeeded} workspace pool slot(s) (pool capacity: ${poolMaxSlots})`);
@@ -576,11 +612,10 @@ export async function runEvaluation(
       }
     }
 
-    // Materialize repos into shared workspace (skip for per_test, pool, and user-provided workspace)
-    const repoManager =
-      suiteWorkspace?.repos?.length && !usePool && !useStaticWorkspace
-        ? new RepoManager(verbose)
-        : undefined;
+    // Materialize repos into shared workspace (skip for per_test, pool, and existing static workspace)
+    const needsRepoMaterialisation =
+      !!suiteWorkspace?.repos?.length && !usePool && (!useStaticWorkspace || staticMaterialised);
+    const repoManager = needsRepoMaterialisation ? new RepoManager(verbose) : undefined;
     if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos && !isPerTestIsolation) {
       setupLog(
         `materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`,
@@ -598,8 +633,9 @@ export async function runEvaluation(
     }
 
     // Execute before_all (runs ONCE before first test per workspace)
+    const suiteHooksEnabled = hooksEnabled(suiteWorkspace);
     const suiteBeforeAllHook = suiteWorkspace?.hooks?.before_all;
-    if (sharedWorkspacePath && hasHookCommand(suiteBeforeAllHook)) {
+    if (sharedWorkspacePath && suiteHooksEnabled && hasHookCommand(suiteBeforeAllHook)) {
       const beforeAllHook = suiteBeforeAllHook;
       const beforeAllCommand = (beforeAllHook.command ?? beforeAllHook.script ?? []).join(' ');
       setupLog(
@@ -627,7 +663,7 @@ export async function runEvaluation(
     }
 
     // Multi-slot pool: run before_all on each slot and initialize baselines
-    if (availablePoolSlots.length > 0 && hasHookCommand(suiteBeforeAllHook)) {
+    if (availablePoolSlots.length > 0 && suiteHooksEnabled && hasHookCommand(suiteBeforeAllHook)) {
       const beforeAllHook = suiteBeforeAllHook;
       for (const slot of availablePoolSlots) {
         setupLog(`running before_all on pool slot ${slot.index}`);
@@ -922,7 +958,7 @@ export async function runEvaluation(
           : [];
 
     const suiteAfterAllHook = suiteWorkspace?.hooks?.after_all;
-    if (afterAllWorkspaces.length > 0 && hasHookCommand(suiteAfterAllHook)) {
+    if (afterAllWorkspaces.length > 0 && suiteHooksEnabled && hasHookCommand(suiteAfterAllHook)) {
       const afterAllHook = suiteAfterAllHook;
       for (const wsPath of afterAllWorkspaces) {
         const scriptContext: ScriptExecutionContext = {
@@ -1225,6 +1261,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   const isSharedWorkspace = !!sharedWorkspacePath;
 
   let caseWorkspaceFile: string | undefined;
+  const caseHooksEnabled = hooksEnabled(evalCase.workspace);
 
   if (!workspacePath) {
     // Per-case workspace creation (backwards compat for tests without shared workspace)
@@ -1301,7 +1338,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
     // Execute per-case before_all (only when not using shared workspace)
     const caseBeforeAllHook = evalCase.workspace?.hooks?.before_all;
-    if (workspacePath && hasHookCommand(caseBeforeAllHook)) {
+    if (workspacePath && caseHooksEnabled && hasHookCommand(caseBeforeAllHook)) {
       const beforeAllHook = caseBeforeAllHook;
       const beforeAllCommand = (beforeAllHook.command ?? beforeAllHook.script ?? []).join(' ');
       if (setupDebug) {
@@ -1346,7 +1383,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   // Execute before_each hook (runs before each test for any workspace)
   const caseBeforeEachHook = evalCase.workspace?.hooks?.before_each;
-  if (workspacePath && hasHookCommand(caseBeforeEachHook)) {
+  if (workspacePath && caseHooksEnabled && hasHookCommand(caseBeforeEachHook)) {
     const beforeEachHook = caseBeforeEachHook;
     const scriptContext: ScriptExecutionContext = {
       workspacePath,
@@ -1505,6 +1542,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   // Reset repos before after_each hook (if configured)
   if (
+    caseHooksEnabled &&
     repoManager &&
     workspacePath &&
     evalCase.workspace?.hooks?.after_each?.reset &&
@@ -1524,7 +1562,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   // Execute after_each hook (runs after evaluation, before cleanup)
   const caseAfterEachHook = evalCase.workspace?.hooks?.after_each;
-  if (workspacePath && hasHookCommand(caseAfterEachHook)) {
+  if (workspacePath && caseHooksEnabled && hasHookCommand(caseAfterEachHook)) {
     const afterEachHook = caseAfterEachHook;
     const scriptContext: ScriptExecutionContext = {
       workspacePath,

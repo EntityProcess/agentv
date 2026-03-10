@@ -256,6 +256,8 @@ export type WorkspaceHookConfig = {
 };
 
 export type WorkspaceHooksConfig = {
+  /** Whether hooks are enabled (default: true). When false, all hooks are skipped. */
+  readonly enabled?: boolean;
   /** Runs once before first test in the workspace lifecycle */
   readonly before_all?: WorkspaceHookConfig;
   /** Runs before each test case */

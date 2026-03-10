@@ -527,4 +527,75 @@ tests:
       expect(overrideCase?.workspace?.hooks?.after_each?.reset).toBe('fast');
     });
   });
+
+  describe('hooks.enabled', () => {
+    it('parses hooks.enabled: false', async () => {
+      const evalFile = path.join(testDir, 'hooks-disabled.yaml');
+      await writeFile(
+        evalFile,
+        `
+workspace:
+  hooks:
+    enabled: false
+    before_all:
+      command: ["bun", "run", "setup.ts"]
+
+tests:
+  - id: case-1
+    input: "Hello"
+    criteria: "Should parse"
+`,
+      );
+
+      const cases = await loadTests(evalFile, testDir);
+      expect(cases).toHaveLength(1);
+      expect(cases[0].workspace?.hooks?.enabled).toBe(false);
+      expect(cases[0].workspace?.hooks?.before_all?.command).toEqual(['bun', 'run', 'setup.ts']);
+    });
+
+    it('parses hooks.enabled: true', async () => {
+      const evalFile = path.join(testDir, 'hooks-enabled.yaml');
+      await writeFile(
+        evalFile,
+        `
+workspace:
+  hooks:
+    enabled: true
+    before_all:
+      command: ["bun", "run", "setup.ts"]
+
+tests:
+  - id: case-1
+    input: "Hello"
+    criteria: "Should parse"
+`,
+      );
+
+      const cases = await loadTests(evalFile, testDir);
+      expect(cases).toHaveLength(1);
+      expect(cases[0].workspace?.hooks?.enabled).toBe(true);
+    });
+
+    it('defaults hooks.enabled to undefined when omitted', async () => {
+      const evalFile = path.join(testDir, 'hooks-default.yaml');
+      await writeFile(
+        evalFile,
+        `
+workspace:
+  hooks:
+    before_all:
+      command: ["bun", "run", "setup.ts"]
+
+tests:
+  - id: case-1
+    input: "Hello"
+    criteria: "Should parse"
+`,
+      );
+
+      const cases = await loadTests(evalFile, testDir);
+      expect(cases).toHaveLength(1);
+      expect(cases[0].workspace?.hooks?.enabled).toBeUndefined();
+    });
+  });
 });

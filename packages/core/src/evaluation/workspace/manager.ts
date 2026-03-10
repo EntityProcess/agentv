@@ -77,7 +77,7 @@ export function getWorkspacePath(
  * @param src - Source directory path
  * @param dest - Destination directory path
  */
-async function copyDirectoryRecursive(src: string, dest: string): Promise<void> {
+export async function copyDirectoryRecursive(src: string, dest: string): Promise<void> {
   // Create destination directory
   await mkdir(dest, { recursive: true });
 
