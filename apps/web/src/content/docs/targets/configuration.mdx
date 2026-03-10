@@ -188,8 +188,8 @@ workspace:
     after_each:
       reset: fast             # none | fast | strict
   isolation: shared           # shared (default) | per_test
-  mode: pooled                # pooled | ephemeral | static
-  static_path: /tmp/my-ws     # required when mode=static
+  mode: pooled                # pooled | temp | static
+  path: /tmp/my-ws            # workspace path for mode=static
 ```
 
 | Field | Description |
@@ -204,10 +204,13 @@ workspace:
 | `repos[].clone.sparse` | Sparse checkout paths |
 | `hooks.after_each.reset` | Reset policy after each test: `none`, `fast`, `strict` |
 | `isolation` | `shared` reuses one workspace; `per_test` creates a fresh copy per test |
-| `mode` | Workspace mode: `pooled`, `ephemeral`, `static` |
-| `static_path` | Existing workspace path used when `mode=static` |
+| `mode` | Workspace mode: `pooled`, `temp`, `static` |
+| `path` | Workspace path for `mode=static`. When empty or missing, the workspace is auto-materialised (template copied + repos cloned). Populated directories are reused as-is. |
+| `hooks.enabled` | Boolean (default: `true`). Set `false` to skip all lifecycle hooks. |
 
-**Pooling:** `mode: pooled` (or default shared repo mode) reuses pool slots between runs. Use `mode: ephemeral` to disable pooling for fresh clone/checkouts each run.
+**Pooling:** `mode: pooled` (or default shared repo mode) reuses pool slots between runs. Use `mode: temp` to disable pooling for fresh clone/checkouts each run.
+
+**Static auto-materialisation:** When `mode: static` and `path` points to an empty or missing directory, AgentV automatically copies the template and clones repos into it. If the directory already exists and is populated, it is reused as-is.
 
 Pool management commands:
 - `agentv workspace list` — list all pool entries with size and repo info

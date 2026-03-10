@@ -252,7 +252,9 @@ workspace:
     after_each:
       reset: fast          # none | fast | strict
   isolation: shared        # shared | per_test
-  mode: pooled             # pooled | ephemeral | static
+  mode: pooled             # pooled | temp | static
+  hooks:
+    enabled: true            # set false to skip all hooks
 ```
 
 - `source.type`: `git` (URL) or `local` (path)
@@ -260,8 +262,9 @@ workspace:
 - `clone.depth`: shallow clone depth
 - `clone.filter`: partial clone filter (e.g., `blob:none`)
 - `clone.sparse`: sparse checkout paths array
-- `mode`: `pooled` (default for shared repos), `ephemeral`, or `static`
-- `static_path`: required when `mode: static`
+- `mode`: `pooled` (default for shared repos), `temp`, or `static`
+- `path`: workspace path used when `mode: static`; when empty/missing the workspace is auto-materialised (template copied + repos cloned); populated dirs are reused as-is
+- `hooks.enabled`: boolean (default `true`); set `false` to skip all lifecycle hooks
 - Pool reset defaults to `fast` (`git clean -fd`); use `--workspace-clean full` for strict reset (`git clean -fdx`)
 - Pool entries are managed separately via `agentv workspace list` and `agentv workspace clean`
 
