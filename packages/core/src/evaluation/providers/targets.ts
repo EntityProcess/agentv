@@ -696,6 +696,11 @@ export function resolveTargetDefinition(
   evalFilePath?: string,
 ): ResolvedTarget {
   const parsed = BASE_TARGET_SCHEMA.parse(definition);
+  if (parsed.workspace_template !== undefined || parsed.workspaceTemplate !== undefined) {
+    throw new Error(
+      `${parsed.name}: target-level workspace_template has been removed. Use eval-level workspace.template.`,
+    );
+  }
   const provider = parsed.provider.toLowerCase();
   const providerBatching = resolveOptionalBoolean(
     parsed.provider_batching ?? parsed.providerBatching,

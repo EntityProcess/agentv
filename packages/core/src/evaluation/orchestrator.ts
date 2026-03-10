@@ -215,7 +215,7 @@ export interface RunEvaluationOptions {
   /** Pre-existing workspace directory to use directly (skips clone/copy/pool) */
   readonly workspace?: string;
   /** Workspace materialization mode override */
-  readonly workspaceMode?: 'pooled' | 'ephemeral' | 'static';
+  readonly workspaceMode?: 'pooled' | 'temp' | 'static';
   /** Static workspace path override (used when workspaceMode=static) */
   readonly workspacePath?: string;
   /** Workspace clean policy override for pooled reset */
@@ -443,10 +443,15 @@ export async function runEvaluation(
   // Resolve worker count and pool mode
   const isPerTestIsolation = suiteWorkspace?.isolation === 'per_test';
 
-  const configuredMode = suiteWorkspace?.mode ?? workspaceMode;
-  const configuredStaticPath = suiteWorkspace?.static_path ?? workspacePath ?? legacyWorkspacePath;
-  const useStaticWorkspace =
-    configuredMode === 'static' || (!!configuredStaticPath && !configuredMode);
+  const cliWorkspacePath = workspacePath ?? legacyWorkspacePath;
+  const yamlWorkspacePath = suiteWorkspace?.path;
+  if (cliWorkspacePath && workspaceMode && workspaceMode !== 'static') {
+    throw new Error('--workspace-path requires --workspace-mode static when both are provided');
+  }
+  const configuredMode =
+    cliWorkspacePath ? 'static' : (workspaceMode ?? suiteWorkspace?.mode ?? (yamlWorkspacePath ? 'static' : 'pooled'));
+  const configuredStaticPath = cliWorkspacePath ?? yamlWorkspacePath;
+  const useStaticWorkspace = configuredMode === 'static';
 
   // static workspace is incompatible with per_test isolation
   if (useStaticWorkspace && isPerTestIsolation) {
@@ -455,7 +460,10 @@ export async function runEvaluation(
     );
   }
   if (configuredMode === 'static' && !configuredStaticPath) {
-    throw new Error('workspace.mode=static requires workspace.static_path or --workspace-path');
+    throw new Error('workspace.mode=static requires workspace.path or --workspace-path');
+  }
+  if (configuredMode !== 'static' && configuredStaticPath) {
+    throw new Error('workspace.path requires workspace.mode=static');
   }
 
   const hasSharedWorkspace = !!(
@@ -465,13 +473,8 @@ export async function runEvaluation(
     (suiteWorkspace?.repos?.length && !isPerTestIsolation)
   );
 
-  // Pool support: mode-based first, then legacy pool booleans, then default.
-  const poolEnabled =
-    configuredMode === 'pooled'
-      ? true
-      : configuredMode === 'ephemeral' || useStaticWorkspace
-        ? false
-        : (suiteWorkspace?.pool ?? poolWorkspaces ?? true);
+  // Pool support is mode-based: pooled enables, temp/static disable.
+  const poolEnabled = configuredMode === 'pooled';
   const usePool =
     poolEnabled !== false &&
     !!suiteWorkspace?.repos?.length &&

@@ -69,8 +69,6 @@ interface NormalizedOptions {
   readonly cache: boolean;
   readonly noCache: boolean;
   readonly verbose: boolean;
-  readonly keepWorkspaces: boolean;
-  readonly cleanupWorkspaces: boolean;
   readonly otelFile?: string;
   readonly traceFile?: string;
   readonly exportOtel: boolean;
@@ -78,14 +76,8 @@ interface NormalizedOptions {
   readonly otelCaptureContent: boolean;
   readonly otelGroupTurns: boolean;
   readonly retryErrors?: string;
-  readonly poolWorkspaces?: boolean;
-  readonly poolMaxSlots?: number;
-  readonly workspace?: string;
-  readonly workspaceMode?: 'pooled' | 'ephemeral' | 'static';
+  readonly workspaceMode?: 'pooled' | 'temp' | 'static';
   readonly workspacePath?: string;
-  readonly workspaceClean?: 'standard' | 'full';
-  readonly retainOnSuccess?: 'keep' | 'cleanup';
-  readonly retainOnFailure?: 'keep' | 'cleanup';
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -134,16 +126,8 @@ function normalizeOptionalNumber(value: unknown): number | undefined {
   return undefined;
 }
 
-function normalizeWorkspaceMode(value: unknown): 'pooled' | 'ephemeral' | 'static' | undefined {
-  return value === 'pooled' || value === 'ephemeral' || value === 'static' ? value : undefined;
-}
-
-function normalizeWorkspaceClean(value: unknown): 'standard' | 'full' | undefined {
-  return value === 'standard' || value === 'full' ? value : undefined;
-}
-
-function normalizeRetention(value: unknown): 'keep' | 'cleanup' | undefined {
-  return value === 'keep' || value === 'cleanup' ? value : undefined;
+function normalizeWorkspaceMode(value: unknown): 'pooled' | 'temp' | 'static' | undefined {
+  return value === 'pooled' || value === 'temp' || value === 'static' ? value : undefined;
 }
 
 function normalizeOptions(
@@ -198,6 +182,18 @@ function normalizeOptions(
   // Output dir: CLI --out > config output.dir > auto-generated
   const cliOut = normalizeString(rawOptions.out);
   const configOut = config?.output?.dir;
+  const cliWorkspacePath = normalizeString(rawOptions.workspacePath);
+  const cliWorkspaceModeRaw = normalizeString(rawOptions.workspaceMode);
+  const cliWorkspaceMode = normalizeWorkspaceMode(rawOptions.workspaceMode);
+  if (cliWorkspacePath && cliWorkspaceModeRaw && cliWorkspaceMode !== 'static') {
+    throw new Error('--workspace-path requires --workspace-mode=static (or omit --workspace-mode)');
+  }
+
+  const yamlExecutionRecord = yamlExecution as Record<string, unknown> | undefined;
+  const yamlWorkspaceMode = normalizeWorkspaceMode(yamlExecutionRecord?.workspace_mode);
+  const yamlWorkspacePath = normalizeString(yamlExecutionRecord?.workspace_path);
+  const workspacePath = cliWorkspacePath ?? yamlWorkspacePath;
+  const workspaceMode = cliWorkspacePath ? 'static' : (cliWorkspaceMode ?? yamlWorkspaceMode);
 
   return {
     target: singleTarget,
@@ -223,11 +219,6 @@ function normalizeOptions(
       normalizeBoolean(rawOptions.verbose) ||
       yamlExecution?.verbose === true ||
       config?.execution?.verbose === true,
-    keepWorkspaces:
-      normalizeBoolean(rawOptions.keepWorkspaces) ||
-      yamlExecution?.keep_workspaces === true ||
-      config?.execution?.keepWorkspaces === true,
-    cleanupWorkspaces: normalizeBoolean(rawOptions.cleanupWorkspaces),
     // Precedence: CLI > YAML config > TS config
     otelFile:
       normalizeString(rawOptions.otelFile) ??
@@ -250,23 +241,8 @@ function normalizeOptions(
     otelCaptureContent: normalizeBoolean(rawOptions.otelCaptureContent),
     otelGroupTurns: normalizeBoolean(rawOptions.otelGroupTurns),
     retryErrors: normalizeString(rawOptions.retryErrors),
-    // Pool: --no-pool explicitly disables; --pool-workspaces explicitly enables; YAML config; default undefined (orchestrator defaults to true)
-    poolWorkspaces: normalizeBoolean(rawOptions.noPool)
-      ? false
-      : normalizeBoolean(rawOptions.poolWorkspaces)
-        ? true
-        : yamlExecution?.pool_workspaces,
-    poolMaxSlots: yamlExecution?.pool_slots,
-    workspace: normalizeString(rawOptions.workspace),
-    workspaceMode: normalizeWorkspaceMode(rawOptions.workspaceMode),
-    workspacePath: normalizeString(rawOptions.workspacePath),
-    workspaceClean: normalizeWorkspaceClean(rawOptions.workspaceClean),
-    retainOnSuccess:
-      normalizeRetention(rawOptions.retainOnSuccess) ??
-      (normalizeBoolean(rawOptions.keepWorkspaces) ? 'keep' : undefined),
-    retainOnFailure:
-      normalizeRetention(rawOptions.retainOnFailure) ??
-      (normalizeBoolean(rawOptions.cleanupWorkspaces) ? 'cleanup' : undefined),
+    workspaceMode,
+    workspacePath,
   } satisfies NormalizedOptions;
 }
 
@@ -578,7 +554,6 @@ async function runSingleEvalFile(params: {
 
   // Create streaming observer for real-time OTel span export
   const streamingObserver = otelExporter?.createStreamingObserver() ?? null;
-
   const results = await evaluationRunner({
     testFilePath,
     repoRoot,
@@ -604,16 +579,8 @@ async function runSingleEvalFile(params: {
     evalCases,
     verbose: options.verbose,
     maxConcurrency: resolvedWorkers,
-    keepWorkspaces: options.keepWorkspaces,
-    cleanupWorkspaces: options.cleanupWorkspaces,
-    poolWorkspaces: options.poolWorkspaces,
-    poolMaxSlots: options.poolMaxSlots,
-    workspace: options.workspace,
     workspaceMode: options.workspaceMode,
     workspacePath: options.workspacePath,
-    workspaceClean: options.workspaceClean,
-    retainOnSuccess: options.retainOnSuccess,
-    retainOnFailure: options.retainOnFailure,
     trials: trialsConfig,
     totalBudgetUsd,
     failOnError,
@@ -717,30 +684,22 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     retryNonErrorResults = await loadNonErrorResults(retryPath);
   }
 
-  if (options.keepWorkspaces && options.cleanupWorkspaces) {
-    console.warn(
-      'Warning: Both --keep-workspaces and --cleanup-workspaces specified. --cleanup-workspaces takes precedence.',
-    );
-  }
-
   // Validate static workspace path exists and is a directory
-  const explicitWorkspacePath = options.workspacePath ?? options.workspace;
-  if (explicitWorkspacePath) {
-    const resolvedWorkspace = path.resolve(explicitWorkspacePath);
+  if (options.workspacePath) {
+    const resolvedWorkspace = path.resolve(options.workspacePath);
     try {
       const { stat } = await import('node:fs/promises');
       const stats = await stat(resolvedWorkspace);
       if (!stats.isDirectory()) {
-        throw new Error(`--workspace path is not a directory: ${resolvedWorkspace}`);
+        throw new Error(`--workspace-path is not a directory: ${resolvedWorkspace}`);
       }
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        throw new Error(`--workspace path does not exist: ${resolvedWorkspace}`);
+        throw new Error(`--workspace-path does not exist: ${resolvedWorkspace}`);
       }
       throw err;
     }
-    // Update workspace paths to resolved absolute path
-    options = { ...options, workspace: resolvedWorkspace, workspacePath: resolvedWorkspace };
+    options = { ...options, workspacePath: resolvedWorkspace };
   }
 
   if (options.verbose) {

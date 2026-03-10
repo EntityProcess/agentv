@@ -294,15 +294,16 @@ const WorkspaceHooksSchema = z.object({
   after_all: WorkspaceHookSchema.optional(),
 });
 
-const WorkspaceSchema = z.object({
-  template: z.string().optional(),
-  isolation: z.enum(['shared', 'per_test']).optional(),
-  repos: z.array(RepoSchema).optional(),
-  hooks: WorkspaceHooksSchema.optional(),
-  mode: z.enum(['pooled', 'ephemeral', 'static']).optional(),
-  static_path: z.string().optional(),
-  pool: z.boolean().optional(),
-});
+const WorkspaceSchema = z
+  .object({
+    template: z.string().optional(),
+    isolation: z.enum(['shared', 'per_test']).optional(),
+    repos: z.array(RepoSchema).optional(),
+    hooks: WorkspaceHooksSchema.optional(),
+    mode: z.enum(['pooled', 'temp', 'static']).optional(),
+    path: z.string().optional(),
+  })
+  .strict();
 
 // ---------------------------------------------------------------------------
 // Execution block

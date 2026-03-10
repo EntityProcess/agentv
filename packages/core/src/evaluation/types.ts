@@ -277,11 +277,9 @@ export type WorkspaceConfig = {
   /** Workspace lifecycle hooks */
   readonly hooks?: WorkspaceHooksConfig;
   /** Workspace materialization mode */
-  readonly mode?: 'pooled' | 'ephemeral' | 'static';
+  readonly mode?: 'pooled' | 'temp' | 'static';
   /** Required when mode=static: use this existing directory directly */
-  readonly static_path?: string;
-  /** @deprecated Use mode=pooled|ephemeral|static */
-  readonly pool?: boolean;
+  readonly path?: string;
 };
 
 export type CodeEvaluatorConfig = {
