@@ -1,7 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { copyDirectoryRecursive } from '../../../src/evaluation/workspace/manager.js';
 
@@ -74,7 +74,7 @@ describe('static workspace materialisation', () => {
      */
 
     it('detects missing directory', async () => {
-      const missingPath = path.join(testDir, 'does-not-exist-' + randomUUID());
+      const missingPath = path.join(testDir, `does-not-exist-${randomUUID()}`);
 
       let dirExists: boolean;
       try {
@@ -87,7 +87,7 @@ describe('static workspace materialisation', () => {
     });
 
     it('detects empty directory', async () => {
-      const emptyDir = path.join(testDir, 'empty-dir-' + randomUUID());
+      const emptyDir = path.join(testDir, `empty-dir-${randomUUID()}`);
       await mkdir(emptyDir, { recursive: true });
 
       const entries = await readdir(emptyDir);
@@ -95,7 +95,7 @@ describe('static workspace materialisation', () => {
     });
 
     it('detects populated directory', async () => {
-      const populatedDir = path.join(testDir, 'populated-dir-' + randomUUID());
+      const populatedDir = path.join(testDir, `populated-dir-${randomUUID()}`);
       await mkdir(populatedDir, { recursive: true });
       await writeFile(path.join(populatedDir, 'file.txt'), 'content');
 
@@ -108,7 +108,7 @@ describe('static workspace materialisation', () => {
       await mkdir(templateDir, { recursive: true });
       await writeFile(path.join(templateDir, 'setup.ts'), 'setup code');
 
-      const staticPath = path.join(testDir, 'static-missing-' + randomUUID());
+      const staticPath = path.join(testDir, `static-missing-${randomUUID()}`);
       // Simulate orchestrator logic
       await mkdir(staticPath, { recursive: true });
       await copyDirectoryRecursive(templateDir, staticPath);
@@ -122,7 +122,7 @@ describe('static workspace materialisation', () => {
       await mkdir(templateDir, { recursive: true });
       await writeFile(path.join(templateDir, 'init.ts'), 'init code');
 
-      const staticPath = path.join(testDir, 'static-empty-' + randomUUID());
+      const staticPath = path.join(testDir, `static-empty-${randomUUID()}`);
       await mkdir(staticPath, { recursive: true });
       // Verify empty
       expect((await readdir(staticPath)).length).toBe(0);
@@ -134,7 +134,7 @@ describe('static workspace materialisation', () => {
     });
 
     it('skips materialisation for populated directory', async () => {
-      const populatedDir = path.join(testDir, 'static-populated-' + randomUUID());
+      const populatedDir = path.join(testDir, `static-populated-${randomUUID()}`);
       await mkdir(populatedDir, { recursive: true });
       await writeFile(path.join(populatedDir, 'existing.txt'), 'existing content');
 

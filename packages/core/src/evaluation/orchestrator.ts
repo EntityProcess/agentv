@@ -113,7 +113,9 @@ function hasHookCommand(hook: WorkspaceHookConfig | undefined): hook is Workspac
  * Check whether hooks are enabled for a workspace config.
  * Returns true when hooks.enabled is undefined (default) or explicitly true.
  */
-function hooksEnabled(workspace: { readonly hooks?: { readonly enabled?: boolean } } | undefined): boolean {
+function hooksEnabled(
+  workspace: { readonly hooks?: { readonly enabled?: boolean } } | undefined,
+): boolean {
   return workspace?.hooks?.enabled !== false;
 }
 
