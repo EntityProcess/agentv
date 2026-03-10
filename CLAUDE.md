@@ -189,18 +189,12 @@ This project uses a simple release script for version bumping. The git commit hi
 
 ### Releasing a new version
 
-Run the release script with the desired channel and bump type:
+Run the release script for a version bump:
 
 ```bash
-# Stable channel (published to npm `latest`)
 bun run release          # patch bump (default)
 bun run release minor    # minor bump
 bun run release major    # major bump
-
-# Prerelease channel (published to npm `next`)
-bun run release:next         # bump to/increment `-next.N`
-bun run release next minor   # start a new minor prerelease line as `x.y.0-next.1`
-bun run release next major   # start a new major prerelease line as `x.0.0-next.1`
 ```
 
 The script will:
@@ -210,10 +204,19 @@ The script will:
 4. Commit the version bump
 5. Create and push a git tag
 
-After the release script completes, publish to npm:
+Recommended publish flow:
 ```bash
-bun run publish       # stable (`latest`)
-bun run publish:next  # prerelease (`next`)
+bun run publish:next   # publish current version to npm `next`
+bun run promote:latest # promote same version to npm `latest`
+bun run tag:next 2.18.0
+bun run promote:latest 2.18.0
+```
+
+Legacy prerelease flow (still available):
+```bash
+bun run release:next         # bump to/increment `-next.N`
+bun run release next minor   # start a new minor prerelease line as `x.y.0-next.1`
+bun run release next major   # start a new major prerelease line as `x.0.0-next.1`
 ```
 
 ## Git Workflow

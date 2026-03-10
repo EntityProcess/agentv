@@ -119,21 +119,28 @@ See [AGENTS.md](AGENTS.md) for development guidelines and design principles.
 
 ### Releasing
 
-Stable release:
+Version bump:
 
 ```bash
 bun run release          # patch bump
 bun run release minor
 bun run release major
-bun run publish          # publish to npm `latest`
 ```
 
-Prerelease (`next`) channel:
+Canary rollout (recommended):
+
+```bash
+bun run publish:next          # publish current version to npm `next`
+bun run promote:latest        # promote same version to npm `latest`
+bun run tag:next 2.18.0       # point npm `next` to an explicit version
+bun run promote:latest 2.18.0 # point npm `latest` to an explicit version
+```
+
+Legacy prerelease flow (still available):
 
 ```bash
 bun run release:next         # bump/increment `-next.N`
 bun run release:next major   # start new major prerelease line
-bun run publish:next         # publish to npm `next`
 ```
 
 ## Core Concepts
