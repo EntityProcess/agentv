@@ -256,7 +256,8 @@ function validateUnknownSettings(
         severity: 'error',
         filePath: absolutePath,
         location: `${location}.${key}`,
-        message: 'target-level workspace_template has been removed. Use eval-level workspace.template.',
+        message:
+          'target-level workspace_template has been removed. Use eval-level workspace.template.',
       });
       continue;
     }
