@@ -678,7 +678,7 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   const obj = raw as Record<string, unknown>;
   if ('static_path' in obj) {
     throw new Error(
-      "workspace.static_path has been removed. Use workspace.path with workspace.mode=static.",
+      'workspace.static_path has been removed. Use workspace.path with workspace.mode=static.',
     );
   }
   if ('pool' in obj) {
@@ -708,8 +708,7 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   const workspacePath = typeof obj.path === 'string' ? obj.path : undefined;
   const mode = explicitMode ?? (workspacePath ? 'static' : undefined);
 
-  if (!template && !isolation && !repos && !hooks && !mode && !workspacePath)
-    return undefined;
+  if (!template && !isolation && !repos && !hooks && !mode && !workspacePath) return undefined;
 
   return {
     ...(template !== undefined && { template }),

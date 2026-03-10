@@ -314,7 +314,9 @@ tests:
 `,
     );
 
-    await expect(loadTests(evalFile, testDir)).rejects.toThrow(/workspace\.static_path has been removed/i);
+    await expect(loadTests(evalFile, testDir)).rejects.toThrow(
+      /workspace\.static_path has been removed/i,
+    );
   });
 
   it('rejects removed workspace.pool field', async () => {

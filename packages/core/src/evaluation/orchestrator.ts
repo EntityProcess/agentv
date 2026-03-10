@@ -448,8 +448,9 @@ export async function runEvaluation(
   if (cliWorkspacePath && workspaceMode && workspaceMode !== 'static') {
     throw new Error('--workspace-path requires --workspace-mode static when both are provided');
   }
-  const configuredMode =
-    cliWorkspacePath ? 'static' : (workspaceMode ?? suiteWorkspace?.mode ?? (yamlWorkspacePath ? 'static' : 'pooled'));
+  const configuredMode = cliWorkspacePath
+    ? 'static'
+    : (workspaceMode ?? suiteWorkspace?.mode ?? (yamlWorkspacePath ? 'static' : 'pooled'));
   const configuredStaticPath = cliWorkspacePath ?? yamlWorkspacePath;
   const useStaticWorkspace = configuredMode === 'static';
 
