@@ -130,9 +130,9 @@ bun run release major
 Canary rollout (recommended):
 
 ```bash
-bun run publish:next          # publish current version to npm `next`
-bun run promote:latest        # promote same version to npm `latest`
-bun run tag:next 2.18.0       # point npm `next` to an explicit version
+bun run publish:next         # publish current version to npm `next`
+bun run promote:latest       # promote same version to npm `latest`
+bun run tag:next 2.18.0      # point npm `next` to an explicit version
 bun run promote:latest 2.18.0 # point npm `latest` to an explicit version
 ```
 
