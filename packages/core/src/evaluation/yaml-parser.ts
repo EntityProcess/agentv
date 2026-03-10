@@ -676,6 +676,17 @@ async function resolveWorkspaceConfig(
 function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfig | undefined {
   if (!isJsonObject(raw)) return undefined;
   const obj = raw as Record<string, unknown>;
+  if ('static_path' in obj) {
+    throw new Error(
+      'workspace.static_path has been removed. Use workspace.path with workspace.mode=static.',
+    );
+  }
+  if ('pool' in obj) {
+    throw new Error("workspace.pool has been removed. Use workspace.mode='pooled' or 'temp'.");
+  }
+  if ('static' in obj) {
+    throw new Error("workspace.static has been removed. Use workspace.mode='static'.");
+  }
 
   let template = typeof obj.template === 'string' ? obj.template : undefined;
   if (template && !path.isAbsolute(template)) {
@@ -692,15 +703,12 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     : undefined;
 
   const hooks = parseWorkspaceHooksConfig(obj.hooks, evalFileDir);
-  const mode =
-    obj.mode === 'pooled' || obj.mode === 'ephemeral' || obj.mode === 'static'
-      ? obj.mode
-      : undefined;
-  const staticPath = typeof obj.static_path === 'string' ? obj.static_path : undefined;
-  const pool = typeof obj.pool === 'boolean' ? obj.pool : undefined;
+  const explicitMode =
+    obj.mode === 'pooled' || obj.mode === 'temp' || obj.mode === 'static' ? obj.mode : undefined;
+  const workspacePath = typeof obj.path === 'string' ? obj.path : undefined;
+  const mode = explicitMode ?? (workspacePath ? 'static' : undefined);
 
-  if (!template && !isolation && !repos && !hooks && !mode && !staticPath && pool === undefined)
-    return undefined;
+  if (!template && !isolation && !repos && !hooks && !mode && !workspacePath) return undefined;
 
   return {
     ...(template !== undefined && { template }),
@@ -708,8 +716,7 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     ...(repos !== undefined && { repos }),
     ...(hooks !== undefined && { hooks }),
     ...(mode !== undefined && { mode }),
-    ...(staticPath !== undefined && { static_path: staticPath }),
-    ...(pool !== undefined && { pool }),
+    ...(workspacePath !== undefined && { path: workspacePath }),
   };
 }
 
@@ -749,8 +756,7 @@ function mergeWorkspaceConfigs(
     repos: caseLevel.repos ?? suiteLevel.repos,
     ...(hasHooks && { hooks: mergedHooks as WorkspaceHooksConfig }),
     mode: caseLevel.mode ?? suiteLevel.mode,
-    static_path: caseLevel.static_path ?? suiteLevel.static_path,
-    pool: caseLevel.pool ?? suiteLevel.pool,
+    path: caseLevel.path ?? suiteLevel.path,
   };
 }
 

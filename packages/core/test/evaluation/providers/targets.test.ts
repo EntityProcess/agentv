@@ -211,11 +211,7 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/AZURE_OPENAI_API_KEY/i);
   });
 
-  it('supports vscode configuration with optional workspace template from env var', () => {
-    const env = {
-      WORKSPACE_TEMPLATE_PATH: '/path/to/workspace.code-workspace',
-    } satisfies Record<string, string>;
-
+  it('supports vscode configuration with executable/wait/dry_run', () => {
     const target = resolveTargetDefinition(
       {
         name: 'editor',
@@ -223,9 +219,8 @@ describe('resolveTargetDefinition', () => {
         executable: 'code-insiders',
         wait: false,
         dry_run: true,
-        workspace_template: '${{ WORKSPACE_TEMPLATE_PATH }}',
       },
-      env,
+      {},
     );
 
     expect(target.kind).toBe('vscode');
@@ -236,7 +231,6 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.executable).toBe('code-insiders');
     expect(target.config.waitForResponse).toBe(false);
     expect(target.config.dryRun).toBe(true);
-    expect(target.config.workspaceTemplate).toBe('/path/to/workspace.code-workspace');
   });
 
   it('resolves vscode executable from env var', () => {
@@ -488,159 +482,18 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.args).toEqual(['--profile', 'default', '--model', 'gpt-4']);
   });
 
-  it('resolves cli workspace_template with literal path', () => {
-    const target = resolveTargetDefinition(
-      {
-        name: 'cli-with-template',
-        provider: 'cli',
-        command: 'echo {PROMPT}',
-        workspace_template: '/templates/my-workspace',
-      },
-      {},
-    );
-
-    expect(target.kind).toBe('cli');
-    if (target.kind !== 'cli') {
-      throw new Error('expected cli target');
-    }
-
-    expect(target.config.workspaceTemplate).toBe('/templates/my-workspace');
-    expect(target.config.cwd).toBeUndefined();
-  });
-
-  it('resolves cli workspace_template from environment variable', () => {
-    const env = {
-      WORKSPACE_DIR: '/path/to/workspace-template',
-    } satisfies Record<string, string>;
-
-    const target = resolveTargetDefinition(
-      {
-        name: 'cli-with-env-template',
-        provider: 'cli',
-        command: 'echo {PROMPT}',
-        workspace_template: '${{ WORKSPACE_DIR }}',
-      },
-      env,
-    );
-
-    expect(target.kind).toBe('cli');
-    if (target.kind !== 'cli') {
-      throw new Error('expected cli target');
-    }
-
-    expect(target.config.workspaceTemplate).toBe('/path/to/workspace-template');
-  });
-
-  it('throws when both cwd and workspace_template are specified for cli', () => {
+  it('rejects removed target-level workspace_template field', () => {
     expect(() =>
       resolveTargetDefinition(
         {
-          name: 'cli-both',
+          name: 'cli-with-template',
           provider: 'cli',
           command: 'echo {PROMPT}',
-          cwd: '/some/path',
           workspace_template: '/templates/my-workspace',
         },
         {},
       ),
-    ).toThrow(/mutually exclusive/i);
-  });
-
-  it('resolves claude workspace_template', () => {
-    const target = resolveTargetDefinition(
-      {
-        name: 'claude-with-template',
-        provider: 'claude',
-        workspace_template: '/templates/claude-workspace',
-      },
-      {},
-    );
-
-    expect(target.kind).toBe('claude');
-    if (target.kind !== 'claude') {
-      throw new Error('expected claude target');
-    }
-
-    expect(target.config.workspaceTemplate).toBe('/templates/claude-workspace');
-    expect(target.config.cwd).toBeUndefined();
-  });
-
-  it('throws when both cwd and workspace_template are specified for claude', () => {
-    expect(() =>
-      resolveTargetDefinition(
-        {
-          name: 'claude-both',
-          provider: 'claude',
-          cwd: '/some/path',
-          workspace_template: '/templates/workspace',
-        },
-        {},
-      ),
-    ).toThrow(/mutually exclusive/i);
-  });
-
-  it('resolves codex workspace_template', () => {
-    const target = resolveTargetDefinition(
-      {
-        name: 'codex-with-template',
-        provider: 'codex',
-        workspace_template: '/templates/codex-workspace',
-      },
-      {},
-    );
-
-    expect(target.kind).toBe('codex');
-    if (target.kind !== 'codex') {
-      throw new Error('expected codex target');
-    }
-
-    expect(target.config.workspaceTemplate).toBe('/templates/codex-workspace');
-  });
-
-  it('throws when both cwd and workspace_template are specified for codex', () => {
-    expect(() =>
-      resolveTargetDefinition(
-        {
-          name: 'codex-both',
-          provider: 'codex',
-          cwd: '/some/path',
-          workspace_template: '/templates/workspace',
-        },
-        {},
-      ),
-    ).toThrow(/mutually exclusive/i);
-  });
-
-  it('resolves copilot-sdk workspace_template', () => {
-    const target = resolveTargetDefinition(
-      {
-        name: 'copilot-with-template',
-        provider: 'copilot-sdk',
-        workspace_template: '/templates/copilot-workspace',
-      },
-      {},
-    );
-
-    expect(target.kind).toBe('copilot-sdk');
-    if (target.kind !== 'copilot-sdk') {
-      throw new Error('expected copilot-sdk target');
-    }
-
-    expect(target.config.workspaceTemplate).toBe('/templates/copilot-workspace');
-  });
-
-  it('throws when both cwd and workspace_template are specified for copilot-sdk', () => {
-    expect(() =>
-      resolveTargetDefinition(
-        {
-          name: 'copilot-both',
-          provider: 'copilot-sdk',
-          cwd: '/some/path',
-          workspace_template: '/templates/workspace',
-        },
-        {},
-      ),
-    ).toThrow(/mutually exclusive/i);
+    ).toThrow(/workspace_template has been removed/i);
   });
 
   it('resolves copilot alias to copilot-cli', () => {
@@ -693,87 +546,18 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.executable).toBe('copilot');
   });
 
-  it('resolves copilot-cli workspace_template', () => {
-    const target = resolveTargetDefinition(
-      {
-        name: 'copilot-cli-with-template',
-        provider: 'copilot-cli',
-        workspace_template: '/templates/copilot-cli-workspace',
-      },
-      {},
-    );
-
-    expect(target.kind).toBe('copilot-cli');
-    if (target.kind !== 'copilot-cli') {
-      throw new Error('expected copilot-cli target');
-    }
-
-    expect(target.config.workspaceTemplate).toBe('/templates/copilot-cli-workspace');
-  });
-
-  it('throws when both cwd and workspace_template are specified for copilot-cli', () => {
+  it('rejects removed target-level workspaceTemplate camelCase field', () => {
     expect(() =>
       resolveTargetDefinition(
         {
-          name: 'copilot-cli-both',
-          provider: 'copilot-cli',
-          cwd: '/some/path',
-          workspace_template: '/templates/workspace',
+          name: 'cli-camel-case',
+          provider: 'cli',
+          command: 'echo {PROMPT}',
+          workspaceTemplate: '/templates/camel-case-workspace',
         },
         {},
       ),
-    ).toThrow(/mutually exclusive/i);
-  });
-
-  it('resolves pi-coding-agent workspace_template', () => {
-    const target = resolveTargetDefinition(
-      {
-        name: 'pi-with-template',
-        provider: 'pi-coding-agent',
-        workspace_template: '/templates/pi-workspace',
-      },
-      {},
-    );
-
-    expect(target.kind).toBe('pi-coding-agent');
-    if (target.kind !== 'pi-coding-agent') {
-      throw new Error('expected pi-coding-agent target');
-    }
-
-    expect(target.config.workspaceTemplate).toBe('/templates/pi-workspace');
-  });
-
-  it('throws when both cwd and workspace_template are specified for pi-coding-agent', () => {
-    expect(() =>
-      resolveTargetDefinition(
-        {
-          name: 'pi-both',
-          provider: 'pi-coding-agent',
-          cwd: '/some/path',
-          workspace_template: '/templates/workspace',
-        },
-        {},
-      ),
-    ).toThrow(/mutually exclusive/i);
-  });
-
-  it('accepts workspaceTemplate camelCase variant', () => {
-    const target = resolveTargetDefinition(
-      {
-        name: 'cli-camel-case',
-        provider: 'cli',
-        command: 'echo {PROMPT}',
-        workspaceTemplate: '/templates/camel-case-workspace',
-      },
-      {},
-    );
-
-    expect(target.kind).toBe('cli');
-    if (target.kind !== 'cli') {
-      throw new Error('expected cli target');
-    }
-
-    expect(target.config.workspaceTemplate).toBe('/templates/camel-case-workspace');
+    ).toThrow(/workspace_template has been removed/i);
   });
 });
 

@@ -2648,6 +2648,45 @@ describe('--workspace flag', () => {
     expect(results[0].error).toBeUndefined();
   });
 
+  it('errors when workspaceMode is static without workspace path', async () => {
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    await expect(
+      runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: baseTarget,
+        providerFactory: () => provider,
+        evaluators: evaluatorRegistry,
+        evalCases: [baseTestCase],
+        workspaceMode: 'static',
+      }),
+    ).rejects.toThrow('workspace.mode=static requires workspace.path or --workspace-path');
+  });
+
+  it('errors when workspace path is combined with non-static workspaceMode', async () => {
+    const { mkdtemp } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
+    });
+
+    await expect(
+      runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: baseTarget,
+        providerFactory: () => provider,
+        evaluators: evaluatorRegistry,
+        evalCases: [baseTestCase],
+        workspacePath: testDir,
+        workspaceMode: 'temp',
+      }),
+    ).rejects.toThrow('--workspace-path requires --workspace-mode static when both are provided');
+  });
+
   it('includes per-judge timing in scores', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [

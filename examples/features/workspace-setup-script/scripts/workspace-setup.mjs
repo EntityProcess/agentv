@@ -22,13 +22,13 @@
 
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, readFileSync, rmSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, isAbsolute, join, resolve } from 'node:path';
 
 // --- parse arguments ---
 const fromIndex = process.argv.indexOf('--from');
 if (fromIndex === -1 || !process.argv[fromIndex + 1]) {
   console.error(
-    'Usage: workspace-setup.mjs --from <template-path> [--source <dir> ...] [--require <file> ...]',
+    'Usage: workspace-setup.mjs --from <template-path> [--source <dir> ...] [--marketplace-source <dir>] [--marketplace-name <name>] [--require <file> ...]',
   );
   process.exit(1);
 }
@@ -51,6 +51,14 @@ for (let i = 0; i < process.argv.length; i++) {
     i++;
   }
 }
+
+// Optional project-scoped marketplace source to register after init.
+const marketplaceSourceIndex = process.argv.indexOf('--marketplace-source');
+const marketplaceSource =
+  marketplaceSourceIndex !== -1 ? process.argv[marketplaceSourceIndex + 1] : undefined;
+const marketplaceNameIndex = process.argv.indexOf('--marketplace-name');
+const marketplaceName =
+  marketplaceNameIndex !== -1 ? process.argv[marketplaceNameIndex + 1] : undefined;
 
 // --- stdin context from AgentV ---
 const { workspace_path } = JSON.parse(readFileSync(0, 'utf8'));
@@ -87,6 +95,45 @@ const result = spawnSync(
 );
 if (result.status !== 0) {
   process.exit(result.status ?? 1);
+}
+
+// --- optionally register project-scoped marketplace and resync ---
+if (marketplaceSource) {
+  const resolvedMarketplaceSource = isAbsolute(marketplaceSource)
+    ? marketplaceSource
+    : resolve(process.cwd(), marketplaceSource);
+
+  const addMarketplaceArgs = [
+    '--yes',
+    'allagents',
+    'plugin',
+    'marketplace',
+    'add',
+    resolvedMarketplaceSource,
+    '--scope',
+    'project',
+  ];
+  if (marketplaceName) {
+    addMarketplaceArgs.push('--name', marketplaceName);
+  }
+
+  const addMarketplaceResult = spawnSync(npx, addMarketplaceArgs, {
+    stdio: ['ignore', 'inherit', 'inherit'],
+    shell: process.platform === 'win32',
+    cwd: workspace_path,
+  });
+  if (addMarketplaceResult.status !== 0) {
+    process.exit(addMarketplaceResult.status ?? 1);
+  }
+
+  const syncResult = spawnSync(npx, ['--yes', 'allagents', 'workspace', 'sync'], {
+    stdio: ['ignore', 'inherit', 'inherit'],
+    shell: process.platform === 'win32',
+    cwd: workspace_path,
+  });
+  if (syncResult.status !== 0) {
+    process.exit(syncResult.status ?? 1);
+  }
 }
 
 // --- validate required artifacts exist in workspace ---

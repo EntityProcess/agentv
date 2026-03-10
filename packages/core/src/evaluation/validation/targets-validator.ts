@@ -240,6 +240,7 @@ function validateUnknownSettings(
   location: string,
   errors: ValidationError[],
 ): void {
+  const removedTargetFields = new Set(['workspace_template', 'workspaceTemplate']);
   const knownSettings = getKnownSettings(provider);
   if (!knownSettings) {
     // Unknown provider, skip settings validation
@@ -250,6 +251,17 @@ function validateUnknownSettings(
   const baseFields = new Set(['name', 'provider', 'judge_target', 'workers', '$schema', 'targets']);
 
   for (const key of Object.keys(target)) {
+    if (removedTargetFields.has(key)) {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.${key}`,
+        message:
+          'target-level workspace_template has been removed. Use eval-level workspace.template.',
+      });
+      continue;
+    }
+
     if (!baseFields.has(key) && !knownSettings.has(key)) {
       errors.push({
         severity: 'warning',

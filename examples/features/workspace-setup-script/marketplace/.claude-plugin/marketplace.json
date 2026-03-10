@@ -1,0 +1,11 @@
+{
+  "name": "workspace-setup-script-marketplace",
+  "description": "Local marketplace used by the workspace setup script example",
+  "plugins": [
+    {
+      "name": "my-plugin",
+      "description": "Demo plugin containing AGENTS.md and summarize prompt",
+      "source": "../plugins/my-plugin"
+    }
+  ]
+}

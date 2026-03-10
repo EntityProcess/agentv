@@ -4747,13 +4747,10 @@
                       },
                       "mode": {
                         "type": "string",
-                        "enum": ["pooled", "ephemeral", "static"]
+                        "enum": ["pooled", "temp", "static"]
                       },
-                      "static_path": {
+                      "path": {
                         "type": "string"
-                      },
-                      "pool": {
-                        "type": "boolean"
                       }
                     },
                     "additionalProperties": false
@@ -9442,13 +9439,10 @@
                       },
                       "mode": {
                         "type": "string",
-                        "enum": ["pooled", "ephemeral", "static"]
+                        "enum": ["pooled", "temp", "static"]
                       },
-                      "static_path": {
+                      "path": {
                         "type": "string"
-                      },
-                      "pool": {
-                        "type": "boolean"
                       }
                     },
                     "additionalProperties": false
@@ -12964,13 +12958,10 @@
                 },
                 "mode": {
                   "type": "string",
-                  "enum": ["pooled", "ephemeral", "static"]
+                  "enum": ["pooled", "temp", "static"]
                 },
-                "static_path": {
+                "path": {
                   "type": "string"
-                },
-                "pool": {
-                  "type": "boolean"
                 }
               },
               "additionalProperties": false

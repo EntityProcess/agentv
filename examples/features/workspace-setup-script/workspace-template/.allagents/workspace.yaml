@@ -4,12 +4,8 @@ repositories:
     repo: agentv
     description: Example repository for workspace setup demo
 
-plugins: []
+plugins:
+  - my-plugin@workspace-setup-script-marketplace
 
 clients:
   - copilot
-
-workspace:
-  source: ../plugins/my-plugin/
-  files:
-    - AGENTS.md

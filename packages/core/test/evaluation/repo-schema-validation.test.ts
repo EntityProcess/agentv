@@ -91,6 +91,27 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts workspace.mode=temp', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      workspace: {
+        mode: 'temp',
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts workspace.path for static mode', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      workspace: {
+        mode: 'static',
+        path: '/tmp/my-workspace',
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
   it('rejects invalid source type', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
@@ -143,6 +164,27 @@ describe('repo lifecycle schema validation', () => {
             clone: { depth: 0 },
           },
         ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects removed workspace.static_path field', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      workspace: {
+        mode: 'static',
+        static_path: '/tmp/my-workspace',
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects removed workspace.pool field', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      workspace: {
+        pool: true,
       },
     });
     expect(result.success).toBe(false);
