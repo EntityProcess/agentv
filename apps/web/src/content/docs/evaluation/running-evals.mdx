@@ -101,7 +101,7 @@ The `--otel-file` format writes standard OTLP JSON that can be imported into any
 Use workspace mode and finish policies instead of multiple conflicting booleans:
 
 ```bash
-# Mode: pooled | ephemeral | static
+# Mode: pooled | temp | static
 agentv eval evals/my-eval.yaml --workspace-mode pooled
 
 # Static mode path
@@ -118,17 +118,19 @@ Equivalent eval YAML:
 
 ```yaml
 workspace:
-  mode: pooled           # pooled | ephemeral | static
-  static_path: null      # required when mode=static
+  mode: pooled           # pooled | temp | static
+  path: null             # workspace path for mode=static; auto-materialised when empty/missing
   hooks:
+    enabled: true        # set false to skip all hooks
     after_each:
       reset: fast        # none | fast | strict
 ```
 
 Notes:
 - Pooling is default for shared workspaces with repos when mode is not specified.
-- `mode: static` (or `--workspace-mode static`) requires `static_path` / `--workspace-path`.
+- `mode: static` (or `--workspace-mode static`) uses `path` / `--workspace-path`. When the path is empty or missing, the workspace is auto-materialised (template copied + repos cloned). Populated directories are reused as-is.
 - Static mode is incompatible with `isolation: per_test`.
+- `hooks.enabled: false` skips all lifecycle hooks (setup, teardown, reset).
 - Pool slots are managed separately (`agentv workspace list|clean`).
 
 ### Retry Execution Errors
