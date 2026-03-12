@@ -12,54 +12,54 @@ describe('generateOverviewPrompt', () => {
   let originalEnv: string | undefined;
 
   beforeEach(() => {
-    originalEnv = process.env.AGENTV_EVAL_MODE;
+    originalEnv = process.env.AGENTV_PROMPT_EVAL_MODE;
   });
 
   afterEach(() => {
     if (originalEnv === undefined) {
-      process.env.AGENTV_EVAL_MODE = undefined;
+      process.env.AGENTV_PROMPT_EVAL_MODE = undefined;
     } else {
-      process.env.AGENTV_EVAL_MODE = originalEnv;
+      process.env.AGENTV_PROMPT_EVAL_MODE = originalEnv;
     }
   });
 
-  it('defaults to prompt mode when AGENTV_EVAL_MODE is not set', async () => {
-    process.env.AGENTV_EVAL_MODE = undefined;
+  it('defaults to agent mode when AGENTV_PROMPT_EVAL_MODE is not set', async () => {
+    process.env.AGENTV_PROMPT_EVAL_MODE = undefined;
     const output = await generateOverviewPrompt([BASIC_EVAL_PATH]);
-    expect(output).toContain('Mode: prompt');
+    expect(output).toContain('Mode: agent');
     expect(output).toContain('eval-candidate');
     expect(output).toContain('eval-judge');
     expect(output).not.toContain('agentv eval ');
   });
 
-  it('emits prompt mode instructions when AGENTV_EVAL_MODE=prompt', async () => {
-    process.env.AGENTV_EVAL_MODE = 'prompt';
+  it('emits agent mode instructions when AGENTV_PROMPT_EVAL_MODE=agent', async () => {
+    process.env.AGENTV_PROMPT_EVAL_MODE = 'agent';
     const output = await generateOverviewPrompt([BASIC_EVAL_PATH]);
-    expect(output).toContain('Mode: prompt');
+    expect(output).toContain('Mode: agent');
     expect(output).toContain('eval-candidate');
     expect(output).toContain('eval-judge');
     expect(output).toContain('.agentv/tmp/');
     expect(output).toContain('.agentv/results/');
   });
 
-  it('emits command mode instructions when AGENTV_EVAL_MODE=command', async () => {
-    process.env.AGENTV_EVAL_MODE = 'command';
+  it('emits cli mode instructions when AGENTV_PROMPT_EVAL_MODE=cli', async () => {
+    process.env.AGENTV_PROMPT_EVAL_MODE = 'cli';
     const output = await generateOverviewPrompt([BASIC_EVAL_PATH]);
-    expect(output).toContain('Mode: command');
+    expect(output).toContain('Mode: cli');
     expect(output).toContain('agentv eval');
     expect(output).not.toContain('eval-candidate');
     expect(output).not.toContain('eval-judge');
   });
 
-  it('errors on invalid AGENTV_EVAL_MODE value', async () => {
-    process.env.AGENTV_EVAL_MODE = 'invalid';
+  it('errors on invalid AGENTV_PROMPT_EVAL_MODE value', async () => {
+    process.env.AGENTV_PROMPT_EVAL_MODE = 'invalid';
     await expect(generateOverviewPrompt([BASIC_EVAL_PATH])).rejects.toThrow(
-      /AGENTV_EVAL_MODE.*prompt.*command/,
+      /AGENTV_PROMPT_EVAL_MODE.*agent.*cli/,
     );
   });
 
-  it('includes per-test dispatch blocks in prompt mode', async () => {
-    process.env.AGENTV_EVAL_MODE = undefined;
+  it('includes per-test dispatch blocks in agent mode', async () => {
+    process.env.AGENTV_PROMPT_EVAL_MODE = undefined;
     const output = await generateOverviewPrompt([BASIC_EVAL_PATH]);
     expect(output).toContain('code-review-javascript');
     expect(output).toContain('shorthand-string-example');
@@ -68,8 +68,8 @@ describe('generateOverviewPrompt', () => {
     expect(output).toContain('results-file: `.agentv/results/eval_');
   });
 
-  it('includes test IDs in command mode', async () => {
-    process.env.AGENTV_EVAL_MODE = 'command';
+  it('includes test IDs in cli mode', async () => {
+    process.env.AGENTV_PROMPT_EVAL_MODE = 'cli';
     const output = await generateOverviewPrompt([BASIC_EVAL_PATH]);
     expect(output).toContain('code-review-javascript');
   });

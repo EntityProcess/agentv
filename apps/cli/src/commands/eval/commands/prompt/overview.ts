@@ -3,12 +3,12 @@ import { command, restPositionals, string } from 'cmd-ts';
 
 import { findRepoRoot, resolveEvalPaths } from '../../shared.js';
 
-type EvalMode = 'prompt' | 'command';
+type EvalMode = 'agent' | 'cli';
 
 function getEvalMode(): EvalMode {
-  const mode = process.env.AGENTV_EVAL_MODE ?? 'prompt';
-  if (mode !== 'prompt' && mode !== 'command') {
-    throw new Error(`Invalid AGENTV_EVAL_MODE="${mode}". Valid values: prompt, command`);
+  const mode = process.env.AGENTV_PROMPT_EVAL_MODE ?? 'agent';
+  if (mode !== 'agent' && mode !== 'cli') {
+    throw new Error(`Invalid AGENTV_PROMPT_EVAL_MODE="${mode}". Valid values: agent, cli`);
   }
   return mode;
 }
@@ -27,13 +27,13 @@ export async function generateOverviewPrompt(evalPaths: string[]): Promise<strin
 
   const totalCases = fileEntries.reduce((sum, e) => sum + e.tests.length, 0);
 
-  if (mode === 'command') {
-    return generateCommandModePrompt(fileEntries, totalCases);
+  if (mode === 'cli') {
+    return generateCliModePrompt(fileEntries, totalCases);
   }
-  return generatePromptModePrompt(fileEntries, totalCases);
+  return generateAgentModePrompt(fileEntries, totalCases);
 }
 
-function generatePromptModePrompt(
+function generateAgentModePrompt(
   fileEntries: Array<{ path: string; tests: readonly EvalTest[] }>,
   totalCases: number,
 ): string {
@@ -41,7 +41,7 @@ function generatePromptModePrompt(
   const lines: string[] = [
     '# AgentV Eval Orchestration',
     '',
-    '**Mode: prompt** — You orchestrate the evaluation using agents. No API keys needed.',
+    '**Mode: agent** — You orchestrate the evaluation using agents. No API keys needed.',
     '',
     `You are orchestrating ${totalCases} evaluation case${totalCases === 1 ? '' : 's'}.`,
     '',
@@ -106,7 +106,7 @@ function generatePromptModePrompt(
   return lines.join('\n');
 }
 
-function generateCommandModePrompt(
+function generateCliModePrompt(
   fileEntries: Array<{ path: string; tests: readonly EvalTest[] }>,
   totalCases: number,
 ): string {
@@ -114,7 +114,7 @@ function generateCommandModePrompt(
   const lines: string[] = [
     '# AgentV Eval Orchestration',
     '',
-    '**Mode: command** — Run the evaluation end-to-end using the CLI.',
+    '**Mode: cli** — Run the evaluation end-to-end using the CLI.',
     '',
     `You are orchestrating ${totalCases} evaluation case${totalCases === 1 ? '' : 's'}.`,
     '',

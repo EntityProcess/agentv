@@ -16,7 +16,7 @@ Context: Prompt-optimizer needs candidate responses in prompt mode
 user: "Optimize my prompts against this eval"
 assistant: "Running eval-candidate for each test to generate responses"
 <commentary>
-The prompt optimizer uses this agent when AGENTV_EVAL_MODE=prompt to get candidate answers.
+The prompt optimizer uses this agent when AGENTV_PROMPT_EVAL_MODE=agent to get candidate answers.
 </commentary>
 </example>
 

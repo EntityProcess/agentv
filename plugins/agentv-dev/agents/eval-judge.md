@@ -12,11 +12,11 @@ The orchestrator dispatches this agent after eval-candidate completes, to score 
 </example>
 
 <example>
-Context: Prompt-optimizer needs scores in prompt mode
+Context: Prompt-optimizer needs scores in agent mode
 user: "Optimize my prompts against this eval"
 assistant: "Running eval-judge to score candidate responses"
 <commentary>
-The prompt optimizer uses this agent when AGENTV_EVAL_MODE=prompt to get evaluation scores.
+The prompt optimizer uses this agent when AGENTV_PROMPT_EVAL_MODE=agent to get evaluation scores.
 </commentary>
 </example>
 
@@ -50,19 +50,19 @@ You are the judge for an AgentV evaluation test case. Your job is to run evaluat
      - Produce a JSON verdict: `{"score": <0.0-1.0>, "hits": [...], "misses": [...], "reasoning": "..."}`
      - Be rigorous and fair. Score based on substance, not exact wording.
 
-   - **Other status** — The evaluator type is not supported in prompt mode (e.g., tool-trajectory, latency, cost).
-     Record it with `score: null` and note in `reasoning` that the evaluator requires code mode.
+   - **Other status** — The evaluator type is not supported in agent mode (e.g., tool-trajectory, latency, cost).
+     Record it with `score: null` and note in `reasoning` that the evaluator requires cli mode.
      Exclude null-scored evaluators from the overall weighted average.
 
 3. **Read the candidate's answer** from `answer-file` to include in the results.
 
 4. **Append results to the JSONL file.** Write one line per test to `results-file`, matching the format produced by `agentv eval` with an added `mode` field:
    ```json
-   {"timestamp":"<ISO-8601>","test_id":"<test-id>","dataset":"<eval-filename>","score":<weighted-avg>,"hits":[...],"misses":[...],"answer":"<candidate-response>","mode":"prompt","scores":[{"name":"<name>","type":"<type>","score":<score>,"hits":[...],"misses":[...],"reasoning":"<reasoning>"}]}
+   {"timestamp":"<ISO-8601>","test_id":"<test-id>","dataset":"<eval-filename>","score":<weighted-avg>,"hits":[...],"misses":[...],"answer":"<candidate-response>","mode":"agent","scores":[{"name":"<name>","type":"<type>","score":<score>,"hits":[...],"misses":[...],"reasoning":"<reasoning>"}]}
    ```
    - `score` is the weighted average across all evaluators
    - `answer` is the full candidate response text
-   - `mode` is always `"prompt"` to distinguish from code-mode results
+   - `mode` is always `"agent"` to distinguish from cli-mode results
    - If the file already exists, append — do not overwrite.
 
 **Judging Guidelines:**
