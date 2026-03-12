@@ -3,6 +3,152 @@ import { command, restPositionals, string } from 'cmd-ts';
 
 import { findRepoRoot, resolveEvalPaths } from '../../shared.js';
 
+type EvalMode = 'prompt' | 'code';
+
+function getEvalMode(): EvalMode {
+  const mode = process.env.AGENTV_EVAL_MODE ?? 'prompt';
+  if (mode !== 'prompt' && mode !== 'code') {
+    throw new Error(
+      `Invalid AGENTV_EVAL_MODE="${mode}". Valid values: prompt, code`,
+    );
+  }
+  return mode;
+}
+
+export async function generateOverviewPrompt(evalPaths: string[]): Promise<string> {
+  const cwd = process.cwd();
+  const resolvedPaths = await resolveEvalPaths(evalPaths, cwd);
+  const repoRoot = await findRepoRoot(cwd);
+  const mode = getEvalMode();
+
+  const fileEntries: Array<{ path: string; tests: readonly EvalTest[] }> = [];
+  for (const evalPath of resolvedPaths) {
+    const tests = await loadTests(evalPath, repoRoot);
+    fileEntries.push({ path: evalPath, tests });
+  }
+
+  const totalCases = fileEntries.reduce((sum, e) => sum + e.tests.length, 0);
+
+  if (mode === 'code') {
+    return generateCodeModePrompt(fileEntries, totalCases);
+  }
+  return generatePromptModePrompt(fileEntries, totalCases);
+}
+
+function generatePromptModePrompt(
+  fileEntries: Array<{ path: string; tests: readonly EvalTest[] }>,
+  totalCases: number,
+): string {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -1);
+  const lines: string[] = [
+    '# AgentV Eval Orchestration',
+    '',
+    '**Mode: prompt** — You orchestrate the evaluation using agents. No API keys needed.',
+    '',
+    `You are orchestrating ${totalCases} evaluation case${totalCases === 1 ? '' : 's'}.`,
+    '',
+    '## Setup',
+    '',
+    `- **Results file:** \`.agentv/results/eval_${timestamp}.jsonl\``,
+    '- **Temp answers:** `.agentv/tmp/`',
+    '',
+    'Ensure both directories exist before starting.',
+    '',
+    '## For each test case',
+    '',
+    'Run these two agents **sequentially**:',
+    '',
+    '### 1. Dispatch `eval-candidate` agent',
+    '',
+    'Parameters:',
+    '- `eval-path`: Path to the eval YAML file',
+    '- `test-id`: The test case ID',
+    '- `answer-file`: `.agentv/tmp/eval_<test-id>.txt`',
+    '',
+    'The agent retrieves the task input, acts as the candidate LLM, and saves its response.',
+    '',
+    '### 2. Dispatch `eval-judge` agent (after candidate completes)',
+    '',
+    'Parameters:',
+    '- `eval-path`: Path to the eval YAML file',
+    '- `test-id`: The test case ID',
+    '- `answer-file`: `.agentv/tmp/eval_<test-id>.txt`',
+    `- \`results-file\`: \`.agentv/results/eval_${timestamp}.jsonl\``,
+    '',
+    'The agent runs evaluators, scores the response, and appends results to the JSONL file.',
+    '',
+  ];
+
+  for (const { path: evalPath, tests } of fileEntries) {
+    lines.push(`## ${evalPath}`);
+    lines.push('');
+
+    for (const evalCase of tests) {
+      const evaluatorSummary = describeEvaluators(evalCase);
+      lines.push(`### ${evalCase.id}`);
+      lines.push(`Criteria: ${evalCase.criteria}`);
+      if (evaluatorSummary) {
+        lines.push(`Evaluators: ${evaluatorSummary}`);
+      }
+      lines.push('');
+      lines.push('**1. Dispatch `eval-candidate` agent:**');
+      lines.push(`- eval-path: \`${evalPath}\``);
+      lines.push(`- test-id: \`${evalCase.id}\``);
+      lines.push(`- answer-file: \`.agentv/tmp/eval_${evalCase.id}.txt\``);
+      lines.push('');
+      lines.push('**2. Dispatch `eval-judge` agent** (after candidate completes):');
+      lines.push(`- eval-path: \`${evalPath}\``);
+      lines.push(`- test-id: \`${evalCase.id}\``);
+      lines.push(`- answer-file: \`.agentv/tmp/eval_${evalCase.id}.txt\``);
+      lines.push(`- results-file: \`.agentv/results/eval_${timestamp}.jsonl\``);
+      lines.push('');
+    }
+  }
+
+  return lines.join('\n');
+}
+
+function generateCodeModePrompt(
+  fileEntries: Array<{ path: string; tests: readonly EvalTest[] }>,
+  totalCases: number,
+): string {
+  const evalPathArgs = fileEntries.map((e) => e.path).join(' ');
+  const lines: string[] = [
+    '# AgentV Eval Orchestration',
+    '',
+    '**Mode: code** — Run the evaluation end-to-end using the CLI.',
+    '',
+    `You are orchestrating ${totalCases} evaluation case${totalCases === 1 ? '' : 's'}.`,
+    '',
+    '## Run the evaluation',
+    '',
+    '```bash',
+    `agentv eval ${evalPathArgs}`,
+    '```',
+    '',
+    'Results are written to `.agentv/results/`. The output path is printed in the CLI output.',
+    'Parse the JSONL file for per-test scores, hits, and misses.',
+    '',
+  ];
+
+  for (const { path: evalPath, tests } of fileEntries) {
+    lines.push(`## ${evalPath}`);
+    lines.push('');
+
+    for (const evalCase of tests) {
+      const evaluatorSummary = describeEvaluators(evalCase);
+      lines.push(`### ${evalCase.id}`);
+      lines.push(`Criteria: ${evalCase.criteria}`);
+      if (evaluatorSummary) {
+        lines.push(`Evaluators: ${evaluatorSummary}`);
+      }
+      lines.push('');
+    }
+  }
+
+  return lines.join('\n');
+}
+
 export const evalPromptOverviewCommand = command({
   name: 'overview',
   description: 'Output orchestration prompt for host agent to run evals',
@@ -14,72 +160,8 @@ export const evalPromptOverviewCommand = command({
     }),
   },
   handler: async (args) => {
-    const cwd = process.cwd();
-    const resolvedPaths = await resolveEvalPaths(args.evalPaths, cwd);
-    const repoRoot = await findRepoRoot(cwd);
-
-    // Collect all cases upfront for the summary
-    const fileEntries: Array<{ path: string; tests: readonly EvalTest[] }> = [];
-    for (const evalPath of resolvedPaths) {
-      const tests = await loadTests(evalPath, repoRoot);
-      fileEntries.push({ path: evalPath, tests });
-    }
-
-    const totalCases = fileEntries.reduce((sum, e) => sum + e.tests.length, 0);
-
-    const lines: string[] = [
-      '# AgentV Eval Orchestration',
-      '',
-      `You are orchestrating ${totalCases} evaluation case${totalCases === 1 ? '' : 's'}. For each case: get the task input, execute it, then judge the result.`,
-      '',
-      '## Step 1: Get Task Input',
-      '',
-      'Run `agentv prompt eval input <path> --test-id <id>` to get the task as JSON.',
-      '',
-      'The output contains:',
-      '- `input` — `[{role, content}]` array. Content segments are either `{type: "text", value: "..."}` or `{type: "file", path: "/absolute/path"}`. Read file segments from the filesystem.',
-      '- `guideline_paths` — files containing additional instructions to prepend to the system message (may be empty). Read these from the filesystem.',
-      '- `criteria` — what a good answer should accomplish (for your reference, do not leak to the agent being tested)',
-      '',
-      '## Step 2: Execute the Task',
-      '',
-      'Send the prompt to the agent/LLM being evaluated. Save the complete response text to a file.',
-      '',
-      '## Step 3: Judge the Result',
-      '',
-      'Run `agentv prompt eval judge <path> --test-id <id> --answer-file <response-file>`.',
-      '',
-      'The output contains an `evaluators` array. Each evaluator has a `status`:',
-      '',
-      '- **`"completed"`** — Score is final (code-judge ran deterministically). Read `result.score` (0.0–1.0).',
-      '- **`"prompt_ready"`** — LLM grading required. Send `prompt.system_prompt` as system and',
-      '  `prompt.user_prompt` as user to your LLM. Parse the JSON response to get `score`, `hits`, `misses`.',
-      '',
-    ];
-
-    for (const { path: evalPath, tests } of fileEntries) {
-      lines.push(`## ${evalPath}`);
-      lines.push('');
-
-      for (const evalCase of tests) {
-        const evaluatorSummary = describeEvaluators(evalCase);
-        lines.push(`### ${evalCase.id}`);
-        lines.push(`Criteria: ${evalCase.criteria}`);
-        if (evaluatorSummary) {
-          lines.push(`Evaluators: ${evaluatorSummary}`);
-        }
-        lines.push('');
-        lines.push('```bash');
-        lines.push(`agentv prompt eval input ${evalPath} --test-id ${evalCase.id}`);
-        lines.push(
-          `agentv prompt eval judge ${evalPath} --test-id ${evalCase.id} --answer-file <response-file>`,
-        );
-        lines.push('```');
-        lines.push('');
-      }
-    }
-
-    process.stdout.write(lines.join('\n'));
+    const output = await generateOverviewPrompt(args.evalPaths);
+    process.stdout.write(output);
   },
 });
 
