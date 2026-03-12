@@ -485,12 +485,25 @@ export class OtelStreamingObserver {
     this.rootCtx = null;
   }
 
+  /** Return the active eval span's trace ID and span ID for Braintrust trace bridging */
+  getActiveSpanIds(): { parentSpanId: string; rootSpanId: string } | null {
+    if (!this.rootSpan) return null;
+    try {
+      const spanCtx = this.rootSpan.spanContext?.() ?? this.rootSpan._spanContext;
+      if (!spanCtx?.traceId || !spanCtx?.spanId) return null;
+      return { parentSpanId: spanCtx.spanId, rootSpanId: spanCtx.traceId };
+    } catch {
+      return null;
+    }
+  }
+
   /** Get ProviderStreamCallbacks for passing to providers */
   getStreamCallbacks(): ProviderStreamCallbacks {
     return {
       onToolCallEnd: (name, input, output, durationMs, toolCallId) =>
         this.onToolCall(name, input, output, durationMs, toolCallId),
       onLlmCallEnd: (model, tokenUsage) => this.onLlmCall(model, tokenUsage),
+      getActiveSpanIds: () => this.getActiveSpanIds(),
     };
   }
 }

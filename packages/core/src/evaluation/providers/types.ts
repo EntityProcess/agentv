@@ -95,6 +95,8 @@ export interface ProviderStreamCallbacks {
     toolCallId?: string,
   ) => void;
   onLlmCallEnd?: (model: string, tokenUsage?: ProviderTokenUsage) => void;
+  /** Returns active OTel span IDs for Braintrust trace bridging (optional) */
+  getActiveSpanIds?: () => { parentSpanId: string; rootSpanId: string } | null;
 }
 
 export interface ProviderRequest {
@@ -118,6 +120,8 @@ export interface ProviderRequest {
   readonly captureFileChanges?: boolean;
   /** Real-time observability callbacks (optional) */
   readonly streamCallbacks?: ProviderStreamCallbacks;
+  /** Braintrust span IDs for trace-claude-code plugin (optional) */
+  readonly braintrustSpanIds?: { readonly parentSpanId: string; readonly rootSpanId: string };
 }
 
 /**

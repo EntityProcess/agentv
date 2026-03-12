@@ -83,7 +83,7 @@ export class ClaudeProvider implements Provider {
       // a Claude Code session the CLAUDECODE env var is set, which causes the
       // subprocess to refuse to start ("cannot be launched inside another Claude
       // Code session"). Passing a sanitized env removes that guard.
-      env: sanitizeEnvForClaudeSdk(),
+      env: sanitizeEnvForClaudeSdk(request.braintrustSpanIds),
     };
 
     if (this.config.model) {
@@ -444,11 +444,19 @@ function summarizeMessage(msg: Record<string, unknown>): string | undefined {
  * present the child immediately exits with "cannot be launched inside another
  * Claude Code session".
  */
-function sanitizeEnvForClaudeSdk(): Record<string, string | undefined> {
+function sanitizeEnvForClaudeSdk(
+  braintrustSpanIds?: { readonly parentSpanId: string; readonly rootSpanId: string },
+): Record<string, string | undefined> {
   const env = { ...process.env };
   // Remove all Claude Code session markers to allow nested sessions
   env.CLAUDECODE = undefined;
   env.CLAUDE_CODE_ENTRYPOINT = undefined;
+  // Inject Braintrust trace IDs so the trace-claude-code plugin can attach
+  // Claude Code session traces to the AgentV eval span
+  if (braintrustSpanIds) {
+    env.CC_PARENT_SPAN_ID = braintrustSpanIds.parentSpanId;
+    env.CC_ROOT_SPAN_ID = braintrustSpanIds.rootSpanId;
+  }
   return env;
 }
 
