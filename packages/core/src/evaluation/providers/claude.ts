@@ -444,9 +444,10 @@ function summarizeMessage(msg: Record<string, unknown>): string | undefined {
  * present the child immediately exits with "cannot be launched inside another
  * Claude Code session".
  */
-function sanitizeEnvForClaudeSdk(
-  braintrustSpanIds?: { readonly parentSpanId: string; readonly rootSpanId: string },
-): Record<string, string | undefined> {
+function sanitizeEnvForClaudeSdk(braintrustSpanIds?: {
+  readonly parentSpanId: string;
+  readonly rootSpanId: string;
+}): Record<string, string | undefined> {
   const env = { ...process.env };
   // Remove all Claude Code session markers to allow nested sessions
   env.CLAUDECODE = undefined;
