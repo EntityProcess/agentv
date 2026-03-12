@@ -11,6 +11,7 @@ interface RunEvaluationOptionsLike {
   readonly repoRoot: string | URL;
   readonly target: ResolvedTargetLike;
   readonly targets?: ReadonlyArray<unknown>;
+  readonly agentTimeoutMs?: number;
   readonly promptDumpDir?: string;
   readonly cache?: unknown;
   readonly useCache?: boolean;
@@ -72,6 +73,7 @@ async function maybeWriteDiagnostics(
   const payload = {
     target: options.target?.name,
     targetKind: options.target?.kind,
+    agentTimeoutMs: options.agentTimeoutMs ?? null,
     promptDumpDir: options.promptDumpDir,
     testId: options.testId ?? null,
     useCache: options.useCache ?? false,

@@ -161,6 +161,7 @@ describe('agentv eval CLI', () => {
     const diagnostics = await readDiagnostics(fixture);
     expect(diagnostics).toMatchObject({
       target: 'file-target',
+      agentTimeoutMs: null,
       envSample: 'from-dotenv',
       resultCount: 2,
     });

@@ -193,6 +193,15 @@ agentv eval --dry-run evals/my-eval.yaml
 
 See `agentv eval --help` for all options: workers, timeouts, output formats, trace dumping, and more.
 
+#### Timeouts
+
+AgentV does not apply a default top-level evaluation timeout. If you want one, set it explicitly
+with `--agent-timeout`, or set `execution.agentTimeoutMs` in your AgentV config to make it the
+default for your local runs.
+
+This top-level timeout is separate from provider- or tool-level timeouts. For example, an upstream
+agent or tool call may still time out even when AgentV's own top-level timeout is unset.
+
 ### Create Custom Evaluators
 
 Write code judges in Python or TypeScript:
