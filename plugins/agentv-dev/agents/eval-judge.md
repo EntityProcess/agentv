@@ -50,6 +50,10 @@ You are the judge for an AgentV evaluation test case. Your job is to run evaluat
      - Produce a JSON verdict: `{"score": <0.0-1.0>, "hits": [...], "misses": [...], "reasoning": "..."}`
      - Be rigorous and fair. Score based on substance, not exact wording.
 
+   - **Other status** — The evaluator type is not supported in prompt mode (e.g., tool-trajectory, latency, cost).
+     Record it with `score: null` and note in `reasoning` that the evaluator requires code mode.
+     Exclude null-scored evaluators from the overall weighted average.
+
 3. **Read the candidate's answer** from `answer-file` to include in the results.
 
 4. **Append results to the JSONL file.** Write one line per test to `results-file`, matching the format produced by `agentv eval` with an added `mode` field:
