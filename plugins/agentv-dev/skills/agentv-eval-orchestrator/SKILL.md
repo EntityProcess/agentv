@@ -18,11 +18,11 @@ This outputs a complete orchestration prompt with mode-specific instructions and
 The orchestration mode is controlled by the `AGENTV_EVAL_MODE` environment variable:
 
 - **`prompt`** (default) — You act as the candidate LLM and judge via two agents (`eval-candidate`, `eval-judge`). No API keys needed.
-- **`code`** — The CLI runs the evaluation end-to-end. Requires API keys.
+- **`command`** — The CLI runs the evaluation end-to-end. Requires API keys.
 
 ## How it works
 
 1. Run `agentv prompt eval <path>` to get your orchestration instructions
 2. The output tells you exactly what to do based on the current mode
-3. Follow the instructions — dispatch agents (prompt mode) or run CLI commands (code mode)
+3. Follow the instructions — dispatch agents (prompt mode) or run CLI commands (command mode)
 4. Results are written to `.agentv/results/` in JSONL format

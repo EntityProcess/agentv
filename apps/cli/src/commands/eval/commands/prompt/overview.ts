@@ -3,12 +3,12 @@ import { command, restPositionals, string } from 'cmd-ts';
 
 import { findRepoRoot, resolveEvalPaths } from '../../shared.js';
 
-type EvalMode = 'prompt' | 'code';
+type EvalMode = 'prompt' | 'command';
 
 function getEvalMode(): EvalMode {
   const mode = process.env.AGENTV_EVAL_MODE ?? 'prompt';
-  if (mode !== 'prompt' && mode !== 'code') {
-    throw new Error(`Invalid AGENTV_EVAL_MODE="${mode}". Valid values: prompt, code`);
+  if (mode !== 'prompt' && mode !== 'command') {
+    throw new Error(`Invalid AGENTV_EVAL_MODE="${mode}". Valid values: prompt, command`);
   }
   return mode;
 }
@@ -27,8 +27,8 @@ export async function generateOverviewPrompt(evalPaths: string[]): Promise<strin
 
   const totalCases = fileEntries.reduce((sum, e) => sum + e.tests.length, 0);
 
-  if (mode === 'code') {
-    return generateCodeModePrompt(fileEntries, totalCases);
+  if (mode === 'command') {
+    return generateCommandModePrompt(fileEntries, totalCases);
   }
   return generatePromptModePrompt(fileEntries, totalCases);
 }
@@ -106,7 +106,7 @@ function generatePromptModePrompt(
   return lines.join('\n');
 }
 
-function generateCodeModePrompt(
+function generateCommandModePrompt(
   fileEntries: Array<{ path: string; tests: readonly EvalTest[] }>,
   totalCases: number,
 ): string {
@@ -114,7 +114,7 @@ function generateCodeModePrompt(
   const lines: string[] = [
     '# AgentV Eval Orchestration',
     '',
-    '**Mode: code** — Run the evaluation end-to-end using the CLI.',
+    '**Mode: command** — Run the evaluation end-to-end using the CLI.',
     '',
     `You are orchestrating ${totalCases} evaluation case${totalCases === 1 ? '' : 's'}.`,
     '',

@@ -42,10 +42,10 @@ describe('generateOverviewPrompt', () => {
     expect(output).toContain('.agentv/results/');
   });
 
-  it('emits code mode instructions when AGENTV_EVAL_MODE=code', async () => {
-    process.env.AGENTV_EVAL_MODE = 'code';
+  it('emits command mode instructions when AGENTV_EVAL_MODE=command', async () => {
+    process.env.AGENTV_EVAL_MODE = 'command';
     const output = await generateOverviewPrompt([BASIC_EVAL_PATH]);
-    expect(output).toContain('Mode: code');
+    expect(output).toContain('Mode: command');
     expect(output).toContain('agentv eval');
     expect(output).not.toContain('eval-candidate');
     expect(output).not.toContain('eval-judge');
@@ -54,7 +54,7 @@ describe('generateOverviewPrompt', () => {
   it('errors on invalid AGENTV_EVAL_MODE value', async () => {
     process.env.AGENTV_EVAL_MODE = 'invalid';
     await expect(generateOverviewPrompt([BASIC_EVAL_PATH])).rejects.toThrow(
-      /AGENTV_EVAL_MODE.*prompt.*code/,
+      /AGENTV_EVAL_MODE.*prompt.*command/,
     );
   });
 
@@ -68,8 +68,8 @@ describe('generateOverviewPrompt', () => {
     expect(output).toContain('results-file: `.agentv/results/eval_');
   });
 
-  it('includes test IDs in code mode', async () => {
-    process.env.AGENTV_EVAL_MODE = 'code';
+  it('includes test IDs in command mode', async () => {
+    process.env.AGENTV_EVAL_MODE = 'command';
     const output = await generateOverviewPrompt([BASIC_EVAL_PATH]);
     expect(output).toContain('code-review-javascript');
   });
