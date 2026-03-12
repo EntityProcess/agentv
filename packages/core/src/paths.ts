@@ -5,7 +5,7 @@ let logged = false;
 
 export function getAgentvHome(): string {
   const envHome = process.env.AGENTV_HOME;
-  if (envHome) {
+  if (envHome && envHome !== 'undefined') {
     if (!logged) {
       logged = true;
       console.warn(`Using AGENTV_HOME: ${envHome}`);

@@ -64,7 +64,7 @@ interface NormalizedOptions {
   readonly dryRunDelay: number;
   readonly dryRunDelayMin: number;
   readonly dryRunDelayMax: number;
-  readonly agentTimeoutSeconds: number;
+  readonly agentTimeoutSeconds?: number;
   readonly maxRetries: number;
   readonly cache: boolean;
   readonly noCache: boolean;
@@ -208,7 +208,7 @@ function normalizeOptions(
     dryRunDelay: normalizeNumber(rawOptions.dryRunDelay, 0),
     dryRunDelayMin: normalizeNumber(rawOptions.dryRunDelayMin, 0),
     dryRunDelayMax: normalizeNumber(rawOptions.dryRunDelayMax, 0),
-    agentTimeoutSeconds: cliAgentTimeout ?? configAgentTimeoutSeconds ?? 120,
+    agentTimeoutSeconds: cliAgentTimeout ?? configAgentTimeoutSeconds,
     maxRetries: cliMaxRetries ?? configMaxRetries ?? 2,
     cache: resolvedCache,
     noCache: resolvedNoCache,
@@ -520,7 +520,10 @@ async function runSingleEvalFile(params: {
     console.log(targetMessage);
   }
 
-  const agentTimeoutMs = Math.max(0, options.agentTimeoutSeconds) * 1000;
+  const agentTimeoutMs =
+    options.agentTimeoutSeconds != null
+      ? Math.max(0, options.agentTimeoutSeconds) * 1000
+      : undefined;
 
   // Resolve workers: CLI flag (adjusted per-file) > target setting > default (1)
   const workerPreference = workersOverride ?? options.workers;

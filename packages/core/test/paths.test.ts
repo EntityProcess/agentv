@@ -30,6 +30,11 @@ describe('paths', () => {
     expect(getAgentvHome()).toBe(path.join(os.homedir(), '.agentv'));
   });
 
+  it('treats the string "undefined" as unset', () => {
+    process.env.AGENTV_HOME = 'undefined';
+    expect(getAgentvHome()).toBe(path.join(os.homedir(), '.agentv'));
+  });
+
   it('returns custom path when AGENTV_HOME is set', () => {
     process.env.AGENTV_HOME = '/custom/agentv';
     expect(getAgentvHome()).toBe('/custom/agentv');
@@ -49,9 +54,9 @@ describe('paths', () => {
 
   it('convenience functions respect AGENTV_HOME', () => {
     process.env.AGENTV_HOME = '/custom/home';
-    expect(getWorkspacesRoot()).toBe('/custom/home/workspaces');
-    expect(getSubagentsRoot()).toBe('/custom/home/subagents');
-    expect(getTraceStateRoot()).toBe('/custom/home/trace-state');
+    expect(getWorkspacesRoot()).toBe(path.join('/custom/home', 'workspaces'));
+    expect(getSubagentsRoot()).toBe(path.join('/custom/home', 'subagents'));
+    expect(getTraceStateRoot()).toBe(path.join('/custom/home', 'trace-state'));
   });
 
   it('logs once when AGENTV_HOME is set', () => {

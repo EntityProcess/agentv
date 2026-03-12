@@ -86,7 +86,7 @@ export const evalRunCommand = command({
     agentTimeout: option({
       type: optional(number),
       long: 'agent-timeout',
-      description: 'Timeout in seconds for provider responses (default: 120)',
+      description: 'Optional top-level evaluation timeout in seconds. Unset by default.',
     }),
     maxRetries: option({
       type: optional(number),

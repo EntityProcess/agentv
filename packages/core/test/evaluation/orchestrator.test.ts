@@ -2590,7 +2590,11 @@ describe('--workspace flag', () => {
     const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
-        hooks: { before_each: { command: ['echo', 'setup-done'] } },
+        hooks: {
+          before_each: {
+            command: [process.execPath, '-e', "process.stdout.write('setup-done')"],
+          },
+        },
       },
     };
 
