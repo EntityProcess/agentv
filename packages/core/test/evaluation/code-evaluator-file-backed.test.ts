@@ -22,32 +22,33 @@ const baseTestCase: EvalTest = {
 };
 
 /** Create a judge script that echoes the received stdin payload. */
-async function createEchoJudge(dir: string): Promise<string> {
-  const script = join(dir, 'echo-judge.sh');
+async function createEchoJudge(dir: string): Promise<readonly string[]> {
+  const script = join(dir, 'echo-judge.js');
   await writeFile(
     script,
-    `#!/bin/bash
-# Read stdin, extract output_path if present and check if output is null
-INPUT=$(cat)
-OUTPUT_PATH=$(echo "$INPUT" | bun -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(JSON.stringify({hasOutputPath: !!d.output_path, outputIsNull: d.output === null, outputPath: d.output_path || null}))")
-echo "$OUTPUT_PATH"
+    `const input = require('fs').readFileSync(0, 'utf8');
+const payload = JSON.parse(input);
+console.log(JSON.stringify({
+  hasOutputPath: !!payload.output_path,
+  outputIsNull: payload.output === null,
+  outputPath: payload.output_path || null,
+}));
 `,
-    { mode: 0o755 },
+    'utf8',
   );
-  return script;
+  return [process.execPath, script];
 }
 
 /** Create a judge script that returns a fixed score. */
-async function createScoringJudge(dir: string): Promise<string> {
-  const script = join(dir, 'score-judge.sh');
+async function createScoringJudge(dir: string): Promise<readonly string[]> {
+  const script = join(dir, 'score-judge.js');
   await writeFile(
     script,
-    `#!/bin/bash
-echo '{"score": 1.0, "hits": ["ok"], "misses": []}'
+    `console.log(JSON.stringify({ score: 1.0, hits: ['ok'], misses: [] }));
 `,
-    { mode: 0o755 },
+    'utf8',
   );
-  return script;
+  return [process.execPath, script];
 }
 
 describe('CodeEvaluator file-backed output', () => {
@@ -62,10 +63,10 @@ describe('CodeEvaluator file-backed output', () => {
   });
 
   it('sends small output inline (no temp file)', async () => {
-    const script = await createEchoJudge(tmpDir);
+    const command = await createEchoJudge(tmpDir);
     const smallOutput = [{ role: 'assistant' as const, content: 'short response' }];
 
-    const evaluator = new CodeEvaluator({ command: ['bash', script] });
+    const evaluator = new CodeEvaluator({ command });
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
       candidate: 'answer',
@@ -77,12 +78,12 @@ describe('CodeEvaluator file-backed output', () => {
   });
 
   it('writes large output to temp file and cleans up', async () => {
-    const script = await createScoringJudge(tmpDir);
+    const command = await createScoringJudge(tmpDir);
     // Create output > 50KB
     const largeContent = 'x'.repeat(60_000);
     const largeOutput = [{ role: 'assistant' as const, content: largeContent }];
 
-    const evaluator = new CodeEvaluator({ command: ['bash', script] });
+    const evaluator = new CodeEvaluator({ command });
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
       candidate: 'answer',
@@ -99,11 +100,11 @@ describe('CodeEvaluator file-backed output', () => {
   });
 
   it('sends outputPath in payload for large output', async () => {
-    const script = await createEchoJudge(tmpDir);
+    const command = await createEchoJudge(tmpDir);
     const largeContent = 'x'.repeat(60_000);
     const largeOutput = [{ role: 'assistant' as const, content: largeContent }];
 
-    const evaluator = new CodeEvaluator({ command: ['bash', script] });
+    const evaluator = new CodeEvaluator({ command });
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
       candidate: 'answer',
