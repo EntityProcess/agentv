@@ -46,7 +46,7 @@ Pass configurable limits via `config` in the YAML evaluator block:
 evaluators:
   - name: span-count
     type: code-judge
-    script: ["bun", "run", "../judges/span-count.ts"]
+    command: ["bun", "run", "../judges/span-count.ts"]
     config:
       maxLlmCalls: 5
       maxToolCalls: 10
@@ -59,7 +59,7 @@ Check for zero errors and block forbidden tools:
 evaluators:
   - name: error-check
     type: code-judge
-    script: ["bun", "run", "../judges/error-spans.ts"]
+    command: ["bun", "run", "../judges/error-spans.ts"]
     config:
       maxErrors: 0
       forbiddenTools:
@@ -73,7 +73,7 @@ Ensure no individual step or total execution exceeds time budgets:
 evaluators:
   - name: duration-check
     type: code-judge
-    script: ["bun", "run", "../judges/span-duration.ts"]
+    command: ["bun", "run", "../judges/span-duration.ts"]
     config:
       maxSpanMs: 3000
       maxTotalMs: 15000

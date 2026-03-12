@@ -524,6 +524,9 @@ function parseWorkspaceScriptConfig(
   if (!isJsonObject(raw)) return undefined;
   const obj = raw as Record<string, unknown>;
   // Precedence: command > script (deprecated)
+  if (obj.script !== undefined && obj.command === undefined) {
+    logWarning("'script' is deprecated. Use 'command' instead.");
+  }
   const commandSource = obj.command ?? obj.script;
   if (!Array.isArray(commandSource) || commandSource.length === 0) return undefined;
   const commandArr = commandSource.filter((s): s is string => typeof s === 'string');

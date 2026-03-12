@@ -521,7 +521,9 @@ async function runSingleEvalFile(params: {
   }
 
   const agentTimeoutMs =
-    options.agentTimeoutSeconds != null ? Math.max(0, options.agentTimeoutSeconds) * 1000 : undefined;
+    options.agentTimeoutSeconds != null
+      ? Math.max(0, options.agentTimeoutSeconds) * 1000
+      : undefined;
 
   // Resolve workers: CLI flag (adjusted per-file) > target setting > default (1)
   const workerPreference = workersOverride ?? options.workers;

@@ -59,7 +59,7 @@ Uses a custom `code_judge` that emits `details.metrics` with TP/TN/FP/FN per fie
 evaluators:
   - name: header_confusion
     type: code-judge
-    script: ["bun", "run", "../judges/header_confusion_metrics.ts"]
+    command: ["bun", "run", "../judges/header_confusion_metrics.ts"]
     fields:
       - path: invoice_number
       - path: currency

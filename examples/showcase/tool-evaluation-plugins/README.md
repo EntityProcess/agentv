@@ -24,7 +24,7 @@ Evaluates whether the agent selected the **right tools** for the task. Uses heur
 evaluators:
   - name: tool-selection
     type: code-judge
-    script: ["bun", "run", "scripts/tool-selection-judge.ts"]
+    command: ["bun", "run", "scripts/tool-selection-judge.ts"]
 ```
 
 ### 2. Tool Efficiency Scorer (`efficiency-scorer.ts`)
@@ -35,7 +35,7 @@ Computes efficiency metrics and scores based on configurable thresholds. Demonst
 evaluators:
   - name: efficiency
     type: code-judge
-    script: ["bun", "run", "scripts/efficiency-scorer.ts"]
+    command: ["bun", "run", "scripts/efficiency-scorer.ts"]
 ```
 
 ### 3. Pairwise Tool Comparison (`pairwise-tool-compare.ts`)
@@ -46,7 +46,7 @@ Compares two agent responses for tool usage quality with position bias mitigatio
 evaluators:
   - name: pairwise-compare
     type: code-judge
-    script: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
+    command: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
 ```
 
 ## Running the Examples

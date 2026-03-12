@@ -10,7 +10,7 @@ AgentV's design philosophy keeps the core minimal. Instead of adding `contains`,
 evaluators:
   - name: has-keyword
     type: code-judge
-    script: ["bun", "run", "../judges/assertions.ts"]
+    command: ["bun", "run", "../judges/assertions.ts"]
     config:
       type: contains
       value: "hello"
