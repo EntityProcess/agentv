@@ -8,9 +8,7 @@ type EvalMode = 'prompt' | 'code';
 function getEvalMode(): EvalMode {
   const mode = process.env.AGENTV_EVAL_MODE ?? 'prompt';
   if (mode !== 'prompt' && mode !== 'code') {
-    throw new Error(
-      `Invalid AGENTV_EVAL_MODE="${mode}". Valid values: prompt, code`,
-    );
+    throw new Error(`Invalid AGENTV_EVAL_MODE="${mode}". Valid values: prompt, code`);
   }
   return mode;
 }

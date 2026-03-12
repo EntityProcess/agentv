@@ -17,14 +17,14 @@ describe('generateOverviewPrompt', () => {
 
   afterEach(() => {
     if (originalEnv === undefined) {
-      delete process.env.AGENTV_EVAL_MODE;
+      process.env.AGENTV_EVAL_MODE = undefined;
     } else {
       process.env.AGENTV_EVAL_MODE = originalEnv;
     }
   });
 
   it('defaults to prompt mode when AGENTV_EVAL_MODE is not set', async () => {
-    delete process.env.AGENTV_EVAL_MODE;
+    process.env.AGENTV_EVAL_MODE = undefined;
     const output = await generateOverviewPrompt([BASIC_EVAL_PATH]);
     expect(output).toContain('Mode: prompt');
     expect(output).toContain('eval-candidate');
@@ -59,7 +59,7 @@ describe('generateOverviewPrompt', () => {
   });
 
   it('includes per-test dispatch blocks in prompt mode', async () => {
-    delete process.env.AGENTV_EVAL_MODE;
+    process.env.AGENTV_EVAL_MODE = undefined;
     const output = await generateOverviewPrompt([BASIC_EVAL_PATH]);
     expect(output).toContain('code-review-javascript');
     expect(output).toContain('shorthand-string-example');
