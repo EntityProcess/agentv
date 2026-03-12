@@ -26,7 +26,7 @@
 assert:
   - name: format_check
     type: code_judge           # Deterministic: checks concrete outputs
-    script: ./validators/check_format.py
+    command: ./validators/check_format.py
 
   - name: correctness
     type: llm_judge            # Subjective: uses customizable judge prompt
@@ -121,10 +121,10 @@ Alternative approaches:
 assert:
   - name: syntax_check
     type: code_judge
-    script: ["python", "check_syntax.py"]
+    command: ["python", "check_syntax.py"]
   - name: logic_check
     type: code_judge
-    script: ["python", "check_logic.py"]
+    command: ["python", "check_logic.py"]
   - name: explanation_quality
     type: llm_judge
     prompt: judges/explanation.md

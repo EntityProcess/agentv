@@ -140,6 +140,11 @@ async function parseEvaluatorList(
     if (typeValue === 'code-judge') {
       let command: string[] | undefined;
       // Precedence: command > script (deprecated alias)
+      if (rawEvaluator.script !== undefined && rawEvaluator.command === undefined) {
+        console.warn(
+          `${ANSI_YELLOW}Warning: 'script' is deprecated in evaluator '${name}' in '${evalId}'. Use 'command' instead.${ANSI_RESET}`,
+        );
+      }
       const rawCommand = rawEvaluator.command ?? rawEvaluator.script;
 
       if (typeof rawCommand === 'string') {
@@ -1082,6 +1087,11 @@ async function parseEvaluatorList(
     if (isJsonObject(rawPrompt)) {
       // Executable prompt template: { command: [...], config: {...} }
       // Precedence: command > script (deprecated alias)
+      if (rawPrompt.script !== undefined && rawPrompt.command === undefined) {
+        console.warn(
+          `${ANSI_YELLOW}Warning: 'prompt.script' is deprecated in evaluator '${name}' in '${evalId}'. Use 'prompt.command' instead.${ANSI_RESET}`,
+        );
+      }
       const commandArray = asStringArray(
         rawPrompt.command ?? rawPrompt.script,
         `prompt.command for evaluator '${name}' in '${evalId}'`,
