@@ -2320,6 +2320,9 @@ async function invokeProvider(
   }
 
   try {
+    // Extract Braintrust span IDs for trace bridging (Claude provider only)
+    const braintrustSpanIds = streamCallbacks?.getActiveSpanIds?.() ?? undefined;
+
     return await provider.invoke({
       question: promptInputs.question,
       guidelines: promptInputs.guidelines,
@@ -2336,6 +2339,7 @@ async function invokeProvider(
       workspaceFile,
       captureFileChanges,
       streamCallbacks,
+      braintrustSpanIds: braintrustSpanIds ?? undefined,
     });
   } finally {
     if (timeout !== undefined) {

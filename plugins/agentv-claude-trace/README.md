@@ -48,6 +48,7 @@ export LANGFUSE_SECRET_KEY=sk-...
 # Braintrust
 export AGENTV_TRACE_BACKEND=braintrust
 export BRAINTRUST_API_KEY=...
+export BRAINTRUST_PROJECT=my-project  # required: associates traces with a project
 ```
 
 ### Option 3: Generic OTLP headers

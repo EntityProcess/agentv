@@ -27,9 +27,20 @@ export const OTEL_BACKEND_PRESETS: Record<string, OtelBackendPreset> = {
   braintrust: {
     name: 'braintrust',
     endpoint: 'https://api.braintrust.dev/otel/v1/traces',
-    headers: (env) => ({
-      Authorization: `Bearer ${env.BRAINTRUST_API_KEY ?? ''}`,
-    }),
+    headers: (env) => {
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${env.BRAINTRUST_API_KEY ?? ''}`,
+      };
+      // x-bt-parent is required by Braintrust to associate traces with a project
+      const parent =
+        env.BRAINTRUST_PARENT ??
+        (env.BRAINTRUST_PROJECT_ID ? `project_id:${env.BRAINTRUST_PROJECT_ID}` : undefined) ??
+        (env.BRAINTRUST_PROJECT ? `project_name:${env.BRAINTRUST_PROJECT}` : undefined);
+      if (parent) {
+        headers['x-bt-parent'] = parent;
+      }
+      return headers;
+    },
   },
   confident: {
     name: 'confident',
@@ -485,12 +496,25 @@ export class OtelStreamingObserver {
     this.rootCtx = null;
   }
 
+  /** Return the active eval span's trace ID and span ID for Braintrust trace bridging */
+  getActiveSpanIds(): { parentSpanId: string; rootSpanId: string } | null {
+    if (!this.rootSpan) return null;
+    try {
+      const spanCtx = this.rootSpan.spanContext?.() ?? this.rootSpan._spanContext;
+      if (!spanCtx?.traceId || !spanCtx?.spanId) return null;
+      return { parentSpanId: spanCtx.spanId, rootSpanId: spanCtx.traceId };
+    } catch {
+      return null;
+    }
+  }
+
   /** Get ProviderStreamCallbacks for passing to providers */
   getStreamCallbacks(): ProviderStreamCallbacks {
     return {
       onToolCallEnd: (name, input, output, durationMs, toolCallId) =>
         this.onToolCall(name, input, output, durationMs, toolCallId),
       onLlmCallEnd: (model, tokenUsage) => this.onLlmCall(model, tokenUsage),
+      getActiveSpanIds: () => this.getActiveSpanIds(),
     };
   }
 }

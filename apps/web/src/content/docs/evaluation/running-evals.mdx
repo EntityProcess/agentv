@@ -96,6 +96,76 @@ The `--trace-file` format writes JSONL records containing:
 
 The `--otel-file` format writes standard OTLP JSON that can be imported into any OpenTelemetry-compatible backend.
 
+### Live OTel Export
+
+Stream traces directly to an observability backend during evaluation using `--export-otel`:
+
+```bash
+# Use a backend preset (braintrust, langfuse, confident)
+agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust
+
+# Include message content and tool I/O in spans (disabled by default for privacy)
+agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust --otel-capture-content
+
+# Group messages into turn spans for multi-turn evaluations
+agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust --otel-group-turns
+```
+
+#### Braintrust
+
+Set up your environment:
+
+```bash
+export BRAINTRUST_API_KEY=sk-...
+export BRAINTRUST_PROJECT=my-project    # associates traces with a Braintrust project
+```
+
+Run an eval with traces sent to Braintrust:
+
+```bash
+agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust --otel-capture-content
+```
+
+The following environment variables control project association (at least one is required):
+
+| Variable | Format | Example |
+|----------|--------|---------|
+| `BRAINTRUST_PROJECT` | Project name | `my-evals` |
+| `BRAINTRUST_PROJECT_ID` | Project UUID | `proj_abc123` |
+| `BRAINTRUST_PARENT` | Raw `x-bt-parent` header | `project_name:my-evals` |
+
+Each eval test case produces a trace with:
+- **Root span** (`agentv.eval`) — test ID, target, score, duration
+- **LLM call spans** (`chat <model>`) — model name, token usage (input/output/cached)
+- **Tool call spans** (`execute_tool <name>`) — tool name, arguments, results (with `--otel-capture-content`)
+- **Turn spans** (`agentv.turn.N`) — groups messages by conversation turn (with `--otel-group-turns`)
+- **Evaluator events** — per-judge scores attached to the root span
+
+:::tip[Claude provider + trace-claude-code plugin]
+When using the Claude provider, AgentV injects `CC_PARENT_SPAN_ID` and `CC_ROOT_SPAN_ID` into the Claude subprocess. If the [trace-claude-code](https://github.com/braintrustdata/braintrust-claude-plugin) plugin is installed, it attaches Claude Code CLI-level tool spans (Read, Write, Bash, etc.) as children of the AgentV eval trace, giving you full visibility into both the eval framework and the agent's internal actions.
+:::
+
+#### Langfuse
+
+```bash
+export LANGFUSE_PUBLIC_KEY=pk-...
+export LANGFUSE_SECRET_KEY=sk-...
+# Optional: export LANGFUSE_HOST=https://cloud.langfuse.com
+
+agentv eval evals/my-eval.yaml --export-otel --otel-backend langfuse --otel-capture-content
+```
+
+#### Custom OTLP Endpoint
+
+For backends not covered by presets, configure via environment variables:
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT=https://your-backend/v1/traces
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer token"
+
+agentv eval evals/my-eval.yaml --export-otel
+```
+
 ### Workspace Modes and Finish Policy
 
 Use workspace mode and finish policies instead of multiple conflicting booleans:
