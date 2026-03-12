@@ -27,9 +27,20 @@ export const OTEL_BACKEND_PRESETS: Record<string, OtelBackendPreset> = {
   braintrust: {
     name: 'braintrust',
     endpoint: 'https://api.braintrust.dev/otel/v1/traces',
-    headers: (env) => ({
-      Authorization: `Bearer ${env.BRAINTRUST_API_KEY ?? ''}`,
-    }),
+    headers: (env) => {
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${env.BRAINTRUST_API_KEY ?? ''}`,
+      };
+      // x-bt-parent is required by Braintrust to associate traces with a project
+      const parent =
+        env.BRAINTRUST_PARENT ??
+        (env.BRAINTRUST_PROJECT_ID ? `project_id:${env.BRAINTRUST_PROJECT_ID}` : undefined) ??
+        (env.BRAINTRUST_PROJECT ? `project_name:${env.BRAINTRUST_PROJECT}` : undefined);
+      if (parent) {
+        headers['x-bt-parent'] = parent;
+      }
+      return headers;
+    },
   },
   confident: {
     name: 'confident',
