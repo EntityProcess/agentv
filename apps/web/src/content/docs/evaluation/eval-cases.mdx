@@ -32,7 +32,7 @@ tests:
 | `metadata` | No | Arbitrary key-value pairs passed to lifecycle scripts |
 | `rubrics` | No | Structured evaluation criteria |
 | `assert` | No | Per-test evaluators |
-| `sidecar` | No | Additional metadata passed to evaluators |
+| `metadata` | No | Additional metadata passed to evaluators and workspace scripts |
 
 ## Input
 
@@ -289,15 +289,15 @@ tests:
         value: "fix"
 ```
 
-## Sidecar Metadata
+## Metadata
 
-Pass additional context to evaluators via the `sidecar` field:
+Pass additional context to evaluators via the `metadata` field:
 
 ```yaml
 tests:
   - id: code-gen
     criteria: Generates valid Python
-    sidecar:
+    metadata:
       language: python
       difficulty: medium
     input: Write a function to sort a list

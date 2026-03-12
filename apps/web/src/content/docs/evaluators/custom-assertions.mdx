@@ -124,14 +124,14 @@ The handler receives an `AssertionContext` with the same fields as a code judge:
 | `input` | `Message[]` | Full resolved input messages |
 | `expectedOutput` | `Message[]` | Expected output messages |
 | `output` | `Message[]` | Actual agent output messages |
-| `sidecar` | `Record<string, unknown>` | Custom metadata passed through |
+| `metadata` | `Record<string, unknown>` | Custom metadata passed through |
 
 ## Testing Custom Assertions
 
 Test assertions locally by piping JSON to stdin:
 
 ```bash
-echo '{"question":"Say hello","criteria":"Multi-word greeting","answer":"Hello there, nice to meet you!","reference_answer":"","sidecar":{}}' \
+echo '{"question":"Say hello","criteria":"Multi-word greeting","answer":"Hello there, nice to meet you!","reference_answer":"","metadata":{}}' \
   | bun run .agentv/assertions/word-count.ts
 ```
 

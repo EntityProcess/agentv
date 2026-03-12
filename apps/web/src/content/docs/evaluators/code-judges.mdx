@@ -18,7 +18,7 @@ Code judges communicate via stdin/stdout JSON:
   "criteria": "Correctly calculates 15 + 27 = 42",
   "answer": "The answer is 42.",
   "reference_answer": "42",
-  "sidecar": {}
+  "metadata": {}
 }
 ```
 
@@ -294,5 +294,5 @@ See `examples/features/functional-grading/` for a complete working example.
 Test a code judge by piping JSON to stdin:
 
 ```bash
-echo '{"question":"What is 2+2?","criteria":"4","answer":"4","reference_answer":"4","sidecar":{}}' | python validators/check_answer.py
+echo '{"question":"What is 2+2?","criteria":"4","answer":"4","reference_answer":"4","metadata":{}}' | python validators/check_answer.py
 ```
