@@ -61,7 +61,7 @@ tests:
     assert:
       - name: math_check
         type: code-judge
-        script: ./validators/check_math.py
+        command: ./validators/check_math.py
 ```
 
 **5. Run the eval:**
@@ -236,7 +236,7 @@ Reference evaluators in your eval file:
 assert:
   - name: my_validator
     type: code-judge
-    script: ./validators/check_answer.py
+    command: ./validators/check_answer.py
 ```
 
 For complete templates, examples, and evaluator patterns, see: [custom-evaluators](https://agentv.dev/evaluators/custom-evaluators/)
