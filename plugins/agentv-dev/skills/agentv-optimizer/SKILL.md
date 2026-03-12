@@ -38,26 +38,14 @@ The workflow is structured into five phases: Discovery, Planning, Optimization, 
 
 Before optimizing, understand what you are working with.
 
-1.  **Load the Evaluation**
-    - Verify `<eval-path>` (file or glob) targets the correct system.
-    - Read the eval file and all referenced test cases.
+**Dispatch the `optimizer-discovery` agent** with the eval path. It will:
 
-2.  **Identify Prompt Files**
-    - Infer prompt files from the eval file content (look for `file:` references in `input` fields **only**).
-    - **Integrity check**: Verify that identified prompt files are NOT referenced in `assert` evaluator configurations. If a prompt appears in both locations, treat it as a task prompt and do not modify it in ways that would optimize for evaluation scoring rather than task correctness.
-    - Recursively check referenced prompt files for *other* prompt references (dependencies).
-    - If multiple prompts are found, consider ALL of them as candidates for optimization.
-    - Read content of the identified prompt file(s).
+1.  **Load the Evaluation** — verify `<eval-path>` targets the correct system, read the eval file and all referenced test cases.
+2.  **Identify Prompt Files** — infer task prompts from `file:` references in `input` fields only, run integrity checks against evaluator configs, and recursively resolve prompt dependencies.
+3.  **Identify Optimization Log** — use `<optimization-log-path>` if provided, otherwise create `optimization-[timestamp].md` in the eval's parent directory.
+4.  **Challenge Assumptions** — assess eval quality, flag ambiguous or contradictory test cases, triage failures into must-fix vs nice-to-have, and surface eval issues before proceeding.
 
-3.  **Identify Optimization Log**
-    - If `<optimization-log-path>` is provided, use it.
-    - If not, create a new one in the parent directory of the eval files: `optimization-[timestamp].md`.
-
-4.  **Challenge Assumptions**
-    - Is the eval well-designed? Are the test cases representative of real usage?
-    - Are there test cases that are ambiguous, contradictory, or testing the wrong thing?
-    - Separate failures into **must fix** (clear agent deficiency) vs **nice to have** (edge cases, debatable expectations).
-    - If the eval itself is flawed, surface issues to the user before proceeding. Suggest eval fixes first — optimizing prompts against a bad eval wastes effort.
+**Review the discovery report** before moving to Phase 2. If the agent flags eval issues, fix the eval first.
 
 ### Phase 2: Planning
 
@@ -90,17 +78,10 @@ Max 10 iterations. This is the core refinement cycle.
     - Run `agentv prompt eval <eval-path>` and follow its orchestration instructions.
     - *Targeted Run*: If iterating on specific stubborn failures, pass `--test-id <test_id>` to filter to specific tests.
 
-2.  **Analyze (The Reflector)**
-    - Locate the results file path (`.agentv/results/eval_...jsonl`).
-    - **Orchestrate Subagent**: Use `runSubagent` to analyze the results.
-        - **Task**: Read the results file, calculate pass rate, and perform root cause analysis.
-        - **Self-introspective analysis** (SIMBA pattern): Have the agent explain *why* it failed, not just *that* it failed. Include the agent's reasoning trace in the analysis — what did it think it was doing, and where did that reasoning go wrong?
-        - **Natural language reflection** (GEPA pattern): Reflect on execution traces in natural language, not just pass/fail metrics. Describe the behavioral pattern that led to failure.
-        - **Output**: Return a structured analysis including:
-            - **Score**: Current pass rate.
-            - **Root Cause**: Why failures occurred (e.g., "Ambiguous definition", "Hallucination").
-            - **Insight**: Key learning or pattern identified from the failures.
-            - **Strategy**: High-level plan to fix the prompt (e.g., "Clarify section X", "Add negative constraint").
+2.  **Analyze — Dispatch `optimizer-reflector` agent**
+    - Provide the results file path (`.agentv/results/eval_...jsonl`) and the current iteration number.
+    - The reflector performs self-introspective analysis (SIMBA pattern) and natural language trace reflection (GEPA pattern).
+    - Returns a structured reflection report with: score, root cause analysis, high-variability cases, strategy, and stagnation check.
 
 3.  **Decide**
     - If **100% pass**: Proceed to Phase 4 (Polish).
@@ -109,30 +90,10 @@ Max 10 iterations. This is the core refinement cycle.
     - **Human checkpoint**: At iterations 3, 6, and 9, present progress to the user and confirm direction. Push back if the optimization is going down a bad path (e.g., accumulating contradictory rules, overfitting to specific test cases).
     - **Variant tracking**: When a change improves some tests but regresses others, consider maintaining 2-3 promising prompt variants rather than single-path iteration. Compare variants to find the best overall approach before converging.
 
-4.  **Refine (The Curator)**
-    - **Orchestrate Subagent**: Use `runSubagent` to apply the fix.
-        - **Task**: Read the relevant prompt file(s), apply the **Strategy** from the Reflector, and generate the log entry.
-        - **Output**: The **Log Entry** describing the specific operation performed.
-              ```markdown
-              ### Iteration [N]
-              - **Operation**: [ADD / UPDATE / DELETE]
-              - **Target**: [Section Name]
-              - **Change**: [Specific text added/modified]
-              - **Trigger**: [Specific failing test case or error pattern]
-              - **Rationale**: [From Reflector: Root Cause]
-              - **Score**: [From Reflector: Current Pass Rate]
-              - **Insight**: [From Reflector: Key Learning]
-              ```
-    - **Strategy**: Treat the prompt as a structured set of rules. Execute atomic operations:
-        - **ADD**: Insert a new rule if a constraint was missed.
-        - **UPDATE**: Refine an existing rule to be clearer or more general.
-            - *Clarify*: Make ambiguous instructions specific.
-            - *Generalize*: Refactor specific fixes into high-level principles (First Principles).
-        - **DELETE**: Remove obsolete, redundant, or harmful rules.
-            - *Prune*: If a general rule covers specific cases, delete the specific ones.
-        - **Negative Constraint**: If hallucinating, explicitly state what NOT to do. Prefer generalized prohibitions over specific forbidden tokens where possible.
-        - **Safety Check**: Ensure new rules don't contradict existing ones (unless intended).
-    - **Constraint**: Avoid rewriting large sections. Make surgical, additive changes to preserve existing behavior.
+4.  **Refine — Dispatch `optimizer-curator` agent**
+    - Provide the reflector's strategy and the prompt file path(s).
+    - The curator applies surgical, atomic operations (ADD / UPDATE / DELETE / NEGATIVE CONSTRAINT) to the task prompt.
+    - Returns a log entry documenting the operation, target, change, trigger, rationale, score, and insight.
 
 5.  **Log Result**
     - Append the **Log Entry** returned by the Curator to the optimization log file.
@@ -141,20 +102,13 @@ Max 10 iterations. This is the core refinement cycle.
 
 Before handing off, clean up the prompt so it reads as a coherent document.
 
-1.  **Generalize Patches into Principles**
-    - Review all changes made during the optimization loop.
-    - Where multiple specific fixes address the same underlying issue, consolidate them into a single principle-based guideline.
-    - Prefer broad, principle-based guidelines over specific examples or "hotfixes". Only keep specific rules if generalized instructions fail to achieve the desired score.
+**Dispatch the `optimizer-polish` agent** with the prompt file(s) and the optimization log. It will:
 
-2.  **Remove Redundancy and Contradictions**
-    - Check for rules that overlap or conflict.
-    - If a general rule covers specific cases, delete the specific ones.
-    - Resolve any contradictions introduced during iterative refinement.
+1.  **Generalize Patches into Principles** — consolidate specific fixes into broad guidelines.
+2.  **Remove Redundancy and Contradictions** — eliminate overlapping or conflicting rules.
+3.  **Ensure Prompt Quality** — verify clear persona, specific task, measurable success criteria, and manageable length (<200 lines).
 
-3.  **Ensure Prompt Quality**
-    - The prompt should define a clear **persona**, specific **task**, and measurable **success criteria**.
-    - Maintain existing Markdown headers/sections and structure.
-    - If the prompt has grown too large (>200 lines), consider moving specialized logic into a separate file or skill.
+**Review the polish report**, then:
 
 4.  **Verify Polish Didn't Regress**
     - Run the eval one final time after polish changes.
@@ -179,6 +133,22 @@ Ensure the user understands what changed and can maintain the optimized agent.
 
 4.  **Finalize Optimization Log**
     - Add a summary header to the optimization log file indicating session completion, baseline score, final score, and key decisions made.
+
+## Agent Dispatch Reference
+
+This skill orchestrates four predefined agents. The skill handles coordination and decision-making; agents handle autonomous work.
+
+| Agent | Dispatched in | Input | Output |
+|-------|--------------|-------|--------|
+| `optimizer-discovery` | Phase 1 | Eval path | Discovery report (targets, triage, eval quality) |
+| `optimizer-reflector` | Phase 3 (each iteration) | Results JSONL path, iteration number | Reflection report (scores, root causes, strategy) |
+| `optimizer-curator` | Phase 3 (each iteration) | Reflector strategy, prompt file path(s) | Log entry (operation, change, rationale) |
+| `optimizer-polish` | Phase 4 | Prompt file(s), optimization log | Polish report (changes made, quality assessment) |
+
+**What the skill handles directly** (not delegated to agents):
+- Phase 2 (Planning): Running baseline, assessing complexity, getting user alignment
+- Phase 3 (Decide): Evaluating scores, reverting changes, human checkpoints, variant tracking
+- Phase 5 (Handoff): Documenting changes, reporting results, suggesting v2 improvements
 
 ## Guidelines
 - **Generalization First**: Prefer broad, principle-based guidelines over specific examples or "hotfixes". Only use specific rules if generalized instructions fail to achieve the desired score.
