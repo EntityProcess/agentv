@@ -1,20 +1,42 @@
 ---
-name: agentv-prompt-optimizer
-description: Iteratively optimize prompt files against AgentV evaluation datasets by analyzing failures and refining instructions.
+name: agentv-optimizer
+description: Iteratively optimize agent prompts using AgentV evaluations. Teaches patterns for agent self-improvement through evaluation-driven prompt refinement, ensuring evaluation integrity.
 ---
 
-# AgentV Prompt Optimizer
+# AgentV Optimizer
+
+## Overview
+
+An agent **is** its prompts. This skill teaches patterns for agent self-improvement: using AgentV evaluations to iteratively refine the task prompts that drive agent behavior. Unlike static evaluation, this enables continuous agent improvement grounded in actual measurement.
 
 ## Input Variables
 - `eval-path`: Path or glob pattern to the AgentV evaluation file(s) to optimize against
 - `optimization-log-path` (optional): Path where optimization progress should be logged
+
+## Evaluation Integrity Constraint
+
+**Critical:** This skill optimizes only **task prompts** (what your agent receives), never **judge prompts** (how evaluators score outputs).
+
+| Prompt Type | Location | Optimize? | Why |
+|------------|----------|-----------|-----|
+| **Task Prompt** | Referenced in test `input` field (via `file:` references) | ✅ YES | Improves agent performance on the actual task |
+| **Judge Prompt** | Used in `assert` evaluator configs (e.g., `llm-judge` prompt) | ❌ NO | Would game the evaluation, not improve the agent |
+
+**Enforcement:**
+- Only identify and modify prompts from test case `input` fields
+- If a prompt file is referenced ONLY in evaluator configs, it is off-limits
+- If a prompt file is referenced in both locations, optimize for the task purpose only
+- Document which prompts were modified in the optimization log
+
+**Why this matters:** Optimizing judge prompts makes your agent *appear* better without actually improving it. Evaluation must remain an independent measure of agent quality.
 
 ## Workflow
 
 1.  **Initialize**
     - Verify `<eval-path>` (file or glob) targets the correct system.
     - **Identify Prompt Files**:
-        - Infer prompt files from the eval file content (look for `file:` references in `input` that match these patterns).
+        - Infer prompt files from the eval file content (look for `file:` references in `input` fields **only**).
+        - **Integrity check**: Verify that identified prompt files are NOT referenced in `assert` evaluator configurations. If a prompt appears in both locations, treat it as a task prompt and do not modify it in ways that would optimize for evaluation scoring rather than task correctness.
         - Recursively check referenced prompt files for *other* prompt references (dependencies).
         - If multiple prompts are found, consider ALL of them as candidates for optimization.
     - **Identify Optimization Log**:
