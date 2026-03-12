@@ -1,50 +1,28 @@
 ---
 name: agentv-eval-orchestrator
-description: Run AgentV evaluations without API keys by orchestrating eval subcommands. Use this skill when asked to run evals, evaluate an agent, or test prompt quality using agentv.
+description: Run AgentV evaluations by orchestrating eval subcommands. Use this skill when asked to run evals, evaluate an agent, or test prompt quality using agentv.
 ---
 
 # AgentV Eval Orchestrator
 
-Run AgentV evaluations by acting as the LLM yourself — no API keys needed.
+Run AgentV evaluations using the orchestration prompt system.
 
-## Quick Start
+## Usage
 
 ```bash
 agentv prompt eval <eval-file.yaml>
 ```
 
-This outputs a complete orchestration prompt with step-by-step instructions and all test IDs. Follow its instructions.
+This outputs a complete orchestration prompt with mode-specific instructions and all test IDs. **Follow its instructions exactly.**
 
-## Workflow
+The orchestration mode is controlled by the `AGENTV_PROMPT_EVAL_MODE` environment variable:
 
-For each test, run these three steps:
+- **`agent`** (default) — You act as the candidate LLM and judge via two agents (`eval-candidate`, `eval-judge`). No API keys needed.
+- **`cli`** — The CLI runs the evaluation end-to-end. Requires API keys.
 
-### 1. Get Task Input
+## How it works
 
-```bash
-agentv prompt eval input <path> --test-id <id>
-```
-
-Returns JSON with `input`, `guideline_paths`, and `criteria`. File references in messages use absolute paths — read them from the filesystem.
-
-### 2. Execute the Task
-
-You ARE the candidate LLM. Read `input` from step 1, read any referenced files, and answer the task. Save your response to a temp file.
-
-**Important**: Do not leak `criteria` into your answer — it's for your reference when judging, not part of the task.
-
-### 3. Judge the Result
-
-```bash
-agentv prompt eval judge <path> --test-id <id> --answer-file /tmp/eval_<id>.txt
-```
-
-Returns JSON with an `evaluators` array. Each evaluator has a `status`:
-
-- **`"completed"`** — Deterministic score is final. Read `result.score` (0.0–1.0).
-- **`"prompt_ready"`** — LLM grading required. Send `prompt.system_prompt` as system and `prompt.user_prompt` as user to yourself. Parse the JSON response to get `score`, `hits`, `misses`.
-
-## When to use this vs `agentv eval`
-
-- **`agentv eval`** — You have API keys configured. Runs everything end-to-end automatically.
-- **`agentv prompt`** — No API keys. You orchestrate: get input, answer the task yourself, judge the result.
+1. Run `agentv prompt eval <path>` to get your orchestration instructions
+2. The output tells you exactly what to do based on the current mode
+3. Follow the instructions — dispatch agents (agent mode) or run CLI commands (cli mode)
+4. Results are written to `.agentv/results/` in JSONL format
