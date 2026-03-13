@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
 import type { EvalTest, EvaluatorConfig } from '../types.js';
 
@@ -57,14 +58,18 @@ export async function loadTestsFromAgentSkills(filePath: string): Promise<readon
     throw new Error(`Invalid Agent Skills evals.json: failed to parse JSON in '${filePath}'`);
   }
 
-  return parseAgentSkillsEvals(parsed, filePath);
+  return parseAgentSkillsEvals(parsed, filePath, path.dirname(path.resolve(filePath)));
 }
 
 /**
  * Parse already-loaded Agent Skills evals data into EvalTest[].
  * Exported for testing without file I/O.
  */
-export function parseAgentSkillsEvals(parsed: unknown, source = 'evals.json'): readonly EvalTest[] {
+export function parseAgentSkillsEvals(
+  parsed: unknown,
+  source = 'evals.json',
+  baseDir?: string,
+): readonly EvalTest[] {
   if (!isAgentSkillsFormat(parsed)) {
     throw new Error(`Invalid Agent Skills evals.json: missing 'evals' array in '${source}'`);
   }
@@ -103,8 +108,17 @@ export function parseAgentSkillsEvals(parsed: unknown, source = 'evals.json'): r
     if (skill_name) {
       metadata.skill_name = skill_name;
     }
+
+    // Resolve file paths relative to evals.json location
+    const filePaths: string[] = [];
     if (evalCase.files && evalCase.files.length > 0) {
       metadata.agent_skills_files = evalCase.files;
+      if (baseDir) {
+        metadata.agent_skills_base_dir = baseDir;
+        for (const file of evalCase.files) {
+          filePaths.push(path.resolve(baseDir, file));
+        }
+      }
     }
 
     const prompt = evalCase.prompt;
@@ -119,7 +133,7 @@ export function parseAgentSkillsEvals(parsed: unknown, source = 'evals.json'): r
         : [],
       reference_answer: evalCase.expected_output,
       guideline_paths: [],
-      file_paths: [],
+      file_paths: filePaths,
       criteria: evalCase.expected_output ?? '',
       assertions,
       ...(Object.keys(metadata).length > 0 ? { metadata } : {}),

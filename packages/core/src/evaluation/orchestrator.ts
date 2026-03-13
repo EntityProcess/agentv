@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readdir, stat } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
@@ -1333,6 +1333,36 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           'repo_setup',
           'clone_error',
         );
+      }
+    }
+
+    // Copy Agent Skills files into workspace
+    if (workspacePath && evalCase.metadata?.agent_skills_files) {
+      const baseDir = evalCase.metadata.agent_skills_base_dir as string | undefined;
+      const files = evalCase.metadata.agent_skills_files as readonly string[];
+      if (baseDir && files.length > 0) {
+        for (const relPath of files) {
+          const srcPath = path.resolve(baseDir, relPath);
+          const destPath = path.resolve(workspacePath, relPath);
+          try {
+            await mkdir(path.dirname(destPath), { recursive: true });
+            await copyFile(srcPath, destPath);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return buildErrorResult(
+              evalCase,
+              target.name,
+              nowFn(),
+              new Error(
+                `Agent Skills eval file not found: ${relPath} (resolved from ${baseDir}): ${message}`,
+              ),
+              promptInputs,
+              provider,
+              'setup',
+              'file_copy_error',
+            );
+          }
+        }
       }
     }
 
