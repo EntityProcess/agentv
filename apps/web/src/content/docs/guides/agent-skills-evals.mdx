@@ -1,0 +1,134 @@
+---
+title: Skill Evals (evals.json)
+description: Run evals.json skill evaluations with AgentV, and graduate to EVAL.yaml when you need more power.
+sidebar:
+  order: 5
+---
+
+## Overview
+
+[Agent Skills](https://agentskills.io) is an open standard for describing AI agent capabilities. Its `evals.json` format defines simple test cases for skills — a prompt, expected output, and natural-language assertions.
+
+AgentV natively supports `evals.json`. You can run Agent Skills evals directly:
+
+```bash
+agentv eval evals.json --target claude
+```
+
+When you need AgentV's power features (deterministic evaluators, composite scoring, multi-turn conversations, workspace isolation), you can graduate to EVAL.yaml.
+
+## Quick start
+
+Create `evals.json`:
+
+```json
+{
+  "skill_name": "csv-analyzer",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Analyze sales.csv and find the top 3 months by revenue.",
+      "expected_output": "A summary of the top 3 months with revenue figures.",
+      "assertions": [
+        "Output identifies exactly 3 months",
+        "Revenue figures are included for each month",
+        "Months are ordered by revenue descending"
+      ]
+    }
+  ]
+}
+```
+
+Run it:
+
+```bash
+agentv eval evals.json --target claude
+```
+
+The `--target` flag selects the agent harness. The agent evaluates itself — skills load naturally via progressive disclosure.
+
+## Field mapping
+
+When AgentV loads `evals.json`, it promotes fields to its internal representation:
+
+| evals.json | EVAL.yaml equivalent | Notes |
+|---|---|---|
+| `prompt` | `input` | Wrapped as `[{role: "user", content: prompt}]` |
+| `expected_output` | `expected_output` + `criteria` | Used as reference answer and evaluation criteria |
+| `assertions[]` | `assert[]` | Each string becomes `{type: llm-judge, prompt: text}` |
+| `files[]` | `metadata.agent_skills_files` | File paths relative to evals.json location |
+| `skill_name` | `metadata.skill_name` | Carried as metadata |
+| `id` (number) | `id` (string) | Converted via `String(id)` |
+
+## When to stay with evals.json
+
+Use `evals.json` when:
+
+- You're building a skill and want quick feedback loops
+- Your assertions are natural-language ("output includes a chart", "response is polite")
+- You want compatibility with other Agent Skills tooling
+- Tests don't need workspace isolation or deterministic checks
+
+## When to graduate to EVAL.yaml
+
+Switch to EVAL.yaml when you need:
+
+- **Deterministic evaluators**: `contains`, `regex`, `equals`, `is-json` — faster and cheaper than LLM judges
+- **Composite scoring**: Weighted evaluators with custom aggregation
+- **Multi-turn conversations**: Multi-message input sequences
+- **Workspace isolation**: Sandboxed file systems per test case
+- **Tool trajectory evaluation**: Assert on the sequence of tool calls
+- **Matrix evaluation**: Test across multiple targets simultaneously
+
+## Side-by-side comparison
+
+The same eval expressed in both formats:
+
+### evals.json
+
+```json
+{
+  "skill_name": "support-agent",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "A customer says their order #12345 hasn't arrived after 2 weeks. Help them.",
+      "expected_output": "An empathetic response that offers to track the order and provides next steps.",
+      "assertions": [
+        "Response acknowledges the customer's frustration",
+        "Response offers to look up order #12345",
+        "Response provides clear next steps"
+      ]
+    }
+  ]
+}
+```
+
+### EVAL.yaml equivalent
+
+```yaml
+tests:
+  - id: "1"
+    input: |
+      A customer says their order #12345 hasn't arrived after 2 weeks. Help them.
+    expected_output: |
+      An empathetic response that offers to track the order and provides next steps.
+    assert:
+      - name: acknowledges-frustration
+        type: llm-judge
+        prompt: Response acknowledges the customer's frustration
+      - name: looks-up-order
+        type: contains
+        value: "12345"
+      - name: has-next-steps
+        type: llm-judge
+        prompt: Response provides clear next steps
+```
+
+Notice how the EVAL.yaml version can mix `llm-judge` (for subjective checks) with `contains` (for deterministic checks) — the order number check is now instant and free.
+
+## References
+
+- [Agent Skills specification](https://agentskills.io/specification)
+- [Agent Skills eval guide](https://agentskills.io/skill-creation/evaluating-skills)
+- [Example evals.json](https://github.com/EntityProcess/agentv/tree/main/examples/features/agent-skills-evals)
