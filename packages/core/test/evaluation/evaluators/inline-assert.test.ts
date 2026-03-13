@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { InlineAssertEvaluator } from '../../../src/evaluation/evaluators/inline-assert.js';
 import type { AssertFn } from '../../../src/evaluation/assertions.js';
+import { InlineAssertEvaluator } from '../../../src/evaluation/evaluators/inline-assert.js';
 
 describe('InlineAssertEvaluator', () => {
   it('runs an inline assert function and returns EvaluationScore', async () => {
@@ -24,6 +24,7 @@ describe('InlineAssertEvaluator', () => {
         reference_answer: 'hello world',
       },
       candidate: 'hello world',
+      // biome-ignore lint/suspicious/noExplicitAny: partial context for unit testing
     } as any);
 
     expect(score.score).toBe(1.0);
@@ -50,6 +51,7 @@ describe('InlineAssertEvaluator', () => {
         file_paths: [],
       },
       candidate: 'some output',
+      // biome-ignore lint/suspicious/noExplicitAny: partial context for unit testing
     } as any);
 
     expect(score.score).toBe(1.0);
@@ -75,6 +77,7 @@ describe('InlineAssertEvaluator', () => {
         file_paths: [],
       },
       candidate: 'output',
+      // biome-ignore lint/suspicious/noExplicitAny: partial context for unit testing
     } as any);
 
     expect(score.score).toBe(0.0);

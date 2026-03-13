@@ -7,6 +7,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { INLINE_ASSERT_FN, getInlineAssertFns } from '../eval-api.js';
 import {
   AgentJudgeEvaluator,
   CodeEvaluator,
@@ -31,7 +32,6 @@ import {
   runStartsWithAssertion,
 } from '../evaluators.js';
 import { InlineAssertEvaluator } from '../evaluators/inline-assert.js';
-import { INLINE_ASSERT_FN, getInlineAssertFns } from '../eval-api.js';
 import { resolveCustomPrompt } from '../evaluators/prompt-resolution.js';
 import type { Provider } from '../providers/types.js';
 import type { ToolTrajectoryEvaluatorConfig } from '../trace.js';
@@ -426,6 +426,7 @@ export function createBuiltinRegistry(): EvaluatorRegistry {
     .register('equals', equalsFactory)
     .register('inline-assert', (config, _context) => {
       // Prefer the function attached directly to the config via symbol (concurrent-safe)
+      // biome-ignore lint/suspicious/noExplicitAny: symbol key access requires dynamic cast
       const symbolFn = (config as any)[INLINE_ASSERT_FN] as
         | import('../assertions.js').AssertFn
         | undefined;

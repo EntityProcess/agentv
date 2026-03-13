@@ -1,6 +1,7 @@
 import type { AssertFn } from '../assertions.js';
-import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
+import type { JsonObject } from '../types.js';
 import { scoreToVerdict } from './scoring.js';
+import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
 /**
  * Evaluator that wraps an inline AssertFn and runs it in-process.
@@ -32,7 +33,7 @@ export class InlineAssertEvaluator implements Evaluator {
       misses: score < 0.5 ? [result.name] : [],
       expectedAspectCount: 1,
       reasoning: undefined,
-      details: result.metadata ? (result.metadata as any) : undefined,
+      details: result.metadata ? (result.metadata as JsonObject) : undefined,
     };
   }
 }

@@ -20,10 +20,11 @@
  */
 
 import path from 'node:path';
-import type { TargetDefinition } from './providers/types.js';
-import type { EvalRunResult, EvalSummary, EvalAssertionInput } from './evaluate.js';
-import type { AssertFn, AssertContext, AssertResult } from './assertions.js';
-import type { EvalTest, EvaluatorConfig, EvaluationResult } from './types.js';
+import type { AssertContext, AssertFn, AssertResult } from './assertions.js';
+import type { EvalAssertionInput, EvalRunResult, EvalSummary } from './evaluate.js';
+import type { ResolvedTarget } from './providers/targets.js';
+import type { Provider, TargetDefinition } from './providers/types.js';
+import type { EvalTest, EvaluationResult, EvaluatorConfig } from './types.js';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -149,7 +150,7 @@ async function runEval(name: string, options: EvalOptions): Promise<EvalRunResul
   const resolvedTarget = resolveTargetDefinition(targetDef);
 
   // Build providerFactory for task functions
-  let providerFactory: ((target: any) => any) | undefined;
+  let providerFactory: ((target: ResolvedTarget) => Provider) | undefined;
   if (options.task) {
     const taskProvider = createFunctionProvider(options.task);
     providerFactory = () => taskProvider;
@@ -168,15 +169,18 @@ async function runEval(name: string, options: EvalOptions): Promise<EvalRunResul
         : ((item.input.find((m) => m.role === 'user')?.content as string) ?? '');
 
     const expectedOutput = item.expectedOutput
-      ? ([{ role: 'assistant' as const, content: item.expectedOutput }] as EvalTest['expected_output'])
+      ? ([
+          { role: 'assistant' as const, content: item.expectedOutput },
+        ] as EvalTest['expected_output'])
       : [];
 
     // Build input_segments so buildPromptInputs can extract the question
-    const inputSegments = typeof item.input === 'string'
-      ? [{ type: 'text' as const, value: item.input }]
-      : (item.input as readonly { role: string; content: string }[])
-          .filter((m) => m.role === 'user' && typeof m.content === 'string')
-          .map((m) => ({ type: 'text' as const, value: m.content }));
+    const inputSegments =
+      typeof item.input === 'string'
+        ? [{ type: 'text' as const, value: item.input }]
+        : (item.input as readonly { role: string; content: string }[])
+            .filter((m) => m.role === 'user' && typeof m.content === 'string')
+            .map((m) => ({ type: 'text' as const, value: m.content }));
 
     return {
       id: item.id ? `${name}/${item.id}` : `${name}/${i}`,

@@ -807,9 +807,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const tsEvalFiles = resolvedTestFiles.filter(
     (f) => f.endsWith('.ts') || f.endsWith('.js') || f.endsWith('.mts') || f.endsWith('.mjs'),
   );
-  const yamlEvalFiles = resolvedTestFiles.filter(
-    (f) => !tsEvalFiles.includes(f),
-  );
+  const yamlEvalFiles = resolvedTestFiles.filter((f) => !tsEvalFiles.includes(f));
 
   if (tsEvalFiles.length > 0) {
     const { getRegisteredEvals, clearEvalRegistry } = await import('@agentv/core');
@@ -874,10 +872,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
 
   // Derive file-level concurrency from worker count (global) when provided
   const totalWorkers = options.workers ?? DEFAULT_WORKERS;
-  const fileConcurrency = Math.min(
-    Math.max(1, totalWorkers),
-    Math.max(1, yamlEvalFiles.length),
-  );
+  const fileConcurrency = Math.min(Math.max(1, totalWorkers), Math.max(1, yamlEvalFiles.length));
   const perFileWorkers = options.workers
     ? Math.max(1, Math.floor(totalWorkers / fileConcurrency))
     : undefined;

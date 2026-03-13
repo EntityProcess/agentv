@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { Contains } from '../../src/evaluation/assertions.js';
 import {
   Eval,
+  type EvalDataItem,
   clearEvalRegistry,
   getRegisteredEvals,
-  type EvalDataItem,
 } from '../../src/evaluation/eval-api.js';
-import { Contains } from '../../src/evaluation/assertions.js';
 
 afterEach(() => {
   clearEvalRegistry();
@@ -64,9 +64,7 @@ describe('Eval() registration', () => {
 describe('Eval() execution with mock target', () => {
   it('returns results when awaited', async () => {
     const result = await Eval('exec-test', {
-      data: [
-        { id: 'case-1', input: 'hello', expectedOutput: 'world' },
-      ],
+      data: [{ id: 'case-1', input: 'hello', expectedOutput: 'world' }],
       target: { name: 'default', provider: 'mock', response: 'world' },
       assert: [Contains('world')],
     });
@@ -78,10 +76,7 @@ describe('Eval() execution with mock target', () => {
 
   it('auto-generates test IDs from eval name and index', async () => {
     const result = await Eval('auto-id', {
-      data: [
-        { input: 'first' },
-        { input: 'second' },
-      ],
+      data: [{ input: 'first' }, { input: 'second' }],
       target: { name: 'default', provider: 'mock', response: 'first second' },
       assert: [Contains('first')],
     });
@@ -92,9 +87,7 @@ describe('Eval() execution with mock target', () => {
 
   it('uses explicit data item IDs in test IDs', async () => {
     const result = await Eval('explicit-id', {
-      data: [
-        { id: 'my-case', input: 'hello' },
-      ],
+      data: [{ id: 'my-case', input: 'hello' }],
       target: { name: 'default', provider: 'mock', response: 'hello' },
       assert: [Contains('hello')],
     });
