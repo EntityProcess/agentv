@@ -30,6 +30,8 @@ import {
   runRegexAssertion,
   runStartsWithAssertion,
 } from '../evaluators.js';
+import { InlineAssertEvaluator } from '../evaluators/inline-assert.js';
+import { INLINE_ASSERT_FN, getInlineAssertFns } from '../eval-api.js';
 import { resolveCustomPrompt } from '../evaluators/prompt-resolution.js';
 import type { Provider } from '../providers/types.js';
 import type { ToolTrajectoryEvaluatorConfig } from '../trace.js';
@@ -421,7 +423,24 @@ export function createBuiltinRegistry(): EvaluatorRegistry {
     .register('ends-with', endsWithFactory)
     .register('regex', regexFactory)
     .register('is-json', isJsonFactory)
-    .register('equals', equalsFactory);
+    .register('equals', equalsFactory)
+    .register('inline-assert', (config, _context) => {
+      // Prefer the function attached directly to the config via symbol (concurrent-safe)
+      const symbolFn = (config as any)[INLINE_ASSERT_FN] as
+        | import('../assertions.js').AssertFn
+        | undefined;
+      if (symbolFn) {
+        return new InlineAssertEvaluator(symbolFn, config.name ?? 'inline-assert');
+      }
+      // Fallback: legacy global storage
+      const fns = getInlineAssertFns();
+      const index = Number.parseInt(config.name?.replace('inline-assert-', '') ?? '0', 10);
+      const fn = fns[index];
+      if (!fn) {
+        throw new Error(`No inline assert function found at index ${index}`);
+      }
+      return new InlineAssertEvaluator(fn, config.name ?? `inline-assert-${index}`);
+    });
 
   return registry;
 }

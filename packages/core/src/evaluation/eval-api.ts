@@ -99,6 +99,14 @@ export function Eval(name: string, options: EvalOptions): Promise<EvalRunResult>
   return promise;
 }
 
+// ─── Inline function storage via symbol ──────────────────────────────
+
+/**
+ * Symbol used to attach inline AssertFn references to EvaluatorConfig objects.
+ * This avoids global state and race conditions between concurrent Eval() calls.
+ */
+export const INLINE_ASSERT_FN = Symbol.for('agentv.inline-assert-fn');
+
 // ─── Internal execution ──────────────────────────────────────────────
 
 async function runEval(name: string, options: EvalOptions): Promise<EvalRunResult> {
@@ -112,25 +120,29 @@ async function runEval(name: string, options: EvalOptions): Promise<EvalRunResul
   const data = typeof options.data === 'function' ? await options.data() : options.data;
 
   // Partition assert entries into inline functions and config objects
-  const configAsserts: EvalAssertionInput[] = [];
+  const evaluatorConfigs: EvaluatorConfig[] = [];
 
   for (let i = 0; i < options.assert.length; i++) {
     const entry = options.assert[i];
     if (typeof entry === 'function') {
-      // Register inline function and create a placeholder assertion config
-      configAsserts.push({
+      // Inline function: create an evaluator config with the function attached via symbol
+      const config = {
         type: 'inline-assert',
         name: `inline-assert-${i}`,
-      });
+        [INLINE_ASSERT_FN]: entry as AssertFn,
+      } as unknown as EvaluatorConfig;
+      evaluatorConfigs.push(config);
     } else {
-      configAsserts.push(entry as EvalAssertionInput);
+      // Config object: normalize type and pass through
+      const a = entry as EvalAssertionInput;
+      const { type: rawType, ...rest } = a;
+      evaluatorConfigs.push({
+        ...rest,
+        name: a.name ?? `${rawType}_${i}`,
+        type: rawType.replace(/_/g, '-'),
+      } as unknown as EvaluatorConfig);
     }
   }
-
-  // Store inline functions for the inline-assert evaluator to pick up
-  const inlineFns = options.assert
-    .filter((entry): entry is AssertFn => typeof entry === 'function');
-  setInlineAssertFns(inlineFns);
 
   // Resolve target
   const targetDef: TargetDefinition = options.target ?? { name: 'custom-task', provider: 'mock' };
@@ -142,16 +154,6 @@ async function runEval(name: string, options: EvalOptions): Promise<EvalRunResul
     const taskProvider = createFunctionProvider(options.task);
     providerFactory = () => taskProvider;
   }
-
-  // Convert EvalAssertionInput[] to EvaluatorConfig[]
-  const evaluatorConfigs = configAsserts.map((a, i) => {
-    const { type: rawType, ...rest } = a;
-    return {
-      ...rest,
-      name: a.name ?? `${rawType}_${i}`,
-      type: rawType.replace(/_/g, '-'),
-    } as unknown as EvaluatorConfig;
-  });
 
   // Convert data items to EvalTest[]
   const evalCases: EvalTest[] = data.map((item, i) => {
@@ -169,12 +171,19 @@ async function runEval(name: string, options: EvalOptions): Promise<EvalRunResul
       ? ([{ role: 'assistant' as const, content: item.expectedOutput }] as EvalTest['expected_output'])
       : [];
 
+    // Build input_segments so buildPromptInputs can extract the question
+    const inputSegments = typeof item.input === 'string'
+      ? [{ type: 'text' as const, value: item.input }]
+      : (item.input as readonly { role: string; content: string }[])
+          .filter((m) => m.role === 'user' && typeof m.content === 'string')
+          .map((m) => ({ type: 'text' as const, value: m.content }));
+
     return {
       id: item.id ? `${name}/${item.id}` : `${name}/${i}`,
       criteria: item.criteria ?? '',
       question: String(question),
       input,
-      input_segments: [],
+      input_segments: inputSegments,
       expected_output: expectedOutput,
       reference_answer: item.expectedOutput,
       guideline_paths: [],
@@ -204,9 +213,6 @@ async function runEval(name: string, options: EvalOptions): Promise<EvalRunResul
       collectedResults.push(result);
     },
   });
-
-  // Clear inline functions after execution
-  setInlineAssertFns([]);
 
   const durationMs = Date.now() - startTime;
   return {
@@ -245,7 +251,7 @@ function computeSummary(results: readonly EvaluationResult[], durationMs: number
   };
 }
 
-// ─── Inline assert function storage ──────────────────────────────────
+// ─── Legacy inline assert function storage (for backward compat) ─────
 
 let _inlineAssertFns: AssertFn[] = [];
 
