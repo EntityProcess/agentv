@@ -305,8 +305,12 @@ function mapAssertionType(type: string): string {
 
 /**
  * Compute summary statistics from evaluation results.
+ * Shared by both evaluate() and Eval() APIs.
  */
-function computeSummary(results: readonly EvaluationResult[], durationMs: number): EvalSummary {
+export function computeSummary(
+  results: readonly EvaluationResult[],
+  durationMs: number,
+): EvalSummary {
   const total = results.length;
   let passed = 0;
   let failed = 0;

@@ -1,38 +1,29 @@
 /**
  * Programmatic API Example
  *
- * Uses evaluate() from @agentv/core to run evaluations as a library.
+ * Uses Eval() from @agentv/core to run evaluations as a library.
  * No YAML needed — tests defined inline with full type safety.
  *
  * Run: bun run evaluate.ts
  * (Uses 'default' target from .agentv/targets.yaml and .env credentials)
  */
-import { evaluate } from '@agentv/core';
+import { Contains, Eval } from '@agentv/core';
 
-const { results, summary } = await evaluate({
-  tests: [
+const { results, summary } = await Eval('programmatic-api-example', {
+  data: [
     {
       id: 'greeting',
       input: 'Say hello and introduce yourself briefly.',
-      expected_output: "Hello! I'm an AI assistant here to help you.",
-      assert: [{ type: 'contains', value: 'Hello' }],
+      expectedOutput: "Hello! I'm an AI assistant here to help you.",
     },
     {
       id: 'json-output',
-      input: [
-        { role: 'system', content: 'Respond only with valid JSON. No markdown.' },
-        { role: 'user', content: 'Return a JSON object with a "status" field set to "ok".' },
-      ],
-      expected_output: '{"status": "ok"}',
-      assert: [
-        { type: 'is-json', required: true },
-        { type: 'contains', value: 'ok' },
-      ],
+      input: 'Return a JSON object with a "status" field set to "ok".',
+      expectedOutput: '{"status": "ok"}',
     },
   ],
-  onResult: (result) => {
-    console.log(`  ${result.testId}: score=${result.score.toFixed(2)}`);
-  },
+  target: { provider: 'mock', response: 'Hello! I am an AI assistant. {"status": "ok"}' },
+  assert: [Contains('Hello'), { type: 'contains', value: 'ok' }],
 });
 
 console.log('\n--- Summary ---');

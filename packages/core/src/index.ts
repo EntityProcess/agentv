@@ -5,13 +5,12 @@ export * from './evaluation/file-utils.js';
 export * from './evaluation/providers/index.js';
 export * from './evaluation/evaluators.js';
 export * from './evaluation/orchestrator.js';
-export {
-  evaluate,
-  type EvalConfig,
-  type EvalTestInput,
-  type EvalAssertionInput,
-  type EvalRunResult,
-  type EvalSummary,
+export type {
+  EvalConfig,
+  EvalTestInput,
+  EvalAssertionInput,
+  EvalRunResult,
+  EvalSummary,
 } from './evaluation/evaluate.js';
 
 // Eval() API — single-file TypeScript evaluations

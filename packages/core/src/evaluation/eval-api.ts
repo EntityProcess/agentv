@@ -19,12 +19,17 @@
  * @module
  */
 
-import path from 'node:path';
 import type { AssertContext, AssertFn, AssertResult } from './assertions.js';
+import { computeSummary } from './evaluate.js';
 import type { EvalAssertionInput, EvalRunResult, EvalSummary } from './evaluate.js';
 import type { ResolvedTarget } from './providers/targets.js';
 import type { Provider, TargetDefinition } from './providers/types.js';
-import type { EvalTest, EvaluationResult, EvaluatorConfig } from './types.js';
+import type {
+  EvalTest,
+  EvaluationResult,
+  EvaluatorConfig,
+  InlineAssertEvaluatorConfig,
+} from './types.js';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -127,11 +132,11 @@ async function runEval(name: string, options: EvalOptions): Promise<EvalRunResul
     const entry = options.assert[i];
     if (typeof entry === 'function') {
       // Inline function: create an evaluator config with the function attached via symbol
-      const config = {
+      const base: InlineAssertEvaluatorConfig = {
         type: 'inline-assert',
         name: `inline-assert-${i}`,
-        [INLINE_ASSERT_FN]: entry as AssertFn,
-      } as unknown as EvaluatorConfig;
+      };
+      const config = Object.assign(base, { [INLINE_ASSERT_FN]: entry as AssertFn });
       evaluatorConfigs.push(config);
     } else {
       // Config object: normalize type and pass through
@@ -141,7 +146,7 @@ async function runEval(name: string, options: EvalOptions): Promise<EvalRunResul
         ...rest,
         name: a.name ?? `${rawType}_${i}`,
         type: rawType.replace(/_/g, '-'),
-      } as unknown as EvaluatorConfig);
+      } as EvaluatorConfig);
     }
   }
 
@@ -200,7 +205,7 @@ async function runEval(name: string, options: EvalOptions): Promise<EvalRunResul
 
   const startTime = Date.now();
   const repoRoot = (await findGitRoot(process.cwd())) ?? process.cwd();
-  const testFilePath = path.join(process.cwd(), '__eval_api__.yaml');
+  const testFilePath = '<eval-api>';
 
   const collectedResults: EvaluationResult[] = [];
 
@@ -223,48 +228,6 @@ async function runEval(name: string, options: EvalOptions): Promise<EvalRunResul
     results: collectedResults,
     summary: computeSummary(collectedResults, durationMs),
   };
-}
-
-// ─── Summary computation ─────────────────────────────────────────────
-
-function computeSummary(results: readonly EvaluationResult[], durationMs: number): EvalSummary {
-  const total = results.length;
-  let passed = 0;
-  let failed = 0;
-  let borderline = 0;
-  let scoreSum = 0;
-
-  for (const r of results) {
-    scoreSum += r.score;
-    if (r.score >= 0.8) {
-      passed++;
-    } else if (r.score < 0.5) {
-      failed++;
-    } else {
-      borderline++;
-    }
-  }
-
-  return {
-    total,
-    passed,
-    failed,
-    borderline,
-    durationMs,
-    meanScore: total > 0 ? scoreSum / total : 0,
-  };
-}
-
-// ─── Legacy inline assert function storage (for backward compat) ─────
-
-let _inlineAssertFns: AssertFn[] = [];
-
-export function setInlineAssertFns(fns: AssertFn[]): void {
-  _inlineAssertFns = fns;
-}
-
-export function getInlineAssertFns(): AssertFn[] {
-  return _inlineAssertFns;
 }
 
 // Re-export types

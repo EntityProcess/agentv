@@ -1,4 +1,4 @@
-import { Contains, Eval } from '@agentv/core';
+import { Contains, Eval, ExactMatch } from '@agentv/core';
 
 Eval('sdk-example/basic', {
   data: [
@@ -23,4 +23,16 @@ Eval('sdk-example/basic', {
       score: output.includes(expectedOutput ?? '') ? 1.0 : 0.0,
     }),
   ],
+});
+
+Eval('sdk-example/exact', {
+  data: [
+    {
+      id: 'exact-check',
+      input: 'Echo back: hello world',
+      expectedOutput: 'hello world',
+    },
+  ],
+  target: { name: 'default', provider: 'mock', response: 'hello world' },
+  assert: [ExactMatch],
 });

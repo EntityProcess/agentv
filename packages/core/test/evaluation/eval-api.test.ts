@@ -143,4 +143,23 @@ describe('Eval() execution with mock target', () => {
 
     expect(result.summary.passed).toBe(1);
   });
+
+  it('classifies borderline scores (0.5 <= score < 0.8) correctly', async () => {
+    const result = await Eval('borderline', {
+      data: [{ input: 'hello world' }],
+      target: { name: 'default', provider: 'mock', response: 'hello world' },
+      assert: [
+        // One passes (score 1.0), one fails (score 0.0) — average score is 0.5, which is borderline
+        Contains('hello'),
+        Contains('missing-text'),
+      ],
+    });
+
+    // With two assertions where one passes and one fails, the average score should be 0.5
+    // Score 0.5 is borderline (>= 0.5 and < 0.8)
+    expect(result.summary.total).toBe(1);
+    expect(result.summary.borderline).toBe(1);
+    expect(result.summary.passed).toBe(0);
+    expect(result.summary.failed).toBe(0);
+  });
 });

@@ -836,7 +836,10 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
             `  ${evalName}: ${passCount}/${totalCount} passed (mean score: ${meanScore})`,
           );
 
-          // Collect results for overall summary
+          // Write results to output and collect for overall summary
+          for (const result of evalResult.results) {
+            await outputWriter.append(result);
+          }
           allResults.push(...evalResult.results);
         } catch (err) {
           console.error(
@@ -848,11 +851,8 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       clearEvalRegistry();
     }
 
-    // If there are no YAML files, write results and return
+    // If there are no YAML files, finalize output and return
     if (yamlEvalFiles.length === 0) {
-      for (const result of allResults) {
-        await outputWriter.append(result);
-      }
       await outputWriter.close().catch(() => undefined);
       const summary = calculateEvaluationSummary(allResults);
       console.log(formatEvaluationSummary(summary));

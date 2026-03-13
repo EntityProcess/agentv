@@ -171,6 +171,7 @@ const EVALUATOR_KIND_VALUES = [
   'is-json',
   'equals',
   'rubrics',
+  'inline-assert',
 ] as const;
 
 export type EvaluatorKind = (typeof EVALUATOR_KIND_VALUES)[number];
@@ -723,6 +724,20 @@ export type RubricsEvaluatorConfig = {
   readonly negate?: boolean;
 };
 
+/**
+ * Configuration for the inline-assert evaluator.
+ * Used by the Eval() API to wrap inline assertion functions.
+ * The actual function is attached via the INLINE_ASSERT_FN symbol at runtime.
+ */
+export type InlineAssertEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'inline-assert';
+  readonly weight?: number;
+  readonly required?: boolean | number;
+  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
+  readonly negate?: boolean;
+};
+
 export type EvaluatorConfig =
   | CodeEvaluatorConfig
   | LlmJudgeEvaluatorConfig
@@ -745,7 +760,8 @@ export type EvaluatorConfig =
   | RegexEvaluatorConfig
   | IsJsonEvaluatorConfig
   | EqualsEvaluatorConfig
-  | RubricsEvaluatorConfig;
+  | RubricsEvaluatorConfig
+  | InlineAssertEvaluatorConfig;
 
 /**
  * Eval test definition sourced from AgentV specs.
