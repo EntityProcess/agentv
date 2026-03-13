@@ -1353,25 +1353,17 @@ function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Evaluator types that consume evalCase.criteria during evaluation. */
-const CRITERIA_CONSUMER_TYPES = new Set(['llm-judge', 'agent-judge', 'code-judge']);
-
 /**
- * Warn when criteria is defined but no evaluator in assert will consume it.
- * Call after evaluators are resolved and criteria is available.
+ * Parser-time criteria warnings were removed because custom judges and escape
+ * hatches can consume criteria in ways that static config inspection cannot
+ * reliably detect.
  */
 export function warnUnconsumedCriteria(
-  criteria: string | undefined,
-  evaluators: readonly EvaluatorConfig[] | undefined,
-  testId: string,
+  _criteria: string | undefined,
+  _evaluators: readonly EvaluatorConfig[] | undefined,
+  _testId: string,
 ): void {
-  if (!criteria?.trim() || !evaluators || evaluators.length === 0) return;
-  const hasConsumer = evaluators.some((e) => CRITERIA_CONSUMER_TYPES.has(e.type));
-  if (!hasConsumer) {
-    logWarning(
-      `Test '${testId}': criteria is defined but no evaluator in assert will evaluate it. Add 'type: llm-judge' to assert, or remove criteria if it is documentation-only.`,
-    );
-  }
+  return;
 }
 
 function logWarning(message: string, details?: readonly string[]): void {
