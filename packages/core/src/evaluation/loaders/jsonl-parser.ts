@@ -316,7 +316,7 @@ export async function loadTestsFromJsonl(
       file_paths: allFilePaths,
       criteria: outcome ?? '',
       evaluator: evalCaseEvaluatorKind,
-      evaluators,
+      assertions: evaluators,
     };
 
     if (verbose) {

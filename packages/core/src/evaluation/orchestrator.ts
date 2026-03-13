@@ -1968,10 +1968,10 @@ async function runEvaluatorsForCase(options: {
     workspacePath,
   } = options;
 
-  if (evalCase.evaluators && evalCase.evaluators.length > 0) {
+  if (evalCase.assertions && evalCase.assertions.length > 0) {
     return runEvaluatorList({
       evalCase,
-      evaluators: evalCase.evaluators,
+      evaluators: evalCase.assertions,
       candidate,
       target,
       provider,

@@ -387,7 +387,7 @@ describe('runTestCase', () => {
     const result = await runEvalCase({
       evalCase: {
         ...baseTestCase,
-        evaluators: [{ name: 'semantic', type: 'llm-judge', promptPath }],
+        assertions: [{ name: 'semantic', type: 'llm-judge', promptPath }],
       },
       provider,
       target: baseTarget,
@@ -654,7 +654,7 @@ describe('runEvalCase trace integration', () => {
     const result = await runEvalCase({
       evalCase: {
         ...traceTestCase,
-        evaluators: [
+        assertions: [
           {
             name: 'token-budget',
             type: 'token-usage',
@@ -714,7 +714,7 @@ describe('runEvalCase trace integration', () => {
     const result = await runEvalCase({
       evalCase: {
         ...traceTestCase,
-        evaluators: [
+        assertions: [
           {
             name: 'tool-check',
             type: 'tool-trajectory',
@@ -754,7 +754,7 @@ describe('runEvalCase trace integration', () => {
     const result = await runEvalCase({
       evalCase: {
         ...traceTestCase,
-        evaluators: [
+        assertions: [
           {
             name: 'tool-check',
             type: 'tool-trajectory',
@@ -784,11 +784,11 @@ describe('runEvalCase trace integration', () => {
     const result = await runEvalCase({
       evalCase: {
         ...traceTestCase,
-        evaluators: [
+        assertions: [
           {
             name: 'metrics',
             type: 'composite',
-            evaluators: [
+            assertions: [
               { name: 'latency', type: 'latency', threshold: 1500 },
               { name: 'cost', type: 'cost', budget: 0.1 },
             ],
@@ -859,7 +859,7 @@ describe('runEvalCase trace integration', () => {
       const result = await runEvalCase({
         evalCase: {
           ...baseTestCase,
-          evaluators: [
+          assertions: [
             { name: 'eval1', type: 'llm-judge', weight: 2.0 },
             { name: 'eval2', type: 'llm-judge', weight: 1.0 },
           ],
@@ -891,7 +891,7 @@ describe('runEvalCase trace integration', () => {
       const result = await runEvalCase({
         evalCase: {
           ...baseTestCase,
-          evaluators: [
+          assertions: [
             { name: 'eval1', type: 'llm-judge', weight: 3.0 },
             { name: 'eval2', type: 'llm-judge' }, // no weight specified
           ],
@@ -922,7 +922,7 @@ describe('runEvalCase trace integration', () => {
       const result = await runEvalCase({
         evalCase: {
           ...baseTestCase,
-          evaluators: [
+          assertions: [
             { name: 'eval1', type: 'llm-judge', weight: 0 },
             { name: 'eval2', type: 'llm-judge', weight: 1.0 },
           ],
@@ -953,7 +953,7 @@ describe('runEvalCase trace integration', () => {
       const result = await runEvalCase({
         evalCase: {
           ...baseTestCase,
-          evaluators: [
+          assertions: [
             { name: 'eval1', type: 'llm-judge', weight: 0 },
             { name: 'eval2', type: 'llm-judge', weight: 0 },
           ],
@@ -1016,7 +1016,7 @@ Reference: \${input.reference_answer ?? 'none'}\`);
           ...baseTestCase,
           question: 'What is 2+2?',
           reference_answer: 'The sum is 4',
-          evaluators: [
+          assertions: [
             {
               name: 'ts-prompt-eval',
               type: 'llm-judge',
@@ -1077,7 +1077,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
         evalCase: {
           ...baseTestCase,
           question: 'Test question',
-          evaluators: [
+          assertions: [
             {
               name: 'js-prompt-eval',
               type: 'llm-judge',
@@ -1129,7 +1129,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
       const result = await runEvalCase({
         evalCase: {
           ...baseTestCase,
-          evaluators: [
+          assertions: [
             {
               name: 'txt-prompt-eval',
               type: 'llm-judge',
@@ -1687,7 +1687,7 @@ describe('deterministic assertion evaluators in orchestrator', () => {
       const result = await runEvalCase({
         evalCase: {
           ...assertionTestCase,
-          evaluators: [evaluator],
+          assertions: [evaluator],
         },
         provider,
         target: baseTarget,
@@ -1724,7 +1724,7 @@ describe('deterministic assertion evaluators in orchestrator', () => {
     const result = await runEvalCase({
       evalCase: {
         ...assertionTestCase,
-        evaluators: [{ name: 'weighted', type: 'contains', value: 'hello', weight: 2.0 }],
+        assertions: [{ name: 'weighted', type: 'contains', value: 'hello', weight: 2.0 }],
       },
       provider,
       target: baseTarget,
@@ -1747,7 +1747,7 @@ describe('deterministic assertion evaluators in orchestrator', () => {
     const result = await runEvalCase({
       evalCase: {
         ...assertionTestCase,
-        evaluators: [
+        assertions: [
           { name: 'has-hello', type: 'contains', value: 'hello' },
           { name: 'has-foo', type: 'contains', value: 'foo' },
         ],
@@ -1791,7 +1791,7 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
       evalCase: {
         ...criteriaTestCase,
         criteria: 'Response should be polite',
-        evaluators: [{ name: 'has-hello', type: 'contains' as const, value: 'hello' }],
+        assertions: [{ name: 'has-hello', type: 'contains' as const, value: 'hello' }],
       },
       provider,
       target: targetWithJudge,
@@ -1817,7 +1817,7 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
       evalCase: {
         ...criteriaTestCase,
         criteria: 'Response should be polite',
-        evaluators: [
+        assertions: [
           { name: 'has-hello', type: 'contains' as const, value: 'hello' },
           { name: 'has-world', type: 'contains' as const, value: 'world' },
         ],
@@ -1849,7 +1849,7 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
       evalCase: {
         ...criteriaTestCase,
         criteria: 'Response should be polite',
-        evaluators: [
+        assertions: [
           { name: 'quality-check', type: 'llm-judge' as const },
           { name: 'has-hello', type: 'contains' as const, value: 'hello' },
         ],
@@ -1884,7 +1884,7 @@ describe('required gates', () => {
     {
       label: 'boolean required gate triggers when required evaluator fails',
       output: 'The answer is goodbye',
-      evaluators: [
+      assertions: [
         {
           name: 'must-have',
           type: 'contains' as const,
@@ -1899,7 +1899,7 @@ describe('required gates', () => {
     {
       label: 'boolean required gate passes when required evaluator passes',
       output: 'hello world',
-      evaluators: [
+      assertions: [
         {
           name: 'must-have',
           type: 'contains' as const,
@@ -1914,7 +1914,7 @@ describe('required gates', () => {
     {
       label: 'numeric required threshold triggers gate when score is below threshold',
       output: 'The answer is goodbye',
-      evaluators: [
+      assertions: [
         {
           name: 'must-pass',
           type: 'contains' as const,
@@ -1929,7 +1929,7 @@ describe('required gates', () => {
     {
       label: 'numeric required threshold passes when score meets threshold',
       output: 'hello world',
-      evaluators: [
+      assertions: [
         {
           name: 'must-pass',
           type: 'contains' as const,
@@ -1943,7 +1943,7 @@ describe('required gates', () => {
     },
   ])(
     '$label',
-    async ({ output, evaluators: evalEvaluators, expectedScore, expectedIndividualScores }) => {
+    async ({ output, assertions: evalEvaluators, expectedScore, expectedIndividualScores }) => {
       const provider = new SequenceProvider('mock', {
         responses: [{ output: [{ role: 'assistant', content: output }] }],
       });
@@ -1951,7 +1951,7 @@ describe('required gates', () => {
       const result = await runEvalCase({
         evalCase: {
           ...assertionTestCase,
-          evaluators: evalEvaluators,
+          assertions: evalEvaluators,
         },
         provider,
         target: baseTarget,
@@ -1981,7 +1981,7 @@ describe('required gates', () => {
     const result = await runEvalCase({
       evalCase: {
         ...assertionTestCase,
-        evaluators: [
+        assertions: [
           { name: 'pass-eval', type: 'contains', value: 'hello' },
           { name: 'fail-eval', type: 'contains', value: 'foo' },
         ],
@@ -2024,7 +2024,7 @@ describe('required gates', () => {
     const result = await runEvalCase({
       evalCase: {
         ...assertionTestCase,
-        evaluators: [{ name: 'quality-check', type: 'llm-judge', required: true }],
+        assertions: [{ name: 'quality-check', type: 'llm-judge', required: true }],
       },
       provider,
       target: baseTarget,
@@ -2047,7 +2047,7 @@ describe('required gates', () => {
     const result = await runEvalCase({
       evalCase: {
         ...assertionTestCase,
-        evaluators: [{ name: 'must-contain', type: 'contains', value: 'hello', required: true }],
+        assertions: [{ name: 'must-contain', type: 'contains', value: 'hello', required: true }],
       },
       provider,
       target: baseTarget,
@@ -2721,7 +2721,7 @@ describe('--workspace flag', () => {
     const result = await runEvalCase({
       evalCase: {
         ...baseTestCase,
-        evaluators: [{ name: 'quality', type: 'llm-judge' }],
+        assertions: [{ name: 'quality', type: 'llm-judge' }],
       },
       provider,
       target: baseTarget,
@@ -2770,7 +2770,7 @@ describe('--workspace flag', () => {
     const result = await runEvalCase({
       evalCase: {
         ...baseTestCase,
-        evaluators: [{ name: 'broken', type: 'llm-judge' }],
+        assertions: [{ name: 'broken', type: 'llm-judge' }],
       },
       provider,
       target: baseTarget,

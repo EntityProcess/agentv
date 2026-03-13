@@ -466,7 +466,7 @@ async function loadTestsFromYaml(
       file_paths: allFilePaths,
       criteria: outcome ?? '',
       evaluator: evalCaseEvaluatorKind,
-      evaluators,
+      assertions: evaluators,
       workspace: mergedWorkspace,
       metadata,
       targets: caseTargets,

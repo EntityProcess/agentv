@@ -262,7 +262,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
         guideline_paths: [],
         guideline_patterns: [],
         file_paths: [],
-        evaluators: assertConfigs.length > 0 ? assertConfigs : undefined,
+        assertions: assertConfigs.length > 0 ? assertConfigs : undefined,
         metadata: test.metadata,
       };
     });

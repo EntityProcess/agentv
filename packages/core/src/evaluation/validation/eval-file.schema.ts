@@ -114,6 +114,7 @@ const AggregatorSchema = z.discriminatedUnion('type', [
 const CompositeSchema: z.ZodType = z.lazy(() =>
   EvaluatorCommonSchema.extend({
     type: z.literal('composite'),
+    assertions: z.array(EvaluatorSchema).optional(),
     assert: z.array(EvaluatorSchema).optional(),
     evaluators: z.array(EvaluatorSchema).optional(),
     aggregator: AggregatorSchema,
@@ -323,6 +324,7 @@ const FailOnErrorSchema = z.boolean();
 const ExecutionSchema = z.object({
   target: z.string().optional(),
   targets: z.array(z.string()).optional(),
+  assertions: z.array(EvaluatorSchema).optional(),
   assert: z.array(EvaluatorSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),
   skip_defaults: z.boolean().optional(),
@@ -344,6 +346,7 @@ const EvalTestSchema = z.object({
   expected_outcome: z.string().optional(),
   input: InputSchema.optional(),
   expected_output: ExpectedOutputSchema.optional(),
+  assertions: z.array(EvaluatorSchema).optional(),
   assert: z.array(EvaluatorSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),
   execution: ExecutionSchema.optional(),

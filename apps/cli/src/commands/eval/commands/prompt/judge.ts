@@ -53,7 +53,7 @@ export const evalPromptJudgeCommand = command({
     const candidate = (await readFile(args.answerFile, 'utf8')).trim();
     const promptInputs = await buildPromptInputs(evalCase);
 
-    const evaluators = evalCase.evaluators ?? [];
+    const evaluators = evalCase.assertions ?? [];
     const outputs: EvaluatorOutput[] = [];
 
     for (const config of evaluators) {
