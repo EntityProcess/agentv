@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { contains, exactMatch } from '../../src/evaluation/assertions.js';
 import { evaluate } from '../../src/evaluation/evaluate.js';
 
 describe('evaluate() — enhanced features', () => {
@@ -10,7 +9,7 @@ describe('evaluate() — enhanced features', () => {
           id: 'camel-case',
           input: 'hello',
           expectedOutput: 'world',
-          assert: [exactMatch],
+          assert: [{ type: 'equals', value: 'world' }],
         },
       ],
       target: { name: 'default', provider: 'mock', response: 'world' },
@@ -18,13 +17,13 @@ describe('evaluate() — enhanced features', () => {
     expect(summary.passed).toBe(1);
   });
 
-  it('supports assertion factory functions in assert array', async () => {
+  it('supports config object assertions in assert array', async () => {
     const { summary } = await evaluate({
       tests: [
         {
-          id: 'factory-test',
+          id: 'config-test',
           input: 'hello',
-          assert: [contains('hello')],
+          assert: [{ type: 'contains', value: 'hello' }],
         },
       ],
       target: { name: 'default', provider: 'mock', response: 'hello world' },
@@ -57,7 +56,7 @@ describe('evaluate() — enhanced features', () => {
         {
           id: 'task-fn',
           input: 'hello',
-          assert: [contains('Echo: hello')],
+          assert: [{ type: 'contains', value: 'Echo: hello' }],
         },
       ],
       task: async (input) => `Echo: ${input}`,
@@ -68,21 +67,21 @@ describe('evaluate() — enhanced features', () => {
   it('throws when both task and target are provided', async () => {
     await expect(
       evaluate({
-        tests: [{ id: 'bad', input: 'x', assert: [contains('x')] }],
+        tests: [{ id: 'bad', input: 'x', assert: [{ type: 'contains', value: 'x' }] }],
         target: { name: 'default', provider: 'mock' },
         task: async (input) => input,
       }),
     ).rejects.toThrow('Cannot specify both');
   });
 
-  it('mixes factory functions, config objects, and inline functions', async () => {
+  it('mixes config objects and inline functions', async () => {
     const { summary } = await evaluate({
       tests: [
         {
           id: 'mixed',
           input: 'hello world',
           assert: [
-            contains('hello'),
+            { type: 'contains', value: 'hello' },
             { type: 'contains', value: 'world' },
             ({ output }) => ({
               name: 'has-space',
@@ -96,13 +95,13 @@ describe('evaluate() — enhanced features', () => {
     expect(summary.passed).toBe(1);
   });
 
-  it('supports suite-level assert with AssertFn', async () => {
+  it('supports suite-level assert with inline function', async () => {
     const { summary } = await evaluate({
       tests: [
         { id: 'a', input: 'hello' },
         { id: 'b', input: 'world' },
       ],
-      assert: [contains('response')],
+      assert: [{ type: 'contains', value: 'response' }],
       target: { name: 'default', provider: 'mock', response: 'response text' },
     });
     expect(summary.total).toBe(2);
@@ -116,7 +115,7 @@ describe('evaluate() — enhanced features', () => {
           id: 'legacy',
           input: 'hello',
           expected_output: 'world',
-          assert: [exactMatch],
+          assert: [{ type: 'equals', value: 'world' }],
         },
       ],
       target: { name: 'default', provider: 'mock', response: 'world' },

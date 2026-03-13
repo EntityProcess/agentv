@@ -24,10 +24,9 @@
  * console.log(results.summary.passed, 'passed');
  * ```
  *
- * @example Inline tests with assertion factories and task function
+ * @example Inline tests with task function and custom assertion
  * ```typescript
  * import { evaluate } from '@agentv/core';
- * import { contains, exactMatch } from '@agentv/core/assertions';
  *
  * const { summary } = await evaluate({
  *   tests: [
@@ -36,8 +35,8 @@
  *       input: 'hello',
  *       expectedOutput: 'Echo: hello',
  *       assert: [
- *         contains('hello'),
- *         exactMatch,
+ *         { type: 'contains', value: 'hello' },
+ *         { type: 'equals' },
  *         ({ output }) => ({ name: 'custom', score: output.length > 0 ? 1 : 0 }),
  *       ],
  *     },

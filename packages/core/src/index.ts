@@ -15,15 +15,6 @@ export {
   type EvalSummary,
 } from './evaluation/evaluate.js';
 export {
-  contains,
-  containsAll,
-  containsAny,
-  endsWith,
-  exactMatch,
-  icontains,
-  isJson,
-  regex,
-  startsWith,
   type AssertContext,
   type AssertFn,
   type AssertResult,
