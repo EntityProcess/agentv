@@ -75,9 +75,10 @@ export async function loadEnvFromHierarchy(options: LoadEnvOptions): Promise<str
     return undefined;
   }
 
-  // Load from root to child (reverse order) so child values override parent values
-  // override: false means variables already in process.env won't be overwritten
-  for (let i = envFiles.length - 1; i >= 0; i--) {
+  // Load from the closest .env outward so the nearest file wins while parent
+  // files still contribute missing keys. override: false also preserves
+  // explicitly exported process.env values.
+  for (let i = 0; i < envFiles.length; i++) {
     const envFile = envFiles[i];
     loadDotenv({ path: envFile, override: false });
     if (verbose) {
