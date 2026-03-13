@@ -1,0 +1,20 @@
+{
+  "skill_name": "csv-analyzer",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a CSV of monthly sales data in data/sales.csv. Find the top 3 months by revenue and make a bar chart.",
+      "expected_output": "A bar chart image showing the top 3 months by revenue, with labeled axes and values.",
+      "assertions": [
+        "Output includes a bar chart image file",
+        "Chart shows exactly 3 months",
+        "Both axes are labeled"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Clean up customers.csv — some rows have missing emails",
+      "expected_output": "A cleaned CSV with missing emails handled, plus a count of how many were missing."
+    }
+  ]
+}
