@@ -30,6 +30,7 @@ import {
   runRegexAssertion,
   runStartsWithAssertion,
 } from '../evaluators.js';
+import { InlineAssertEvaluator } from '../evaluators/inline-assert.js';
 import { resolveCustomPrompt } from '../evaluators/prompt-resolution.js';
 import type { Provider } from '../providers/types.js';
 import type { ToolTrajectoryEvaluatorConfig } from '../trace.js';
@@ -62,6 +63,9 @@ import {
   type EvaluatorFactoryFn,
   EvaluatorRegistry,
 } from './evaluator-registry.js';
+
+/** Symbol for attaching inline AssertFn to EvaluatorConfig objects */
+export const INLINE_ASSERT_FN = Symbol.for('agentv.inline-assert-fn');
 
 /**
  * Factory for `llm-judge` evaluators.
@@ -421,7 +425,19 @@ export function createBuiltinRegistry(): EvaluatorRegistry {
     .register('ends-with', endsWithFactory)
     .register('regex', regexFactory)
     .register('is-json', isJsonFactory)
-    .register('equals', equalsFactory);
+    .register('equals', equalsFactory)
+    .register('inline-assert', (config) => {
+      // biome-ignore lint/suspicious/noExplicitAny: symbol key access requires any
+      const fn = (config as any)[INLINE_ASSERT_FN] as
+        | import('../assertions.js').AssertFn
+        | undefined;
+      if (!fn) {
+        throw new Error(
+          `No inline assert function found on config for "${config.name}". Inline assert functions must be attached via INLINE_ASSERT_FN symbol.`,
+        );
+      }
+      return new InlineAssertEvaluator(fn, config.name ?? 'inline-assert');
+    });
 
   return registry;
 }
