@@ -61,7 +61,7 @@ export function containsAny(values: readonly string[]): AssertFn {
 
 /** Checks if trimmed output exactly equals trimmed expectedOutput. */
 export const exactMatch: AssertFn = ({ output, expectedOutput }) => ({
-  name: 'exact-match',
+  name: 'equals',
   score: expectedOutput !== undefined && output.trim() === expectedOutput.trim() ? 1.0 : 0.0,
 });
 

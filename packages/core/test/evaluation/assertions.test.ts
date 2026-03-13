@@ -38,6 +38,10 @@ describe('icontains', () => {
     const result = fn(ctx('hello world'));
     expect(result.score).toBe(1.0);
   });
+
+  it('scores 0.0 when value not present', () => {
+    expect(icontains('goodbye')(ctx('hello world')).score).toBe(0.0);
+  });
 });
 
 describe('containsAll', () => {
@@ -92,6 +96,10 @@ describe('startsWith', () => {
 describe('endsWith', () => {
   it('scores 1.0 when output ends with value', () => {
     expect(endsWith('world')(ctx('hello world')).score).toBe(1.0);
+  });
+
+  it('scores 0.0 when output does not end with value', () => {
+    expect(endsWith('hello')(ctx('hello world')).score).toBe(0.0);
   });
 });
 
