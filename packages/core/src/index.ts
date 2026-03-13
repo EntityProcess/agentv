@@ -14,10 +14,10 @@ export {
   type EvalRunResult,
   type EvalSummary,
 } from './evaluation/evaluate.js';
-export {
-  type AssertContext,
-  type AssertFn,
-  type AssertResult,
+export type {
+  AssertContext,
+  AssertFn,
+  AssertResult,
 } from './evaluation/assertions.js';
 export {
   defineConfig,
