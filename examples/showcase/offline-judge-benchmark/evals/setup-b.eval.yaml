@@ -1,0 +1,34 @@
+description: Offline judge benchmark — setup B (alternate prompt on the same labeled export)
+execution:
+  target: fixture_replay
+
+tests:
+  - file://../fixtures/labeled-judge-export.jsonl
+
+assert:
+  - name: judge-panel
+    type: composite
+    aggregator:
+      type: threshold
+      threshold: 0.6
+    assert:
+      - name: judge-gpt-5-mini
+        type: llm-judge
+        target: judge_gpt_5_mini
+        prompt: ../prompts/judge-pass-fail-v2.md
+      - name: judge-gpt-5-nano
+        type: llm-judge
+        target: judge_gpt_5_nano
+        prompt: ../prompts/judge-pass-fail-v2.md
+      - name: judge-claude-haiku
+        type: llm-judge
+        target: judge_claude_haiku
+        prompt: ../prompts/judge-pass-fail-v2.md
+      - name: judge-gemini-flash
+        type: llm-judge
+        target: judge_gemini_flash
+        prompt: ../prompts/judge-pass-fail-v2.md
+      - name: judge-gemini-flash-lite
+        type: llm-judge
+        target: judge_gemini_flash_lite
+        prompt: ../prompts/judge-pass-fail-v2.md

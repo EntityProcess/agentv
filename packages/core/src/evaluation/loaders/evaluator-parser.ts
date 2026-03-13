@@ -1042,6 +1042,18 @@ async function parseEvaluatorList(
       continue;
     }
 
+    const judgeTarget = rawEvaluator.target;
+    let judgeTargetName: string | undefined;
+    if (judgeTarget !== undefined) {
+      if (typeof judgeTarget === 'string' && judgeTarget.trim().length > 0) {
+        judgeTargetName = judgeTarget;
+      } else {
+        logWarning(
+          `Skipping target override for llm-judge evaluator '${name}' in '${evalId}': target must be a non-empty string`,
+        );
+      }
+    }
+
     if (typeValue === 'rubrics') {
       const rawCriteria = rawEvaluator.criteria;
       if (!Array.isArray(rawCriteria) || rawCriteria.length === 0) {
@@ -1072,6 +1084,7 @@ async function parseEvaluatorList(
         name,
         type: 'llm-judge',
         rubrics: parsedCriteria,
+        ...(judgeTargetName ? { target: judgeTargetName } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(negate !== undefined ? { negate } : {}),
@@ -1169,6 +1182,7 @@ async function parseEvaluatorList(
         name,
         type: 'llm-judge',
         rubrics: parsedRubrics,
+        ...(judgeTargetName ? { target: judgeTargetName } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(negate !== undefined ? { negate } : {}),
@@ -1187,6 +1201,7 @@ async function parseEvaluatorList(
       'prompt',
       'model',
       'rubrics',
+      'target',
       'weight',
       'config',
       'required',
@@ -1217,6 +1232,7 @@ async function parseEvaluatorList(
       ...(promptPath ? { resolvedPromptPath: promptPath } : {}),
       ...(resolvedPromptScript ? { resolvedPromptScript } : {}),
       ...(parsedRubrics && parsedRubrics.length > 0 ? { rubrics: parsedRubrics } : {}),
+      ...(judgeTargetName ? { target: judgeTargetName } : {}),
       ...(weight !== undefined ? { weight } : {}),
       ...(required !== undefined ? { required } : {}),
       ...(negate !== undefined ? { negate } : {}),

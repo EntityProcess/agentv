@@ -331,6 +331,8 @@ export type LlmJudgeEvaluatorConfig = {
   readonly required?: boolean | number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
+  /** Optional target override for this judge (uses a named LLM target from targets.yaml). */
+  readonly target?: string;
   /** Pass-through configuration for custom evaluator prompts (legacy, prefer prompt.config) */
   readonly config?: Record<string, unknown>;
 };

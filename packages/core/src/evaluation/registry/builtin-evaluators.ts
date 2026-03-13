@@ -16,6 +16,7 @@ import {
   ExecutionMetricsEvaluator,
   FieldAccuracyEvaluator,
   LatencyEvaluator,
+  LlmJudgeEvaluator,
   TokenUsageEvaluator,
   ToolTrajectoryEvaluator,
   runContainsAllAssertion,
@@ -65,12 +66,30 @@ import {
 
 /**
  * Factory for `llm-judge` evaluators.
- * Creates a wrapper that resolves custom prompts at evaluation time,
- * then delegates to the shared LLM judge instance.
+ * Creates a wrapper that resolves custom prompts at evaluation time and
+ * optionally overrides the judge target per evaluator.
  */
 export const llmJudgeFactory: EvaluatorFactoryFn = (config, context) => {
   const c = config as LlmJudgeEvaluatorConfig;
-  const { llmJudge, agentTimeoutMs } = context;
+  const { llmJudge, judgeProvider, targetResolver, agentTimeoutMs } = context;
+
+  let evaluator = llmJudge;
+  if (c.target) {
+    let judgeTargetProvider: Provider | undefined;
+    if (targetResolver) {
+      judgeTargetProvider = targetResolver(c.target);
+    }
+    if (!judgeTargetProvider) {
+      throw new Error(`llm-judge evaluator '${c.name}': target '${c.target}' not found in targets`);
+    }
+    evaluator = new LlmJudgeEvaluator({
+      resolveJudgeProvider: async (evalContext) => {
+        if (judgeTargetProvider) return judgeTargetProvider;
+        if (evalContext.judgeProvider) return evalContext.judgeProvider;
+        return judgeProvider;
+      },
+    });
+  }
 
   return {
     kind: 'llm-judge',
@@ -88,7 +107,7 @@ export const llmJudgeFactory: EvaluatorFactoryFn = (config, context) => {
         },
         agentTimeoutMs,
       );
-      return llmJudge.evaluate({
+      return evaluator.evaluate({
         ...evalContext,
         evaluatorTemplateOverride: customPrompt,
         evaluator: c,

@@ -568,6 +568,7 @@ describe('parseEvaluators - kebab-case type normalization', () => {
           name: 'kebab-llm',
           type: 'llm-judge',
           prompt: 'test prompt',
+          target: 'judge-low-cost-a',
         },
       ],
     };
@@ -576,6 +577,7 @@ describe('parseEvaluators - kebab-case type normalization', () => {
 
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0].type).toBe('llm-judge');
+    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).target).toBe('judge-low-cost-a');
   });
 
   it('accepts code-judge kebab-case as canonical form', async () => {

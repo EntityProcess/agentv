@@ -30,7 +30,10 @@ assert:
   - name: semantic_check
     type: llm-judge
     prompt: ./judges/correctness.md
+    target: judge_gpt_5_mini   # optional: route this judge to a named LLM target
 ```
+
+Use `target:` when you want different `llm-judge` evaluators in the same eval to run on different judge models. This is useful for judge panels, majority-vote ensembles, and judge A/B benchmarks.
 
 ## Prompt Files
 
@@ -69,6 +72,24 @@ Score the response from 0.0 to 1.0 based on:
 | `metadata` | Test metadata |
 | `rubrics` | Test `rubrics` (if defined) |
 | `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
+
+## Per-Evaluator Judge Target
+
+By default, an `llm-judge` uses the suite target's `judge_target`. Override it per evaluator when you need multiple judge models in one run:
+
+```yaml
+assert:
+  - name: judge-gpt
+    type: llm-judge
+    target: judge_gpt_5_mini
+    prompt: ./prompts/pass-fail.md
+  - name: judge-haiku
+    type: llm-judge
+    target: judge_claude_haiku
+    prompt: ./prompts/pass-fail.md
+```
+
+Each `target:` value must match a named LLM target in `.agentv/targets.yaml`.
 
 ### TypeScript Template
 

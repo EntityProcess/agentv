@@ -1,0 +1,39 @@
+targets:
+  - name: fixture_replay
+    provider: cli
+    command: bun run ./scripts/replay-fixture-output.ts --prompt {PROMPT} --output {OUTPUT_FILE}
+    cwd: ..
+    judge_target: judge_gpt_5_mini
+    healthcheck:
+      command: bun run ./scripts/replay-fixture-output.ts --healthcheck
+      cwd: ..
+
+  # Illustrative low-cost judge targets. Swap these to the five low-cost models you already use.
+  - name: judge_gpt_5_mini
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    version: ${{ AZURE_OPENAI_API_VERSION }}
+    model: ${{ AZURE_GPT_5_MINI_DEPLOYMENT }}
+
+  - name: judge_gpt_5_nano
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    version: ${{ AZURE_OPENAI_API_VERSION }}
+    model: ${{ AZURE_GPT_5_NANO_DEPLOYMENT }}
+
+  - name: judge_claude_haiku
+    provider: anthropic
+    api_key: ${{ ANTHROPIC_API_KEY }}
+    model: ${{ ANTHROPIC_HAIKU_MODEL }}
+
+  - name: judge_gemini_flash
+    provider: gemini
+    api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
+    model: ${{ GEMINI_FLASH_MODEL }}
+
+  - name: judge_gemini_flash_lite
+    provider: gemini
+    api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
+    model: ${{ GEMINI_FLASH_LITE_MODEL }}
