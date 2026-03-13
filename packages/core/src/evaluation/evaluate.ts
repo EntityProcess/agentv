@@ -5,7 +5,7 @@
  * instead of a CLI. The config shape mirrors the YAML structure for easy
  * translation between file-based and programmatic usage.
  *
- * @example Inline tests
+ * @example Inline tests with config objects
  * ```typescript
  * import { evaluate } from '@agentv/core';
  *
@@ -14,7 +14,7 @@
  *     {
  *       id: 'capital',
  *       input: 'What is the capital of France?',
- *       expected_output: 'Paris',
+ *       expectedOutput: 'Paris',
  *       assert: [{ type: 'contains', value: 'Paris' }],
  *     },
  *   ],
@@ -22,6 +22,27 @@
  * });
  *
  * console.log(results.summary.passed, 'passed');
+ * ```
+ *
+ * @example Inline tests with task function and custom assertion
+ * ```typescript
+ * import { evaluate } from '@agentv/core';
+ *
+ * const { summary } = await evaluate({
+ *   tests: [
+ *     {
+ *       id: 'echo',
+ *       input: 'hello',
+ *       expectedOutput: 'Echo: hello',
+ *       assert: [
+ *         { type: 'contains', value: 'hello' },
+ *         { type: 'equals' },
+ *         ({ output }) => ({ name: 'custom', score: output.length > 0 ? 1 : 0 }),
+ *       ],
+ *     },
+ *   ],
+ *   task: async (input) => `Echo: ${input}`,
+ * });
  * ```
  *
  * @example File-based
@@ -39,11 +60,19 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { buildDirectoryChain, findGitRoot } from './file-utils.js';
 
+import type { AssertFn } from './assertions.js';
 import { runEvaluation } from './orchestrator.js';
+import { createFunctionProvider } from './providers/function-provider.js';
 import { readTargetDefinitions } from './providers/targets-file.js';
-import { resolveTargetDefinition } from './providers/targets.js';
+import { type ResolvedTarget, resolveTargetDefinition } from './providers/targets.js';
 import type { TargetDefinition } from './providers/types.js';
-import type { EvalTest, EvaluationResult, EvaluatorConfig } from './types.js';
+import { INLINE_ASSERT_FN } from './registry/builtin-evaluators.js';
+import type {
+  EvalTest,
+  EvaluationResult,
+  EvaluatorConfig,
+  InlineAssertEvaluatorConfig,
+} from './types.js';
 import { loadTests } from './yaml-parser.js';
 
 /**
@@ -57,10 +86,12 @@ export interface EvalTestInput {
   readonly criteria?: string;
   /** Input to the agent (string or message array) */
   readonly input: string | readonly { role: string; content: string }[];
-  /** Expected reference output */
+  /** Expected reference output (camelCase preferred) */
+  readonly expectedOutput?: string;
+  /** @deprecated Use `expectedOutput` instead */
   readonly expected_output?: string;
-  /** Assertion evaluators */
-  readonly assert?: readonly EvalAssertionInput[];
+  /** Assertion evaluators — accepts factory functions, config objects, or inline functions */
+  readonly assert?: readonly AssertEntry[];
   /** Arbitrary metadata */
   readonly metadata?: Record<string, unknown>;
 }
@@ -94,6 +125,9 @@ export interface EvalAssertionInput {
   readonly [key: string]: unknown;
 }
 
+/** Assert entry: inline function or config object */
+export type AssertEntry = AssertFn | EvalAssertionInput;
+
 /**
  * Configuration for `evaluate()`.
  * Accepts either inline tests or a spec file path.
@@ -105,8 +139,10 @@ export interface EvalConfig {
   readonly specFile?: string;
   /** Target provider configuration */
   readonly target?: TargetDefinition;
+  /** Custom task function — mutually exclusive with target */
+  readonly task?: (input: string) => string | Promise<string>;
   /** Suite-level assertions applied to all tests */
-  readonly assert?: readonly EvalAssertionInput[];
+  readonly assert?: readonly AssertEntry[];
   /** Filter tests by ID pattern (glob supported) */
   readonly filter?: string;
   /** Maximum concurrent workers (default: 3) */
@@ -194,6 +230,10 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
     throw new Error('Must specify either "tests" (inline) or "specFile" (YAML path).');
   }
 
+  if (config.task && config.target) {
+    throw new Error('Cannot specify both "task" and "target" — use one or the other.');
+  }
+
   // Resolve repo root
   const gitRoot = await findGitRoot(process.cwd());
   const repoRoot = gitRoot ?? process.cwd();
@@ -201,14 +241,26 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
   // Load .env files from hierarchy (closest to cwd first)
   await loadEnvHierarchy(repoRoot);
 
-  // Resolve target — inline definition or auto-discover from targets.yaml
-  let targetDef: TargetDefinition;
-  if (config.target) {
-    targetDef = config.target;
+  let resolvedTarget: ResolvedTarget;
+  let taskProvider: ReturnType<typeof createFunctionProvider> | undefined;
+  if (config.task) {
+    // Wrap task function as a Provider
+    taskProvider = createFunctionProvider(config.task);
+    resolvedTarget = {
+      kind: 'mock',
+      name: 'custom-task',
+      config: {},
+    };
   } else {
-    targetDef = (await discoverDefaultTarget(repoRoot)) ?? { name: 'default', provider: 'mock' };
+    // Resolve target — inline definition or auto-discover from targets.yaml
+    let targetDef: TargetDefinition;
+    if (config.target) {
+      targetDef = config.target;
+    } else {
+      targetDef = (await discoverDefaultTarget(repoRoot)) ?? { name: 'default', provider: 'mock' };
+    }
+    resolvedTarget = resolveTargetDefinition(targetDef);
   }
-  const resolvedTarget = resolveTargetDefinition(targetDef);
 
   let evalCases: readonly EvalTest[] | EvalTest[];
   let testFilePath: string;
@@ -234,15 +286,34 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
           ? test.input
           : (test.input.find((m) => m.role === 'user')?.content ?? '');
 
-      const expectedOutput = test.expected_output
+      // Build input_segments so buildPromptInputs can construct the question
+      const inputSegments = input.map((m) => ({
+        type: 'text' as const,
+        value: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+        messageIndex: 0,
+      }));
+
+      const expectedOutputValue = test.expectedOutput ?? test.expected_output;
+      const expectedOutput = expectedOutputValue
         ? ([
-            { role: 'assistant' as const, content: test.expected_output },
+            { role: 'assistant' as const, content: expectedOutputValue },
           ] as EvalTest['expected_output'])
         : [];
 
       // Convert inline assertions to evaluator config format
       const allAssertions = [...(test.assert ?? []), ...(config.assert ?? [])];
-      const assertConfigs = allAssertions.map((a, i) => {
+      const assertConfigs = allAssertions.map((entry, i) => {
+        if (typeof entry === 'function') {
+          // Wrap AssertFn as InlineAssertEvaluatorConfig with function attached via Symbol
+          const base: InlineAssertEvaluatorConfig = {
+            type: 'inline-assert',
+            name: `inline-assert-${i}`,
+          };
+          return Object.assign(base, {
+            [INLINE_ASSERT_FN]: entry as AssertFn,
+          }) as unknown as EvaluatorConfig;
+        }
+        const a = entry as EvalAssertionInput;
         const { type: rawType, ...rest } = a;
         return {
           ...rest,
@@ -256,9 +327,9 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
         criteria: test.criteria ?? '',
         question: String(question),
         input,
-        input_segments: [],
+        input_segments: inputSegments,
         expected_output: expectedOutput,
-        reference_answer: test.expected_output,
+        reference_answer: expectedOutputValue,
         guideline_paths: [],
         guideline_patterns: [],
         file_paths: [],
@@ -274,6 +345,7 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
     testFilePath,
     repoRoot,
     target: resolvedTarget,
+    ...(taskProvider ? { providerFactory: () => taskProvider } : {}),
     maxRetries: config.maxRetries ?? 2,
     agentTimeoutMs: config.agentTimeoutMs,
     verbose: config.verbose,

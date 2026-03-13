@@ -836,7 +836,31 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       readonly failOnError?: FailOnError;
     }
   >();
+  // Separate TypeScript/JS eval files from YAML files.
+  // TS files are self-contained scripts that call evaluate() directly.
+  const tsFiles: string[] = [];
+  const yamlFiles: string[] = [];
   for (const testFilePath of resolvedTestFiles) {
+    if (/\.(ts|js|mts|mjs)$/.test(testFilePath)) {
+      tsFiles.push(testFilePath);
+    } else {
+      yamlFiles.push(testFilePath);
+    }
+  }
+
+  // Run TypeScript eval files by importing them.
+  // evaluate() runs during import via top-level await and handles its own output.
+  for (const tsFile of tsFiles) {
+    await ensureFileExists(tsFile, 'TypeScript eval file');
+    await import(pathToFileURL(tsFile).href);
+  }
+
+  // If only TS files were provided, we're done — evaluate() handled everything.
+  if (yamlFiles.length === 0 && tsFiles.length > 0) {
+    return;
+  }
+
+  for (const testFilePath of yamlFiles) {
     const meta = await prepareFileMetadata({
       testFilePath,
       repoRoot,

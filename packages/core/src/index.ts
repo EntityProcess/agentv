@@ -11,12 +11,18 @@ export * from './evaluation/evaluators.js';
 export * from './evaluation/orchestrator.js';
 export {
   evaluate,
+  type AssertEntry,
   type EvalConfig,
   type EvalTestInput,
   type EvalAssertionInput,
   type EvalRunResult,
   type EvalSummary,
 } from './evaluation/evaluate.js';
+export type {
+  AssertContext,
+  AssertFn,
+  AssertResult,
+} from './evaluation/assertions.js';
 export {
   defineConfig,
   loadTsConfig,
