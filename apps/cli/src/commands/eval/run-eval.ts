@@ -800,10 +800,75 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     console.log(`Trace file: ${path.resolve(options.traceFile)}`);
   }
 
+  const allResults: EvaluationResult[] = [];
+
+  // ── TypeScript eval file support ──────────────────────────────────
+  // Detect .ts/.js files and handle them via the Eval() API instead of the YAML pipeline
+  const tsEvalFiles = resolvedTestFiles.filter(
+    (f) => f.endsWith('.ts') || f.endsWith('.js') || f.endsWith('.mts') || f.endsWith('.mjs'),
+  );
+  const yamlEvalFiles = resolvedTestFiles.filter(
+    (f) => !tsEvalFiles.includes(f),
+  );
+
+  if (tsEvalFiles.length > 0) {
+    const { getRegisteredEvals, clearEvalRegistry } = await import('@agentv/core');
+
+    for (const tsFile of tsEvalFiles) {
+      await ensureFileExists(tsFile, 'TypeScript eval file');
+      clearEvalRegistry();
+
+      // Import the TS file — Eval() calls register during import
+      await import(pathToFileURL(tsFile).href);
+
+      const registered = getRegisteredEvals();
+      if (registered.size === 0) {
+        throw new Error(`No Eval() calls found in ${tsFile}`);
+      }
+
+      // Wait for all registered eval promises and collect results
+      for (const [evalName, entry] of registered) {
+        try {
+          const evalResult = await entry.promise;
+          // Print summary per eval
+          const passCount = evalResult.summary.passed;
+          const totalCount = evalResult.summary.total;
+          const meanScore = evalResult.summary.meanScore.toFixed(2);
+          console.log(
+            `  ${evalName}: ${passCount}/${totalCount} passed (mean score: ${meanScore})`,
+          );
+
+          // Collect results for overall summary
+          allResults.push(...evalResult.results);
+        } catch (err) {
+          console.error(
+            `  ${evalName}: ERROR — ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+
+      clearEvalRegistry();
+    }
+
+    // If there are no YAML files, write results and return
+    if (yamlEvalFiles.length === 0) {
+      for (const result of allResults) {
+        await outputWriter.append(result);
+      }
+      await outputWriter.close().catch(() => undefined);
+      const summary = calculateEvaluationSummary(allResults);
+      console.log(formatEvaluationSummary(summary));
+      if (allResults.length > 0) {
+        console.log(`\nResults written to: ${outputPath}`);
+      }
+      return;
+    }
+  }
+
+  // ── YAML eval file pipeline (existing) ─────────────────────────────
   // Determine cache state after loading file metadata (need YAML config)
   // We defer cache creation until after file metadata is loaded
   const evaluationRunner = await resolveEvaluationRunner();
-  const allResults: EvaluationResult[] = [];
   const seenEvalCases = new Set<string>();
   const displayIdTracker = createDisplayIdTracker();
 
@@ -811,7 +876,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   const totalWorkers = options.workers ?? DEFAULT_WORKERS;
   const fileConcurrency = Math.min(
     Math.max(1, totalWorkers),
-    Math.max(1, resolvedTestFiles.length),
+    Math.max(1, yamlEvalFiles.length),
   );
   const perFileWorkers = options.workers
     ? Math.max(1, Math.floor(totalWorkers / fileConcurrency))
@@ -833,7 +898,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       readonly failOnError?: FailOnError;
     }
   >();
-  for (const testFilePath of resolvedTestFiles) {
+  for (const testFilePath of yamlEvalFiles) {
     const meta = await prepareFileMetadata({
       testFilePath,
       repoRoot,
@@ -936,7 +1001,7 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   }
 
   try {
-    await runWithLimit(resolvedTestFiles, fileConcurrency, async (testFilePath) => {
+    await runWithLimit(yamlEvalFiles, fileConcurrency, async (testFilePath) => {
       const targetPrep = fileMetadata.get(testFilePath);
       if (!targetPrep) {
         throw new Error(`Missing metadata for ${testFilePath}`);
