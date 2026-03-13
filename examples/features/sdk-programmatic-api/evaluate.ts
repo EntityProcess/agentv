@@ -14,7 +14,7 @@ const { results, summary } = await evaluate({
     {
       id: 'greeting',
       input: 'Say hello and introduce yourself briefly.',
-      expected_output: "Hello! I'm an AI assistant here to help you.",
+      expectedOutput: "Hello! I'm an AI assistant here to help you.",
       assert: [{ type: 'contains', value: 'Hello' }],
     },
     {
@@ -23,7 +23,7 @@ const { results, summary } = await evaluate({
         { role: 'system', content: 'Respond only with valid JSON. No markdown.' },
         { role: 'user', content: 'Return a JSON object with a "status" field set to "ok".' },
       ],
-      expected_output: '{"status": "ok"}',
+      expectedOutput: '{"status": "ok"}',
       assert: [
         { type: 'is-json', required: true },
         { type: 'contains', value: 'ok' },
