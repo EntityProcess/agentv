@@ -152,6 +152,11 @@ export const evalRunCommand = command({
       long: 'strict',
       description: 'Exit with error on version mismatch (instead of warning)',
     }),
+    benchmarkJson: option({
+      type: optional(string),
+      long: 'benchmark-json',
+      description: 'Write Agent Skills benchmark.json to the specified path',
+    }),
   },
   handler: async (args) => {
     // Launch interactive wizard when no eval paths and stdin is a TTY
@@ -190,6 +195,7 @@ export const evalRunCommand = command({
       otelGroupTurns: args.otelGroupTurns,
       retryErrors: args.retryErrors,
       strict: args.strict,
+      benchmarkJson: args.benchmarkJson,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },

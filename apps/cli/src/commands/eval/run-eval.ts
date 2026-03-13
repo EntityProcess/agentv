@@ -26,6 +26,7 @@ import {
 } from '@agentv/core';
 
 import { enforceRequiredVersion } from '../../version-check.js';
+import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
 import {
   type OutputFormat,
@@ -78,6 +79,7 @@ interface NormalizedOptions {
   readonly retryErrors?: string;
   readonly workspaceMode?: 'pooled' | 'temp' | 'static';
   readonly workspacePath?: string;
+  readonly benchmarkJson?: string;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -243,6 +245,7 @@ function normalizeOptions(
     retryErrors: normalizeString(rawOptions.retryErrors),
     workspaceMode,
     workspacePath,
+    benchmarkJson: normalizeString(rawOptions.benchmarkJson),
   } satisfies NormalizedOptions;
 }
 
@@ -1010,6 +1013,13 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
     // Print matrix summary when multiple targets were evaluated
     if (isMatrixMode && allResults.length > 0) {
       console.log(formatMatrixSummary(allResults));
+    }
+
+    // Write Agent Skills benchmark.json if requested
+    if (options.benchmarkJson && allResults.length > 0) {
+      const benchmarkPath = path.resolve(options.benchmarkJson);
+      await writeBenchmarkJson(benchmarkPath, allResults);
+      console.log(`Benchmark written to: ${benchmarkPath}`);
     }
 
     // Print workspace paths for failed cases (when preserved for debugging)
