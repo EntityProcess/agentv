@@ -27,12 +27,13 @@ Create `evals.json`:
   "evals": [
     {
       "id": 1,
-      "prompt": "Analyze sales.csv and find the top 3 months by revenue.",
-      "expected_output": "A summary of the top 3 months with revenue figures.",
+      "prompt": "I have a CSV of monthly sales data in evals/files/sales.csv. Find the top 3 months by revenue.",
+      "expected_output": "The top 3 months by revenue are November ($22,500), September ($20,100), and December ($19,400).",
+      "files": ["evals/files/sales.csv"],
       "assertions": [
-        "Output identifies exactly 3 months",
-        "Revenue figures are included for each month",
-        "Months are ordered by revenue descending"
+        "Output identifies November as the highest revenue month",
+        "Output includes exactly 3 months",
+        "Revenue figures are included for each month"
       ]
     }
   ]
@@ -56,9 +57,104 @@ When AgentV loads `evals.json`, it promotes fields to its internal representatio
 | `prompt` | `input` | Wrapped as `[{role: "user", content: prompt}]` |
 | `expected_output` | `expected_output` + `criteria` | Used as reference answer and evaluation criteria |
 | `assertions[]` | `assert[]` | Each string becomes `{type: llm-judge, prompt: text}` |
-| `files[]` | `metadata.agent_skills_files` | File paths relative to evals.json location |
+| `files[]` | `file_paths` | Resolved relative to evals.json, copied into workspace |
 | `skill_name` | `metadata.skill_name` | Carried as metadata |
 | `id` (number) | `id` (string) | Converted via `String(id)` |
+
+## Files support
+
+The `files[]` field lists files that the agent needs during evaluation. Paths are relative to the evals.json location:
+
+```json
+{
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Analyze the sales data",
+      "files": ["evals/files/sales.csv", "evals/files/config.json"]
+    }
+  ]
+}
+```
+
+AgentV resolves these paths and copies the files into the workspace before the agent runs. If a file is missing, the test case fails with a `file_copy_error`.
+
+## Agent mode (no API keys)
+
+AgentV's prompt subcommands work with evals.json, enabling agent-mode evaluation without API keys:
+
+```bash
+# Show orchestration overview
+agentv prompt eval evals.json
+
+# Get input for a specific test
+agentv prompt eval input evals.json --test-id 1
+
+# Get judge prompts for a test
+agentv prompt eval judge evals.json --test-id 1 --answer-file answer.txt
+```
+
+The eval-candidate and eval-judge agents can be dispatched against evals.json just like EVAL.yaml files.
+
+## Benchmark output
+
+Generate an Agent Skills compatible `benchmark.json` alongside the standard result JSONL:
+
+```bash
+agentv eval evals.json --target claude --benchmark-json benchmark.json
+```
+
+The benchmark uses AgentV's pass threshold (score >= 0.8) to map continuous scores to the binary pass/fail that Agent Skills `pass_rate` expects:
+
+```json
+{
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 0.83, "stddev": 0.06},
+      "time_seconds": {"mean": 45.0, "stddev": 12.0},
+      "tokens": {"mean": 3800, "stddev": 400}
+    }
+  }
+}
+```
+
+## Converting to EVAL.yaml
+
+When you're ready to graduate, convert your evals.json to EVAL.yaml:
+
+```bash
+# Output to stdout
+agentv convert evals.json
+
+# Write to file
+agentv convert evals.json -o eval.yaml
+```
+
+The generated YAML includes comments about available AgentV features you can use:
+
+```yaml
+# Converted from Agent Skills evals.json
+# AgentV features you can add:
+#   - type: is_json, contains, regex for deterministic evaluators
+#   - type: code-judge for custom scoring scripts
+#   - Multi-turn conversations via input message arrays
+#   - Composite evaluators with weighted scoring
+#   - Workspace isolation with repos and hooks
+
+tests:
+  - id: "1"
+    criteria: |-
+      The top 3 months by revenue are November, September, and December.
+    input:
+      - role: user
+        content: "Find the top 3 months by revenue."
+    # Promoted from evals.json assertions[]
+    # Replace with type: is_json, contains, or regex for deterministic checks
+    assert:
+      - name: assertion-1
+        type: llm-judge
+        prompt: "Output identifies November as the highest revenue month"
+```
 
 ## When to stay with evals.json
 
