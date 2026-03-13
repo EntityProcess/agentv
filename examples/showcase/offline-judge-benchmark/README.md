@@ -4,7 +4,7 @@ A public, offline workflow for benchmarking **judge quality itself** against a h
 
 It uses existing AgentV primitives:
 - a `cli` replay target to return the frozen agent output from each sample,
-- five `llm-judge` evaluators (each can use a different low-cost target),
+- three `llm-judge` evaluators (each can use a different low-cost target),
 - a `composite` threshold aggregator for majority vote,
 - `agentv compare` for A/B judge-setup comparison,
 - and a small post-processing script that scores the judge panel against human ground truth.
@@ -13,7 +13,7 @@ It uses existing AgentV primitives:
 
 ```text
 offline-judge-benchmark/
-├── .agentv/targets.yaml                  # Replay target + five illustrative low-cost judge targets
+├── .agentv/targets.yaml                  # Replay target + three illustrative low-cost judge targets
 ├── README.md
 ├── evals/
 │   ├── setup-a.eval.yaml                 # Judge setup A
@@ -52,9 +52,14 @@ Each JSONL row should contain:
 - `expected_output.label` is the **human ground truth** used only in post-processing.
 - Keep real production content out of git; export privately and run the same workflow on that file locally.
 
-## Configure five low-cost judge models
+## Configure the bundled judge targets
 
-Edit `.agentv/targets.yaml` to point the five `judge_*` targets at the low-cost models you already have available. The bundled names are illustrative only.
+The example ships with three illustrative low-cost judges:
+- `judge_gpt_5_mini` via Azure using `${AZURE_DEPLOYMENT_NAME}`
+- `judge_claude_haiku` via OpenRouter model `anthropic/claude-haiku-4.5`
+- `judge_gemini_flash` via OpenRouter model `google/gemini-3-flash-preview`
+
+Edit `.agentv/targets.yaml` if your local environment uses different deployment names or model IDs.
 
 ## No-API-key smoke test
 
@@ -81,7 +86,7 @@ bun apps/cli/src/cli.ts compare /tmp/judge-setup-a.scored.jsonl /tmp/judge-setup
 From the repository root:
 
 ```bash
-# Setup A: run the five-model judge panel over the labeled export
+# Setup A: run the three-model judge panel over the labeled export
 bun apps/cli/src/cli.ts eval \
   examples/showcase/offline-judge-benchmark/evals/setup-a.eval.yaml \
   --output .agentv/results/offline-judge-setup-a.raw.jsonl

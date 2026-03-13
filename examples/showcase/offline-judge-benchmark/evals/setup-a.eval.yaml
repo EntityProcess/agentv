@@ -1,4 +1,4 @@
-description: Offline judge benchmark — setup A (same dataset, five low-cost judges, majority vote)
+description: Offline judge benchmark — setup A (same dataset, three low-cost judges, majority vote)
 execution:
   target: fixture_replay
 
@@ -16,10 +16,6 @@ assert:
         type: llm-judge
         target: judge_gpt_5_mini
         prompt: ../prompts/judge-pass-fail-v1.md
-      - name: judge-gpt-5-nano
-        type: llm-judge
-        target: judge_gpt_5_nano
-        prompt: ../prompts/judge-pass-fail-v1.md
       - name: judge-claude-haiku
         type: llm-judge
         target: judge_claude_haiku
@@ -27,8 +23,4 @@ assert:
       - name: judge-gemini-flash
         type: llm-judge
         target: judge_gemini_flash
-        prompt: ../prompts/judge-pass-fail-v1.md
-      - name: judge-gemini-flash-lite
-        type: llm-judge
-        target: judge_gemini_flash_lite
         prompt: ../prompts/judge-pass-fail-v1.md
