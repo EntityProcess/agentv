@@ -13,6 +13,30 @@ export {
   type EvalRunResult,
   type EvalSummary,
 } from './evaluation/evaluate.js';
+
+// Eval() API — single-file TypeScript evaluations
+export {
+  Eval,
+  getRegisteredEvals,
+  clearEvalRegistry,
+  type EvalDataItem,
+  type EvalOptions,
+  type AssertEntry,
+} from './evaluation/eval-api.js';
+export {
+  Contains,
+  IContains,
+  ContainsAll,
+  ContainsAny,
+  ExactMatch,
+  StartsWith,
+  EndsWith,
+  Regex,
+  IsJson,
+  type AssertFn,
+  type AssertContext,
+  type AssertResult,
+} from './evaluation/assertions.js';
 export {
   defineConfig,
   loadTsConfig,
