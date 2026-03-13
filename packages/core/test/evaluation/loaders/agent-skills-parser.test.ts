@@ -144,10 +144,31 @@ describe('parseAgentSkillsEvals', () => {
     );
   });
 
-  it('initializes empty arrays for guideline_paths and file_paths', () => {
+  it('initializes empty arrays for guideline_paths and file_paths when no baseDir', () => {
     const tests = parseAgentSkillsEvals(FIXTURE);
     expect(tests[0].guideline_paths).toEqual([]);
     expect(tests[0].file_paths).toEqual([]);
+  });
+
+  it('resolves file_paths relative to baseDir when provided', () => {
+    const tests = parseAgentSkillsEvals(FIXTURE, 'evals.json', '/project/skills/csv-analyzer');
+    expect(tests[0].file_paths).toEqual(['/project/skills/csv-analyzer/evals/files/sales.csv']);
+  });
+
+  it('stores agent_skills_base_dir in metadata when baseDir provided', () => {
+    const tests = parseAgentSkillsEvals(FIXTURE, 'evals.json', '/project/skills/csv-analyzer');
+    expect(tests[0].metadata?.agent_skills_base_dir).toBe('/project/skills/csv-analyzer');
+  });
+
+  it('does not resolve file_paths when baseDir is not provided', () => {
+    const tests = parseAgentSkillsEvals(FIXTURE);
+    expect(tests[0].file_paths).toEqual([]);
+    expect(tests[0].metadata?.agent_skills_base_dir).toBeUndefined();
+  });
+
+  it('still stores agent_skills_files in metadata without baseDir', () => {
+    const tests = parseAgentSkillsEvals(FIXTURE);
+    expect(tests[0].metadata?.agent_skills_files).toEqual(['evals/files/sales.csv']);
   });
 
   it('throws on missing evals array', () => {
