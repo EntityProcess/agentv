@@ -1,27 +1,48 @@
 ---
 title: Convert
-description: Convert between YAML and JSONL formats
+description: Convert between evaluation file formats
 sidebar:
   order: 2
 ---
 
-The `convert` command converts evaluation files between YAML and JSONL formats.
+The `convert` command converts evaluation files between formats: YAML ↔ JSONL, and Agent Skills `evals.json` → AgentV EVAL YAML.
 
 ## Usage
 
 ### YAML to JSONL
 
 ```bash
-agentv convert evals/dataset.eval.yaml --format jsonl
+agentv convert evals/dataset.eval.yaml
 ```
+
+Outputs a `.jsonl` file alongside the input.
 
 ### JSONL to YAML
 
 ```bash
-agentv convert evals/dataset.jsonl --format yaml
+agentv convert evals/dataset.jsonl
 ```
+
+Outputs a `.eval.yaml` file alongside the input.
+
+### Agent Skills evals.json to EVAL YAML
+
+```bash
+agentv convert evals.json
+```
+
+Converts an [Agent Skills `evals.json`](/guides/agent-skills-evals) file into an AgentV EVAL YAML file. The converter:
+
+- Maps `prompt` → `input` message array
+- Maps `expected_output` → `expected_output`
+- Maps `assertions` → `assert` evaluators (llm-judge)
+- Resolves `files[]` paths relative to the evals.json directory
+- Adds TODO comments for AgentV-specific features (workspace setup, code judges, rubrics)
+
+This is a one-way conversion — use it as a starting point, then enhance the generated YAML with AgentV features.
 
 ## When to Use
 
+- **evals.json → YAML** to onboard Agent Skills evaluations into AgentV with full feature access
 - **YAML → JSONL** for large-scale evaluations, programmatic processing, or compatibility with other tools
 - **JSONL → YAML** for human editing, adding execution config, or better readability

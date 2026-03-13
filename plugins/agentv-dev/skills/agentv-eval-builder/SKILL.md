@@ -1,11 +1,28 @@
 ---
 name: agentv-eval-builder
-description: Create and maintain AgentV YAML evaluation files for testing AI agent performance. Use this skill when creating new eval files, adding tests, or configuring evaluators.
+description: Create and maintain AgentV evaluation files for testing AI agent performance. Use this skill when creating new eval files, adding tests, configuring evaluators, or converting Agent Skills evals.json files to AgentV format.
 ---
 
 # AgentV Eval Builder
 
 Comprehensive docs: https://agentv.dev
+
+## Starting from evals.json?
+
+If the project already has an Agent Skills `evals.json` file, use it as a starting point instead of writing YAML from scratch:
+
+```bash
+# Convert evals.json to AgentV EVAL YAML
+agentv convert evals.json
+
+# Run directly without converting (all commands accept evals.json)
+agentv eval evals.json
+agentv prompt eval evals.json
+```
+
+The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assert` (llm-judge), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, code judges, rubrics, required gates).
+
+After converting, enhance the YAML with AgentV-specific capabilities shown below.
 
 ## Quick Start
 
