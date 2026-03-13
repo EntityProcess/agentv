@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -75,6 +75,64 @@ tests:
   return { baseDir, suiteDir, testFilePath, diagnosticsPath } satisfies EvalFixture;
 }
 
+async function createNestedEnvFixture(): Promise<EvalFixture> {
+  const baseDir = await mkdtemp(path.join(tmpdir(), 'agentv-cli-nested-env-test-'));
+  const suiteDir = path.join(baseDir, 'suite');
+  const evalDir = path.join(suiteDir, 'evals', 'foo');
+  await mkdir(evalDir, { recursive: true });
+
+  const agentvDir = path.join(suiteDir, '.agentv');
+  await mkdir(agentvDir, { recursive: true });
+
+  const targetsPath = path.join(agentvDir, 'targets.yaml');
+  const targetsContent = `$schema: agentv-targets-v2.2
+targets:
+  - name: default
+    provider: mock
+`;
+  await writeFile(targetsPath, targetsContent, 'utf8');
+
+  const testFilePath = path.join(evalDir, 'sample.test.yaml');
+  const testFileContent = `description: CLI nested env integration test
+
+tests:
+  - id: case-alpha
+    criteria: System responds with alpha
+    input:
+      - role: user
+        content: |
+          Please respond with alpha
+    expected_output:
+      - role: assistant
+        content: "Alpha"
+  - id: case-beta
+    criteria: System responds with beta
+    input:
+      - role: user
+        content: |
+          Please respond with beta
+    expected_output:
+      - role: assistant
+        content: "Beta"
+`;
+  await writeFile(testFilePath, testFileContent, 'utf8');
+
+  await writeFile(
+    path.join(suiteDir, '.env'),
+    'CLI_ENV_SAMPLE=from-root\nCLI_ENV_ROOT_ONLY=from-root\n',
+    'utf8',
+  );
+  await writeFile(
+    path.join(evalDir, '.env'),
+    'CLI_ENV_SAMPLE=from-local\nCLI_ENV_LOCAL_ONLY=from-local\n',
+    'utf8',
+  );
+
+  const diagnosticsPath = path.join(baseDir, 'diagnostics.json');
+
+  return { baseDir, suiteDir, testFilePath, diagnosticsPath } satisfies EvalFixture;
+}
+
 async function runCli(
   fixture: EvalFixture,
   args: readonly string[],
@@ -82,9 +140,11 @@ async function runCli(
 ): Promise<{ stdout: string; stderr: string }> {
   const baseEnv: Record<string, string | undefined> = { ...process.env };
   baseEnv.CLI_ENV_SAMPLE = undefined;
+  baseEnv.CLI_ENV_ROOT_ONLY = undefined;
+  baseEnv.CLI_ENV_LOCAL_ONLY = undefined;
 
   try {
-    const result = await execa('bun', [CLI_ENTRY, ...args], {
+    const result = await execa('bun', ['--no-env-file', CLI_ENTRY, ...args], {
       cwd: fixture.suiteDir,
       env: {
         ...baseEnv,
@@ -122,50 +182,69 @@ async function readJsonLines(filePath: string): Promise<readonly unknown[]> {
 }
 
 async function readDiagnostics(fixture: EvalFixture): Promise<Record<string, unknown>> {
-  const raw = await readFile(fixture.diagnosticsPath, 'utf8');
-  return JSON.parse(raw) as Record<string, unknown>;
-}
-
-const fixtures: string[] = [];
-
-afterEach(async () => {
-  while (fixtures.length > 0) {
-    const dir = fixtures.pop();
-    if (dir) {
-      await rm(dir, { recursive: true, force: true });
+  for (let attempt = 0; attempt < 20; attempt++) {
+    try {
+      const raw = await readFile(fixture.diagnosticsPath, 'utf8');
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT' || attempt === 19) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
   }
-});
+
+  throw new Error(`Missing diagnostics file: ${fixture.diagnosticsPath}`);
+}
 
 describe('agentv eval CLI', () => {
   it('writes results, summary, and prompt dumps using default directories', async () => {
     const fixture = await createFixture();
-    fixtures.push(fixture.baseDir);
+    try {
+      const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath, '--verbose']);
 
-    const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath, '--verbose']);
+      // Don't check stderr - it may contain stack traces or other diagnostics
+      expect(stdout).toContain('Using target (test-file): file-target [provider=mock]');
+      expect(stdout).toContain('Mean score: 0.750');
+      // Std deviation is an implementation detail - don't check it
 
-    // Don't check stderr - it may contain stack traces or other diagnostics
-    expect(stdout).toContain('Using target (test-file): file-target [provider=mock]');
-    expect(stdout).toContain('Mean score: 0.750');
-    // Std deviation is an implementation detail - don't check it
+      const outputPath = extractOutputPath(stdout);
+      expect(outputPath).toContain(`${path.sep}.agentv${path.sep}results${path.sep}`);
 
-    const outputPath = extractOutputPath(stdout);
-    expect(outputPath).toContain(`${path.sep}.agentv${path.sep}results${path.sep}`);
+      const results = await readJsonLines(outputPath);
+      expect(results).toHaveLength(2);
+      const [firstResult, secondResult] = results as Array<Record<string, unknown>>;
+      expect(firstResult.test_id).toBe('case-alpha');
+      expect(secondResult.test_id).toBe('case-beta');
 
-    const results = await readJsonLines(outputPath);
-    expect(results).toHaveLength(2);
-    const [firstResult, secondResult] = results as Array<Record<string, unknown>>;
-    expect(firstResult.test_id).toBe('case-alpha');
-    expect(secondResult.test_id).toBe('case-beta');
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        target: 'file-target',
+        agentTimeoutMs: null,
+        envSample: 'from-dotenv',
+        resultCount: 2,
+      });
 
-    const diagnostics = await readDiagnostics(fixture);
-    expect(diagnostics).toMatchObject({
-      target: 'file-target',
-      agentTimeoutMs: null,
-      envSample: 'from-dotenv',
-      resultCount: 2,
-    });
+      // Prompt dump feature has been removed, so we no longer check for it
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  });
 
-    // Prompt dump feature has been removed, so we no longer check for it
+  it('loads the nearest .env first and uses parent .env only for missing keys', async () => {
+    const fixture = await createNestedEnvFixture();
+    try {
+      await runCli(fixture, ['eval', fixture.testFilePath, '--verbose']);
+
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        envSample: 'from-local',
+        envRootOnly: 'from-root',
+        envLocalOnly: 'from-local',
+        resultCount: 2,
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
   });
 });
