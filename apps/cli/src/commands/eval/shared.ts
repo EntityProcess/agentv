@@ -19,7 +19,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
       : path.resolve(cwd, pattern);
     try {
       const stats = await stat(candidatePath);
-      if (stats.isFile() && /\.(ya?ml|jsonl)$/i.test(candidatePath)) {
+      if (stats.isFile() && /\.(ya?ml|jsonl|json)$/i.test(candidatePath)) {
         results.add(candidatePath);
         continue;
       }
@@ -37,7 +37,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
       followSymbolicLinks: true,
     });
 
-    const yamlMatches = matches.filter((filePath) => /\.(ya?ml|jsonl)$/i.test(filePath));
+    const yamlMatches = matches.filter((filePath) => /\.(ya?ml|jsonl|json)$/i.test(filePath));
     if (yamlMatches.length === 0) {
       unmatched.push(pattern);
       continue;
@@ -52,7 +52,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
     throw new Error(
       `No eval files matched: ${unmatched.join(
         ', ',
-      )}. Provide YAML or JSONL paths or globs (e.g., "evals/**/*.yaml", "evals/**/*.jsonl").`,
+      )}. Provide YAML, JSONL, or JSON paths or globs (e.g., "evals/**/*.yaml", "evals/**/*.jsonl", "evals.json").`,
     );
   }
 
