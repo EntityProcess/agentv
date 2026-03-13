@@ -179,8 +179,8 @@ describe('loadTestsFromJsonl', () => {
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
-    expect(cases[0].evaluators).toHaveLength(1);
-    expect(cases[0].evaluators?.[0].name).toBe('rubric-check');
+    expect(cases[0].assertions).toHaveLength(1);
+    expect(cases[0].assertions?.[0].name).toBe('rubric-check');
   });
 
   it('supports inline rubrics field', async () => {
@@ -193,9 +193,9 @@ describe('loadTestsFromJsonl', () => {
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
-    expect(cases[0].evaluators).toHaveLength(1);
-    expect(cases[0].evaluators?.[0].type).toBe('llm-judge');
-    const rubricEvaluator = cases[0].evaluators?.[0] as { type: string; rubrics?: unknown[] };
+    expect(cases[0].assertions).toHaveLength(1);
+    expect(cases[0].assertions?.[0].type).toBe('llm-judge');
+    const rubricEvaluator = cases[0].assertions?.[0] as { type: string; rubrics?: unknown[] };
     expect(rubricEvaluator.rubrics).toHaveLength(2);
   });
 

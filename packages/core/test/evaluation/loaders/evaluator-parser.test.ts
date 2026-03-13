@@ -1657,7 +1657,7 @@ describe('parseEvaluators - composite assert field', () => {
     expect(evaluators).toHaveLength(1);
     // assert takes precedence - only 1 inner evaluator
     const composite = evaluators?.[0] as CompositeEvaluatorConfig;
-    expect(composite.evaluators).toHaveLength(1);
-    expect(composite.evaluators[0].name).toBe('safety');
+    expect(composite.assertions).toHaveLength(1);
+    expect(composite.assertions[0].name).toBe('safety');
   });
 });

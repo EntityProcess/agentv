@@ -83,7 +83,7 @@ describe('CompositeEvaluator threshold aggregation', () => {
       config: {
         name: 'gate',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
           { name: 'c', type: 'latency', threshold: 5000 },
@@ -112,7 +112,7 @@ describe('CompositeEvaluator threshold aggregation', () => {
       config: {
         name: 'gate',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
           { name: 'c', type: 'latency', threshold: 5000 },
@@ -140,7 +140,7 @@ describe('CompositeEvaluator threshold aggregation', () => {
       config: {
         name: 'gate',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
           { name: 'c', type: 'latency', threshold: 5000 },
@@ -168,7 +168,7 @@ describe('CompositeEvaluator threshold aggregation', () => {
       config: {
         name: 'gate',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
           { name: 'c', type: 'latency', threshold: 5000 },
@@ -196,7 +196,7 @@ describe('CompositeEvaluator threshold aggregation', () => {
       config: {
         name: 'gate',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
           { name: 'c', type: 'latency', threshold: 5000 },
@@ -224,7 +224,7 @@ describe('CompositeEvaluator threshold aggregation', () => {
       config: {
         name: 'gate',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
           { name: 'c', type: 'latency', threshold: 5000 },
@@ -250,7 +250,7 @@ describe('CompositeEvaluator threshold aggregation', () => {
       config: {
         name: 'gate',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
         ],
@@ -276,7 +276,7 @@ describe('CompositeEvaluator threshold aggregation', () => {
       config: {
         name: 'gate',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
           { name: 'c', type: 'latency', threshold: 5000 },
@@ -302,7 +302,7 @@ describe('CompositeEvaluator threshold aggregation', () => {
       config: {
         name: 'gate',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
         ],
@@ -347,7 +347,7 @@ describe('CompositeEvaluator skip-verdict handling', () => {
       config: {
         name: 'combo',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
           { name: 'c', type: 'latency', threshold: 5000 },
@@ -373,7 +373,7 @@ describe('CompositeEvaluator skip-verdict handling', () => {
       config: {
         name: 'combo',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
         ],
@@ -399,7 +399,7 @@ describe('CompositeEvaluator skip-verdict handling', () => {
       config: {
         name: 'gate',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
           { name: 'c', type: 'latency', threshold: 5000 },
@@ -426,7 +426,7 @@ describe('CompositeEvaluator skip-verdict handling', () => {
       config: {
         name: 'gate',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
         ],
@@ -451,7 +451,7 @@ describe('CompositeEvaluator skip-verdict handling', () => {
       config: {
         name: 'combo',
         type: 'composite',
-        evaluators: [
+        assertions: [
           { name: 'a', type: 'latency', threshold: 5000 },
           { name: 'b', type: 'latency', threshold: 5000 },
         ],

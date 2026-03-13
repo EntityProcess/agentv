@@ -392,7 +392,7 @@ export type CompositeAggregatorConfig =
 export type CompositeEvaluatorConfig = {
   readonly name: string;
   readonly type: 'composite';
-  readonly evaluators: readonly EvaluatorConfig[];
+  readonly assertions: readonly EvaluatorConfig[];
   readonly aggregator: CompositeAggregatorConfig;
   readonly weight?: number;
   readonly required?: boolean | number;
@@ -764,7 +764,7 @@ export interface EvalTest {
   readonly file_paths: readonly string[];
   readonly criteria: string;
   readonly evaluator?: EvaluatorKind;
-  readonly evaluators?: readonly EvaluatorConfig[];
+  readonly assertions?: readonly EvaluatorConfig[];
   /** Workspace configuration (merged from suite-level and case-level) */
   readonly workspace?: WorkspaceConfig;
   /** Arbitrary metadata passed to workspace scripts via stdin */

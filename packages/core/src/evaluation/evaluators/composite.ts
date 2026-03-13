@@ -53,7 +53,7 @@ export class CompositeEvaluator implements Evaluator {
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
     // 1. Instantiate and run evaluators in parallel
     const memberResults = await Promise.all(
-      this.config.evaluators.map(async (memberConfig) => {
+      this.config.assertions.map(async (memberConfig) => {
         const evaluator = this.evaluatorFactory.create(memberConfig, context);
         return {
           id: memberConfig.name,

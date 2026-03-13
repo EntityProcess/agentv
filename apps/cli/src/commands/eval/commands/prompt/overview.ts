@@ -164,7 +164,7 @@ export const evalPromptOverviewCommand = command({
 });
 
 function describeEvaluators(evalCase: EvalTest): string | undefined {
-  const configs = evalCase.evaluators;
+  const configs = evalCase.assertions;
   if (!configs || configs.length === 0) return undefined;
   return configs.map((c) => `${c.name} (${c.type})`).join(', ');
 }

@@ -26,6 +26,7 @@ export function normalizeEvaluatorType(type: string): string {
 export async function parseEvaluators(
   rawEvalCase: JsonObject & {
     readonly execution?: JsonValue;
+    readonly assertions?: JsonValue;
     readonly evaluators?: JsonValue;
     readonly assert?: JsonValue;
   },
@@ -36,17 +37,18 @@ export async function parseEvaluators(
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
 
-  // Case-level evaluators priority: assert > execution.evaluators (deprecated) > top-level evaluators (deprecated)
+  // Case-level evaluators priority: assertions > assert > execution.evaluators (deprecated) > top-level evaluators (deprecated)
   const caseEvaluators =
+    rawEvalCase.assertions ??
     rawEvalCase.assert ??
     (executionObject ? executionObject.evaluators : undefined) ?? // deprecated: use assert
     rawEvalCase.evaluators; // deprecated: use assert
 
-  // Root-level (default) evaluators: assert > execution.evaluators (deprecated)
+  // Root-level (default) evaluators: assertions > assert > execution.evaluators (deprecated)
   const skipDefaults = executionObject?.skip_defaults === true;
   const rootEvaluators = skipDefaults
     ? undefined
-    : (globalExecution?.assert ?? globalExecution?.evaluators); // deprecated: use assert
+    : (globalExecution?.assertions ?? globalExecution?.assert ?? globalExecution?.evaluators); // deprecated: use assert
 
   // Parse case-level evaluators
   const parsedCase = await parseEvaluatorList(caseEvaluators, searchRoots, evalId);
@@ -250,8 +252,8 @@ async function parseEvaluatorList(
     }
 
     if (typeValue === 'composite') {
-      // Accept assert as canonical key; evaluators is deprecated
-      const rawMembers = rawEvaluator.assert ?? rawEvaluator.evaluators; // evaluators deprecated
+      // Accept assertions > assert > evaluators (deprecated)
+      const rawMembers = rawEvaluator.assertions ?? rawEvaluator.assert ?? rawEvaluator.evaluators; // evaluators deprecated
       if (!Array.isArray(rawMembers)) {
         logWarning(
           `Skipping composite evaluator '${name}' in '${evalId}': missing evaluators (or assert) array`,
@@ -386,7 +388,7 @@ async function parseEvaluatorList(
       evaluators.push({
         name,
         type: 'composite',
-        evaluators: memberEvaluators,
+        assertions: memberEvaluators,
         aggregator,
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
