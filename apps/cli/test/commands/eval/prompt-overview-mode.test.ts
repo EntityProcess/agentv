@@ -8,6 +8,11 @@ const BASIC_EVAL_PATH = path.resolve(
   '../../../../examples/features/basic/evals/dataset.eval.yaml',
 );
 
+const AGENT_SKILLS_EVAL_PATH = path.resolve(
+  import.meta.dir,
+  '../../../../examples/features/agent-skills-evals/evals.json',
+);
+
 describe('generateOverviewPrompt', () => {
   let originalEnv: string | undefined;
 
@@ -72,5 +77,17 @@ describe('generateOverviewPrompt', () => {
     process.env.AGENTV_PROMPT_EVAL_MODE = 'cli';
     const output = await generateOverviewPrompt([BASIC_EVAL_PATH]);
     expect(output).toContain('code-review-javascript');
+  });
+
+  it('accepts Agent Skills evals.json files', async () => {
+    process.env.AGENTV_PROMPT_EVAL_MODE = undefined;
+    const output = await generateOverviewPrompt([AGENT_SKILLS_EVAL_PATH]);
+    expect(output).toContain('Mode: agent');
+    expect(output).toContain('eval-candidate');
+    // Test IDs from evals.json (promoted from numeric id)
+    expect(output).toContain('### 1');
+    expect(output).toContain('### 2');
+    // Promoted assertions should appear as evaluators
+    expect(output).toContain('assertion-1 (llm-judge)');
   });
 });
