@@ -3,6 +3,9 @@ import { access, stat } from 'node:fs/promises';
 import path from 'node:path';
 import fg from 'fast-glob';
 
+/** Supported eval file extensions: YAML, JSONL, and TypeScript/JavaScript */
+const EVAL_FILE_RE = /\.(ya?ml|jsonl|ts|js|mts|mjs)$/i;
+
 export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promise<string[]> {
   const normalizedInputs = evalPaths.map((value) => value?.trim()).filter((value) => value);
   if (normalizedInputs.length === 0) {
@@ -19,7 +22,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
       : path.resolve(cwd, pattern);
     try {
       const stats = await stat(candidatePath);
-      if (stats.isFile() && /\.(ya?ml|jsonl)$/i.test(candidatePath)) {
+      if (stats.isFile() && EVAL_FILE_RE.test(candidatePath)) {
         results.add(candidatePath);
         continue;
       }
@@ -37,13 +40,13 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
       followSymbolicLinks: true,
     });
 
-    const yamlMatches = matches.filter((filePath) => /\.(ya?ml|jsonl)$/i.test(filePath));
-    if (yamlMatches.length === 0) {
+    const evalMatches = matches.filter((filePath) => EVAL_FILE_RE.test(filePath));
+    if (evalMatches.length === 0) {
       unmatched.push(pattern);
       continue;
     }
 
-    for (const filePath of yamlMatches) {
+    for (const filePath of evalMatches) {
       results.add(path.normalize(filePath));
     }
   }
@@ -52,7 +55,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
     throw new Error(
       `No eval files matched: ${unmatched.join(
         ', ',
-      )}. Provide YAML or JSONL paths or globs (e.g., "evals/**/*.yaml", "evals/**/*.jsonl").`,
+      )}. Provide YAML, JSONL, or TypeScript paths or globs (e.g., "evals/**/*.yaml", "evals/**/*.eval.ts").`,
     );
   }
 
