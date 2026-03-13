@@ -10,8 +10,8 @@ describe('createFunctionProvider', () => {
 
     const response = await provider.invoke({ question: 'hello' });
     expect(response.output).toHaveLength(1);
-    expect(response.output![0].role).toBe('assistant');
-    expect(response.output![0].content).toBe('Echo: hello');
+    expect(response.output?.[0].role).toBe('assistant');
+    expect(response.output?.[0].content).toBe('Echo: hello');
   });
 
   it('wraps an async task function', async () => {
@@ -20,7 +20,7 @@ describe('createFunctionProvider', () => {
     });
 
     const response = await provider.invoke({ question: 'world' });
-    expect(response.output![0].content).toBe('Async: world');
+    expect(response.output?.[0].content).toBe('Async: world');
   });
 
   it('measures duration', async () => {
