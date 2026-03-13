@@ -22,8 +22,12 @@ describe('detectFormat', () => {
     expect(detectFormat('/path/to/config.yml')).toBe('yaml');
   });
 
+  it('returns agent-skills-json for .json extension', () => {
+    expect(detectFormat('evals.json')).toBe('agent-skills-json');
+    expect(detectFormat('/path/to/evals.json')).toBe('agent-skills-json');
+  });
+
   it('throws for unsupported extensions', () => {
-    expect(() => detectFormat('test.json')).toThrow('Unsupported file format');
     expect(() => detectFormat('test.txt')).toThrow('Unsupported file format');
     expect(() => detectFormat('test')).toThrow('Unsupported file format');
   });

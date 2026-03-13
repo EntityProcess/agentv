@@ -4,6 +4,7 @@ import micromatch from 'micromatch';
 import { parse } from 'yaml';
 
 import { interpolateEnv } from './interpolation.js';
+import { loadTestsFromAgentSkills } from './loaders/agent-skills-parser.js';
 import { expandFileReferences, loadCasesFromFile } from './loaders/case-file-loader.js';
 import {
   extractCacheConfig,
@@ -183,6 +184,9 @@ export async function loadTestSuite(
   if (format === 'jsonl') {
     return { tests: await loadTestsFromJsonl(evalFilePath, repoRoot, options) };
   }
+  if (format === 'agent-skills-json') {
+    return { tests: await loadTestsFromAgentSkills(evalFilePath) };
+  }
   const { tests, parsed } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
   const metadata = parseMetadata(parsed);
   const failOnError = extractFailOnError(parsed);
@@ -209,6 +213,9 @@ export async function loadTests(
   const format = detectFormat(evalFilePath);
   if (format === 'jsonl') {
     return loadTestsFromJsonl(evalFilePath, repoRoot, options);
+  }
+  if (format === 'agent-skills-json') {
+    return loadTestsFromAgentSkills(evalFilePath);
   }
   const { tests } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
   return tests;
