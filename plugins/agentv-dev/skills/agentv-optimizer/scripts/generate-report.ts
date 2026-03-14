@@ -8,16 +8,14 @@
 
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { buildReviewModel } from '../src/generate-report.js';
 import { renderReviewHtml } from '../eval-viewer/generate-review.js';
+import { buildReviewModel } from '../src/generate-report.js';
 
 async function main() {
   const args = process.argv.slice(2);
 
   if (args.length === 0) {
-    console.error(
-      'Usage: bun scripts/generate-report.ts --artifacts <dir> --out <html-file>',
-    );
+    console.error('Usage: bun scripts/generate-report.ts --artifacts <dir> --out <html-file>');
     process.exit(1);
   }
 

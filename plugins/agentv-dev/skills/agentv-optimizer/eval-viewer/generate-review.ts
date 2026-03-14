@@ -189,9 +189,7 @@ async function main() {
   const args = process.argv.slice(2);
 
   if (args.length === 0) {
-    console.error(
-      'Usage: bun eval-viewer/generate-review.ts --artifacts <dir> --out <html-file>',
-    );
+    console.error('Usage: bun eval-viewer/generate-review.ts --artifacts <dir> --out <html-file>');
     process.exit(1);
   }
 

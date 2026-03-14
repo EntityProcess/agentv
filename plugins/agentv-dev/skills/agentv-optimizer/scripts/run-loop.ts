@@ -6,8 +6,8 @@
  * Thin CLI entrypoint that calls src/run-loop.ts helper.
  */
 
-import { planLoopCommands } from '../src/run-loop.js';
 import { runCommand } from '../src/command-runner.js';
+import { planLoopCommands } from '../src/run-loop.js';
 
 async function main() {
   const args = process.argv.slice(2);
