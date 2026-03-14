@@ -59,13 +59,30 @@ Parse the JSON output. It contains an `evaluators` array. Each evaluator has a `
 
 ### Step 3: Structured Evidence per Assertion
 
-For every assertion — whether from a deterministic evaluator or your own LLM grading — produce per-assertion structured evidence in the `evidence` array:
+For every assertion — whether from a deterministic evaluator or your own LLM grading — capture per-assertion evidence using two existing `EvaluatorResult` fields in each `scores[]` entry:
+
+1. **`scores[].reasoning`** — Human-readable verdict with cited evidence text.
+2. **`scores[].details`** — Machine-readable structured evidence (existing `JsonObject` field in the schema).
+
+Example `scores[]` entry with evidence:
 
 ```json
 {
-  "text": "The output includes the name 'John Smith'",
-  "passed": true,
-  "evidence": "Found in candidate response paragraph 2: 'Primary contact: John Smith, (555) 123-4567'"
+  "name": "contains_name",
+  "type": "contains",
+  "score": 1.0,
+  "hits": ["John Smith"],
+  "misses": [],
+  "reasoning": "PASS. Found 'John Smith' in candidate response paragraph 2: 'Primary contact: John Smith, (555) 123-4567'",
+  "details": {
+    "assertions": [
+      {
+        "text": "The output includes the name 'John Smith'",
+        "passed": true,
+        "evidence": "Found in candidate response paragraph 2: 'Primary contact: John Smith, (555) 123-4567'"
+      }
+    ]
+  }
 }
 ```
 
@@ -90,17 +107,25 @@ Beyond the predefined assertions, extract implicit claims from the candidate's o
 
 3. **Flag unverifiable claims**: Note claims that cannot be verified with available information — these are not automatic failures but should be recorded
 
-Include verified claims in the `claims` array of the output.
+Include verified claims as a structured section in the top-level `reasoning` field. Format them clearly so they are both human-readable and parseable:
+
+```
+## Verified Claims
+- [VERIFIED] "The form has 12 fields" — Confirmed: output contains exactly 12 field entries
+- [VERIFIED] "Used pypdf to fill the form" — Confirmed: tool output log shows pypdf invocation
+- [UNVERIFIED] "All fields were filled correctly" — Cannot confirm without reference data
+- [REFUTED] "Response time is under 200ms" — Actual measured time was 450ms
+```
 
 ### Step 5: Read User Notes
 
 If executor notes or workspace hook output exist (e.g., `user_notes.md` in the output directory, or setup/teardown script output referenced in the eval), read and consider them in grading:
 
 1. Note any uncertainties or issues flagged by the executor
-2. Include relevant concerns in the grading output under `user_notes_summary`
+2. Include relevant concerns in the top-level `reasoning` field under a `## User Notes` section
 3. These may reveal problems that pass/fail scores miss — a test can pass all assertions yet have executor-flagged concerns
 
-If no user notes are found, omit the `user_notes_summary` field.
+If no user notes are found, omit the `## User Notes` section from reasoning.
 
 ### Step 6: Critique the Evals
 
@@ -114,7 +139,7 @@ Suggestions worth raising:
 
 Good suggestions test meaningful outcomes — assertions that are hard to satisfy without actually doing the work correctly. Think about what makes an assertion *discriminating*: it passes when the skill genuinely succeeds and fails when it doesn't.
 
-Include critique in the `eval_feedback` field. If the evals are solid with no gaps, set `eval_feedback` to `{"suggestions": [], "overall": "No suggestions, evals look solid."}`.
+Include critique in `extensions.eval_feedback` in the JSONL record. If the evals are solid with no gaps, set it to `{"suggestions": [], "overall": "No suggestions, evals look solid."}`.
 
 ### Step 7: Read the Candidate's Answer
 
@@ -122,7 +147,7 @@ Read the candidate's answer from `answer-file` to include in the results.
 
 ### Step 8: Append Results to JSONL
 
-Write one line per test to `results-file`, matching the format produced by `agentv eval` with added fields:
+Write one line per test to `results-file`. The **core output shape** matches the `EvaluationResult` schema exactly — `score`, `hits`, `misses`, `reasoning`, `answer`, `mode`, and `scores[]` are unchanged. Enhanced data lives in existing fields and the `extensions` object:
 
 ```json
 {
@@ -132,6 +157,7 @@ Write one line per test to `results-file`, matching the format produced by `agen
   "score": "<weighted-avg>",
   "hits": ["..."],
   "misses": ["..."],
+  "reasoning": "## Summary\n<overall-reasoning>\n\n## Verified Claims\n- [VERIFIED] ...\n- [REFUTED] ...\n\n## User Notes\n- <executor-flagged-concern> (omit section if no notes found)",
   "answer": "<candidate-response>",
   "mode": "agent",
   "scores": [
@@ -141,37 +167,41 @@ Write one line per test to `results-file`, matching the format produced by `agen
       "score": "<score>",
       "hits": ["..."],
       "misses": ["..."],
-      "reasoning": "<reasoning>"
+      "reasoning": "<verdict-with-evidence-citations>",
+      "details": {
+        "assertions": [
+          {
+            "text": "<assertion-text>",
+            "passed": true,
+            "evidence": "<cited-quote-or-description>"
+          }
+        ]
+      }
     }
   ],
-  "evidence": [
-    {
-      "text": "<assertion-text>",
-      "passed": true,
-      "evidence": "<cited-quote-or-description>"
-    }
-  ],
-  "claims": [
-    {
-      "claim": "<statement>",
-      "type": "<factual|process|quality>",
-      "verified": true,
-      "evidence": "<supporting-or-contradicting-evidence>"
-    }
-  ],
-  "eval_feedback": {
-    "suggestions": [
+  "extensions": {
+    "eval_feedback": {
+      "suggestions": [
+        {
+          "assertion": "<assertion-text-if-applicable>",
+          "reason": "<concrete-improvement-suggestion>"
+        }
+      ],
+      "overall": "<brief-assessment>"
+    },
+    "claims": [
       {
-        "assertion": "<assertion-text-if-applicable>",
-        "reason": "<concrete-improvement-suggestion>"
+        "claim": "<statement>",
+        "type": "<factual|process|quality>",
+        "verified": true,
+        "evidence": "<supporting-or-contradicting-evidence>"
       }
     ],
-    "overall": "<brief-assessment>"
-  },
-  "user_notes_summary": {
-    "uncertainties": ["..."],
-    "needs_review": ["..."],
-    "workarounds": ["..."]
+    "user_notes_summary": {
+      "uncertainties": ["..."],
+      "needs_review": ["..."],
+      "workarounds": ["..."]
+    }
   }
 }
 ```
@@ -180,10 +210,11 @@ Field notes:
 - `score` is the weighted average across all evaluators
 - `answer` is the full candidate response text
 - `mode` is always `"agent"` to distinguish from cli-mode results
-- `evidence` is the per-assertion structured evidence array (always present)
-- `claims` is the extracted and verified claims array (always present, may be empty)
-- `eval_feedback` contains eval critique (always present)
-- `user_notes_summary` is only present when executor notes were found
+- `reasoning` contains the overall assessment plus structured `## Verified Claims` and `## User Notes` sections
+- `scores[].reasoning` contains per-evaluator verdicts with evidence citations
+- `scores[].details` contains machine-readable per-assertion evidence (existing `JsonObject` field)
+- `extensions` contains forward-compatible structured data (eval feedback, claims, user notes) — the JSONL writer serializes all fields via `toSnakeCaseDeep()`, and downstream tools can opt-in to reading extensions
+- `extensions.user_notes_summary` is only present when executor notes were found
 - If the file already exists, append — do not overwrite.
 
 ## Grading Standards: Surface vs Substance
