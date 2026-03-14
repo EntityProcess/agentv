@@ -576,6 +576,34 @@ agentv create assertion <name>  # → .agentv/assertions/<name>.ts
 agentv create eval <name>       # → evals/<name>.eval.yaml + .cases.jsonl
 ```
 
+## Human Review Checkpoint
+
+After running evals, perform a human review before iterating. Create `feedback.json` in the results directory alongside `results.jsonl`:
+
+```json
+{
+  "run_id": "2026-03-14T10-32-00_claude",
+  "reviewer": "engineer-name",
+  "timestamp": "2026-03-14T12:00:00Z",
+  "overall_notes": "Summary of observations",
+  "per_case": [
+    {
+      "test_id": "test-id",
+      "verdict": "acceptable | needs_improvement | incorrect | flaky",
+      "notes": "Why this verdict",
+      "evaluator_overrides": { "code-judge:name": "Override note" },
+      "workspace_notes": "Workspace state observations"
+    }
+  ]
+}
+```
+
+Use `evaluator_overrides` for workspace evaluations to annotate specific evaluator results (e.g., "code-judge was too strict"). Use `workspace_notes` for observations about workspace state.
+
+Review workflow: run evals → inspect results (`agentv trace show`) → write feedback → tune prompts/evaluators → re-run.
+
+Full guide: https://agentv.dev/guides/human-review/
+
 ## Schemas
 
 - Eval file: `references/eval-schema.json`
