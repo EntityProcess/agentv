@@ -245,15 +245,15 @@ Run evaluations without API keys by letting an external agent (e.g., Claude Code
 ### Overview
 
 ```bash
-agentv prompt eval evals/my-eval.yaml
+agentv prompt eval --list evals/my-eval.yaml
 ```
 
-Outputs a step-by-step orchestration prompt listing all tests and the commands to run for each.
+Returns JSON listing the available `test_ids` for the eval file.
 
 ### Get Task Input
 
 ```bash
-agentv prompt eval input evals/my-eval.yaml --test-id case-123
+agentv prompt eval --input evals/my-eval.yaml --test-id case-123
 ```
 
 Returns JSON with:
@@ -261,23 +261,25 @@ Returns JSON with:
 - `guideline_paths` — files containing additional instructions to prepend to the system message.
 - `criteria` — grading criteria for the orchestrator's reference (do not pass to the candidate).
 
-### Judge the Result
+### Get Grading Context
 
 ```bash
-agentv prompt eval judge evals/my-eval.yaml --test-id case-123 --answer-file response.txt
+agentv prompt eval --expected-output evals/my-eval.yaml --test-id case-123
 ```
 
-Runs code judges deterministically and returns LLM judge prompts for the agent to execute. Each evaluator in the output has a `status`:
+Returns JSON with the data an external grader needs:
 
-- **`"completed"`** — Score is final (e.g., code judge). Read `result.score`.
-- **`"prompt_ready"`** — LLM grading required. Send `prompt.system_prompt` and `prompt.user_prompt` to your LLM and parse the JSON response.
+- `expected_output` — reference assistant messages
+- `reference_answer` — flattened reference text when available
+- `criteria` — high-level success criteria
+- `assertions` — evaluator configs for the test
 
 ### When to Use
 
 | Scenario | Command |
 |----------|---------|
 | Have API keys, want end-to-end automation | `agentv eval` |
-| No API keys, agent can act as the LLM | `agentv prompt` |
+| No API keys, external agent can orchestrate the run | `agentv prompt eval --list/--input/--expected-output` |
 
 ## Version Requirements
 

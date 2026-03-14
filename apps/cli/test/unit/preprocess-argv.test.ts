@@ -4,40 +4,33 @@ import { preprocessArgv } from '../../src/index.js';
 
 describe('preprocessArgv', () => {
   describe('prompt default subcommand insertion', () => {
-    it('inserts `eval overview` after `prompt` when followed by a file', () => {
-      const result = preprocessArgv(['node', 'agentv', 'prompt', 'file.yaml']);
-      expect(result).toEqual(['node', 'agentv', 'prompt', 'eval', 'overview', 'file.yaml']);
+    it('does not rewrite `prompt` commands without explicit subcommands', () => {
+      const argv = ['node', 'agentv', 'prompt', 'file.yaml'];
+      expect(preprocessArgv(argv)).toEqual(argv);
     });
 
-    it('inserts `eval overview` when `prompt` has no arguments', () => {
-      const result = preprocessArgv(['node', 'agentv', 'prompt']);
-      expect(result).toEqual(['node', 'agentv', 'prompt', 'eval', 'overview']);
+    it('does not rewrite bare `prompt` commands', () => {
+      const argv = ['node', 'agentv', 'prompt'];
+      expect(preprocessArgv(argv)).toEqual(argv);
     });
 
-    it('inserts `overview` after `prompt eval` when followed by a file', () => {
+    it('does not insert a default accessor after `prompt eval` when followed by a file', () => {
       const result = preprocessArgv(['node', 'agentv', 'prompt', 'eval', 'file.yaml']);
-      expect(result).toEqual(['node', 'agentv', 'prompt', 'eval', 'overview', 'file.yaml']);
+      expect(result).toEqual(['node', 'agentv', 'prompt', 'eval', 'file.yaml']);
     });
 
-    it('inserts `overview` when `prompt eval` has no further arguments', () => {
-      const result = preprocessArgv(['node', 'agentv', 'prompt', 'eval']);
-      expect(result).toEqual(['node', 'agentv', 'prompt', 'eval', 'overview']);
+    it('does not insert a default accessor when `prompt eval` has no further arguments', () => {
+      const argv = ['node', 'agentv', 'prompt', 'eval'];
+      expect(preprocessArgv(argv)).toEqual(argv);
     });
 
-    it('does not insert `overview` when sub-subcommand is already present', () => {
-      for (const sub of ['overview', 'input', 'judge']) {
-        const result = preprocessArgv(['node', 'agentv', 'prompt', 'eval', sub, 'file.yaml']);
-        expect(result).toEqual(['node', 'agentv', 'prompt', 'eval', sub, 'file.yaml']);
-      }
-    });
-
-    it('passes through `prompt eval input` with flags', () => {
+    it('passes through `prompt eval --input` with flags', () => {
       const result = preprocessArgv([
         'node',
         'agentv',
         'prompt',
         'eval',
-        'input',
+        '--input',
         'file.yaml',
         '--test-id',
         'case-1',
@@ -47,38 +40,39 @@ describe('preprocessArgv', () => {
         'agentv',
         'prompt',
         'eval',
-        'input',
+        '--input',
         'file.yaml',
         '--test-id',
         'case-1',
       ]);
     });
 
-    it('passes through `prompt eval judge` with flags', () => {
+    it('passes through `prompt eval --expected-output` with flags', () => {
       const result = preprocessArgv([
         'node',
         'agentv',
         'prompt',
         'eval',
-        'judge',
+        '--expected-output',
         'file.yaml',
         '--test-id',
         'case-1',
-        '--answer-file',
-        'out.txt',
       ]);
       expect(result).toEqual([
         'node',
         'agentv',
         'prompt',
         'eval',
-        'judge',
+        '--expected-output',
         'file.yaml',
         '--test-id',
         'case-1',
-        '--answer-file',
-        'out.txt',
       ]);
+    });
+
+    it('passes through `prompt eval --list`', () => {
+      const argv = ['node', 'agentv', 'prompt', 'eval', '--list', 'file.yaml'];
+      expect(preprocessArgv(argv)).toEqual(argv);
     });
   });
 
