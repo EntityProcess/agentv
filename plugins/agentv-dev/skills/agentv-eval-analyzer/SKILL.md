@@ -44,9 +44,9 @@ LLM-judge evaluators doing work that a deterministic assertion could handle — 
 | "Output contains 'X'" — always cites same substring | `type: contains`, `value: "X"` |
 | Score always 0 or 1, never partial — binary check | `type: equals` or specific deterministic |
 | "Response is valid JSON" — format validation | `type: is-json` |
-| "Output starts with 'Error:'" — prefix check | `type: starts-with`, `value: "Error:"` |
+| "Output starts with 'Error:'" — prefix check | `type: regex`, `value: "^Error:"` |
 | "Matches pattern /regex/" — regex match | `type: regex`, `value: "/pattern/"` |
-| All hits are substring presence checks | `type: contains-all`, `values: [...]` |
+| All hits are substring presence checks | Multiple `type: contains` assertions (one per value) |
 
 ### 2. Weak Assertion Detection
 
@@ -55,7 +55,7 @@ LLM-judge evaluators doing work that a deterministic assertion could handle — 
 | Vague (< 8 words, no specifics) | "Response is good" | Add measurable criteria |
 | Tautological | "Output is correct" | Define what "correct" means with expected values |
 | Compound | "Handles errors and returns JSON" | Split into separate assertions |
-| Overly broad LLM-judge | Single vague `criteria` string | Use `type: rubrics` with enumerated items |
+| Overly broad LLM-judge | Single vague `prompt` string | Use `type: rubrics` with enumerated items |
 
 ### 3. Cost/Quality Flags
 
@@ -86,14 +86,14 @@ Before (LLM-judge doing substring work):
 assert:
   - name: has-error-code
     type: llm-judge
-    criteria: "Check if the response contains the error code 404"
+    prompt: "Check if the response contains the error code 404"
 ```
 
 After (deterministic, zero LLM cost):
 ```yaml
 assert:
   - name: has-error-code
-    type: icontains
+    type: contains
     value: "404"
 ```
 

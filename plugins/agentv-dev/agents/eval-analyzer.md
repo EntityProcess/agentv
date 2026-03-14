@@ -47,18 +47,18 @@ For each evaluator entry in `scores` where `type` is `"llm-judge"`, `"rubrics"`,
 
 | Signal | Detection | Suggested Upgrade |
 |--------|-----------|-------------------|
-| Reasoning cites exact substring match | Reasoning contains phrases like "contains", "includes the text", "mentions [quoted string]" | `type: contains` or `type: icontains` with `value: "<extracted string>"` |
+| Reasoning cites exact substring match | Reasoning contains phrases like "contains", "includes the text", "mentions [quoted string]" | `type: contains` with `value: "<extracted string>"` |
 | Score is always 0.0 or 1.0 across all test cases for this evaluator | Collect scores per evaluator name; if all are binary | `type: equals` or deterministic check — LLM is doing binary work |
 | Reasoning references JSON validity | "valid JSON", "parseable JSON", "well-formed JSON" | `type: is-json` |
-| Reasoning references format compliance | "starts with", "begins with", "output starts with [string]" | `type: starts-with` with `value: "<extracted prefix>"` |
-| Reasoning references ending pattern | "ends with", "output ends with" | `type: ends-with` with `value: "<extracted suffix>"` |
+| Reasoning references format compliance | "starts with", "begins with", "output starts with [string]" | `type: regex` with `value: "^<extracted prefix>"` |
+| Reasoning references ending pattern | "ends with", "output ends with" | `type: regex` with `value: "<extracted suffix>$"` |
 | Reasoning matches regex-like pattern | "matches pattern", "follows the format", explicit regex mention | `type: regex` with `value: "<extracted pattern>"` |
 | Reasoning checks field presence/value | "field X is Y", "contains key", "has property" in JSON output | `type: field-accuracy` with expected fields |
-| All hits are substring checks | Every hit entry quotes a specific string found in output | `type: contains-all` with values from hits |
+| All hits are substring checks | Every hit entry quotes a specific string found in output | Multiple `type: contains` assertions (one per value from hits) |
 
 **Extraction rules:**
 - When a quoted string appears in reasoning (e.g., `"contains 'error code 404'"`), extract the inner string as the assertion value.
-- When multiple hits all follow the same pattern (substring presence), aggregate them into `contains-all`.
+- When multiple hits all follow the same pattern (substring presence), aggregate them into multiple `contains` assertions.
 - Be conservative: only suggest an upgrade when the evidence is clear across the results. One ambiguous mention is not enough.
 
 ### Step 3: Weak Assertion Detection
@@ -71,7 +71,7 @@ Scan the EVAL.yaml `assert` entries (if `eval-path` provided) and the `reasoning
 | Tautological | Contains "is correct", "is good", "works properly", "is valid" without specifying what correct/good means | Define explicit pass/fail conditions |
 | Compound criteria | Single assertion checks multiple independent things (uses "and", "also", "additionally" joining distinct checks) | Split into separate assertions, one per concern |
 | Missing expected value | `type: equals` or `type: contains` without a `value` field | Add the expected value |
-| Overly broad LLM-judge | LLM-judge with no rubric items, just a single vague `criteria` string | Convert to `type: rubrics` with enumerated criteria, or use deterministic checks |
+| Overly broad LLM-judge | LLM-judge with no rubric items, just a single vague `prompt` string | Convert to `type: rubrics` with enumerated criteria, or use deterministic checks |
 
 ### Step 4: Cost/Quality Signals
 
