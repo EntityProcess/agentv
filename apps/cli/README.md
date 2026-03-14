@@ -193,6 +193,32 @@ agentv eval --dry-run evals/my-eval.yaml
 
 See `agentv eval --help` for all options: workers, timeouts, output formats, trace dumping, and more.
 
+#### Output Formats
+
+Write results to different formats using the `-o` flag (format auto-detected from extension):
+
+```bash
+# JSONL (default streaming format)
+agentv eval evals/my-eval.yaml -o results.jsonl
+
+# Self-contained HTML dashboard (opens in any browser, no server needed)
+agentv eval evals/my-eval.yaml -o report.html
+
+# Multiple formats simultaneously
+agentv eval evals/my-eval.yaml -o results.jsonl -o report.html
+
+# JUnit XML for CI/CD integration
+agentv eval evals/my-eval.yaml -o results.xml
+```
+
+The HTML report auto-refreshes every 2 seconds during a live run, then locks once the run completes.
+
+You can also convert an existing JSONL results file to HTML after the fact:
+
+```bash
+agentv convert results.jsonl -o report.html
+```
+
 #### Timeouts
 
 AgentV does not apply a default top-level evaluation timeout. If you want one, set it explicitly
