@@ -82,28 +82,44 @@ async function parseEvaluatorList(
     return undefined;
   }
 
-  // Pre-process: collect string entries and group them into a single rubrics evaluator
-  // at the position of the first string. Non-string entries are preserved in order.
-  const hasStrings = candidateEvaluators.some((e) => typeof e === 'string');
-  const processedEvaluators: unknown[] = hasStrings
-    ? (() => {
-        const strings = candidateEvaluators.filter((e): e is string => typeof e === 'string');
-        const syntheticRubrics = { type: 'rubrics', criteria: strings };
-        let rubricInserted = false;
-        const result: unknown[] = [];
-        for (const item of candidateEvaluators) {
-          if (typeof item === 'string') {
-            if (!rubricInserted) {
-              result.push(syntheticRubrics);
-              rubricInserted = true;
+  // Pre-process: collect all string entries across the array (regardless of position) and
+  // group them into a single rubrics evaluator inserted at the first-string position.
+  // Non-string entries are preserved in their original relative order.
+  const firstStringIndex = candidateEvaluators.findIndex((e) => typeof e === 'string');
+  const processedEvaluators: unknown[] =
+    firstStringIndex === -1
+      ? [...candidateEvaluators]
+      : (() => {
+          const strings: string[] = [];
+          const result: unknown[] = [];
+          let rubricInserted = false;
+          for (const item of candidateEvaluators) {
+            if (typeof item === 'string') {
+              const trimmed = item.trim();
+              if (trimmed.length === 0) {
+                logWarning(`Skipping empty string criterion in assert array for '${evalId}'`);
+              } else {
+                strings.push(trimmed);
+              }
+              if (!rubricInserted) {
+                // Placeholder: will be replaced after loop
+                result.push(null);
+                rubricInserted = true;
+              }
+            } else {
+              result.push(item);
             }
-          } else {
-            result.push(item);
           }
-        }
-        return result;
-      })()
-    : [...candidateEvaluators];
+          // Replace the placeholder with the synthetic rubrics object
+          const placeholderIndex = result.indexOf(null);
+          if (strings.length > 0 && placeholderIndex !== -1) {
+            result[placeholderIndex] = { type: 'rubrics', criteria: strings };
+          } else {
+            // All strings were empty — remove the placeholder
+            if (placeholderIndex !== -1) result.splice(placeholderIndex, 1);
+          }
+          return result;
+        })();
 
   const evaluators: EvaluatorConfig[] = [];
 
