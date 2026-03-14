@@ -3,7 +3,7 @@
  * trigger-judge: detects whether the agent invoked a named Claude Code skill.
  *
  * Usage in eval YAML:
- *   evaluators:
+ *   assert:
  *     - type: trigger-judge          # discovered from .agentv/judges/
  *       skill: my-skill-name         # passed via config
  *
