@@ -1,7 +1,5 @@
 import { resolveAgentvCommand, resolveRepoRoot } from './paths.js';
 
-
-
 /**
  * Builds agentv eval command by forwarding all arguments verbatim.
  * This preserves exact CLI semantics without re-parsing flags.

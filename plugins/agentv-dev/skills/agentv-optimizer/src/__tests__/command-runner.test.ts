@@ -59,8 +59,12 @@ describe('command runner', () => {
 
   it('builds prompt, convert, and compare commands as thin wrappers', () => {
     expect(buildPromptEvalCommand(['--list', 'evals.json'])).toContain('prompt');
-    expect(buildPromptEvalCommand(['--input', 'evals.json', '--test-id', '1'])).toContain('--input');
-    expect(buildPromptEvalCommand(['--expected-output', 'evals.json', '--test-id', '1'])).toContain('--expected-output');
+    expect(buildPromptEvalCommand(['--input', 'evals.json', '--test-id', '1'])).toContain(
+      '--input',
+    );
+    expect(buildPromptEvalCommand(['--expected-output', 'evals.json', '--test-id', '1'])).toContain(
+      '--expected-output',
+    );
     expect(buildConvertCommand(['evals.json', '-o', 'eval.yaml'])).toContain('convert');
     expect(buildCompareCommand(['before.jsonl', 'after.jsonl'])).toContain('compare');
   });
