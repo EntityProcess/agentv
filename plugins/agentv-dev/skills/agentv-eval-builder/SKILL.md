@@ -1,6 +1,12 @@
 ---
 name: agentv-eval-builder
-description: Create and maintain AgentV evaluation files for testing AI agent performance. Use this skill when creating new eval files, adding tests, configuring evaluators, or converting Agent Skills evals.json files to AgentV format.
+description: >-
+  Create and maintain AgentV EVAL.yaml / .eval.yaml evaluation files for testing AI agent output quality.
+  Use when asked to create new AgentV eval files, add test cases to an existing .eval.yaml,
+  configure AgentV evaluators (llm-judge, code-judge, rubrics), or convert evals.json to AgentV EVAL YAML format
+  using `agentv convert`.
+  Do NOT use for creating SKILL.md files, writing skill definitions, or building skill test suites —
+  those tasks belong to the skill-creator skill.
 ---
 
 # AgentV Eval Builder
@@ -575,6 +581,37 @@ Auto-discovered from project root. Validated with Zod.
 agentv create assertion <name>  # → .agentv/assertions/<name>.ts
 agentv create eval <name>       # → evals/<name>.eval.yaml + .cases.jsonl
 ```
+
+## Skill Improvement Workflow
+
+For a complete guide to iterating on skills using evaluations — writing scenarios, running baselines, comparing results, and improving — see the [Skill Improvement Workflow](https://agentv.dev/guides/skill-improvement-workflow/) guide.
+## Human Review Checkpoint
+
+After running evals, perform a human review before iterating. Create `feedback.json` in the results directory alongside `results.jsonl`:
+
+```json
+{
+  "run_id": "2026-03-14T10-32-00_claude",
+  "reviewer": "engineer-name",
+  "timestamp": "2026-03-14T12:00:00Z",
+  "overall_notes": "Summary of observations",
+  "per_case": [
+    {
+      "test_id": "test-id",
+      "verdict": "acceptable | needs_improvement | incorrect | flaky",
+      "notes": "Why this verdict",
+      "evaluator_overrides": { "code-judge:name": "Override note" },
+      "workspace_notes": "Workspace state observations"
+    }
+  ]
+}
+```
+
+Use `evaluator_overrides` for workspace evaluations to annotate specific evaluator results (e.g., "code-judge was too strict"). Use `workspace_notes` for observations about workspace state.
+
+Review workflow: run evals → inspect results (`agentv trace show`) → write feedback → tune prompts/evaluators → re-run.
+
+Full guide: https://agentv.dev/guides/human-review/
 
 ## Schemas
 
