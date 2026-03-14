@@ -26,9 +26,9 @@ export function buildCompareCommand(args: string[]): string[] {
   return [...resolveAgentvCommand(), "compare", ...args];
 }
 
-export async function runCommand(cmd: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+export async function runCommand(cmd: string[], cwd?: string): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const proc = Bun.spawn(cmd, {
-    cwd: resolveRepoRoot(),
+    cwd: cwd || process.cwd(),
     stdout: "pipe",
     stderr: "pipe",
   });
