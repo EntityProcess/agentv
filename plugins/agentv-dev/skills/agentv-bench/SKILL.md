@@ -164,7 +164,7 @@ Good assertions are objectively verifiable and have descriptive names. Subjectiv
 - `exact`, `contains`, `regex`, `is-json` — deterministic, zero cost, instant
 - `field-accuracy` — checks JSON field values against expected
 - `composite` — weighted combination of multiple evaluators
-- `code-judge` — Python/TypeScript scripts via `defineCodeJudge()` (→ see `agentv-eval-builder` skill)
+- `code-judge` — Python/TypeScript scripts via `defineCodeJudge()` (→ see `agentv-eval-writer` skill)
 - `tool-trajectory` — evaluate tool call sequences and patterns
 - `llm-judge` — LLM-graded with rubric (most expensive, use when semantic understanding needed)
 

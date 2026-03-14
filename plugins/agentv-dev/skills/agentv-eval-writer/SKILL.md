@@ -1,10 +1,10 @@
 ---
-name: agentv-eval-builder
+name: agentv-eval-writer
 description: >-
-  Create and maintain AgentV EVAL.yaml / .eval.yaml evaluation files for testing AI agent output quality.
-  Use when asked to create new AgentV eval files, add test cases to an existing .eval.yaml,
-  configure AgentV evaluators (llm-judge, code-judge, rubrics), or convert evals.json to AgentV EVAL YAML format
-  using `agentv convert`.
+  Create and maintain evals/evals.json evaluation files for testing AI skill quality using prompts and assertions.
+  Use when asked to create new evals.json files, add test cases or assertions,
+  or write eval prompts for skill trigger and output quality testing.
+  Run evals with agentv-bench.
   Do NOT use for creating SKILL.md files, writing skill definitions, or building skill test suites —
   those tasks belong to the skill-creator skill.
 ---
