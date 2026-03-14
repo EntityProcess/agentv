@@ -91,11 +91,6 @@ def validate_skill(skill_path):
         if len(compatibility) > 500:
             return False, f"Compatibility is too long ({len(compatibility)} characters). Maximum is 500 characters."
 
-    # Check for agents/openai.yaml
-    openai_yaml = skill_path / 'agents' / 'openai.yaml'
-    if not openai_yaml.exists():
-        print("[WARN] agents/openai.yaml not found — run generate_openai_yaml.py to create it")
-
     return True, "Skill is valid!"
 
 if __name__ == "__main__":

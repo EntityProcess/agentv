@@ -8,8 +8,7 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "validate": "python3 scripts/quick_validate.py .",
-    "init-skill": "python3 scripts/init_skill.py",
-    "generate-openai-yaml": "python3 scripts/generate_openai_yaml.py",
+    "package": "python3 scripts/package_skill.py .",
     "view-results": "python3 eval-viewer/generate_review.py"
   },
   "devDependencies": {
