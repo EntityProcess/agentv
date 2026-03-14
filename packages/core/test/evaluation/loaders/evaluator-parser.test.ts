@@ -1737,4 +1737,17 @@ describe('parseEvaluators - string shorthand in assert', () => {
       'Response must be polite',
     );
   });
+
+  it('ignores all-whitespace strings and produces no rubrics evaluator', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: ['   ', ''],
+      },
+      undefined,
+      ['/tmp'],
+      'test-id',
+    );
+
+    expect(evaluators).toBeUndefined();
+  });
 });
