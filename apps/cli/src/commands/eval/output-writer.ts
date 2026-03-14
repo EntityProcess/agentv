@@ -2,12 +2,13 @@ import path from 'node:path';
 
 import type { EvaluationResult } from '@agentv/core';
 
+import { HtmlWriter } from './html-writer.js';
 import { JsonWriter } from './json-writer.js';
 import { JsonlWriter } from './jsonl-writer.js';
 import { JunitWriter } from './junit-writer.js';
 import { YamlWriter } from './yaml-writer.js';
 
-export type OutputFormat = 'jsonl' | 'yaml';
+export type OutputFormat = 'jsonl' | 'yaml' | 'html';
 
 export interface OutputWriter {
   append(result: EvaluationResult): Promise<void>;
@@ -23,6 +24,8 @@ export async function createOutputWriter(
       return JsonlWriter.open(filePath);
     case 'yaml':
       return YamlWriter.open(filePath);
+    case 'html':
+      return HtmlWriter.open(filePath);
     default: {
       const exhaustiveCheck: never = format;
       throw new Error(`Unsupported output format: ${exhaustiveCheck}`);
@@ -36,6 +39,8 @@ export function getDefaultExtension(format: OutputFormat): string {
       return '.jsonl';
     case 'yaml':
       return '.yaml';
+    case 'html':
+      return '.html';
     default: {
       const exhaustiveCheck: never = format;
       throw new Error(`Unsupported output format: ${exhaustiveCheck}`);
@@ -43,7 +48,7 @@ export function getDefaultExtension(format: OutputFormat): string {
   }
 }
 
-const SUPPORTED_EXTENSIONS = new Set(['.jsonl', '.json', '.xml', '.yaml', '.yml']);
+const SUPPORTED_EXTENSIONS = new Set(['.jsonl', '.json', '.xml', '.yaml', '.yml', '.html', '.htm']);
 
 export function createWriterFromPath(filePath: string): Promise<OutputWriter> {
   const ext = path.extname(filePath).toLowerCase();
@@ -57,6 +62,9 @@ export function createWriterFromPath(filePath: string): Promise<OutputWriter> {
     case '.yaml':
     case '.yml':
       return YamlWriter.open(filePath);
+    case '.html':
+    case '.htm':
+      return HtmlWriter.open(filePath);
     default:
       throw new Error(
         `Unsupported output file extension "${ext}". Supported: ${[...SUPPORTED_EXTENSIONS].join(', ')}`,
