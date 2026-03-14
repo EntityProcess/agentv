@@ -140,6 +140,35 @@ Because the scored files use one record per `test_id` with a numeric `score`, th
 - Swap the prompt file to compare judge instructions/policies.
 - Keep the labeled export constant so the comparison stays paired and fair.
 
+## Industry alignment
+
+This workflow's design draws from published research and aligns with (or exceeds) peer evaluation frameworks.
+
+### Multi-model judge panels
+
+The three-model panel approach is grounded in [Replacing Judges with Juries (PoLL)](https://arxiv.org/abs/2404.18796), which found that an ensemble of 3 smaller models from disjoint families outperforms a single strong judge (GPT-4) in correlation with human judgments while being 7× cheaper. No production framework (DeepEval, Arize Phoenix, LangSmith, RAGAS) ships multi-model panels as a built-in — Braintrust documents "multi-judge voting" as a concept but does not implement it. AgentV composes this from existing primitives (`llm-judge` + `composite`).
+
+### Scoring judges against human ground truth
+
+| Framework | Accuracy | Precision / Recall / F1 | Cohen's κ | A/B judge prompts |
+|---|---|---|---|---|
+| **This workflow** | ✓ | — | — | ✓ (`agentv compare`) |
+| Arize Phoenix | ✓ | ✓ | — | Via experiment reruns |
+| LangSmith Align | % agreement only | — | — | Baseline vs. new prompt |
+| RAGAS | % accuracy only | — | — | Iterative refinement |
+| DeepEval | — | — | — | — |
+| Braintrust | — | — | — | Pairwise ranking |
+
+Arize Phoenix is the closest peer — it calculates all four classification metrics against a golden dataset. The [Judge's Verdict benchmark](https://arxiv.org/html/2510.09738v1) recommends Cohen's kappa over raw accuracy because it accounts for chance agreement; this could be added as a follow-up if teams need inter-rater reliability statistics.
+
+### Portable JSONL fixtures
+
+Most frameworks store ground-truth datasets in platform-internal formats (DataFrames, platform databases). This workflow uses portable JSONL fixtures with pass/fail labels, making it CI/CD-friendly and vendor-neutral.
+
+### Why the scoring script stays outside core
+
+Per AgentV's [design principles](../../CLAUDE.md) — "Lightweight Core, Plugin Extensibility" — CLI wrappers that consume JSONL output for post-processing belong outside core. The scoring script composes existing primitives and serves a niche use case, consistent with "Built-ins for Primitives Only."
+
 ## Why this stays lightweight
 
 This workflow avoids a new benchmark subsystem in core. The reusable pieces are already in AgentV:
