@@ -4,6 +4,23 @@ import { isAgentSkillsFormat, normalizeLineEndings, parseAgentSkillsEvals } from
 import { command, option, optional, positional, string } from 'cmd-ts';
 import { stringify as stringifyYaml } from 'yaml';
 
+import { HtmlWriter } from '../eval/html-writer.js';
+
+async function convertJsonlToHtml(inputPath: string, outputPath: string): Promise<number> {
+  const content = readFileSync(inputPath, 'utf8');
+  const lines = content
+    .trim()
+    .split('\n')
+    .filter((line) => line.trim());
+
+  const writer = await HtmlWriter.open(outputPath);
+  for (const line of lines) {
+    await writer.append(JSON.parse(line));
+  }
+  await writer.close();
+  return lines.length;
+}
+
 function convertJsonlToYaml(inputPath: string, outputPath: string): number {
   const content = readFileSync(inputPath, 'utf8');
   const lines = content
@@ -147,7 +164,7 @@ export function convertEvalsJsonToYaml(inputPath: string): string {
 
 export const convertCommand = command({
   name: 'convert',
-  description: 'Convert between evaluation formats (JSONL→YAML, evals.json→EVAL.yaml)',
+  description: 'Convert between evaluation formats (JSONL→YAML, JSONL→HTML, evals.json→EVAL.yaml)',
   args: {
     input: positional({
       type: string,
@@ -158,7 +175,7 @@ export const convertCommand = command({
       type: optional(string),
       long: 'out',
       short: 'o',
-      description: 'Output file path (defaults to stdout for evals.json, or .yaml for JSONL)',
+      description: 'Output file path (defaults to stdout for evals.json, .yaml or .html for JSONL)',
     }),
   },
   handler: async ({ input, out }) => {
@@ -181,6 +198,18 @@ export const convertCommand = command({
     }
 
     if (ext === '.jsonl') {
+      const outExt = out ? path.extname(out).toLowerCase() : '.yaml';
+      if (outExt === '.html' || outExt === '.htm') {
+        const outputPath = out ?? input.replace(/\.jsonl$/, '.html');
+        try {
+          const count = await convertJsonlToHtml(input, outputPath);
+          console.log(`Converted ${count} records to ${path.resolve(outputPath)}`);
+        } catch (error) {
+          console.error(`Error: ${(error as Error).message}`);
+          process.exit(1);
+        }
+        return;
+      }
       const outputPath = out ?? input.replace(/\.jsonl$/, '.yaml');
       try {
         const count = convertJsonlToYaml(input, outputPath);
