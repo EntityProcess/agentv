@@ -12,4 +12,11 @@ describe("description optimizer", () => {
     expect(plan.diffPreview).not.toContain("claude");
     expect(plan.diffPreview).not.toContain("copilot");
   });
+
+  it("uses a readable empty summary when no observations are available", () => {
+    const plan = buildDescriptionImprovementPlan({});
+
+    expect(plan.summary).toContain("No observations found");
+    expect(plan.nextExperiments).toHaveLength(0);
+  });
 });

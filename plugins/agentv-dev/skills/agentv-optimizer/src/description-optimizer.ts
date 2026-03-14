@@ -92,5 +92,9 @@ function buildSummary(
     parts.push(`${observations.falseTriggers.length} false trigger(s)`);
   }
 
+  if (parts.length === 0) {
+    return `No observations found → Generated ${experimentCount} validation experiment(s)`;
+  }
+
   return `Found ${parts.join(" and ")} → Generated ${experimentCount} validation experiment(s)`;
 }
