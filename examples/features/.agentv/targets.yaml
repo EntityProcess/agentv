@@ -10,11 +10,6 @@ targets:
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     # version: ${{ AZURE_OPENAI_API_VERSION }}  # Optional: uncomment to override default (2024-12-01-preview)
 
-  - name: vscode
-    provider: vscode
-    executable: ${{ VSCODE_CMD }}
-    judge_target: azure-base
-
   - name: codex
     provider: codex
     judge_target: azure-base
@@ -31,16 +26,6 @@ targets:
     cwd: ${{ CODEX_WORKSPACE_DIR }}            # Where scratch workspaces are created
     log_dir: ${{ CODEX_LOG_DIR }}              # Optional: where Codex CLI stream logs are stored (defaults to ./.agentv/logs/codex)
     log_format: json                    # Optional: 'summary' (default) or 'json' for raw event logs
-
-  - name: vscode_projectx
-    provider: vscode
-    provider_batching: false
-    judge_target: azure-base
-
-  - name: vscode_insiders_projectx
-    provider: vscode-insiders
-    provider_batching: false
-    judge_target: azure-base
 
   - name: azure-base
     provider: azure
