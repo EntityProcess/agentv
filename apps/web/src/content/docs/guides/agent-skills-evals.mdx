@@ -84,17 +84,17 @@ AgentV resolves these paths and copies the files into the workspace before the a
 AgentV's prompt subcommands work with evals.json, enabling agent-mode evaluation without API keys:
 
 ```bash
-# Show orchestration overview
-agentv prompt eval evals.json
+# List test IDs
+agentv prompt eval --list evals.json
 
 # Get input for a specific test
-agentv prompt eval input evals.json --test-id 1
+agentv prompt eval --input evals.json --test-id 1
 
-# Get judge prompts for a test
-agentv prompt eval judge evals.json --test-id 1 --answer-file answer.txt
+# Get expected output and evaluator criteria for a test
+agentv prompt eval --expected-output evals.json --test-id 1
 ```
 
-The eval-candidate and eval-judge agents can be dispatched against evals.json just like EVAL.yaml files.
+This gives an external agent enough structured data to run the task itself and then grade the result against the eval spec.
 
 ## Benchmark output
 

@@ -122,14 +122,17 @@ agentv eval evals.json --target candidate
 Or if using agent mode (no API keys required):
 
 ```bash
-# Get the input prompt for a test case
-agentv prompt eval input evals.json --test-id 1
+# List available test cases
+agentv prompt eval --list evals.json
 
-# After running the agent, judge the response
-agentv prompt eval judge evals.json --test-id 1 --answer-file answer.txt
+# Get the input prompt for a test case
+agentv prompt eval --input evals.json --test-id 1
+
+# After running the agent, fetch expected output and evaluator criteria
+agentv prompt eval --expected-output evals.json --test-id 1
 ```
 
-Agent mode is useful when you want to evaluate skills with agents that don't have a direct API integration — you orchestrate the agent yourself and let AgentV handle the judging.
+Agent mode is useful when you want to evaluate skills with agents that don't have a direct API integration — you orchestrate the run yourself and use AgentV's accessor commands to read the eval spec.
 
 ## Step 4: Compare Results
 

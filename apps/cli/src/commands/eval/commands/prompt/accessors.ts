@@ -1,49 +1,66 @@
-import type { JsonObject, TestMessage } from '@agentv/core';
-import { loadTestById } from '@agentv/core';
-import { command, option, positional, string } from 'cmd-ts';
+import type { EvaluatorConfig, JsonObject, TestMessage } from '@agentv/core';
+import { loadTestById, loadTests } from '@agentv/core';
 
 import { findRepoRoot } from '../../shared.js';
 
-export const evalPromptInputCommand = command({
-  name: 'input',
-  description: 'Output task input JSON for a single test',
-  args: {
-    evalPath: positional({
-      type: string,
-      displayName: 'eval-path',
-      description: 'Path to evaluation .yaml file',
-    }),
-    testId: option({
-      type: string,
-      long: 'test-id',
-      description: 'Test ID',
-    }),
-  },
-  handler: async (args) => {
-    const cwd = process.cwd();
-    const repoRoot = await findRepoRoot(cwd);
+interface PromptEvalInputResult {
+  readonly test_id: string;
+  readonly input: readonly JsonObject[];
+  readonly guideline_paths: readonly string[];
+  readonly criteria: string;
+}
 
-    const evalCase = await loadTestById(args.evalPath, repoRoot, args.testId);
+interface PromptEvalExpectedOutputResult {
+  readonly test_id: string;
+  readonly criteria: string;
+  readonly expected_output: readonly JsonObject[];
+  readonly reference_answer?: string;
+  readonly assertions: readonly EvaluatorConfig[];
+}
 
-    // Build mapping from relative file names to resolved absolute paths.
-    // input_segments has resolvedPath for non-guideline files;
-    // file_paths (which includes guidelines) is used as a fallback.
-    const fileMap = buildFileMap(evalCase.input_segments, evalCase.file_paths);
+interface PromptEvalListResult {
+  readonly eval_path: string;
+  readonly test_ids: readonly string[];
+}
 
-    // Resolve file references in input to absolute paths
-    const resolvedMessages = resolveMessages(evalCase.input, fileMap);
+export async function listPromptEvalTestIds(evalPath: string): Promise<PromptEvalListResult> {
+  const repoRoot = await findRepoRoot(process.cwd());
+  const tests = await loadTests(evalPath, repoRoot);
 
-    const output = {
-      test_id: evalCase.id,
-      input: resolvedMessages,
-      guideline_paths: evalCase.guideline_paths,
-      criteria: evalCase.criteria,
-    };
+  return {
+    eval_path: evalPath,
+    test_ids: tests.map((test) => test.id).sort(),
+  };
+}
 
-    process.stdout.write(JSON.stringify(output, null, 2));
-    process.stdout.write('\n');
-  },
-});
+export async function getPromptEvalInput(evalPath: string, testId: string): Promise<PromptEvalInputResult> {
+  const repoRoot = await findRepoRoot(process.cwd());
+  const evalCase = await loadTestById(evalPath, repoRoot, testId);
+  const fileMap = buildFileMap(evalCase.input_segments, evalCase.file_paths);
+
+  return {
+    test_id: evalCase.id,
+    input: resolveMessages(evalCase.input, fileMap),
+    guideline_paths: evalCase.guideline_paths,
+    criteria: evalCase.criteria,
+  };
+}
+
+export async function getPromptEvalExpectedOutput(
+  evalPath: string,
+  testId: string,
+): Promise<PromptEvalExpectedOutputResult> {
+  const repoRoot = await findRepoRoot(process.cwd());
+  const evalCase = await loadTestById(evalPath, repoRoot, testId);
+
+  return {
+    test_id: evalCase.id,
+    criteria: evalCase.criteria,
+    expected_output: evalCase.expected_output,
+    reference_answer: evalCase.reference_answer,
+    assertions: evalCase.assertions ?? [],
+  };
+}
 
 /**
  * Build a mapping from relative file names to resolved absolute paths.
@@ -72,8 +89,7 @@ function buildFileMap(
     get(key: string): string | undefined {
       const direct = map.get(key);
       if (direct) return direct;
-      // Suffix match: "file.md" matches "/abs/path/to/file.md"
-      return allFilePaths.find((p) => p.endsWith(`/${key}`) || p === key);
+      return allFilePaths.find((filePath) => filePath.endsWith(`/${key}`) || filePath === key);
     },
     has(key: string): boolean {
       return this.get(key) !== undefined;
