@@ -1,6 +1,12 @@
 ---
 name: agentv-trace-analyst
-description: Analyze AgentV evaluation traces using CLI primitives. Use when asked to inspect eval results, find regressions, identify failure patterns, analyze tool trajectories, compute cost/latency statistics, or reason about agent performance from trace data.
+description: >-
+  Analyze AgentV evaluation traces and result JSONL files using `agentv trace` and `agentv compare` CLI commands.
+  Use when asked to inspect AgentV eval results, find regressions between AgentV evaluation runs,
+  identify failure patterns in AgentV trace data, analyze tool trajectories, or compute cost/latency/score statistics
+  from AgentV result files.
+  Do NOT use for benchmarking skill trigger accuracy, analyzing skill-creator eval performance,
+  or measuring skill description quality — those tasks belong to the skill-creator skill.
 ---
 
 # AgentV Trace Analyst
