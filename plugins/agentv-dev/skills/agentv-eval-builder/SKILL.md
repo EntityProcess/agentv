@@ -36,7 +36,7 @@ agentv prompt eval --expected-output evals.json --test-id 1
 
 The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assert` (llm-judge), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, code judges, rubrics, required gates).
 
-If you're running the lifecycle through `agentv-optimizer`, its `scripts/convert-evals.ts` and `scripts/prompt-eval.ts` are thin wrappers around these same core commands and artifacts.
+If you're running the lifecycle through `agentv-bench`, its `scripts/convert-evals.ts` and `scripts/prompt-eval.ts` are thin wrappers around these same core commands and artifacts.
 
 After converting, enhance the YAML with AgentV-specific capabilities shown below.
 

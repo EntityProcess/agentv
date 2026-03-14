@@ -1,5 +1,5 @@
 {
-  "name": "@agentv/agentv-optimizer",
+  "name": "@agentv/agentv-bench",
   "version": "0.0.0",
   "description": "AgentV optimizer scripts skill — Python mirrors of anthropics/skills skill-creator",
   "private": true,

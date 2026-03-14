@@ -15,7 +15,7 @@ You receive these parameters in your prompt:
 - **output_a_path**: Path to the first output file or directory
 - **output_b_path**: Path to the second output file or directory
 - **eval_prompt**: The original task/prompt that was executed
-- **expectations**: List of expectations to check (optional - may be empty)
+- **assertions**: List of assertions to check (optional - may be empty)
 
 ## Process
 
@@ -67,12 +67,12 @@ For each output (A and B):
 
 ### Step 5: Check Assertions (if provided)
 
-If expectations are provided:
+If assertions are provided:
 
-1. Check each expectation against output A
-2. Check each expectation against output B
+1. Check each assertion against output A
+2. Check each assertion against output B
 3. Count pass rates for each output
-4. Use expectation scores as secondary evidence (not the primary decision factor)
+4. Use assertion scores as secondary evidence (not the primary decision factor)
 
 ### Step 6: Determine the Winner
 
@@ -140,7 +140,7 @@ Write a JSON file with this structure:
       "weaknesses": ["Missing date field", "Formatting inconsistencies", "Partial data extraction"]
     }
   },
-  "expectation_results": {
+  "assertion_results": {
     "A": {
       "passed": 4,
       "total": 5,
@@ -169,7 +169,7 @@ Write a JSON file with this structure:
 }
 ```
 
-If no expectations were provided, omit the `expectation_results` field entirely.
+If no assertions were provided, omit the `assertion_results` field entirely.
 
 ## Field Descriptions
 
@@ -185,11 +185,11 @@ If no expectations were provided, omit the `expectation_results` field entirely.
   - **score**: 1-10 rating (should match rubric overall_score)
   - **strengths**: List of positive aspects
   - **weaknesses**: List of issues or shortcomings
-- **expectation_results**: (Only if expectations provided)
-  - **passed**: Number of expectations that passed
-  - **total**: Total number of expectations
+- **assertion_results**: (Only if assertions provided)
+  - **passed**: Number of assertions that passed
+  - **total**: Total number of assertions
   - **pass_rate**: Fraction passed (0.0 to 1.0)
-  - **details**: Individual expectation results
+  - **details**: Individual assertion results
 
 ## Guidelines
 

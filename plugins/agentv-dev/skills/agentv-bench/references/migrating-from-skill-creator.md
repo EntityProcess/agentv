@@ -1,6 +1,6 @@
 # Migrating from Skill-Creator to AgentV Lifecycle Skill
 
-This reference covers how to use AgentV's unified agent-evaluation lifecycle skill (`agentv-optimizer`) with evals.json files originally created for Anthropic's skill-creator.
+This reference covers how to use AgentV's unified agent-evaluation lifecycle skill (`agentv-bench`) with evals.json files originally created for Anthropic's skill-creator.
 
 ## Drop-in Replacement
 
@@ -22,10 +22,10 @@ AgentV automatically:
 - Converts `assertions` → LLM-judge evaluators
 - Resolves `files[]` paths relative to the evals.json directory
 
-If you're using the `agentv-optimizer` skill, the bundled Bun scripts wrap these same commands and artifacts instead of inventing a second format:
+If you're using the `agentv-bench` skill, the bundled Bun scripts wrap these same commands and artifacts instead of inventing a second format:
 
 ```bash
-cd plugins/agentv-dev/skills/agentv-optimizer
+cd plugins/agentv-dev/skills/agentv-bench
 bun install
 bun scripts/run-eval.ts --eval-path ../../../../examples/features/agent-skills-evals/evals.json --dry-run
 bun scripts/prompt-eval.ts --list ../../../../examples/features/agent-skills-evals/evals.json

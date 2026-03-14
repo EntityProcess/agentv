@@ -1,5 +1,5 @@
 ---
-name: agentv-optimizer
+name: agentv-bench
 description: >-
   Optimize agents through evaluation-driven iteration. Use when asked to evaluate an agent,
   optimize prompts against evals, run EVAL.yaml or evals.json evaluations, benchmark agent
@@ -32,10 +32,10 @@ After the agent is working well, you can also run description optimization to im
 
 ## Bundled scripts layer
 
-This skill ships with a Bun bundle in `plugins/agentv-dev/skills/agentv-optimizer/`. Bootstrap it once before using the wrapper scripts:
+This skill ships with a Bun bundle in `plugins/agentv-dev/skills/agentv-bench/`. Bootstrap it once before using the wrapper scripts:
 
 ```bash
-cd plugins/agentv-dev/skills/agentv-optimizer
+cd plugins/agentv-dev/skills/agentv-bench
 bun install
 bun scripts/quick-validate.ts --scope wrappers
 ```
@@ -195,7 +195,7 @@ agentv prompt eval --expected-output <eval-path> --test-id <id>
 If you're working inside this skill bundle, use the wrappers instead:
 
 ```bash
-cd plugins/agentv-dev/skills/agentv-optimizer
+cd plugins/agentv-dev/skills/agentv-bench
 bun scripts/prompt-eval.ts --list <eval-path>
 bun scripts/prompt-eval.ts --input <eval-path> --test-id <id>
 bun scripts/prompt-eval.ts --expected-output <eval-path> --test-id <id>
@@ -416,12 +416,12 @@ tests:
     input: "ok so I have this agent that keeps failing on the code review tasks, can you help me figure out why and fix it"
     assert:
       - type: contains
-        value: "agentv-optimizer"
+        value: "agentv-bench"
   - id: should-not-trigger-build-error
     input: "my TypeScript build is failing with type errors in src/auth.ts"
     assert:
       - type: not-contains
-        value: "agentv-optimizer"
+        value: "agentv-bench"
 ```
 
 ### Step 2: Review with user
@@ -435,7 +435,7 @@ Run the trigger eval, identify misfires, rewrite the description, re-run. Max 5 
 When you already have `benchmark.json` and `grading.json`, use the scripts bundle to draft the next round of edits:
 
 ```bash
-cd plugins/agentv-dev/skills/agentv-optimizer
+cd plugins/agentv-dev/skills/agentv-bench
 bun scripts/improve-description.ts --benchmark .agentv/artifacts/benchmark.json --grading .agentv/artifacts/grading.json
 ```
 
