@@ -1,4 +1,4 @@
-import { resolveAgentvCommand } from "./paths.js";
+import { resolveAgentvCommand, resolveRepoRoot } from "./paths.js";
 
 export interface PromptEvalOptions {
   subcommand: "overview" | "input" | "judge";
@@ -28,6 +28,7 @@ export function buildCompareCommand(args: string[]): string[] {
 
 export async function runCommand(cmd: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const proc = Bun.spawn(cmd, {
+    cwd: resolveRepoRoot(),
     stdout: "pipe",
     stderr: "pipe",
   });
