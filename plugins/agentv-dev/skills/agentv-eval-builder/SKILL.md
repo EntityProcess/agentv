@@ -29,10 +29,14 @@ agentv convert evals.json
 
 # Run directly without converting (all commands accept evals.json)
 agentv eval evals.json
-agentv prompt eval overview evals.json
+agentv prompt eval --list evals.json
+agentv prompt eval --input evals.json --test-id 1
+agentv prompt eval --expected-output evals.json --test-id 1
 ```
 
 The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assert` (llm-judge), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, code judges, rubrics, required gates).
+
+If you're running the lifecycle through `agentv-optimizer`, its `scripts/convert-evals.ts` and `scripts/prompt-eval.ts` are thin wrappers around these same core commands and artifacts.
 
 After converting, enhance the YAML with AgentV-specific capabilities shown below.
 
@@ -481,9 +485,9 @@ agentv eval <file.yaml> --trace-file traces/eval.jsonl
 agentv eval <file.yaml> --otel-file traces/eval.otlp.json
 
 # Agent-orchestrated evals (no API keys needed)
-agentv prompt eval <file.yaml>                                      # orchestration overview
-agentv prompt eval input <file.yaml> --test-id <id>                 # task input JSON (file paths, not embedded content)
-agentv prompt eval judge <file.yaml> --test-id <id> --answer-file f # judge prompts / code judge results
+agentv prompt eval --list <file.yaml>                               # enumerate test IDs
+agentv prompt eval --input <file.yaml> --test-id <id>               # task input JSON (file paths, not embedded content)
+agentv prompt eval --expected-output <file.yaml> --test-id <id>     # expected output + evaluator criteria
 
 # Re-run only execution errors from a previous output
 agentv eval <file.yaml> --retry-errors <previous-output.jsonl>

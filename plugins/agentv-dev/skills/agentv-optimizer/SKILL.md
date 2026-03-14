@@ -30,6 +30,29 @@ Be flexible. If the user says "I don't need a full benchmark, just help me debug
 
 After the agent is working well, you can also run description optimization to improve skill triggering accuracy (see the Description Optimization section).
 
+## Bundled scripts layer
+
+This skill ships with a Bun bundle in `plugins/agentv-dev/skills/agentv-optimizer/`. Bootstrap it once before using the wrapper scripts:
+
+```bash
+cd plugins/agentv-dev/skills/agentv-optimizer
+bun install
+bun scripts/quick-validate.ts --scope wrappers
+```
+
+The scripts layer wraps AgentV rather than replacing it. Use it when you want a provider-agnostic optimization workflow that still relies on core AgentV commands and artifacts:
+
+- `scripts/run-eval.ts` → thin wrapper over `agentv eval` with wrapper-level `--eval-path`
+- `scripts/prompt-eval.ts` → thin wrapper over `agentv prompt eval --list|--input|--expected-output`
+- `scripts/convert-evals.ts` → thin wrapper over `agentv convert`
+- `scripts/compare-runs.ts` → thin wrapper over `agentv compare`
+- `scripts/run-loop.ts` → plans and executes repeated eval iterations by composing the wrappers above
+- `scripts/aggregate-benchmark.ts` → reads `benchmark.json`, `timing.json`, and `results.jsonl`
+- `scripts/generate-report.ts` → builds a review model and HTML report from AgentV artifacts
+- `scripts/improve-description.ts` → proposes provider-agnostic description experiments from observed misses/false triggers
+
+Keep code-judge execution, evaluator semantics, and artifact generation in AgentV core. The scripts only orchestrate those primitives and read the artifacts they emit.
+
 ## Communicating with the user
 
 This skill is used by people across a wide range of familiarity with evaluation tooling. Pay attention to context cues:
@@ -142,7 +165,18 @@ agentv eval <eval-path> --artifacts .agentv/artifacts/
 
 **Agent mode** (no API keys — the orchestrator acts as both candidate and judge):
 ```bash
-agentv prompt eval <eval-path>
+agentv prompt eval --list <eval-path>
+agentv prompt eval --input <eval-path> --test-id <id>
+agentv prompt eval --expected-output <eval-path> --test-id <id>
+```
+
+If you're working inside this skill bundle, use the wrappers instead:
+
+```bash
+cd plugins/agentv-dev/skills/agentv-optimizer
+bun scripts/prompt-eval.ts --list <eval-path>
+bun scripts/prompt-eval.ts --input <eval-path> --test-id <id>
+bun scripts/prompt-eval.ts --expected-output <eval-path> --test-id <id>
 ```
 
 **Spawn all runs in the same turn.** For each test case that needs both a "with change" and a "baseline" run, launch them simultaneously. Don't run one set first and come back for the other — launch everything at once so results arrive around the same time.
@@ -375,6 +409,13 @@ Present the eval set. The user adjusts queries, toggles should-trigger, adds/rem
 ### Step 3: Iterate on description
 
 Run the trigger eval, identify misfires, rewrite the description, re-run. Max 5 iterations. Select best description by held-out test accuracy (split 60% train / 40% test) to avoid overfitting.
+
+When you already have `benchmark.json` and `grading.json`, use the scripts bundle to draft the next round of edits:
+
+```bash
+cd plugins/agentv-dev/skills/agentv-optimizer
+bun scripts/improve-description.ts --benchmark .agentv/artifacts/benchmark.json --grading .agentv/artifacts/grading.json
+```
 
 ### Step 4: Apply
 

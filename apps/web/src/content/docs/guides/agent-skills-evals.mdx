@@ -96,6 +96,23 @@ agentv prompt eval --expected-output evals.json --test-id 1
 
 In agent mode, the host agent uses these accessors to enumerate tests, act as the candidate, and then grade the saved answer against the eval spec.
 
+If you're using the `agentv-optimizer` skill bundle, the wrappers map one-to-one onto the same commands:
+
+```bash
+cd plugins/agentv-dev/skills/agentv-optimizer
+bun install
+bun scripts/quick-validate.ts --scope wrappers
+bun scripts/prompt-eval.ts --list evals.json
+bun scripts/prompt-eval.ts --input evals.json --test-id 1
+bun scripts/prompt-eval.ts --expected-output evals.json --test-id 1
+```
+
+The rest of the bundle follows the same pattern:
+- `run-eval.ts` wraps `agentv eval`
+- `convert-evals.ts` wraps `agentv convert`
+- `compare-runs.ts` wraps `agentv compare`
+- `generate-report.ts` and `improve-description.ts` read AgentV artifacts instead of inventing a new format
+
 ## Benchmark output
 
 Generate an Agent Skills compatible `benchmark.json` alongside the standard result JSONL:
@@ -154,6 +171,13 @@ tests:
       - name: assertion-1
         type: llm-judge
         prompt: "Output identifies November as the highest revenue month"
+```
+
+Inside the optimizer bundle, the equivalent wrapper is:
+
+```bash
+cd plugins/agentv-dev/skills/agentv-optimizer
+bun scripts/convert-evals.ts --eval-path evals.json --out eval.yaml
 ```
 
 ## When to stay with evals.json

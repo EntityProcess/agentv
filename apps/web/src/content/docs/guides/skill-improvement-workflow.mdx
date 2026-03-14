@@ -134,6 +134,17 @@ agentv prompt eval --expected-output evals.json --test-id 1
 
 Agent mode is useful when you want to evaluate skills with agents that don't have a direct API integration — you orchestrate the run yourself and use AgentV's accessor commands to read the eval spec.
 
+If you're using the `agentv-optimizer` skill bundle, the equivalent wrappers are:
+
+```bash
+cd plugins/agentv-dev/skills/agentv-optimizer
+bun install
+bun scripts/quick-validate.ts --scope wrappers
+bun scripts/prompt-eval.ts --list evals.json
+bun scripts/prompt-eval.ts --input evals.json --test-id 1
+bun scripts/prompt-eval.ts --expected-output evals.json --test-id 1
+```
+
 ## Step 4: Compare Results
 
 Compare the baseline and candidate runs:
@@ -310,3 +321,12 @@ For users who want the full automated improvement cycle, the `agentv-optimizer` 
 5. **Decide** — keeps improvements that help, reverts those that don't
 
 The optimizer uses the same core loop described in this guide but automates the human steps. Start with the manual loop to build intuition, then graduate to the optimizer when you're comfortable with the evaluation workflow.
+
+Its bundled scripts map directly onto the workflow stages:
+
+- `run-eval.ts` and `compare-runs.ts` run and compare evaluations while still delegating to `agentv`
+- `run-loop.ts` repeats the evaluation loop without moving evaluator logic into the script layer
+- `aggregate-benchmark.ts` and `generate-report.ts` summarize AgentV artifacts into review-friendly output
+- `improve-description.ts` proposes follow-up description experiments once execution quality is stable
+
+Code-judge execution, grading semantics, and artifact schemas still live in AgentV core. The scripts layer is orchestration glue over those existing primitives.
