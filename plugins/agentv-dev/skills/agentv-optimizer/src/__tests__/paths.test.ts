@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { createAgentvCliInvocation } from '../cli.js';
-import { resolveAgentvCommand, resolveRepoRoot, resolveSkillRoot } from '../paths.js';
+import { isAgentvCliAvailable, resolveAgentvCommand, resolveRepoRoot, resolveSkillRoot } from '../paths.js';
 
 describe('paths', () => {
   it('resolves skill root, repo root, and an agentv command without hardcoded relative cwd assumptions', () => {
@@ -26,5 +26,11 @@ describe('paths', () => {
     // Validate CLI helper constructs full command correctly
     const invocation = createAgentvCliInvocation(['eval', 'examples/sample.eval.yaml']);
     expect(invocation).toEqual([...agentvCmd, 'eval', 'examples/sample.eval.yaml']);
+  });
+
+  it('isAgentvCliAvailable returns available=true when running in agentv repo', () => {
+    const result = isAgentvCliAvailable();
+    expect(result.available).toBe(true);
+    expect(result.reason).toBeUndefined();
   });
 });

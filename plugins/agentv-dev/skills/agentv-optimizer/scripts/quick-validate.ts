@@ -4,11 +4,14 @@
  *
  * Validates bundle structure with wrapper-stage mode for early checks
  * and full-bundle mode for final verification.
+ *
+ * Also supports --skill-path <path> to validate a single skill directory.
  */
 
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { resolveSkillRoot } from '../src/paths.js';
+import { validateSkill } from '../src/skill-validator.js';
 
 interface ValidationError {
   path: string;
@@ -88,6 +91,25 @@ function validateFullBundle(): ValidationError[] {
 
 function main() {
   const args = process.argv.slice(2);
+
+  // Check for --skill-path flag
+  const skillPathIdx = args.indexOf('--skill-path');
+  if (skillPathIdx !== -1) {
+    const skillPath = args[skillPathIdx + 1];
+    if (!skillPath) {
+      console.error('Error: --skill-path requires a path argument');
+      process.exit(1);
+    }
+    const result = validateSkill(resolve(skillPath));
+    if (result.valid) {
+      console.log(`✓ ${result.message}`);
+      process.exit(0);
+    } else {
+      console.error(`✗ ${result.message}`);
+      process.exit(1);
+    }
+  }
+
   const scope = args.includes('--scope') ? args[args.indexOf('--scope') + 1] : 'full';
 
   const errors = scope === 'wrappers' ? validateWrapperStage() : validateFullBundle();
