@@ -90,6 +90,7 @@ async function parseEvaluatorList(
     firstStringIndex === -1
       ? [...candidateEvaluators]
       : (() => {
+          const PLACEHOLDER = Symbol('rubric-placeholder');
           const strings: string[] = [];
           const result: unknown[] = [];
           let rubricInserted = false;
@@ -102,21 +103,19 @@ async function parseEvaluatorList(
                 strings.push(trimmed);
               }
               if (!rubricInserted) {
-                // Placeholder: will be replaced after loop
-                result.push(null);
+                result.push(PLACEHOLDER);
                 rubricInserted = true;
               }
             } else {
               result.push(item);
             }
           }
-          // Replace the placeholder with the synthetic rubrics object
-          const placeholderIndex = result.indexOf(null);
+          const placeholderIndex = result.indexOf(PLACEHOLDER);
           if (strings.length > 0 && placeholderIndex !== -1) {
             result[placeholderIndex] = { type: 'rubrics', criteria: strings };
-          } else {
+          } else if (placeholderIndex !== -1) {
             // All strings were empty — remove the placeholder
-            if (placeholderIndex !== -1) result.splice(placeholderIndex, 1);
+            result.splice(placeholderIndex, 1);
           }
           return result;
         })();
