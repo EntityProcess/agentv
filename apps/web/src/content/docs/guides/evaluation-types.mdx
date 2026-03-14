@@ -13,7 +13,7 @@ Agent evaluation has two fundamentally different concerns: **execution quality**
 
 Execution quality evaluates output quality, correctness, and completeness once an agent or skill is invoked. Given a specific input, does the agent produce the right output?
 
-This is what AgentV's eval tooling measures. When you write an `EVAL.yaml`, define assertions in `evals.json`, or run `agentv eval run`, you are evaluating execution quality.
+This is what AgentV's eval tooling measures. When you write an `EVAL.yaml`, define assertions in `evals.json`, or run `agentv eval`, you are evaluating execution quality.
 
 **Examples:**
 - Does the code-review skill produce accurate, actionable feedback?
@@ -63,7 +63,7 @@ AgentV's eval tooling is designed for **execution quality**:
 
 - **`EVAL.yaml`** — define test cases with inputs, expected outputs, and assertions
 - **`evals.json`** — lightweight skill evaluation format (prompt/expected-output pairs)
-- **`agentv eval run`** — execute evaluations and collect results
+- **`agentv eval`** — execute evaluations and collect results
 - **Evaluators** — `llm-judge`, `code-judge`, `tool-trajectory`, `rubrics`, `contains`, `regex`, and others all measure execution behavior
 
 These tools assume the skill is already loaded and invoked. They measure what happens *after* routing, not the routing decision itself.
@@ -86,7 +86,7 @@ For now, trigger quality optimization belongs in **skill-creator's domain** — 
 **Do not use execution eval configs for trigger evaluation.** Specifically:
 
 - Do not add "does this skill trigger?" test cases to your `EVAL.yaml`
-- Do not use `agentv eval run` to measure trigger rates
+- Do not use `agentv eval` to measure trigger rates
 - Do not conflate routing failures with execution failures in eval results
 
 **If you need to test trigger quality:**

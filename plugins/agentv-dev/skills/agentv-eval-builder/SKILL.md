@@ -29,7 +29,7 @@ agentv convert evals.json
 
 # Run directly without converting (all commands accept evals.json)
 agentv eval evals.json
-agentv prompt eval evals.json
+agentv prompt eval overview evals.json
 ```
 
 The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assert` (llm-judge), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, code judges, rubrics, required gates).

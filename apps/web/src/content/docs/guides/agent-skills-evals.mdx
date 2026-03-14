@@ -85,7 +85,7 @@ AgentV's prompt subcommands work with evals.json, enabling agent-mode evaluation
 
 ```bash
 # Show orchestration overview
-agentv prompt eval evals.json
+agentv prompt eval overview evals.json
 
 # Get input for a specific test
 agentv prompt eval input evals.json --test-id 1
@@ -94,7 +94,7 @@ agentv prompt eval input evals.json --test-id 1
 agentv prompt eval judge evals.json --test-id 1 --answer-file answer.txt
 ```
 
-The eval-candidate and eval-judge agents can be dispatched against evals.json just like EVAL.yaml files.
+In agent mode, the host agent acts as the candidate, then dispatches the `eval-grader` agent to score the saved answer.
 
 ## Benchmark output
 
