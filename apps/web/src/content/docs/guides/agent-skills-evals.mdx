@@ -96,22 +96,18 @@ agentv prompt eval --expected-output evals.json --test-id 1
 
 In agent mode, the host agent uses these accessors to enumerate tests, act as the candidate, and then grade the saved answer against the eval spec.
 
-If you're using the `agentv-optimizer` skill bundle, the wrappers map one-to-one onto the same commands:
+If you're using the `agentv-bench` skill bundle, validate your evals before running:
 
 ```bash
-cd plugins/agentv-dev/skills/agentv-optimizer
-bun install
-bun scripts/quick-validate.ts --scope wrappers
-bun scripts/prompt-eval.ts --list evals.json
-bun scripts/prompt-eval.ts --input evals.json --test-id 1
-bun scripts/prompt-eval.ts --expected-output evals.json --test-id 1
+cd plugins/agentv-dev/skills/agentv-bench
+python scripts/quick_validate.py --eval evals/evals.json
 ```
 
 The rest of the bundle follows the same pattern:
-- `run-eval.ts` wraps `agentv eval`
-- `convert-evals.ts` wraps `agentv convert`
-- `compare-runs.ts` wraps `agentv compare`
-- `generate-report.ts` and `improve-description.ts` read AgentV artifacts instead of inventing a new format
+- `scripts/run_eval.py` runs evals via `claude -p`
+- `scripts/run_loop.py` iterates eval rounds automatically
+- `scripts/aggregate_benchmark.py` and `scripts/generate_report.py` read AgentV artifacts
+- `scripts/improve_description.py` proposes description experiments from observed misses
 
 ## Benchmark output
 
@@ -173,11 +169,10 @@ tests:
         prompt: "Output identifies November as the highest revenue month"
 ```
 
-Inside the optimizer bundle, the equivalent wrapper is:
+Inside the agentv-bench bundle, use `agentv convert` directly:
 
 ```bash
-cd plugins/agentv-dev/skills/agentv-optimizer
-bun scripts/convert-evals.ts --eval-path evals.json --out eval.yaml
+agentv convert evals/evals.json --out EVAL.yaml
 ```
 
 ## When to stay with evals.json
