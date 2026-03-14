@@ -167,7 +167,14 @@ export class ClaudeCliProvider implements Provider {
   }
 
   private buildArgs(): string[] {
-    const args = ['-p', '--output-format', 'stream-json', '--include-partial-messages'];
+    // --verbose is required when combining -p with --output-format stream-json
+    const args = [
+      '-p',
+      '--output-format',
+      'stream-json',
+      '--include-partial-messages',
+      '--verbose',
+    ];
 
     if (this.config.model) {
       args.push('--model', this.config.model);
