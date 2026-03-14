@@ -12,23 +12,16 @@ export function resolveSkillRoot(): string {
 }
 
 /**
- * Resolves the repository root by using git and following worktree links
+ * Resolves the repository root of the current working tree
  */
 export function resolveRepoRoot(): string {
-  try {
-    const skillRoot = resolveSkillRoot();
-    // For git worktrees, get the actual common dir
-    const gitCommonDir = execSync("git rev-parse --git-common-dir", {
-      cwd: skillRoot,
-      encoding: "utf-8",
-    }).trim();
-    // The common dir is typically .git, so we go one level up
-    return resolve(gitCommonDir, "..");
-  } catch {
-    // Fallback to traversing up from the skill root
-    const skillRoot = resolveSkillRoot();
-    return resolve(skillRoot, "../../../../..");
-  }
+  const skillRoot = resolveSkillRoot();
+  // Use --show-toplevel to get the current worktree root, not the shared repo
+  const topLevel = execSync("git rev-parse --show-toplevel", {
+    cwd: skillRoot,
+    encoding: "utf-8",
+  }).trim();
+  return topLevel;
 }
 
 /**
