@@ -82,9 +82,32 @@ async function parseEvaluatorList(
     return undefined;
   }
 
+  // Pre-process: collect string entries and group them into a single rubrics evaluator
+  // at the position of the first string. Non-string entries are preserved in order.
+  const hasStrings = candidateEvaluators.some((e) => typeof e === 'string');
+  const processedEvaluators: unknown[] = hasStrings
+    ? (() => {
+        const strings = candidateEvaluators.filter((e): e is string => typeof e === 'string');
+        const syntheticRubrics = { type: 'rubrics', criteria: strings };
+        let rubricInserted = false;
+        const result: unknown[] = [];
+        for (const item of candidateEvaluators) {
+          if (typeof item === 'string') {
+            if (!rubricInserted) {
+              result.push(syntheticRubrics);
+              rubricInserted = true;
+            }
+          } else {
+            result.push(item);
+          }
+        }
+        return result;
+      })()
+    : [...candidateEvaluators];
+
   const evaluators: EvaluatorConfig[] = [];
 
-  for (const rawEvaluator of candidateEvaluators) {
+  for (const rawEvaluator of processedEvaluators) {
     if (!isJsonObject(rawEvaluator)) {
       logWarning(`Skipping invalid evaluator entry for '${evalId}' (expected object)`);
       continue;
