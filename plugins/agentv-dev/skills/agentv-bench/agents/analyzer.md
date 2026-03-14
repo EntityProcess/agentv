@@ -241,7 +241,7 @@ Write freeform observations as a list of strings. Each note should:
 Examples:
 - "Assertion 'Output is a PDF file' passes 100% in both configurations - may not differentiate skill value"
 - "Eval 3 shows high variance (50% ± 40%) - run 2 had an unusual failure that may be flaky"
-- "Without-skill runs consistently fail on table extraction expectations (0% pass rate)"
+- "Without-skill runs consistently fail on table extraction assertions (0% pass rate)"
 - "Skill adds 13s average execution time but improves pass rate by 50%"
 - "Token usage is 80% higher with skill, primarily due to script output parsing"
 - "All 3 without-skill runs for eval 1 produced empty output"
@@ -254,7 +254,7 @@ Save notes to `{output_path}` as a JSON array of strings:
 [
   "Assertion 'Output is a PDF file' passes 100% in both configurations - may not differentiate skill value",
   "Eval 3 shows high variance (50% ± 40%) - run 2 had an unusual failure",
-  "Without-skill runs consistently fail on table extraction expectations",
+  "Without-skill runs consistently fail on table extraction assertions",
   "Skill adds 13s average execution time but improves pass rate by 50%"
 ]
 ```
@@ -263,7 +263,7 @@ Save notes to `{output_path}` as a JSON array of strings:
 
 **DO:**
 - Report what you observe in the data
-- Be specific about which evals, expectations, or runs you're referring to
+- Be specific about which evals, assertions, or runs you're referring to
 - Note patterns that aggregate metrics would hide
 - Provide context that helps interpret the numbers
 

@@ -236,7 +236,7 @@ Once runs complete:
 3. **Write grading.json** per run with this structure:
 ```json
 {
-  "expectations": [
+  "assertion_results": [
     {"text": "Response includes error handling", "passed": true, "evidence": "Lines 12-15 contain try/catch block"},
     {"text": "Uses async/await pattern", "passed": false, "evidence": "Uses .then() callback pattern instead"}
   ],
@@ -244,7 +244,7 @@ Once runs complete:
 }
 ```
 
-The grading.json `expectations` array must use the fields `text`, `passed`, and `evidence` — downstream tooling depends on these exact field names.
+The grading.json `assertion_results` array must use the fields `text`, `passed`, and `evidence` — downstream tooling depends on these exact field names.
 
 ### Workspace features (EVAL.yaml only)
 
@@ -257,7 +257,7 @@ The grading.json `expectations` array must use the fields `text`, `passed`, and 
 
 All artifacts use established schemas — do not modify the structure:
 
-- **grading.json**: per-test `expectations` with `{text, passed, evidence}`, plus `summary`
+- **grading.json**: per-test `assertion_results` with `{text, passed, evidence}`, plus `summary`
 - **timing.json**: `{total_tokens, duration_ms, total_duration_seconds}`
 - **benchmark.json**: per-target aggregate `{pass_rate, time_seconds, tokens}` with `mean ± stddev`
 

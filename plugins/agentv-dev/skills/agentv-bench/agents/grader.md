@@ -109,7 +109,7 @@ Write a JSON file with this structure:
 
 ```json
 {
-  "assertions": [
+  "assertion_results": [
     {
       "text": "The output includes the name 'John Smith'",
       "passed": true,
@@ -185,7 +185,7 @@ Write a JSON file with this structure:
 
 ## Field Descriptions
 
-- **assertions**: Array of graded assertions
+- **assertion_results**: Array of graded assertion results
   - **text**: The original assertion text
   - **passed**: Boolean - true if assertion passes
   - **evidence**: Specific quote or description supporting the verdict

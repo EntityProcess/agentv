@@ -17,7 +17,7 @@ Defines the evals for a skill. Located at `evals/evals.json` within the skill di
       "prompt": "User's example prompt",
       "expected_output": "Description of expected result",
       "files": ["evals/files/sample1.pdf"],
-      "assertions": [
+      "assertion_results": [
         "The output includes X",
         "The skill used script Y"
       ]
@@ -89,7 +89,7 @@ Output from the grader agent. Located at `<run-dir>/grading.json`.
 
 ```json
 {
-  "assertions": [
+  "assertion_results": [
     {
       "text": "The output includes the name 'John Smith'",
       "passed": true,
@@ -150,7 +150,7 @@ Output from the grader agent. Located at `<run-dir>/grading.json`.
 ```
 
 **Fields:**
-- `assertions[]`: Graded assertions with evidence
+- `assertion_results[]`: Graded assertion results with evidence
 - `summary`: Aggregate pass/fail counts
 - `execution_metrics`: Tool usage and output size (from executor's metrics.json)
 - `timing`: Wall clock timing (from timing.json)
@@ -248,7 +248,7 @@ Output from Benchmark mode. Located at `benchmarks/<timestamp>/benchmark.json`.
         "tool_calls": 18,
         "errors": 0
       },
-      "assertions": [
+      "assertion_results": [
         {"text": "...", "passed": true, "evidence": "..."}
       ],
       "notes": [
