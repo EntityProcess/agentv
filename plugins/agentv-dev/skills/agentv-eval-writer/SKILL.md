@@ -1,15 +1,15 @@
 ---
 name: agentv-eval-writer
 description: >-
-  Create and maintain AgentV EVAL.yaml / .eval.yaml evaluation files for testing AI agent output quality.
-  Use when asked to create new AgentV eval files, add test cases to an existing .eval.yaml,
-  configure AgentV evaluators (llm-judge, code-judge, rubrics), or convert between EVAL.yaml and evals.json
-  using `agentv convert`.
-  Do NOT use for creating SKILL.md files, writing skill definitions, or building skill test suites —
-  those tasks belong to the skill-creator skill.
+  Write, edit, review, and validate AgentV EVAL.yaml / .eval.yaml evaluation files.
+  Use when asked to create new eval files, update or fix existing ones, add or remove test cases,
+  configure evaluators (llm-judge, code-judge, rubrics), review whether an eval is correct or complete,
+  or convert between EVAL.yaml and evals.json using `agentv convert`.
+  Do NOT use for creating SKILL.md files, writing skill definitions, or running evals —
+  running and benchmarking belongs to agentv-bench.
 ---
 
-# AgentV Eval Builder
+# AgentV Eval Writer
 
 Comprehensive docs: https://agentv.dev
 
@@ -36,7 +36,7 @@ agentv prompt eval --expected-output evals.json --test-id 1
 
 The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assert` (llm-judge), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, code judges, rubrics, required gates).
 
-If you're running the lifecycle through `agentv-bench`, its `scripts/convert-evals.ts` and `scripts/prompt-eval.ts` are thin wrappers around these same core commands and artifacts.
+If you're running the lifecycle through `agentv-bench`, use `agentv convert` and `agentv prompt eval` directly — the Python scripts in `agentv-bench/scripts/` orchestrate these same commands.
 
 After converting, enhance the YAML with AgentV-specific capabilities shown below.
 
