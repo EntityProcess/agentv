@@ -53,12 +53,12 @@ export const evalRunCommand = command({
       long: 'output',
       short: 'o',
       description:
-        'Output file path(s). Format inferred from extension: .jsonl, .json, .xml, .yaml',
+        'Output file path(s). Format inferred from extension: .jsonl, .json, .xml, .yaml, .html',
     }),
     outputFormat: option({
       type: optional(string),
       long: 'output-format',
-      description: "Output format: 'jsonl' or 'yaml' (default: jsonl)",
+      description: "Output format: 'jsonl', 'yaml', or 'html' (default: jsonl)",
     }),
     dryRun: flag({
       long: 'dry-run',
