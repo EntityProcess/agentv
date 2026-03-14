@@ -285,28 +285,32 @@ export class ClaudeCliProvider implements Provider {
         timeoutHandle.unref?.();
       }
 
-      child.stdout.setEncoding('utf8');
-      child.stdout.on('data', (chunk: string) => {
-        stdout += chunk;
-        stdoutBuffer += chunk;
-        // Process complete lines
-        const lines = stdoutBuffer.split(/\r?\n/);
-        stdoutBuffer = lines.pop() ?? '';
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.length > 0) {
-            options.onLine(trimmed);
+      if (child.stdout) {
+        child.stdout.setEncoding('utf8');
+        child.stdout.on('data', (chunk: string) => {
+          stdout += chunk;
+          stdoutBuffer += chunk;
+          // Process complete lines
+          const lines = stdoutBuffer.split(/\r?\n/);
+          stdoutBuffer = lines.pop() ?? '';
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.length > 0) {
+              options.onLine(trimmed);
+            }
           }
-        }
-      });
+        });
+      }
 
-      child.stderr.setEncoding('utf8');
-      child.stderr.on('data', (chunk: string) => {
-        stderr += chunk;
-      });
+      if (child.stderr) {
+        child.stderr.setEncoding('utf8');
+        child.stderr.on('data', (chunk: string) => {
+          stderr += chunk;
+        });
+      }
 
       // Send prompt via stdin
-      child.stdin.end(options.prompt);
+      child.stdin?.end(options.prompt);
 
       const cleanup = (): void => {
         if (timeoutHandle) {
