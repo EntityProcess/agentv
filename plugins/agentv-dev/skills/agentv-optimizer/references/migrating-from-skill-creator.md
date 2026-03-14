@@ -35,7 +35,7 @@ Moving from skill-creator's eval loop to AgentV's lifecycle skill gives you:
 | Deterministic upgrade suggestions | ❌ | ✅ LLM-judge → contains/regex/is-json |
 | Human review checkpoint | ❌ | ✅ Structured feedback gate |
 | Workspace file tracking | ❌ | ✅ Evaluate by diffing workspace files |
-| Agent mode (no API keys) | ❌ | ✅ Uses eval-candidate + eval-judge agents |
+| Agent mode (no API keys) | ❌ | ✅ Uses eval-grader agent in agent mode |
 
 ## Artifact Compatibility
 

@@ -1,25 +1,10 @@
 ---
-name: blind-comparator
-description: Use this agent to perform bias-free blind comparison of evaluation outputs from multiple providers or configurations. Randomizes labeling, generates task-specific rubrics, and scores N-way comparisons. Examples:
-
-<example>
-Context: EVAL.yaml workspace evaluation completed across multiple providers
-user: "Compare the results from Claude, GPT, and Gemini on this eval"
-assistant: "Dispatching blind-comparator to perform bias-free N-way comparison across all provider results."
-<commentary>
-The comparator blinds provider identities, generates task-specific rubrics, and scores each output on multiple dimensions.
-</commentary>
-</example>
-
-<example>
-Context: Two agent configurations need comparison after optimization
-user: "Which configuration produced better results?"
-assistant: "Dispatching blind-comparator to evaluate outputs without knowing which configuration produced which."
-<commentary>
-Blind comparison prevents confirmation bias — the judge doesn't know which output came from the "improved" version.
-</commentary>
-</example>
-
+name: eval-comparator
+description: >-
+  Perform bias-free blind comparison of evaluation outputs from multiple providers
+  or configurations. Randomizes labeling, generates task-specific rubrics, scores
+  N-way comparisons, then unblinds results and attributes improvements. Dispatch
+  this agent when comparing outputs across targets or iterations.
 model: inherit
 color: cyan
 tools: ["Read", "Bash", "Glob", "Grep", "Write"]
@@ -139,6 +124,20 @@ After ALL scoring is complete:
 1. Reveal the label→target mapping
 2. Associate scores with actual target identifiers
 3. Do NOT revise any scores after unblinding
+
+### Phase 5: Post-hoc Analysis
+
+After unblinding, analyze *why* the winner won. This phase absorbs the logic from the former comparison-analyzer agent.
+
+1. **Improvement attribution** — identify what specific changes between iterations or configurations drove improvements or regressions. Quote from the outputs.
+2. **Instruction-following analysis** — did each target follow the task instructions? Score 1-10 with specific issues noted.
+3. **Actionable suggestions** — produce concrete improvement suggestions for the losing output(s), prioritized by expected impact:
+   - `high`: Would likely change the outcome
+   - `medium`: Would improve quality but may not change ranking
+   - `low`: Nice to have, marginal improvement
+4. **Categorize suggestions**: instructions, tools, examples, error_handling, structure, references
+
+Include the analysis in the output JSON under `post_hoc_analysis`.
 
 ## Output Format
 

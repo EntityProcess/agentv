@@ -14,10 +14,11 @@
       "strict": false,
       "skills": [
         "./skills/agentv-chat-to-eval",
+        "./skills/agentv-eval-analyzer",
         "./skills/agentv-eval-builder",
-        "./skills/agentv-eval-orchestrator",
         "./skills/agentv-onboarding",
-        "./skills/agentv-prompt-optimizer"
+        "./skills/agentv-optimizer",
+        "./skills/agentv-trace-analyst"
       ],
       "category": "development"
     },

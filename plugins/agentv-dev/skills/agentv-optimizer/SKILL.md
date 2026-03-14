@@ -1,354 +1,423 @@
 ---
 name: agentv-optimizer
-description: "Run the full agent-evaluation lifecycle: discover → run → grade → compare → analyze → review → optimize → re-run. Use when asked to evaluate an agent, optimize prompts against evals, run EVAL.yaml or evals.json evaluations, compare agent outputs, analyze eval results, or improve agent performance. Supports workspace evaluation with real repos, multi-provider targets, multi-turn conversations, code judges, tool trajectory scoring, and workspace file change tracking."
 description: >-
-  Optimize agent task prompts through AgentV evaluation-driven refinement using `agentv prompt eval` and EVAL.yaml files.
-  Five-phase workflow (Discovery → Planning → Optimization → Polish → Handoff) that iteratively improves prompts
-  based on AgentV eval scores.
-  Use when asked to optimize agent performance against AgentV evals, improve prompt quality using AgentV evaluation results,
-  or run the AgentV optimization loop.
-  Do NOT use for optimizing SKILL.md trigger descriptions, improving skill discoverability, or editing skill metadata —
-  those tasks belong to the skill-creator skill.
+  Optimize agents through evaluation-driven iteration. Use when asked to evaluate an agent,
+  optimize prompts against evals, run EVAL.yaml or evals.json evaluations, benchmark agent
+  performance, compare agent outputs across providers, analyze eval results, or improve agent
+  performance. Supports workspace evaluation with real repos, multi-provider targets, multi-turn
+  conversations, code judges, tool trajectory scoring, and workspace file change tracking.
+  Use this skill whenever the user mentions evaluating, benchmarking, testing, or optimizing
+  any agent, prompt, or skill — even if they don't explicitly say "agentv".
 ---
 
-# AgentV Agent-Evaluation Lifecycle
+# AgentV Optimizer
 
-## Overview
 
-An agent **is** its prompts. This skill orchestrates the complete agent-evaluation lifecycle — from running evaluations through grading, comparison, analysis, human review, optimization, and re-running — in a single invocation. It dispatches specialized agents at each phase and produces structured artifacts throughout.
+A skill for evaluating agents and iteratively improving them through data-driven optimization.
 
-The workflow is structured into eight phases: **Discovery → Run → Grade → Compare → Analyze → Review → Optimize → Re-run**. Users can enter at any phase (e.g., "I already have results, just analyze them") and skip optional phases (e.g., comparison when there's only one run, or human review in CI mode).
+At a high level, the process goes like this:
 
-### How this differs from skill-creator
+- Understand what the agent does and what "good" looks like
+- Write evaluation test cases (EVAL.yaml or evals.json)
+- Run the agent on those test cases, grade the outputs
+- Analyze the results — what's working, what's failing, and why
+- Improve the agent's prompts/skills/config based on the analysis
+- Repeat until you're satisfied
 
-| | AgentV Lifecycle Skill (this) | Anthropic skill-creator |
-|--|-------------------------------|------------------------|
-| **Primary input** | EVAL.yaml (workspace evals) | evals.json (skill evals) |
-| **Also accepts** | evals.json, JSONL datasets | — |
-| **Environment** | Clone repos, setup/teardown scripts, real project contexts | Isolated single-prompt |
-| **Targets** | Multiple providers (Claude, GPT, Copilot, Gemini, custom CLI) | With-skill vs without-skill |
-| **Evaluators** | Code judges, tool trajectory, LLM judge, deterministic | LLM judge, deterministic |
-| **Conversations** | Multi-turn with conversation_id tracking | Single-turn |
-| **Workspace** | File change tracking via workspace diffs | Text output only |
-| **Modes** | Agent mode (no API keys) + CLI mode (end-to-end) | CLI only |
+Your job when using this skill is to figure out where the user is in this process and then jump in and help them progress. Maybe they want to start from scratch — help them write evals, run them, and iterate. Maybe they already have results — jump straight to analysis and improvement.
 
-For users migrating from skill-creator, see `references/migrating-from-skill-creator.md`.
+Be flexible. If the user says "I don't need a full benchmark, just help me debug this failure", do that instead.
 
-## Input Variables
+After the agent is working well, you can also run description optimization to improve skill triggering accuracy (see the Description Optimization section).
 
-- `eval-path`: Path or glob pattern to the AgentV evaluation file(s) — EVAL.yaml, evals.json, or JSONL
-- `optimization-log-path` (optional): Path where optimization progress should be logged
-- `entry-phase` (optional): Phase to start from (1-8) — defaults to 1 (Discovery)
-- `results-path` (optional): Path to existing results for mid-lifecycle entry (phases 3-6)
-- `skip-review` (optional): Skip Phase 6 human review (for CI/automated mode)
-- `target-pass-rate` (optional): Exit threshold — stop iterating when reached (default: 100%)
-- `max-iterations` (optional): Maximum optimization iterations (default: 10)
+## Communicating with the user
 
-## Mode Detection
+This skill is used by people across a wide range of familiarity with evaluation tooling. Pay attention to context cues:
 
-The skill auto-detects the evaluation mode from the input format:
+- "evaluation" and "benchmark" are borderline but OK in most cases
+- For "YAML", "evaluator", "assertion", "deterministic judge" — see serious cues from the user that they know what those mean before using them without explanation
+- Briefly explain terms if in doubt
 
-| Input file | Detected mode | Behavior |
-|-----------|---------------|----------|
-| `*.eval.yaml` | Workspace/Agent evaluation | Full feature set: workspace isolation, code judges, multi-provider, multi-turn, tool trajectory |
-| `evals.json` | Skill evaluation (compat) | Auto-promotes prompt/expected_output/assertions; resolves files[] paths; agent mode default |
-| `*.jsonl` | Dataset evaluation | One test per line with optional YAML sidecar |
+When presenting results, default to summary tables. Offer detail on request. In CI/headless mode, skip interactive prompts and exit with status codes.
 
-All modes flow through the same 8 phases. EVAL.yaml unlocks the richest feature set.
+---
 
-## Evaluation Integrity Constraint
+## Step 1: Understand the Agent
 
-**Critical:** This skill optimizes only **task prompts** (what your agent receives), never **judge prompts** (how evaluators score outputs).
+Before running or optimizing, understand what you're working with.
 
-| Prompt Type | Location | Optimize? | Why |
-|------------|----------|-----------|-----|
-| **Task Prompt** | Referenced in test `input` field (via `file:` references) | ✅ YES | Improves agent performance on the actual task |
-| **Judge Prompt** | Used in `assert` evaluator configs (e.g., `llm-judge` prompt) | ❌ NO | Would game the evaluation, not improve the agent |
+1. **Read the agent's artifacts** — prompts, skills, configs, recent changes. Understand the full picture: what tools are available, what the expected input/output looks like, what constraints exist.
 
-**Enforcement:**
-- Only identify and modify prompts from test case `input` fields
-- If a prompt file is referenced ONLY in evaluator configs, it is off-limits
-- If a prompt file is referenced in both locations, optimize for the task purpose only
-- Document which prompts were modified in the optimization log
+2. **Identify success criteria** — what does "good" look like for this agent? What are the edge cases? What would a failure look like? Talk to the user if this isn't clear from the artifacts alone.
 
-## Workflow
+3. **Understand the target harness** — which provider runs the agent (Claude, GPT, Copilot CLI, Gemini, custom CLI)? This affects what evaluator types are available and how to run tests.
 
-### Phase 1: Discovery
+4. **Challenge assumptions** — if evals already exist, review their quality before running:
+   - Are the test cases testing the right things?
+   - Are assertions specific enough to catch real failures?
+   - Are there ambiguous or contradictory test cases?
+   - Flag eval issues before proceeding — running bad evals wastes time.
 
-Before running or optimizing, understand what you are working with.
+5. **Check integrity** — ensure task prompts (what the agent receives) are not also used as evaluator prompts (how outputs are scored). If a prompt file appears in both locations, note the overlap and optimize only for the task purpose.
 
-**Dispatch the `optimizer-discovery` agent** with the eval path. It will:
+---
 
-1. **Load the Evaluation** — verify `<eval-path>` targets the correct system, read the eval file and all referenced test cases. Supports EVAL.yaml, evals.json, and JSONL formats.
-2. **Identify Prompt Files** — infer task prompts from `file:` references in `input` fields only, run integrity checks against evaluator configs, and recursively resolve prompt dependencies.
-3. **Identify Optimization Log** — use `<optimization-log-path>` if provided, otherwise create `optimization-[timestamp].md` in the eval's parent directory.
-4. **Challenge Assumptions** — assess eval quality, flag ambiguous or contradictory test cases, triage failures into must-fix / nice-to-have / eval-issue, and surface eval issues before proceeding.
-5. **Integrity Check** — verify that task prompts referenced in `input` fields are not also present in evaluator configs. Flag any overlap.
+## Step 2: Write Evaluations
 
-**Review the discovery report** before moving to Phase 2. If the agent flags eval issues, fix the eval first.
+AgentV supports two evaluation formats:
 
-### Phase 2: Run Baseline
+**EVAL.yaml** (native, full features) — supports workspaces, code judges, multi-turn conversations, tool trajectory scoring, workspace file tracking, multi-provider targets. Use this for agent evaluation.
 
-Run evaluations to establish baseline measurements. This phase absorbs the functionality of the former `agentv-eval-orchestrator` skill.
+```yaml
+# example.eval.yaml
+tests:
+  - id: basic-code-review
+    input: "Review this TypeScript file for bugs and suggest improvements"
+    criteria: "Identifies the null pointer bug on line 12 and suggests a fix"
+    assert:
+      - type: contains
+        value: "null"
+      - type: llm-judge
+        prompt: "Did the review identify the bug and suggest a concrete fix?"
 
-**Execution modes:**
+workspace:
+  template: ./workspace-template
+  hooks:
+    before_each:
+      reset: fast
+```
 
-The mode is controlled by the `AGENTV_PROMPT_EVAL_MODE` environment variable:
+Multi-skill evaluation is handled naturally via input messages — describe the task in the test input, and the agent uses whatever skills it needs.
 
-- **`agent`** (default) — Dispatches `eval-candidate` and `eval-judge` agents. No API keys needed.
-- **`cli`** — Runs `agentv eval run <eval-path>` end-to-end. Requires API keys.
-
-**Steps:**
-
-1. **Run baseline evaluation:**
-
-   ```bash
-   # CLI mode
-   agentv eval run <eval-path>
-
-   # Agent mode — get orchestration prompt and follow it
-   agentv prompt eval <eval-path>
-   ```
-
-2. **For multi-target comparison:** Run the same eval against multiple providers/configurations to produce paired results for Phase 4.
-
-3. **For evals.json input:** AgentV automatically promotes `prompt` → input messages, `expected_output` → reference answer, converts `assertions` → evaluators, and resolves `files[]` paths.
-
-4. **Record baseline** in the optimization log: score, pass rate, per-test breakdown, and results file path (`.agentv/results/eval_...jsonl`).
-
-**Capabilities preserved from eval-orchestrator:**
-- Workspace isolation — clone repos, run setup/teardown scripts
-- Multi-provider targets — same eval against Claude, GPT, Copilot, Gemini, custom CLI agents
-- Multi-turn conversation evaluation — conversation_id tracking across turns
-- Code judges — Python/TypeScript evaluator scripts via `defineCodeJudge()`
-- Tool trajectory scoring — evaluate tool call sequences
-- Workspace file change tracking — evaluate by diffing workspace files
-- All eval formats — EVAL.yaml, evals.json, JSONL
-- Agent-mode AND CLI-mode — agent mode (no API keys) and CLI mode (end-to-end)
-
-**Baseline isolation:** Discovery-phase analysis should not contaminate baseline results. Run the baseline before deep-diving into failure patterns to ensure the optimizer's understanding of failures comes from actual eval data, not assumptions.
-
-### Phase 3: Grade
-
-Produce structured grading with per-assertion evidence.
-
-**Dispatch the `eval-judge` agent** (enhanced with claims extraction, #570). For each test case:
-
-1. **Per-assertion structured evidence** — each assertion produces `{text, passed, evidence}` with specific quotes or measurements backing the verdict.
-2. **Claims extraction** — extract factual claims from the candidate response and verify each against reference material.
-3. **Eval self-critique** — the judge flags its own weak assertions ("this passed, but the assertion is too loose to be meaningful").
-4. **Surface vs substance guards** — detect when a response looks good superficially but fails on substance (format compliance ≠ content quality).
-5. **User notes integration** — if the user provided notes or context, incorporate them into grading.
-
-**Output:** Write `grading.json` artifact to `.agentv/artifacts/grading.json` (#565).
+**evals.json** (skill-creator compatible) — auto-promoted to EVAL-equivalent format:
+- `prompt` → input messages
+- `expected_output` → reference answer
+- `assertions` → evaluators
+- `files[]` paths resolved relative to the evals.json location
 
 ```json
 {
-  "eval_path": "<eval-path>",
-  "timestamp": "<ISO-8601>",
-  "results": [
+  "skill_name": "my-agent",
+  "evals": [
     {
-      "test_id": "...",
-      "score": 0.85,
-      "assertions": [
-        {"text": "Response includes error handling", "passed": true, "evidence": "Lines 12-15 contain try/catch block"},
-        {"text": "Uses async/await pattern", "passed": false, "evidence": "Uses .then() callback pattern instead"}
-      ],
-      "claims": [...],
-      "self_critique": ["Assertion 'mentions error handling' is too loose — should check for specific error types"]
+      "id": 1,
+      "prompt": "User's task prompt",
+      "expected_output": "Description of expected result",
+      "assertions": ["Output includes error handling", "Uses async/await"]
     }
   ]
 }
 ```
 
-### Phase 4: Compare
+### Writing good test cases
 
-Blind N-way comparison when multiple runs exist. **Skip this phase when only one run exists.**
+Start with 2-3 realistic test cases — the kind of thing a real user would actually say. Share them with the user before running: "Here are a few test cases I'd like to try. Do these look right, or do you want to add more?"
 
-**Step 1 — Dispatch `blind-comparator` agent** (#571):
+Good assertions are objectively verifiable and have descriptive names. Subjective quality ("the output is good") is better evaluated qualitatively — don't force assertions onto things that need human judgment.
 
-1. **Blind presentation** — the comparator receives responses labeled "Response A", "Response B", etc. without knowing which is baseline.
-2. **Dynamic rubric generation** — generate task-specific evaluation criteria based on the test case requirements, not a generic rubric.
-3. **Multi-dimensional scoring** — evaluate on content quality AND structural quality independently.
-4. **N-way comparison** — compare 2+ responses simultaneously, not just binary A/B.
-5. **Per-response verdicts** with dimensional breakdowns.
+**Evaluator types** (from cheapest to most expensive):
+- `exact`, `contains`, `regex`, `is-json` — deterministic, zero cost, instant
+- `field-accuracy` — checks JSON field values against expected
+- `composite` — weighted combination of multiple evaluators
+- `code-judge` — Python/TypeScript scripts via `defineCodeJudge()` (→ see `agentv-eval-builder` skill)
+- `tool-trajectory` — evaluate tool call sequences and patterns
+- `llm-judge` — LLM-graded with rubric (most expensive, use when semantic understanding needed)
 
-**Step 2 — Dispatch `comparison-analyzer` agent** (#571):
+Prefer deterministic evaluators over LLM judges whenever possible. If an assertion can be checked with `contains` or `regex`, don't use `llm-judge`.
 
-1. **Unblinding** — reveal which response was baseline vs candidate.
-2. **Improvement attribution** — identify what specific changes drove improvements or regressions.
-3. **Instruction-following scoring** — score how well each response followed the original task instructions.
-4. **Actionable suggestions** — produce concrete optimization suggestions from the comparison.
+---
 
-**Output:** Comparison results are included in the grading artifact and fed into Phase 5.
+## Step 3: Run and Grade
 
-### Phase 5: Analyze
+This section is one continuous sequence — don't stop partway through.
 
-Deep failure analysis combining existing patterns with new capabilities.
+Put results in a workspace directory organized by iteration (`iteration-1/`, `iteration-2/`, etc.). Don't create all of this upfront — just create directories as you go.
 
-**Dispatch `optimizer-reflector` agent** (enhanced with #567 patterns) and `eval-analyzer` agent:
+### Running evaluations
 
-1. **SIMBA pattern** (existing) — self-introspective failure analysis. For each failure: "What specific instruction or lack of instruction caused this?"
-2. **GEPA pattern** (existing) — natural language trace reflection. Compare actual vs expected output, diagnose: knowledge gap, instruction ambiguity, hallucination, or wrong approach.
-3. **Deterministic-upgrade suggestions** (new, #567) — identify LLM-judge assertions that could be replaced with deterministic evaluators:
-   - "Response contains X" → `contains` evaluator
-   - "Output matches pattern Y" → `regex` evaluator
-   - "Output is valid JSON" → `is-json` evaluator
-4. **Weak assertion identification** (new) — flag assertions that always pass or are too vague to meaningfully test anything.
-5. **Benchmark pattern analysis** (new) — detect always-pass tests (assertion too loose), always-fail tests (task impossible or assertion wrong), and flaky tests (non-deterministic).
-6. **Trend analysis** (existing) — across iterations, detect improving / plateauing / regressing patterns, stagnation, overfitting.
+**CLI mode** (end-to-end, requires API keys):
+```bash
+agentv eval <eval-path> --artifacts .agentv/artifacts/
+```
 
-**Output:** Write `benchmark.json` artifact to `.agentv/artifacts/benchmark.json` (#565).
+**Agent mode** (no API keys — the orchestrator acts as both candidate and judge):
+```bash
+agentv prompt eval <eval-path>
+```
+
+**Spawn all runs in the same turn.** For each test case that needs both a "with change" and a "baseline" run, launch them simultaneously. Don't run one set first and come back for the other — launch everything at once so results arrive around the same time.
+
+**Multi-target benchmarking:**
+```bash
+agentv eval <eval-path> --target claude --target gpt --target copilot
+```
+
+**Baseline strategy:**
+- **New agent**: baseline is "no prompt" or minimal prompt — same eval, no agent-specific configuration
+- **Improving existing**: snapshot the current version before editing (`cp -r <prompt-dir> <workspace>/prompt-snapshot/`), use as baseline throughout
+- **Multi-target**: each target is its own baseline — no need for a separate "without" run
+
+### While runs are in progress, draft evaluators
+
+Don't just wait for runs to finish — use this time productively. If assertions don't exist yet, draft them now. If they exist, review them and explain what they check to the user.
+
+Good assertions are *discriminating* — they pass when the agent genuinely succeeds and fail when it doesn't. An assertion that passes for both good and bad outputs is worse than no assertion.
+
+### As runs complete, capture timing data
+
+When each subagent task completes, you receive a notification containing `total_tokens` and `duration_ms`. **Save this data immediately** to `timing.json` in the run directory:
 
 ```json
 {
-  "eval_path": "<eval-path>",
-  "timestamp": "<ISO-8601>",
-  "aggregate": {"pass_rate": 0.82, "total_tests": 11, "passed": 9, "failed": 2},
-  "patterns": {
-    "always_pass": ["test-id-1"],
-    "always_fail": ["test-id-7"],
-    "flaky": [],
-    "deterministic_upgrade_candidates": [
-      {"test_id": "test-id-3", "current": "llm-judge", "suggested": "contains", "pattern": "checks for keyword presence"}
-    ]
-  },
-  "iteration_trend": [{"iteration": 1, "pass_rate": 0.72}, {"iteration": 2, "pass_rate": 0.82}]
+  "total_tokens": 84852,
+  "duration_ms": 23332,
+  "total_duration_seconds": 23.3
 }
 ```
 
-### Phase 6: Review
+This is the only opportunity to capture this data — it comes through the task notification and isn't persisted elsewhere. Process each notification as it arrives.
 
-Human review checkpoint. **Skip this phase when `skip-review` is set or in CI/automated mode.**
+### Grading
 
-1. **Present results** — show the human reviewer:
-   - Current pass rate and delta from baseline
-   - Per-test breakdown (pass/fail with evidence)
-   - Comparison results (if Phase 4 ran)
-   - Analysis insights (deterministic upgrade candidates, weak assertions, pattern analysis)
-   - If the HTML dashboard (#562) is available, reference it for interactive exploration.
+Once runs complete:
 
-2. **Collect structured feedback** — prompt the human for:
-   - Approve: continue to optimization
-   - Reject: stop, the eval or agent needs rethinking
-   - Redirect: change optimization strategy or focus area
-   - Notes: free-form feedback to incorporate into subsequent phases
+1. **Deterministic evaluators** run automatically via CLI — `contains`, `regex`, `is-json`, `field-accuracy` produce instant results.
 
-3. **Output:** Write `feedback.json` artifact to `.agentv/artifacts/feedback.json` (#568).
+2. **LLM-graded assertions** — dispatch `eval-grader` subagent (read `agents/eval-grader.md`). The grader evaluates each assertion against the outputs with cited evidence. For assertions that can be checked programmatically, it writes and runs a script rather than eyeballing it.
 
-   ```json
-   {
-     "timestamp": "<ISO-8601>",
-     "iteration": 2,
-     "decision": "approve",
-     "notes": "Focus on test-id-7, the error handling case is critical",
-     "redirect": null
-   }
-   ```
+3. **Write grading.json** per run with this structure:
+```json
+{
+  "expectations": [
+    {"text": "Response includes error handling", "passed": true, "evidence": "Lines 12-15 contain try/catch block"},
+    {"text": "Uses async/await pattern", "passed": false, "evidence": "Uses .then() callback pattern instead"}
+  ],
+  "summary": {"passed": 1, "failed": 1, "total": 2, "pass_rate": 0.5}
+}
+```
 
-4. **Gate:** Do not proceed to Phase 7 without human approval (unless `skip-review` is set). If the reviewer redirects, return to the appropriate phase with updated context.
+The grading.json `expectations` array must use the fields `text`, `passed`, and `evidence` — downstream tooling depends on these exact field names.
 
-### Phase 7: Optimize
+### Workspace features (EVAL.yaml only)
 
-Apply surgical prompt refinements based on analysis.
+- **Workspace isolation** — clone repos, run setup/teardown hooks (before_all, before_each, after_each, after_all)
+- **Materialization modes** — `pooled` (reuse slots), `temp` (fresh per run), `static` (existing dir)
+- **Multi-repo** — clone multiple repos with sparse checkout and shallow clone support
+- **File change tracking** — grade by diffing workspace files before/after agent execution
 
-**Step 1 — Dispatch `optimizer-curator` agent:**
+### Artifacts
 
-1. Provide the reflector's strategy, comparison insights, and human feedback (if any).
-2. The curator applies atomic operations to task prompts:
-   - **ADD** — insert a new rule for a missing constraint
-   - **UPDATE** — refine an existing rule for clarity or generality
-   - **DELETE** — remove obsolete, redundant, or harmful rules
-   - **NEGATIVE CONSTRAINT** — explicitly state what NOT to do
-3. Returns a log entry: operation, target, change, trigger, rationale, score, insight.
+All artifacts use established schemas — do not modify the structure:
 
-**Step 2 — Dispatch `optimizer-polish` agent** (when nearing convergence):
+- **grading.json**: per-test `expectations` with `{text, passed, evidence}`, plus `summary`
+- **timing.json**: `{total_tokens, duration_ms, total_duration_seconds}`
+- **benchmark.json**: per-target aggregate `{pass_rate, time_seconds, tokens}` with `mean ± stddev`
 
-1. Generalize specific patches into broad principles.
-2. Remove redundancy and contradictions.
-3. Ensure prompt quality: clear persona, specific task, measurable success criteria, <200 lines.
+Write artifacts to `.agentv/artifacts/` or the iteration directory.
 
-**Step 3 — Verify polish didn't regress:**
-- Run the eval one final time after polish changes.
-- If score decreased, revert polish and keep the working version.
+---
 
-**Variant tracking:** When a change improves some tests but regresses others, maintain 2-3 promising prompt variants. Compare variants to find the best overall approach before converging.
+## Step 4: Analyze Results
 
-**Log result:** Append the curator's log entry to the optimization log file.
+Once all runs are graded, analyze the results before attempting improvements.
 
-### Phase 8: Re-run + Iterate
+### Pattern analysis
 
-Loop back to Phase 2 with the modified prompts.
+Read the JSONL results and look for:
 
-1. **Re-run evaluation** with the optimized prompts. The new results become the comparison baseline for the next iteration.
-2. **Compare against previous iteration** — Phase 4 now compares current vs previous iteration (not just original baseline).
-3. **Exit conditions** — stop iterating when ANY of:
-   - `target-pass-rate` is reached
-   - Human approves the result in Phase 6
-   - Stagnation detected (no improvement for 2 consecutive iterations)
-   - `max-iterations` exhausted
-4. **On exit:** Proceed to handoff — document all changes, report final vs baseline score, suggest future improvements, and finalize the optimization log.
+- **Always-pass tests** — assertion too loose or non-discriminating. If it passes for both good and bad outputs, it's not testing anything.
+- **Always-fail tests** — task impossible, eval broken, or assertion misconfigured. Don't optimize against broken evals.
+- **Flaky tests** — non-deterministic results across runs. Investigate before treating failures as real.
+- **Systematic failures** — same failure pattern across multiple tests. This usually points to a missing instruction or wrong approach.
+- **Deterministic upgrade candidates** — LLM-judge assertions that could be replaced with `contains`, `regex`, or `is-json` (cheaper, faster, more reliable).
 
-**Human checkpoints:** At iterations 3, 6, and 9, present progress to the user regardless of `skip-review`. Push back if optimization is accumulating contradictory rules or overfitting.
+### Dispatch subagents
+
+- **Dispatch `eval-analyzer`** (read `agents/eval-analyzer.md`) for a structured quality audit: deterministic upgrade suggestions, weak assertion detection, cost/quality flags, and benchmark pattern analysis.
+
+- **Dispatch `eval-comparator`** (read `agents/eval-comparator.md`) for blind N-way comparison between iterations or targets. The comparator blinds provider identities, generates task-specific rubrics, scores each output, then unblinds and attributes improvements.
+
+### Trace analysis
+
+Use CLI tools for deeper investigation:
+```bash
+agentv trace <results-file>          # Detailed execution trace inspection
+agentv compare <file-a> <file-b>     # Structured diff between runs
+```
+
+Look for: tool call patterns, error recovery behavior, conversation flow, wasted steps.
+
+### Present results to the user
+
+Show a summary table:
+
+```
+| Test ID          | Score | Pass/Fail | Delta | Notes                    |
+|------------------|-------|-----------|-------|--------------------------|
+| basic-code-review| 0.85  | ✓ PASS    | +0.15 | Found the bug this time  |
+| edge-case-empty  | 0.00  | ✗ FAIL    | —     | Crashed on empty input   |
+```
+
+Highlight:
+- Current pass rate and delta from baseline
+- Comparison results (which target/iteration won and why)
+- Analyst observations the aggregate stats would hide
+
+Ask: "How does this look? Anything you'd change about the evals or the approach?"
+
+---
+
+## Step 5: Improve
+
+This is the heart of the loop. You've run the test cases, analyzed the results, and now you need to make the agent better.
+
+### How to think about improvements
+
+1. **Generalize from the analysis.** You're iterating on a small eval set, but the agent will be used on many different inputs. Don't overfit to specific test cases. Rather than fiddly patches or oppressively rigid MUSTs, try different approaches and see what works. It's cheap to experiment.
+
+2. **Keep the prompt lean.** Read the execution transcripts, not just the final outputs. If the agent wastes time on unproductive steps, remove the instructions causing that. If it always ignores a section, that section isn't pulling its weight.
+
+3. **Explain the why.** Today's LLMs are smart. They have good theory of mind and can go beyond rote instructions when given good reasoning. If you find yourself writing ALWAYS or NEVER in all caps, that's a yellow flag — reframe as an explanation of why the thing matters. That's more humane, powerful, and effective.
+
+4. **Look for repeated work.** Read the transcripts from test runs and notice if the agent independently takes the same multi-step approach to something across cases. If all test runs result in writing the same helper script, bundle it. If every run makes the same mistake, the instruction is missing or unclear.
+
+### Applying changes
+
+- **Surgical edits**: ADD (new rule for a missing constraint), UPDATE (refine for clarity), DELETE (remove redundant or harmful rules), NEGATIVE CONSTRAINT (explicitly state what NOT to do)
+- **One change per iteration** to isolate effects. If you change three things and the score improves, you don't know which change helped.
+- **Variant tracking**: When a change helps some tests but hurts others, maintain 2-3 prompt variants. Compare variants to find the best overall approach before converging.
+- **When converging**: Generalize specific patches into broad principles. Remove redundancy and contradictions. Ensure the prompt is clear, focused, and under 200 lines.
+
+### Evaluation integrity
+
+**Critical**: Only optimize **task prompts** (what the agent receives), never **judge prompts** (how evaluators score outputs). Modifying judge prompts games the evaluation without improving the agent.
+
+If a prompt file is referenced in both task input and evaluator configs, optimize for the task purpose only. Document which prompts were modified in the optimization log.
+
+### The iteration loop
+
+After improving:
+
+1. Apply your changes to the agent's prompts/skills/config
+2. Re-run all test cases into a new `iteration-<N+1>/` directory, including baseline runs
+3. Compare against the previous iteration (Step 4)
+4. Present results to the user
+5. Stop when ANY of:
+   - The user says they're happy
+   - Feedback is all empty (everything looks good)
+   - You're not making meaningful progress (no improvement for 2 consecutive iterations)
+   - Target pass rate is reached
+   - Maximum iterations exhausted
+
+**Human checkpoints**: At iterations 3, 6, and 9, always present progress to the user regardless of automation settings. Push back if optimization is accumulating contradictory rules or overfitting to specific test cases.
+
+---
 
 ## Entering Mid-Lifecycle
 
-Users can start at any phase by providing existing data:
+Users can start at any step by providing existing data:
 
 | Entry point | Required input | Example prompt |
 |------------|---------------|----------------|
-| Phase 1 (Discovery) | `eval-path` | "Optimize my agent against evals/support.yaml" |
-| Phase 2 (Run) | `eval-path` | "Run this eval and show me results" |
-| Phase 3 (Grade) | `eval-path` + `results-path` | "Grade these eval results" |
-| Phase 4 (Compare) | Two or more result sets | "Compare these two eval runs" |
-| Phase 5 (Analyze) | `results-path` | "Analyze why my agent is failing on these results" |
-| Phase 6 (Review) | `results-path` + analysis | "Review these eval results before I optimize" |
-| Phase 7 (Optimize) | `eval-path` + analysis/strategy | "Apply these optimization suggestions" |
+| Step 1 (Understand) | `eval-path` | "Optimize my agent against evals/support.yaml" |
+| Step 2 (Write Evals) | Agent artifacts | "Write evals for this agent" |
+| Step 3 (Run + Grade) | `eval-path` | "Run this eval and show me results" |
+| Step 4 (Analyze) | `results-path` | "Analyze why my agent is failing on these results" |
+| Step 5 (Improve) | Analysis + strategy | "Apply these optimization suggestions" |
 
-When entering mid-lifecycle, the skill runs only the requested phase and subsequent phases. It does NOT re-run earlier phases unless the user requests a full loop.
+When entering mid-lifecycle, run only the requested step and subsequent steps. Don't re-run earlier steps unless the user requests a full loop.
 
-## Agent Dispatch Reference
+---
 
-This skill orchestrates up to eight specialized agents. The skill handles phase transitions, decision-making, and iteration control; agents handle autonomous work within each phase.
+## Advanced: Blind Comparison
 
-| Agent | Phase | Input | Output |
-|-------|-------|-------|--------|
-| `optimizer-discovery` | 1 (Discovery) | Eval path | Discovery report (targets, triage, eval quality) |
-| `eval-candidate` | 2 (Run) | Eval path, test ID | Candidate response (agent mode only) |
-| `eval-judge` | 2–3 (Run, Grade) | Eval path, test ID, answer | Structured grading with evidence |
-| `blind-comparator` | 4 (Compare) | Blinded responses, task context | Blind dimensional scores |
-| `comparison-analyzer` | 4 (Compare) | Blind results, response mapping | Unblinded analysis with suggestions |
-| `eval-analyzer` | 5 (Analyze) | Results, eval config | Deterministic-upgrade suggestions, weak assertions, patterns |
-| `optimizer-reflector` | 5 (Analyze) | Results JSONL, iteration number | SIMBA/GEPA analysis, strategy, stagnation check |
-| `optimizer-curator` | 7 (Optimize) | Strategy, prompt file paths | Log entry (operation, change, rationale) |
-| `optimizer-polish` | 7 (Optimize) | Prompt files, optimization log | Polish report (generalizations, quality) |
+For situations where you want a rigorous comparison between two versions (e.g., "is the new version actually better?"), dispatch the `eval-comparator` subagent. It blinds identities, generates task-specific rubrics, scores outputs, then unblinds and explains why the winner won.
 
-**What the skill handles directly** (not delegated to agents):
-- Phase 2: Choosing execution mode (agent vs CLI), multi-target orchestration
-- Phase 6: Human interaction, collecting feedback, gate decisions
-- Phase 8: Iteration control, exit condition evaluation, baseline comparison
-- Cross-phase: Artifact collection, optimization log maintenance, variant tracking
+This is optional and requires subagents. The human review loop is usually sufficient.
 
-## Companion Artifacts
+---
 
-The skill produces structured artifacts at key phases (#565):
+## Description Optimization
 
-| Artifact | Phase | Path | Description |
-|----------|-------|------|-------------|
-| `grading.json` | 3 (Grade) | `.agentv/artifacts/grading.json` | Per-assertion evidence, claims, self-critique |
-| `benchmark.json` | 5 (Analyze) | `.agentv/artifacts/benchmark.json` | Aggregate metrics, patterns, upgrade candidates |
-| `feedback.json` | 6 (Review) | `.agentv/artifacts/feedback.json` | Human reviewer decision and notes |
-| Results JSONL | 2 (Run) | `.agentv/results/eval_*.jsonl` | Raw per-test results (existing format) |
-| Optimization log | All | `<optimization-log-path>` | Running narrative of all changes and decisions |
+The `description` field in a skill's SKILL.md frontmatter is the primary mechanism that determines whether Claude invokes the skill. After the agent/skill is working well, offer to optimize the description for better triggering accuracy.
 
-Artifacts use schemas compatible with skill-creator's eval-viewer where applicable.
+### Step 1: Generate trigger EVAL.yaml
 
-## Guidelines
+Create 20 test cases:
+- **10 should-trigger**: realistic prompts where this skill should activate — different phrasings, casual speech, uncommon use cases, edge cases where this skill competes with another but should win
+- **10 should-not-trigger**: near-miss prompts that share keywords but actually need something different — adjacent domains, ambiguous phrasing where naive matching would trigger but shouldn't
 
-- **Generalization First**: Prefer broad, principle-based guidelines over specific examples or "hotfixes". Only use specific rules if generalized instructions fail to achieve the desired score.
-- **Simplicity ("Less is More")**: Avoid overfitting to the test set. If a specific rule doesn't significantly improve the score compared to a general one, choose the general one.
-- **Structure**: Maintain existing Markdown headers/sections in optimized prompts.
-- **Progressive Disclosure**: If the prompt grows too large (>200 lines), consider moving specialized logic into a separate file or skill.
-- **Quality Criteria**: Ensure the prompt defines a clear persona, specific task, and measurable success criteria.
-- **Isolation**: Never let discovery-phase knowledge contaminate baseline runs. Run first, analyze second.
-- **Integrity**: Never optimize judge prompts. Evaluation must remain an independent measure of agent quality.
+Prompts must be realistic — include file paths, personal context, typos, casual speech. Not abstract requests like "format data" but concrete ones like "ok so my boss sent me Q4-sales-FINAL-v2.xlsx and she wants me to add a profit margin column..."
+
+The should-not-trigger cases are the most valuable. "Write a fibonacci function" as a negative test for an eval skill is useless — it doesn't test anything. The negative cases should be genuinely tricky near-misses.
+
+Write as EVAL.yaml with top-level input (the user prompt doesn't specify the skill name — it's a natural utterance):
+
+```yaml
+# trigger-eval.eval.yaml
+tests:
+  - id: should-trigger-casual-optimize
+    input: "ok so I have this agent that keeps failing on the code review tasks, can you help me figure out why and fix it"
+    assert:
+      - type: contains
+        value: "agentv-optimizer"
+  - id: should-not-trigger-build-error
+    input: "my TypeScript build is failing with type errors in src/auth.ts"
+    assert:
+      - type: not-contains
+        value: "agentv-optimizer"
+```
+
+### Step 2: Review with user
+
+Present the eval set. The user adjusts queries, toggles should-trigger, adds/removes cases. This step matters — bad eval queries lead to bad descriptions.
+
+### Step 3: Iterate on description
+
+Run the trigger eval, identify misfires, rewrite the description, re-run. Max 5 iterations. Select best description by held-out test accuracy (split 60% train / 40% test) to avoid overfitting.
+
+### Step 4: Apply
+
+Update the skill's SKILL.md frontmatter with the optimized description. Show the user before/after with accuracy scores.
+
+---
+
+## Environment Adaptation
+
+**CI/headless mode**: Skip interactive prompts. Exit with pass/fail status code. Always generate artifacts for downstream consumption.
+
+**No subagents available** (e.g., Claude.ai): Run test cases serially. Skip blind comparison. Present results directly in conversation — for each test case, show the prompt and output. Ask for feedback inline. Skip benchmarking (it relies on baseline comparisons that aren't meaningful without subagents).
+
+**Provider-specific notes**:
+- **Copilot CLI**: Uses ACP protocol via `copilot --acp --stdio`
+- **Claude SDK**: Requires `@anthropic-ai/claude-agent-sdk` installed
+- **Custom CLI**: Needs `command` and output file pattern in target config
+- **Target config**: Uses `${{ ENV_VAR }}` syntax (not `${ENV_VAR}`) for API keys
+
+---
+
+## Subagent Reference
+
+The `agents/` directory contains instructions for specialized subagents. Read them when you need to spawn the relevant subagent.
+
+| Agent | File | Purpose | When to dispatch |
+|-------|------|---------|-----------------|
+| eval-grader | `agents/eval-grader.md` | Grade responses with per-assertion evidence | Step 3 (grading LLM-judged assertions) |
+| eval-comparator | `agents/eval-comparator.md` | Blind N-way comparison + post-hoc analysis | Step 4 (comparing iterations/targets) |
+| eval-analyzer | `agents/eval-analyzer.md` | Quality audit, deterministic upgrades, benchmarks | Step 4 (pattern analysis) |
+
+The `references/` directory has additional documentation:
+- `references/migrating-from-skill-creator.md` — Guide for users coming from Anthropic's skill-creator
+
+---
+
+Repeating the core loop for emphasis:
+
+- Understand what the agent does
+- Write evaluation test cases
+- Run the agent and grade outputs
+- Analyze results — surface patterns, dispatch analyst and comparator subagents
+- Improve the agent based on analysis
+- Repeat until you and the user are satisfied
+
+Take your time with improvements. Read the transcripts. Understand why failures happened. Make changes that generalize beyond the test set. This is important work.
