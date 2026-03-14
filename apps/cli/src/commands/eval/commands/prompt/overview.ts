@@ -56,16 +56,16 @@ function generateAgentModePrompt(
     '',
     'Run these two agents **sequentially**:',
     '',
-    '### 1. Dispatch `eval-candidate` agent',
+    '### 1. Act as the candidate',
     '',
     'Parameters:',
     '- `eval-path`: Path to the eval YAML file',
     '- `test-id`: The test case ID',
     '- `answer-file`: `.agentv/tmp/eval_<test-id>.txt`',
     '',
-    'The agent retrieves the task input, acts as the candidate LLM, and saves its response.',
+    'Read the task input from the eval file, complete the task, and save your response to the answer file.',
     '',
-    '### 2. Dispatch `eval-judge` agent (after candidate completes)',
+    '### 2. Dispatch `eval-grader` agent (after candidate completes)',
     '',
     'Parameters:',
     '- `eval-path`: Path to the eval YAML file',
@@ -73,7 +73,7 @@ function generateAgentModePrompt(
     '- `answer-file`: `.agentv/tmp/eval_<test-id>.txt`',
     `- \`results-file\`: \`.agentv/results/eval_${timestamp}.jsonl\``,
     '',
-    'The agent runs evaluators, scores the response, and appends results to the JSONL file.',
+    'The agent runs evaluators, grades the response with per-assertion evidence, and appends results to the JSONL file.',
     '',
   ];
 
@@ -89,12 +89,12 @@ function generateAgentModePrompt(
         lines.push(`Evaluators: ${evaluatorSummary}`);
       }
       lines.push('');
-      lines.push('**1. Dispatch `eval-candidate` agent:**');
+      lines.push('**1. Act as the candidate:**');
       lines.push(`- eval-path: \`${evalPath}\``);
       lines.push(`- test-id: \`${evalCase.id}\``);
       lines.push(`- answer-file: \`.agentv/tmp/eval_${evalCase.id}.txt\``);
       lines.push('');
-      lines.push('**2. Dispatch `eval-judge` agent** (after candidate completes):');
+      lines.push('**2. Dispatch `eval-grader` agent** (after candidate completes):');
       lines.push(`- eval-path: \`${evalPath}\``);
       lines.push(`- test-id: \`${evalCase.id}\``);
       lines.push(`- answer-file: \`.agentv/tmp/eval_${evalCase.id}.txt\``);

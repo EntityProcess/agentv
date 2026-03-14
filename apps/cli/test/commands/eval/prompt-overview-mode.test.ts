@@ -32,8 +32,8 @@ describe('generateOverviewPrompt', () => {
     process.env.AGENTV_PROMPT_EVAL_MODE = undefined;
     const output = await generateOverviewPrompt([BASIC_EVAL_PATH]);
     expect(output).toContain('Mode: agent');
-    expect(output).toContain('eval-candidate');
-    expect(output).toContain('eval-judge');
+    expect(output).toContain('Act as the candidate');
+    expect(output).toContain('eval-grader');
     expect(output).not.toContain('agentv eval ');
   });
 
@@ -41,8 +41,8 @@ describe('generateOverviewPrompt', () => {
     process.env.AGENTV_PROMPT_EVAL_MODE = 'agent';
     const output = await generateOverviewPrompt([BASIC_EVAL_PATH]);
     expect(output).toContain('Mode: agent');
-    expect(output).toContain('eval-candidate');
-    expect(output).toContain('eval-judge');
+    expect(output).toContain('Act as the candidate');
+    expect(output).toContain('eval-grader');
     expect(output).toContain('.agentv/tmp/');
     expect(output).toContain('.agentv/results/');
   });
@@ -52,8 +52,8 @@ describe('generateOverviewPrompt', () => {
     const output = await generateOverviewPrompt([BASIC_EVAL_PATH]);
     expect(output).toContain('Mode: cli');
     expect(output).toContain('agentv eval');
-    expect(output).not.toContain('eval-candidate');
-    expect(output).not.toContain('eval-judge');
+    expect(output).not.toContain('Act as the candidate');
+    expect(output).not.toContain('eval-grader');
   });
 
   it('errors on invalid AGENTV_PROMPT_EVAL_MODE value', async () => {
@@ -83,7 +83,7 @@ describe('generateOverviewPrompt', () => {
     process.env.AGENTV_PROMPT_EVAL_MODE = undefined;
     const output = await generateOverviewPrompt([AGENT_SKILLS_EVAL_PATH]);
     expect(output).toContain('Mode: agent');
-    expect(output).toContain('eval-candidate');
+    expect(output).toContain('Act as the candidate');
     // Test IDs from evals.json (promoted from numeric id)
     expect(output).toContain('### 1');
     expect(output).toContain('### 2');
