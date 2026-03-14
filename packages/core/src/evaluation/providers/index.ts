@@ -1,4 +1,6 @@
 import { AnthropicProvider, AzureProvider, GeminiProvider } from './ai-sdk.js';
+import { ClaudeCliProvider } from './claude-cli.js';
+import { ClaudeSdkProvider } from './claude-sdk.js';
 import { ClaudeProvider } from './claude.js';
 import { CliProvider } from './cli.js';
 import { CodexProvider } from './codex.js';
@@ -87,7 +89,11 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
     .register('copilot-cli', (t) => new CopilotCliProvider(t.name, t.config as never))
     .register('pi-coding-agent', (t) => new PiCodingAgentProvider(t.name, t.config as never))
     .register('pi-agent-sdk', (t) => new PiAgentSdkProvider(t.name, t.config as never))
-    .register('claude', (t) => new ClaudeProvider(t.name, t.config as never))
+    // claude-cli is the new default subprocess provider; claude is an alias
+    .register('claude-cli', (t) => new ClaudeCliProvider(t.name, t.config as never))
+    .register('claude', (t) => new ClaudeCliProvider(t.name, t.config as never))
+    // claude-sdk is the explicit SDK provider (requires @anthropic-ai/claude-agent-sdk)
+    .register('claude-sdk', (t) => new ClaudeSdkProvider(t.name, t.config as never))
     .register('mock', (t) => new MockProvider(t.name, t.config as never))
     .register('vscode', (t) => new VSCodeProvider(t.name, t.config as never, 'vscode'))
     .register(

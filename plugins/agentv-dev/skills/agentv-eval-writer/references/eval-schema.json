@@ -702,6 +702,42 @@
                             },
                             "type": {
                               "type": "string",
+                              "enum": ["trigger-judge", "trigger_judge"]
+                            },
+                            "skill": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["type", "skill"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "weight": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "required": {
+                              "anyOf": [
+                                {
+                                  "type": "boolean"
+                                },
+                                {
+                                  "type": "number",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 1
+                                }
+                              ]
+                            },
+                            "negate": {
+                              "type": "boolean"
+                            },
+                            "type": {
+                              "type": "string",
                               "enum": ["field-accuracy", "field_accuracy"]
                             },
                             "fields": {
@@ -1776,6 +1812,42 @@
                             },
                             "type": {
                               "type": "string",
+                              "enum": ["trigger-judge", "trigger_judge"]
+                            },
+                            "skill": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["type", "skill"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "weight": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "required": {
+                              "anyOf": [
+                                {
+                                  "type": "boolean"
+                                },
+                                {
+                                  "type": "number",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 1
+                                }
+                              ]
+                            },
+                            "negate": {
+                              "type": "boolean"
+                            },
+                            "type": {
+                              "type": "string",
                               "enum": ["field-accuracy", "field_accuracy"]
                             },
                             "fields": {
@@ -2821,6 +2893,42 @@
                             }
                           },
                           "required": ["type", "mode"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "weight": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "required": {
+                              "anyOf": [
+                                {
+                                  "type": "boolean"
+                                },
+                                {
+                                  "type": "number",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 1
+                                }
+                              ]
+                            },
+                            "negate": {
+                              "type": "boolean"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": ["trigger-judge", "trigger_judge"]
+                            },
+                            "skill": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["type", "skill"],
                           "additionalProperties": false
                         },
                         {
@@ -3936,6 +4044,42 @@
                                 },
                                 "type": {
                                   "type": "string",
+                                  "enum": ["trigger-judge", "trigger_judge"]
+                                },
+                                "skill": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["type", "skill"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "required": {
+                                  "anyOf": [
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "number",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 1
+                                    }
+                                  ]
+                                },
+                                "negate": {
+                                  "type": "boolean"
+                                },
+                                "type": {
+                                  "type": "string",
                                   "enum": ["field-accuracy", "field_accuracy"]
                                 },
                                 "fields": {
@@ -5010,6 +5154,42 @@
                                 },
                                 "type": {
                                   "type": "string",
+                                  "enum": ["trigger-judge", "trigger_judge"]
+                                },
+                                "skill": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["type", "skill"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "required": {
+                                  "anyOf": [
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "number",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 1
+                                    }
+                                  ]
+                                },
+                                "negate": {
+                                  "type": "boolean"
+                                },
+                                "type": {
+                                  "type": "string",
                                   "enum": ["field-accuracy", "field_accuracy"]
                                 },
                                 "fields": {
@@ -6055,6 +6235,42 @@
                                 }
                               },
                               "required": ["type", "mode"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "required": {
+                                  "anyOf": [
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "number",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 1
+                                    }
+                                  ]
+                                },
+                                "negate": {
+                                  "type": "boolean"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["trigger-judge", "trigger_judge"]
+                                },
+                                "skill": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["type", "skill"],
                               "additionalProperties": false
                             },
                             {
@@ -7573,6 +7789,42 @@
                             },
                             "type": {
                               "type": "string",
+                              "enum": ["trigger-judge", "trigger_judge"]
+                            },
+                            "skill": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["type", "skill"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "weight": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "required": {
+                              "anyOf": [
+                                {
+                                  "type": "boolean"
+                                },
+                                {
+                                  "type": "number",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 1
+                                }
+                              ]
+                            },
+                            "negate": {
+                              "type": "boolean"
+                            },
+                            "type": {
+                              "type": "string",
                               "enum": ["field-accuracy", "field_accuracy"]
                             },
                             "fields": {
@@ -8647,6 +8899,42 @@
                             },
                             "type": {
                               "type": "string",
+                              "enum": ["trigger-judge", "trigger_judge"]
+                            },
+                            "skill": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["type", "skill"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "weight": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "required": {
+                              "anyOf": [
+                                {
+                                  "type": "boolean"
+                                },
+                                {
+                                  "type": "number",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 1
+                                }
+                              ]
+                            },
+                            "negate": {
+                              "type": "boolean"
+                            },
+                            "type": {
+                              "type": "string",
                               "enum": ["field-accuracy", "field_accuracy"]
                             },
                             "fields": {
@@ -9692,6 +9980,42 @@
                             }
                           },
                           "required": ["type", "mode"],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "weight": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "required": {
+                              "anyOf": [
+                                {
+                                  "type": "boolean"
+                                },
+                                {
+                                  "type": "number",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 1
+                                }
+                              ]
+                            },
+                            "negate": {
+                              "type": "boolean"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": ["trigger-judge", "trigger_judge"]
+                            },
+                            "skill": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["type", "skill"],
                           "additionalProperties": false
                         },
                         {
@@ -10807,6 +11131,42 @@
                                 },
                                 "type": {
                                   "type": "string",
+                                  "enum": ["trigger-judge", "trigger_judge"]
+                                },
+                                "skill": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["type", "skill"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "required": {
+                                  "anyOf": [
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "number",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 1
+                                    }
+                                  ]
+                                },
+                                "negate": {
+                                  "type": "boolean"
+                                },
+                                "type": {
+                                  "type": "string",
                                   "enum": ["field-accuracy", "field_accuracy"]
                                 },
                                 "fields": {
@@ -11881,6 +12241,42 @@
                                 },
                                 "type": {
                                   "type": "string",
+                                  "enum": ["trigger-judge", "trigger_judge"]
+                                },
+                                "skill": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["type", "skill"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "required": {
+                                  "anyOf": [
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "number",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 1
+                                    }
+                                  ]
+                                },
+                                "negate": {
+                                  "type": "boolean"
+                                },
+                                "type": {
+                                  "type": "string",
                                   "enum": ["field-accuracy", "field_accuracy"]
                                 },
                                 "fields": {
@@ -12926,6 +13322,42 @@
                                 }
                               },
                               "required": ["type", "mode"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "required": {
+                                  "anyOf": [
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "number",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 1
+                                    }
+                                  ]
+                                },
+                                "negate": {
+                                  "type": "boolean"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["trigger-judge", "trigger_judge"]
+                                },
+                                "skill": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["type", "skill"],
                               "additionalProperties": false
                             },
                             {
@@ -14348,6 +14780,42 @@
                       },
                       "type": {
                         "type": "string",
+                        "enum": ["trigger-judge", "trigger_judge"]
+                      },
+                      "skill": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["type", "skill"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "weight": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "required": {
+                        "anyOf": [
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1
+                          }
+                        ]
+                      },
+                      "negate": {
+                        "type": "boolean"
+                      },
+                      "type": {
+                        "type": "string",
                         "enum": ["field-accuracy", "field_accuracy"]
                       },
                       "fields": {
@@ -15422,6 +15890,42 @@
                       },
                       "type": {
                         "type": "string",
+                        "enum": ["trigger-judge", "trigger_judge"]
+                      },
+                      "skill": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["type", "skill"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "weight": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "required": {
+                        "anyOf": [
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1
+                          }
+                        ]
+                      },
+                      "negate": {
+                        "type": "boolean"
+                      },
+                      "type": {
+                        "type": "string",
                         "enum": ["field-accuracy", "field_accuracy"]
                       },
                       "fields": {
@@ -16467,6 +16971,42 @@
                       }
                     },
                     "required": ["type", "mode"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "weight": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "required": {
+                        "anyOf": [
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1
+                          }
+                        ]
+                      },
+                      "negate": {
+                        "type": "boolean"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": ["trigger-judge", "trigger_judge"]
+                      },
+                      "skill": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["type", "skill"],
                     "additionalProperties": false
                   },
                   {
@@ -18661,6 +19201,42 @@
                   }
                 },
                 "required": ["type", "mode"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "weight": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "required": {
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 1
+                      }
+                    ]
+                  },
+                  "negate": {
+                    "type": "boolean"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["trigger-judge", "trigger_judge"]
+                  },
+                  "skill": {
+                    "type": "string"
+                  }
+                },
+                "required": ["type", "skill"],
                 "additionalProperties": false
               },
               {

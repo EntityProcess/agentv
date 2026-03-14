@@ -222,12 +222,18 @@ const RubricsSchema = EvaluatorCommonSchema.extend({
   criteria: z.array(RubricItemSchema).min(1),
 });
 
+const TriggerJudgeSchema = EvaluatorCommonSchema.extend({
+  type: z.enum(['trigger-judge', 'trigger_judge']),
+  skill: z.string(),
+});
+
 /** Union of all evaluator types */
 const EvaluatorSchema = z.union([
   CodeJudgeSchema,
   LlmJudgeSchema,
   CompositeSchema,
   ToolTrajectorySchema,
+  TriggerJudgeSchema,
   FieldAccuracySchema,
   LatencySchema,
   CostSchema,

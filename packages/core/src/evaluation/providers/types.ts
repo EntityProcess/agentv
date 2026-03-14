@@ -20,6 +20,8 @@ export type ProviderKind =
   | 'pi-coding-agent'
   | 'pi-agent-sdk'
   | 'claude'
+  | 'claude-cli'
+  | 'claude-sdk'
   | 'cli'
   | 'mock'
   | 'vscode'
@@ -35,6 +37,8 @@ export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'copilot-cli',
   'pi-coding-agent',
   'claude',
+  'claude-cli',
+  'claude-sdk',
   'vscode',
   'vscode-insiders',
 ] as const;
@@ -53,6 +57,8 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'pi-coding-agent',
   'pi-agent-sdk',
   'claude',
+  'claude-cli',
+  'claude-sdk',
   'cli',
   'mock',
   'vscode',
@@ -73,7 +79,6 @@ export const PROVIDER_ALIASES: readonly string[] = [
 
   'pi', // alias for "pi-coding-agent"
   'claude-code', // alias for "claude" (legacy)
-  'claude-sdk', // alias for "claude"
   'openai', // legacy/future support
   'bedrock', // legacy/future support
   'vertex', // legacy/future support
