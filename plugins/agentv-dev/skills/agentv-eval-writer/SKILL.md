@@ -1,15 +1,15 @@
 ---
-name: agentv-eval-builder
+name: agentv-eval-writer
 description: >-
-  Create and maintain AgentV EVAL.yaml / .eval.yaml evaluation files for testing AI agent output quality.
-  Use when asked to create new AgentV eval files, add test cases to an existing .eval.yaml,
-  configure AgentV evaluators (llm-judge, code-judge, rubrics), or convert evals.json to AgentV EVAL YAML format
-  using `agentv convert`.
-  Do NOT use for creating SKILL.md files, writing skill definitions, or building skill test suites —
-  those tasks belong to the skill-creator skill.
+  Write, edit, review, and validate AgentV EVAL.yaml / .eval.yaml evaluation files.
+  Use when asked to create new eval files, update or fix existing ones, add or remove test cases,
+  configure evaluators (llm-judge, code-judge, rubrics), review whether an eval is correct or complete,
+  or convert between EVAL.yaml and evals.json using `agentv convert`.
+  Do NOT use for creating SKILL.md files, writing skill definitions, or running evals —
+  running and benchmarking belongs to agentv-bench.
 ---
 
-# AgentV Eval Builder
+# AgentV Eval Writer
 
 Comprehensive docs: https://agentv.dev
 
@@ -29,10 +29,14 @@ agentv convert evals.json
 
 # Run directly without converting (all commands accept evals.json)
 agentv eval evals.json
-agentv prompt eval overview evals.json
+agentv prompt eval --list evals.json
+agentv prompt eval --input evals.json --test-id 1
+agentv prompt eval --expected-output evals.json --test-id 1
 ```
 
 The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assert` (llm-judge), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, code judges, rubrics, required gates).
+
+If you're running the lifecycle through `agentv-bench`, use `agentv convert` and `agentv prompt eval` directly — the Python scripts in `agentv-bench/scripts/` orchestrate these same commands.
 
 After converting, enhance the YAML with AgentV-specific capabilities shown below.
 
@@ -481,9 +485,9 @@ agentv eval <file.yaml> --trace-file traces/eval.jsonl
 agentv eval <file.yaml> --otel-file traces/eval.otlp.json
 
 # Agent-orchestrated evals (no API keys needed)
-agentv prompt eval <file.yaml>                                      # orchestration overview
-agentv prompt eval input <file.yaml> --test-id <id>                 # task input JSON (file paths, not embedded content)
-agentv prompt eval judge <file.yaml> --test-id <id> --answer-file f # judge prompts / code judge results
+agentv prompt eval --list <file.yaml>                               # enumerate test IDs
+agentv prompt eval --input <file.yaml> --test-id <id>               # task input JSON (file paths, not embedded content)
+agentv prompt eval --expected-output <file.yaml> --test-id <id>     # expected output + evaluator criteria
 
 # Re-run only execution errors from a previous output
 agentv eval <file.yaml> --retry-errors <previous-output.jsonl>

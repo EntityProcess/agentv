@@ -1,5 +1,5 @@
 ---
-name: agentv-optimizer
+name: agentv-bench
 description: >-
   Optimize agents through evaluation-driven iteration. Use when asked to evaluate an agent,
   optimize prompts against evals, run EVAL.yaml or evals.json evaluations, benchmark agent
@@ -29,6 +29,45 @@ Your job when using this skill is to figure out where the user is in this proces
 Be flexible. If the user says "I don't need a full benchmark, just help me debug this failure", do that instead.
 
 After the agent is working well, you can also run description optimization to improve skill triggering accuracy (see the Description Optimization section).
+
+## Bundled scripts layer
+
+This skill ships with a Python scripts layer in `plugins/agentv-dev/skills/agentv-bench/scripts/`. Requires Python 3.11+. No extra dependencies — all scripts use the stdlib only.
+
+The scripts layer wraps AgentV rather than replacing it. Use it when you want a provider-agnostic optimization workflow that still relies on core AgentV commands and artifacts:
+
+- `scripts/quick_validate.py` → validates skill structure and evals.json schema before a run
+- `scripts/run_eval.py` → runs evals defined in `evals/evals.json` via `claude -p`
+- `scripts/run_loop.py` → plans and executes repeated eval iterations, calling `run_eval.py` each round
+- `scripts/aggregate_benchmark.py` → reads `benchmark.json`, `timing.json`, and `results.jsonl`
+- `scripts/generate_report.py` → builds a review model and writes a JSON report from AgentV artifacts
+- `scripts/improve_description.py` → proposes description experiments from observed misses/false triggers
+- `scripts/package_skill.py` → packages the skill directory for distribution
+- `eval-viewer/generate_review.py` → reads AgentV artifacts (`--artifacts`) and renders `viewer.html`
+
+Keep code-judge execution, evaluator semantics, and artifact generation in AgentV core. The scripts only orchestrate those primitives and read the artifacts they emit.
+
+## Scripts
+
+All scripts require Python 3.11+ and no external dependencies beyond the Python stdlib.
+
+### Skill management
+- `scripts/quick_validate.py` — validate SKILL.md structure and frontmatter
+- `scripts/package_skill.py` — package skill into a distributable `.skill` zip
+
+### Eval workflow
+- `scripts/run_eval.py` — run trigger evaluation (tests skill description quality)
+- `scripts/run_loop.py` — run eval+improve loop until all assertions pass
+- `scripts/improve_description.py` — improve skill description using eval results
+- `scripts/aggregate_benchmark.py` — aggregate run results into benchmark statistics
+- `scripts/generate_report.py` — generate HTML report from run_loop output
+
+### Review viewer
+- `eval-viewer/generate_review.py` — serve live eval review UI (HTTP server + feedback API)
+
+### Note on eval formats
+Skills use `evals/evals.json` with `assertions` for both trigger and output quality testing.
+A future AgentV PR will add `agentv convert` to migrate existing `dataset.eval.yaml` files to `evals/evals.json`.
 
 ## Communicating with the user
 
@@ -119,7 +158,7 @@ Good assertions are objectively verifiable and have descriptive names. Subjectiv
 - `exact`, `contains`, `regex`, `is-json` — deterministic, zero cost, instant
 - `field-accuracy` — checks JSON field values against expected
 - `composite` — weighted combination of multiple evaluators
-- `code-judge` — Python/TypeScript scripts via `defineCodeJudge()` (→ see `agentv-eval-builder` skill)
+- `code-judge` — Python/TypeScript scripts via `defineCodeJudge()` (→ see `agentv-eval-writer` skill)
 - `tool-trajectory` — evaluate tool call sequences and patterns
 - `llm-judge` — LLM-graded with rubric (most expensive, use when semantic understanding needed)
 
@@ -133,16 +172,50 @@ This section is one continuous sequence — don't stop partway through.
 
 Put results in a workspace directory organized by iteration (`iteration-1/`, `iteration-2/`, etc.). Don't create all of this upfront — just create directories as you go.
 
+### Choosing a run mode
+
+Read the mode from `.env` before doing anything:
+
+```bash
+grep AGENT_EVAL_MODE .env 2>/dev/null || echo "AGENT_EVAL_MODE=agent"
+```
+
+| `AGENT_EVAL_MODE` | Mode | How |
+|-------------------|------|-----|
+| `cli` | **AgentV CLI** | `agentv eval <path>` — end-to-end, EVAL.yaml |
+| `python` | **Python scripts** | `python scripts/run_eval.py` — evals.json via `claude -p` |
+| `agent` (default) | **Agent mode** | `agentv prompt eval` accessors + spawn subagents |
+| _(no subagents, no CLI)_ | **Serial manual** | Run each test case in conversation, grade inline |
+
+Set `AGENT_EVAL_MODE` in `.env` at the project root. If absent, default to `agent`.
+
+**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Best for EVAL.yaml evals when `agentv` is installed.
+
+**`python`** — `run_eval.py` calls `claude -p` directly. Use for evals.json skill-creator workflows.
+
+**`agent`** — The orchestrating agent acts as both candidate and judge via `agentv prompt eval` accessors. No external API calls required; works wherever subagents are available.
+
+> Note: `AGENT_EVAL_MODE` replaces the deprecated `AGENTV_PROMPT_EVAL_MODE` from `agentv prompt eval --overview` (see issue #599).
+
 ### Running evaluations
 
-**CLI mode** (end-to-end, requires API keys):
+**AgentV CLI mode** (end-to-end, EVAL.yaml):
 ```bash
 agentv eval <eval-path> --artifacts .agentv/artifacts/
 ```
 
-**Agent mode** (no API keys — the orchestrator acts as both candidate and judge):
+**Python scripts mode** (evals.json, calls `claude -p`):
 ```bash
-agentv prompt eval <eval-path>
+cd plugins/agentv-dev/skills/agentv-bench
+python scripts/quick_validate.py --eval evals/evals.json
+python scripts/run_eval.py --eval evals/evals.json --output iteration-1/
+```
+
+**Agent mode** (orchestrator as candidate + judge):
+```bash
+agentv prompt eval --list <eval-path>
+agentv prompt eval --input <eval-path> --test-id <id>
+agentv prompt eval --expected-output <eval-path> --test-id <id>
 ```
 
 **Spawn all runs in the same turn.** For each test case that needs both a "with change" and a "baseline" run, launch them simultaneously. Don't run one set first and come back for the other — launch everything at once so results arrive around the same time.
@@ -188,7 +261,7 @@ Once runs complete:
 3. **Write grading.json** per run with this structure:
 ```json
 {
-  "expectations": [
+  "assertion_results": [
     {"text": "Response includes error handling", "passed": true, "evidence": "Lines 12-15 contain try/catch block"},
     {"text": "Uses async/await pattern", "passed": false, "evidence": "Uses .then() callback pattern instead"}
   ],
@@ -196,7 +269,7 @@ Once runs complete:
 }
 ```
 
-The grading.json `expectations` array must use the fields `text`, `passed`, and `evidence` — downstream tooling depends on these exact field names.
+The grading.json `assertion_results` array must use the fields `text`, `passed`, and `evidence` — downstream tooling depends on these exact field names.
 
 ### Workspace features (EVAL.yaml only)
 
@@ -209,7 +282,7 @@ The grading.json `expectations` array must use the fields `text`, `passed`, and 
 
 All artifacts use established schemas — do not modify the structure:
 
-- **grading.json**: per-test `expectations` with `{text, passed, evidence}`, plus `summary`
+- **grading.json**: per-test `assertion_results` with `{text, passed, evidence}`, plus `summary`
 - **timing.json**: `{total_tokens, duration_ms, total_duration_seconds}`
 - **benchmark.json**: per-target aggregate `{pass_rate, time_seconds, tokens}` with `mean ± stddev`
 
@@ -360,12 +433,12 @@ tests:
     input: "ok so I have this agent that keeps failing on the code review tasks, can you help me figure out why and fix it"
     assert:
       - type: contains
-        value: "agentv-optimizer"
+        value: "agentv-bench"
   - id: should-not-trigger-build-error
     input: "my TypeScript build is failing with type errors in src/auth.ts"
     assert:
       - type: not-contains
-        value: "agentv-optimizer"
+        value: "agentv-bench"
 ```
 
 ### Step 2: Review with user
@@ -375,6 +448,13 @@ Present the eval set. The user adjusts queries, toggles should-trigger, adds/rem
 ### Step 3: Iterate on description
 
 Run the trigger eval, identify misfires, rewrite the description, re-run. Max 5 iterations. Select best description by held-out test accuracy (split 60% train / 40% test) to avoid overfitting.
+
+When you already have `benchmark.json` and `grading.json`, use the scripts bundle to draft the next round of edits:
+
+```bash
+cd plugins/agentv-dev/skills/agentv-bench
+python scripts/improve_description.py --benchmark .agentv/artifacts/benchmark.json --grading .agentv/artifacts/grading.json
+```
 
 ### Step 4: Apply
 

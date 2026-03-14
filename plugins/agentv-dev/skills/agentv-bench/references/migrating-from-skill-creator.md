@@ -1,6 +1,6 @@
 # Migrating from Skill-Creator to AgentV Lifecycle Skill
 
-This reference covers how to use AgentV's unified agent-evaluation lifecycle skill (`agentv-optimizer`) with evals.json files originally created for Anthropic's skill-creator.
+This reference covers how to use AgentV's unified agent-evaluation lifecycle skill (`agentv-bench`) with evals.json files originally created for Anthropic's skill-creator.
 
 ## Drop-in Replacement
 
@@ -11,7 +11,9 @@ AgentV runs skill-creator's evals.json directly — no conversion required:
 agentv eval evals.json
 
 # Or in agent mode (no API keys)
-agentv prompt eval overview evals.json
+agentv prompt eval --list evals.json
+agentv prompt eval --input evals.json --test-id 1
+agentv prompt eval --expected-output evals.json --test-id 1
 ```
 
 AgentV automatically:
@@ -19,6 +21,19 @@ AgentV automatically:
 - Promotes `expected_output` → reference answer
 - Converts `assertions` → LLM-judge evaluators
 - Resolves `files[]` paths relative to the evals.json directory
+
+If you're using the `agentv-bench` skill, the bundled Bun scripts wrap these same commands and artifacts instead of inventing a second format:
+
+```bash
+cd plugins/agentv-dev/skills/agentv-bench
+bun install
+bun scripts/run-eval.ts --eval-path ../../../../examples/features/agent-skills-evals/evals.json --dry-run
+bun scripts/prompt-eval.ts --list ../../../../examples/features/agent-skills-evals/evals.json
+bun scripts/convert-evals.ts --eval-path ../../../../examples/features/agent-skills-evals/evals.json --out /tmp/eval.yaml
+bun scripts/generate-report.ts --artifacts .agentv/artifacts --out /tmp/agentv-review.html
+```
+
+These scripts still call `agentv` wherever possible. Code judges, grading, and artifact generation remain in AgentV core; the scripts just orchestrate and summarize the existing outputs.
 
 ## What You Gain
 
@@ -48,6 +63,11 @@ AgentV's companion artifacts are compatible with skill-creator's eval-viewer:
 | Results JSONL | Per-test results | ✅ Standard JSONL format |
 
 AgentV's schemas are supersets — they include all fields skill-creator expects, plus additional fields (claims extraction, pattern analysis, deterministic upgrade candidates). Tools that read skill-creator artifacts will read AgentV artifacts correctly, ignoring the extra fields.
+
+The optimizer scripts layer reads those same artifacts directly:
+- `aggregate-benchmark.ts` consumes `benchmark.json`, `timing.json`, and results JSONL
+- `generate-report.ts` and `eval-viewer/generate-review.ts` render review output from AgentV artifacts
+- `improve-description.ts` proposes follow-up experiments from benchmark/grading observations
 
 ## Graduating to EVAL.yaml
 

@@ -96,6 +96,19 @@ agentv prompt eval --expected-output evals.json --test-id 1
 
 In agent mode, the host agent uses these accessors to enumerate tests, act as the candidate, and then grade the saved answer against the eval spec.
 
+If you're using the `agentv-bench` skill bundle, validate your evals before running:
+
+```bash
+cd plugins/agentv-dev/skills/agentv-bench
+python scripts/quick_validate.py --eval evals/evals.json
+```
+
+The rest of the bundle follows the same pattern:
+- `scripts/run_eval.py` runs evals via `claude -p`
+- `scripts/run_loop.py` iterates eval rounds automatically
+- `scripts/aggregate_benchmark.py` and `scripts/generate_report.py` read AgentV artifacts
+- `scripts/improve_description.py` proposes description experiments from observed misses
+
 ## Benchmark output
 
 Generate an Agent Skills compatible `benchmark.json` alongside the standard result JSONL:
@@ -154,6 +167,12 @@ tests:
       - name: assertion-1
         type: llm-judge
         prompt: "Output identifies November as the highest revenue month"
+```
+
+Inside the agentv-bench bundle, use `agentv convert` directly:
+
+```bash
+agentv convert evals/evals.json --out EVAL.yaml
 ```
 
 ## When to stay with evals.json

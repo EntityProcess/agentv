@@ -80,5 +80,5 @@ tests:
 
 ## Related Skills
 
-- **agentv-eval-builder** — Create eval files from scratch with full schema reference
-- **agentv-optimizer** — Run evaluations and optimize agent performance
+- **agentv-eval-writer** — Create eval files from scratch with full schema reference
+- **agentv-bench** — Run evaluations and optimize agent performance
