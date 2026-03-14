@@ -21,6 +21,29 @@ Rubrics are defined as `assert` entries with `type: rubrics`. They support binar
 | `required_min_score` | integer | - | Minimum 0-10 score to pass (score-range mode) |
 | `score_ranges` | map or array | - | Score range definitions for analytic scoring |
 
+## String Shorthand (Recommended)
+
+Plain strings in `assert` are automatically treated as rubric criteria:
+
+```yaml
+assert:
+  - Mentions divide-and-conquer approach
+  - Explains partition step
+  - States time complexity
+```
+
+Equivalent to the full form with `type: rubrics`. Use the full form only when you need weights, `required: false`, or `score_ranges`.
+
+Mixed strings and objects are supported — strings are grouped into a single rubrics evaluator at the position of the first string:
+
+```yaml
+assert:
+  - Mentions divide-and-conquer approach  # grouped into rubrics
+  - type: code-judge                      # kept as-is
+    command: [check_syntax.py]
+  - States time complexity                # grouped into rubrics
+```
+
 ## Checklist Mode
 
 ```yaml

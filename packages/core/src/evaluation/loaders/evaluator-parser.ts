@@ -82,9 +82,47 @@ async function parseEvaluatorList(
     return undefined;
   }
 
+  // Pre-process: collect all string entries across the array (regardless of position) and
+  // group them into a single rubrics evaluator inserted at the first-string position.
+  // Non-string entries are preserved in their original relative order.
+  const firstStringIndex = candidateEvaluators.findIndex((e) => typeof e === 'string');
+  const processedEvaluators: unknown[] =
+    firstStringIndex === -1
+      ? [...candidateEvaluators]
+      : (() => {
+          const PLACEHOLDER = Symbol('rubric-placeholder');
+          const strings: string[] = [];
+          const result: unknown[] = [];
+          let rubricInserted = false;
+          for (const item of candidateEvaluators) {
+            if (typeof item === 'string') {
+              const trimmed = item.trim();
+              if (trimmed.length === 0) {
+                logWarning(`Skipping empty string criterion in assert array for '${evalId}'`);
+              } else {
+                strings.push(trimmed);
+              }
+              if (!rubricInserted) {
+                result.push(PLACEHOLDER);
+                rubricInserted = true;
+              }
+            } else {
+              result.push(item);
+            }
+          }
+          const placeholderIndex = result.indexOf(PLACEHOLDER);
+          if (strings.length > 0 && placeholderIndex !== -1) {
+            result[placeholderIndex] = { type: 'rubrics', criteria: strings };
+          } else if (placeholderIndex !== -1) {
+            // All strings were empty — remove the placeholder
+            result.splice(placeholderIndex, 1);
+          }
+          return result;
+        })();
+
   const evaluators: EvaluatorConfig[] = [];
 
-  for (const rawEvaluator of candidateEvaluators) {
+  for (const rawEvaluator of processedEvaluators) {
     if (!isJsonObject(rawEvaluator)) {
       logWarning(`Skipping invalid evaluator entry for '${evalId}' (expected object)`);
       continue;

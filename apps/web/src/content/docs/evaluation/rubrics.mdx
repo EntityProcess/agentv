@@ -5,11 +5,28 @@ sidebar:
   order: 3
 ---
 
-Rubrics are defined with `assert` entries using `type: rubrics`. They support binary checklist grading and score-range analytic grading.
+Rubrics are defined with `assert` entries and support binary checklist grading and score-range analytic grading.
 
 ## Basic Usage
 
-The simplest form — each string becomes a required criterion:
+The simplest form — list plain strings in `assert` and each one becomes a required criterion:
+
+```yaml
+tests:
+  - id: quicksort-explain
+    criteria: Explain how quicksort works
+    input: Explain quicksort algorithm
+    assert:
+      - Mentions divide-and-conquer approach
+      - Explains partition step
+      - States time complexity
+```
+
+All strings are collected into a single rubrics evaluator automatically.
+
+### Full form for advanced options
+
+Use `type: rubrics` explicitly when you need weights, required flags, or score ranges:
 
 ```yaml
 tests:

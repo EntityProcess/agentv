@@ -1663,3 +1663,91 @@ describe('parseEvaluators - composite assert field', () => {
     expect(composite.assertions[0].name).toBe('safety');
   });
 });
+
+describe('parseEvaluators - string shorthand in assert', () => {
+  it('treats all-string assert array as a single rubrics evaluator', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          'Mentions divide-and-conquer approach',
+          'Explains partition step',
+          'States time complexity',
+        ],
+      },
+      undefined,
+      ['/tmp'],
+      'test-id',
+    );
+
+    expect(evaluators).toHaveLength(1);
+    const rubrics = evaluators?.[0];
+    expect(rubrics?.type).toBe('llm-judge');
+    expect((rubrics as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(3);
+    expect((rubrics as LlmJudgeEvaluatorConfig).rubrics?.[0].outcome).toBe(
+      'Mentions divide-and-conquer approach',
+    );
+    expect((rubrics as LlmJudgeEvaluatorConfig).rubrics?.[1].outcome).toBe(
+      'Explains partition step',
+    );
+    expect((rubrics as LlmJudgeEvaluatorConfig).rubrics?.[2].outcome).toBe(
+      'States time complexity',
+    );
+  });
+
+  it('groups strings into rubrics and preserves object evaluators', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: [
+          'Mentions divide-and-conquer approach',
+          { name: 'syntax-check', type: 'contains', value: 'quicksort' },
+          'States time complexity',
+        ],
+      },
+      undefined,
+      ['/tmp'],
+      'test-id',
+    );
+
+    expect(evaluators).toHaveLength(2);
+    // First: rubrics (at position of first string)
+    expect(evaluators?.[0].type).toBe('llm-judge');
+    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(2);
+    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics?.[0].outcome).toBe(
+      'Mentions divide-and-conquer approach',
+    );
+    // Second: the contains evaluator
+    expect(evaluators?.[1].type).toBe('contains');
+    expect(evaluators?.[1].name).toBe('syntax-check');
+  });
+
+  it('treats a single string as a single-criterion rubrics evaluator', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: ['Response must be polite'],
+      },
+      undefined,
+      ['/tmp'],
+      'test-id',
+    );
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('llm-judge');
+    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(1);
+    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics?.[0].outcome).toBe(
+      'Response must be polite',
+    );
+  });
+
+  it('ignores all-whitespace strings and produces no rubrics evaluator', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assert: ['   ', ''],
+      },
+      undefined,
+      ['/tmp'],
+      'test-id',
+    );
+
+    expect(evaluators).toBeUndefined();
+  });
+});

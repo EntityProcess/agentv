@@ -1,7 +1,7 @@
 # AgentV Rubric Evaluator Example
 # Demonstrates the rubric-based evaluation feature using type: rubrics under assert
 
-description: Example showing rubric evaluator with type rubrics under assert
+description: "Example showing rubric evaluator - string shorthand and type: rubrics"
 
 execution:
   target: default
@@ -9,7 +9,7 @@ execution:
 tests:
   # ==========================================
   # Example 1: Simple string rubrics
-  # Demonstrates: string shorthand criteria under type: rubrics
+  # Demonstrates: string shorthand in assert (strings default to rubrics evaluator)
   # ==========================================
   - id: code-explanation-simple
 
@@ -34,11 +34,9 @@ tests:
           - Worst case: O(n²) when poorly chosen pivots
 
     assert:
-      - type: rubrics
-        criteria:
-          - Mentions divide-and-conquer approach
-          - Explains the partition step
-          - States time complexity correctly
+      - Mentions divide-and-conquer approach
+      - Explains the partition step
+      - States time complexity correctly
 
   # ==========================================
   # Example 2: Detailed rubric objects
