@@ -1,0 +1,100 @@
+---
+title: Execution Quality vs Trigger Quality
+description: Two distinct evaluation concerns for AI agents and skills — what AgentV measures, and what belongs to skill-creator tooling.
+sidebar:
+  order: 6
+---
+
+Agent evaluation has two fundamentally different concerns: **execution quality** and **trigger quality**. They require different tooling, different methodologies, and different optimization surfaces. Conflating them leads to eval configs that are noisy, hard to maintain, and unreliable.
+
+## What is execution quality?
+
+> **"Does the skill help when loaded?"**
+
+Execution quality evaluates output quality, correctness, and completeness once an agent or skill is invoked. Given a specific input, does the agent produce the right output?
+
+This is what AgentV's eval tooling measures. When you write an `EVAL.yaml`, define assertions in `evals.json`, or run `agentv eval run`, you are evaluating execution quality.
+
+**Examples:**
+- Does the code-review skill produce accurate, actionable feedback?
+- Does the refactoring agent preserve behavior while improving structure?
+- Does the documentation skill generate correct, complete docs?
+
+**Characteristics:**
+- **Deterministic-ish** — the same input produces similar output across runs
+- **Testable with fixed assertions** — you can write specific pass/fail criteria
+- **Bounded scope** — one skill, one input, one expected behavior
+
+## What is trigger quality?
+
+> **"Does the system load the skill when it should?"**
+
+Trigger quality evaluates whether the right skill is activated for the right prompts. When a user says "review this PR," does the system route to the code-review skill? When they say "explain this function," does it route to the documentation skill instead?
+
+**Examples:**
+- Does the code-review skill trigger on "review this diff" but not on "write a test"?
+- Does the skill description accurately capture when the skill should activate?
+- Are there prompt phrasings that should trigger the skill but don't?
+
+**Characteristics:**
+- **Noisy** — model routing varies across runs, even with identical prompts
+- **Requires statistical sampling** — repeated trials, not single-shot assertions
+- **Different optimization surface** — you're tuning descriptions and metadata, not agent logic
+
+## Why they are different problems
+
+| Dimension | Execution quality | Trigger quality |
+|-----------|------------------|-----------------|
+| **Question** | "Does it help?" | "Does it activate?" |
+| **Signal type** | Deterministic-ish | Noisy / statistical |
+| **Test method** | Fixed assertions, rubrics, judges | Repeated trials, train/test splits |
+| **What you tune** | Agent logic, prompts, tool use | Skill descriptions, trigger metadata |
+| **Failure mode** | Wrong output | Wrong routing |
+| **Optimization** | Pass/fail per test case | Accuracy rate over a sample |
+
+Mixing these concerns in a single eval config creates problems:
+- Execution evals become flaky because trigger noise pollutes results
+- Trigger evals are too coarse because they inherit execution assertions
+- Debugging failures becomes ambiguous — is the skill wrong, or was the wrong skill loaded?
+
+## What AgentV evaluates
+
+AgentV's eval tooling is designed for **execution quality**:
+
+- **`EVAL.yaml`** — define test cases with inputs, expected outputs, and assertions
+- **`evals.json`** — lightweight skill evaluation format (prompt/expected-output pairs)
+- **`agentv eval run`** — execute evaluations and collect results
+- **Evaluators** — `llm-judge`, `code-judge`, `tool-trajectory`, `rubrics`, `contains`, `regex`, and others all measure execution behavior
+
+These tools assume the skill is already loaded and invoked. They measure what happens *after* routing, not the routing decision itself.
+
+## What about trigger quality?
+
+Trigger quality evaluation is a distinct discipline with its own tooling requirements:
+
+- **Repeated trials** — run the same prompt many times to measure trigger rates
+- **Train/test splits** — separate prompts used for tuning from prompts used for validation
+- **Description optimization** — iteratively improve skill descriptions based on trigger accuracy
+- **Held-out model selection** — evaluate across different routing models
+
+Anthropic's skill-creator tooling demonstrates this approach with repeated trigger trials, train/test splits, and dedicated description-improvement workflows. This is a statistical optimization problem, not a pass/fail testing problem.
+
+For now, trigger quality optimization belongs in **skill-creator's domain** — it requires specialized tooling that is architecturally separate from execution evaluation.
+
+## Practical guidance
+
+**Do not use execution eval configs for trigger evaluation.** Specifically:
+
+- Do not add "does this skill trigger?" test cases to your `EVAL.yaml`
+- Do not use `agentv eval run` to measure trigger rates
+- Do not conflate routing failures with execution failures in eval results
+
+**If you need to test trigger quality:**
+- Use skill-creator's trigger evaluation tooling
+- Design trigger tests as statistical experiments (sample sizes, confidence intervals)
+- Keep trigger evaluation in a separate workflow from execution evaluation
+
+**Keep your eval configs focused:**
+- `EVAL.yaml` and `evals.json` → execution quality only
+- Assertions should test output correctness, not routing behavior
+- If an eval is flaky, check whether you've accidentally mixed trigger concerns into execution tests

@@ -7,6 +7,12 @@ description: Create and maintain AgentV evaluation files for testing AI agent pe
 
 Comprehensive docs: https://agentv.dev
 
+## Evaluation Types
+
+AgentV evaluations measure **execution quality** — whether your agent or skill produces correct output when invoked.
+
+For **trigger quality** (whether the right skill is triggered for the right prompts), see the [Evaluation Types guide](https://agentv.dev/guides/evaluation-types/). Do not use execution eval configs (`EVAL.yaml`, `evals.json`) for trigger evaluation — these are distinct concerns requiring different tooling and methodologies.
+
 ## Starting from evals.json?
 
 If the project already has an Agent Skills `evals.json` file, use it as a starting point instead of writing YAML from scratch:
@@ -575,6 +581,14 @@ Auto-discovered from project root. Validated with Zod.
 agentv create assertion <name>  # → .agentv/assertions/<name>.ts
 agentv create eval <name>       # → evals/<name>.eval.yaml + .cases.jsonl
 ```
+
+## Skill Improvement Workflow
+
+For a complete guide to iterating on skills using evaluations — writing scenarios, running baselines, comparing results, and improving — see the [Skill Improvement Workflow](https://agentv.dev/guides/skill-improvement-workflow/) guide.
+
+## Skill Improvement Workflow
+
+For a complete guide to iterating on skills using evaluations — writing scenarios, running baselines, comparing results, and improving — see the [Skill Improvement Workflow](https://agentv.dev/guides/skill-improvement-workflow/) guide.
 
 ## Schemas
 
