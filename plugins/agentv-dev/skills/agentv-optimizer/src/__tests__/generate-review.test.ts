@@ -8,6 +8,10 @@ describe('generate review', () => {
       sections: [{ heading: 'Summary', body: 'Pass rate improved' }],
       testCases: [{ id: 'case-1', status: 'pass', summary: 'baseline' }],
     });
+    expect(html).toContain('<!DOCTYPE html>');
+    expect(html).toContain('<html lang="en">');
+    expect(html).toContain('<body id="agentv-optimizer-viewer">');
+    expect(html).toContain('<table>');
     expect(html).toContain('Optimizer Review');
     expect(html).toContain('case-1');
   });
