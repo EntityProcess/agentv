@@ -41,14 +41,6 @@ async function main() {
 
   const cmd = buildRunEvalCommand(finalArgs);
 
-  // Check for --dry-run to show what would be executed
-  const dryRun = finalArgs.includes('--dry-run');
-  if (dryRun) {
-    console.log('Dry-run mode: would execute:');
-    console.log(cmd.join(' '));
-    process.exit(0);
-  }
-
   console.log(`Running: ${cmd.join(' ')}\n`);
 
   const result = await runCommand(cmd);

@@ -1,10 +1,6 @@
 import { resolveAgentvCommand, resolveRepoRoot } from './paths.js';
 
-export interface PromptEvalOptions {
-  subcommand: 'overview' | 'input' | 'judge';
-  evalPath: string;
-  testId?: string;
-}
+
 
 /**
  * Builds agentv eval command by forwarding all arguments verbatim.
