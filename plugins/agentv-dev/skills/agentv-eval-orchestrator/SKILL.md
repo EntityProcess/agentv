@@ -1,5 +1,6 @@
 ---
 name: agentv-eval-orchestrator
+description: "[DEPRECATED] This skill has been absorbed into the unified agentv-optimizer lifecycle skill. Use agentv-optimizer instead — it covers the full evaluation lifecycle: run → grade → compare → analyze → review → optimize → re-run."
 description: >-
   Run AgentV evaluations against EVAL.yaml / .eval.yaml / evals.json files using the `agentv prompt eval` and `agentv eval` CLI commands.
   Use when asked to run AgentV evals, evaluate agent output quality with AgentV, execute an AgentV evaluation suite,
@@ -8,74 +9,23 @@ description: >-
   or measuring skill-creator performance — those tasks belong to the skill-creator skill.
 ---
 
-# AgentV Eval Orchestrator
+# AgentV Eval Orchestrator — DEPRECATED
 
-Run AgentV evaluations using the orchestration prompt system.
+> **This skill has been merged into the unified `agentv-optimizer` lifecycle skill.**
+>
+> All eval-orchestrator capabilities (workspace evaluation, multi-provider targets, multi-turn conversations, code judges, tool trajectory, agent/CLI modes, all eval formats) are now in **Phase 2 (Run Baseline)** of the `agentv-optimizer` skill.
+>
+> **Use `agentv-optimizer` instead.** It runs the same evaluations and adds grading, comparison, analysis, human review, and optimization phases on top.
 
-## Supported Formats
+## Quick Migration
 
-AgentV accepts evaluation files in multiple formats:
+| Before (eval-orchestrator) | After (agentv-optimizer) |
+|---------------------------|-------------------------|
+| "Run evals on this file" | Same prompt — agentv-optimizer handles it |
+| "Evaluate my agent" | Same prompt — starts at Phase 2 automatically |
+| `agentv prompt eval <file>` | Same command — used in Phase 2 |
+| `agentv eval run <file>` | Same command — used in Phase 2 |
 
-- **EVAL YAML** (`.eval.yaml`) — Full-featured AgentV native format
-- **JSONL** (`.jsonl`) — One test per line, with optional YAML sidecar
-- **Agent Skills evals.json** (`.json`) — Open standard format from Agent Skills
+## Why the change
 
-All commands below work with any of these formats.
-
-## Usage
-
-```bash
-agentv prompt eval <eval-file>
-```
-
-This outputs a complete orchestration prompt with mode-specific instructions and all test IDs. **Follow its instructions exactly.**
-
-The orchestration mode is controlled by the `AGENTV_PROMPT_EVAL_MODE` environment variable:
-
-- **`agent`** (default) — Act as the candidate LLM and judge via two agents (`eval-candidate`, `eval-judge`). No API keys needed.
-- **`cli`** — The CLI runs the evaluation end-to-end. Requires API keys.
-
-## How It Works
-
-1. Run `agentv prompt eval <path>` to get orchestration instructions
-2. The output tells you exactly what to do based on the current mode
-3. Follow the instructions — dispatch agents (agent mode) or run CLI commands (cli mode)
-4. Results are written to `.agentv/results/` in JSONL format
-
-## Agent Skills evals.json
-
-When running an `evals.json` file, AgentV automatically:
-
-- Promotes `prompt` → input messages, `expected_output` → reference answer
-- Converts `assertions` → llm-judge evaluators
-- Resolves `files[]` paths relative to the evals.json directory and copies them into the workspace
-- Sets agent mode by default (since evals.json targets agent workflows)
-
-```bash
-# Run directly
-agentv prompt eval evals.json
-
-# Or convert to YAML first for full feature access
-agentv convert evals.json
-agentv prompt eval evals.eval.yaml
-```
-
-## Benchmark Output
-
-After running evaluations, generate an Agent Skills-compatible `benchmark.json` summary:
-
-```bash
-agentv eval evals.json --benchmark-json benchmark.json
-```
-
-This produces aggregate pass rates, timing, and token statistics in the Agent Skills benchmark format.
-
-## Converting Formats
-
-To unlock AgentV-specific features (workspace setup, code judges, rubrics, retry policies), convert evals.json to YAML:
-
-```bash
-agentv convert evals.json
-```
-
-See the [convert command docs](https://agentv.dev/tools/convert/) for details.
+The eval-orchestrator ran evaluations but stopped there. Users had to manually switch to other skills for analysis and optimization. The unified lifecycle skill runs evaluations as part of a complete improvement loop — run, grade, compare, analyze, review, optimize, and re-run — without losing any eval-orchestrator capability.
