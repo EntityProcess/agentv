@@ -94,7 +94,7 @@ agentv prompt eval --input evals.json --test-id 1
 agentv prompt eval --expected-output evals.json --test-id 1
 ```
 
-This gives an external agent enough structured data to run the task itself and then grade the result against the eval spec.
+In agent mode, the host agent uses these accessors to enumerate tests, act as the candidate, and then grade the saved answer against the eval spec.
 
 ## Benchmark output
 
