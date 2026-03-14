@@ -1,0 +1,6 @@
+targets:
+  # Mock target — returns a fixed response so the example runs without API keys.
+  # Replace with a real coding-agent target (claude, copilot, etc.) for live evals.
+  - name: default
+    provider: mock
+    response: "The code uses 'any' type throughout instead of explicit types, and 'var' should be replaced with 'const' or 'let'. All four functions are missing return type annotations (should be :string). The for loop in joinWords should use for...of. Adding explicit type annotations and interfaces would improve type safety."

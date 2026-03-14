@@ -1,0 +1,8 @@
+{
+  "name": "agentv-example-agent-skills-ts",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agentv/eval": "file:../../../packages/eval"
+  }
+}

@@ -1,0 +1,60 @@
+# Agent Skills TS — EVAL.yaml version
+#
+# This is the AgentV EVAL.yaml equivalent of evals/evals.json.
+# It adds a TypeScript code-judge (run with Bun) on top of the
+# natural-language assertions that evals.json provides.
+#
+# Generated from evals/evals.json via:
+#   agentv convert evals/evals.json
+
+description: TypeScript code review — demonstrates Bun-based code judges
+
+execution:
+  target: default
+
+tests:
+  - id: "1"
+    criteria: |-
+      The code has several issues: all parameters use 'any' type instead of explicit types,
+      'var' should be replaced with 'const'/'let', and for loops should use 'for...of'.
+      Suggested improvements include adding explicit type annotations, using modern loop
+      syntax, and replacing var declarations.
+    input:
+      - role: user
+        content:
+          - type: text
+            value: |-
+              Review the TypeScript code in evals/files/formatter.ts and suggest
+              improvements for type safety and modern TypeScript best practices.
+          - type: file
+            value: ./evals/files/formatter.ts
+    assert:
+      # TypeScript code judge — runs with Bun, no Python needed.
+      # Path is relative to the EVAL.yaml file location (evals/).
+      - name: ts-quality-check
+        type: code-judge
+        command: ["bun", "run", "../scripts/check-ts-review.ts"]
+      # Natural-language assertions from the original evals.json
+      - name: assertion-1
+        type: llm-judge
+        prompt: Identifies use of 'any' type as a type safety problem
+      - name: assertion-2
+        type: llm-judge
+        prompt: Recommends replacing 'var' with 'const' or 'let'
+      - name: assertion-3
+        type: llm-judge
+        prompt: Suggests adding explicit TypeScript type annotations or interfaces
+
+  - id: "2"
+    criteria: |-
+      All four functions (formatCurrency, capitalize, truncate, joinWords) are missing
+      explicit return type annotations. Each should have a return type of string.
+    input:
+      - role: user
+        content:
+          - type: text
+            value: |-
+              What return types are missing from the functions in evals/files/formatter.ts?
+          - type: file
+            value: ./evals/files/formatter.ts
+

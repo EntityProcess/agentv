@@ -1,0 +1,22 @@
+{
+  "skill_name": "ts-code-reviewer",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Review the TypeScript code in evals/files/formatter.ts and suggest improvements for type safety and modern TypeScript best practices.",
+      "expected_output": "The code has several issues: all parameters use 'any' type instead of explicit types, 'var' should be replaced with 'const'/'let', and 'for' loops should use 'for...of'. Suggested improvements include adding explicit type annotations, using modern loop syntax, and replacing var declarations.",
+      "files": ["evals/files/formatter.ts"],
+      "assertions": [
+        "Identifies use of 'any' type as a type safety problem",
+        "Recommends replacing 'var' with 'const' or 'let'",
+        "Suggests adding explicit TypeScript type annotations or interfaces"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "What return types are missing from the functions in evals/files/formatter.ts?",
+      "expected_output": "All four functions (formatCurrency, capitalize, truncate, joinWords) are missing explicit return type annotations. Each should have a return type: formatCurrency should return string, capitalize should return string, truncate should return string, and joinWords should return string.",
+      "files": ["evals/files/formatter.ts"]
+    }
+  ]
+}

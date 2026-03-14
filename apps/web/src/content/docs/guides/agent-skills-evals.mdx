@@ -63,7 +63,7 @@ When AgentV loads `evals.json`, it promotes fields to its internal representatio
 
 ## Files support
 
-The `files[]` field lists files that the agent needs during evaluation. Paths are relative to the evals.json location:
+The `files[]` field lists files that the agent needs during evaluation. Paths are relative to the evals.json location. Files can be any type — data files, source code, configuration:
 
 ```json
 {
@@ -72,12 +72,21 @@ The `files[]` field lists files that the agent needs during evaluation. Paths ar
       "id": 1,
       "prompt": "Analyze the sales data",
       "files": ["evals/files/sales.csv", "evals/files/config.json"]
+    },
+    {
+      "id": 2,
+      "prompt": "Review the TypeScript code in evals/files/formatter.ts for type safety issues.",
+      "files": ["evals/files/formatter.ts"]
     }
   ]
 }
 ```
 
 AgentV resolves these paths and copies the files into the workspace before the agent runs. If a file is missing, the test case fails with a `file_copy_error`.
+
+:::tip[TypeScript-first skills]
+The official `anthropics/skills` evaluation scripts are Python-only. AgentV supports TypeScript/Bun natively — skills can include `.ts` source files in `files[]` and use `bun run` for evaluation scripts. See the [agent-skills-ts example](https://github.com/EntityProcess/agentv/tree/main/examples/features/agent-skills-ts) for a complete TypeScript skill with a Bun-based code judge.
+:::
 
 ## Agent mode (no API keys)
 
