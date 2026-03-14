@@ -5,8 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest",
-    "test:watch": "vitest --watch"
+    "test": "bun test",
+    "test:watch": "bun test --watch"
   },
   "devDependencies": {
     "@types/bun": "latest",
