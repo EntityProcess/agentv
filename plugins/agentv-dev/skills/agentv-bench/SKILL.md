@@ -172,25 +172,50 @@ This section is one continuous sequence — don't stop partway through.
 
 Put results in a workspace directory organized by iteration (`iteration-1/`, `iteration-2/`, etc.). Don't create all of this upfront — just create directories as you go.
 
+### Choosing a run mode
+
+Read the mode from `.env` before doing anything:
+
+```bash
+grep AGENT_EVAL_MODE .env 2>/dev/null || echo "AGENT_EVAL_MODE=agent"
+```
+
+| `AGENT_EVAL_MODE` | Mode | How |
+|-------------------|------|-----|
+| `cli` | **AgentV CLI** | `agentv eval <path>` — end-to-end, EVAL.yaml |
+| `python` | **Python scripts** | `python scripts/run_eval.py` — evals.json via `claude -p` |
+| `agent` (default) | **Agent mode** | `agentv prompt eval` accessors + spawn subagents |
+| _(no subagents, no CLI)_ | **Serial manual** | Run each test case in conversation, grade inline |
+
+Set `AGENT_EVAL_MODE` in `.env` at the project root. If absent, default to `agent`.
+
+**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Best for EVAL.yaml evals when `agentv` is installed.
+
+**`python`** — `run_eval.py` calls `claude -p` directly. Use for evals.json skill-creator workflows.
+
+**`agent`** — The orchestrating agent acts as both candidate and judge via `agentv prompt eval` accessors. No external API calls required; works wherever subagents are available.
+
+> Note: `AGENT_EVAL_MODE` replaces the deprecated `AGENTV_PROMPT_EVAL_MODE` from `agentv prompt eval --overview` (see issue #599).
+
 ### Running evaluations
 
-**CLI mode** (end-to-end, requires API keys):
+**AgentV CLI mode** (end-to-end, EVAL.yaml):
 ```bash
 agentv eval <eval-path> --artifacts .agentv/artifacts/
 ```
 
-**Agent mode** (no API keys — the orchestrator acts as both candidate and judge):
+**Python scripts mode** (evals.json, calls `claude -p`):
+```bash
+cd plugins/agentv-dev/skills/agentv-bench
+python scripts/quick_validate.py --eval evals/evals.json
+python scripts/run_eval.py --eval evals/evals.json --output iteration-1/
+```
+
+**Agent mode** (orchestrator as candidate + judge):
 ```bash
 agentv prompt eval --list <eval-path>
 agentv prompt eval --input <eval-path> --test-id <id>
 agentv prompt eval --expected-output <eval-path> --test-id <id>
-```
-
-If you're working inside this skill bundle, use the scripts directly:
-
-```bash
-cd plugins/agentv-dev/skills/agentv-bench
-python scripts/quick_validate.py --eval evals/evals.json
 ```
 
 **Spawn all runs in the same turn.** For each test case that needs both a "with change" and a "baseline" run, launch them simultaneously. Don't run one set first and come back for the other — launch everything at once so results arrive around the same time.
