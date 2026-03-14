@@ -596,29 +596,6 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'trigger-judge') {
-      const skill = asString(rawEvaluator.skill);
-      if (!skill) {
-        logWarning(
-          `Skipping trigger-judge evaluator '${name}' in '${evalId}': missing required 'skill' field`,
-        );
-        continue;
-      }
-
-      const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
-
-      evaluators.push({
-        name,
-        type: 'trigger-judge',
-        skill,
-        ...(weight !== undefined ? { weight } : {}),
-        ...(required !== undefined ? { required } : {}),
-        ...(negate !== undefined ? { negate } : {}),
-      } as import('../types.js').TriggerJudgeEvaluatorConfig);
-      continue;
-    }
-
     if (typeValue === 'field-accuracy') {
       const rawFields = rawEvaluator.fields;
       if (!Array.isArray(rawFields)) {

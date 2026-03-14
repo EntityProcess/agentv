@@ -64,9 +64,6 @@ export type { TokenUsageEvaluatorOptions } from './token-usage.js';
 export { ToolTrajectoryEvaluator } from './tool-trajectory.js';
 export type { ToolTrajectoryEvaluatorOptions } from './tool-trajectory.js';
 
-export { TriggerJudgeEvaluator } from './trigger-judge.js';
-export type { TriggerJudgeEvaluatorConfig } from '../types.js';
-
 // Deterministic assertions
 export {
   runContainsAssertion,

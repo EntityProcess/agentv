@@ -28,7 +28,7 @@ import type {
   TargetDefinition,
 } from './providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
-import { createBuiltinRegistry, discoverAssertions } from './registry/index.js';
+import { createBuiltinRegistry, discoverAssertions, discoverJudges } from './registry/index.js';
 import {
   type TokenUsage,
   type TraceSummary,
@@ -375,6 +375,7 @@ export async function runEvaluation(
   // Directory containing the eval YAML file, used as default cwd for workspace scripts
   const evalDir = discoveryBaseDir;
   await discoverAssertions(typeRegistry, discoveryBaseDir);
+  await discoverJudges(typeRegistry, discoveryBaseDir);
 
   // Discover custom providers from .agentv/providers/ directory
   const providerRegistry = createBuiltinProviderRegistry();

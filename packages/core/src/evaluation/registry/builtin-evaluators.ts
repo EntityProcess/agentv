@@ -19,7 +19,6 @@ import {
   LlmJudgeEvaluator,
   TokenUsageEvaluator,
   ToolTrajectoryEvaluator,
-  TriggerJudgeEvaluator,
   runContainsAllAssertion,
   runContainsAnyAssertion,
   runContainsAssertion,
@@ -58,7 +57,6 @@ import type {
   RegexEvaluatorConfig,
   StartsWithEvaluatorConfig,
   TokenUsageEvaluatorConfig,
-  TriggerJudgeEvaluatorConfig,
 } from '../types.js';
 import {
   DeterministicAssertionEvaluator,
@@ -167,11 +165,6 @@ export const toolTrajectoryFactory: EvaluatorFactoryFn = (config) => {
   return new ToolTrajectoryEvaluator({
     config: config as ToolTrajectoryEvaluatorConfig,
   });
-};
-
-/** Factory for `trigger-judge` evaluators. */
-export const triggerJudgeFactory: EvaluatorFactoryFn = (config) => {
-  return new TriggerJudgeEvaluator(config as TriggerJudgeEvaluatorConfig);
 };
 
 /** Factory for `field-accuracy` evaluators. */
@@ -435,7 +428,6 @@ export function createBuiltinRegistry(): EvaluatorRegistry {
     .register('code-judge', codeFactory)
     .register('composite', compositeFactory)
     .register('tool-trajectory', toolTrajectoryFactory)
-    .register('trigger-judge', triggerJudgeFactory)
     .register('field-accuracy', fieldAccuracyFactory)
     .register('latency', latencyFactory)
     .register('cost', costFactory)

@@ -153,7 +153,6 @@ const EVALUATOR_KIND_VALUES = [
   'rubric',
   'composite',
   'tool-trajectory',
-  'trigger-judge',
   'field-accuracy',
   'latency',
   'cost',
@@ -739,28 +738,11 @@ export type InlineAssertEvaluatorConfig = {
   readonly negate?: boolean;
 };
 
-/**
- * Configuration for the trigger-judge evaluator.
- * Checks whether the agent invoked a named skill during execution by
- * scanning tool calls for Skill invocations or skill file reads.
- */
-export type TriggerJudgeEvaluatorConfig = {
-  readonly name: string;
-  readonly type: 'trigger-judge';
-  /** The skill name to check for (matched against Skill tool args and skill file paths) */
-  readonly skill: string;
-  readonly weight?: number;
-  readonly required?: boolean | number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
-  readonly negate?: boolean;
-};
-
 export type EvaluatorConfig =
   | CodeEvaluatorConfig
   | LlmJudgeEvaluatorConfig
   | CompositeEvaluatorConfig
   | ToolTrajectoryEvaluatorConfig
-  | TriggerJudgeEvaluatorConfig
   | FieldAccuracyEvaluatorConfig
   | LatencyEvaluatorConfig
   | CostEvaluatorConfig
