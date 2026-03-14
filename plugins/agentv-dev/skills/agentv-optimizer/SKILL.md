@@ -1,6 +1,14 @@
 ---
 name: agentv-optimizer
 description: "Run the full agent-evaluation lifecycle: discover → run → grade → compare → analyze → review → optimize → re-run. Use when asked to evaluate an agent, optimize prompts against evals, run EVAL.yaml or evals.json evaluations, compare agent outputs, analyze eval results, or improve agent performance. Supports workspace evaluation with real repos, multi-provider targets, multi-turn conversations, code judges, tool trajectory scoring, and workspace file change tracking."
+description: >-
+  Optimize agent task prompts through AgentV evaluation-driven refinement using `agentv prompt eval` and EVAL.yaml files.
+  Five-phase workflow (Discovery → Planning → Optimization → Polish → Handoff) that iteratively improves prompts
+  based on AgentV eval scores.
+  Use when asked to optimize agent performance against AgentV evals, improve prompt quality using AgentV evaluation results,
+  or run the AgentV optimization loop.
+  Do NOT use for optimizing SKILL.md trigger descriptions, improving skill discoverability, or editing skill metadata —
+  those tasks belong to the skill-creator skill.
 ---
 
 # AgentV Agent-Evaluation Lifecycle

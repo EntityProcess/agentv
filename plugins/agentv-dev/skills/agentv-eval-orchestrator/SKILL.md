@@ -1,6 +1,12 @@
 ---
 name: agentv-eval-orchestrator
 description: "[DEPRECATED] This skill has been absorbed into the unified agentv-optimizer lifecycle skill. Use agentv-optimizer instead — it covers the full evaluation lifecycle: run → grade → compare → analyze → review → optimize → re-run."
+description: >-
+  Run AgentV evaluations against EVAL.yaml / .eval.yaml / evals.json files using the `agentv prompt eval` and `agentv eval` CLI commands.
+  Use when asked to run AgentV evals, evaluate agent output quality with AgentV, execute an AgentV evaluation suite,
+  or orchestrate AgentV eval subcommands.
+  Do NOT use for creating or modifying SKILL.md files, packaging skills, optimizing skill trigger descriptions,
+  or measuring skill-creator performance — those tasks belong to the skill-creator skill.
 ---
 
 # AgentV Eval Orchestrator — DEPRECATED
