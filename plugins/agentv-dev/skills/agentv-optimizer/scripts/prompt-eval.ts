@@ -12,9 +12,7 @@ async function main() {
   const args = process.argv.slice(2);
 
   if (args.length === 0) {
-    console.error(
-      'Usage: bun scripts/prompt-eval.ts --list <eval-path>',
-    );
+    console.error('Usage: bun scripts/prompt-eval.ts --list <eval-path>');
     console.error('   or: bun scripts/prompt-eval.ts --input <eval-path> --test-id <id>');
     console.error('   or: bun scripts/prompt-eval.ts --expected-output <eval-path> --test-id <id>');
     process.exit(1);
