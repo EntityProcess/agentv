@@ -8,10 +8,10 @@ AgentV runs skill-creator's evals.json directly — no conversion required:
 
 ```bash
 # Run evals.json with AgentV
-agentv eval run evals.json
+agentv eval evals.json
 
 # Or in agent mode (no API keys)
-agentv prompt eval evals.json
+agentv prompt eval overview evals.json
 ```
 
 AgentV automatically:
@@ -59,7 +59,7 @@ agentv convert evals.json
 
 # Edit the generated YAML to add workspace config, code judges, etc.
 # Then run with the full lifecycle
-agentv prompt eval evals.eval.yaml
+agentv eval eval.yaml
 ```
 
 EVAL.yaml unlocks:
