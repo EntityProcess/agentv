@@ -24,11 +24,11 @@ export async function runCommand(
   cmd: string[],
   cwd?: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-  if (cmd.some(part => part.includes('cli.ts'))) {
+  if (cmd.some((part) => part.includes('cli.ts'))) {
     const { available, reason } = isAgentvCliAvailable();
     if (!available) {
       throw new Error(
-        `AgentV CLI not available: ${reason}\n\nTo use eval commands, ensure you are running inside the AgentV repository\nwith Bun installed. See: https://github.com/EntityProcess/agentv#installation`
+        `AgentV CLI not available: ${reason}\n\nTo use eval commands, ensure you are running inside the AgentV repository\nwith Bun installed. See: https://github.com/EntityProcess/agentv#installation`,
       );
     }
   }

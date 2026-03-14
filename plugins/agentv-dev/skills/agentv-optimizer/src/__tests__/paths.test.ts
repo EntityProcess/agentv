@@ -1,7 +1,12 @@
 import { execSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { createAgentvCliInvocation } from '../cli.js';
-import { isAgentvCliAvailable, resolveAgentvCommand, resolveRepoRoot, resolveSkillRoot } from '../paths.js';
+import {
+  isAgentvCliAvailable,
+  resolveAgentvCommand,
+  resolveRepoRoot,
+  resolveSkillRoot,
+} from '../paths.js';
 
 describe('paths', () => {
   it('resolves skill root, repo root, and an agentv command without hardcoded relative cwd assumptions', () => {

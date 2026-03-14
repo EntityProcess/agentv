@@ -41,7 +41,10 @@ export function isAgentvCliAvailable(): { available: boolean; reason?: string } 
   try {
     repoRoot = resolveRepoRoot();
   } catch (e) {
-    return { available: false, reason: `Cannot resolve repo root: ${e instanceof Error ? e.message : String(e)}` };
+    return {
+      available: false,
+      reason: `Cannot resolve repo root: ${e instanceof Error ? e.message : String(e)}`,
+    };
   }
   const cliPath = `${repoRoot}/apps/cli/src/cli.ts`;
   if (!existsSync(cliPath)) {
