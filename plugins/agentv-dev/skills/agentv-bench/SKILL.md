@@ -32,24 +32,18 @@ After the agent is working well, you can also run description optimization to im
 
 ## Bundled scripts layer
 
-This skill ships with a Bun bundle in `plugins/agentv-dev/skills/agentv-bench/`. Bootstrap it once before using the wrapper scripts:
-
-```bash
-cd plugins/agentv-dev/skills/agentv-bench
-bun install
-bun scripts/quick-validate.ts --scope wrappers
-```
+This skill ships with a Python scripts layer in `plugins/agentv-dev/skills/agentv-bench/scripts/`. Requires Python 3.11+. No extra dependencies — all scripts use the stdlib only.
 
 The scripts layer wraps AgentV rather than replacing it. Use it when you want a provider-agnostic optimization workflow that still relies on core AgentV commands and artifacts:
 
-- `scripts/run-eval.ts` → thin wrapper over `agentv eval` with wrapper-level `--eval-path`
-- `scripts/prompt-eval.ts` → thin wrapper over `agentv prompt eval --list|--input|--expected-output`
-- `scripts/convert-evals.ts` → thin wrapper over `agentv convert`
-- `scripts/compare-runs.ts` → thin wrapper over `agentv compare`
-- `scripts/run-loop.ts` → plans and executes repeated eval iterations by composing the wrappers above
-- `scripts/aggregate-benchmark.ts` → reads `benchmark.json`, `timing.json`, and `results.jsonl`
-- `scripts/generate-report.ts` → builds a review model and HTML report from AgentV artifacts
-- `scripts/improve-description.ts` → proposes provider-agnostic description experiments from observed misses/false triggers
+- `scripts/quick_validate.py` → validates skill structure and evals.json schema before a run
+- `scripts/run_eval.py` → runs evals defined in `evals/evals.json` via `claude -p`
+- `scripts/run_loop.py` → plans and executes repeated eval iterations, calling `run_eval.py` each round
+- `scripts/aggregate_benchmark.py` → reads `benchmark.json`, `timing.json`, and `results.jsonl`
+- `scripts/generate_report.py` → builds a review model and writes a JSON report from AgentV artifacts
+- `scripts/improve_description.py` → proposes description experiments from observed misses/false triggers
+- `scripts/package_skill.py` → packages the skill directory for distribution
+- `eval-viewer/generate_review.py` → reads AgentV artifacts (`--artifacts`) and renders `viewer.html`
 
 Keep code-judge execution, evaluator semantics, and artifact generation in AgentV core. The scripts only orchestrate those primitives and read the artifacts they emit.
 
@@ -192,13 +186,11 @@ agentv prompt eval --input <eval-path> --test-id <id>
 agentv prompt eval --expected-output <eval-path> --test-id <id>
 ```
 
-If you're working inside this skill bundle, use the wrappers instead:
+If you're working inside this skill bundle, use the scripts directly:
 
 ```bash
 cd plugins/agentv-dev/skills/agentv-bench
-bun scripts/prompt-eval.ts --list <eval-path>
-bun scripts/prompt-eval.ts --input <eval-path> --test-id <id>
-bun scripts/prompt-eval.ts --expected-output <eval-path> --test-id <id>
+python scripts/quick_validate.py --eval evals/evals.json
 ```
 
 **Spawn all runs in the same turn.** For each test case that needs both a "with change" and a "baseline" run, launch them simultaneously. Don't run one set first and come back for the other — launch everything at once so results arrive around the same time.
@@ -436,7 +428,7 @@ When you already have `benchmark.json` and `grading.json`, use the scripts bundl
 
 ```bash
 cd plugins/agentv-dev/skills/agentv-bench
-bun scripts/improve-description.ts --benchmark .agentv/artifacts/benchmark.json --grading .agentv/artifacts/grading.json
+python scripts/improve_description.py --benchmark .agentv/artifacts/benchmark.json --grading .agentv/artifacts/grading.json
 ```
 
 ### Step 4: Apply
