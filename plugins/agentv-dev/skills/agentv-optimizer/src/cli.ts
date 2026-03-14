@@ -1,4 +1,4 @@
-import { resolveAgentvCommand } from "./paths.js";
+import { resolveAgentvCommand } from './paths.js';
 
 /**
  * Creates a CLI invocation with the resolved agentv command and appended arguments
