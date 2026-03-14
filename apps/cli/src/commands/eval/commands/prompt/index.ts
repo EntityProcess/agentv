@@ -43,11 +43,12 @@ export const evalPromptEvalSubcommand = command({
       throw new Error('--test-id is required with --input and --expected-output.');
     }
 
+    const requiredTestId = testId ?? '';
     const output = list
       ? await listPromptEvalTestIds(evalPath)
       : input
-        ? await getPromptEvalInput(evalPath, testId!)
-        : await getPromptEvalExpectedOutput(evalPath, testId!);
+        ? await getPromptEvalInput(evalPath, requiredTestId)
+        : await getPromptEvalExpectedOutput(evalPath, requiredTestId);
 
     process.stdout.write(JSON.stringify(output, null, 2));
     process.stdout.write('\n');

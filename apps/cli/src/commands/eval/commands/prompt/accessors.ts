@@ -33,7 +33,10 @@ export async function listPromptEvalTestIds(evalPath: string): Promise<PromptEva
   };
 }
 
-export async function getPromptEvalInput(evalPath: string, testId: string): Promise<PromptEvalInputResult> {
+export async function getPromptEvalInput(
+  evalPath: string,
+  testId: string,
+): Promise<PromptEvalInputResult> {
   const repoRoot = await findRepoRoot(process.cwd());
   const evalCase = await loadTestById(evalPath, repoRoot, testId);
   const fileMap = buildFileMap(evalCase.input_segments, evalCase.file_paths);
