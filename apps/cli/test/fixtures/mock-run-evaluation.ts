@@ -78,6 +78,8 @@ async function maybeWriteDiagnostics(
     testId: options.testId ?? null,
     useCache: options.useCache ?? false,
     envSample: process.env.CLI_ENV_SAMPLE ?? null,
+    envRootOnly: process.env.CLI_ENV_ROOT_ONLY ?? null,
+    envLocalOnly: process.env.CLI_ENV_LOCAL_ONLY ?? null,
     resultCount: results.length,
   } satisfies Record<string, unknown>;
 

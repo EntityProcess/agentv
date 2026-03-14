@@ -238,8 +238,13 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
   const gitRoot = await findGitRoot(process.cwd());
   const repoRoot = gitRoot ?? process.cwd();
 
-  // Load .env files from hierarchy (closest to cwd first)
-  await loadEnvHierarchy(repoRoot);
+  const testFilePath = config.specFile
+    ? path.resolve(config.specFile)
+    : path.join(process.cwd(), '__programmatic__.yaml');
+
+  // Load .env files from the eval file hierarchy so nested eval-local .env
+  // files participate even when the command is launched from a parent folder.
+  await loadEnvHierarchy(repoRoot, testFilePath);
 
   let resolvedTarget: ResolvedTarget;
   let taskProvider: ReturnType<typeof createFunctionProvider> | undefined;
@@ -263,18 +268,15 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
   }
 
   let evalCases: readonly EvalTest[] | EvalTest[];
-  let testFilePath: string;
 
   if (config.specFile) {
     // File-based mode: load from YAML
-    testFilePath = path.resolve(config.specFile);
     evalCases = await loadTests(testFilePath, repoRoot, {
       verbose: config.verbose,
       filter: config.filter,
     });
   } else {
     // Inline mode: convert EvalTestInput[] to EvalTest[]
-    testFilePath = path.join(process.cwd(), '__programmatic__.yaml');
     evalCases = (config.tests ?? []).map((test): EvalTest => {
       const input =
         typeof test.input === 'string'
@@ -432,13 +434,13 @@ async function discoverDefaultTarget(repoRoot: string): Promise<TargetDefinition
 }
 
 /**
- * Load .env files from the directory hierarchy (root → child order).
- * Only sets variables not already in process.env.
+ * Load .env files from the directory hierarchy so the closest file wins while
+ * parent files still contribute missing keys. Existing process.env values are
+ * preserved.
  */
-async function loadEnvHierarchy(repoRoot: string): Promise<void> {
+async function loadEnvHierarchy(repoRoot: string, startPath: string): Promise<void> {
   const { readFileSync } = await import('node:fs');
-  const cwd = process.cwd();
-  const chain = buildDirectoryChain(path.join(cwd, '_placeholder'), repoRoot);
+  const chain = buildDirectoryChain(startPath, repoRoot);
 
   // Collect .env files from closest to root
   const envFiles: string[] = [];
@@ -447,8 +449,10 @@ async function loadEnvHierarchy(repoRoot: string): Promise<void> {
     if (existsSync(envPath)) envFiles.push(envPath);
   }
 
-  // Load from root to child so child values take precedence
-  for (let i = envFiles.length - 1; i >= 0; i--) {
+  // buildDirectoryChain returns directories from closest to farthest. Loading in
+  // that same order means nearer .env files set shared keys first, while parent
+  // .env files loaded afterward only backfill keys that are still missing.
+  for (let i = 0; i < envFiles.length; i++) {
     try {
       const content = readFileSync(envFiles[i], 'utf8');
       for (const line of content.split('\n')) {
