@@ -1,12 +1,11 @@
 ---
 name: agentv-optimizer
-description: "Run the full agent-evaluation lifecycle: discover → run → grade → compare → analyze → review → optimize → re-run. Use when asked to evaluate an agent, optimize prompts against evals, run EVAL.yaml or evals.json evaluations, compare agent outputs, analyze eval results, or improve agent performance. Supports workspace evaluation with real repos, multi-provider targets, multi-turn conversations, code judges, tool trajectory scoring, and workspace file change tracking."
 description: >-
-  Optimize agent task prompts through AgentV evaluation-driven refinement using `agentv prompt eval` and EVAL.yaml files.
-  Five-phase workflow (Discovery → Planning → Optimization → Polish → Handoff) that iteratively improves prompts
-  based on AgentV eval scores.
-  Use when asked to optimize agent performance against AgentV evals, improve prompt quality using AgentV evaluation results,
-  or run the AgentV optimization loop.
+  Run the full agent-evaluation lifecycle: discover → run → grade → compare → analyze → review → optimize → re-run.
+  Use when asked to evaluate an agent, optimize prompts against evals, run EVAL.yaml or evals.json evaluations,
+  compare agent outputs, analyze eval results, or improve agent performance.
+  Supports workspace evaluation with real repos, multi-provider targets, multi-turn conversations,
+  code judges, tool trajectory scoring, and workspace file change tracking.
   Do NOT use for optimizing SKILL.md trigger descriptions, improving skill discoverability, or editing skill metadata —
   those tasks belong to the skill-creator skill.
 ---
@@ -89,7 +88,7 @@ Before running or optimizing, understand what you are working with.
 
 ### Phase 2: Run Baseline
 
-Run evaluations to establish baseline measurements. This phase absorbs the functionality of the former `agentv-eval-orchestrator` skill.
+Run evaluations to establish baseline measurements.
 
 **Execution modes:**
 
@@ -116,7 +115,7 @@ The mode is controlled by the `AGENTV_PROMPT_EVAL_MODE` environment variable:
 
 4. **Record baseline** in the optimization log: score, pass rate, per-test breakdown, and results file path (`.agentv/results/eval_...jsonl`).
 
-**Capabilities preserved from eval-orchestrator:**
+**Capabilities:**
 - Workspace isolation — clone repos, run setup/teardown scripts
 - Multi-provider targets — same eval against Claude, GPT, Copilot, Gemini, custom CLI agents
 - Multi-turn conversation evaluation — conversation_id tracking across turns
@@ -132,7 +131,7 @@ The mode is controlled by the `AGENTV_PROMPT_EVAL_MODE` environment variable:
 
 Produce structured grading with per-assertion evidence.
 
-**Dispatch the `eval-judge` agent** (enhanced with claims extraction, #570). For each test case:
+**Dispatch the `eval-judge` agent.** For each test case:
 
 1. **Per-assertion structured evidence** — each assertion produces `{text, passed, evidence}` with specific quotes or measurements backing the verdict.
 2. **Claims extraction** — extract factual claims from the candidate response and verify each against reference material.
@@ -140,7 +139,7 @@ Produce structured grading with per-assertion evidence.
 4. **Surface vs substance guards** — detect when a response looks good superficially but fails on substance (format compliance ≠ content quality).
 5. **User notes integration** — if the user provided notes or context, incorporate them into grading.
 
-**Output:** Write `grading.json` artifact to `.agentv/artifacts/grading.json` (#565).
+**Output:** Write `grading.json` artifact to `.agentv/artifacts/grading.json`.
 
 ```json
 {
@@ -165,7 +164,7 @@ Produce structured grading with per-assertion evidence.
 
 Blind N-way comparison when multiple runs exist. **Skip this phase when only one run exists.**
 
-**Step 1 — Dispatch `blind-comparator` agent** (#571):
+**Step 1 — Dispatch `blind-comparator` agent:**
 
 1. **Blind presentation** — the comparator receives responses labeled "Response A", "Response B", etc. without knowing which is baseline.
 2. **Dynamic rubric generation** — generate task-specific evaluation criteria based on the test case requirements, not a generic rubric.
@@ -173,7 +172,7 @@ Blind N-way comparison when multiple runs exist. **Skip this phase when only one
 4. **N-way comparison** — compare 2+ responses simultaneously, not just binary A/B.
 5. **Per-response verdicts** with dimensional breakdowns.
 
-**Step 2 — Dispatch `comparison-analyzer` agent** (#571):
+**Step 2 — Dispatch `comparison-analyzer` agent:**
 
 1. **Unblinding** — reveal which response was baseline vs candidate.
 2. **Improvement attribution** — identify what specific changes drove improvements or regressions.
@@ -186,19 +185,19 @@ Blind N-way comparison when multiple runs exist. **Skip this phase when only one
 
 Deep failure analysis combining existing patterns with new capabilities.
 
-**Dispatch `optimizer-reflector` agent** (enhanced with #567 patterns) and `eval-analyzer` agent:
+**Dispatch `optimizer-reflector` agent** and `eval-analyzer` agent:
 
 1. **SIMBA pattern** (existing) — self-introspective failure analysis. For each failure: "What specific instruction or lack of instruction caused this?"
 2. **GEPA pattern** (existing) — natural language trace reflection. Compare actual vs expected output, diagnose: knowledge gap, instruction ambiguity, hallucination, or wrong approach.
-3. **Deterministic-upgrade suggestions** (new, #567) — identify LLM-judge assertions that could be replaced with deterministic evaluators:
+3. **Deterministic-upgrade suggestions** — identify LLM-judge assertions that could be replaced with deterministic evaluators:
    - "Response contains X" → `contains` evaluator
    - "Output matches pattern Y" → `regex` evaluator
    - "Output is valid JSON" → `is-json` evaluator
-4. **Weak assertion identification** (new) — flag assertions that always pass or are too vague to meaningfully test anything.
-5. **Benchmark pattern analysis** (new) — detect always-pass tests (assertion too loose), always-fail tests (task impossible or assertion wrong), and flaky tests (non-deterministic).
+4. **Weak assertion identification** — flag assertions that always pass or are too vague to meaningfully test anything.
+5. **Benchmark pattern analysis** — detect always-pass tests (assertion too loose), always-fail tests (task impossible or assertion wrong), and flaky tests (non-deterministic).
 6. **Trend analysis** (existing) — across iterations, detect improving / plateauing / regressing patterns, stagnation, overfitting.
 
-**Output:** Write `benchmark.json` artifact to `.agentv/artifacts/benchmark.json` (#565).
+**Output:** Write `benchmark.json` artifact to `.agentv/artifacts/benchmark.json`.
 
 ```json
 {
@@ -226,7 +225,7 @@ Human review checkpoint. **Skip this phase when `skip-review` is set or in CI/au
    - Per-test breakdown (pass/fail with evidence)
    - Comparison results (if Phase 4 ran)
    - Analysis insights (deterministic upgrade candidates, weak assertions, pattern analysis)
-   - If the HTML dashboard (#562) is available, reference it for interactive exploration.
+   - If the HTML dashboard is available, reference it for interactive exploration.
 
 2. **Collect structured feedback** — prompt the human for:
    - Approve: continue to optimization
@@ -234,7 +233,7 @@ Human review checkpoint. **Skip this phase when `skip-review` is set or in CI/au
    - Redirect: change optimization strategy or focus area
    - Notes: free-form feedback to incorporate into subsequent phases
 
-3. **Output:** Write `feedback.json` artifact to `.agentv/artifacts/feedback.json` (#568).
+3. **Output:** Write `feedback.json` artifact to `.agentv/artifacts/feedback.json`.
 
    ```json
    {
@@ -331,7 +330,7 @@ This skill orchestrates up to eight specialized agents. The skill handles phase 
 
 ## Companion Artifacts
 
-The skill produces structured artifacts at key phases (#565):
+The skill produces structured artifacts at key phases:
 
 | Artifact | Phase | Path | Description |
 |----------|-------|------|-------------|

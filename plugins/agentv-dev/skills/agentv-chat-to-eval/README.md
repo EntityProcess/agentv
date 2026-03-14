@@ -81,4 +81,4 @@ tests:
 ## Related Skills
 
 - **agentv-eval-builder** — Create eval files from scratch with full schema reference
-- **agentv-eval-orchestrator** — Run evaluations without API keys
+- **agentv-optimizer** — Run the full evaluation lifecycle: evaluate, grade, compare, analyze, optimize
