@@ -4,6 +4,7 @@
  * 
  * Thin wrapper over `agentv eval` command.
  * Shells out to AgentV CLI without embedding provider-specific logic.
+ * Forwards all arguments verbatim to preserve exact CLI semantics.
  */
 
 import { buildRunEvalCommand, runCommand } from "../src/command-runner.js";
@@ -11,44 +12,16 @@ import { buildRunEvalCommand, runCommand } from "../src/command-runner.js";
 async function main() {
   const args = process.argv.slice(2);
   
-  // Parse arguments
-  let evalPath = "";
-  let target: string | undefined;
-  let targets: string[] | undefined;
-  let artifactsDir: string | undefined;
-  let dryRun = false;
-
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    
-    if (arg === "--eval-path") {
-      evalPath = args[++i];
-    } else if (arg === "--target") {
-      target = args[++i];
-    } else if (arg === "--targets") {
-      targets = args[++i].split(",");
-    } else if (arg === "--artifacts") {
-      artifactsDir = args[++i];
-    } else if (arg === "--dry-run") {
-      dryRun = true;
-    } else if (!arg.startsWith("--")) {
-      evalPath = arg;
-    }
-  }
-
-  if (!evalPath) {
-    console.error("Usage: bun scripts/run-eval.ts <eval-path> [--target <name>] [--targets <t1,t2>] [--artifacts <dir>] [--dry-run]");
+  if (args.length === 0) {
+    console.error("Usage: bun scripts/run-eval.ts <eval-path> [...agentv-eval-options]");
+    console.error("All arguments are forwarded to 'agentv eval' verbatim.");
     process.exit(1);
   }
 
-  const cmd = buildRunEvalCommand({
-    evalPath,
-    target,
-    targets,
-    artifactsDir,
-    dryRun,
-  });
+  const cmd = buildRunEvalCommand(args);
 
+  // Check for --dry-run to show what would be executed
+  const dryRun = args.includes("--dry-run");
   if (dryRun) {
     console.log("Dry-run mode: would execute:");
     console.log(cmd.join(" "));

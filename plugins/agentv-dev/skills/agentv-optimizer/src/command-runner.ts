@@ -1,39 +1,17 @@
 import { resolveAgentvCommand } from "./paths.js";
 
-export interface RunEvalOptions {
-  evalPath: string;
-  target?: string;
-  targets?: string[];
-  artifactsDir?: string;
-  dryRun?: boolean;
-}
-
 export interface PromptEvalOptions {
   subcommand: "overview" | "input" | "judge";
   evalPath: string;
   testId?: string;
 }
 
-export function buildRunEvalCommand(options: RunEvalOptions): string[] {
-  const cmd = [...resolveAgentvCommand(), "eval", options.evalPath];
-
-  if (options.target) {
-    cmd.push("--target", options.target);
-  }
-
-  if (options.targets && options.targets.length > 0) {
-    cmd.push("--targets", options.targets.join(","));
-  }
-
-  if (options.artifactsDir) {
-    cmd.push("--artifacts", options.artifactsDir);
-  }
-
-  if (options.dryRun) {
-    cmd.push("--dry-run");
-  }
-
-  return cmd;
+/**
+ * Builds agentv eval command by forwarding all arguments verbatim.
+ * This preserves exact CLI semantics without re-parsing flags.
+ */
+export function buildRunEvalCommand(args: string[]): string[] {
+  return [...resolveAgentvCommand(), "eval", ...args];
 }
 
 export function buildPromptEvalCommand(args: string[]): string[] {
