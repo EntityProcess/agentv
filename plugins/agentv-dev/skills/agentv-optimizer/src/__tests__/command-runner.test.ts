@@ -10,12 +10,7 @@ describe('command runner', () => {
   it('forwards all agentv eval arguments verbatim', () => {
     const args = ['evals.json', '--target', 'copilot-haiku', '--artifacts', '.agentv/artifacts'];
 
-    expect(buildRunEvalCommand(args)).toEqual([
-      'bun',
-      expect.stringContaining('apps/cli/src/cli.ts'),
-      'eval',
-      ...args,
-    ]);
+    expect(buildRunEvalCommand(args)).toEqual(['agentv', 'eval', ...args]);
   });
 
   it('preserves --test-id and --workers flags (regression for parsing bug)', () => {

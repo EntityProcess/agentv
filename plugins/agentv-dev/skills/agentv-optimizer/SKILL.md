@@ -53,6 +53,21 @@ The scripts layer wraps AgentV rather than replacing it. Use it when you want a 
 
 Keep code-judge execution, evaluator semantics, and artifact generation in AgentV core. The scripts only orchestrate those primitives and read the artifacts they emit.
 
+## Scripts
+
+### Skill Management (Python)
+- `scripts/quick_validate.py` — validate SKILL.md structure
+- `scripts/init_skill.py` — scaffold a new skill directory
+- `scripts/generate_openai_yaml.py` — generate agents/openai.yaml
+- `eval-viewer/generate_review.py` — serve live eval review UI
+
+### Eval Wrappers (Bun/TypeScript)
+- `scripts/run-eval.ts` — run evaluations via AgentV CLI
+- `scripts/prompt-eval.ts` — run prompt evaluations
+- `scripts/convert-evals.ts` — convert eval formats
+- `scripts/compare-runs.ts` — compare eval runs
+- `scripts/run-loop.ts` — automated optimization loop
+
 ## Communicating with the user
 
 This skill is used by people across a wide range of familiarity with evaluation tooling. Pay attention to context cues:

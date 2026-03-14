@@ -8,8 +8,6 @@ describe('run loop', () => {
       iterations: 2,
     });
     expect(plan.commands).toHaveLength(2);
-    expect(plan.commands[0]).toEqual(
-      expect.arrayContaining(['bun', expect.stringContaining('apps/cli/src/cli.ts'), 'eval']),
-    );
+    expect(plan.commands[0]).toEqual(expect.arrayContaining(['agentv', 'eval']));
   });
 });
