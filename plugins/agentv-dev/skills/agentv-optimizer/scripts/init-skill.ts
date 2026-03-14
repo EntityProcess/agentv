@@ -13,7 +13,9 @@ function printUsage() {
   console.log('');
   console.log('Examples:');
   console.log('  bun scripts/init-skill.ts my-new-skill --path skills/public');
-  console.log('  bun scripts/init-skill.ts my-api-helper --path skills/private --resources scripts,references');
+  console.log(
+    '  bun scripts/init-skill.ts my-api-helper --path skills/private --resources scripts,references',
+  );
 }
 
 function main() {
@@ -39,7 +41,9 @@ function main() {
   const resourcesIdx = args.indexOf('--resources');
   if (resourcesIdx !== -1 && args[resourcesIdx + 1]) {
     const valid = new Set(['scripts', 'references', 'assets']);
-    resources = args[resourcesIdx + 1].split(',').map(r => r.trim()) as Array<'scripts' | 'references' | 'assets'>;
+    resources = args[resourcesIdx + 1].split(',').map((r) => r.trim()) as Array<
+      'scripts' | 'references' | 'assets'
+    >;
     for (const r of resources) {
       if (!valid.has(r)) {
         console.error(`Error: Invalid resource type '${r}'. Valid: scripts, references, assets`);

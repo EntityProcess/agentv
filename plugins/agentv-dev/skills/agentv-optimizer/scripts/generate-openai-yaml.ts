@@ -50,7 +50,9 @@ function main() {
   if (!skillName) {
     skillName = readFrontmatterName(skillDir);
     if (!skillName) {
-      console.error(`Error: Could not determine skill name. Provide --name or ensure SKILL.md has a 'name' field.`);
+      console.error(
+        `Error: Could not determine skill name. Provide --name or ensure SKILL.md has a 'name' field.`,
+      );
       process.exit(1);
     }
   }

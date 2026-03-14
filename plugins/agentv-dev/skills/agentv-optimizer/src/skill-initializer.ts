@@ -2,10 +2,45 @@ import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 export const ACRONYMS = new Set([
-  'AI', 'ML', 'API', 'CLI', 'SDK', 'URL', 'URI', 'HTML', 'CSS', 'JS', 'TS',
-  'JSON', 'YAML', 'XML', 'SQL', 'CSV', 'PDF', 'UI', 'UX', 'CI', 'CD', 'HTTP',
-  'HTTPS', 'REST', 'GraphQL', 'SSH', 'TLS', 'SSL', 'AWS', 'GCP', 'VM', 'OS',
-  'LLM', 'GPT', 'NLP', 'RAG', 'LTS', 'PR', 'LGTM',
+  'AI',
+  'ML',
+  'API',
+  'CLI',
+  'SDK',
+  'URL',
+  'URI',
+  'HTML',
+  'CSS',
+  'JS',
+  'TS',
+  'JSON',
+  'YAML',
+  'XML',
+  'SQL',
+  'CSV',
+  'PDF',
+  'UI',
+  'UX',
+  'CI',
+  'CD',
+  'HTTP',
+  'HTTPS',
+  'REST',
+  'GraphQL',
+  'SSH',
+  'TLS',
+  'SSL',
+  'AWS',
+  'GCP',
+  'VM',
+  'OS',
+  'LLM',
+  'GPT',
+  'NLP',
+  'RAG',
+  'LTS',
+  'PR',
+  'LGTM',
 ]);
 
 export const BRANDS: Record<string, string> = {
@@ -23,13 +58,28 @@ export const BRANDS: Record<string, string> = {
 };
 
 export const SMALL_WORDS = new Set([
-  'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-  'of', 'with', 'by', 'from', 'as', 'into', 'via', 'vs',
+  'a',
+  'an',
+  'the',
+  'and',
+  'or',
+  'but',
+  'in',
+  'on',
+  'at',
+  'to',
+  'for',
+  'of',
+  'with',
+  'by',
+  'from',
+  'as',
+  'into',
+  'via',
+  'vs',
 ]);
 
-export const ALLOWED_INTERFACE_KEYS = new Set([
-  'name', 'description', 'type', 'version',
-]);
+export const ALLOWED_INTERFACE_KEYS = new Set(['name', 'description', 'type', 'version']);
 
 const MAX_SKILL_NAME_LENGTH = 64;
 
@@ -294,7 +344,9 @@ export function writeOpenAIYaml(
   try {
     mkdirSync(agentsDir, { recursive: true });
   } catch (e) {
-    console.error(`❌ Error creating agents/ directory: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(
+      `❌ Error creating agents/ directory: ${e instanceof Error ? e.message : String(e)}`,
+    );
     return null;
   }
 
@@ -330,12 +382,14 @@ export function writeOpenAIYaml(
     }
   }
 
-  const content = lines.join('\n') + '\n';
+  const content = `${lines.join('\n')}\n`;
 
   try {
     writeFileSync(yamlPath, content, 'utf-8');
   } catch (e) {
-    console.error(`❌ Error writing agents/openai.yaml: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(
+      `❌ Error writing agents/openai.yaml: ${e instanceof Error ? e.message : String(e)}`,
+    );
     return null;
   }
 
@@ -349,9 +403,7 @@ export function initSkill(
 ): string | null {
   const normalized = normalizeSkillName(skillName);
   if (normalized !== skillName) {
-    console.error(
-      `❌ Skill name '${skillName}' is not normalized. Did you mean '${normalized}'?`,
-    );
+    console.error(`❌ Skill name '${skillName}' is not normalized. Did you mean '${normalized}'?`);
     return null;
   }
 
@@ -379,9 +431,10 @@ export function initSkill(
 
   // Create SKILL.md
   const skillTitle = formatTitleCase(skillName);
-  const skillContent = SKILL_TEMPLATE
-    .replace(/\{skill_name\}/g, skillName)
-    .replace(/\{skill_title\}/g, skillTitle);
+  const skillContent = SKILL_TEMPLATE.replace(/\{skill_name\}/g, skillName).replace(
+    /\{skill_title\}/g,
+    skillTitle,
+  );
 
   try {
     writeFileSync(resolve(skillDir, 'SKILL.md'), skillContent, 'utf-8');

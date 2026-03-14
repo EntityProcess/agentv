@@ -76,8 +76,8 @@ describe('parseInterfaceOverrides', () => {
   it('parses valid key=value overrides', () => {
     const result = parseInterfaceOverrides(['name=My Skill', 'description=A cool skill']);
     expect(result).not.toBeNull();
-    expect(result!.overrides['name']).toBe('My Skill');
-    expect(result!.overrides['description']).toBe('A cool skill');
+    expect(result?.overrides.name).toBe('My Skill');
+    expect(result?.overrides.description).toBe('A cool skill');
   });
 
   it('returns null for override missing =', () => {

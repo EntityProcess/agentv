@@ -46,12 +46,21 @@ export function validateSkill(skillPath: string): ValidationResult {
     }
   }
 
-  const allowedProperties = new Set(['name', 'description', 'license', 'allowed-tools', 'metadata']);
-  const unexpectedKeys = topLevelKeys.filter(k => !allowedProperties.has(k));
+  const allowedProperties = new Set([
+    'name',
+    'description',
+    'license',
+    'allowed-tools',
+    'metadata',
+  ]);
+  const unexpectedKeys = topLevelKeys.filter((k) => !allowedProperties.has(k));
   if (unexpectedKeys.length > 0) {
     const allowed = [...allowedProperties].sort().join(', ');
     const unexpected = [...new Set(unexpectedKeys)].sort().join(', ');
-    return { valid: false, message: `Unexpected key(s) in SKILL.md frontmatter: ${unexpected}. Allowed properties are: ${allowed}` };
+    return {
+      valid: false,
+      message: `Unexpected key(s) in SKILL.md frontmatter: ${unexpected}. Allowed properties are: ${allowed}`,
+    };
   }
 
   if (!('name' in frontmatter)) {
@@ -61,26 +70,38 @@ export function validateSkill(skillPath: string): ValidationResult {
     return { valid: false, message: "Missing 'description' in frontmatter" };
   }
 
-  const name = frontmatter['name'].trim();
+  const name = frontmatter.name.trim();
   if (name) {
     if (!/^[a-z0-9-]+$/.test(name)) {
-      return { valid: false, message: `Name '${name}' should be hyphen-case (lowercase letters, digits, and hyphens only)` };
+      return {
+        valid: false,
+        message: `Name '${name}' should be hyphen-case (lowercase letters, digits, and hyphens only)`,
+      };
     }
     if (name.startsWith('-') || name.endsWith('-') || name.includes('--')) {
-      return { valid: false, message: `Name '${name}' cannot start/end with hyphen or contain consecutive hyphens` };
+      return {
+        valid: false,
+        message: `Name '${name}' cannot start/end with hyphen or contain consecutive hyphens`,
+      };
     }
     if (name.length > MAX_SKILL_NAME_LENGTH) {
-      return { valid: false, message: `Name is too long (${name.length} characters). Maximum is ${MAX_SKILL_NAME_LENGTH} characters.` };
+      return {
+        valid: false,
+        message: `Name is too long (${name.length} characters). Maximum is ${MAX_SKILL_NAME_LENGTH} characters.`,
+      };
     }
   }
 
-  const description = frontmatter['description'].trim();
+  const description = frontmatter.description.trim();
   if (description) {
     if (description.includes('<') || description.includes('>')) {
       return { valid: false, message: 'Description cannot contain angle brackets (< or >)' };
     }
     if (description.length > 1024) {
-      return { valid: false, message: `Description is too long (${description.length} characters). Maximum is 1024 characters.` };
+      return {
+        valid: false,
+        message: `Description is too long (${description.length} characters). Maximum is 1024 characters.`,
+      };
     }
   }
 
