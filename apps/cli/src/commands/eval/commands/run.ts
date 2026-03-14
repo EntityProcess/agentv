@@ -157,6 +157,12 @@ export const evalRunCommand = command({
       long: 'benchmark-json',
       description: 'Write Agent Skills benchmark.json to the specified path',
     }),
+    artifacts: option({
+      type: optional(string),
+      long: 'artifacts',
+      description:
+        'Write companion artifacts (grading/<test>.json, timing.json, benchmark.json) to the specified directory',
+    }),
   },
   handler: async (args) => {
     // Launch interactive wizard when no eval paths and stdin is a TTY
@@ -196,6 +202,7 @@ export const evalRunCommand = command({
       retryErrors: args.retryErrors,
       strict: args.strict,
       benchmarkJson: args.benchmarkJson,
+      artifacts: args.artifacts,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },

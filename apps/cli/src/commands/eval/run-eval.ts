@@ -26,6 +26,7 @@ import {
 } from '@agentv/core';
 
 import { enforceRequiredVersion } from '../../version-check.js';
+import { writeArtifactsFromResults } from './artifact-writer.js';
 import { writeBenchmarkJson } from './benchmark-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
 import {
@@ -80,6 +81,7 @@ interface NormalizedOptions {
   readonly workspaceMode?: 'pooled' | 'temp' | 'static';
   readonly workspacePath?: string;
   readonly benchmarkJson?: string;
+  readonly artifacts?: string;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -246,6 +248,7 @@ function normalizeOptions(
     workspaceMode,
     workspacePath,
     benchmarkJson: normalizeString(rawOptions.benchmarkJson),
+    artifacts: normalizeString(rawOptions.artifacts),
   } satisfies NormalizedOptions;
 }
 
@@ -1044,6 +1047,21 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
       const benchmarkPath = path.resolve(options.benchmarkJson);
       await writeBenchmarkJson(benchmarkPath, allResults);
       console.log(`Benchmark written to: ${benchmarkPath}`);
+    }
+
+    // Write companion artifacts (grading, timing, benchmark) if requested
+    if (options.artifacts && allResults.length > 0) {
+      const artifactsDir = path.resolve(options.artifacts);
+      const evalFile = resolvedTestFiles.length === 1 ? resolvedTestFiles[0] : '';
+      const {
+        gradingDir,
+        timingPath,
+        benchmarkPath: abp,
+      } = await writeArtifactsFromResults(allResults, artifactsDir, { evalFile });
+      console.log(`Artifacts written to: ${artifactsDir}`);
+      console.log(`  Grading: ${gradingDir} (${allResults.length} files)`);
+      console.log(`  Timing:  ${timingPath}`);
+      console.log(`  Benchmark: ${abp}`);
     }
 
     // Print workspace paths for failed cases (when preserved for debugging)
