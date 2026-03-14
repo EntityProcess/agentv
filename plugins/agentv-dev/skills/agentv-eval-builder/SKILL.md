@@ -309,6 +309,7 @@ See docs at https://agentv.dev/evaluators/code-judges/
 - name: quality
   type: llm-judge
   prompt: ./prompts/eval.md     # markdown template or command config
+  target: judge_gpt_5_mini      # optional: override the judge target for this evaluator
   model: gpt-5-chat            # optional model override
   config:                       # passed to prompt templates as context.config
     strictness: high
@@ -316,6 +317,7 @@ See docs at https://agentv.dev/evaluators/code-judges/
 Variables: `{{question}}`, `{{criteria}}`, `{{answer}}`, `{{reference_answer}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{file_changes}}`
 - Markdown templates: use `{{variable}}` syntax
 - TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/eval`, receives context object with all variables + `config`
+- Use `target:` to run different `llm-judge` evaluators against different named LLM targets in the same eval (useful for judge panels / ensembles)
 
 ### composite
 ```yaml

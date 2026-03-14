@@ -16,6 +16,7 @@ import type {
   ProviderRequest,
   ProviderResponse,
 } from '../../src/evaluation/providers/types.js';
+import { llmJudgeFactory } from '../../src/evaluation/registry/builtin-evaluators.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
 /** Helper to create a ProviderResponse with text wrapped in output */
@@ -40,10 +41,15 @@ class StubProvider implements Provider {
 class CapturingProvider implements Provider {
   readonly id = 'capturing';
   readonly kind = 'mock' as const;
-  readonly targetName = 'capturing';
+  readonly targetName: string;
   lastRequest?: ProviderRequest;
 
-  constructor(private readonly response: ProviderResponse) {}
+  constructor(
+    private readonly response: ProviderResponse,
+    targetName = 'capturing',
+  ) {
+    this.targetName = targetName;
+  }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
     this.lastRequest = request;
@@ -275,6 +281,51 @@ describe('LlmJudgeEvaluator', () => {
       'You must respond with a single JSON object',
     );
     expect(result.evaluatorRawRequest?.systemPrompt).not.toContain(customPrompt);
+  });
+
+  it('uses evaluator target overrides when configured', async () => {
+    const defaultJudgeProvider = new CapturingProvider(
+      textResponse(JSON.stringify({ score: 0.2, hits: [], misses: ['used default'] })),
+      'default-judge',
+    );
+
+    const overrideJudgeProvider = new CapturingProvider(
+      textResponse(JSON.stringify({ score: 0.9, hits: ['used override'], misses: [] })),
+      'judge-low-cost-b',
+    );
+
+    const evaluator = llmJudgeFactory(
+      {
+        name: 'judge-panel-member',
+        type: 'llm-judge',
+        prompt: 'Evaluate {{answer}}',
+        target: 'judge-low-cost-b',
+      },
+      {
+        judgeProvider: defaultJudgeProvider,
+        targetResolver: (targetName) =>
+          targetName === 'judge-low-cost-b' ? overrideJudgeProvider : undefined,
+        llmJudge: new LlmJudgeEvaluator({
+          resolveJudgeProvider: async () => defaultJudgeProvider,
+        }),
+        registry: {} as never,
+      },
+    );
+
+    const result = await evaluator.evaluate({
+      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: defaultJudgeProvider,
+      attempt: 0,
+      promptInputs: { question: '', guidelines: '' },
+      now: new Date(),
+    });
+
+    expect(result.score).toBeCloseTo(0.9);
+    expect(result.evaluatorRawRequest?.target).toBe('judge-low-cost-b');
+    expect(overrideJudgeProvider.lastRequest).toBeDefined();
+    expect(defaultJudgeProvider.lastRequest).toBeUndefined();
   });
 
   it('rejects JSON with invalid hits/misses types', async () => {

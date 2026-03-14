@@ -85,6 +85,7 @@ const LlmJudgeSchema = EvaluatorCommonSchema.extend({
   prompt: PromptSchema.optional(),
   rubrics: z.array(RubricItemSchema).optional(),
   model: z.string().optional(),
+  target: z.string().optional(),
   config: z.record(z.unknown()).optional(),
 });
 
