@@ -582,6 +582,9 @@ agentv create assertion <name>  # → .agentv/assertions/<name>.ts
 agentv create eval <name>       # → evals/<name>.eval.yaml + .cases.jsonl
 ```
 
+## Skill Improvement Workflow
+
+For a complete guide to iterating on skills using evaluations — writing scenarios, running baselines, comparing results, and improving — see the [Skill Improvement Workflow](https://agentv.dev/guides/skill-improvement-workflow/) guide.
 ## Human Review Checkpoint
 
 After running evals, perform a human review before iterating. Create `feedback.json` in the results directory alongside `results.jsonl`:
