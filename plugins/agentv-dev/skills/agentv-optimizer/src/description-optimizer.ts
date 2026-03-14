@@ -19,7 +19,7 @@ export interface DescriptionImprovementPlan {
  * based on observed trigger misses and false triggers.
  */
 export function buildDescriptionImprovementPlan(
-  observations: DescriptionObservations
+  observations: DescriptionObservations,
 ): DescriptionImprovementPlan {
   const nextExperiments: DescriptionExperiment[] = [];
 
@@ -28,7 +28,7 @@ export function buildDescriptionImprovementPlan(
     for (const missedPrompt of observations.triggerMisses) {
       nextExperiments.push({
         prompt: missedPrompt,
-        expectedOutcome: "skill should trigger and handle this request",
+        expectedOutcome: 'skill should trigger and handle this request',
       });
     }
   }
@@ -38,7 +38,7 @@ export function buildDescriptionImprovementPlan(
     for (const falsePrompt of observations.falseTriggers) {
       nextExperiments.push({
         prompt: falsePrompt,
-        expectedOutcome: "skill should NOT trigger for this request",
+        expectedOutcome: 'skill should NOT trigger for this request',
       });
     }
   }
@@ -58,30 +58,27 @@ export function buildDescriptionImprovementPlan(
 
 function buildDiffPreview(observations: DescriptionObservations): string {
   const lines: string[] = [];
-  
-  lines.push("--- SKILL.md");
-  lines.push("+++ SKILL.md");
-  lines.push("@@ -1,3 +1,5 @@");
-  
+
+  lines.push('--- SKILL.md');
+  lines.push('+++ SKILL.md');
+  lines.push('@@ -1,3 +1,5 @@');
+
   if (observations.triggerMisses && observations.triggerMisses.length > 0) {
-    lines.push(" ## Description");
-    lines.push("+");
-    lines.push(`+ Add trigger patterns for: ${observations.triggerMisses.join(", ")}`);
-  }
-  
-  if (observations.falseTriggers && observations.falseTriggers.length > 0) {
-    lines.push(" ## Triggers");
-    lines.push("+");
-    lines.push(`+ Exclude false triggers: ${observations.falseTriggers.join(", ")}`);
+    lines.push(' ## Description');
+    lines.push('+');
+    lines.push(`+ Add trigger patterns for: ${observations.triggerMisses.join(', ')}`);
   }
 
-  return lines.join("\n");
+  if (observations.falseTriggers && observations.falseTriggers.length > 0) {
+    lines.push(' ## Triggers');
+    lines.push('+');
+    lines.push(`+ Exclude false triggers: ${observations.falseTriggers.join(', ')}`);
+  }
+
+  return lines.join('\n');
 }
 
-function buildSummary(
-  observations: DescriptionObservations,
-  experimentCount: number
-): string {
+function buildSummary(observations: DescriptionObservations, experimentCount: number): string {
   const parts: string[] = [];
 
   if (observations.triggerMisses && observations.triggerMisses.length > 0) {
@@ -96,5 +93,5 @@ function buildSummary(
     return `No observations found → Generated ${experimentCount} validation experiment(s)`;
   }
 
-  return `Found ${parts.join(" and ")} → Generated ${experimentCount} validation experiment(s)`;
+  return `Found ${parts.join(' and ')} → Generated ${experimentCount} validation experiment(s)`;
 }

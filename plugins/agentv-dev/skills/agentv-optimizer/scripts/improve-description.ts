@@ -8,13 +8,21 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
+import {
+  type BenchmarkSummary,
+  type GradingSummary,
+  readBenchmarkSummary,
+  readGradingSummary,
+} from '../src/artifact-readers.js';
 import { buildDescriptionImprovementPlan } from '../src/description-optimizer.js';
 
 async function main() {
   const args = process.argv.slice(2);
 
   if (args.length === 0) {
-    console.error('Usage: bun scripts/improve-description.ts --benchmark <file> --grading <file> [--trigger-misses <file>] [--false-triggers <file>]');
+    console.error(
+      'Usage: bun scripts/improve-description.ts --benchmark <file> --grading <file> [--trigger-misses <file>] [--false-triggers <file>]',
+    );
     process.exit(1);
   }
 
@@ -54,9 +62,8 @@ async function main() {
     process.exit(1);
   }
 
-  // Read artifacts
-  const benchmark = JSON.parse(readFileSync(benchmarkPath, 'utf-8'));
-  const grading = JSON.parse(readFileSync(gradingPath, 'utf-8'));
+  const benchmark = readBenchmarkSummary(benchmarkPath);
+  const grading = readGradingSummary(gradingPath);
 
   // Extract observations from artifacts
   const triggerMisses: string[] = [];
@@ -78,8 +85,7 @@ async function main() {
     // Example: extract patterns from failed test cases
     for (const [testId, result] of Object.entries(grading)) {
       if (typeof result === 'object' && result !== null) {
-        const r = result as any;
-        if (r.error && r.error.includes('provider_error')) {
+        if (result.error?.includes('provider_error')) {
           // Could be a trigger miss - placeholder logic
           triggerMisses.push(`test case ${testId} failed`);
         }
@@ -95,11 +101,12 @@ async function main() {
 
   // Output results
   console.log('\n=== Description Improvement Plan ===\n');
+  printArtifactContext(benchmark, grading);
   console.log(plan.summary);
   console.log('\n--- Suggested Changes ---\n');
   console.log(plan.diffPreview);
   console.log('\n--- Validation Experiments ---\n');
-  
+
   for (let i = 0; i < plan.nextExperiments.length; i++) {
     const exp = plan.nextExperiments[i];
     console.log(`Experiment ${i + 1}:`);
@@ -112,6 +119,16 @@ async function main() {
   console.log('  1. Review and apply suggested description changes');
   console.log('  2. Add validation experiments to your eval suite');
   console.log('  3. Re-run benchmark to verify improvements');
+}
+
+function printArtifactContext(benchmark: BenchmarkSummary, grading: GradingSummary): void {
+  const gradedCases = Object.keys(grading).length;
+  const targets = benchmark.metadata.targets.join(', ');
+
+  console.log(`Artifacts: ${benchmark.metadata.eval_file}`);
+  console.log(`Targets: ${targets || 'N/A'}`);
+  console.log(`Graded cases: ${gradedCases}`);
+  console.log('');
 }
 
 main().catch((error) => {
