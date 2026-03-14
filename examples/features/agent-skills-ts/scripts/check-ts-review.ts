@@ -27,7 +27,12 @@ export default defineCodeJudge(({ answer }) => {
     misses.push('Does not recommend replacing var with const/let');
   }
 
-  if (lower.includes('return type') || lower.includes('explicit type') || lower.includes('interface') || lower.includes('annotation')) {
+  if (
+    lower.includes('return type') ||
+    lower.includes('explicit type') ||
+    lower.includes('interface') ||
+    lower.includes('annotation')
+  ) {
     hits.push('Recommends explicit type annotations');
   } else {
     misses.push('Does not suggest explicit type annotations');

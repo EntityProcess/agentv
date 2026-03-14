@@ -40,7 +40,8 @@
       "**/.astro/**",
       "**/*.tsbuildinfo",
       "logs",
-      "*.log"
+      "*.log",
+      "**/agent-skills-ts/evals/files/**"
     ]
   }
 }
