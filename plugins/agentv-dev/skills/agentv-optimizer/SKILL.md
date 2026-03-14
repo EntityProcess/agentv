@@ -1,6 +1,13 @@
 ---
 name: agentv-optimizer
-description: Optimize agent prompts through evaluation-driven refinement. Five-phase workflow (Discovery → Planning → Optimization → Polish → Handoff) that ensures evaluation integrity and keeps the user in control.
+description: >-
+  Optimize agent task prompts through AgentV evaluation-driven refinement using `agentv prompt eval` and EVAL.yaml files.
+  Five-phase workflow (Discovery → Planning → Optimization → Polish → Handoff) that iteratively improves prompts
+  based on AgentV eval scores.
+  Use when asked to optimize agent performance against AgentV evals, improve prompt quality using AgentV evaluation results,
+  or run the AgentV optimization loop.
+  Do NOT use for optimizing SKILL.md trigger descriptions, improving skill discoverability, or editing skill metadata —
+  those tasks belong to the skill-creator skill.
 ---
 
 # AgentV Optimizer
