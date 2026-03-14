@@ -55,18 +55,25 @@ Keep code-judge execution, evaluator semantics, and artifact generation in Agent
 
 ## Scripts
 
-### Skill Management (Python)
-- `scripts/quick_validate.py` — validate SKILL.md structure
-- `scripts/init_skill.py` — scaffold a new skill directory
-- `scripts/generate_openai_yaml.py` — generate agents/openai.yaml
-- `eval-viewer/generate_review.py` — serve live eval review UI
+All scripts require Python 3.11+ and no external dependencies beyond the Python stdlib.
 
-### Eval Wrappers (Bun/TypeScript)
-- `scripts/run-eval.ts` — run evaluations via AgentV CLI
-- `scripts/prompt-eval.ts` — run prompt evaluations
-- `scripts/convert-evals.ts` — convert eval formats
-- `scripts/compare-runs.ts` — compare eval runs
-- `scripts/run-loop.ts` — automated optimization loop
+### Skill management
+- `scripts/quick_validate.py` — validate SKILL.md structure and frontmatter
+- `scripts/package_skill.py` — package skill into a distributable `.skill` zip
+
+### Eval workflow
+- `scripts/run_eval.py` — run trigger evaluation (tests skill description quality)
+- `scripts/run_loop.py` — run eval+improve loop until all assertions pass
+- `scripts/improve_description.py` — improve skill description using eval results
+- `scripts/aggregate_benchmark.py` — aggregate run results into benchmark statistics
+- `scripts/generate_report.py` — generate HTML report from run_loop output
+
+### Review viewer
+- `eval-viewer/generate_review.py` — serve live eval review UI (HTTP server + feedback API)
+
+### Note on eval formats
+Skills use `evals/evals.json` with `assertions` for both trigger and output quality testing.
+A future AgentV PR will add `agentv convert` to migrate existing `dataset.eval.yaml` files to `evals/evals.json`.
 
 ## Communicating with the user
 
