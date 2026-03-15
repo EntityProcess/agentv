@@ -9,7 +9,7 @@ execution:
 
 assertions:
   - name: tone_check
-    type: llm-judge
+    type: llm-grader
     prompt: |
       Evaluate whether the response has a professional and helpful tone.
       Score 1.0 if the response is polite, clear, and professional.
@@ -29,7 +29,7 @@ tests:
     expected_output: "I'd be happy to help you with a refund. Could you provide your order number?"
     assertions:
       - name: helpfulness
-        type: llm-judge
+        type: llm-grader
     # Also gets tone_check from root-level assert
 
   - id: skip-defaults
@@ -44,5 +44,5 @@ tests:
       skip_defaults: true
     assertions:
       - name: urgency_check
-        type: llm-judge
+        type: llm-grader
     # Does NOT get tone_check — skip_defaults opts out

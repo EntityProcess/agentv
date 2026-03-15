@@ -24,13 +24,13 @@ export default defineAssertion(({ answer }) => ({
 
 Assertions support `pass: boolean` for simple checks and `score: number` (0-1) for granular scoring.
 
-### defineCodeJudge (full control)
+### defineCodeGrader (full control)
 
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeJudge } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeJudge(({ answer, trace }) => ({
+export default defineCodeGrader(({ answer, trace }) => ({
   score: answer.length > 0 ? 1.0 : 0.0,
   hits: ['Output received'],
 }));
@@ -41,10 +41,10 @@ Both functions handle stdin/stdout parsing, snake_case conversion, Zod validatio
 ## Exports
 
 - `defineAssertion(handler)` - Define a custom assertion (pass/fail + optional score)
-- `defineCodeJudge(handler)` - Define a code judge evaluator (full score control)
+- `defineCodeGrader(handler)` - Define a code grader evaluator (full score control)
 - `definePromptTemplate(handler)` - Define a dynamic prompt template
 - `AssertionContext`, `AssertionScore` - Assertion types
-- `CodeJudgeInput`, `CodeJudgeResult` - Code judge types
+- `CodeGraderInput`, `CodeGraderResult` - Code grader types
 - `TraceSummary`, `Message`, `ToolCall` - Trace data types
 - `createTargetClient()` - LLM target proxy for evaluators
 - `z` - Re-exported Zod for custom config schemas

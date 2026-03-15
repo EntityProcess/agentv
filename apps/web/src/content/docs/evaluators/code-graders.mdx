@@ -1,0 +1,320 @@
+---
+title: Code Graders
+description: Deterministic code evaluators in Python or TypeScript
+sidebar:
+  order: 1
+---
+
+Code graders (also accepts `code-judge` for backward compatibility) are scripts that evaluate agent responses deterministically. Write them in any language — Python, TypeScript, Node, or any executable.
+
+## Contract
+
+Code graders communicate via stdin/stdout JSON:
+
+**Input (stdin):**
+```json
+{
+  "question": "What is 15 + 27?",
+  "criteria": "Correctly calculates 15 + 27 = 42",
+  "answer": "The answer is 42.",
+  "reference_answer": "42",
+  "metadata": {}
+}
+```
+
+**Output (stdout):**
+```json
+{
+  "score": 1.0,
+  "hits": ["Answer contains correct value (42)"],
+  "misses": [],
+  "reasoning": "Passed 1 check(s)"
+}
+```
+
+| Output Field | Type | Description |
+|-------------|------|-------------|
+| `score` | `number` | 0.0 to 1.0 |
+| `hits` | `string[]` | Criteria that passed |
+| `misses` | `string[]` | Criteria that failed |
+| `reasoning` | `string` | Explanation of the score |
+
+## Python Example
+
+```python
+# validators/check_answer.py
+import json, sys
+data = json.load(sys.stdin)
+answer = data.get("answer", "")
+
+hits = []
+misses = []
+
+if "42" in answer:
+    hits.append("Answer contains correct value (42)")
+else:
+    misses.append("Answer does not contain expected value (42)")
+
+score = 1.0 if hits else 0.0
+
+print(json.dumps({
+    "score": score,
+    "hits": hits,
+    "misses": misses,
+    "reasoning": f"Passed {len(hits)} check(s)"
+}))
+```
+
+## TypeScript Example
+
+```typescript
+// validators/check_answer.ts
+import { readFileSync } from "fs";
+
+const data = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
+const answer: string = data.answer ?? "";
+
+const hits: string[] = [];
+const misses: string[] = [];
+
+if (answer.includes("42")) {
+  hits.push("Answer contains correct value (42)");
+} else {
+  misses.push("Answer does not contain expected value (42)");
+}
+
+console.log(JSON.stringify({
+  score: hits.length > 0 ? 1.0 : 0.0,
+  hits,
+  misses,
+  reasoning: `Passed ${hits.length} check(s)`,
+}));
+```
+
+## Referencing in Eval Files
+
+```yaml
+assertions:
+  - name: my_validator
+    type: code-grader
+    command: [./validators/check_answer.py]
+```
+
+## @agentv/eval SDK
+
+The `@agentv/eval` package provides a declarative API with automatic stdin/stdout handling. Use `defineCodeGrader` (formerly `defineCodeJudge`) to skip boilerplate:
+
+```typescript
+#!/usr/bin/env bun
+import { defineCodeGrader } from '@agentv/eval';
+
+export default defineCodeGrader(({ answer, criteria }) => {
+  const hits: string[] = [];
+  const misses: string[] = [];
+
+  if (answer.includes(criteria)) {
+    hits.push('Answer matches expected outcome');
+  } else {
+    misses.push('Answer does not match expected outcome');
+  }
+
+  const total = hits.length + misses.length;
+  return {
+    score: total === 0 ? 0 : hits.length / total,
+    hits,
+    misses,
+    reasoning: `Passed ${hits.length}/${total} checks`,
+  };
+});
+```
+
+**SDK exports:** `defineCodeGrader`, `Message`, `ToolCall`, `TraceSummary`, `CodeGraderInput`, `CodeGraderResult`
+
+## Target Access
+
+Code graders can call an LLM through a target proxy for metrics that require multiple LLM calls (contextual precision, semantic similarity, etc.).
+
+### Configuration
+
+Add a `target` block to the evaluator config:
+
+```yaml
+assertions:
+  - name: contextual-precision
+    type: code-grader
+    command: [bun, scripts/contextual-precision.ts]
+    target:
+      max_calls: 10  # Default: 50
+```
+
+### Usage
+
+Use `createTargetClient` from the SDK:
+
+```typescript
+#!/usr/bin/env bun
+import { createTargetClient, defineCodeGrader } from '@agentv/eval';
+
+export default defineCodeGrader(async ({ question, answer }) => {
+  const target = createTargetClient();
+  if (!target) return { score: 0, misses: ['Target not configured'] };
+
+  const response = await target.invoke({
+    question: `Is this relevant to: ${question}? Response: ${answer}`,
+    systemPrompt: 'Respond with JSON: { "relevant": true/false }'
+  });
+
+  const result = JSON.parse(response.rawText ?? '{}');
+  return { score: result.relevant ? 1.0 : 0.0 };
+});
+```
+
+Use `target.invokeBatch(requests)` for multiple calls in parallel.
+
+**Environment variables** (set automatically when `target` is configured):
+
+| Variable | Description |
+|----------|-------------|
+| `AGENTV_TARGET_PROXY_URL` | Local proxy URL |
+| `AGENTV_TARGET_PROXY_TOKEN` | Bearer token for authentication |
+
+## Advanced Input Fields
+
+Beyond the basic `question`, `criteria`, `answer`, and `reference_answer` fields, code graders receive additional context:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `guideline_files` | `string[]` | Paths to guideline files referenced in the eval |
+| `input_files` | `string[]` | Paths to input files referenced in the eval |
+| `input` | `Message[]` | Full resolved input message array |
+| `expected_output` | `Message[]` | Expected agent behavior including tool calls |
+| `output` | `Message[]` | Actual agent execution trace with tool calls |
+| `trace` | `TraceSummary` | Lightweight execution metrics (tool calls, errors) |
+| `token_usage` | `{input, output}` | Token consumption |
+| `cost_usd` | `number` | Estimated cost in USD |
+| `duration_ms` | `number` | Total execution duration |
+| `start_time` | `string` | ISO timestamp of first event |
+| `end_time` | `string` | ISO timestamp of last event |
+| `file_changes` | `string \| null` | Unified diff of workspace file changes (when `workspace_template` is configured) |
+| `workspace_path` | `string \| null` | Absolute path to the workspace directory (when `workspace_template` is configured) |
+
+### trace structure
+
+```json
+{
+  "event_count": 5,
+  "tool_names": ["fetch", "search"],
+  "tool_calls_by_name": { "search": 2, "fetch": 1 },
+  "error_count": 0,
+  "llm_call_count": 2
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `event_count` | `number` | Total tool invocations |
+| `tool_names` | `string[]` | Unique tool names used |
+| `tool_calls_by_name` | `Record<string, number>` | Count per tool |
+| `error_count` | `number` | Failed tool calls |
+| `llm_call_count` | `number` | Number of LLM calls (assistant messages) |
+
+Use `expected_output` for retrieval context in RAG evals (tool calls with outputs) and `output` for the actual agent execution trace from live runs.
+
+## Workspace Access
+
+When `workspace_template` is configured on a target, code graders receive the workspace path in two ways:
+
+1. **JSON payload**: `workspace_path` field in the stdin input
+2. **Environment variable**: `AGENTV_WORKSPACE_PATH`
+
+This enables **functional grading** — running commands like `npm test`, `pytest`, or `cargo test` directly in the agent's workspace.
+
+### Example: Deploy-and-Test Pattern
+
+```typescript
+#!/usr/bin/env bun
+import { readFileSync } from "fs";
+import { execFileSync } from "child_process";
+
+const input = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
+const cwd = input.workspace_path;
+
+const hits: string[] = [];
+const misses: string[] = [];
+
+// Stage 1: Install dependencies
+try {
+  execFileSync("npm", ["install"], { cwd, stdio: "pipe" });
+  hits.push("npm install passed");
+} catch { misses.push("npm install failed"); }
+
+// Stage 2: Typecheck
+try {
+  execFileSync("npx", ["tsc", "--noEmit"], { cwd, stdio: "pipe" });
+  hits.push("typecheck passed");
+} catch { misses.push("typecheck failed"); }
+
+// Stage 3: Run tests
+try {
+  execFileSync("npm", ["test"], { cwd, stdio: "pipe" });
+  hits.push("tests passed");
+} catch { misses.push("tests failed"); }
+
+const total = hits.length + misses.length;
+console.log(JSON.stringify({
+  score: total > 0 ? hits.length / total : 0,
+  hits,
+  misses,
+}));
+```
+
+```yaml
+# targets.yaml
+targets:
+  - name: my_agent
+    provider: cli
+    command: "my-agent --task {INPUT_FILE} --output {OUTPUT_FILE}"
+    workspace_template: ./workspace-template
+
+# dataset.eval.yaml
+tests:
+  - id: implement-feature
+    criteria: Agent implements the feature correctly
+    input: "Implement the TODO functions in src/index.ts"
+    assertions:
+      - name: functional-check
+        type: code-grader
+        command: [bun, scripts/functional-check.ts]
+```
+
+See `examples/features/functional-grading/` for a complete working example.
+
+## Testing Locally
+
+### With `agentv eval assert`
+
+Run a grader from `.agentv/graders/` by name — no manual JSON piping required:
+
+```bash
+# Pass agent output and input directly
+agentv eval assert rouge-score --agent-output "The fox jumps over the dog" --agent-input "Summarise this"
+
+# Or pass a JSON file with { output, input } fields
+agentv eval assert rouge-score --file result.json
+```
+
+The command:
+1. Discovers the grader script by walking up directories looking for `.agentv/graders/<name>.{ts,js,mts,mjs}`
+2. Passes `{ answer, output, input, question }` to the script via stdin
+3. Prints the grader's JSON result to stdout
+4. Exits 0 if score >= 0.5, exit 1 otherwise
+
+This is the same interface that agent-orchestrated evals use — the EVAL.yaml transpiler emits `agentv eval assert` instructions for code graders so external grading agents can run them directly.
+
+### With stdin pipe
+
+Pipe JSON directly to the grader script for full control:
+
+```bash
+echo '{"question":"What is 2+2?","criteria":"4","answer":"4","reference_answer":"4","metadata":{}}' | python validators/check_answer.py
+```

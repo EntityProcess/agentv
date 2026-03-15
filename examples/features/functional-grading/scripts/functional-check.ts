@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Multi-stage functional grading judge.
+ * Multi-stage functional grading grader.
  *
  * Uses workspace_path to run commands in the agent's workspace:
  * 1. Install dependencies (npm install)
@@ -22,7 +22,7 @@ if (!workspacePath) {
       score: 0,
       hits: [],
       misses: ['workspace_path not provided — cannot run functional checks'],
-      reasoning: 'Code judge requires workspace_path to execute commands in the workspace',
+      reasoning: 'Code grader requires workspace_path to execute commands in the workspace',
     }),
   );
   process.exit(0);

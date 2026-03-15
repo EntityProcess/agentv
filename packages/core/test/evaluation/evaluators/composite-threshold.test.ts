@@ -329,9 +329,9 @@ function makeSkipResult(): EvaluationScore {
     score: 0,
     verdict: 'skip',
     hits: [],
-    misses: ['Judge parse failure after 3 attempts: malformed response'],
+    misses: ['Grader parse failure after 3 attempts: malformed response'],
     expectedAspectCount: 1,
-    reasoning: 'Judge parse failure after 3 attempts: malformed response',
+    reasoning: 'Grader parse failure after 3 attempts: malformed response',
   };
 }
 

@@ -14,7 +14,7 @@ import {
   ExecutionMetricsEvaluator,
   FieldAccuracyEvaluator,
   LatencyEvaluator,
-  LlmJudgeEvaluator,
+  LlmGraderEvaluator,
   SkillTriggerEvaluator,
   TokenUsageEvaluator,
   ToolTrajectoryEvaluator,
@@ -52,7 +52,7 @@ import type {
   IcontainsEvaluatorConfig,
   IsJsonEvaluatorConfig,
   LatencyEvaluatorConfig,
-  LlmJudgeEvaluatorConfig,
+  LlmGraderEvaluatorConfig,
   RegexEvaluatorConfig,
   SkillTriggerEvaluatorConfig,
   StartsWithEvaluatorConfig,
@@ -69,47 +69,49 @@ import {
 export const INLINE_ASSERT_FN = Symbol.for('agentv.inline-assert-fn');
 
 /**
- * Factory for `llm-judge` evaluators.
+ * Factory for `llm-grader` evaluators.
  * Creates a wrapper that resolves custom prompts at evaluation time and
- * optionally overrides the judge target per evaluator.
+ * optionally overrides the grader target per evaluator.
  *
- * Auto-detects mode based on the resolved judge provider:
+ * Auto-detects mode based on the resolved grader provider:
  * - LLM providers (azure, anthropic, gemini): structured JSON mode
  * - Agent providers (claude-cli, copilot, etc.): delegate mode
  * - agentv provider: built-in AI SDK agent mode with filesystem tools
  */
-export const llmJudgeFactory: EvaluatorFactoryFn = (config, context) => {
-  const c = config as LlmJudgeEvaluatorConfig;
-  const { llmJudge, judgeProvider, targetResolver, agentTimeoutMs } = context;
+export const llmGraderFactory: EvaluatorFactoryFn = (config, context) => {
+  const c = config as LlmGraderEvaluatorConfig;
+  const { llmGrader, graderProvider, judgeProvider, targetResolver, agentTimeoutMs } = context;
 
-  let evaluator = llmJudge;
+  let evaluator = llmGrader;
   if (c.target) {
-    let judgeTargetProvider: Provider | undefined;
+    let graderTargetProvider: Provider | undefined;
     if (targetResolver) {
-      judgeTargetProvider = targetResolver(c.target);
+      graderTargetProvider = targetResolver(c.target);
     }
-    if (!judgeTargetProvider) {
-      throw new Error(`llm-judge evaluator '${c.name}': target '${c.target}' not found in targets`);
+    if (!graderTargetProvider) {
+      throw new Error(
+        `llm-grader evaluator '${c.name}': target '${c.target}' not found in targets`,
+      );
     }
-    // Only pass judgeTargetProvider for agent providers (delegate mode).
-    // LLM providers use the normal resolveJudgeProvider path for structured JSON mode.
+    // Only pass graderTargetProvider for agent providers (delegate mode).
+    // LLM providers use the normal resolveGraderProvider path for structured JSON mode.
     // Note: agentv uses asLanguageModel() not invoke(), so it's not in AGENT_PROVIDER_KINDS;
     // check it explicitly here for built-in agent mode.
-    const isAgent = isAgentProvider(judgeTargetProvider) || judgeTargetProvider.kind === 'agentv';
-    evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async (evalContext) => {
-        if (judgeTargetProvider) return judgeTargetProvider;
-        if (evalContext.judgeProvider) return evalContext.judgeProvider;
-        return judgeProvider;
+    const isAgent = isAgentProvider(graderTargetProvider) || graderTargetProvider.kind === 'agentv';
+    evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async (evalContext) => {
+        if (graderTargetProvider) return graderTargetProvider;
+        if (evalContext.graderProvider) return evalContext.graderProvider;
+        return graderProvider ?? judgeProvider;
       },
       maxSteps: c.max_steps,
       temperature: c.temperature,
-      ...(isAgent ? { judgeTargetProvider } : {}),
+      ...(isAgent ? { graderTargetProvider } : {}),
     });
   }
 
   return {
-    kind: 'llm-judge',
+    kind: 'llm-grader',
     async evaluate(evalContext) {
       const customPrompt = await resolveCustomPrompt(
         c,
@@ -133,7 +135,10 @@ export const llmJudgeFactory: EvaluatorFactoryFn = (config, context) => {
   };
 };
 
-/** Factory for `code-judge` evaluators. */
+/** @deprecated Use `llmGraderFactory` instead. */
+export const llmJudgeFactory = llmGraderFactory;
+
+/** Factory for `code-grader` evaluators. */
 export const codeFactory: EvaluatorFactoryFn = (config, context) => {
   const c = config as CodeEvaluatorConfig;
   return new CodeEvaluator({
@@ -403,7 +408,9 @@ export function createBuiltinRegistry(): EvaluatorRegistry {
   const registry = new EvaluatorRegistry();
 
   registry
-    .register('llm-judge', llmJudgeFactory)
+    .register('llm-grader', llmGraderFactory)
+    .register('llm-judge', llmGraderFactory)
+    .register('code-grader', codeFactory)
     .register('code-judge', codeFactory)
     .register('composite', compositeFactory)
     .register('tool-trajectory', toolTrajectoryFactory)

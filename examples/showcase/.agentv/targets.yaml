@@ -15,7 +15,7 @@ targets:
     cwd: ${{ CODEX_WORKSPACE_DIR }}
     log_dir: ${{ CODEX_LOG_DIR }}
     log_format: json
-    judge_target: default
+    grader_target: default
 
   - name: mock_agent
     provider: cli

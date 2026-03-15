@@ -5,7 +5,7 @@ sidebar:
   order: 6
 ---
 
-Human review sits between automated scoring and the next iteration. Automated evaluators catch regressions and enforce thresholds, but a human reviewer spots score-behavior mismatches, qualitative regressions, and cases where a judge is too strict or too lenient.
+Human review sits between automated scoring and the next iteration. Automated evaluators catch regressions and enforce thresholds, but a human reviewer spots score-behavior mismatches, qualitative regressions, and cases where a grader is too strict or too lenient.
 
 ## When to review
 
@@ -23,11 +23,11 @@ Skip the review step for routine CI gate runs where you only need pass/fail.
 
 | Signal | Example |
 |--------|---------|
-| **Score-behavior mismatch** | A test scores 0.9 but the output is clearly wrong — the judge missed an error |
+| **Score-behavior mismatch** | A test scores 0.9 but the output is clearly wrong — the grader missed an error |
 | **False positive** | A `contains` check passes on a coincidental substring match |
-| **False negative** | An LLM judge penalizes a correct answer that uses different phrasing |
+| **False negative** | An LLM grader penalizes a correct answer that uses different phrasing |
 | **Qualitative regression** | Scores stay the same but tone, formatting, or helpfulness degrades |
-| **Evaluator miscalibration** | A code judge is too strict on whitespace; a rubric is too lenient on accuracy |
+| **Evaluator miscalibration** | A code grader is too strict on whitespace; a rubric is too lenient on accuracy |
 | **Flaky results** | The same test produces wildly different scores across runs |
 
 ## How to review
@@ -75,20 +75,20 @@ The `feedback.json` file is a structured annotation of a single eval run. It rec
   "run_id": "2026-03-14T10-32-00_claude",
   "reviewer": "engineer-name",
   "timestamp": "2026-03-14T12:00:00Z",
-  "overall_notes": "Retrieval tests need more diverse queries. Code judge for format-check is too strict on trailing newlines.",
+  "overall_notes": "Retrieval tests need more diverse queries. Code grader for format-check is too strict on trailing newlines.",
   "per_case": [
     {
       "test_id": "test-feature-alpha",
       "verdict": "acceptable",
-      "notes": "Score is borderline (0.72) but behavior is correct — the judge penalized for different phrasing."
+      "notes": "Score is borderline (0.72) but behavior is correct — the grader penalized for different phrasing."
     },
     {
       "test_id": "test-retrieval-basic",
       "verdict": "needs_improvement",
       "notes": "Missing coverage of multi-document queries.",
       "evaluator_overrides": {
-        "code-judge:format-check": "Too strict — penalized valid output with trailing newline",
-        "llm-judge:quality": "Score 0.6 seems fair, answer was incomplete"
+        "code-grader:format-check": "Too strict — penalized valid output with trailing newline",
+        "llm-grader:quality": "Score 0.6 seems fair, answer was incomplete"
       },
       "workspace_notes": "Workspace had stale cached files from previous run — may have affected retrieval results."
     },
@@ -132,15 +132,15 @@ The `feedback.json` file is a structured annotation of a single eval run. It rec
 
 ### Evaluator overrides (workspace evaluations)
 
-For workspace evaluations with multiple evaluators (code judges, LLM judges, tool trajectory checks), the `evaluator_overrides` field lets the reviewer annotate specific evaluator results:
+For workspace evaluations with multiple evaluators (code graders, LLM graders, tool trajectory checks), the `evaluator_overrides` field lets the reviewer annotate specific evaluator results:
 
 ```json
 {
   "test_id": "test-refactor-api",
   "verdict": "needs_improvement",
   "evaluator_overrides": {
-    "code-judge:test-pass": "Tests pass but the refactored code has a subtle race condition the tests don't cover",
-    "llm-judge:quality": "Score 0.9 is too high — the agent left dead code behind",
+    "code-grader:test-pass": "Tests pass but the refactored code has a subtle race condition the tests don't cover",
+    "llm-grader:quality": "Score 0.9 is too high — the agent left dead code behind",
     "tool-trajectory:efficiency": "Used 12 tool calls where 5 would suffice, but the result is correct"
   },
   "workspace_notes": "Agent cloned the repo correctly but didn't clean up temp files."

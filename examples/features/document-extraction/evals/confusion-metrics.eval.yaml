@@ -32,8 +32,8 @@ execution:
 
 assertions:
   - name: header_confusion
-    type: code-judge
-    command: ["bun", "run", "../judges/header_confusion_metrics.ts"]
+    type: code-grader
+    command: ["bun", "run", "../graders/header_confusion_metrics.ts"]
     fields:
       - path: invoice_number
       - path: invoice_date

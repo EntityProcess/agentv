@@ -14,24 +14,24 @@
  * }));
  * ```
  *
- * @example Code judge (full control)
+ * @example Code grader (full control)
  * ```typescript
  * #!/usr/bin/env bun
- * import { defineCodeJudge } from '@agentv/eval';
+ * import { defineCodeGrader } from '@agentv/eval';
  *
- * export default defineCodeJudge(({ trace, answer }) => ({
+ * export default defineCodeGrader(({ trace, answer }) => ({
  *   score: trace?.eventCount <= 5 ? 1.0 : 0.5,
  *   hits: ['Efficient tool usage'],
  *   misses: [],
  * }));
  * ```
  *
- * @example Code judge with target access (requires `target` config in YAML)
+ * @example Code grader with target access (requires `target` config in YAML)
  * ```typescript
  * #!/usr/bin/env bun
- * import { defineCodeJudge, createTargetClient } from '@agentv/eval';
+ * import { defineCodeGrader, createTargetClient } from '@agentv/eval';
  *
- * export default defineCodeJudge(async ({ question }) => {
+ * export default defineCodeGrader(async ({ question }) => {
  *   const target = createTargetClient();
  *   if (!target) {
  *     return { score: 0, misses: ['Target not available'] };
@@ -52,20 +52,25 @@
 
 // Re-export schemas and types
 export {
-  CodeJudgeInputSchema,
-  CodeJudgeResultSchema,
+  CodeGraderInputSchema,
+  CodeGraderResultSchema,
   TraceSummarySchema,
   MessageSchema,
   ToolCallSchema,
   TokenUsageSchema,
   PromptTemplateInputSchema,
-  type CodeJudgeInput,
-  type CodeJudgeResult,
+  type CodeGraderInput,
+  type CodeGraderResult,
   type TraceSummary,
   type Message,
   type ToolCall,
   type TokenUsage,
   type PromptTemplateInput,
+  // Backward-compat aliases (deprecated)
+  CodeJudgeInputSchema,
+  CodeJudgeResultSchema,
+  type CodeJudgeInput,
+  type CodeJudgeResult,
 } from './schemas.js';
 
 // Re-export target client
@@ -92,13 +97,15 @@ export type {
 
 import { type AssertionHandler, runAssertion } from './assertion.js';
 import { type PromptTemplateHandler, runPromptTemplate } from './prompt-template.js';
-import { type CodeJudgeHandler, runCodeJudge } from './runtime.js';
+import { type CodeGraderHandler, type CodeJudgeHandler, runCodeGrader } from './runtime.js';
 
+export type { CodeGraderHandler };
+/** @deprecated Use CodeGraderHandler */
 export type { CodeJudgeHandler };
 export type { PromptTemplateHandler };
 
 /**
- * Define a code judge evaluator with automatic stdin/stdout handling.
+ * Define a code grader evaluator with automatic stdin/stdout handling.
  *
  * This function:
  * 1. Reads JSON from stdin (snake_case format)
@@ -111,9 +118,9 @@ export type { PromptTemplateHandler };
  *
  * @example
  * ```typescript
- * import { defineCodeJudge } from '@agentv/eval';
+ * import { defineCodeGrader } from '@agentv/eval';
  *
- * export default defineCodeJudge(({ trace }) => {
+ * export default defineCodeGrader(({ trace }) => {
  *   if (!trace) {
  *     return { score: 0.5, reasoning: 'No trace available' };
  *   }
@@ -129,22 +136,25 @@ export type { PromptTemplateHandler };
  *
  * @example With typed config
  * ```typescript
- * import { defineCodeJudge, z } from '@agentv/eval';
+ * import { defineCodeGrader, z } from '@agentv/eval';
  *
  * const ConfigSchema = z.object({
  *   maxToolCalls: z.number().default(10),
  * });
  *
- * export default defineCodeJudge(({ trace, config }) => {
+ * export default defineCodeGrader(({ trace, config }) => {
  *   const { maxToolCalls } = ConfigSchema.parse(config ?? {});
  *   // Use maxToolCalls...
  * });
  * ```
  */
-export function defineCodeJudge(handler: CodeJudgeHandler): void {
+export function defineCodeGrader(handler: CodeGraderHandler): void {
   // Run immediately when module is loaded
-  runCodeJudge(handler);
+  runCodeGrader(handler);
 }
+
+/** @deprecated Use defineCodeGrader */
+export const defineCodeJudge = defineCodeGrader;
 
 /**
  * Define a prompt template with automatic stdin/stdout handling.

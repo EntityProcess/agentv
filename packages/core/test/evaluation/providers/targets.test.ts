@@ -563,7 +563,7 @@ describe('resolveTargetDefinition', () => {
   it('resolves agentv target with model and default temperature', () => {
     const target = resolveTargetDefinition(
       {
-        name: 'agentv-judge',
+        name: 'agentv-grader',
         provider: 'agentv',
         model: 'openai:gpt-5-mini',
       },

@@ -17,10 +17,10 @@ assertions:
     type: composite
     assertions:
       - name: evaluator_1
-        type: llm-judge
+        type: llm-grader
         prompt: ./prompts/check1.md
       - name: evaluator_2
-        type: code-judge
+        type: code-grader
         command: [uv, run, check2.py]
     aggregator:
       type: weighted_average
@@ -32,7 +32,7 @@ assertions:
 Each sub-evaluator runs independently, then the aggregator combines their results.
 Use `assert` for composite members. `evaluators` is still accepted for backward compatibility.
 
-If you only need weighted-average aggregation, a plain test-level `assert` list already computes a weighted mean across evaluators. Use `composite` when you need a custom aggregation strategy (`threshold`, `code_judge`, `llm_judge`) or nested evaluator groups.
+If you only need weighted-average aggregation, a plain test-level `assert` list already computes a weighted mean across evaluators. Use `composite` when you need a custom aggregation strategy (`threshold`, `code_grader`, `llm_grader`) or nested evaluator groups.
 
 ## Aggregator Types
 
@@ -57,13 +57,13 @@ The score is calculated as:
 final_score = sum(score_i * weight_i) / sum(weight_i)
 ```
 
-### Code Judge Aggregator
+### Code Grader Aggregator
 
 Run a custom command to decide the final score based on all evaluator results:
 
 ```yaml
 aggregator:
-  type: code-judge
+  type: code-grader
   path: node ./scripts/safety-gate.js
   cwd: ./evaluators  # optional working directory
 ```
@@ -91,13 +91,13 @@ The command receives the evaluator results on stdin and must print a result to s
 }
 ```
 
-### LLM Judge Aggregator
+### LLM Grader Aggregator
 
 Use an LLM to resolve conflicts or make nuanced decisions across evaluator results:
 
 ```yaml
 aggregator:
-  type: llm-judge
+  type: llm-grader
   prompt: ./prompts/conflict-resolution.md
 ```
 
@@ -107,7 +107,7 @@ Inside the prompt file, use the `{{EVALUATOR_RESULTS_JSON}}` variable to inject 
 
 ### Safety Gate
 
-Block outputs that fail safety even if quality is high. A code judge aggregator can enforce hard gates:
+Block outputs that fail safety even if quality is high. A code grader aggregator can enforce hard gates:
 
 ```yaml
 tests:
@@ -121,13 +121,13 @@ tests:
         type: composite
         assertions:
           - name: safety
-            type: llm-judge
+            type: llm-grader
             prompt: ./prompts/safety-check.md
           - name: quality
-            type: llm-judge
+            type: llm-grader
             prompt: ./prompts/quality-check.md
         aggregator:
-          type: code-judge
+          type: code-grader
           path: ./scripts/safety-gate.js
 ```
 
@@ -142,13 +142,13 @@ Assign different importance to each evaluation dimension:
   type: composite
   assertions:
     - name: correctness
-      type: llm-judge
+      type: llm-grader
       prompt: ./prompts/correctness.md
     - name: style
-      type: code-judge
+      type: code-grader
       command: [uv, run, style_checker.py]
     - name: security
-      type: llm-judge
+      type: llm-grader
       prompt: ./prompts/security.md
   aggregator:
     type: weighted_average
@@ -170,10 +170,10 @@ Composites can contain other composites for hierarchical evaluation:
       type: composite
       assertions:
         - name: accuracy
-          type: llm-judge
+          type: llm-grader
           prompt: ./prompts/accuracy.md
         - name: clarity
-          type: llm-judge
+          type: llm-grader
           prompt: ./prompts/clarity.md
       aggregator:
         type: weighted_average
@@ -181,7 +181,7 @@ Composites can contain other composites for hierarchical evaluation:
           accuracy: 0.6
           clarity: 0.4
     - name: safety
-      type: llm-judge
+      type: llm-grader
       prompt: ./prompts/safety.md
   aggregator:
     type: weighted_average
@@ -204,7 +204,7 @@ Composite evaluators return nested `scores`, giving full visibility into each su
   "scores": [
     {
       "name": "safety",
-      "type": "llm_judge",
+      "type": "llm_grader",
       "score": 0.95,
       "verdict": "pass",
       "hits": ["No harmful content"],
@@ -212,7 +212,7 @@ Composite evaluators return nested `scores`, giving full visibility into each su
     },
     {
       "name": "quality",
-      "type": "llm_judge",
+      "type": "llm_grader",
       "score": 0.8,
       "verdict": "pass",
       "hits": ["Clear explanation"],
@@ -227,7 +227,7 @@ Hits and misses from sub-evaluators are prefixed with the evaluator name (e.g., 
 ## Best Practices
 
 1. **Name evaluators clearly** -- names appear in results and debugging output, so use descriptive labels like `safety` or `correctness` rather than `eval_1`.
-2. **Use safety gates for critical checks** -- do not let high quality scores override safety failures. A code judge aggregator can enforce hard gates.
+2. **Use safety gates for critical checks** -- do not let high quality scores override safety failures. A code grader aggregator can enforce hard gates.
 3. **Balance weights thoughtfully** -- consider which aspects matter most for your use case and assign weights accordingly.
 4. **Keep nesting shallow** -- deep nesting makes debugging harder. Two levels of composites is usually sufficient.
 5. **Test aggregators independently** -- verify custom aggregation logic with unit tests before wiring it into a composite evaluator.

@@ -143,7 +143,7 @@ tests:
 
       # Additional code evaluator for syntax checking
       - name: python_syntax
-        type: code-judge
+        type: code-grader
         command: ["uv", "run", "python", "check_syntax.py"]
 
   # ==========================================
@@ -174,7 +174,7 @@ tests:
           Extreme weather increases. Scientists call for urgent carbon emission
           cuts and renewable energy adoption.
 
-    # No rubrics defined - will use default llm_judge evaluator
+    # No rubrics defined - will use default llm_grader evaluator
     # To generate rubrics: agentv generate rubrics evals/dataset.eval.yaml
 
   # ==========================================

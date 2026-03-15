@@ -1,5 +1,5 @@
 /**
- * Code judge for cross-repo sync validation.
+ * Code grader for cross-repo sync validation.
  *
  * Compares the agent's fileChanges against the ground truth diff:
  * - File-level overlap: which expected files were modified
@@ -11,9 +11,9 @@
  *   - ground_truth: string — path to the ground truth diff file (from metadata)
  */
 
-import { defineCodeJudge } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/eval';
 
-defineCodeJudge(({ fileChanges, config }) => {
+defineCodeGrader(({ fileChanges, config }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 

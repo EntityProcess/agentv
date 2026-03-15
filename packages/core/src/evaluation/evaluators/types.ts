@@ -7,7 +7,7 @@ export type { EvaluationVerdict };
 
 /**
  * Function to resolve a target name to a provider.
- * Used by code judges to support target override.
+ * Used by code graders to support target override.
  */
 export type TargetResolver = (targetName: string) => Provider | undefined;
 
@@ -24,6 +24,8 @@ export interface EvaluationContext {
     readonly chatPrompt?: ChatPrompt;
   };
   readonly now: Date;
+  readonly graderProvider?: Provider;
+  /** @deprecated Use `graderProvider` instead */
   readonly judgeProvider?: Provider;
   readonly evaluatorTemplateOverride?: string;
   readonly evaluator?: EvaluatorConfig;
@@ -41,9 +43,9 @@ export interface EvaluationContext {
   readonly startTime?: string;
   /** ISO 8601 timestamp when execution ended */
   readonly endTime?: string;
-  /** Resolver for target override in code judges */
+  /** Resolver for target override in code graders */
   readonly targetResolver?: TargetResolver;
-  /** List of available target names for code judges */
+  /** List of available target names for code graders */
   readonly availableTargets?: readonly string[];
   /** Unified diff of file changes from workspace (when workspace_template is configured) */
   readonly fileChanges?: string;
@@ -60,7 +62,7 @@ export interface EvaluationScore {
   readonly reasoning?: string;
   readonly evaluatorRawRequest?: JsonObject;
   readonly scores?: readonly ChildEvaluatorResult[];
-  /** Optional structured details from code judges (e.g., TP/TN/FP/FN counts, alignments). */
+  /** Optional structured details from code graders (e.g., TP/TN/FP/FN counts, alignments). */
   readonly details?: JsonObject;
   /** Token usage from LLM calls made by this evaluator (optional). */
   readonly tokenUsage?: TokenUsage;
@@ -77,7 +79,7 @@ export interface ChildEvaluatorResult {
   readonly reasoning?: string;
   readonly evaluatorRawRequest?: JsonObject;
   readonly scores?: readonly ChildEvaluatorResult[];
-  /** Optional structured details from code judges (e.g., TP/TN/FP/FN counts, alignments). */
+  /** Optional structured details from code graders (e.g., TP/TN/FP/FN counts, alignments). */
   readonly details?: JsonObject;
   /** Token usage from LLM calls made by this evaluator (optional). */
   readonly tokenUsage?: TokenUsage;

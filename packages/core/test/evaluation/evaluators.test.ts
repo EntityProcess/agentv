@@ -7,7 +7,7 @@ import {
   CostEvaluator,
   FieldAccuracyEvaluator,
   LatencyEvaluator,
-  LlmJudgeEvaluator,
+  LlmGraderEvaluator,
   TokenUsageEvaluator,
 } from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
@@ -16,7 +16,7 @@ import type {
   ProviderRequest,
   ProviderResponse,
 } from '../../src/evaluation/providers/types.js';
-import { llmJudgeFactory } from '../../src/evaluation/registry/builtin-evaluators.js';
+import { llmGraderFactory } from '../../src/evaluation/registry/builtin-evaluators.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
 /** Helper to create a ProviderResponse with text wrapped in output */
@@ -68,7 +68,7 @@ const baseTestCase: EvalTest = {
   guideline_paths: [],
   file_paths: [],
   criteria: 'Logging improvements applied',
-  evaluator: 'llm-judge',
+  evaluator: 'llm-grader',
 };
 
 const baseTarget: ResolvedTarget = {
@@ -77,9 +77,9 @@ const baseTarget: ResolvedTarget = {
   config: { response: '{}' },
 };
 
-describe('LlmJudgeEvaluator', () => {
+describe('LlmGraderEvaluator (llm-grader)', () => {
   it('parses JSON response and returns evaluation score', async () => {
-    const judgeProvider = new StubProvider({
+    const graderProvider = new StubProvider({
       output: [
         {
           role: 'assistant',
@@ -93,15 +93,15 @@ describe('LlmJudgeEvaluator', () => {
       ],
     });
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -116,7 +116,7 @@ describe('LlmJudgeEvaluator', () => {
   });
 
   it('parses JSON from markdown code block', async () => {
-    const judgeProvider = new StubProvider({
+    const graderProvider = new StubProvider({
       output: [
         {
           role: 'assistant',
@@ -130,15 +130,15 @@ describe('LlmJudgeEvaluator', () => {
       ],
     });
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -151,7 +151,7 @@ describe('LlmJudgeEvaluator', () => {
   });
 
   it('validates score is in range [0.0, 1.0]', async () => {
-    const judgeProvider = new StubProvider({
+    const graderProvider = new StubProvider({
       output: [
         {
           role: 'assistant',
@@ -165,21 +165,21 @@ describe('LlmJudgeEvaluator', () => {
       ],
     });
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
     });
 
-    // Should skip when judge parse fails (not silent zero)
+    // Should skip when grader parse fails (not silent zero)
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('skip');
     expect(result.hits).toHaveLength(0);
@@ -187,7 +187,7 @@ describe('LlmJudgeEvaluator', () => {
   });
 
   it('enforces max 4 entries for hits and misses', async () => {
-    const judgeProvider = new StubProvider({
+    const graderProvider = new StubProvider({
       output: [
         {
           role: 'assistant',
@@ -201,15 +201,15 @@ describe('LlmJudgeEvaluator', () => {
       ],
     });
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -238,7 +238,7 @@ describe('LlmJudgeEvaluator', () => {
       }
     }
 
-    const judgeProvider = new CapturingProvider({
+    const graderProvider = new CapturingProvider({
       output: [
         {
           role: 'assistant',
@@ -251,16 +251,16 @@ describe('LlmJudgeEvaluator', () => {
       ],
     });
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
       evaluatorTemplate: customPrompt,
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -270,11 +270,11 @@ describe('LlmJudgeEvaluator', () => {
     expect(result.verdict).toBe('borderline');
 
     // Custom template goes in user prompt (question), system prompt only has output schema
-    expect(judgeProvider.lastRequest?.question).toContain(customPrompt);
-    expect(judgeProvider.lastRequest?.systemPrompt).toContain(
+    expect(graderProvider.lastRequest?.question).toContain(customPrompt);
+    expect(graderProvider.lastRequest?.systemPrompt).toContain(
       'You must respond with a single JSON object',
     );
-    expect(judgeProvider.lastRequest?.systemPrompt).not.toContain(customPrompt);
+    expect(graderProvider.lastRequest?.systemPrompt).not.toContain(customPrompt);
 
     expect(result.evaluatorRawRequest?.userPrompt).toContain(customPrompt);
     expect(result.evaluatorRawRequest?.systemPrompt).toContain(
@@ -284,52 +284,52 @@ describe('LlmJudgeEvaluator', () => {
   });
 
   it('uses evaluator target overrides when configured', async () => {
-    const defaultJudgeProvider = new CapturingProvider(
+    const defaultGraderProvider = new CapturingProvider(
       textResponse(JSON.stringify({ score: 0.2, hits: [], misses: ['used default'] })),
-      'default-judge',
+      'default-grader',
     );
 
-    const overrideJudgeProvider = new CapturingProvider(
+    const overrideGraderProvider = new CapturingProvider(
       textResponse(JSON.stringify({ score: 0.9, hits: ['used override'], misses: [] })),
-      'judge-low-cost-b',
+      'grader-low-cost-b',
     );
 
-    const evaluator = llmJudgeFactory(
+    const evaluator = llmGraderFactory(
       {
-        name: 'judge-panel-member',
-        type: 'llm-judge',
+        name: 'grader-panel-member',
+        type: 'llm-grader',
         prompt: 'Evaluate {{answer}}',
-        target: 'judge-low-cost-b',
+        target: 'grader-low-cost-b',
       },
       {
-        judgeProvider: defaultJudgeProvider,
+        graderProvider: defaultGraderProvider,
         targetResolver: (targetName) =>
-          targetName === 'judge-low-cost-b' ? overrideJudgeProvider : undefined,
-        llmJudge: new LlmJudgeEvaluator({
-          resolveJudgeProvider: async () => defaultJudgeProvider,
+          targetName === 'grader-low-cost-b' ? overrideGraderProvider : undefined,
+        llmGrader: new LlmGraderEvaluator({
+          resolveGraderProvider: async () => defaultGraderProvider,
         }),
         registry: {} as never,
       },
     );
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: defaultJudgeProvider,
+      provider: defaultGraderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
     });
 
     expect(result.score).toBeCloseTo(0.9);
-    expect(result.evaluatorRawRequest?.target).toBe('judge-low-cost-b');
-    expect(overrideJudgeProvider.lastRequest).toBeDefined();
-    expect(defaultJudgeProvider.lastRequest).toBeUndefined();
+    expect(result.evaluatorRawRequest?.target).toBe('grader-low-cost-b');
+    expect(overrideGraderProvider.lastRequest).toBeDefined();
+    expect(defaultGraderProvider.lastRequest).toBeUndefined();
   });
 
   it('rejects JSON with invalid hits/misses types', async () => {
-    const judgeProvider = new StubProvider({
+    const graderProvider = new StubProvider({
       output: [
         {
           role: 'assistant',
@@ -343,21 +343,21 @@ describe('LlmJudgeEvaluator', () => {
       ],
     });
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
     });
 
-    // Should skip when judge parse fails (not silent zero)
+    // Should skip when grader parse fails (not silent zero)
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('skip');
     expect(result.hits).toHaveLength(0);
@@ -365,16 +365,16 @@ describe('LlmJudgeEvaluator', () => {
   });
 
   it('tolerates non-JSON output by falling back to skip', async () => {
-    const judgeProvider = new StubProvider(textResponse('Final score: 0.5'));
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const graderProvider = new StubProvider(textResponse('Final score: 0.5'));
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -387,7 +387,7 @@ describe('LlmJudgeEvaluator', () => {
   });
 
   it('supports rubric mode when rubrics are provided in config', async () => {
-    const judgeProvider = new StubProvider({
+    const graderProvider = new StubProvider({
       output: [
         {
           role: 'assistant',
@@ -402,21 +402,21 @@ describe('LlmJudgeEvaluator', () => {
       ],
     });
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
       evaluator: {
         name: 'rubric',
-        type: 'llm-judge',
+        type: 'llm-grader',
         rubrics: [
           { id: 'r1', outcome: 'Mentions logging', weight: 1.0, required: true },
           { id: 'r2', outcome: 'Mentions tests', weight: 1.0, required: false },
@@ -432,79 +432,79 @@ describe('LlmJudgeEvaluator', () => {
   });
 
   it('passes multi-turn role markers through to evaluator prompts', async () => {
-    const judgeProvider = new CapturingProvider({
+    const graderProvider = new CapturingProvider({
       output: [
         { role: 'assistant', content: JSON.stringify({ score: 0.65, hits: [], misses: [] }) },
       ],
     });
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
     });
 
     const multiTurnQuestion =
       '@[System]:\nFollow the coding guidelines.\n\n@[User]:\nDebug the failing test.\n\n@[Assistant]:\nPlease share the stack trace.';
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Candidate answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: multiTurnQuestion, guidelines: '' },
       now: new Date(),
     });
 
-    expect(judgeProvider.lastRequest?.question).toContain(multiTurnQuestion);
+    expect(graderProvider.lastRequest?.question).toContain(multiTurnQuestion);
     expect(result.evaluatorRawRequest?.userPrompt).toContain('@[Assistant]:');
     expect(result.evaluatorRawRequest?.userPrompt).toContain('@[System]:');
   });
 
   it('keeps single-turn prompts flat when no markers are needed', async () => {
-    const judgeProvider = new CapturingProvider({
+    const graderProvider = new CapturingProvider({
       output: [
         { role: 'assistant', content: JSON.stringify({ score: 0.8, hits: [], misses: [] }) },
       ],
     });
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
     });
 
     const flatQuestion = 'Summarize the architecture in two sentences.';
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Candidate answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: flatQuestion, guidelines: '' },
       now: new Date(),
     });
 
-    expect(judgeProvider.lastRequest?.question).toContain(flatQuestion);
-    expect(judgeProvider.lastRequest?.question).not.toContain('@[User]:');
+    expect(graderProvider.lastRequest?.question).toContain(flatQuestion);
+    expect(graderProvider.lastRequest?.question).not.toContain('@[User]:');
     expect(result.evaluatorRawRequest?.userPrompt).toContain(flatQuestion);
     expect(result.evaluatorRawRequest?.userPrompt).not.toContain('@[User]:');
   });
 
   it('returns skip verdict when rubric mode receives malformed JSON', async () => {
-    const judgeProvider = new StubProvider(textResponse('not valid json at all'));
+    const graderProvider = new StubProvider(textResponse('not valid json at all'));
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
       evaluator: {
         name: 'rubric',
-        type: 'llm-judge',
+        type: 'llm-grader',
         rubrics: [{ id: 'r1', outcome: 'Mentions logging', weight: 1.0, required: false }],
       },
     });
@@ -512,27 +512,27 @@ describe('LlmJudgeEvaluator', () => {
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('skip');
     expect(result.misses.length).toBeGreaterThan(0);
-    expect(result.misses[0]).toContain('Judge parse failure');
+    expect(result.misses[0]).toContain('Grader parse failure');
   });
 
   it('returns skip verdict when score-range rubric mode receives malformed JSON', async () => {
-    const judgeProvider = new StubProvider(textResponse('truncated {'));
+    const graderProvider = new StubProvider(textResponse('truncated {'));
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
     });
 
     const result = await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
       evaluator: {
         name: 'rubric',
-        type: 'llm-judge',
+        type: 'llm-grader',
         rubrics: [
           {
             id: 'r1',
@@ -551,35 +551,35 @@ describe('LlmJudgeEvaluator', () => {
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('skip');
     expect(result.misses.length).toBeGreaterThan(0);
-    expect(result.misses[0]).toContain('Judge parse failure');
+    expect(result.misses[0]).toContain('Grader parse failure');
   });
 
-  it('emits stderr warning on judge parse failure', async () => {
+  it('emits stderr warning on grader parse failure', async () => {
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 
-    const judgeProvider = new StubProvider(textResponse('not valid json at all'));
+    const graderProvider = new StubProvider(textResponse('not valid json at all'));
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
     });
 
     await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
       evaluator: {
-        name: 'my-custom-judge',
-        type: 'llm-judge',
+        name: 'my-custom-grader',
+        type: 'llm-grader',
       },
     });
 
     expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy.mock.calls[0][0]).toContain('LLM judge');
-    expect(warnSpy.mock.calls[0][0]).toContain('my-custom-judge');
+    expect(warnSpy.mock.calls[0][0]).toContain('LLM grader');
+    expect(warnSpy.mock.calls[0][0]).toContain('my-custom-grader');
     expect(warnSpy.mock.calls[0][0]).toContain('skipped');
     warnSpy.mockRestore();
   });
@@ -587,32 +587,32 @@ describe('LlmJudgeEvaluator', () => {
   it('emits stderr warning with default name when evaluator name is not set', async () => {
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 
-    const judgeProvider = new StubProvider(textResponse('garbage'));
+    const graderProvider = new StubProvider(textResponse('garbage'));
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveGraderProvider: async () => graderProvider,
     });
 
     await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
     });
 
     expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy.mock.calls[0][0]).toContain('llm-judge');
+    expect(warnSpy.mock.calls[0][0]).toContain('llm-grader');
     expect(warnSpy.mock.calls[0][0]).toContain('skipped');
     warnSpy.mockRestore();
   });
 });
 
 describe('CodeEvaluator', () => {
-  it('passes required fields to code-judge scripts', async () => {
-    const judgeProvider = new StubProvider(textResponse('{}'));
+  it('passes required fields to code-grader scripts', async () => {
+    const graderProvider = new StubProvider(textResponse('{}'));
 
     const evalCaseWithExpectedMessages: EvalTest = {
       ...baseTestCase,
@@ -623,7 +623,7 @@ describe('CodeEvaluator', () => {
 
     // Use external script file for cross-platform compatibility
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const script = ['node', join(__dirname, '../fixtures/test-judge.cjs')];
+    const script = ['node', join(__dirname, '../fixtures/test-grader.cjs')];
 
     const evaluator = new CodeEvaluator({ command: script });
 
@@ -631,7 +631,7 @@ describe('CodeEvaluator', () => {
       evalCase: evalCaseWithExpectedMessages,
       candidate: expectedCandidate,
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -645,10 +645,10 @@ describe('CodeEvaluator', () => {
   });
 
   it('surfaces stderr and exit code on failure', async () => {
-    const judgeProvider = new StubProvider(textResponse('{}'));
+    const graderProvider = new StubProvider(textResponse('{}'));
 
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const script = ['node', join(__dirname, '../fixtures/test-judge-error.cjs')];
+    const script = ['node', join(__dirname, '../fixtures/test-grader-error.cjs')];
 
     const evaluator = new CodeEvaluator({ command: script });
 
@@ -656,7 +656,7 @@ describe('CodeEvaluator', () => {
       evalCase: baseTestCase,
       candidate: 'Candidate answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -667,11 +667,11 @@ describe('CodeEvaluator', () => {
     expect(result.misses[0]).toContain('test-error');
   });
 
-  it('works with defineCodeJudge-based code judge', async () => {
-    const judgeProvider = new StubProvider(textResponse('Logging improvements applied'));
+  it('works with defineCodeGrader-based code grader', async () => {
+    const graderProvider = new StubProvider(textResponse('Logging improvements applied'));
 
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const script = ['bun', 'run', join(__dirname, '../fixtures/test-define-judge.ts')];
+    const script = ['bun', 'run', join(__dirname, '../fixtures/test-define-grader.ts')];
 
     const evaluator = new CodeEvaluator({ command: script });
 
@@ -679,7 +679,7 @@ describe('CodeEvaluator', () => {
       evalCase: baseTestCase,
       candidate: 'Added logging to the implementation',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -691,11 +691,11 @@ describe('CodeEvaluator', () => {
     expect(result.reasoning).toContain('matching keywords');
   });
 
-  it('captures optional details from code judge output', async () => {
-    const judgeProvider = new StubProvider(textResponse('{}'));
+  it('captures optional details from code grader output', async () => {
+    const graderProvider = new StubProvider(textResponse('{}'));
 
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const script = ['node', join(__dirname, '../fixtures/test-judge-with-details.cjs')];
+    const script = ['node', join(__dirname, '../fixtures/test-grader-with-details.cjs')];
 
     const evaluator = new CodeEvaluator({ command: script });
 
@@ -706,7 +706,7 @@ describe('CodeEvaluator', () => {
       },
       candidate: 'Test candidate',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -722,11 +722,11 @@ describe('CodeEvaluator', () => {
     expect(result.details?.f1).toBeCloseTo(0.769);
   });
 
-  it('passes workspace_path to code judge via payload and env var', async () => {
-    const judgeProvider = new StubProvider(textResponse('{}'));
+  it('passes workspace_path to code grader via payload and env var', async () => {
+    const graderProvider = new StubProvider(textResponse('{}'));
 
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const script = ['node', join(__dirname, '../fixtures/test-judge-workspace.cjs')];
+    const script = ['node', join(__dirname, '../fixtures/test-grader-workspace.cjs')];
 
     const evaluator = new CodeEvaluator({ command: script });
 
@@ -734,7 +734,7 @@ describe('CodeEvaluator', () => {
       evalCase: baseTestCase,
       candidate: 'Test candidate',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -748,11 +748,11 @@ describe('CodeEvaluator', () => {
     expect(result.hits).toContain('payload and env var match');
   });
 
-  it('omits details when not returned by code judge', async () => {
-    const judgeProvider = new StubProvider(textResponse('{}'));
+  it('omits details when not returned by code grader', async () => {
+    const graderProvider = new StubProvider(textResponse('{}'));
 
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const script = ['node', join(__dirname, '../fixtures/test-judge.cjs')];
+    const script = ['node', join(__dirname, '../fixtures/test-grader.cjs')];
 
     const evaluator = new CodeEvaluator({ command: script });
 
@@ -763,7 +763,7 @@ describe('CodeEvaluator', () => {
       },
       candidate: '{"decision":"ACCEPT"}',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -790,7 +790,7 @@ describe('FieldAccuracyEvaluator', () => {
     ],
   };
 
-  const judgeProvider = new StubProvider(textResponse('{}'));
+  const graderProvider = new StubProvider(textResponse('{}'));
 
   it('evaluates exact match fields correctly', () => {
     const evaluator = new FieldAccuracyEvaluator({
@@ -808,7 +808,7 @@ describe('FieldAccuracyEvaluator', () => {
       evalCase: baseTestCaseWithExpected,
       candidate: JSON.stringify({ invoice_number: 'INV-001', amount: 1500 }),
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -836,7 +836,7 @@ describe('FieldAccuracyEvaluator', () => {
       evalCase: baseTestCaseWithExpected,
       candidate: JSON.stringify({ invoice_number: 'INV-001' }), // Missing amount
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -873,7 +873,7 @@ describe('FieldAccuracyEvaluator', () => {
       evalCase: baseTestCaseWithExpected,
       candidate: JSON.stringify({ amount: 1500.5 }),
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -906,7 +906,7 @@ describe('FieldAccuracyEvaluator', () => {
       evalCase: baseTestCaseWithExpected,
       candidate: JSON.stringify({ amount: 1502 }),
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -939,7 +939,7 @@ describe('FieldAccuracyEvaluator', () => {
       evalCase: baseTestCaseWithExpected,
       candidate: JSON.stringify({ date: '2025-01-15' }),
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -967,7 +967,7 @@ describe('FieldAccuracyEvaluator', () => {
       evalCase: baseTestCaseWithExpected,
       candidate: JSON.stringify({ invoice_number: 'INV-001', amount: 9999 }),
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -996,7 +996,7 @@ describe('FieldAccuracyEvaluator', () => {
       evalCase: baseTestCaseWithExpected,
       candidate: JSON.stringify({ invoice_number: 'INV-001', amount: 9999 }),
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -1022,7 +1022,7 @@ describe('FieldAccuracyEvaluator', () => {
       evalCase: baseTestCaseWithExpected,
       candidate: JSON.stringify({ vendor: { name: 'Acme Shipping', address: '123 Main St' } }),
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -1068,7 +1068,7 @@ describe('FieldAccuracyEvaluator', () => {
         ],
       }),
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),
@@ -1091,7 +1091,7 @@ describe('FieldAccuracyEvaluator', () => {
       evalCase: baseTestCaseWithExpected,
       candidate: 'This is not valid JSON',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: '', guidelines: '' },
       now: new Date(),

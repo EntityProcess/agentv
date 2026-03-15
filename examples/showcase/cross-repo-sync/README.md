@@ -42,7 +42,7 @@ bun agentv eval ./evals/dataset.eval.yaml
 ├── scripts/
 │   ├── setup.ts                   # before_each: clone repo
 │   ├── reset.ts                   # after_each: git reset
-│   └── validate-sync.ts           # Code judge
+│   └── validate-sync.ts           # Code grader
 ├── .agentv/
 │   └── targets.yaml               # Mock CLI agent
 └── package.json

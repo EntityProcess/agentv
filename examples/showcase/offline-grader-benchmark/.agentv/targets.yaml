@@ -1,0 +1,31 @@
+targets:
+  - name: fixture_replay
+    provider: cli
+    command: bun run ./scripts/replay-fixture-output.ts --prompt {PROMPT} --output {OUTPUT_FILE}
+    cwd: ..
+    grader_target: grader_gpt_5_mini
+    healthcheck:
+      command: bun run ./scripts/replay-fixture-output.ts --healthcheck
+      cwd: ..
+
+  # Illustrative low-cost grader targets. Swap these to the low-cost models you already use.
+  - name: grader_gpt_5_mini
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    version: ${{ AZURE_OPENAI_API_VERSION }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+
+  - name: grader_claude_haiku
+    provider: pi-agent-sdk
+    pi_provider: openrouter
+    api_key: ${{ OPENROUTER_API_KEY }}
+    model: anthropic/claude-haiku-4.5
+    system_prompt: "Return concise structured grading output only."
+
+  - name: grader_gemini_flash
+    provider: pi-agent-sdk
+    pi_provider: openrouter
+    api_key: ${{ OPENROUTER_API_KEY }}
+    model: google/gemini-3-flash-preview
+    system_prompt: "Return concise structured grading output only."

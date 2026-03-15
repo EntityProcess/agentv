@@ -173,10 +173,10 @@ const stubProvider: Provider = {
 };
 
 /**
- * A no-op evaluator stub used as the required llmJudge in the dispatch context.
+ * A no-op evaluator stub used as the required llmGrader in the dispatch context.
  */
-const stubLlmJudge: Evaluator = {
-  kind: 'llm-judge',
+const stubLlmGrader: Evaluator = {
+  kind: 'llm-grader',
   evaluate(): EvaluationScore {
     throw new Error('trace score does not support LLM-based evaluators');
   },
@@ -201,7 +201,7 @@ async function runScore(
   const registry = createBuiltinRegistry();
 
   const dispatchContext: EvaluatorDispatchContext = {
-    llmJudge: stubLlmJudge,
+    llmGrader: stubLlmGrader,
     registry,
   };
 

@@ -13,14 +13,14 @@ agentv eval evals/my-eval.yaml
 
 Results are written to `.agentv/results/eval_<timestamp>.jsonl`. Each line is a JSON object with one result per test case.
 
-Each `scores[]` entry includes per-judge timing:
+Each `scores[]` entry includes per-grader timing:
 
 ```json
 {
   "scores": [
     {
       "name": "format_structure",
-      "type": "llm-judge",
+      "type": "llm-grader",
       "score": 0.9,
       "verdict": "pass",
       "hits": ["clear structure"],
@@ -34,7 +34,7 @@ Each `scores[]` entry includes per-judge timing:
 }
 ```
 
-The `duration_ms`, `started_at`, and `ended_at` fields are present on every judge result (including `code-judge`), enabling per-judge bottleneck analysis.
+The `duration_ms`, `started_at`, and `ended_at` fields are present on every grader result (including `code-grader`), enabling per-grader bottleneck analysis.
 
 ## Common Options
 
@@ -139,7 +139,7 @@ Each eval test case produces a trace with:
 - **LLM call spans** (`chat <model>`) — model name, token usage (input/output/cached)
 - **Tool call spans** (`execute_tool <name>`) — tool name, arguments, results (with `--otel-capture-content`)
 - **Turn spans** (`agentv.turn.N`) — groups messages by conversation turn (with `--otel-group-turns`)
-- **Evaluator events** — per-judge scores attached to the root span
+- **Evaluator events** — per-grader scores attached to the root span
 
 :::tip[Claude provider + trace-claude-code plugin]
 When using the Claude provider, AgentV injects `CC_PARENT_SPAN_ID` and `CC_ROOT_SPAN_ID` into the Claude subprocess. If the [trace-claude-code](https://github.com/braintrustdata/braintrust-claude-plugin) plugin is installed, it attaches Claude Code CLI-level tool spans (Read, Write, Bash, etc.) as children of the AgentV eval trace, giving you full visibility into both the eval framework and the agent's internal actions.
@@ -240,13 +240,13 @@ agentv validate evals/my-eval.yaml
 
 ## Run a Single Assertion
 
-Run a code-judge assertion in isolation without executing a full eval suite:
+Run a code-grader assertion in isolation without executing a full eval suite:
 
 ```bash
 agentv eval assert <name> --agent-output <text> --agent-input <text>
 ```
 
-The command discovers the assertion script by walking up directories looking for `.agentv/judges/<name>.{ts,js,mts,mjs}`, then passes the input via stdin and prints the result JSON to stdout.
+The command discovers the assertion script by walking up directories looking for `.agentv/graders/<name>.{ts,js,mts,mjs}`, then passes the input via stdin and prints the result JSON to stdout.
 
 ```bash
 # Run an assertion with inline arguments
@@ -262,7 +262,7 @@ The `--file` option reads a JSON file with `{ "output": "...", "input": "..." }`
 
 **Exit codes:** 0 if score >= 0.5 (pass), 1 if score < 0.5 (fail).
 
-This is the same interface that agent-orchestrated evals use — the EVAL.yaml transpiler emits `assert` instructions for code judges so external grading agents can execute them directly.
+This is the same interface that agent-orchestrated evals use — the EVAL.yaml transpiler emits `assert` instructions for code graders so external grading agents can execute them directly.
 
 ## Agent-Orchestrated Evals
 
@@ -314,8 +314,8 @@ Example output:
 Input: "Summarise the following article in one sentence."
 Expected: "The quick brown fox jumps over the lazy dog near the river bank."
 Criteria:
-  - [code-judge] rouge-score: Measures n-gram recall and F1
-  - [llm-judge] Summary captures key points
+  - [code-grader] rouge-score: Measures n-gram recall and F1
+  - [llm-grader] Summary captures key points
   - [skill-trigger] should_trigger: true for summariser
 ```
 

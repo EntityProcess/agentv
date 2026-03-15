@@ -266,6 +266,8 @@ export type EnvLookup = Readonly<Record<string, string | undefined>>;
 export interface TargetDefinition {
   readonly name: string;
   readonly provider: ProviderKind | string;
+  readonly grader_target?: string | undefined;
+  /** @deprecated Use `grader_target` instead */
   readonly judge_target?: string | undefined;
   readonly workers?: number | undefined;
   // Provider batching

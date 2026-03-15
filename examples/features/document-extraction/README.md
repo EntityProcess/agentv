@@ -3,14 +3,14 @@
 This folder demonstrates two evaluation patterns for document extraction:
 
 1. **`field_accuracy`** (built-in) - Per-evalcase scoring with pass/fail per field
-2. **`code_judge`** (custom) - TP/TN/FP/FN metrics for cross-document aggregation
+2. **`code_grader`** (custom) - TP/TN/FP/FN metrics for cross-document aggregation
 
 ## When to Use Each Pattern
 
 | Pattern | Use Case | Output |
 |---------|----------|--------|
 | `field_accuracy` | Simple pass/fail scoring per evalcase | Score (0-1) per evalcase |
-| `code_judge` with `details.metrics` | Aggregate precision/recall across documents | TP/TN/FP/FN per field |
+| `code_grader` with `details.metrics` | Aggregate precision/recall across documents | TP/TN/FP/FN per field |
 
 ## Quick Start
 
@@ -53,13 +53,13 @@ evaluators:
 
 ## Pattern 2: Confusion Metrics (`confusion-metrics.eval.yaml`)
 
-Uses a custom `code_judge` that emits `details.metrics` with TP/TN/FP/FN per field:
+Uses a custom `code_grader` that emits `details.metrics` with TP/TN/FP/FN per field:
 
 ```yaml
 evaluators:
   - name: header_confusion
-    type: code-judge
-    command: ["bun", "run", "../judges/header_confusion_metrics.ts"]
+    type: code-grader
+    command: ["bun", "run", "../graders/header_confusion_metrics.ts"]
     fields:
       - path: invoice_number
       - path: currency
@@ -110,8 +110,8 @@ Options:
   - `evals/confusion-metrics.eval.yaml` - TP/TN/FP/FN aggregation
 - **Target**: `mock_extractor.ts`
 - **Fixtures**: `fixtures/`
-- **Judges**:
-  - `judges/header_confusion_metrics.ts` - Emits TP/TN/FP/FN
-  - `judges/fuzzy_match.ts`, `judges/multi_field_fuzzy.ts` - Fuzzy matching
-  - `judges/line_item_matching.ts` - Array matching
+- **Graders**:
+  - `graders/header_confusion_metrics.ts` - Emits TP/TN/FP/FN
+  - `graders/fuzzy_match.ts`, `graders/multi_field_fuzzy.ts` - Fuzzy matching
+  - `graders/line_item_matching.ts` - Array matching
 - **Scripts**: `scripts/aggregate_metrics.ts`

@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { LlmJudgeEvaluator, ToolTrajectoryEvaluator } from '../../src/evaluation/evaluators.js';
+import { LlmGraderEvaluator, ToolTrajectoryEvaluator } from '../../src/evaluation/evaluators.js';
 import {
   type EvaluationCache,
   runEvalCase,
@@ -50,7 +50,7 @@ class SequenceProvider implements Provider {
   }
 }
 
-class CapturingJudgeProvider implements Provider {
+class CapturingGraderProvider implements Provider {
   readonly id: string;
   readonly kind = 'mock' as const;
   readonly targetName: string;
@@ -60,7 +60,7 @@ class CapturingJudgeProvider implements Provider {
     targetName: string,
     private readonly response: ProviderResponse,
   ) {
-    this.id = `judge:${targetName}`;
+    this.id = `grader:${targetName}`;
     this.targetName = targetName;
   }
 
@@ -121,7 +121,7 @@ const baseTestCase: EvalTest = {
   guideline_paths: [],
   file_paths: [],
   criteria: 'Logging improved',
-  evaluator: 'llm-judge',
+  evaluator: 'llm-grader',
 };
 
 const baseTarget: ResolvedTarget = {
@@ -131,8 +131,8 @@ const baseTarget: ResolvedTarget = {
 };
 
 const evaluatorRegistry = {
-  'llm-judge': {
-    kind: 'llm-judge',
+  'llm-grader': {
+    kind: 'llm-grader',
     async evaluate() {
       return {
         score: 0.8,
@@ -353,8 +353,8 @@ describe('runTestCase', () => {
   });
 
   it('uses a custom evaluator prompt when provided', async () => {
-    const directory = mkdtempSync(path.join(tmpdir(), 'agentv-custom-judge-'));
-    const promptPath = path.join(directory, 'judge.md');
+    const directory = mkdtempSync(path.join(tmpdir(), 'agentv-custom-grader-'));
+    const promptPath = path.join(directory, 'grader-prompt.md');
     writeFileSync(promptPath, 'CUSTOM PROMPT CONTENT with {{ answer }}', 'utf8');
 
     const provider = new SequenceProvider('mock', {
@@ -365,7 +365,7 @@ describe('runTestCase', () => {
       ],
     });
 
-    const judgeProvider = new CapturingJudgeProvider('judge', {
+    const graderProvider = new CapturingGraderProvider('grader', {
       output: [
         {
           role: 'assistant',
@@ -379,15 +379,15 @@ describe('runTestCase', () => {
     });
 
     const evaluatorRegistry = {
-      'llm-judge': new LlmJudgeEvaluator({
-        resolveJudgeProvider: async () => judgeProvider,
+      'llm-grader': new LlmGraderEvaluator({
+        resolveGraderProvider: async () => graderProvider,
       }),
     };
 
     const result = await runEvalCase({
       evalCase: {
         ...baseTestCase,
-        assertions: [{ name: 'semantic', type: 'llm-judge', promptPath }],
+        assertions: [{ name: 'semantic', type: 'llm-grader', promptPath }],
       },
       provider,
       target: baseTarget,
@@ -396,11 +396,11 @@ describe('runTestCase', () => {
     });
 
     // Custom template goes in user prompt, system prompt only has output schema
-    expect(judgeProvider.lastRequest?.question).toContain('CUSTOM PROMPT CONTENT');
-    expect(judgeProvider.lastRequest?.systemPrompt).toContain(
+    expect(graderProvider.lastRequest?.question).toContain('CUSTOM PROMPT CONTENT');
+    expect(graderProvider.lastRequest?.systemPrompt).toContain(
       'You must respond with a single JSON object',
     );
-    expect(judgeProvider.lastRequest?.systemPrompt).not.toContain('CUSTOM PROMPT CONTENT');
+    expect(graderProvider.lastRequest?.systemPrompt).not.toContain('CUSTOM PROMPT CONTENT');
 
     expect(result.scores?.[0]?.evaluatorProviderRequest?.userPrompt).toContain(
       'CUSTOM PROMPT CONTENT',
@@ -445,7 +445,7 @@ describe('runTestCase', () => {
         guideline_paths: [],
         file_paths: [],
         criteria: '',
-        evaluator: 'llm-judge',
+        evaluator: 'llm-grader',
       },
       provider,
       target: baseTarget,
@@ -482,7 +482,7 @@ describe('runTestCase', () => {
         guideline_paths: [],
         file_paths: [],
         criteria: '',
-        evaluator: 'llm-judge',
+        evaluator: 'llm-grader',
       },
       provider,
       target: baseTarget,
@@ -591,7 +591,7 @@ describe('runEvalCase trace integration', () => {
     guideline_paths: [],
     file_paths: [],
     criteria: 'Weather information provided',
-    evaluator: 'llm-judge',
+    evaluator: 'llm-grader',
   };
 
   it('includes trace in result when provider returns output with tool calls', async () => {
@@ -726,7 +726,7 @@ describe('runEvalCase trace integration', () => {
       provider,
       target: baseTarget,
       evaluators: {
-        'llm-judge': evaluatorRegistry['llm-judge'],
+        'llm-grader': evaluatorRegistry['llm-grader'],
         'tool-trajectory': trajectoryEvaluator,
       },
     });
@@ -766,7 +766,7 @@ describe('runEvalCase trace integration', () => {
       provider,
       target: baseTarget,
       evaluators: {
-        'llm-judge': evaluatorRegistry['llm-judge'],
+        'llm-grader': evaluatorRegistry['llm-grader'],
         'tool-trajectory': trajectoryEvaluator,
       },
     });
@@ -860,8 +860,8 @@ describe('runEvalCase trace integration', () => {
         evalCase: {
           ...baseTestCase,
           assertions: [
-            { name: 'eval1', type: 'llm-judge', weight: 2.0 },
-            { name: 'eval2', type: 'llm-judge', weight: 1.0 },
+            { name: 'eval1', type: 'llm-grader', weight: 2.0 },
+            { name: 'eval2', type: 'llm-grader', weight: 1.0 },
           ],
         },
         provider,
@@ -892,8 +892,8 @@ describe('runEvalCase trace integration', () => {
         evalCase: {
           ...baseTestCase,
           assertions: [
-            { name: 'eval1', type: 'llm-judge', weight: 3.0 },
-            { name: 'eval2', type: 'llm-judge' }, // no weight specified
+            { name: 'eval1', type: 'llm-grader', weight: 3.0 },
+            { name: 'eval2', type: 'llm-grader' }, // no weight specified
           ],
         },
         provider,
@@ -923,8 +923,8 @@ describe('runEvalCase trace integration', () => {
         evalCase: {
           ...baseTestCase,
           assertions: [
-            { name: 'eval1', type: 'llm-judge', weight: 0 },
-            { name: 'eval2', type: 'llm-judge', weight: 1.0 },
+            { name: 'eval1', type: 'llm-grader', weight: 0 },
+            { name: 'eval2', type: 'llm-grader', weight: 1.0 },
           ],
         },
         provider,
@@ -954,8 +954,8 @@ describe('runEvalCase trace integration', () => {
         evalCase: {
           ...baseTestCase,
           assertions: [
-            { name: 'eval1', type: 'llm-judge', weight: 0 },
-            { name: 'eval2', type: 'llm-judge', weight: 0 },
+            { name: 'eval1', type: 'llm-grader', weight: 0 },
+            { name: 'eval2', type: 'llm-grader', weight: 0 },
           ],
         },
         provider,
@@ -986,10 +986,10 @@ Reference: \${input.reference_answer ?? 'none'}\`);
 `,
       );
 
-      // Custom judge that captures the prompt it receives
+      // Custom grader that captures the prompt it receives
       let receivedQuestion = '';
-      const captureJudge = {
-        kind: 'llm-judge' as const,
+      const captureGrader = {
+        kind: 'llm-grader' as const,
         async evaluate(context: { evalCase: EvalTest; evaluatorTemplateOverride?: string }) {
           // The evaluatorTemplateOverride should contain our custom prompt
           receivedQuestion = context.evaluatorTemplateOverride ?? '';
@@ -1019,15 +1019,15 @@ Reference: \${input.reference_answer ?? 'none'}\`);
           assertions: [
             {
               name: 'ts-prompt-eval',
-              type: 'llm-judge',
-              // Use explicit script array (matches code-judge pattern)
+              type: 'llm-grader',
+              // Use explicit script array (matches code-grader pattern)
               resolvedPromptScript: ['bun', 'run', promptPath],
             },
           ],
         },
         provider,
         target: baseTarget,
-        evaluators: { 'llm-judge': captureJudge },
+        evaluators: { 'llm-grader': captureGrader },
       });
 
       expect(result.score).toBe(1.0);
@@ -1051,8 +1051,8 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
       );
 
       let receivedPrompt = '';
-      const captureJudge = {
-        kind: 'llm-judge' as const,
+      const captureGrader = {
+        kind: 'llm-grader' as const,
         async evaluate(context: { evaluatorTemplateOverride?: string }) {
           receivedPrompt = context.evaluatorTemplateOverride ?? '';
           return {
@@ -1080,7 +1080,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
           assertions: [
             {
               name: 'js-prompt-eval',
-              type: 'llm-judge',
+              type: 'llm-grader',
               // Use explicit script array - node for JavaScript files
               resolvedPromptScript: ['node', promptPath],
             },
@@ -1088,7 +1088,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
         },
         provider,
         target: baseTarget,
-        evaluators: { 'llm-judge': captureJudge },
+        evaluators: { 'llm-grader': captureGrader },
       });
 
       expect(result.score).toBe(1.0);
@@ -1104,8 +1104,8 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
       writeFileSync(promptPath, 'Static prompt content from text file');
 
       let receivedPrompt = '';
-      const captureJudge = {
-        kind: 'llm-judge' as const,
+      const captureGrader = {
+        kind: 'llm-grader' as const,
         async evaluate(context: { evaluatorTemplateOverride?: string }) {
           receivedPrompt = context.evaluatorTemplateOverride ?? '';
           return {
@@ -1132,7 +1132,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
           assertions: [
             {
               name: 'txt-prompt-eval',
-              type: 'llm-judge',
+              type: 'llm-grader',
               promptPath: promptPath,
               resolvedPromptPath: promptPath,
             },
@@ -1140,7 +1140,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
         },
         provider,
         target: baseTarget,
-        evaluators: { 'llm-judge': captureJudge },
+        evaluators: { 'llm-grader': captureGrader },
       });
 
       expect(result.score).toBe(1.0);
@@ -1169,8 +1169,8 @@ describe('runEvaluation with trials', () => {
   function createScoringEvaluator(scores: number[]) {
     let callIndex = 0;
     return {
-      'llm-judge': {
-        kind: 'llm-judge' as const,
+      'llm-grader': {
+        kind: 'llm-grader' as const,
         async evaluate() {
           const score = scores[callIndex] ?? scores[scores.length - 1];
           callIndex += 1;
@@ -1765,7 +1765,7 @@ describe('deterministic assertion evaluators in orchestrator', () => {
 
 describe('criteria with assert runs only declared evaluators (#452)', () => {
   const criteriaTestCase: EvalTest = {
-    id: 'no-implicit-judge-1',
+    id: 'no-implicit-grader-1',
     dataset: 'test-dataset',
     question: 'Test question',
     input: [{ role: 'user', content: 'Test question' }],
@@ -1777,14 +1777,14 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
     criteria: 'Response should be polite',
   };
 
-  it('does NOT inject implicit llm-judge when criteria is present with assert', async () => {
+  it('does NOT inject implicit llm-grader when criteria is present with assert', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
     });
 
-    const targetWithJudge: ResolvedTarget = {
+    const targetWithGrader: ResolvedTarget = {
       ...baseTarget,
-      judgeTarget: 'judge-target',
+      graderTarget: 'grader-target',
     };
 
     const result = await runEvalCase({
@@ -1794,23 +1794,23 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
         assertions: [{ name: 'has-hello', type: 'contains' as const, value: 'hello' }],
       },
       provider,
-      target: targetWithJudge,
+      target: targetWithGrader,
       evaluators: evaluatorRegistry,
     });
 
-    // Only the declared contains evaluator — no implicit llm-judge
+    // Only the declared contains evaluator — no implicit llm-grader
     expect(result.scores).toHaveLength(1);
     expect(result.scores?.[0].type).toBe('contains');
   });
 
-  it('runs only declared evaluators even with criteria and judgeTarget', async () => {
+  it('runs only declared evaluators even with criteria and graderTarget', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
     });
 
-    const targetWithJudge: ResolvedTarget = {
+    const targetWithGrader: ResolvedTarget = {
       ...baseTarget,
-      judgeTarget: 'judge-target',
+      graderTarget: 'grader-target',
     };
 
     const result = await runEvalCase({
@@ -1823,11 +1823,11 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
         ],
       },
       provider,
-      target: targetWithJudge,
+      target: targetWithGrader,
       evaluators: evaluatorRegistry,
     });
 
-    // Only the 2 declared evaluators, no implicit judge
+    // Only the 2 declared evaluators, no implicit grader
     expect(result.scores).toHaveLength(2);
     expect(result.scores?.[0].type).toBe('contains');
     expect(result.scores?.[1].type).toBe('contains');
@@ -1839,29 +1839,29 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
       responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
     });
 
-    const targetWithJudge: ResolvedTarget = {
+    const targetWithGrader: ResolvedTarget = {
       ...baseTarget,
-      judgeTarget: 'judge-target',
+      graderTarget: 'grader-target',
     };
 
-    // When user explicitly adds llm-judge to assert, it runs and reads criteria
+    // When user explicitly adds llm-grader to assert, it runs and reads criteria
     const result = await runEvalCase({
       evalCase: {
         ...criteriaTestCase,
         criteria: 'Response should be polite',
         assertions: [
-          { name: 'quality-check', type: 'llm-judge' as const },
+          { name: 'quality-check', type: 'llm-grader' as const },
           { name: 'has-hello', type: 'contains' as const, value: 'hello' },
         ],
       },
       provider,
-      target: targetWithJudge,
+      target: targetWithGrader,
       evaluators: evaluatorRegistry,
     });
 
-    // Both run: explicit llm-judge + contains
+    // Both run: explicit llm-grader + contains
     expect(result.scores).toHaveLength(2);
-    expect(result.scores?.[0].type).toBe('llm-judge');
+    expect(result.scores?.[0].type).toBe('llm-grader');
     expect(result.scores?.[1].type).toBe('contains');
   });
 });
@@ -1996,11 +1996,11 @@ describe('required gates', () => {
     expect(result.scores).toHaveLength(2);
   });
 
-  it('required: true uses 0.8 threshold (llm-judge score below 0.8 triggers gate)', async () => {
-    // Create an evaluator registry where llm-judge returns 0.7 (below 0.8 threshold)
+  it('required: true uses 0.8 threshold (llm-grader score below 0.8 triggers gate)', async () => {
+    // Create an evaluator registry where llm-grader returns 0.7 (below 0.8 threshold)
     const lowScoreEvaluatorRegistry = {
-      'llm-judge': {
-        kind: 'llm-judge' as const,
+      'llm-grader': {
+        kind: 'llm-grader' as const,
         async evaluate() {
           return {
             score: 0.7,
@@ -2024,14 +2024,14 @@ describe('required gates', () => {
     const result = await runEvalCase({
       evalCase: {
         ...assertionTestCase,
-        assertions: [{ name: 'quality-check', type: 'llm-judge', required: true }],
+        assertions: [{ name: 'quality-check', type: 'llm-grader', required: true }],
       },
       provider,
       target: baseTarget,
       evaluators: lowScoreEvaluatorRegistry,
     });
 
-    // llm-judge returns 0.7 which is below the 0.8 default threshold for required: true
+    // llm-grader returns 0.7 which is below the 0.8 default threshold for required: true
     expect(result.score).toBe(0);
   });
 
@@ -2691,7 +2691,7 @@ describe('--workspace flag', () => {
     ).rejects.toThrow('--workspace-path requires --workspace-mode static when both are provided');
   });
 
-  it('includes per-judge timing in scores', async () => {
+  it('includes per-grader timing in scores', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
@@ -2702,8 +2702,8 @@ describe('--workspace flag', () => {
 
     // Use a slow evaluator to ensure measurable duration
     const slowEvaluatorRegistry = {
-      'llm-judge': {
-        kind: 'llm-judge',
+      'llm-grader': {
+        kind: 'llm-grader',
         async evaluate() {
           await new Promise((resolve) => setTimeout(resolve, 50));
           return {
@@ -2721,7 +2721,7 @@ describe('--workspace flag', () => {
     const result = await runEvalCase({
       evalCase: {
         ...baseTestCase,
-        assertions: [{ name: 'quality', type: 'llm-judge' }],
+        assertions: [{ name: 'quality', type: 'llm-grader' }],
       },
       provider,
       target: baseTarget,
@@ -2730,25 +2730,25 @@ describe('--workspace flag', () => {
     const afterTest = new Date();
 
     expect(result.scores).toHaveLength(1);
-    const judgeScore = result.scores?.[0];
+    const graderScore = result.scores?.[0];
 
     // durationMs should be present and reflect real wall-clock time
-    expect(judgeScore?.durationMs).toBeGreaterThanOrEqual(50);
+    expect(graderScore?.durationMs).toBeGreaterThanOrEqual(50);
 
     // startedAt and endedAt should be valid ISO 8601 UTC strings
-    expect(judgeScore?.startedAt).toBeDefined();
-    expect(judgeScore?.endedAt).toBeDefined();
-    const started = new Date(judgeScore?.startedAt ?? '');
-    const ended = new Date(judgeScore?.endedAt ?? '');
+    expect(graderScore?.startedAt).toBeDefined();
+    expect(graderScore?.endedAt).toBeDefined();
+    const started = new Date(graderScore?.startedAt ?? '');
+    const ended = new Date(graderScore?.endedAt ?? '');
     expect(started.getTime()).toBeGreaterThanOrEqual(beforeTest.getTime());
     expect(ended.getTime()).toBeLessThanOrEqual(afterTest.getTime());
     expect(ended.getTime()).toBeGreaterThanOrEqual(started.getTime());
 
     // durationMs should match the difference between startedAt and endedAt
-    expect(judgeScore?.durationMs).toBe(ended.getTime() - started.getTime());
+    expect(graderScore?.durationMs).toBe(ended.getTime() - started.getTime());
   });
 
-  it('includes per-judge timing even when evaluator fails', async () => {
+  it('includes per-grader timing even when evaluator fails', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [
         {
@@ -2758,11 +2758,11 @@ describe('--workspace flag', () => {
     });
 
     const failingEvaluatorRegistry = {
-      'llm-judge': {
-        kind: 'llm-judge',
+      'llm-grader': {
+        kind: 'llm-grader',
         async evaluate() {
           await new Promise((resolve) => setTimeout(resolve, 20));
-          throw new Error('Judge crashed');
+          throw new Error('Grader crashed');
         },
       },
     };
@@ -2770,7 +2770,7 @@ describe('--workspace flag', () => {
     const result = await runEvalCase({
       evalCase: {
         ...baseTestCase,
-        assertions: [{ name: 'broken', type: 'llm-judge' }],
+        assertions: [{ name: 'broken', type: 'llm-grader' }],
       },
       provider,
       target: baseTarget,
@@ -2778,11 +2778,11 @@ describe('--workspace flag', () => {
     });
 
     expect(result.scores).toHaveLength(1);
-    const judgeScore = result.scores?.[0];
+    const graderScore = result.scores?.[0];
 
     // Timing should still be present even on failure
-    expect(judgeScore?.durationMs).toBeGreaterThanOrEqual(20);
-    expect(judgeScore?.startedAt).toBeDefined();
-    expect(judgeScore?.endedAt).toBeDefined();
+    expect(graderScore?.durationMs).toBeGreaterThanOrEqual(20);
+    expect(graderScore?.startedAt).toBeDefined();
+    expect(graderScore?.endedAt).toBeDefined();
   });
 });

@@ -2,7 +2,7 @@
 
 **CLI-first AI agent evaluation. No server. No signup. No overhead.**
 
-AgentV evaluates your agents locally with multi-objective scoring (correctness, latency, cost, safety) from YAML specifications. Deterministic code judges + customizable LLM judges, all version-controlled in Git.
+AgentV evaluates your agents locally with multi-objective scoring (correctness, latency, cost, safety) from YAML specifications. Deterministic code graders + customizable LLM graders, all version-controlled in Git.
 
 ## Installation
 
@@ -60,7 +60,7 @@ tests:
 
     assertions:
       - name: math_check
-        type: code-judge
+        type: code-grader
         command: ./validators/check_math.py
 ```
 
@@ -90,7 +90,7 @@ Learn more in the [examples/](examples/README.md) directory. For a detailed comp
 ## Features
 
 - **Multi-objective scoring**: Correctness, latency, cost, safety in one run
-- **Multiple evaluator types**: Code validators, LLM judges, custom Python/TypeScript
+- **Multiple evaluator types**: Code validators, LLM graders, custom Python/TypeScript
 - **Built-in targets**: VS Code Copilot, Codex CLI, Pi Coding Agent, Azure OpenAI, local CLI agents
 - **Structured evaluation**: Rubric-based grading with weights and requirements
 - **Batch evaluation**: Run hundreds of test cases in parallel
@@ -145,7 +145,7 @@ bun run release:next major   # start new major prerelease line
 
 ## Core Concepts
 
-**Evaluation files** (`.yaml` or `.jsonl`) define test cases with expected outcomes. **Targets** specify which agent/provider to evaluate. **Judges** (code or LLM) score results. **Results** are written as JSONL/YAML for analysis and comparison.
+**Evaluation files** (`.yaml` or `.jsonl`) define test cases with expected outcomes. **Targets** specify which agent/provider to evaluate. **Graders** (code or LLM) score results. **Results** are written as JSONL/YAML for analysis and comparison.
 
 ### JSONL Format Support
 
@@ -164,8 +164,8 @@ execution:
   target: azure-llm
 assertions:
   - name: correctness
-    type: llm-judge
-    prompt: ./judges/correctness.md
+    type: llm-grader
+    prompt: ./graders/correctness.md
 ```
 
 Benefits: Streaming-friendly, Git-friendly diffs, programmatic generation, industry standard (DeepEval, LangWatch, Hugging Face).
@@ -230,7 +230,7 @@ agent or tool call may still time out even when AgentV's own top-level timeout i
 
 ### Create Custom Evaluators
 
-Write code judges in Python or TypeScript:
+Write code graders in Python or TypeScript:
 
 ```python
 # validators/check_answer.py
@@ -261,7 +261,7 @@ Reference evaluators in your eval file:
 ```yaml
 assertions:
   - name: my_validator
-    type: code-judge
+    type: code-grader
     command: ./validators/check_answer.py
 ```
 
@@ -389,12 +389,12 @@ targets:
 
   - name: vscode_dev
     provider: vscode
-    judge_target: azure-llm
+    grader_target: azure-llm
 
   - name: local_agent
     provider: cli
     command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
-    judge_target: azure-llm
+    grader_target: azure-llm
 ```
 
 Supports: `azure`, `anthropic`, `gemini`, `codex`, `copilot`, `pi-coding-agent`, `claude`, `vscode`, `vscode-insiders`, `cli`, and `mock`.
@@ -405,7 +405,7 @@ Use `${{ VARIABLE_NAME }}` syntax to reference your `.env` file. See `.agentv/ta
 
 ## Evaluation Features
 
-### Code Judges
+### Code Graders
 
 Write validators in any language (Python, TypeScript, Node, etc.):
 
@@ -416,11 +416,11 @@ Write validators in any language (Python, TypeScript, Node, etc.):
 
 For complete examples and patterns, see:
 - [custom-evaluators](https://agentv.dev/evaluators/custom-evaluators/)
-- [code-judge-sdk example](examples/features/code-judge-sdk)
+- [code-grader-sdk example](examples/features/code-grader-sdk)
 
 ### Deterministic Assertions
 
-Built-in assertion types for common text-matching patterns — no LLM judge or code_judge needed:
+Built-in assertion types for common text-matching patterns — no LLM grader or code_grader needed:
 
 | Type | Value | Behavior |
 |------|-------|----------|
@@ -457,18 +457,18 @@ assertions:
 
 See the [assert-extended example](examples/features/assert-extended) for complete patterns.
 
-### Target Configuration: `judge_target`
+### Target Configuration: `grader_target`
 
-Agent provider targets (`codex`, `copilot`, `claude`, `vscode`) **must** specify `judge_target` when using `llm_judge` or `rubrics` evaluators. Without it, AgentV errors at startup — agent providers can't return structured JSON for judging.
+Agent provider targets (`codex`, `copilot`, `claude`, `vscode`) **must** specify `grader_target` (also accepts `judge_target` for backward compatibility) when using `llm_grader` or `rubrics` evaluators. Without it, AgentV errors at startup — agent providers cannot return structured JSON for grading.
 
 ```yaml
 targets:
-  # Agent target — requires judge_target for LLM-based evaluation
+  # Agent target — requires grader_target for LLM-based evaluation
   - name: codex_local
     provider: codex
-    judge_target: azure-llm  # Required: LLM provider for judging
+    grader_target: azure-llm  # Required: LLM provider for grading
 
-  # LLM target — no judge_target needed (judges itself)
+  # LLM target — no grader_target needed (grades itself)
   - name: azure-llm
     provider: azure
 ```
@@ -478,21 +478,21 @@ targets:
 When agents respond via tool calls instead of text, use `tool_trajectory` instead of text assertions:
 
 - **Agent takes workspace actions** (creates files, runs commands) → `tool_trajectory` evaluator
-- **Agent responds in text** (answers questions, asks for info) → `contains`/`icontains_any`/`llm_judge`
+- **Agent responds in text** (answers questions, asks for info) → `contains`/`icontains_any`/`llm_grader`
 - **Agent does both** → `composite` evaluator combining both
 
-### LLM Judges
+### LLM Graders
 
-Create markdown judge files with evaluation criteria and scoring guidelines:
+Create markdown grader files with evaluation criteria and scoring guidelines:
 
 ```yaml
 assertions:
   - name: semantic_check
-    type: llm-judge
-    prompt: ./judges/correctness.md
+    type: llm-grader
+    prompt: ./graders/correctness.md
 ```
 
-Your judge prompt file defines criteria and scoring guidelines.
+Your grader prompt file defines criteria and scoring guidelines.
 
 ### Rubric-Based Evaluation
 

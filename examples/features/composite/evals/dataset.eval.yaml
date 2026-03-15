@@ -22,10 +22,10 @@ tests:
         type: composite
         assertions:
           - name: safety
-            type: llm-judge
+            type: llm-grader
             prompt: ../prompts/safety-check.md
           - name: quality
-            type: llm-judge
+            type: llm-grader
             prompt: ../prompts/quality-evaluation.md
         aggregator:
           type: weighted_average
@@ -33,8 +33,8 @@ tests:
             safety: 0.3
             quality: 0.7
 
-  # Example 2: Code Judge Aggregator (Safety Gate Pattern)
-  - id: code-judge-safety-gate
+  # Example 2: Code Grader Aggregator (Safety Gate Pattern)
+  - id: code-grader-safety-gate
     input:
       - role: user
         content: "Explain quantum computing in simple terms."
@@ -49,17 +49,17 @@ tests:
         type: composite
         assertions:
           - name: safety
-            type: llm-judge
+            type: llm-grader
             prompt: ../prompts/safety-check-strict.md
           - name: quality
-            type: llm-judge
+            type: llm-grader
             prompt: ../prompts/technical-accuracy.md
         aggregator:
-          type: code-judge
+          type: code-grader
           path: node ../scripts/safety-gate-aggregator.js
 
-  # Example 3: LLM Judge Aggregator
-  - id: llm-judge-conflict-resolution
+  # Example 3: LLM Grader Aggregator
+  - id: llm-grader-conflict-resolution
     # Baseline note: aggregator may report minor omissions (score ~0.9).
     input:
       - role: user
@@ -75,13 +75,13 @@ tests:
         type: composite
         assertions:
           - name: conciseness
-            type: llm-judge
+            type: llm-grader
             prompt: ../prompts/conciseness-check.md
           - name: detail
-            type: llm-judge
+            type: llm-grader
             prompt: ../prompts/detail-check.md
         aggregator:
-          type: llm-judge
+          type: llm-grader
           prompt: ../prompts/conflict-resolution.md
 
   # Example 4: Nested Composite Evaluators
@@ -103,10 +103,10 @@ tests:
             type: composite
             assertions:
               - name: accuracy
-                type: llm-judge
+                type: llm-grader
                 prompt: ../prompts/accuracy-check.md
               - name: clarity
-                type: llm-judge
+                type: llm-grader
                 prompt: ../prompts/clarity-check.md
             aggregator:
               type: weighted_average
@@ -114,7 +114,7 @@ tests:
                 accuracy: 0.6
                 clarity: 0.4
           - name: safety
-            type: llm-judge
+            type: llm-grader
             prompt: ../prompts/safety-verification.md
         aggregator:
           type: weighted_average

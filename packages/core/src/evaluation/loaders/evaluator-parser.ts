@@ -12,8 +12,8 @@ const ANSI_RESET = '\u001b[0m';
 /**
  * Normalize evaluator type names from legacy snake_case to internal kebab-case.
  * Accepts both forms for backward compatibility:
- *   - snake_case: 'llm_judge' -> 'llm-judge' (legacy, still accepted)
- *   - kebab-case: 'llm-judge' -> 'llm-judge' (preferred, passes through)
+ *   - snake_case: 'llm_grader' -> 'llm-grader' (legacy, still accepted)
+ *   - kebab-case: 'llm-grader' -> 'llm-grader' (preferred, passes through)
  *   - single-word: 'contains' -> 'contains' (unchanged)
  */
 export function normalizeEvaluatorType(type: string): string {
@@ -130,7 +130,7 @@ async function parseEvaluatorList(
 
     const rawName = asString(rawEvaluator.name);
     const rawType = rawEvaluator.type;
-    // Normalize legacy snake_case YAML type names to internal kebab-case (e.g., 'llm_judge' -> 'llm-judge')
+    // Normalize legacy snake_case YAML type names to internal kebab-case (e.g., 'llm_grader' -> 'llm-grader')
     const typeValue = typeof rawType === 'string' ? normalizeEvaluatorType(rawType) : rawType;
 
     // Unknown types are treated as custom assertion types (resolved via registry discovery)
@@ -177,7 +177,7 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'code-judge') {
+    if (typeValue === 'code-grader' || typeValue === 'code-judge') {
       let command: string[] | undefined;
       // Precedence: command > script (deprecated alias)
       if (rawEvaluator.script !== undefined && rawEvaluator.command === undefined) {
@@ -191,19 +191,19 @@ async function parseEvaluatorList(
         const trimmed = rawCommand.trim();
         if (trimmed.length === 0) {
           throw new Error(
-            `Invalid code-judge command for evaluator '${name}' in '${evalId}': command cannot be empty`,
+            `Invalid code-grader command for evaluator '${name}' in '${evalId}': command cannot be empty`,
           );
         }
         command = parseCommandToArgv(trimmed);
       } else {
         command = asStringArray(
           rawCommand,
-          `code-judge command for evaluator '${name}' in '${evalId}'`,
+          `code-grader command for evaluator '${name}' in '${evalId}'`,
         );
       }
 
       if (!command) {
-        logWarning(`Skipping code-judge evaluator '${name}' in '${evalId}': missing command`);
+        logWarning(`Skipping code-grader evaluator '${name}' in '${evalId}': missing command`);
         continue;
       }
 
@@ -218,7 +218,7 @@ async function parseEvaluatorList(
           resolvedCwd = path.resolve(resolved.resolvedPath);
         } else {
           logWarning(
-            `Code_judge evaluator '${name}' in '${evalId}': cwd not found (${resolved.displayPath})`,
+            `Code-grader evaluator '${name}' in '${evalId}': cwd not found (${resolved.displayPath})`,
             resolved.attempted.length > 0
               ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`)
               : undefined,
@@ -276,7 +276,7 @@ async function parseEvaluatorList(
 
       evaluators.push({
         name,
-        type: 'code-judge',
+        type: 'code-grader',
         command,
         cwd,
         resolvedCwd,
@@ -308,7 +308,9 @@ async function parseEvaluatorList(
       const aggregatorType = asString(rawAggregator.type);
       if (
         aggregatorType !== 'weighted_average' &&
+        aggregatorType !== 'code-grader' &&
         aggregatorType !== 'code-judge' &&
+        aggregatorType !== 'llm-grader' &&
         aggregatorType !== 'llm-judge' &&
         aggregatorType !== 'threshold'
       ) {
@@ -334,7 +336,7 @@ async function parseEvaluatorList(
           continue;
         }
 
-        // Parse member evaluator (reuse existing logic for code, llm-judge, code-judge)
+        // Parse member evaluator (reuse existing logic for code, llm-grader, code-grader)
         const memberConfigs = await parseEvaluators(
           { evaluators: [rawMember] },
           undefined,
@@ -373,11 +375,11 @@ async function parseEvaluatorList(
           type: 'weighted_average',
           ...(Object.keys(parsedWeights).length > 0 ? { weights: parsedWeights } : {}),
         };
-      } else if (aggregatorType === 'code-judge') {
+      } else if (aggregatorType === 'code-grader' || aggregatorType === 'code-judge') {
         const aggregatorPath = asString(rawAggregator.path);
         if (!aggregatorPath) {
           logWarning(
-            `Skipping composite evaluator '${name}' in '${evalId}': code-judge aggregator missing path`,
+            `Skipping composite evaluator '${name}' in '${evalId}': code-grader aggregator missing path`,
           );
           continue;
         }
@@ -385,7 +387,7 @@ async function parseEvaluatorList(
         // Set cwd to eval file directory (first search root)
         // Paths are resolved relative to this directory
         aggregator = {
-          type: 'code-judge',
+          type: 'code-grader',
           path: aggregatorPath,
           cwd: searchRoots[0],
         };
@@ -402,7 +404,7 @@ async function parseEvaluatorList(
           threshold: thresholdValue,
         };
       } else {
-        // llm-judge aggregator
+        // llm-grader aggregator (accepts both 'llm-grader' and 'llm-judge')
         const aggregatorPrompt = asString(rawAggregator.prompt);
         let promptPath: string | undefined;
 
@@ -414,7 +416,7 @@ async function parseEvaluatorList(
         }
 
         aggregator = {
-          type: 'llm-judge',
+          type: 'llm-grader',
           ...(aggregatorPrompt ? { prompt: aggregatorPrompt } : {}),
           ...(promptPath ? { promptPath } : {}),
         };
@@ -633,7 +635,7 @@ async function parseEvaluatorList(
 
         if (!match || !isValidFieldMatchType(match)) {
           logWarning(
-            `Skipping field '${fieldPath}' with invalid match type '${match}' in evaluator '${name}' (must be exact, numeric_tolerance, or date). For fuzzy matching, use a code-judge evaluator.`,
+            `Skipping field '${fieldPath}' with invalid match type '${match}' in evaluator '${name}' (must be exact, numeric_tolerance, or date). For fuzzy matching, use a code-grader evaluator.`,
           );
           continue;
         }
@@ -1026,14 +1028,14 @@ async function parseEvaluatorList(
       continue;
     }
 
-    const judgeTarget = rawEvaluator.target;
-    let judgeTargetName: string | undefined;
-    if (judgeTarget !== undefined) {
-      if (typeof judgeTarget === 'string' && judgeTarget.trim().length > 0) {
-        judgeTargetName = judgeTarget;
+    const graderTarget = rawEvaluator.target;
+    let graderTargetName: string | undefined;
+    if (graderTarget !== undefined) {
+      if (typeof graderTarget === 'string' && graderTarget.trim().length > 0) {
+        graderTargetName = graderTarget;
       } else {
         logWarning(
-          `Skipping target override for llm-judge evaluator '${name}' in '${evalId}': target must be a non-empty string`,
+          `Skipping target override for llm-grader evaluator '${name}' in '${evalId}': target must be a non-empty string`,
         );
       }
     }
@@ -1066,9 +1068,9 @@ async function parseEvaluatorList(
 
       evaluators.push({
         name,
-        type: 'llm-judge',
+        type: 'llm-grader',
         rubrics: parsedCriteria,
-        ...(judgeTargetName ? { target: judgeTargetName } : {}),
+        ...(graderTargetName ? { target: graderTargetName } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(negate !== undefined ? { negate } : {}),
@@ -1161,12 +1163,12 @@ async function parseEvaluatorList(
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
       const required = parseRequired(rawEvaluator.required);
 
-      // deprecated: `type: rubric` maps to `type: llm-judge` with `rubrics`. Use `type: rubrics` with `criteria` instead.
+      // deprecated: `type: rubric` maps to `type: llm-grader` with `rubrics`. Use `type: rubrics` with `criteria` instead.
       evaluators.push({
         name,
-        type: 'llm-judge',
+        type: 'llm-grader',
         rubrics: parsedRubrics,
-        ...(judgeTargetName ? { target: judgeTargetName } : {}),
+        ...(graderTargetName ? { target: graderTargetName } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(negate !== undefined ? { negate } : {}),
@@ -1226,13 +1228,13 @@ async function parseEvaluatorList(
 
     evaluators.push({
       name,
-      type: 'llm-judge',
+      type: 'llm-grader',
       prompt,
       promptPath,
       ...(promptPath ? { resolvedPromptPath: promptPath } : {}),
       ...(resolvedPromptScript ? { resolvedPromptScript } : {}),
       ...(parsedRubrics && parsedRubrics.length > 0 ? { rubrics: parsedRubrics } : {}),
-      ...(judgeTargetName ? { target: judgeTargetName } : {}),
+      ...(graderTargetName ? { target: graderTargetName } : {}),
       ...(weight !== undefined ? { weight } : {}),
       ...(required !== undefined ? { required } : {}),
       ...(negate !== undefined ? { negate } : {}),
@@ -1379,7 +1381,7 @@ function isJsonObject(value: unknown): value is JsonObject {
 }
 
 /**
- * Parser-time criteria warnings were removed because custom judges and escape
+ * Parser-time criteria warnings were removed because custom graders and escape
  * hatches can consume criteria in ways that static config inspection cannot
  * reliably detect.
  */
@@ -1719,11 +1721,11 @@ function parseScoreRanges(
  * - String shorthand: "Must be polite" -> { id: "rubric-1", outcome: "Must be polite", weight: 1.0, required: true }
  * - Object form with outcome, weight, required, score_ranges, required_min_score
  *
- * Returns an LlmJudgeEvaluatorConfig to prepend to evaluators, or undefined if no valid rubrics.
+ * Returns an LlmGraderEvaluatorConfig to prepend to evaluators, or undefined if no valid rubrics.
  */
 export function parseInlineRubrics(
   rawRubrics: readonly unknown[],
-): import('../types.js').LlmJudgeEvaluatorConfig | undefined {
+): import('../types.js').LlmGraderEvaluatorConfig | undefined {
   const rubricItems = rawRubrics
     .filter((r): r is JsonObject | string => isJsonObject(r) || typeof r === 'string')
     .map((rubric, index) => {
@@ -1792,7 +1794,7 @@ export function parseInlineRubrics(
 
   return {
     name: 'rubric',
-    type: 'llm-judge',
+    type: 'llm-grader',
     rubrics: rubricItems,
   };
 }

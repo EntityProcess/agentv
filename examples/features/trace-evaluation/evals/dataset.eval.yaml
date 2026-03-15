@@ -1,12 +1,12 @@
 # Trace-Based Evaluation Examples
 #
 # Demonstrates how to evaluate agent internals (LLM calls, tool executions,
-# errors, and durations) using code judges that inspect trace.
+# errors, and durations) using code graders that inspect trace.
 #
 # Run with:
 #   bun agentv eval examples/features/trace-evaluation/evals/dataset.eval.yaml --dry-run
 
-description: Trace-based evaluation of agent internals using code judges
+description: Trace-based evaluation of agent internals using code graders
 
 tests:
   # ==========================================
@@ -23,8 +23,8 @@ tests:
 
     assertions:
       - name: span-count
-        type: code-judge
-        command: ["bun", "run", "../judges/span-count.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/span-count.ts"]
         config:
           maxLlmCalls: 5
           maxToolCalls: 10
@@ -42,8 +42,8 @@ tests:
 
     assertions:
       - name: error-check
-        type: code-judge
-        command: ["bun", "run", "../judges/error-spans.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/error-spans.ts"]
         config:
           maxErrors: 0
 
@@ -61,8 +61,8 @@ tests:
 
     assertions:
       - name: error-and-tool-check
-        type: code-judge
-        command: ["bun", "run", "../judges/error-spans.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/error-spans.ts"]
         config:
           maxErrors: 0
           forbiddenTools:
@@ -83,8 +83,8 @@ tests:
 
     assertions:
       - name: duration-check
-        type: code-judge
-        command: ["bun", "run", "../judges/span-duration.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/span-duration.ts"]
         config:
           maxSpanMs: 3000
           maxTotalMs: 15000
@@ -103,18 +103,18 @@ tests:
 
     assertions:
       - name: span-count
-        type: code-judge
-        command: ["bun", "run", "../judges/span-count.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/span-count.ts"]
         config:
           maxLlmCalls: 8
           maxToolCalls: 20
 
       - name: error-check
-        type: code-judge
-        command: ["bun", "run", "../judges/error-spans.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/error-spans.ts"]
 
       - name: duration-check
-        type: code-judge
-        command: ["bun", "run", "../judges/span-duration.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/span-duration.ts"]
         config:
           maxSpanMs: 5000

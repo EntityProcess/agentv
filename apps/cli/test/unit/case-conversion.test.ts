@@ -82,7 +82,7 @@ describe('toSnakeCaseDeep', () => {
       },
       scores: [
         {
-          evaluatorName: 'code-judge',
+          evaluatorName: 'code-grader',
           rawRequest: {
             answer: 'code',
             expectedOutcome: 'correct',
@@ -106,7 +106,7 @@ describe('toSnakeCaseDeep', () => {
       },
       scores: [
         {
-          evaluator_name: 'code-judge',
+          evaluator_name: 'code-grader',
           raw_request: {
             answer: 'code',
             expected_outcome: 'correct',

@@ -254,7 +254,7 @@ describe('Execution Metrics', () => {
   });
 });
 
-describe('Code Judge Metrics Integration', () => {
+describe('Code Grader Metrics Integration', () => {
   const baseTestCase: EvalTest = {
     id: 'metrics-test',
     dataset: 'test',
@@ -266,7 +266,7 @@ describe('Code Judge Metrics Integration', () => {
     guideline_paths: [],
     file_paths: [],
     criteria: 'Test outcome',
-    evaluator: 'code-judge',
+    evaluator: 'code-grader',
   };
 
   const baseTarget: ResolvedTarget = {
@@ -275,7 +275,7 @@ describe('Code Judge Metrics Integration', () => {
     config: { response: '{}' },
   };
 
-  it('passes trace to code-judge scripts', async () => {
+  it('passes trace to code-grader scripts', async () => {
     // Use external script file for cross-platform compatibility
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-trace-summary.cjs')];

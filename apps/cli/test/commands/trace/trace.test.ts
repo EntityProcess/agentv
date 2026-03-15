@@ -346,7 +346,7 @@ describe('parseAssertSpec', () => {
 
   describe('unsupported types', () => {
     it('should throw on unknown evaluator type', () => {
-      expect(() => parseAssertSpec('llm-judge')).toThrow('Unsupported evaluator type');
+      expect(() => parseAssertSpec('llm-grader')).toThrow('Unsupported evaluator type');
     });
 
     it('should throw on empty spec', () => {

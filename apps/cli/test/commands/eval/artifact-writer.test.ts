@@ -32,8 +32,8 @@ function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult
 
 function makeEvaluatorResult(overrides: Partial<EvaluatorResult> = {}): EvaluatorResult {
   return {
-    name: 'judge-1',
-    type: 'llm-judge',
+    name: 'grader-1',
+    type: 'llm-grader',
     score: 0.85,
     hits: ['criterion-a'],
     misses: ['criterion-b'],
@@ -117,8 +117,8 @@ describe('buildGradingArtifact', () => {
   it('includes evaluators list with AgentV extensions', () => {
     const result = makeResult({
       scores: [
-        makeEvaluatorResult({ name: 'format-check', type: 'code-judge', score: 1.0 }),
-        makeEvaluatorResult({ name: 'quality', type: 'llm-judge', score: 0.7 }),
+        makeEvaluatorResult({ name: 'format-check', type: 'code-grader', score: 1.0 }),
+        makeEvaluatorResult({ name: 'quality', type: 'llm-grader', score: 0.7 }),
       ],
     });
 
@@ -126,7 +126,7 @@ describe('buildGradingArtifact', () => {
 
     expect(grading.evaluators).toHaveLength(2);
     expect(grading.evaluators?.[0].name).toBe('format-check');
-    expect(grading.evaluators?.[0].type).toBe('code-judge');
+    expect(grading.evaluators?.[0].type).toBe('code-grader');
     expect(grading.evaluators?.[1].score).toBe(0.7);
   });
 
@@ -267,18 +267,18 @@ describe('buildBenchmarkArtifact', () => {
   it('includes per-evaluator summary', () => {
     const results = [
       makeResult({
-        scores: [makeEvaluatorResult({ name: 'quality', type: 'llm-judge', score: 0.9 })],
+        scores: [makeEvaluatorResult({ name: 'quality', type: 'llm-grader', score: 0.9 })],
       }),
       makeResult({
         testId: 'test-2',
-        scores: [makeEvaluatorResult({ name: 'quality', type: 'llm-judge', score: 0.7 })],
+        scores: [makeEvaluatorResult({ name: 'quality', type: 'llm-grader', score: 0.7 })],
       }),
     ];
 
     const benchmark = buildBenchmarkArtifact(results);
 
     expect(benchmark.per_evaluator_summary).toBeDefined();
-    expect(benchmark.per_evaluator_summary?.['quality:llm-judge'].mean).toBe(0.8);
+    expect(benchmark.per_evaluator_summary?.['quality:llm-grader'].mean).toBe(0.8);
   });
 
   it('adds note when execution errors present', () => {

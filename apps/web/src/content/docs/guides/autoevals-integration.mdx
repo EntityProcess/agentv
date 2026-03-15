@@ -1,6 +1,6 @@
 ---
 title: Autoevals Integration
-description: Use Braintrust's open-source autoevals scorers (Factuality, Faithfulness, etc.) as code_judge evaluators in AgentV.
+description: Use Braintrust's open-source autoevals scorers (Factuality, Faithfulness, etc.) as code_grader evaluators in AgentV.
 sidebar:
   order: 2
 ---
@@ -13,7 +13,7 @@ sidebar:
 
 - Works standalone — no Braintrust platform account required
 - Uses any OpenAI-compatible endpoint for LLM-based scorers
-- Integrates with AgentV via `code_judge` evaluator type: wrap any autoevals scorer in a command that reads stdin and writes the AgentV judge result to stdout
+- Integrates with AgentV via `code_grader` evaluator type: wrap any autoevals scorer in a command that reads stdin and writes the AgentV grader result to stdout
 
 ## Installation
 
@@ -50,7 +50,7 @@ All LLM-based scorers return a `score` (0–1) and `metadata.rationale` explaini
 
 ## TypeScript Example
 
-Use the `Factuality` scorer as an AgentV `code_judge` to verify answer correctness.
+Use the `Factuality` scorer as an AgentV `code_grader` to verify answer correctness.
 
 **EVAL.yaml:**
 
@@ -63,11 +63,11 @@ tests:
     expected_output: "Paris is the capital of France."
     assertions:
       - name: factuality
-        type: code-judge
-        command: ["bun", "run", "judges/factuality.ts"]
+        type: code-grader
+        command: ["bun", "run", "graders/factuality.ts"]
 ```
 
-**judges/factuality.ts:**
+**graders/factuality.ts:**
 
 ```typescript
 #!/usr/bin/env bun
@@ -95,7 +95,7 @@ console.log(
 );
 ```
 
-The code judge reads the AgentV input from stdin (`question`, `answer`, `reference_answer`), maps the fields to autoevals parameters (`input`, `output`, `expected`), runs the scorer, and writes the AgentV result format to stdout.
+The code grader reads the AgentV input from stdin (`question`, `answer`, `reference_answer`), maps the fields to autoevals parameters (`input`, `output`, `expected`), runs the scorer, and writes the AgentV result format to stdout.
 
 ## Python Example
 
@@ -112,11 +112,11 @@ tests:
     expected_output: "The paper found that transformer models outperform RNNs on long-range tasks."
     assertions:
       - name: faithfulness
-        type: code-judge
-        command: ["python", "judges/faithfulness.py"]
+        type: code-grader
+        command: ["python", "graders/faithfulness.py"]
 ```
 
-**judges/faithfulness.py:**
+**graders/faithfulness.py:**
 
 ```python
 #!/usr/bin/env python3
@@ -187,7 +187,7 @@ const result = await Factuality({
 
 ## RAG Evaluation Suite
 
-Combine multiple autoevals scorers in a single code judge for comprehensive RAG evaluation.
+Combine multiple autoevals scorers in a single code grader for comprehensive RAG evaluation.
 
 **EVAL.yaml:**
 
@@ -200,12 +200,12 @@ tests:
     expected_output: "Exercise improves cardiovascular health, mental well-being, and longevity."
     assertions:
       - name: rag-quality
-        type: code-judge
-        command: ["bun", "run", "judges/rag-suite.ts"]
+        type: code-grader
+        command: ["bun", "run", "graders/rag-suite.ts"]
         weight: 1.0
 ```
 
-**judges/rag-suite.ts:**
+**graders/rag-suite.ts:**
 
 ```typescript
 #!/usr/bin/env bun

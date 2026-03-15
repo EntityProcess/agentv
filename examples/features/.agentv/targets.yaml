@@ -12,7 +12,7 @@ targets:
 
   - name: codex
     provider: codex
-    judge_target: azure-llm
+    grader_target: azure-llm
     # Uses the Codex CLI (defaults to `codex` on PATH)
     # executable: ${{ CODEX_CLI_PATH }}        # Optional: override executable path
     # args:                             # Optional additional CLI arguments
@@ -45,7 +45,7 @@ targets:
     pi_provider: openrouter
     model: openai/gpt-5.4
     api_key: ${{ OPENROUTER_API_KEY }}
-    judge_target: gemini-llm
+    grader_target: gemini-llm
     tools: read,bash,edit,write  # Default tools for coding tasks
     log_format: json  # 'summary' (default) or 'json' for raw event logs
     # system_prompt: optional override (default instructs agent to include code in response)
@@ -54,13 +54,13 @@ targets:
   - name: copilot
     provider: copilot
     model: gpt-5-mini
-    judge_target: azure-llm
+    grader_target: azure-llm
     log_format: json
 
   # Claude - Anthropic's Claude Agent SDK
   - name: claude
     provider: claude
-    judge_target: azure-llm
+    grader_target: azure-llm
     # model: claude-sonnet-4-20250514          # Optional: override model
     log_format: json  # 'summary' (default) or 'json' for raw event logs
     # system_prompt: optional override (default instructs agent to include code in response)

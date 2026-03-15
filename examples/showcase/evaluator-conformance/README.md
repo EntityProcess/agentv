@@ -46,7 +46,7 @@ bun run conformance-check.ts
 
 ```
   Evaluator Conformance Harness
-  evaluator:  bun run evaluators/keyword-judge.ts
+  evaluator:  bun run evaluators/keyword-grader.ts
   fixtures:   9
   runs/each:  5
   max-flip:   0
@@ -82,7 +82,7 @@ The `--output` flag writes a structured JSON report for programmatic consumption
 
 ```json
 {
-  "evaluator": ["bun", "run", "evaluators/keyword-judge.ts"],
+  "evaluator": ["bun", "run", "evaluators/keyword-grader.ts"],
   "total_fixtures": 9,
   "total_runs": 45,
   "compatible": true,
@@ -106,7 +106,7 @@ The `--output` flag writes a structured JSON report for programmatic consumption
 
 ## Adapting for Your Evaluator
 
-1. Replace `evaluators/keyword-judge.ts` with your evaluator script
+1. Replace `evaluators/keyword-grader.ts` with your evaluator script
 2. Update `fixtures.yaml` with domain-specific test cases
 3. Set `score_bounds` on ambiguous fixtures based on acceptable variance
 4. Adjust `--max-flip-rate` for LLM-based evaluators (e.g., `0.1` allows 10% flip rate)
@@ -117,6 +117,6 @@ The `--output` flag writes a structured JSON report for programmatic consumption
 |--------------------------------|-----------------------------------------------|
 | `conformance-check.ts` | Harness script — runs evaluator, validates |
 | `fixtures.yaml` | Labeled fixture dataset |
-| `evaluators/keyword-judge.ts` | Sample deterministic evaluator under test |
+| `evaluators/keyword-grader.ts` | Sample deterministic evaluator under test |
 | `EVAL.yaml` | Standard AgentV eval using the same evaluator |
 | `package.json` | Dependencies |

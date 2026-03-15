@@ -44,7 +44,7 @@ export function isAgentSkillsFormat(parsed: unknown): parsed is AgentSkillsEvals
  * - id (number) → id (string)
  * - prompt → input: [{role: "user", content: prompt}]
  * - expected_output → expected_output: [{role: "assistant", content}] as JsonObject[]
- * - assertions (string[]) → assertions: EvaluatorConfig[] (each → llm-judge)
+ * - assertions (string[]) → assertions: EvaluatorConfig[] (each → llm-grader)
  * - files → metadata.agent_skills_files (resolved by #541)
  * - skill_name → metadata.skill_name
  */
@@ -91,13 +91,13 @@ export function parseAgentSkillsEvals(
       continue;
     }
 
-    // Promote assertions → llm-judge evaluators
+    // Promote assertions → llm-grader evaluators
     let assertions: readonly EvaluatorConfig[] | undefined;
     if (evalCase.assertions && evalCase.assertions.length > 0) {
       assertions = evalCase.assertions.map(
         (text, i): EvaluatorConfig => ({
           name: `assertion-${i + 1}`,
-          type: 'llm-judge',
+          type: 'llm-grader',
           prompt: text,
         }),
       );

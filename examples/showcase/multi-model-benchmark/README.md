@@ -19,9 +19,9 @@ multi-model-benchmark/
 ├── evals/
 │   └── benchmark.eval.yaml          # Eval definition (targets + metrics + trials)
 └── prompts/
-    ├── accuracy-rubric.md           # Factual correctness judge (weight 3.0)
-    ├── completeness-rubric.md       # Coverage judge (weight 2.0)
-    └── clarity-rubric.md            # Readability judge (weight 1.0)
+    ├── accuracy-rubric.md           # Factual correctness grader (weight 3.0)
+    ├── completeness-rubric.md       # Coverage grader (weight 2.0)
+    └── clarity-rubric.md            # Readability grader (weight 1.0)
 ```
 
 ## Prerequisites
@@ -40,7 +40,7 @@ bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yam
 
 ### Cost & Safety
 
-The eval uses **low-cost models by default** (the targets defined in `.agentv/targets.yaml` such as `gpt-5-mini`, `claude-haiku`, `gemini-flash`). With 5 tests × 3 targets × 2 trials × 3 judge calls each, expect roughly **90 LLM calls**. A `cost_limit_usd: 2.00` cap is set in the eval file.
+The eval uses **low-cost models by default** (the targets defined in `.agentv/targets.yaml` such as `gpt-5-mini`, `claude-haiku`, `gemini-flash`). With 5 tests × 3 targets × 2 trials × 3 grader calls each, expect roughly **90 LLM calls**. A `cost_limit_usd: 2.00` cap is set in the eval file.
 
 To run against a single target first:
 
@@ -104,7 +104,7 @@ execution:
 
 ### 2. Weighted Evaluators
 
-Three LLM judges score each response. Weights control their contribution to the aggregate score:
+Three LLM graders score each response. Weights control their contribution to the aggregate score:
 
 ```yaml
 assertions:
@@ -181,12 +181,12 @@ execution:
 
 ### Adding an evaluator
 
-Add a new judge prompt in `prompts/` and reference it in the eval's `assertions` block:
+Add a new grader prompt in `prompts/` and reference it in the eval's `assertions` block:
 
 ```yaml
 assertions:
   - name: safety
-    type: llm-judge
+    type: llm-grader
     prompt: ../prompts/safety-rubric.md
     weight: 4.0    # Highest priority
 ```

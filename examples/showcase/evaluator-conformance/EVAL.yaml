@@ -1,5 +1,5 @@
 # Evaluator Conformance Demo
-# Demonstrates using the keyword-judge evaluator in a standard AgentV eval.
+# Demonstrates using the keyword-grader evaluator in a standard AgentV eval.
 #
 # Run: cd examples/showcase/evaluator-conformance
 #      npx agentv eval EVAL.yaml --dry-run
@@ -15,15 +15,15 @@ tests:
     input: "What is the capital of France?"
     expected_output: "Paris"
     assertions:
-      - name: keyword-judge
-        type: code-judge
-        command: ["bun", "run", "evaluators/keyword-judge.ts"]
+      - name: keyword-grader
+        type: code-grader
+        command: ["bun", "run", "evaluators/keyword-grader.ts"]
 
   - id: partial-match
     criteria: "Answer must mention red, blue, and yellow."
     input: "Name the primary colors."
     expected_output: "red, blue, yellow"
     assertions:
-      - name: keyword-judge
-        type: code-judge
-        command: ["bun", "run", "evaluators/keyword-judge.ts"]
+      - name: keyword-grader
+        type: code-grader
+        command: ["bun", "run", "evaluators/keyword-grader.ts"]

@@ -73,15 +73,15 @@ tests:
       # Override file-level target for this specific test
       target: azure-llm
 
-    # Multiple evaluators - supports both code-based and LLM judges
+    # Multiple evaluators - supports both code-based and LLM graders
     assertions:
       - name: keyword_check
-        type: code-judge  # Code evaluators handle regex, keywords, linting, etc.
+        type: code-grader  # Code evaluators handle regex, keywords, linting, etc.
         command: ["uv", "run", "check_python_keywords.py"]
         cwd: .  # Working directory for script execution
       - name: code_correctness
-        type: llm-judge  # LLM-based evaluation
-        prompt: code-correctness-judge.md
+        type: llm-grader  # LLM-based evaluation
+        prompt: code-correctness-grader.md
     
     input:
       - role: system
@@ -115,7 +115,7 @@ tests:
   - id: feature-proposal-brainstorm
     
     # criteria describes what makes a good response without providing a reference answer
-    # The LLM judge evaluates whether the response meets these criteria
+    # The LLM grader evaluates whether the response meets these criteria
     criteria: |-
       Assistant generates 3-5 creative feature ideas for a mobile fitness app. Each idea should:
       1. Address a specific user pain point
@@ -135,7 +135,7 @@ tests:
           Please brainstorm 3-5 innovative features we should consider building.
     
     # Note: No expected_output - evaluation is purely based on whether criteria are met
-    # The LLM judge will assess: creativity, technical feasibility, value propositions, and distinctiveness
+    # The LLM grader will assess: creativity, technical feasibility, value propositions, and distinctiveness
 
   # ==========================================
   # Example 4: Multi-turn conversation

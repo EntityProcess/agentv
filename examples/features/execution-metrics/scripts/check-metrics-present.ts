@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Check Metrics Present - Code Judge Plugin
+ * Check Metrics Present - Code Grader Plugin
  *
  * Verifies that execution metrics are present in the trace payload.
  * This is a simple sanity check that metrics collection is working.
@@ -8,12 +8,12 @@
  * Usage in eval YAML:
  *   evaluators:
  *     - name: metrics-present
- *       type: code_judge
+ *       type: code_grader
  *       script: ["bun", "run", "../scripts/check-metrics-present.ts"]
  */
-import { defineCodeJudge } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeJudge(({ trace, tokenUsage, costUsd, durationMs }) => {
+export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 

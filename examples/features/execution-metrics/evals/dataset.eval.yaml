@@ -132,8 +132,8 @@ tests:
         weight: 2.0  # Double weight for cost compliance
 
   # ==========================================
-  # Example 6: Combining with code_judge
-  # Use execution_metrics for thresholds, code_judge for custom logic
+  # Example 6: Combining with code_grader
+  # Use execution_metrics for thresholds, code_grader for custom logic
   # ==========================================
   - id: hybrid-evaluation
 
@@ -153,5 +153,5 @@ tests:
 
       # Custom evaluation logic (for more complex checks)
       - name: custom-check
-        type: code-judge
+        type: code-grader
         command: ["bun", "run", "../scripts/check-metrics-present.ts"]

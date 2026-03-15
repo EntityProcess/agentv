@@ -3,7 +3,7 @@ import { generateText } from 'ai';
 import { extractLastAssistantContent } from '../providers/types.js';
 import type { CompositeAggregatorConfig, CompositeEvaluatorConfig, JsonObject } from '../types.js';
 import { executeScript } from './code-evaluator.js';
-import { buildOutputSchema, freeformEvaluationSchema } from './llm-judge.js';
+import { buildOutputSchema, freeformEvaluationSchema } from './llm-grader.js';
 import {
   clampScore,
   isNonEmptyString,
@@ -74,8 +74,10 @@ export class CompositeEvaluator implements Evaluator {
     const aggregator = this.config.aggregator;
 
     switch (aggregator.type) {
+      case 'code-grader':
       case 'code-judge':
         return this.runCodeAggregator(results, aggregator.path, aggregator.cwd ?? this.cwd);
+      case 'llm-grader':
       case 'llm-judge':
         return this.runLlmAggregator(results, context, aggregator);
       case 'threshold':
@@ -301,7 +303,7 @@ export class CompositeEvaluator implements Evaluator {
         expectedAspectCount: hits.length + misses.length || 1,
         reasoning,
         evaluatorRawRequest: {
-          aggregator: 'code-judge',
+          aggregator: 'code-grader',
           script: scriptPath,
         },
         scores,
@@ -316,7 +318,7 @@ export class CompositeEvaluator implements Evaluator {
         expectedAspectCount: 1,
         reasoning: message,
         evaluatorRawRequest: {
-          aggregator: 'code-judge',
+          aggregator: 'code-grader',
           script: scriptPath,
           error: message,
         },
@@ -328,11 +330,13 @@ export class CompositeEvaluator implements Evaluator {
   private async runLlmAggregator(
     results: readonly MemberResult[],
     context: EvaluationContext,
-    config: Extract<CompositeAggregatorConfig, { type: 'llm-judge' }>,
+    config:
+      | Extract<CompositeAggregatorConfig, { type: 'llm-grader' }>
+      | Extract<CompositeAggregatorConfig, { type: 'llm-judge' }>,
   ): Promise<EvaluationScore> {
-    const judgeProvider = context.judgeProvider;
-    if (!judgeProvider) {
-      throw new Error('No judge provider available for LLM aggregation');
+    const graderProvider = context.graderProvider;
+    if (!graderProvider) {
+      throw new Error('No grader provider available for LLM aggregation');
     }
 
     const resultsObject = Object.fromEntries(results.map((r) => [r.id, r.result]));
@@ -359,14 +363,14 @@ export class CompositeEvaluator implements Evaluator {
     const systemPrompt = buildOutputSchema();
 
     const evaluatorRawRequest: JsonObject = {
-      aggregator: 'llm-judge',
+      aggregator: 'llm-grader',
       userPrompt,
       systemPrompt,
-      target: judgeProvider.targetName,
+      target: graderProvider.targetName,
     };
 
     try {
-      const model = judgeProvider.asLanguageModel?.();
+      const model = graderProvider.asLanguageModel?.();
       if (model) {
         const { text } = await generateText({
           model,
@@ -376,7 +380,7 @@ export class CompositeEvaluator implements Evaluator {
 
         const data = freeformEvaluationSchema.parse(parseJsonFromText(text));
         const score = clampScore(data.score);
-        // Cap hits/misses at 4 items to keep LLM judge output concise and focused
+        // Cap hits/misses at 4 items to keep LLM grader output concise and focused
         const hits = Array.isArray(data.hits) ? data.hits.filter(isNonEmptyString).slice(0, 4) : [];
         const misses = Array.isArray(data.misses)
           ? data.misses.filter(isNonEmptyString).slice(0, 4)
@@ -395,7 +399,7 @@ export class CompositeEvaluator implements Evaluator {
         };
       }
 
-      const response = await judgeProvider.invoke({
+      const response = await graderProvider.invoke({
         question: userPrompt,
         systemPrompt,
         evalCaseId: context.evalCase.id,

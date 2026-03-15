@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Code judge that verifies file_changes captures edits, creates, and deletes.
+Code grader that verifies file_changes captures edits, creates, and deletes.
 
 Reads the evaluation payload from stdin. Uses pass-through config properties
 to know which files to expect in each category:

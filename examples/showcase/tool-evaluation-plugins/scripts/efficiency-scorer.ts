@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Tool Efficiency Scorer - Code Judge Plugin
+ * Tool Efficiency Scorer - Code Grader Plugin
  *
  * Evaluates agent efficiency based on execution metrics:
  * - Token usage relative to task complexity
@@ -16,10 +16,10 @@
  * Usage in eval YAML:
  *   evaluators:
  *     - name: efficiency
- *       type: code_judge
+ *       type: code_grader
  *       script: ["bun", "run", "scripts/efficiency-scorer.ts"]
  */
-import { type TraceSummary, defineCodeJudge } from '@agentv/eval';
+import { type TraceSummary, defineCodeGrader } from '@agentv/eval';
 
 // Configurable thresholds (customize for your domain)
 const THRESHOLDS = {
@@ -77,7 +77,7 @@ function calculateExplorationRatio(trace: TraceSummary): number {
   return explorationCount / total;
 }
 
-export default defineCodeJudge(({ trace, criteria, tokenUsage, costUsd }) => {
+export default defineCodeGrader(({ trace, criteria, tokenUsage, costUsd }) => {
   const hits: string[] = [];
   const misses: string[] = [];
   const scores: number[] = [];

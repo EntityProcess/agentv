@@ -17,18 +17,22 @@ import type { EvaluatorConfig } from '../types.js';
  * Contains shared resources needed by evaluator instances.
  */
 export interface EvaluatorDispatchContext {
-  /** Shared LLM judge provider (resolved at suite level) */
+  /** Shared LLM grader provider (resolved at suite level) */
+  readonly graderProvider?: Provider;
+  /** @deprecated Use `graderProvider` instead */
   readonly judgeProvider?: Provider;
   /** Function to resolve target names to providers */
   readonly targetResolver?: TargetResolver;
-  /** Available target names for code judges */
+  /** Available target names for code graders */
   readonly availableTargets?: readonly string[];
   /** Agent timeout in ms */
   readonly agentTimeoutMs?: number;
   /** Directory containing the eval file (for composite member resolution) */
   readonly evalFileDir?: string;
-  /** Shared LLM judge evaluator instance */
-  readonly llmJudge: Evaluator;
+  /** Shared LLM grader evaluator instance */
+  readonly llmGrader: Evaluator;
+  /** @deprecated Use `llmGrader` instead */
+  readonly llmJudge?: Evaluator;
   /** Reference to the registry itself (for composite evaluators that need to create children) */
   readonly registry: EvaluatorRegistry;
 }
@@ -37,8 +41,8 @@ export interface EvaluatorDispatchContext {
  * Factory function that creates an Evaluator instance from a config.
  *
  * Factory functions handle all type-specific initialization logic:
- * - Reading prompt files for LLM judges
- * - Resolving script paths for code judges
+ * - Reading prompt files for LLM graders
+ * - Resolving script paths for code graders
  * - Creating adapter evaluators for deterministic assertions
  */
 export type EvaluatorFactoryFn = (

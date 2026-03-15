@@ -249,7 +249,15 @@ function validateUnknownSettings(
   }
 
   // Known base target fields that aren't settings
-  const baseFields = new Set(['name', 'provider', 'judge_target', 'workers', '$schema', 'targets']);
+  const baseFields = new Set([
+    'name',
+    'provider',
+    'grader_target',
+    'judge_target',
+    'workers',
+    '$schema',
+    'targets',
+  ]);
 
   for (const key of Object.keys(target)) {
     if (removedTargetFields.has(key)) {
@@ -519,14 +527,14 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       validateUnknownSettings(target, provider, absolutePath, location, errors);
     }
 
-    // Optional field: judge_target (must be string if present)
-    const judgeTarget = target.judge_target;
-    if (judgeTarget !== undefined && typeof judgeTarget !== 'string') {
+    // Optional field: grader_target / judge_target (must be string if present)
+    const graderTarget = target.grader_target ?? target.judge_target;
+    if (graderTarget !== undefined && typeof graderTarget !== 'string') {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
-        location: `${location}.judge_target`,
-        message: "Invalid 'judge_target' field (must be a string)",
+        location: `${location}.grader_target`,
+        message: "Invalid 'grader_target' field (must be a string)",
       });
     }
   }

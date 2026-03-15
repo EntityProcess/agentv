@@ -8,7 +8,7 @@ targets:
 
   - name: mock_agent
     provider: cli
-    judge_target: azure-llm
+    grader_target: azure-llm
     command: bun run ./mock-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}
     cwd: ..
     healthcheck:

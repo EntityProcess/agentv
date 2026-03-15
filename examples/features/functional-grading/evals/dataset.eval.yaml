@@ -2,7 +2,7 @@
 # Demonstrates using workspace_path to run commands in the agent's workspace.
 #
 # The workspace-template/ contains a TypeScript project with function stubs.
-# The mock agent implements the functions, then the code judge:
+# The mock agent implements the functions, then the code grader:
 # 1. Installs dependencies (npm install)
 # 2. Runs typecheck (tsc --noEmit)
 # 3. Compiles (tsc)
@@ -26,5 +26,5 @@ tests:
       with working implementations.
     assertions:
       - name: functional-check
-        type: code-judge
+        type: code-grader
         command: ["bun", "run", "../scripts/functional-check.ts"]

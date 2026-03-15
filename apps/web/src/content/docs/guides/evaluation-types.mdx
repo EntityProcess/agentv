@@ -47,7 +47,7 @@ Trigger quality evaluates whether the right skill is activated for the right pro
 |-----------|------------------|-----------------|
 | **Question** | "Does it help?" | "Does it activate?" |
 | **Signal type** | Deterministic-ish | Noisy / statistical |
-| **Test method** | Fixed assertions, rubrics, judges | Repeated trials, train/test splits |
+| **Test method** | Fixed assertions, rubrics, graders | Repeated trials, train/test splits |
 | **What you tune** | Agent logic, prompts, tool use | Skill descriptions, trigger metadata |
 | **Failure mode** | Wrong output | Wrong routing |
 | **Optimization** | Pass/fail per test case | Accuracy rate over a sample |
@@ -64,7 +64,7 @@ AgentV's eval tooling is designed for **execution quality**:
 - **`EVAL.yaml`** — define test cases with inputs, expected outputs, and assertions
 - **`evals.json`** — lightweight skill evaluation format (prompt/expected-output pairs)
 - **`agentv eval`** — execute evaluations and collect results
-- **Evaluators** — `llm-judge`, `code-judge`, `tool-trajectory`, `rubrics`, `contains`, `regex`, and others all measure execution behavior
+- **Evaluators** — `llm-grader`, `code-grader`, `tool-trajectory`, `rubrics`, `contains`, `regex`, and others all measure execution behavior
 
 These tools assume the skill is already loaded and invoked. They measure what happens *after* routing, not the routing decision itself.
 

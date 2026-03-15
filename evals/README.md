@@ -8,7 +8,7 @@ This folder contains evaluations to ensure AgentV's `AGENTS.md` design principle
 evals/
 ├── targets.yaml              # Target definitions
 ├── design-principles.yaml    # Tests
-└── design-principles-judge.md # LLM judge prompt
+└── design-principles-grader.md # LLM grader prompt
 ```
 
 ## Known Issue: pi-coding-agent on Windows

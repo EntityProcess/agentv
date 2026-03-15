@@ -1,9 +1,9 @@
 # Eval Assert Demo
-# Demonstrates code judges with `agentv eval assert` CLI integration.
-# Each code-judge assertion can also be run standalone:
+# Demonstrates code graders with `agentv eval assert` CLI integration.
+# Each code-grader assertion can also be run standalone:
 #   agentv eval assert keyword-check --agent-output "..." --agent-input "..."
 
-description: Code judges with eval assert CLI integration
+description: Code graders with eval assert CLI integration
 
 tests:
   - id: capital-of-france
@@ -15,12 +15,12 @@ tests:
 
     assertions:
       - name: keyword-check
-        type: code-judge
-        command: ["bun", "run", "../.agentv/judges/keyword-check.ts"]
+        type: code-grader
+        command: ["bun", "run", "../.agentv/graders/keyword-check.ts"]
         description: "Checks that the answer mentions Paris and France"
       - name: length-check
-        type: code-judge
-        command: ["bun", "run", "../.agentv/judges/length-check.ts"]
+        type: code-grader
+        command: ["bun", "run", "../.agentv/graders/length-check.ts"]
         description: "Ensures answer is between 5 and 50 words"
       - type: contains
         value: "Paris"

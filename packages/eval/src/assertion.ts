@@ -2,24 +2,24 @@
  * Runtime for custom assertion evaluators.
  * Handles stdin parsing, validation, error handling, and output formatting.
  *
- * Assertions receive the same input as code judges but use a simplified result
+ * Assertions receive the same input as code graders but use a simplified result
  * contract focused on pass/fail with optional score granularity.
  */
 import { readFileSync } from 'node:fs';
 
 import { toCamelCaseDeep } from './case-conversion.js';
 import {
-  type CodeJudgeInput,
-  CodeJudgeInputSchema,
-  type CodeJudgeResult,
-  CodeJudgeResultSchema,
+  type CodeGraderInput,
+  CodeGraderInputSchema,
+  type CodeGraderResult,
+  CodeGraderResultSchema,
 } from './schemas.js';
 
 /**
  * Context provided to assertion handlers.
- * Same shape as CodeJudgeInput — assertions receive full evaluation context.
+ * Same shape as CodeGraderInput — assertions receive full evaluation context.
  */
-export type AssertionContext = CodeJudgeInput;
+export type AssertionContext = CodeGraderInput;
 
 /**
  * Known built-in assertion types. Custom types are extensible via string.
@@ -37,8 +37,8 @@ export type AssertionContext = CodeJudgeInput;
  */
 export type AssertionType =
   // kebab-case (canonical internal form)
-  | 'llm-judge'
-  | 'code-judge'
+  | 'llm-grader'
+  | 'code-grader'
   | 'rubrics'
   | 'composite'
   | 'tool-trajectory'
@@ -59,9 +59,13 @@ export type AssertionType =
   | 'equals'
   | 'regex'
   | 'is-json'
-  // snake_case (legacy aliases, still accepted)
+  // legacy aliases (still accepted)
+  | 'llm-judge'
+  | 'code-judge'
   | 'llm_judge'
   | 'code_judge'
+  | 'llm_grader'
+  | 'code_grader'
   | 'tool_trajectory'
   | 'field_accuracy'
   | 'token_usage'
@@ -138,9 +142,9 @@ function formatError(error: unknown): string {
 }
 
 /**
- * Normalize an AssertionScore to a CodeJudgeResult for wire compatibility.
+ * Normalize an AssertionScore to a CodeGraderResult for wire compatibility.
  */
-function normalizeScore(result: AssertionScore): CodeJudgeResult {
+function normalizeScore(result: AssertionScore): CodeGraderResult {
   let score: number;
   if (result.score !== undefined) {
     score = clampScore(result.score);
@@ -168,11 +172,11 @@ export async function runAssertion(handler: AssertionHandler): Promise<void> {
     const stdin = readStdin();
     const rawInput = JSON.parse(stdin) as Record<string, unknown>;
     const camelInput = toCamelCaseDeep(rawInput);
-    const input = CodeJudgeInputSchema.parse(camelInput);
+    const input = CodeGraderInputSchema.parse(camelInput);
 
     // Lazy file-backed output loading
     if (input.outputPath && (input.output === null || input.output === undefined)) {
-      let cachedOutput: CodeJudgeInput['output'] | undefined;
+      let cachedOutput: CodeGraderInput['output'] | undefined;
       const filePath = input.outputPath;
       Object.defineProperty(input, 'output', {
         get() {
@@ -188,11 +192,11 @@ export async function runAssertion(handler: AssertionHandler): Promise<void> {
 
     const rawResult = await handler(input);
     const normalized = normalizeScore(rawResult);
-    const result = CodeJudgeResultSchema.parse(normalized);
+    const result = CodeGraderResultSchema.parse(normalized);
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {
     const errorMessage = formatError(error);
-    const errorResult: CodeJudgeResult = {
+    const errorResult: CodeGraderResult = {
       score: 0,
       hits: [],
       misses: [errorMessage],

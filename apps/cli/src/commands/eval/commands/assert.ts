@@ -7,12 +7,12 @@ import { executeScript } from '@agentv/core';
 
 export const evalAssertCommand = command({
   name: 'assert',
-  description: 'Run a single code-judge assertion from .agentv/judges/ and print the score',
+  description: 'Run a single code-grader assertion from .agentv/graders/ and print the score',
   args: {
-    judgeName: positional({
+    graderName: positional({
       type: string,
       displayName: 'name',
-      description: 'Assertion name (matches filename without extension in .agentv/judges/)',
+      description: 'Assertion name (matches filename without extension in .agentv/graders/)',
     }),
     agentOutput: option({
       type: optional(string),
@@ -30,7 +30,7 @@ export const evalAssertCommand = command({
       description: 'Path to JSON file with { output, input } fields',
     }),
   },
-  handler: async ({ judgeName, agentOutput: output, agentInput: input, file }) => {
+  handler: async ({ graderName, agentOutput: output, agentInput: input, file }) => {
     let resolvedOutput: string;
     let resolvedInput: string;
 
@@ -47,21 +47,23 @@ export const evalAssertCommand = command({
       resolvedInput = input ?? '';
     }
 
-    if (!/^[a-zA-Z0-9_-]+$/.test(judgeName)) {
+    if (!/^[a-zA-Z0-9_-]+$/.test(graderName)) {
       console.error(
-        `Error: Invalid judge name '${judgeName}' — only letters, digits, hyphens, and underscores allowed`,
+        `Error: Invalid grader name '${graderName}' — only letters, digits, hyphens, and underscores allowed`,
       );
       process.exit(1);
     }
 
-    const scriptPath = await findJudgeScript(judgeName, process.cwd());
+    const scriptPath = await findGraderScript(graderName, process.cwd());
     if (!scriptPath) {
-      console.error(`Error: Judge '${judgeName}' not found in .agentv/judges/`);
+      console.error(
+        `Error: Grader '${graderName}' not found in .agentv/graders/ (or .agentv/judges/)`,
+      );
       process.exit(1);
     }
 
     // Build payload matching CodeEvaluator's expected format (snake_case).
-    // Include all fields that defineCodeJudge validates as required.
+    // Include all fields that defineCodeGrader validates as required.
     const payload = JSON.stringify(
       {
         answer: resolvedOutput,
@@ -104,18 +106,21 @@ export const evalAssertCommand = command({
   },
 });
 
-async function findJudgeScript(judgeName: string, startDir: string): Promise<string | null> {
+async function findGraderScript(graderName: string, startDir: string): Promise<string | null> {
   let dir = path.resolve(startDir);
   const root = path.parse(dir).root;
 
   while (dir !== root) {
-    const judgesDir = path.join(dir, '.agentv', 'judges');
-    const found = await fg([`${judgeName}.{ts,js,mts,mjs}`], {
-      cwd: judgesDir,
-      absolute: true,
-      onlyFiles: true,
-    });
-    if (found.length > 0) return found[0];
+    // Search .agentv/graders/ first, then fall back to .agentv/judges/ for backward compat
+    for (const subdir of ['graders', 'judges']) {
+      const gradersDir = path.join(dir, '.agentv', subdir);
+      const found = await fg([`${graderName}.{ts,js,mts,mjs}`], {
+        cwd: gradersDir,
+        absolute: true,
+        onlyFiles: true,
+      });
+      if (found.length > 0) return found[0];
+    }
     dir = path.dirname(dir);
   }
 

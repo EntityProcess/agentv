@@ -1,18 +1,18 @@
 # Trace-Based Evaluation
 
-Demonstrates how to evaluate agent internals — LLM call counts, tool executions, errors, and step durations — using code judges that inspect `context.trace`.
+Demonstrates how to evaluate agent internals — LLM call counts, tool executions, errors, and step durations — using code graders that inspect `context.trace`.
 
-## Judges
+## Graders
 
-| Judge | File | What it checks |
+| Grader | File | What it checks |
 |-------|------|----------------|
-| **Span Count** | `judges/span-count.ts` | Number of LLM calls and tool executions stay within limits |
-| **Error Spans** | `judges/error-spans.ts` | No errors in the trace; optionally checks for forbidden tool usage |
-| **Span Duration** | `judges/span-duration.ts` | No individual tool call exceeds a time threshold |
+| **Span Count** | `graders/span-count.ts` | Number of LLM calls and tool executions stay within limits |
+| **Error Spans** | `graders/error-spans.ts` | No errors in the trace; optionally checks for forbidden tool usage |
+| **Span Duration** | `graders/span-duration.ts` | No individual tool call exceeds a time threshold |
 
 ## Available Trace Data
 
-Code judges receive `trace` with these fields:
+Code graders receive `trace` with these fields:
 
 ```typescript
 interface TraceSummary {
@@ -45,8 +45,8 @@ Pass configurable limits via `config` in the YAML evaluator block:
 ```yaml
 evaluators:
   - name: span-count
-    type: code-judge
-    command: ["bun", "run", "../judges/span-count.ts"]
+    type: code-grader
+    command: ["bun", "run", "../graders/span-count.ts"]
     config:
       maxLlmCalls: 5
       maxToolCalls: 10
@@ -58,8 +58,8 @@ Check for zero errors and block forbidden tools:
 ```yaml
 evaluators:
   - name: error-check
-    type: code-judge
-    command: ["bun", "run", "../judges/error-spans.ts"]
+    type: code-grader
+    command: ["bun", "run", "../graders/error-spans.ts"]
     config:
       maxErrors: 0
       forbiddenTools:
@@ -72,12 +72,12 @@ Ensure no individual step or total execution exceeds time budgets:
 ```yaml
 evaluators:
   - name: duration-check
-    type: code-judge
-    command: ["bun", "run", "../judges/span-duration.ts"]
+    type: code-grader
+    command: ["bun", "run", "../graders/span-duration.ts"]
     config:
       maxSpanMs: 3000
       maxTotalMs: 15000
 ```
 
-### Combining judges
-Stack multiple trace judges on a single test for comprehensive checks — see the `comprehensive-trace-check` test in `evals/dataset.eval.yaml`.
+### Combining graders
+Stack multiple trace graders on a single test for comprehensive checks — see the `comprehensive-trace-check` test in `evals/dataset.eval.yaml`.

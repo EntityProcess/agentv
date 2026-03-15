@@ -10,13 +10,13 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../../../../..');
 const CLI_ENTRY = path.join(projectRoot, 'apps/cli/src/cli.ts');
 
-async function createJudgeFixture(): Promise<{ baseDir: string }> {
+async function createGraderFixture(): Promise<{ baseDir: string }> {
   const baseDir = await mkdtemp(path.join(tmpdir(), 'agentv-assert-'));
-  const judgesDir = path.join(baseDir, '.agentv', 'judges');
-  await mkdir(judgesDir, { recursive: true });
+  const gradersDir = path.join(baseDir, '.agentv', 'graders');
+  await mkdir(gradersDir, { recursive: true });
 
   await writeFile(
-    path.join(judgesDir, 'always-pass.ts'),
+    path.join(gradersDir, 'always-pass.ts'),
     `const input = await Bun.stdin.text();
 const payload = JSON.parse(input);
 console.log(JSON.stringify({ score: 1.0, reasoning: "always passes" }));`,
@@ -24,7 +24,7 @@ console.log(JSON.stringify({ score: 1.0, reasoning: "always passes" }));`,
   );
 
   await writeFile(
-    path.join(judgesDir, 'check-contains.ts'),
+    path.join(gradersDir, 'check-contains.ts'),
     `const input = await Bun.stdin.text();
 const payload = JSON.parse(input);
 const output = payload.answer ?? payload.output ?? '';
@@ -37,8 +37,8 @@ console.log(JSON.stringify({ score, reasoning: score ? "contains hello" : "missi
 }
 
 describe('agentv eval assert', () => {
-  it('runs a judge with --output and --input flags', async () => {
-    const { baseDir } = await createJudgeFixture();
+  it('runs a grader with --output and --input flags', async () => {
+    const { baseDir } = await createGraderFixture();
     try {
       const result = await execa(
         'bun',
@@ -63,8 +63,8 @@ describe('agentv eval assert', () => {
     }
   });
 
-  it('exits 1 when judge returns score 0', async () => {
-    const { baseDir } = await createJudgeFixture();
+  it('exits 1 when grader returns score 0', async () => {
+    const { baseDir } = await createGraderFixture();
     try {
       const result = await execa(
         'bun',
@@ -89,8 +89,8 @@ describe('agentv eval assert', () => {
     }
   });
 
-  it('exits 0 when judge returns passing score', async () => {
-    const { baseDir } = await createJudgeFixture();
+  it('exits 0 when grader returns passing score', async () => {
+    const { baseDir } = await createGraderFixture();
     try {
       const result = await execa(
         'bun',
@@ -115,8 +115,8 @@ describe('agentv eval assert', () => {
     }
   });
 
-  it('errors when judge name not found', async () => {
-    const { baseDir } = await createJudgeFixture();
+  it('errors when grader name not found', async () => {
+    const { baseDir } = await createGraderFixture();
     try {
       const result = await execa(
         'bun',

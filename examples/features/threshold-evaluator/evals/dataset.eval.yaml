@@ -26,17 +26,17 @@ tests:
           threshold: 0.5
         assertions:
           - name: accuracy_check
-            type: llm-judge
+            type: llm-grader
             prompt: |
               Evaluate whether the response accurately describes the benefits of renewable energy.
               Score 1.0 if factually correct, 0.5 if mostly correct, 0.0 if contains errors.
           - name: completeness_check
-            type: llm-judge
+            type: llm-grader
             prompt: |
               Evaluate whether the response covers at least 3 key benefits of renewable energy.
               Score 1.0 if comprehensive, 0.5 if partially complete, 0.0 if missing major points.
           - name: conciseness_check
-            type: llm-judge
+            type: llm-grader
             prompt: |
               Evaluate whether the response is concise and well-structured.
               Score 1.0 if concise and clear, 0.5 if acceptable, 0.0 if verbose or disorganized.

@@ -83,8 +83,8 @@ tests:
       target: gpt4_target
     assertions:
       - name: depth_check
-        type: llm-judge
-        prompt: ./judges/depth.md
+        type: llm-grader
+        prompt: ./graders/depth.md
 ```
 
 Per-case `assert` evaluators are **merged** with root-level `assert` evaluators — test-specific evaluators run first, then root-level defaults are appended. To opt out of root-level defaults for a specific test, set `execution.skip_defaults: true`:
@@ -108,7 +108,7 @@ tests:
       skip_defaults: true
     assertions:
       - name: custom_eval
-        type: llm-judge
+        type: llm-grader
     # Does NOT get latency_check
 ```
 
@@ -189,7 +189,7 @@ Assertion evaluators auto-generate a `name` when one is not provided (e.g., `con
 
 ### Rubric Assertions
 
-Use `type: rubrics` with a `criteria` array to define structured LLM-judged evaluation criteria inline:
+Use `type: rubrics` with a `criteria` array to define structured LLM-graded evaluation criteria inline:
 
 ```yaml
 tests:
@@ -251,31 +251,31 @@ Required gates are evaluated after all evaluators run. If any required evaluator
 
 The `criteria` field is a **data field** that describes what the response should accomplish. It is not an evaluator itself — how it gets used depends on whether `assert` is present.
 
-### No `assert` — implicit LLM judge
+### No `assert` — implicit LLM grader
 
-When a test has no `assert` field, a default `llm-judge` evaluator runs automatically and uses `criteria` as the evaluation prompt:
+When a test has no `assert` field, a default `llm-grader` evaluator runs automatically and uses `criteria` as the evaluation prompt:
 
 ```yaml
 tests:
   - id: simple-eval
     criteria: Assistant correctly explains the bug and proposes a fix
     input: "Debug this function..."
-    # No assert → default llm-judge evaluates against criteria
+    # No assert → default llm-grader evaluates against criteria
 ```
 
 ### `assert` present — explicit evaluators only
 
-When `assert` is defined, only the declared evaluators run. No implicit judge is added. Judges that are declared (such as `llm-judge`, `code-judge`, or `rubrics`) receive `criteria` as input automatically.
+When `assert` is defined, only the declared evaluators run. No implicit grader is added. Graders that are declared (such as `llm-grader`, `code-grader`, or `rubrics`) receive `criteria` as input automatically.
 
 If `assert` contains only deterministic evaluators (like `contains` or `regex`), the `criteria` field is not evaluated and a warning is emitted:
 
 ```
 Warning: Test 'my-test': criteria is defined but no evaluator in assert
-will evaluate it. Add 'type: llm-judge' to assert, or remove criteria
+will evaluate it. Add 'type: llm-grader' to assert, or remove criteria
 if it is documentation-only.
 ```
 
-To use `criteria` alongside deterministic checks, add a judge explicitly:
+To use `criteria` alongside deterministic checks, add a grader explicitly:
 
 ```yaml
 tests:
@@ -283,7 +283,7 @@ tests:
     criteria: Response is helpful and mentions the fix
     input: "Debug this function..."
     assertions:
-      - type: llm-judge        # explicit — receives criteria automatically
+      - type: llm-grader        # explicit — receives criteria automatically
       - type: contains
         value: "fix"
 ```

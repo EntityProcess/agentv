@@ -3,7 +3,7 @@
  * Evaluator Conformance Harness
  *
  * Runs an evaluator N times per fixture and validates:
- *   - Compatibility: output matches CodeJudgeResult schema (score, hits, misses)
+ *   - Compatibility: output matches CodeGraderResult schema (score, hits, misses)
  *   - Consistency: flip-rate, agreement, and variance meet thresholds
  *
  * Usage:
@@ -88,8 +88,8 @@ const maxFlipRate = Number.parseFloat(values['max-flip-rate'] ?? '0');
 
 // ── Evaluator invocation ────────────────────────────────────────────────
 
-function buildCodeJudgeInput(fixture: Fixture): string {
-  // Build a minimal CodeJudgeInput in the snake_case wire format
+function buildCodeGraderInput(fixture: Fixture): string {
+  // Build a minimal CodeGraderInput in the snake_case wire format
   return JSON.stringify({
     question: fixture.question,
     criteria: fixture.criteria,
@@ -209,7 +209,7 @@ async function main(): Promise<void> {
   let allConsistent = true;
 
   for (const fixture of fixtures) {
-    const input = buildCodeJudgeInput(fixture);
+    const input = buildCodeGraderInput(fixture);
     const scores: number[] = [];
     const errors: string[] = [];
     let compatible = true;

@@ -9,7 +9,7 @@ import {
   type ChildEvaluatorResult,
   type EvaluationScore,
   type Evaluator,
-  LlmJudgeEvaluator,
+  LlmGraderEvaluator,
   isNonEmptyString,
   negateScore,
   scoreToVerdict,
@@ -28,7 +28,7 @@ import type {
   TargetDefinition,
 } from './providers/types.js';
 import { extractLastAssistantContent, isAgentProvider } from './providers/types.js';
-import { createBuiltinRegistry, discoverAssertions, discoverJudges } from './registry/index.js';
+import { createBuiltinRegistry, discoverAssertions, discoverGraders } from './registry/index.js';
 import {
   type TokenUsage,
   type TraceSummary,
@@ -140,17 +140,17 @@ export interface RunEvalCaseOptions {
   readonly evalCase: EvalTest;
   readonly provider: Provider;
   readonly target: ResolvedTarget;
-  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-judge': Evaluator };
+  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-grader': Evaluator };
   readonly now?: () => Date;
   readonly maxRetries?: number;
   readonly agentTimeoutMs?: number;
   readonly cache?: EvaluationCache;
   readonly useCache?: boolean;
   readonly signal?: AbortSignal;
-  readonly judgeProvider?: Provider;
-  /** Resolver for target override in code judges */
+  readonly graderProvider?: Provider;
+  /** Resolver for target override in code graders */
   readonly targetResolver?: (name: string) => Provider | undefined;
-  /** List of available target names for code judges */
+  /** List of available target names for code graders */
   readonly availableTargets?: readonly string[];
   /** Unique identifier for the evaluation run (used for workspace management) */
   readonly evalRunId?: string;
@@ -235,9 +235,9 @@ export interface RunEvaluationOptions {
   readonly retainOnSuccess?: 'keep' | 'cleanup';
   /** Retention policy override for failed cases */
   readonly retainOnFailure?: 'keep' | 'cleanup';
-  /** CLI override: judge target name (e.g., "agentv" or a target from targets.yaml) */
-  readonly judgeTarget?: string;
-  /** CLI override: model for judge target (e.g., "openai:gpt-5-mini") */
+  /** CLI override: grader target name (e.g., "agentv" or a target from targets.yaml) */
+  readonly graderTarget?: string;
+  /** CLI override: model for grader target (e.g., "openai:gpt-5-mini") */
   readonly model?: string;
 }
 
@@ -275,7 +275,7 @@ export async function runEvaluation(
     workspaceClean,
     retainOnSuccess,
     retainOnFailure,
-    judgeTarget: cliJudgeTarget,
+    graderTarget: cliGraderTarget,
     model: cliModel,
   } = options;
 
@@ -338,47 +338,47 @@ export async function runEvaluation(
     return resolved;
   };
 
-  const resolveJudgeProvider = async (
+  const resolveGraderProvider = async (
     targetContext: ResolvedTarget,
   ): Promise<Provider | undefined> => {
-    // CLI --judge-target takes highest priority
-    if (cliJudgeTarget) {
-      if (cliJudgeTarget === 'agentv') {
+    // CLI --grader-target takes highest priority
+    if (cliGraderTarget) {
+      if (cliGraderTarget === 'agentv') {
         if (!cliModel) {
-          throw new Error('--judge-target "agentv" requires --model (e.g., "openai:gpt-5-mini")');
+          throw new Error('--grader-target "agentv" requires --model (e.g., "openai:gpt-5-mini")');
         }
         const { AgentvProvider } = await import('./providers/agentv-provider.js');
         return new AgentvProvider('agentv', { model: cliModel, temperature: 0 });
       }
-      const overrideTarget = resolveTargetByName(cliJudgeTarget);
+      const overrideTarget = resolveTargetByName(cliGraderTarget);
       if (!overrideTarget) {
-        throw new Error(`--judge-target "${cliJudgeTarget}" not found in targets`);
+        throw new Error(`--grader-target "${cliGraderTarget}" not found in targets`);
       }
       return getOrCreateProvider(overrideTarget);
     }
 
-    // TODO: When --model is provided without --judge-target, override the model of
-    // whichever judge target is resolved. For now, --model only works with --judge-target agentv.
+    // TODO: When --model is provided without --grader-target, override the model of
+    // whichever grader target is resolved. For now, --model only works with --grader-target agentv.
 
-    const judgeName = targetContext.judgeTarget ?? targetContext.name;
-    const resolvedJudge = resolveTargetByName(judgeName);
-    if (!resolvedJudge) {
+    const graderName = targetContext.graderTarget ?? targetContext.name;
+    const resolvedGrader = resolveTargetByName(graderName);
+    if (!resolvedGrader) {
       return getOrCreateProvider(targetContext);
     }
-    return getOrCreateProvider(resolvedJudge);
+    return getOrCreateProvider(resolvedGrader);
   };
 
-  // Validate judge_target: error if an agent provider would be used as judge.
-  // Agent providers can't return structured JSON for judging — they respond with
+  // Validate grader_target: error if an agent provider would be used as grader.
+  // Agent providers can't return structured JSON for grading — they respond with
   // tool calls and markdown, causing silent score-0 failures.
-  // CLI --judge-target override also satisfies this requirement.
-  if (isAgentProvider(getOrCreateProvider(target)) && !target.judgeTarget && !cliJudgeTarget) {
+  // CLI --grader-target override also satisfies this requirement.
+  if (isAgentProvider(getOrCreateProvider(target)) && !target.graderTarget && !cliGraderTarget) {
     throw new Error(
-      `Target "${target.name}" is an agent provider ("${target.kind}") with no judge_target — agent providers cannot return structured JSON for judging. Set judge_target to an LLM provider (e.g., azure-llm).`,
+      `Target "${target.name}" is an agent provider ("${target.kind}") with no grader_target — agent providers cannot return structured JSON for grading. Set grader_target to an LLM provider (e.g., azure-llm).`,
     );
   }
 
-  // Create a target resolver for code judges to support target override
+  // Create a target resolver for code graders to support target override
   const targetResolver = (name: string): Provider | undefined => {
     const resolved = resolveTargetByName(name);
     if (!resolved) {
@@ -393,7 +393,7 @@ export async function runEvaluation(
     ...Array.from(targetDefinitions.keys()),
   ];
 
-  const evaluatorRegistry = buildEvaluatorRegistry(evaluators, resolveJudgeProvider);
+  const evaluatorRegistry = buildEvaluatorRegistry(evaluators, resolveGraderProvider);
   const typeRegistry = createBuiltinRegistry();
 
   // Discover custom assertions and providers from .agentv/ directory
@@ -401,7 +401,7 @@ export async function runEvaluation(
   // Directory containing the eval YAML file, used as default cwd for workspace scripts
   const evalDir = discoveryBaseDir;
   await discoverAssertions(typeRegistry, discoveryBaseDir);
-  await discoverJudges(typeRegistry, discoveryBaseDir);
+  await discoverGraders(typeRegistry, discoveryBaseDir);
 
   // Discover custom providers from .agentv/providers/ directory
   const providerRegistry = createBuiltinProviderRegistry();
@@ -449,7 +449,7 @@ export async function runEvaluation(
         onProgress,
         onResult,
         verbose,
-        resolveJudgeProvider,
+        resolveGraderProvider,
         agentTimeoutMs,
         targetResolver,
         availableTargets,
@@ -846,7 +846,7 @@ export async function runEvaluation(
           : sharedBaselineCommit;
 
         try {
-          const judgeProvider = await resolveJudgeProvider(target);
+          const graderProvider = await resolveGraderProvider(target);
           const runCaseOptions: RunEvalCaseOptions = {
             evalCase: evalCase,
             provider: primaryProvider,
@@ -857,7 +857,7 @@ export async function runEvaluation(
             cache,
             useCache,
             now,
-            judgeProvider,
+            graderProvider,
             targetResolver,
             availableTargets,
             evalRunId,
@@ -1048,14 +1048,14 @@ async function runBatchEvaluation(options: {
   readonly provider: Provider;
   readonly target: ResolvedTarget;
   readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
-    readonly 'llm-judge': Evaluator;
+    readonly 'llm-grader': Evaluator;
   };
   readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
   readonly nowFn: () => Date;
   readonly onProgress?: (event: ProgressEvent) => MaybePromise<void>;
   readonly onResult?: (result: EvaluationResult) => MaybePromise<void>;
   readonly verbose?: boolean;
-  readonly resolveJudgeProvider: (target: ResolvedTarget) => Promise<Provider | undefined>;
+  readonly resolveGraderProvider: (target: ResolvedTarget) => Promise<Provider | undefined>;
   readonly agentTimeoutMs?: number;
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
@@ -1069,7 +1069,7 @@ async function runBatchEvaluation(options: {
     nowFn,
     onProgress,
     onResult,
-    resolveJudgeProvider,
+    resolveGraderProvider,
     agentTimeoutMs,
     targetResolver,
     availableTargets,
@@ -1169,7 +1169,7 @@ async function runBatchEvaluation(options: {
         promptInputs,
         nowFn,
         attempt: 0,
-        judgeProvider: await resolveJudgeProvider(target),
+        graderProvider: await resolveGraderProvider(target),
         agentTimeoutMs,
         output,
         trace,
@@ -1251,7 +1251,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     cache,
     useCache,
     signal,
-    judgeProvider,
+    graderProvider,
     targetResolver,
     availableTargets,
     evalRunId,
@@ -1651,7 +1651,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       promptInputs,
       nowFn,
       attempt,
-      judgeProvider,
+      graderProvider,
       agentTimeoutMs,
       output,
       trace,
@@ -1846,12 +1846,12 @@ async function evaluateCandidate(options: {
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
-  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-judge': Evaluator };
+  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-grader': Evaluator };
   readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
   readonly promptInputs: PromptInputs;
   readonly nowFn: () => Date;
   readonly attempt: number;
-  readonly judgeProvider?: Provider;
+  readonly graderProvider?: Provider;
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
   readonly trace?: TraceSummary;
@@ -1875,7 +1875,7 @@ async function evaluateCandidate(options: {
     promptInputs,
     nowFn,
     attempt,
-    judgeProvider,
+    graderProvider,
     agentTimeoutMs,
     output,
     trace,
@@ -1901,7 +1901,7 @@ async function evaluateCandidate(options: {
     attempt,
     promptInputs,
     now: gradeTimestamp,
-    judgeProvider,
+    graderProvider,
     agentTimeoutMs,
     output,
     trace,
@@ -1981,12 +1981,12 @@ async function runEvaluatorsForCase(options: {
   readonly candidate: string;
   readonly target: ResolvedTarget;
   readonly provider: Provider;
-  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-judge': Evaluator };
+  readonly evaluators: Partial<Record<string, Evaluator>> & { readonly 'llm-grader': Evaluator };
   readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
   readonly attempt: number;
   readonly promptInputs: PromptInputs;
   readonly now: Date;
-  readonly judgeProvider?: Provider;
+  readonly graderProvider?: Provider;
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
   readonly trace?: TraceSummary;
@@ -2010,7 +2010,7 @@ async function runEvaluatorsForCase(options: {
     attempt,
     promptInputs,
     now,
-    judgeProvider,
+    graderProvider,
     agentTimeoutMs,
     output,
     trace,
@@ -2037,7 +2037,7 @@ async function runEvaluatorsForCase(options: {
       attempt,
       promptInputs,
       now,
-      judgeProvider,
+      graderProvider,
       agentTimeoutMs,
       output,
       trace,
@@ -2053,8 +2053,8 @@ async function runEvaluatorsForCase(options: {
     });
   }
 
-  const evaluatorKind = evalCase.evaluator ?? 'llm-judge';
-  const activeEvaluator = evaluators[evaluatorKind] ?? evaluators['llm-judge'];
+  const evaluatorKind = evalCase.evaluator ?? 'llm-grader';
+  const activeEvaluator = evaluators[evaluatorKind] ?? evaluators['llm-grader'];
   if (!activeEvaluator) {
     throw new Error(`No evaluator registered for kind '${evaluatorKind}'`);
   }
@@ -2067,7 +2067,7 @@ async function runEvaluatorsForCase(options: {
     attempt,
     promptInputs,
     now,
-    judgeProvider,
+    graderProvider,
     output,
     trace,
     tokenUsage,
@@ -2091,13 +2091,13 @@ async function runEvaluatorList(options: {
   readonly target: ResolvedTarget;
   readonly provider: Provider;
   readonly evaluatorRegistry: Partial<Record<string, Evaluator>> & {
-    readonly 'llm-judge': Evaluator;
+    readonly 'llm-grader': Evaluator;
   };
   readonly typeRegistry: import('./registry/evaluator-registry.js').EvaluatorRegistry;
   readonly attempt: number;
   readonly promptInputs: PromptInputs;
   readonly now: Date;
-  readonly judgeProvider?: Provider;
+  readonly graderProvider?: Provider;
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
   readonly trace?: TraceSummary;
@@ -2122,7 +2122,7 @@ async function runEvaluatorList(options: {
     attempt,
     promptInputs,
     now,
-    judgeProvider,
+    graderProvider,
     agentTimeoutMs,
     output,
     trace,
@@ -2155,7 +2155,7 @@ async function runEvaluatorList(options: {
     attempt,
     promptInputs,
     now,
-    judgeProvider,
+    graderProvider,
     output,
     trace,
     tokenUsage,
@@ -2174,12 +2174,12 @@ async function runEvaluatorList(options: {
     ? path.dirname(evalCase.guideline_paths[0])
     : process.cwd();
   const dispatchContext: import('./registry/evaluator-registry.js').EvaluatorDispatchContext = {
-    judgeProvider,
+    graderProvider,
     targetResolver,
     availableTargets,
     agentTimeoutMs,
     evalFileDir,
-    llmJudge: evaluatorRegistry['llm-judge'],
+    llmGrader: evaluatorRegistry['llm-grader'],
     registry: typeRegistry,
   };
 
@@ -2232,13 +2232,13 @@ async function runEvaluatorList(options: {
       scored.push({
         score: fallbackScore,
         name: evaluatorConfig.name ?? 'unknown',
-        type: evaluatorConfig.type ?? 'llm-judge',
+        type: evaluatorConfig.type ?? 'llm-grader',
         weight,
         ...(evaluatorConfig.required !== undefined ? { required: evaluatorConfig.required } : {}),
       });
       scores.push({
         name: evaluatorConfig.name ?? 'unknown',
-        type: evaluatorConfig.type ?? 'llm-judge',
+        type: evaluatorConfig.type ?? 'llm-grader',
         score: 0,
         weight,
         verdict: 'fail',
@@ -2319,22 +2319,23 @@ function filterEvalCases(evalCases: readonly EvalTest[], filter?: string): reado
 
 function buildEvaluatorRegistry(
   overrides: Partial<Record<string, Evaluator>> | undefined,
-  resolveJudgeProvider: (target: ResolvedTarget) => Promise<Provider | undefined>,
-): Partial<Record<string, Evaluator>> & { readonly 'llm-judge': Evaluator } {
-  const llmJudge =
+  resolveGraderProvider: (target: ResolvedTarget) => Promise<Provider | undefined>,
+): Partial<Record<string, Evaluator>> & { readonly 'llm-grader': Evaluator } {
+  const llmGrader =
+    overrides?.['llm-grader'] ??
     overrides?.['llm-judge'] ??
-    new LlmJudgeEvaluator({
-      resolveJudgeProvider: async (context) => {
-        if (context.judgeProvider) {
-          return context.judgeProvider;
+    new LlmGraderEvaluator({
+      resolveGraderProvider: async (context) => {
+        if (context.graderProvider) {
+          return context.graderProvider;
         }
-        return resolveJudgeProvider(context.target);
+        return resolveGraderProvider(context.target);
       },
     });
 
   return {
     ...overrides,
-    'llm-judge': llmJudge,
+    'llm-grader': llmGrader,
   };
 }
 

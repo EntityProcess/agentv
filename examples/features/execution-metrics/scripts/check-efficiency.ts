@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 /**
- * Efficiency Check - Code Judge for Execution Metrics
+ * Efficiency Check - Code Grader for Execution Metrics
  *
  * Demonstrates how to evaluate agent efficiency using execution metrics
  * available in the trace payload.
  */
-import { defineCodeJudge } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/eval';
 
 // Configurable thresholds
 const THRESHOLDS = {
@@ -15,7 +15,7 @@ const THRESHOLDS = {
   maxDurationMs: 10000,
 };
 
-export default defineCodeJudge(({ trace, tokenUsage, costUsd, durationMs }) => {
+export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => {
   const hits: string[] = [];
   const misses: string[] = [];
   const checks: boolean[] = [];

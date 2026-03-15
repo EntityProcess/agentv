@@ -33,7 +33,7 @@ describe('convertEvalsJsonToYaml', () => {
     expect(yaml).toContain('role: user');
     expect(yaml).toContain('Do something');
     expect(yaml).toContain('assertion-1');
-    expect(yaml).toContain('type: llm-judge');
+    expect(yaml).toContain('type: llm-grader');
     expect(yaml).toContain('Check A');
     expect(yaml).toContain('Check B');
   });

@@ -1,13 +1,13 @@
 # Prompt Template SDK
 
-This example demonstrates using TypeScript files for custom LLM judge prompts using the `definePromptTemplate` helper from `@agentv/eval`.
+This example demonstrates using TypeScript files for custom LLM grader prompts using the `definePromptTemplate` helper from `@agentv/eval`.
 
 ## Features
 
 - **Type-safe prompt generation**: Full TypeScript support with autocomplete for context fields
 - **Conditional logic**: Use JavaScript/TypeScript conditionals for dynamic prompts
 - **Config pass-through**: Access custom config from YAML in your prompt template
-- **Same pattern as code judges**: Follows the familiar subprocess pattern
+- **Same pattern as code graders**: Follows the familiar subprocess pattern
 
 ## How It Works
 
