@@ -392,9 +392,16 @@ export type RubricItem = {
 
 export type CompositeAggregatorConfig =
   | { readonly type: 'weighted_average'; readonly weights?: Record<string, number> }
-  | { readonly type: 'code-grader' | 'code-judge'; readonly path: string; readonly cwd?: string }
+  | { readonly type: 'code-grader'; readonly path: string; readonly cwd?: string }
+  | { readonly type: 'code-judge'; readonly path: string; readonly cwd?: string }
   | {
-      readonly type: 'llm-grader' | 'llm-judge';
+      readonly type: 'llm-grader';
+      readonly prompt?: string;
+      readonly promptPath?: string;
+      readonly model?: string;
+    }
+  | {
+      readonly type: 'llm-judge';
       readonly prompt?: string;
       readonly promptPath?: string;
       readonly model?: string;

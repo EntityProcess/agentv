@@ -133,6 +133,9 @@ export const llmGraderFactory: EvaluatorFactoryFn = (config, context) => {
   };
 };
 
+/** @deprecated Use `llmGraderFactory` instead. */
+export const llmJudgeFactory = llmGraderFactory;
+
 /** Factory for `code-grader` evaluators. */
 export const codeFactory: EvaluatorFactoryFn = (config, context) => {
   const c = config as CodeEvaluatorConfig;

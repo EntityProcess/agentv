@@ -86,11 +86,15 @@ type GraderProviderResolver = (context: EvaluationContext) => Promise<Provider |
 
 export interface LlmGraderEvaluatorOptions {
   readonly resolveGraderProvider: GraderProviderResolver;
+  /** @deprecated Use `resolveGraderProvider` instead. */
+  readonly resolveJudgeProvider?: GraderProviderResolver;
   readonly maxOutputTokens?: number;
   readonly temperature?: number;
   readonly evaluatorTemplate?: string;
   readonly maxSteps?: number;
   readonly graderTargetProvider?: Provider;
+  /** @deprecated Use `graderTargetProvider` instead. */
+  readonly judgeTargetProvider?: Provider;
 }
 
 const freeformEvaluationSchema = z.object({
@@ -139,12 +143,12 @@ export class LlmGraderEvaluator implements Evaluator {
   private readonly graderTargetProvider?: Provider;
 
   constructor(options: LlmGraderEvaluatorOptions) {
-    this.resolveGraderProvider = options.resolveGraderProvider;
+    this.resolveGraderProvider = options.resolveGraderProvider ?? options.resolveJudgeProvider!;
     this.maxOutputTokens = options.maxOutputTokens;
     this.temperature = options.temperature;
     this.evaluatorTemplate = options.evaluatorTemplate;
     this.maxSteps = Math.min(options.maxSteps ?? DEFAULT_MAX_STEPS, MAX_STEPS_LIMIT);
-    this.graderTargetProvider = options.graderTargetProvider;
+    this.graderTargetProvider = options.graderTargetProvider ?? options.judgeTargetProvider;
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
