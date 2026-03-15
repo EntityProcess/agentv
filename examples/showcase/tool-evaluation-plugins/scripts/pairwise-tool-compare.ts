@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Pairwise Tool Comparison - Code Judge Plugin
+ * Pairwise Tool Comparison - Code Grader Plugin
  *
  * Compares tool usage quality between two agent responses with
  * position bias mitigation (runs comparison twice with swapped order).
@@ -14,10 +14,10 @@
  * Usage in eval YAML:
  *   evaluators:
  *     - name: pairwise-compare
- *       type: code_judge
+ *       type: code_grader
  *       script: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
  */
-import { type Message, defineCodeJudge } from '@agentv/eval';
+import { type Message, defineCodeGrader } from '@agentv/eval';
 
 interface ToolSummary {
   tools: string[];
@@ -100,7 +100,7 @@ function compareResponses(
   return { winner: 'TIE', aAdvantages, bAdvantages };
 }
 
-export default defineCodeJudge((input) => {
+export default defineCodeGrader((input) => {
   const candidate = input.answer;
   const reference = input.referenceAnswer ?? '';
 

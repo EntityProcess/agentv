@@ -1,7 +1,7 @@
 # Tool-Call F1 Scoring Example
 #
-# Demonstrates using code_judge plugins to compute F1 scores over tool calls.
-# The judges compare expected tools (from evaluator config) against actual
+# Demonstrates using code_grader plugins to compute F1 scores over tool calls.
+# The graders compare expected tools (from evaluator config) against actual
 # tool calls in the agent's output messages.
 #
 # Run:
@@ -28,8 +28,8 @@ tests:
 
     assertions:
       - name: tool-f1
-        type: code-judge
-        command: ["bun", "run", "../judges/tool-call-f1.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/tool-call-f1.ts"]
         expected_tools: ["search", "fetch"]
 
   # ==========================================
@@ -46,8 +46,8 @@ tests:
 
     assertions:
       - name: tool-args-f1
-        type: code-judge
-        command: ["bun", "run", "../judges/tool-args-f1.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/tool-args-f1.ts"]
         expected_tools:
           - tool: search
             args: { query: "weather tokyo" }
@@ -75,6 +75,6 @@ tests:
 
       # Plugin: F1 score over expected tools
       - name: tool-f1
-        type: code-judge
-        command: ["bun", "run", "../judges/tool-call-f1.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/tool-call-f1.ts"]
         expected_tools: ["search", "validate", "process"]

@@ -1,10 +1,10 @@
 # Tool-Call F1 Scoring
 
-Code judge plugins that compute **F1 scores** over tool calls, comparing expected tools against actual agent behavior.
+Code grader plugins that compute **F1 scores** over tool calls, comparing expected tools against actual agent behavior.
 
-## Judges
+## Graders
 
-### `judges/tool-call-f1.ts` — Name-only F1
+### `graders/tool-call-f1.ts` — Name-only F1
 
 Computes precision, recall, and F1 by comparing expected tool names against actual tool calls from `output`.
 
@@ -15,20 +15,20 @@ Computes precision, recall, and F1 by comparing expected tool names against actu
 ```yaml
 evaluators:
   - name: tool-f1
-    type: code-judge
-    command: ["bun", "run", "../judges/tool-call-f1.ts"]
+    type: code-grader
+    command: ["bun", "run", "../graders/tool-call-f1.ts"]
     expected_tools: ["search", "fetch"]
 ```
 
-### `judges/tool-args-f1.ts` — Name + argument F1
+### `graders/tool-args-f1.ts` — Name + argument F1
 
-Extends the name-only judge by also validating tool arguments. A call is a hit only if both the name matches AND the required arguments are present (subset match).
+Extends the name-only grader by also validating tool arguments. A call is a hit only if both the name matches AND the required arguments are present (subset match).
 
 ```yaml
 evaluators:
   - name: tool-args-f1
-    type: code-judge
-    command: ["bun", "run", "../judges/tool-args-f1.ts"]
+    type: code-grader
+    command: ["bun", "run", "../graders/tool-args-f1.ts"]
     expected_tools:
       - tool: search
         args: { query: "weather tokyo" }
@@ -44,7 +44,7 @@ bun agentv eval evals/dataset.eval.yaml --target <your-target>
 
 ## Output
 
-Each judge returns:
+Each grader returns:
 
 ```json
 {

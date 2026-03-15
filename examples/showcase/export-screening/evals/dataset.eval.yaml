@@ -22,7 +22,7 @@ execution:
 
 assertions:
   - name: risk_assessment_quality
-    type: code-judge
+    type: code-grader
     command: ["bun", "run", "validate_risk_output.ts"]
 
 tests:

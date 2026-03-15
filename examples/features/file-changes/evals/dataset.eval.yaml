@@ -29,7 +29,7 @@ tests:
 
     assertions:
       - name: check-edits-and-creates
-        type: code-judge
+        type: code-grader
         command: ["uv", "run", "../check_file_changes.py"]
         # Pass-through properties become config.expect_edited etc. in the payload
         expect_edited: ["hello.txt", "config.json"]
@@ -49,7 +49,7 @@ tests:
 
     assertions:
       - name: check-deletes-and-structure
-        type: code-judge
+        type: code-grader
         command: ["uv", "run", "../check_file_changes.py"]
         expect_deleted: ["obsolete.log"]
         expect_edited: ["hello.txt", "config.json"]

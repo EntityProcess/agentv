@@ -7,7 +7,7 @@
  *
  * Returns structured output that enables post-processing for metrics.
  */
-import { defineCodeJudge } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/eval';
 
 const VALID_RISK_LEVELS = new Set(['High', 'Medium', 'Low']);
 const REQUIRED_KEYS = ['riskLevel', 'reasoning'];
@@ -59,7 +59,7 @@ function extractExpectedRiskLevel(
   return null;
 }
 
-export default defineCodeJudge(({ answer, expectedOutput }) => {
+export default defineCodeGrader(({ answer, expectedOutput }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 

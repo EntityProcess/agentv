@@ -1,15 +1,15 @@
 # Eval Assert Demo
 
-Demonstrates code judges that can be run both as part of an eval suite and individually via `agentv eval assert`.
+Demonstrates code graders that can be run both as part of an eval suite and individually via `agentv eval assert`.
 
-## Judges
+## Graders
 
 | File | Purpose |
 |------|---------|
-| `.agentv/judges/keyword-check.ts` | Checks answer contains expected keywords (Paris, France) |
-| `.agentv/judges/length-check.ts` | Validates answer word count is between 5 and 50 |
+| `.agentv/graders/keyword-check.ts` | Checks answer contains expected keywords (Paris, France) |
+| `.agentv/graders/length-check.ts` | Validates answer word count is between 5 and 50 |
 
-Both judges use `defineCodeJudge` from `@agentv/eval`.
+Both graders use `defineCodeGrader` from `@agentv/eval`.
 
 ## Running the Full Eval
 
@@ -56,19 +56,19 @@ Input: "What is the capital of France? Answer in one concise sentence."
 Expected: "The capital of France is Paris."
 Criteria:
   - Output contains 'Paris'
-  - [code-judge] keyword-check: Checks that the answer mentions Paris and France
-  - [code-judge] length-check: Ensures answer is between 5 and 50 words
+  - [code-grader] keyword-check: Checks that the answer mentions Paris and France
+  - [code-grader] length-check: Ensures answer is between 5 and 50 words
 ```
 
 ## How It Works
 
-When running the eval, the transpiler emits natural-language instructions for each code judge:
+When running the eval, the transpiler emits natural-language instructions for each code grader:
 
 ```
 Run `agentv eval assert keyword-check --agent-output <text> --agent-input <text>` and check the result.
-This judge: Checks that the answer mentions Paris and France.
+This grader: Checks that the answer mentions Paris and France.
 The command returns JSON: {"score": 0-1, "reasoning": "..."}.
 A score >= 0.5 means pass (exit 0); below 0.5 means fail (exit 1).
 ```
 
-This allows external grading agents to execute code judges directly without understanding their internal implementation.
+This allows external grading agents to execute code graders directly without understanding their internal implementation.

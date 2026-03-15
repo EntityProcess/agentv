@@ -1,8 +1,8 @@
 # NLP Metrics Evaluator Examples
 # Demonstrates ROUGE, BLEU, cosine similarity, and Levenshtein distance
-# as code_judge evaluators — no external dependencies required.
+# as code_grader evaluators — no external dependencies required.
 
-description: NLP text-quality metrics using code_judge evaluators
+description: NLP text-quality metrics using code_grader evaluators
 
 execution:
   target: default
@@ -21,8 +21,8 @@ tests:
 
     assertions:
       - name: rouge-score
-        type: code-judge
-        command: ["bun", "run", "../judges/rouge.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/rouge.ts"]
 
   - id: translation-bleu
     criteria: Translation preserves meaning and word choice of the reference.
@@ -37,8 +37,8 @@ tests:
 
     assertions:
       - name: bleu-score
-        type: code-judge
-        command: ["bun", "run", "../judges/bleu.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/bleu.ts"]
 
   - id: paraphrase-similarity
     criteria: Paraphrase conveys the same meaning as the reference.
@@ -53,8 +53,8 @@ tests:
 
     assertions:
       - name: cosine-similarity
-        type: code-judge
-        command: ["bun", "run", "../judges/similarity.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/similarity.ts"]
 
   - id: extraction-levenshtein
     criteria: Extracted text closely matches the expected value.
@@ -69,8 +69,8 @@ tests:
 
     assertions:
       - name: edit-distance
-        type: code-judge
-        command: ["bun", "run", "../judges/levenshtein.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/levenshtein.ts"]
 
   - id: multi-metric-evaluation
     criteria: Response is evaluated by multiple NLP metrics simultaneously.
@@ -85,11 +85,11 @@ tests:
 
     assertions:
       - name: rouge-score
-        type: code-judge
-        command: ["bun", "run", "../judges/rouge.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/rouge.ts"]
       - name: cosine-similarity
-        type: code-judge
-        command: ["bun", "run", "../judges/similarity.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/similarity.ts"]
       - name: edit-distance
-        type: code-judge
-        command: ["bun", "run", "../judges/levenshtein.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/levenshtein.ts"]

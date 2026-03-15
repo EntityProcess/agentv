@@ -10,7 +10,7 @@ targets:
     provider: copilot-cli
     model: claude-haiku-4.5
 
-  - name: azure_judge
+  - name: azure_grader
     provider: azure
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}

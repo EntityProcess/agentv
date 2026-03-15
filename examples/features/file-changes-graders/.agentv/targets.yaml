@@ -1,0 +1,25 @@
+targets:
+  # Mock agent that adds a subtract function to calculator.ts.
+  # Each test gets a fresh copy of workspace-template/ as its CWD.
+  - name: mock_agent
+    provider: cli
+    command: >-
+      bash -c '
+      printf "export function add(a: number, b: number): number {\n  return a + b;\n}\n\nexport function subtract(a: number, b: number): number {\n  return a - b;\n}\n" > src/calculator.ts &&
+      echo "Added subtract function to calculator.ts" > {OUTPUT_FILE}
+      '
+    workspace_template: ../workspace-template
+    grader_target: azure_grader
+
+  # Azure OpenAI — used as LLM grader (rubrics) and built-in llm-grader provider
+  - name: azure_grader
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    version: ${{ AZURE_OPENAI_API_VERSION }}
+
+  # Copilot CLI — used as delegated llm-grader target
+  - name: copilot_grader
+    provider: copilot-cli
+    model: claude-haiku-4.5

@@ -1,8 +1,8 @@
 # Prompt Template SDK Demo
 # Demonstrates using TypeScript/JavaScript files for custom evaluator prompts.
-# Uses the same explicit script pattern as code_judge for consistency.
+# Uses the same explicit script pattern as code_grader for consistency.
 
-description: Demonstrates TypeScript prompt templates for custom LLM judge prompts
+description: Demonstrates TypeScript prompt templates for custom LLM grader prompts
 
 # Uses the default target defined in .agentv/targets.yaml
 execution:
@@ -23,8 +23,8 @@ tests:
 
     assertions:
       - name: custom-prompt-eval
-        type: llm-judge
-        # Executable prompt template using explicit script array (matches code_judge pattern)
+        type: llm-grader
+        # Executable prompt template using explicit script array (matches code_grader pattern)
         prompt:
           command: [bun, run, ../prompts/custom-evaluator.ts]
 
@@ -42,7 +42,7 @@ tests:
 
     assertions:
       - name: strict-eval
-        type: llm-judge
+        type: llm-grader
         # Executable prompt template with config
         prompt:
           command: [bun, run, ../prompts/custom-evaluator.ts]

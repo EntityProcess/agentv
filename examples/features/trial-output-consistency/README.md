@@ -42,8 +42,8 @@ When an agent is run multiple times on the same input (trials), outputs may vary
 ```yaml
 assertions:
   - name: trial-consistency
-    type: code-judge
-    command: ["bun", "run", "../judges/trial-consistency.ts"]
+    type: code-grader
+    command: ["bun", "run", "../graders/trial-consistency.ts"]
     config:
       trialOutputs:
         - "Output from trial 1"
@@ -72,7 +72,7 @@ bun agentv eval examples/features/trial-output-consistency/evals/dataset.eval.ya
 
 ### Custom Embedding Provider
 
-Replace `getEmbeddings()` in `judges/trial-consistency.ts` with your preferred embedding API. The judge expects vectors as `number[][]` — any embedding dimension works.
+Replace `getEmbeddings()` in `graders/trial-consistency.ts` with your preferred embedding API. The grader expects vectors as `number[][]` — any embedding dimension works.
 
 ### Integration with Trial Execution
 
@@ -86,19 +86,19 @@ const outputs = Array.from({ length: 5 }, () =>
   execSync('bun agentv eval ... --json').toString()
 );
 
-// Pass to consistency judge via config
+// Pass to consistency grader via config
 const config = { trialOutputs: outputs };
 ```
 
 ### Threshold-Based Pass/Fail
 
-Wrap the judge in an assertion that enforces a minimum consistency threshold:
+Wrap the grader in an assertion that enforces a minimum consistency threshold:
 
 ```yaml
 assertions:
   - name: trial-consistency
-    type: code-judge
-    command: ["bun", "run", "../judges/trial-consistency.ts"]
+    type: code-grader
+    command: ["bun", "run", "../graders/trial-consistency.ts"]
     config:
       trialOutputs: [...]
 ```

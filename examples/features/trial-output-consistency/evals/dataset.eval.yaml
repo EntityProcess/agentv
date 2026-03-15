@@ -25,8 +25,8 @@ tests:
 
     assertions:
       - name: trial-consistency
-        type: code-judge
-        command: ["bun", "run", "../judges/trial-consistency.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/trial-consistency.ts"]
         config:
           fallback: token
           trialOutputs:
@@ -48,8 +48,8 @@ tests:
 
     assertions:
       - name: trial-consistency
-        type: code-judge
-        command: ["bun", "run", "../judges/trial-consistency.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/trial-consistency.ts"]
         config:
           fallback: token
           trialOutputs:
@@ -71,8 +71,8 @@ tests:
 
     assertions:
       - name: trial-consistency
-        type: code-judge
-        command: ["bun", "run", "../judges/trial-consistency.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/trial-consistency.ts"]
         config:
           fallback: token
           trialOutputs:
@@ -92,8 +92,8 @@ tests:
 
     assertions:
       - name: trial-consistency
-        type: code-judge
-        command: ["bun", "run", "../judges/trial-consistency.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/trial-consistency.ts"]
         config:
           fallback: token
           trialOutputs: []

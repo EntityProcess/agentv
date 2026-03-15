@@ -9,7 +9,7 @@
 # - Exact matching for invoice numbers and currency codes
 # - Date matching with format normalization
 # - Numeric tolerance for currency amounts
-# - Fuzzy matching via code_judge plugins
+# - Fuzzy matching via code_grader plugins
 # - Line item array validation
 #
 # EXPECTED SCORES:
@@ -48,7 +48,7 @@ assertions:
         weight: 1.0
 
       # Party information
-      # Note: For fuzzy matching (OCR variations), use code_judge with fuzzy_match.ts
+      # Note: For fuzzy matching (OCR variations), use code_grader with fuzzy_match.ts
       - path: supplier.name
         match: exact
         required: true
@@ -200,7 +200,7 @@ tests:
 
   # ============================================
   # Test Case 2: Supplier Name Spacing Variation
-  # Demonstrates fuzzy matching via code_judge with config pass-through
+  # Demonstrates fuzzy matching via code_grader with config pass-through
   # ============================================
   - id: invoice-002
     conversation_id: document-extraction
@@ -209,12 +209,12 @@ tests:
       EXPECTED GROUND TRUTH: supplier.name = "Acme Shipping" (normalized)
 
       This simulates OCR output that preserves document formatting.
-      Uses code_judge with config pass-through for multi-field fuzzy matching.
+      Uses code_grader with config pass-through for multi-field fuzzy matching.
     assertions:
       # Multi-field fuzzy match with config pass-through
       - name: party_names_fuzzy
-        type: code-judge
-        command: ["bun", "run", "../judges/multi_field_fuzzy.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/multi_field_fuzzy.ts"]
         # These properties are passed to the script via stdin config
         fields:
           - path: supplier.name
@@ -393,8 +393,8 @@ tests:
       but greedy matching correctly aligns items by description similarity.
     assertions:
       - name: line_items_matched
-        type: code-judge
-        command: ["bun", "run", "../judges/line_item_matching.ts"]
+        type: code-grader
+        command: ["bun", "run", "../graders/line_item_matching.ts"]
         match_fields: ["description"]
         score_fields: ["description", "quantity", "line_total"]
         threshold: 0.8

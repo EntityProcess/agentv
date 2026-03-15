@@ -123,7 +123,7 @@ function printTable(aggregated: Record<string, AggregatedMetrics>): void {
 
   if (fields.length === 0) {
     console.log('No metrics found in evaluation results.');
-    console.log('Make sure your code judges emit a `details.metrics` object.');
+    console.log('Make sure your code graders emit a `details.metrics` object.');
     return;
   }
 

@@ -20,7 +20,7 @@
 #
 # Legacy shorthand:
 # - args: any - validate tool name only, ignore arguments
-# Note: For pattern/regex matching, use a code_judge evaluator instead.
+# Note: For pattern/regex matching, use a code_grader evaluator instead.
 #
 # This demo uses a CLI provider (mock-agent.ts) that simulates an agent with tool usage.
 # The mock agent generates different traces based on the prompt content.

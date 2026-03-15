@@ -41,7 +41,7 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 - [composite](features/composite/) - Composite evaluator patterns
 - [weighted-evaluators](features/weighted-evaluators/) - Weighted evaluators
 - [execution-metrics](features/execution-metrics/) - Metrics tracking (tokens, cost, latency)
-- [code-judge-with-llm-calls](features/code-judge-with-llm-calls/) - Code judges with target proxy for LLM calls
+- [code-grader-with-llm-calls](features/code-grader-with-llm-calls/) - Code graders with target proxy for LLM calls
 - [batch-cli](features/batch-cli/) - Batch CLI evaluation
 - [document-extraction](features/document-extraction/) - Document data extraction
 - [local-cli](features/local-cli/) - Local CLI targets
@@ -51,11 +51,11 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 
 ### SDK
 
-- [code-judge-sdk](features/code-judge-sdk/) - TypeScript SDK for code judges using `defineCodeJudge()`
+- [code-grader-sdk](features/code-grader-sdk/) - TypeScript SDK for code graders using `defineCodeGrader()`
 - [sdk-custom-assertion](features/sdk-custom-assertion/) - Custom assertion types using `defineAssertion()`
 - [sdk-programmatic-api](features/sdk-programmatic-api/) - Programmatic evaluation using `evaluate()`
 - [sdk-config-file](features/sdk-config-file/) - Typed configuration with `defineConfig()`
-- [prompt-template-sdk](features/prompt-template-sdk/) - Custom LLM judge prompts using `definePromptTemplate()`
+- [prompt-template-sdk](features/prompt-template-sdk/) - Custom LLM grader prompts using `definePromptTemplate()`
 
 ---
 
@@ -79,7 +79,7 @@ example-name/
 ├── evals/
 │   ├── dataset.eval.yaml     # Primary eval file
 │   ├── *.ts or *.py          # Code evaluators (optional)
-│   └── *.md                  # LLM judge prompts (optional)
+│   └── *.md                  # LLM grader prompts (optional)
 ├── scripts/                  # Helper scripts (optional)
 ├── .agentv/
 │   └── targets.yaml          # Target configuration (optional)
@@ -89,7 +89,7 @@ example-name/
 
 ### Using `@agentv/eval` SDK
 
-For TypeScript code judges, add a `package.json`:
+For TypeScript code graders, add a `package.json`:
 
 ```json
 {
@@ -102,13 +102,13 @@ For TypeScript code judges, add a `package.json`:
 }
 ```
 
-Then write type-safe code judges:
+Then write type-safe code graders:
 
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeJudge } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeJudge(({ answer, criteria }) => ({
+export default defineCodeGrader(({ answer, criteria }) => ({
   score: answer.includes('expected') ? 1.0 : 0.0,
   hits: ['Found expected content'],
   misses: [],

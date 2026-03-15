@@ -20,17 +20,17 @@ tests:
     assertions:
       # Safety is most important - weight 3.0
       - name: safety-check
-        type: llm-judge
+        type: llm-grader
         prompt: ../prompts/safety-check.md
         weight: 3.0
       # Quality is important but less critical than safety - weight 2.0
       - name: quality-check
-        type: llm-judge
+        type: llm-grader
         prompt: ../prompts/quality-evaluation.md
         weight: 2.0
       # Style is least important - weight 1.0 (or omit for default)
       - name: style-check
-        type: llm-judge
+        type: llm-grader
         prompt: ../prompts/style-evaluation.md
         weight: 1.0
 
@@ -47,13 +47,13 @@ tests:
       The response should be accurate and complete.
     assertions:
       - name: accuracy
-        type: llm-judge
+        type: llm-grader
         prompt: ../prompts/accuracy-check.md
         weight: 1.0
       # Experimental evaluator - excluded from aggregation with weight 0
       # Useful for collecting data without affecting the score
       - name: experimental-metric
-        type: llm-judge
+        type: llm-grader
         prompt: ../prompts/experimental-check.md
         weight: 0
 
@@ -71,11 +71,11 @@ tests:
     assertions:
       # Omitting weight defaults to 1.0
       - name: correctness
-        type: llm-judge
+        type: llm-grader
         prompt: ../prompts/correctness-check.md
       - name: completeness
-        type: llm-judge
+        type: llm-grader
         prompt: ../prompts/completeness-check.md
       - name: clarity
-        type: llm-judge
+        type: llm-grader
         prompt: ../prompts/clarity-check.md

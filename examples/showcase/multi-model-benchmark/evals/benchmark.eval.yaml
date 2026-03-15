@@ -25,15 +25,15 @@ execution:
 
 assertions:
   - name: accuracy
-    type: llm-judge
+    type: llm-grader
     prompt: ../prompts/accuracy-rubric.md
     weight: 3.0
   - name: completeness
-    type: llm-judge
+    type: llm-grader
     prompt: ../prompts/completeness-rubric.md
     weight: 2.0
   - name: clarity
-    type: llm-judge
+    type: llm-grader
     prompt: ../prompts/clarity-rubric.md
     weight: 1.0
 

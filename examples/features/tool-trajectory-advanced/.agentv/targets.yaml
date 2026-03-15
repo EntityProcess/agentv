@@ -8,7 +8,7 @@ targets:
 
   - name: static_trace
     provider: cli
-    judge_target: azure-llm
+    grader_target: azure-llm
     command: bun run ./cat-trace.ts --trace ./static-trace.json --prompt {PROMPT} --output {OUTPUT_FILE}
     cwd: ..
     healthcheck:

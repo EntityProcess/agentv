@@ -1,0 +1,26 @@
+description: Offline grader benchmark — setup B (alternate prompt on the same labeled export)
+execution:
+  target: fixture_replay
+
+tests:
+  - file://../fixtures/labeled-grader-export.jsonl
+
+assertions:
+  - name: grader-panel
+    type: composite
+    aggregator:
+      type: threshold
+      threshold: 0.6
+    assertions:
+      - name: grader-gpt-5-mini
+        type: llm-grader
+        target: grader_gpt_5_mini
+        prompt: ../prompts/grader-pass-fail-v2.md
+      - name: grader-claude-haiku
+        type: llm-grader
+        target: grader_claude_haiku
+        prompt: ../prompts/grader-pass-fail-v2.md
+      - name: grader-gemini-flash
+        type: llm-grader
+        target: grader_gemini_flash
+        prompt: ../prompts/grader-pass-fail-v2.md

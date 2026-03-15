@@ -1,6 +1,6 @@
 # Tool Evaluation Plugin Patterns
 
-This showcase demonstrates **plugin-based tool evaluation patterns** that complement AgentV's built-in `tool_trajectory` evaluator. These patterns are intentionally implemented as plugins (code judges) rather than built-ins because they involve domain-specific logic or semantic evaluation.
+This showcase demonstrates **plugin-based tool evaluation patterns** that complement AgentV's built-in `tool_trajectory` evaluator. These patterns are intentionally implemented as plugins (code graders) rather than built-ins because they involve domain-specific logic or semantic evaluation.
 
 ## When to Use Plugins vs Built-ins
 
@@ -16,15 +16,15 @@ This showcase demonstrates **plugin-based tool evaluation patterns** that comple
 
 ## Plugin Examples
 
-### 1. Tool Selection Evaluator (`tool-selection-judge.ts`)
+### 1. Tool Selection Evaluator (`tool-selection-grader.ts`)
 
 Evaluates whether the agent selected the **right tools** for the task. Uses heuristic matching to assess tool choices against task keywords.
 
 ```yaml
 evaluators:
   - name: tool-selection
-    type: code-judge
-    command: ["bun", "run", "scripts/tool-selection-judge.ts"]
+    type: code-grader
+    command: ["bun", "run", "scripts/tool-selection-grader.ts"]
 ```
 
 ### 2. Tool Efficiency Scorer (`efficiency-scorer.ts`)
@@ -34,7 +34,7 @@ Computes efficiency metrics and scores based on configurable thresholds. Demonst
 ```yaml
 evaluators:
   - name: efficiency
-    type: code-judge
+    type: code-grader
     command: ["bun", "run", "scripts/efficiency-scorer.ts"]
 ```
 
@@ -45,7 +45,7 @@ Compares two agent responses for tool usage quality with position bias mitigatio
 ```yaml
 evaluators:
   - name: pairwise-compare
-    type: code-judge
+    type: code-grader
     command: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
 ```
 
@@ -61,7 +61,7 @@ npx agentv eval examples/showcase/tool-evaluation-plugins/tool-eval-demo.yaml
 
 ## Input Contract
 
-All code judges receive a JSON object on stdin with:
+All code graders receive a JSON object on stdin with:
 
 ```json
 {
@@ -100,7 +100,7 @@ All code judges receive a JSON object on stdin with:
 
 ## Output Contract
 
-Code judges must output JSON with:
+Code graders must output JSON with:
 
 ```json
 {

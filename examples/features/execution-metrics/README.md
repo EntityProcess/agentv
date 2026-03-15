@@ -7,7 +7,7 @@ Demonstrates execution metrics tracking (tokens, cost, latency) in evaluations.
 - Automatic token usage tracking (input, output, cached)
 - Cost tracking in USD
 - Execution duration in milliseconds
-- Using metrics in code judges for performance evaluation
+- Using metrics in code graders for performance evaluation
 - Metrics available in evaluation results
 
 ## Running
