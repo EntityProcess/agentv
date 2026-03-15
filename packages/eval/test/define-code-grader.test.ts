@@ -5,8 +5,8 @@ import {
   type CodeGraderResult,
   CodeGraderResultSchema,
   // Backward-compat aliases
-  CodeGraderInputSchema,
-  CodeGraderResultSchema,
+  CodeJudgeInputSchema,
+  CodeJudgeResultSchema,
 } from '../src/schemas.js';
 
 describe('CodeGraderInputSchema', () => {
@@ -170,7 +170,7 @@ describe('CodeGraderResultSchema', () => {
 // Backward-compatibility: deprecated CodeJudge* aliases still work
 // ---------------------------------------------------------------------------
 
-describe('CodeGraderInputSchema (backward-compat alias)', () => {
+describe('CodeJudgeInputSchema (backward-compat alias)', () => {
   it('parses valid input via deprecated alias', () => {
     const validInput = {
       question: 'What is 2+2?',
@@ -181,7 +181,7 @@ describe('CodeGraderInputSchema (backward-compat alias)', () => {
       inputFiles: [],
       input: [{ role: 'user', content: 'What is 2+2?' }],
     };
-    const result = CodeGraderInputSchema.parse(validInput);
+    const result = CodeJudgeInputSchema.parse(validInput);
     expect(result.question).toBe('What is 2+2?');
   });
 });
