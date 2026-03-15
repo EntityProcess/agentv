@@ -1,0 +1,37 @@
+# Run-Judge Demo
+# Demonstrates code judges with `agentv eval run-judge` CLI integration.
+# Each code-judge assertion can also be run standalone:
+#   agentv eval run-judge keyword-check --agent-output "..." --agent-input "..."
+
+description: Code judges with run-judge CLI integration
+
+tests:
+  - id: capital-of-france
+    criteria: Answer correctly identifies Paris as the capital of France
+
+    input: "What is the capital of France? Answer in one concise sentence."
+
+    expected_output: "The capital of France is Paris."
+
+    assertions:
+      - name: keyword-check
+        type: code-judge
+        command: ["bun", "run", "../.agentv/judges/keyword-check.ts"]
+        description: "Checks that the answer mentions Paris and France"
+      - name: length-check
+        type: code-judge
+        command: ["bun", "run", "../.agentv/judges/length-check.ts"]
+        description: "Ensures answer is between 5 and 50 words"
+      - type: contains
+        value: "Paris"
+
+  - id: largest-planet
+    criteria: Answer correctly identifies Jupiter as the largest planet
+
+    input: "What is the largest planet in our solar system? Answer briefly."
+
+    expected_output: "Jupiter is the largest planet in our solar system."
+
+    assertions:
+      - type: contains
+        value: "Jupiter"

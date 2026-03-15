@@ -60,13 +60,29 @@ export const evalRunJudgeCommand = command({
       process.exit(1);
     }
 
-    // Build payload matching CodeEvaluator's expected format (snake_case)
+    // Build payload matching CodeEvaluator's expected format (snake_case).
+    // Include all fields that defineCodeJudge validates as required.
     const payload = JSON.stringify(
       {
         answer: resolvedOutput,
-        output: resolvedOutput,
-        input: resolvedInput,
+        output: [{ role: 'assistant', content: resolvedOutput }],
+        input: [{ role: 'user', content: resolvedInput }],
         question: resolvedInput,
+        criteria: '',
+        expected_output: [],
+        reference_answer: '',
+        guideline_files: [],
+        input_files: [],
+        trace: null,
+        token_usage: null,
+        cost_usd: null,
+        duration_ms: null,
+        start_time: null,
+        end_time: null,
+        file_changes: null,
+        workspace_path: null,
+        config: null,
+        metadata: {},
       },
       null,
       2,
