@@ -1,5 +1,5 @@
 targets:
-  - name: azure-base
+  - name: azure-llm
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
@@ -8,10 +8,9 @@ targets:
 
   - name: mock_latency_agent
     provider: cli
-    judge_target: azure-base
+    judge_target: azure-llm
     command: bun run ./mock-latency-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}
     cwd: ..
-    timeout_seconds: 30
     healthcheck:
       command: bun run ./mock-latency-agent.ts --healthcheck
       cwd: ..

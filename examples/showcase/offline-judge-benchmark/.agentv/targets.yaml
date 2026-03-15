@@ -21,7 +21,6 @@ targets:
     pi_provider: openrouter
     api_key: ${{ OPENROUTER_API_KEY }}
     model: anthropic/claude-haiku-4.5
-    timeout_seconds: 180
     system_prompt: "Return concise structured grading output only."
 
   - name: judge_gemini_flash
@@ -29,5 +28,4 @@ targets:
     pi_provider: openrouter
     api_key: ${{ OPENROUTER_API_KEY }}
     model: google/gemini-3-flash-preview
-    timeout_seconds: 180
     system_prompt: "Return concise structured grading output only."

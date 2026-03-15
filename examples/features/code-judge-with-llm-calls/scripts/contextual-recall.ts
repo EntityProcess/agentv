@@ -84,7 +84,7 @@ Extract the statements and respond with JSON only:
 }`,
     systemPrompt:
       'You are a precise statement extractor. Break down answers into distinct, verifiable claims. Output valid JSON only.',
-    target: 'gemini_base',
+    target: 'gemini-llm',
   });
 
   let statements: string[] = [];
@@ -135,7 +135,7 @@ Respond with JSON only:
 }`,
     systemPrompt:
       'You are a precise attribution verifier. Determine if statements can be logically derived from or supported by the given context. A statement is attributable if the context contains information that directly supports or implies it. Output valid JSON only.',
-    target: 'gemini_base',
+    target: 'gemini-llm',
   }));
 
   const attributionResponses = await target.invokeBatch(attributionRequests);
