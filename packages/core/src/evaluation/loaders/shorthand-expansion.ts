@@ -3,6 +3,7 @@
  *
  * Supports:
  * - `input` with string shorthand or message array
+ * - `input_files` shorthand (string input only): expands to type:file + type:text content blocks
  * - `expected_output` with string/object shorthand or message array
  */
 
@@ -86,12 +87,80 @@ export function expandExpectedOutputShorthand(
 }
 
 /**
+ * Expand `input_files` shorthand combined with a string `input` into a single user message
+ * whose content is an array of type:file blocks (one per path) followed by a type:text block.
+ *
+ * Only supported when `input` is a string. Returns undefined if:
+ * - `inputFiles` is undefined/null or not an array of strings
+ * - `inputText` is not a string (multi-turn array inputs are not supported in v1)
+ *
+ * Example YAML:
+ * ```yaml
+ * input_files:
+ *   - evals/files/sales.csv
+ * input: "Summarize the monthly trends in this CSV."
+ * ```
+ *
+ * Expands to:
+ * ```yaml
+ * input:
+ *   - role: user
+ *     content:
+ *       - type: file
+ *         value: evals/files/sales.csv
+ *       - type: text
+ *         value: "Summarize the monthly trends in this CSV."
+ * ```
+ *
+ * @param inputFiles The raw `input_files` value from YAML
+ * @param inputText The raw `input` value from YAML (must be a string)
+ * @returns Expanded message array or undefined if preconditions not met
+ */
+export function expandInputFilesShorthand(
+  inputFiles: JsonValue | undefined,
+  inputText: JsonValue | undefined,
+): TestMessage[] | undefined {
+  if (inputFiles === undefined || inputFiles === null) {
+    return undefined;
+  }
+
+  // input_files must be an array of strings
+  if (!Array.isArray(inputFiles)) {
+    return undefined;
+  }
+
+  const filePaths = inputFiles.filter((f): f is string => typeof f === 'string');
+  if (filePaths.length === 0) {
+    return undefined;
+  }
+
+  // input must be a string (multi-turn arrays not supported in v1)
+  if (typeof inputText !== 'string') {
+    return undefined;
+  }
+
+  const contentBlocks: JsonObject[] = [
+    ...filePaths.map((filePath): JsonObject => ({ type: 'file', value: filePath })),
+    { type: 'text', value: inputText },
+  ];
+
+  return [{ role: 'user', content: contentBlocks }];
+}
+
+/**
  * Resolve input from raw eval case data.
+ *
+ * When `input_files` is present alongside a string `input`, the shorthand is expanded
+ * into a user message with type:file content blocks followed by a type:text block.
+ * Otherwise, `input` is expanded via the standard shorthand rules.
  *
  * @param raw Raw eval case object from YAML/JSONL
  * @returns Resolved input messages array or undefined if none found
  */
 export function resolveInputMessages(raw: JsonObject): TestMessage[] | undefined {
+  if (raw.input_files !== undefined) {
+    return expandInputFilesShorthand(raw.input_files, raw.input);
+  }
   return expandInputShorthand(raw.input);
 }
 

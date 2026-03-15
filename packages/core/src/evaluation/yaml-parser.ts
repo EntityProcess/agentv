@@ -106,6 +106,8 @@ type RawEvalCase = JsonObject & {
   /** @deprecated Use `criteria` instead */
   readonly expected_outcome?: JsonValue;
   readonly input?: JsonValue;
+  /** Shorthand: list of file paths to prepend as type:file content blocks in the user message. */
+  readonly input_files?: JsonValue;
   readonly expected_output?: JsonValue;
   readonly execution?: JsonValue;
   readonly evaluators?: JsonValue;

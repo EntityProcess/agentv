@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 
 import {
   expandExpectedOutputShorthand,
+  expandInputFilesShorthand,
   expandInputShorthand,
   resolveExpectedMessages,
   resolveInputMessages,
@@ -118,6 +119,86 @@ describe('expandExpectedOutputShorthand', () => {
   });
 });
 
+describe('expandInputFilesShorthand', () => {
+  it('expands single file path + string input to user message with content blocks', () => {
+    const result = expandInputFilesShorthand(
+      ['evals/files/sales.csv'],
+      'Summarize the monthly trends in this CSV.',
+    );
+
+    expect(result).toEqual([
+      {
+        role: 'user',
+        content: [
+          { type: 'file', value: 'evals/files/sales.csv' },
+          { type: 'text', value: 'Summarize the monthly trends in this CSV.' },
+        ],
+      },
+    ]);
+  });
+
+  it('places multiple file blocks before the text block', () => {
+    const result = expandInputFilesShorthand(
+      ['evals/files/a.csv', 'evals/files/b.csv'],
+      'Compare these two files.',
+    );
+
+    expect(result).toEqual([
+      {
+        role: 'user',
+        content: [
+          { type: 'file', value: 'evals/files/a.csv' },
+          { type: 'file', value: 'evals/files/b.csv' },
+          { type: 'text', value: 'Compare these two files.' },
+        ],
+      },
+    ]);
+  });
+
+  it('returns undefined when input_files is undefined', () => {
+    expect(expandInputFilesShorthand(undefined, 'hello')).toBeUndefined();
+  });
+
+  it('returns undefined when input_files is null', () => {
+    expect(expandInputFilesShorthand(null, 'hello')).toBeUndefined();
+  });
+
+  it('returns undefined when input_files is not an array', () => {
+    expect(expandInputFilesShorthand('not-an-array', 'hello')).toBeUndefined();
+  });
+
+  it('returns undefined when input_files array is empty after filtering non-strings', () => {
+    expect(expandInputFilesShorthand([42, true, null], 'hello')).toBeUndefined();
+  });
+
+  it('returns undefined when input is not a string (multi-turn not supported in v1)', () => {
+    const multiTurn = [{ role: 'user', content: 'Hello' }];
+    expect(expandInputFilesShorthand(['file.csv'], multiTurn)).toBeUndefined();
+  });
+
+  it('returns undefined when input is undefined', () => {
+    expect(expandInputFilesShorthand(['file.csv'], undefined)).toBeUndefined();
+  });
+
+  it('filters non-string entries from input_files array', () => {
+    const result = expandInputFilesShorthand(
+      ['valid.csv', 42, null, 'also-valid.txt'],
+      'Analyze these files.',
+    );
+
+    expect(result).toEqual([
+      {
+        role: 'user',
+        content: [
+          { type: 'file', value: 'valid.csv' },
+          { type: 'file', value: 'also-valid.txt' },
+          { type: 'text', value: 'Analyze these files.' },
+        ],
+      },
+    ]);
+  });
+});
+
 describe('resolveInputMessages', () => {
   it('resolves input message array', () => {
     const raw = {
@@ -156,6 +237,50 @@ describe('resolveInputMessages', () => {
 
   it('returns undefined when not present', () => {
     const raw = { id: 'test' };
+
+    const result = resolveInputMessages(raw);
+
+    expect(result).toBeUndefined();
+  });
+
+  it('expands input_files shorthand with string input', () => {
+    const raw = {
+      input_files: ['evals/files/sales.csv'],
+      input: 'Summarize the monthly trends in this CSV.',
+    };
+
+    const result = resolveInputMessages(raw);
+
+    expect(result).toEqual([
+      {
+        role: 'user',
+        content: [
+          { type: 'file', value: 'evals/files/sales.csv' },
+          { type: 'text', value: 'Summarize the monthly trends in this CSV.' },
+        ],
+      },
+    ]);
+  });
+
+  it('prefers input_files expansion over plain input when input_files is present', () => {
+    const raw = {
+      input_files: ['data.csv'],
+      input: 'What does this show?',
+    };
+
+    const result = resolveInputMessages(raw);
+
+    expect(result).toHaveLength(1);
+    expect(result?.[0].role).toBe('user');
+    const content = result?.[0].content;
+    expect(Array.isArray(content)).toBe(true);
+  });
+
+  it('returns undefined when input_files is present but input is a multi-turn array', () => {
+    const raw = {
+      input_files: ['file.csv'],
+      input: [{ role: 'user', content: 'Hello' }],
+    };
 
     const result = resolveInputMessages(raw);
 
