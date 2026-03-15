@@ -211,7 +211,7 @@ describe('parseEvaluators - deterministic assertion types', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('parses type: rubrics with criteria as llm-judge', async () => {
+  it('parses type: rubrics with criteria as llm-grader', async () => {
     const evaluators = await parseEvaluators(
       {
         evaluators: [
@@ -227,7 +227,7 @@ describe('parseEvaluators - deterministic assertion types', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('llm-judge');
+    expect(evaluators?.[0].type).toBe('llm-grader');
     expect((evaluators?.[0] as LlmGraderEvaluatorConfig).rubrics).toHaveLength(1);
   });
 
@@ -447,11 +447,11 @@ describe('parseEvaluators - tool-trajectory', () => {
   });
 });
 
-describe('parseEvaluators - code-judge config pass-through', () => {
+describe('parseEvaluators - code-grader config pass-through', () => {
   let tempDir: string;
 
   beforeAll(async () => {
-    tempDir = path.join(os.tmpdir(), `agentv-test-code-judge-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `agentv-test-code-grader-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
     // Create a dummy script file
     await writeFile(path.join(tempDir, 'test_script.ts'), '// dummy script');
@@ -466,7 +466,7 @@ describe('parseEvaluators - code-judge config pass-through', () => {
       evaluators: [
         {
           name: 'fuzzy-matcher',
-          type: 'code-judge',
+          type: 'code-grader',
           script: ['bun', 'run', './test_script.ts'],
           fields: [
             { path: 'supplier.name', threshold: 0.85 },
@@ -498,8 +498,8 @@ describe('parseEvaluators - code-judge config pass-through', () => {
     const rawEvalCase = {
       evaluators: [
         {
-          name: 'simple-judge',
-          type: 'code-judge',
+          name: 'simple-grader',
+          type: 'code-grader',
           script: ['bun', 'run', './test_script.ts'],
         },
       ],
@@ -518,7 +518,7 @@ describe('parseEvaluators - code-judge config pass-through', () => {
       evaluators: [
         {
           name: 'with-weight',
-          type: 'code-judge',
+          type: 'code-grader',
           script: ['bun', 'run', './test_script.ts'],
           cwd: tempDir,
           weight: 2.0,
@@ -540,7 +540,7 @@ describe('parseEvaluators - code-judge config pass-through', () => {
       evaluators: [
         {
           name: 'legacy-script',
-          type: 'code-judge',
+          type: 'code-grader',
           script: './test_script.ts',
         },
       ],
@@ -566,9 +566,9 @@ describe('parseEvaluators - kebab-case type normalization', () => {
       evaluators: [
         {
           name: 'kebab-llm',
-          type: 'llm-judge',
+          type: 'llm-grader',
           prompt: 'test prompt',
-          target: 'judge-low-cost-a',
+          target: 'grader-low-cost-a',
         },
       ],
     };
@@ -576,16 +576,16 @@ describe('parseEvaluators - kebab-case type normalization', () => {
     const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
 
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('llm-judge');
-    expect((evaluators?.[0] as LlmGraderEvaluatorConfig).target).toBe('judge-low-cost-a');
+    expect(evaluators?.[0].type).toBe('llm-grader');
+    expect((evaluators?.[0] as LlmGraderEvaluatorConfig).target).toBe('grader-low-cost-a');
   });
 
-  it('accepts code-judge kebab-case as canonical form', async () => {
+  it('accepts code-grader kebab-case as canonical form', async () => {
     const rawEvalCase = {
       evaluators: [
         {
           name: 'kebab-code',
-          type: 'code-judge',
+          type: 'code-grader',
           script: ['bun', 'run', './test_script.ts'],
         },
       ],
@@ -594,7 +594,7 @@ describe('parseEvaluators - kebab-case type normalization', () => {
     const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
 
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('code-judge');
+    expect(evaluators?.[0].type).toBe('code-grader');
   });
 
   it('accepts is-json kebab-case as canonical form', async () => {
@@ -654,7 +654,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
       evaluators: [
         {
           name: 'correctness',
-          type: 'llm-judge',
+          type: 'llm-grader',
           rubrics: [
             {
               id: 'accuracy',
@@ -692,7 +692,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
       evaluators: [
         {
           name: 'overlapping',
-          type: 'llm-judge',
+          type: 'llm-grader',
           rubrics: [
             {
               id: 'test',
@@ -716,7 +716,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
       evaluators: [
         {
           name: 'incomplete',
-          type: 'llm-judge',
+          type: 'llm-grader',
           rubrics: [
             {
               id: 'test',
@@ -740,7 +740,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
       evaluators: [
         {
           name: 'legacy',
-          type: 'llm-judge',
+          type: 'llm-grader',
           rubrics: [
             {
               id: 'r1',
@@ -770,7 +770,7 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
       evaluators: [
         {
           name: 'shorthand-test',
-          type: 'llm-judge',
+          type: 'llm-grader',
           rubrics: [
             {
               id: 'accuracy',
@@ -823,7 +823,7 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
       evaluators: [
         {
           name: 'bad-start',
-          type: 'llm-judge',
+          type: 'llm-grader',
           rubrics: [
             {
               id: 'test',
@@ -848,7 +848,7 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
       evaluators: [
         {
           name: 'array-format',
-          type: 'llm-judge',
+          type: 'llm-grader',
           rubrics: [
             {
               id: 'accuracy',
@@ -1390,7 +1390,7 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('llm-judge');
+    expect(evaluators?.[0].type).toBe('llm-grader');
     expect((evaluators?.[0] as LlmGraderEvaluatorConfig).rubrics).toHaveLength(2);
     expect((evaluators?.[0] as LlmGraderEvaluatorConfig).weight).toBe(4.0);
   });
@@ -1534,13 +1534,13 @@ describe('parseEvaluators - required field', () => {
     expect(config.required).toBe(true);
   });
 
-  it('parses required on code-judge evaluator', async () => {
+  it('parses required on code-grader evaluator', async () => {
     const evaluators = await parseEvaluators(
       {
         evaluators: [
           {
             name: 'code-check',
-            type: 'code-judge',
+            type: 'code-grader',
             script: ['bun', 'run', './test_script.ts'],
             required: true,
           },
@@ -1555,10 +1555,10 @@ describe('parseEvaluators - required field', () => {
     expect(config.required).toBe(true);
   });
 
-  it('parses required on llm-judge evaluator', async () => {
+  it('parses required on llm-grader evaluator', async () => {
     const evaluators = await parseEvaluators(
       {
-        evaluators: [{ name: 'judge', type: 'llm-judge', required: 0.7 }],
+        evaluators: [{ name: 'grader', type: 'llm-grader', required: 0.7 }],
       },
       undefined,
       [tempDir],
@@ -1597,7 +1597,7 @@ describe('parseEvaluators - composite assertions field', () => {
   beforeAll(async () => {
     tempDir = path.join(os.tmpdir(), `agentv-test-composite-assert-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
-    // Create dummy prompt files for llm-judge members (must include required template fields)
+    // Create dummy prompt files for llm-grader members (must include required template fields)
     await writeFile(path.join(tempDir, 'safety.md'), 'Evaluate safety of {{ answer }}');
     await writeFile(path.join(tempDir, 'quality.md'), 'Evaluate quality of {{ answer }}');
   });
@@ -1614,8 +1614,8 @@ describe('parseEvaluators - composite assertions field', () => {
             name: 'combined',
             type: 'composite',
             assertions: [
-              { name: 'safety', type: 'llm-judge', prompt: './safety.md' },
-              { name: 'quality', type: 'llm-judge', prompt: './quality.md' },
+              { name: 'safety', type: 'llm-grader', prompt: './safety.md' },
+              { name: 'quality', type: 'llm-grader', prompt: './quality.md' },
             ],
             aggregator: { type: 'weighted_average' },
           },
@@ -1637,8 +1637,8 @@ describe('parseEvaluators - composite assertions field', () => {
             name: 'combined',
             type: 'composite',
             evaluators: [
-              { name: 'safety', type: 'llm-judge', prompt: './safety.md' },
-              { name: 'quality', type: 'llm-judge', prompt: './quality.md' },
+              { name: 'safety', type: 'llm-grader', prompt: './safety.md' },
+              { name: 'quality', type: 'llm-grader', prompt: './quality.md' },
             ],
             aggregator: { type: 'weighted_average' },
           },
@@ -1659,8 +1659,8 @@ describe('parseEvaluators - composite assertions field', () => {
           {
             name: 'combined',
             type: 'composite',
-            assertions: [{ name: 'safety', type: 'llm-judge', prompt: './safety.md' }],
-            evaluators: [{ name: 'quality', type: 'llm-judge', prompt: './quality.md' }],
+            assertions: [{ name: 'safety', type: 'llm-grader', prompt: './safety.md' }],
+            evaluators: [{ name: 'quality', type: 'llm-grader', prompt: './quality.md' }],
             aggregator: { type: 'weighted_average' },
           },
         ],
@@ -1723,7 +1723,7 @@ describe('parseEvaluators - string shorthand in assertions', () => {
 
     expect(evaluators).toHaveLength(2);
     // First: rubrics (at position of first string)
-    expect(evaluators?.[0].type).toBe('llm-judge');
+    expect(evaluators?.[0].type).toBe('llm-grader');
     expect((evaluators?.[0] as LlmGraderEvaluatorConfig).rubrics).toHaveLength(2);
     expect((evaluators?.[0] as LlmGraderEvaluatorConfig).rubrics?.[0].outcome).toBe(
       'Mentions divide-and-conquer approach',
@@ -1744,7 +1744,7 @@ describe('parseEvaluators - string shorthand in assertions', () => {
     );
 
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('llm-judge');
+    expect(evaluators?.[0].type).toBe('llm-grader');
     expect((evaluators?.[0] as LlmGraderEvaluatorConfig).rubrics).toHaveLength(1);
     expect((evaluators?.[0] as LlmGraderEvaluatorConfig).rubrics?.[0].outcome).toBe(
       'Response must be polite',

@@ -38,7 +38,7 @@ function makeFullResult(overrides: Partial<EvaluationResult> = {}): EvaluationRe
 function makeEvaluatorResult(overrides: Partial<EvaluatorResult> = {}): EvaluatorResult {
   return {
     name: 'test-evaluator',
-    type: 'llm-judge',
+    type: 'llm-grader',
     score: 0.9,
     weight: 1,
     verdict: 'pass',
@@ -91,7 +91,7 @@ describe('trimBaselineResult', () => {
     expect(trimmed.scores).toHaveLength(1);
     const er = trimmed.scores?.[0];
     expect(er.name).toBe('test-evaluator');
-    expect(er.type).toBe('llm-judge');
+    expect(er.type).toBe('llm-grader');
     expect(er.score).toBe(0.9);
     expect(er.weight).toBe(1);
     expect(er.verdict).toBe('pass');

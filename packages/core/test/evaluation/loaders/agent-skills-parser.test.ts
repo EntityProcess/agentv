@@ -91,23 +91,23 @@ describe('parseAgentSkillsEvals', () => {
     );
   });
 
-  it('promotes assertions to llm-judge evaluators', () => {
+  it('promotes assertions to llm-grader evaluators', () => {
     const tests = parseAgentSkillsEvals(FIXTURE);
     const assertions = tests[0].assertions;
     expect(assertions).toHaveLength(3);
     expect(assertions?.[0]).toEqual({
       name: 'assertion-1',
-      type: 'llm-judge',
+      type: 'llm-grader',
       prompt: 'Output includes a bar chart image file',
     });
     expect(assertions?.[1]).toEqual({
       name: 'assertion-2',
-      type: 'llm-judge',
+      type: 'llm-grader',
       prompt: 'Chart shows exactly 3 months',
     });
     expect(assertions?.[2]).toEqual({
       name: 'assertion-3',
-      type: 'llm-judge',
+      type: 'llm-grader',
       prompt: 'Both axes are labeled',
     });
   });

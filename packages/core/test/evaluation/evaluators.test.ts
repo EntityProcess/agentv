@@ -512,7 +512,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('skip');
     expect(result.misses.length).toBeGreaterThan(0);
-    expect(result.misses[0]).toContain('Judge parse failure');
+    expect(result.misses[0]).toContain('Grader parse failure');
   });
 
   it('returns skip verdict when score-range rubric mode receives malformed JSON', async () => {
@@ -551,7 +551,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('skip');
     expect(result.misses.length).toBeGreaterThan(0);
-    expect(result.misses[0]).toContain('Judge parse failure');
+    expect(result.misses[0]).toContain('Grader parse failure');
   });
 
   it('emits stderr warning on grader parse failure', async () => {

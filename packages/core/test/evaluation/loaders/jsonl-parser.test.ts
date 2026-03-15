@@ -198,7 +198,7 @@ describe('loadTestsFromJsonl', () => {
 
     expect(cases).toHaveLength(1);
     expect(cases[0].assertions).toHaveLength(1);
-    expect(cases[0].assertions?.[0].type).toBe('llm-judge');
+    expect(cases[0].assertions?.[0].type).toBe('llm-grader');
     const rubricEvaluator = cases[0].assertions?.[0] as { type: string; rubrics?: unknown[] };
     expect(rubricEvaluator.rubrics).toHaveLength(2);
   });

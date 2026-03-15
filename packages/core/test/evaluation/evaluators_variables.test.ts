@@ -66,7 +66,7 @@ File Changes: {{file_changes}}
     });
 
     const evaluator = new LlmGraderEvaluator({
-      resolveJudgeProvider: async () => graderProvider,
+      resolveGraderProvider: async () => graderProvider,
       evaluatorTemplate: customPrompt,
     });
 
@@ -120,7 +120,7 @@ File Changes: {{file_changes}}
     });
 
     const evaluator = new LlmGraderEvaluator({
-      resolveJudgeProvider: async () => graderProvider,
+      resolveGraderProvider: async () => graderProvider,
       evaluatorTemplate: customPrompt,
     });
 
@@ -165,7 +165,7 @@ Expected Messages: {{ expected_output }}
     });
 
     const evaluator = new LlmGraderEvaluator({
-      resolveJudgeProvider: async () => graderProvider,
+      resolveGraderProvider: async () => graderProvider,
       evaluatorTemplate: customPrompt,
     });
 

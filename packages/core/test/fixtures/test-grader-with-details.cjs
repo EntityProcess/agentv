@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Test fixture: Code judge that emits a `details` object for passthrough testing.
+ * Test fixture: Code grader that emits a `details` object for passthrough testing.
  */
 const fs = require('node:fs');
 

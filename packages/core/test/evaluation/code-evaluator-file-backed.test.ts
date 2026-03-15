@@ -18,12 +18,12 @@ const baseTestCase: EvalTest = {
   guideline_paths: [],
   file_paths: [],
   criteria: 'Test criteria',
-  evaluator: 'code-judge',
+  evaluator: 'code-grader',
 };
 
-/** Create a judge script that echoes the received stdin payload. */
-async function createEchoJudge(dir: string): Promise<readonly string[]> {
-  const script = join(dir, 'echo-judge.js');
+/** Create a grader script that echoes the received stdin payload. */
+async function createEchoGrader(dir: string): Promise<readonly string[]> {
+  const script = join(dir, 'echo-grader.js');
   await writeFile(
     script,
     `const input = require('fs').readFileSync(0, 'utf8');
@@ -39,9 +39,9 @@ console.log(JSON.stringify({
   return [process.execPath, script];
 }
 
-/** Create a judge script that returns a fixed score. */
-async function createScoringJudge(dir: string): Promise<readonly string[]> {
-  const script = join(dir, 'score-judge.js');
+/** Create a grader script that returns a fixed score. */
+async function createScoringGrader(dir: string): Promise<readonly string[]> {
+  const script = join(dir, 'score-grader.js');
   await writeFile(
     script,
     `console.log(JSON.stringify({ score: 1.0, hits: ['ok'], misses: [] }));
@@ -63,7 +63,7 @@ describe('CodeEvaluator file-backed output', () => {
   });
 
   it('sends small output inline (no temp file)', async () => {
-    const command = await createEchoJudge(tmpDir);
+    const command = await createEchoGrader(tmpDir);
     const smallOutput = [{ role: 'assistant' as const, content: 'short response' }];
 
     const evaluator = new CodeEvaluator({ command });
@@ -73,12 +73,12 @@ describe('CodeEvaluator file-backed output', () => {
       output: smallOutput,
     });
 
-    // Should not error — judge runs successfully
+    // Should not error — grader runs successfully
     expect(result.score).toBeGreaterThanOrEqual(0);
   });
 
   it('writes large output to temp file and cleans up', async () => {
-    const command = await createScoringJudge(tmpDir);
+    const command = await createScoringGrader(tmpDir);
     // Create output > 50KB
     const largeContent = 'x'.repeat(60_000);
     const largeOutput = [{ role: 'assistant' as const, content: largeContent }];
@@ -100,7 +100,7 @@ describe('CodeEvaluator file-backed output', () => {
   });
 
   it('sends outputPath in payload for large output', async () => {
-    const command = await createEchoJudge(tmpDir);
+    const command = await createEchoGrader(tmpDir);
     const largeContent = 'x'.repeat(60_000);
     const largeOutput = [{ role: 'assistant' as const, content: largeContent }];
 
@@ -111,8 +111,8 @@ describe('CodeEvaluator file-backed output', () => {
       output: largeOutput,
     });
 
-    // The echo judge returns parsed info about the payload
-    // We can't inspect the payload directly, but the judge script should run without error
+    // The echo grader returns parsed info about the payload
+    // We can't inspect the payload directly, but the grader script should run without error
     expect(result.score).toBeGreaterThanOrEqual(0);
   });
 });

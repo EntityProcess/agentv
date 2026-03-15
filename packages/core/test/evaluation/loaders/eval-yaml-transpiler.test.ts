@@ -226,7 +226,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions).toContain('Output is valid JSON');
   });
 
-  it('converts llm-judge prompt to NL', () => {
+  it('converts llm-grader prompt to NL', () => {
     const suite = {
       tests: [
         {
@@ -234,7 +234,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           input: 'test',
           assertions: [
             { type: 'skill-trigger', skill: 's', should_trigger: true },
-            { type: 'llm-judge', prompt: 'The answer is clear and concise' },
+            { type: 'llm-grader', prompt: 'The answer is clear and concise' },
           ],
         },
       ],
@@ -244,7 +244,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions).toContain('The answer is clear and concise');
   });
 
-  it('converts llm-judge with rubrics to multiple assertions (rubrics variant)', () => {
+  it('converts llm-grader with rubrics to multiple assertions (rubrics variant)', () => {
     const suite = {
       tests: [
         {
@@ -253,7 +253,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           assertions: [
             { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
-              type: 'llm-judge',
+              type: 'llm-grader',
               rubrics: [
                 { id: 'r1', outcome: 'Correct result returned' },
                 { id: 'r2', outcome: 'No unnecessary steps' },
@@ -269,7 +269,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions).toContain('No unnecessary steps');
   });
 
-  it('converts llm-judge with rubrics to multiple assertions', () => {
+  it('converts llm-grader with rubrics to multiple assertions', () => {
     const suite = {
       tests: [
         {
@@ -278,7 +278,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           assertions: [
             { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
-              type: 'llm-judge',
+              type: 'llm-grader',
               rubrics: [
                 { id: 'r1', outcome: 'Response is accurate' },
                 { id: 'r2', outcome: 'Formatting is correct' },
@@ -315,7 +315,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions).toContain('Agent called tools in order: read_file, write_file');
   });
 
-  it('converts code-judge with name to assert instruction', () => {
+  it('converts code-grader with name to assert instruction', () => {
     const suite = {
       tests: [
         {
@@ -324,7 +324,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           assertions: [
             { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
-              type: 'code-judge',
+              type: 'code-grader',
               name: 'skill-trigger',
               description: 'Checks skill was triggered',
             },
@@ -337,7 +337,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions[0]).toContain('agentv eval assert skill-trigger');
   });
 
-  it('converts code-judge to agentv assert instruction with description', () => {
+  it('converts code-grader to agentv assert instruction with description', () => {
     const suite = {
       tests: [
         {
@@ -346,10 +346,10 @@ describe('transpileEvalYaml — NL assertions', () => {
           assertions: [
             { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
-              type: 'code-judge',
+              type: 'code-grader',
               name: 'format-checker',
               description: 'Validates output CSV format',
-              command: ['bun', 'run', '.agentv/judges/format-checker.ts'],
+              command: ['bun', 'run', '.agentv/graders/format-checker.ts'],
             },
           ],
         },
@@ -363,7 +363,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions[0]).toContain('Validates output CSV format');
   });
 
-  it('derives judge name from command when code-judge has no name', () => {
+  it('derives grader name from command when code-grader has no name', () => {
     const suite = {
       tests: [
         {
@@ -372,8 +372,8 @@ describe('transpileEvalYaml — NL assertions', () => {
           assertions: [
             { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
-              type: 'code-judge',
-              command: ['bun', 'run', '.agentv/judges/output-validator.ts'],
+              type: 'code-grader',
+              command: ['bun', 'run', '.agentv/graders/output-validator.ts'],
             },
           ],
         },
@@ -394,7 +394,7 @@ describe('transpileEvalYaml — NL assertions', () => {
             { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
               type: 'custom-validator',
-              command: ['bun', 'run', '.agentv/judges/custom-validator.ts'],
+              command: ['bun', 'run', '.agentv/graders/custom-validator.ts'],
             },
           ],
         },
