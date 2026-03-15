@@ -183,15 +183,13 @@ grep AGENT_EVAL_MODE .env 2>/dev/null || echo "AGENT_EVAL_MODE=agent"
 | `AGENT_EVAL_MODE` | Mode | How |
 |-------------------|------|-----|
 | `cli` | **AgentV CLI** | `agentv eval <path>` — end-to-end, EVAL.yaml |
-| `agent` (default) | **Agent mode** | `python scripts/run_eval.py` (calls `claude -p` today; will use `agentv prompt eval` in future) |
+| `agent` (default) | **Agent mode** | `python scripts/run_eval.py` (calls `claude -p`) |
 
 Set `AGENT_EVAL_MODE` in `.env` at the project root. If absent, default to `agent`.
 
 **`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Best for EVAL.yaml evals when `agentv` is installed.
 
-**`agent`** — `run_eval.py` runs each test case via `claude -p` and captures outputs for grading. Will migrate to `agentv prompt eval` accessors + subagents once issue #599 lands.
-
-> Note: `AGENT_EVAL_MODE` replaces the deprecated `AGENTV_PROMPT_EVAL_MODE` from `agentv prompt eval --overview` (see issue #599).
+**`agent`** — `run_eval.py` runs each test case via `claude -p` and captures outputs for grading.
 
 ### Running evaluations
 
