@@ -6,7 +6,7 @@ Demonstrates a complete **multi-model × multi-metric × variability** evaluatio
 
 | Feature | How it's used |
 |---------|---------------|
-| **Targets matrix** | Every test runs against `copilot`, `claude`, and `gemini_base` |
+| **Targets matrix** | Every test runs against `copilot`, `claude`, and `gemini-llm` |
 | **Weighted evaluators** | Accuracy (3×), completeness (2×), clarity (1×) |
 | **Trials (pass@k)** | 2 trials per test to surface non-determinism |
 | **Compare workflow** | Side-by-side model comparison from result files |
@@ -26,7 +26,7 @@ multi-model-benchmark/
 
 ## Prerequisites
 
-1. Configure targets in `.agentv/targets.yaml` at the repository root. The eval references `copilot`, `claude`, and `gemini_base` — these must be defined with valid provider credentials.
+1. Configure targets in `.agentv/targets.yaml` at the repository root. The eval references `copilot`, `claude`, and `gemini-llm` — these must be defined with valid provider credentials.
 2. Install dependencies: `bun install`
 
 ## Running the Evaluation
@@ -72,7 +72,7 @@ agentv compare results.jsonl --json
 ```
 Score Matrix
 
-  Test ID                copilot  claude  gemini_base
+  Test ID                copilot  claude  gemini-llm
   ─────────────────────  ───────  ──────  ───────────
   factual-geography         0.92    0.95         0.87
   factual-science           0.88    0.91         0.85
@@ -82,8 +82,8 @@ Score Matrix
 
 Pairwise Summary:
   claude → copilot:       0 wins, 0 losses, 5 ties  (Δ -0.018)
-  claude → gemini_base:   0 wins, 0 losses, 5 ties  (Δ -0.044)
-  copilot → gemini_base:  0 wins, 0 losses, 5 ties  (Δ -0.026)
+  claude → gemini-llm:   0 wins, 0 losses, 5 ties  (Δ -0.044)
+  copilot → gemini-llm:  0 wins, 0 losses, 5 ties  (Δ -0.026)
 ```
 
 > **Note:** Actual scores will vary — LLM outputs are non-deterministic. The trials configuration helps surface this variability. Scores above are illustrative.
@@ -99,7 +99,7 @@ execution:
   targets:
     - copilot       # e.g., gpt-5-mini
     - claude        # e.g., claude-haiku
-    - gemini_base   # e.g., gemini-flash
+    - gemini-llm   # e.g., gemini-flash
 ```
 
 ### 2. Weighted Evaluators
@@ -175,7 +175,7 @@ execution:
   targets:
     - copilot
     - claude
-    - gemini_base
+    - gemini-llm
     - my_new_model    # Add here
 ```
 

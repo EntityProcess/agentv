@@ -12,7 +12,6 @@ targets:
       '
     workspace_template: ../workspace-template
     judge_target: azure_judge
-    timeout_seconds: 30
 
   # Azure OpenAI target used as judge provider for built-in agent_judge mode.
   - name: azure_judge

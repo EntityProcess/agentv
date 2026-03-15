@@ -5,7 +5,7 @@ targets:
     api_key: ${{ AZURE_OPENAI_API_KEY }}
     model: ${{ AZURE_DEPLOYMENT_NAME }}
 
-  - name: gemini_base
+  - name: gemini-llm
     provider: gemini
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
     model: ${{ GEMINI_MODEL_NAME }}
@@ -16,7 +16,6 @@ targets:
 
   - name: codex
     provider: codex
-    timeout_seconds: 180
     cwd: ${{ CODEX_WORKSPACE_DIR }}
     log_dir: ${{ CODEX_LOG_DIR }}
     log_format: json

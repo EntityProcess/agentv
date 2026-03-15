@@ -12,11 +12,11 @@ targets:
 
   - name: vscode
     provider: vscode
-    judge_target: azure-base
+    judge_target: azure-llm
 
   - name: codex
     provider: codex
-    judge_target: azure-base
+    judge_target: azure-llm
     # Uses the Codex CLI (defaults to `codex` on PATH)
     # executable: ${{ CODEX_CLI_PATH }}        # Optional: override executable path
     # args:                             # Optional additional CLI arguments
@@ -26,7 +26,6 @@ targets:
     #   - ${{ CODEX_MODEL }}
     #   - --ask-for-approval
     #   - ${{ CODEX_APPROVAL_PRESET }}
-    timeout_seconds: 180
     cwd: ${{ CODEX_WORKSPACE_DIR }}            # Where scratch workspaces are created
     log_dir: ${{ CODEX_LOG_DIR }}              # Optional: where Codex CLI stream logs are stored (defaults to ./.agentv/logs/codex)
     log_format: json                    # Optional: 'summary' (default) or 'json' for raw event logs
@@ -34,10 +33,9 @@ targets:
   # Claude - Anthropic's Claude Agent SDK
   - name: claude
     provider: claude
-    judge_target: azure-base
+    judge_target: azure-llm
     # Uses the @anthropic-ai/claude-agent-sdk
     # model: claude-sonnet-4-20250514          # Optional: override model
-    timeout_seconds: 180
     # cwd: ${{ CLAUDE_WORKSPACE_DIR }}         # Optional: working directory (defaults to process.cwd())
     # max_turns: 50                            # Optional: max conversation turns
     # max_budget_usd: 5.0                      # Optional: max cost budget in USD
@@ -49,29 +47,29 @@ targets:
     provider: vscode
     workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
     provider_batching: false
-    judge_target: azure-base
+    judge_target: azure-llm
 
   - name: vscode_insiders_projectx
     provider: vscode-insiders
     workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
     provider_batching: false
-    judge_target: azure-base
+    judge_target: azure-llm
 
-  - name: azure-base
+  - name: azure-llm
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     version: ${{ AZURE_OPENAI_API_VERSION }}
 
-  - name: gemini_base
+  - name: gemini-llm
     provider: gemini
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
     model: ${{ GEMINI_MODEL_NAME }}
 
   - name: local_cli
     provider: cli
-    judge_target: azure-base
+    judge_target: azure-llm
     # Passes the fully rendered prompt and any attached files to a local Python script
     # NOTE: Do not add quotes around {PROMPT} or {FILES} - they are already shell-escaped
     command: uv run ./mock_cli.py --prompt {PROMPT} {FILES} --output {OUTPUT_FILE}
@@ -79,6 +77,5 @@ targets:
     files_format: --file {path}
     # Optional working directory resolved from .env
     cwd: ${{ CLI_EVALS_DIR }}
-    timeout_seconds: 30
     healthcheck:
       command: uv run ./mock_cli.py --healthcheck

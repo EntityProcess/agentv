@@ -1,5 +1,5 @@
 targets:
-  - name: azure-base
+  - name: azure-llm
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
@@ -10,7 +10,6 @@ targets:
     provider: cli
     command: bun run ./mock-metrics-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}
     cwd: ..
-    timeout_seconds: 30
     healthcheck:
       command: bun run ./mock-metrics-agent.ts --healthcheck
       cwd: ..

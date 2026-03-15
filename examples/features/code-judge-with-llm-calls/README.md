@@ -213,7 +213,7 @@ const agentResponses = await target.invokeBatch(
 // Use a base LLM for simple evaluation
 const response = await target.invoke({
   question: complexAnalysisPrompt,
-  target: 'gemini_base'  // Use different target
+  target: 'gemini-llm'  // Use different target
 });
 ```
 
@@ -231,10 +231,10 @@ The `createTargetClient()` function reads these automatically.
 # From the agentv monorepo root:
 
 # Run contextual precision evaluation
-bun run agentv eval examples/features/code-judge-with-llm-calls/evals/contextual-precision.eval.yaml --target gemini_base
+agentv eval examples/features/code-judge-with-llm-calls/evals/contextual-precision.eval.yaml --target gemini-llm
 
 # Run contextual recall evaluation
-bun run agentv eval examples/features/code-judge-with-llm-calls/evals/contextual-recall.eval.yaml --target gemini_base
+agentv eval examples/features/code-judge-with-llm-calls/evals/contextual-recall.eval.yaml --target gemini-llm
 ```
 
 ### Expected Results

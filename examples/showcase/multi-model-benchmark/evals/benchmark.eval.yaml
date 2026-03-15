@@ -17,7 +17,7 @@ execution:
   targets:
     - copilot
     - claude
-    - gemini_base
+    - gemini-llm
   trials:
     count: 2
     strategy: pass_at_k

@@ -161,7 +161,7 @@ Optional sidecar YAML metadata file (`dataset.eval.yaml` alongside `dataset.json
 description: Math evaluation dataset
 dataset: math-tests
 execution:
-  target: azure-base
+  target: azure-llm
 assertions:
   - name: correctness
     type: llm-judge
@@ -182,7 +182,7 @@ agentv validate evals/my-eval.yaml
 agentv eval evals/my-eval.yaml
 
 # Override target
-agentv eval --target azure-base evals/**/*.yaml
+agentv eval --target azure-llm evals/**/*.yaml
 
 # Run specific test
 agentv eval --test-id case-123 evals/my-eval.yaml
@@ -381,7 +381,7 @@ Define execution targets in `.agentv/targets.yaml` to decouple evals from provid
 
 ```yaml
 targets:
-  - name: azure-base
+  - name: azure-llm
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
@@ -389,12 +389,12 @@ targets:
 
   - name: vscode_dev
     provider: vscode
-    judge_target: azure-base
+    judge_target: azure-llm
 
   - name: local_agent
     provider: cli
     command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
-    judge_target: azure-base
+    judge_target: azure-llm
 ```
 
 Supports: `azure`, `anthropic`, `gemini`, `codex`, `copilot`, `pi-coding-agent`, `claude`, `vscode`, `vscode-insiders`, `cli`, and `mock`.
@@ -466,10 +466,10 @@ targets:
   # Agent target — requires judge_target for LLM-based evaluation
   - name: codex_local
     provider: codex
-    judge_target: azure-base  # Required: LLM provider for judging
+    judge_target: azure-llm  # Required: LLM provider for judging
 
   # LLM target — no judge_target needed (judges itself)
-  - name: azure-base
+  - name: azure-llm
     provider: azure
 ```
 
@@ -530,7 +530,7 @@ Configure automatic retry with exponential backoff:
 
 ```yaml
 targets:
-  - name: azure-base
+  - name: azure-llm
     provider: azure
     max_retries: 5
     retry_initial_delay_ms: 2000

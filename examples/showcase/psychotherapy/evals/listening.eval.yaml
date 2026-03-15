@@ -3,7 +3,7 @@ description: |-
   TIER 1: Basic capability (Explicit Content & Emotion).
   TIER 2: Advanced capability (Implicit Process, Somatization, & Resistance).
 execution:
-  target: gemini_base
+  target: gemini-llm
 
 assertions:
   - name: json_schema_validator

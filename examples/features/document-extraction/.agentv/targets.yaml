@@ -9,7 +9,6 @@ targets:
     # {OUTPUT_FILE} is the temporary file path where output should be written
     command: bun run ../mock_extractor.ts {FILES} {OUTPUT_FILE}
 
-    timeout_seconds: 30
 
     healthcheck:
       command: bun --version

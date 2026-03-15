@@ -10,7 +10,6 @@ targets:
       '
     workspace_template: ../workspace-template
     judge_target: azure_judge
-    timeout_seconds: 30
 
   # Azure OpenAI — used as LLM judge (rubrics) and built-in agent_judge provider
   - name: azure_judge
@@ -24,4 +23,3 @@ targets:
   - name: copilot_judge
     provider: copilot-cli
     model: claude-haiku-4.5
-    timeout_seconds: 120

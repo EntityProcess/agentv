@@ -9,4 +9,3 @@ targets:
       echo "Implemented add, multiply, and fibonacci functions." > {OUTPUT_FILE}
       '
     workspace_template: ../workspace-template
-    timeout_seconds: 30
