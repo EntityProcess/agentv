@@ -1,23 +1,23 @@
 /**
- * Runtime for code judge evaluators.
+ * Runtime for code grader evaluators.
  * Handles stdin parsing, validation, error handling, and output formatting.
  */
 import { readFileSync } from 'node:fs';
 
 import { toCamelCaseDeep } from './case-conversion.js';
 import {
-  type CodeJudgeInput,
-  CodeJudgeInputSchema,
-  type CodeJudgeResult,
-  CodeJudgeResultSchema,
+  type CodeGraderInput,
+  CodeGraderInputSchema,
+  type CodeGraderResult,
+  CodeGraderResultSchema,
 } from './schemas.js';
 
 /**
- * Handler function type for code judges.
+ * Handler function type for code graders.
  */
-export type CodeJudgeHandler = (
-  input: CodeJudgeInput,
-) => CodeJudgeResult | Promise<CodeJudgeResult>;
+export type CodeGraderHandler = (
+  input: CodeGraderInput,
+) => CodeGraderResult | Promise<CodeGraderResult>;
 
 /**
  * Read stdin synchronously (works in both Node.js and Bun).
@@ -47,10 +47,10 @@ function formatError(error: unknown): string {
 }
 
 /**
- * Run a code judge handler with full stdin/stdout handling.
- * This is the internal implementation called by defineCodeJudge.
+ * Run a code grader handler with full stdin/stdout handling.
+ * This is the internal implementation called by defineCodeGrader.
  */
-export async function runCodeJudge(handler: CodeJudgeHandler): Promise<void> {
+export async function runCodeGrader(handler: CodeGraderHandler): Promise<void> {
   try {
     // 1. Read stdin
     const stdin = readStdin();
@@ -62,11 +62,11 @@ export async function runCodeJudge(handler: CodeJudgeHandler): Promise<void> {
     const camelInput = toCamelCaseDeep(rawInput);
 
     // 4. Validate input with Zod
-    const input = CodeJudgeInputSchema.parse(camelInput);
+    const input = CodeGraderInputSchema.parse(camelInput);
 
     // 5. Set up lazy file-backed output loading if applicable
     if (input.outputPath && (input.output === null || input.output === undefined)) {
-      let cachedOutput: CodeJudgeInput['output'] | undefined;
+      let cachedOutput: CodeGraderInput['output'] | undefined;
       const filePath = input.outputPath;
       Object.defineProperty(input, 'output', {
         get() {
@@ -84,7 +84,7 @@ export async function runCodeJudge(handler: CodeJudgeHandler): Promise<void> {
     const rawResult = await handler(input);
 
     // 7. Validate and normalize output
-    const result = CodeJudgeResultSchema.parse({
+    const result = CodeGraderResultSchema.parse({
       ...rawResult,
       score: clampScore(rawResult.score),
     });
@@ -94,7 +94,7 @@ export async function runCodeJudge(handler: CodeJudgeHandler): Promise<void> {
   } catch (error) {
     // Output failure result
     const errorMessage = formatError(error);
-    const errorResult: CodeJudgeResult = {
+    const errorResult: CodeGraderResult = {
       score: 0,
       hits: [],
       misses: [errorMessage],
@@ -104,3 +104,9 @@ export async function runCodeJudge(handler: CodeJudgeHandler): Promise<void> {
     process.exit(1);
   }
 }
+
+// ── Backward-compat aliases (deprecated) ────────────────────────────────────────
+/** @deprecated Use CodeGraderHandler */
+export type CodeJudgeHandler = CodeGraderHandler;
+/** @deprecated Use runCodeGrader */
+export const runCodeJudge = runCodeGrader;

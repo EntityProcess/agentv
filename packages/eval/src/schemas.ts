@@ -1,5 +1,5 @@
 /**
- * Zod schemas for code judge input/output validation.
+ * Zod schemas for code grader input/output validation.
  * Provides both compile-time types and runtime validation.
  */
 import { z } from 'zod';
@@ -53,9 +53,9 @@ export const MessageSchema = z.object({
 });
 
 /**
- * Code judge input schema (camelCase, converted from snake_case wire format).
+ * Code grader input schema (camelCase, converted from snake_case wire format).
  */
-export const CodeJudgeInputSchema = z.object({
+export const CodeGraderInputSchema = z.object({
   question: z.string(),
   criteria: z.string(),
   expectedOutput: z.array(MessageSchema),
@@ -79,9 +79,9 @@ export const CodeJudgeInputSchema = z.object({
 });
 
 /**
- * Code judge result schema (validated before output).
+ * Code grader result schema (validated before output).
  */
-export const CodeJudgeResultSchema = z.object({
+export const CodeGraderResultSchema = z.object({
   score: z.number().min(0).max(1),
   hits: z.array(z.string()).optional().default([]),
   misses: z.array(z.string()).optional().default([]),
@@ -93,8 +93,8 @@ export const CodeJudgeResultSchema = z.object({
 /**
  * Inferred types from schemas.
  */
-export type CodeJudgeInput = z.infer<typeof CodeJudgeInputSchema>;
-export type CodeJudgeResult = z.infer<typeof CodeJudgeResultSchema>;
+export type CodeGraderInput = z.infer<typeof CodeGraderInputSchema>;
+export type CodeGraderResult = z.infer<typeof CodeGraderResultSchema>;
 export type TraceSummary = z.infer<typeof TraceSummarySchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type ToolCall = z.infer<typeof ToolCallSchema>;
@@ -102,8 +102,18 @@ export type TokenUsage = z.infer<typeof TokenUsageSchema>;
 
 /**
  * Prompt template input schema (camelCase, converted from snake_case wire format).
- * Uses the same schema as CodeJudgeInput since the orchestrator sends identical payloads.
+ * Uses the same schema as CodeGraderInput since the orchestrator sends identical payloads.
  */
-export const PromptTemplateInputSchema = CodeJudgeInputSchema;
+export const PromptTemplateInputSchema = CodeGraderInputSchema;
 
-export type PromptTemplateInput = CodeJudgeInput;
+export type PromptTemplateInput = CodeGraderInput;
+
+// ── Backward-compat aliases (deprecated) ────────────────────────────────────────
+/** @deprecated Use CodeGraderInputSchema */
+export const CodeJudgeInputSchema = CodeGraderInputSchema;
+/** @deprecated Use CodeGraderResultSchema */
+export const CodeJudgeResultSchema = CodeGraderResultSchema;
+/** @deprecated Use CodeGraderInput */
+export type CodeJudgeInput = CodeGraderInput;
+/** @deprecated Use CodeGraderResult */
+export type CodeJudgeResult = CodeGraderResult;
