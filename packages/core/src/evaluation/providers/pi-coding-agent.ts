@@ -99,6 +99,24 @@ export class PiCodingAgentProvider implements Provider {
       const output = extractMessages(parsed);
       const tokenUsage = extractTokenUsage(parsed);
 
+      // Emit stream callbacks for OTEL trace export (post-hoc from parsed output)
+      if (request.streamCallbacks) {
+        for (const msg of output) {
+          if (msg.toolCalls) {
+            for (const tc of msg.toolCalls) {
+              request.streamCallbacks.onToolCallEnd?.(
+                tc.tool,
+                tc.input,
+                tc.output,
+                tc.durationMs ?? 0,
+                tc.id,
+              );
+            }
+          }
+        }
+        request.streamCallbacks.onLlmCallEnd?.(this.config.model ?? 'pi', tokenUsage);
+      }
+
       const endTime = new Date().toISOString();
       const durationMs = Date.now() - startMs;
 
