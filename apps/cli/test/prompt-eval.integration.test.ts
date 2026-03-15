@@ -118,6 +118,30 @@ describe('agentv prompt eval CLI', () => {
     }
   });
 
+  it('returns human-readable grading brief via --grading-brief', async () => {
+    const fixture = await createFixture();
+    try {
+      const result = await runPromptCli(fixture, [
+        'prompt',
+        'eval',
+        '--grading-brief',
+        fixture.evalPath,
+        '--test-id',
+        'greeting-test',
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Input:');
+      expect(result.stdout).toContain('Say hello to Taylor.');
+      expect(result.stdout).toContain('Expected:');
+      expect(result.stdout).toContain('Hello, Taylor!');
+      expect(result.stdout).toContain('Criteria:');
+      expect(result.stdout).toContain('Taylor');
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  });
+
   it('returns expected output and evaluator context for a specific test', async () => {
     const fixture = await createFixture();
     try {

@@ -65,6 +65,85 @@ export async function getPromptEvalExpectedOutput(
   };
 }
 
+export async function getPromptEvalGradingBrief(
+  evalPath: string,
+  testId: string,
+): Promise<string> {
+  const repoRoot = await findRepoRoot(process.cwd());
+  const evalCase = await loadTestById(evalPath, repoRoot, testId);
+  const fileMap = buildFileMap(evalCase.input_segments, evalCase.file_paths);
+  const resolvedInput = resolveMessages(evalCase.input, fileMap);
+
+  const lines: string[] = [];
+
+  // Input
+  const inputText = extractTextFromMessages(resolvedInput);
+  if (inputText) {
+    lines.push(`Input: "${inputText}"`);
+  }
+
+  // Files (exclude guidelines)
+  const filePaths = evalCase.file_paths.filter(
+    (p) => !evalCase.guideline_paths.includes(p),
+  );
+  if (filePaths.length > 0) {
+    lines.push(`Files: ${filePaths.join(', ')}`);
+  }
+
+  // Expected output
+  if (evalCase.reference_answer) {
+    lines.push(`Expected: "${evalCase.reference_answer}"`);
+  }
+
+  // Criteria
+  const criteria: string[] = [];
+  if (evalCase.criteria) {
+    criteria.push(evalCase.criteria);
+  }
+  for (const assertion of evalCase.assertions ?? []) {
+    const config = assertion as Record<string, unknown>;
+    const type = config.type as string | undefined;
+    if (type === 'contains') {
+      criteria.push(`Output contains '${config.value}'`);
+    } else if (type === 'rubrics' && typeof config.criteria === 'string') {
+      criteria.push(config.criteria);
+    } else if (type === 'llm-judge' || type === 'llm_judge') {
+      criteria.push(`[llm-judge] ${config.prompt ?? config.criteria}`);
+    } else if (type === 'code-judge' || type === 'code_judge') {
+      const name = config.name ?? type;
+      criteria.push(`[code-judge] ${name}${config.description ? `: ${config.description}` : ''}`);
+    } else if (type === 'skill-trigger') {
+      const trigger = config.should_trigger !== false;
+      criteria.push(`[skill-trigger] should_trigger: ${trigger} for ${config.skill}`);
+    } else if (type) {
+      criteria.push(`[${type}] ${config.value ?? config.criteria ?? config.prompt ?? ''}`);
+    }
+  }
+
+  if (criteria.length > 0) {
+    lines.push('Criteria:');
+    for (const c of criteria) {
+      lines.push(`  - ${c}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+function extractTextFromMessages(messages: JsonObject[]): string {
+  for (const msg of messages) {
+    if (msg.role !== 'user') continue;
+    if (typeof msg.content === 'string') return msg.content;
+    if (Array.isArray(msg.content)) {
+      const textBlocks = (msg.content as JsonObject[])
+        .filter((b) => b.type === 'text')
+        .map((b) => b.value as string);
+      if (textBlocks.length > 0) return textBlocks.join(' ');
+    }
+  }
+  return '';
+}
+
 /**
  * Build a mapping from relative file names to resolved absolute paths.
  * Uses input_segments (which have resolvedPath) as the primary source,
