@@ -25,7 +25,8 @@ export type ProviderKind =
   | 'cli'
   | 'mock'
   | 'vscode'
-  | 'vscode-insiders';
+  | 'vscode-insiders'
+  | 'agentv';
 
 /**
  * Agent providers that have filesystem access and don't need unwrapped guidelines.
@@ -63,6 +64,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'mock',
   'vscode',
   'vscode-insiders',
+  'agentv',
 ] as const;
 
 /**

@@ -159,6 +159,28 @@ Unit tests alone are insufficient for evaluator changes. After implementing or m
 
 5. **Note:** `--dry-run` returns mock responses that don't match evaluator output schemas. Use it only for testing harness flow, not evaluator logic.
 
+## Completing Work — E2E Checklist
+
+Before marking any branch as ready for review, complete this checklist:
+
+1. **Copy `.env` to worktree** (if working in a git worktree):
+   ```bash
+   cp /home/christso/projects/agentv/.env .env
+   ```
+   Without this, any eval run or LLM-dependent test will fail with missing API key errors.
+
+2. **Run unit tests**: `bun run test` — all must pass.
+
+3. **Run at least one real eval** against an example file to verify end-to-end behavior:
+   ```bash
+   bun apps/cli/src/cli.ts eval examples/features/rubric/evals/dataset.eval.yaml --test-id <test-id>
+   ```
+   Inspect the output JSONL to confirm correct evaluator type, scores, and hits/misses.
+
+4. **Verify no regressions** in areas adjacent to your changes (e.g., if you changed evaluator parsing, run an eval that exercises different evaluator types).
+
+5. **Mark PR as ready** only after all above steps pass.
+
 ## Evaluator Type System
 
 Evaluator types use **kebab-case** everywhere (matching promptfoo convention):
@@ -248,6 +270,7 @@ When working on a GitHub issue, **ALWAYS** follow this workflow:
    ```
 
 4. **Before merging**, ensure:
+   - **E2E verification completed** (see "Completing Work — E2E Checklist" below)
    - CI pipeline passes (all checks green)
    - Code has been reviewed if required
    - No merge conflicts with `main`

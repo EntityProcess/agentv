@@ -248,14 +248,9 @@ const ExecutionMetricsSchema = EvaluatorCommonSchema.extend({
   exploration_tolerance: z.number().min(0).optional(),
 });
 
-const AgentJudgeSchema = EvaluatorCommonSchema.extend({
-  type: z.literal('agent_judge'),
-  prompt: z.string().optional(),
-  rubrics: z.array(RubricItemSchema).optional(),
-  max_steps: z.number().int().min(1).max(50).optional(),
-  temperature: z.number().min(0).max(2).optional(),
-  target: z.string().optional(),
-});
+// Note: agent_judge was removed — llm-judge now covers all judge use cases
+// including agentic behavior (auto-detected based on judge provider kind).
+// See LlmJudgeSchema above for the unified schema.
 
 const ContainsSchema = EvaluatorCommonSchema.extend({
   type: z.literal('contains'),
@@ -292,7 +287,6 @@ const EvaluatorSchema = z.union([
   CostSchema,
   TokenUsageSchema,
   ExecutionMetricsSchema,
-  AgentJudgeSchema,
   ContainsSchema,
   RegexSchema,
   IsJsonSchema,

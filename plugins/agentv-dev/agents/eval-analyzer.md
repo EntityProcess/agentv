@@ -28,7 +28,7 @@ If `eval-path` is provided, also read the EVAL.yaml to understand evaluator conf
 
 ### Step 2: Deterministic-Upgrade Analysis
 
-For each evaluator entry in `scores` where `type` is `"llm-judge"`, `"rubrics"`, or `"agent-judge"`, inspect the `reasoning`, `hits`, and `misses` fields for patterns that indicate a deterministic assertion would suffice:
+For each evaluator entry in `scores` where `type` is `"llm-judge"` or `"rubrics"`, inspect the `reasoning`, `hits`, and `misses` fields for patterns that indicate a deterministic assertion would suffice:
 
 | Signal | Detection | Suggested Upgrade |
 |--------|-----------|-------------------|
@@ -123,7 +123,7 @@ If a section has no findings, include the header with "None found." underneath.
 - **Be specific:** Every suggestion must include the test case ID, evaluator name, evidence from the results, and a concrete replacement config.
 - **Be conservative:** Only suggest deterministic upgrades when the pattern is clear and consistent. Partial or ambiguous evidence should be noted but not acted on.
 - **Prioritize by impact:** Order suggestions by estimated cost savings (LLM-judge → deterministic saves the most).
-- **Handle all evaluator types:** Process `code-judge`, `tool-trajectory`, `llm-judge`, `agent-judge`, `rubrics`, `composite`, and all deterministic types. Only LLM-based types are candidates for deterministic upgrades.
+- **Handle all evaluator types:** Process `code-judge`, `tool-trajectory`, `llm-judge`, `rubrics`, `composite`, and all deterministic types. Only LLM-based types are candidates for deterministic upgrades.
 - **Multi-provider awareness:** When results span multiple targets, note if a suggestion applies to all targets or is target-specific.
 - **No false positives:** It is better to miss a suggestion than to recommend an incorrect upgrade. If unsure, add the finding to a "Needs Review" subsection with your reasoning.
 

@@ -421,6 +421,16 @@
                             "config": {
                               "type": "object",
                               "additionalProperties": {}
+                            },
+                            "max_steps": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 50
+                            },
+                            "temperature": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 2
                             }
                           },
                           "required": ["type"],
@@ -925,112 +935,6 @@
                             "exploration_tolerance": {
                               "type": "number",
                               "minimum": 0
-                            }
-                          },
-                          "required": ["type"],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "name": {
-                              "type": "string"
-                            },
-                            "weight": {
-                              "type": "number",
-                              "minimum": 0
-                            },
-                            "required": {
-                              "anyOf": [
-                                {
-                                  "type": "boolean"
-                                },
-                                {
-                                  "type": "number",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 1
-                                }
-                              ]
-                            },
-                            "negate": {
-                              "type": "boolean"
-                            },
-                            "type": {
-                              "type": "string",
-                              "enum": ["agent-judge", "agent_judge"]
-                            },
-                            "prompt": {
-                              "type": "string"
-                            },
-                            "rubrics": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "outcome": {
-                                    "type": "string"
-                                  },
-                                  "weight": {
-                                    "type": "number"
-                                  },
-                                  "required": {
-                                    "type": "boolean"
-                                  },
-                                  "required_min_score": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 10
-                                  },
-                                  "score_ranges": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "object",
-                                      "properties": {
-                                        "score_range": {
-                                          "type": "array",
-                                          "minItems": 2,
-                                          "maxItems": 2,
-                                          "items": [
-                                            {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            },
-                                            {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            }
-                                          ]
-                                        },
-                                        "outcome": {
-                                          "type": "string",
-                                          "minLength": 1
-                                        }
-                                      },
-                                      "required": ["score_range", "outcome"],
-                                      "additionalProperties": false
-                                    }
-                                  }
-                                },
-                                "additionalProperties": false
-                              }
-                            },
-                            "max_steps": {
-                              "type": "integer",
-                              "minimum": 1,
-                              "maximum": 50
-                            },
-                            "temperature": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 2
-                            },
-                            "target": {
-                              "type": "string"
                             }
                           },
                           "required": ["type"],
@@ -1495,6 +1399,16 @@
                             "config": {
                               "type": "object",
                               "additionalProperties": {}
+                            },
+                            "max_steps": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 50
+                            },
+                            "temperature": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 2
                             }
                           },
                           "required": ["type"],
@@ -1999,112 +1913,6 @@
                             "exploration_tolerance": {
                               "type": "number",
                               "minimum": 0
-                            }
-                          },
-                          "required": ["type"],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "name": {
-                              "type": "string"
-                            },
-                            "weight": {
-                              "type": "number",
-                              "minimum": 0
-                            },
-                            "required": {
-                              "anyOf": [
-                                {
-                                  "type": "boolean"
-                                },
-                                {
-                                  "type": "number",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 1
-                                }
-                              ]
-                            },
-                            "negate": {
-                              "type": "boolean"
-                            },
-                            "type": {
-                              "type": "string",
-                              "enum": ["agent-judge", "agent_judge"]
-                            },
-                            "prompt": {
-                              "type": "string"
-                            },
-                            "rubrics": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "outcome": {
-                                    "type": "string"
-                                  },
-                                  "weight": {
-                                    "type": "number"
-                                  },
-                                  "required": {
-                                    "type": "boolean"
-                                  },
-                                  "required_min_score": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 10
-                                  },
-                                  "score_ranges": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "object",
-                                      "properties": {
-                                        "score_range": {
-                                          "type": "array",
-                                          "minItems": 2,
-                                          "maxItems": 2,
-                                          "items": [
-                                            {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            },
-                                            {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            }
-                                          ]
-                                        },
-                                        "outcome": {
-                                          "type": "string",
-                                          "minLength": 1
-                                        }
-                                      },
-                                      "required": ["score_range", "outcome"],
-                                      "additionalProperties": false
-                                    }
-                                  }
-                                },
-                                "additionalProperties": false
-                              }
-                            },
-                            "max_steps": {
-                              "type": "integer",
-                              "minimum": 1,
-                              "maximum": 50
-                            },
-                            "temperature": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 2
-                            },
-                            "target": {
-                              "type": "string"
                             }
                           },
                           "required": ["type"],
@@ -2569,6 +2377,16 @@
                             "config": {
                               "type": "object",
                               "additionalProperties": {}
+                            },
+                            "max_steps": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 50
+                            },
+                            "temperature": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 2
                             }
                           },
                           "required": ["type"],
@@ -3073,112 +2891,6 @@
                             "exploration_tolerance": {
                               "type": "number",
                               "minimum": 0
-                            }
-                          },
-                          "required": ["type"],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "name": {
-                              "type": "string"
-                            },
-                            "weight": {
-                              "type": "number",
-                              "minimum": 0
-                            },
-                            "required": {
-                              "anyOf": [
-                                {
-                                  "type": "boolean"
-                                },
-                                {
-                                  "type": "number",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 1
-                                }
-                              ]
-                            },
-                            "negate": {
-                              "type": "boolean"
-                            },
-                            "type": {
-                              "type": "string",
-                              "enum": ["agent-judge", "agent_judge"]
-                            },
-                            "prompt": {
-                              "type": "string"
-                            },
-                            "rubrics": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "outcome": {
-                                    "type": "string"
-                                  },
-                                  "weight": {
-                                    "type": "number"
-                                  },
-                                  "required": {
-                                    "type": "boolean"
-                                  },
-                                  "required_min_score": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 10
-                                  },
-                                  "score_ranges": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "object",
-                                      "properties": {
-                                        "score_range": {
-                                          "type": "array",
-                                          "minItems": 2,
-                                          "maxItems": 2,
-                                          "items": [
-                                            {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            },
-                                            {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            }
-                                          ]
-                                        },
-                                        "outcome": {
-                                          "type": "string",
-                                          "minLength": 1
-                                        }
-                                      },
-                                      "required": ["score_range", "outcome"],
-                                      "additionalProperties": false
-                                    }
-                                  }
-                                },
-                                "additionalProperties": false
-                              }
-                            },
-                            "max_steps": {
-                              "type": "integer",
-                              "minimum": 1,
-                              "maximum": 50
-                            },
-                            "temperature": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 2
-                            },
-                            "target": {
-                              "type": "string"
                             }
                           },
                           "required": ["type"],
@@ -3655,6 +3367,16 @@
                                 "config": {
                                   "type": "object",
                                   "additionalProperties": {}
+                                },
+                                "max_steps": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 50
+                                },
+                                "temperature": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 2
                                 }
                               },
                               "required": ["type"],
@@ -4159,112 +3881,6 @@
                                 "exploration_tolerance": {
                                   "type": "number",
                                   "minimum": 0
-                                }
-                              },
-                              "required": ["type"],
-                              "additionalProperties": false
-                            },
-                            {
-                              "type": "object",
-                              "properties": {
-                                "name": {
-                                  "type": "string"
-                                },
-                                "weight": {
-                                  "type": "number",
-                                  "minimum": 0
-                                },
-                                "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
-                                },
-                                "negate": {
-                                  "type": "boolean"
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": ["agent-judge", "agent_judge"]
-                                },
-                                "prompt": {
-                                  "type": "string"
-                                },
-                                "rubrics": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string"
-                                      },
-                                      "outcome": {
-                                        "type": "string"
-                                      },
-                                      "weight": {
-                                        "type": "number"
-                                      },
-                                      "required": {
-                                        "type": "boolean"
-                                      },
-                                      "required_min_score": {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      },
-                                      "score_ranges": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "object",
-                                          "properties": {
-                                            "score_range": {
-                                              "type": "array",
-                                              "minItems": 2,
-                                              "maxItems": 2,
-                                              "items": [
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                },
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                }
-                                              ]
-                                            },
-                                            "outcome": {
-                                              "type": "string",
-                                              "minLength": 1
-                                            }
-                                          },
-                                          "required": ["score_range", "outcome"],
-                                          "additionalProperties": false
-                                        }
-                                      }
-                                    },
-                                    "additionalProperties": false
-                                  }
-                                },
-                                "max_steps": {
-                                  "type": "integer",
-                                  "minimum": 1,
-                                  "maximum": 50
-                                },
-                                "temperature": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 2
-                                },
-                                "target": {
-                                  "type": "string"
                                 }
                               },
                               "required": ["type"],
@@ -4729,6 +4345,16 @@
                                 "config": {
                                   "type": "object",
                                   "additionalProperties": {}
+                                },
+                                "max_steps": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 50
+                                },
+                                "temperature": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 2
                                 }
                               },
                               "required": ["type"],
@@ -5233,112 +4859,6 @@
                                 "exploration_tolerance": {
                                   "type": "number",
                                   "minimum": 0
-                                }
-                              },
-                              "required": ["type"],
-                              "additionalProperties": false
-                            },
-                            {
-                              "type": "object",
-                              "properties": {
-                                "name": {
-                                  "type": "string"
-                                },
-                                "weight": {
-                                  "type": "number",
-                                  "minimum": 0
-                                },
-                                "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
-                                },
-                                "negate": {
-                                  "type": "boolean"
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": ["agent-judge", "agent_judge"]
-                                },
-                                "prompt": {
-                                  "type": "string"
-                                },
-                                "rubrics": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string"
-                                      },
-                                      "outcome": {
-                                        "type": "string"
-                                      },
-                                      "weight": {
-                                        "type": "number"
-                                      },
-                                      "required": {
-                                        "type": "boolean"
-                                      },
-                                      "required_min_score": {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      },
-                                      "score_ranges": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "object",
-                                          "properties": {
-                                            "score_range": {
-                                              "type": "array",
-                                              "minItems": 2,
-                                              "maxItems": 2,
-                                              "items": [
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                },
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                }
-                                              ]
-                                            },
-                                            "outcome": {
-                                              "type": "string",
-                                              "minLength": 1
-                                            }
-                                          },
-                                          "required": ["score_range", "outcome"],
-                                          "additionalProperties": false
-                                        }
-                                      }
-                                    },
-                                    "additionalProperties": false
-                                  }
-                                },
-                                "max_steps": {
-                                  "type": "integer",
-                                  "minimum": 1,
-                                  "maximum": 50
-                                },
-                                "temperature": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 2
-                                },
-                                "target": {
-                                  "type": "string"
                                 }
                               },
                               "required": ["type"],
@@ -5803,6 +5323,16 @@
                                 "config": {
                                   "type": "object",
                                   "additionalProperties": {}
+                                },
+                                "max_steps": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 50
+                                },
+                                "temperature": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 2
                                 }
                               },
                               "required": ["type"],
@@ -6307,112 +5837,6 @@
                                 "exploration_tolerance": {
                                   "type": "number",
                                   "minimum": 0
-                                }
-                              },
-                              "required": ["type"],
-                              "additionalProperties": false
-                            },
-                            {
-                              "type": "object",
-                              "properties": {
-                                "name": {
-                                  "type": "string"
-                                },
-                                "weight": {
-                                  "type": "number",
-                                  "minimum": 0
-                                },
-                                "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
-                                },
-                                "negate": {
-                                  "type": "boolean"
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": ["agent-judge", "agent_judge"]
-                                },
-                                "prompt": {
-                                  "type": "string"
-                                },
-                                "rubrics": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string"
-                                      },
-                                      "outcome": {
-                                        "type": "string"
-                                      },
-                                      "weight": {
-                                        "type": "number"
-                                      },
-                                      "required": {
-                                        "type": "boolean"
-                                      },
-                                      "required_min_score": {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      },
-                                      "score_ranges": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "object",
-                                          "properties": {
-                                            "score_range": {
-                                              "type": "array",
-                                              "minItems": 2,
-                                              "maxItems": 2,
-                                              "items": [
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                },
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                }
-                                              ]
-                                            },
-                                            "outcome": {
-                                              "type": "string",
-                                              "minLength": 1
-                                            }
-                                          },
-                                          "required": ["score_range", "outcome"],
-                                          "additionalProperties": false
-                                        }
-                                      }
-                                    },
-                                    "additionalProperties": false
-                                  }
-                                },
-                                "max_steps": {
-                                  "type": "integer",
-                                  "minimum": 1,
-                                  "maximum": 50
-                                },
-                                "temperature": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 2
-                                },
-                                "target": {
-                                  "type": "string"
                                 }
                               },
                               "required": ["type"],
@@ -7292,6 +6716,16 @@
                             "config": {
                               "type": "object",
                               "additionalProperties": {}
+                            },
+                            "max_steps": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 50
+                            },
+                            "temperature": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 2
                             }
                           },
                           "required": ["type"],
@@ -7796,112 +7230,6 @@
                             "exploration_tolerance": {
                               "type": "number",
                               "minimum": 0
-                            }
-                          },
-                          "required": ["type"],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "name": {
-                              "type": "string"
-                            },
-                            "weight": {
-                              "type": "number",
-                              "minimum": 0
-                            },
-                            "required": {
-                              "anyOf": [
-                                {
-                                  "type": "boolean"
-                                },
-                                {
-                                  "type": "number",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 1
-                                }
-                              ]
-                            },
-                            "negate": {
-                              "type": "boolean"
-                            },
-                            "type": {
-                              "type": "string",
-                              "enum": ["agent-judge", "agent_judge"]
-                            },
-                            "prompt": {
-                              "type": "string"
-                            },
-                            "rubrics": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "outcome": {
-                                    "type": "string"
-                                  },
-                                  "weight": {
-                                    "type": "number"
-                                  },
-                                  "required": {
-                                    "type": "boolean"
-                                  },
-                                  "required_min_score": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 10
-                                  },
-                                  "score_ranges": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "object",
-                                      "properties": {
-                                        "score_range": {
-                                          "type": "array",
-                                          "minItems": 2,
-                                          "maxItems": 2,
-                                          "items": [
-                                            {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            },
-                                            {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            }
-                                          ]
-                                        },
-                                        "outcome": {
-                                          "type": "string",
-                                          "minLength": 1
-                                        }
-                                      },
-                                      "required": ["score_range", "outcome"],
-                                      "additionalProperties": false
-                                    }
-                                  }
-                                },
-                                "additionalProperties": false
-                              }
-                            },
-                            "max_steps": {
-                              "type": "integer",
-                              "minimum": 1,
-                              "maximum": 50
-                            },
-                            "temperature": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 2
-                            },
-                            "target": {
-                              "type": "string"
                             }
                           },
                           "required": ["type"],
@@ -8366,6 +7694,16 @@
                             "config": {
                               "type": "object",
                               "additionalProperties": {}
+                            },
+                            "max_steps": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 50
+                            },
+                            "temperature": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 2
                             }
                           },
                           "required": ["type"],
@@ -8870,112 +8208,6 @@
                             "exploration_tolerance": {
                               "type": "number",
                               "minimum": 0
-                            }
-                          },
-                          "required": ["type"],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "name": {
-                              "type": "string"
-                            },
-                            "weight": {
-                              "type": "number",
-                              "minimum": 0
-                            },
-                            "required": {
-                              "anyOf": [
-                                {
-                                  "type": "boolean"
-                                },
-                                {
-                                  "type": "number",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 1
-                                }
-                              ]
-                            },
-                            "negate": {
-                              "type": "boolean"
-                            },
-                            "type": {
-                              "type": "string",
-                              "enum": ["agent-judge", "agent_judge"]
-                            },
-                            "prompt": {
-                              "type": "string"
-                            },
-                            "rubrics": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "outcome": {
-                                    "type": "string"
-                                  },
-                                  "weight": {
-                                    "type": "number"
-                                  },
-                                  "required": {
-                                    "type": "boolean"
-                                  },
-                                  "required_min_score": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 10
-                                  },
-                                  "score_ranges": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "object",
-                                      "properties": {
-                                        "score_range": {
-                                          "type": "array",
-                                          "minItems": 2,
-                                          "maxItems": 2,
-                                          "items": [
-                                            {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            },
-                                            {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            }
-                                          ]
-                                        },
-                                        "outcome": {
-                                          "type": "string",
-                                          "minLength": 1
-                                        }
-                                      },
-                                      "required": ["score_range", "outcome"],
-                                      "additionalProperties": false
-                                    }
-                                  }
-                                },
-                                "additionalProperties": false
-                              }
-                            },
-                            "max_steps": {
-                              "type": "integer",
-                              "minimum": 1,
-                              "maximum": 50
-                            },
-                            "temperature": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 2
-                            },
-                            "target": {
-                              "type": "string"
                             }
                           },
                           "required": ["type"],
@@ -9440,6 +8672,16 @@
                             "config": {
                               "type": "object",
                               "additionalProperties": {}
+                            },
+                            "max_steps": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 50
+                            },
+                            "temperature": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 2
                             }
                           },
                           "required": ["type"],
@@ -9944,112 +9186,6 @@
                             "exploration_tolerance": {
                               "type": "number",
                               "minimum": 0
-                            }
-                          },
-                          "required": ["type"],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "name": {
-                              "type": "string"
-                            },
-                            "weight": {
-                              "type": "number",
-                              "minimum": 0
-                            },
-                            "required": {
-                              "anyOf": [
-                                {
-                                  "type": "boolean"
-                                },
-                                {
-                                  "type": "number",
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 1
-                                }
-                              ]
-                            },
-                            "negate": {
-                              "type": "boolean"
-                            },
-                            "type": {
-                              "type": "string",
-                              "enum": ["agent-judge", "agent_judge"]
-                            },
-                            "prompt": {
-                              "type": "string"
-                            },
-                            "rubrics": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "outcome": {
-                                    "type": "string"
-                                  },
-                                  "weight": {
-                                    "type": "number"
-                                  },
-                                  "required": {
-                                    "type": "boolean"
-                                  },
-                                  "required_min_score": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 10
-                                  },
-                                  "score_ranges": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "object",
-                                      "properties": {
-                                        "score_range": {
-                                          "type": "array",
-                                          "minItems": 2,
-                                          "maxItems": 2,
-                                          "items": [
-                                            {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            },
-                                            {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 10
-                                            }
-                                          ]
-                                        },
-                                        "outcome": {
-                                          "type": "string",
-                                          "minLength": 1
-                                        }
-                                      },
-                                      "required": ["score_range", "outcome"],
-                                      "additionalProperties": false
-                                    }
-                                  }
-                                },
-                                "additionalProperties": false
-                              }
-                            },
-                            "max_steps": {
-                              "type": "integer",
-                              "minimum": 1,
-                              "maximum": 50
-                            },
-                            "temperature": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 2
-                            },
-                            "target": {
-                              "type": "string"
                             }
                           },
                           "required": ["type"],
@@ -10526,6 +9662,16 @@
                                 "config": {
                                   "type": "object",
                                   "additionalProperties": {}
+                                },
+                                "max_steps": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 50
+                                },
+                                "temperature": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 2
                                 }
                               },
                               "required": ["type"],
@@ -11030,112 +10176,6 @@
                                 "exploration_tolerance": {
                                   "type": "number",
                                   "minimum": 0
-                                }
-                              },
-                              "required": ["type"],
-                              "additionalProperties": false
-                            },
-                            {
-                              "type": "object",
-                              "properties": {
-                                "name": {
-                                  "type": "string"
-                                },
-                                "weight": {
-                                  "type": "number",
-                                  "minimum": 0
-                                },
-                                "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
-                                },
-                                "negate": {
-                                  "type": "boolean"
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": ["agent-judge", "agent_judge"]
-                                },
-                                "prompt": {
-                                  "type": "string"
-                                },
-                                "rubrics": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string"
-                                      },
-                                      "outcome": {
-                                        "type": "string"
-                                      },
-                                      "weight": {
-                                        "type": "number"
-                                      },
-                                      "required": {
-                                        "type": "boolean"
-                                      },
-                                      "required_min_score": {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      },
-                                      "score_ranges": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "object",
-                                          "properties": {
-                                            "score_range": {
-                                              "type": "array",
-                                              "minItems": 2,
-                                              "maxItems": 2,
-                                              "items": [
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                },
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                }
-                                              ]
-                                            },
-                                            "outcome": {
-                                              "type": "string",
-                                              "minLength": 1
-                                            }
-                                          },
-                                          "required": ["score_range", "outcome"],
-                                          "additionalProperties": false
-                                        }
-                                      }
-                                    },
-                                    "additionalProperties": false
-                                  }
-                                },
-                                "max_steps": {
-                                  "type": "integer",
-                                  "minimum": 1,
-                                  "maximum": 50
-                                },
-                                "temperature": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 2
-                                },
-                                "target": {
-                                  "type": "string"
                                 }
                               },
                               "required": ["type"],
@@ -11600,6 +10640,16 @@
                                 "config": {
                                   "type": "object",
                                   "additionalProperties": {}
+                                },
+                                "max_steps": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 50
+                                },
+                                "temperature": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 2
                                 }
                               },
                               "required": ["type"],
@@ -12104,112 +11154,6 @@
                                 "exploration_tolerance": {
                                   "type": "number",
                                   "minimum": 0
-                                }
-                              },
-                              "required": ["type"],
-                              "additionalProperties": false
-                            },
-                            {
-                              "type": "object",
-                              "properties": {
-                                "name": {
-                                  "type": "string"
-                                },
-                                "weight": {
-                                  "type": "number",
-                                  "minimum": 0
-                                },
-                                "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
-                                },
-                                "negate": {
-                                  "type": "boolean"
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": ["agent-judge", "agent_judge"]
-                                },
-                                "prompt": {
-                                  "type": "string"
-                                },
-                                "rubrics": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string"
-                                      },
-                                      "outcome": {
-                                        "type": "string"
-                                      },
-                                      "weight": {
-                                        "type": "number"
-                                      },
-                                      "required": {
-                                        "type": "boolean"
-                                      },
-                                      "required_min_score": {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      },
-                                      "score_ranges": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "object",
-                                          "properties": {
-                                            "score_range": {
-                                              "type": "array",
-                                              "minItems": 2,
-                                              "maxItems": 2,
-                                              "items": [
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                },
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                }
-                                              ]
-                                            },
-                                            "outcome": {
-                                              "type": "string",
-                                              "minLength": 1
-                                            }
-                                          },
-                                          "required": ["score_range", "outcome"],
-                                          "additionalProperties": false
-                                        }
-                                      }
-                                    },
-                                    "additionalProperties": false
-                                  }
-                                },
-                                "max_steps": {
-                                  "type": "integer",
-                                  "minimum": 1,
-                                  "maximum": 50
-                                },
-                                "temperature": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 2
-                                },
-                                "target": {
-                                  "type": "string"
                                 }
                               },
                               "required": ["type"],
@@ -12674,6 +11618,16 @@
                                 "config": {
                                   "type": "object",
                                   "additionalProperties": {}
+                                },
+                                "max_steps": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 50
+                                },
+                                "temperature": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 2
                                 }
                               },
                               "required": ["type"],
@@ -13178,112 +12132,6 @@
                                 "exploration_tolerance": {
                                   "type": "number",
                                   "minimum": 0
-                                }
-                              },
-                              "required": ["type"],
-                              "additionalProperties": false
-                            },
-                            {
-                              "type": "object",
-                              "properties": {
-                                "name": {
-                                  "type": "string"
-                                },
-                                "weight": {
-                                  "type": "number",
-                                  "minimum": 0
-                                },
-                                "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
-                                },
-                                "negate": {
-                                  "type": "boolean"
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": ["agent-judge", "agent_judge"]
-                                },
-                                "prompt": {
-                                  "type": "string"
-                                },
-                                "rubrics": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string"
-                                      },
-                                      "outcome": {
-                                        "type": "string"
-                                      },
-                                      "weight": {
-                                        "type": "number"
-                                      },
-                                      "required": {
-                                        "type": "boolean"
-                                      },
-                                      "required_min_score": {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      },
-                                      "score_ranges": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "object",
-                                          "properties": {
-                                            "score_range": {
-                                              "type": "array",
-                                              "minItems": 2,
-                                              "maxItems": 2,
-                                              "items": [
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                },
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                }
-                                              ]
-                                            },
-                                            "outcome": {
-                                              "type": "string",
-                                              "minLength": 1
-                                            }
-                                          },
-                                          "required": ["score_range", "outcome"],
-                                          "additionalProperties": false
-                                        }
-                                      }
-                                    },
-                                    "additionalProperties": false
-                                  }
-                                },
-                                "max_steps": {
-                                  "type": "integer",
-                                  "minimum": 1,
-                                  "maximum": 50
-                                },
-                                "temperature": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 2
-                                },
-                                "target": {
-                                  "type": "string"
                                 }
                               },
                               "required": ["type"],
@@ -14067,6 +12915,16 @@
                       "config": {
                         "type": "object",
                         "additionalProperties": {}
+                      },
+                      "max_steps": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 50
+                      },
+                      "temperature": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 2
                       }
                     },
                     "required": ["type"],
@@ -14571,112 +13429,6 @@
                       "exploration_tolerance": {
                         "type": "number",
                         "minimum": 0
-                      }
-                    },
-                    "required": ["type"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "name": {
-                        "type": "string"
-                      },
-                      "weight": {
-                        "type": "number",
-                        "minimum": 0
-                      },
-                      "required": {
-                        "anyOf": [
-                          {
-                            "type": "boolean"
-                          },
-                          {
-                            "type": "number",
-                            "exclusiveMinimum": 0,
-                            "maximum": 1
-                          }
-                        ]
-                      },
-                      "negate": {
-                        "type": "boolean"
-                      },
-                      "type": {
-                        "type": "string",
-                        "enum": ["agent-judge", "agent_judge"]
-                      },
-                      "prompt": {
-                        "type": "string"
-                      },
-                      "rubrics": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "outcome": {
-                              "type": "string"
-                            },
-                            "weight": {
-                              "type": "number"
-                            },
-                            "required": {
-                              "type": "boolean"
-                            },
-                            "required_min_score": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 10
-                            },
-                            "score_ranges": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "score_range": {
-                                    "type": "array",
-                                    "minItems": 2,
-                                    "maxItems": 2,
-                                    "items": [
-                                      {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      },
-                                      {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      }
-                                    ]
-                                  },
-                                  "outcome": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  }
-                                },
-                                "required": ["score_range", "outcome"],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      },
-                      "max_steps": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 50
-                      },
-                      "temperature": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 2
-                      },
-                      "target": {
-                        "type": "string"
                       }
                     },
                     "required": ["type"],
@@ -15141,6 +13893,16 @@
                       "config": {
                         "type": "object",
                         "additionalProperties": {}
+                      },
+                      "max_steps": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 50
+                      },
+                      "temperature": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 2
                       }
                     },
                     "required": ["type"],
@@ -15645,112 +14407,6 @@
                       "exploration_tolerance": {
                         "type": "number",
                         "minimum": 0
-                      }
-                    },
-                    "required": ["type"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "name": {
-                        "type": "string"
-                      },
-                      "weight": {
-                        "type": "number",
-                        "minimum": 0
-                      },
-                      "required": {
-                        "anyOf": [
-                          {
-                            "type": "boolean"
-                          },
-                          {
-                            "type": "number",
-                            "exclusiveMinimum": 0,
-                            "maximum": 1
-                          }
-                        ]
-                      },
-                      "negate": {
-                        "type": "boolean"
-                      },
-                      "type": {
-                        "type": "string",
-                        "enum": ["agent-judge", "agent_judge"]
-                      },
-                      "prompt": {
-                        "type": "string"
-                      },
-                      "rubrics": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "outcome": {
-                              "type": "string"
-                            },
-                            "weight": {
-                              "type": "number"
-                            },
-                            "required": {
-                              "type": "boolean"
-                            },
-                            "required_min_score": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 10
-                            },
-                            "score_ranges": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "score_range": {
-                                    "type": "array",
-                                    "minItems": 2,
-                                    "maxItems": 2,
-                                    "items": [
-                                      {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      },
-                                      {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      }
-                                    ]
-                                  },
-                                  "outcome": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  }
-                                },
-                                "required": ["score_range", "outcome"],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      },
-                      "max_steps": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 50
-                      },
-                      "temperature": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 2
-                      },
-                      "target": {
-                        "type": "string"
                       }
                     },
                     "required": ["type"],
@@ -16215,6 +14871,16 @@
                       "config": {
                         "type": "object",
                         "additionalProperties": {}
+                      },
+                      "max_steps": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 50
+                      },
+                      "temperature": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 2
                       }
                     },
                     "required": ["type"],
@@ -16719,112 +15385,6 @@
                       "exploration_tolerance": {
                         "type": "number",
                         "minimum": 0
-                      }
-                    },
-                    "required": ["type"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "name": {
-                        "type": "string"
-                      },
-                      "weight": {
-                        "type": "number",
-                        "minimum": 0
-                      },
-                      "required": {
-                        "anyOf": [
-                          {
-                            "type": "boolean"
-                          },
-                          {
-                            "type": "number",
-                            "exclusiveMinimum": 0,
-                            "maximum": 1
-                          }
-                        ]
-                      },
-                      "negate": {
-                        "type": "boolean"
-                      },
-                      "type": {
-                        "type": "string",
-                        "enum": ["agent-judge", "agent_judge"]
-                      },
-                      "prompt": {
-                        "type": "string"
-                      },
-                      "rubrics": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "outcome": {
-                              "type": "string"
-                            },
-                            "weight": {
-                              "type": "number"
-                            },
-                            "required": {
-                              "type": "boolean"
-                            },
-                            "required_min_score": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 10
-                            },
-                            "score_ranges": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "score_range": {
-                                    "type": "array",
-                                    "minItems": 2,
-                                    "maxItems": 2,
-                                    "items": [
-                                      {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      },
-                                      {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      }
-                                    ]
-                                  },
-                                  "outcome": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  }
-                                },
-                                "required": ["score_range", "outcome"],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "additionalProperties": false
-                        }
-                      },
-                      "max_steps": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 50
-                      },
-                      "temperature": {
-                        "type": "number",
-                        "minimum": 0,
-                        "maximum": 2
-                      },
-                      "target": {
-                        "type": "string"
                       }
                     },
                     "required": ["type"],
@@ -17335,6 +15895,16 @@
                   "config": {
                     "type": "object",
                     "additionalProperties": {}
+                  },
+                  "max_steps": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50
+                  },
+                  "temperature": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 2
                   }
                 },
                 "required": ["type"],
@@ -17839,112 +16409,6 @@
                   "exploration_tolerance": {
                     "type": "number",
                     "minimum": 0
-                  }
-                },
-                "required": ["type"],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string"
-                  },
-                  "weight": {
-                    "type": "number",
-                    "minimum": 0
-                  },
-                  "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": 0,
-                        "maximum": 1
-                      }
-                    ]
-                  },
-                  "negate": {
-                    "type": "boolean"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": ["agent-judge", "agent_judge"]
-                  },
-                  "prompt": {
-                    "type": "string"
-                  },
-                  "rubrics": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "outcome": {
-                          "type": "string"
-                        },
-                        "weight": {
-                          "type": "number"
-                        },
-                        "required": {
-                          "type": "boolean"
-                        },
-                        "required_min_score": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 10
-                        },
-                        "score_ranges": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "score_range": {
-                                "type": "array",
-                                "minItems": 2,
-                                "maxItems": 2,
-                                "items": [
-                                  {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 10
-                                  },
-                                  {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 10
-                                  }
-                                ]
-                              },
-                              "outcome": {
-                                "type": "string",
-                                "minLength": 1
-                              }
-                            },
-                            "required": ["score_range", "outcome"],
-                            "additionalProperties": false
-                          }
-                        }
-                      },
-                      "additionalProperties": false
-                    }
-                  },
-                  "max_steps": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 50
-                  },
-                  "temperature": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 2
-                  },
-                  "target": {
-                    "type": "string"
                   }
                 },
                 "required": ["type"],
@@ -18409,6 +16873,16 @@
                   "config": {
                     "type": "object",
                     "additionalProperties": {}
+                  },
+                  "max_steps": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50
+                  },
+                  "temperature": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 2
                   }
                 },
                 "required": ["type"],
@@ -18913,112 +17387,6 @@
                   "exploration_tolerance": {
                     "type": "number",
                     "minimum": 0
-                  }
-                },
-                "required": ["type"],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string"
-                  },
-                  "weight": {
-                    "type": "number",
-                    "minimum": 0
-                  },
-                  "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": 0,
-                        "maximum": 1
-                      }
-                    ]
-                  },
-                  "negate": {
-                    "type": "boolean"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": ["agent-judge", "agent_judge"]
-                  },
-                  "prompt": {
-                    "type": "string"
-                  },
-                  "rubrics": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "outcome": {
-                          "type": "string"
-                        },
-                        "weight": {
-                          "type": "number"
-                        },
-                        "required": {
-                          "type": "boolean"
-                        },
-                        "required_min_score": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 10
-                        },
-                        "score_ranges": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "score_range": {
-                                "type": "array",
-                                "minItems": 2,
-                                "maxItems": 2,
-                                "items": [
-                                  {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 10
-                                  },
-                                  {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 10
-                                  }
-                                ]
-                              },
-                              "outcome": {
-                                "type": "string",
-                                "minLength": 1
-                              }
-                            },
-                            "required": ["score_range", "outcome"],
-                            "additionalProperties": false
-                          }
-                        }
-                      },
-                      "additionalProperties": false
-                    }
-                  },
-                  "max_steps": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 50
-                  },
-                  "temperature": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 2
-                  },
-                  "target": {
-                    "type": "string"
                   }
                 },
                 "required": ["type"],

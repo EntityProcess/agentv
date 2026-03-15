@@ -11,7 +11,7 @@ targets:
     workspace_template: ../workspace-template
     judge_target: azure_judge
 
-  # Azure OpenAI — used as LLM judge (rubrics) and built-in agent_judge provider
+  # Azure OpenAI — used as LLM judge (rubrics) and built-in llm-judge provider
   - name: azure_judge
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
@@ -19,7 +19,7 @@ targets:
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     version: ${{ AZURE_OPENAI_API_VERSION }}
 
-  # Copilot CLI — used as delegated agent_judge target
+  # Copilot CLI — used as delegated llm-judge target
   - name: copilot_judge
     provider: copilot-cli
     model: claude-haiku-4.5

@@ -87,6 +87,8 @@ const LlmJudgeSchema = EvaluatorCommonSchema.extend({
   model: z.string().optional(),
   target: z.string().optional(),
   config: z.record(z.unknown()).optional(),
+  max_steps: z.number().int().min(1).max(50).optional(),
+  temperature: z.number().min(0).max(2).optional(),
 });
 
 /** Aggregator configs for composite evaluator */
@@ -189,15 +191,6 @@ const ExecutionMetricsSchema = EvaluatorCommonSchema.extend({
   exploration_tolerance: z.number().min(0).optional(),
 });
 
-const AgentJudgeSchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['agent-judge', 'agent_judge']),
-  prompt: z.string().optional(),
-  rubrics: z.array(RubricItemSchema).optional(),
-  max_steps: z.number().int().min(1).max(50).optional(),
-  temperature: z.number().min(0).max(2).optional(),
-  target: z.string().optional(),
-});
-
 const ContainsSchema = EvaluatorCommonSchema.extend({
   type: z.literal('contains'),
   value: z.string(),
@@ -233,7 +226,6 @@ const EvaluatorSchema = z.union([
   CostSchema,
   TokenUsageSchema,
   ExecutionMetricsSchema,
-  AgentJudgeSchema,
   ContainsSchema,
   RegexSchema,
   IsJsonSchema,

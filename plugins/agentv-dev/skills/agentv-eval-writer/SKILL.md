@@ -222,7 +222,7 @@ tests:
 |----------|-------------|----------|
 | `criteria` + **no `assertions`** | Implicit `llm-judge` runs automatically against `criteria` | No |
 | `criteria` + **`assertions` with only deterministic evaluators** (contains, regex, etc.) | Only declared evaluators run. `criteria` is **not evaluated**. | Yes — warns that no evaluator will consume criteria |
-| `criteria` + **`assertions` with a judge** (llm-judge, code-judge, agent-judge, rubrics) | Declared evaluators run. Judges receive `criteria` as input. | No |
+| `criteria` + **`assertions` with a judge** (llm-judge, code-judge, rubrics) | Declared evaluators run. Judges receive `criteria` as input. | No |
 
 ### No assertions → implicit llm-judge
 

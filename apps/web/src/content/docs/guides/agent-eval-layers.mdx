@@ -15,8 +15,8 @@ Covers plan quality, plan adherence, and tool selection rationale. Use LLM-based
 
 | Concern | AgentV evaluator |
 |---------|-----------------|
-| Plan quality & coherence | `llm_judge` with reasoning-focused prompt |
-| Workspace-aware auditing | `agent_judge` with rubrics |
+| Plan quality & coherence | `llm-judge` with reasoning-focused prompt |
+| Workspace-aware auditing | `llm-judge` with rubrics |
 
 ```yaml
 # Layer 1: Reasoning — verify the agent's plan makes sense
@@ -29,7 +29,7 @@ assertions:
       Did it select appropriate tools for the task?
       Score 1.0 if reasoning is sound, 0.0 if not.
   - name: workspace-audit
-    type: agent-judge
+    type: llm-judge
     max_steps: 5
     temperature: 0
     rubrics:

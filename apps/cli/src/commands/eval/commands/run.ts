@@ -163,6 +163,17 @@ export const evalRunCommand = command({
       description:
         'Write companion artifacts (grading/<test>.json, timing.json, benchmark.json) to the specified directory',
     }),
+    judgeTarget: option({
+      type: optional(string),
+      long: 'judge-target',
+      description:
+        'Override judge target for all evaluators (e.g., "agentv", or a target name from targets.yaml)',
+    }),
+    model: option({
+      type: optional(string),
+      long: 'model',
+      description: 'Override model for the judge target (e.g., "openai:gpt-5-mini")',
+    }),
   },
   handler: async (args) => {
     // Launch interactive wizard when no eval paths and stdin is a TTY
@@ -203,6 +214,8 @@ export const evalRunCommand = command({
       strict: args.strict,
       benchmarkJson: args.benchmarkJson,
       artifacts: args.artifacts,
+      judgeTarget: args.judgeTarget,
+      model: args.model,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
   },

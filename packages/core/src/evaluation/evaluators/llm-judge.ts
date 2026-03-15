@@ -1,13 +1,64 @@
-import { generateText } from 'ai';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+import { generateText, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
 
 import type { Provider, ProviderResponse } from '../providers/types.js';
-import { extractLastAssistantContent } from '../providers/types.js';
+import { extractLastAssistantContent, isAgentProvider } from '../providers/types.js';
 import { TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { TokenUsage } from '../trace.js';
 import type { JsonObject, RubricItem } from '../types.js';
 import { clampScore, isNonEmptyString, parseJsonFromText, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
+
+// ---------------------------------------------------------------------------
+// Constants for built-in agent mode (filesystem tools)
+// ---------------------------------------------------------------------------
+
+const DEFAULT_MAX_STEPS = 10;
+const MAX_STEPS_LIMIT = 50;
+const MAX_FILE_SIZE = 50 * 1024; // 50KB
+const MAX_SEARCH_MATCHES = 20;
+
+/**
+ * Directories/patterns to skip during file search.
+ */
+const SEARCH_SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  '.next',
+  'dist',
+  '__pycache__',
+  '.cache',
+]);
+
+/**
+ * Binary file extensions to skip during search.
+ */
+const BINARY_EXTENSIONS = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.ico',
+  '.svg',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.eot',
+  '.mp3',
+  '.mp4',
+  '.wav',
+  '.zip',
+  '.tar',
+  '.gz',
+  '.pdf',
+  '.exe',
+  '.dll',
+  '.so',
+  '.dylib',
+]);
 
 /**
  * Default evaluator template for the user prompt (variables will be substituted).
@@ -38,6 +89,8 @@ export interface LlmJudgeEvaluatorOptions {
   readonly maxOutputTokens?: number;
   readonly temperature?: number;
   readonly evaluatorTemplate?: string;
+  readonly maxSteps?: number;
+  readonly judgeTargetProvider?: Provider;
 }
 
 const freeformEvaluationSchema = z.object({
@@ -82,20 +135,40 @@ export class LlmJudgeEvaluator implements Evaluator {
   private readonly maxOutputTokens?: number;
   private readonly temperature?: number;
   private readonly evaluatorTemplate?: string;
+  private readonly maxSteps: number;
+  private readonly judgeTargetProvider?: Provider;
 
   constructor(options: LlmJudgeEvaluatorOptions) {
     this.resolveJudgeProvider = options.resolveJudgeProvider;
     this.maxOutputTokens = options.maxOutputTokens;
     this.temperature = options.temperature;
     this.evaluatorTemplate = options.evaluatorTemplate;
+    this.maxSteps = Math.min(options.maxSteps ?? DEFAULT_MAX_STEPS, MAX_STEPS_LIMIT);
+    this.judgeTargetProvider = options.judgeTargetProvider;
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
+    // Delegate mode: judge target provider is an agent provider — send prompt via invoke()
+    if (this.judgeTargetProvider) {
+      return this.evaluateWithJudgeTarget(context);
+    }
+
     const judgeProvider = await this.resolveJudgeProvider(context);
     if (!judgeProvider) {
       throw new Error('No judge provider available for LLM grading');
     }
 
+    // Built-in agent mode: agentv provider → AI SDK generateText with filesystem tools
+    if (judgeProvider.kind === 'agentv') {
+      return this.evaluateBuiltIn(context, judgeProvider);
+    }
+
+    // Delegate mode: resolved provider is an agent provider → send prompt via invoke()
+    if (isAgentProvider(judgeProvider)) {
+      return this.evaluateWithDelegatedAgent(context, judgeProvider);
+    }
+
+    // LLM mode: structured JSON evaluation
     const config = context.evaluator;
     if (config?.type === 'llm-judge' && config.rubrics && config.rubrics.length > 0) {
       return this.evaluateWithRubrics(context, judgeProvider, config.rubrics);
@@ -103,6 +176,10 @@ export class LlmJudgeEvaluator implements Evaluator {
 
     return this.evaluateFreeform(context, judgeProvider);
   }
+
+  // ---------------------------------------------------------------------------
+  // LLM mode (existing)
+  // ---------------------------------------------------------------------------
 
   private async evaluateFreeform(
     context: EvaluationContext,
@@ -177,7 +254,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         tokenUsage,
       };
     } catch (e: unknown) {
-      // Judge parse failure → skip (not silent zero).
+      // Judge parse failure -> skip (not silent zero).
       // Signals infrastructure error to downstream consumers, excluded from score averages.
       const message = e instanceof Error ? e.message : String(e);
       const evalName = context.evaluator?.name ?? 'llm-judge';
@@ -314,6 +391,393 @@ export class LlmJudgeEvaluator implements Evaluator {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Built-in agent mode (agentv provider — AI SDK generateText with filesystem tools)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Built-in mode: Uses Vercel AI SDK generateText() with sandboxed filesystem tools.
+   */
+  private async evaluateBuiltIn(
+    context: EvaluationContext,
+    judgeProvider: Provider,
+  ): Promise<EvaluationScore> {
+    const model = judgeProvider.asLanguageModel?.();
+    if (!model) {
+      throw new Error(
+        `Judge provider '${judgeProvider.targetName}' does not support asLanguageModel() — required for built-in agent mode`,
+      );
+    }
+
+    const workspacePath = context.workspacePath;
+    if (!workspacePath) {
+      throw new Error(
+        'llm-judge built-in agent mode requires a workspace_template target (workspacePath is not set)',
+      );
+    }
+
+    const systemPrompt = this.buildAgentSystemPrompt(context);
+    const userPrompt = this.buildAgentUserPrompt(context);
+
+    const config = context.evaluator;
+    const rubrics = config?.type === 'llm-judge' ? config.rubrics : undefined;
+
+    const fsTools = createFilesystemTools(workspacePath);
+
+    const evaluatorRawRequest: JsonObject = {
+      mode: 'built-in',
+      systemPrompt,
+      userPrompt,
+      target: judgeProvider.targetName,
+      maxSteps: this.maxSteps,
+    };
+
+    try {
+      const { text, steps } = await generateText({
+        model,
+        system: systemPrompt,
+        prompt: userPrompt,
+        tools: fsTools,
+        stopWhen: stepCountIs(this.maxSteps),
+        temperature: this.temperature ?? 0,
+      });
+
+      const toolCallCount = steps.reduce((count, step) => count + (step.toolCalls?.length ?? 0), 0);
+
+      const details: JsonObject = {
+        mode: 'built-in',
+        steps: steps.length,
+        tool_calls: toolCallCount,
+      };
+
+      return this.parseAgentResult(text, rubrics, evaluatorRawRequest, details);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        score: 0,
+        verdict: 'fail',
+        hits: [],
+        misses: [`llm-judge built-in evaluation failed: ${message}`],
+        expectedAspectCount: 1,
+        evaluatorRawRequest,
+        details: { mode: 'built-in', error: message },
+      };
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Delegate mode (agent provider — send prompt via Provider.invoke())
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Judge target mode: Delegates to an explicit judgeTargetProvider via Provider.invoke().
+   */
+  private async evaluateWithJudgeTarget(context: EvaluationContext): Promise<EvaluationScore> {
+    return this.evaluateWithDelegate(context, this.judgeTargetProvider as Provider, 'judge_target');
+  }
+
+  /**
+   * Delegate mode: resolved provider is an agent provider — send prompt via invoke().
+   */
+  private async evaluateWithDelegatedAgent(
+    context: EvaluationContext,
+    judgeProvider: Provider,
+  ): Promise<EvaluationScore> {
+    return this.evaluateWithDelegate(context, judgeProvider, 'delegate');
+  }
+
+  /**
+   * Shared implementation for judge_target and delegate modes.
+   * Both invoke a provider and parse the agent result from the response.
+   */
+  private async evaluateWithDelegate(
+    context: EvaluationContext,
+    provider: Provider,
+    modeLabel: string,
+  ): Promise<EvaluationScore> {
+    const workspacePath = context.workspacePath;
+    const prompt = this.buildDelegatedPrompt(context);
+
+    const evaluatorRawRequest: JsonObject = {
+      mode: modeLabel,
+      judge_target: provider.targetName,
+      prompt,
+    };
+
+    try {
+      const response = await provider.invoke({
+        question: prompt,
+        cwd: workspacePath,
+        evalCaseId: context.evalCase.id,
+        attempt: context.attempt,
+      });
+
+      const assistantContent = extractLastAssistantContent(response.output);
+      if (!assistantContent) {
+        return {
+          score: 0,
+          verdict: 'fail',
+          hits: [],
+          misses: [`llm-judge ${modeLabel} returned no assistant response`],
+          expectedAspectCount: 1,
+          evaluatorRawRequest,
+          details: { mode: modeLabel, judge_target: provider.targetName },
+        };
+      }
+
+      const config = context.evaluator;
+      const rubrics = config?.type === 'llm-judge' ? config.rubrics : undefined;
+
+      const details: JsonObject = {
+        mode: modeLabel,
+        judge_target: provider.targetName,
+      };
+
+      return this.parseAgentResult(assistantContent, rubrics, evaluatorRawRequest, details);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        score: 0,
+        verdict: 'fail',
+        hits: [],
+        misses: [`llm-judge ${modeLabel} evaluation failed: ${message}`],
+        expectedAspectCount: 1,
+        evaluatorRawRequest,
+        details: {
+          mode: modeLabel,
+          judge_target: provider.targetName,
+          error: message,
+        },
+      };
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Prompt builders for agent modes
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Build system prompt for built-in agent mode.
+   * Includes output format instructions.
+   */
+  private buildAgentSystemPrompt(context: EvaluationContext): string {
+    const config = context.evaluator;
+    const rubrics = config?.type === 'llm-judge' ? config.rubrics : undefined;
+
+    const parts: string[] = [
+      'You are an expert evaluator with access to the workspace filesystem.',
+      'Use the provided tools to investigate the workspace and verify the criteria are met.',
+      'Thoroughly examine relevant files before making your assessment.',
+      '',
+    ];
+
+    if (rubrics && rubrics.length > 0) {
+      parts.push(buildRubricOutputSchema());
+    } else {
+      parts.push(buildOutputSchema());
+    }
+
+    return parts.join('\n');
+  }
+
+  /**
+   * Build user prompt for built-in agent mode.
+   * Uses custom template if provided, otherwise builds default prompt.
+   */
+  private buildAgentUserPrompt(context: EvaluationContext): string {
+    const formattedQuestion =
+      context.promptInputs.question && context.promptInputs.question.trim().length > 0
+        ? context.promptInputs.question
+        : context.evalCase.question;
+
+    const variables: Record<string, string> = {
+      [TEMPLATE_VARIABLES.ANSWER]: context.candidate.trim(),
+      [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
+      [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
+      [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
+      [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
+    };
+
+    if (this.evaluatorTemplate) {
+      return substituteVariables(this.evaluatorTemplate, variables);
+    }
+
+    const config = context.evaluator;
+    const rubrics = config?.type === 'llm-judge' ? config.rubrics : undefined;
+
+    const parts: string[] = [
+      'Evaluate the candidate answer by investigating the workspace.',
+      '',
+      '[[ ## question ## ]]',
+      formattedQuestion,
+      '',
+      '[[ ## criteria ## ]]',
+      context.evalCase.criteria,
+      '',
+    ];
+
+    if (context.evalCase.reference_answer && context.evalCase.reference_answer.trim().length > 0) {
+      parts.push('[[ ## reference_answer ## ]]', context.evalCase.reference_answer, '');
+    }
+
+    parts.push('[[ ## answer ## ]]', context.candidate, '');
+
+    if (context.fileChanges) {
+      parts.push('[[ ## file_changes ## ]]', context.fileChanges, '');
+    }
+
+    if (rubrics && rubrics.length > 0) {
+      parts.push('[[ ## rubrics ## ]]');
+      for (const rubric of rubrics) {
+        const requiredLabel = rubric.required ? ' (REQUIRED)' : '';
+        const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
+        parts.push(`- [${rubric.id}]${requiredLabel}${weightLabel}: ${rubric.outcome}`);
+      }
+      parts.push(
+        '',
+        'For each rubric, investigate the workspace to determine if it is satisfied. Provide brief reasoning.',
+      );
+    } else {
+      parts.push(
+        'Investigate the workspace to verify the criteria. Provide a score between 0.0 and 1.0.',
+      );
+    }
+
+    return parts.join('\n');
+  }
+
+  /**
+   * Build the full evaluation prompt for delegate mode (agent providers).
+   * Combines task context, criteria, candidate info, and output format instructions.
+   */
+  private buildDelegatedPrompt(context: EvaluationContext): string {
+    const formattedQuestion =
+      context.promptInputs.question && context.promptInputs.question.trim().length > 0
+        ? context.promptInputs.question
+        : context.evalCase.question;
+
+    const config = context.evaluator;
+    const rubrics = config?.type === 'llm-judge' ? config.rubrics : undefined;
+
+    if (this.evaluatorTemplate) {
+      const variables: Record<string, string> = {
+        [TEMPLATE_VARIABLES.ANSWER]: context.candidate.trim(),
+        [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
+        [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
+        [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
+        [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
+      };
+      const customPrompt = substituteVariables(this.evaluatorTemplate, variables);
+
+      const outputSchema =
+        rubrics && rubrics.length > 0 ? buildRubricOutputSchema() : buildOutputSchema();
+
+      return `${customPrompt}\n\n${outputSchema}`;
+    }
+
+    const parts: string[] = [
+      'You are an expert evaluator. Investigate the workspace to verify the criteria are met.',
+      '',
+      '[[ ## question ## ]]',
+      formattedQuestion,
+      '',
+      '[[ ## criteria ## ]]',
+      context.evalCase.criteria,
+      '',
+    ];
+
+    if (context.evalCase.reference_answer && context.evalCase.reference_answer.trim().length > 0) {
+      parts.push('[[ ## reference_answer ## ]]', context.evalCase.reference_answer, '');
+    }
+
+    parts.push('[[ ## answer ## ]]', context.candidate, '');
+
+    if (context.fileChanges) {
+      parts.push('[[ ## file_changes ## ]]', context.fileChanges, '');
+    }
+
+    if (rubrics && rubrics.length > 0) {
+      parts.push('[[ ## rubrics ## ]]');
+      for (const rubric of rubrics) {
+        const requiredLabel = rubric.required ? ' (REQUIRED)' : '';
+        const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
+        parts.push(`- [${rubric.id}]${requiredLabel}${weightLabel}: ${rubric.outcome}`);
+      }
+      parts.push('');
+      parts.push(buildRubricOutputSchema());
+    } else {
+      parts.push(buildOutputSchema());
+    }
+
+    return parts.join('\n');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Agent result parser (shared by built-in and delegate modes)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Parse the agent's response text into an EvaluationScore.
+   * Supports both freeform and rubric modes.
+   */
+  private parseAgentResult(
+    text: string,
+    rubrics: readonly RubricItem[] | undefined,
+    evaluatorRawRequest: JsonObject,
+    details: JsonObject,
+  ): EvaluationScore {
+    try {
+      const parsed = parseJsonFromText(text);
+
+      if (rubrics && rubrics.length > 0) {
+        const data = rubricEvaluationSchema.parse(parsed);
+        const { score, verdict, hits, misses } = calculateRubricScore(data, rubrics);
+        return {
+          score,
+          verdict,
+          hits,
+          misses,
+          expectedAspectCount: rubrics.length,
+          reasoning: data.overall_reasoning,
+          evaluatorRawRequest,
+          details,
+        };
+      }
+
+      const data = freeformEvaluationSchema.parse(parsed);
+      const score = clampScore(data.score);
+      const hits = Array.isArray(data.hits) ? data.hits.filter(isNonEmptyString).slice(0, 4) : [];
+      const misses = Array.isArray(data.misses)
+        ? data.misses.filter(isNonEmptyString).slice(0, 4)
+        : [];
+
+      return {
+        score,
+        verdict: scoreToVerdict(score),
+        hits,
+        misses,
+        expectedAspectCount: Math.max(hits.length + misses.length, 1),
+        reasoning: data.reasoning,
+        evaluatorRawRequest,
+        details,
+      };
+    } catch {
+      return {
+        score: 0,
+        verdict: 'fail',
+        hits: [],
+        misses: ['Failed to parse llm-judge agent response as valid evaluation JSON'],
+        expectedAspectCount: 1,
+        evaluatorRawRequest,
+        details,
+      };
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // LLM mode prompt builders
+  // ---------------------------------------------------------------------------
+
   /**
    * Build prompt for score-range rubric evaluation.
    */
@@ -421,6 +885,10 @@ export class LlmJudgeEvaluator implements Evaluator {
     return parts.join('\n');
   }
 
+  // ---------------------------------------------------------------------------
+  // LLM mode retry logic
+  // ---------------------------------------------------------------------------
+
   private async runWithRetry<T>(options: {
     readonly context: EvaluationContext;
     readonly judgeProvider: Provider;
@@ -473,6 +941,10 @@ export class LlmJudgeEvaluator implements Evaluator {
     throw new Error(`Failed to parse evaluator response after 3 attempts: ${lastError?.message}`);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Output schema builders (exported for reuse)
+// ---------------------------------------------------------------------------
 
 /**
  * Build the mandatory output schema that all evaluators must follow.
@@ -655,4 +1127,163 @@ function calculateScoreRangeResult(
       aggregation: 'weighted_average',
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Sandboxed filesystem tools for built-in agent mode
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a relative path within the sandbox, preventing path traversal.
+ * Returns the absolute path if valid, or throws if the path escapes the sandbox.
+ */
+function resolveSandboxed(basePath: string, relativePath: string): string {
+  const resolved = path.resolve(basePath, relativePath);
+  if (!resolved.startsWith(basePath + path.sep) && resolved !== basePath) {
+    throw new Error(`Path '${relativePath}' is outside the workspace`);
+  }
+  return resolved;
+}
+
+/**
+ * Create sandboxed filesystem tools for the AI SDK agent loop.
+ */
+function createFilesystemTools(workspacePath: string) {
+  return {
+    list_files: tool({
+      description:
+        'List files and directories at a relative path within the workspace. Returns names only (single level, no recursion).',
+      inputSchema: z.object({
+        path: z.string().describe('Relative path within workspace (use "." for root)').default('.'),
+      }),
+      execute: async (input: { path: string }) => {
+        try {
+          const resolved = resolveSandboxed(workspacePath, input.path);
+          const entries = await fs.readdir(resolved, { withFileTypes: true });
+          return entries
+            .map((e) => ({
+              name: e.name,
+              type: e.isDirectory() ? 'directory' : 'file',
+            }))
+            .slice(0, 100);
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : String(error) };
+        }
+      },
+    }),
+
+    read_file: tool({
+      description:
+        'Read the content of a file at a relative path within the workspace. Large files are truncated at 50KB.',
+      inputSchema: z.object({
+        path: z.string().describe('Relative path to file within workspace'),
+      }),
+      execute: async (input: { path: string }) => {
+        try {
+          const resolved = resolveSandboxed(workspacePath, input.path);
+          const stat = await fs.stat(resolved);
+          if (stat.isDirectory()) {
+            return { error: `'${input.path}' is a directory, not a file` };
+          }
+          const buffer = Buffer.alloc(Math.min(stat.size, MAX_FILE_SIZE));
+          const fd = await fs.open(resolved, 'r');
+          try {
+            await fd.read(buffer, 0, buffer.length, 0);
+          } finally {
+            await fd.close();
+          }
+          const content = buffer.toString('utf-8');
+          const truncated = stat.size > MAX_FILE_SIZE;
+          return { content, truncated, size: stat.size };
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : String(error) };
+        }
+      },
+    }),
+
+    search_files: tool({
+      description:
+        'Search for a regex pattern across files in the workspace. Returns up to 20 matches. Skips binary files and node_modules/.git.',
+      inputSchema: z.object({
+        pattern: z.string().describe('Regex pattern to search for'),
+        path: z.string().describe('Relative path to search within (use "." for root)').default('.'),
+      }),
+      execute: async (input: { pattern: string; path: string }) => {
+        try {
+          const resolved = resolveSandboxed(workspacePath, input.path);
+          let regex: RegExp;
+          try {
+            regex = new RegExp(input.pattern, 'gi');
+          } catch (regexErr) {
+            return {
+              error: `Invalid regex pattern: ${regexErr instanceof Error ? regexErr.message : String(regexErr)}`,
+            };
+          }
+          const matches: Array<{ file: string; line: number; text: string }> = [];
+
+          await searchDirectory(resolved, workspacePath, regex, matches);
+
+          return { matches, total: matches.length };
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : String(error) };
+        }
+      },
+    }),
+  };
+}
+
+/**
+ * Recursively search a directory for regex matches.
+ */
+async function searchDirectory(
+  dirPath: string,
+  workspacePath: string,
+  regex: RegExp,
+  matches: Array<{ file: string; line: number; text: string }>,
+): Promise<void> {
+  if (matches.length >= MAX_SEARCH_MATCHES) return;
+
+  let entries: import('node:fs').Dirent[];
+  try {
+    entries = await fs.readdir(dirPath, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    if (matches.length >= MAX_SEARCH_MATCHES) return;
+
+    if (SEARCH_SKIP_DIRS.has(entry.name)) continue;
+
+    const fullPath = path.join(dirPath, entry.name);
+
+    if (entry.isDirectory()) {
+      await searchDirectory(fullPath, workspacePath, regex, matches);
+    } else if (entry.isFile()) {
+      const ext = path.extname(entry.name).toLowerCase();
+      if (BINARY_EXTENSIONS.has(ext)) continue;
+
+      try {
+        const stat = await fs.stat(fullPath);
+        if (stat.size > MAX_FILE_SIZE) continue;
+
+        const content = await fs.readFile(fullPath, 'utf-8');
+        const lines = content.split('\n');
+
+        for (let i = 0; i < lines.length; i++) {
+          if (matches.length >= MAX_SEARCH_MATCHES) return;
+          regex.lastIndex = 0;
+          if (regex.test(lines[i])) {
+            matches.push({
+              file: path.relative(workspacePath, fullPath),
+              line: i + 1,
+              text: lines[i].substring(0, 200),
+            });
+          }
+        }
+      } catch {
+        // Skip unreadable files
+      }
+    }
+  }
 }

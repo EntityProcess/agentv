@@ -559,6 +559,57 @@ describe('resolveTargetDefinition', () => {
       ),
     ).toThrow(/workspace_template has been removed/i);
   });
+
+  it('resolves agentv target with model and default temperature', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'agentv-judge',
+        provider: 'agentv',
+        model: 'openai:gpt-5-mini',
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('agentv');
+    if (target.kind !== 'agentv') {
+      throw new Error('expected agentv target');
+    }
+
+    expect(target.config.model).toBe('openai:gpt-5-mini');
+    expect(target.config.temperature).toBe(0);
+  });
+
+  it('resolves agentv target with explicit temperature', () => {
+    const target = resolveTargetDefinition(
+      {
+        name: 'agentv-warm',
+        provider: 'agentv',
+        model: 'anthropic:claude-haiku-4.5',
+        temperature: 0.7,
+      },
+      {},
+    );
+
+    expect(target.kind).toBe('agentv');
+    if (target.kind !== 'agentv') {
+      throw new Error('expected agentv target');
+    }
+
+    expect(target.config.model).toBe('anthropic:claude-haiku-4.5');
+    expect(target.config.temperature).toBe(0.7);
+  });
+
+  it('throws when agentv target is missing model', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'agentv-no-model',
+          provider: 'agentv',
+        },
+        {},
+      ),
+    ).toThrow(/model/i);
+  });
 });
 
 describe('createProvider', () => {

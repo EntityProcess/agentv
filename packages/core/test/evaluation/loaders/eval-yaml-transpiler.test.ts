@@ -244,7 +244,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions).toContain('The answer is clear and concise');
   });
 
-  it('converts agent-judge with rubrics to multiple assertions', () => {
+  it('converts llm-judge with rubrics to multiple assertions (rubrics variant)', () => {
     const suite = {
       tests: [
         {
@@ -253,7 +253,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           assertions: [
             { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
-              type: 'agent-judge',
+              type: 'llm-judge',
               rubrics: [
                 { id: 'r1', outcome: 'Correct result returned' },
                 { id: 'r2', outcome: 'No unnecessary steps' },
@@ -267,6 +267,31 @@ describe('transpileEvalYaml — NL assertions', () => {
     const evals = files.get('s')?.evals;
     expect(evals[0].assertions).toContain('Correct result returned');
     expect(evals[0].assertions).toContain('No unnecessary steps');
+  });
+
+  it('converts llm-judge with rubrics to multiple assertions', () => {
+    const suite = {
+      tests: [
+        {
+          id: 't1',
+          input: 'test',
+          assertions: [
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            {
+              type: 'llm-judge',
+              rubrics: [
+                { id: 'r1', outcome: 'Response is accurate' },
+                { id: 'r2', outcome: 'Formatting is correct' },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const { files } = transpileEvalYaml(suite);
+    const evals = files.get('s')?.evals;
+    expect(evals[0].assertions).toContain('Response is accurate');
+    expect(evals[0].assertions).toContain('Formatting is correct');
   });
 
   it('converts tool-trajectory to NL', () => {

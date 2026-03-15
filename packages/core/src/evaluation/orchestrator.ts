@@ -235,6 +235,10 @@ export interface RunEvaluationOptions {
   readonly retainOnSuccess?: 'keep' | 'cleanup';
   /** Retention policy override for failed cases */
   readonly retainOnFailure?: 'keep' | 'cleanup';
+  /** CLI override: judge target name (e.g., "agentv" or a target from targets.yaml) */
+  readonly judgeTarget?: string;
+  /** CLI override: model for judge target (e.g., "openai:gpt-5-mini") */
+  readonly model?: string;
 }
 
 export async function runEvaluation(
@@ -271,6 +275,8 @@ export async function runEvaluation(
     workspaceClean,
     retainOnSuccess,
     retainOnFailure,
+    judgeTarget: cliJudgeTarget,
+    model: cliModel,
   } = options;
 
   // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
@@ -335,6 +341,25 @@ export async function runEvaluation(
   const resolveJudgeProvider = async (
     targetContext: ResolvedTarget,
   ): Promise<Provider | undefined> => {
+    // CLI --judge-target takes highest priority
+    if (cliJudgeTarget) {
+      if (cliJudgeTarget === 'agentv') {
+        if (!cliModel) {
+          throw new Error('--judge-target "agentv" requires --model (e.g., "openai:gpt-5-mini")');
+        }
+        const { AgentvProvider } = await import('./providers/agentv-provider.js');
+        return new AgentvProvider('agentv', { model: cliModel, temperature: 0 });
+      }
+      const overrideTarget = resolveTargetByName(cliJudgeTarget);
+      if (!overrideTarget) {
+        throw new Error(`--judge-target "${cliJudgeTarget}" not found in targets`);
+      }
+      return getOrCreateProvider(overrideTarget);
+    }
+
+    // TODO: When --model is provided without --judge-target, override the model of
+    // whichever judge target is resolved. For now, --model only works with --judge-target agentv.
+
     const judgeName = targetContext.judgeTarget ?? targetContext.name;
     const resolvedJudge = resolveTargetByName(judgeName);
     if (!resolvedJudge) {
@@ -346,7 +371,8 @@ export async function runEvaluation(
   // Validate judge_target: error if an agent provider would be used as judge.
   // Agent providers can't return structured JSON for judging — they respond with
   // tool calls and markdown, causing silent score-0 failures.
-  if (isAgentProvider(getOrCreateProvider(target)) && !target.judgeTarget) {
+  // CLI --judge-target override also satisfies this requirement.
+  if (isAgentProvider(getOrCreateProvider(target)) && !target.judgeTarget && !cliJudgeTarget) {
     throw new Error(
       `Target "${target.name}" is an agent provider ("${target.kind}") with no judge_target — agent providers cannot return structured JSON for judging. Set judge_target to an LLM provider (e.g., azure-llm).`,
     );
