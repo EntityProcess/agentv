@@ -10,7 +10,7 @@ description: >-
   any agent, prompt, or skill — even if they don't explicitly say "agentv".
 ---
 
-# AgentV Optimizer
+# AgentV Bench
 
 
 A skill for evaluating agents and iteratively improving them through data-driven optimization.

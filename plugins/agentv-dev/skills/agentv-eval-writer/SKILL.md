@@ -4,7 +4,8 @@ description: >-
   Write, edit, review, and validate AgentV EVAL.yaml / .eval.yaml evaluation files.
   Use when asked to create new eval files, update or fix existing ones, add or remove test cases,
   configure evaluators (llm-judge, code-judge, rubrics), review whether an eval is correct or complete,
-  or convert between EVAL.yaml and evals.json using `agentv convert`.
+  convert between EVAL.yaml and evals.json using `agentv convert`, or generate eval test cases
+  from chat transcripts (markdown conversation or JSON messages).
   Do NOT use for creating SKILL.md files, writing skill definitions, or running evals —
   running and benchmarking belongs to agentv-bench.
 ---
@@ -39,6 +40,53 @@ The converter maps `prompt` → `input`, `expected_output` → `expected_output`
 If you're running the lifecycle through `agentv-bench`, use `agentv convert` and `agentv prompt eval` directly — the Python scripts in `agentv-bench/scripts/` orchestrate these same commands.
 
 After converting, enhance the YAML with AgentV-specific capabilities shown below.
+
+## From Chat Transcript
+
+Convert a chat conversation into eval test cases without starting from scratch.
+
+**Input formats:**
+
+Markdown conversation:
+```
+User: How do I reset my password?
+Assistant: Go to Settings > Security > Reset Password...
+```
+
+JSON messages:
+```json
+[{"role": "user", "content": "How do I reset my password?"},
+ {"role": "assistant", "content": "Go to Settings > Security > Reset Password..."}]
+```
+
+**Select exchanges that make good test cases:**
+- Factual Q&A — verifiable answers
+- Task completion — user requests an action, agent performs it
+- Edge cases — unusual inputs, error handling, boundary conditions
+- Multi-turn reasoning — exchanges where earlier context matters
+
+**Skip:** greetings, one-word acknowledgments, repeated exchanges
+
+**Multi-turn format** (when context from prior turns matters):
+```yaml
+tests:
+  - id: multi-turn-context
+    criteria: "Agent remembers prior context"
+    input:
+      - role: user
+        content: "My name is Alice"
+      - role: assistant
+        content: "Nice to meet you, Alice!"
+      - role: user
+        content: "What's my name?"
+    expected_output: "Your name is Alice."
+    assertions:
+      - type: rubrics
+        criteria:
+          - Correctly recalls the user's name from earlier in the conversation
+```
+
+**Guidelines:** preserve exact wording in `expected_output`; aim for 5–15 tests per transcript; pick exchanges that test different capabilities.
 
 ## Quick Start
 
@@ -591,10 +639,6 @@ Auto-discovered from project root. Validated with Zod.
 agentv create assertion <name>  # → .agentv/assertions/<name>.ts
 agentv create eval <name>       # → evals/<name>.eval.yaml + .cases.jsonl
 ```
-
-## Skill Improvement Workflow
-
-For a complete guide to iterating on skills using evaluations — writing scenarios, running baselines, comparing results, and improving — see the [Skill Improvement Workflow](https://agentv.dev/guides/skill-improvement-workflow/) guide.
 
 ## Skill Improvement Workflow
 
