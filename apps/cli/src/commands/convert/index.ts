@@ -68,7 +68,7 @@ export function convertEvalsJsonToYaml(inputPath: string): string {
   lines.push('#');
   lines.push('# AgentV features you can add:');
   lines.push('#   - type: is_json, contains, regex for deterministic evaluators');
-  lines.push('#   - type: code-judge for custom scoring scripts');
+  lines.push('#   - type: code-grader for custom scoring scripts');
   lines.push('#   - Multi-turn conversations via input message arrays');
   lines.push('#   - Composite evaluators with weighted scoring');
   lines.push('#   - Workspace isolation with repos and hooks');
@@ -130,7 +130,7 @@ export function convertEvalsJsonToYaml(inputPath: string): string {
       lines.push('');
     }
 
-    // Emit assertions as llm-judge evaluators
+    // Emit assertions as llm-grader evaluators
     if (test.assertions && test.assertions.length > 0) {
       lines.push('    # Promoted from evals.json assertions[]');
       lines.push('    # Replace with type: is_json, contains, or regex for deterministic checks');

@@ -214,7 +214,7 @@ export const evalRunCommand = command({
       strict: args.strict,
       benchmarkJson: args.benchmarkJson,
       artifacts: args.artifacts,
-      judgeTarget: args.graderTarget,
+      graderTarget: args.graderTarget,
       model: args.model,
     };
     await runEvalCommand({ testFiles: resolvedPaths, rawOptions });

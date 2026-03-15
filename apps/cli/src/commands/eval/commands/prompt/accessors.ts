@@ -108,13 +108,13 @@ export async function getPromptEvalGradingBrief(evalPath: string, testId: string
           if (item.outcome) criteria.push(item.outcome);
         }
       }
-    } else if (type === 'llm-judge' || type === 'llm_judge') {
+    } else if (type === 'llm-grader' || type === 'llm_grader' || type === 'llm-judge' || type === 'llm_judge') {
       const prompt = entry.prompt ?? bag.prompt ?? bag.criteria;
-      criteria.push(`[llm-judge] ${typeof prompt === 'string' ? prompt : ''}`);
-    } else if (type === 'code-judge' || type === 'code_judge') {
+      criteria.push(`[llm-grader] ${typeof prompt === 'string' ? prompt : ''}`);
+    } else if (type === 'code-grader' || type === 'code_grader' || type === 'code-judge' || type === 'code_judge') {
       const name = entry.name ?? type;
       const desc = bag.description ?? entry.description;
-      criteria.push(`[code-judge] ${name}${desc ? `: ${desc}` : ''}`);
+      criteria.push(`[code-grader] ${name}${desc ? `: ${desc}` : ''}`);
     } else if (type === 'skill-trigger') {
       const trigger = entry.should_trigger !== false;
       criteria.push(`[skill-trigger] should_trigger: ${trigger} for ${entry.skill}`);

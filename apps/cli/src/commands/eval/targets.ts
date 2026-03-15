@@ -136,7 +136,7 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
     const mockTarget: ResolvedTarget = {
       kind: 'mock',
       name: `${targetDefinition.name}-dry-run`,
-      judgeTarget: undefined,
+      graderTarget: undefined,
       config: {
         response: '{"answer":"Mock dry-run response"}',
         delayMs: dryRunDelay,
@@ -240,7 +240,7 @@ export async function selectMultipleTargets(
       const mockTarget: ResolvedTarget = {
         kind: 'mock',
         name: `${targetDefinition.name}-dry-run`,
-        judgeTarget: undefined,
+        graderTarget: undefined,
         config: {
           response: '{"answer":"Mock dry-run response"}',
           delayMs: dryRunDelay,

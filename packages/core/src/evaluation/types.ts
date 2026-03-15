@@ -384,7 +384,7 @@ export type RubricItem = {
   readonly required_min_score?: number;
   /**
    * Score range definitions for analytic rubric scoring.
-   * When present, the judge outputs an integer 0-10 score per criterion.
+   * When present, the grader outputs an integer 0-10 score per criterion.
    * Ranges must be non-overlapping and cover 0-10 inclusive.
    */
   readonly score_ranges?: readonly ScoreRange[];
@@ -421,7 +421,7 @@ export type CompositeEvaluatorConfig = {
 
 /**
  * Match type for field accuracy evaluation.
- * Note: For fuzzy string matching (Levenshtein, Jaro-Winkler, etc.), use a code-judge evaluator.
+ * Note: For fuzzy string matching (Levenshtein, Jaro-Winkler, etc.), use a code-grader evaluator.
  * See examples/features/document-extraction/fuzzy_match.ts for an example.
  */
 export type FieldMatchType = 'exact' | 'numeric_tolerance' | 'date';
