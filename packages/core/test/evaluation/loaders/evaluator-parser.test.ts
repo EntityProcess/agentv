@@ -627,7 +627,7 @@ describe('parseEvaluators - kebab-case type normalization', () => {
     const evaluators = await parseEvaluators(rawEvalCase, undefined, [tempDir], 'test-case');
 
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('llm-judge');
+    expect(evaluators?.[0].type).toBe('llm-grader');
   });
 
   it('leaves single-word types unchanged', async () => {

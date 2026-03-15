@@ -38,7 +38,7 @@ import { AgentvProvider } from '../../../src/evaluation/providers/agentv-provide
 
 describe('AgentvProvider', () => {
   it('has kind "agentv"', () => {
-    const provider = new AgentvProvider('test-judge', {
+    const provider = new AgentvProvider('test-grader', {
       model: 'openai:gpt-5-mini',
       temperature: 0,
     });
@@ -46,23 +46,23 @@ describe('AgentvProvider', () => {
   });
 
   it('has correct targetName', () => {
-    const provider = new AgentvProvider('my-judge', {
+    const provider = new AgentvProvider('my-grader', {
       model: 'openai:gpt-5-mini',
       temperature: 0,
     });
-    expect(provider.targetName).toBe('my-judge');
+    expect(provider.targetName).toBe('my-grader');
   });
 
   it('has correct id format', () => {
-    const provider = new AgentvProvider('test-judge', {
+    const provider = new AgentvProvider('test-grader', {
       model: 'openai:gpt-5-mini',
       temperature: 0,
     });
-    expect(provider.id).toBe('agentv:test-judge');
+    expect(provider.id).toBe('agentv:test-grader');
   });
 
   it('asLanguageModel() returns a defined LanguageModel', () => {
-    const provider = new AgentvProvider('test-judge', {
+    const provider = new AgentvProvider('test-grader', {
       model: 'openai:gpt-5-mini',
       temperature: 0,
     });
@@ -72,7 +72,7 @@ describe('AgentvProvider', () => {
   });
 
   it('asLanguageModel() works with anthropic model strings', () => {
-    const provider = new AgentvProvider('test-judge', {
+    const provider = new AgentvProvider('test-grader', {
       model: 'anthropic:claude-sonnet-4-20250514',
       temperature: 0,
     });
@@ -82,7 +82,7 @@ describe('AgentvProvider', () => {
   });
 
   it('asLanguageModel() works with google model strings', () => {
-    const provider = new AgentvProvider('test-judge', {
+    const provider = new AgentvProvider('test-grader', {
       model: 'google:gemini-2.5-flash',
       temperature: 0,
     });
@@ -92,7 +92,7 @@ describe('AgentvProvider', () => {
   });
 
   it('asLanguageModel() works with azure model strings', () => {
-    const provider = new AgentvProvider('test-judge', {
+    const provider = new AgentvProvider('test-grader', {
       model: 'azure:gpt-4o-deployment',
       temperature: 0,
     });
@@ -104,7 +104,7 @@ describe('AgentvProvider', () => {
   it('throws for unsupported provider prefix', () => {
     expect(
       () =>
-        new AgentvProvider('test-judge', {
+        new AgentvProvider('test-grader', {
           model: 'unsupported:some-model',
           temperature: 0,
         }),
@@ -114,7 +114,7 @@ describe('AgentvProvider', () => {
   it('throws for model string without colon separator', () => {
     expect(
       () =>
-        new AgentvProvider('test-judge', {
+        new AgentvProvider('test-grader', {
           model: 'gpt-5-mini',
           temperature: 0,
         }),
@@ -122,7 +122,7 @@ describe('AgentvProvider', () => {
   });
 
   it('invoke() throws an error', async () => {
-    const provider = new AgentvProvider('test-judge', {
+    const provider = new AgentvProvider('test-grader', {
       model: 'openai:gpt-5-mini',
       temperature: 0,
     });
