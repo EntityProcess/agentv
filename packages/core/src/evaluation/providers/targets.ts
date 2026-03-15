@@ -514,6 +514,11 @@ export interface VSCodeResolvedConfig {
   readonly timeoutMs?: number;
 }
 
+export interface AgentVResolvedConfig {
+  readonly model: string;
+  readonly temperature: number;
+}
+
 /**
  * Healthcheck configuration type derived from CliHealthcheckSchema.
  * Supports both HTTP and command-based healthchecks.
@@ -627,6 +632,14 @@ export type ResolvedTarget =
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: VSCodeResolvedConfig;
+    }
+  | {
+      readonly kind: 'agentv';
+      readonly name: string;
+      readonly judgeTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: AgentVResolvedConfig;
     }
   | {
       readonly kind: 'cli';
@@ -841,6 +854,23 @@ export function resolveTargetDefinition(
         providerBatching,
         config: resolveVSCodeConfig(parsed, env, provider === 'vscode-insiders', evalFilePath),
       };
+    case 'agentv': {
+      const model = typeof parsed.model === 'string' ? parsed.model : undefined;
+      if (!model) {
+        throw new Error(
+          `Target "${parsed.name}" (provider: agentv) requires a "model" field (e.g., "openai:gpt-5-mini")`,
+        );
+      }
+      const temperature = typeof parsed.temperature === 'number' ? parsed.temperature : 0;
+      return {
+        kind: 'agentv',
+        name: parsed.name,
+        judgeTarget: parsed.judge_target,
+        workers: typeof parsed.workers === 'number' ? parsed.workers : undefined,
+        providerBatching,
+        config: { model, temperature },
+      };
+    }
     case 'cli':
       return {
         kind: 'cli',
