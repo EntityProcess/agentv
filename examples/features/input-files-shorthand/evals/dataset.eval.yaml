@@ -1,0 +1,76 @@
+# input_files shorthand example
+#
+# `input_files` is a shorthand at the test level that expands to type:file content
+# blocks prepended before the text in the user message. This avoids repeating the
+# verbose content-block syntax when you just want to attach one or more files.
+#
+# Shorthand form:
+#
+#   input_files:
+#     - fixtures/sales.csv
+#   input: "Summarize the monthly trends in this CSV."
+#
+# Expands to:
+#
+#   input:
+#     - role: user
+#       content:
+#         - type: file
+#           value: fixtures/sales.csv
+#         - type: text
+#           value: "Summarize the monthly trends in this CSV."
+#
+# Rules:
+#   - File blocks come first, text block last
+#   - Only supported with a string `input` (not multi-turn arrays)
+#   - Paths are resolved the same way as explicit type:file blocks
+
+description: Demonstrates input_files shorthand for attaching files to test inputs
+
+execution:
+  target: default
+
+tests:
+  # ==========================================
+  # Example 1: Single file with string input (shorthand)
+  # ==========================================
+  - id: summarize-sales-shorthand
+    criteria: >
+      Agent summarizes the monthly revenue trends from the CSV file,
+      identifying which product performed better each month and overall direction.
+
+    # Shorthand form — equivalent to explicit type:file + type:text content blocks
+    input_files:
+      - ../fixtures/sales.csv
+    input: "Summarize the monthly revenue trends in this CSV. Which product is growing faster?"
+
+  # ==========================================
+  # Example 2: Equivalent explicit form for reference
+  # Both forms produce identical runtime behaviour.
+  # ==========================================
+  - id: summarize-sales-explicit
+    criteria: >
+      Agent summarizes the monthly revenue trends from the CSV file,
+      identifying which product performed better each month and overall direction.
+
+    # Explicit type:file + type:text form (same runtime result as shorthand above)
+    input:
+      - role: user
+        content:
+          - type: file
+            value: ../fixtures/sales.csv
+          - type: text
+            value: "Summarize the monthly revenue trends in this CSV. Which product is growing faster?"
+
+  # ==========================================
+  # Example 3: Multiple files with input_files
+  # ==========================================
+  - id: compare-two-files
+    criteria: >
+      Agent compares the two data files and identifies key differences
+      between the datasets.
+
+    input_files:
+      - ../fixtures/sales.csv
+      - ../fixtures/sales.csv
+    input: "Compare these two data files and describe any differences."
