@@ -120,7 +120,7 @@ export const CliTargetInputSchema = z.object({
 
   // Common target fields
   grader_target: z.string().optional(),
-  judge_target: z.string().optional(),  // backward compat
+  judge_target: z.string().optional(), // backward compat
   workers: z.number().int().min(1).optional(),
   provider_batching: z.boolean().optional(),
   providerBatching: z.boolean().optional(),
@@ -656,7 +656,7 @@ const BASE_TARGET_SCHEMA = z
     name: z.string().min(1, 'target name is required'),
     provider: z.string().min(1, 'provider is required'),
     grader_target: z.string().optional(),
-    judge_target: z.string().optional(),  // backward compat
+    judge_target: z.string().optional(), // backward compat
     workers: z.number().int().min(1).optional(),
     workspace_template: z.string().optional(),
     workspaceTemplate: z.string().optional(),

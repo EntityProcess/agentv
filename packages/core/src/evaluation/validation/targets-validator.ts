@@ -249,7 +249,15 @@ function validateUnknownSettings(
   }
 
   // Known base target fields that aren't settings
-  const baseFields = new Set(['name', 'provider', 'grader_target', 'judge_target', 'workers', '$schema', 'targets']);
+  const baseFields = new Set([
+    'name',
+    'provider',
+    'grader_target',
+    'judge_target',
+    'workers',
+    '$schema',
+    'targets',
+  ]);
 
   for (const key of Object.keys(target)) {
     if (removedTargetFields.has(key)) {

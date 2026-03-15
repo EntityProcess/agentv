@@ -250,7 +250,12 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
  * Most assertions produce exactly one string; llm-grader with rubrics expands to many.
  */
 function assertionToNaturalLanguageList(entry: RawAssertEntry): string[] {
-  if (entry.type === 'llm-grader' || entry.type === 'llm_grader' || entry.type === 'llm-judge' || entry.type === 'llm_judge') {
+  if (
+    entry.type === 'llm-grader' ||
+    entry.type === 'llm_grader' ||
+    entry.type === 'llm-judge' ||
+    entry.type === 'llm_judge'
+  ) {
     if (Array.isArray(entry.rubrics) && entry.rubrics.length > 0) {
       return (entry.rubrics as Array<{ outcome?: string; criteria?: string; id?: string }>)
         .map((r) => r.outcome ?? r.criteria ?? r.id)

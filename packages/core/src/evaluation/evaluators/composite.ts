@@ -330,7 +330,9 @@ export class CompositeEvaluator implements Evaluator {
   private async runLlmAggregator(
     results: readonly MemberResult[],
     context: EvaluationContext,
-    config: Extract<CompositeAggregatorConfig, { type: 'llm-grader' }> | Extract<CompositeAggregatorConfig, { type: 'llm-judge' }>,
+    config:
+      | Extract<CompositeAggregatorConfig, { type: 'llm-grader' }>
+      | Extract<CompositeAggregatorConfig, { type: 'llm-judge' }>,
   ): Promise<EvaluationScore> {
     const graderProvider = context.graderProvider;
     if (!graderProvider) {

@@ -89,7 +89,9 @@ export const llmGraderFactory: EvaluatorFactoryFn = (config, context) => {
       graderTargetProvider = targetResolver(c.target);
     }
     if (!graderTargetProvider) {
-      throw new Error(`llm-grader evaluator '${c.name}': target '${c.target}' not found in targets`);
+      throw new Error(
+        `llm-grader evaluator '${c.name}': target '${c.target}' not found in targets`,
+      );
     }
     // Only pass graderTargetProvider for agent providers (delegate mode).
     // LLM providers use the normal resolveGraderProvider path for structured JSON mode.

@@ -56,7 +56,9 @@ export const evalAssertCommand = command({
 
     const scriptPath = await findGraderScript(graderName, process.cwd());
     if (!scriptPath) {
-      console.error(`Error: Grader '${graderName}' not found in .agentv/graders/ (or .agentv/judges/)`);
+      console.error(
+        `Error: Grader '${graderName}' not found in .agentv/graders/ (or .agentv/judges/)`,
+      );
       process.exit(1);
     }
 
