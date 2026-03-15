@@ -1,4 +1,4 @@
-import { satisfies, validRange } from 'semver';
+import { coerce, satisfies, validRange } from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
 
@@ -26,7 +26,7 @@ export function checkVersion(requiredVersion: string): VersionCheckResult {
   }
 
   return {
-    satisfied: satisfies(currentVersion, requiredVersion),
+    satisfied: satisfies(coerce(currentVersion) ?? currentVersion, requiredVersion),
     currentVersion,
     requiredRange: requiredVersion,
   };
