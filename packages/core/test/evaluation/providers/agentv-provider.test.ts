@@ -1,76 +1,37 @@
 import { describe, expect, it, vi } from 'vitest';
 
-// Mock AI SDK provider packages before importing the provider
+// Mock AI SDK provider packages before importing the provider.
+// Each createXxx() returns a callable factory: createXxx()(modelName) => model stub.
 vi.mock('@ai-sdk/openai', () => ({
-  createOpenAI: () => {
-    const provider = (modelId: string) => ({
-      modelId,
-      specificationVersion: 'v2',
-      provider: 'openai',
-    });
-    provider.languageModel = (modelId: string) => ({
-      modelId,
-      specificationVersion: 'v2',
-      provider: 'openai',
-    });
-    provider.chatModel = provider.languageModel;
-    provider.textEmbeddingModel = () => ({});
-    return provider;
-  },
+  createOpenAI: () => (modelId: string) => ({
+    modelId,
+    specificationVersion: 'v2',
+    provider: 'openai',
+  }),
 }));
 
 vi.mock('@ai-sdk/anthropic', () => ({
-  createAnthropic: () => {
-    const provider = (modelId: string) => ({
-      modelId,
-      specificationVersion: 'v2',
-      provider: 'anthropic',
-    });
-    provider.languageModel = (modelId: string) => ({
-      modelId,
-      specificationVersion: 'v2',
-      provider: 'anthropic',
-    });
-    provider.chatModel = provider.languageModel;
-    provider.textEmbeddingModel = () => ({});
-    return provider;
-  },
+  createAnthropic: () => (modelId: string) => ({
+    modelId,
+    specificationVersion: 'v2',
+    provider: 'anthropic',
+  }),
 }));
 
 vi.mock('@ai-sdk/azure', () => ({
-  createAzure: () => {
-    const provider = (modelId: string) => ({
-      modelId,
-      specificationVersion: 'v2',
-      provider: 'azure',
-    });
-    provider.languageModel = (modelId: string) => ({
-      modelId,
-      specificationVersion: 'v2',
-      provider: 'azure',
-    });
-    provider.chatModel = provider.languageModel;
-    provider.textEmbeddingModel = () => ({});
-    return provider;
-  },
+  createAzure: () => (modelId: string) => ({
+    modelId,
+    specificationVersion: 'v2',
+    provider: 'azure',
+  }),
 }));
 
 vi.mock('@ai-sdk/google', () => ({
-  createGoogleGenerativeAI: () => {
-    const provider = (modelId: string) => ({
-      modelId,
-      specificationVersion: 'v2',
-      provider: 'google',
-    });
-    provider.languageModel = (modelId: string) => ({
-      modelId,
-      specificationVersion: 'v2',
-      provider: 'google',
-    });
-    provider.chatModel = provider.languageModel;
-    provider.textEmbeddingModel = () => ({});
-    return provider;
-  },
+  createGoogleGenerativeAI: () => (modelId: string) => ({
+    modelId,
+    specificationVersion: 'v2',
+    provider: 'google',
+  }),
 }));
 
 import { AgentvProvider } from '../../../src/evaluation/providers/agentv-provider.js';
@@ -118,6 +79,46 @@ describe('AgentvProvider', () => {
     const model = provider.asLanguageModel();
     expect(model).toBeDefined();
     expect(model.modelId).toBe('claude-sonnet-4-20250514');
+  });
+
+  it('asLanguageModel() works with google model strings', () => {
+    const provider = new AgentvProvider('test-judge', {
+      model: 'google:gemini-2.5-flash',
+      temperature: 0,
+    });
+    const model = provider.asLanguageModel();
+    expect(model).toBeDefined();
+    expect(model.modelId).toBe('gemini-2.5-flash');
+  });
+
+  it('asLanguageModel() works with azure model strings', () => {
+    const provider = new AgentvProvider('test-judge', {
+      model: 'azure:gpt-4o-deployment',
+      temperature: 0,
+    });
+    const model = provider.asLanguageModel();
+    expect(model).toBeDefined();
+    expect(model.modelId).toBe('gpt-4o-deployment');
+  });
+
+  it('throws for unsupported provider prefix', () => {
+    expect(
+      () =>
+        new AgentvProvider('test-judge', {
+          model: 'unsupported:some-model',
+          temperature: 0,
+        }),
+    ).toThrow('Unsupported AI SDK provider "unsupported"');
+  });
+
+  it('throws for model string without colon separator', () => {
+    expect(
+      () =>
+        new AgentvProvider('test-judge', {
+          model: 'gpt-5-mini',
+          temperature: 0,
+        }),
+    ).toThrow('Invalid model string "gpt-5-mini"');
   });
 
   it('invoke() throws an error', async () => {

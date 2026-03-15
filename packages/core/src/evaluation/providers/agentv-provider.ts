@@ -2,39 +2,57 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createAzure } from '@ai-sdk/azure';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
-import { type LanguageModel, createProviderRegistry } from 'ai';
+import type { LanguageModel } from 'ai';
 
 import type { AgentVResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
 
 /**
- * Lazily-created singleton provider registry for resolving AI SDK model strings.
- * Maps provider prefixes (e.g., "openai", "anthropic") to their AI SDK provider
- * implementations so that model strings like "openai:gpt-5-mini" can be resolved
- * to LanguageModel instances.
+ * Parse a model string like "openai:gpt-5-mini" into provider prefix and model name.
  */
-let _registry: { languageModel: (id: string) => LanguageModel } | null = null;
-
-function getAiSdkRegistry(): { languageModel: (id: string) => LanguageModel } {
-  if (!_registry) {
-    // Cast through unknown: the registry's languageModel signature uses narrowed
-    // literal types, but we need to accept arbitrary model strings at runtime.
-    _registry = createProviderRegistry({
-      openai: createOpenAI(),
-      anthropic: createAnthropic(),
-      azure: createAzure(),
-      google: createGoogleGenerativeAI(),
-    }) as unknown as { languageModel: (id: string) => LanguageModel };
+function parseModelString(model: string): { provider: string; modelName: string } {
+  const colonIndex = model.indexOf(':');
+  if (colonIndex === -1) {
+    throw new Error(
+      `Invalid model string "${model}". Expected format "provider:model" (e.g., "openai:gpt-5-mini")`,
+    );
   }
-  return _registry;
+  return {
+    provider: model.slice(0, colonIndex),
+    modelName: model.slice(colonIndex + 1),
+  };
+}
+
+/**
+ * Create a LanguageModel from a model string using the appropriate AI SDK provider.
+ */
+function createLanguageModel(modelString: string): LanguageModel {
+  const { provider, modelName } = parseModelString(modelString);
+
+  switch (provider) {
+    case 'openai':
+      return createOpenAI()(modelName);
+    case 'anthropic':
+      return createAnthropic()(modelName);
+    case 'azure':
+      return createAzure()(modelName);
+    case 'google':
+      return createGoogleGenerativeAI()(modelName);
+    default:
+      throw new Error(
+        `Unsupported AI SDK provider "${provider}" in model string "${modelString}". ` +
+          'Supported providers: openai, anthropic, azure, google',
+      );
+  }
 }
 
 /**
  * AgentV built-in provider for LLM judge evaluation.
  *
  * Resolves an AI SDK model string (e.g., "openai:gpt-5-mini", "anthropic:claude-sonnet-4-20250514")
- * to a Vercel AI SDK LanguageModel using createProviderRegistry. This provider is used
- * exclusively for judge evaluation — it does not support direct agent invocation.
+ * to a Vercel AI SDK LanguageModel by parsing the provider prefix and creating the appropriate
+ * AI SDK provider directly. This provider is used exclusively for judge evaluation — it does not
+ * support direct agent invocation.
  *
  * Usage: `--judge-target agentv --model openai:gpt-5-mini`
  */
@@ -44,15 +62,11 @@ export class AgentvProvider implements Provider {
   readonly targetName: string;
 
   private readonly model: LanguageModel;
-  private readonly config: AgentVResolvedConfig;
 
   constructor(targetName: string, config: AgentVResolvedConfig) {
     this.id = `agentv:${targetName}`;
     this.targetName = targetName;
-    this.config = config;
-
-    const registry = getAiSdkRegistry();
-    this.model = registry.languageModel(config.model);
+    this.model = createLanguageModel(config.model);
   }
 
   /**
