@@ -225,7 +225,7 @@ Keep your baseline stable across iterations. Only re-run the baseline when the t
 
 ## Graduating to EVAL.yaml
 
-When `evals.json` becomes limiting — you need workspace isolation, code judges, tool trajectory checks, or multi-turn conversations — graduate to EVAL.yaml:
+When `evals.json` becomes limiting — you need workspace isolation, code graders, tool trajectory checks, or multi-turn conversations — graduate to EVAL.yaml:
 
 ```bash
 agentv convert evals.json -o eval.yaml
@@ -252,9 +252,9 @@ tests:
 ```
 
 After converting, you can:
-- Replace `llm-judge` assertions with faster deterministic evaluators (`contains`, `regex`, `equals`)
+- Replace `llm-grader` assertions with faster deterministic evaluators (`contains`, `regex`, `equals`)
 - Add `workspace` configuration for file-system isolation
-- Use `code-judge` for custom scoring logic
+- Use `code-grader` for custom scoring logic
 - Define `tool-trajectory` assertions to check tool usage patterns
 
 See [Skill Evals (evals.json)](/guides/agent-skills-evals/) for the full field mapping and side-by-side comparison.
@@ -270,7 +270,7 @@ If you've been using the Agent Skills skill-creator workflow, AgentV reads your 
 | `grading.json` (read) | `grading.json` (write) | Same schema, AgentV produces it |
 | `benchmark.json` (read) | `benchmark.json` (write) | Same schema, AgentV produces it |
 | with-skill vs without-skill | `--target baseline --target candidate` | Structured comparison |
-| Graduate to richer evals | `agentv convert evals.json` → EVAL.yaml | Adds workspace, code judges, etc. |
+| Graduate to richer evals | `agentv convert evals.json` → EVAL.yaml | Adds workspace, code graders, etc. |
 
 **Key takeaway:** You do not need to rewrite your `evals.json`. AgentV reads it directly and adds a richer evaluation engine on top.
 
@@ -306,7 +306,7 @@ Start simple and add complexity only when the evaluation results demand it:
 
 1. **Start with `evals.json`** — 5-10 test cases, natural-language assertions
 2. **Add deterministic checks** — when you find assertions that can be exact (`contains`, `regex`)
-3. **Graduate to EVAL.yaml** — when you need workspace isolation or code judges
+3. **Graduate to EVAL.yaml** — when you need workspace isolation or code graders
 4. **Add tool trajectory checks** — when tool usage patterns matter
 5. **Use rubrics** — when you need weighted, structured scoring criteria
 
@@ -329,4 +329,4 @@ Its bundled scripts map directly onto the workflow stages:
 - `aggregate-benchmark.ts` and `generate-report.ts` summarize AgentV artifacts into review-friendly output
 - `improve-description.ts` proposes follow-up description experiments once execution quality is stable
 
-Code-judge execution, grading semantics, and artifact schemas still live in AgentV core. The scripts layer is orchestration glue over those existing primitives.
+Code-grader execution, grading semantics, and artifact schemas still live in AgentV core. The scripts layer is orchestration glue over those existing primitives.

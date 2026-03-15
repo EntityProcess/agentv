@@ -11,8 +11,8 @@ AgentV supports multiple evaluator types that can be combined for comprehensive 
 
 | Type | Description | Use Case |
 |------|-------------|----------|
-| `code_judge` | Deterministic command (Python/TS/any) | Exact matching, format validation, programmatic checks |
-| `llm_judge` | LLM-based evaluation with custom prompt | Semantic evaluation, nuance, subjective quality |
+| `code_grader` | Deterministic command (Python/TS/any) | Exact matching, format validation, programmatic checks |
+| `llm_grader` | LLM-based evaluation with custom prompt | Semantic evaluation, nuance, subjective quality |
 | `rubrics` | Structured rubric evaluator via `assert` | Multi-criterion grading with weights |
 
 ## Referencing Evaluators
@@ -25,8 +25,8 @@ Evaluators are configured using `assert` — either top-level (applies to all te
 description: My evaluation
 assertions:
   - name: correctness
-    type: llm-judge
-    prompt: ./judges/correctness.md
+    type: llm-grader
+    prompt: ./graders/correctness.md
 
 tests:
   - id: test-1
@@ -43,7 +43,7 @@ tests:
     input: Generate a JSON config
     assertions:
       - name: json_check
-        type: code-judge
+        type: code-grader
         command: [./validators/check_json.py]
 ```
 
@@ -63,11 +63,11 @@ tests:
           - Handles edge cases (empty list, single element)
           - Uses appropriate algorithm
       - name: syntax_check
-        type: code-judge
+        type: code-grader
         command: [./validators/check_syntax.py]
       - name: quality_review
-        type: llm-judge
-        prompt: ./judges/code_quality.md
+        type: llm-grader
+        prompt: ./graders/code_quality.md
 ```
 
 Each evaluator produces its own score. Results appear in `scores[]` in the output JSONL.
@@ -83,8 +83,8 @@ If any evaluator has `required: true` (or `required: <threshold>`) and scores be
 
 ## Best Practices
 
-- **Use code judges for deterministic checks** — exact value matching, format validation, schema compliance
-- **Use LLM judges for semantic evaluation** — meaning, quality, helpfulness
+- **Use code graders for deterministic checks** — exact value matching, format validation, schema compliance
+- **Use LLM graders for semantic evaluation** — meaning, quality, helpfulness
 - **Use rubrics for structured multi-criteria grading** — when you need weighted, itemized scoring
 - **Combine evaluator types** for comprehensive coverage
-- **Test code judges locally** before running full evaluations
+- **Test code graders locally** before running full evaluations

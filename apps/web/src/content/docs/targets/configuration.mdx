@@ -20,12 +20,12 @@ targets:
   - name: vscode_dev
     provider: vscode
     workspace_template: ${{ WORKSPACE_PATH }}
-    judge_target: azure-base
+    grader_target: azure-base
 
   - name: local_agent
     provider: cli
     command: 'python agent.py --prompt {PROMPT}'
-    judge_target: azure-base
+    grader_target: azure-base
 ```
 
 ## Environment Variables
@@ -75,15 +75,15 @@ tests:
       target: vscode_dev  # Override for this case
 ```
 
-## Judge Target
+## Grader Target
 
-Agent targets that need LLM-based evaluation specify a `judge_target` — the LLM used to run LLM judge evaluators:
+Agent targets that need LLM-based evaluation specify a `grader_target` (also accepts `judge_target` for backward compatibility) — the LLM used to run LLM grader evaluators:
 
 ```yaml
 targets:
   - name: codex_target
     provider: codex
-    judge_target: azure-base  # LLM used for judging
+    grader_target: azure-base  # LLM used for grading
 ```
 
 ## Workspace Template
@@ -95,7 +95,7 @@ targets:
   - name: claude_agent
     provider: claude
     workspace_template: ./workspace-templates/my-project
-    judge_target: azure-base
+    grader_target: azure-base
 ```
 
 When `workspace_template` is set:

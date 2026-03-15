@@ -1,39 +1,39 @@
 ---
-title: LLM Judges
+title: LLM Graders
 description: Customizable LLM-based evaluation
 sidebar:
   order: 2
 ---
 
-LLM judges use a language model to evaluate agent responses against custom criteria defined in a prompt file.
+LLM graders (also accepts `llm-judge` for backward compatibility) use a language model to evaluate agent responses against custom criteria defined in a prompt file.
 
-## Default Judge
+## Default Grader
 
-When a test defines `criteria` but has **no `assert` field**, a default `llm-judge` runs automatically. The built-in prompt evaluates the response against your `criteria` and `expected_output`:
+When a test defines `criteria` but has **no `assert` field**, a default `llm-grader` runs automatically. The built-in prompt evaluates the response against your `criteria` and `expected_output`:
 
 ```yaml
 tests:
   - id: simple-eval
     criteria: Correctly explains the bug and proposes a fix
     input: "Debug this function..."
-    # No assert needed — default llm-judge evaluates against criteria
+    # No assert needed — default llm-grader evaluates against criteria
 ```
 
-When `assert` **is** present, no default judge is added. To use an LLM judge alongside other evaluators, declare it explicitly. See [How criteria and assert interact](/evaluation/eval-cases/#how-criteria-and-assert-interact).
+When `assert` **is** present, no default grader is added. To use an LLM grader alongside other evaluators, declare it explicitly. See [How criteria and assert interact](/evaluation/eval-cases/#how-criteria-and-assert-interact).
 
 ## Configuration
 
-Reference an LLM judge in your eval file:
+Reference an LLM grader in your eval file:
 
 ```yaml
 assertions:
   - name: semantic_check
-    type: llm-judge
-    prompt: ./judges/correctness.md
-    target: judge_gpt_5_mini   # optional: route this judge to a named LLM target
+    type: llm-grader
+    prompt: ./graders/correctness.md
+    target: grader_gpt_5_mini   # optional: route this grader to a named LLM target
 ```
 
-Use `target:` when you want different `llm-judge` evaluators in the same eval to run on different judge models. This is useful for judge panels, majority-vote ensembles, and judge A/B benchmarks.
+Use `target:` when you want different `llm-grader` evaluators in the same eval to run on different grader models. This is useful for grader panels, majority-vote ensembles, and grader A/B benchmarks.
 
 ## Prompt Files
 
@@ -73,19 +73,19 @@ Score the response from 0.0 to 1.0 based on:
 | `rubrics` | Test `rubrics` (if defined) |
 | `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
 
-## Per-Evaluator Judge Target
+## Per-Evaluator Grader Target
 
-By default, an `llm-judge` uses the suite target's `judge_target`. Override it per evaluator when you need multiple judge models in one run:
+By default, an `llm-grader` uses the suite target's `grader_target`. Override it per evaluator when you need multiple grader models in one run:
 
 ```yaml
 assertions:
-  - name: judge-gpt
-    type: llm-judge
-    target: judge_gpt_5_mini
+  - name: grader-gpt
+    type: llm-grader
+    target: grader_gpt_5_mini
     prompt: ./prompts/pass-fail.md
-  - name: judge-haiku
-    type: llm-judge
-    target: judge_claude_haiku
+  - name: grader-haiku
+    type: llm-grader
+    target: grader_claude_haiku
     prompt: ./prompts/pass-fail.md
 ```
 
@@ -121,7 +121,7 @@ Evaluate and provide a score from 0 to 1.`;
 ## How It Works
 
 1. AgentV renders the prompt template with variables from the test
-2. The rendered prompt is sent to the judge target (configured in targets.yaml)
+2. The rendered prompt is sent to the grader target (configured in targets.yaml)
 3. The LLM returns a structured evaluation with score, hits, misses, and reasoning
 4. Results are recorded in the output JSONL
 
@@ -132,7 +132,7 @@ When using TypeScript templates, configure them in YAML with optional `config` d
 ```yaml
 assertions:
   - name: custom-eval
-    type: llm-judge
+    type: llm-grader
     prompt:
       command: [bun, run, ../prompts/custom-evaluator.ts]
       config:

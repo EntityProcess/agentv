@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-Coding agent targets evaluate AI coding assistants and CLI-based agents. These targets require a `judge_target` to run LLM-based evaluators.
+Coding agent targets evaluate AI coding assistants and CLI-based agents. These targets require a `grader_target` (also accepts `judge_target` for backward compatibility) to run LLM-based evaluators.
 
 ## Prompt format
 
@@ -68,14 +68,14 @@ targets:
   - name: claude_agent
     provider: claude
     workspace_template: ./workspace-templates/my-project
-    judge_target: azure-base
+    grader_target: azure-base
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `workspace_template` | No | Path to workspace template directory |
 | `cwd` | No | Working directory (mutually exclusive with workspace_template) |
-| `judge_target` | Yes | LLM target for evaluation |
+| `grader_target` | Yes | LLM target for evaluation |
 
 ## Codex CLI
 
@@ -84,14 +84,14 @@ targets:
   - name: codex_target
     provider: codex
     workspace_template: ./workspace-templates/my-project
-    judge_target: azure-base
+    grader_target: azure-base
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `workspace_template` | No | Path to workspace template directory |
 | `cwd` | No | Working directory (mutually exclusive with workspace_template) |
-| `judge_target` | Yes | LLM target for evaluation |
+| `grader_target` | Yes | LLM target for evaluation |
 
 ## Copilot CLI
 
@@ -100,7 +100,7 @@ targets:
   - name: copilot
     provider: copilot
     model: gpt-5-mini
-    judge_target: azure-base
+    grader_target: azure-base
 ```
 
 | Field | Required | Description |
@@ -108,7 +108,7 @@ targets:
 | `model` | No | Model to use (defaults to copilot's default) |
 | `workspace_template` | No | Path to workspace template directory |
 | `cwd` | No | Working directory (mutually exclusive with workspace_template) |
-| `judge_target` | Yes | LLM target for evaluation |
+| `grader_target` | Yes | LLM target for evaluation |
 
 ## Pi Coding Agent
 
@@ -117,14 +117,14 @@ targets:
   - name: pi_target
     provider: pi-coding-agent
     workspace_template: ./workspace-templates/my-project
-    judge_target: azure-base
+    grader_target: azure-base
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `workspace_template` | No | Path to workspace template directory |
 | `cwd` | No | Working directory (mutually exclusive with workspace_template) |
-| `judge_target` | Yes | LLM target for evaluation |
+| `grader_target` | Yes | LLM target for evaluation |
 
 ## VS Code
 
@@ -133,14 +133,14 @@ targets:
   - name: vscode_dev
     provider: vscode
     workspace_template: ${{ WORKSPACE_PATH }}
-    judge_target: azure-base
+    grader_target: azure-base
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `executable` | No | Path to VS Code binary. Supports `${{ ENV_VAR }}` syntax or literal paths. Defaults to `code` (or `code-insiders` for the insiders provider). |
 | `workspace_template` | No | Path to workspace template directory or `.code-workspace` file |
-| `judge_target` | Yes | LLM target for evaluation |
+| `grader_target` | Yes | LLM target for evaluation |
 
 Using a custom executable path:
 
@@ -150,7 +150,7 @@ targets:
     provider: vscode
     executable: ${{ VSCODE_CMD }}
     workspace_template: ${{ WORKSPACE_PATH }}
-    judge_target: azure-base
+    grader_target: azure-base
 ```
 
 ## VS Code Insiders
@@ -160,7 +160,7 @@ targets:
   - name: vscode_insiders
     provider: vscode-insiders
     workspace_template: ${{ WORKSPACE_PATH }}
-    judge_target: azure-base
+    grader_target: azure-base
 ```
 
 Same configuration as VS Code.
@@ -175,7 +175,7 @@ targets:
     provider: cli
     command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
     workspace_template: ./workspace-templates/my-project
-    judge_target: azure-base
+    grader_target: azure-base
 ```
 
 | Field | Required | Description |
@@ -183,7 +183,7 @@ targets:
 | `command` | Yes | Command to run. `{PROMPT}` is inline prompt text and `{PROMPT_FILE}` is a temp file path containing the prompt. |
 | `workspace_template` | No | Path to workspace template directory |
 | `cwd` | No | Working directory (mutually exclusive with workspace_template) |
-| `judge_target` | Yes | LLM target for evaluation |
+| `grader_target` | Yes | LLM target for evaluation |
 
 ## Mock Provider
 
@@ -215,7 +215,7 @@ targets:
   - name: copilot
     provider: copilot
     executable: ${{ COPILOT_EXE }}
-    judge_target: azure-base
+    grader_target: azure-base
 ```
 
 Use a native binary path for `COPILOT_EXE` (for example `copilot.exe` from `@github/copilot-win32-x64`).

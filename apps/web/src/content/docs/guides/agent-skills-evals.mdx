@@ -56,7 +56,7 @@ When AgentV loads `evals.json`, it promotes fields to its internal representatio
 |---|---|---|
 | `prompt` | `input` | Wrapped as `[{role: "user", content: prompt}]` |
 | `expected_output` | `expected_output` + `criteria` | Used as reference answer and evaluation criteria |
-| `assertions[]` | `assert[]` | Each string becomes `{type: llm-judge, prompt: text}` |
+| `assertions[]` | `assert[]` | Each string becomes `{type: llm-grader, prompt: text}` |
 | `files[]` | `file_paths` | Resolved relative to evals.json, copied into workspace |
 | `skill_name` | `metadata.skill_name` | Carried as metadata |
 | `id` (number) | `id` (string) | Converted via `String(id)` |
@@ -149,7 +149,7 @@ The generated YAML includes comments about available AgentV features you can use
 # Converted from Agent Skills evals.json
 # AgentV features you can add:
 #   - type: is_json, contains, regex for deterministic evaluators
-#   - type: code-judge for custom scoring scripts
+#   - type: code-grader for custom scoring scripts
 #   - Multi-turn conversations via input message arrays
 #   - Composite evaluators with weighted scoring
 #   - Workspace isolation with repos and hooks
@@ -165,7 +165,7 @@ tests:
     # Replace with type: is_json, contains, or regex for deterministic checks
     assertions:
       - name: assertion-1
-        type: llm-judge
+        type: llm-grader
         prompt: "Output identifies November as the highest revenue month"
 ```
 
@@ -188,7 +188,7 @@ Use `evals.json` when:
 
 Switch to EVAL.yaml when you need:
 
-- **Deterministic evaluators**: `contains`, `regex`, `equals`, `is-json` — faster and cheaper than LLM judges
+- **Deterministic evaluators**: `contains`, `regex`, `equals`, `is-json` — faster and cheaper than LLM graders
 - **Composite scoring**: Weighted evaluators with custom aggregation
 - **Multi-turn conversations**: Multi-message input sequences
 - **Workspace isolation**: Sandboxed file systems per test case
@@ -230,17 +230,17 @@ tests:
       An empathetic response that offers to track the order and provides next steps.
     assertions:
       - name: acknowledges-frustration
-        type: llm-judge
+        type: llm-grader
         prompt: Response acknowledges the customer's frustration
       - name: looks-up-order
         type: contains
         value: "12345"
       - name: has-next-steps
-        type: llm-judge
+        type: llm-grader
         prompt: Response provides clear next steps
 ```
 
-Notice how the EVAL.yaml version can mix `llm-judge` (for subjective checks) with `contains` (for deterministic checks) — the order number check is now instant and free.
+Notice how the EVAL.yaml version can mix `llm-grader` (for subjective checks) with `contains` (for deterministic checks) — the order number check is now instant and free.
 
 ## References
 

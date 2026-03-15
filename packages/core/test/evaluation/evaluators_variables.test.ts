@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { LlmJudgeEvaluator } from '../../src/evaluation/evaluators.js';
+import { LlmGraderEvaluator } from '../../src/evaluation/evaluators.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import type {
   Provider,
@@ -34,7 +34,7 @@ const baseTestCase: EvalTest = {
   guideline_paths: [],
   file_paths: [],
   criteria: 'Expected Outcome Text',
-  evaluator: 'llm-judge',
+  evaluator: 'llm-grader',
 };
 
 const baseTarget: ResolvedTarget = {
@@ -43,7 +43,7 @@ const baseTarget: ResolvedTarget = {
   config: { response: '{}' },
 };
 
-describe('LlmJudgeEvaluator Variable Substitution', () => {
+describe('LlmGraderEvaluator Variable Substitution', () => {
   it('substitutes template variables in custom prompt', async () => {
     const formattedQuestion = '@[User]: What is the status?\n\n@[Assistant]: Requesting more info.';
     const customPrompt = `
@@ -56,7 +56,7 @@ Expected Messages: {{expected_output}}
 File Changes: {{file_changes}}
 `;
 
-    const judgeProvider = new CapturingProvider({
+    const graderProvider = new CapturingProvider({
       text: JSON.stringify({
         score: 0.8,
         hits: ['Good'],
@@ -65,25 +65,25 @@ File Changes: {{file_changes}}
       }),
     });
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveJudgeProvider: async () => graderProvider,
       evaluatorTemplate: customPrompt,
     });
 
     const answer = 'Candidate Answer Text';
 
     await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: answer,
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: formattedQuestion, guidelines: '' },
       now: new Date(),
       fileChanges: 'diff --git a/test.txt b/test.txt\n+added line',
     });
 
-    const request = judgeProvider.lastRequest;
+    const request = graderProvider.lastRequest;
     expect(request).toBeDefined();
 
     // When custom evaluatorTemplate is provided, it goes in the user prompt (question)
@@ -115,26 +115,26 @@ File Changes: {{file_changes}}
     const customPrompt = 'Fixed prompt without variables';
     const promptQuestion = 'Summarize the latest logs without markers.';
 
-    const judgeProvider = new CapturingProvider({
+    const graderProvider = new CapturingProvider({
       text: JSON.stringify({ score: 0.5, hits: [], misses: [] }),
     });
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveJudgeProvider: async () => graderProvider,
       evaluatorTemplate: customPrompt,
     });
 
     await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: 'Answer',
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: promptQuestion, guidelines: '' },
       now: new Date(),
     });
 
-    const request = judgeProvider.lastRequest;
+    const request = graderProvider.lastRequest;
 
     // When custom evaluatorTemplate is provided, it goes in user prompt (question)
     expect(request?.question).toContain('Fixed prompt without variables');
@@ -155,7 +155,7 @@ Input Messages: {{ input }}
 Expected Messages: {{ expected_output }}
 `;
 
-    const judgeProvider = new CapturingProvider({
+    const graderProvider = new CapturingProvider({
       text: JSON.stringify({
         score: 0.8,
         hits: ['Good'],
@@ -164,24 +164,24 @@ Expected Messages: {{ expected_output }}
       }),
     });
 
-    const evaluator = new LlmJudgeEvaluator({
-      resolveJudgeProvider: async () => judgeProvider,
+    const evaluator = new LlmGraderEvaluator({
+      resolveJudgeProvider: async () => graderProvider,
       evaluatorTemplate: customPrompt,
     });
 
     const answer = 'Candidate Answer Text';
 
     await evaluator.evaluate({
-      evalCase: { ...baseTestCase, evaluator: 'llm-judge' },
+      evalCase: { ...baseTestCase, evaluator: 'llm-grader' },
       candidate: answer,
       target: baseTarget,
-      provider: judgeProvider,
+      provider: graderProvider,
       attempt: 0,
       promptInputs: { question: formattedQuestion, guidelines: '' },
       now: new Date(),
     });
 
-    const request = judgeProvider.lastRequest;
+    const request = graderProvider.lastRequest;
     expect(request).toBeDefined();
 
     // Verify all variables were substituted despite whitespace

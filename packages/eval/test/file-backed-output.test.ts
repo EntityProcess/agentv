@@ -3,9 +3,9 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { type CodeJudgeInput, CodeJudgeInputSchema } from '../src/schemas.js';
+import { type CodeGraderInput, CodeGraderInputSchema } from '../src/schemas.js';
 
-describe('CodeJudgeInputSchema with outputPath', () => {
+describe('CodeGraderInputSchema with outputPath', () => {
   const validInput = {
     question: 'What is 2+2?',
     criteria: 'The answer should be 4',
@@ -22,18 +22,18 @@ describe('CodeJudgeInputSchema with outputPath', () => {
       outputPath: '/tmp/test/output.json',
       output: null,
     };
-    const result = CodeJudgeInputSchema.parse(inputWithPath);
+    const result = CodeGraderInputSchema.parse(inputWithPath);
     expect(result.outputPath).toBe('/tmp/test/output.json');
     expect(result.output).toBeNull();
   });
 
   it('allows outputPath to be omitted (backward compat)', () => {
-    const result = CodeJudgeInputSchema.parse(validInput);
+    const result = CodeGraderInputSchema.parse(validInput);
     expect(result.outputPath).toBeUndefined();
   });
 
   it('allows both output and outputPath to be omitted', () => {
-    const result = CodeJudgeInputSchema.parse(validInput);
+    const result = CodeGraderInputSchema.parse(validInput);
     expect(result.output).toBeUndefined();
     expect(result.outputPath).toBeUndefined();
   });
@@ -58,7 +58,7 @@ describe('Lazy file-backed output loading', () => {
     const filePath = join(tmpDir, 'output.json');
     writeFileSync(filePath, JSON.stringify(messages));
 
-    const input: CodeJudgeInput = CodeJudgeInputSchema.parse({
+    const input: CodeGraderInput = CodeGraderInputSchema.parse({
       question: 'test',
       criteria: 'test',
       expectedOutput: [],
@@ -71,7 +71,7 @@ describe('Lazy file-backed output loading', () => {
     });
 
     // Set up lazy loading (simulates what runtime.ts does)
-    let cachedOutput: CodeJudgeInput['output'] | undefined;
+    let cachedOutput: CodeGraderInput['output'] | undefined;
     Object.defineProperty(input, 'output', {
       get() {
         if (cachedOutput === undefined) {
@@ -94,7 +94,7 @@ describe('Lazy file-backed output loading', () => {
   });
 
   it('uses inline output when outputPath is absent', () => {
-    const input: CodeJudgeInput = CodeJudgeInputSchema.parse({
+    const input: CodeGraderInput = CodeGraderInputSchema.parse({
       question: 'test',
       criteria: 'test',
       expectedOutput: [],

@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 /**
- * Test fixture for defineCodeJudge integration test.
+ * Test fixture for defineCodeGrader integration test.
  */
-import { defineCodeJudge } from '../../../eval/src/index.js';
+import { defineCodeGrader } from '../../../eval/src/index.js';
 
-export default defineCodeJudge(({ answer, criteria }) => {
+export default defineCodeGrader(({ answer, criteria }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
