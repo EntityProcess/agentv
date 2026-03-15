@@ -93,6 +93,8 @@ export const llmJudgeFactory: EvaluatorFactoryFn = (config, context) => {
     }
     // Only pass judgeTargetProvider for agent providers (delegate mode).
     // LLM providers use the normal resolveJudgeProvider path for structured JSON mode.
+    // Note: agentv uses asLanguageModel() not invoke(), so it's not in AGENT_PROVIDER_KINDS;
+    // check it explicitly here for built-in agent mode.
     const isAgent = isAgentProvider(judgeTargetProvider) || judgeTargetProvider.kind === 'agentv';
     evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async (evalContext) => {

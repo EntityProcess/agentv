@@ -191,6 +191,7 @@ const ExecutionMetricsSchema = EvaluatorCommonSchema.extend({
   exploration_tolerance: z.number().min(0).optional(),
 });
 
+/** Backward compat: agent-judge YAML type is accepted and remapped to llm-judge at parse time. */
 const AgentJudgeSchema = EvaluatorCommonSchema.extend({
   type: z.enum(['agent-judge', 'agent_judge']),
   prompt: z.string().optional(),

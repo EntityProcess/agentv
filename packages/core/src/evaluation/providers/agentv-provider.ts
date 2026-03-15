@@ -42,8 +42,7 @@ function createLanguageModel(modelString: string): LanguageModel {
       return createGoogleGenerativeAI()(modelName);
     default:
       throw new Error(
-        `Unsupported AI SDK provider "${provider}" in model string "${modelString}". ` +
-          'Supported providers: openai, anthropic, azure, google',
+        `Unsupported AI SDK provider "${provider}" in model string "${modelString}". Supported providers: openai, anthropic, azure, google`,
       );
   }
 }

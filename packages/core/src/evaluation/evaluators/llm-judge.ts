@@ -473,13 +473,33 @@ export class LlmJudgeEvaluator implements Evaluator {
    * Judge target mode: Delegates to an explicit judgeTargetProvider via Provider.invoke().
    */
   private async evaluateWithJudgeTarget(context: EvaluationContext): Promise<EvaluationScore> {
-    const provider = this.judgeTargetProvider as Provider;
+    return this.evaluateWithDelegate(context, this.judgeTargetProvider as Provider, 'judge_target');
+  }
 
+  /**
+   * Delegate mode: resolved provider is an agent provider — send prompt via invoke().
+   */
+  private async evaluateWithDelegatedAgent(
+    context: EvaluationContext,
+    judgeProvider: Provider,
+  ): Promise<EvaluationScore> {
+    return this.evaluateWithDelegate(context, judgeProvider, 'delegate');
+  }
+
+  /**
+   * Shared implementation for judge_target and delegate modes.
+   * Both invoke a provider and parse the agent result from the response.
+   */
+  private async evaluateWithDelegate(
+    context: EvaluationContext,
+    provider: Provider,
+    modeLabel: string,
+  ): Promise<EvaluationScore> {
     const workspacePath = context.workspacePath;
     const prompt = this.buildDelegatedPrompt(context);
 
     const evaluatorRawRequest: JsonObject = {
-      mode: 'judge_target',
+      mode: modeLabel,
       judge_target: provider.targetName,
       prompt,
     };
@@ -498,10 +518,10 @@ export class LlmJudgeEvaluator implements Evaluator {
           score: 0,
           verdict: 'fail',
           hits: [],
-          misses: ['llm-judge judge_target returned no assistant response'],
+          misses: [`llm-judge ${modeLabel} returned no assistant response`],
           expectedAspectCount: 1,
           evaluatorRawRequest,
-          details: { mode: 'judge_target', judge_target: provider.targetName },
+          details: { mode: modeLabel, judge_target: provider.targetName },
         };
       }
 
@@ -509,7 +529,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       const rubrics = config?.type === 'llm-judge' ? config.rubrics : undefined;
 
       const details: JsonObject = {
-        mode: 'judge_target',
+        mode: modeLabel,
         judge_target: provider.targetName,
       };
 
@@ -520,76 +540,12 @@ export class LlmJudgeEvaluator implements Evaluator {
         score: 0,
         verdict: 'fail',
         hits: [],
-        misses: [`llm-judge judge_target evaluation failed: ${message}`],
+        misses: [`llm-judge ${modeLabel} evaluation failed: ${message}`],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         details: {
-          mode: 'judge_target',
+          mode: modeLabel,
           judge_target: provider.targetName,
-          error: message,
-        },
-      };
-    }
-  }
-
-  /**
-   * Delegate mode: resolved provider is an agent provider — send prompt via invoke().
-   */
-  private async evaluateWithDelegatedAgent(
-    context: EvaluationContext,
-    judgeProvider: Provider,
-  ): Promise<EvaluationScore> {
-    const workspacePath = context.workspacePath;
-    const prompt = this.buildDelegatedPrompt(context);
-
-    const evaluatorRawRequest: JsonObject = {
-      mode: 'judge_target',
-      judge_target: judgeProvider.targetName,
-      prompt,
-    };
-
-    try {
-      const response = await judgeProvider.invoke({
-        question: prompt,
-        cwd: workspacePath,
-        evalCaseId: context.evalCase.id,
-        attempt: context.attempt,
-      });
-
-      const assistantContent = extractLastAssistantContent(response.output);
-      if (!assistantContent) {
-        return {
-          score: 0,
-          verdict: 'fail',
-          hits: [],
-          misses: ['llm-judge delegate returned no assistant response'],
-          expectedAspectCount: 1,
-          evaluatorRawRequest,
-          details: { mode: 'judge_target', judge_target: judgeProvider.targetName },
-        };
-      }
-
-      const config = context.evaluator;
-      const rubrics = config?.type === 'llm-judge' ? config.rubrics : undefined;
-
-      const details: JsonObject = {
-        mode: 'judge_target',
-        judge_target: judgeProvider.targetName,
-      };
-
-      return this.parseAgentResult(assistantContent, rubrics, evaluatorRawRequest, details);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        score: 0,
-        verdict: 'fail',
-        hits: [],
-        misses: [`llm-judge delegate evaluation failed: ${message}`],
-        expectedAspectCount: 1,
-        evaluatorRawRequest,
-        details: {
-          mode: 'judge_target',
-          judge_target: judgeProvider.targetName,
           error: message,
         },
       };
@@ -1255,7 +1211,14 @@ function createFilesystemTools(workspacePath: string) {
       execute: async (input: { pattern: string; path: string }) => {
         try {
           const resolved = resolveSandboxed(workspacePath, input.path);
-          const regex = new RegExp(input.pattern, 'gi');
+          let regex: RegExp;
+          try {
+            regex = new RegExp(input.pattern, 'gi');
+          } catch (regexErr) {
+            return {
+              error: `Invalid regex pattern: ${regexErr instanceof Error ? regexErr.message : String(regexErr)}`,
+            };
+          }
           const matches: Array<{ file: string; line: number; text: string }> = [];
 
           await searchDirectory(resolved, workspacePath, regex, matches);

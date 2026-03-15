@@ -1301,9 +1301,7 @@ async function parseEvaluatorList(
         : undefined;
     const rawTempLlm = rawEvaluator.temperature;
     const llmTemperature =
-      typeof rawTempLlm === 'number' && rawTempLlm >= 0 && rawTempLlm <= 2
-        ? rawTempLlm
-        : undefined;
+      typeof rawTempLlm === 'number' && rawTempLlm >= 0 && rawTempLlm <= 2 ? rawTempLlm : undefined;
 
     evaluators.push({
       name,

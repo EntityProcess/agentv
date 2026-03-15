@@ -68,7 +68,7 @@ describe('AgentvProvider', () => {
     });
     const model = provider.asLanguageModel();
     expect(model).toBeDefined();
-    expect((model as any).modelId).toBe('gpt-5-mini');
+    expect((model as unknown as { modelId: string }).modelId).toBe('gpt-5-mini');
   });
 
   it('asLanguageModel() works with anthropic model strings', () => {
@@ -78,7 +78,7 @@ describe('AgentvProvider', () => {
     });
     const model = provider.asLanguageModel();
     expect(model).toBeDefined();
-    expect((model as any).modelId).toBe('claude-sonnet-4-20250514');
+    expect((model as unknown as { modelId: string }).modelId).toBe('claude-sonnet-4-20250514');
   });
 
   it('asLanguageModel() works with google model strings', () => {
@@ -88,7 +88,7 @@ describe('AgentvProvider', () => {
     });
     const model = provider.asLanguageModel();
     expect(model).toBeDefined();
-    expect((model as any).modelId).toBe('gemini-2.5-flash');
+    expect((model as unknown as { modelId: string }).modelId).toBe('gemini-2.5-flash');
   });
 
   it('asLanguageModel() works with azure model strings', () => {
@@ -98,7 +98,7 @@ describe('AgentvProvider', () => {
     });
     const model = provider.asLanguageModel();
     expect(model).toBeDefined();
-    expect((model as any).modelId).toBe('gpt-4o-deployment');
+    expect((model as unknown as { modelId: string }).modelId).toBe('gpt-4o-deployment');
   });
 
   it('throws for unsupported provider prefix', () => {

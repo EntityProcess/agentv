@@ -344,9 +344,12 @@ export async function runEvaluation(
     // CLI --judge-target takes highest priority
     if (cliJudgeTarget) {
       if (cliJudgeTarget === 'agentv') {
-        // Create an agentv provider on-the-fly with the CLI model
+        if (!cliModel) {
+          throw new Error('--judge-target "agentv" requires --model (e.g., "openai:gpt-5-mini")');
+
+        }
         const { AgentvProvider } = await import('./providers/agentv-provider.js');
-        return new AgentvProvider('agentv', { model: cliModel!, temperature: 0 });
+        return new AgentvProvider('agentv', { model: cliModel, temperature: 0 });
       }
       const overrideTarget = resolveTargetByName(cliJudgeTarget);
       if (!overrideTarget) {
