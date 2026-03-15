@@ -33,7 +33,7 @@ async function createFixture(): Promise<PromptEvalFixture> {
 tests:
   - id: greeting-test
     criteria: Assistant greets the user by name
-    assert:
+    assertions:
       - name: mentions-name
         type: contains
         value: Taylor

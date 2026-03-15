@@ -24,7 +24,7 @@ describe('criteria is optional when expected_output or assert is present', () =>
   - id: test-01
     input: "sample prompt"
     expected_output: "sample expected output"
-    assert:
+    assertions:
       - type: contains
         value: sample
 `,
@@ -36,13 +36,13 @@ describe('criteria is optional when expected_output or assert is present', () =>
     expect(tests[0].criteria).toBe('');
   });
 
-  it('accepts test with assert only and no criteria', async () => {
+  it('accepts test with assertions only and no criteria', async () => {
     await writeFile(
       path.join(tempDir, 'assert-only.eval.yaml'),
       `tests:
   - id: test-02
     input: "sample prompt"
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - response includes sample expected output
@@ -60,7 +60,7 @@ describe('criteria is optional when expected_output or assert is present', () =>
       path.join(tempDir, 'missing-input.eval.yaml'),
       `tests:
   - id: test-03
-    assert:
+    assertions:
       - type: contains
         value: sample
 `,
@@ -70,7 +70,7 @@ describe('criteria is optional when expected_output or assert is present', () =>
     expect(tests).toHaveLength(0);
   });
 
-  it('skips test with no criteria, no expected_output, and no assert', async () => {
+  it('skips test with no criteria, no expected_output, and no assertions', async () => {
     await writeFile(
       path.join(tempDir, 'no-eval-spec.eval.yaml'),
       `tests:

@@ -242,7 +242,7 @@ tests:
     input:
       - role: user
         content: "Review this Python function for bugs:..."
-    assert:
+    assertions:
       - name: assertion-1
         type: llm-judge
         prompt: "Identifies the division by zero risk"

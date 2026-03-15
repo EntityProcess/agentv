@@ -35,7 +35,7 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    assert:
+    assertions:
       - name: search-then-fetch
         type: tool-trajectory
         mode: in_order
@@ -60,7 +60,7 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    assert:
+    assertions:
       - name: exact-workflow
         type: tool-trajectory
         mode: exact
@@ -87,7 +87,7 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    assert:
+    assertions:
       - name: research-depth
         type: tool-trajectory
         mode: any_order
@@ -112,7 +112,7 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    assert:
+    assertions:
       - name: input-validator
         type: tool-trajectory
         mode: in_order
@@ -141,7 +141,7 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    assert:
+    assertions:
       - name: output-validator
         type: tool-trajectory
         mode: in_order
@@ -247,7 +247,7 @@ tests:
             - "No discrete GPU option"
           confidence: "High"
 
-    assert:
+    assertions:
       # Validate the research workflow sequence
       - name: workflow-validator
         type: tool-trajectory

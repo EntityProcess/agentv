@@ -29,7 +29,7 @@ tests:
         content: |-
           Attachments detected (2): example.txt, python.instructions.md.
 
-    assert:
+    assertions:
       - name: attachment-check
         type: code-judge
         command: ["bun", "run", "../scripts/verify-attachments.ts"]

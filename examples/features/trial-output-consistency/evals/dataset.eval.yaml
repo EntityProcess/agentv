@@ -23,7 +23,7 @@ tests:
       - role: assistant
         content: The capital of France is Paris.
 
-    assert:
+    assertions:
       - name: trial-consistency
         type: code-judge
         command: ["bun", "run", "../judges/trial-consistency.ts"]
@@ -46,7 +46,7 @@ tests:
       - role: assistant
         content: Any creative tagline.
 
-    assert:
+    assertions:
       - name: trial-consistency
         type: code-judge
         command: ["bun", "run", "../judges/trial-consistency.ts"]
@@ -69,7 +69,7 @@ tests:
       - role: assistant
         content: "4"
 
-    assert:
+    assertions:
       - name: trial-consistency
         type: code-judge
         command: ["bun", "run", "../judges/trial-consistency.ts"]
@@ -90,7 +90,7 @@ tests:
       - role: assistant
         content: Hi
 
-    assert:
+    assertions:
       - name: trial-consistency
         type: code-judge
         command: ["bun", "run", "../judges/trial-consistency.ts"]

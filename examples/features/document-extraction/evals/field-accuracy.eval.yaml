@@ -27,7 +27,7 @@ description: Field accuracy evaluator patterns (per-evalcase scoring)
 execution:
   target: mock_extractor
 
-assert:
+assertions:
   # Primary evaluator: Correctness via field-level accuracy
   - name: invoice_field_accuracy
     type: field-accuracy
@@ -210,7 +210,7 @@ tests:
 
       This simulates OCR output that preserves document formatting.
       Uses code_judge with config pass-through for multi-field fuzzy matching.
-    assert:
+    assertions:
       # Multi-field fuzzy match with config pass-through
       - name: party_names_fuzzy
         type: code-judge
@@ -339,7 +339,7 @@ tests:
     criteria: |
       Extractor correctly extracts first two line items with proper array structure.
       Field paths like line_items[0].description should resolve correctly.
-    assert:
+    assertions:
       - name: line_items_check
         type: field-accuracy
         fields:
@@ -391,7 +391,7 @@ tests:
       This test demonstrates greedy matching for line items.
       Index-based comparison would incorrectly penalize the extractor,
       but greedy matching correctly aligns items by description similarity.
-    assert:
+    assertions:
       - name: line_items_matched
         type: code-judge
         command: ["bun", "run", "../judges/line_item_matching.ts"]

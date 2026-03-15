@@ -53,7 +53,7 @@ tests:
             name: Example A
             amount: 5000
 
-    assert:
+    assertions:
       - name: decision-check
         type: code-judge
         command: [bun, run, ./scripts/check-output.ts]
@@ -81,7 +81,7 @@ tests:
             name: Example B
             amount: 25000
 
-    assert:
+    assertions:
       - name: decision-check
         type: code-judge
         command: [bun, run, ./scripts/check-output.ts]

@@ -25,7 +25,7 @@ tests:
     input: >-
       Read the file at repo/packages/core/package.json and tell me the
       exact package name and version number.
-    assert:
+    assertions:
       - type: contains
         value: "@agentv/core"
       - type: regex

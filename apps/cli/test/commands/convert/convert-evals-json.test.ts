@@ -46,7 +46,7 @@ describe('convertEvalsJsonToYaml', () => {
     const yaml = convertEvalsJsonToYaml(filePath);
     expect(yaml).toContain('id: "1"');
     expect(yaml).toContain('Just a prompt');
-    expect(yaml).not.toContain('assert:');
+    expect(yaml).not.toContain('assertions:');
     expect(yaml).not.toContain('expected_output:');
   });
 

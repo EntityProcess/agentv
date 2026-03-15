@@ -82,7 +82,7 @@ tests:
   - id: json-generation-with-validation
     criteria: Generates valid JSON with required fields
 
-    assert:
+    assertions:
       - name: json_format_validator
         type: code-judge
         command: [uv, run, validate_json.py]
@@ -117,7 +117,7 @@ tests:
   - id: research-depth
     criteria: Agent researches thoroughly
     input: Research REST vs GraphQL
-    assert:
+    assertions:
       - name: research-check
         type: tool-trajectory
         mode: any_order
@@ -129,7 +129,7 @@ tests:
   - id: auth-flow
     criteria: Agent follows auth sequence
     input: Authenticate user
-    assert:
+    assertions:
       - name: auth-sequence
         type: tool-trajectory
         mode: exact
@@ -150,13 +150,13 @@ execution:
 tests:
   - file://../fixtures/labeled-judge-export.jsonl
 
-assert:
+assertions:
   - name: judge-panel
     type: composite
     aggregator:
       type: threshold
       threshold: 0.6
-    assert:
+    assertions:
       - name: judge-gpt-5-mini
         type: llm-judge
         target: judge_gpt_5_mini
@@ -186,7 +186,7 @@ tests:
   - id: validate-trace-file
     criteria: Trace contains required steps
     input: Analyze trace
-    assert:
+    assertions:
       - name: trace-check
         type: tool-trajectory
         mode: in_order
@@ -293,7 +293,7 @@ tests:
             amount: 5000
             currency: USD
 
-    assert:
+    assertions:
       - name: decision-check
         type: code-judge
         command: [bun, run, ./scripts/check-batch-cli-output.ts]
@@ -326,7 +326,7 @@ tests:
             amount: 2000
             currency: USD
 
-    assert:
+    assertions:
       - name: decision-check
         type: code-judge
         command: [bun, run, ./scripts/check-batch-cli-output.ts]

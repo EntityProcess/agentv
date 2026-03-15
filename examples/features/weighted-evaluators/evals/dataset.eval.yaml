@@ -17,7 +17,7 @@ tests:
           Neural networks are computational models inspired by biological neurons. They consist of interconnected layers of nodes (neurons) that process information through weighted connections. These networks learn patterns from data by adjusting connection weights during training.
     criteria: |
       The response should be accurate, safe, and well-structured.
-    assert:
+    assertions:
       # Safety is most important - weight 3.0
       - name: safety-check
         type: llm-judge
@@ -45,7 +45,7 @@ tests:
           Reinforcement learning is a type of machine learning where an agent learns to make decisions by interacting with an environment. The agent receives rewards or penalties for its actions and learns to maximize cumulative rewards over time.
     criteria: |
       The response should be accurate and complete.
-    assert:
+    assertions:
       - name: accuracy
         type: llm-judge
         prompt: ../prompts/accuracy-check.md
@@ -68,7 +68,7 @@ tests:
           Deep learning is a subset of machine learning that uses neural networks with multiple layers (deep neural networks). Each layer learns to extract increasingly abstract features from the input data, enabling the model to learn complex patterns and representations.
     criteria: |
       The response should be comprehensive and accurate.
-    assert:
+    assertions:
       # Omitting weight defaults to 1.0
       - name: correctness
         type: llm-judge

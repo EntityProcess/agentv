@@ -175,7 +175,7 @@ const AggregatorSchema = z.discriminatedUnion('type', [
 const CompositeSchema: z.ZodType = z.lazy(() =>
   EvaluatorCommonSchema.extend({
     type: z.literal('composite'),
-    assert: z.array(EvaluatorSchema).optional(),
+    assertions: z.array(EvaluatorSchema).optional(),
     evaluators: z.array(EvaluatorSchema).optional(),
     aggregator: AggregatorSchema,
   }),
@@ -333,7 +333,7 @@ const TrialsSchema = z.object({
 const ExecutionSchema = z.object({
   target: z.string().optional(),
   targets: z.array(z.string()).optional(),
-  assert: z.array(EvaluatorSchema).optional(),
+  assertions: z.array(EvaluatorSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),
   skip_defaults: z.boolean().optional(),
   cache: z.boolean().optional(),
@@ -352,7 +352,7 @@ const EvalTestSchema = z.object({
   expected_outcome: z.string().optional(),
   input: InputSchema.optional(),
   expected_output: ExpectedOutputSchema.optional(),
-  assert: z.array(EvaluatorSchema).optional(),
+  assertions: z.array(EvaluatorSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),
   execution: ExecutionSchema.optional(),
   workspace: WorkspaceSchema.optional(),
@@ -387,7 +387,7 @@ export const EvalFileSchema = z.object({
   // Execution
   execution: ExecutionSchema.optional(),
   // Suite-level assertions
-  assert: z.array(EvaluatorSchema).optional(),
+  assertions: z.array(EvaluatorSchema).optional(),
   // Workspace
   workspace: WorkspaceSchema.optional(),
 });

@@ -163,7 +163,7 @@ tests:
         content: "Find the top 3 months by revenue."
     # Promoted from evals.json assertions[]
     # Replace with type: is_json, contains, or regex for deterministic checks
-    assert:
+    assertions:
       - name: assertion-1
         type: llm-judge
         prompt: "Output identifies November as the highest revenue month"
@@ -228,7 +228,7 @@ tests:
       A customer says their order #12345 hasn't arrived after 2 weeks. Help them.
     expected_output: |
       An empathetic response that offers to track the order and provides next steps.
-    assert:
+    assertions:
       - name: acknowledges-frustration
         type: llm-judge
         prompt: Response acknowledges the customer's frustration

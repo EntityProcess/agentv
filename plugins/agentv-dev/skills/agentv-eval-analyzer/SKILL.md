@@ -83,7 +83,7 @@ The analyzer report includes concrete YAML snippets for each suggestion. To appl
 
 Before (LLM-judge doing substring work):
 ```yaml
-assert:
+assertions:
   - name: has-error-code
     type: llm-judge
     prompt: "Check if the response contains the error code 404"
@@ -91,7 +91,7 @@ assert:
 
 After (deterministic, zero LLM cost):
 ```yaml
-assert:
+assertions:
   - name: has-error-code
     type: contains
     value: "404"

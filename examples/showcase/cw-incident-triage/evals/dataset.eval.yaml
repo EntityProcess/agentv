@@ -9,7 +9,7 @@ description: CargoWise criticality rating (CR1-CR9) classification eval for supp
 execution:
   target: default
 
-assert:
+assertions:
   - name: json_schema_validator
     type: code-judge
     command: ["uv", "run", "validate_output.py"]

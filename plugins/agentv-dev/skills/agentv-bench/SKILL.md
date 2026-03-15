@@ -113,7 +113,7 @@ tests:
   - id: basic-code-review
     input: "Review this TypeScript file for bugs and suggest improvements"
     criteria: "Identifies the null pointer bug on line 12 and suggests a fix"
-    assert:
+    assertions:
       - type: contains
         value: "null"
       - type: llm-judge
@@ -418,12 +418,12 @@ Write as EVAL.yaml with top-level input (the user prompt doesn't specify the ski
 tests:
   - id: should-trigger-casual-optimize
     input: "ok so I have this agent that keeps failing on the code review tasks, can you help me figure out why and fix it"
-    assert:
+    assertions:
       - type: contains
         value: "agentv-bench"
   - id: should-not-trigger-build-error
     input: "my TypeScript build is failing with type errors in src/auth.ts"
-    assert:
+    assertions:
       - type: not-contains
         value: "agentv-bench"
 ```

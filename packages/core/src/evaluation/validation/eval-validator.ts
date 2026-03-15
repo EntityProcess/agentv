@@ -244,8 +244,8 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       }
     }
 
-    // assert field (array of assertion objects)
-    const assertField = evalCase.assert;
+    // assertions field (array of assertion objects); also accept legacy `assert`
+    const assertField = evalCase.assertions ?? evalCase.assert;
     if (assertField !== undefined) {
       validateAssertArray(assertField, location, absolutePath, errors);
     }
@@ -463,15 +463,15 @@ function validateAssertArray(
     errors.push({
       severity: 'warning',
       filePath,
-      location: `${parentLocation}.assert`,
-      message: "'assert' must be an array of assertion objects.",
+      location: `${parentLocation}.assertions`,
+      message: "'assertions' must be an array of assertion objects.",
     });
     return;
   }
 
   for (let i = 0; i < assertField.length; i++) {
     const item = assertField[i];
-    const location = `${parentLocation}.assert[${i}]`;
+    const location = `${parentLocation}.assertions[${i}]`;
 
     if (!isObject(item)) {
       errors.push({

@@ -23,7 +23,7 @@ execution:
     strategy: pass_at_k
     cost_limit_usd: 2.00
 
-assert:
+assertions:
   - name: accuracy
     type: llm-judge
     prompt: ../prompts/accuracy-rubric.md

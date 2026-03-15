@@ -26,7 +26,7 @@ When `assert` **is** present, no default judge is added. To use an LLM judge alo
 Reference an LLM judge in your eval file:
 
 ```yaml
-assert:
+assertions:
   - name: semantic_check
     type: llm-judge
     prompt: ./judges/correctness.md
@@ -78,7 +78,7 @@ Score the response from 0.0 to 1.0 based on:
 By default, an `llm-judge` uses the suite target's `judge_target`. Override it per evaluator when you need multiple judge models in one run:
 
 ```yaml
-assert:
+assertions:
   - name: judge-gpt
     type: llm-judge
     target: judge_gpt_5_mini
@@ -130,7 +130,7 @@ Evaluate and provide a score from 0 to 1.`;
 When using TypeScript templates, configure them in YAML with optional `config` data passed to the command:
 
 ```yaml
-assert:
+assertions:
   - name: custom-eval
     type: llm-judge
     prompt:

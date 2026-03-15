@@ -19,7 +19,7 @@ tests:
       - role: assistant
         content: The quick brown fox jumps over the lazy dog near the river bank.
 
-    assert:
+    assertions:
       - name: rouge-score
         type: code-judge
         command: ["bun", "run", "../judges/rouge.ts"]
@@ -35,7 +35,7 @@ tests:
       - role: assistant
         content: The cat sat on the mat and watched the birds in the garden.
 
-    assert:
+    assertions:
       - name: bleu-score
         type: code-judge
         command: ["bun", "run", "../judges/bleu.ts"]
@@ -51,7 +51,7 @@ tests:
       - role: assistant
         content: Machine learning models require large amounts of training data to perform well.
 
-    assert:
+    assertions:
       - name: cosine-similarity
         type: code-judge
         command: ["bun", "run", "../judges/similarity.ts"]
@@ -67,7 +67,7 @@ tests:
       - role: assistant
         content: "Widget Pro 3000"
 
-    assert:
+    assertions:
       - name: edit-distance
         type: code-judge
         command: ["bun", "run", "../judges/levenshtein.ts"]
@@ -83,7 +83,7 @@ tests:
       - role: assistant
         content: Artificial intelligence is transforming healthcare by enabling faster diagnosis and personalised treatment plans.
 
-    assert:
+    assertions:
       - name: rouge-score
         type: code-judge
         command: ["bun", "run", "../judges/rouge.ts"]

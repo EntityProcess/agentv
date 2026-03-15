@@ -12,7 +12,7 @@ AgentV provides built-in evaluators for checking execution metrics against thres
 The `execution_metrics` evaluator provides declarative threshold-based checks on multiple metrics in a single evaluator.
 
 ```yaml
-assert:
+assertions:
   - name: efficiency
     type: execution-metrics
     max_tool_calls: 10        # Maximum tool invocations
@@ -50,7 +50,7 @@ tests:
   - id: efficient-research
     criteria: Agent researches and summarizes efficiently
     input: Research the topic and provide a summary
-    assert:
+    assertions:
       - name: efficiency
         type: execution-metrics
         max_tool_calls: 15
@@ -65,7 +65,7 @@ tests:
 Check that an agent maintains a good balance between reading (exploration) and writing (action):
 
 ```yaml
-assert:
+assertions:
   - name: exploration-balance
     type: execution-metrics
     target_exploration_ratio: 0.6  # 60% should be read-only tools
@@ -123,7 +123,7 @@ tests:
   - id: code-generation
     criteria: Generates correct, efficient code
     input: Write a sorting algorithm
-    assert:
+    assertions:
       # Semantic quality
       - name: quality
         type: llm-judge

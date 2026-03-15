@@ -23,7 +23,7 @@ Evaluators are configured using `assert` — either top-level (applies to all te
 
 ```yaml
 description: My evaluation
-assert:
+assertions:
   - name: correctness
     type: llm-judge
     prompt: ./judges/correctness.md
@@ -41,7 +41,7 @@ tests:
   - id: test-1
     criteria: Returns valid JSON
     input: Generate a JSON config
-    assert:
+    assertions:
       - name: json_check
         type: code-judge
         command: [./validators/check_json.py]
@@ -56,7 +56,7 @@ tests:
   - id: code-generation
     criteria: Generates correct Python code
     input: Write a sorting function
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - Code is syntactically valid

@@ -52,7 +52,7 @@ tests:
     criteria: Friendly greeting
     input: "Say hello"
     expected_output: "Hello! How can I help you?"
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - Greeting is friendly and warm
@@ -62,7 +62,7 @@ tests:
 ## Eval File Structure
 
 **Required:** `tests` (array or string path)
-**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `execution`, `dataset`, `workspace`, `assert`, `input`
+**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `execution`, `dataset`, `workspace`, `assertions`, `input`
 
 **Test fields:**
 
@@ -72,8 +72,8 @@ tests:
 | `criteria` | yes | What the response should accomplish |
 | `input` / `input` | yes | Input to the agent |
 | `expected_output` / `expected_output` | no | Gold-standard reference answer |
-| `assert` | no | Evaluators: assertions, rubrics, judges |
-| `rubrics` | no | **Deprecated** — use `assert: [{type: rubrics, criteria: [...]}]` instead |
+| `assertions` | no | Evaluators: assertions, rubrics, judges |
+| `rubrics` | no | **Deprecated** — use `assertions: [{type: rubrics, criteria: [...]}]` instead |
 | `execution` | no | Per-case execution overrides |
 | `workspace` | no | Per-case workspace config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
@@ -142,13 +142,13 @@ tests: ./cases.yaml           # relative to eval file dir
 
 The external file can be YAML (array of test objects) or JSONL.
 
-## Assert Field
+## Assertions Field
 
-`assert` defines evaluators at the suite level or per-test level. It is the canonical field for all evaluators (replaces `execution.evaluators`):
+`assertions` defines evaluators at the suite level or per-test level. It is the canonical field for all evaluators (replaces `execution.evaluators`):
 
 ```yaml
 # Suite-level (appended to every test)
-assert:
+assertions:
   - type: is-json
     required: true
   - type: contains
@@ -158,25 +158,25 @@ tests:
   - id: test-1
     criteria: Returns JSON
     input: Get status
-    # Per-test assert (runs before suite-level)
-    assert:
+    # Per-test assertions (runs before suite-level)
+    assertions:
       - type: equals
         value: '{"status": "ok"}'
 ```
 
-`execution.evaluators` is deprecated. When both `assert` and `execution.evaluators` are present, `assert` takes precedence.
+`execution.evaluators` is deprecated. When both `assertions` and `execution.evaluators` are present, `assertions` takes precedence.
 
-## How `criteria` and `assert` Interact
+## How `criteria` and `assertions` Interact
 
-`criteria` is a **data field** — it describes what the response should accomplish. It is **not** an evaluator. How it gets evaluated depends on whether `assert` is present:
+`criteria` is a **data field** — it describes what the response should accomplish. It is **not** an evaluator. How it gets evaluated depends on whether `assertions` is present:
 
 | Scenario | What happens | Warning? |
 |----------|-------------|----------|
-| `criteria` + **no `assert`** | Implicit `llm-judge` runs automatically against `criteria` | No |
-| `criteria` + **`assert` with only deterministic evaluators** (contains, regex, etc.) | Only declared evaluators run. `criteria` is **not evaluated**. | Yes — warns that no evaluator will consume criteria |
-| `criteria` + **`assert` with a judge** (llm-judge, code-judge, agent-judge, rubrics) | Declared evaluators run. Judges receive `criteria` as input. | No |
+| `criteria` + **no `assertions`** | Implicit `llm-judge` runs automatically against `criteria` | No |
+| `criteria` + **`assertions` with only deterministic evaluators** (contains, regex, etc.) | Only declared evaluators run. `criteria` is **not evaluated**. | Yes — warns that no evaluator will consume criteria |
+| `criteria` + **`assertions` with a judge** (llm-judge, code-judge, agent-judge, rubrics) | Declared evaluators run. Judges receive `criteria` as input. | No |
 
-### No assert → implicit llm-judge
+### No assertions → implicit llm-judge
 
 The simplest path. `criteria` is automatically evaluated by the default `llm-judge`:
 
@@ -185,20 +185,20 @@ tests:
   - id: simple-eval
     criteria: Assistant correctly explains the bug and proposes a fix
     input: "Debug this function..."
-    # No assert → default llm-judge evaluates against criteria
+    # No assertions → default llm-judge evaluates against criteria
 ```
 
-### assert present → no implicit judge
+### assertions present → no implicit judge
 
-When `assert` is defined, **only the declared evaluators run**. If you want an LLM judge alongside deterministic checks, declare it explicitly:
+When `assertions` is defined, **only the declared evaluators run**. If you want an LLM judge alongside deterministic checks, declare it explicitly:
 
 ```yaml
 tests:
   - id: mixed-eval
     criteria: Response is helpful and mentions the fix
     input: "Debug this function..."
-    assert:
-      - type: llm-judge        # must be explicit when assert is present
+    assertions:
+      - type: llm-judge        # must be explicit when assertions is present
       - type: contains
         value: "fix"
 ```
@@ -208,12 +208,12 @@ tests:
 ```yaml
 tests:
   - id: bad-example
-    criteria: Gives a thoughtful answer    # ⚠ NOT evaluated — no judge in assert
+    criteria: Gives a thoughtful answer    # ⚠ NOT evaluated — no judge in assertions
     input: "What is 2+2?"
-    assert:
+    assertions:
       - type: contains
         value: "4"
-    # Warning: criteria is defined but no evaluator in assert will evaluate it.
+    # Warning: criteria is defined but no evaluator in assertions will evaluate it.
 ```
 
 ## Required Gates
@@ -221,7 +221,7 @@ tests:
 Any evaluator can be marked `required` to enforce a minimum score:
 
 ```yaml
-assert:
+assertions:
   - type: contains
     value: "DENIED"
     required: true          # must score >= 0.8 (default)
@@ -305,7 +305,7 @@ See https://agentv.dev/targets/configuration/#repository-lifecycle
 
 ## Evaluator Types
 
-Configure via `assert` array. Multiple evaluators produce a weighted average score.
+Configure via `assertions` array. Multiple evaluators produce a weighted average score.
 
 ### code_judge
 ```yaml
@@ -339,7 +339,7 @@ Variables: `{{question}}`, `{{criteria}}`, `{{answer}}`, `{{reference_answer}}`,
 ```yaml
 - name: gate
   type: composite
-  assert:
+  assertions:
     - name: safety
       type: llm-judge
       prompt: ./safety.md

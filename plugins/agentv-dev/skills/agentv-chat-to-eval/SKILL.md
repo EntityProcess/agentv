@@ -73,7 +73,7 @@ tests:
     criteria: "<What the response should accomplish>"
     input: "<User message>"
     expected_output: "<Assistant response from transcript>"
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - <Quality criterion 1>
@@ -86,7 +86,7 @@ tests:
 - Write `criteria` as a concise statement of what a good response achieves
 - Use `input` for single user messages; use `input` for multi-turn
 - Set `expected_output` to the actual assistant response from the transcript
-- Include 2–4 rubrics per test as `type: rubrics` under `assert` capturing distinct quality dimensions
+- Include 2–4 rubrics per test as `type: rubrics` under `assertions` capturing distinct quality dimensions
 
 ### 5. Suggest Evaluators
 
@@ -94,7 +94,7 @@ Append a commented evaluator configuration based on the test content:
 
 ```yaml
 # Suggested additional evaluators:
-# assert:
+# assertions:
 #   - name: quality
 #     type: llm-judge
 #     prompt: ./prompts/quality.md
@@ -128,7 +128,7 @@ tests:
       - role: user
         content: "What's my name?"
     expected_output: "Your name is Alice."
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - Correctly recalls the user's name from earlier in the conversation

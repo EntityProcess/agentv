@@ -16,7 +16,7 @@ description: Math problem solving evaluation
 execution:
   target: default
 
-assert:
+assertions:
   - name: correctness
     type: llm-judge
     prompt: ./judges/correctness.md
@@ -76,7 +76,7 @@ The `assert` field is the canonical way to define suite-level evaluators. Suite-
 
 ```yaml
 description: API response validation
-assert:
+assertions:
   - type: is-json
     required: true
   - type: contains
@@ -199,7 +199,7 @@ description: Math evaluation dataset
 dataset: math-tests
 execution:
   target: azure-base
-assert:
+assertions:
   - name: correctness
     type: llm-judge
     prompt: ./judges/correctness.md

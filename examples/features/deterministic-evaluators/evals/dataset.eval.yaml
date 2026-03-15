@@ -14,7 +14,7 @@ tests:
     criteria: Response mentions the word "Hello"
     input: "Say hello to the user."
     expected_output: "Hello there! How can I help you today?"
-    assert:
+    assertions:
       - type: contains
         value: "Hello"
 
@@ -27,7 +27,7 @@ tests:
       - role: user
         content: "Provide your contact email."
     expected_output: "You can reach me at support@example.com."
-    assert:
+    assertions:
       - type: regex
         value: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
 
@@ -40,7 +40,7 @@ tests:
       - role: user
         content: "What is 2+2?"
     expected_output: "4"
-    assert:
+    assertions:
       - type: equals
         value: "4"
 
@@ -49,7 +49,7 @@ tests:
     criteria: Response begins with a greeting
     input: "Start your reply with 'Dear User'."
     expected_output: "Dear User, thank you for contacting us."
-    assert:
+    assertions:
       - type: regex
         value: "^Dear User"
 
@@ -62,7 +62,7 @@ tests:
       - role: user
         content: "Return a JSON object with a status field set to ok and code 200."
     expected_output: '{"status": "ok", "code": 200}'
-    assert:
+    assertions:
       - type: is-json
 
   # --- combining multiple assertions on one test ---
@@ -74,7 +74,7 @@ tests:
       - role: user
         content: 'Return a JSON object with a "result" key set to the number 42.'
     expected_output: '{"result": 42}'
-    assert:
+    assertions:
       - type: is-json
         required: true
       - type: contains
@@ -89,7 +89,7 @@ tests:
       - role: user
         content: 'Return a JSON object with a "message" field set to "success".'
     expected_output: '{"message": "success"}'
-    assert:
+    assertions:
       - type: is-json
         required: true
       - type: contains

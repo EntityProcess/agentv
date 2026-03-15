@@ -107,7 +107,7 @@ execution:
 Three LLM judges score each response. Weights control their contribution to the aggregate score:
 
 ```yaml
-assert:
+assertions:
   - name: accuracy
     weight: 3.0      # Most important — factual correctness
   - name: completeness
@@ -181,10 +181,10 @@ execution:
 
 ### Adding an evaluator
 
-Add a new judge prompt in `prompts/` and reference it in the eval's `assert` block:
+Add a new judge prompt in `prompts/` and reference it in the eval's `assertions` block:
 
 ```yaml
-assert:
+assertions:
   - name: safety
     type: llm-judge
     prompt: ../prompts/safety-rubric.md

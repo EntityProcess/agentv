@@ -20,7 +20,7 @@ description: Export control risk classification eval for trade compliance screen
 execution:
   target: default
 
-assert:
+assertions:
   - name: risk_assessment_quality
     type: code-judge
     command: ["bun", "run", "validate_risk_output.ts"]

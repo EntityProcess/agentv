@@ -74,7 +74,7 @@ tests:
       target: azure-base
 
     # Multiple evaluators - supports both code-based and LLM judges
-    assert:
+    assertions:
       - name: keyword_check
         type: code-judge  # Code evaluators handle regex, keywords, linting, etc.
         command: ["uv", "run", "check_python_keywords.py"]

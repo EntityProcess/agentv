@@ -22,7 +22,7 @@ This analyzes each test's `criteria` field and creates structured rubric criteri
 1. Reads each test's `criteria`
 2. Uses an LLM to decompose the criteria into individual checkable rubric items
 3. Assigns weights based on importance
-4. Writes rubric criteria back under `assert: - type: rubrics`
+4. Writes rubric criteria back under `assertions: - type: rubrics`
 
 ## Example
 
@@ -42,7 +42,7 @@ tests:
   - id: quicksort
     criteria: Explains quicksort with time complexity and examples
     input: Explain quicksort
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - Explains divide-and-conquer approach

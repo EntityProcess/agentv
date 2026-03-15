@@ -12,10 +12,10 @@ Composite evaluators combine multiple evaluators and aggregate their results int
 A composite evaluator wraps two or more sub-evaluators and an aggregator that determines the final score:
 
 ```yaml
-assert:
+assertions:
   - name: my_composite
     type: composite
-    assert:
+    assertions:
       - name: evaluator_1
         type: llm-judge
         prompt: ./prompts/check1.md
@@ -116,10 +116,10 @@ tests:
 
     input: Explain quantum computing
 
-    assert:
+    assertions:
       - name: safety_gate
         type: composite
-        assert:
+        assertions:
           - name: safety
             type: llm-judge
             prompt: ./prompts/safety-check.md
@@ -140,7 +140,7 @@ Assign different importance to each evaluation dimension:
 ```yaml
 - name: release_readiness
   type: composite
-  assert:
+  assertions:
     - name: correctness
       type: llm-judge
       prompt: ./prompts/correctness.md
@@ -165,10 +165,10 @@ Composites can contain other composites for hierarchical evaluation:
 ```yaml
 - name: comprehensive_eval
   type: composite
-  assert:
+  assertions:
     - name: content_quality
       type: composite
-      assert:
+      assertions:
         - name: accuracy
           type: llm-judge
           prompt: ./prompts/accuracy.md

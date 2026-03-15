@@ -7,7 +7,7 @@ description: Root-level evaluators that automatically apply to every test
 execution:
   target: default
 
-assert:
+assertions:
   - name: tone_check
     type: llm-judge
     prompt: |
@@ -27,7 +27,7 @@ tests:
     criteria: The assistant provides a helpful response about refunds
     input: "I want a refund"
     expected_output: "I'd be happy to help you with a refund. Could you provide your order number?"
-    assert:
+    assertions:
       - name: helpfulness
         type: llm-judge
     # Also gets tone_check from root-level assert
@@ -42,7 +42,7 @@ tests:
     expected_output: "I understand this is urgent. Let me help you right away. Can you tell me which system is affected so I can start troubleshooting?"
     execution:
       skip_defaults: true
-    assert:
+    assertions:
       - name: urgency_check
         type: llm-judge
     # Does NOT get tone_check — skip_defaults opts out

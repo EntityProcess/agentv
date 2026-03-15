@@ -26,7 +26,7 @@ tests:
       - role: user
         content: What is the weather in Tokyo? Fetch the detailed forecast.
 
-    assert:
+    assertions:
       - name: tool-f1
         type: code-judge
         command: ["bun", "run", "../judges/tool-call-f1.ts"]
@@ -44,7 +44,7 @@ tests:
       - role: user
         content: What is the weather in Tokyo? Fetch the detailed forecast.
 
-    assert:
+    assertions:
       - name: tool-args-f1
         type: code-judge
         command: ["bun", "run", "../judges/tool-args-f1.ts"]
@@ -65,7 +65,7 @@ tests:
       - role: user
         content: Analyze the quarterly sales data and generate a summary report.
 
-    assert:
+    assertions:
       # Built-in: verify tool sequence
       - name: trajectory-check
         type: tool-trajectory

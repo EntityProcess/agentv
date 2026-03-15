@@ -21,7 +21,7 @@ tests:
     reference_answer: |-
       TypeScript provides static type checking, better IDE support, and improved maintainability.
 
-    assert:
+    assertions:
       - name: custom-prompt-eval
         type: llm-judge
         # Executable prompt template using explicit script array (matches code_judge pattern)
@@ -40,7 +40,7 @@ tests:
     reference_answer: |-
       Async/await is syntactic sugar over Promises that makes asynchronous code look synchronous.
 
-    assert:
+    assertions:
       - name: strict-eval
         type: llm-judge
         # Executable prompt template with config

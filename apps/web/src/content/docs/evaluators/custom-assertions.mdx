@@ -49,7 +49,7 @@ Custom assertion types cannot override built-in types (`contains`, `equals`, `is
 Reference the assertion by type name directly -- no `command:` path needed:
 
 ```yaml
-assert:
+assertions:
   - type: word-count
   - type: contains
     value: "Hello"
@@ -224,7 +224,7 @@ tests:
     criteria: Agent gives a multi-word greeting
     input: "Say hello and introduce yourself"
     expected_output: "Hello! I'm an AI assistant here to help you."
-    assert:
+    assertions:
       - type: contains
         value: "Hello"
       - type: word-count
@@ -233,7 +233,7 @@ tests:
     criteria: Agent gives a short but valid response
     input: "What is 2+2?"
     expected_output: "The answer is 4."
-    assert:
+    assertions:
       - type: contains
         value: "4"
       - type: word-count

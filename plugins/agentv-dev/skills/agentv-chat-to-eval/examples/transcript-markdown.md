@@ -46,7 +46,7 @@ tests:
       3. **Liskov Substitution** — Subtypes must be substitutable for their base types
       4. **Interface Segregation** — Prefer small, specific interfaces over large ones
       5. **Dependency Inversion** — Depend on abstractions, not concretions
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - Lists all five SOLID principles by name
@@ -69,7 +69,7 @@ tests:
       Good: `AuthService` handles login/registration. `EmailService` handles sending emails.
 
       Each class has one job, making them easier to test and maintain.
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - Shows a bad example that violates SRP
@@ -86,7 +86,7 @@ tests:
       - **Abstract class**: Can have both abstract and concrete methods. A class can extend only one. Can hold state.
 
       Use interfaces for "can-do" relationships (e.g., `Serializable`). Use abstract classes for "is-a" relationships with shared behavior (e.g., `Animal` base class).
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - Correctly distinguishes interfaces from abstract classes
@@ -94,7 +94,7 @@ tests:
           - Provides guidance on when to use each
 
 # Suggested additional evaluators:
-# assert:
+# assertions:
 #   - name: quality
 #     type: llm-judge
 #     prompt: ./prompts/quality.md

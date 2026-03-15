@@ -29,7 +29,7 @@ tests:
 Use `field_accuracy` to compare fields in the candidate JSON against the ground-truth object in `expected_output`.
 
 ```yaml
-assert:
+assertions:
   - name: invoice_fields
     type: field-accuracy
     aggregation: weighted_average
@@ -68,7 +68,7 @@ For fuzzy string matching, use a `code_judge` evaluator (e.g. Levenshtein distan
 Gate on execution time (in milliseconds) reported by the provider via `trace`.
 
 ```yaml
-assert:
+assertions:
   - name: performance
     type: latency
     threshold: 2000
@@ -79,7 +79,7 @@ assert:
 Gate on monetary cost reported by the provider via `trace`.
 
 ```yaml
-assert:
+assertions:
   - name: budget
     type: cost
     budget: 0.10
@@ -90,7 +90,7 @@ assert:
 Gate on provider-reported token usage. Useful when cost is unavailable or model pricing differs.
 
 ```yaml
-assert:
+assertions:
   - name: token-budget
     type: token-usage
     max_total: 10000
@@ -104,10 +104,10 @@ assert:
 Use a `composite` evaluator to produce a single "release gate" score from multiple checks:
 
 ```yaml
-assert:
+assertions:
   - name: release_gate
     type: composite
-    assert:
+    assertions:
       - name: correctness
         type: field-accuracy
         fields:

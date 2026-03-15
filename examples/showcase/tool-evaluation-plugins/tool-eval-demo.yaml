@@ -28,7 +28,7 @@ tests:
       - role: user
         content: Find information about the current weather in Tokyo and fetch the detailed forecast.
 
-    assert:
+    assertions:
       # Built-in: Check minimum tool calls
       - name: trajectory-check
         type: tool-trajectory
@@ -57,7 +57,7 @@ tests:
       - role: user
         content: Get the current time.
 
-    assert:
+    assertions:
       # Plugin: Efficiency metrics scoring
       - name: efficiency-check
         type: code-judge
@@ -81,7 +81,7 @@ tests:
       - role: user
         content: Analyze the quarterly sales data and generate a summary report.
 
-    assert:
+    assertions:
       # Built-in: Verify required workflow sequence
       - name: workflow-trajectory
         type: tool-trajectory
@@ -125,7 +125,7 @@ tests:
           2. Configuration: Edit settings.json
           3. Usage: Run the main command
 
-    assert:
+    assertions:
       # Plugin: Pairwise comparison with position bias mitigation
       - name: pairwise-quality
         type: code-judge
