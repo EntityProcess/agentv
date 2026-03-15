@@ -928,6 +928,28 @@ async function parseEvaluatorList(
       continue;
     }
 
+    if (typeValue === 'skill-trigger') {
+      const skillName = asString(rawEvaluator.skill);
+      if (!skillName) {
+        logWarning(`Skipping skill-trigger evaluator '${name}' in '${evalId}': missing skill`);
+        continue;
+      }
+      const rawShouldTrigger = rawEvaluator.should_trigger;
+      const shouldTrigger = typeof rawShouldTrigger === 'boolean' ? rawShouldTrigger : undefined;
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const required = parseRequired(rawEvaluator.required);
+      evaluators.push({
+        name,
+        type: 'skill-trigger',
+        skill: skillName,
+        ...(shouldTrigger !== undefined ? { should_trigger: shouldTrigger } : {}),
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(negate !== undefined ? { negate } : {}),
+      });
+      continue;
+    }
+
     if (typeValue === 'contains') {
       const value = asString(rawEvaluator.value);
       if (!value) {
@@ -1283,6 +1305,7 @@ async function parseEvaluatorList(
 
 /** Assertion evaluator types that support auto-generated names. */
 const ASSERTION_TYPES = new Set([
+  'skill-trigger',
   'contains',
   'contains-any',
   'contains-all',
@@ -1310,6 +1333,10 @@ function generateAssertionName(typeValue: string, rawEvaluator: JsonObject): str
   const arrayValue = Array.isArray(rawEvaluator.value) ? rawEvaluator.value : undefined;
 
   switch (typeValue) {
+    case 'skill-trigger': {
+      const skillValue = asString(rawEvaluator.skill);
+      return skillValue ? `skill-trigger-${skillValue}` : 'skill-trigger';
+    }
     case 'contains':
       return value ? `contains-${value}` : 'contains';
     case 'contains-any':

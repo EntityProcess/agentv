@@ -29,7 +29,7 @@ const SINGLE_SKILL_SUITE = {
       expected_output:
         'The top 3 months by revenue are November ($22,500), September ($20,100), and December ($19,400).',
       assertions: [
-        { type: 'trigger-judge', skill: 'csv-analyzer', should_trigger: true },
+        { type: 'skill-trigger', skill: 'csv-analyzer', should_trigger: true },
         { type: 'rubrics', criteria: 'Output identifies November as the highest revenue month' },
         { type: 'contains', value: '$22,500' },
       ],
@@ -37,7 +37,7 @@ const SINGLE_SKILL_SUITE = {
     {
       id: 'irrelevant-query',
       input: 'What time is it?',
-      assertions: [{ type: 'trigger-judge', skill: 'csv-analyzer', should_trigger: false }],
+      assertions: [{ type: 'skill-trigger', skill: 'csv-analyzer', should_trigger: false }],
     },
   ],
 };
@@ -107,20 +107,20 @@ describe('transpileEvalYaml — input extraction', () => {
 // Trigger-judge handling
 // ---------------------------------------------------------------------------
 
-describe('transpileEvalYaml — trigger-judge', () => {
-  it('sets should_trigger: true for trigger-judge with should_trigger true', () => {
+describe('transpileEvalYaml — skill-trigger', () => {
+  it('sets should_trigger: true for skill-trigger with should_trigger true', () => {
     const { files } = transpileEvalYaml(SINGLE_SKILL_SUITE);
     const evals = files.get('csv-analyzer')?.evals;
     expect(evals[0].should_trigger).toBe(true);
   });
 
-  it('sets should_trigger: false for trigger-judge with should_trigger false', () => {
+  it('sets should_trigger: false for skill-trigger with should_trigger false', () => {
     const { files } = transpileEvalYaml(SINGLE_SKILL_SUITE);
     const evals = files.get('csv-analyzer')?.evals;
     expect(evals[1].should_trigger).toBe(false);
   });
 
-  it('omits should_trigger when no trigger-judge in test', () => {
+  it('omits should_trigger when no skill-trigger in test', () => {
     const suite = {
       tests: [
         {
@@ -137,12 +137,12 @@ describe('transpileEvalYaml — trigger-judge', () => {
     expect(allFiles[0].evals[0].should_trigger).toBeUndefined();
   });
 
-  it('trigger-judge is NOT included in assertions array', () => {
+  it('skill-trigger is NOT included in assertions array', () => {
     const { files } = transpileEvalYaml(SINGLE_SKILL_SUITE);
     const evals = files.get('csv-analyzer')?.evals;
-    // assertions should contain NL items, not 'trigger-judge' literal
+    // assertions should contain NL items, not 'skill-trigger' literal
     for (const a of evals[0].assertions) {
-      expect(a).not.toContain('trigger-judge');
+      expect(a).not.toContain('skill-trigger');
     }
   });
 });
@@ -179,7 +179,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assertions: [
-            { type: 'trigger-judge', skill: 's', should_trigger: true },
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
             { type: 'regex', value: '\\d{4}-\\d{2}-\\d{2}' },
           ],
         },
@@ -197,7 +197,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assertions: [
-            { type: 'trigger-judge', skill: 's', should_trigger: true },
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
             { type: 'equals', value: 'exact answer' },
           ],
         },
@@ -215,7 +215,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assertions: [
-            { type: 'trigger-judge', skill: 's', should_trigger: true },
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
             { type: 'is-json' },
           ],
         },
@@ -233,7 +233,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assertions: [
-            { type: 'trigger-judge', skill: 's', should_trigger: true },
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
             { type: 'llm-judge', prompt: 'The answer is clear and concise' },
           ],
         },
@@ -251,7 +251,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assertions: [
-            { type: 'trigger-judge', skill: 's', should_trigger: true },
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
               type: 'agent-judge',
               rubrics: [
@@ -276,7 +276,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assertions: [
-            { type: 'trigger-judge', skill: 's', should_trigger: true },
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
               type: 'tool-trajectory',
               expected: [{ tool: 'read_file' }, { tool: 'write_file' }],
@@ -297,10 +297,10 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assertions: [
-            { type: 'trigger-judge', skill: 's', should_trigger: true },
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
               type: 'code-judge',
-              name: 'trigger-judge',
+              name: 'skill-trigger',
               description: 'Checks skill was triggered',
             },
           ],
@@ -309,7 +309,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     };
     const { files } = transpileEvalYaml(suite);
     const evals = files.get('s')?.evals;
-    expect(evals[0].assertions).toContain('trigger-judge: Checks skill was triggered');
+    expect(evals[0].assertions).toContain('skill-trigger: Checks skill was triggered');
   });
 
   it('converts field-accuracy to NL', () => {
@@ -319,7 +319,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assertions: [
-            { type: 'trigger-judge', skill: 's', should_trigger: true },
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
               type: 'field-accuracy',
               fields: [{ path: 'invoice.total' }, { path: 'invoice.date' }],
@@ -342,7 +342,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assertions: [
-            { type: 'trigger-judge', skill: 's', should_trigger: true },
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
             { type: 'latency', threshold: 5000 },
           ],
         },
@@ -360,7 +360,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assertions: [
-            { type: 'trigger-judge', skill: 's', should_trigger: true },
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
             { type: 'cost', budget: 0.1 },
           ],
         },
@@ -378,7 +378,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assertions: [
-            { type: 'trigger-judge', skill: 's', should_trigger: true },
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
             { type: 'token-usage', max_total: 1000 },
           ],
         },
@@ -396,7 +396,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           id: 't1',
           input: 'test',
           assertions: [
-            { type: 'trigger-judge', skill: 's', should_trigger: true },
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
             { type: 'execution-metrics', max_tool_calls: 10 },
           ],
         },
@@ -434,7 +434,7 @@ describe('transpileEvalYaml — expected_output', () => {
           id: 't1',
           input: 'Hello',
           expected_output: [{ role: 'assistant', content: 'World' }],
-          assertions: [{ type: 'trigger-judge', skill: 's', should_trigger: true }],
+          assertions: [{ type: 'skill-trigger', skill: 's', should_trigger: true }],
         },
       ],
     };
@@ -455,7 +455,7 @@ describe('transpileEvalYaml — input_files shorthand', () => {
           id: 't1',
           input: 'Analyze this file',
           input_files: ['data/file.csv', 'data/schema.json'],
-          assertions: [{ type: 'trigger-judge', skill: 's', should_trigger: true }],
+          assertions: [{ type: 'skill-trigger', skill: 's', should_trigger: true }],
         },
       ],
     };
@@ -477,12 +477,12 @@ describe('transpileEvalYaml — suite-level assertions', () => {
         {
           id: 't1',
           input: 'first',
-          assertions: [{ type: 'trigger-judge', skill: 's', should_trigger: true }],
+          assertions: [{ type: 'skill-trigger', skill: 's', should_trigger: true }],
         },
         {
           id: 't2',
           input: 'second',
-          assertions: [{ type: 'trigger-judge', skill: 's', should_trigger: true }],
+          assertions: [{ type: 'skill-trigger', skill: 's', should_trigger: true }],
         },
       ],
       assertions: [{ type: 'contains', value: 'global-check' }],
@@ -499,7 +499,7 @@ describe('transpileEvalYaml — suite-level assertions', () => {
         {
           id: 't1',
           input: 'hello',
-          assert: [{ type: 'trigger-judge', skill: 's', should_trigger: true }],
+          assert: [{ type: 'skill-trigger', skill: 's', should_trigger: true }],
         },
       ],
       assert: [{ type: 'contains', value: 'suite-level' }],
@@ -523,7 +523,7 @@ describe('transpileEvalYaml — deprecated assert: key', () => {
           id: 't1',
           input: 'Hello',
           assert: [
-            { type: 'trigger-judge', skill: 'skill-a', should_trigger: true },
+            { type: 'skill-trigger', skill: 'skill-a', should_trigger: true },
             { type: 'contains', value: 'world' },
           ],
         },
@@ -547,12 +547,12 @@ describe('transpileEvalYaml — multi-skill', () => {
         {
           id: 't1',
           input: 'Hello',
-          assertions: [{ type: 'trigger-judge', skill: 'skill-a', should_trigger: true }],
+          assertions: [{ type: 'skill-trigger', skill: 'skill-a', should_trigger: true }],
         },
         {
           id: 't2',
           input: 'World',
-          assertions: [{ type: 'trigger-judge', skill: 'skill-b', should_trigger: true }],
+          assertions: [{ type: 'skill-trigger', skill: 'skill-b', should_trigger: true }],
         },
       ],
     };
@@ -562,15 +562,15 @@ describe('transpileEvalYaml — multi-skill', () => {
     expect(files.has('skill-b')).toBe(true);
   });
 
-  it('places test in both files when it has trigger-judges for two skills', () => {
+  it('places test in both files when it has skill-triggers for two skills', () => {
     const suite = {
       tests: [
         {
           id: 'shared',
           input: 'Do something',
           assertions: [
-            { type: 'trigger-judge', skill: 'skill-a', should_trigger: true },
-            { type: 'trigger-judge', skill: 'skill-b', should_trigger: false },
+            { type: 'skill-trigger', skill: 'skill-a', should_trigger: true },
+            { type: 'skill-trigger', skill: 'skill-b', should_trigger: false },
           ],
         },
       ],
@@ -581,14 +581,14 @@ describe('transpileEvalYaml — multi-skill', () => {
     expect(files.get('skill-b')?.evals[0].should_trigger).toBe(false);
   });
 
-  it('assigns tests with no trigger-judge to dominant skill', () => {
+  it('assigns tests with no skill-trigger to dominant skill', () => {
     const suite = {
       tests: [
         {
           id: 't1',
           input: 'Hello',
           assertions: [
-            { type: 'trigger-judge', skill: 'skill-a', should_trigger: true },
+            { type: 'skill-trigger', skill: 'skill-a', should_trigger: true },
             { type: 'contains', value: 'hi' },
           ],
         },
@@ -655,12 +655,12 @@ describe('getOutputFilenames', () => {
         {
           id: 't1',
           input: 'Hello',
-          assertions: [{ type: 'trigger-judge', skill: 'skill-a', should_trigger: true }],
+          assertions: [{ type: 'skill-trigger', skill: 'skill-a', should_trigger: true }],
         },
         {
           id: 't2',
           input: 'World',
-          assertions: [{ type: 'trigger-judge', skill: 'skill-b', should_trigger: true }],
+          assertions: [{ type: 'skill-trigger', skill: 'skill-b', should_trigger: true }],
         },
       ],
     };

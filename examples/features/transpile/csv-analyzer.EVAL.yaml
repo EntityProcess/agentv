@@ -10,7 +10,7 @@ tests:
             value: "I have a CSV of monthly sales data. Find the top 3 months by revenue."
     expected_output: "The top 3 months by revenue are November ($22,500), September ($20,100), and December ($19,400)."
     assertions:
-      - type: trigger-judge
+      - type: skill-trigger
         skill: csv-analyzer
         should_trigger: true
       - type: rubrics
@@ -21,6 +21,6 @@ tests:
   - id: irrelevant-query
     input: "What time is it?"
     assertions:
-      - type: trigger-judge
+      - type: skill-trigger
         skill: csv-analyzer
         should_trigger: false

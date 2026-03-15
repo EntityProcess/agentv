@@ -17,6 +17,7 @@ import {
   FieldAccuracyEvaluator,
   LatencyEvaluator,
   LlmJudgeEvaluator,
+  SkillTriggerEvaluator,
   TokenUsageEvaluator,
   ToolTrajectoryEvaluator,
   runContainsAllAssertion,
@@ -55,6 +56,7 @@ import type {
   LatencyEvaluatorConfig,
   LlmJudgeEvaluatorConfig,
   RegexEvaluatorConfig,
+  SkillTriggerEvaluatorConfig,
   StartsWithEvaluatorConfig,
   TokenUsageEvaluatorConfig,
 } from '../types.js';
@@ -233,6 +235,11 @@ export const agentJudgeFactory: EvaluatorFactoryFn = (config, context) => {
     evaluatorTemplate: customPrompt,
     judgeTargetProvider,
   });
+};
+
+/** Factory for `skill-trigger` evaluator. */
+export const skillTriggerFactory: EvaluatorFactoryFn = (config) => {
+  return new SkillTriggerEvaluator(config as SkillTriggerEvaluatorConfig);
 };
 
 /** Factory for `contains` deterministic assertion. */
@@ -434,6 +441,7 @@ export function createBuiltinRegistry(): EvaluatorRegistry {
     .register('token-usage', tokenUsageFactory)
     .register('execution-metrics', executionMetricsFactory)
     .register('agent-judge', agentJudgeFactory)
+    .register('skill-trigger', skillTriggerFactory)
     .register('contains', containsFactory)
     .register('contains-any', containsAnyFactory)
     .register('contains-all', containsAllFactory)
