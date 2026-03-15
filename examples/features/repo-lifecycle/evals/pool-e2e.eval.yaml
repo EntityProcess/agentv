@@ -23,13 +23,13 @@ tests:
   - id: test-1-core-name
     criteria: Report the core package name
     input: Read repo/packages/core/package.json and tell me the package name.
-    assert:
+    assertions:
       - type: contains
         value: "@agentv/core"
 
   - id: test-2-cli-name
     criteria: Report the CLI package name
     input: Read repo/apps/cli/package.json and tell me the package name.
-    assert:
+    assertions:
       - type: contains
         value: "agentv"

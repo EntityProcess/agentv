@@ -40,7 +40,7 @@ tests:
     criteria: Agent responds correctly
     input: "Hello, how are you?"
     expected_output: "I'm doing well"
-    assert:
+    assertions:
       - type: contains
         value: "well"
 `,
@@ -53,7 +53,7 @@ tests:
     criteria: Agent responds correctly and completely
     input: "Hello, how are you?"
     expected_output: "I'm doing well, thank you for asking!"
-    assert:
+    assertions:
       - type: llm-judge
         rubric:
           accuracy:
@@ -126,7 +126,7 @@ export const createAssertionCommand = command({
     await mkdir(dir, { recursive: true });
     await writeFile(filePath, content);
     console.log(`Created ${path.relative(process.cwd(), filePath)} (template: ${templateName})`);
-    console.log(`\nUse in EVAL.yaml:\n  assert:\n    - type: ${name}`);
+    console.log(`\nUse in EVAL.yaml:\n  assertions:\n    - type: ${name}`);
   },
 });
 

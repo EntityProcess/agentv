@@ -40,7 +40,7 @@ When an agent is run multiple times on the same input (trials), outputs may vary
 ### Eval YAML
 
 ```yaml
-assert:
+assertions:
   - name: trial-consistency
     type: code-judge
     command: ["bun", "run", "../judges/trial-consistency.ts"]
@@ -95,7 +95,7 @@ const config = { trialOutputs: outputs };
 Wrap the judge in an assertion that enforces a minimum consistency threshold:
 
 ```yaml
-assert:
+assertions:
   - name: trial-consistency
     type: code-judge
     command: ["bun", "run", "../judges/trial-consistency.ts"]

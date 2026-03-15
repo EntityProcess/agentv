@@ -16,7 +16,7 @@ tests:
   - id: quicksort-explain
     criteria: Explain how quicksort works
     input: Explain quicksort algorithm
-    assert:
+    assertions:
       - Mentions divide-and-conquer approach
       - Explains partition step
       - States time complexity
@@ -33,7 +33,7 @@ tests:
   - id: quicksort-explain
     criteria: Explain how quicksort works
     input: Explain quicksort algorithm
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - Mentions divide-and-conquer approach
@@ -46,7 +46,7 @@ tests:
 For fine-grained control, use rubric objects with weights and requirements:
 
 ```yaml
-assert:
+assertions:
   - type: rubrics
     criteria:
       - id: core-concept
@@ -77,7 +77,7 @@ assert:
 For quality gradients instead of binary pass/fail, use score ranges:
 
 ```yaml
-assert:
+assertions:
   - type: rubrics
     criteria:
       - id: accuracy
@@ -134,7 +134,7 @@ tests:
   - id: code-quality
     criteria: Generates correct, clean Python code
     input: Write a fibonacci function
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - Returns correct values for n=0,1,2,10

@@ -11,6 +11,6 @@ tests:
       and report its contents.
     input: >-
       Read the README.md file in the workspace root and report its contents.
-    assert:
+    assertions:
       - type: contains
         value: Shared Workspace Template

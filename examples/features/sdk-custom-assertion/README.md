@@ -5,7 +5,7 @@ Demonstrates creating a custom assertion type using `defineAssertion()` from `@a
 ## What It Does
 
 1. Defines a `word-count` assertion in `.agentv/assertions/word-count.ts`
-2. Uses it in EVAL.yaml via `type: word-count` under `assert:`
+2. Uses it in EVAL.yaml via `type: word-count` under `assertions:`
 3. The assertion checks that the output has a minimum word count
 
 ## How to Run

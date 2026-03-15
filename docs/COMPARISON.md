@@ -23,7 +23,7 @@
 
 **1. Hybrid Judge System (Code + LLM with Custom Prompts)**
 ```yaml
-assert:
+assertions:
   - name: format_check
     type: code_judge           # Deterministic: checks concrete outputs
     command: ./validators/check_format.py
@@ -118,7 +118,7 @@ Alternative approaches:
 ### Scenario: Deterministic + Subjective Evaluation
 
 ```yaml
-assert:
+assertions:
   - name: syntax_check
     type: code_judge
     command: ["python", "check_syntax.py"]

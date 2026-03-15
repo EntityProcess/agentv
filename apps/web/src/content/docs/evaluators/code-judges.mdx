@@ -94,7 +94,7 @@ console.log(JSON.stringify({
 ## Referencing in Eval Files
 
 ```yaml
-assert:
+assertions:
   - name: my_validator
     type: code-judge
     command: [./validators/check_answer.py]
@@ -139,7 +139,7 @@ Code judges can call an LLM through a target proxy for metrics that require mult
 Add a `target` block to the evaluator config:
 
 ```yaml
-assert:
+assertions:
   - name: contextual-precision
     type: code-judge
     command: [bun, scripts/contextual-precision.ts]
@@ -281,7 +281,7 @@ tests:
   - id: implement-feature
     criteria: Agent implements the feature correctly
     input: "Implement the TODO functions in src/index.ts"
-    assert:
+    assertions:
       - name: functional-check
         type: code-judge
         command: [bun, scripts/functional-check.ts]

@@ -32,7 +32,7 @@ tests:
           agentv just merged eval spec v2 (PR #262). Update the agentevals
           spec docs to reflect: 4 new deterministic assert types, required
           gates, assert field at test/suite level, tests-as-string-path.
-    assert:
+    assertions:
       - name: sync-check
         type: code-judge
         command: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
@@ -52,7 +52,7 @@ tests:
         content: |
           agentv renamed cases→tests in the eval schema (PR #240).
           Update all agentevals spec docs to match.
-    assert:
+    assertions:
       - name: sync-check
         type: code-judge
         command: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
@@ -73,7 +73,7 @@ tests:
           agentv renamed schema fields: eval_cases→cases, expected_outcome→criteria
           at case level, expected_outcome→outcome at rubric level (PR #202).
           Update agentevals spec docs accordingly.
-    assert:
+    assertions:
       - name: sync-check
         type: code-judge
         command: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]

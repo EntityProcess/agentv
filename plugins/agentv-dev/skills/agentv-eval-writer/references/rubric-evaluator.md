@@ -1,6 +1,6 @@
 # Rubric Evaluator
 
-Rubrics are defined as `assert` entries with `type: rubrics`. They support binary checklist grading and score-range analytic grading.
+Rubrics are defined as `assertions` entries with `type: rubrics`. They support binary checklist grading and score-range analytic grading.
 
 ## Field Reference
 
@@ -23,10 +23,10 @@ Rubrics are defined as `assert` entries with `type: rubrics`. They support binar
 
 ## String Shorthand (Recommended)
 
-Plain strings in `assert` are automatically treated as rubric criteria:
+Plain strings in `assertions` are automatically treated as rubric criteria:
 
 ```yaml
-assert:
+assertions:
   - Mentions divide-and-conquer approach
   - Explains partition step
   - States time complexity
@@ -34,10 +34,10 @@ assert:
 
 Equivalent to the full form with `type: rubrics`. Use the full form only when you need weights, `required: false`, or `score_ranges`.
 
-Mixed strings and objects are supported — strings are grouped into a single rubrics evaluator at the position of the first string:
+Mixed strings and objects are supported in `assertions` — strings are grouped into a single rubrics evaluator at the position of the first string:
 
 ```yaml
-assert:
+assertions:
   - Mentions divide-and-conquer approach  # grouped into rubrics
   - type: code-judge                      # kept as-is
     command: [check_syntax.py]
@@ -47,7 +47,7 @@ assert:
 ## Checklist Mode
 
 ```yaml
-assert:
+assertions:
   - type: rubrics
     criteria:
       - Mentions divide-and-conquer approach
@@ -66,7 +66,7 @@ assert:
 Shorthand map format (recommended):
 
 ```yaml
-assert:
+assertions:
   - type: rubrics
     criteria:
       - id: correctness

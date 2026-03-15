@@ -53,7 +53,7 @@ tests:
       - role: user
         content: Research the key differences between REST and GraphQL APIs.
 
-    assert:
+    assertions:
       - name: tool-usage-check
         type: tool-trajectory
         mode: any_order
@@ -76,7 +76,7 @@ tests:
       - role: user
         content: Process the customer data from the API endpoint.
 
-    assert:
+    assertions:
       - name: workflow-sequence
         type: tool-trajectory
         mode: in_order
@@ -101,7 +101,7 @@ tests:
       - role: user
         content: Authenticate the user with provided credentials.
 
-    assert:
+    assertions:
       - name: auth-sequence-exact
         type: tool-trajectory
         mode: exact
@@ -125,7 +125,7 @@ tests:
       - role: user
         content: What are the current system metrics for CPU and memory?
 
-    assert:
+    assertions:
       - name: metrics-tools
         type: tool-trajectory
         mode: any_order
@@ -148,7 +148,7 @@ tests:
       - role: user
         content: Search for information and generate a report.
 
-    assert:
+    assertions:
       - name: tool-check
         type: tool-trajectory
         mode: any_order
@@ -176,7 +176,7 @@ tests:
       - role: user
         content: What's the weather like in Paris?
 
-    assert:
+    assertions:
       - name: arg-validation
         type: tool-trajectory
         mode: in_order
@@ -203,7 +203,7 @@ tests:
       - role: user
         content: Load customer data, normalize it, and save
 
-    assert:
+    assertions:
       - name: workflow-sequence-only
         type: tool-trajectory
         mode: in_order
@@ -238,7 +238,7 @@ tests:
       - role: user
         content: Research and analyze the data.
 
-    assert:
+    assertions:
       - name: required-tools
         type: tool-trajectory
         mode: superset
@@ -261,7 +261,7 @@ tests:
       - role: user
         content: Look up the current system status.
 
-    assert:
+    assertions:
       - name: safe-tools-only
         type: tool-trajectory
         mode: subset
@@ -284,7 +284,7 @@ tests:
       - role: user
         content: Process the customer data from the API endpoint.
 
-    assert:
+    assertions:
       - name: mixed-precision
         type: tool-trajectory
         mode: in_order
@@ -309,7 +309,7 @@ tests:
       - role: user
         content: Process the customer data from the API endpoint.
 
-    assert:
+    assertions:
       - name: check-source-only
         type: tool-trajectory
         mode: in_order

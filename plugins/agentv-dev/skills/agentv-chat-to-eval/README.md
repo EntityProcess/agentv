@@ -44,7 +44,7 @@ tests:
     criteria: "Correctly identify the capital of France"
     input: "What's the capital of France?"
     expected_output: "The capital of France is Paris."
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - States Paris as the capital
@@ -54,7 +54,7 @@ tests:
     criteria: "Explain how to reverse a list in Python"
     input: "How do I reverse a list in Python?"
     expected_output: "Use the `reverse()` method or slicing: `my_list[::-1]`"
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - Provides at least one valid method to reverse a list
@@ -62,7 +62,7 @@ tests:
           - Explanation is clear and actionable
 
 # Suggested additional evaluators:
-# assert:
+# assertions:
 #   - name: quality
 #     type: llm-judge
 #     prompt: ./prompts/quality.md

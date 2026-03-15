@@ -40,6 +40,6 @@ tests:
     input: >-
       Read agentv/package.json and allagents/package.json. Report the name
       field from each.
-    assert:
+    assertions:
       - type: contains
         value: agentv

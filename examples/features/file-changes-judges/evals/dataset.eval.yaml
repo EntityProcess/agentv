@@ -26,7 +26,7 @@ tests:
           - type: text
             value: Add a subtract function to src/calculator.ts
 
-    assert:
+    assertions:
       # 1. LLM judge with rubrics — Azure evaluates file_changes diff
       - name: llm-judge-rubrics
         type: rubrics

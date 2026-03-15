@@ -12,7 +12,7 @@ tests:
     criteria: Agent gives a multi-word greeting
     input: "Say hello and introduce yourself"
     expected_output: "Hello! I'm an AI assistant here to help you with your questions."
-    assert:
+    assertions:
       - type: contains
         value: "Hello"
       - type: word-count
@@ -21,7 +21,7 @@ tests:
     criteria: Agent gives a short but valid response
     input: "What is 2+2?"
     expected_output: "The answer is 4."
-    assert:
+    assertions:
       - type: contains
         value: "4"
       - type: word-count
@@ -34,7 +34,7 @@ tests:
       - role: user
         content: "Return a JSON object with name and age fields."
     expected_output: '{"name": "Alice", "age": 30}'
-    assert:
+    assertions:
       - type: is-json
         required: true
       - type: word-count

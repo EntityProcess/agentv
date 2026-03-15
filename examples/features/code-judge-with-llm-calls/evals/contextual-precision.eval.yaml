@@ -17,7 +17,7 @@
 #   mixed-ranking: ~0.833 (2 relevant nodes with 1 irrelevant between)
 #   relevant-node-last: ~0.333 (relevant node ranked last — worst case)
 
-assert:
+assertions:
   - name: contextual_precision
     type: code-judge
     command: [bun, run, ../scripts/contextual-precision.ts]

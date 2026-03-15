@@ -153,7 +153,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assert:
+    assertions:
       - value: test
 `,
       );
@@ -171,7 +171,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assert:
+    assertions:
       - type: invalid_evaluator
         value: test
 `,
@@ -190,7 +190,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assert:
+    assertions:
       - type: contains
 `,
       );
@@ -208,7 +208,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assert:
+    assertions:
       - type: equals
 `,
       );
@@ -226,7 +226,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assert:
+    assertions:
       - type: regex
         value: "[invalid"
 `,
@@ -245,7 +245,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assert:
+    assertions:
       - type: regex
 `,
       );
@@ -263,7 +263,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "Return JSON"
-    assert:
+    assertions:
       - type: is_json
 `,
       );
@@ -282,7 +282,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assert:
+    assertions:
       - type: contains
         value: "4"
         required: true
@@ -303,7 +303,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assert:
+    assertions:
       - type: contains
         value: "4"
         required: 0.8
@@ -324,7 +324,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assert:
+    assertions:
       - type: contains
         value: "4"
         required: "yes"
@@ -344,7 +344,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assert:
+    assertions:
       - type: contains
         value: "4"
         required: 0
@@ -364,7 +364,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assert:
+    assertions:
       - type: contains
         value: "4"
         required: 1.5
@@ -384,14 +384,14 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assert: "contains"
+    assertions: "contains"
 `,
       );
 
       const result = await validateEvalFile(filePath);
 
       const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes('assert'))).toBe(true);
+      expect(warnings.some((e) => e.message.includes('assertions'))).toBe(true);
     });
 
     it('warns when assert item is not an object', async () => {
@@ -401,7 +401,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assert:
+    assertions:
       - "contains"
 `,
       );
@@ -419,7 +419,7 @@ describe('validateEvalFile', () => {
         `tests:
   - id: test-1
     input: "Is this entity sanctioned?"
-    assert:
+    assertions:
       - type: contains
         value: DENIED
       - type: is_json

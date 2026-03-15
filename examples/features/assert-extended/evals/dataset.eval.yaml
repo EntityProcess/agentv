@@ -16,7 +16,7 @@ tests:
     criteria: Response should include some form of greeting
     input: "Greet the user warmly."
     expected_output: "Hello! Welcome aboard."
-    assert:
+    assertions:
       - type: contains-any
         value: ["Hello", "Hi", "Hey", "Welcome", "Greetings"]
 
@@ -31,7 +31,7 @@ tests:
       - role: user
         content: "Confirm my details: name is Alice, email is alice@example.com"
     expected_output: "Confirmed: Alice, alice@example.com"
-    assert:
+    assertions:
       - type: contains-all
         value: ["Alice", "alice@example.com"]
 
@@ -42,7 +42,7 @@ tests:
     criteria: Response mentions "error" in any case
     input: "Report the system status."
     expected_output: "No errors detected. System is healthy."
-    assert:
+    assertions:
       - type: icontains
         value: "error"
 
@@ -54,7 +54,7 @@ tests:
     criteria: Agent asks for missing rule codes
     input: "Process this customs declaration. Country: BE."
     expected_output: "I still need the rule codes to process this declaration."
-    assert:
+    assertions:
       - type: icontains-any
         value: ["missing rule code", "need rule code", "provide rule code", "share rule code", "require rule code"]
         required: true
@@ -66,7 +66,7 @@ tests:
     criteria: Response mentions all required field types
     input: "What fields are needed for a customs entry?"
     expected_output: "You need the Country Code, Rule Codes, and Expected Values."
-    assert:
+    assertions:
       - type: icontains-all
         value: ["country code", "rule codes", "expected values"]
 
@@ -77,7 +77,7 @@ tests:
     criteria: Response starts with a formal prefix
     input: "Write a formal letter opening."
     expected_output: "Dear Sir/Madam, I am writing to inform you..."
-    assert:
+    assertions:
       - type: starts-with
         value: "Dear"
 
@@ -88,7 +88,7 @@ tests:
     criteria: Response ends with a professional sign-off
     input: "End your response with 'Best regards'"
     expected_output: "Thank you for your inquiry. Best regards"
-    assert:
+    assertions:
       - type: ends-with
         value: "Best regards"
 
@@ -99,7 +99,7 @@ tests:
     criteria: Response contains an email pattern (case-insensitive)
     input: "Provide a support email."
     expected_output: "Contact us at Support@Example.COM"
-    assert:
+    assertions:
       - type: regex
         value: "[a-z]+@[a-z]+\\.[a-z]+"
         flags: "i"
@@ -111,7 +111,7 @@ tests:
     criteria: Response must NOT mention any competitor
     input: "Describe our product advantages."
     expected_output: "Our product offers best-in-class performance and reliability."
-    assert:
+    assertions:
       - type: contains-any
         value: ["CompetitorA", "CompetitorB", "CompetitorC"]
         negate: true
@@ -124,7 +124,7 @@ tests:
     criteria: Agent should ask for missing rule codes and mention expected format
     input: "Process customs entry for country BE. No other data provided."
     expected_output: "I need the Customs Rule Codes to process this entry. Please provide them as true/false values (e.g., AU123 = true)."
-    assert:
+    assertions:
       - name: asks-for-rule-codes
         type: icontains-any
         value: ["rule code", "rule codes"]

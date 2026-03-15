@@ -279,7 +279,7 @@ export async function loadTestsFromJsonl(
       continue;
     }
 
-    // Handle inline rubrics field (deprecated: use assert: [{type: rubrics, criteria: [...]}] instead)
+    // Handle inline rubrics field (deprecated: use assertions: [{type: rubrics, criteria: [...]}] instead)
     const inlineRubrics = evalcase.rubrics;
     if (inlineRubrics !== undefined && Array.isArray(inlineRubrics)) {
       const rubricEvaluator = parseInlineRubrics(inlineRubrics);

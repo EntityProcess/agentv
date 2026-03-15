@@ -24,9 +24,9 @@ export type AssertionContext = CodeJudgeInput;
 /**
  * Known built-in assertion types. Custom types are extensible via string.
  *
- * Use in EVAL.yaml `assert` blocks:
+ * Use in EVAL.yaml `assertions` blocks:
  * ```yaml
- * assert:
+ * assertions:
  *   - type: contains
  *     value: "Paris"
  * ```

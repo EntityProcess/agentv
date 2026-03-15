@@ -1232,7 +1232,20 @@ describe('parseEvaluators - assert field', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('parses assert field as evaluators', async () => {
+  it('parses assertions field as evaluators', async () => {
+    const evaluators = await parseEvaluators(
+      {
+        assertions: [{ type: 'contains', value: 'DENIED' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('parses legacy assert field as evaluators (backward compat)', async () => {
     const evaluators = await parseEvaluators(
       {
         assert: [{ type: 'contains', value: 'DENIED' }],
@@ -1245,10 +1258,10 @@ describe('parseEvaluators - assert field', () => {
     expect(evaluators?.[0].type).toBe('contains');
   });
 
-  it('assert takes precedence over execution.evaluators', async () => {
+  it('assertions takes precedence over execution.evaluators', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: [{ type: 'contains', value: 'DENIED' }],
+        assertions: [{ type: 'contains', value: 'DENIED' }],
         execution: {
           evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
         },
@@ -1261,10 +1274,10 @@ describe('parseEvaluators - assert field', () => {
     expect(evaluators?.[0].type).toBe('contains');
   });
 
-  it('assert takes precedence over top-level evaluators', async () => {
+  it('assertions takes precedence over top-level evaluators', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: [{ type: 'contains', value: 'DENIED' }],
+        assertions: [{ type: 'contains', value: 'DENIED' }],
         evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
       },
       undefined,
@@ -1275,12 +1288,12 @@ describe('parseEvaluators - assert field', () => {
     expect(evaluators?.[0].type).toBe('contains');
   });
 
-  it('merges suite-level assert with test-level assert', async () => {
+  it('merges suite-level assertions with test-level assertions', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: [{ type: 'contains', value: 'DENIED' }],
+        assertions: [{ type: 'contains', value: 'DENIED' }],
       },
-      { assert: [{ name: 'latency-check', type: 'latency', threshold: 5000 }] },
+      { assertions: [{ name: 'latency-check', type: 'latency', threshold: 5000 }] },
       [tempDir],
       'test-1',
     );
@@ -1289,13 +1302,13 @@ describe('parseEvaluators - assert field', () => {
     expect(evaluators?.[1].type).toBe('latency');
   });
 
-  it('skip_defaults prevents suite-level assert from being appended', async () => {
+  it('skip_defaults prevents suite-level assertions from being appended', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: [{ type: 'contains', value: 'DENIED' }],
+        assertions: [{ type: 'contains', value: 'DENIED' }],
         execution: { skip_defaults: true },
       },
-      { assert: [{ name: 'latency-check', type: 'latency', threshold: 5000 }] },
+      { assertions: [{ name: 'latency-check', type: 'latency', threshold: 5000 }] },
       [tempDir],
       'test-1',
     );
@@ -1318,11 +1331,11 @@ describe('parseEvaluators - assert field', () => {
     expect(evaluators?.[0].type).toBe('latency');
   });
 
-  it('suite-level assert takes precedence over suite-level execution.evaluators', async () => {
+  it('suite-level assertions takes precedence over suite-level execution.evaluators', async () => {
     const evaluators = await parseEvaluators(
       {},
       {
-        assert: [{ type: 'contains', value: 'HELLO' }],
+        assertions: [{ type: 'contains', value: 'HELLO' }],
         evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
       },
       [tempDir],
@@ -1332,7 +1345,7 @@ describe('parseEvaluators - assert field', () => {
     expect(evaluators?.[0].type).toBe('contains');
   });
 
-  it('falls back to suite-level execution.evaluators when suite assert is not present', async () => {
+  it('falls back to suite-level execution.evaluators when suite assertions is not present', async () => {
     const evaluators = await parseEvaluators(
       {},
       {
@@ -1361,7 +1374,7 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
   it('parses rubrics type with criteria array', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: [
+        assertions: [
           {
             type: 'rubrics',
             criteria: [
@@ -1385,7 +1398,7 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
   it('auto-generates name for rubrics type', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: [
+        assertions: [
           {
             type: 'rubrics',
             criteria: [{ id: 'check-1', outcome: 'Some check', weight: 1.0 }],
@@ -1403,7 +1416,7 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
   it('skips rubrics with empty criteria array', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: [
+        assertions: [
           {
             type: 'rubrics',
             criteria: [],
@@ -1420,7 +1433,7 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
   it('skips rubrics with missing criteria', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: [
+        assertions: [
           {
             type: 'rubrics',
           },
@@ -1436,7 +1449,7 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
   it('supports string shorthand in criteria', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: [
+        assertions: [
           {
             type: 'rubrics',
             criteria: ['Must be polite', 'Must be accurate'],
@@ -1578,7 +1591,7 @@ describe('parseEvaluators - required field', () => {
   });
 });
 
-describe('parseEvaluators - composite assert field', () => {
+describe('parseEvaluators - composite assertions field', () => {
   let tempDir: string;
 
   beforeAll(async () => {
@@ -1593,14 +1606,14 @@ describe('parseEvaluators - composite assert field', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('parses composite with assert field (new syntax)', async () => {
+  it('parses composite with assertions field', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: [
+        assertions: [
           {
             name: 'combined',
             type: 'composite',
-            assert: [
+            assertions: [
               { name: 'safety', type: 'llm-judge', prompt: './safety.md' },
               { name: 'quality', type: 'llm-judge', prompt: './quality.md' },
             ],
@@ -1639,14 +1652,14 @@ describe('parseEvaluators - composite assert field', () => {
     expect(evaluators?.[0].type).toBe('composite');
   });
 
-  it('composite assert takes precedence over evaluators', async () => {
+  it('composite assertions takes precedence over evaluators', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: [
+        assertions: [
           {
             name: 'combined',
             type: 'composite',
-            assert: [{ name: 'safety', type: 'llm-judge', prompt: './safety.md' }],
+            assertions: [{ name: 'safety', type: 'llm-judge', prompt: './safety.md' }],
             evaluators: [{ name: 'quality', type: 'llm-judge', prompt: './quality.md' }],
             aggregator: { type: 'weighted_average' },
           },
@@ -1657,18 +1670,18 @@ describe('parseEvaluators - composite assert field', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    // assert takes precedence - only 1 inner evaluator
+    // assertions takes precedence - only 1 inner evaluator
     const composite = evaluators?.[0] as CompositeEvaluatorConfig;
     expect(composite.assertions).toHaveLength(1);
     expect(composite.assertions[0].name).toBe('safety');
   });
 });
 
-describe('parseEvaluators - string shorthand in assert', () => {
-  it('treats all-string assert array as a single rubrics evaluator', async () => {
+describe('parseEvaluators - string shorthand in assertions', () => {
+  it('treats all-string assertions array as a single rubrics evaluator', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: [
+        assertions: [
           'Mentions divide-and-conquer approach',
           'Explains partition step',
           'States time complexity',
@@ -1697,7 +1710,7 @@ describe('parseEvaluators - string shorthand in assert', () => {
   it('groups strings into rubrics and preserves object evaluators', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: [
+        assertions: [
           'Mentions divide-and-conquer approach',
           { name: 'syntax-check', type: 'contains', value: 'quicksort' },
           'States time complexity',
@@ -1723,7 +1736,7 @@ describe('parseEvaluators - string shorthand in assert', () => {
   it('treats a single string as a single-criterion rubrics evaluator', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: ['Response must be polite'],
+        assertions: ['Response must be polite'],
       },
       undefined,
       ['/tmp'],
@@ -1741,7 +1754,7 @@ describe('parseEvaluators - string shorthand in assert', () => {
   it('ignores all-whitespace strings and produces no rubrics evaluator', async () => {
     const evaluators = await parseEvaluators(
       {
-        assert: ['   ', ''],
+        assertions: ['   ', ''],
       },
       undefined,
       ['/tmp'],

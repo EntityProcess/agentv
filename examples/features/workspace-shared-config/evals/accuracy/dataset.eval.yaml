@@ -11,6 +11,6 @@ tests:
       and report the package name from package.json.
     input: >-
       Read agentv/package.json and report the name field.
-    assert:
+    assertions:
       - type: contains
         value: agentv

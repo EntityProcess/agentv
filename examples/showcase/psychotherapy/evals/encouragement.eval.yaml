@@ -6,7 +6,7 @@ description: |-
 execution:
   target: gemini_base
 
-assert:
+assertions:
   - name: json_schema_validator
     type: code-judge
     command: ["uv", "run", "validate_output.py"]

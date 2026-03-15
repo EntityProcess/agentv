@@ -134,7 +134,7 @@ export function convertEvalsJsonToYaml(inputPath: string): string {
     if (test.assertions && test.assertions.length > 0) {
       lines.push('    # Promoted from evals.json assertions[]');
       lines.push('    # Replace with type: is_json, contains, or regex for deterministic checks');
-      lines.push('    assert:');
+      lines.push('    assertions:');
       for (const assertion of test.assertions) {
         lines.push(`      - name: ${assertion.name}`);
         lines.push(`        type: ${assertion.type}`);

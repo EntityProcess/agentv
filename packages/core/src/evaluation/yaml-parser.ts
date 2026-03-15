@@ -85,6 +85,8 @@ type RawTestSuite = JsonObject & {
   readonly execution?: JsonValue;
   readonly dataset?: JsonValue;
   readonly workspace?: JsonValue;
+  readonly assertions?: JsonValue;
+  /** @deprecated Use `assertions` instead */
   readonly assert?: JsonValue;
   readonly input?: JsonValue;
   // Suite-level metadata fields
@@ -107,6 +109,8 @@ type RawEvalCase = JsonObject & {
   readonly expected_output?: JsonValue;
   readonly execution?: JsonValue;
   readonly evaluators?: JsonValue;
+  readonly assertions?: JsonValue;
+  /** @deprecated Use `assertions` instead */
   readonly assert?: JsonValue;
   readonly rubrics?: JsonValue;
   readonly workspace?: JsonValue;
@@ -284,10 +288,15 @@ async function loadTestsFromYaml(
   const rawGlobalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
   const _globalTarget = asString(rawGlobalExecution?.target) ?? asString(suite.target);
 
-  // Build global execution context, including suite-level assert (which is a sibling of execution)
+  // Build global execution context, including suite-level assertions (which is a sibling of execution)
+  // Also accept legacy `assert` key with a deprecation warning
+  const suiteAssertions = suite.assertions ?? suite.assert;
+  if (suite.assert !== undefined && suite.assertions === undefined) {
+    logWarning("'assert' is deprecated at the suite level. Use 'assertions' instead.");
+  }
   const globalExecution: JsonObject | undefined =
-    suite.assert !== undefined
-      ? { ...(rawGlobalExecution ?? {}), assert: suite.assert }
+    suiteAssertions !== undefined
+      ? { ...(rawGlobalExecution ?? {}), assertions: suiteAssertions }
       : rawGlobalExecution;
 
   const results: EvalTest[] = [];
@@ -322,12 +331,15 @@ async function loadTestsFromYaml(
     // Resolve expected_output with shorthand support
     const expectedMessages = resolveExpectedMessages(evalcase) ?? [];
 
-    // A test is complete when it has id, input, and at least one of: criteria, expected_output, or assert
+    // A test is complete when it has id, input, and at least one of: criteria, expected_output, or assertions
     const hasEvaluationSpec =
-      !!outcome || expectedMessages.length > 0 || evalcase.assert !== undefined;
+      !!outcome ||
+      expectedMessages.length > 0 ||
+      evalcase.assertions !== undefined ||
+      evalcase.assert !== undefined;
     if (!id || !hasEvaluationSpec || !testInputMessages || testInputMessages.length === 0) {
       logError(
-        `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assert`,
+        `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assertions`,
       );
       continue;
     }
@@ -421,7 +433,7 @@ async function loadTestsFromYaml(
       continue;
     }
 
-    // Handle inline rubrics field (deprecated: use assert: [{type: rubrics, criteria: [...]}] instead)
+    // Handle inline rubrics field (deprecated: use assertions: [{type: rubrics, criteria: [...]}] instead)
     const inlineRubrics = evalcase.rubrics;
     if (inlineRubrics !== undefined && Array.isArray(inlineRubrics)) {
       const rubricEvaluator = parseInlineRubrics(inlineRubrics);

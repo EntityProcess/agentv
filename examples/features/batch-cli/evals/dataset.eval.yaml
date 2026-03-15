@@ -42,7 +42,7 @@ tests:
             amount: 5000
             currency: USD
 
-    assert:
+    assertions:
       - name: decision-check
         type: code-judge
         command: ["bun", "run", "../judges/check-batch-cli-output.ts"]
@@ -81,7 +81,7 @@ tests:
             amount: 2000
             currency: USD
 
-    assert:
+    assertions:
       - name: decision-check
         type: code-judge
         command: ["bun", "run", "../judges/check-batch-cli-output.ts"]
@@ -120,7 +120,7 @@ tests:
             amount: 25000
             currency: USD
 
-    assert:
+    assertions:
       - name: decision-check
         type: code-judge
         command: ["bun", "run", "../judges/check-batch-cli-output.ts"]
@@ -159,7 +159,7 @@ tests:
             amount: 25000
             currency: USD
 
-    assert:
+    assertions:
       - name: decision-check
         type: code-judge
         command: ["bun", "run", "../judges/check-batch-cli-output.ts"]

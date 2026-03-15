@@ -33,7 +33,7 @@ tests:
           - Best/Average: O(n log n)
           - Worst case: O(n²) when poorly chosen pivots
 
-    assert:
+    assertions:
       - Mentions divide-and-conquer approach
       - Explains the partition step
       - States time complexity correctly
@@ -68,7 +68,7 @@ tests:
           - 500 Internal Server Error: Server-side error
 
     # Detailed rubric objects with weights and required flags
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - id: structure
@@ -132,7 +132,7 @@ tests:
               pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
               return bool(re.match(pattern, email))
 
-    assert:
+    assertions:
       # Rubric evaluator for semantic checks
       - type: rubrics
         criteria:
@@ -204,7 +204,7 @@ tests:
           more extreme weather. Scientists urge urgent emissions cuts and a transition
           to renewable energy.
 
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - id: factual_accuracy

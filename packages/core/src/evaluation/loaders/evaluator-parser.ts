@@ -41,14 +41,14 @@ export async function parseEvaluators(
   const caseEvaluators =
     rawEvalCase.assertions ??
     rawEvalCase.assert ??
-    (executionObject ? executionObject.evaluators : undefined) ?? // deprecated: use assert
-    rawEvalCase.evaluators; // deprecated: use assert
+    (executionObject ? executionObject.evaluators : undefined) ?? // deprecated: use assertions
+    rawEvalCase.evaluators; // deprecated: use assertions
 
   // Root-level (default) evaluators: assertions > assert > execution.evaluators (deprecated)
   const skipDefaults = executionObject?.skip_defaults === true;
   const rootEvaluators = skipDefaults
     ? undefined
-    : (globalExecution?.assertions ?? globalExecution?.assert ?? globalExecution?.evaluators); // deprecated: use assert
+    : (globalExecution?.assertions ?? globalExecution?.assert ?? globalExecution?.evaluators); // deprecated: use assertions
 
   // Parse case-level evaluators
   const parsedCase = await parseEvaluatorList(caseEvaluators, searchRoots, evalId);
@@ -294,7 +294,7 @@ async function parseEvaluatorList(
       const rawMembers = rawEvaluator.assertions ?? rawEvaluator.assert ?? rawEvaluator.evaluators; // evaluators deprecated
       if (!Array.isArray(rawMembers)) {
         logWarning(
-          `Skipping composite evaluator '${name}' in '${evalId}': missing evaluators (or assert) array`,
+          `Skipping composite evaluator '${name}' in '${evalId}': missing assertions (or evaluators) array`,
         );
         continue;
       }

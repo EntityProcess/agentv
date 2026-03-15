@@ -58,7 +58,7 @@ tests:
 
     expected_output: "42"
 
-    assert:
+    assertions:
       - name: math_check
         type: code-judge
         command: ./validators/check_math.py
@@ -162,7 +162,7 @@ description: Math evaluation dataset
 dataset: math-tests
 execution:
   target: azure-base
-assert:
+assertions:
   - name: correctness
     type: llm-judge
     prompt: ./judges/correctness.md
@@ -259,7 +259,7 @@ print(json.dumps({
 Reference evaluators in your eval file:
 
 ```yaml
-assert:
+assertions:
   - name: my_validator
     type: code-judge
     command: ./validators/check_answer.py
@@ -289,7 +289,7 @@ export default defineAssertion(({ answer }) => {
 Files in `.agentv/assertions/` are auto-discovered by filename — use directly in YAML:
 
 ```yaml
-assert:
+assertions:
   - type: word-count    # matches word-count.ts
   - type: contains
     value: "Hello"
@@ -439,7 +439,7 @@ Built-in assertion types for common text-matching patterns — no LLM judge or c
 All assertions support `weight`, `required`, and `negate` flags. Use `negate: true` to invert (no `not_` prefix needed).
 
 ```yaml
-assert:
+assertions:
   # Case-insensitive matching for natural language variation
   - type: icontains-any
     value: ["missing rule code", "need rule code", "provide rule code"]
@@ -486,7 +486,7 @@ When agents respond via tool calls instead of text, use `tool_trajectory` instea
 Create markdown judge files with evaluation criteria and scoring guidelines:
 
 ```yaml
-assert:
+assertions:
   - name: semantic_check
     type: llm-judge
     prompt: ./judges/correctness.md
@@ -505,7 +505,7 @@ tests:
 
     input: Explain quicksort algorithm
 
-    assert:
+    assertions:
       - type: rubrics
         criteria:
           - Mentions divide-and-conquer approach

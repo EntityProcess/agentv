@@ -61,7 +61,7 @@ tests:
       - role: user
         content: "What is the capital of France?"
     expected_output: "Paris is the capital of France."
-    assert:
+    assertions:
       - name: factuality
         type: code-judge
         command: ["bun", "run", "judges/factuality.ts"]
@@ -110,7 +110,7 @@ tests:
       - role: user
         content: "Summarize the key findings from the research paper."
     expected_output: "The paper found that transformer models outperform RNNs on long-range tasks."
-    assert:
+    assertions:
       - name: faithfulness
         type: code-judge
         command: ["python", "judges/faithfulness.py"]
@@ -198,7 +198,7 @@ tests:
       - role: user
         content: "What are the benefits of exercise?"
     expected_output: "Exercise improves cardiovascular health, mental well-being, and longevity."
-    assert:
+    assertions:
       - name: rag-quality
         type: code-judge
         command: ["bun", "run", "judges/rag-suite.ts"]

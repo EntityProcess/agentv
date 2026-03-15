@@ -49,7 +49,7 @@ tests:
       - role: user
         content: Read the config.json file.
 
-    assert:
+    assertions:
       - name: fast-read
         type: tool-trajectory
         mode: in_order
@@ -69,7 +69,7 @@ tests:
       - role: user
         content: Read the large-file.json.
 
-    assert:
+    assertions:
       - name: slow-read
         type: tool-trajectory
         mode: in_order
@@ -90,7 +90,7 @@ tests:
       - role: user
         content: Process the customer data from the API.
 
-    assert:
+    assertions:
       - name: data-pipeline-perf
         type: tool-trajectory
         mode: in_order
@@ -115,7 +115,7 @@ tests:
       - role: user
         content: Authenticate the user with provided credentials.
 
-    assert:
+    assertions:
       - name: auth-perf
         type: tool-trajectory
         mode: exact
@@ -139,7 +139,7 @@ tests:
       - role: user
         content: What's the weather like in Paris?
 
-    assert:
+    assertions:
       - name: weather-perf
         type: tool-trajectory
         mode: in_order

@@ -81,7 +81,7 @@ tests:
 
     execution:
       target: gpt4_target
-    assert:
+    assertions:
       - name: depth_check
         type: llm-judge
         prompt: ./judges/depth.md
@@ -90,7 +90,7 @@ tests:
 Per-case `assert` evaluators are **merged** with root-level `assert` evaluators — test-specific evaluators run first, then root-level defaults are appended. To opt out of root-level defaults for a specific test, set `execution.skip_defaults: true`:
 
 ```yaml
-assert:
+assertions:
   - name: latency_check
     type: latency
     threshold: 5000
@@ -106,7 +106,7 @@ tests:
     input: Handle this edge case
     execution:
       skip_defaults: true
-    assert:
+    assertions:
       - name: custom_eval
         type: llm-judge
     # Does NOT get latency_check
@@ -179,7 +179,7 @@ tests:
   - id: json-api
     criteria: Returns valid JSON with status field
     input: Return the system status as JSON
-    assert:
+    assertions:
       - type: is-json
       - type: contains
         value: '"status"'
@@ -201,7 +201,7 @@ tests:
     expected_output:
       - role: assistant
         content: "DENIED"
-    assert:
+    assertions:
       - type: contains
         value: "DENIED"
         required: true
@@ -225,7 +225,7 @@ Any evaluator in `assert` can be marked as `required`. When a required evaluator
 | `required: 0.6` | Must score >= 0.6 to pass (custom threshold between 0 and 1) |
 
 ```yaml
-assert:
+assertions:
   - type: contains
     value: "DENIED"
     required: true          # must pass (>= 0.8)
@@ -282,7 +282,7 @@ tests:
   - id: mixed-eval
     criteria: Response is helpful and mentions the fix
     input: "Debug this function..."
-    assert:
+    assertions:
       - type: llm-judge        # explicit — receives criteria automatically
       - type: contains
         value: "fix"
