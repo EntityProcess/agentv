@@ -71,7 +71,7 @@ tests:
 
 ## Multi-Evaluator
 
-Combine a code judge and an LLM judge on the same test:
+Combine a code grader and an LLM grader on the same test:
 
 ```yaml
 description: JSON generation with validation
@@ -84,12 +84,12 @@ tests:
 
     assertions:
       - name: json_format_validator
-        type: code-judge
+        type: code-grader
         command: [uv, run, validate_json.py]
         cwd: ./evaluators
       - name: content_evaluator
-        type: llm-judge
-        prompt: ./judges/semantic_correctness.md
+        type: llm-grader
+        prompt: ./graders/semantic_correctness.md
 
     input: |-
       Generate a JSON object for a user with name "Alice",
@@ -138,40 +138,40 @@ tests:
           - tool: generateToken
 ```
 
-## Offline Judge Benchmark
+## Offline Grader Benchmark
 
-Benchmark a five-model judge panel against a human-labeled export, then compare judge setups:
+Benchmark a five-model grader panel against a human-labeled export, then compare grader setups:
 
 ```yaml
-description: Offline judge benchmark
+description: Offline grader benchmark
 execution:
   target: fixture_replay
 
 tests:
-  - file://../fixtures/labeled-judge-export.jsonl
+  - file://../fixtures/labeled-grader-export.jsonl
 
 assertions:
-  - name: judge-panel
+  - name: grader-panel
     type: composite
     aggregator:
       type: threshold
       threshold: 0.6
     assertions:
-      - name: judge-gpt-5-mini
-        type: llm-judge
-        target: judge_gpt_5_mini
-        prompt: ../prompts/judge-pass-fail-v1.md
-      - name: judge-claude-haiku
-        type: llm-judge
-        target: judge_claude_haiku
-        prompt: ../prompts/judge-pass-fail-v1.md
-      - name: judge-gemini-flash
-        type: llm-judge
-        target: judge_gemini_flash
-        prompt: ../prompts/judge-pass-fail-v1.md
+      - name: grader-gpt-5-mini
+        type: llm-grader
+        target: grader_gpt_5_mini
+        prompt: ../prompts/grader-pass-fail-v1.md
+      - name: grader-claude-haiku
+        type: llm-grader
+        target: grader_claude_haiku
+        prompt: ../prompts/grader-pass-fail-v1.md
+      - name: grader-gemini-flash
+        type: llm-grader
+        target: grader_gemini_flash
+        prompt: ../prompts/grader-pass-fail-v1.md
 ```
 
-See [`examples/showcase/offline-judge-benchmark/`](../../../../examples/showcase/offline-judge-benchmark/) for the full workflow, replay target, export contract, scoring script, and A/B compare commands.
+See [`examples/showcase/offline-grader-benchmark/`](../../../../examples/showcase/offline-grader-benchmark/) for the full workflow, replay target, export contract, scoring script, and A/B compare commands.
 
 ## Static Trace
 
@@ -295,7 +295,7 @@ tests:
 
     assertions:
       - name: decision-check
-        type: code-judge
+        type: code-grader
         command: [bun, run, ./scripts/check-batch-cli-output.ts]
         cwd: .
 
@@ -328,7 +328,7 @@ tests:
 
     assertions:
       - name: decision-check
-        type: code-judge
+        type: code-grader
         command: [bun, run, ./scripts/check-batch-cli-output.ts]
         cwd: .
 ```

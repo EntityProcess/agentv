@@ -7,13 +7,13 @@ sidebar:
 
 AgentV provides two npm packages for programmatic use:
 
-- **`@agentv/eval`** — custom assertions and code judges
+- **`@agentv/eval`** — custom assertions and code graders
 - **`@agentv/core`** — programmatic evaluation API and typed configuration
 
 ## Installation
 
 ```bash
-# Assertion SDK (defineAssertion, defineCodeJudge)
+# Assertion SDK (defineAssertion, defineCodeGrader)
 npm install @agentv/eval
 
 # Programmatic API (evaluate, defineConfig)
@@ -73,23 +73,23 @@ assertions:
     value: "Hello"
 ```
 
-## Code Judges
+## Code Graders
 
-Use `defineCodeJudge` from `@agentv/eval` for full control over scoring with explicit hits/misses:
+Use `defineCodeGrader` from `@agentv/eval` for full control over scoring with explicit hits/misses:
 
 ```typescript
-import { defineCodeJudge } from '@agentv/eval';
+import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeJudge(({ trace, answer }) => ({
+export default defineCodeGrader(({ trace, answer }) => ({
   score: trace?.eventCount <= 5 ? 1.0 : 0.5,
   hits: ['Efficient tool usage'],
   misses: [],
 }));
 ```
 
-`defineCodeJudge` judges are referenced in YAML with `type: code-judge` and `command: [bun, run, judge.ts]`. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
+`defineCodeGrader` graders are referenced in YAML with `type: code-grader` and `command: [bun, run, grader.ts]`. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
 
-For detailed patterns, input/output contracts, and language-agnostic examples, see [Code Judges](/evaluators/code-judges/).
+For detailed patterns, input/output contracts, and language-agnostic examples, see [Code Graders](/evaluators/code-graders/).
 
 ## Programmatic API
 

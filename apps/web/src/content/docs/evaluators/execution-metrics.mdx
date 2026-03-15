@@ -112,7 +112,7 @@ Fails if total token usage exceeds the threshold.
 |----------|----------------------|
 | Check multiple metrics at once | `execution_metrics` |
 | Simple single-threshold check | `latency`, `cost`, or `token_usage` |
-| Complex custom formulas | `code_judge` with custom command |
+| Complex custom formulas | `code_grader` with custom command |
 
 ## Combining with Other Evaluators
 
@@ -126,7 +126,7 @@ tests:
     assertions:
       # Semantic quality
       - name: quality
-        type: llm-judge
+        type: llm-grader
         prompt: ./prompts/code-quality.md
 
       # Efficiency constraints

@@ -91,7 +91,7 @@ assertions:
           10: Perfectly accurate and complete
 ```
 
-Each criterion is scored 0–10 by the LLM judge with granular feedback.
+Each criterion is scored 0–10 by the LLM grader with granular feedback.
 
 ## Scoring
 
@@ -127,7 +127,7 @@ This analyzes each test's `criteria` and creates structured rubric criteria.
 
 ## Combining with Other Evaluators
 
-Rubrics work alongside code and LLM judges:
+Rubrics work alongside code and LLM graders:
 
 ```yaml
 tests:
@@ -141,6 +141,6 @@ tests:
           - Uses meaningful variable names
           - Includes docstring
       - name: syntax_check
-        type: code-judge
+        type: code-grader
         command: [./validators/check_python.py]
 ```

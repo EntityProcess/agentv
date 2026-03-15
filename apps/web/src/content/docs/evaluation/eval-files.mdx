@@ -18,8 +18,8 @@ execution:
 
 assertions:
   - name: correctness
-    type: llm-judge
-    prompt: ./judges/correctness.md
+    type: llm-grader
+    prompt: ./graders/correctness.md
 
 tests:
   - id: addition
@@ -201,8 +201,8 @@ execution:
   target: azure-base
 assertions:
   - name: correctness
-    type: llm-judge
-    prompt: ./judges/correctness.md
+    type: llm-grader
+    prompt: ./graders/correctness.md
 ```
 
 ### Benefits of JSONL

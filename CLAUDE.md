@@ -17,8 +17,8 @@ These principles guide all feature decisions. **Follow these when proposing or i
 AgentV's core should remain minimal. Complex or domain-specific logic belongs in plugins, not built-in features.
 
 **Extension points (prefer these over adding built-ins):**
-- `code-judge` scripts for custom evaluation logic
-- `llm-judge` evaluators with custom prompt files for domain-specific LLM grading
+- `code-grader` (also accepts `code-judge`) scripts for custom evaluation logic
+- `llm-grader` (also accepts `llm-judge`) evaluators with custom prompt files for domain-specific LLM grading
 - CLI wrappers that consume AgentV's JSON/JSONL output for post-processing (aggregation, comparison, reporting)
 
 **Ask yourself:** "Can this be achieved with existing primitives + a plugin or wrapper?" If yes, it should not be a built-in.
@@ -185,14 +185,14 @@ Before marking any branch as ready for review, complete this checklist:
 
 Evaluator types use **kebab-case** everywhere (matching promptfoo convention):
 
-- **YAML config:** `type: llm-judge`, `type: is-json`, `type: execution-metrics`
-- **Internal TypeScript:** `EvaluatorKind = 'llm-judge' | 'is-json' | ...`
-- **Output `scores[].type`:** `"llm-judge"`, `"is-json"`
-- **Registry keys:** `registry.register('llm-judge', ...)`
+- **YAML config:** `type: llm-grader`, `type: is-json`, `type: execution-metrics`
+- **Internal TypeScript:** `EvaluatorKind = 'llm-grader' | 'is-json' | ...`
+- **Output `scores[].type`:** `"llm-grader"`, `"is-json"`
+- **Registry keys:** `registry.register('llm-grader', ...)`
 
 **Source of truth:** `EVALUATOR_KIND_VALUES` array in `packages/core/src/evaluation/types.ts`
 
-**Backward compatibility:** Snake_case is accepted in YAML (`llm_judge` → `llm-judge`) via `normalizeEvaluatorType()` in `evaluator-parser.ts`. Single-word types (`contains`, `equals`, `regex`, `latency`, `cost`) have no separator and are unchanged.
+**Backward compatibility:** Snake_case is accepted in YAML (`llm_judge` → `llm-grader`) via `normalizeEvaluatorType()` in `evaluator-parser.ts`. Single-word types (`contains`, `equals`, `regex`, `latency`, `cost`) have no separator and are unchanged.
 
 **Two type definitions exist:**
 - `EvaluatorKind` in `packages/core/src/evaluation/types.ts` — internal, canonical
