@@ -1,15 +1,19 @@
-# Suite-Level Input Files Example
-# Demonstrates suite-level `input_files` shorthand that hoists shared file
-# attachments to the suite level. Each test only needs a string `input`.
+# Suite-Level Shorthand Examples
+# Demonstrates both suite-level shorthands:
+#   1. `input` as a plain string (no role/content nesting needed)
+#   2. `input_files` to hoist shared file attachments
 #
-# Equivalent to the suite-level-input example but uses the input_files
-# shorthand instead of the verbose message-array form.
+# Compare with suite-level-input/ which uses the verbose message-array form.
 
 name: suite-level-input-files-example
-description: Suite-level input_files prepended to all tests
+description: Suite-level input + input_files shorthands
 
 execution:
   target: default
+
+# Suite-level input as a plain string — prepended as a user message to every test.
+# No role/content wrapping needed at the top level, just like per-test input.
+input: "Use the attached context to answer travel questions."
 
 # Suite-level input_files: file paths prepended as type:file content blocks
 # in each test's user message. Skipped when execution.skip_defaults: true.
@@ -29,7 +33,8 @@ tests:
       Mentions practical clothing advice and includes a safety tip.
     input: I want to see the Northern Lights in Iceland. When should I go?
 
-  - id: override-suite-files
+  - id: skip-suite-defaults
     criteria: Provides a direct answer about currency exchange
-    input_files: []
     input: What currency does Thailand use?
+    execution:
+      skip_defaults: true
