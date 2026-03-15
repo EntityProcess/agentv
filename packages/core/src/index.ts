@@ -57,6 +57,7 @@ export type {
 } from './evaluation/registry/evaluator-registry.js';
 export { createBuiltinRegistry } from './evaluation/registry/builtin-evaluators.js';
 export { discoverAssertions } from './evaluation/registry/assertion-discovery.js';
+export { discoverJudges } from './evaluation/registry/judge-discovery.js';
 
 export type AgentKernel = {
   status: string;

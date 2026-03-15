@@ -597,6 +597,22 @@ export type ResolvedTarget =
       readonly config: ClaudeResolvedConfig;
     }
   | {
+      readonly kind: 'claude-cli';
+      readonly name: string;
+      readonly judgeTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: ClaudeResolvedConfig;
+    }
+  | {
+      readonly kind: 'claude-sdk';
+      readonly name: string;
+      readonly judgeTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: ClaudeResolvedConfig;
+    }
+  | {
       readonly kind: 'mock';
       readonly name: string;
       readonly judgeTarget?: string;
@@ -788,9 +804,18 @@ export function resolveTargetDefinition(
       };
     case 'claude':
     case 'claude-code':
+    case 'claude-cli':
+      return {
+        kind: 'claude-cli',
+        name: parsed.name,
+        judgeTarget: parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolveClaudeConfig(parsed, env, evalFilePath),
+      };
     case 'claude-sdk':
       return {
-        kind: 'claude',
+        kind: 'claude-sdk',
         name: parsed.name,
         judgeTarget: parsed.judge_target,
         workers: parsed.workers,

@@ -217,6 +217,7 @@ function getKnownSettings(provider: string): Set<string> | null {
       return COPILOT_CLI_SETTINGS;
     case 'claude':
     case 'claude-code':
+    case 'claude-cli':
     case 'claude-sdk':
       return CLAUDE_SETTINGS;
     case 'vscode':
