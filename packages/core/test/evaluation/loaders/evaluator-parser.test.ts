@@ -12,7 +12,7 @@ import type {
   EqualsEvaluatorConfig,
   IsJsonEvaluatorConfig,
   LatencyEvaluatorConfig,
-  LlmJudgeEvaluatorConfig,
+  LlmGraderEvaluatorConfig,
   RegexEvaluatorConfig,
 } from '../../../src/evaluation/types.js';
 
@@ -228,7 +228,7 @@ describe('parseEvaluators - deterministic assertion types', () => {
     );
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0].type).toBe('llm-judge');
-    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(1);
+    expect((evaluators?.[0] as LlmGraderEvaluatorConfig).rubrics).toHaveLength(1);
   });
 
   it('parses multiple assertion types in one evaluators array', async () => {
@@ -482,7 +482,7 @@ describe('parseEvaluators - code-judge config pass-through', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as CodeEvaluatorConfig;
-    expect(config.type).toBe('code-judge');
+    expect(config.type).toBe('code-grader');
     expect(config.name).toBe('fuzzy-matcher');
     expect(config.config).toEqual({
       fields: [
@@ -509,7 +509,7 @@ describe('parseEvaluators - code-judge config pass-through', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as CodeEvaluatorConfig;
-    expect(config.type).toBe('code-judge');
+    expect(config.type).toBe('code-grader');
     expect(config.config).toBeUndefined();
   });
 
@@ -577,7 +577,7 @@ describe('parseEvaluators - kebab-case type normalization', () => {
 
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0].type).toBe('llm-judge');
-    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).target).toBe('judge-low-cost-a');
+    expect((evaluators?.[0] as LlmGraderEvaluatorConfig).target).toBe('judge-low-cost-a');
   });
 
   it('accepts code-judge kebab-case as canonical form', async () => {
@@ -676,8 +676,8 @@ describe('parseEvaluators - score_ranges rubrics', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0];
-    expect(config?.type).toBe('llm-judge');
-    if (config?.type === 'llm-judge') {
+    expect(config?.type).toBe('llm-grader');
+    if (config?.type === 'llm-grader') {
       expect(config.rubrics).toHaveLength(1);
       const rubric = config.rubrics?.[0];
       expect(rubric?.id).toBe('accuracy');
@@ -757,7 +757,7 @@ describe('parseEvaluators - score_ranges rubrics', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0];
-    if (config?.type === 'llm-judge') {
+    if (config?.type === 'llm-grader') {
       // Rubric should be skipped since it has no 'outcome' field
       expect(config.rubrics ?? []).toHaveLength(0);
     }
@@ -792,8 +792,8 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0];
-    expect(config?.type).toBe('llm-judge');
-    if (config?.type === 'llm-judge') {
+    expect(config?.type).toBe('llm-grader');
+    if (config?.type === 'llm-grader') {
       expect(config.rubrics).toHaveLength(1);
       const rubric = config.rubrics?.[0];
       expect(rubric?.id).toBe('accuracy');
@@ -868,7 +868,7 @@ describe('parseEvaluators - score_ranges shorthand map', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0];
-    if (config?.type === 'llm-judge') {
+    if (config?.type === 'llm-grader') {
       expect(config.rubrics?.[0]?.score_ranges).toHaveLength(4);
     }
   });
@@ -1391,8 +1391,8 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
     );
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0].type).toBe('llm-judge');
-    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(2);
-    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).weight).toBe(4.0);
+    expect((evaluators?.[0] as LlmGraderEvaluatorConfig).rubrics).toHaveLength(2);
+    expect((evaluators?.[0] as LlmGraderEvaluatorConfig).weight).toBe(4.0);
   });
 
   it('auto-generates name for rubrics type', async () => {
@@ -1461,7 +1461,7 @@ describe('parseEvaluators - type: rubrics with criteria', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(2);
+    expect((evaluators?.[0] as LlmGraderEvaluatorConfig).rubrics).toHaveLength(2);
   });
 });
 
@@ -1565,7 +1565,7 @@ describe('parseEvaluators - required field', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as LlmJudgeEvaluatorConfig;
+    const config = evaluators?.[0] as LlmGraderEvaluatorConfig;
     expect(config.required).toBe(0.7);
   });
 
@@ -1694,15 +1694,15 @@ describe('parseEvaluators - string shorthand in assertions', () => {
 
     expect(evaluators).toHaveLength(1);
     const rubrics = evaluators?.[0];
-    expect(rubrics?.type).toBe('llm-judge');
-    expect((rubrics as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(3);
-    expect((rubrics as LlmJudgeEvaluatorConfig).rubrics?.[0].outcome).toBe(
+    expect(rubrics?.type).toBe('llm-grader');
+    expect((rubrics as LlmGraderEvaluatorConfig).rubrics).toHaveLength(3);
+    expect((rubrics as LlmGraderEvaluatorConfig).rubrics?.[0].outcome).toBe(
       'Mentions divide-and-conquer approach',
     );
-    expect((rubrics as LlmJudgeEvaluatorConfig).rubrics?.[1].outcome).toBe(
+    expect((rubrics as LlmGraderEvaluatorConfig).rubrics?.[1].outcome).toBe(
       'Explains partition step',
     );
-    expect((rubrics as LlmJudgeEvaluatorConfig).rubrics?.[2].outcome).toBe(
+    expect((rubrics as LlmGraderEvaluatorConfig).rubrics?.[2].outcome).toBe(
       'States time complexity',
     );
   });
@@ -1724,8 +1724,8 @@ describe('parseEvaluators - string shorthand in assertions', () => {
     expect(evaluators).toHaveLength(2);
     // First: rubrics (at position of first string)
     expect(evaluators?.[0].type).toBe('llm-judge');
-    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(2);
-    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics?.[0].outcome).toBe(
+    expect((evaluators?.[0] as LlmGraderEvaluatorConfig).rubrics).toHaveLength(2);
+    expect((evaluators?.[0] as LlmGraderEvaluatorConfig).rubrics?.[0].outcome).toBe(
       'Mentions divide-and-conquer approach',
     );
     // Second: the contains evaluator
@@ -1745,8 +1745,8 @@ describe('parseEvaluators - string shorthand in assertions', () => {
 
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0].type).toBe('llm-judge');
-    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics).toHaveLength(1);
-    expect((evaluators?.[0] as LlmJudgeEvaluatorConfig).rubrics?.[0].outcome).toBe(
+    expect((evaluators?.[0] as LlmGraderEvaluatorConfig).rubrics).toHaveLength(1);
+    expect((evaluators?.[0] as LlmGraderEvaluatorConfig).rubrics?.[0].outcome).toBe(
       'Response must be polite',
     );
   });
