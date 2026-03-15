@@ -5,7 +5,7 @@
  * them as code-judge evaluators in the registry. The file name (without
  * extension) becomes the evaluator type name.
  *
- * Example: `.agentv/judges/trigger-judge.ts` → type "trigger-judge" in EVAL.yaml
+ * Example: `.agentv/judges/custom-judge.ts` → type "custom-judge" in EVAL.yaml
  */
 
 import path from 'node:path';

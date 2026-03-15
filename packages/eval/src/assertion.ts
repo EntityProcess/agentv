@@ -48,6 +48,7 @@ export type AssertionType =
   | 'token-usage'
   | 'execution-metrics'
   | 'agent-judge'
+  | 'skill-trigger'
   | 'contains'
   | 'contains-any'
   | 'contains-all'

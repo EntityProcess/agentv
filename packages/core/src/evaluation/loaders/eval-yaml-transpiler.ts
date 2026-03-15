@@ -90,7 +90,7 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
   const type = entry.type;
 
   switch (type) {
-    case 'trigger-judge':
+    case 'skill-trigger':
       // Handled separately — not an NL assertion
       return null;
 
@@ -232,11 +232,11 @@ function assertionToNaturalLanguageList(entry: RawAssertEntry): string[] {
 }
 
 /**
- * Extract trigger-judge entries from an assertion list.
- * Returns entries with type === 'trigger-judge'.
+ * Extract skill-trigger entries from an assertion list.
+ * Returns entries with type === 'skill-trigger'.
  */
 function extractTriggerJudges(assertions: RawAssertEntry[]): RawAssertEntry[] {
-  return assertions.filter((a) => a.type === 'trigger-judge');
+  return assertions.filter((a) => a.type === 'skill-trigger');
 }
 
 /**
@@ -370,7 +370,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
 
   // Suite-level NL assertions (appended to every test)
   const suiteNlAssertions: string[] = suiteAssertions
-    .filter((a) => a.type !== 'trigger-judge')
+    .filter((a) => a.type !== 'skill-trigger')
     .flatMap(assertionToNaturalLanguageList);
 
   /**
@@ -395,7 +395,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
       warnings.push(`Test '${caseId}': 'assert' is deprecated. Use 'assertions' instead.`);
     }
 
-    // Collect NL assertions (not trigger-judge)
+    // Collect NL assertions (not skill-trigger)
     const nlAssertions: string[] = [];
 
     // Prepend test-level criteria as NL assertion
@@ -404,7 +404,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
     }
 
     for (const entry of caseAssertions) {
-      if (entry.type !== 'trigger-judge') {
+      if (entry.type !== 'skill-trigger') {
         nlAssertions.push(...assertionToNaturalLanguageList(entry));
       }
     }
@@ -429,7 +429,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
     };
 
     if (triggerJudges.length === 0) {
-      // No trigger-judge: place in dominant skill (or _no-skill)
+      // No skill-trigger: place in dominant skill (or _no-skill)
       // Determine dominant skill by scanning all tests (first occurrence wins)
       // We defer this: record with a sentinel and resolve after all tests are processed.
       // For now, push to _no-skill; we'll re-assign at the end.

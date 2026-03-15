@@ -55,6 +55,8 @@ export type { LlmJudgeEvaluatorOptions } from './llm-judge.js';
 export { AgentJudgeEvaluator } from './agent-judge.js';
 export type { AgentJudgeEvaluatorOptions } from './agent-judge.js';
 
+export { SkillTriggerEvaluator } from './skill-trigger.js';
+
 export { assembleLlmJudgePrompt } from './llm-judge-prompt.js';
 export type { LlmJudgePromptAssembly } from './llm-judge-prompt.js';
 

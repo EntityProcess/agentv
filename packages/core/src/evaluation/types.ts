@@ -159,6 +159,7 @@ const EVALUATOR_KIND_VALUES = [
   'token-usage',
   'execution-metrics',
   'agent-judge',
+  'skill-trigger',
   'contains',
   'contains-any',
   'contains-all',
@@ -727,6 +728,23 @@ export type RubricsEvaluatorConfig = {
 };
 
 /**
+ * Configuration for the skill-trigger evaluator.
+ * Detects whether the agent invoked a named Claude Code skill as its first tool call.
+ * Mirrors the post-hoc fallback detection in skill-creator's run_eval.py.
+ */
+export type SkillTriggerEvaluatorConfig = {
+  readonly name: string;
+  readonly type: 'skill-trigger';
+  /** The skill name to check for (case-sensitive substring match) */
+  readonly skill: string;
+  /** Whether the skill is expected to trigger (default: true) */
+  readonly should_trigger?: boolean;
+  readonly weight?: number;
+  readonly required?: boolean | number;
+  readonly negate?: boolean;
+};
+
+/**
  * Configuration for the inline-assert evaluator.
  * Wraps an AssertFn for in-process evaluation via the evaluate() API.
  */
@@ -749,6 +767,7 @@ export type EvaluatorConfig =
   | TokenUsageEvaluatorConfig
   | ExecutionMetricsEvaluatorConfig
   | AgentJudgeEvaluatorConfig
+  | SkillTriggerEvaluatorConfig
   | ContainsEvaluatorConfig
   | ContainsAnyEvaluatorConfig
   | ContainsAllEvaluatorConfig
