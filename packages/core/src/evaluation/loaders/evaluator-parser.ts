@@ -134,9 +134,8 @@ async function parseEvaluatorList(
     const typeValue = typeof rawType === 'string' ? normalizeEvaluatorType(rawType) : rawType;
 
     // Unknown types are treated as custom assertion types (resolved via registry discovery)
-    // 'agent-judge' is a known alias (maps to 'llm-judge'), not a custom type
     const isCustomType =
-      typeof typeValue === 'string' && !isEvaluatorKind(typeValue) && typeValue !== 'agent-judge';
+      typeof typeValue === 'string' && !isEvaluatorKind(typeValue);
     if (typeof typeValue !== 'string') {
       logWarning(`Skipping evaluator with invalid type in '${evalId}'`);
       continue;
@@ -854,82 +853,6 @@ async function parseEvaluatorList(
       continue;
     }
 
-    // Backward compat: agent-judge / agent_judge → llm-judge with agent-specific fields
-    if ((typeValue as string) === 'agent-judge') {
-      // Validate max_steps (1-50)
-      const rawMaxSteps = rawEvaluator.max_steps ?? rawEvaluator.maxSteps;
-      let maxSteps: number | undefined;
-      if (rawMaxSteps !== undefined) {
-        if (
-          typeof rawMaxSteps !== 'number' ||
-          !Number.isInteger(rawMaxSteps) ||
-          rawMaxSteps < 1 ||
-          rawMaxSteps > 50
-        ) {
-          logWarning(
-            `Skipping llm-judge evaluator '${name}' in '${evalId}': max_steps must be an integer 1-50`,
-          );
-          continue;
-        }
-        maxSteps = rawMaxSteps;
-      }
-
-      // Validate temperature (0-2)
-      const rawTemperature = rawEvaluator.temperature;
-      let temperature: number | undefined;
-      if (rawTemperature !== undefined) {
-        if (typeof rawTemperature !== 'number' || rawTemperature < 0 || rawTemperature > 2) {
-          logWarning(
-            `Skipping llm-judge evaluator '${name}' in '${evalId}': temperature must be a number 0-2`,
-          );
-          continue;
-        }
-        temperature = rawTemperature;
-      }
-
-      // Validate target (string)
-      const judgeTarget = asString(rawEvaluator.target);
-
-      // Parse prompt (file path or inline text)
-      let agentPrompt: string | undefined;
-      let agentPromptPath: string | undefined;
-      const rawAgentPrompt = rawEvaluator.prompt;
-      if (typeof rawAgentPrompt === 'string') {
-        agentPrompt = rawAgentPrompt;
-        const resolved = await resolveFileReference(rawAgentPrompt, searchRoots);
-        if (resolved.resolvedPath) {
-          agentPromptPath = path.resolve(resolved.resolvedPath);
-        }
-      }
-
-      // Parse rubrics via existing infrastructure
-      const rawAgentRubrics = rawEvaluator.rubrics;
-      const agentParsedRubrics = Array.isArray(rawAgentRubrics)
-        ? parseRubricItems(rawAgentRubrics, name, evalId)
-        : undefined;
-
-      const weight = validateWeight(rawEvaluator.weight, name, evalId);
-      const required = parseRequired(rawEvaluator.required);
-
-      evaluators.push({
-        name,
-        type: 'llm-judge',
-        ...(agentPrompt ? { prompt: agentPrompt } : {}),
-        ...(agentPromptPath
-          ? { promptPath: agentPromptPath, resolvedPromptPath: agentPromptPath }
-          : {}),
-        ...(agentParsedRubrics && agentParsedRubrics.length > 0
-          ? { rubrics: agentParsedRubrics }
-          : {}),
-        ...(maxSteps !== undefined ? { max_steps: maxSteps } : {}),
-        ...(temperature !== undefined ? { temperature } : {}),
-        ...(judgeTarget ? { target: judgeTarget } : {}),
-        ...(weight !== undefined ? { weight } : {}),
-        ...(required !== undefined ? { required } : {}),
-        ...(negate !== undefined ? { negate } : {}),
-      });
-      continue;
-    }
 
     if (typeValue === 'skill-trigger') {
       const skillName = asString(rawEvaluator.skill);

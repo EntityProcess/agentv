@@ -191,16 +191,6 @@ const ExecutionMetricsSchema = EvaluatorCommonSchema.extend({
   exploration_tolerance: z.number().min(0).optional(),
 });
 
-/** Backward compat: agent-judge YAML type is accepted and remapped to llm-judge at parse time. */
-const AgentJudgeSchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['agent-judge', 'agent_judge']),
-  prompt: z.string().optional(),
-  rubrics: z.array(RubricItemSchema).optional(),
-  max_steps: z.number().int().min(1).max(50).optional(),
-  temperature: z.number().min(0).max(2).optional(),
-  target: z.string().optional(),
-});
-
 const ContainsSchema = EvaluatorCommonSchema.extend({
   type: z.literal('contains'),
   value: z.string(),
@@ -236,7 +226,6 @@ const EvaluatorSchema = z.union([
   CostSchema,
   TokenUsageSchema,
   ExecutionMetricsSchema,
-  AgentJudgeSchema,
   ContainsSchema,
   RegexSchema,
   IsJsonSchema,

@@ -265,7 +265,7 @@ tests:
 
 ### `assert` present — explicit evaluators only
 
-When `assert` is defined, only the declared evaluators run. No implicit judge is added. Judges that are declared (such as `llm-judge`, `code-judge`, `agent-judge`, or `rubrics`) receive `criteria` as input automatically.
+When `assert` is defined, only the declared evaluators run. No implicit judge is added. Judges that are declared (such as `llm-judge`, `code-judge`, or `rubrics`) receive `criteria` as input automatically.
 
 If `assert` contains only deterministic evaluators (like `contains` or `regex`), the `criteria` field is not evaluated and a warning is emitted:
 

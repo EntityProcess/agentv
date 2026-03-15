@@ -143,9 +143,7 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
       return `Output ends with '${entry.value}'`;
 
     case 'llm-judge':
-    case 'llm_judge':
-    case 'agent-judge':
-    case 'agent_judge': {
+    case 'llm_judge': {
       // Expand each rubric item to its own assertion string
       // Return the first one — callers handle arrays via assertionToNaturalLanguageList
       if (Array.isArray(entry.rubrics) && entry.rubrics.length > 0) {
@@ -215,14 +213,12 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
 
 /**
  * Expand a single assertion entry into zero or more NL strings.
- * Most assertions produce exactly one string; llm-judge/agent-judge with rubrics expands to many.
+ * Most assertions produce exactly one string; llm-judge with rubrics expands to many.
  */
 function assertionToNaturalLanguageList(entry: RawAssertEntry): string[] {
   if (
     entry.type === 'llm-judge' ||
-    entry.type === 'llm_judge' ||
-    entry.type === 'agent-judge' ||
-    entry.type === 'agent_judge'
+    entry.type === 'llm_judge'
   ) {
     if (Array.isArray(entry.rubrics) && entry.rubrics.length > 0) {
       return (entry.rubrics as Array<{ outcome?: string; criteria?: string; id?: string }>)

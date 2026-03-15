@@ -2,13 +2,13 @@
 #
 # Proves that file_changes diffs are correctly passed to all judge types:
 #   1. rubrics      — LLM judge (Azure) evaluates the diff
-#   2. agent_judge  — built-in mode (Azure via AI SDK) sees file_changes in prompt
-#   3. agent_judge  — delegated mode (Copilot CLI with haiku) sees file_changes in prompt
+#   2. llm-judge    — built-in mode (Azure via AI SDK) sees file_changes in prompt
+#   3. llm-judge    — delegated mode (Copilot CLI with haiku) sees file_changes in prompt
 #
 # The mock agent adds a `subtract` function to calculator.ts, producing a small
 # diff (~10 lines) that fits comfortably in any LLM context window.
 
-description: Verify file_changes diffs are accessible to LLM judge, built-in agent judge, and copilot-cli agent judge
+description: Verify file_changes diffs are accessible to LLM judge (rubrics, built-in, and copilot-cli)
 
 execution:
   target: mock_agent
@@ -43,14 +43,14 @@ tests:
             outcome: "The file_changes contains a valid unified diff format"
             weight: 0.5
 
-      # 2. Built-in agent judge — Azure via AI SDK with filesystem tools
-      - name: agent-judge-builtin
-        type: agent-judge
+      # 2. Built-in LLM judge — Azure via AI SDK with filesystem tools
+      - name: llm-judge-builtin
+        type: llm-judge
         max_steps: 3
         temperature: 0
 
-      # 3. Copilot CLI agent judge — delegated via target
-      - name: agent-judge-copilot
-        type: agent-judge
+      # 3. Copilot CLI LLM judge — delegated via target
+      - name: llm-judge-copilot
+        type: llm-judge
         target: copilot_judge
         temperature: 0

@@ -244,7 +244,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions).toContain('The answer is clear and concise');
   });
 
-  it('converts agent-judge with rubrics to multiple assertions', () => {
+  it('converts llm-judge with rubrics to multiple assertions (rubrics variant)', () => {
     const suite = {
       tests: [
         {
@@ -253,7 +253,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           assertions: [
             { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
-              type: 'agent-judge',
+              type: 'llm-judge',
               rubrics: [
                 { id: 'r1', outcome: 'Correct result returned' },
                 { id: 'r2', outcome: 'No unnecessary steps' },
