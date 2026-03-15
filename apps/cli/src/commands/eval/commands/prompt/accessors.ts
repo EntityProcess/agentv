@@ -96,22 +96,23 @@ export async function getPromptEvalGradingBrief(evalPath: string, testId: string
     criteria.push(evalCase.criteria);
   }
   for (const assertion of evalCase.assertions ?? []) {
-    const config = assertion as Record<string, unknown>;
-    const type = config.type as string | undefined;
+    const entry = assertion as Record<string, unknown>;
+    const type = entry.type as string | undefined;
+    const nested = (entry.config as Record<string, unknown>) ?? {};
     if (type === 'contains') {
-      criteria.push(`Output contains '${config.value}'`);
-    } else if (type === 'rubrics' && typeof config.criteria === 'string') {
-      criteria.push(config.criteria);
+      criteria.push(`Output contains '${entry.value}'`);
+    } else if (type === 'rubrics' && typeof nested.criteria === 'string') {
+      criteria.push(nested.criteria);
     } else if (type === 'llm-judge' || type === 'llm_judge') {
-      criteria.push(`[llm-judge] ${config.prompt ?? config.criteria}`);
+      criteria.push(`[llm-judge] ${nested.prompt ?? nested.criteria}`);
     } else if (type === 'code-judge' || type === 'code_judge') {
-      const name = config.name ?? type;
-      criteria.push(`[code-judge] ${name}${config.description ? `: ${config.description}` : ''}`);
+      const name = entry.name ?? type;
+      criteria.push(`[code-judge] ${name}${nested.description ? `: ${nested.description}` : ''}`);
     } else if (type === 'skill-trigger') {
-      const trigger = config.should_trigger !== false;
-      criteria.push(`[skill-trigger] should_trigger: ${trigger} for ${config.skill}`);
+      const trigger = entry.should_trigger !== false;
+      criteria.push(`[skill-trigger] should_trigger: ${trigger} for ${entry.skill}`);
     } else if (type) {
-      criteria.push(`[${type}] ${config.value ?? config.criteria ?? config.prompt ?? ''}`);
+      criteria.push(`[${type}] ${entry.value ?? nested.criteria ?? nested.prompt ?? ''}`);
     }
   }
 
