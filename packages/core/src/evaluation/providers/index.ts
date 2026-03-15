@@ -1,3 +1,4 @@
+import { AgentvProvider } from './agentv-provider.js';
 import { AnthropicProvider, AzureProvider, GeminiProvider } from './ai-sdk.js';
 import { ClaudeCliProvider } from './claude-cli.js';
 import { ClaudeSdkProvider } from './claude-sdk.js';
@@ -30,6 +31,7 @@ export type {
 } from './types.js';
 
 export type {
+  AgentVResolvedConfig,
   AnthropicResolvedConfig,
   AzureResolvedConfig,
   ClaudeResolvedConfig,
@@ -95,6 +97,7 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
     // claude-sdk is the explicit SDK provider (requires @anthropic-ai/claude-agent-sdk)
     .register('claude-sdk', (t) => new ClaudeSdkProvider(t.name, t.config as never))
     .register('mock', (t) => new MockProvider(t.name, t.config as never))
+    .register('agentv', (t) => new AgentvProvider(t.name, t.config as never))
     .register('vscode', (t) => new VSCodeProvider(t.name, t.config as never, 'vscode'))
     .register(
       'vscode-insiders',
