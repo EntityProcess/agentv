@@ -65,10 +65,7 @@ export async function getPromptEvalExpectedOutput(
   };
 }
 
-export async function getPromptEvalGradingBrief(
-  evalPath: string,
-  testId: string,
-): Promise<string> {
+export async function getPromptEvalGradingBrief(evalPath: string, testId: string): Promise<string> {
   const repoRoot = await findRepoRoot(process.cwd());
   const evalCase = await loadTestById(evalPath, repoRoot, testId);
   const fileMap = buildFileMap(evalCase.input_segments, evalCase.file_paths);
@@ -83,9 +80,7 @@ export async function getPromptEvalGradingBrief(
   }
 
   // Files (exclude guidelines)
-  const filePaths = evalCase.file_paths.filter(
-    (p) => !evalCase.guideline_paths.includes(p),
-  );
+  const filePaths = evalCase.file_paths.filter((p) => !evalCase.guideline_paths.includes(p));
   if (filePaths.length > 0) {
     lines.push(`Files: ${filePaths.join(', ')}`);
   }

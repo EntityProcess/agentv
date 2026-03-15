@@ -95,11 +95,7 @@ interface RawSuite {
  */
 function codeJudgeInstruction(judgeName: string, description?: string): string {
   const desc = description ? ` This judge: ${description}.` : '';
-  return (
-    `Run \`agentv eval run-judge ${judgeName} --agent-output <agent_output> --agent-input <original_prompt>\` and check the result.${desc} ` +
-    `The command accepts --agent-output (the agent's full response text) and --agent-input (the original user prompt). ` +
-    `It returns JSON on stdout: {"score": 0-1, "reasoning": "..."}. A score of 1.0 means pass; 0 means fail.`
-  );
+  return `Run \`agentv eval run-judge ${judgeName} --agent-output <agent_output> --agent-input <original_prompt>\` and check the result.${desc} The command accepts --agent-output (the agent's full response text) and --agent-input (the original user prompt). It returns JSON on stdout: {"score": 0-1, "reasoning": "..."}. A score of 1.0 means pass; 0 means fail.`;
 }
 
 /**
@@ -198,8 +194,7 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
 
     case 'code-judge':
     case 'code_judge': {
-      const judgeName =
-        entry.name ?? deriveJudgeNameFromCommand(entry.command) ?? 'code-judge';
+      const judgeName = entry.name ?? deriveJudgeNameFromCommand(entry.command) ?? 'code-judge';
       const desc = typeof entry.description === 'string' ? entry.description : undefined;
       return codeJudgeInstruction(judgeName, desc);
     }

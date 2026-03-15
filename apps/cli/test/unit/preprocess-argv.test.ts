@@ -139,7 +139,6 @@ describe('preprocessArgv', () => {
   });
 
   describe('passthrough', () => {
-
     it('does not modify other commands', () => {
       const argv = ['node', 'agentv', 'compare', 'a.jsonl', 'b.jsonl'];
       expect(preprocessArgv(argv)).toEqual(argv);

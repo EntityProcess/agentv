@@ -42,7 +42,17 @@ describe('agentv eval run-judge', () => {
     try {
       const result = await execa(
         'bun',
-        ['--no-env-file', CLI_ENTRY, 'eval', 'run-judge', 'always-pass', '--agent-output', 'some output', '--agent-input', 'some input'],
+        [
+          '--no-env-file',
+          CLI_ENTRY,
+          'eval',
+          'run-judge',
+          'always-pass',
+          '--agent-output',
+          'some output',
+          '--agent-input',
+          'some input',
+        ],
         { cwd: baseDir, reject: false },
       );
       expect(result.exitCode).toBe(0);
@@ -58,7 +68,17 @@ describe('agentv eval run-judge', () => {
     try {
       const result = await execa(
         'bun',
-        ['--no-env-file', CLI_ENTRY, 'eval', 'run-judge', 'check-contains', '--agent-output', 'no match here', '--agent-input', 'test'],
+        [
+          '--no-env-file',
+          CLI_ENTRY,
+          'eval',
+          'run-judge',
+          'check-contains',
+          '--agent-output',
+          'no match here',
+          '--agent-input',
+          'test',
+        ],
         { cwd: baseDir, reject: false },
       );
       expect(result.exitCode).toBe(1);
@@ -74,7 +94,17 @@ describe('agentv eval run-judge', () => {
     try {
       const result = await execa(
         'bun',
-        ['--no-env-file', CLI_ENTRY, 'eval', 'run-judge', 'check-contains', '--agent-output', 'hello world', '--agent-input', 'test'],
+        [
+          '--no-env-file',
+          CLI_ENTRY,
+          'eval',
+          'run-judge',
+          'check-contains',
+          '--agent-output',
+          'hello world',
+          '--agent-input',
+          'test',
+        ],
         { cwd: baseDir, reject: false },
       );
       expect(result.exitCode).toBe(0);
@@ -90,7 +120,17 @@ describe('agentv eval run-judge', () => {
     try {
       const result = await execa(
         'bun',
-        ['--no-env-file', CLI_ENTRY, 'eval', 'run-judge', 'nonexistent', '--agent-output', 'test', '--agent-input', 'test'],
+        [
+          '--no-env-file',
+          CLI_ENTRY,
+          'eval',
+          'run-judge',
+          'nonexistent',
+          '--agent-output',
+          'test',
+          '--agent-input',
+          'test',
+        ],
         { cwd: baseDir, reject: false },
       );
       expect(result.exitCode).not.toBe(0);

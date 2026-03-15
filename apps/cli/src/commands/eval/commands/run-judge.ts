@@ -81,10 +81,7 @@ export const evalRunJudgeCommand = command({
   },
 });
 
-async function findJudgeScript(
-  judgeName: string,
-  startDir: string,
-): Promise<string | null> {
+async function findJudgeScript(judgeName: string, startDir: string): Promise<string | null> {
   let dir = path.resolve(startDir);
   const root = path.parse(dir).root;
 
