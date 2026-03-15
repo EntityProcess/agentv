@@ -10,21 +10,11 @@ targets:
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
     model: ${{ GEMINI_MODEL_NAME }}
 
-  - name: vscode
-    provider: vscode
-    judge_target: default
-
   - name: codex
     provider: codex
     cwd: ${{ CODEX_WORKSPACE_DIR }}
     log_dir: ${{ CODEX_LOG_DIR }}
     log_format: json
-    judge_target: default
-
-  - name: vscode_projectx
-    provider: vscode
-    workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
-    provider_batching: false
     judge_target: default
 
   - name: mock_agent

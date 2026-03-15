@@ -10,10 +10,6 @@ targets:
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     # version: ${{ AZURE_OPENAI_API_VERSION }}  # Optional: uncomment to override default (2024-12-01-preview)
 
-  - name: vscode
-    provider: vscode
-    judge_target: azure-llm
-
   - name: codex
     provider: codex
     judge_target: azure-llm
@@ -42,18 +38,6 @@ targets:
     # log_dir: ${{ CLAUDE_LOG_DIR }}           # Optional: where stream logs are stored (defaults to ./.agentv/logs/claude)
     log_format: json                           # Optional: 'summary' (default) or 'json' for raw event logs
     # system_prompt: optional override (default instructs agent to include code in response)
-
-  - name: vscode_projectx
-    provider: vscode
-    workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
-    provider_batching: false
-    judge_target: azure-llm
-
-  - name: vscode_insiders_projectx
-    provider: vscode-insiders
-    workspace_template: ${{ PROJECTX_WORKSPACE_PATH }}
-    provider_batching: false
-    judge_target: azure-llm
 
   - name: azure-llm
     provider: azure
