@@ -89,13 +89,29 @@ interface RawSuite {
 /**
  * Build an NL instruction string for a code judge that tells the grader agent
  * how to execute it via `agentv eval run-judge`.
+ *
+ * The `<agent_output>` and `<original_prompt>` placeholders are substituted
+ * by the grading agent at evaluation time.
  */
-function codeJudgeInstruction(judgeName: string): string {
+function codeJudgeInstruction(judgeName: string, description?: string): string {
+  const desc = description ? ` This judge: ${description}.` : '';
   return (
-    `Run \`agentv eval run-judge ${judgeName} --output <agent_output> --input <original_prompt>\` and check the result. ` +
+    `Run \`agentv eval run-judge ${judgeName} --output <agent_output> --input <original_prompt>\` and check the result.${desc} ` +
     `The command accepts --output (the agent's full response text) and --input (the original user prompt). ` +
     `It returns JSON on stdout: {"score": 0-1, "reasoning": "..."}. A score of 1.0 means pass; 0 means fail.`
   );
+}
+
+/**
+ * Derive a judge name from a command array by extracting the filename stem
+ * of the last path-like argument (e.g. `['bun', 'run', '.agentv/judges/format-checker.ts']` → `'format-checker'`).
+ */
+function deriveJudgeNameFromCommand(command: unknown): string | undefined {
+  if (!Array.isArray(command) || command.length === 0) return undefined;
+  const last = command[command.length - 1];
+  if (typeof last !== 'string') return undefined;
+  const basename = last.split('/').pop() ?? last;
+  return basename.replace(/\.(ts|js|mts|mjs)$/, '') || undefined;
 }
 
 function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
@@ -183,8 +199,9 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
     case 'code-judge':
     case 'code_judge': {
       const judgeName =
-        entry.name ?? (typeof entry.type === 'string' ? entry.type : 'code-judge');
-      return codeJudgeInstruction(judgeName);
+        entry.name ?? deriveJudgeNameFromCommand(entry.command) ?? 'code-judge';
+      const desc = typeof entry.description === 'string' ? entry.description : undefined;
+      return codeJudgeInstruction(judgeName, desc);
     }
 
     case 'field-accuracy':

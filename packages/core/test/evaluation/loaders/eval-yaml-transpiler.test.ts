@@ -312,7 +312,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions[0]).toContain('agentv eval run-judge skill-trigger');
   });
 
-  it('converts code-judge to agentv run-judge instruction', () => {
+  it('converts code-judge to agentv run-judge instruction with description', () => {
     const suite = {
       tests: [
         {
@@ -335,6 +335,28 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions[0]).toContain('agentv eval run-judge format-checker');
     expect(evals[0].assertions[0]).toContain('--output');
     expect(evals[0].assertions[0]).toContain('score');
+    expect(evals[0].assertions[0]).toContain('Validates output CSV format');
+  });
+
+  it('derives judge name from command when code-judge has no name', () => {
+    const suite = {
+      tests: [
+        {
+          id: 't1',
+          input: 'test',
+          assertions: [
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            {
+              type: 'code-judge',
+              command: ['bun', 'run', '.agentv/judges/output-validator.ts'],
+            },
+          ],
+        },
+      ],
+    };
+    const { files } = transpileEvalYaml(suite);
+    const evals = files.get('s')?.evals;
+    expect(evals[0].assertions[0]).toContain('agentv eval run-judge output-validator');
   });
 
   it('converts unknown type with command to agentv run-judge instruction', () => {
