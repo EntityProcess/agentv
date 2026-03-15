@@ -65,6 +65,88 @@ export async function getPromptEvalExpectedOutput(
   };
 }
 
+export async function getPromptEvalGradingBrief(evalPath: string, testId: string): Promise<string> {
+  const repoRoot = await findRepoRoot(process.cwd());
+  const evalCase = await loadTestById(evalPath, repoRoot, testId);
+  const fileMap = buildFileMap(evalCase.input_segments, evalCase.file_paths);
+  const resolvedInput = resolveMessages(evalCase.input, fileMap);
+
+  const lines: string[] = [];
+
+  // Input
+  const inputText = extractTextFromMessages(resolvedInput);
+  if (inputText) {
+    lines.push(`Input: "${inputText}"`);
+  }
+
+  // Files (exclude guidelines)
+  const filePaths = evalCase.file_paths.filter((p) => !evalCase.guideline_paths.includes(p));
+  if (filePaths.length > 0) {
+    lines.push(`Files: ${filePaths.join(', ')}`);
+  }
+
+  // Expected output
+  if (evalCase.reference_answer) {
+    lines.push(`Expected: "${evalCase.reference_answer}"`);
+  }
+
+  // Criteria
+  const criteria: string[] = [];
+  if (evalCase.criteria) {
+    criteria.push(evalCase.criteria);
+  }
+  for (const assertion of evalCase.assertions ?? []) {
+    const entry = assertion as Record<string, unknown>;
+    const type = entry.type as string | undefined;
+    const bag = (entry.config as Record<string, unknown>) ?? {};
+    if (type === 'contains') {
+      criteria.push(`Output contains '${entry.value}'`);
+    } else if (type === 'rubrics') {
+      const items = (entry.criteria ?? bag.criteria) as Array<{ outcome?: string }> | undefined;
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          if (item.outcome) criteria.push(item.outcome);
+        }
+      }
+    } else if (type === 'llm-judge' || type === 'llm_judge') {
+      const prompt = entry.prompt ?? bag.prompt ?? bag.criteria;
+      criteria.push(`[llm-judge] ${typeof prompt === 'string' ? prompt : ''}`);
+    } else if (type === 'code-judge' || type === 'code_judge') {
+      const name = entry.name ?? type;
+      const desc = bag.description ?? entry.description;
+      criteria.push(`[code-judge] ${name}${desc ? `: ${desc}` : ''}`);
+    } else if (type === 'skill-trigger') {
+      const trigger = entry.should_trigger !== false;
+      criteria.push(`[skill-trigger] should_trigger: ${trigger} for ${entry.skill}`);
+    } else if (type) {
+      criteria.push(`[${type}] ${entry.value ?? bag.criteria ?? bag.prompt ?? ''}`);
+    }
+  }
+
+  if (criteria.length > 0) {
+    lines.push('Criteria:');
+    for (const c of criteria) {
+      lines.push(`  - ${c}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+function extractTextFromMessages(messages: JsonObject[]): string {
+  for (const msg of messages) {
+    if (msg.role !== 'user') continue;
+    if (typeof msg.content === 'string') return msg.content;
+    if (Array.isArray(msg.content)) {
+      const textBlocks = (msg.content as JsonObject[])
+        .filter((b) => b.type === 'text')
+        .map((b) => b.value as string);
+      if (textBlocks.length > 0) return textBlocks.join(' ');
+    }
+  }
+  return '';
+}
+
 /**
  * Build a mapping from relative file names to resolved absolute paths.
  * Uses input_segments (which have resolvedPath) as the primary source,

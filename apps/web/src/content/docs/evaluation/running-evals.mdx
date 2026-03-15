@@ -238,6 +238,32 @@ Check eval files for schema errors without executing:
 agentv validate evals/my-eval.yaml
 ```
 
+## Run a Single Assertion
+
+Run a code-judge assertion in isolation without executing a full eval suite:
+
+```bash
+agentv eval assert <name> --agent-output <text> --agent-input <text>
+```
+
+The command discovers the assertion script by walking up directories looking for `.agentv/judges/<name>.{ts,js,mts,mjs}`, then passes the input via stdin and prints the result JSON to stdout.
+
+```bash
+# Run an assertion with inline arguments
+agentv eval assert rouge-score \
+  --agent-output "The fox jumps over the lazy dog" \
+  --agent-input "Summarise the article"
+
+# Or pass a JSON payload file
+agentv eval assert rouge-score --file result.json
+```
+
+The `--file` option reads a JSON file with `{ "output": "...", "input": "..." }` fields.
+
+**Exit codes:** 0 if score >= 0.5 (pass), 1 if score < 0.5 (fail).
+
+This is the same interface that agent-orchestrated evals use — the EVAL.yaml transpiler emits `assert` instructions for code judges so external grading agents can execute them directly.
+
 ## Agent-Orchestrated Evals
 
 Run evaluations without API keys by letting an external agent (e.g., Claude Code, Copilot CLI) orchestrate the eval pipeline.
@@ -245,7 +271,7 @@ Run evaluations without API keys by letting an external agent (e.g., Claude Code
 ### Overview
 
 ```bash
-agentv prompt eval --list evals/my-eval.yaml
+agentv eval prompt eval --list evals/my-eval.yaml
 ```
 
 Returns JSON listing the available `test_ids` for the eval file.
@@ -253,7 +279,7 @@ Returns JSON listing the available `test_ids` for the eval file.
 ### Get Task Input
 
 ```bash
-agentv prompt eval --input evals/my-eval.yaml --test-id case-123
+agentv eval prompt eval --input evals/my-eval.yaml --test-id case-123
 ```
 
 Returns JSON with:
@@ -264,7 +290,7 @@ Returns JSON with:
 ### Get Grading Context
 
 ```bash
-agentv prompt eval --expected-output evals/my-eval.yaml --test-id case-123
+agentv eval prompt eval --expected-output evals/my-eval.yaml --test-id case-123
 ```
 
 Returns JSON with the data an external grader needs:
@@ -274,12 +300,35 @@ Returns JSON with the data an external grader needs:
 - `criteria` — high-level success criteria
 - `assertions` — evaluator configs for the test
 
+### Get Grading Brief
+
+Output a human-readable summary of the grading criteria for a specific test, with type-prefixed assertion tags:
+
+```bash
+agentv eval prompt eval --grading-brief evals/my-eval.yaml --test-id case-123
+```
+
+Example output:
+
+```
+Input: "Summarise the following article in one sentence."
+Expected: "The quick brown fox jumps over the lazy dog near the river bank."
+Criteria:
+  - [code-judge] rouge-score: Measures n-gram recall and F1
+  - [llm-judge] Summary captures key points
+  - [skill-trigger] should_trigger: true for summariser
+```
+
+This is useful for agents orchestrating evals to understand what criteria a test is evaluated against before running it.
+
 ### When to Use
 
 | Scenario | Command |
 |----------|---------|
 | Have API keys, want end-to-end automation | `agentv eval` |
-| No API keys, external agent can orchestrate the run | `agentv prompt eval --list/--input/--expected-output` |
+| Run a single assertion in isolation | `agentv eval assert <name>` |
+| No API keys, external agent can orchestrate the run | `agentv eval prompt eval --list/--input/--expected-output` |
+| Inspect grading criteria before running | `agentv eval prompt eval --grading-brief` |
 
 ## Version Requirements
 

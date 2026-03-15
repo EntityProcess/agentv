@@ -315,7 +315,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions).toContain('Agent called tools in order: read_file, write_file');
   });
 
-  it('converts code-judge with name to NL', () => {
+  it('converts code-judge with name to assert instruction', () => {
     const suite = {
       tests: [
         {
@@ -334,7 +334,75 @@ describe('transpileEvalYaml — NL assertions', () => {
     };
     const { files } = transpileEvalYaml(suite);
     const evals = files.get('s')?.evals;
-    expect(evals[0].assertions).toContain('skill-trigger: Checks skill was triggered');
+    expect(evals[0].assertions[0]).toContain('agentv eval assert skill-trigger');
+  });
+
+  it('converts code-judge to agentv assert instruction with description', () => {
+    const suite = {
+      tests: [
+        {
+          id: 't1',
+          input: 'test',
+          assertions: [
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            {
+              type: 'code-judge',
+              name: 'format-checker',
+              description: 'Validates output CSV format',
+              command: ['bun', 'run', '.agentv/judges/format-checker.ts'],
+            },
+          ],
+        },
+      ],
+    };
+    const { files } = transpileEvalYaml(suite);
+    const evals = files.get('s')?.evals;
+    expect(evals[0].assertions[0]).toContain('agentv eval assert format-checker');
+    expect(evals[0].assertions[0]).toContain('--agent-output');
+    expect(evals[0].assertions[0]).toContain('score');
+    expect(evals[0].assertions[0]).toContain('Validates output CSV format');
+  });
+
+  it('derives judge name from command when code-judge has no name', () => {
+    const suite = {
+      tests: [
+        {
+          id: 't1',
+          input: 'test',
+          assertions: [
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            {
+              type: 'code-judge',
+              command: ['bun', 'run', '.agentv/judges/output-validator.ts'],
+            },
+          ],
+        },
+      ],
+    };
+    const { files } = transpileEvalYaml(suite);
+    const evals = files.get('s')?.evals;
+    expect(evals[0].assertions[0]).toContain('agentv eval assert output-validator');
+  });
+
+  it('converts unknown type with command to agentv assert instruction', () => {
+    const suite = {
+      tests: [
+        {
+          id: 't1',
+          input: 'test',
+          assertions: [
+            { type: 'skill-trigger', skill: 's', should_trigger: true },
+            {
+              type: 'custom-validator',
+              command: ['bun', 'run', '.agentv/judges/custom-validator.ts'],
+            },
+          ],
+        },
+      ],
+    };
+    const { files } = transpileEvalYaml(suite);
+    const evals = files.get('s')?.evals;
+    expect(evals[0].assertions[0]).toContain('agentv eval assert custom-validator');
   });
 
   it('converts field-accuracy to NL', () => {

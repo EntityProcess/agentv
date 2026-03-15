@@ -291,7 +291,29 @@ See `examples/features/functional-grading/` for a complete working example.
 
 ## Testing Locally
 
-Test a code judge by piping JSON to stdin:
+### With `agentv eval assert`
+
+Run a judge from `.agentv/judges/` by name — no manual JSON piping required:
+
+```bash
+# Pass agent output and input directly
+agentv eval assert rouge-score --agent-output "The fox jumps over the dog" --agent-input "Summarise this"
+
+# Or pass a JSON file with { output, input } fields
+agentv eval assert rouge-score --file result.json
+```
+
+The command:
+1. Discovers the judge script by walking up directories looking for `.agentv/judges/<name>.{ts,js,mts,mjs}`
+2. Passes `{ answer, output, input, question }` to the script via stdin
+3. Prints the judge's JSON result to stdout
+4. Exits 0 if score >= 0.5, exit 1 otherwise
+
+This is the same interface that agent-orchestrated evals use — the EVAL.yaml transpiler emits `agentv eval assert` instructions for code judges so external grading agents can run them directly.
+
+### With stdin pipe
+
+Pipe JSON directly to the judge script for full control:
 
 ```bash
 echo '{"question":"What is 2+2?","criteria":"4","answer":"4","reference_answer":"4","metadata":{}}' | python validators/check_answer.py

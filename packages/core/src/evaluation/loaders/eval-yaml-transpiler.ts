@@ -86,6 +86,32 @@ interface RawSuite {
 // Assertion → natural language conversion
 // ---------------------------------------------------------------------------
 
+/**
+ * Build an NL instruction string for a code judge that tells the grader agent
+ * how to execute it via `agentv eval run-judge`.
+ *
+ * The `<agent_output>` and `<original_prompt>` placeholders are substituted
+ * by the grading agent at evaluation time.
+ */
+function codeJudgeInstruction(judgeName: string, description?: string): string {
+  const desc = description ? ` This judge: ${description}.` : '';
+  return `Run \`agentv eval assert ${judgeName} --agent-output <agent_output> --agent-input <original_prompt>\` and check the result.${desc} The command accepts --agent-output (the agent's full response text) and --agent-input (the original user prompt). It returns JSON on stdout: {"score": 0-1, "reasoning": "..."}. A score >= 0.5 means pass (exit 0); below 0.5 means fail (exit 1).`;
+}
+
+/**
+ * Derive a judge name from a command array by finding the first argument
+ * with a recognised script extension (e.g. `['bun', 'run', '.agentv/judges/format-checker.ts']` → `'format-checker'`).
+ */
+function deriveJudgeNameFromCommand(command: unknown): string | undefined {
+  if (!Array.isArray(command) || command.length === 0) return undefined;
+  for (const arg of command) {
+    if (typeof arg !== 'string') continue;
+    const match = arg.match(/([^/]+)\.(ts|js|mts|mjs)$/);
+    if (match) return match[1] || undefined;
+  }
+  return undefined;
+}
+
 function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
   const type = entry.type;
 
@@ -166,10 +192,9 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
 
     case 'code-judge':
     case 'code_judge': {
-      const namePart =
-        entry.name ?? (Array.isArray(entry.command) ? entry.command.join(' ') : entry.command);
-      const descPart = typeof entry.description === 'string' ? `: ${entry.description}` : '';
-      return namePart ? `${namePart}${descPart}` : 'Code judge assertion';
+      const judgeName = entry.name ?? deriveJudgeNameFromCommand(entry.command) ?? 'code-judge';
+      const desc = typeof entry.description === 'string' ? entry.description : undefined;
+      return codeJudgeInstruction(judgeName, desc);
     }
 
     case 'field-accuracy':
@@ -203,11 +228,16 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
     case 'execution_metrics':
       return 'Execution within metric bounds';
 
-    default:
-      // Unknown type: try to produce something readable
+    default: {
+      // Unknown type with a command → treat as code judge
+      if (entry.command !== undefined && type) {
+        return codeJudgeInstruction(deriveJudgeNameFromCommand(entry.command) ?? type);
+      }
+      // Fallback: try to produce something readable
       if (typeof entry.criteria === 'string') return entry.criteria;
       if (typeof entry.prompt === 'string') return entry.prompt;
       return type ? `${type} assertion` : null;
+    }
   }
 }
 

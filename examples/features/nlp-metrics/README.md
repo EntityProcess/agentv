@@ -26,6 +26,16 @@ Run a single test:
 bun agentv eval examples/features/nlp-metrics/evals/dataset.eval.yaml --test-id summarisation-rouge
 ```
 
+### Inspect Grading Criteria
+
+Use `--grading-brief` to see what assertions a test will be evaluated against:
+
+```bash
+bun agentv eval prompt eval --grading-brief \
+  examples/features/nlp-metrics/evals/dataset.eval.yaml \
+  --test-id summarisation-rouge
+```
+
 ## How It Works
 
 Each judge receives the candidate answer and reference text via the `defineCodeJudge` handler, computes the relevant metric from scratch, and returns a `CodeJudgeResult` with:

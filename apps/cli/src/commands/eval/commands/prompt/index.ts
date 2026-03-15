@@ -2,6 +2,7 @@ import { command, flag, option, optional, positional, string, subcommands } from
 
 import {
   getPromptEvalExpectedOutput,
+  getPromptEvalGradingBrief,
   getPromptEvalInput,
   listPromptEvalTestIds,
 } from './accessors.js';
@@ -22,6 +23,10 @@ export const evalPromptEvalSubcommand = command({
       long: 'expected-output',
       description: 'Extract expected output and grading context for a single test',
     }),
+    gradingBrief: flag({
+      long: 'grading-brief',
+      description: 'Output human-readable grading brief with typed criteria',
+    }),
     testId: option({
       type: optional(string),
       long: 'test-id',
@@ -33,10 +38,22 @@ export const evalPromptEvalSubcommand = command({
       description: 'Path to evaluation .yaml, .json, or .jsonl file',
     }),
   },
-  handler: async ({ evalPath, expectedOutput, input, list, testId }) => {
-    const selectedModes = [list, input, expectedOutput].filter(Boolean).length;
+  handler: async ({ evalPath, expectedOutput, gradingBrief, input, list, testId }) => {
+    const selectedModes = [list, input, expectedOutput, gradingBrief].filter(Boolean).length;
     if (selectedModes !== 1) {
-      throw new Error('Specify exactly one of --list, --input, or --expected-output.');
+      throw new Error(
+        'Specify exactly one of --list, --input, --expected-output, or --grading-brief.',
+      );
+    }
+
+    if (gradingBrief) {
+      if (!testId) {
+        throw new Error('--test-id is required with --grading-brief.');
+      }
+      const brief = await getPromptEvalGradingBrief(evalPath, testId);
+      process.stdout.write(brief);
+      process.stdout.write('\n');
+      return;
     }
 
     if ((input || expectedOutput) && !testId) {
