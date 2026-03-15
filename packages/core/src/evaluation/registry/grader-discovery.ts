@@ -1,11 +1,11 @@
 /**
- * Convention-based discovery of custom judge scripts.
+ * Convention-based discovery of custom grader scripts.
  *
- * Scans `.agentv/judges/` for TypeScript/JavaScript files and registers
- * them as code-judge evaluators in the registry. The file name (without
- * extension) becomes the evaluator type name.
+ * Scans `.agentv/graders/` (and legacy `.agentv/judges/`) for TypeScript/JavaScript
+ * files and registers them as code-grader evaluators in the registry. The file name
+ * (without extension) becomes the evaluator type name.
  *
- * Example: `.agentv/judges/custom-judge.ts` → type "custom-judge" in EVAL.yaml
+ * Example: `.agentv/graders/custom-grader.ts` → type "custom-grader" in EVAL.yaml
  */
 
 import path from 'node:path';
@@ -16,33 +16,34 @@ import type { EvaluatorFactoryFn } from './evaluator-registry.js';
 import type { EvaluatorRegistry } from './evaluator-registry.js';
 
 /**
- * Discover custom judge scripts from `.agentv/judges/` and register
- * them as evaluator types in the registry.
+ * Discover custom grader scripts from `.agentv/graders/` (and legacy `.agentv/judges/`)
+ * and register them as evaluator types in the registry.
  *
- * @param registry - The evaluator registry to register discovered judges into
+ * @param registry - The evaluator registry to register discovered graders into
  * @param baseDir - The base directory to search from (typically project root or eval file dir)
- * @returns Names of discovered judge types
+ * @returns Names of discovered grader types
  */
-export async function discoverJudges(
+export async function discoverGraders(
   registry: EvaluatorRegistry,
   baseDir: string,
 ): Promise<string[]> {
   const patterns = ['*.ts', '*.js', '*.mts', '*.mjs'];
 
-  // Search baseDir and its ancestors for .agentv/judges/
+  // Search baseDir and its ancestors for .agentv/graders/ and .agentv/judges/ (backward compat)
   const candidateDirs: string[] = [];
   let dir = path.resolve(baseDir);
   const root = path.parse(dir).root;
   while (dir !== root) {
+    candidateDirs.push(path.join(dir, '.agentv', 'graders'));
     candidateDirs.push(path.join(dir, '.agentv', 'judges'));
     dir = path.dirname(dir);
   }
 
   let files: string[] = [];
-  for (const judgesDir of candidateDirs) {
+  for (const gradersDir of candidateDirs) {
     try {
       const found = await fg(patterns, {
-        cwd: judgesDir,
+        cwd: gradersDir,
         absolute: true,
         onlyFiles: true,
       });
@@ -76,3 +77,6 @@ export async function discoverJudges(
 
   return discoveredTypes;
 }
+
+/** @deprecated Use `discoverGraders` instead */
+export const discoverJudges = discoverGraders;

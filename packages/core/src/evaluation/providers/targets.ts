@@ -119,7 +119,8 @@ export const CliTargetInputSchema = z.object({
   keepOutputFiles: z.boolean().optional(),
 
   // Common target fields
-  judge_target: z.string().optional(),
+  grader_target: z.string().optional(),
+  judge_target: z.string().optional(),  // backward compat
   workers: z.number().int().min(1).optional(),
   provider_batching: z.boolean().optional(),
   providerBatching: z.boolean().optional(),
@@ -532,7 +533,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'azure';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: AzureResolvedConfig;
@@ -540,7 +541,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'anthropic';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: AnthropicResolvedConfig;
@@ -548,7 +549,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'gemini';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: GeminiResolvedConfig;
@@ -556,7 +557,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'codex';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: CodexResolvedConfig;
@@ -564,7 +565,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'copilot-sdk';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: CopilotSdkResolvedConfig;
@@ -572,7 +573,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'copilot-cli';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: CopilotCliResolvedConfig;
@@ -580,7 +581,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'pi-coding-agent';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: PiCodingAgentResolvedConfig;
@@ -588,7 +589,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'pi-agent-sdk';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: PiAgentSdkResolvedConfig;
@@ -596,7 +597,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'claude';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: ClaudeResolvedConfig;
@@ -604,7 +605,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'claude-cli';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: ClaudeResolvedConfig;
@@ -612,7 +613,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'claude-sdk';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: ClaudeResolvedConfig;
@@ -620,7 +621,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'mock';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: MockResolvedConfig;
@@ -628,7 +629,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'vscode' | 'vscode-insiders';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: VSCodeResolvedConfig;
@@ -636,7 +637,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'agentv';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: AgentVResolvedConfig;
@@ -644,7 +645,7 @@ export type ResolvedTarget =
   | {
       readonly kind: 'cli';
       readonly name: string;
-      readonly judgeTarget?: string;
+      readonly graderTarget?: string;
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: CliResolvedConfig;
@@ -654,7 +655,8 @@ const BASE_TARGET_SCHEMA = z
   .object({
     name: z.string().min(1, 'target name is required'),
     provider: z.string().min(1, 'provider is required'),
-    judge_target: z.string().optional(),
+    grader_target: z.string().optional(),
+    judge_target: z.string().optional(),  // backward compat
     workers: z.number().int().min(1).optional(),
     workspace_template: z.string().optional(),
     workspaceTemplate: z.string().optional(),
@@ -741,7 +743,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'azure',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveAzureConfig(parsed, env),
@@ -750,7 +752,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'anthropic',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveAnthropicConfig(parsed, env),
@@ -761,7 +763,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'gemini',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveGeminiConfig(parsed, env),
@@ -771,7 +773,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'codex',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveCodexConfig(parsed, env, evalFilePath),
@@ -781,7 +783,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'copilot-sdk',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveCopilotSdkConfig(parsed, env, evalFilePath),
@@ -791,7 +793,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'copilot-cli',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveCopilotCliConfig(parsed, env, evalFilePath),
@@ -801,7 +803,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'pi-coding-agent',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolvePiCodingAgentConfig(parsed, env, evalFilePath),
@@ -810,7 +812,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'pi-agent-sdk',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolvePiAgentSdkConfig(parsed, env),
@@ -821,7 +823,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'claude-cli',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveClaudeConfig(parsed, env, evalFilePath),
@@ -830,7 +832,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'claude-sdk',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveClaudeConfig(parsed, env, evalFilePath),
@@ -839,7 +841,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'mock',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveMockConfig(parsed),
@@ -849,7 +851,7 @@ export function resolveTargetDefinition(
       return {
         kind: provider as 'vscode' | 'vscode-insiders',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveVSCodeConfig(parsed, env, provider === 'vscode-insiders', evalFilePath),
@@ -865,7 +867,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'agentv',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: typeof parsed.workers === 'number' ? parsed.workers : undefined,
         providerBatching,
         config: { model, temperature },
@@ -875,7 +877,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'cli',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveCliConfig(parsed, env, evalFilePath),
@@ -890,7 +892,7 @@ export function resolveTargetDefinition(
       return {
         kind: 'cli',
         name: parsed.name,
-        judgeTarget: parsed.judge_target,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
         workers: parsed.workers,
         providerBatching,
         config: resolveDiscoveredProviderConfig(parsed, provider, env, evalFilePath),

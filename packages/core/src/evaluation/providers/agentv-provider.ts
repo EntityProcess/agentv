@@ -48,14 +48,14 @@ function createLanguageModel(modelString: string): LanguageModel {
 }
 
 /**
- * AgentV built-in provider for LLM judge evaluation.
+ * AgentV built-in provider for LLM grader evaluation.
  *
  * Resolves an AI SDK model string (e.g., "openai:gpt-5-mini", "anthropic:claude-sonnet-4-20250514")
  * to a Vercel AI SDK LanguageModel by parsing the provider prefix and creating the appropriate
- * AI SDK provider directly. This provider is used exclusively for judge evaluation — it does not
+ * AI SDK provider directly. This provider is used exclusively for grader evaluation — it does not
  * support direct agent invocation.
  *
- * Usage: `--judge-target agentv --model openai:gpt-5-mini`
+ * Usage: `--grader-target agentv --model openai:gpt-5-mini`
  */
 export class AgentvProvider implements Provider {
   readonly id: string;

@@ -12,8 +12,8 @@ const ANSI_RESET = '\u001b[0m';
 /**
  * Normalize evaluator type names from legacy snake_case to internal kebab-case.
  * Accepts both forms for backward compatibility:
- *   - snake_case: 'llm_judge' -> 'llm-judge' (legacy, still accepted)
- *   - kebab-case: 'llm-judge' -> 'llm-judge' (preferred, passes through)
+ *   - snake_case: 'llm_grader' -> 'llm-grader' (legacy, still accepted)
+ *   - kebab-case: 'llm-grader' -> 'llm-grader' (preferred, passes through)
  *   - single-word: 'contains' -> 'contains' (unchanged)
  */
 export function normalizeEvaluatorType(type: string): string {
@@ -1026,14 +1026,14 @@ async function parseEvaluatorList(
       continue;
     }
 
-    const judgeTarget = rawEvaluator.target;
-    let judgeTargetName: string | undefined;
-    if (judgeTarget !== undefined) {
-      if (typeof judgeTarget === 'string' && judgeTarget.trim().length > 0) {
-        judgeTargetName = judgeTarget;
+    const graderTarget = rawEvaluator.target;
+    let graderTargetName: string | undefined;
+    if (graderTarget !== undefined) {
+      if (typeof graderTarget === 'string' && graderTarget.trim().length > 0) {
+        graderTargetName = graderTarget;
       } else {
         logWarning(
-          `Skipping target override for llm-judge evaluator '${name}' in '${evalId}': target must be a non-empty string`,
+          `Skipping target override for llm-grader evaluator '${name}' in '${evalId}': target must be a non-empty string`,
         );
       }
     }
@@ -1068,7 +1068,7 @@ async function parseEvaluatorList(
         name,
         type: 'llm-judge',
         rubrics: parsedCriteria,
-        ...(judgeTargetName ? { target: judgeTargetName } : {}),
+        ...(graderTargetName ? { target: graderTargetName } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(negate !== undefined ? { negate } : {}),
@@ -1166,7 +1166,7 @@ async function parseEvaluatorList(
         name,
         type: 'llm-judge',
         rubrics: parsedRubrics,
-        ...(judgeTargetName ? { target: judgeTargetName } : {}),
+        ...(graderTargetName ? { target: graderTargetName } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(negate !== undefined ? { negate } : {}),
@@ -1232,7 +1232,7 @@ async function parseEvaluatorList(
       ...(promptPath ? { resolvedPromptPath: promptPath } : {}),
       ...(resolvedPromptScript ? { resolvedPromptScript } : {}),
       ...(parsedRubrics && parsedRubrics.length > 0 ? { rubrics: parsedRubrics } : {}),
-      ...(judgeTargetName ? { target: judgeTargetName } : {}),
+      ...(graderTargetName ? { target: graderTargetName } : {}),
       ...(weight !== undefined ? { weight } : {}),
       ...(required !== undefined ? { required } : {}),
       ...(negate !== undefined ? { negate } : {}),
@@ -1719,11 +1719,11 @@ function parseScoreRanges(
  * - String shorthand: "Must be polite" -> { id: "rubric-1", outcome: "Must be polite", weight: 1.0, required: true }
  * - Object form with outcome, weight, required, score_ranges, required_min_score
  *
- * Returns an LlmJudgeEvaluatorConfig to prepend to evaluators, or undefined if no valid rubrics.
+ * Returns an LlmGraderEvaluatorConfig to prepend to evaluators, or undefined if no valid rubrics.
  */
 export function parseInlineRubrics(
   rawRubrics: readonly unknown[],
-): import('../types.js').LlmJudgeEvaluatorConfig | undefined {
+): import('../types.js').LlmGraderEvaluatorConfig | undefined {
   const rubricItems = rawRubrics
     .filter((r): r is JsonObject | string => isJsonObject(r) || typeof r === 'string')
     .map((rubric, index) => {

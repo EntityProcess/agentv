@@ -87,22 +87,22 @@ interface RawSuite {
 // ---------------------------------------------------------------------------
 
 /**
- * Build an NL instruction string for a code judge that tells the grader agent
- * how to execute it via `agentv eval run-judge`.
+ * Build an NL instruction string for a code grader that tells the grading agent
+ * how to execute it via `agentv eval assert`.
  *
  * The `<agent_output>` and `<original_prompt>` placeholders are substituted
  * by the grading agent at evaluation time.
  */
-function codeJudgeInstruction(judgeName: string, description?: string): string {
-  const desc = description ? ` This judge: ${description}.` : '';
-  return `Run \`agentv eval assert ${judgeName} --agent-output <agent_output> --agent-input <original_prompt>\` and check the result.${desc} The command accepts --agent-output (the agent's full response text) and --agent-input (the original user prompt). It returns JSON on stdout: {"score": 0-1, "reasoning": "..."}. A score >= 0.5 means pass (exit 0); below 0.5 means fail (exit 1).`;
+function codeGraderInstruction(graderName: string, description?: string): string {
+  const desc = description ? ` This grader: ${description}.` : '';
+  return `Run \`agentv eval assert ${graderName} --agent-output <agent_output> --agent-input <original_prompt>\` and check the result.${desc} The command accepts --agent-output (the agent's full response text) and --agent-input (the original user prompt). It returns JSON on stdout: {"score": 0-1, "reasoning": "..."}. A score >= 0.5 means pass (exit 0); below 0.5 means fail (exit 1).`;
 }
 
 /**
- * Derive a judge name from a command array by finding the first argument
- * with a recognised script extension (e.g. `['bun', 'run', '.agentv/judges/format-checker.ts']` → `'format-checker'`).
+ * Derive a grader name from a command array by finding the first argument
+ * with a recognised script extension (e.g. `['bun', 'run', '.agentv/graders/format-checker.ts']` → `'format-checker'`).
  */
-function deriveJudgeNameFromCommand(command: unknown): string | undefined {
+function deriveGraderNameFromCommand(command: unknown): string | undefined {
   if (!Array.isArray(command) || command.length === 0) return undefined;
   for (const arg of command) {
     if (typeof arg !== 'string') continue;
@@ -168,6 +168,8 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
     case 'ends_with':
       return `Output ends with '${entry.value}'`;
 
+    case 'llm-grader':
+    case 'llm_grader':
     case 'llm-judge':
     case 'llm_judge': {
       // Expand each rubric item to its own assertion string
@@ -190,11 +192,13 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
         : 'Agent followed expected tool trajectory';
     }
 
+    case 'code-grader':
+    case 'code_grader':
     case 'code-judge':
     case 'code_judge': {
-      const judgeName = entry.name ?? deriveJudgeNameFromCommand(entry.command) ?? 'code-judge';
+      const graderName = entry.name ?? deriveGraderNameFromCommand(entry.command) ?? 'code-grader';
       const desc = typeof entry.description === 'string' ? entry.description : undefined;
-      return codeJudgeInstruction(judgeName, desc);
+      return codeGraderInstruction(graderName, desc);
     }
 
     case 'field-accuracy':
@@ -229,9 +233,9 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
       return 'Execution within metric bounds';
 
     default: {
-      // Unknown type with a command → treat as code judge
+      // Unknown type with a command → treat as code grader
       if (entry.command !== undefined && type) {
-        return codeJudgeInstruction(deriveJudgeNameFromCommand(entry.command) ?? type);
+        return codeGraderInstruction(deriveGraderNameFromCommand(entry.command) ?? type);
       }
       // Fallback: try to produce something readable
       if (typeof entry.criteria === 'string') return entry.criteria;
@@ -243,10 +247,10 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
 
 /**
  * Expand a single assertion entry into zero or more NL strings.
- * Most assertions produce exactly one string; llm-judge with rubrics expands to many.
+ * Most assertions produce exactly one string; llm-grader with rubrics expands to many.
  */
 function assertionToNaturalLanguageList(entry: RawAssertEntry): string[] {
-  if (entry.type === 'llm-judge' || entry.type === 'llm_judge') {
+  if (entry.type === 'llm-grader' || entry.type === 'llm_grader' || entry.type === 'llm-judge' || entry.type === 'llm_judge') {
     if (Array.isArray(entry.rubrics) && entry.rubrics.length > 0) {
       return (entry.rubrics as Array<{ outcome?: string; criteria?: string; id?: string }>)
         .map((r) => r.outcome ?? r.criteria ?? r.id)
@@ -261,7 +265,7 @@ function assertionToNaturalLanguageList(entry: RawAssertEntry): string[] {
  * Extract skill-trigger entries from an assertion list.
  * Returns entries with type === 'skill-trigger'.
  */
-function extractTriggerJudges(assertions: RawAssertEntry[]): RawAssertEntry[] {
+function extractTriggerAssertions(assertions: RawAssertEntry[]): RawAssertEntry[] {
   return assertions.filter((a) => a.type === 'skill-trigger');
 }
 
@@ -438,7 +442,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
     // Append suite-level NL assertions
     nlAssertions.push(...suiteNlAssertions);
 
-    const triggerJudges = extractTriggerJudges(caseAssertions);
+    const triggerJudges = extractTriggerAssertions(caseAssertions);
     const { prompt, files: inputFiles } = extractInput(rawCase);
     const expectedOutput = extractExpectedOutput(rawCase.expected_output);
 

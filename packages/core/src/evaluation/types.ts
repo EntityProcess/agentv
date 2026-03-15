@@ -148,6 +148,8 @@ export function isTestMessage(value: unknown): value is TestMessage {
 }
 
 const EVALUATOR_KIND_VALUES = [
+  'code-grader',
+  'llm-grader',
   'code-judge',
   'llm-judge',
   'rubric',
@@ -183,7 +185,7 @@ export function isEvaluatorKind(value: unknown): value is EvaluatorKind {
 }
 
 /**
- * Configuration for enabling target access in code-judge evaluators.
+ * Configuration for enabling target access in code-grader evaluators.
  * When present, the runtime will start a local proxy server that allows
  * the script to invoke configured targets without direct credential access.
  */
@@ -287,7 +289,7 @@ export type WorkspaceConfig = {
 
 export type CodeEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'code-judge';
+  readonly type: 'code-judge' | 'code-grader';
   readonly command: readonly string[];
   /** @deprecated Use `command` instead */
   readonly script?: readonly string[];
@@ -298,7 +300,7 @@ export type CodeEvaluatorConfig = {
   readonly required?: boolean | number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
-  /** Pass-through configuration for the code-judge (any unrecognized YAML properties) */
+  /** Pass-through configuration for the code-grader (any unrecognized YAML properties) */
   readonly config?: JsonObject;
   /** When present, enables target access via local proxy */
   readonly target?: TargetAccessConfig;
@@ -306,7 +308,7 @@ export type CodeEvaluatorConfig = {
 
 /**
  * Executable prompt template configuration.
- * Matches code-judge pattern for consistency.
+ * Matches code-grader pattern for consistency.
  */
 export type PromptScriptConfig = {
   /** Command array to execute (e.g., ["bun", "run", "template.ts"]) */
@@ -317,30 +319,33 @@ export type PromptScriptConfig = {
   readonly config?: Record<string, unknown>;
 };
 
-export type LlmJudgeEvaluatorConfig = {
+export type LlmGraderEvaluatorConfig = {
   readonly name: string;
-  readonly type: 'llm-judge';
+  readonly type: 'llm-grader' | 'llm-judge';
   /** Text prompt (inline or file path) or executable script config */
   readonly prompt?: string | PromptScriptConfig;
   readonly promptPath?: string;
   /** Resolved absolute path for prompt file (used for text template prompts) */
   readonly resolvedPromptPath?: string;
-  /** Resolved script array for executable prompts (matches code-judge pattern) */
+  /** Resolved script array for executable prompts (matches code-grader pattern) */
   readonly resolvedPromptScript?: readonly string[];
   readonly rubrics?: readonly RubricItem[];
   readonly weight?: number;
   readonly required?: boolean | number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
-  /** Optional target override for this judge (uses a named LLM target from targets.yaml). */
+  /** Optional target override for this grader (uses a named LLM target from targets.yaml). */
   readonly target?: string;
   /** Pass-through configuration for custom evaluator prompts (legacy, prefer prompt.config) */
   readonly config?: Record<string, unknown>;
   /** Maximum agent steps for agentv built-in mode (default 10, max 50). Ignored in LLM mode. */
   readonly max_steps?: number;
-  /** Temperature override for judge calls */
+  /** Temperature override for grader calls */
   readonly temperature?: number;
 };
+
+/** @deprecated Use `LlmGraderEvaluatorConfig` instead */
+export type LlmJudgeEvaluatorConfig = LlmGraderEvaluatorConfig;
 
 /**
  * Score range definition for analytic rubric scoring.
@@ -354,7 +359,7 @@ export type ScoreRange = {
 };
 
 /**
- * Rubric item for LLM judge evaluation.
+ * Rubric item for LLM grader evaluation.
  * Supports two modes:
  * - Checklist mode: boolean satisfied/not-satisfied with `outcome`
  * - Score-range mode: 0-10 integer scoring with `score_ranges`
@@ -387,9 +392,9 @@ export type RubricItem = {
 
 export type CompositeAggregatorConfig =
   | { readonly type: 'weighted_average'; readonly weights?: Record<string, number> }
-  | { readonly type: 'code-judge'; readonly path: string; readonly cwd?: string }
+  | { readonly type: 'code-grader' | 'code-judge'; readonly path: string; readonly cwd?: string }
   | {
-      readonly type: 'llm-judge';
+      readonly type: 'llm-grader' | 'llm-judge';
       readonly prompt?: string;
       readonly promptPath?: string;
       readonly model?: string;
@@ -732,7 +737,7 @@ export type InlineAssertEvaluatorConfig = {
 
 export type EvaluatorConfig =
   | CodeEvaluatorConfig
-  | LlmJudgeEvaluatorConfig
+  | LlmGraderEvaluatorConfig
   | CompositeEvaluatorConfig
   | ToolTrajectoryEvaluatorConfig
   | FieldAccuracyEvaluatorConfig
@@ -960,15 +965,15 @@ export interface EvaluatorResult {
   readonly rawRequest?: JsonObject;
   readonly evaluatorProviderRequest?: JsonObject;
   readonly scores?: readonly EvaluatorResult[];
-  /** Optional structured details from code judges (e.g., TP/TN/FP/FN counts). */
+  /** Optional structured details from code graders (e.g., TP/TN/FP/FN counts). */
   readonly details?: JsonObject;
   /** Token usage from LLM calls made by this evaluator (optional). */
   readonly tokenUsage?: TokenUsage;
-  /** Wall-clock duration of this judge execution in milliseconds. */
+  /** Wall-clock duration of this grader execution in milliseconds. */
   readonly durationMs?: number;
-  /** ISO 8601 UTC timestamp when this judge started executing. */
+  /** ISO 8601 UTC timestamp when this grader started executing. */
   readonly startedAt?: string;
-  /** ISO 8601 UTC timestamp when this judge finished executing. */
+  /** ISO 8601 UTC timestamp when this grader finished executing. */
   readonly endedAt?: string;
 }
 

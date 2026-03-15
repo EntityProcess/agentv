@@ -1,6 +1,6 @@
 import type { Message } from '../providers/types.js';
 import { TEMPLATE_VARIABLES } from '../template-variables.js';
-import type { EvalTest, LlmJudgeEvaluatorConfig, RubricItem } from '../types.js';
+import type { EvalTest, LlmGraderEvaluatorConfig, RubricItem } from '../types.js';
 import type { PromptInputs } from '../yaml-parser.js';
 import {
   DEFAULT_EVALUATOR_TEMPLATE,
@@ -8,24 +8,24 @@ import {
   buildRubricOutputSchema,
   buildScoreRangeOutputSchema,
   substituteVariables,
-} from './llm-judge.js';
+} from './llm-grader.js';
 
-export interface LlmJudgePromptAssembly {
+export interface LlmGraderPromptAssembly {
   systemPrompt: string;
   userPrompt: string;
   responseSchema: string;
   mode: 'freeform' | 'checklist' | 'score_range';
 }
 
-export function assembleLlmJudgePrompt(input: {
+export function assembleLlmGraderPrompt(input: {
   evalCase: EvalTest;
   candidate: string;
   promptInputs: PromptInputs;
-  evaluatorConfig?: LlmJudgeEvaluatorConfig;
+  evaluatorConfig?: LlmGraderEvaluatorConfig;
   output?: readonly Message[];
   fileChanges?: string;
   evaluatorTemplateOverride?: string;
-}): LlmJudgePromptAssembly {
+}): LlmGraderPromptAssembly {
   const {
     evalCase,
     candidate,
@@ -61,7 +61,7 @@ function assembleFreeform(
   promptInputs: PromptInputs,
   fileChanges?: string,
   evaluatorTemplateOverride?: string,
-): LlmJudgePromptAssembly {
+): LlmGraderPromptAssembly {
   const formattedQuestion =
     promptInputs.question && promptInputs.question.trim().length > 0
       ? promptInputs.question
@@ -101,7 +101,7 @@ function assembleChecklist(
   promptInputs: PromptInputs,
   rubrics: readonly RubricItem[],
   fileChanges?: string,
-): LlmJudgePromptAssembly {
+): LlmGraderPromptAssembly {
   const formattedQuestion =
     promptInputs.question && promptInputs.question.trim().length > 0
       ? promptInputs.question
@@ -155,7 +155,7 @@ function assembleScoreRange(
   promptInputs: PromptInputs,
   rubrics: readonly RubricItem[],
   fileChanges?: string,
-): LlmJudgePromptAssembly {
+): LlmGraderPromptAssembly {
   const formattedQuestion =
     promptInputs.question && promptInputs.question.trim().length > 0
       ? promptInputs.question

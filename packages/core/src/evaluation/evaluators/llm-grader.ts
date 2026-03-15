@@ -82,15 +82,15 @@ Be concise and focused in your evaluation. Provide succinct, specific feedback r
 [[ ## answer ## ]]
 {{${TEMPLATE_VARIABLES.ANSWER}}}`;
 
-type JudgeProviderResolver = (context: EvaluationContext) => Promise<Provider | undefined>;
+type GraderProviderResolver = (context: EvaluationContext) => Promise<Provider | undefined>;
 
-export interface LlmJudgeEvaluatorOptions {
-  readonly resolveJudgeProvider: JudgeProviderResolver;
+export interface LlmGraderEvaluatorOptions {
+  readonly resolveGraderProvider: GraderProviderResolver;
   readonly maxOutputTokens?: number;
   readonly temperature?: number;
   readonly evaluatorTemplate?: string;
   readonly maxSteps?: number;
-  readonly judgeTargetProvider?: Provider;
+  readonly graderTargetProvider?: Provider;
 }
 
 const freeformEvaluationSchema = z.object({
@@ -128,53 +128,53 @@ const scoreRangeEvaluationSchema = z.object({
 
 export { freeformEvaluationSchema, rubricEvaluationSchema };
 
-export class LlmJudgeEvaluator implements Evaluator {
-  readonly kind = 'llm-judge';
+export class LlmGraderEvaluator implements Evaluator {
+  readonly kind = 'llm-grader';
 
-  private readonly resolveJudgeProvider: JudgeProviderResolver;
+  private readonly resolveGraderProvider: GraderProviderResolver;
   private readonly maxOutputTokens?: number;
   private readonly temperature?: number;
   private readonly evaluatorTemplate?: string;
   private readonly maxSteps: number;
-  private readonly judgeTargetProvider?: Provider;
+  private readonly graderTargetProvider?: Provider;
 
-  constructor(options: LlmJudgeEvaluatorOptions) {
-    this.resolveJudgeProvider = options.resolveJudgeProvider;
+  constructor(options: LlmGraderEvaluatorOptions) {
+    this.resolveGraderProvider = options.resolveGraderProvider;
     this.maxOutputTokens = options.maxOutputTokens;
     this.temperature = options.temperature;
     this.evaluatorTemplate = options.evaluatorTemplate;
     this.maxSteps = Math.min(options.maxSteps ?? DEFAULT_MAX_STEPS, MAX_STEPS_LIMIT);
-    this.judgeTargetProvider = options.judgeTargetProvider;
+    this.graderTargetProvider = options.graderTargetProvider;
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
-    // Delegate mode: judge target provider is an agent provider — send prompt via invoke()
-    if (this.judgeTargetProvider) {
-      return this.evaluateWithJudgeTarget(context);
+    // Delegate mode: grader target provider is an agent provider — send prompt via invoke()
+    if (this.graderTargetProvider) {
+      return this.evaluateWithGraderTarget(context);
     }
 
-    const judgeProvider = await this.resolveJudgeProvider(context);
-    if (!judgeProvider) {
-      throw new Error('No judge provider available for LLM grading');
+    const graderProvider = await this.resolveGraderProvider(context);
+    if (!graderProvider) {
+      throw new Error('No grader provider available for LLM grading');
     }
 
     // Built-in agent mode: agentv provider → AI SDK generateText with filesystem tools
-    if (judgeProvider.kind === 'agentv') {
-      return this.evaluateBuiltIn(context, judgeProvider);
+    if (graderProvider.kind === 'agentv') {
+      return this.evaluateBuiltIn(context, graderProvider);
     }
 
     // Delegate mode: resolved provider is an agent provider → send prompt via invoke()
-    if (isAgentProvider(judgeProvider)) {
-      return this.evaluateWithDelegatedAgent(context, judgeProvider);
+    if (isAgentProvider(graderProvider)) {
+      return this.evaluateWithDelegatedAgent(context, graderProvider);
     }
 
     // LLM mode: structured JSON evaluation
     const config = context.evaluator;
-    if (config?.type === 'llm-judge' && config.rubrics && config.rubrics.length > 0) {
-      return this.evaluateWithRubrics(context, judgeProvider, config.rubrics);
+    if ((config?.type === 'llm-grader' || config?.type === 'llm-judge') && config.rubrics && config.rubrics.length > 0) {
+      return this.evaluateWithRubrics(context, graderProvider, config.rubrics);
     }
 
-    return this.evaluateFreeform(context, judgeProvider);
+    return this.evaluateFreeform(context, graderProvider);
   }
 
   // ---------------------------------------------------------------------------
@@ -183,7 +183,7 @@ export class LlmJudgeEvaluator implements Evaluator {
 
   private async evaluateFreeform(
     context: EvaluationContext,
-    judgeProvider: Provider,
+    graderProvider: Provider,
   ): Promise<EvaluationScore> {
     const formattedQuestion =
       context.promptInputs.question && context.promptInputs.question.trim().length > 0
@@ -222,20 +222,20 @@ export class LlmJudgeEvaluator implements Evaluator {
     const evaluatorRawRequest: JsonObject = {
       userPrompt,
       systemPrompt,
-      target: judgeProvider.targetName,
+      target: graderProvider.targetName,
     };
 
     try {
       const { data, tokenUsage } = await this.runWithRetry({
         context,
-        judgeProvider,
+        graderProvider,
         systemPrompt,
         userPrompt,
         schema: freeformEvaluationSchema,
       });
 
       const score = clampScore(data.score);
-      // Cap hits/misses at 4 items to keep LLM judge output concise and focused
+      // Cap hits/misses at 4 items to keep LLM grader output concise and focused
       const hits = Array.isArray(data.hits) ? data.hits.filter(isNonEmptyString).slice(0, 4) : [];
       const misses = Array.isArray(data.misses)
         ? data.misses.filter(isNonEmptyString).slice(0, 4)
@@ -254,18 +254,18 @@ export class LlmJudgeEvaluator implements Evaluator {
         tokenUsage,
       };
     } catch (e: unknown) {
-      // Judge parse failure -> skip (not silent zero).
+      // Grader parse failure -> skip (not silent zero).
       // Signals infrastructure error to downstream consumers, excluded from score averages.
       const message = e instanceof Error ? e.message : String(e);
-      const evalName = context.evaluator?.name ?? 'llm-judge';
-      console.warn(`⚠ LLM judge "${evalName}" failed after 3 attempts (${message}) — skipped`);
+      const evalName = context.evaluator?.name ?? 'llm-grader';
+      console.warn(`⚠ LLM grader "${evalName}" failed after 3 attempts (${message}) — skipped`);
       return {
         score: 0,
         verdict: 'skip' as const,
         hits: [],
-        misses: [`Judge parse failure after 3 attempts: ${message}`],
+        misses: [`Grader parse failure after 3 attempts: ${message}`],
         expectedAspectCount: 1,
-        reasoning: `Judge parse failure after 3 attempts: ${message}`,
+        reasoning: `Grader parse failure after 3 attempts: ${message}`,
         evaluatorRawRequest,
       };
     }
@@ -273,12 +273,12 @@ export class LlmJudgeEvaluator implements Evaluator {
 
   private async evaluateWithRubrics(
     context: EvaluationContext,
-    judgeProvider: Provider,
+    graderProvider: Provider,
     rubrics: readonly RubricItem[],
   ): Promise<EvaluationScore> {
     if (!rubrics || rubrics.length === 0) {
       throw new Error(
-        `No rubrics found for evaluator "${context.evaluator?.name ?? 'llm-judge'}". Run "agentv generate rubrics" first.`,
+        `No rubrics found for evaluator "${context.evaluator?.name ?? 'llm-grader'}". Run "agentv generate rubrics" first.`,
       );
     }
 
@@ -286,7 +286,7 @@ export class LlmJudgeEvaluator implements Evaluator {
     const hasScoreRanges = rubrics.some((r) => r.score_ranges && r.score_ranges.length > 0);
 
     if (hasScoreRanges) {
-      return this.evaluateWithScoreRanges(context, judgeProvider, rubrics);
+      return this.evaluateWithScoreRanges(context, graderProvider, rubrics);
     }
 
     const prompt = this.buildRubricPrompt(context, rubrics);
@@ -295,13 +295,13 @@ export class LlmJudgeEvaluator implements Evaluator {
     const evaluatorRawRequest: JsonObject = {
       userPrompt: prompt,
       systemPrompt,
-      target: judgeProvider.targetName,
+      target: graderProvider.targetName,
     };
 
     try {
       const { data, tokenUsage } = await this.runWithRetry({
         context,
-        judgeProvider,
+        graderProvider,
         systemPrompt,
         userPrompt: prompt,
         schema: rubricEvaluationSchema,
@@ -321,15 +321,15 @@ export class LlmJudgeEvaluator implements Evaluator {
       };
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
-      const evalName = context.evaluator?.name ?? 'llm-judge';
-      console.warn(`⚠ LLM judge "${evalName}" failed after 3 attempts (${message}) — skipped`);
+      const evalName = context.evaluator?.name ?? 'llm-grader';
+      console.warn(`⚠ LLM grader "${evalName}" failed after 3 attempts (${message}) — skipped`);
       return {
         score: 0,
         verdict: 'skip' as const,
         hits: [],
-        misses: [`Judge parse failure after 3 attempts: ${message}`],
+        misses: [`Grader parse failure after 3 attempts: ${message}`],
         expectedAspectCount: rubrics.length,
-        reasoning: `Judge parse failure after 3 attempts: ${message}`,
+        reasoning: `Grader parse failure after 3 attempts: ${message}`,
         evaluatorRawRequest,
       };
     }
@@ -341,7 +341,7 @@ export class LlmJudgeEvaluator implements Evaluator {
    */
   private async evaluateWithScoreRanges(
     context: EvaluationContext,
-    judgeProvider: Provider,
+    graderProvider: Provider,
     rubrics: readonly RubricItem[],
   ): Promise<EvaluationScore> {
     const prompt = this.buildScoreRangePrompt(context, rubrics);
@@ -350,13 +350,13 @@ export class LlmJudgeEvaluator implements Evaluator {
     const evaluatorRawRequest: JsonObject = {
       userPrompt: prompt,
       systemPrompt,
-      target: judgeProvider.targetName,
+      target: graderProvider.targetName,
     };
 
     try {
       const { data, tokenUsage } = await this.runWithRetry({
         context,
-        judgeProvider,
+        graderProvider,
         systemPrompt,
         userPrompt: prompt,
         schema: scoreRangeEvaluationSchema,
@@ -377,15 +377,15 @@ export class LlmJudgeEvaluator implements Evaluator {
       };
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
-      const evalName = context.evaluator?.name ?? 'llm-judge';
-      console.warn(`⚠ LLM judge "${evalName}" failed after 3 attempts (${message}) — skipped`);
+      const evalName = context.evaluator?.name ?? 'llm-grader';
+      console.warn(`⚠ LLM grader "${evalName}" failed after 3 attempts (${message}) — skipped`);
       return {
         score: 0,
         verdict: 'skip' as const,
         hits: [],
-        misses: [`Judge parse failure after 3 attempts: ${message}`],
+        misses: [`Grader parse failure after 3 attempts: ${message}`],
         expectedAspectCount: rubrics.length,
-        reasoning: `Judge parse failure after 3 attempts: ${message}`,
+        reasoning: `Grader parse failure after 3 attempts: ${message}`,
         evaluatorRawRequest,
       };
     }
@@ -400,19 +400,19 @@ export class LlmJudgeEvaluator implements Evaluator {
    */
   private async evaluateBuiltIn(
     context: EvaluationContext,
-    judgeProvider: Provider,
+    graderProvider: Provider,
   ): Promise<EvaluationScore> {
-    const model = judgeProvider.asLanguageModel?.();
+    const model = graderProvider.asLanguageModel?.();
     if (!model) {
       throw new Error(
-        `Judge provider '${judgeProvider.targetName}' does not support asLanguageModel() — required for built-in agent mode`,
+        `Grader provider '${graderProvider.targetName}' does not support asLanguageModel() — required for built-in agent mode`,
       );
     }
 
     const workspacePath = context.workspacePath;
     if (!workspacePath) {
       throw new Error(
-        'llm-judge built-in agent mode requires a workspace_template target (workspacePath is not set)',
+        'llm-grader built-in agent mode requires a workspace_template target (workspacePath is not set)',
       );
     }
 
@@ -420,7 +420,7 @@ export class LlmJudgeEvaluator implements Evaluator {
     const userPrompt = this.buildAgentUserPrompt(context);
 
     const config = context.evaluator;
-    const rubrics = config?.type === 'llm-judge' ? config.rubrics : undefined;
+    const rubrics = (config?.type === 'llm-grader' || config?.type === 'llm-judge') ? config.rubrics : undefined;
 
     const fsTools = createFilesystemTools(workspacePath);
 
@@ -428,7 +428,7 @@ export class LlmJudgeEvaluator implements Evaluator {
       mode: 'built-in',
       systemPrompt,
       userPrompt,
-      target: judgeProvider.targetName,
+      target: graderProvider.targetName,
       maxSteps: this.maxSteps,
     };
 
@@ -457,7 +457,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         score: 0,
         verdict: 'fail',
         hits: [],
-        misses: [`llm-judge built-in evaluation failed: ${message}`],
+        misses: [`llm-grader built-in evaluation failed: ${message}`],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         details: { mode: 'built-in', error: message },
@@ -470,10 +470,10 @@ export class LlmJudgeEvaluator implements Evaluator {
   // ---------------------------------------------------------------------------
 
   /**
-   * Judge target mode: Delegates to an explicit judgeTargetProvider via Provider.invoke().
+   * Grader target mode: Delegates to an explicit graderTargetProvider via Provider.invoke().
    */
-  private async evaluateWithJudgeTarget(context: EvaluationContext): Promise<EvaluationScore> {
-    return this.evaluateWithDelegate(context, this.judgeTargetProvider as Provider, 'judge_target');
+  private async evaluateWithGraderTarget(context: EvaluationContext): Promise<EvaluationScore> {
+    return this.evaluateWithDelegate(context, this.graderTargetProvider as Provider, 'grader_target');
   }
 
   /**
@@ -481,13 +481,13 @@ export class LlmJudgeEvaluator implements Evaluator {
    */
   private async evaluateWithDelegatedAgent(
     context: EvaluationContext,
-    judgeProvider: Provider,
+    graderProvider: Provider,
   ): Promise<EvaluationScore> {
-    return this.evaluateWithDelegate(context, judgeProvider, 'delegate');
+    return this.evaluateWithDelegate(context, graderProvider, 'delegate');
   }
 
   /**
-   * Shared implementation for judge_target and delegate modes.
+   * Shared implementation for grader_target and delegate modes.
    * Both invoke a provider and parse the agent result from the response.
    */
   private async evaluateWithDelegate(
@@ -500,7 +500,7 @@ export class LlmJudgeEvaluator implements Evaluator {
 
     const evaluatorRawRequest: JsonObject = {
       mode: modeLabel,
-      judge_target: provider.targetName,
+      grader_target: provider.targetName,
       prompt,
     };
 
@@ -518,19 +518,19 @@ export class LlmJudgeEvaluator implements Evaluator {
           score: 0,
           verdict: 'fail',
           hits: [],
-          misses: [`llm-judge ${modeLabel} returned no assistant response`],
+          misses: [`llm-grader ${modeLabel} returned no assistant response`],
           expectedAspectCount: 1,
           evaluatorRawRequest,
-          details: { mode: modeLabel, judge_target: provider.targetName },
+          details: { mode: modeLabel, grader_target: provider.targetName },
         };
       }
 
       const config = context.evaluator;
-      const rubrics = config?.type === 'llm-judge' ? config.rubrics : undefined;
+      const rubrics = (config?.type === 'llm-grader' || config?.type === 'llm-judge') ? config.rubrics : undefined;
 
       const details: JsonObject = {
         mode: modeLabel,
-        judge_target: provider.targetName,
+        grader_target: provider.targetName,
       };
 
       return this.parseAgentResult(assistantContent, rubrics, evaluatorRawRequest, details);
@@ -540,12 +540,12 @@ export class LlmJudgeEvaluator implements Evaluator {
         score: 0,
         verdict: 'fail',
         hits: [],
-        misses: [`llm-judge ${modeLabel} evaluation failed: ${message}`],
+        misses: [`llm-grader ${modeLabel} evaluation failed: ${message}`],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         details: {
           mode: modeLabel,
-          judge_target: provider.targetName,
+          grader_target: provider.targetName,
           error: message,
         },
       };
@@ -562,7 +562,7 @@ export class LlmJudgeEvaluator implements Evaluator {
    */
   private buildAgentSystemPrompt(context: EvaluationContext): string {
     const config = context.evaluator;
-    const rubrics = config?.type === 'llm-judge' ? config.rubrics : undefined;
+    const rubrics = (config?.type === 'llm-grader' || config?.type === 'llm-judge') ? config.rubrics : undefined;
 
     const parts: string[] = [
       'You are an expert evaluator with access to the workspace filesystem.',
@@ -603,7 +603,7 @@ export class LlmJudgeEvaluator implements Evaluator {
     }
 
     const config = context.evaluator;
-    const rubrics = config?.type === 'llm-judge' ? config.rubrics : undefined;
+    const rubrics = (config?.type === 'llm-grader' || config?.type === 'llm-judge') ? config.rubrics : undefined;
 
     const parts: string[] = [
       'Evaluate the candidate answer by investigating the workspace.',
@@ -657,7 +657,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         : context.evalCase.question;
 
     const config = context.evaluator;
-    const rubrics = config?.type === 'llm-judge' ? config.rubrics : undefined;
+    const rubrics = (config?.type === 'llm-grader' || config?.type === 'llm-judge') ? config.rubrics : undefined;
 
     if (this.evaluatorTemplate) {
       const variables: Record<string, string> = {
@@ -766,7 +766,7 @@ export class LlmJudgeEvaluator implements Evaluator {
         score: 0,
         verdict: 'fail',
         hits: [],
-        misses: ['Failed to parse llm-judge agent response as valid evaluation JSON'],
+        misses: ['Failed to parse llm-grader agent response as valid evaluation JSON'],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         details,
@@ -891,19 +891,19 @@ export class LlmJudgeEvaluator implements Evaluator {
 
   private async runWithRetry<T>(options: {
     readonly context: EvaluationContext;
-    readonly judgeProvider: Provider;
+    readonly graderProvider: Provider;
     readonly systemPrompt: string;
     readonly userPrompt: string;
     readonly schema: z.ZodSchema<T>;
   }): Promise<{ data: T; providerResponse?: ProviderResponse; tokenUsage?: TokenUsage }> {
-    const { context, judgeProvider, systemPrompt, userPrompt, schema } = options;
+    const { context, graderProvider, systemPrompt, userPrompt, schema } = options;
 
     let lastError: Error | undefined;
 
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         // Prefer Vercel AI SDK language model if available.
-        const model = judgeProvider.asLanguageModel?.();
+        const model = graderProvider.asLanguageModel?.();
         if (model) {
           const result = await generateText({
             model,
@@ -922,7 +922,7 @@ export class LlmJudgeEvaluator implements Evaluator {
           return { data, tokenUsage };
         }
 
-        const response = await judgeProvider.invoke({
+        const response = await graderProvider.invoke({
           question: userPrompt,
           systemPrompt,
           evalCaseId: context.evalCase.id,

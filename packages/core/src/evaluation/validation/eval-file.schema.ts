@@ -71,8 +71,8 @@ const RubricItemSchema = z.object({
 
 // --- Type-specific evaluator schemas ---
 
-const CodeJudgeSchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['code-judge', 'code_judge']),
+const CodeGraderSchema = EvaluatorCommonSchema.extend({
+  type: z.enum(['code-grader', 'code_grader', 'code-judge', 'code_judge']),
   command: z.union([z.string(), z.array(z.string())]),
   script: z.union([z.string(), z.array(z.string())]).optional(),
   cwd: z.string().optional(),
@@ -80,8 +80,8 @@ const CodeJudgeSchema = EvaluatorCommonSchema.extend({
   config: z.record(z.unknown()).optional(),
 });
 
-const LlmJudgeSchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['llm-judge', 'llm_judge']),
+const LlmGraderSchema = EvaluatorCommonSchema.extend({
+  type: z.enum(['llm-grader', 'llm_grader', 'llm-judge', 'llm_judge']),
   prompt: PromptSchema.optional(),
   rubrics: z.array(RubricItemSchema).optional(),
   model: z.string().optional(),
@@ -217,8 +217,8 @@ const RubricsSchema = EvaluatorCommonSchema.extend({
 
 /** Union of all evaluator types */
 const EvaluatorSchema = z.union([
-  CodeJudgeSchema,
-  LlmJudgeSchema,
+  CodeGraderSchema,
+  LlmGraderSchema,
   CompositeSchema,
   ToolTrajectorySchema,
   FieldAccuracySchema,

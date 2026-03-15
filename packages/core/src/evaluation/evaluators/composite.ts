@@ -3,7 +3,7 @@ import { generateText } from 'ai';
 import { extractLastAssistantContent } from '../providers/types.js';
 import type { CompositeAggregatorConfig, CompositeEvaluatorConfig, JsonObject } from '../types.js';
 import { executeScript } from './code-evaluator.js';
-import { buildOutputSchema, freeformEvaluationSchema } from './llm-judge.js';
+import { buildOutputSchema, freeformEvaluationSchema } from './llm-grader.js';
 import {
   clampScore,
   isNonEmptyString,

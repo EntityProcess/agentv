@@ -40,7 +40,8 @@ export { LatencyEvaluator } from './latency.js';
 export type { LatencyEvaluatorOptions } from './latency.js';
 
 export {
-  LlmJudgeEvaluator,
+  LlmGraderEvaluator,
+  LlmGraderEvaluator as LlmJudgeEvaluator,
   buildOutputSchema,
   buildRubricOutputSchema,
   buildScoreRangeOutputSchema,
@@ -49,13 +50,13 @@ export {
   substituteVariables,
   freeformEvaluationSchema,
   rubricEvaluationSchema,
-} from './llm-judge.js';
-export type { LlmJudgeEvaluatorOptions } from './llm-judge.js';
+} from './llm-grader.js';
+export type { LlmGraderEvaluatorOptions, LlmGraderEvaluatorOptions as LlmJudgeEvaluatorOptions } from './llm-grader.js';
 
 export { SkillTriggerEvaluator } from './skill-trigger.js';
 
-export { assembleLlmJudgePrompt } from './llm-judge-prompt.js';
-export type { LlmJudgePromptAssembly } from './llm-judge-prompt.js';
+export { assembleLlmGraderPrompt, assembleLlmGraderPrompt as assembleLlmJudgePrompt } from './llm-grader-prompt.js';
+export type { LlmGraderPromptAssembly, LlmGraderPromptAssembly as LlmJudgePromptAssembly } from './llm-grader-prompt.js';
 
 export { TokenUsageEvaluator } from './token-usage.js';
 export type { TokenUsageEvaluatorOptions } from './token-usage.js';
