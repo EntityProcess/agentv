@@ -95,19 +95,21 @@ interface RawSuite {
  */
 function codeJudgeInstruction(judgeName: string, description?: string): string {
   const desc = description ? ` This judge: ${description}.` : '';
-  return `Run \`agentv eval run-judge ${judgeName} --agent-output <agent_output> --agent-input <original_prompt>\` and check the result.${desc} The command accepts --agent-output (the agent's full response text) and --agent-input (the original user prompt). It returns JSON on stdout: {"score": 0-1, "reasoning": "..."}. A score of 1.0 means pass; 0 means fail.`;
+  return `Run \`agentv eval run-judge ${judgeName} --agent-output <agent_output> --agent-input <original_prompt>\` and check the result.${desc} The command accepts --agent-output (the agent's full response text) and --agent-input (the original user prompt). It returns JSON on stdout: {"score": 0-1, "reasoning": "..."}. A score >= 0.5 means pass (exit 0); below 0.5 means fail (exit 1).`;
 }
 
 /**
- * Derive a judge name from a command array by extracting the filename stem
- * of the last path-like argument (e.g. `['bun', 'run', '.agentv/judges/format-checker.ts']` → `'format-checker'`).
+ * Derive a judge name from a command array by finding the first argument
+ * with a recognised script extension (e.g. `['bun', 'run', '.agentv/judges/format-checker.ts']` → `'format-checker'`).
  */
 function deriveJudgeNameFromCommand(command: unknown): string | undefined {
   if (!Array.isArray(command) || command.length === 0) return undefined;
-  const last = command[command.length - 1];
-  if (typeof last !== 'string') return undefined;
-  const basename = last.split('/').pop() ?? last;
-  return basename.replace(/\.(ts|js|mts|mjs)$/, '') || undefined;
+  for (const arg of command) {
+    if (typeof arg !== 'string') continue;
+    const match = arg.match(/([^/]+)\.(ts|js|mts|mjs)$/);
+    if (match) return match[1] || undefined;
+  }
+  return undefined;
 }
 
 function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
@@ -233,7 +235,7 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
     default: {
       // Unknown type with a command → treat as code judge
       if (entry.command !== undefined && type) {
-        return codeJudgeInstruction(type);
+        return codeJudgeInstruction(deriveJudgeNameFromCommand(entry.command) ?? type);
       }
       // Fallback: try to produce something readable
       if (typeof entry.criteria === 'string') return entry.criteria;

@@ -98,21 +98,28 @@ export async function getPromptEvalGradingBrief(evalPath: string, testId: string
   for (const assertion of evalCase.assertions ?? []) {
     const entry = assertion as Record<string, unknown>;
     const type = entry.type as string | undefined;
-    const nested = (entry.config as Record<string, unknown>) ?? {};
+    const bag = (entry.config as Record<string, unknown>) ?? {};
     if (type === 'contains') {
       criteria.push(`Output contains '${entry.value}'`);
-    } else if (type === 'rubrics' && typeof nested.criteria === 'string') {
-      criteria.push(nested.criteria);
+    } else if (type === 'rubrics') {
+      const items = (entry.criteria ?? bag.criteria) as Array<{ outcome?: string }> | undefined;
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          if (item.outcome) criteria.push(item.outcome);
+        }
+      }
     } else if (type === 'llm-judge' || type === 'llm_judge') {
-      criteria.push(`[llm-judge] ${nested.prompt ?? nested.criteria}`);
+      const prompt = entry.prompt ?? bag.prompt ?? bag.criteria;
+      criteria.push(`[llm-judge] ${typeof prompt === 'string' ? prompt : ''}`);
     } else if (type === 'code-judge' || type === 'code_judge') {
       const name = entry.name ?? type;
-      criteria.push(`[code-judge] ${name}${nested.description ? `: ${nested.description}` : ''}`);
+      const desc = bag.description ?? entry.description;
+      criteria.push(`[code-judge] ${name}${desc ? `: ${desc}` : ''}`);
     } else if (type === 'skill-trigger') {
       const trigger = entry.should_trigger !== false;
       criteria.push(`[skill-trigger] should_trigger: ${trigger} for ${entry.skill}`);
     } else if (type) {
-      criteria.push(`[${type}] ${entry.value ?? nested.criteria ?? nested.prompt ?? ''}`);
+      criteria.push(`[${type}] ${entry.value ?? bag.criteria ?? bag.prompt ?? ''}`);
     }
   }
 

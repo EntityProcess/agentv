@@ -47,6 +47,13 @@ export const evalRunJudgeCommand = command({
       resolvedInput = input ?? '';
     }
 
+    if (!/^[a-zA-Z0-9_-]+$/.test(judgeName)) {
+      console.error(
+        `Error: Invalid judge name '${judgeName}' — only letters, digits, hyphens, and underscores allowed`,
+      );
+      process.exit(1);
+    }
+
     const scriptPath = await findJudgeScript(judgeName, process.cwd());
     if (!scriptPath) {
       console.error(`Error: Judge '${judgeName}' not found in .agentv/judges/`);
