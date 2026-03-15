@@ -4,8 +4,8 @@ import packageJson from '../package.json' with { type: 'json' };
 import { compareCommand } from './commands/compare/index.js';
 import { convertCommand } from './commands/convert/index.js';
 import { createCommand } from './commands/create/index.js';
+import { evalCommand } from './commands/eval/index.js';
 import { evalPromptCommand } from './commands/eval/commands/prompt/index.js';
-import { evalRunCommand } from './commands/eval/commands/run.js';
 import { generateCommand } from './commands/generate/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
 import { selfCommand } from './commands/self/index.js';
@@ -21,7 +21,7 @@ export const app = subcommands({
   description: 'AgentV CLI',
   version: packageJson.version,
   cmds: {
-    eval: evalRunCommand,
+    eval: evalCommand,
     prompt: evalPromptCommand,
     compare: compareCommand,
     convert: convertCommand,
@@ -38,8 +38,35 @@ export const app = subcommands({
 });
 
 /**
+ * Known eval subcommand names — used to decide whether to inject the
+ * implicit `run` subcommand for backward-compatible `agentv eval <paths>`.
+ */
+const EVAL_SUBCOMMANDS = new Set(['run', 'prompt', 'run-judge']);
+
+/**
+ * Top-level CLI command names (excluding `eval` itself).
+ * Used to distinguish `agentv eval …` from `agentv prompt eval …`.
+ */
+const TOP_LEVEL_COMMANDS = new Set([
+  'prompt',
+  'compare',
+  'convert',
+  'create',
+  'generate',
+  'init',
+  'self',
+  'trace',
+  'transpile',
+  'trim',
+  'validate',
+  'workspace',
+]);
+
+/**
  * Preprocess argv for convenience aliases:
- * `--eval-id` → `--test-id`
+ * - `--eval-id` → `--test-id`
+ * - `agentv eval <non-subcommand>` → `agentv eval run <non-subcommand>`
+ *   (backward compat: `eval` used to be a direct command, now it's a group)
  */
 export function preprocessArgv(argv: string[]): string[] {
   const result = [...argv];
@@ -50,6 +77,30 @@ export function preprocessArgv(argv: string[]): string[] {
       result[i] = '--test-id';
     } else if (result[i].startsWith('--eval-id=')) {
       result[i] = `--test-id=${result[i].slice('--eval-id='.length)}`;
+    }
+  }
+
+  // Implicit `run` subcommand: `agentv eval <arg>` → `agentv eval run <arg>`
+  // when the first arg after `eval` is not a known eval subcommand.
+  // This preserves backward compatibility now that `eval` is a subcommands group.
+  // Only applies when `eval` is the top-level subcommand, NOT when it appears
+  // inside another command (e.g. `agentv prompt eval …`).
+  // Exception: `--help` / `-h` should show the eval group help, not run's help.
+  const evalIdx = result.indexOf('eval');
+  if (evalIdx !== -1) {
+    // Ensure no top-level command appears before `eval` in the argv —
+    // if one does, `eval` is a nested subcommand (e.g. `prompt eval`).
+    const isTopLevel = !result.slice(0, evalIdx).some((arg) => TOP_LEVEL_COMMANDS.has(arg));
+    if (isTopLevel) {
+      const nextArg = result[evalIdx + 1];
+      if (
+        nextArg !== undefined &&
+        !EVAL_SUBCOMMANDS.has(nextArg) &&
+        nextArg !== '--help' &&
+        nextArg !== '-h'
+      ) {
+        result.splice(evalIdx + 1, 0, 'run');
+      }
     }
   }
 
