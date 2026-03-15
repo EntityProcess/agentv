@@ -338,6 +338,7 @@ const EvalTestSchema = z.object({
   criteria: z.string().optional(),
   expected_outcome: z.string().optional(),
   input: InputSchema.optional(),
+  input_files: z.array(z.string()).optional(),
   expected_output: ExpectedOutputSchema.optional(),
   assertions: z.array(EvaluatorSchema).optional(),
   assert: z.array(EvaluatorSchema).optional(),
@@ -369,6 +370,8 @@ export const EvalFileSchema = z.object({
   requires: z.object({ agentv: z.string().optional() }).optional(),
   // Suite-level input
   input: InputSchema.optional(),
+  // Suite-level input_files shorthand
+  input_files: z.array(z.string()).optional(),
   // Tests (array or external file path)
   tests: z.union([z.array(EvalTestSchema), z.string()]),
   // Deprecated aliases

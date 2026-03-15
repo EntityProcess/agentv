@@ -89,6 +89,8 @@ type RawTestSuite = JsonObject & {
   /** @deprecated Use `assertions` instead */
   readonly assert?: JsonValue;
   readonly input?: JsonValue;
+  /** Shorthand: list of file paths to prepend as type:file content blocks in each test's user message. */
+  readonly input_files?: JsonValue;
   // Suite-level metadata fields
   readonly name?: JsonValue;
   readonly description?: JsonValue;
@@ -286,6 +288,9 @@ async function loadTestsFromYaml(
   // Resolve suite-level input (prepended to each test's input messages)
   const suiteInputMessages = expandInputShorthand(suite.input);
 
+  // Suite-level input_files: passed to resolveInputMessages for each test
+  const suiteInputFiles = suite.input_files;
+
   // Extract global target from execution.target (or legacy root-level target)
   const rawGlobalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
   const _globalTarget = asString(rawGlobalExecution?.target) ?? asString(suite.target);
@@ -328,8 +333,13 @@ async function loadTestsFromYaml(
       }
     }
 
-    // Resolve input with shorthand support
-    const testInputMessages = resolveInputMessages(evalcase);
+    // Extract per-case execution config early (reused below for skip_defaults)
+    const caseExecution = isJsonObject(evalcase.execution) ? evalcase.execution : undefined;
+    const skipDefaults = caseExecution?.skip_defaults === true;
+
+    // Resolve input with shorthand support (pass suite-level input_files for merge)
+    const effectiveSuiteInputFiles = suiteInputFiles && !skipDefaults ? suiteInputFiles : undefined;
+    const testInputMessages = resolveInputMessages(evalcase, effectiveSuiteInputFiles);
     // Resolve expected_output with shorthand support
     const expectedMessages = resolveExpectedMessages(evalcase) ?? [];
 
@@ -347,8 +357,6 @@ async function loadTestsFromYaml(
     }
 
     // Prepend suite-level input to test input (respecting skip_defaults)
-    const caseExecution = isJsonObject(evalcase.execution) ? evalcase.execution : undefined;
-    const skipDefaults = caseExecution?.skip_defaults === true;
     const effectiveSuiteInputMessages =
       suiteInputMessages && !skipDefaults ? suiteInputMessages : undefined;
     const inputMessages = effectiveSuiteInputMessages

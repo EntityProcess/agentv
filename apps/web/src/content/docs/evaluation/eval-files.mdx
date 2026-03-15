@@ -121,6 +121,29 @@ Suite-level `input` accepts the same formats as test-level `input`:
 
 To opt out for a specific test, set `execution.skip_defaults: true` (same flag that skips suite-level `assert`).
 
+### Suite-level Input Files
+
+The `input_files` field provides a shorthand for attaching shared file references to every test. When a test has a string `input`, the suite-level files are prepended as `type: file` content blocks in a single user message — the same shape produced by per-test `input_files`.
+
+```yaml
+description: Schema review evaluation
+input_files:
+  - ./shared-context.md
+  - ./schema.json
+
+tests:
+  - id: summarize
+    criteria: Summarizes the important constraints
+    input: Summarize the important constraints.
+  - id: validate
+    criteria: Identifies validation gaps
+    input: What validation is missing?
+```
+
+Each test's effective input becomes a single user message with `[file blocks..., text block]`.
+
+Per-test `input_files` overrides the suite-level value (it does not merge). To opt out, set `execution.skip_defaults: true` on the test.
+
 ### Tests as String Path
 
 Instead of inlining tests in the same file, you can point `tests` to an external YAML or JSONL file. This is the inverse of the sidecar pattern — the metadata file references the test data:

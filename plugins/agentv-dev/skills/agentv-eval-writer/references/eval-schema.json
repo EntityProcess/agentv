@@ -86,6 +86,12 @@
             }
           ]
         },
+        "input_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "tests": {
           "anyOf": [
             {
@@ -147,6 +153,12 @@
                         }
                       }
                     ]
+                  },
+                  "input_files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   },
                   "expected_output": {
                     "anyOf": [
@@ -6442,6 +6454,12 @@
                         }
                       }
                     ]
+                  },
+                  "input_files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   },
                   "expected_output": {
                     "anyOf": [
