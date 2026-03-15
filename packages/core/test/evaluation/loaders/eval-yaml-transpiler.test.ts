@@ -333,7 +333,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     const { files } = transpileEvalYaml(suite);
     const evals = files.get('s')?.evals;
     expect(evals[0].assertions[0]).toContain('agentv eval run-judge format-checker');
-    expect(evals[0].assertions[0]).toContain('--output');
+    expect(evals[0].assertions[0]).toContain('--agent-output');
     expect(evals[0].assertions[0]).toContain('score');
     expect(evals[0].assertions[0]).toContain('Validates output CSV format');
   });
