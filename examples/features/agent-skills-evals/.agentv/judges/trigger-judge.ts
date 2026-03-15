@@ -2,68 +2,88 @@
 /**
  * trigger-judge: detects whether the agent invoked a named Claude Code skill.
  *
+ * Mirrors the post-hoc fallback detection in skill-creator's run_eval.py:
+ *   - Only the FIRST tool call matters. Any non-Skill/Read tool as the first
+ *     call means the skill was not triggered (mirrors run_eval.py's early-exit).
+ *   - Skill tool: checks input.skill contains the skill name (case-sensitive).
+ *   - Read tool: checks input.file_path contains the skill name (case-sensitive).
+ *   - Supports negative cases via should_trigger: false.
+ *
  * Usage in eval YAML:
  *   assert:
  *     - type: trigger-judge          # discovered from .agentv/judges/
- *       skill: my-skill-name         # passed via config
+ *       skill: my-skill-name         # required: exact name as installed in .claude/commands/
+ *       should_trigger: true         # optional: expected behaviour (default: true)
  *
- * Checks:
- *   - Skill tool call where args.skill matches the configured skill name
- *   - Read tool call loading a file from .claude/commands/ or .claude/skills/
- *     whose path contains the skill name
+ * Positive case (should_trigger: true):  passes when skill fires.
+ * Negative case (should_trigger: false): passes when skill does NOT fire.
  */
 import { defineCodeJudge } from '@agentv/eval';
 
 export default defineCodeJudge(({ output, config }) => {
   const skillName = config?.skill as string | undefined;
+  const shouldTrigger = (config?.should_trigger ?? true) as boolean;
+
   if (!skillName) {
-    return { score: 0, misses: ['config.skill is required'], reasoning: 'No skill name configured' };
-  }
-
-  const allToolCalls = (output ?? []).flatMap((msg) => msg.toolCalls ?? []);
-
-  // Check for Skill tool invocation
-  const skillTrigger = allToolCalls.find(
-    (tc) =>
-      tc.tool === 'Skill' &&
-      typeof tc.input === 'object' &&
-      tc.input !== null &&
-      String((tc.input as Record<string, unknown>).skill ?? '').toLowerCase().includes(skillName.toLowerCase()),
-  );
-
-  if (skillTrigger) {
     return {
-      score: 1,
-      hits: [`Skill tool invoked with skill="${(skillTrigger.input as Record<string, unknown>).skill}"`],
-      reasoning: `Agent triggered skill "${skillName}"`,
+      score: 0,
+      misses: ['config.skill is required'],
+      reasoning: 'No skill name configured',
     };
   }
 
-  // Check for Read tool loading a skill file
-  const readTrigger = allToolCalls.find((tc) => {
-    if (tc.tool !== 'Read') return false;
-    const filePath = String(
-      (tc.input as Record<string, unknown> | null)?.file_path ??
-        (tc.input as Record<string, unknown> | null)?.path ??
-        '',
-    ).toLowerCase();
-    return (
-      (filePath.includes('.claude/commands/') || filePath.includes('.claude/skills/')) &&
-      filePath.includes(skillName.toLowerCase())
-    );
-  });
+  // Flatten all tool calls across messages and take only the first one.
+  // run_eval.py returns false as soon as a non-Skill/Read tool starts, so
+  // only the first tool call is relevant.
+  const firstTool = (output ?? []).flatMap((msg) => msg.toolCalls ?? [])[0];
 
-  if (readTrigger) {
+  let triggered = false;
+  let evidence = '';
+
+  if (firstTool) {
+    const input = (firstTool.input ?? {}) as Record<string, unknown>;
+
+    if (firstTool.tool === 'Skill') {
+      const skillArg = String(input.skill ?? '');
+      if (skillArg.includes(skillName)) {
+        triggered = true;
+        evidence = `Skill tool invoked with skill="${skillArg}"`;
+      }
+    } else if (firstTool.tool === 'Read') {
+      const filePath = String(input.file_path ?? '');
+      if (filePath.includes(skillName)) {
+        triggered = true;
+        evidence = `Read tool loaded skill file: ${filePath}`;
+      }
+    }
+    // Any other tool as first call: triggered remains false
+  }
+
+  const pass = triggered === shouldTrigger;
+
+  if (pass) {
     return {
       score: 1,
-      hits: [`Read tool loaded skill file: ${(readTrigger.input as Record<string, unknown>)?.file_path ?? (readTrigger.input as Record<string, unknown>)?.path}`],
-      reasoning: `Agent read skill "${skillName}" definition`,
+      hits: [
+        shouldTrigger
+          ? evidence || `Skill "${skillName}" triggered as expected`
+          : `Skill "${skillName}" correctly did not trigger`,
+      ],
+      reasoning: shouldTrigger ? 'Skill triggered correctly' : 'No false trigger',
     };
   }
 
   return {
     score: 0,
-    misses: [`Skill "${skillName}" was not triggered`],
-    reasoning: `No Skill or Read tool call matched "${skillName}"`,
+    misses: [
+      shouldTrigger
+        ? firstTool
+          ? `First tool was "${firstTool.tool}" — not Skill/Read for "${skillName}"`
+          : `No tool calls recorded`
+        : evidence || `Skill "${skillName}" triggered unexpectedly`,
+    ],
+    reasoning: shouldTrigger
+      ? `Skill "${skillName}" was not triggered`
+      : `False trigger: skill fired when it should not have`,
   };
 });
