@@ -290,7 +290,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions).toContain('Agent called tools in order: read_file, write_file');
   });
 
-  it('converts code-judge with name to run-judge instruction', () => {
+  it('converts code-judge with name to assert instruction', () => {
     const suite = {
       tests: [
         {
@@ -309,10 +309,10 @@ describe('transpileEvalYaml — NL assertions', () => {
     };
     const { files } = transpileEvalYaml(suite);
     const evals = files.get('s')?.evals;
-    expect(evals[0].assertions[0]).toContain('agentv eval run-judge skill-trigger');
+    expect(evals[0].assertions[0]).toContain('agentv eval assert skill-trigger');
   });
 
-  it('converts code-judge to agentv run-judge instruction with description', () => {
+  it('converts code-judge to agentv assert instruction with description', () => {
     const suite = {
       tests: [
         {
@@ -332,7 +332,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     };
     const { files } = transpileEvalYaml(suite);
     const evals = files.get('s')?.evals;
-    expect(evals[0].assertions[0]).toContain('agentv eval run-judge format-checker');
+    expect(evals[0].assertions[0]).toContain('agentv eval assert format-checker');
     expect(evals[0].assertions[0]).toContain('--agent-output');
     expect(evals[0].assertions[0]).toContain('score');
     expect(evals[0].assertions[0]).toContain('Validates output CSV format');
@@ -356,10 +356,10 @@ describe('transpileEvalYaml — NL assertions', () => {
     };
     const { files } = transpileEvalYaml(suite);
     const evals = files.get('s')?.evals;
-    expect(evals[0].assertions[0]).toContain('agentv eval run-judge output-validator');
+    expect(evals[0].assertions[0]).toContain('agentv eval assert output-validator');
   });
 
-  it('converts unknown type with command to agentv run-judge instruction', () => {
+  it('converts unknown type with command to agentv assert instruction', () => {
     const suite = {
       tests: [
         {
@@ -377,7 +377,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     };
     const { files } = transpileEvalYaml(suite);
     const evals = files.get('s')?.evals;
-    expect(evals[0].assertions[0]).toContain('agentv eval run-judge custom-validator');
+    expect(evals[0].assertions[0]).toContain('agentv eval assert custom-validator');
   });
 
   it('converts field-accuracy to NL', () => {

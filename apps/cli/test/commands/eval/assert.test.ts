@@ -11,7 +11,7 @@ const projectRoot = path.resolve(__dirname, '../../../../..');
 const CLI_ENTRY = path.join(projectRoot, 'apps/cli/src/cli.ts');
 
 async function createJudgeFixture(): Promise<{ baseDir: string }> {
-  const baseDir = await mkdtemp(path.join(tmpdir(), 'agentv-run-judge-'));
+  const baseDir = await mkdtemp(path.join(tmpdir(), 'agentv-assert-'));
   const judgesDir = path.join(baseDir, '.agentv', 'judges');
   await mkdir(judgesDir, { recursive: true });
 
@@ -36,7 +36,7 @@ console.log(JSON.stringify({ score, reasoning: score ? "contains hello" : "missi
   return { baseDir };
 }
 
-describe('agentv eval run-judge', () => {
+describe('agentv eval assert', () => {
   it('runs a judge with --output and --input flags', async () => {
     const { baseDir } = await createJudgeFixture();
     try {
@@ -46,7 +46,7 @@ describe('agentv eval run-judge', () => {
           '--no-env-file',
           CLI_ENTRY,
           'eval',
-          'run-judge',
+          'assert',
           'always-pass',
           '--agent-output',
           'some output',
@@ -72,7 +72,7 @@ describe('agentv eval run-judge', () => {
           '--no-env-file',
           CLI_ENTRY,
           'eval',
-          'run-judge',
+          'assert',
           'check-contains',
           '--agent-output',
           'no match here',
@@ -98,7 +98,7 @@ describe('agentv eval run-judge', () => {
           '--no-env-file',
           CLI_ENTRY,
           'eval',
-          'run-judge',
+          'assert',
           'check-contains',
           '--agent-output',
           'hello world',
@@ -124,7 +124,7 @@ describe('agentv eval run-judge', () => {
           '--no-env-file',
           CLI_ENTRY,
           'eval',
-          'run-judge',
+          'assert',
           'nonexistent',
           '--agent-output',
           'test',

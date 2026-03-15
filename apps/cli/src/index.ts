@@ -41,7 +41,7 @@ export const app = subcommands({
  * Known eval subcommand names — used to decide whether to inject the
  * implicit `run` subcommand for backward-compatible `agentv eval <paths>`.
  */
-const EVAL_SUBCOMMANDS = new Set(['run', 'prompt', 'run-judge']);
+const EVAL_SUBCOMMANDS = new Set(['run', 'prompt', 'assert']);
 
 /**
  * Top-level CLI command names (excluding `eval` itself).

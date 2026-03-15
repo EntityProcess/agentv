@@ -95,7 +95,7 @@ interface RawSuite {
  */
 function codeJudgeInstruction(judgeName: string, description?: string): string {
   const desc = description ? ` This judge: ${description}.` : '';
-  return `Run \`agentv eval run-judge ${judgeName} --agent-output <agent_output> --agent-input <original_prompt>\` and check the result.${desc} The command accepts --agent-output (the agent's full response text) and --agent-input (the original user prompt). It returns JSON on stdout: {"score": 0-1, "reasoning": "..."}. A score >= 0.5 means pass (exit 0); below 0.5 means fail (exit 1).`;
+  return `Run \`agentv eval assert ${judgeName} --agent-output <agent_output> --agent-input <original_prompt>\` and check the result.${desc} The command accepts --agent-output (the agent's full response text) and --agent-input (the original user prompt). It returns JSON on stdout: {"score": 0-1, "reasoning": "..."}. A score >= 0.5 means pass (exit 0); below 0.5 means fail (exit 1).`;
 }
 
 /**

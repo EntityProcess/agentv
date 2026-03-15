@@ -5,14 +5,14 @@ import fg from 'fast-glob';
 
 import { executeScript } from '@agentv/core';
 
-export const evalRunJudgeCommand = command({
-  name: 'run-judge',
-  description: 'Run a single code judge from .agentv/judges/ and print the score',
+export const evalAssertCommand = command({
+  name: 'assert',
+  description: 'Run a single code-judge assertion from .agentv/judges/ and print the score',
   args: {
     judgeName: positional({
       type: string,
-      displayName: 'judge-name',
-      description: 'Name of the judge (matches filename without extension in .agentv/judges/)',
+      displayName: 'name',
+      description: 'Assertion name (matches filename without extension in .agentv/judges/)',
     }),
     agentOutput: option({
       type: optional(string),

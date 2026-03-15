@@ -118,7 +118,7 @@ describe('preprocessArgv', () => {
     });
 
     it('does not insert `run` when eval is followed by a known subcommand', () => {
-      const argv = ['node', 'agentv', 'eval', 'run-judge', 'judge-name', '--output', 'test'];
+      const argv = ['node', 'agentv', 'eval', 'assert', 'judge-name', '--output', 'test'];
       expect(preprocessArgv(argv)).toEqual(argv);
     });
 

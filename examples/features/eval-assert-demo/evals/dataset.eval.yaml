@@ -1,9 +1,9 @@
-# Run-Judge Demo
-# Demonstrates code judges with `agentv eval run-judge` CLI integration.
+# Eval Assert Demo
+# Demonstrates code judges with `agentv eval assert` CLI integration.
 # Each code-judge assertion can also be run standalone:
-#   agentv eval run-judge keyword-check --agent-output "..." --agent-input "..."
+#   agentv eval assert keyword-check --agent-output "..." --agent-input "..."
 
-description: Code judges with run-judge CLI integration
+description: Code judges with eval assert CLI integration
 
 tests:
   - id: capital-of-france
