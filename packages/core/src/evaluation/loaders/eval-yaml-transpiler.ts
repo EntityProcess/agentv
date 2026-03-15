@@ -276,50 +276,33 @@ interface ExtractedInput {
  * - input_files shorthand (alongside string or message-array input)
  */
 function extractInput(rawCase: RawTestCase): ExtractedInput {
-  const inputFiles: string[] = [];
-
-  // Collect input_files shorthand
-  if (Array.isArray(rawCase.input_files)) {
-    inputFiles.push(...(rawCase.input_files as string[]).filter((f) => typeof f === 'string'));
-  }
+  const files: string[] = Array.isArray(rawCase.input_files)
+    ? (rawCase.input_files as string[]).filter((f) => typeof f === 'string')
+    : [];
 
   const input = rawCase.input;
 
-  // String shorthand
   if (typeof input === 'string') {
-    return { prompt: input, files: inputFiles };
+    return { prompt: input, files };
   }
 
-  // Message array
   if (Array.isArray(input)) {
-    let promptText = '';
-    const filePaths: string[] = [...inputFiles];
-
+    let prompt = '';
     for (const msg of input as RawMessage[]) {
       if (msg.role !== 'user') continue;
-
-      // String content
       if (typeof msg.content === 'string') {
-        promptText = msg.content;
-        continue;
-      }
-
-      // Content block array
-      if (Array.isArray(msg.content)) {
+        prompt = msg.content;
+      } else if (Array.isArray(msg.content)) {
         for (const block of msg.content as Array<{ type?: string; value?: string }>) {
-          if (block.type === 'text' && typeof block.value === 'string') {
-            promptText = block.value;
-          } else if (block.type === 'file' && typeof block.value === 'string') {
-            filePaths.push(block.value);
-          }
+          if (block.type === 'text' && typeof block.value === 'string') prompt = block.value;
+          else if (block.type === 'file' && typeof block.value === 'string') files.push(block.value);
         }
       }
     }
-
-    return { prompt: promptText, files: filePaths };
+    return { prompt, files };
   }
 
-  return { prompt: '', files: inputFiles };
+  return { prompt: '', files };
 }
 
 /**
