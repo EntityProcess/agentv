@@ -5,6 +5,16 @@ export {
   isAgentSkillsFormat,
   parseAgentSkillsEvals,
 } from './evaluation/loaders/agent-skills-parser.js';
+export {
+  transpileEvalYaml,
+  transpileEvalYamlFile,
+  getOutputFilenames,
+} from './evaluation/loaders/eval-yaml-transpiler.js';
+export type {
+  EvalsJsonCase,
+  EvalsJsonFile,
+  TranspileResult,
+} from './evaluation/loaders/eval-yaml-transpiler.js';
 export * from './evaluation/file-utils.js';
 export * from './evaluation/providers/index.js';
 export * from './evaluation/evaluators.js';

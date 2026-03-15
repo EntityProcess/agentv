@@ -10,6 +10,7 @@ import { generateCommand } from './commands/generate/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
 import { selfCommand } from './commands/self/index.js';
 import { traceCommand } from './commands/trace/index.js';
+import { transpileCommand } from './commands/transpile/index.js';
 import { trimCommand } from './commands/trim/index.js';
 import { validateCommand } from './commands/validate/index.js';
 import { workspaceCommand } from './commands/workspace/index.js';
@@ -29,6 +30,7 @@ export const app = subcommands({
     init: initCmdTsCommand,
     self: selfCommand,
     trace: traceCommand,
+    transpile: transpileCommand,
     trim: trimCommand,
     validate: validateCommand,
     workspace: workspaceCommand,

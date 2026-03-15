@@ -1,0 +1,23 @@
+{
+  "skill_name": "csv-analyzer",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a CSV of monthly sales data. Find the top 3 months by revenue.",
+      "expected_output": "The top 3 months by revenue are November ($22,500), September ($20,100), and December ($19,400).",
+      "files": ["evals/files/sales.csv"],
+      "should_trigger": true,
+      "assertions": [
+        "Agent finds the top 3 months by revenue",
+        "Output identifies November as the highest revenue month",
+        "Output contains '$22,500'"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "What time is it?",
+      "should_trigger": false,
+      "assertions": []
+    }
+  ]
+}
