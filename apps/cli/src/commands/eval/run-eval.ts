@@ -82,6 +82,8 @@ interface NormalizedOptions {
   readonly workspacePath?: string;
   readonly benchmarkJson?: string;
   readonly artifacts?: string;
+  readonly judgeTarget?: string;
+  readonly model?: string;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -249,6 +251,8 @@ function normalizeOptions(
     workspacePath,
     benchmarkJson: normalizeString(rawOptions.benchmarkJson),
     artifacts: normalizeString(rawOptions.artifacts),
+    judgeTarget: normalizeString(rawOptions.judgeTarget),
+    model: normalizeString(rawOptions.model),
   } satisfies NormalizedOptions;
 }
 
@@ -593,6 +597,8 @@ async function runSingleEvalFile(params: {
     trials: trialsConfig,
     totalBudgetUsd,
     failOnError,
+    judgeTarget: options.judgeTarget,
+    model: options.model,
     streamCallbacks: streamingObserver?.getStreamCallbacks(),
     onResult: async (result: EvaluationResult) => {
       // Finalize streaming observer span with score
@@ -673,6 +679,11 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
   }
 
   let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
+
+  // Validate --judge-target / --model combinations
+  if (options.judgeTarget === 'agentv' && !options.model) {
+    throw new Error('--judge-target agentv requires --model (e.g., --model openai:gpt-5-mini)');
+  }
 
   // --retry-errors: override filter to only re-run execution_error test cases.
   // IMPORTANT: JSONL must be fully loaded here, before the output writer is created below,
