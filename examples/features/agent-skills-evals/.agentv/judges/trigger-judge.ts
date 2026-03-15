@@ -10,7 +10,7 @@
  *   - Supports negative cases via should_trigger: false.
  *
  * Usage in eval YAML:
- *   assert:
+ *   assertions:
  *     - type: trigger-judge          # discovered from .agentv/judges/
  *       skill: my-skill-name         # required: exact name as installed in .claude/commands/
  *       should_trigger: true         # optional: expected behaviour (default: true)
