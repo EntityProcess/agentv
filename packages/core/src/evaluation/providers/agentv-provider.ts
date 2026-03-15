@@ -31,7 +31,9 @@ function createLanguageModel(modelString: string): LanguageModel {
 
   switch (provider) {
     case 'openai':
-      return createOpenAI()(modelName);
+      // Cast: @ai-sdk/openai may return LanguageModelV3 while the rest of the
+      // codebase uses LanguageModelV2. The runtime API is compatible.
+      return createOpenAI()(modelName) as unknown as LanguageModel;
     case 'anthropic':
       return createAnthropic()(modelName);
     case 'azure':
