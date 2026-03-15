@@ -295,7 +295,8 @@ function extractInput(rawCase: RawTestCase): ExtractedInput {
       } else if (Array.isArray(msg.content)) {
         for (const block of msg.content as Array<{ type?: string; value?: string }>) {
           if (block.type === 'text' && typeof block.value === 'string') prompt = block.value;
-          else if (block.type === 'file' && typeof block.value === 'string') files.push(block.value);
+          else if (block.type === 'file' && typeof block.value === 'string')
+            files.push(block.value);
         }
       }
     }
