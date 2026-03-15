@@ -87,6 +87,8 @@ const LlmJudgeSchema = EvaluatorCommonSchema.extend({
   model: z.string().optional(),
   target: z.string().optional(),
   config: z.record(z.unknown()).optional(),
+  max_steps: z.number().int().min(1).max(50).optional(),
+  temperature: z.number().min(0).max(2).optional(),
 });
 
 /** Aggregator configs for composite evaluator */

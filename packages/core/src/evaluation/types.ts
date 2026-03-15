@@ -158,7 +158,6 @@ const EVALUATOR_KIND_VALUES = [
   'cost',
   'token-usage',
   'execution-metrics',
-  'agent-judge',
   'skill-trigger',
   'contains',
   'contains-any',
@@ -337,6 +336,10 @@ export type LlmJudgeEvaluatorConfig = {
   readonly target?: string;
   /** Pass-through configuration for custom evaluator prompts (legacy, prefer prompt.config) */
   readonly config?: Record<string, unknown>;
+  /** Maximum agent steps for agentv built-in mode (default 10, max 50). Ignored in LLM mode. */
+  readonly max_steps?: number;
+  /** Temperature override for judge calls */
+  readonly temperature?: number;
 };
 
 /**
@@ -523,35 +526,6 @@ export type ExecutionMetricsEvaluatorConfig = {
   readonly target_exploration_ratio?: number;
   /** Tolerance for exploration ratio check (default: 0.2) */
   readonly exploration_tolerance?: number;
-  readonly weight?: number;
-  readonly required?: boolean | number;
-  /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
-  readonly negate?: boolean;
-};
-
-/**
- * Configuration for the agent-judge evaluator.
- * Runs an agentic investigation loop to audit workspaces and verify criteria.
- * Two modes:
- * - Built-in: Uses AI SDK generateText() with sandboxed filesystem tools
- * - Judge target: Delegates to an external agent provider via Provider.invoke()
- */
-export type AgentJudgeEvaluatorConfig = {
-  readonly name: string;
-  readonly type: 'agent-judge';
-  /** Custom evaluation prompt (inline text or file path) */
-  readonly prompt?: string;
-  readonly promptPath?: string;
-  /** Resolved absolute path for prompt file */
-  readonly resolvedPromptPath?: string;
-  /** Rubric items for structured evaluation (reuses llm-judge rubric infra) */
-  readonly rubrics?: readonly RubricItem[];
-  /** Maximum agent steps for built-in mode (default 10, max 50) */
-  readonly max_steps?: number;
-  /** Temperature for built-in mode (default 0) */
-  readonly temperature?: number;
-  /** Target name — delegates agent loop to this provider instead of built-in mode */
-  readonly target?: string;
   readonly weight?: number;
   readonly required?: boolean | number;
   /** When true, inverts the evaluator score (1 - score) and swaps pass/fail verdict */
@@ -766,7 +740,6 @@ export type EvaluatorConfig =
   | CostEvaluatorConfig
   | TokenUsageEvaluatorConfig
   | ExecutionMetricsEvaluatorConfig
-  | AgentJudgeEvaluatorConfig
   | SkillTriggerEvaluatorConfig
   | ContainsEvaluatorConfig
   | ContainsAnyEvaluatorConfig

@@ -134,7 +134,9 @@ async function parseEvaluatorList(
     const typeValue = typeof rawType === 'string' ? normalizeEvaluatorType(rawType) : rawType;
 
     // Unknown types are treated as custom assertion types (resolved via registry discovery)
-    const isCustomType = typeof typeValue === 'string' && !isEvaluatorKind(typeValue);
+    // 'agent-judge' is a known alias (maps to 'llm-judge'), not a custom type
+    const isCustomType =
+      typeof typeValue === 'string' && !isEvaluatorKind(typeValue) && typeValue !== 'agent-judge';
     if (typeof typeValue !== 'string') {
       logWarning(`Skipping evaluator with invalid type in '${evalId}'`);
       continue;
@@ -852,7 +854,8 @@ async function parseEvaluatorList(
       continue;
     }
 
-    if (typeValue === 'agent-judge') {
+    // Backward compat: agent-judge / agent_judge → llm-judge with agent-specific fields
+    if ((typeValue as string) === 'agent-judge') {
       // Validate max_steps (1-50)
       const rawMaxSteps = rawEvaluator.max_steps ?? rawEvaluator.maxSteps;
       let maxSteps: number | undefined;
@@ -864,7 +867,7 @@ async function parseEvaluatorList(
           rawMaxSteps > 50
         ) {
           logWarning(
-            `Skipping agent-judge evaluator '${name}' in '${evalId}': max_steps must be an integer 1-50`,
+            `Skipping llm-judge evaluator '${name}' in '${evalId}': max_steps must be an integer 1-50`,
           );
           continue;
         }
@@ -877,7 +880,7 @@ async function parseEvaluatorList(
       if (rawTemperature !== undefined) {
         if (typeof rawTemperature !== 'number' || rawTemperature < 0 || rawTemperature > 2) {
           logWarning(
-            `Skipping agent-judge evaluator '${name}' in '${evalId}': temperature must be a number 0-2`,
+            `Skipping llm-judge evaluator '${name}' in '${evalId}': temperature must be a number 0-2`,
           );
           continue;
         }
@@ -910,7 +913,7 @@ async function parseEvaluatorList(
 
       evaluators.push({
         name,
-        type: 'agent-judge',
+        type: 'llm-judge',
         ...(agentPrompt ? { prompt: agentPrompt } : {}),
         ...(agentPromptPath
           ? { promptPath: agentPromptPath, resolvedPromptPath: agentPromptPath }
@@ -1266,6 +1269,9 @@ async function parseEvaluatorList(
       'config',
       'required',
       'negate',
+      'max_steps',
+      'maxSteps',
+      'temperature',
     ]);
     const config: Record<string, JsonValue> = {};
     for (const [key, value] of Object.entries(rawEvaluator)) {
@@ -1284,6 +1290,21 @@ async function parseEvaluatorList(
     const finalConfig =
       promptScriptConfig ?? (Object.keys(mergedConfig).length > 0 ? mergedConfig : undefined);
 
+    // Parse optional max_steps and temperature (used in agent mode)
+    const rawMaxStepsLlm = rawEvaluator.max_steps ?? rawEvaluator.maxSteps;
+    const llmMaxSteps =
+      typeof rawMaxStepsLlm === 'number' &&
+      Number.isInteger(rawMaxStepsLlm) &&
+      rawMaxStepsLlm >= 1 &&
+      rawMaxStepsLlm <= 50
+        ? rawMaxStepsLlm
+        : undefined;
+    const rawTempLlm = rawEvaluator.temperature;
+    const llmTemperature =
+      typeof rawTempLlm === 'number' && rawTempLlm >= 0 && rawTempLlm <= 2
+        ? rawTempLlm
+        : undefined;
+
     evaluators.push({
       name,
       type: 'llm-judge',
@@ -1297,6 +1318,8 @@ async function parseEvaluatorList(
       ...(required !== undefined ? { required } : {}),
       ...(negate !== undefined ? { negate } : {}),
       ...(finalConfig ? { config: finalConfig } : {}),
+      ...(llmMaxSteps !== undefined ? { max_steps: llmMaxSteps } : {}),
+      ...(llmTemperature !== undefined ? { temperature: llmTemperature } : {}),
     });
   }
 

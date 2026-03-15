@@ -6,9 +6,7 @@
  * the EvaluatorRegistry at startup.
  */
 
-import { readFileSync } from 'node:fs';
 import {
-  AgentJudgeEvaluator,
   CodeEvaluator,
   CompositeEvaluator,
   CostEvaluator,
@@ -34,10 +32,10 @@ import {
 } from '../evaluators.js';
 import { InlineAssertEvaluator } from '../evaluators/inline-assert.js';
 import { resolveCustomPrompt } from '../evaluators/prompt-resolution.js';
+import { isAgentProvider } from '../providers/types.js';
 import type { Provider } from '../providers/types.js';
 import type { ToolTrajectoryEvaluatorConfig } from '../trace.js';
 import type {
-  AgentJudgeEvaluatorConfig,
   CodeEvaluatorConfig,
   CompositeEvaluatorConfig,
   ContainsAllEvaluatorConfig,
@@ -74,6 +72,11 @@ export const INLINE_ASSERT_FN = Symbol.for('agentv.inline-assert-fn');
  * Factory for `llm-judge` evaluators.
  * Creates a wrapper that resolves custom prompts at evaluation time and
  * optionally overrides the judge target per evaluator.
+ *
+ * Auto-detects mode based on the resolved judge provider:
+ * - LLM providers (azure, anthropic, gemini): structured JSON mode
+ * - Agent providers (claude-cli, copilot, etc.): delegate mode
+ * - agentv provider: built-in AI SDK agent mode with filesystem tools
  */
 export const llmJudgeFactory: EvaluatorFactoryFn = (config, context) => {
   const c = config as LlmJudgeEvaluatorConfig;
@@ -88,12 +91,18 @@ export const llmJudgeFactory: EvaluatorFactoryFn = (config, context) => {
     if (!judgeTargetProvider) {
       throw new Error(`llm-judge evaluator '${c.name}': target '${c.target}' not found in targets`);
     }
+    // Only pass judgeTargetProvider for agent providers (delegate mode).
+    // LLM providers use the normal resolveJudgeProvider path for structured JSON mode.
+    const isAgent = isAgentProvider(judgeTargetProvider) || judgeTargetProvider.kind === 'agentv';
     evaluator = new LlmJudgeEvaluator({
       resolveJudgeProvider: async (evalContext) => {
         if (judgeTargetProvider) return judgeTargetProvider;
         if (evalContext.judgeProvider) return evalContext.judgeProvider;
         return judgeProvider;
       },
+      maxSteps: c.max_steps,
+      temperature: c.temperature,
+      ...(isAgent ? { judgeTargetProvider } : {}),
     });
   }
 
@@ -195,45 +204,6 @@ export const tokenUsageFactory: EvaluatorFactoryFn = (config) => {
 export const executionMetricsFactory: EvaluatorFactoryFn = (config) => {
   return new ExecutionMetricsEvaluator({
     config: config as ExecutionMetricsEvaluatorConfig,
-  });
-};
-
-/** Factory for `agent-judge` evaluators. */
-export const agentJudgeFactory: EvaluatorFactoryFn = (config, context) => {
-  const c = config as AgentJudgeEvaluatorConfig;
-  const { judgeProvider, targetResolver } = context;
-
-  let customPrompt: string | undefined;
-  if (c.resolvedPromptPath) {
-    try {
-      customPrompt = readFileSync(c.resolvedPromptPath, 'utf-8');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`Could not read agent-judge prompt at ${c.resolvedPromptPath}: ${message}`);
-    }
-  } else if (c.prompt) {
-    customPrompt = c.prompt;
-  }
-
-  let judgeTargetProvider: Provider | undefined;
-  if (c.target && targetResolver) {
-    judgeTargetProvider = targetResolver(c.target);
-    if (!judgeTargetProvider) {
-      throw new Error(
-        `agent-judge evaluator '${c.name}': target '${c.target}' not found in targets`,
-      );
-    }
-  }
-
-  return new AgentJudgeEvaluator({
-    resolveJudgeProvider: async (ctx) => {
-      if (ctx.judgeProvider) return ctx.judgeProvider;
-      return judgeProvider;
-    },
-    maxSteps: c.max_steps,
-    temperature: c.temperature,
-    evaluatorTemplate: customPrompt,
-    judgeTargetProvider,
   });
 };
 
@@ -440,7 +410,6 @@ export function createBuiltinRegistry(): EvaluatorRegistry {
     .register('cost', costFactory)
     .register('token-usage', tokenUsageFactory)
     .register('execution-metrics', executionMetricsFactory)
-    .register('agent-judge', agentJudgeFactory)
     .register('skill-trigger', skillTriggerFactory)
     .register('contains', containsFactory)
     .register('contains-any', containsAnyFactory)
