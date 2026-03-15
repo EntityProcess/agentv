@@ -23,9 +23,9 @@ describe('buildBenchmarkJson', () => {
     const results = [
       makeResult({
         scores: [
-          { name: 'a1', type: 'llm-judge', score: 0.9, hits: [], misses: [] },
-          { name: 'a2', type: 'llm-judge', score: 0.7, hits: [], misses: [] },
-          { name: 'a3', type: 'llm-judge', score: 0.85, hits: [], misses: [] },
+          { name: 'a1', type: 'llm-grader', score: 0.9, hits: [], misses: [] },
+          { name: 'a2', type: 'llm-grader', score: 0.7, hits: [], misses: [] },
+          { name: 'a3', type: 'llm-grader', score: 0.85, hits: [], misses: [] },
         ],
       }),
     ];
