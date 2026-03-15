@@ -104,7 +104,7 @@ describe('transpileEvalYaml — input extraction', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Trigger-judge handling
+// Trigger-grader handling
 // ---------------------------------------------------------------------------
 
 describe('transpileEvalYaml — skill-trigger', () => {

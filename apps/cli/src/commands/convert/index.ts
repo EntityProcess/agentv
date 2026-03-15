@@ -138,7 +138,7 @@ export function convertEvalsJsonToYaml(inputPath: string): string {
       for (const assertion of test.assertions) {
         lines.push(`      - name: ${assertion.name}`);
         lines.push(`        type: ${assertion.type}`);
-        if (assertion.type === 'llm-judge' && 'prompt' in assertion) {
+        if ((assertion.type === 'llm-grader' || assertion.type === 'llm-judge') && 'prompt' in assertion) {
           const prompt = (assertion as { prompt: string }).prompt;
           lines.push(`        prompt: "${prompt.replace(/"/g, '\\"')}"`);
         }
