@@ -123,6 +123,126 @@ describe('input_files shorthand', () => {
     expect(shorthandTests[0].file_paths).toEqual(explicitTests[0].file_paths);
   });
 
+  it('merges suite-level input_files into tests with string input', async () => {
+    await writeFile(
+      path.join(tempDir, 'suite-input-files.eval.yaml'),
+      `description: Suite-level input_files test
+input_files:
+  - ./sales.csv
+tests:
+  - id: summarize
+    criteria: "Summarizes monthly trends"
+    input: "Summarize the important constraints."
+  - id: analyze
+    criteria: "Analyzes data"
+    input: "Analyze the revenue data."
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'suite-input-files.eval.yaml'), tempDir);
+
+    expect(tests).toHaveLength(2);
+
+    // Both tests should have file blocks from suite-level input_files
+    for (const test of tests) {
+      expect(test.input).toHaveLength(1);
+      const message = test.input[0];
+      expect(message.role).toBe('user');
+      const content = message.content as Array<{ type: string; value: string }>;
+      expect(content).toHaveLength(2);
+      expect(content[0]).toEqual({ type: 'file', value: './sales.csv' });
+      expect(content[1].type).toBe('text');
+    }
+
+    // Verify per-test text is preserved
+    const msg0Content = tests[0].input[0].content as Array<{ type: string; value: string }>;
+    expect(msg0Content[1].value).toBe('Summarize the important constraints.');
+    const msg1Content = tests[1].input[0].content as Array<{ type: string; value: string }>;
+    expect(msg1Content[1].value).toBe('Analyze the revenue data.');
+  });
+
+  it('per-test input_files overrides suite-level input_files', async () => {
+    await writeFile(path.join(tempDir, 'override.csv'), 'override data');
+
+    await writeFile(
+      path.join(tempDir, 'suite-input-files-override.eval.yaml'),
+      `input_files:
+  - ./sales.csv
+tests:
+  - id: uses-suite
+    criteria: "Uses suite files"
+    input: "Check the data."
+  - id: uses-own
+    criteria: "Uses own files"
+    input_files:
+      - ./override.csv
+    input: "Check the override data."
+`,
+    );
+
+    const tests = await loadTests(
+      path.join(tempDir, 'suite-input-files-override.eval.yaml'),
+      tempDir,
+    );
+
+    expect(tests).toHaveLength(2);
+
+    // First test uses suite-level input_files
+    const content0 = tests[0].input[0].content as Array<{ type: string; value: string }>;
+    expect(content0[0]).toEqual({ type: 'file', value: './sales.csv' });
+
+    // Second test uses its own input_files (overrides suite-level)
+    const content1 = tests[1].input[0].content as Array<{ type: string; value: string }>;
+    expect(content1[0]).toEqual({ type: 'file', value: './override.csv' });
+    expect(content1).toHaveLength(2); // only override.csv + text, not sales.csv
+  });
+
+  it('suite-level input_files with multiple files prepends all file blocks', async () => {
+    await writeFile(path.join(tempDir, 'schema.json'), '{"type": "object"}');
+
+    await writeFile(
+      path.join(tempDir, 'suite-multi-files.eval.yaml'),
+      `input_files:
+  - ./sales.csv
+  - ./schema.json
+tests:
+  - id: multi-file-test
+    criteria: "Processes multiple files"
+    input: "Summarize the constraints."
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'suite-multi-files.eval.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    const content = tests[0].input[0].content as Array<{ type: string; value: string }>;
+    expect(content).toHaveLength(3);
+    expect(content[0]).toEqual({ type: 'file', value: './sales.csv' });
+    expect(content[1]).toEqual({ type: 'file', value: './schema.json' });
+    expect(content[2]).toEqual({ type: 'text', value: 'Summarize the constraints.' });
+  });
+
+  it('suite-level input_files is skipped when skip_defaults is true', async () => {
+    await writeFile(
+      path.join(tempDir, 'suite-skip-defaults.eval.yaml'),
+      `input_files:
+  - ./sales.csv
+tests:
+  - id: no-suite-files
+    criteria: "Skips suite files"
+    input: "Plain question."
+    execution:
+      skip_defaults: true
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'suite-skip-defaults.eval.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    // Should be plain string input, not expanded with file blocks
+    expect(tests[0].input[0]).toEqual({ role: 'user', content: 'Plain question.' });
+  });
+
   it('is skipped and falls back to plain input when input_files is absent', async () => {
     await writeFile(
       path.join(tempDir, 'no-input-files.eval.yaml'),

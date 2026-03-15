@@ -1,0 +1,40 @@
+# Suite-Level Shorthand Examples
+# Demonstrates both suite-level shorthands:
+#   1. `input` as a plain string (no role/content nesting needed)
+#   2. `input_files` to hoist shared file attachments
+#
+# Compare with suite-level-input/ which uses the verbose message-array form.
+
+name: suite-level-input-files-example
+description: Suite-level input + input_files shorthands
+
+execution:
+  target: default
+
+# Suite-level input as a plain string — prepended as a user message to every test.
+# No role/content wrapping needed at the top level, just like per-test input.
+input: "Use the attached context to answer travel questions."
+
+# Suite-level input_files: file paths prepended as type:file content blocks
+# in each test's user message. Skipped when execution.skip_defaults: true.
+input_files:
+  - ./system-prompt.md
+
+tests:
+  - id: japan-spring
+    criteria: |-
+      Recommends visiting Japan in spring (March-April) for cherry blossoms.
+      Mentions visa requirements and includes a safety tip.
+    input: When is the best time to visit Japan?
+
+  - id: iceland-northern-lights
+    criteria: |-
+      Recommends winter months (September-March) for Northern Lights.
+      Mentions practical clothing advice and includes a safety tip.
+    input: I want to see the Northern Lights in Iceland. When should I go?
+
+  - id: skip-suite-defaults
+    criteria: Provides a direct answer about currency exchange
+    input: What currency does Thailand use?
+    execution:
+      skip_defaults: true

@@ -148,18 +148,25 @@ export function expandInputFilesShorthand(
 }
 
 /**
- * Resolve input from raw eval case data.
+ * Resolve input from raw eval case data, optionally merging suite-level input_files.
  *
- * When `input_files` is present alongside a string `input`, the shorthand is expanded
- * into a user message with type:file content blocks followed by a type:text block.
+ * When `input_files` is present (per-test or suite-level) alongside a string `input`,
+ * the shorthand is expanded into a user message with type:file content blocks followed
+ * by a type:text block. Per-test `input_files` takes precedence over suite-level.
  * Otherwise, `input` is expanded via the standard shorthand rules.
  *
  * @param raw Raw eval case object from YAML/JSONL
+ * @param suiteInputFiles Optional suite-level input_files (used when test has no per-test input_files)
  * @returns Resolved input messages array or undefined if none found
  */
-export function resolveInputMessages(raw: JsonObject): TestMessage[] | undefined {
-  if (raw.input_files !== undefined) {
-    return expandInputFilesShorthand(raw.input_files, raw.input);
+export function resolveInputMessages(
+  raw: JsonObject,
+  suiteInputFiles?: JsonValue,
+): TestMessage[] | undefined {
+  // Per-test input_files takes precedence over suite-level
+  const effectiveInputFiles = raw.input_files ?? suiteInputFiles;
+  if (effectiveInputFiles !== undefined) {
+    return expandInputFilesShorthand(effectiveInputFiles, raw.input);
   }
   return expandInputShorthand(raw.input);
 }
