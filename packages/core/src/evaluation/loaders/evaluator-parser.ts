@@ -134,8 +134,7 @@ async function parseEvaluatorList(
     const typeValue = typeof rawType === 'string' ? normalizeEvaluatorType(rawType) : rawType;
 
     // Unknown types are treated as custom assertion types (resolved via registry discovery)
-    const isCustomType =
-      typeof typeValue === 'string' && !isEvaluatorKind(typeValue);
+    const isCustomType = typeof typeValue === 'string' && !isEvaluatorKind(typeValue);
     if (typeof typeValue !== 'string') {
       logWarning(`Skipping evaluator with invalid type in '${evalId}'`);
       continue;
@@ -852,7 +851,6 @@ async function parseEvaluatorList(
       });
       continue;
     }
-
 
     if (typeValue === 'skill-trigger') {
       const skillName = asString(rawEvaluator.skill);

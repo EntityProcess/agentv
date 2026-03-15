@@ -346,7 +346,6 @@ export async function runEvaluation(
       if (cliJudgeTarget === 'agentv') {
         if (!cliModel) {
           throw new Error('--judge-target "agentv" requires --model (e.g., "openai:gpt-5-mini")');
-
         }
         const { AgentvProvider } = await import('./providers/agentv-provider.js');
         return new AgentvProvider('agentv', { model: cliModel, temperature: 0 });
