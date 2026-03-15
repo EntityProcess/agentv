@@ -86,6 +86,18 @@ interface RawSuite {
 // Assertion → natural language conversion
 // ---------------------------------------------------------------------------
 
+/**
+ * Build an NL instruction string for a code judge that tells the grader agent
+ * how to execute it via `agentv eval run-judge`.
+ */
+function codeJudgeInstruction(judgeName: string): string {
+  return (
+    `Run \`agentv eval run-judge ${judgeName} --output <agent_output> --input <original_prompt>\` and check the result. ` +
+    `The command accepts --output (the agent's full response text) and --input (the original user prompt). ` +
+    `It returns JSON on stdout: {"score": 0-1, "reasoning": "..."}. A score of 1.0 means pass; 0 means fail.`
+  );
+}
+
 function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
   const type = entry.type;
 
@@ -170,10 +182,9 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
 
     case 'code-judge':
     case 'code_judge': {
-      const namePart =
-        entry.name ?? (Array.isArray(entry.command) ? entry.command.join(' ') : entry.command);
-      const descPart = typeof entry.description === 'string' ? `: ${entry.description}` : '';
-      return namePart ? `${namePart}${descPart}` : 'Code judge assertion';
+      const judgeName =
+        entry.name ?? (typeof entry.type === 'string' ? entry.type : 'code-judge');
+      return codeJudgeInstruction(judgeName);
     }
 
     case 'field-accuracy':
@@ -207,11 +218,16 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
     case 'execution_metrics':
       return 'Execution within metric bounds';
 
-    default:
-      // Unknown type: try to produce something readable
+    default: {
+      // Unknown type with a command → treat as code judge
+      if (entry.command !== undefined && type) {
+        return codeJudgeInstruction(type);
+      }
+      // Fallback: try to produce something readable
       if (typeof entry.criteria === 'string') return entry.criteria;
       if (typeof entry.prompt === 'string') return entry.prompt;
       return type ? `${type} assertion` : null;
+    }
   }
 }
 
