@@ -64,4 +64,27 @@ describe('validateTargetsFile', () => {
       ),
     ).toBe(true);
   });
+
+  it('accepts openrouter as a known provider', async () => {
+    const filePath = path.join(tempDir, 'openrouter-target.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: openrouter-target
+    provider: openrouter
+    api_key: \${{ OPENROUTER_API_KEY }}
+    model: openai/gpt-5-mini
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(
+      result.errors.some(
+        (error) =>
+          error.location === 'targets[0].provider' &&
+          error.message.includes("Unknown provider 'openrouter'"),
+      ),
+    ).toBe(false);
+  });
 });

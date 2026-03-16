@@ -24,7 +24,7 @@
     },
     "apps/cli": {
       "name": "agentv",
-      "version": "3.2.2",
+      "version": "3.2.3",
       "bin": {
         "agentv": "./dist/cli.js",
       },
@@ -62,7 +62,7 @@
     },
     "packages/core": {
       "name": "@agentv/core",
-      "version": "3.2.2",
+      "version": "3.2.3",
       "dependencies": {
         "@agentclientprotocol/sdk": "^0.14.1",
         "@agentv/eval": "workspace:*",
@@ -75,6 +75,7 @@
         "@mariozechner/pi-agent-core": "^0.54.2",
         "@mariozechner/pi-ai": "^0.54.2",
         "@openai/codex-sdk": "^0.104.0",
+        "@openrouter/ai-sdk-provider": "^2.3.1",
         "ai": "^5.0.106",
         "fast-glob": "^3.3.3",
         "json5": "^2.2.3",
@@ -97,7 +98,7 @@
     },
     "packages/eval": {
       "name": "@agentv/eval",
-      "version": "3.2.2",
+      "version": "3.2.3",
       "dependencies": {
         "zod": "^3.23.8",
       },
@@ -475,6 +476,8 @@
     "@openai/codex-win32-arm64": ["@openai/codex@0.104.0-win32-arm64", "", { "os": "win32", "cpu": "arm64" }, "sha512-2ypuM6yWcjAtq7DmEgFBsmtw7rWLcoy6Cxaq+Hn8dZfEdijASyc59AzyWhWLKYLuOxcprFn/oQitElrpPD9JOA=="],
 
     "@openai/codex-win32-x64": ["@openai/codex@0.104.0-win32-x64", "", { "os": "win32", "cpu": "x64" }, "sha512-awyNLtfbTbj+2JzgsAIm+KFrxeAmxe/Fuqw/ZwBj8ljtO7SQWTT3kxDbf7iuA7E7IErGlQw/plgFgq/LJdsacg=="],
+
+    "@openrouter/ai-sdk-provider": ["@openrouter/ai-sdk-provider@2.3.1", "", { "peerDependencies": { "ai": "^6.0.0", "zod": "^3.25.0 || ^4.0.0" } }, "sha512-RkOUMSetrbS1i8kW1wIkfuq0RpXtiJOiFCx/AfEjGNZA8xOjdAosqPiImo2805Q6Px/9k1LUxu8NUmlSnrWrqg=="],
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.0", "", {}, "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="],
 

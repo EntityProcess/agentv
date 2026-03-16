@@ -10,11 +10,16 @@ targets:
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     # version: ${{ AZURE_OPENAI_API_VERSION }}  # Optional: uncomment to override default (2024-12-01-preview)
 
-  - name: llm-gateway
+  - name: openai
     provider: openai
-    endpoint: ${{ LLM_GATEWAY_OPENAI_ENDPOINT }}
-    api_key: ${{ LLM_GATEWAY_API_KEY }}
-    model: ${{ LLM_GATEWAY_MODEL }}
+    endpoint: ${{ OPENAI_ENDPOINT }}
+    api_key: ${{ OPENAI_API_KEY }}
+    model: ${{ OPENAI_MODEL }}
+
+  - name: openrouter
+    provider: openrouter
+    api_key: ${{ OPENROUTER_API_KEY }}
+    model: ${{ OPENROUTER_MODEL }}
 
   - name: codex
     provider: codex

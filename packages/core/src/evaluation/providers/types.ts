@@ -12,6 +12,7 @@ export type ChatPrompt = readonly ChatMessage[];
 
 export type ProviderKind =
   | 'openai'
+  | 'openrouter'
   | 'azure'
   | 'anthropic'
   | 'gemini'
@@ -51,6 +52,7 @@ export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
  */
 export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'openai',
+  'openrouter',
   'azure',
   'anthropic',
   'gemini',

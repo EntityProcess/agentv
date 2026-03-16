@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import path from 'node:path';
 
 import {
   isAgentSkillsFormat,
@@ -152,7 +153,9 @@ describe('parseAgentSkillsEvals', () => {
 
   it('resolves file_paths relative to baseDir when provided', () => {
     const tests = parseAgentSkillsEvals(FIXTURE, 'evals.json', '/project/skills/csv-analyzer');
-    expect(tests[0].file_paths).toEqual(['/project/skills/csv-analyzer/evals/files/sales.csv']);
+    expect(tests[0].file_paths).toEqual([
+      path.resolve('/project/skills/csv-analyzer', 'evals/files/sales.csv'),
+    ]);
   });
 
   it('stores agent_skills_base_dir in metadata when baseDir provided', () => {

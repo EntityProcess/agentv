@@ -27,8 +27,13 @@ targets:
     model: gemini-3-flash-preview
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
 
-  - name: llm-gateway
+  - name: openai
     provider: openai
-    endpoint: ${{ LLM_GATEWAY_OPENAI_ENDPOINT }}
-    api_key: ${{ LLM_GATEWAY_API_KEY }}
-    model: ${{ LLM_GATEWAY_MODEL }}
+    endpoint: ${{ OPENAI_ENDPOINT }}
+    api_key: ${{ OPENAI_API_KEY }}
+    model: ${{ OPENAI_MODEL }}
+
+  - name: openrouter
+    provider: openrouter
+    api_key: ${{ OPENROUTER_API_KEY }}
+    model: ${{ OPENROUTER_MODEL }}
