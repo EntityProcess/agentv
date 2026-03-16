@@ -394,7 +394,27 @@ describe('validateEvalFile', () => {
       expect(warnings.some((e) => e.message.includes('assertions'))).toBe(true);
     });
 
-    it('warns when assert item is not an object', async () => {
+    it('accepts string shorthand in assertions array', async () => {
+      const filePath = path.join(tempDir, 'assert-string-shorthand.yaml');
+      await writeFile(
+        filePath,
+        `tests:
+  - id: test-1
+    input: "Explain quicksort"
+    assertions:
+      - Mentions divide-and-conquer approach
+      - Explains partition step
+      - States time complexity correctly
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('warns on non-string non-object assertion items', async () => {
       const filePath = path.join(tempDir, 'assert-item-not-object.yaml');
       await writeFile(
         filePath,
@@ -402,14 +422,14 @@ describe('validateEvalFile', () => {
   - id: test-1
     input: "What is 2+2?"
     assertions:
-      - "contains"
+      - 42
 `,
       );
 
       const result = await validateEvalFile(filePath);
 
       const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes('object'))).toBe(true);
+      expect(warnings.some((e) => e.message.includes('string or an object'))).toBe(true);
     });
 
     it('passes valid assert array', async () => {
