@@ -2,6 +2,7 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { type AzureOpenAIProviderSettings, createAzure } from '@ai-sdk/azure';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { type LanguageModel, type ModelMessage, generateText } from 'ai';
 
 import type { JsonObject } from '../types.js';
@@ -10,6 +11,7 @@ import type {
   AzureResolvedConfig,
   GeminiResolvedConfig,
   OpenAIResolvedConfig,
+  OpenRouterResolvedConfig,
   RetryConfig,
 } from './targets.js';
 import type { ChatPrompt, Provider, ProviderRequest, ProviderResponse } from './types.js';
@@ -91,6 +93,49 @@ export class AzureProvider implements Provider {
 
     const azure = createAzure(buildAzureOptions(config));
     this.model = azure(config.deploymentName);
+  }
+
+  async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+    return invokeModel({
+      model: this.model,
+      request,
+      defaults: this.defaults,
+      retryConfig: this.retryConfig,
+    });
+  }
+
+  asLanguageModel(): LanguageModel {
+    return this.model;
+  }
+}
+
+export class OpenRouterProvider implements Provider {
+  readonly id: string;
+  readonly kind = 'openrouter' as const;
+  readonly targetName: string;
+
+  private readonly model: LanguageModel;
+  private readonly defaults: ProviderDefaults;
+  private readonly retryConfig?: RetryConfig;
+
+  constructor(
+    targetName: string,
+    private readonly config: OpenRouterResolvedConfig,
+  ) {
+    this.id = `openrouter:${targetName}`;
+    this.targetName = targetName;
+    this.defaults = {
+      temperature: config.temperature,
+      maxOutputTokens: config.maxOutputTokens,
+    };
+    this.retryConfig = config.retry;
+
+    const openrouter = createOpenRouter({
+      apiKey: config.apiKey,
+    });
+    // Cast: OpenRouter may return LanguageModelV3 while the rest of the
+    // codebase uses LanguageModelV2. The runtime API is compatible.
+    this.model = openrouter(config.model) as unknown as LanguageModel;
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {

@@ -1,5 +1,11 @@
 import { AgentvProvider } from './agentv-provider.js';
-import { AnthropicProvider, AzureProvider, GeminiProvider, OpenAIProvider } from './ai-sdk.js';
+import {
+  AnthropicProvider,
+  AzureProvider,
+  GeminiProvider,
+  OpenAIProvider,
+  OpenRouterProvider,
+} from './ai-sdk.js';
 import { ClaudeCliProvider } from './claude-cli.js';
 import { ClaudeSdkProvider } from './claude-sdk.js';
 import { ClaudeProvider } from './claude.js';
@@ -41,6 +47,7 @@ export type {
   GeminiResolvedConfig,
   MockResolvedConfig,
   OpenAIResolvedConfig,
+  OpenRouterResolvedConfig,
   PiAgentSdkResolvedConfig,
   PiCodingAgentResolvedConfig,
   ResolvedTarget,
@@ -84,6 +91,7 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
 
   registry
     .register('openai', (t) => new OpenAIProvider(t.name, t.config as never))
+    .register('openrouter', (t) => new OpenRouterProvider(t.name, t.config as never))
     .register('azure', (t) => new AzureProvider(t.name, t.config as never))
     .register('anthropic', (t) => new AnthropicProvider(t.name, t.config as never))
     .register('gemini', (t) => new GeminiProvider(t.name, t.config as never))

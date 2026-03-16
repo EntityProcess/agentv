@@ -21,6 +21,7 @@ const generateTextMock = mock(async () => ({
 
 const createAzureMock = mock((options: unknown) => () => ({ provider: 'azure', options }));
 const createOpenAIMock = mock((options: unknown) => () => ({ provider: 'openai', options }));
+const createOpenRouterMock = mock((options: unknown) => () => ({ provider: 'openrouter', options }));
 const createAnthropicMock = mock(() => () => ({ provider: 'anthropic' }));
 const createGeminiMock = mock(() => () => ({ provider: 'gemini' }));
 
@@ -34,6 +35,10 @@ mock.module('@ai-sdk/azure', () => ({
 
 mock.module('@ai-sdk/openai', () => ({
   createOpenAI: (options: unknown) => createOpenAIMock(options),
+}));
+
+mock.module('@openrouter/ai-sdk-provider', () => ({
+  createOpenRouter: (options: unknown) => createOpenRouterMock(options),
 }));
 
 mock.module('@ai-sdk/anthropic', () => ({
@@ -407,6 +412,33 @@ describe('resolveTargetDefinition', () => {
     });
   });
 
+  it('resolves openrouter settings from environment', () => {
+    const env = {
+      OPENROUTER_API_KEY: 'openrouter-secret',
+      OPENROUTER_MODEL: 'openai/gpt-5-mini',
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: 'openrouter-target',
+        provider: 'openrouter',
+        api_key: '${{ OPENROUTER_API_KEY }}',
+        model: '${{ OPENROUTER_MODEL }}',
+      },
+      env,
+    );
+
+    expect(target.kind).toBe('openrouter');
+    if (target.kind !== 'openrouter') {
+      throw new Error('expected openrouter target');
+    }
+
+    expect(target.config).toMatchObject({
+      apiKey: 'openrouter-secret',
+      model: 'openai/gpt-5-mini',
+    });
+  });
+
   it('throws when google api key is missing', () => {
     expect(() =>
       resolveTargetDefinition(
@@ -652,6 +684,7 @@ describe('createProvider', () => {
     generateTextMock.mockClear();
     createAzureMock.mockClear();
     createOpenAIMock.mockClear();
+    createOpenRouterMock.mockClear();
     createAnthropicMock.mockClear();
     createGeminiMock.mockClear();
   });
@@ -730,6 +763,32 @@ describe('createProvider', () => {
     const response = await provider.invoke({ question: 'Hello from OpenAI' });
 
     expect(createOpenAIMock).toHaveBeenCalledTimes(1);
+    expect(generateTextMock).toHaveBeenCalledTimes(1);
+    expect(extractLastAssistantContent(response.output)).toBe('ok');
+  });
+
+  it('creates an openrouter provider that calls the Vercel AI SDK', async () => {
+    const env = {
+      OPENROUTER_API_KEY: 'openrouter-key',
+      OPENROUTER_MODEL: 'openai/gpt-5-mini',
+    } satisfies Record<string, string>;
+
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'openrouter-target',
+        provider: 'openrouter',
+        api_key: '${{ OPENROUTER_API_KEY }}',
+        model: '${{ OPENROUTER_MODEL }}',
+      },
+      env,
+    );
+
+    const provider = createProvider(resolved);
+    expect(provider.kind).toBe('openrouter');
+
+    const response = await provider.invoke({ question: 'Hello from OpenRouter' });
+
+    expect(createOpenRouterMock).toHaveBeenCalledTimes(1);
     expect(generateTextMock).toHaveBeenCalledTimes(1);
     expect(extractLastAssistantContent(response.output)).toBe('ok');
   });

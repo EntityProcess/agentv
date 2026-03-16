@@ -416,6 +416,17 @@ export interface OpenAIResolvedConfig {
 }
 
 /**
+ * OpenRouter settings used by the Vercel AI SDK provider.
+ */
+export interface OpenRouterResolvedConfig {
+  readonly apiKey: string;
+  readonly model: string;
+  readonly temperature?: number;
+  readonly maxOutputTokens?: number;
+  readonly retry?: RetryConfig;
+}
+
+/**
  * Anthropic Claude settings used by the Vercel AI SDK.
  */
 export interface AnthropicResolvedConfig {
@@ -549,6 +560,14 @@ export type ResolvedTarget =
       readonly workers?: number;
       readonly providerBatching?: boolean;
       readonly config: OpenAIResolvedConfig;
+    }
+  | {
+      readonly kind: 'openrouter';
+      readonly name: string;
+      readonly graderTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: OpenRouterResolvedConfig;
     }
   | {
       readonly kind: 'azure';
@@ -767,6 +786,15 @@ export function resolveTargetDefinition(
         workers: parsed.workers,
         providerBatching,
         config: resolveOpenAIConfig(parsed, env),
+      };
+    case 'openrouter':
+      return {
+        kind: 'openrouter',
+        name: parsed.name,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolveOpenRouterConfig(parsed, env),
       };
     case 'azure':
     case 'azure-openai':
@@ -1005,6 +1033,25 @@ function resolveOpenAIConfig(
     baseURL,
     apiKey,
     model,
+    temperature: resolveOptionalNumber(temperatureSource, `${target.name} temperature`),
+    maxOutputTokens: resolveOptionalNumber(maxTokensSource, `${target.name} max output tokens`),
+    retry,
+  };
+}
+
+function resolveOpenRouterConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): OpenRouterResolvedConfig {
+  const apiKeySource = target.api_key ?? target.apiKey;
+  const modelSource = target.model ?? target.deployment ?? target.variant;
+  const temperatureSource = target.temperature;
+  const maxTokensSource = target.max_output_tokens ?? target.maxTokens;
+  const retry = resolveRetryConfig(target);
+
+  return {
+    apiKey: resolveString(apiKeySource, env, `${target.name} OpenRouter api key`),
+    model: resolveString(modelSource, env, `${target.name} OpenRouter model`),
     temperature: resolveOptionalNumber(temperatureSource, `${target.name} temperature`),
     maxOutputTokens: resolveOptionalNumber(maxTokensSource, `${target.name} max output tokens`),
     retry,

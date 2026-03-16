@@ -64,6 +64,19 @@ const OPENAI_SETTINGS = new Set([
   'maxTokens',
 ]);
 
+const OPENROUTER_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  ...RETRY_SETTINGS,
+  'api_key',
+  'apiKey',
+  'model',
+  'deployment',
+  'variant',
+  'temperature',
+  'max_output_tokens',
+  'maxTokens',
+]);
+
 const ANTHROPIC_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   ...RETRY_SETTINGS,
@@ -215,6 +228,8 @@ function getKnownSettings(provider: string): Set<string> | null {
   switch (normalizedProvider) {
     case 'openai':
       return OPENAI_SETTINGS;
+    case 'openrouter':
+      return OPENROUTER_SETTINGS;
     case 'azure':
     case 'azure-openai':
       return AZURE_SETTINGS;
