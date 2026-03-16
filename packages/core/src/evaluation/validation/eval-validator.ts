@@ -469,19 +469,36 @@ function validateAssertArray(
     return;
   }
 
+  // String items in the assertions array are valid shorthand — the parser collects them
+  // into a single rubrics/llm-grader evaluator. Filter them out before object validation.
+  const objectItems: { item: JsonObject; index: number }[] = [];
   for (let i = 0; i < assertField.length; i++) {
     const item = assertField[i];
-    const location = `${parentLocation}.assertions[${i}]`;
-
+    if (typeof item === 'string') {
+      if (item.trim().length === 0) {
+        errors.push({
+          severity: 'warning',
+          filePath,
+          location: `${parentLocation}.assertions[${i}]`,
+          message: 'Empty string assertion item will be ignored.',
+        });
+      }
+      continue; // Valid shorthand — skip object validation
+    }
     if (!isObject(item)) {
       errors.push({
         severity: 'warning',
         filePath,
-        location,
-        message: 'Assertion item must be an object with a type field.',
+        location: `${parentLocation}.assertions[${i}]`,
+        message: 'Assertion item must be a string or an object with a type field.',
       });
       continue;
     }
+    objectItems.push({ item, index: i });
+  }
+
+  for (const { item, index } of objectItems) {
+    const location = `${parentLocation}.assertions[${index}]`;
 
     // Validate type field
     const rawTypeValue = item.type;
