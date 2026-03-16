@@ -82,7 +82,7 @@ async function main() {
   for (const pkg of packages) {
     const spec = `${pkg.name}@${targetVersion}`;
     console.log(`• ${spec}`);
-    await $`npm dist-tag add ${spec} ${tag}`.quiet();
+    await $`npm dist-tag add ${spec} ${tag}`;
   }
 
   console.log('\n✅ Updated npm dist-tags.');
