@@ -10,6 +10,12 @@ targets:
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     # version: ${{ AZURE_OPENAI_API_VERSION }}  # Optional: uncomment to override default (2024-12-01-preview)
 
+  - name: llm-gateway
+    provider: openai
+    endpoint: ${{ LLM_GATEWAY_OPENAI_ENDPOINT }}
+    api_key: ${{ LLM_GATEWAY_API_KEY }}
+    model: ${{ LLM_GATEWAY_MODEL }}
+
   - name: codex
     provider: codex
     grader_target: azure-llm

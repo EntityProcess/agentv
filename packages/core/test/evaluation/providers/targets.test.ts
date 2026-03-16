@@ -20,6 +20,7 @@ const generateTextMock = mock(async () => ({
 }));
 
 const createAzureMock = mock((options: unknown) => () => ({ provider: 'azure', options }));
+const createOpenAIMock = mock((options: unknown) => () => ({ provider: 'openai', options }));
 const createAnthropicMock = mock(() => () => ({ provider: 'anthropic' }));
 const createGeminiMock = mock(() => () => ({ provider: 'gemini' }));
 
@@ -29,6 +30,10 @@ mock.module('ai', () => ({
 
 mock.module('@ai-sdk/azure', () => ({
   createAzure: (options: unknown) => createAzureMock(options),
+}));
+
+mock.module('@ai-sdk/openai', () => ({
+  createOpenAI: (options: unknown) => createOpenAIMock(options),
 }));
 
 mock.module('@ai-sdk/anthropic', () => ({
@@ -372,6 +377,36 @@ describe('resolveTargetDefinition', () => {
     });
   });
 
+  it('resolves openai settings from environment', () => {
+    const env = {
+      OPENAI_ENDPOINT: 'https://llm-gateway.example.com/v1',
+      OPENAI_API_KEY: 'openai-secret',
+      OPENAI_MODEL: 'gpt-5.4',
+    } satisfies Record<string, string>;
+
+    const target = resolveTargetDefinition(
+      {
+        name: 'openai-target',
+        provider: 'openai',
+        endpoint: '${{ OPENAI_ENDPOINT }}',
+        api_key: '${{ OPENAI_API_KEY }}',
+        model: '${{ OPENAI_MODEL }}',
+      },
+      env,
+    );
+
+    expect(target.kind).toBe('openai');
+    if (target.kind !== 'openai') {
+      throw new Error('expected openai target');
+    }
+
+    expect(target.config).toMatchObject({
+      baseURL: 'https://llm-gateway.example.com/v1',
+      apiKey: 'openai-secret',
+      model: 'gpt-5.4',
+    });
+  });
+
   it('throws when google api key is missing', () => {
     expect(() =>
       resolveTargetDefinition(
@@ -616,6 +651,7 @@ describe('createProvider', () => {
   beforeEach(() => {
     generateTextMock.mockClear();
     createAzureMock.mockClear();
+    createOpenAIMock.mockClear();
     createAnthropicMock.mockClear();
     createGeminiMock.mockClear();
   });
@@ -667,6 +703,34 @@ describe('createProvider', () => {
 
     expect(createGeminiMock).toHaveBeenCalled();
     expect(generateTextMock).toHaveBeenCalled();
+    expect(extractLastAssistantContent(response.output)).toBe('ok');
+  });
+
+  it('creates an openai provider that calls the Vercel AI SDK', async () => {
+    const env = {
+      OPENAI_ENDPOINT: 'https://llm-gateway.example.com/v1',
+      OPENAI_API_KEY: 'openai-key',
+      OPENAI_MODEL: 'gpt-5.4',
+    } satisfies Record<string, string>;
+
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'openai-target',
+        provider: 'openai',
+        endpoint: '${{ OPENAI_ENDPOINT }}',
+        api_key: '${{ OPENAI_API_KEY }}',
+        model: '${{ OPENAI_MODEL }}',
+      },
+      env,
+    );
+
+    const provider = createProvider(resolved);
+    expect(provider.kind).toBe('openai');
+
+    const response = await provider.invoke({ question: 'Hello from OpenAI' });
+
+    expect(createOpenAIMock).toHaveBeenCalledTimes(1);
+    expect(generateTextMock).toHaveBeenCalledTimes(1);
     expect(extractLastAssistantContent(response.output)).toBe('ok');
   });
 });

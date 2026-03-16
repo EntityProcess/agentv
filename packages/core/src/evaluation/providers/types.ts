@@ -11,6 +11,7 @@ export interface ChatMessage {
 export type ChatPrompt = readonly ChatMessage[];
 
 export type ProviderKind =
+  | 'openai'
   | 'azure'
   | 'anthropic'
   | 'gemini'
@@ -49,6 +50,7 @@ export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
  * This is the source of truth for provider validation.
  */
 export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
+  'openai',
   'azure',
   'anthropic',
   'gemini',
@@ -81,7 +83,6 @@ export const PROVIDER_ALIASES: readonly string[] = [
 
   'pi', // alias for "pi-coding-agent"
   'claude-code', // alias for "claude" (legacy)
-  'openai', // legacy/future support
   'bedrock', // legacy/future support
   'vertex', // legacy/future support
 ] as const;
@@ -275,6 +276,8 @@ export interface TargetDefinition {
   readonly providerBatching?: boolean | undefined;
   // Azure fields
   readonly endpoint?: string | unknown | undefined;
+  readonly base_url?: string | unknown | undefined;
+  readonly baseUrl?: string | unknown | undefined;
   readonly resource?: string | unknown | undefined;
   readonly resourceName?: string | unknown | undefined;
   readonly api_key?: string | unknown | undefined;

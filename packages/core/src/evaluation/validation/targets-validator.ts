@@ -48,6 +48,22 @@ const AZURE_SETTINGS = new Set([
   'maxTokens',
 ]);
 
+const OPENAI_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  ...RETRY_SETTINGS,
+  'endpoint',
+  'base_url',
+  'baseUrl',
+  'api_key',
+  'apiKey',
+  'model',
+  'deployment',
+  'variant',
+  'temperature',
+  'max_output_tokens',
+  'maxTokens',
+]);
+
 const ANTHROPIC_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   ...RETRY_SETTINGS,
@@ -197,6 +213,8 @@ const CLAUDE_SETTINGS = new Set([
 function getKnownSettings(provider: string): Set<string> | null {
   const normalizedProvider = provider.toLowerCase();
   switch (normalizedProvider) {
+    case 'openai':
+      return OPENAI_SETTINGS;
     case 'azure':
     case 'azure-openai':
       return AZURE_SETTINGS;

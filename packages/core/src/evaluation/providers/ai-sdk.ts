@@ -1,6 +1,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { type AzureOpenAIProviderSettings, createAzure } from '@ai-sdk/azure';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
 import { type LanguageModel, type ModelMessage, generateText } from 'ai';
 
 import type { JsonObject } from '../types.js';
@@ -8,6 +9,7 @@ import type {
   AnthropicResolvedConfig,
   AzureResolvedConfig,
   GeminiResolvedConfig,
+  OpenAIResolvedConfig,
   RetryConfig,
 } from './targets.js';
 import type { ChatPrompt, Provider, ProviderRequest, ProviderResponse } from './types.js';
@@ -22,6 +24,48 @@ interface ProviderDefaults {
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
   readonly thinkingBudget?: number;
+}
+
+export class OpenAIProvider implements Provider {
+  readonly id: string;
+  readonly kind = 'openai' as const;
+  readonly targetName: string;
+
+  private readonly model: LanguageModel;
+  private readonly defaults: ProviderDefaults;
+  private readonly retryConfig?: RetryConfig;
+
+  constructor(
+    targetName: string,
+    private readonly config: OpenAIResolvedConfig,
+  ) {
+    this.id = `openai:${targetName}`;
+    this.targetName = targetName;
+    this.defaults = {
+      temperature: config.temperature,
+      maxOutputTokens: config.maxOutputTokens,
+    };
+    this.retryConfig = config.retry;
+
+    const openai = createOpenAI({
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+    });
+    this.model = openai(config.model);
+  }
+
+  async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+    return invokeModel({
+      model: this.model,
+      request,
+      defaults: this.defaults,
+      retryConfig: this.retryConfig,
+    });
+  }
+
+  asLanguageModel(): LanguageModel {
+    return this.model;
+  }
 }
 
 export class AzureProvider implements Provider {
