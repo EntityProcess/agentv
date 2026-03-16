@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'bun:test';
+import { randomUUID } from 'node:crypto';
 
 import { runEvalCase } from '../../src/evaluation/orchestrator.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
@@ -242,7 +242,7 @@ describe('local repo path validation (e2e through runEvalCase)', () => {
             path: './MyRepo',
             source: {
               type: 'local' as const,
-              path: '/tmp/agentv-nonexistent-path-' + randomUUID(),
+              path: `/tmp/agentv-nonexistent-path-${randomUUID()}`,
             },
           },
         ],
