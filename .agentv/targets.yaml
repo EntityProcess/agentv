@@ -8,11 +8,11 @@ targets:
     model: z-ai/glm-4.7
     api_key: ${{ OPENROUTER_API_KEY }}
     system_prompt: "Answer directly based on the information provided."
-    judge_target: judge
+    grader_target: gemini-flash
 
   - name: codex
     provider: codex
-    judge_target: gemini-llm
+    grader_target: gemini-llm
     cwd: ${{ CODEX_WORKSPACE_DIR }}            # Where scratch workspaces are created
     log_dir: ${{ CODEX_LOG_DIR }}              # Optional: where Codex CLI stream logs are stored (defaults to ./.agentv/logs/codex)
     log_format: json                    # Optional: 'summary' (default) or 'json' for raw event logs
@@ -22,7 +22,13 @@ targets:
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
     model: ${{ GEMINI_MODEL_NAME }}
 
-  - name: judge
+  - name: gemini-flash
     provider: gemini
     model: gemini-3-flash-preview
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
+
+  - name: llm-gateway
+    provider: openai
+    endpoint: ${{ LLM_GATEWAY_OPENAI_ENDPOINT }}
+    api_key: ${{ LLM_GATEWAY_API_KEY }}
+    model: ${{ LLM_GATEWAY_MODEL }}

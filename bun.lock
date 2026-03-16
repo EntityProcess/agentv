@@ -24,11 +24,12 @@
     },
     "apps/cli": {
       "name": "agentv",
-      "version": "2.19.0",
+      "version": "3.2.2",
       "bin": {
         "agentv": "./dist/cli.js",
       },
       "dependencies": {
+        "@ai-sdk/openai": "^2.0.0",
         "@anthropic-ai/claude-agent-sdk": "^0.2.49",
         "@github/copilot-sdk": "^0.1.25",
         "@inquirer/prompts": "^8.2.1",
@@ -61,7 +62,7 @@
     },
     "packages/core": {
       "name": "@agentv/core",
-      "version": "2.19.0",
+      "version": "3.2.2",
       "dependencies": {
         "@agentclientprotocol/sdk": "^0.14.1",
         "@agentv/eval": "workspace:*",
@@ -96,7 +97,7 @@
     },
     "packages/eval": {
       "name": "@agentv/eval",
-      "version": "2.19.0",
+      "version": "3.2.2",
       "dependencies": {
         "zod": "^3.23.8",
       },

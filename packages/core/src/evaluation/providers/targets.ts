@@ -404,6 +404,18 @@ export interface AzureResolvedConfig {
 }
 
 /**
+ * OpenAI-compatible settings used by the Vercel AI SDK.
+ */
+export interface OpenAIResolvedConfig {
+  readonly baseURL: string;
+  readonly apiKey: string;
+  readonly model: string;
+  readonly temperature?: number;
+  readonly maxOutputTokens?: number;
+  readonly retry?: RetryConfig;
+}
+
+/**
  * Anthropic Claude settings used by the Vercel AI SDK.
  */
 export interface AnthropicResolvedConfig {
@@ -530,6 +542,14 @@ export type CliHealthcheck = Readonly<CliNormalizedHealthcheck>;
 // which itself is inferred from CliTargetConfigSchema for type safety and single source of truth.
 
 export type ResolvedTarget =
+  | {
+      readonly kind: 'openai';
+      readonly name: string;
+      readonly graderTarget?: string;
+      readonly workers?: number;
+      readonly providerBatching?: boolean;
+      readonly config: OpenAIResolvedConfig;
+    }
   | {
       readonly kind: 'azure';
       readonly name: string;
@@ -664,6 +684,7 @@ const BASE_TARGET_SCHEMA = z
   .passthrough();
 
 const DEFAULT_AZURE_API_VERSION = '2024-12-01-preview';
+const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
 
 function normalizeAzureApiVersion(value: string | undefined): string {
   if (!value) {
@@ -738,6 +759,15 @@ export function resolveTargetDefinition(
   );
 
   switch (provider) {
+    case 'openai':
+      return {
+        kind: 'openai',
+        name: parsed.name,
+        graderTarget: parsed.grader_target ?? parsed.judge_target,
+        workers: parsed.workers,
+        providerBatching,
+        config: resolveOpenAIConfig(parsed, env),
+      };
     case 'azure':
     case 'azure-openai':
       return {
@@ -900,6 +930,19 @@ export function resolveTargetDefinition(
   }
 }
 
+function normalizeOpenAIBaseUrl(value: string | undefined): string {
+  if (!value) {
+    return DEFAULT_OPENAI_BASE_URL;
+  }
+
+  const trimmed = value.trim().replace(/\/+$/, '');
+  if (trimmed.length === 0) {
+    return DEFAULT_OPENAI_BASE_URL;
+  }
+
+  return trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`;
+}
+
 function resolveAzureConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
@@ -934,6 +977,36 @@ function resolveAzureConfig(
     version,
     temperature,
     maxOutputTokens,
+    retry,
+  };
+}
+
+function resolveOpenAIConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): OpenAIResolvedConfig {
+  const endpointSource = target.endpoint ?? target.base_url ?? target.baseUrl;
+  const apiKeySource = target.api_key ?? target.apiKey;
+  const modelSource = target.model ?? target.deployment ?? target.variant;
+  const temperatureSource = target.temperature;
+  const maxTokensSource = target.max_output_tokens ?? target.maxTokens;
+
+  const baseURL = normalizeOpenAIBaseUrl(
+    resolveOptionalString(endpointSource, env, `${target.name} endpoint`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }),
+  );
+  const apiKey = resolveString(apiKeySource, env, `${target.name} api key`);
+  const model = resolveString(modelSource, env, `${target.name} model`);
+  const retry = resolveRetryConfig(target);
+
+  return {
+    baseURL,
+    apiKey,
+    model,
+    temperature: resolveOptionalNumber(temperatureSource, `${target.name} temperature`),
+    maxOutputTokens: resolveOptionalNumber(maxTokensSource, `${target.name} max output tokens`),
     retry,
   };
 }
