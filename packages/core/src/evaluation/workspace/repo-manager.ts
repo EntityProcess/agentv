@@ -1,8 +1,18 @@
 import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
 import type { RepoConfig, RepoSource } from '../types.js';
+
+/**
+ * Validation error for a local repo source path that doesn't exist or is unresolved.
+ */
+export interface LocalPathValidationError {
+  readonly repoPath: string;
+  readonly resolvedSourcePath: string;
+  readonly reason: 'not_found' | 'empty_path';
+}
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
@@ -43,6 +53,46 @@ export class RepoManager {
 
   constructor(verbose = false) {
     this.verbose = verbose;
+  }
+
+  /**
+   * Validate that all local repo source paths exist before attempting materialization.
+   * Returns an array of validation errors (empty if all paths are valid).
+   */
+  static validateLocalPaths(repos: readonly RepoConfig[]): readonly LocalPathValidationError[] {
+    const errors: LocalPathValidationError[] = [];
+    for (const repo of repos) {
+      if (repo.source.type !== 'local') continue;
+
+      const sourcePath = repo.source.path;
+      if (!sourcePath || sourcePath.trim() === '') {
+        errors.push({
+          repoPath: repo.path,
+          resolvedSourcePath: sourcePath ?? '',
+          reason: 'empty_path',
+        });
+      } else if (!existsSync(sourcePath)) {
+        errors.push({
+          repoPath: repo.path,
+          resolvedSourcePath: sourcePath,
+          reason: 'not_found',
+        });
+      }
+    }
+    return errors;
+  }
+
+  /**
+   * Format validation errors into a human-readable warning message.
+   */
+  static formatValidationErrors(errors: readonly LocalPathValidationError[]): string {
+    const lines = errors.map((e) => {
+      if (e.reason === 'empty_path') {
+        return `  - repo "${e.repoPath}": local source path is empty (check that the env var is set)`;
+      }
+      return `  - repo "${e.repoPath}": local source path not found: ${e.resolvedSourcePath}`;
+    });
+    return `Local repo path validation failed:\n${lines.join('\n')}`;
   }
 
   private async runGit(args: string[], opts?: { cwd?: string; timeout?: number }): Promise<string> {
