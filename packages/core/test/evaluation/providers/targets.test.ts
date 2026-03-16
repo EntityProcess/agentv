@@ -21,7 +21,10 @@ const generateTextMock = mock(async () => ({
 
 const createAzureMock = mock((options: unknown) => () => ({ provider: 'azure', options }));
 const createOpenAIMock = mock((options: unknown) => () => ({ provider: 'openai', options }));
-const createOpenRouterMock = mock((options: unknown) => () => ({ provider: 'openrouter', options }));
+const createOpenRouterMock = mock((options: unknown) => () => ({
+  provider: 'openrouter',
+  options,
+}));
 const createAnthropicMock = mock(() => () => ({ provider: 'anthropic' }));
 const createGeminiMock = mock(() => () => ({ provider: 'gemini' }));
 
