@@ -336,10 +336,7 @@ function extractModelName(target: ResolvedTarget): string | undefined {
 /**
  * Build the inline label suffix (e.g. `[provider=azure, model=gpt-4]`).
  */
-function buildTargetLabelSuffix(
-  providerLabel: string,
-  target: ResolvedTarget,
-): string {
+function buildTargetLabelSuffix(providerLabel: string, target: ResolvedTarget): string {
   const parts = [`provider=${providerLabel}`];
   const model = extractModelName(target);
   if (model) parts.push(`model=${model}`);
