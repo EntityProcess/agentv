@@ -162,6 +162,110 @@ describe('RepoManager', () => {
     });
   });
 
+  describe('validateLocalPaths', () => {
+    it('returns empty array when all local paths exist', () => {
+      const repoDir = path.join(tmpDir, 'valid-repo');
+      mkdirSync(repoDir, { recursive: true });
+
+      const errors = RepoManager.validateLocalPaths([
+        { path: './my-repo', source: { type: 'local', path: repoDir } },
+      ]);
+
+      expect(errors).toEqual([]);
+    });
+
+    it('returns not_found error for non-existent local path', () => {
+      const missingPath = path.join(tmpDir, 'does-not-exist');
+
+      const errors = RepoManager.validateLocalPaths([
+        { path: './my-repo', source: { type: 'local', path: missingPath } },
+      ]);
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toEqual({
+        repoPath: './my-repo',
+        resolvedSourcePath: missingPath,
+        reason: 'not_found',
+      });
+    });
+
+    it('returns empty_path error when source path is empty string', () => {
+      const errors = RepoManager.validateLocalPaths([
+        { path: './my-repo', source: { type: 'local', path: '' } },
+      ]);
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toEqual({
+        repoPath: './my-repo',
+        resolvedSourcePath: '',
+        reason: 'empty_path',
+      });
+    });
+
+    it('returns empty_path error when source path is whitespace-only', () => {
+      const errors = RepoManager.validateLocalPaths([
+        { path: './my-repo', source: { type: 'local', path: '   ' } },
+      ]);
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].reason).toBe('empty_path');
+    });
+
+    it('skips git source repos', () => {
+      const errors = RepoManager.validateLocalPaths([
+        { path: './my-repo', source: { type: 'git', url: 'https://github.com/org/repo' } },
+      ]);
+
+      expect(errors).toEqual([]);
+    });
+
+    it('reports multiple errors for multiple invalid repos', () => {
+      const errors = RepoManager.validateLocalPaths([
+        { path: './repo-a', source: { type: 'local', path: '/nonexistent/path-a' } },
+        { path: './repo-b', source: { type: 'local', path: '' } },
+      ]);
+
+      expect(errors).toHaveLength(2);
+      expect(errors[0].reason).toBe('not_found');
+      expect(errors[1].reason).toBe('empty_path');
+    });
+
+    it('validates mix of valid and invalid repos', () => {
+      const validDir = path.join(tmpDir, 'valid-repo');
+      mkdirSync(validDir, { recursive: true });
+
+      const errors = RepoManager.validateLocalPaths([
+        { path: './valid', source: { type: 'local', path: validDir } },
+        { path: './invalid', source: { type: 'local', path: '/nonexistent' } },
+      ]);
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].repoPath).toBe('./invalid');
+    });
+  });
+
+  describe('formatValidationErrors', () => {
+    it('formats not_found error with path', () => {
+      const message = RepoManager.formatValidationErrors([
+        { repoPath: './my-repo', resolvedSourcePath: '/missing/path', reason: 'not_found' },
+      ]);
+
+      expect(message).toContain('my-repo');
+      expect(message).toContain('/missing/path');
+      expect(message).toContain('not found');
+    });
+
+    it('formats empty_path error with env var hint', () => {
+      const message = RepoManager.formatValidationErrors([
+        { repoPath: './my-repo', resolvedSourcePath: '', reason: 'empty_path' },
+      ]);
+
+      expect(message).toContain('my-repo');
+      expect(message).toContain('empty');
+      expect(message).toContain('env var');
+    });
+  });
+
   describe('reset', () => {
     it('hard reset restores repo to checkout state', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');

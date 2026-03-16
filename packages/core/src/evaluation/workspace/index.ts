@@ -14,7 +14,7 @@ export {
 export { initializeBaseline, captureFileChanges } from './file-changes.js';
 export { resolveWorkspaceTemplate } from './resolve.js';
 export type { ResolvedWorkspaceTemplate } from './resolve.js';
-export { RepoManager } from './repo-manager.js';
+export { RepoManager, type LocalPathValidationError } from './repo-manager.js';
 export {
   WorkspacePoolManager,
   computeWorkspaceFingerprint,
