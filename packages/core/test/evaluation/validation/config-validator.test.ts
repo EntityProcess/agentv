@@ -50,7 +50,7 @@ guideline_patterns:
 
   it('errors on invalid required_version type', async () => {
     const filePath = path.join(tempDir, 'config-bad-version.yaml');
-    await writeFile(filePath, `required_version: 3\n`);
+    await writeFile(filePath, 'required_version: 3\n');
 
     const result = await validateConfigFile(filePath);
 
@@ -62,7 +62,7 @@ guideline_patterns:
 
   it('warns on truly unexpected fields', async () => {
     const filePath = path.join(tempDir, 'config-unexpected.yaml');
-    await writeFile(filePath, `foo: bar\n`);
+    await writeFile(filePath, 'foo: bar\n');
 
     const result = await validateConfigFile(filePath);
 

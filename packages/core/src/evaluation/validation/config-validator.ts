@@ -88,7 +88,7 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
           severity: 'error',
           filePath,
           location: 'required_version',
-          message: "Field 'required_version' must be a non-empty string (e.g. \">=3.1.0\")",
+          message: 'Field \'required_version\' must be a non-empty string (e.g. ">=3.1.0")',
         });
       }
     }
