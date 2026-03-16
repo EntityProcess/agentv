@@ -10,6 +10,7 @@ import {
   type ExecutionDefaults,
   type FailOnError,
   type OtelTraceExporter as OtelTraceExporterType,
+  type ResolvedTarget,
   ResponseCache,
   type TrialsConfig,
   runEvaluation as defaultRunEvaluation,
@@ -318,6 +319,34 @@ function createDisplayIdTracker(): { getOrAssign(evalKey: string): number } {
 }
 
 /**
+ * Extract the model name from a resolved target, if available.
+ * Azure uses `deploymentName`; most other providers use `model`.
+ * CLI and mock providers have no model field.
+ */
+function extractModelName(target: ResolvedTarget): string | undefined {
+  if (target.kind === 'azure') {
+    return target.config.deploymentName;
+  }
+  if ('model' in target.config && typeof target.config.model === 'string') {
+    return target.config.model;
+  }
+  return undefined;
+}
+
+/**
+ * Build the inline label suffix (e.g. `[provider=azure, model=gpt-4]`).
+ */
+function buildTargetLabelSuffix(
+  providerLabel: string,
+  target: ResolvedTarget,
+): string {
+  const parts = [`provider=${providerLabel}`];
+  const model = extractModelName(target);
+  if (model) parts.push(`model=${model}`);
+  return `[${parts.join(', ')}]`;
+}
+
+/**
  * Override CLI provider verbose setting based on CLI --verbose flag.
  * CLI provider logs should only appear when --verbose is passed.
  */
@@ -410,7 +439,7 @@ async function prepareFileMetadata(params: {
         : sel.resolvedTarget.kind;
       return {
         selection: sel,
-        inlineTargetLabel: `${sel.targetName} [provider=${providerLabel}]`,
+        inlineTargetLabel: `${sel.targetName} ${buildTargetLabelSuffix(providerLabel, sel.resolvedTarget)}`,
       };
     });
   } else {
@@ -434,7 +463,7 @@ async function prepareFileMetadata(params: {
     selections = [
       {
         selection,
-        inlineTargetLabel: `${selection.targetName} [provider=${providerLabel}]`,
+        inlineTargetLabel: `${selection.targetName} ${buildTargetLabelSuffix(providerLabel, selection.resolvedTarget)}`,
       },
     ];
   }
@@ -524,7 +553,7 @@ async function runSingleEvalFile(params: {
     ? `${resolvedTargetSelection.resolvedTarget.kind} (dry-run)`
     : resolvedTargetSelection.resolvedTarget.kind;
   const targetMessage = options.verbose
-    ? `Using target (${resolvedTargetSelection.targetSource}): ${resolvedTargetSelection.targetName} [provider=${providerLabel}] via ${resolvedTargetSelection.targetsFilePath}`
+    ? `Using target (${resolvedTargetSelection.targetSource}): ${resolvedTargetSelection.targetName} ${buildTargetLabelSuffix(providerLabel, resolvedTargetSelection.resolvedTarget)} via ${resolvedTargetSelection.targetsFilePath}`
     : `Using target: ${inlineTargetLabel}`;
   if (!progressReporter.isInteractive || options.verbose) {
     console.log(targetMessage);
