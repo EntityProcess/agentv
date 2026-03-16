@@ -279,7 +279,7 @@ describe('RepoManager', () => {
       writeFileSync(path.join(targetDir, 'agent-created.txt'), 'agent output');
       writeFileSync(path.join(targetDir, 'original.txt'), 'modified by agent');
 
-      await manager.reset([repo], workspaceDir, 'hard');
+      await manager.reset([repo], workspaceDir, 'strict');
 
       expect(existsSync(path.join(targetDir, 'agent-created.txt'))).toBe(false);
       const content = readFileSync(path.join(targetDir, 'original.txt'), 'utf-8');
