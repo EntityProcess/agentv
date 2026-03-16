@@ -80,7 +80,26 @@ export async function validateConfigFile(filePath: string): Promise<ValidationRe
     }
 
     // Check for unexpected fields
-    const allowedFields = new Set(['$schema', 'guideline_patterns', 'eval_patterns']);
+    // Validate required_version if present
+    const requiredVersion = config.required_version;
+    if (requiredVersion !== undefined) {
+      if (typeof requiredVersion !== 'string' || requiredVersion.trim().length === 0) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: 'required_version',
+          message: 'Field \'required_version\' must be a non-empty string (e.g. ">=3.1.0")',
+        });
+      }
+    }
+
+    const allowedFields = new Set([
+      '$schema',
+      'guideline_patterns',
+      'eval_patterns',
+      'required_version',
+      'execution',
+    ]);
     const unexpectedFields = Object.keys(config).filter((key) => !allowedFields.has(key));
 
     if (unexpectedFields.length > 0) {
