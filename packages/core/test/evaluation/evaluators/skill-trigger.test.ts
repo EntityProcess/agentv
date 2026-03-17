@@ -112,23 +112,34 @@ describe('SkillTriggerEvaluator', () => {
       expect(result.verdict).toBe('pass');
     });
 
-    it('should give descriptive error for codex provider without tool calls', () => {
+    it('should fail for codex with non-matching tool calls', () => {
       const evaluator = new SkillTriggerEvaluator(makeConfig());
       const context = makeContext({
         provider: { kind: 'codex', targetName: 'test' },
-        output: [{ role: 'assistant', content: 'some response', toolCalls: [] }],
+        output: [
+          {
+            role: 'assistant',
+            content: 'some response',
+            toolCalls: [{ tool: 'command_execution', input: 'ls -la' }],
+          },
+        ],
       });
       const result = evaluator.evaluate(context);
       expect(result.verdict).toBe('fail');
-      expect(result.misses[0]).toContain('codex');
-      expect(result.misses[0]).toContain('does not emit tool calls');
+      expect(result.misses[0]).toContain('command_execution');
     });
 
-    it('should pass for codex with should_trigger: false', () => {
+    it('should pass for codex with should_trigger: false and unrelated tool', () => {
       const evaluator = new SkillTriggerEvaluator(makeConfig({ should_trigger: false }));
       const context = makeContext({
         provider: { kind: 'codex', targetName: 'test' },
-        output: [{ role: 'assistant', content: 'some response', toolCalls: [] }],
+        output: [
+          {
+            role: 'assistant',
+            content: 'some response',
+            toolCalls: [{ tool: 'command_execution', input: 'ls -la' }],
+          },
+        ],
       });
       const result = evaluator.evaluate(context);
       expect(result.verdict).toBe('pass');

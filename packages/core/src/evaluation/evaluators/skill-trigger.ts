@@ -72,7 +72,10 @@ const PROVIDER_TOOL_SEMANTICS: Partial<Record<ProviderKind, ToolMatcher>> = {
 };
 
 /** Providers known to never emit tool calls. */
-const NO_TOOL_CALL_PROVIDERS: ReadonlySet<ProviderKind> = new Set(['codex']);
+const NO_TOOL_CALL_PROVIDERS: ReadonlySet<ProviderKind> = new Set([
+  // Currently empty — all agent providers emit tool calls.
+  // Add provider kinds here if a provider is known to never produce tool_use events.
+]);
 
 export class SkillTriggerEvaluator implements Evaluator {
   readonly kind = 'skill-trigger';
