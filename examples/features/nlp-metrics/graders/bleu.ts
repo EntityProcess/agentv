@@ -73,7 +73,7 @@ export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutpu
       : '');
 
   if (!reference) {
-    return { score: 0, misses: ['No reference text provided'], reasoning: 'Missing reference.' };
+    return { score: 0, hits: [], misses: ['No reference text provided'], reasoning: 'Missing reference.' };
   }
 
   const score = bleuScore(outputText, reference);

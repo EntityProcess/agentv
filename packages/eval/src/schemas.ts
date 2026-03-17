@@ -107,6 +107,28 @@ export const CodeGraderResultSchema = z.object({
  */
 export type CodeGraderInput = z.infer<typeof CodeGraderInputSchema>;
 export type CodeGraderResult = z.infer<typeof CodeGraderResultSchema>;
+
+/**
+ * CodeGraderInput after `enrichInput()` has run.
+ *
+ * The text convenience accessors (`inputText`, `outputText`, `expectedOutputText`)
+ * are always populated by the runtime before the handler is called, so they are
+ * guaranteed to be `string` (never `undefined`).
+ *
+ * Handler function signatures (`CodeGraderHandler`, `AssertionHandler`) use this
+ * type so that user code can destructure `{ outputText }` without null-checks.
+ */
+export type EnrichedCodeGraderInput = Omit<
+  CodeGraderInput,
+  'inputText' | 'outputText' | 'expectedOutputText'
+> & {
+  /** First user message content as string. Replaces `question`. */
+  readonly inputText: string;
+  /** Last assistant message content as string. Replaces `answer`. */
+  readonly outputText: string;
+  /** Expected output content as string. Replaces `referenceAnswer`. */
+  readonly expectedOutputText: string;
+};
 export type TraceSummary = z.infer<typeof TraceSummarySchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type ToolCall = z.infer<typeof ToolCallSchema>;

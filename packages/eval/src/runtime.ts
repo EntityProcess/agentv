@@ -11,13 +11,17 @@ import {
   CodeGraderInputSchema,
   type CodeGraderResult,
   CodeGraderResultSchema,
+  type EnrichedCodeGraderInput,
 } from './schemas.js';
 
 /**
  * Handler function type for code graders.
+ *
+ * The input is enriched at runtime: `inputText`, `outputText`, and
+ * `expectedOutputText` are always populated before the handler is called.
  */
 export type CodeGraderHandler = (
-  input: CodeGraderInput,
+  input: EnrichedCodeGraderInput,
 ) => CodeGraderResult | Promise<CodeGraderResult>;
 
 /**
@@ -84,8 +88,8 @@ export async function runCodeGrader(handler: CodeGraderHandler): Promise<void> {
     // 6. Enrich input with text accessors and deprecation warnings
     enrichInput(input);
 
-    // 7. Run handler
-    const rawResult = await handler(input);
+    // 7. Run handler (input is now enriched with guaranteed text accessors)
+    const rawResult = await handler(input as EnrichedCodeGraderInput);
 
     // 8. Validate and normalize output
     const result = CodeGraderResultSchema.parse({

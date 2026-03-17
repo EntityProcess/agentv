@@ -6,13 +6,19 @@ import { readFileSync } from 'node:fs';
 
 import { toCamelCaseDeep } from './case-conversion.js';
 import { enrichInput } from './deprecation.js';
-import { type PromptTemplateInput, PromptTemplateInputSchema } from './schemas.js';
+import {
+  type EnrichedCodeGraderInput,
+  PromptTemplateInputSchema,
+} from './schemas.js';
 
 /**
  * Handler function type for prompt templates.
  * Returns the prompt string to use for evaluation.
+ *
+ * The input is enriched at runtime: `inputText`, `outputText`, and
+ * `expectedOutputText` are always populated before the handler is called.
  */
-export type PromptTemplateHandler = (input: PromptTemplateInput) => string | Promise<string>;
+export type PromptTemplateHandler = (input: EnrichedCodeGraderInput) => string | Promise<string>;
 
 /**
  * Read stdin synchronously (works in both Node.js and Bun).
@@ -42,8 +48,8 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
     // 5. Enrich input with text accessors and deprecation warnings
     enrichInput(input);
 
-    // 6. Run handler
-    const prompt = await handler(input);
+    // 6. Run handler (input is now enriched with guaranteed text accessors)
+    const prompt = await handler(input as EnrichedCodeGraderInput);
 
     // 6. Output raw string (not JSON) - the prompt itself
     console.log(prompt);

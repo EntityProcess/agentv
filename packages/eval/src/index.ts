@@ -61,6 +61,7 @@ export {
   PromptTemplateInputSchema,
   type CodeGraderInput,
   type CodeGraderResult,
+  type EnrichedCodeGraderInput,
   type TraceSummary,
   type Message,
   type ToolCall,
