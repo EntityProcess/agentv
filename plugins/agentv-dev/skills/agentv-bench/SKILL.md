@@ -467,7 +467,7 @@ Update the skill's SKILL.md frontmatter with the optimized description. Show the
 | Copilot CLI/SDK | Yes (ACP) | Built-in (Skill, Read File, readFile) | No (no skill discovery) |
 | Pi Coding Agent | Yes | Built-in (same as Claude) | Possible (same format) |
 | VS Code / VS Code Insiders | Yes | Built-in (Copilot tools) | No |
-| Codex | Yes (command_execution, file_change) | Custom via `skill_tools`/`read_tools` config | No |
+| Codex | Yes (command_execution, file_change) | Needs custom mapping (see [#643]) | Yes (.agents/.codex folders) |
 | OpenAI / Gemini / Other LLMs | Varies | Custom via `skill_tools`/`read_tools` config | No |
 
 **Note**: "Description Optimization" (iterating on SKILL.md descriptions for better triggering accuracy) requires an agent with a skill-discovery mechanism. Agents that don't have skill systems (Copilot, Codex) still benefit from the evaluator for testing whether they invoke the right tools.
@@ -475,7 +475,7 @@ Update the skill's SKILL.md frontmatter with the optimized description. Show the
 **Provider-specific notes**:
 - **Copilot CLI**: Uses ACP protocol via `copilot --acp --stdio`
 - **Claude SDK**: Requires `@anthropic-ai/claude-agent-sdk` installed
-- **Codex**: Emits `command_execution` and `file_change` tool calls. Use `skill_tools`/`read_tools` config overrides to map to skill-trigger detection.
+- **Codex**: Supports skills via `.agents/` or `.codex/` folders. Emits `command_execution` and `file_change` tool calls. Skill-trigger detection requires custom mapping since Codex reads skill files via shell commands rather than a dedicated `Skill` tool.
 - **Custom CLI**: Needs `command` and output file pattern in target config
 - **Custom tool names**: Use `skill_tools` and `read_tools` in assertion config to override tool name detection
 - **Target config**: Uses `${{ ENV_VAR }}` syntax (not `${ENV_VAR}`) for API keys
