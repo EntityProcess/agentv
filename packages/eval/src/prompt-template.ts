@@ -6,10 +6,7 @@ import { readFileSync } from 'node:fs';
 
 import { toCamelCaseDeep } from './case-conversion.js';
 import { enrichInput } from './deprecation.js';
-import {
-  type EnrichedCodeGraderInput,
-  PromptTemplateInputSchema,
-} from './schemas.js';
+import { type EnrichedCodeGraderInput, PromptTemplateInputSchema } from './schemas.js';
 
 /**
  * Handler function type for prompt templates.

@@ -39,7 +39,12 @@ export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutpu
       : '');
 
   if (!reference) {
-    return { score: 0, hits: [], misses: ['No reference text provided'], reasoning: 'Missing reference.' };
+    return {
+      score: 0,
+      hits: [],
+      misses: ['No reference text provided'],
+      reasoning: 'Missing reference.',
+    };
   }
 
   const candNorm = outputText.trim().toLowerCase();
