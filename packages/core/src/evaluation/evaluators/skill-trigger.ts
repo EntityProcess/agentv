@@ -36,6 +36,13 @@ const CLAUDE_MATCHER: ToolMatcher = {
   readInputField: 'file_path',
 };
 
+const COPILOT_MATCHER: ToolMatcher = {
+  skillTools: ['Skill', 'skill'],
+  skillInputField: 'skill',
+  readTools: ['Read File', 'readFile', 'Read', 'readTextFile'],
+  readInputField: 'file_path',
+};
+
 /**
  * Static mapping of provider kinds to their tool-name semantics.
  * Providers not listed here fall back to CLAUDE_MATCHER.
@@ -45,30 +52,11 @@ const PROVIDER_TOOL_SEMANTICS: Partial<Record<ProviderKind, ToolMatcher>> = {
   'claude-cli': CLAUDE_MATCHER,
   'claude-sdk': CLAUDE_MATCHER,
   'pi-coding-agent': CLAUDE_MATCHER,
-  'copilot-cli': {
-    skillTools: ['Skill', 'skill'],
-    skillInputField: 'skill',
-    readTools: ['Read File', 'readFile', 'Read', 'readTextFile'],
-    readInputField: 'file_path',
-  },
-  'copilot-sdk': {
-    skillTools: ['Skill', 'skill'],
-    skillInputField: 'skill',
-    readTools: ['Read File', 'readFile', 'Read', 'readTextFile'],
-    readInputField: 'file_path',
-  },
-  vscode: {
-    skillTools: ['Skill', 'skill'],
-    skillInputField: 'skill',
-    readTools: ['Read File', 'readFile', 'Read', 'readTextFile'],
-    readInputField: 'file_path',
-  },
-  'vscode-insiders': {
-    skillTools: ['Skill', 'skill'],
-    skillInputField: 'skill',
-    readTools: ['Read File', 'readFile', 'Read', 'readTextFile'],
-    readInputField: 'file_path',
-  },
+  'pi-agent-sdk': CLAUDE_MATCHER,
+  'copilot-cli': COPILOT_MATCHER,
+  'copilot-sdk': COPILOT_MATCHER,
+  vscode: COPILOT_MATCHER,
+  'vscode-insiders': COPILOT_MATCHER,
 };
 
 /** Providers known to never emit tool calls. */

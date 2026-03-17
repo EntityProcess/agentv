@@ -112,6 +112,31 @@ describe('SkillTriggerEvaluator', () => {
       expect(result.verdict).toBe('pass');
     });
 
+    it('should use read_tools config override', () => {
+      const evaluator = new SkillTriggerEvaluator(
+        makeConfig({
+          read_tools: ['CustomRead'],
+          read_input_field: 'path',
+        }),
+      );
+      const context = makeContext({
+        output: [
+          {
+            role: 'assistant',
+            content: '',
+            toolCalls: [
+              {
+                tool: 'CustomRead',
+                input: { path: '/csv-analyzer/SKILL.md' },
+              },
+            ],
+          },
+        ],
+      });
+      const result = evaluator.evaluate(context);
+      expect(result.verdict).toBe('pass');
+    });
+
     it('should fail for codex with non-matching tool calls', () => {
       const evaluator = new SkillTriggerEvaluator(makeConfig());
       const context = makeContext({

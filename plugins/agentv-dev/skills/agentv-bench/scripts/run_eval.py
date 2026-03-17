@@ -207,6 +207,10 @@ def run_single_query_cli(
             "assertions": [{
                 "type": "skill-trigger",
                 "skill": clean_name,
+                # Always True here — this function returns a raw boolean
+                # (True = triggered, False = not triggered). The caller
+                # (run_eval) handles the should_trigger logic at the
+                # aggregation level, same as run_single_query.
                 "should_trigger": True,
             }],
         }],
@@ -297,26 +301,17 @@ def run_eval(
         future_to_info = {}
         for item in eval_set:
             for run_idx in range(runs_per_query):
-                if mode == "cli":
-                    future = executor.submit(
-                        query_fn,
-                        item["query"],
-                        skill_name,
-                        description,
-                        timeout,
-                        str(project_root),
-                        target,
-                    )
-                else:
-                    future = executor.submit(
-                        query_fn,
-                        item["query"],
-                        skill_name,
-                        description,
-                        timeout,
-                        str(project_root),
-                        model,
-                    )
+                # cli mode passes target; agent mode passes model as the last arg
+                last_arg = target if mode == "cli" else model
+                future = executor.submit(
+                    query_fn,
+                    item["query"],
+                    skill_name,
+                    description,
+                    timeout,
+                    str(project_root),
+                    last_arg,
+                )
                 future_to_info[future] = (item, run_idx)
 
         query_triggers: dict[str, list[bool]] = {}
