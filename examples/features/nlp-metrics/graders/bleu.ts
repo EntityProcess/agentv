@@ -65,18 +65,23 @@ function bleuScore(candidate: string, reference: string, maxN = 4): number {
   return bp * Math.exp(logSum / count);
 }
 
-export default defineCodeGrader(({ answer, referenceAnswer, expectedOutput }) => {
+export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutput }) => {
   const reference =
-    referenceAnswer ??
+    expectedOutputText ||
     (expectedOutput[0] && typeof expectedOutput[0].content === 'string'
       ? expectedOutput[0].content
       : '');
 
   if (!reference) {
-    return { score: 0, misses: ['No reference text provided'], reasoning: 'Missing reference.' };
+    return {
+      score: 0,
+      hits: [],
+      misses: ['No reference text provided'],
+      reasoning: 'Missing reference.',
+    };
   }
 
-  const score = bleuScore(answer, reference);
+  const score = bleuScore(outputText, reference);
 
   const hits: string[] = [];
   const misses: string[] = [];

@@ -13,8 +13,8 @@ export default definePromptTemplate((ctx) => {
   const strictMode = ctx.config?.strictMode as boolean | undefined;
 
   // Build conditional sections
-  const referenceSection = ctx.referenceAnswer
-    ? `\n## Reference Answer\n${ctx.referenceAnswer}`
+  const referenceSection = ctx.expectedOutputText
+    ? `\n## Reference Answer\n${ctx.expectedOutputText}`
     : '';
 
   const rubricSection = rubric ? `\n## Evaluation Rubric\n${rubric}` : '';
@@ -26,10 +26,10 @@ export default definePromptTemplate((ctx) => {
   return `You are evaluating an AI assistant's response.
 
 ## Question
-${ctx.question}
+${ctx.inputText}
 
 ## Candidate Answer
-${ctx.answer}
+${ctx.outputText}
 ${referenceSection}
 ${rubricSection}
 ${strictWarning}

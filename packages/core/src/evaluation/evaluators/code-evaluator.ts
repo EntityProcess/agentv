@@ -83,6 +83,10 @@ export class CodeEvaluator implements Evaluator {
       fileChanges: context.fileChanges ?? null,
       workspacePath: context.workspacePath ?? null,
       config: this.config ?? null,
+      // Text convenience accessors (new names, always strings)
+      inputText: context.evalCase.question,
+      outputText: context.candidate,
+      expectedOutputText: context.evalCase.reference_answer ?? '',
     };
 
     const inputPayload = JSON.stringify(toSnakeCaseDeep(payload), null, 2);

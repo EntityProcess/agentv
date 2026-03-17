@@ -2,7 +2,7 @@
 /**
  * Export Risk Output Validator for AgentV
  *
- * Validates that the candidate answer is valid JSON with required fields,
+ * Validates that the candidate output is valid JSON with required fields,
  * and extracts the risk classification for confusion matrix computation.
  *
  * Returns structured output that enables post-processing for metrics.
@@ -59,12 +59,12 @@ function extractExpectedRiskLevel(
   return null;
 }
 
-export default defineCodeGrader(({ answer, expectedOutput }) => {
+export default defineCodeGrader(({ outputText, expectedOutput }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
   // Parse candidate JSON
-  const parsed = extractJsonFromResponse(answer);
+  const parsed = extractJsonFromResponse(outputText);
 
   if (parsed === null) {
     return {

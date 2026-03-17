@@ -76,6 +76,10 @@ function assembleFreeform(
     [TEMPLATE_VARIABLES.CRITERIA]: evalCase.criteria.trim(),
     [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
     [TEMPLATE_VARIABLES.FILE_CHANGES]: fileChanges ?? '',
+    // Text convenience accessors (new names, always strings)
+    [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
+    [TEMPLATE_VARIABLES.OUTPUT_TEXT]: candidate.trim(),
+    [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (evalCase.reference_answer ?? '').trim(),
   };
 
   const systemPrompt = buildOutputSchema();

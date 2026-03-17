@@ -47,14 +47,14 @@ function findExpectedDecisionFromInputMessages(
   return undefined;
 }
 
-export default defineCodeGrader(({ expectedOutput, input, answer }) => {
+export default defineCodeGrader(({ expectedOutput, input, outputText }) => {
   const expectedDecision =
     findExpectedDecisionFromExpectedMessages(expectedOutput) ??
     findExpectedDecisionFromInputMessages(input);
 
   let candidateObj: unknown;
   try {
-    candidateObj = JSON.parse(answer);
+    candidateObj = JSON.parse(outputText);
   } catch {
     candidateObj = undefined;
   }

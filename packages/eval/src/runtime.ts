@@ -5,18 +5,23 @@
 import { readFileSync } from 'node:fs';
 
 import { toCamelCaseDeep } from './case-conversion.js';
+import { enrichInput } from './deprecation.js';
 import {
   type CodeGraderInput,
   CodeGraderInputSchema,
   type CodeGraderResult,
   CodeGraderResultSchema,
+  type EnrichedCodeGraderInput,
 } from './schemas.js';
 
 /**
  * Handler function type for code graders.
+ *
+ * The input is enriched at runtime: `inputText`, `outputText`, and
+ * `expectedOutputText` are always populated before the handler is called.
  */
 export type CodeGraderHandler = (
-  input: CodeGraderInput,
+  input: EnrichedCodeGraderInput,
 ) => CodeGraderResult | Promise<CodeGraderResult>;
 
 /**
@@ -80,16 +85,19 @@ export async function runCodeGrader(handler: CodeGraderHandler): Promise<void> {
       });
     }
 
-    // 6. Run handler
-    const rawResult = await handler(input);
+    // 6. Enrich input with text accessors and deprecation warnings
+    enrichInput(input);
 
-    // 7. Validate and normalize output
+    // 7. Run handler (input is now enriched with guaranteed text accessors)
+    const rawResult = await handler(input as EnrichedCodeGraderInput);
+
+    // 8. Validate and normalize output
     const result = CodeGraderResultSchema.parse({
       ...rawResult,
       score: clampScore(rawResult.score),
     });
 
-    // 8. Output JSON
+    // 9. Output JSON
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {
     // Output failure result

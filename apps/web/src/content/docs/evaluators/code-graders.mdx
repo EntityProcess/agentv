@@ -14,13 +14,17 @@ Code graders communicate via stdin/stdout JSON:
 **Input (stdin):**
 ```json
 {
-  "question": "What is 15 + 27?",
+  "input_text": "What is 15 + 27?",
   "criteria": "Correctly calculates 15 + 27 = 42",
+  "output_text": "The answer is 42.",
+  "expected_output_text": "42",
+  "question": "What is 15 + 27?",
   "answer": "The answer is 42.",
-  "reference_answer": "42",
-  "metadata": {}
+  "reference_answer": "42"
 }
 ```
+
+> **Note:** `input_text`, `output_text`, and `expected_output_text` are the preferred field names. The legacy `question`, `answer`, and `reference_answer` fields are still present for backward compatibility but are deprecated.
 
 **Output (stdout):**
 ```json
@@ -45,15 +49,15 @@ Code graders communicate via stdin/stdout JSON:
 # validators/check_answer.py
 import json, sys
 data = json.load(sys.stdin)
-answer = data.get("answer", "")
+output_text = data.get("output_text", "")
 
 hits = []
 misses = []
 
-if "42" in answer:
-    hits.append("Answer contains correct value (42)")
+if "42" in output_text:
+    hits.append("Output contains correct value (42)")
 else:
-    misses.append("Answer does not contain expected value (42)")
+    misses.append("Output does not contain expected value (42)")
 
 score = 1.0 if hits else 0.0
 
@@ -72,15 +76,15 @@ print(json.dumps({
 import { readFileSync } from "fs";
 
 const data = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
-const answer: string = data.answer ?? "";
+const outputText: string = data.output_text ?? "";
 
 const hits: string[] = [];
 const misses: string[] = [];
 
-if (answer.includes("42")) {
-  hits.push("Answer contains correct value (42)");
+if (outputText.includes("42")) {
+  hits.push("Output contains correct value (42)");
 } else {
-  misses.push("Answer does not contain expected value (42)");
+  misses.push("Output does not contain expected value (42)");
 }
 
 console.log(JSON.stringify({
@@ -108,14 +112,14 @@ The `@agentv/eval` package provides a declarative API with automatic stdin/stdou
 #!/usr/bin/env bun
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ answer, criteria }) => {
+export default defineCodeGrader(({ outputText, criteria }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
-  if (answer.includes(criteria)) {
-    hits.push('Answer matches expected outcome');
+  if (outputText.includes(criteria)) {
+    hits.push('Output matches expected outcome');
   } else {
-    misses.push('Answer does not match expected outcome');
+    misses.push('Output does not match expected outcome');
   }
 
   const total = hits.length + misses.length;
@@ -155,12 +159,12 @@ Use `createTargetClient` from the SDK:
 #!/usr/bin/env bun
 import { createTargetClient, defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(async ({ question, answer }) => {
+export default defineCodeGrader(async ({ inputText, outputText }) => {
   const target = createTargetClient();
   if (!target) return { score: 0, misses: ['Target not configured'] };
 
   const response = await target.invoke({
-    question: `Is this relevant to: ${question}? Response: ${answer}`,
+    question: `Is this relevant to: ${inputText}? Response: ${outputText}`,
     systemPrompt: 'Respond with JSON: { "relevant": true/false }'
   });
 
@@ -180,7 +184,7 @@ Use `target.invokeBatch(requests)` for multiple calls in parallel.
 
 ## Advanced Input Fields
 
-Beyond the basic `question`, `criteria`, `answer`, and `reference_answer` fields, code graders receive additional context:
+Beyond the basic text fields (`input_text`, `output_text`, `expected_output_text`, `criteria`), code graders receive additional structured context:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -305,7 +309,7 @@ agentv eval assert rouge-score --file result.json
 
 The command:
 1. Discovers the grader script by walking up directories looking for `.agentv/graders/<name>.{ts,js,mts,mjs}`
-2. Passes `{ answer, output, input, question }` to the script via stdin
+2. Passes `{ output_text, output, input, input_text }` to the script via stdin
 3. Prints the grader's JSON result to stdout
 4. Exits 0 if score >= 0.5, exit 1 otherwise
 
@@ -316,5 +320,5 @@ This is the same interface that agent-orchestrated evals use — the EVAL.yaml t
 Pipe JSON directly to the grader script for full control:
 
 ```bash
-echo '{"question":"What is 2+2?","criteria":"4","answer":"4","reference_answer":"4","metadata":{}}' | python validators/check_answer.py
+echo '{"input_text":"What is 2+2?","criteria":"4","output_text":"4","expected_output_text":"4","question":"What is 2+2?","answer":"4","reference_answer":"4"}' | python validators/check_answer.py
 ```

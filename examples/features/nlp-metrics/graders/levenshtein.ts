@@ -31,18 +31,23 @@ function levenshteinDistance(a: string, b: string): number {
   return prev[n] ?? 0;
 }
 
-export default defineCodeGrader(({ answer, referenceAnswer, expectedOutput }) => {
+export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutput }) => {
   const reference =
-    referenceAnswer ??
+    expectedOutputText ||
     (expectedOutput[0] && typeof expectedOutput[0].content === 'string'
       ? expectedOutput[0].content
       : '');
 
   if (!reference) {
-    return { score: 0, misses: ['No reference text provided'], reasoning: 'Missing reference.' };
+    return {
+      score: 0,
+      hits: [],
+      misses: ['No reference text provided'],
+      reasoning: 'Missing reference.',
+    };
   }
 
-  const candNorm = answer.trim().toLowerCase();
+  const candNorm = outputText.trim().toLowerCase();
   const refNorm = reference.trim().toLowerCase();
 
   const distance = levenshteinDistance(candNorm, refNorm);

@@ -49,18 +49,23 @@ function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
   return union.size === 0 ? 0 : intersection.size / union.size;
 }
 
-export default defineCodeGrader(({ answer, referenceAnswer, expectedOutput }) => {
+export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutput }) => {
   const reference =
-    referenceAnswer ??
+    expectedOutputText ||
     (expectedOutput[0] && typeof expectedOutput[0].content === 'string'
       ? expectedOutput[0].content
       : '');
 
   if (!reference) {
-    return { score: 0, misses: ['No reference text provided'], reasoning: 'Missing reference.' };
+    return {
+      score: 0,
+      hits: [],
+      misses: ['No reference text provided'],
+      reasoning: 'Missing reference.',
+    };
   }
 
-  const candTokens = tokenize(answer);
+  const candTokens = tokenize(outputText);
   const refTokens = tokenize(reference);
 
   const candTf = termFrequency(candTokens);

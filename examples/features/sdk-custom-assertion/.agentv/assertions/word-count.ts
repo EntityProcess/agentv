@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ answer }) => {
-  const wordCount = answer.trim().split(/\s+/).length;
+export default defineAssertion(({ outputText }) => {
+  const wordCount = outputText.trim().split(/\s+/).length;
   const minWords = 3;
   const pass = wordCount >= minWords;
 

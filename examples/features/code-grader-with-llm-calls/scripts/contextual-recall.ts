@@ -33,7 +33,7 @@ interface AttributionResult {
 }
 
 export default defineCodeGrader(async (input) => {
-  const { question, criteria, expectedOutput } = input;
+  const { inputText, criteria, expectedOutput } = input;
 
   if (!criteria) {
     return {
@@ -73,7 +73,7 @@ export default defineCodeGrader(async (input) => {
     question: `Extract all distinct factual statements or claims from the following expected answer.
 Each statement should be a self-contained claim that can be independently verified.
 
-Question: ${question}
+Question: ${inputText}
 
 Expected Answer:
 ${criteria}

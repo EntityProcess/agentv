@@ -49,14 +49,14 @@ const toolTaskMappings: Record<string, string[]> = {
   validate: ['check', 'validate', 'verify', 'confirm'],
 };
 
-export default defineCodeGrader(({ question, criteria, output }) => {
+export default defineCodeGrader(({ inputText, criteria, output }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
   const toolCalls = extractToolCalls(output ?? []);
 
-  // Extract keywords from question and expected outcome
-  const taskText = `${question} ${criteria}`.toLowerCase();
+  // Extract keywords from input and expected outcome
+  const taskText = `${inputText} ${criteria}`.toLowerCase();
 
   // Determine expected tools based on task keywords
   const expectedTools = new Set<string>();

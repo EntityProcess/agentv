@@ -48,15 +48,15 @@ Write evaluation instructions as markdown. Template variables are interpolated:
 
 Evaluate the candidate's response to the following question:
 
-**Question:** {{question}}
+**Question:** {{input_text}}
 **Criteria:** {{criteria}}
-**Reference Answer:** {{reference_answer}}
-**Candidate Answer:** {{answer}}
+**Reference Answer:** {{expected_output_text}}
+**Candidate Answer:** {{output_text}}
 
 ## Scoring
 
 Score the response from 0.0 to 1.0 based on:
-1. Correctness — does the answer match the expected outcome?
+1. Correctness — does the output match the expected outcome?
 2. Completeness — does it address all parts of the question?
 3. Clarity — is the response clear and well-structured?
 ```
@@ -65,13 +65,17 @@ Score the response from 0.0 to 1.0 based on:
 
 | Variable | Source |
 |----------|--------|
-| `question` | First user message content |
+| `input_text` | First user message content (replaces `question`) |
+| `output_text` | Last candidate response content (replaces `answer`) |
+| `expected_output_text` | Last expected message content (replaces `reference_answer`) |
 | `criteria` | Test `criteria` field |
-| `reference_answer` | Last expected message content |
-| `answer` | Last candidate response content |
-| `metadata` | Test metadata |
-| `rubrics` | Test `rubrics` (if defined) |
+| `input` | Full resolved input array, JSON-serialized |
+| `expected_output` | Full resolved expected array, JSON-serialized |
+| `output` | Full provider output array, JSON-serialized |
 | `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
+| `question` | **Deprecated.** Use `input_text` instead. |
+| `answer` | **Deprecated.** Use `output_text` instead. |
+| `reference_answer` | **Deprecated.** Use `expected_output_text` instead. |
 
 ## Per-Evaluator Grader Target
 
@@ -105,12 +109,12 @@ export default definePromptTemplate((ctx) => {
   return `You are evaluating an AI assistant's response.
 
 ## Question
-${ctx.question}
+${ctx.inputText}
 
 ## Candidate Answer
-${ctx.answer}
+${ctx.outputText}
 
-${ctx.referenceAnswer ? `## Reference Answer\n${ctx.referenceAnswer}` : ''}
+${ctx.expectedOutputText ? `## Reference Answer\n${ctx.expectedOutputText}` : ''}
 
 ${rubric ? `## Evaluation Criteria\n${rubric}` : ''}
 
@@ -148,14 +152,17 @@ TypeScript templates receive a context object with these fields:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `question` | `string` | First user message content |
-| `answer` | `string` | Last entry in `output` |
-| `referenceAnswer` | `string` | Last entry in `expected_output` |
+| `inputText` | `string` | First user message content |
+| `outputText` | `string` | Last entry in `output` |
+| `expectedOutputText` | `string` | Last entry in `expected_output` |
 | `criteria` | `string` | Test `criteria` field |
 | `expectedOutput` | `Message[]` | Full resolved expected output |
 | `output` | `Message[]` | Full provider output messages |
 | `trace` | `TraceSummary` | Execution metrics summary |
 | `config` | `object` | Custom config from YAML |
+| `question` | `string` | **Deprecated.** Use `inputText` instead. |
+| `answer` | `string` | **Deprecated.** Use `outputText` instead. |
+| `referenceAnswer` | `string` | **Deprecated.** Use `expectedOutputText` instead. |
 
 ## Template Variable Derivation
 
@@ -183,14 +190,17 @@ Derived strings injected into evaluator prompts:
 
 | Variable | Derivation |
 |----------|------------|
-| `question` | Content of the first `user` role entry in `input` |
+| `input_text` | Content of the first `user` role entry in `input` |
 | `criteria` | Passed through from the test field |
-| `reference_answer` | Content of the last entry in `expected_output` |
-| `answer` | Content of the last entry in `output` |
+| `expected_output_text` | Content of the last entry in `expected_output` |
+| `output_text` | Content of the last entry in `output` |
 | `input` | Full resolved input array, JSON-serialized |
 | `expected_output` | Full resolved expected array, JSON-serialized |
 | `output` | Full provider output array, JSON-serialized |
 | `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
+| `question` | **Deprecated.** Same as `input_text`. |
+| `answer` | **Deprecated.** Same as `output_text`. |
+| `reference_answer` | **Deprecated.** Same as `expected_output_text`. |
 
 **Example flow:**
 
@@ -206,7 +216,7 @@ input:    [{ role: "user", content: "What is 2+2?" }]
 expected_output: [{ role: "assistant", content: "The answer is 4" }]
 
 # Derived template variables:
-question:         "What is 2+2?"
-reference_answer: "The answer is 4"
-answer: (extracted from provider output at runtime)
+input_text:           "What is 2+2?"
+expected_output_text: "The answer is 4"
+output_text: (extracted from provider output at runtime)
 ```

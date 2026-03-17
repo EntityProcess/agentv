@@ -47,19 +47,24 @@ function rougeN(candidate: string, reference: string, n: number) {
   return { precision, recall, f1 };
 }
 
-export default defineCodeGrader(({ answer, referenceAnswer, expectedOutput }) => {
+export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutput }) => {
   const reference =
-    referenceAnswer ??
+    expectedOutputText ||
     (expectedOutput[0] && typeof expectedOutput[0].content === 'string'
       ? expectedOutput[0].content
       : '');
 
   if (!reference) {
-    return { score: 0, misses: ['No reference text provided'], reasoning: 'Missing reference.' };
+    return {
+      score: 0,
+      hits: [],
+      misses: ['No reference text provided'],
+      reasoning: 'Missing reference.',
+    };
   }
 
-  const rouge1 = rougeN(answer, reference, 1);
-  const rouge2 = rougeN(answer, reference, 2);
+  const rouge1 = rougeN(outputText, reference, 1);
+  const rouge2 = rougeN(outputText, reference, 2);
 
   const score = rouge1.f1;
 
