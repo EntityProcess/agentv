@@ -182,14 +182,14 @@ grep AGENT_EVAL_MODE .env 2>/dev/null || echo "AGENT_EVAL_MODE=agent"
 
 | `AGENT_EVAL_MODE` | Mode | How |
 |-------------------|------|-----|
-| `cli` | **AgentV CLI** | `agentv eval <path>` — end-to-end, EVAL.yaml |
-| `agent` (default) | **Agent mode** | `python scripts/run_eval.py` (calls `claude -p`) |
+| `cli` (recommended) | **AgentV CLI** | `agentv eval <path>` — end-to-end, multi-provider |
+| `agent` (legacy) | **Agent mode** | `python scripts/run_eval.py` (calls `claude -p`, Claude-only) |
 
 Set `AGENT_EVAL_MODE` in `.env` at the project root. If absent, default to `agent`.
 
-**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Best for EVAL.yaml evals when `agentv` is installed.
+**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all providers. Recommended for new setups.
 
-**`agent`** — `run_eval.py` runs each test case via `claude -p` and captures outputs for grading.
+**`agent`** — `run_eval.py` runs each test case via `claude -p` and captures outputs for grading. Legacy mode, Claude-only. Use `--mode cli --target <provider>` for multi-provider support.
 
 ### Running evaluations
 
@@ -203,6 +203,8 @@ agentv eval <eval-path> --artifacts .agentv/artifacts/
 cd plugins/agentv-dev/skills/agentv-bench
 python scripts/quick_validate.py --eval evals/evals.json
 python scripts/run_eval.py --eval evals/evals.json --output iteration-1/
+# Multi-provider: use cli mode
+python scripts/run_eval.py --eval evals/evals.json --output iteration-1/ --mode cli --target copilot
 ```
 
 **Spawn all runs in the same turn.** For each test case that needs both a "with change" and a "baseline" run, launch them simultaneously. Don't run one set first and come back for the other — launch everything at once so results arrive around the same time.
@@ -401,6 +403,8 @@ This is optional and requires subagents. The human review loop is usually suffic
 
 The `description` field in a skill's SKILL.md frontmatter is the primary mechanism that determines whether Claude invokes the skill. After the agent/skill is working well, offer to optimize the description for better triggering accuracy.
 
+**Provider compatibility**: Description optimization is specific to agents with skill-discovery mechanisms (e.g., Claude Code). Agents like Copilot and Codex don't have skill systems, so description optimization doesn't apply to them. The `skill-trigger` evaluator still works for these providers — it just checks whether the agent invoked the right tools, not whether it discovered the skill via description matching.
+
 ### Step 1: Generate trigger EVAL.yaml
 
 Create 20 test cases:
@@ -455,10 +459,25 @@ Update the skill's SKILL.md frontmatter with the optimized description. Show the
 
 **No subagents available** (e.g., Claude.ai): Run test cases serially. Skip blind comparison. Present results directly in conversation — for each test case, show the prompt and output. Ask for feedback inline. Skip benchmarking (it relies on baseline comparisons that aren't meaningful without subagents).
 
+**Provider support matrix**:
+
+| Provider | Tool Calls | `skill-trigger` Evaluator | Description Optimization |
+|----------|-----------|---------------------------|-------------------------|
+| Claude CLI/SDK | Yes | Built-in (Skill, Read) | Yes (skill discovery) |
+| Copilot CLI/SDK | Yes (ACP) | Built-in (Skill, Read File, readFile) | No (no skill discovery) |
+| Pi Coding Agent | Yes | Built-in (same as Claude) | Possible (same format) |
+| VS Code / VS Code Insiders | Yes | Built-in (Copilot tools) | No |
+| Codex | No tool calls | Not supported — use `contains` or `llm-judge` | No |
+| OpenAI / Gemini / Other LLMs | Varies | Custom via `skill_tools`/`read_tools` config | No |
+
+**Note**: "Description Optimization" (iterating on SKILL.md descriptions for better triggering accuracy) requires an agent with a skill-discovery mechanism. Agents that don't have skill systems (Copilot, Codex) still benefit from the evaluator for testing whether they invoke the right tools.
+
 **Provider-specific notes**:
 - **Copilot CLI**: Uses ACP protocol via `copilot --acp --stdio`
 - **Claude SDK**: Requires `@anthropic-ai/claude-agent-sdk` installed
+- **Codex**: No tool calls emitted — `skill-trigger` evaluator will return a descriptive error. Use `contains` or `llm-judge` evaluators instead.
 - **Custom CLI**: Needs `command` and output file pattern in target config
+- **Custom tool names**: Use `skill_tools` and `read_tools` in assertion config to override tool name detection
 - **Target config**: Uses `${{ ENV_VAR }}` syntax (not `${ENV_VAR}`) for API keys
 
 ---

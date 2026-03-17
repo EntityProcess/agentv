@@ -58,6 +58,9 @@ def run_loop(
     verbose: bool,
     live_report_path: Path | None = None,
     log_dir: Path | None = None,
+    mode: str = "agent",
+    target: str = "claude",
+    llm_command: str | None = None,
 ) -> dict:
     """Run the eval + improvement loop."""
     project_root = find_project_root()
@@ -96,6 +99,8 @@ def run_loop(
             runs_per_query=runs_per_query,
             trigger_threshold=trigger_threshold,
             model=model,
+            mode=mode,
+            target=target,
         )
         eval_elapsed = time.time() - t0
 
@@ -205,6 +210,7 @@ def run_loop(
             model=model,
             log_dir=log_dir,
             iteration=iteration,
+            llm_command=llm_command,
         )
         improve_elapsed = time.time() - t0
 
@@ -256,6 +262,11 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="Print progress to stderr")
     parser.add_argument("--report", default="auto", help="Generate HTML report at this path (default: 'auto' for temp file, 'none' to disable)")
     parser.add_argument("--results-dir", default=None, help="Save all outputs (results.json, report.html, log.txt) to a timestamped subdirectory here")
+    parser.add_argument("--target", default="claude", help="Target provider for evaluation")
+    parser.add_argument("--mode", default="agent", choices=["agent", "cli"],
+                        help="Execution mode: 'agent' (legacy) or 'cli' (recommended)")
+    parser.add_argument("--llm-command", default=None,
+                        help="Command for LLM inference in improve_description (default: claude -p)")
     args = parser.parse_args()
 
     eval_set = json.loads(Path(args.eval_set).read_text())
@@ -304,6 +315,9 @@ def main():
         verbose=args.verbose,
         live_report_path=live_report_path,
         log_dir=log_dir,
+        mode=args.mode,
+        target=args.target,
+        llm_command=args.llm_command,
     )
 
     # Save JSON output
