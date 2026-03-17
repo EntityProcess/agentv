@@ -1,4 +1,14 @@
 {
+  "name": "agentv",
+  "metadata": {
+    "description": "Evaluate and optimize AI agents",
+    "version": "1.0.0",
+    "pluginRoot": "./plugins"
+  },
+  "owner": {
+    "name": "AgentV",
+    "email": "support@agentv.dev"
+  },
   "plugins": [
     {
       "name": "agentv-dev",
