@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('@ai-sdk/openai', () => ({
   createOpenAI: () => (modelId: string) => ({
     modelId,
-    specificationVersion: 'v2',
+    specificationVersion: 'v3',
     provider: 'openai',
   }),
 }));
@@ -13,7 +13,7 @@ vi.mock('@ai-sdk/openai', () => ({
 vi.mock('@ai-sdk/anthropic', () => ({
   createAnthropic: () => (modelId: string) => ({
     modelId,
-    specificationVersion: 'v2',
+    specificationVersion: 'v3',
     provider: 'anthropic',
   }),
 }));
@@ -21,7 +21,7 @@ vi.mock('@ai-sdk/anthropic', () => ({
 vi.mock('@ai-sdk/azure', () => ({
   createAzure: () => (modelId: string) => ({
     modelId,
-    specificationVersion: 'v2',
+    specificationVersion: 'v3',
     provider: 'azure',
   }),
 }));
@@ -29,7 +29,7 @@ vi.mock('@ai-sdk/azure', () => ({
 vi.mock('@ai-sdk/google', () => ({
   createGoogleGenerativeAI: () => (modelId: string) => ({
     modelId,
-    specificationVersion: 'v2',
+    specificationVersion: 'v3',
     provider: 'google',
   }),
 }));
