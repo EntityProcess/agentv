@@ -1,0 +1,69 @@
+# Multi-provider skill-trigger evaluation example.
+#
+# Demonstrates how the skill-trigger evaluator works across different
+# agent harnesses. The evaluator automatically maps provider tool names
+# when running with --target, and supports config overrides for custom setups.
+#
+# Usage:
+#   agentv eval examples/features/agent-skills-evals/multi-provider-skill-trigger.EVAL.yaml --target claude
+#   agentv eval examples/features/agent-skills-evals/multi-provider-skill-trigger.EVAL.yaml --target copilot
+#
+# The same EVAL.yaml works with any provider — the evaluator resolves
+# the correct tool names automatically.
+
+tests:
+  # === Positive cases: skill should trigger ===
+
+  - id: should-trigger-direct-request
+    input: "Analyze this CSV file and tell me the top 5 months by revenue"
+    assertions:
+      - type: skill-trigger
+        skill: csv-analyzer
+        should_trigger: true
+
+  - id: should-trigger-casual-phrasing
+    input: "hey can you look at sales-data.csv and figure out which quarter had the most growth"
+    assertions:
+      - type: skill-trigger
+        skill: csv-analyzer
+        should_trigger: true
+
+  # === Negative cases: skill should NOT trigger ===
+
+  - id: should-not-trigger-unrelated
+    input: "What time is it in Tokyo right now?"
+    assertions:
+      - type: skill-trigger
+        skill: csv-analyzer
+        should_trigger: false
+
+  - id: should-not-trigger-near-miss
+    input: "Help me write a Python script that reads CSV files using pandas"
+    assertions:
+      - type: skill-trigger
+        skill: csv-analyzer
+        should_trigger: false
+
+  # === Custom tool mapping example ===
+  # For providers with non-standard tool names, use config overrides.
+  # This test case shows how to configure skill-trigger for a hypothetical
+  # provider that uses "invoke_skill" and "read_document" tool names.
+  #
+  # NOTE: Custom tool overrides (skill_tools, read_tools, etc.) require
+  # evaluator-parser support to work from YAML. Currently these overrides
+  # work via the programmatic API. See #643 for tracking.
+
+  - id: custom-tool-mapping-example
+    input: "Analyze the quarterly revenue data"
+    assertions:
+      - type: skill-trigger
+        skill: csv-analyzer
+        should_trigger: true
+        skill_tools:
+          - invoke_skill
+          - Skill
+        read_tools:
+          - read_document
+          - Read
+        skill_input_field: skill_name
+        read_input_field: document_path
