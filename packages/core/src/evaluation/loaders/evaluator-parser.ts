@@ -864,11 +864,24 @@ async function parseEvaluatorList(
       const shouldTrigger = typeof rawShouldTrigger === 'boolean' ? rawShouldTrigger : undefined;
       const weight = validateWeight(rawEvaluator.weight, name, evalId);
       const required = parseRequired(rawEvaluator.required);
+      // Provider tool-name overrides (for non-Claude providers)
+      const skillTools = Array.isArray(rawEvaluator.skill_tools)
+        ? (rawEvaluator.skill_tools as string[])
+        : undefined;
+      const readTools = Array.isArray(rawEvaluator.read_tools)
+        ? (rawEvaluator.read_tools as string[])
+        : undefined;
+      const skillInputField = asString(rawEvaluator.skill_input_field);
+      const readInputField = asString(rawEvaluator.read_input_field);
       evaluators.push({
         name,
         type: 'skill-trigger',
         skill: skillName,
         ...(shouldTrigger !== undefined ? { should_trigger: shouldTrigger } : {}),
+        ...(skillTools ? { skill_tools: skillTools } : {}),
+        ...(readTools ? { read_tools: readTools } : {}),
+        ...(skillInputField ? { skill_input_field: skillInputField } : {}),
+        ...(readInputField ? { read_input_field: readInputField } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(negate !== undefined ? { negate } : {}),

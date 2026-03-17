@@ -48,10 +48,6 @@ tests:
   # For providers with non-standard tool names, use config overrides.
   # This test case shows how to configure skill-trigger for a hypothetical
   # provider that uses "invoke_skill" and "read_document" tool names.
-  #
-  # NOTE: Custom tool overrides (skill_tools, read_tools, etc.) require
-  # evaluator-parser support to work from YAML. Currently these overrides
-  # work via the programmatic API. See #643 for tracking.
 
   - id: custom-tool-mapping-example
     input: "Analyze the quarterly revenue data"
