@@ -909,10 +909,8 @@ export interface EvaluationResult {
   readonly tokenUsage?: TokenUsage;
   /** Total cost in USD (optional, from provider) */
   readonly costUsd?: number;
-  /** Total execution duration in milliseconds (includes grading time) */
+  /** Candidate/agent execution duration in milliseconds (excludes grading time) */
   readonly durationMs?: number;
-  /** Execution duration of just the candidate/agent in milliseconds (excludes grading time) */
-  readonly candidateDurationMs?: number;
   /** ISO 8601 timestamp when execution started */
   readonly startTime?: string;
   /** ISO 8601 timestamp when execution ended */
@@ -950,6 +948,11 @@ export interface EvaluationResult {
   readonly costLimited?: boolean;
   /** Whether the evaluation was skipped due to suite-level budget exhaustion */
   readonly budgetExceeded?: boolean;
+  /** Aggregate metrics for the full eval run (candidate + grading) */
+  readonly evalRun?: {
+    readonly durationMs?: number;
+    readonly tokenUsage?: TokenUsage;
+  };
   /** Primary classification: ok, quality_failure, or execution_error */
   readonly executionStatus: ExecutionStatus;
   /** Pipeline stage where failure occurred (only when executionStatus !== 'ok') */
