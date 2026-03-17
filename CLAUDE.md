@@ -54,7 +54,14 @@ AI agents are the primary users of AgentV—not humans reading docs. Design for 
 - Avoid monolithic commands that do multiple things
 - SDK internals should be intuitive enough for AI to modify when needed
 
-**Scope:** Applies primarily to skills, but also to repo structure, documentation, and SDK design—anything AI might need to reason about or extend.
+**Self-documenting code:**
+- File headers should explain what the file does, how it works, and how to extend it — no need to read other files to understand this one
+- Don't reference external projects, PRs, or issues in code comments; make everything standalone
+- Prefer data-driven patterns (static mappings, config tables) over conditional chains — AI can extend a mapping by adding an entry, but has to trace logic to extend an if/else tree
+- No dead code or speculative infrastructure; if it's unused, delete it
+- When a module has an extension point, include a short recipe in the header (e.g., "To add a new provider: 1. Create a matcher, 2. Add it to the mapping")
+
+**Scope:** Applies to skills, repo structure, documentation, SDK design, and source code — anything AI might need to reason about or extend.
 
 ## Tech Stack & Tools
 - **Language:** TypeScript 5.x targeting ES2022
