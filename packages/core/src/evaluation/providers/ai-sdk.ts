@@ -390,15 +390,15 @@ async function invokeModel(options: {
 function mapResponse(result: TextResult): ProviderResponse {
   const content = result.text ?? '';
   const rawUsage = result.totalUsage ?? result.usage;
-  const reasoning = (rawUsage as Record<string, unknown> | undefined)?.reasoningTokens as
-    | number
-    | undefined;
+  const reasoning = rawUsage?.outputTokenDetails?.reasoningTokens ?? undefined;
+  const cached = rawUsage?.inputTokenDetails?.cacheReadTokens ?? undefined;
   const tokenUsage =
     rawUsage?.inputTokens != null && rawUsage?.outputTokens != null
       ? {
           input: rawUsage.inputTokens,
           output: rawUsage.outputTokens,
-          reasoning: reasoning ?? undefined,
+          ...(reasoning != null ? { reasoning } : {}),
+          ...(cached != null ? { cached } : {}),
         }
       : undefined;
 
