@@ -9,7 +9,7 @@ sidebar:
 
 AgentV supports a full evaluation-driven improvement loop for skills and agents. Instead of guessing whether a change makes things better, you run structured evaluations before and after, then compare.
 
-This guide teaches the **core manual loop**. For automated iteration that runs the full cycle hands-free, see [agentv-optimizer](#automated-iteration).
+This guide teaches the **core manual loop**. For automated iteration that runs the full cycle hands-free, see [agentv-bench](#automated-iteration).
 
 ## The Core Loop
 
@@ -134,10 +134,10 @@ agentv prompt eval --expected-output evals.json --test-id 1
 
 Agent mode is useful when you want to evaluate skills with agents that don't have a direct API integration — you orchestrate the run yourself and use AgentV's accessor commands to read the eval spec.
 
-If you're using the `agentv-optimizer` skill bundle, the equivalent wrappers are:
+If you're using the `agentv-bench` skill bundle, the equivalent wrappers are:
 
 ```bash
-cd plugins/agentv-dev/skills/agentv-optimizer
+cd plugins/agentv-dev/skills/agentv-bench
 bun install
 bun scripts/quick-validate.ts --scope wrappers
 bun scripts/prompt-eval.ts --list evals.json
@@ -312,7 +312,7 @@ Start simple and add complexity only when the evaluation results demand it:
 
 ## Automated Iteration
 
-For users who want the full automated improvement cycle, the `agentv-optimizer` skill runs a 5-phase optimization loop:
+For users who want the full automated improvement cycle, the `agentv-bench` skill runs a 5-phase optimization loop:
 
 1. **Analyze** — examines the current skill and evaluation results
 2. **Hypothesize** — generates improvement hypotheses from failure patterns
