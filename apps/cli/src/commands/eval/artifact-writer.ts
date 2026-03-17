@@ -49,6 +49,7 @@ export interface TimingArtifact {
   readonly token_usage: {
     readonly input: number;
     readonly output: number;
+    readonly reasoning: number;
   };
 }
 
@@ -273,13 +274,17 @@ export function buildGradingArtifact(result: EvaluationResult): GradingArtifact 
 export function buildTimingArtifact(results: readonly EvaluationResult[]): TimingArtifact {
   let totalInput = 0;
   let totalOutput = 0;
+  let totalReasoning = 0;
   let totalDurationMs = 0;
 
   for (const result of results) {
-    const usage = result.tokenUsage as { input?: number; output?: number } | undefined;
+    const usage = result.tokenUsage as
+      | { input?: number; output?: number; reasoning?: number }
+      | undefined;
     if (usage) {
       totalInput += usage.input ?? 0;
       totalOutput += usage.output ?? 0;
+      totalReasoning += usage.reasoning ?? 0;
     }
     if (result.durationMs != null) {
       totalDurationMs += result.durationMs;
@@ -293,6 +298,7 @@ export function buildTimingArtifact(results: readonly EvaluationResult[]): Timin
     token_usage: {
       input: totalInput,
       output: totalOutput,
+      reasoning: totalReasoning,
     },
   };
 }

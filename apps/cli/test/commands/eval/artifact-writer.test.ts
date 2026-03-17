@@ -202,7 +202,7 @@ describe('buildTimingArtifact', () => {
     expect(timing.total_tokens).toBe(4500);
     expect(timing.duration_ms).toBe(90000);
     expect(timing.total_duration_seconds).toBe(90);
-    expect(timing.token_usage).toEqual({ input: 3000, output: 1500 });
+    expect(timing.token_usage).toEqual({ input: 3000, output: 1500, reasoning: 0 });
   });
 
   it('handles results with no timing data', () => {
@@ -212,7 +212,7 @@ describe('buildTimingArtifact', () => {
     expect(timing.total_tokens).toBe(0);
     expect(timing.duration_ms).toBe(0);
     expect(timing.total_duration_seconds).toBe(0);
-    expect(timing.token_usage).toEqual({ input: 0, output: 0 });
+    expect(timing.token_usage).toEqual({ input: 0, output: 0, reasoning: 0 });
   });
 
   it('handles empty results array', () => {
@@ -232,7 +232,7 @@ describe('buildTimingArtifact', () => {
 
     const timing = buildTimingArtifact(results);
     expect(timing.total_tokens).toBe(500);
-    expect(timing.token_usage).toEqual({ input: 500, output: 0 });
+    expect(timing.token_usage).toEqual({ input: 500, output: 0, reasoning: 0 });
   });
 });
 

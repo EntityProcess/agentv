@@ -909,8 +909,10 @@ export interface EvaluationResult {
   readonly tokenUsage?: TokenUsage;
   /** Total cost in USD (optional, from provider) */
   readonly costUsd?: number;
-  /** Total execution duration in milliseconds (optional) */
+  /** Total execution duration in milliseconds (includes grading time) */
   readonly durationMs?: number;
+  /** Execution duration of just the candidate/agent in milliseconds (excludes grading time) */
+  readonly candidateDurationMs?: number;
   /** ISO 8601 timestamp when execution started */
   readonly startTime?: string;
   /** ISO 8601 timestamp when execution ended */

@@ -1527,6 +1527,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
   }
 
+  const caseStartMs = Date.now();
   const attemptBudget = (maxRetries ?? 0) + 1;
   let attempt = 0;
   let providerResponse: ProviderResponse | undefined = cachedResponse;
@@ -1688,6 +1689,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 
   try {
+    const candidateDurationMs = durationMs;
     const result = await evaluateCandidate({
       evalCase,
       candidate,
@@ -1711,7 +1713,10 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       availableTargets,
       fileChanges,
       workspacePath,
+      candidateDurationMs,
     });
+
+    const totalDurationMs = Date.now() - caseStartMs;
 
     const executionStatus: ExecutionStatus = providerError
       ? 'execution_error'
@@ -1720,6 +1725,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     const finalResult = providerError
       ? {
           ...result,
+          durationMs: totalDurationMs,
           error: providerError,
           executionStatus,
           failureStage: 'agent' as const,
@@ -1729,7 +1735,14 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           beforeEachOutput,
           afterEachOutput,
         }
-      : { ...result, executionStatus, beforeAllOutput, beforeEachOutput, afterEachOutput };
+      : {
+          ...result,
+          durationMs: totalDurationMs,
+          executionStatus,
+          beforeAllOutput,
+          beforeEachOutput,
+          afterEachOutput,
+        };
 
     // Determine if this is a failure (has error or low score)
     const isFailure = !!finalResult.error || finalResult.score < 0.5;
@@ -1911,6 +1924,7 @@ async function evaluateCandidate(options: {
   readonly availableTargets?: readonly string[];
   readonly fileChanges?: string;
   readonly workspacePath?: string;
+  readonly candidateDurationMs?: number;
 }): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -1935,6 +1949,7 @@ async function evaluateCandidate(options: {
     availableTargets,
     fileChanges,
     workspacePath,
+    candidateDurationMs,
   } = options;
 
   const gradeTimestamp = nowFn();
@@ -2011,6 +2026,7 @@ async function evaluateCandidate(options: {
     tokenUsage,
     costUsd,
     durationMs,
+    candidateDurationMs,
     startTime,
     endTime,
     requests,
