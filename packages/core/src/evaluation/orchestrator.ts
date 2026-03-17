@@ -1527,6 +1527,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     }
   }
 
+  const caseStartMs = Date.now();
   const attemptBudget = (maxRetries ?? 0) + 1;
   let attempt = 0;
   let providerResponse: ProviderResponse | undefined = cachedResponse;
@@ -1713,6 +1714,29 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       workspacePath,
     });
 
+    const totalDurationMs = Date.now() - caseStartMs;
+
+    // Aggregate grader token usage from individual evaluator results
+    const graderTokens = aggregateEvaluatorTokenUsage(result.scores);
+    const evalRunTokenUsage =
+      tokenUsage || graderTokens
+        ? {
+            input: (tokenUsage?.input ?? 0) + (graderTokens?.input ?? 0),
+            output: (tokenUsage?.output ?? 0) + (graderTokens?.output ?? 0),
+            ...(tokenUsage?.reasoning != null || graderTokens?.reasoning != null
+              ? { reasoning: (tokenUsage?.reasoning ?? 0) + (graderTokens?.reasoning ?? 0) }
+              : {}),
+            ...(tokenUsage?.cached != null || graderTokens?.cached != null
+              ? { cached: (tokenUsage?.cached ?? 0) + (graderTokens?.cached ?? 0) }
+              : {}),
+          }
+        : undefined;
+
+    const evalRun = {
+      durationMs: totalDurationMs,
+      ...(evalRunTokenUsage ? { tokenUsage: evalRunTokenUsage } : {}),
+    };
+
     const executionStatus: ExecutionStatus = providerError
       ? 'execution_error'
       : classifyQualityStatus(result.score);
@@ -1720,6 +1744,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     const finalResult = providerError
       ? {
           ...result,
+          evalRun,
           error: providerError,
           executionStatus,
           failureStage: 'agent' as const,
@@ -1729,7 +1754,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           beforeEachOutput,
           afterEachOutput,
         }
-      : { ...result, executionStatus, beforeAllOutput, beforeEachOutput, afterEachOutput };
+      : { ...result, evalRun, executionStatus, beforeAllOutput, beforeEachOutput, afterEachOutput };
 
     // Determine if this is a failure (has error or low score)
     const isFailure = !!finalResult.error || finalResult.score < 0.5;
@@ -1751,6 +1776,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
     return finalResult;
   } catch (error) {
+    const evalRun = { durationMs: Date.now() - caseStartMs };
     const errorResult = buildErrorResult(
       evalCase,
       target.name,
@@ -1766,10 +1792,10 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       if (forceCleanup || (retainOnFailure ?? 'keep') === 'cleanup') {
         await cleanupWorkspace(workspacePath).catch(() => {});
       } else {
-        return { ...errorResult, workspacePath, beforeEachOutput, afterEachOutput };
+        return { ...errorResult, evalRun, workspacePath, beforeEachOutput, afterEachOutput };
       }
     }
-    return { ...errorResult, beforeEachOutput, afterEachOutput };
+    return { ...errorResult, evalRun, beforeEachOutput, afterEachOutput };
   }
 }
 
@@ -2563,6 +2589,53 @@ function buildResultInput(promptInputs: PromptInputs): EvaluationResult['input']
     }));
   }
   return promptInputs.question;
+}
+
+/**
+ * Sum token usage across all evaluator results (including nested children).
+ * Returns undefined when no evaluator reported token usage.
+ */
+function aggregateEvaluatorTokenUsage(scores?: readonly EvaluatorResult[]): TokenUsage | undefined {
+  if (!scores || scores.length === 0) return undefined;
+
+  let hasAny = false;
+  let input = 0;
+  let output = 0;
+  let reasoning = 0;
+  let cached = 0;
+  let hasReasoning = false;
+  let hasCached = false;
+
+  const visit = (items: readonly EvaluatorResult[]): void => {
+    for (const item of items) {
+      if (item.tokenUsage) {
+        hasAny = true;
+        input += item.tokenUsage.input;
+        output += item.tokenUsage.output;
+        if (item.tokenUsage.reasoning != null) {
+          hasReasoning = true;
+          reasoning += item.tokenUsage.reasoning;
+        }
+        if (item.tokenUsage.cached != null) {
+          hasCached = true;
+          cached += item.tokenUsage.cached;
+        }
+      }
+      if (item.scores) {
+        visit(item.scores);
+      }
+    }
+  };
+
+  visit(scores);
+  if (!hasAny) return undefined;
+
+  return {
+    input,
+    output,
+    ...(hasReasoning ? { reasoning } : {}),
+    ...(hasCached ? { cached } : {}),
+  };
 }
 
 function isTimeoutLike(error: unknown): boolean {

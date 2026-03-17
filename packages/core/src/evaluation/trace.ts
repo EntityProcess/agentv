@@ -13,6 +13,8 @@ export interface TokenUsage {
   readonly output: number;
   /** Cached tokens (optional, provider-specific) */
   readonly cached?: number;
+  /** Reasoning/thinking tokens (optional, provider-specific) */
+  readonly reasoning?: number;
 }
 
 /**

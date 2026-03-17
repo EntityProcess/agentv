@@ -119,10 +119,12 @@ export class ClaudeCliProvider implements Provider {
                 ((usage.cache_read_input_tokens as number) ?? 0) +
                 ((usage.cache_creation_input_tokens as number) ?? 0);
               const outputTokens = (usage.output_tokens as number) ?? 0;
+              const reasoningTokens = (usage.reasoning_tokens as number) ?? undefined;
               tokenUsage = {
                 input: inputTokens,
                 output: outputTokens,
                 cached: (usage.cache_read_input_tokens as number) ?? undefined,
+                reasoning: reasoningTokens,
               };
 
               // Stream callback for LLM usage
