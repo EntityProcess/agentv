@@ -5,12 +5,17 @@
  * Supports multiple provider kinds via static tool-name mappings.
  * For providers not covered here, use a code-grader instead.
  *
- * Mirrors the post-hoc fallback detection in skill-creator's run_eval.py:
+ * Detection logic:
  *   - Only the FIRST tool call matters.
  *   - Skill tool: checks input.[skillInputField] contains the skill name (case-sensitive substring).
  *   - Read tool: checks input.[readInputField] contains the skill name (case-sensitive substring).
  *   - Any other tool as first call means the skill was not triggered.
  *   - Supports negative cases via should_trigger: false.
+ *
+ * To add a new provider:
+ *   1. Create a ToolMatcher with the provider's tool names and input fields.
+ *   2. Add entries to PROVIDER_TOOL_SEMANTICS mapping the provider kind(s) to the matcher.
+ *   3. If the provider's tool-call format doesn't fit the ToolMatcher model, use a code-grader instead.
  */
 
 import type { ProviderKind } from '../providers/types.js';
@@ -36,6 +41,7 @@ const CLAUDE_MATCHER: ToolMatcher = {
   readInputField: 'file_path',
 };
 
+/** Copilot uses ACP protocol — tool names vary by version and context. */
 const COPILOT_MATCHER: ToolMatcher = {
   skillTools: ['Skill', 'skill'],
   skillInputField: 'skill',
@@ -58,12 +64,6 @@ const PROVIDER_TOOL_SEMANTICS: Partial<Record<ProviderKind, ToolMatcher>> = {
   vscode: COPILOT_MATCHER,
   'vscode-insiders': COPILOT_MATCHER,
 };
-
-/** Providers known to never emit tool calls. */
-const NO_TOOL_CALL_PROVIDERS: ReadonlySet<ProviderKind> = new Set([
-  // Currently empty — all agent providers emit tool calls.
-  // Add provider kinds here if a provider is known to never produce tool_use events.
-]);
 
 export class SkillTriggerEvaluator implements Evaluator {
   readonly kind = 'skill-trigger';
@@ -92,24 +92,6 @@ export class SkillTriggerEvaluator implements Evaluator {
 
     let triggered = false;
     let evidence = '';
-
-    // Check for providers known to not emit tool calls
-    if (!firstTool && providerKind && NO_TOOL_CALL_PROVIDERS.has(providerKind)) {
-      return {
-        score: shouldTrigger ? 0 : 1,
-        verdict: shouldTrigger ? 'fail' : 'pass',
-        hits: shouldTrigger
-          ? []
-          : [`Provider "${providerKind}" does not emit tool calls — no false trigger possible`],
-        misses: shouldTrigger
-          ? [
-              `Provider "${providerKind}" does not emit tool calls — skill-trigger evaluation is not supported. Consider using a different evaluator type (e.g., contains, llm-judge) for this provider.`,
-            ]
-          : [],
-        expectedAspectCount: 1,
-        reasoning: `Provider "${providerKind}" does not support tool call detection`,
-      };
-    }
 
     if (firstTool) {
       const input = (firstTool.input ?? {}) as Record<string, unknown>;
