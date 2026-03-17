@@ -182,14 +182,14 @@ grep AGENT_EVAL_MODE .env 2>/dev/null || echo "AGENT_EVAL_MODE=agent"
 
 | `AGENT_EVAL_MODE` | Mode | How |
 |-------------------|------|-----|
-| `cli` | **AgentV CLI** | `agentv eval <path>` — end-to-end, EVAL.yaml |
-| `agent` (default) | **Agent mode** | `python scripts/run_eval.py` (calls `claude -p`) |
+| `cli` (recommended) | **AgentV CLI** | `agentv eval <path>` — end-to-end, multi-provider |
+| `agent` (legacy) | **Agent mode** | `python scripts/run_eval.py` (calls `claude -p`, Claude-only) |
 
 Set `AGENT_EVAL_MODE` in `.env` at the project root. If absent, default to `agent`.
 
-**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Best for EVAL.yaml evals when `agentv` is installed.
+**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all providers. Recommended for new setups.
 
-**`agent`** — `run_eval.py` runs each test case via `claude -p` and captures outputs for grading.
+**`agent`** — `run_eval.py` runs each test case via `claude -p` and captures outputs for grading. Legacy mode, Claude-only. Use `--mode cli --target <provider>` for multi-provider support.
 
 ### Running evaluations
 
@@ -203,6 +203,8 @@ agentv eval <eval-path> --artifacts .agentv/artifacts/
 cd plugins/agentv-dev/skills/agentv-bench
 python scripts/quick_validate.py --eval evals/evals.json
 python scripts/run_eval.py --eval evals/evals.json --output iteration-1/
+# Multi-provider: use cli mode
+python scripts/run_eval.py --eval evals/evals.json --output iteration-1/ --mode cli --target copilot
 ```
 
 **Spawn all runs in the same turn.** For each test case that needs both a "with change" and a "baseline" run, launch them simultaneously. Don't run one set first and come back for the other — launch everything at once so results arrive around the same time.
@@ -401,6 +403,8 @@ This is optional and requires subagents. The human review loop is usually suffic
 
 The `description` field in a skill's SKILL.md frontmatter is the primary mechanism that determines whether Claude invokes the skill. After the agent/skill is working well, offer to optimize the description for better triggering accuracy.
 
+**Provider compatibility**: Description optimization is specific to agents with skill-discovery mechanisms (e.g., Claude Code). Agents like Copilot and Codex don't have skill systems, so description optimization doesn't apply to them. The `skill-trigger` evaluator still works for these providers — it just checks whether the agent invoked the right tools, not whether it discovered the skill via description matching.
+
 ### Step 1: Generate trigger EVAL.yaml
 
 Create 20 test cases:
@@ -455,11 +459,76 @@ Update the skill's SKILL.md frontmatter with the optimized description. Show the
 
 **No subagents available** (e.g., Claude.ai): Run test cases serially. Skip blind comparison. Present results directly in conversation — for each test case, show the prompt and output. Ask for feedback inline. Skip benchmarking (it relies on baseline comparisons that aren't meaningful without subagents).
 
+**Provider support matrix**:
+
+| Provider | Tool Calls | `skill-trigger` Evaluator | Description Optimization |
+|----------|-----------|---------------------------|-------------------------|
+| Claude CLI/SDK | Yes | Built-in (Skill, Read) | Yes (skill discovery) |
+| Copilot CLI/SDK | Yes (ACP) | Built-in (Skill, Read File, readFile) | No (no skill discovery) |
+| Pi Coding Agent | Yes | Built-in (same as Claude) | Possible (same format) |
+| VS Code / VS Code Insiders | Yes | Built-in (Copilot tools) | No |
+| Codex | Yes (command_execution, file_change) | Use code-grader (see below) | Yes (.agents/.codex folders) |
+| Other providers | Varies | Use code-grader (see below) | No |
+
+**Note**: "Description Optimization" (iterating on SKILL.md descriptions for better triggering accuracy) requires an agent with a skill-discovery mechanism. Agents that don't have skill systems (Copilot, Codex) still benefit from evaluation for testing whether they invoke the right tools.
+
 **Provider-specific notes**:
 - **Copilot CLI**: Uses ACP protocol via `copilot --acp --stdio`
 - **Claude SDK**: Requires `@anthropic-ai/claude-agent-sdk` installed
+- **Codex**: Supports skills via `.agents/` or `.codex/` folders. Emits `command_execution` and `file_change` tool calls.
 - **Custom CLI**: Needs `command` and output file pattern in target config
 - **Target config**: Uses `${{ ENV_VAR }}` syntax (not `${ENV_VAR}`) for API keys
+
+### Unsupported providers: use a code-grader
+
+The built-in `skill-trigger` evaluator covers Claude, Copilot, Pi, and VS Code out of the box. For providers with different tool-call formats (Codex, custom agents, etc.), write a code-grader that inspects the agent's tool call trace.
+
+A code-grader receives the full evaluation context including the agent's output messages and tool calls. You can inspect these to determine whether the skill was invoked:
+
+```yaml
+# Example: code-grader for Codex skill-trigger detection
+tests:
+  - id: should-trigger-codex
+    input: "Analyze this CSV file"
+    assertions:
+      - type: code-grader
+        path: ./judges/codex-skill-trigger.ts
+```
+
+```typescript
+// judges/codex-skill-trigger.ts
+import { defineCodeJudge } from '@agentv/eval';
+
+export default defineCodeJudge(({ output }) => {
+  const skillName = 'csv-analyzer';
+  const toolCalls = (output ?? []).flatMap((msg) => msg.toolCalls ?? []);
+  const firstTool = toolCalls[0];
+
+  if (!firstTool) {
+    return { score: 0, reason: 'No tool calls recorded' };
+  }
+
+  // Codex reads skill files via shell commands
+  if (firstTool.tool === 'command_execution') {
+    const cmd = String(firstTool.input ?? '');
+    if (cmd.includes(skillName)) {
+      return { score: 1, reason: `Skill "${skillName}" triggered via command: ${cmd}` };
+    }
+  }
+
+  // Check if skill file was read via file_change or other tools
+  if (firstTool.tool === 'file_change') {
+    const path = String((firstTool.input as Record<string, unknown>)?.path ?? '');
+    if (path.includes(skillName)) {
+      return { score: 1, reason: `Skill file accessed: ${path}` };
+    }
+  }
+
+  return { score: 0, reason: `First tool was "${firstTool.tool}" — not a skill invocation for "${skillName}"` };
+});
+```
+
+This approach is more flexible than config overrides — you can match any tool-call pattern, check multiple fields, and add provider-specific logic as needed.
 
 ---
 

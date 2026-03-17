@@ -181,6 +181,104 @@ def run_single_query(
             command_file.unlink()
 
 
+def run_single_query_cli(
+    query: str,
+    skill_name: str,
+    skill_description: str,
+    timeout: int,
+    project_root: str,
+    target: str = "claude",
+) -> bool:
+    """Run a single query via agentv eval and return whether the skill was triggered.
+
+    Uses `agentv eval` with a temporary EVAL.yaml file to evaluate the query.
+    The skill-trigger evaluator handles provider-specific tool detection.
+    """
+    import tempfile
+
+    unique_id = uuid.uuid4().hex[:8]
+    clean_name = f"{skill_name}-skill-{unique_id}"
+
+    # Create temporary EVAL.yaml for this single query
+    eval_config = {
+        "tests": [{
+            "id": f"trigger-{unique_id}",
+            "input": query,
+            "assertions": [{
+                "type": "skill-trigger",
+                "skill": clean_name,
+                # Always True here — this function returns a raw boolean
+                # (True = triggered, False = not triggered). The caller
+                # (run_eval) handles the should_trigger logic at the
+                # aggregation level, same as run_single_query.
+                "should_trigger": True,
+            }],
+        }],
+    }
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".eval.yaml", dir=project_root, delete=False
+    ) as f:
+        # Use json.dumps since yaml might not be available
+        # EVAL.yaml is a superset of JSON, so JSON works
+        json.dump(eval_config, f)
+        eval_path = f.name
+
+    # Also create the command file so the skill appears in available_skills
+    project_commands_dir = Path(project_root) / ".claude" / "commands"
+    command_file = project_commands_dir / f"{clean_name}.md"
+
+    try:
+        project_commands_dir.mkdir(parents=True, exist_ok=True)
+        indented_desc = "\n  ".join(skill_description.split("\n"))
+        command_content = (
+            f"---\n"
+            f"description: |\n"
+            f"  {indented_desc}\n"
+            f"---\n\n"
+            f"# {skill_name}\n\n"
+            f"This skill handles: {skill_description}\n"
+        )
+        command_file.write_text(command_content)
+
+        cmd = [
+            "agentv", "eval", eval_path,
+            "--target", target,
+            "--format", "json",
+        ]
+
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            cwd=project_root,
+            env=env,
+            timeout=timeout,
+        )
+
+        if result.returncode != 0:
+            print(f"Warning: agentv eval failed: {result.stderr}", file=sys.stderr)
+            return False
+
+        try:
+            output = json.loads(result.stdout)
+            # Check if the skill-trigger assertion passed
+            for test_result in output.get("results", []):
+                for assertion in test_result.get("assertions", []):
+                    if assertion.get("type") == "skill-trigger":
+                        return assertion.get("verdict") == "pass"
+        except json.JSONDecodeError:
+            print(f"Warning: could not parse agentv eval output", file=sys.stderr)
+
+        return False
+    finally:
+        Path(eval_path).unlink(missing_ok=True)
+        if command_file.exists():
+            command_file.unlink()
+
+
 def run_eval(
     eval_set: list[dict],
     skill_name: str,
@@ -191,22 +289,28 @@ def run_eval(
     runs_per_query: int = 1,
     trigger_threshold: float = 0.5,
     model: str | None = None,
+    mode: str = "agent",
+    target: str = "claude",
 ) -> dict:
     """Run the full eval set and return results."""
     results = []
+
+    query_fn = run_single_query_cli if mode == "cli" else run_single_query
 
     with ProcessPoolExecutor(max_workers=num_workers) as executor:
         future_to_info = {}
         for item in eval_set:
             for run_idx in range(runs_per_query):
+                # cli mode passes target; agent mode passes model as the last arg
+                last_arg = target if mode == "cli" else model
                 future = executor.submit(
-                    run_single_query,
+                    query_fn,
                     item["query"],
                     skill_name,
                     description,
                     timeout,
                     str(project_root),
-                    model,
+                    last_arg,
                 )
                 future_to_info[future] = (item, run_idx)
 
@@ -266,6 +370,9 @@ def main():
     parser.add_argument("--runs-per-query", type=int, default=3, help="Number of runs per query")
     parser.add_argument("--trigger-threshold", type=float, default=0.5, help="Trigger rate threshold")
     parser.add_argument("--model", default=None, help="Model to use for claude -p (default: user's configured model)")
+    parser.add_argument("--target", default="claude", help="Target provider for evaluation (default: claude)")
+    parser.add_argument("--mode", default="agent", choices=["agent", "cli"],
+                        help="Execution mode: 'agent' uses claude -p directly (legacy), 'cli' uses agentv eval (recommended)")
     parser.add_argument("--verbose", action="store_true", help="Print progress to stderr")
     args = parser.parse_args()
 
@@ -293,6 +400,8 @@ def main():
         runs_per_query=args.runs_per_query,
         trigger_threshold=args.trigger_threshold,
         model=args.model,
+        mode=args.mode,
+        target=args.target,
     )
 
     if args.verbose:

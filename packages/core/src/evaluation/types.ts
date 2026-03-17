@@ -715,8 +715,9 @@ export type RubricsEvaluatorConfig = {
 
 /**
  * Configuration for the skill-trigger evaluator.
- * Detects whether the agent invoked a named Claude Code skill as its first tool call.
- * Mirrors the post-hoc fallback detection in skill-creator's run_eval.py.
+ * Detects whether the agent invoked a named skill as its first tool call.
+ * Tool-name resolution is automatic based on the provider kind.
+ * For providers not covered by the built-in mapping, use a code-grader.
  */
 export type SkillTriggerEvaluatorConfig = {
   readonly name: string;

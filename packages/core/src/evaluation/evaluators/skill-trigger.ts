@@ -1,17 +1,69 @@
 /**
  * Built-in skill-trigger evaluator.
  *
- * Detects whether the agent invoked a named Claude Code skill as its first tool call.
- * Mirrors the post-hoc fallback detection in skill-creator's run_eval.py:
+ * Detects whether the agent invoked a named skill as its first tool call.
+ * Supports multiple provider kinds via static tool-name mappings.
+ * For providers not covered here, use a code-grader instead.
+ *
+ * Detection logic:
  *   - Only the FIRST tool call matters.
- *   - Skill tool: checks input.skill contains the skill name (case-sensitive substring).
- *   - Read tool: checks input.file_path contains the skill name (case-sensitive substring).
+ *   - Skill tool: checks input.[skillInputField] contains the skill name (case-sensitive substring).
+ *   - Read tool: checks input.[readInputField] contains the skill name (case-sensitive substring).
  *   - Any other tool as first call means the skill was not triggered.
  *   - Supports negative cases via should_trigger: false.
+ *
+ * To add a new provider:
+ *   1. Create a ToolMatcher with the provider's tool names and input fields.
+ *   2. Add entries to PROVIDER_TOOL_SEMANTICS mapping the provider kind(s) to the matcher.
+ *   3. If the provider's tool-call format doesn't fit the ToolMatcher model, use a code-grader instead.
  */
 
+import type { ProviderKind } from '../providers/types.js';
 import type { SkillTriggerEvaluatorConfig } from '../types.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
+
+/** Tool-name semantics for different provider kinds. */
+interface ToolMatcher {
+  /** Tool names that indicate skill invocation. */
+  readonly skillTools: readonly string[];
+  /** Input field that contains the skill name for skill tools. */
+  readonly skillInputField: string;
+  /** Tool names that indicate file read. */
+  readonly readTools: readonly string[];
+  /** Input field that contains the skill name for read tools. */
+  readonly readInputField: string;
+}
+
+const CLAUDE_MATCHER: ToolMatcher = {
+  skillTools: ['Skill'],
+  skillInputField: 'skill',
+  readTools: ['Read'],
+  readInputField: 'file_path',
+};
+
+/** Copilot uses ACP protocol — tool names vary by version and context. */
+const COPILOT_MATCHER: ToolMatcher = {
+  skillTools: ['Skill', 'skill'],
+  skillInputField: 'skill',
+  readTools: ['Read File', 'readFile', 'Read', 'readTextFile'],
+  readInputField: 'file_path',
+};
+
+/**
+ * Static mapping of provider kinds to their tool-name semantics.
+ * Providers not listed here fall back to CLAUDE_MATCHER.
+ */
+const PROVIDER_TOOL_SEMANTICS: Partial<Record<ProviderKind, ToolMatcher>> = {
+  claude: CLAUDE_MATCHER,
+  'claude-cli': CLAUDE_MATCHER,
+  'claude-sdk': CLAUDE_MATCHER,
+  'pi-coding-agent': CLAUDE_MATCHER,
+  'pi-agent-sdk': CLAUDE_MATCHER,
+  'copilot-cli': COPILOT_MATCHER,
+  'copilot-sdk': COPILOT_MATCHER,
+  vscode: COPILOT_MATCHER,
+  'vscode-insiders': COPILOT_MATCHER,
+};
 
 export class SkillTriggerEvaluator implements Evaluator {
   readonly kind = 'skill-trigger';
@@ -22,13 +74,20 @@ export class SkillTriggerEvaluator implements Evaluator {
     this.config = config;
   }
 
+  private resolveMatcher(providerKind: ProviderKind | undefined): ToolMatcher {
+    if (providerKind) {
+      const match = PROVIDER_TOOL_SEMANTICS[providerKind];
+      if (match) return match;
+    }
+    return CLAUDE_MATCHER;
+  }
+
   evaluate(context: EvaluationContext): EvaluationScore {
     const skillName = this.config.skill;
-    const shouldTrigger = this.config.should_trigger !== false; // default true
+    const shouldTrigger = this.config.should_trigger !== false;
+    const providerKind = context.provider?.kind as ProviderKind | undefined;
+    const matcher = this.resolveMatcher(providerKind);
 
-    // Flatten all tool calls across messages and take only the first one.
-    // run_eval.py returns false as soon as a non-Skill/Read tool starts,
-    // so only the first tool call is relevant.
     const firstTool = (context.output ?? []).flatMap((msg) => msg.toolCalls ?? [])[0];
 
     let triggered = false;
@@ -37,20 +96,19 @@ export class SkillTriggerEvaluator implements Evaluator {
     if (firstTool) {
       const input = (firstTool.input ?? {}) as Record<string, unknown>;
 
-      if (firstTool.tool === 'Skill') {
-        const skillArg = String(input.skill ?? '');
+      if (matcher.skillTools.includes(firstTool.tool)) {
+        const skillArg = String(input[matcher.skillInputField] ?? '');
         if (skillArg.includes(skillName)) {
           triggered = true;
-          evidence = `Skill tool invoked with skill="${skillArg}"`;
+          evidence = `Skill tool invoked with ${matcher.skillInputField}="${skillArg}"`;
         }
-      } else if (firstTool.tool === 'Read') {
-        const filePath = String(input.file_path ?? '');
+      } else if (matcher.readTools.includes(firstTool.tool)) {
+        const filePath = String(input[matcher.readInputField] ?? '');
         if (filePath.includes(skillName)) {
           triggered = true;
           evidence = `Read tool loaded skill file: ${filePath}`;
         }
       }
-      // Any other tool as first call: triggered remains false
     }
 
     const pass = triggered === shouldTrigger;
@@ -77,7 +135,7 @@ export class SkillTriggerEvaluator implements Evaluator {
       misses: [
         shouldTrigger
           ? firstTool
-            ? `First tool was "${firstTool.tool}" — not Skill/Read for "${skillName}"`
+            ? `First tool was "${firstTool.tool}" — not a skill/read tool for "${skillName}"`
             : 'No tool calls recorded'
           : evidence || `Skill "${skillName}" triggered unexpectedly`,
       ],
