@@ -725,6 +725,14 @@ export type SkillTriggerEvaluatorConfig = {
   readonly skill: string;
   /** Whether the skill is expected to trigger (default: true) */
   readonly should_trigger?: boolean;
+  /** Override: tool names that indicate skill invocation (e.g., ['Skill', 'skill']) */
+  readonly skill_tools?: readonly string[];
+  /** Override: input field to check for skill name in skill tools (default: 'skill') */
+  readonly skill_input_field?: string;
+  /** Override: tool names that indicate file read (e.g., ['Read', 'Read File', 'readFile']) */
+  readonly read_tools?: readonly string[];
+  /** Override: input field to check for skill name in read tools (default: 'file_path') */
+  readonly read_input_field?: string;
   readonly weight?: number;
   readonly required?: boolean | number;
   readonly negate?: boolean;
