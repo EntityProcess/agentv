@@ -1723,10 +1723,10 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         ? {
             input: (tokenUsage?.input ?? 0) + (graderTokens?.input ?? 0),
             output: (tokenUsage?.output ?? 0) + (graderTokens?.output ?? 0),
-            ...(tokenUsage?.reasoning || graderTokens?.reasoning
+            ...(tokenUsage?.reasoning != null || graderTokens?.reasoning != null
               ? { reasoning: (tokenUsage?.reasoning ?? 0) + (graderTokens?.reasoning ?? 0) }
               : {}),
-            ...(tokenUsage?.cached || graderTokens?.cached
+            ...(tokenUsage?.cached != null || graderTokens?.cached != null
               ? { cached: (tokenUsage?.cached ?? 0) + (graderTokens?.cached ?? 0) }
               : {}),
           }
@@ -1776,6 +1776,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
     return finalResult;
   } catch (error) {
+    const evalRun = { durationMs: Date.now() - caseStartMs };
     const errorResult = buildErrorResult(
       evalCase,
       target.name,
@@ -1791,10 +1792,10 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       if (forceCleanup || (retainOnFailure ?? 'keep') === 'cleanup') {
         await cleanupWorkspace(workspacePath).catch(() => {});
       } else {
-        return { ...errorResult, workspacePath, beforeEachOutput, afterEachOutput };
+        return { ...errorResult, evalRun, workspacePath, beforeEachOutput, afterEachOutput };
       }
     }
-    return { ...errorResult, beforeEachOutput, afterEachOutput };
+    return { ...errorResult, evalRun, beforeEachOutput, afterEachOutput };
   }
 }
 
