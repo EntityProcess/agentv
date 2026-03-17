@@ -2594,9 +2594,7 @@ function buildResultInput(promptInputs: PromptInputs): EvaluationResult['input']
  * Sum token usage across all evaluator results (including nested children).
  * Returns undefined when no evaluator reported token usage.
  */
-function aggregateEvaluatorTokenUsage(
-  scores?: readonly EvaluatorResult[],
-): TokenUsage | undefined {
+function aggregateEvaluatorTokenUsage(scores?: readonly EvaluatorResult[]): TokenUsage | undefined {
   if (!scores || scores.length === 0) return undefined;
 
   let hasAny = false;
