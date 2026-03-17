@@ -1,0 +1,10 @@
+{
+  "plugins": [
+    {
+      "name": "agentv-dev",
+      "source": "agentv-dev",
+      "description": "Development skills for building and optimizing AgentV evaluations",
+      "version": "1.0.0"
+    }
+  ]
+}
