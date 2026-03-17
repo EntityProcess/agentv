@@ -75,7 +75,7 @@ When results span multiple targets, flags evaluators with > 0.3 score variance a
 The analyzer report includes concrete YAML snippets for each suggestion. To apply:
 
 1. Open the EVAL.yaml referenced in the report
-2. Find the `assert` entry for the flagged evaluator (matched by `name` and `test_id`)
+2. Find the `assertions` entry for the flagged evaluator (matched by `name` and `test_id`)
 3. Replace or supplement the evaluator config with the suggested deterministic assertion
 4. Re-run `agentv eval` to verify the change produces equivalent scores
 

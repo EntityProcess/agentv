@@ -9,17 +9,17 @@ LLM graders (also accepts `llm-judge` for backward compatibility) use a language
 
 ## Default Grader
 
-When a test defines `criteria` but has **no `assert` field**, a default `llm-grader` runs automatically. The built-in prompt evaluates the response against your `criteria` and `expected_output`:
+When a test defines `criteria` but has **no `assertions` field**, a default `llm-grader` runs automatically. The built-in prompt evaluates the response against your `criteria` and `expected_output`:
 
 ```yaml
 tests:
   - id: simple-eval
     criteria: Correctly explains the bug and proposes a fix
     input: "Debug this function..."
-    # No assert needed — default llm-grader evaluates against criteria
+    # No assertions needed — default llm-grader evaluates against criteria
 ```
 
-When `assert` **is** present, no default grader is added. To use an LLM grader alongside other evaluators, declare it explicitly. See [How criteria and assert interact](/evaluation/eval-cases/#how-criteria-and-assert-interact).
+When `assertions` **is** present, no default grader is added. To use an LLM grader alongside other evaluators, declare it explicitly. See [How criteria and assertions interact](/evaluation/eval-cases/#how-criteria-and-assertions-interact).
 
 ## Configuration
 

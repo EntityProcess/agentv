@@ -309,7 +309,7 @@ const { results, summary } = await evaluate({
     {
       id: 'greeting',
       input: 'Say hello',
-      assert: [{ type: 'contains', value: 'Hello' }],
+      assertions: [{ type: 'contains', value: 'Hello' }],
     },
   ],
 });

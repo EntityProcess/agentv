@@ -48,7 +48,7 @@ For each evaluator entry in `scores` where `type` is `"llm-judge"` or `"rubrics"
 
 ### Step 3: Weak Assertion Detection
 
-Scan the EVAL.yaml `assert` entries (if `eval-path` provided) and the `reasoning` fields in results for weak assertions:
+Scan the EVAL.yaml `assertions` entries (if `eval-path` provided) and the `reasoning` fields in results for weak assertions:
 
 | Weakness | Detection | Improvement |
 |----------|-----------|-------------|

@@ -13,11 +13,11 @@ AgentV supports multiple evaluator types that can be combined for comprehensive 
 |------|-------------|----------|
 | `code_grader` | Deterministic command (Python/TS/any) | Exact matching, format validation, programmatic checks |
 | `llm_grader` | LLM-based evaluation with custom prompt | Semantic evaluation, nuance, subjective quality |
-| `rubrics` | Structured rubric evaluator via `assert` | Multi-criterion grading with weights |
+| `rubrics` | Structured rubric evaluator via `assertions` | Multi-criterion grading with weights |
 
 ## Referencing Evaluators
 
-Evaluators are configured using `assert` — either top-level (applies to all tests) or per-test:
+Evaluators are configured using `assertions` — either top-level (applies to all tests) or per-test:
 
 ### Top-Level (Default for All Tests)
 
@@ -72,7 +72,7 @@ tests:
 
 Each evaluator produces its own score. Results appear in `scores[]` in the output JSONL.
 
-For multiple evaluators in `assert`, the test score is the weighted mean:
+For multiple evaluators in `assertions`, the test score is the weighted mean:
 
 ```
 final_score = sum(score_i * weight_i) / sum(weight_i)

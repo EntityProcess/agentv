@@ -56,7 +56,7 @@ When AgentV loads `evals.json`, it promotes fields to its internal representatio
 |---|---|---|
 | `prompt` | `input` | Wrapped as `[{role: "user", content: prompt}]` |
 | `expected_output` | `expected_output` + `criteria` | Used as reference answer and evaluation criteria |
-| `assertions[]` | `assert[]` | Each string becomes `{type: llm-grader, prompt: text}` |
+| `assertions[]` | `assertions[]` | Each string becomes `{type: llm-grader, prompt: text}` |
 | `files[]` | `file_paths` | Resolved relative to evals.json, copied into workspace |
 | `skill_name` | `metadata.skill_name` | Carried as metadata |
 | `id` (number) | `id` (string) | Converted via `String(id)` |

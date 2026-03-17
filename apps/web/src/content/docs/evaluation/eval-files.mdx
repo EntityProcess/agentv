@@ -37,7 +37,7 @@ tests:
 | `execution` | Default execution config (`target`, `fail_on_error`, etc.) |
 | `workspace` | Suite-level workspace config — inline object or string path to an [external workspace file](/guides/workspace-pool/#external-workspace-config) |
 | `tests` | Array of individual tests, or a string path to an external file |
-| `assert` | Suite-level evaluators appended to each test unless `execution.skip_defaults: true` is set on the test |
+| `assertions` | Suite-level evaluators appended to each test unless `execution.skip_defaults: true` is set on the test |
 | `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
 
 ### Metadata Fields
@@ -70,9 +70,9 @@ tests:
     input: Screen "Acme Corp" against denied parties list
 ```
 
-### Suite-level Assert
+### Suite-level Assertions
 
-The `assert` field is the canonical way to define suite-level evaluators. Suite-level assertions are appended to every test's evaluators unless a test sets `execution.skip_defaults: true`.
+The `assertions` field is the canonical way to define suite-level evaluators. Suite-level assertions are appended to every test's evaluators unless a test sets `execution.skip_defaults: true`.
 
 ```yaml
 description: API response validation
@@ -88,11 +88,11 @@ tests:
     input: Check API health
 ```
 
-`assert` supports all evaluator types, including deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/evaluation/eval-cases/#per-test-assertions) for per-test assert usage.
+`assertions` supports all evaluator types, including deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/evaluation/eval-cases/#per-test-assertions) for per-test assertions usage.
 
 ### Suite-level Input
 
-The `input` field defines messages that are **prepended** to every test's input. This avoids repeating the same prompt or system context in each test case — following the same pattern as suite-level `assert`.
+The `input` field defines messages that are **prepended** to every test's input. This avoids repeating the same prompt or system context in each test case — following the same pattern as suite-level `assertions`.
 
 ```yaml
 description: Travel assistant evaluation
@@ -119,7 +119,7 @@ Suite-level `input` accepts the same formats as test-level `input`:
 - **String** — wrapped as `[{ role: "user", content: "..." }]`
 - **Message array** — used as-is, including file references
 
-To opt out for a specific test, set `execution.skip_defaults: true` (same flag that skips suite-level `assert`).
+To opt out for a specific test, set `execution.skip_defaults: true` (same flag that skips suite-level `assertions`).
 
 ### Suite-level Input Files
 

@@ -35,7 +35,7 @@ agentv prompt eval --input evals.json --test-id 1
 agentv prompt eval --expected-output evals.json --test-id 1
 ```
 
-The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assert` (llm-judge), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, code judges, rubrics, required gates).
+The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assertions` (llm-grader), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, code judges, rubrics, required gates).
 
 If you're running the lifecycle through `agentv-bench`, use `agentv convert` and `agentv prompt eval` directly — the Python scripts in `agentv-bench/scripts/` orchestrate these same commands.
 
@@ -158,7 +158,7 @@ requires:
 
 ## Suite-level Input
 
-Prepend shared input messages to every test (like suite-level `assert`). Avoids repeating the same prompt file in each test:
+Prepend shared input messages to every test (like suite-level `assertions`). Avoids repeating the same prompt file in each test:
 
 ```yaml
 input:
@@ -505,7 +505,7 @@ Binary check: is the output valid JSON?
 LLM-judged structured evaluation with weighted criteria. Criteria items support `id`, `outcome`, `weight`, and `required` fields.
 
 ### rubrics (inline, deprecated)
-Top-level `rubrics:` field is deprecated. Use `type: rubrics` under `assert` instead.
+Top-level `rubrics:` field is deprecated. Use `type: rubrics` under `assertions` instead.
 See `references/rubric-evaluator.md` for score-range mode and scoring formula.
 
 ## Execution Error Tolerance
@@ -607,7 +607,7 @@ const { results, summary } = await evaluate({
     {
       id: 'greeting',
       input: 'Say hello',
-      assert: [{ type: 'contains', value: 'hello' }],
+      assertions: [{ type: 'contains', value: 'hello' }],
     },
   ],
   target: { provider: 'mock_agent' },
