@@ -13,11 +13,10 @@
       "source": "./plugins/agentv-dev",
       "strict": false,
       "skills": [
-        "./skills/agentv-chat-to-eval",
+        "./skills/agentv-bench",
         "./skills/agentv-eval-analyzer",
-        "./skills/agentv-eval-builder",
+        "./skills/agentv-eval-writer",
         "./skills/agentv-onboarding",
-        "./skills/agentv-optimizer",
         "./skills/agentv-trace-analyst"
       ],
       "category": "development"
