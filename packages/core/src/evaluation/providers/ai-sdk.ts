@@ -133,9 +133,7 @@ export class OpenRouterProvider implements Provider {
     const openrouter = createOpenRouter({
       apiKey: config.apiKey,
     });
-    // Cast: OpenRouter may return LanguageModelV3 while the rest of the
-    // codebase uses LanguageModelV2. The runtime API is compatible.
-    this.model = openrouter(config.model) as unknown as LanguageModel;
+    this.model = openrouter(config.model);
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
