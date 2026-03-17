@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ answer }) => {
-  const wordCount = answer.split(/\s+/).filter(Boolean).length;
+export default defineCodeGrader(({ outputText }) => {
+  const wordCount = outputText.split(/\s+/).filter(Boolean).length;
   const hits: string[] = [];
   const misses: string[] = [];
 

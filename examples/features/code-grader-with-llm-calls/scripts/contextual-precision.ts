@@ -24,7 +24,7 @@ interface RelevanceResult {
 }
 
 export default defineCodeGrader(async (input) => {
-  const { question, criteria, expectedOutput } = input;
+  const { inputText, criteria, expectedOutput } = input;
 
   // Extract retrieval context from expected_output tool_calls
   const retrievalContext = extractRetrievalContext(expectedOutput);
@@ -55,7 +55,7 @@ export default defineCodeGrader(async (input) => {
   const requests = retrievalContext.map((node, index) => ({
     question: `Determine if this retrieved context node is relevant to answering the question.
 
-Question: ${question}
+Question: ${inputText}
 ${criteria ? `Expected Answer: ${criteria}` : ''}
 
 Retrieved Node (Rank ${index + 1}):

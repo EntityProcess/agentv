@@ -36,12 +36,12 @@ function runAssertion(type: AssertionType, candidate: string, value?: string): b
   }
 }
 
-export default defineCodeGrader(({ answer, criteria, config }) => {
+export default defineCodeGrader(({ outputText, criteria, config }) => {
   const type = (config?.type as AssertionType) ?? 'contains';
   const value = config?.value as string | undefined;
   const negated = (config?.negated as boolean) ?? false;
 
-  const rawPass = runAssertion(type, answer, value);
+  const rawPass = runAssertion(type, outputText, value);
   const pass = negated ? !rawPass : rawPass;
 
   const label = negated ? `NOT ${type}` : type;

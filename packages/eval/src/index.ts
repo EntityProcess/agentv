@@ -8,8 +8,8 @@
  * #!/usr/bin/env bun
  * import { defineAssertion } from '@agentv/eval';
  *
- * export default defineAssertion(({ answer }) => ({
- *   pass: answer.includes('hello'),
+ * export default defineAssertion(({ outputText }) => ({
+ *   pass: outputText.includes('hello'),
  *   reasoning: 'Checks greeting',
  * }));
  * ```
@@ -19,7 +19,7 @@
  * #!/usr/bin/env bun
  * import { defineCodeGrader } from '@agentv/eval';
  *
- * export default defineCodeGrader(({ trace, answer }) => ({
+ * export default defineCodeGrader(({ trace, outputText }) => ({
  *   score: trace?.eventCount <= 5 ? 1.0 : 0.5,
  *   hits: ['Efficient tool usage'],
  *   misses: [],
@@ -31,14 +31,14 @@
  * #!/usr/bin/env bun
  * import { defineCodeGrader, createTargetClient } from '@agentv/eval';
  *
- * export default defineCodeGrader(async ({ question }) => {
+ * export default defineCodeGrader(async ({ inputText }) => {
  *   const target = createTargetClient();
  *   if (!target) {
  *     return { score: 0, misses: ['Target not available'] };
  *   }
  *
  *   const response = await target.invoke({
- *     question: `Evaluate: ${question}`,
+ *     question: `Evaluate: ${inputText}`,
  *     systemPrompt: 'Respond with JSON: { "score": 0-1 }'
  *   });
  *
@@ -173,10 +173,10 @@ export const defineCodeJudge = defineCodeGrader;
  * import { definePromptTemplate } from '@agentv/eval';
  *
  * export default definePromptTemplate((ctx) => `
- *   Question: ${ctx.question}
- *   Answer: ${ctx.answer}
+ *   Question: ${ctx.inputText}
+ *   Answer: ${ctx.outputText}
  *
- *   ${ctx.referenceAnswer ? `Reference: ${ctx.referenceAnswer}` : ''}
+ *   ${ctx.expectedOutputText ? `Reference: ${ctx.expectedOutputText}` : ''}
  * `);
  * ```
  *
@@ -187,8 +187,8 @@ export const defineCodeJudge = defineCodeGrader;
  * export default definePromptTemplate((ctx) => {
  *   const rubric = ctx.config?.rubric as string | undefined;
  *   return `
- *     Question: ${ctx.question}
- *     Candidate Answer: ${ctx.answer}
+ *     Question: ${ctx.inputText}
+ *     Candidate Answer: ${ctx.outputText}
  *     ${rubric ? `\nEvaluation Criteria:\n${rubric}` : ''}
  *   `;
  * });
@@ -220,8 +220,8 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  * ```typescript
  * import { defineAssertion } from '@agentv/eval';
  *
- * export default defineAssertion(({ answer }) => ({
- *   pass: answer.toLowerCase().includes('hello'),
+ * export default defineAssertion(({ outputText }) => ({
+ *   pass: outputText.toLowerCase().includes('hello'),
  *   reasoning: 'Checks for greeting',
  * }));
  * ```
@@ -230,8 +230,8 @@ export function definePromptTemplate(handler: PromptTemplateHandler): void {
  * ```typescript
  * import { defineAssertion } from '@agentv/eval';
  *
- * export default defineAssertion(({ answer, trace }) => {
- *   const hasContent = answer.length > 0 ? 0.5 : 0;
+ * export default defineAssertion(({ outputText, trace }) => {
+ *   const hasContent = outputText.length > 0 ? 0.5 : 0;
  *   const isEfficient = (trace?.eventCount ?? 0) <= 5 ? 0.5 : 0;
  *   return {
  *     score: hasContent + isEfficient,

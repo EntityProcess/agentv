@@ -88,6 +88,10 @@ async function executePromptTemplate(
     fileChanges: context.fileChanges ?? null,
     workspacePath: context.workspacePath ?? null,
     config: config ?? context.config ?? null,
+    // Text convenience accessors (new names, always strings)
+    inputText: context.evalCase.question,
+    outputText: context.candidate,
+    expectedOutputText: context.evalCase.reference_answer ?? '',
   };
 
   const inputJson = JSON.stringify(toSnakeCaseDeep(payload), null, 2);

@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ answer }) => {
-  const lower = answer.toLowerCase();
+export default defineCodeGrader(({ outputText }) => {
+  const lower = outputText.toLowerCase();
   const hits: string[] = [];
   const misses: string[] = [];
 

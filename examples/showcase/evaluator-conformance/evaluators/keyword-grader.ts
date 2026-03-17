@@ -3,21 +3,21 @@
  * Sample evaluator for conformance testing.
  *
  * Deterministic keyword-matching grader: checks whether expected keywords
- * appear in the candidate answer. Produces stable scores for unambiguous
+ * appear in the candidate output. Produces stable scores for unambiguous
  * cases and variable scores for partial matches.
  */
 import { defineCodeGrader } from '@agentv/eval';
 
-export default defineCodeGrader(({ answer, referenceAnswer, criteria }) => {
-  const candidate = (answer ?? '').toLowerCase().trim();
-  const expected = (referenceAnswer ?? '').toLowerCase().trim();
+export default defineCodeGrader(({ outputText, expectedOutputText, criteria }) => {
+  const candidate = (outputText ?? '').toLowerCase().trim();
+  const expected = (expectedOutputText ?? '').toLowerCase().trim();
 
   if (!candidate) {
     return {
       score: 0,
       hits: [],
-      misses: ['Empty candidate answer'],
-      reasoning: 'Candidate answer is empty.',
+      misses: ['Empty candidate output'],
+      reasoning: 'Candidate output is empty.',
     };
   }
 

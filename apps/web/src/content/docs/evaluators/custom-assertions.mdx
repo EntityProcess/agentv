@@ -63,8 +63,8 @@ The simplest pattern returns `pass` (boolean) and `reasoning` (string):
 // .agentv/assertions/word-count.ts
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ answer }) => {
-  const wordCount = answer.trim().split(/\s+/).length;
+export default defineAssertion(({ outputText }) => {
+  const wordCount = outputText.trim().split(/\s+/).length;
   return {
     pass: wordCount >= 3,
     reasoning: `Output has ${wordCount} words`,
@@ -82,8 +82,8 @@ Return a `score` (0 to 1) for granular evaluation instead of binary pass/fail:
 // .agentv/assertions/efficiency.ts
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ answer, trace }) => {
-  const hasContent = answer.length > 0 ? 0.5 : 0;
+export default defineAssertion(({ outputText, trace }) => {
+  const hasContent = outputText.length > 0 ? 0.5 : 0;
   const isEfficient = (trace?.eventCount ?? 0) <= 5 ? 0.5 : 0;
   return {
     score: hasContent + isEfficient,
@@ -116,22 +116,24 @@ The handler receives an `AssertionContext` with the same fields as a code grader
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `question` | `string` | The input question/prompt |
+| `inputText` | `string` | First user message content as string |
+| `outputText` | `string` | Last assistant message content as string |
+| `expectedOutputText` | `string` | Expected output content as string |
 | `criteria` | `string` | Evaluation criteria from the test case |
-| `answer` | `string` | The agent's text response |
-| `referenceAnswer` | `string` | Expected/reference answer |
 | `trace` | `TraceSummary` | Execution metrics (tool calls, tokens, duration, cost) |
 | `input` | `Message[]` | Full resolved input messages |
 | `expectedOutput` | `Message[]` | Expected output messages |
 | `output` | `Message[]` | Actual agent output messages |
-| `metadata` | `Record<string, unknown>` | Custom metadata passed through |
+| `question` | `string` | **Deprecated.** Use `inputText` instead. |
+| `answer` | `string` | **Deprecated.** Use `outputText` instead. |
+| `referenceAnswer` | `string` | **Deprecated.** Use `expectedOutputText` instead. |
 
 ## Testing Custom Assertions
 
 Test assertions locally by piping JSON to stdin:
 
 ```bash
-echo '{"question":"Say hello","criteria":"Multi-word greeting","answer":"Hello there, nice to meet you!","reference_answer":"","metadata":{}}' \
+echo '{"input_text":"Say hello","criteria":"Multi-word greeting","output_text":"Hello there, nice to meet you!","expected_output_text":"","question":"Say hello","answer":"Hello there, nice to meet you!","reference_answer":""}' \
   | bun run .agentv/assertions/word-count.ts
 ```
 
@@ -194,8 +196,8 @@ my-project/
 #!/usr/bin/env bun
 import { defineAssertion } from '@agentv/eval';
 
-export default defineAssertion(({ answer }) => {
-  const wordCount = answer.trim().split(/\s+/).length;
+export default defineAssertion(({ outputText }) => {
+  const wordCount = outputText.trim().split(/\s+/).length;
   const minWords = 3;
   const pass = wordCount >= minWords;
 

@@ -101,8 +101,8 @@ function compareResponses(
 }
 
 export default defineCodeGrader((input) => {
-  const candidate = input.answer;
-  const reference = input.referenceAnswer ?? '';
+  const candidate = input.outputText ?? '';
+  const reference = input.expectedOutputText ?? '';
 
   // If no reference, we can't do pairwise comparison
   if (!reference) {
@@ -110,7 +110,7 @@ export default defineCodeGrader((input) => {
       score: 0.5,
       hits: ['Candidate response provided'],
       misses: ['No reference for comparison'],
-      reasoning: 'Pairwise comparison requires referenceAnswer field',
+      reasoning: 'Pairwise comparison requires expectedOutputText field',
     };
   }
 

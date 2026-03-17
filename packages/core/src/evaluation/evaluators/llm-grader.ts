@@ -213,6 +213,10 @@ export class LlmGraderEvaluator implements Evaluator {
       [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
       [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
       [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
+      // Text convenience accessors (new names, always strings)
+      [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
+      [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
+      [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (context.evalCase.reference_answer ?? '').trim(),
     };
 
     // Build system prompt (only the mandatory output schema)

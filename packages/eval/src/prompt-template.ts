@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 
 import { toCamelCaseDeep } from './case-conversion.js';
+import { enrichInput } from './deprecation.js';
 import { type PromptTemplateInput, PromptTemplateInputSchema } from './schemas.js';
 
 /**
@@ -38,7 +39,10 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
     // 4. Validate input with Zod
     const input = PromptTemplateInputSchema.parse(camelInput);
 
-    // 5. Run handler
+    // 5. Enrich input with text accessors and deprecation warnings
+    enrichInput(input);
+
+    // 6. Run handler
     const prompt = await handler(input);
 
     // 6. Output raw string (not JSON) - the prompt itself
@@ -67,10 +71,10 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
  * import { definePromptTemplate } from '@agentv/eval';
  *
  * export default definePromptTemplate((ctx) => `
- *   Question: ${ctx.question}
- *   Answer: ${ctx.answer}
+ *   Question: ${ctx.inputText}
+ *   Answer: ${ctx.outputText}
  *
- *   ${ctx.referenceAnswer ? `Reference: ${ctx.referenceAnswer}` : ''}
+ *   ${ctx.expectedOutputText ? `Reference: ${ctx.expectedOutputText}` : ''}
  * `);
  * ```
  *
@@ -81,8 +85,8 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
  * export default definePromptTemplate((ctx) => {
  *   const rubric = ctx.config?.rubric as string | undefined;
  *   return `
- *     Question: ${ctx.question}
- *     Candidate Answer: ${ctx.answer}
+ *     Question: ${ctx.inputText}
+ *     Candidate Answer: ${ctx.outputText}
  *     ${rubric ? `\nEvaluation Criteria:\n${rubric}` : ''}
  *   `;
  * });
@@ -94,7 +98,7 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
  *
  * export default definePromptTemplate(async (ctx) => {
  *   // Async operations are supported
- *   return `Question: ${ctx.question}\nAnswer: ${ctx.answer}`;
+ *   return `Question: ${ctx.inputText}\nAnswer: ${ctx.outputText}`;
  * });
  * ```
  */

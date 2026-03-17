@@ -3,7 +3,7 @@
  * Code Grader SDK Demo
  *
  * Uses the declarative defineCodeGrader helper to verify attachments
- * are referenced in the candidate answer.
+ * are referenced in the candidate output.
  */
 import { defineCodeGrader } from '@agentv/eval';
 
@@ -12,7 +12,7 @@ function fileName(path: string): string {
   return parts[parts.length - 1] ?? path;
 }
 
-export default defineCodeGrader(({ expectedOutput, answer, guidelineFiles, inputFiles }) => {
+export default defineCodeGrader(({ expectedOutput, outputText, guidelineFiles, inputFiles }) => {
   const hits: string[] = [];
   const misses: string[] = [];
 
@@ -23,16 +23,16 @@ export default defineCodeGrader(({ expectedOutput, answer, guidelineFiles, input
       ? expectedMessage.content
       : undefined;
 
-  if (expectedContent && answer.trim() === expectedContent.trim()) {
-    hits.push('Candidate answer matches expected message');
+  if (expectedContent && outputText.trim() === expectedContent.trim()) {
+    hits.push('Candidate output matches expected message');
   } else {
-    misses.push('Candidate answer does not match expected message');
+    misses.push('Candidate output does not match expected message');
   }
 
   // Check if attachments are mentioned
   const attachmentNames = [...guidelineFiles, ...inputFiles].map(fileName);
   for (const name of attachmentNames) {
-    if (answer.includes(name)) {
+    if (outputText.includes(name)) {
       hits.push(`Mentions attachment: ${name}`);
     } else {
       misses.push(`Missing attachment: ${name}`);

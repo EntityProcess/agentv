@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs';
 
 import { toCamelCaseDeep } from './case-conversion.js';
+import { enrichInput } from './deprecation.js';
 import {
   type CodeGraderInput,
   CodeGraderInputSchema,
@@ -189,6 +190,9 @@ export async function runAssertion(handler: AssertionHandler): Promise<void> {
         enumerable: true,
       });
     }
+
+    // Enrich input with text accessors and deprecation warnings
+    enrichInput(input);
 
     const rawResult = await handler(input);
     const normalized = normalizeScore(rawResult);
