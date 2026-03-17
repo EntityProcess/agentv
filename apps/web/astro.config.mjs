@@ -8,7 +8,7 @@ export default defineConfig({
   adapter: cloudflare({ imageService: 'passthrough' }),
   integrations: [
     starlight({
-      title: 'AgentV',
+      title: 'agent v',
       head: [
         {
           tag: 'link',
