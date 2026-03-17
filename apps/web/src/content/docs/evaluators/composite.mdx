@@ -30,9 +30,9 @@ assertions:
 ```
 
 Each sub-evaluator runs independently, then the aggregator combines their results.
-Use `assert` for composite members. `evaluators` is still accepted for backward compatibility.
+Use `assertions` for composite members. `evaluators` is still accepted for backward compatibility.
 
-If you only need weighted-average aggregation, a plain test-level `assert` list already computes a weighted mean across evaluators. Use `composite` when you need a custom aggregation strategy (`threshold`, `code_grader`, `llm_grader`) or nested evaluator groups.
+If you only need weighted-average aggregation, a plain test-level `assertions` list already computes a weighted mean across evaluators. Use `composite` when you need a custom aggregation strategy (`threshold`, `code_grader`, `llm_grader`) or nested evaluator groups.
 
 ## Aggregator Types
 

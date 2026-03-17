@@ -31,7 +31,7 @@ tests:
 | `workspace` | No | Per-case workspace config (overrides suite-level) |
 | `metadata` | No | Arbitrary key-value pairs passed to evaluators and workspace scripts |
 | `rubrics` | No | Structured evaluation criteria |
-| `assert` | No | Per-test evaluators |
+| `assertions` | No | Per-test evaluators |
 
 ## Input
 
@@ -87,7 +87,7 @@ tests:
         prompt: ./graders/depth.md
 ```
 
-Per-case `assert` evaluators are **merged** with root-level `assert` evaluators — test-specific evaluators run first, then root-level defaults are appended. To opt out of root-level defaults for a specific test, set `execution.skip_defaults: true`:
+Per-case `assertions` evaluators are **merged** with root-level `assertions` evaluators — test-specific evaluators run first, then root-level defaults are appended. To opt out of root-level defaults for a specific test, set `execution.skip_defaults: true`:
 
 ```yaml
 assertions:
@@ -99,7 +99,7 @@ tests:
   - id: normal-case
     criteria: Returns correct answer
     input: What is 2+2?
-    # Gets latency_check from root-level assert
+    # Gets latency_check from root-level assertions
 
   - id: special-case
     criteria: Handles edge case
@@ -161,7 +161,7 @@ The `metadata` field is included in the stdin JSON passed to lifecycle commands 
 
 ## Per-Test Assertions
 
-The `assert` field defines evaluators directly on a test. It supports both deterministic assertion types and LLM-based rubric evaluation.
+The `assertions` field defines evaluators directly on a test. It supports both deterministic assertion types and LLM-based rubric evaluation.
 
 ### Deterministic Assertions
 
@@ -217,7 +217,7 @@ tests:
 
 ### Required Gates
 
-Any evaluator in `assert` can be marked as `required`. When a required evaluator fails, the overall test verdict is `fail` regardless of the aggregate score.
+Any evaluator in `assertions` can be marked as `required`. When a required evaluator fails, the overall test verdict is `fail` regardless of the aggregate score.
 
 | Value | Behavior |
 |-------|----------|
@@ -239,39 +239,39 @@ assertions:
 
 Required gates are evaluated after all evaluators run. If any required evaluator falls below its threshold, the verdict is forced to `fail`.
 
-### Assert Merge Behavior
+### Assertions Merge Behavior
 
-`assert` can be defined at both suite and test levels:
+`assertions` can be defined at both suite and test levels:
 
-- Per-test `assert` evaluators run first.
-- Suite-level `assert` evaluators are appended automatically.
+- Per-test `assertions` evaluators run first.
+- Suite-level `assertions` evaluators are appended automatically.
 - Set `execution.skip_defaults: true` on a test to skip suite-level defaults.
 
-## How `criteria` and `assert` Interact
+## How `criteria` and `assertions` Interact
 
-The `criteria` field is a **data field** that describes what the response should accomplish. It is not an evaluator itself — how it gets used depends on whether `assert` is present.
+The `criteria` field is a **data field** that describes what the response should accomplish. It is not an evaluator itself — how it gets used depends on whether `assertions` is present.
 
-### No `assert` — implicit LLM grader
+### No `assertions` — implicit LLM grader
 
-When a test has no `assert` field, a default `llm-grader` evaluator runs automatically and uses `criteria` as the evaluation prompt:
+When a test has no `assertions` field, a default `llm-grader` evaluator runs automatically and uses `criteria` as the evaluation prompt:
 
 ```yaml
 tests:
   - id: simple-eval
     criteria: Assistant correctly explains the bug and proposes a fix
     input: "Debug this function..."
-    # No assert → default llm-grader evaluates against criteria
+    # No assertions → default llm-grader evaluates against criteria
 ```
 
-### `assert` present — explicit evaluators only
+### `assertions` present — explicit evaluators only
 
-When `assert` is defined, only the declared evaluators run. No implicit grader is added. Graders that are declared (such as `llm-grader`, `code-grader`, or `rubrics`) receive `criteria` as input automatically.
+When `assertions` is defined, only the declared evaluators run. No implicit grader is added. Graders that are declared (such as `llm-grader`, `code-grader`, or `rubrics`) receive `criteria` as input automatically.
 
-If `assert` contains only deterministic evaluators (like `contains` or `regex`), the `criteria` field is not evaluated and a warning is emitted:
+If `assertions` contains only deterministic evaluators (like `contains` or `regex`), the `criteria` field is not evaluated and a warning is emitted:
 
 ```
-Warning: Test 'my-test': criteria is defined but no evaluator in assert
-will evaluate it. Add 'type: llm-grader' to assert, or remove criteria
+Warning: Test 'my-test': criteria is defined but no evaluator in assertions
+will evaluate it. Add 'type: llm-grader' to assertions, or remove criteria
 if it is documentation-only.
 ```
 
