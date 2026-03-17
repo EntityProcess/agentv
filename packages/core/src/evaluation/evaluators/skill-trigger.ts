@@ -2,8 +2,8 @@
  * Built-in skill-trigger evaluator.
  *
  * Detects whether the agent invoked a named skill as its first tool call.
- * Supports multiple provider kinds via static tool-name mappings and
- * per-evaluator config overrides.
+ * Supports multiple provider kinds via static tool-name mappings.
+ * For providers not covered here, use a code-grader instead.
  *
  * Mirrors the post-hoc fallback detection in skill-creator's run_eval.py:
  *   - Only the FIRST tool call matters.
@@ -75,21 +75,10 @@ export class SkillTriggerEvaluator implements Evaluator {
   }
 
   private resolveMatcher(providerKind: ProviderKind | undefined): ToolMatcher {
-    // Config-level overrides take highest precedence
-    if (this.config.skill_tools || this.config.read_tools) {
-      return {
-        skillTools: this.config.skill_tools ?? CLAUDE_MATCHER.skillTools,
-        skillInputField: this.config.skill_input_field ?? CLAUDE_MATCHER.skillInputField,
-        readTools: this.config.read_tools ?? CLAUDE_MATCHER.readTools,
-        readInputField: this.config.read_input_field ?? CLAUDE_MATCHER.readInputField,
-      };
-    }
-    // Provider-based lookup
     if (providerKind) {
       const match = PROVIDER_TOOL_SEMANTICS[providerKind];
       if (match) return match;
     }
-    // Default to Claude semantics
     return CLAUDE_MATCHER;
   }
 

@@ -21,7 +21,7 @@ AgentV's core should remain minimal. Complex or domain-specific logic belongs in
 - `llm-grader` (also accepts `llm-judge`) evaluators with custom prompt files for domain-specific LLM grading
 - CLI wrappers that consume AgentV's JSON/JSONL output for post-processing (aggregation, comparison, reporting)
 
-**Ask yourself:** "Can this be achieved with existing primitives + a plugin or wrapper?" If yes, it should not be a built-in.
+**Ask yourself:** "Can this be achieved with existing primitives + a plugin or wrapper?" If yes, it should not be a built-in. This includes adding config overrides to existing evaluators — if a niche provider needs custom tool-name matching, that's a code-grader, not a new config field.
 
 ### 2. Built-ins for Primitives Only
 Built-in evaluators provide **universal primitives** that users compose. A primitive is:

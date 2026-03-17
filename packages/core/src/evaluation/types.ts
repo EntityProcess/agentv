@@ -715,8 +715,9 @@ export type RubricsEvaluatorConfig = {
 
 /**
  * Configuration for the skill-trigger evaluator.
- * Detects whether the agent invoked a named Claude Code skill as its first tool call.
- * Mirrors the post-hoc fallback detection in skill-creator's run_eval.py.
+ * Detects whether the agent invoked a named skill as its first tool call.
+ * Tool-name resolution is automatic based on the provider kind.
+ * For providers not covered by the built-in mapping, use a code-grader.
  */
 export type SkillTriggerEvaluatorConfig = {
   readonly name: string;
@@ -725,14 +726,6 @@ export type SkillTriggerEvaluatorConfig = {
   readonly skill: string;
   /** Whether the skill is expected to trigger (default: true) */
   readonly should_trigger?: boolean;
-  /** Override: tool names that indicate skill invocation (e.g., ['Skill', 'skill']) */
-  readonly skill_tools?: readonly string[];
-  /** Override: input field to check for skill name in skill tools (default: 'skill') */
-  readonly skill_input_field?: string;
-  /** Override: tool names that indicate file read (e.g., ['Read', 'Read File', 'readFile']) */
-  readonly read_tools?: readonly string[];
-  /** Override: input field to check for skill name in read tools (default: 'file_path') */
-  readonly read_input_field?: string;
   readonly weight?: number;
   readonly required?: boolean | number;
   readonly negate?: boolean;

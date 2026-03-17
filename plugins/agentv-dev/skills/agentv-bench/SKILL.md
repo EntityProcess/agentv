@@ -467,18 +467,68 @@ Update the skill's SKILL.md frontmatter with the optimized description. Show the
 | Copilot CLI/SDK | Yes (ACP) | Built-in (Skill, Read File, readFile) | No (no skill discovery) |
 | Pi Coding Agent | Yes | Built-in (same as Claude) | Possible (same format) |
 | VS Code / VS Code Insiders | Yes | Built-in (Copilot tools) | No |
-| Codex | Yes (command_execution, file_change) | Needs custom mapping (see [#643]) | Yes (.agents/.codex folders) |
-| OpenAI / Gemini / Other LLMs | Varies | Custom via `skill_tools`/`read_tools` config | No |
+| Codex | Yes (command_execution, file_change) | Use code-grader (see below) | Yes (.agents/.codex folders) |
+| Other providers | Varies | Use code-grader (see below) | No |
 
-**Note**: "Description Optimization" (iterating on SKILL.md descriptions for better triggering accuracy) requires an agent with a skill-discovery mechanism. Agents that don't have skill systems (Copilot, Codex) still benefit from the evaluator for testing whether they invoke the right tools.
+**Note**: "Description Optimization" (iterating on SKILL.md descriptions for better triggering accuracy) requires an agent with a skill-discovery mechanism. Agents that don't have skill systems (Copilot, Codex) still benefit from evaluation for testing whether they invoke the right tools.
 
 **Provider-specific notes**:
 - **Copilot CLI**: Uses ACP protocol via `copilot --acp --stdio`
 - **Claude SDK**: Requires `@anthropic-ai/claude-agent-sdk` installed
-- **Codex**: Supports skills via `.agents/` or `.codex/` folders. Emits `command_execution` and `file_change` tool calls. Skill-trigger detection requires custom mapping since Codex reads skill files via shell commands rather than a dedicated `Skill` tool.
+- **Codex**: Supports skills via `.agents/` or `.codex/` folders. Emits `command_execution` and `file_change` tool calls.
 - **Custom CLI**: Needs `command` and output file pattern in target config
-- **Custom tool names**: Use `skill_tools` and `read_tools` in assertion config to override tool name detection
 - **Target config**: Uses `${{ ENV_VAR }}` syntax (not `${ENV_VAR}`) for API keys
+
+### Unsupported providers: use a code-grader
+
+The built-in `skill-trigger` evaluator covers Claude, Copilot, Pi, and VS Code out of the box. For providers with different tool-call formats (Codex, custom agents, etc.), write a code-grader that inspects the agent's tool call trace.
+
+A code-grader receives the full evaluation context including the agent's output messages and tool calls. You can inspect these to determine whether the skill was invoked:
+
+```yaml
+# Example: code-grader for Codex skill-trigger detection
+tests:
+  - id: should-trigger-codex
+    input: "Analyze this CSV file"
+    assertions:
+      - type: code-grader
+        path: ./judges/codex-skill-trigger.ts
+```
+
+```typescript
+// judges/codex-skill-trigger.ts
+import { defineCodeJudge } from '@agentv/eval';
+
+export default defineCodeJudge(({ output }) => {
+  const skillName = 'csv-analyzer';
+  const toolCalls = (output ?? []).flatMap((msg) => msg.toolCalls ?? []);
+  const firstTool = toolCalls[0];
+
+  if (!firstTool) {
+    return { score: 0, reason: 'No tool calls recorded' };
+  }
+
+  // Codex reads skill files via shell commands
+  if (firstTool.tool === 'command_execution') {
+    const cmd = String(firstTool.input ?? '');
+    if (cmd.includes(skillName)) {
+      return { score: 1, reason: `Skill "${skillName}" triggered via command: ${cmd}` };
+    }
+  }
+
+  // Check if skill file was read via file_change or other tools
+  if (firstTool.tool === 'file_change') {
+    const path = String((firstTool.input as Record<string, unknown>)?.path ?? '');
+    if (path.includes(skillName)) {
+      return { score: 1, reason: `Skill file accessed: ${path}` };
+    }
+  }
+
+  return { score: 0, reason: `First tool was "${firstTool.tool}" — not a skill invocation for "${skillName}"` };
+});
+```
+
+This approach is more flexible than config overrides — you can match any tool-call pattern, check multiple fields, and add provider-specific logic as needed.
 
 ---
 
