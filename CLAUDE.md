@@ -318,11 +318,12 @@ Design documents and implementation plans are stored in `.claude/plans/`. These 
 
 #### Git Worktrees
 
-Use the default `.worktrees/` directory (managed by the superpowers skill). After creating a worktree, copy `.env`:
+Use the default `.worktrees/` directory (managed by the superpowers skill). After creating a worktree, always run setup:
 ```bash
-cp /home/christso/projects/agentv/.env .env
+bun install                                    # worktrees do NOT share node_modules
+cp /home/christso/projects/agentv/.env .env    # required for e2e tests and LLM operations
 ```
-This is required for e2e tests, evaluator runs, and any LLM-dependent operations (Azure OpenAI credentials, etc.).
+Both steps are required before running builds, tests, or evals in the worktree.
 
 ## Package Publishing
 - Core package (`packages/core/`) - Core evaluation engine and grading logic (published as `@agentv/core`)

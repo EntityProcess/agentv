@@ -43,6 +43,7 @@
   },
   "dependencies": {
     "@mariozechner/pi-agent-core": "^0.54.2",
-    "@mariozechner/pi-ai": "^0.54.2"
+    "@mariozechner/pi-ai": "^0.54.2",
+    "@openrouter/ai-sdk-provider": "^2.3.3"
   }
 }
