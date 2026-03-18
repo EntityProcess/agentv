@@ -133,10 +133,8 @@ function toTraceSummary(raw: RawResult): TraceSummary | undefined {
 
 /**
  * Extract candidate answer from a result record.
- * Checks `output_text` for backward compat with older JSONL, then `output`.
  */
 function extractCandidate(raw: RawResult): string {
-  if (raw.output_text !== undefined) return raw.output_text;
   if (raw.output !== undefined)
     return typeof raw.output === 'string' ? raw.output : JSON.stringify(raw.output);
   return '';

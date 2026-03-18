@@ -21,7 +21,7 @@ const RESULT_FULL = {
     { text: 'Says hello', passed: true },
     { text: 'Uses name', passed: true },
   ],
-  output_text: 'Hello, Alice!',
+  output: [{ role: 'assistant', content: 'Hello, Alice!' }],
   target: 'gpt-4o',
   scores: [
     {
@@ -83,7 +83,7 @@ const RESULT_NO_TRACE = {
   dataset: 'demo',
   score: 1.0,
   assertions: [{ text: 'Correct', passed: true }],
-  output_text: 'Yes.',
+  output: [{ role: 'assistant', content: 'Yes.' }],
   target: 'default',
   token_usage: { input: 50, output: 20 },
   cost_usd: 0.001,
@@ -190,7 +190,9 @@ describe('results export', () => {
 
     const answerPath = path.join(outputDir, 'outputs', 'test-greeting.txt');
     expect(existsSync(answerPath)).toBe(true);
-    expect(readFileSync(answerPath, 'utf8')).toBe('Hello, Alice!');
+    expect(JSON.parse(readFileSync(answerPath, 'utf8'))).toEqual([
+      { role: 'assistant', content: 'Hello, Alice!' },
+    ]);
   });
 
   it('should group results by target in benchmark.json', () => {
