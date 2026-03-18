@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { recordPiLogEntry } from './pi-log-tracker.js';
+import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
 import { normalizeInputFiles } from './preread.js';
 import type { PiCodingAgentResolvedConfig } from './targets.js';
 import type {
@@ -637,14 +638,14 @@ function extractTokenUsage(events: unknown[]): ProviderTokenUsage | undefined {
     const usage = record.usage;
     if (usage && typeof usage === 'object') {
       const u = usage as Record<string, unknown>;
-      const input = toNumber(u.input_tokens ?? u.inputTokens ?? u.input);
-      const output = toNumber(u.output_tokens ?? u.outputTokens ?? u.output);
+      const input = toFiniteNumber(u.input_tokens ?? u.inputTokens ?? u.input);
+      const output = toFiniteNumber(u.output_tokens ?? u.outputTokens ?? u.output);
       if (input !== undefined || output !== undefined) {
         const result: ProviderTokenUsage = {
           input: input ?? 0,
           output: output ?? 0,
         };
-        const cached = toNumber(u.cache_read_input_tokens ?? u.cached ?? u.cachedTokens);
+        const cached = toFiniteNumber(u.cache_read_input_tokens ?? u.cached ?? u.cachedTokens);
         if (cached !== undefined) {
           return { ...result, cached };
         }
@@ -678,14 +679,14 @@ function aggregateUsageFromMessages(messages: unknown[]): ProviderTokenUsage | u
     if (!usage || typeof usage !== 'object') continue;
 
     const u = usage as Record<string, unknown>;
-    const input = toNumber(u.input_tokens ?? u.inputTokens ?? u.input);
-    const output = toNumber(u.output_tokens ?? u.outputTokens ?? u.output);
+    const input = toFiniteNumber(u.input_tokens ?? u.inputTokens ?? u.input);
+    const output = toFiniteNumber(u.output_tokens ?? u.outputTokens ?? u.output);
 
     if (input !== undefined || output !== undefined) {
       found = true;
       totalInput += input ?? 0;
       totalOutput += output ?? 0;
-      const cached = toNumber(u.cache_read_input_tokens ?? u.cached ?? u.cachedTokens);
+      const cached = toFiniteNumber(u.cache_read_input_tokens ?? u.cached ?? u.cachedTokens);
       if (cached !== undefined) {
         totalCached = (totalCached ?? 0) + cached;
       }
@@ -699,11 +700,6 @@ function aggregateUsageFromMessages(messages: unknown[]): ProviderTokenUsage | u
     return { ...result, cached: totalCached };
   }
   return result;
-}
-
-function toNumber(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  return undefined;
 }
 
 /**
@@ -721,7 +717,7 @@ function convertPiMessage(message: unknown): Message | undefined {
   }
 
   // Extract text content from Pi's content array format
-  const content = extractTextContent(msg.content);
+  const content = extractPiTextContent(msg.content);
 
   // Extract tool calls if present
   const toolCalls = extractToolCalls(msg.content);
@@ -749,33 +745,6 @@ function convertPiMessage(message: unknown): Message | undefined {
     startTime,
     metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
   };
-}
-
-/**
- * Extract text content from Pi's content array format.
- * Pi uses: content: [{ type: "text", text: "..." }, ...]
- */
-function extractTextContent(content: unknown): string | undefined {
-  if (typeof content === 'string') {
-    return content;
-  }
-
-  if (!Array.isArray(content)) {
-    return undefined;
-  }
-
-  const textParts: string[] = [];
-  for (const part of content) {
-    if (!part || typeof part !== 'object') {
-      continue;
-    }
-    const p = part as Record<string, unknown>;
-    if (p.type === 'text' && typeof p.text === 'string') {
-      textParts.push(p.text);
-    }
-  }
-
-  return textParts.length > 0 ? textParts.join('\n') : undefined;
 }
 
 /**
