@@ -123,16 +123,13 @@ The handler receives an `AssertionContext` with the same fields as a code grader
 | `input` | `Message[]` | Full resolved input messages |
 | `expectedOutput` | `Message[]` | Expected output messages |
 | `output` | `Message[]` | Actual agent output messages |
-| `question` | `string` | **Deprecated.** Use `inputText` instead. |
-| `answer` | `string` | **Deprecated.** Use `outputText` instead. |
-| `referenceAnswer` | `string` | **Deprecated.** Use `expectedOutputText` instead. |
 
 ## Testing Custom Assertions
 
 Test assertions locally by piping JSON to stdin:
 
 ```bash
-echo '{"input_text":"Say hello","criteria":"Multi-word greeting","output_text":"Hello there, nice to meet you!","expected_output_text":"","reference_answer":""}' \
+echo '{"input_text":"Say hello","criteria":"Multi-word greeting","output_text":"Hello there, nice to meet you!","expected_output_text":""}' \
   | bun run .agentv/assertions/word-count.ts
 ```
 

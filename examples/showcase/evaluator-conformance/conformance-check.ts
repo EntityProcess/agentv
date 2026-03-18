@@ -101,10 +101,10 @@ const maxFlipRate = Number.parseFloat(values['max-flip-rate'] ?? '0');
 function buildCodeGraderInput(fixture: Fixture): string {
   // Build a minimal CodeGraderInput in the snake_case wire format
   return JSON.stringify({
-    question: fixture.question,
+    input_text: fixture.question,
     criteria: fixture.criteria,
     output_text: fixture.answer,
-    reference_answer: fixture.expected_output,
+    expected_output_text: fixture.expected_output,
     expected_output: [],
     input: [{ role: 'user', content: fixture.question }],
     output: [{ role: 'assistant', content: fixture.answer }],

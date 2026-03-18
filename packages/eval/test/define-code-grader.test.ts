@@ -11,7 +11,7 @@ import {
 
 describe('CodeGraderInputSchema', () => {
   const validInput = {
-    question: 'What is 2+2?',
+    inputText: 'What is 2+2?',
     criteria: 'The answer should be 4',
     expectedOutput: [{ role: 'assistant', content: '4' }],
     outputText: 'The answer is 4',
@@ -22,7 +22,7 @@ describe('CodeGraderInputSchema', () => {
 
   it('parses valid input', () => {
     const result = CodeGraderInputSchema.parse(validInput);
-    expect(result.question).toBe('What is 2+2?');
+    expect(result.inputText).toBe('What is 2+2?');
     expect(result.outputText).toBe('The answer is 4');
   });
 
@@ -175,7 +175,7 @@ describe('CodeGraderResultSchema', () => {
 describe('CodeJudgeInputSchema (backward-compat alias)', () => {
   it('parses valid input via deprecated alias', () => {
     const validInput = {
-      question: 'What is 2+2?',
+      inputText: 'What is 2+2?',
       criteria: 'The answer should be 4',
       expectedOutput: [{ role: 'assistant', content: '4' }],
       outputText: 'The answer is 4',
@@ -184,7 +184,7 @@ describe('CodeJudgeInputSchema (backward-compat alias)', () => {
       input: [{ role: 'user', content: 'What is 2+2?' }],
     };
     const result = CodeJudgeInputSchema.parse(validInput);
-    expect(result.question).toBe('What is 2+2?');
+    expect(result.inputText).toBe('What is 2+2?');
   });
 });
 

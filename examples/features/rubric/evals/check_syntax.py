@@ -13,7 +13,7 @@ def main():
             # Fallback if no input or invalid JSON
             input_data = {}
             
-        candidate_answer = input_data.get("answer", "")
+        candidate_answer = input_data.get("output_text", "")
 
         # Extract code block if present (simple heuristic)
         if "```python" in candidate_answer:

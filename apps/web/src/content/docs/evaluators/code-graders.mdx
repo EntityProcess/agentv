@@ -17,8 +17,7 @@ Code graders communicate via stdin/stdout JSON:
   "input_text": "What is 15 + 27?",
   "criteria": "Correctly calculates 15 + 27 = 42",
   "output_text": "The answer is 42.",
-  "expected_output_text": "42",
-  "reference_answer": "42"
+  "expected_output_text": "42"
 }
 
 **Output (stdout):**
@@ -306,5 +305,5 @@ This is the same interface that agent-orchestrated evals use — the EVAL.yaml t
 Pipe JSON directly to the grader script for full control:
 
 ```bash
-echo '{"input_text":"What is 2+2?","criteria":"4","output_text":"4","expected_output_text":"4","reference_answer":"4"}' | python validators/check_answer.py
+echo '{"input_text":"What is 2+2?","criteria":"4","output_text":"4","expected_output_text":"4"}' | python validators/check_answer.py
 ```

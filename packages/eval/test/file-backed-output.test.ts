@@ -7,7 +7,7 @@ import { type CodeGraderInput, CodeGraderInputSchema } from '../src/schemas.js';
 
 describe('CodeGraderInputSchema with outputPath', () => {
   const validInput = {
-    question: 'What is 2+2?',
+    inputText: 'What is 2+2?',
     criteria: 'The answer should be 4',
     expectedOutput: [{ role: 'assistant', content: '4' }],
     outputText: 'The answer is 4',
@@ -59,7 +59,7 @@ describe('Lazy file-backed output loading', () => {
     writeFileSync(filePath, JSON.stringify(messages));
 
     const input: CodeGraderInput = CodeGraderInputSchema.parse({
-      question: 'test',
+      inputText: 'test',
       criteria: 'test',
       expectedOutput: [],
       outputText: 'test',
@@ -95,7 +95,7 @@ describe('Lazy file-backed output loading', () => {
 
   it('uses inline output when outputPath is absent', () => {
     const input: CodeGraderInput = CodeGraderInputSchema.parse({
-      question: 'test',
+      inputText: 'test',
       criteria: 'test',
       expectedOutput: [],
       outputText: 'test',

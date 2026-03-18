@@ -62,10 +62,8 @@ export class CodeEvaluator implements Evaluator {
 
     // Build payload (camelCase internally, converted to snake_case for judges)
     const payload = {
-      question: context.evalCase.question,
       criteria: context.evalCase.criteria,
       expectedOutput: context.evalCase.expected_output,
-      referenceAnswer: context.evalCase.reference_answer,
       outputText: context.candidate,
       output: outputForPayload,
       outputPath,
@@ -83,7 +81,6 @@ export class CodeEvaluator implements Evaluator {
       fileChanges: context.fileChanges ?? null,
       workspacePath: context.workspacePath ?? null,
       config: this.config ?? null,
-      // Text convenience accessors (new names, always strings)
       inputText: context.evalCase.question,
       expectedOutputText: context.evalCase.reference_answer ?? '',
     };

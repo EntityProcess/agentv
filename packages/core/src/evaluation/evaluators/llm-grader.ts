@@ -215,12 +215,8 @@ export class LlmGraderEvaluator implements Evaluator {
         2,
       ),
       [TEMPLATE_VARIABLES.OUTPUT]: JSON.stringify(context.output ?? [], null, 2),
-      [TEMPLATE_VARIABLES.ANSWER]: context.candidate.trim(),
-      [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
-      [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
       [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
-      // Text convenience accessors (new names, always strings)
       [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
       [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
       [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (context.evalCase.reference_answer ?? '').trim(),
@@ -603,10 +599,10 @@ export class LlmGraderEvaluator implements Evaluator {
         : context.evalCase.question;
 
     const variables: Record<string, string> = {
-      [TEMPLATE_VARIABLES.ANSWER]: context.candidate.trim(),
-      [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
-      [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
+      [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
+      [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
+      [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (context.evalCase.reference_answer ?? '').trim(),
       [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
     };
 
@@ -675,10 +671,10 @@ export class LlmGraderEvaluator implements Evaluator {
 
     if (this.evaluatorTemplate) {
       const variables: Record<string, string> = {
-        [TEMPLATE_VARIABLES.ANSWER]: context.candidate.trim(),
-        [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (context.evalCase.reference_answer ?? '').trim(),
         [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
-        [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
+        [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
+        [TEMPLATE_VARIABLES.OUTPUT_TEXT]: context.candidate.trim(),
+        [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (context.evalCase.reference_answer ?? '').trim(),
         [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
       };
       const customPrompt = substituteVariables(this.evaluatorTemplate, variables);

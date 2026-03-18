@@ -5,7 +5,7 @@ import { PromptTemplateInputSchema } from '../src/schemas.js';
 describe('PromptTemplateInputSchema', () => {
   // Minimal valid input with all required fields
   const validInput = {
-    question: 'What is 2+2?',
+    inputText: 'What is 2+2?',
     criteria: 'The answer should be 4',
     expectedOutput: [],
     outputText: 'The answer is 4',
@@ -16,7 +16,7 @@ describe('PromptTemplateInputSchema', () => {
 
   it('parses valid input with all required fields', () => {
     const result = PromptTemplateInputSchema.parse(validInput);
-    expect(result.question).toBe('What is 2+2?');
+    expect(result.inputText).toBe('What is 2+2?');
     expect(result.outputText).toBe('The answer is 4');
     expect(result.criteria).toBe('The answer should be 4');
     expect(result.expectedOutput).toEqual([]);
@@ -27,19 +27,18 @@ describe('PromptTemplateInputSchema', () => {
 
   it('rejects input missing required fields', () => {
     const minimalInput = {
-      question: 'What is 2+2?',
-      answer: 'The answer is 4',
+      inputText: 'What is 2+2?',
     };
     expect(() => PromptTemplateInputSchema.parse(minimalInput)).toThrow();
   });
 
-  it('accepts optional referenceAnswer', () => {
+  it('accepts optional expectedOutputText', () => {
     const inputWithReference = {
       ...validInput,
-      referenceAnswer: 'The sum of 2 and 2 is 4',
+      expectedOutputText: 'The sum of 2 and 2 is 4',
     };
     const result = PromptTemplateInputSchema.parse(inputWithReference);
-    expect(result.referenceAnswer).toBe('The sum of 2 and 2 is 4');
+    expect(result.expectedOutputText).toBe('The sum of 2 and 2 is 4');
   });
 
   it('accepts optional trace', () => {
@@ -128,10 +127,10 @@ describe('PromptTemplateInputSchema', () => {
 
   it('accepts full input with all fields', () => {
     const fullInput = {
-      question: 'What is 2+2?',
+      inputText: 'What is 2+2?',
       criteria: 'The answer should be 4',
       expectedOutput: [{ role: 'assistant', content: '4' }],
-      referenceAnswer: 'The sum is 4',
+      expectedOutputText: 'The sum is 4',
       outputText: 'The answer is 4',
       output: [{ role: 'assistant', content: 'The answer is 4' }],
       guidelineFiles: ['/path/to/guideline.txt'],
@@ -146,9 +145,9 @@ describe('PromptTemplateInputSchema', () => {
       config: { rubric: 'Check correctness' },
     };
     const result = PromptTemplateInputSchema.parse(fullInput);
-    expect(result.question).toBe('What is 2+2?');
+    expect(result.inputText).toBe('What is 2+2?');
     expect(result.criteria).toBe('The answer should be 4');
-    expect(result.referenceAnswer).toBe('The sum is 4');
+    expect(result.expectedOutputText).toBe('The sum is 4');
     expect(result.outputText).toBe('The answer is 4');
     expect(result.config).toEqual({ rubric: 'Check correctness' });
   });

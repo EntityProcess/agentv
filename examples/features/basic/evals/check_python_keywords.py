@@ -79,8 +79,8 @@ def main():
         # Read input from stdin
         input_data = json.loads(sys.stdin.read())
         
-        # Extract the generated output (field is "answer" in the payload)
-        output = input_data.get("answer", "")
+        # Extract the generated output
+        output = input_data.get("output_text", "")
         
         # Extract code from markdown if present
         code = extract_code_from_markdown(output)
