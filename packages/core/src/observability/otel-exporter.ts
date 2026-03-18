@@ -194,7 +194,8 @@ export class OtelTraceExporter {
         rootSpan.setAttribute('agentv.score', result.score);
         if (captureContent && result.output.length > 0) {
           const lastMsg = result.output[result.output.length - 1];
-          const text = typeof lastMsg.content === 'string' ? lastMsg.content : JSON.stringify(lastMsg.content);
+          const text =
+            typeof lastMsg.content === 'string' ? lastMsg.content : JSON.stringify(lastMsg.content);
           rootSpan.setAttribute('agentv.output_text', text);
         }
 

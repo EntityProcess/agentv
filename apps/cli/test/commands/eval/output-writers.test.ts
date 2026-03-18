@@ -80,7 +80,12 @@ describe('JsonWriter', () => {
 
   it('should convert keys to snake_case', async () => {
     const writer = await JsonWriter.open(testFilePath);
-    await writer.append(makeResult({ output: [{ role: 'assistant' as const, content: 'my answer' }], testId: 'snake-case-test' }));
+    await writer.append(
+      makeResult({
+        output: [{ role: 'assistant' as const, content: 'my answer' }],
+        testId: 'snake-case-test',
+      }),
+    );
     await writer.close();
 
     const content = JSON.parse(await readFile(testFilePath, 'utf8'));
