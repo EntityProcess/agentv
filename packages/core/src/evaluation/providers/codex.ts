@@ -204,6 +204,7 @@ export class CodexProvider implements Provider {
             input: usage.input_tokens ?? 0,
             output: usage.output_tokens ?? 0,
             cached: usage.cached_input_tokens ?? undefined,
+            reasoning: usage.reasoning_tokens ?? undefined,
           });
         }
       }

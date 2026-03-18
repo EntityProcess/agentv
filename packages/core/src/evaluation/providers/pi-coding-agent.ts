@@ -646,10 +646,12 @@ function extractTokenUsage(events: unknown[]): ProviderTokenUsage | undefined {
           output: output ?? 0,
         };
         const cached = toFiniteNumber(u.cache_read_input_tokens ?? u.cached ?? u.cachedTokens);
-        if (cached !== undefined) {
-          return { ...result, cached };
-        }
-        return result;
+        const reasoning = toFiniteNumber(u.reasoning_tokens ?? u.reasoningTokens ?? u.reasoning);
+        return {
+          ...result,
+          ...(cached !== undefined ? { cached } : {}),
+          ...(reasoning !== undefined ? { reasoning } : {}),
+        };
       }
     }
 
