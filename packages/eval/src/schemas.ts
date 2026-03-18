@@ -95,11 +95,16 @@ export const CodeGraderInputSchema = z.object({
  */
 export const CodeGraderResultSchema = z.object({
   score: z.number().min(0).max(1),
-  assertions: z.array(z.object({
-    text: z.string(),
-    passed: z.boolean(),
-    evidence: z.string().optional(),
-  })).optional().default([]),
+  assertions: z
+    .array(
+      z.object({
+        text: z.string(),
+        passed: z.boolean(),
+        evidence: z.string().optional(),
+      }),
+    )
+    .optional()
+    .default([]),
   /** Optional structured details for domain-specific metrics (e.g., TP/TN/FP/FN counts, alignments). */
   details: z.record(z.unknown()).optional(),
 });

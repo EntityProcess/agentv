@@ -1,4 +1,9 @@
-import type { AssertionEntry, FieldAccuracyEvaluatorConfig, FieldConfig, JsonObject } from '../types.js';
+import type {
+  AssertionEntry,
+  FieldAccuracyEvaluatorConfig,
+  FieldConfig,
+  JsonObject,
+} from '../types.js';
 import { clampScore, deepEqual, parseJsonFromText, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 

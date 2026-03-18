@@ -21,7 +21,7 @@ export default defineCodeGrader(({ answer, criteria }) => {
     assertions.push({ text: 'No matching keywords found', passed: false });
   }
 
-  const score = assertions.some(a => a.passed) ? 1.0 : 0.0;
+  const score = assertions.some((a) => a.passed) ? 1.0 : 0.0;
 
   return {
     score,

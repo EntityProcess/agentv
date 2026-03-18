@@ -80,8 +80,10 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(1);
       expect(result.verdict).toBe('pass');
-      expect(result.assertions.filter(a => a.passed).map(a => a.text)).toContain('Tool calls 5 <= 10 max');
-      expect(result.assertions.filter(a => !a.passed)).toHaveLength(0);
+      expect(result.assertions.filter((a) => a.passed).map((a) => a.text)).toContain(
+        'Tool calls 5 <= 10 max',
+      );
+      expect(result.assertions.filter((a) => !a.passed)).toHaveLength(0);
     });
 
     it('fails when tool calls exceed limit', () => {
@@ -103,8 +105,10 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(0);
       expect(result.verdict).toBe('fail');
-      expect(result.assertions.filter(a => a.passed)).toHaveLength(0);
-      expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain('Tool calls 10 > 5 max');
+      expect(result.assertions.filter((a) => a.passed)).toHaveLength(0);
+      expect(result.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
+        'Tool calls 10 > 5 max',
+      );
     });
   });
 
@@ -129,7 +133,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(1);
       expect(result.verdict).toBe('pass');
-      expect(result.assertions.filter(a => a.passed).map(a => a.text)).toContain('LLM calls 3 <= 5 max');
+      expect(result.assertions.filter((a) => a.passed).map((a) => a.text)).toContain(
+        'LLM calls 3 <= 5 max',
+      );
     });
 
     it('fails when LLM calls exceed limit', () => {
@@ -152,7 +158,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(0);
       expect(result.verdict).toBe('fail');
-      expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain('LLM calls 5 > 2 max');
+      expect(result.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
+        'LLM calls 5 > 2 max',
+      );
     });
   });
 
@@ -177,7 +185,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(1);
       expect(result.verdict).toBe('pass');
-      expect(result.assertions.filter(a => a.passed).map(a => a.text)).toContain('Total tokens 1200 <= 2000 max');
+      expect(result.assertions.filter((a) => a.passed).map((a) => a.text)).toContain(
+        'Total tokens 1200 <= 2000 max',
+      );
     });
 
     it('fails when token usage exceeds limit', () => {
@@ -200,7 +210,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(0);
       expect(result.verdict).toBe('fail');
-      expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain('Total tokens 1200 > 1000 max');
+      expect(result.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
+        'Total tokens 1200 > 1000 max',
+      );
     });
   });
 
@@ -225,7 +237,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(1);
       expect(result.verdict).toBe('pass');
-      expect(result.assertions.filter(a => a.passed).map(a => a.text)).toContain('Cost $0.0500 <= $0.1000 max');
+      expect(result.assertions.filter((a) => a.passed).map((a) => a.text)).toContain(
+        'Cost $0.0500 <= $0.1000 max',
+      );
     });
 
     it('fails when cost exceeds budget', () => {
@@ -248,7 +262,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(0);
       expect(result.verdict).toBe('fail');
-      expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain('Cost $0.1000 > $0.0500 max');
+      expect(result.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
+        'Cost $0.1000 > $0.0500 max',
+      );
     });
   });
 
@@ -273,7 +289,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(1);
       expect(result.verdict).toBe('pass');
-      expect(result.assertions.filter(a => a.passed).map(a => a.text)).toContain('Duration 3000ms <= 5000ms max');
+      expect(result.assertions.filter((a) => a.passed).map((a) => a.text)).toContain(
+        'Duration 3000ms <= 5000ms max',
+      );
     });
 
     it('fails when duration exceeds limit', () => {
@@ -296,7 +314,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(0);
       expect(result.verdict).toBe('fail');
-      expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain('Duration 5000ms > 2000ms max');
+      expect(result.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
+        'Duration 5000ms > 2000ms max',
+      );
     });
   });
 
@@ -321,7 +341,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(1);
       expect(result.verdict).toBe('pass');
-      expect(result.assertions.filter(a => a.passed)[0].text).toMatch(/Exploration ratio 0\.7.* within tolerance/);
+      expect(result.assertions.filter((a) => a.passed)[0].text).toMatch(
+        /Exploration ratio 0\.7.* within tolerance/,
+      );
     });
 
     it('fails when exploration ratio is outside tolerance', () => {
@@ -344,7 +366,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(0);
       expect(result.verdict).toBe('fail');
-      expect(result.assertions.filter(a => !a.passed)[0].text).toMatch(/Exploration ratio 0\.5.* outside tolerance/);
+      expect(result.assertions.filter((a) => !a.passed)[0].text).toMatch(
+        /Exploration ratio 0\.5.* outside tolerance/,
+      );
     });
 
     it('uses default tolerance of 0.2 when not specified', () => {
@@ -398,8 +422,8 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(1);
       expect(result.verdict).toBe('pass');
-      expect(result.assertions.filter(a => a.passed)).toHaveLength(5);
-      expect(result.assertions.filter(a => !a.passed)).toHaveLength(0);
+      expect(result.assertions.filter((a) => a.passed)).toHaveLength(5);
+      expect(result.assertions.filter((a) => !a.passed)).toHaveLength(0);
     });
 
     it('calculates proportional score based on passed and failed assertions', () => {
@@ -430,8 +454,8 @@ describe('ExecutionMetricsEvaluator', () => {
       // 3 passed (tool_calls, tokens, duration), 2 failed (llm_calls, cost)
       expect(result.score).toBeCloseTo(0.6); // 3 / 5
       expect(result.verdict).toBe('borderline');
-      expect(result.assertions.filter(a => a.passed)).toHaveLength(3);
-      expect(result.assertions.filter(a => !a.passed)).toHaveLength(2);
+      expect(result.assertions.filter((a) => a.passed)).toHaveLength(3);
+      expect(result.assertions.filter((a) => !a.passed)).toHaveLength(2);
     });
   });
 
@@ -461,8 +485,10 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(1);
       expect(result.verdict).toBe('pass');
-      expect(result.assertions.filter(a => a.passed)).toHaveLength(1);
-      expect(result.assertions.filter(a => a.passed).map(a => a.text)).toContain('Tool calls 5 <= 10 max');
+      expect(result.assertions.filter((a) => a.passed)).toHaveLength(1);
+      expect(result.assertions.filter((a) => a.passed).map((a) => a.text)).toContain(
+        'Tool calls 5 <= 10 max',
+      );
     });
   });
 
@@ -479,7 +505,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(0);
       expect(result.verdict).toBe('fail');
-      expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain('No trace summary available');
+      expect(result.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
+        'No trace summary available',
+      );
     });
 
     it('fails threshold check when required metric is missing', () => {
@@ -502,7 +530,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(0);
       expect(result.verdict).toBe('fail');
-      expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain('Cost data not available');
+      expect(result.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
+        'Cost data not available',
+      );
     });
 
     it('fails when tokenUsage is missing for max_tokens check', () => {
@@ -525,7 +555,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(0);
       expect(result.verdict).toBe('fail');
-      expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain('Token usage data not available');
+      expect(result.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
+        'Token usage data not available',
+      );
     });
 
     it('fails when durationMs is missing for max_duration_ms check', () => {
@@ -548,7 +580,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(0);
       expect(result.verdict).toBe('fail');
-      expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain('Duration data not available');
+      expect(result.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
+        'Duration data not available',
+      );
     });
 
     it('fails when llmCallCount is missing for max_llm_calls check', () => {
@@ -571,7 +605,9 @@ describe('ExecutionMetricsEvaluator', () => {
 
       expect(result.score).toBe(0);
       expect(result.verdict).toBe('fail');
-      expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain('LLM call count data not available');
+      expect(result.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
+        'LLM call count data not available',
+      );
     });
   });
 

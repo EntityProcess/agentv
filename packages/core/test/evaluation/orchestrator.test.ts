@@ -172,8 +172,8 @@ describe('runTestCase', () => {
     });
 
     expect(result.score).toBeGreaterThan(0);
-    expect(result.assertions.filter(a => a.passed)).toHaveLength(1);
-    expect(result.assertions.filter(a => !a.passed)).toHaveLength(0);
+    expect(result.assertions.filter((a) => a.passed)).toHaveLength(1);
+    expect(result.assertions.filter((a) => !a.passed)).toHaveLength(0);
     expect(result.timestamp).toBe('2024-01-01T00:00:00.000Z');
     expect(result.input).toBe('Explain logging improvements');
     expect(result.executionStatus).toBe('ok');
@@ -258,7 +258,7 @@ describe('runTestCase', () => {
     });
 
     expect(result.score).toBe(0);
-    expect(result.assertions.filter(a => !a.passed)[0].text).toContain('Provider failure');
+    expect(result.assertions.filter((a) => !a.passed)[0].text).toContain('Provider failure');
     expect(result.input).toBe('Explain logging improvements');
     expect(result.executionStatus).toBe('execution_error');
     expect(result.failureStage).toBe('agent');
@@ -771,7 +771,9 @@ describe('runEvalCase trace integration', () => {
 
     expect(result.score).toBe(0);
     expect(result.scores?.[0]?.verdict).toBe('fail');
-    expect(result.scores?.[0]?.assertions.filter(a => !a.passed).map(a => a.text)).toContain('No trace available for evaluation');
+    expect(result.scores?.[0]?.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
+      'No trace available for evaluation',
+    );
   });
 
   it('runs latency/cost evaluators inside composite using trace', async () => {
@@ -1172,9 +1174,10 @@ describe('runEvaluation with trials', () => {
           return {
             score,
             verdict: (score >= 0.8 ? 'pass' : score >= 0.6 ? 'borderline' : 'fail') as const,
-            assertions: score >= 0.8
-              ? [{ text: 'passed', passed: true }]
-              : [{ text: 'failed', passed: false }],
+            assertions:
+              score >= 0.8
+                ? [{ text: 'passed', passed: true }]
+                : [{ text: 'failed', passed: false }],
             expectedAspectCount: 1,
           };
         },
@@ -1697,13 +1700,15 @@ describe('deterministic assertion evaluators in orchestrator', () => {
       expect(result.scores?.[0].verdict).toBe(expectedVerdict);
 
       if (expectedHit !== undefined) {
-        expect(result.assertions.filter(a => a.passed).map(a => a.text)).toContain(expectedHit);
+        expect(result.assertions.filter((a) => a.passed).map((a) => a.text)).toContain(expectedHit);
       }
       if (expectedMiss !== undefined) {
-        expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain(expectedMiss);
+        expect(result.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
+          expectedMiss,
+        );
       }
       if (expectedMissCount !== undefined) {
-        expect(result.assertions.filter(a => !a.passed)).toHaveLength(expectedMissCount);
+        expect(result.assertions.filter((a) => !a.passed)).toHaveLength(expectedMissCount);
       }
     },
   );

@@ -25,7 +25,10 @@ export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => 
 
   // Check for tokenUsage
   if (tokenUsage) {
-    assertions.push({ text: `tokenUsage present: ${tokenUsage.input}/${tokenUsage.output}`, passed: true });
+    assertions.push({
+      text: `tokenUsage present: ${tokenUsage.input}/${tokenUsage.output}`,
+      passed: true,
+    });
   } else {
     assertions.push({ text: 'tokenUsage not present', passed: false });
   }

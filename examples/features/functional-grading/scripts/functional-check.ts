@@ -20,7 +20,13 @@ if (!workspacePath) {
   console.log(
     JSON.stringify({
       score: 0,
-      assertions: [{ text: 'workspace_path not provided — cannot run functional checks', passed: false, evidence: 'Code grader requires workspace_path to execute commands in the workspace' }],
+      assertions: [
+        {
+          text: 'workspace_path not provided — cannot run functional checks',
+          passed: false,
+          evidence: 'Code grader requires workspace_path to execute commands in the workspace',
+        },
+      ],
     }),
   );
   process.exit(0);

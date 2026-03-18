@@ -20,9 +20,15 @@ export default defineCodeGrader(({ trace, config }) => {
 
   // Check error count
   if (trace.errorCount <= maxErrors) {
-    assertions.push({ text: `Error count (${trace.errorCount}) within limit (${maxErrors})`, passed: true });
+    assertions.push({
+      text: `Error count (${trace.errorCount}) within limit (${maxErrors})`,
+      passed: true,
+    });
   } else {
-    assertions.push({ text: `Too many errors: ${trace.errorCount} (max: ${maxErrors})`, passed: false });
+    assertions.push({
+      text: `Too many errors: ${trace.errorCount} (max: ${maxErrors})`,
+      passed: false,
+    });
   }
 
   // Check for tools that might indicate errors (if configured)
@@ -30,7 +36,10 @@ export default defineCodeGrader(({ trace, config }) => {
   for (const tool of forbiddenTools) {
     const count = trace.toolCallsByName[tool];
     if (count !== undefined && count > 0) {
-      assertions.push({ text: `Forbidden tool "${tool}" was called ${count} time(s)`, passed: false });
+      assertions.push({
+        text: `Forbidden tool "${tool}" was called ${count} time(s)`,
+        passed: false,
+      });
     } else {
       assertions.push({ text: `Forbidden tool "${tool}" was not called`, passed: true });
     }

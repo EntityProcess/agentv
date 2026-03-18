@@ -84,9 +84,7 @@ export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutpu
   const passed = score >= 0.3;
   const assertions = [
     {
-      text: passed
-        ? `BLEU ${score.toFixed(3)} >= 0.3`
-        : `BLEU ${score.toFixed(3)} < 0.3`,
+      text: passed ? `BLEU ${score.toFixed(3)} >= 0.3` : `BLEU ${score.toFixed(3)} < 0.3`,
       passed,
       evidence: `BLEU score: ${score.toFixed(3)}`,
     },

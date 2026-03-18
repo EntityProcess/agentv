@@ -26,13 +26,17 @@ describe('deterministic assertions', () => {
     it('scores 1 when output matches pattern', () => {
       const result = runRegexAssertion('risk: High', 'risk: (High|Critical)');
       expect(result.score).toBe(1);
-      expect(result.assertions).toEqual([{ text: 'Output matches pattern /risk: (High|Critical)/', passed: true }]);
+      expect(result.assertions).toEqual([
+        { text: 'Output matches pattern /risk: (High|Critical)/', passed: true },
+      ]);
     });
 
     it('scores 0 when output does not match pattern', () => {
       const result = runRegexAssertion('risk: Low', 'risk: (High|Critical)');
       expect(result.score).toBe(0);
-      expect(result.assertions).toEqual([{ text: 'Output does not match pattern /risk: (High|Critical)/', passed: false }]);
+      expect(result.assertions).toEqual([
+        { text: 'Output does not match pattern /risk: (High|Critical)/', passed: false },
+      ]);
     });
   });
 
@@ -60,7 +64,9 @@ describe('deterministic assertions', () => {
     it('scores 0 for non-match', () => {
       const result = runEqualsAssertion('DENIED', 'APPROVED');
       expect(result.score).toBe(0);
-      expect(result.assertions).toEqual([{ text: 'Output does not equal "APPROVED"', passed: false }]);
+      expect(result.assertions).toEqual([
+        { text: 'Output does not equal "APPROVED"', passed: false },
+      ]);
     });
 
     it('trims whitespace before comparing', () => {

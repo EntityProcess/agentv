@@ -27,7 +27,7 @@ if (input.workspace_path && envPath && input.workspace_path === envPath) {
   assertions.push({ text: 'payload and env var do not match', passed: false });
 }
 
-const passed = assertions.filter(a => a.passed).length;
-const score = assertions.every(a => a.passed) ? 1.0 : passed / assertions.length;
+const passed = assertions.filter((a) => a.passed).length;
+const score = assertions.every((a) => a.passed) ? 1.0 : passed / assertions.length;
 
 console.log(JSON.stringify({ score, assertions }));

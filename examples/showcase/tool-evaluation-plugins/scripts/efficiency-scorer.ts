@@ -95,12 +95,18 @@ export default defineCodeGrader(({ trace, criteria, tokenUsage, costUsd }) => {
   const maxCalls = THRESHOLDS.maxToolCalls;
 
   if (toolCount <= maxCalls) {
-    assertions.push({ text: `Tool calls (${toolCount}) within budget (${maxCalls})`, passed: true });
+    assertions.push({
+      text: `Tool calls (${toolCount}) within budget (${maxCalls})`,
+      passed: true,
+    });
     scores.push(1.0);
   } else {
     const penalty = Math.min((toolCount - maxCalls) / maxCalls, 1.0);
     scores.push(1.0 - penalty);
-    assertions.push({ text: `Excessive tool calls: ${toolCount} (budget: ${maxCalls})`, passed: false });
+    assertions.push({
+      text: `Excessive tool calls: ${toolCount} (budget: ${maxCalls})`,
+      passed: false,
+    });
   }
 
   // 2. Exploration ratio evaluation
@@ -113,10 +119,16 @@ export default defineCodeGrader(({ trace, criteria, tokenUsage, costUsd }) => {
     scores.push(1.0);
   } else if (expRatio < target - tolerance) {
     scores.push(0.7);
-    assertions.push({ text: `Low exploration ratio: ${expRatio.toFixed(2)} (target: ${target.toFixed(2)})`, passed: false });
+    assertions.push({
+      text: `Low exploration ratio: ${expRatio.toFixed(2)} (target: ${target.toFixed(2)})`,
+      passed: false,
+    });
   } else {
     scores.push(0.7);
-    assertions.push({ text: `High exploration ratio: ${expRatio.toFixed(2)} (target: ${target.toFixed(2)})`, passed: false });
+    assertions.push({
+      text: `High exploration ratio: ${expRatio.toFixed(2)} (target: ${target.toFixed(2)})`,
+      passed: false,
+    });
   }
 
   // 3. Token usage evaluation
@@ -132,7 +144,10 @@ export default defineCodeGrader(({ trace, criteria, tokenUsage, costUsd }) => {
     } else {
       const penalty = Math.min((totalTokens - maxTokens) / maxTokens, 1.0);
       scores.push(1.0 - penalty * 0.5);
-      assertions.push({ text: `High token usage: ${totalTokens} (budget: ${maxTokens})`, passed: false });
+      assertions.push({
+        text: `High token usage: ${totalTokens} (budget: ${maxTokens})`,
+        passed: false,
+      });
     }
   }
 
@@ -146,7 +161,10 @@ export default defineCodeGrader(({ trace, criteria, tokenUsage, costUsd }) => {
       scores.push(1.0);
     } else {
       scores.push(0.5);
-      assertions.push({ text: `High cost: $${cost.toFixed(4)} (budget: $${maxCost.toFixed(4)})`, passed: false });
+      assertions.push({
+        text: `High cost: $${cost.toFixed(4)} (budget: $${maxCost.toFixed(4)})`,
+        passed: false,
+      });
     }
   }
 

@@ -32,7 +32,14 @@ export default defineCodeGrader(async (input) => {
   if (retrievalContext.length === 0) {
     return {
       score: 0,
-      assertions: [{ text: 'No retrieval context found in expected_output.tool_calls', passed: false, evidence: 'Contextual Precision requires retrieval context in expected_output[].tool_calls[].output.results' }],
+      assertions: [
+        {
+          text: 'No retrieval context found in expected_output.tool_calls',
+          passed: false,
+          evidence:
+            'Contextual Precision requires retrieval context in expected_output[].tool_calls[].output.results',
+        },
+      ],
     };
   }
 
@@ -41,7 +48,12 @@ export default defineCodeGrader(async (input) => {
   if (!target) {
     return {
       score: 0,
-      assertions: [{ text: 'Target not available - ensure `target` block is configured in evaluator YAML', passed: false }],
+      assertions: [
+        {
+          text: 'Target not available - ensure `target` block is configured in evaluator YAML',
+          passed: false,
+        },
+      ],
     };
   }
 
@@ -99,7 +111,13 @@ Is this node relevant to answering the question? Respond with JSON only:
   if (totalRelevant === 0) {
     return {
       score: 0,
-      assertions: [{ text: 'No relevant nodes found in retrieval context', passed: false, evidence: `Evaluated ${retrievalContext.length} nodes, none were relevant to the question.` }],
+      assertions: [
+        {
+          text: 'No relevant nodes found in retrieval context',
+          passed: false,
+          evidence: `Evaluated ${retrievalContext.length} nodes, none were relevant to the question.`,
+        },
+      ],
     };
   }
 
@@ -122,9 +140,17 @@ Is this node relevant to answering the question? Respond with JSON only:
 
   for (const node of nodeResults) {
     if (node.relevant) {
-      assertions.push({ text: `Node ${node.rank}: relevant`, passed: true, evidence: node.reasoning });
+      assertions.push({
+        text: `Node ${node.rank}: relevant`,
+        passed: true,
+        evidence: node.reasoning,
+      });
     } else {
-      assertions.push({ text: `Node ${node.rank}: irrelevant`, passed: false, evidence: node.reasoning });
+      assertions.push({
+        text: `Node ${node.rank}: irrelevant`,
+        passed: false,
+        evidence: node.reasoning,
+      });
     }
   }
 

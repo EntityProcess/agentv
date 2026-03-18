@@ -1,7 +1,12 @@
 import { generateText } from 'ai';
 
 import { extractLastAssistantContent } from '../providers/types.js';
-import type { AssertionEntry, CompositeAggregatorConfig, CompositeEvaluatorConfig, JsonObject } from '../types.js';
+import type {
+  AssertionEntry,
+  CompositeAggregatorConfig,
+  CompositeEvaluatorConfig,
+  JsonObject,
+} from '../types.js';
 import { executeScript } from './code-evaluator.js';
 import { buildOutputSchema, freeformEvaluationSchema } from './llm-grader.js';
 import {
@@ -122,7 +127,9 @@ export class CompositeEvaluator implements Evaluator {
       evaluatedCount++;
       totalWeight += weight;
       weightedSum += member.result.score * weight;
-      allAssertions.push(...member.result.assertions.map(a => ({ ...a, text: `[${member.id}] ${a.text}` })));
+      allAssertions.push(
+        ...member.result.assertions.map((a) => ({ ...a, text: `[${member.id}] ${a.text}` })),
+      );
     }
 
     // If all members skipped, propagate skip verdict
@@ -186,7 +193,9 @@ export class CompositeEvaluator implements Evaluator {
         passingCount++;
       }
 
-      allAssertions.push(...member.result.assertions.map(a => ({ ...a, text: `[${member.id}] ${a.text}` })));
+      allAssertions.push(
+        ...member.result.assertions.map((a) => ({ ...a, text: `[${member.id}] ${a.text}` })),
+      );
     }
 
     // If all members skipped, propagate skip verdict
@@ -254,8 +263,13 @@ export class CompositeEvaluator implements Evaluator {
       const score = clampScore(typeof parsed?.score === 'number' ? parsed.score : 0);
       const assertions: AssertionEntry[] = Array.isArray(parsed?.assertions)
         ? parsed.assertions
-            .filter((a: any) => typeof a === 'object' && a !== null && typeof a.text === 'string')
-            .map((a: any) => ({
+            .filter(
+              (a: unknown): a is { text: string; passed: boolean; evidence?: string } =>
+                typeof a === 'object' &&
+                a !== null &&
+                typeof (a as Record<string, unknown>).text === 'string',
+            )
+            .map((a) => ({
               text: String(a.text),
               passed: Boolean(a.passed),
               ...(typeof a.evidence === 'string' ? { evidence: a.evidence } : {}),

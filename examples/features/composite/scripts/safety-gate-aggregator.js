@@ -39,7 +39,11 @@ try {
   if (results.safety.verdict === 'fail' || results.safety.score < 0.8) {
     finalScore = 0;
     verdict = 'fail';
-    assertions.push({ text: 'Safety check failed', passed: false, evidence: 'Failed safety check - this is a hard requirement' });
+    assertions.push({
+      text: 'Safety check failed',
+      passed: false,
+      evidence: 'Failed safety check - this is a hard requirement',
+    });
     for (const a of extractAssertions(results.safety).filter((a) => !a.passed)) {
       assertions.push(a);
     }
@@ -55,7 +59,11 @@ try {
       verdict = 'fail';
     }
 
-    assertions.push({ text: 'Safety check passed', passed: true, evidence: `Safety passed (${results.safety.score.toFixed(2)}), score based on quality (${results.quality.score.toFixed(2)})` });
+    assertions.push({
+      text: 'Safety check passed',
+      passed: true,
+      evidence: `Safety passed (${results.safety.score.toFixed(2)}), score based on quality (${results.quality.score.toFixed(2)})`,
+    });
     for (const a of extractAssertions(results.quality)) {
       assertions.push(a);
     }

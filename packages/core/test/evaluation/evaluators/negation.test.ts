@@ -49,8 +49,8 @@ describe('negateScore', () => {
 
     expect(negated.score).toBeCloseTo(0.3, 10);
     expect(negated.verdict).toBe('borderline');
-    expect(negated.assertions.filter(a => a.passed).map(a => a.text)).toEqual(['incomplete']);
-    expect(negated.assertions.filter(a => !a.passed).map(a => a.text)).toEqual(['partial']);
+    expect(negated.assertions.filter((a) => a.passed).map((a) => a.text)).toEqual(['incomplete']);
+    expect(negated.assertions.filter((a) => !a.passed).map((a) => a.text)).toEqual(['partial']);
   });
 
   it('flips passed on each assertion', () => {
@@ -68,8 +68,8 @@ describe('negateScore', () => {
 
     const negated = negateScore(original);
 
-    expect(negated.assertions.filter(a => a.passed).map(a => a.text)).toEqual(['d']);
-    expect(negated.assertions.filter(a => !a.passed).map(a => a.text)).toEqual(['a', 'b', 'c']);
+    expect(negated.assertions.filter((a) => a.passed).map((a) => a.text)).toEqual(['d']);
+    expect(negated.assertions.filter((a) => !a.passed).map((a) => a.text)).toEqual(['a', 'b', 'c']);
   });
 
   it('clamps score to valid range (score 0 -> 1)', () => {

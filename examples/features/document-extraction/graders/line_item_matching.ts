@@ -281,7 +281,9 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify({
         score: 0,
-        assertions: [{ text: `Expected line items not found at path: ${lineItemsPath}`, passed: false }],
+        assertions: [
+          { text: `Expected line items not found at path: ${lineItemsPath}`, passed: false },
+        ],
         details: {
           alignment: [],
           metrics: {},
@@ -311,7 +313,9 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify({
         score: 0,
-        assertions: [{ text: `Parsed line items not found at path: ${lineItemsPath}`, passed: false }],
+        assertions: [
+          { text: `Parsed line items not found at path: ${lineItemsPath}`, passed: false },
+        ],
         details: {
           alignment: [],
           metrics: fieldMetrics,

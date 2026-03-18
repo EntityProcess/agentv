@@ -124,10 +124,18 @@ async function main(): Promise<void> {
 
     const thresholdPct = (threshold * 100).toFixed(0);
     if (passed) {
-      assertions.push({ text: `${field.path}: ${pct}% >= ${thresholdPct}% threshold`, passed: true, evidence: `"${candidateValue}" vs "${referenceValue}" = ${pct}%` });
+      assertions.push({
+        text: `${field.path}: ${pct}% >= ${thresholdPct}% threshold`,
+        passed: true,
+        evidence: `"${candidateValue}" vs "${referenceValue}" = ${pct}%`,
+      });
       totalScore += 1;
     } else {
-      assertions.push({ text: `${field.path}: ${pct}% < ${thresholdPct}% threshold`, passed: false, evidence: `"${candidateValue}" vs "${referenceValue}" = ${pct}%` });
+      assertions.push({
+        text: `${field.path}: ${pct}% < ${thresholdPct}% threshold`,
+        passed: false,
+        evidence: `"${candidateValue}" vs "${referenceValue}" = ${pct}%`,
+      });
     }
   }
 

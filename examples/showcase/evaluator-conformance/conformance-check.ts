@@ -178,7 +178,8 @@ function validateResult(result: unknown): string[] {
         } else {
           const e = entry as Record<string, unknown>;
           if (typeof e.text !== 'string') errors.push(`assertions[${i}].text must be a string`);
-          if (typeof e.passed !== 'boolean') errors.push(`assertions[${i}].passed must be a boolean`);
+          if (typeof e.passed !== 'boolean')
+            errors.push(`assertions[${i}].passed must be a boolean`);
         }
       }
     }

@@ -196,8 +196,14 @@ function formatResultDetail(result: RawResult, index: number, tree: boolean): st
   if (result.assertions && result.assertions.length > 0) {
     const passed = result.assertions.filter((a: { passed: boolean }) => a.passed);
     const failed = result.assertions.filter((a: { passed: boolean }) => !a.passed);
-    if (passed.length > 0) lines.push(`  ${c.green}✓ Passed:${c.reset} ${passed.map((a: { text: string }) => a.text).join(', ')}`);
-    if (failed.length > 0) lines.push(`  ${c.red}✗ Failed:${c.reset} ${failed.map((a: { text: string }) => a.text).join(', ')}`);
+    if (passed.length > 0)
+      lines.push(
+        `  ${c.green}✓ Passed:${c.reset} ${passed.map((a: { text: string }) => a.text).join(', ')}`,
+      );
+    if (failed.length > 0)
+      lines.push(
+        `  ${c.red}✗ Failed:${c.reset} ${failed.map((a: { text: string }) => a.text).join(', ')}`,
+      );
   }
 
   if (result.scores && result.scores.length > 0) {

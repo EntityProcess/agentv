@@ -24,9 +24,15 @@ export default defineCodeGrader(({ trace, config, durationMs }) => {
   if (durationMs !== undefined) {
     const maxTotalMs = (config?.maxTotalMs as number) ?? maxSpanMs * 5;
     if (durationMs <= maxTotalMs) {
-      assertions.push({ text: `Total duration (${durationMs}ms) within limit (${maxTotalMs}ms)`, passed: true });
+      assertions.push({
+        text: `Total duration (${durationMs}ms) within limit (${maxTotalMs}ms)`,
+        passed: true,
+      });
     } else {
-      assertions.push({ text: `Total duration too long: ${durationMs}ms (max: ${maxTotalMs}ms)`, passed: false });
+      assertions.push({
+        text: `Total duration too long: ${durationMs}ms (max: ${maxTotalMs}ms)`,
+        passed: false,
+      });
     }
   }
 
@@ -37,7 +43,10 @@ export default defineCodeGrader(({ trace, config, durationMs }) => {
         if (duration <= maxSpanMs) {
           assertions.push({ text: `${tool} (${duration}ms) within limit`, passed: true });
         } else {
-          assertions.push({ text: `${tool} too slow: ${duration}ms (max: ${maxSpanMs}ms)`, passed: false });
+          assertions.push({
+            text: `${tool} too slow: ${duration}ms (max: ${maxSpanMs}ms)`,
+            passed: false,
+          });
         }
       }
     }

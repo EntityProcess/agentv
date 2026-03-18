@@ -68,7 +68,13 @@ export default defineCodeGrader(({ outputText, expectedOutput }) => {
   if (parsed === null) {
     return {
       score: 0.0,
-      assertions: [{ text: 'Output is not valid JSON', passed: false, evidence: 'Failed to parse response as JSON' }],
+      assertions: [
+        {
+          text: 'Output is not valid JSON',
+          passed: false,
+          evidence: 'Failed to parse response as JSON',
+        },
+      ],
     };
   }
 
@@ -86,7 +92,10 @@ export default defineCodeGrader(({ outputText, expectedOutput }) => {
   // Validate riskLevel value
   const candidateRisk = parsed.riskLevel as string;
   if (!VALID_RISK_LEVELS.has(candidateRisk)) {
-    assertions.push({ text: `Invalid riskLevel: '${candidateRisk}' (must be High/Medium/Low)`, passed: false });
+    assertions.push({
+      text: `Invalid riskLevel: '${candidateRisk}' (must be High/Medium/Low)`,
+      passed: false,
+    });
     return {
       score: 0.25,
       assertions,
@@ -108,14 +117,20 @@ export default defineCodeGrader(({ outputText, expectedOutput }) => {
 
   // Classification comparison
   if (candidateRisk === expectedRisk) {
-    assertions.push({ text: `Correct: AI=${candidateRisk}, Expected=${expectedRisk}`, passed: true });
+    assertions.push({
+      text: `Correct: AI=${candidateRisk}, Expected=${expectedRisk}`,
+      passed: true,
+    });
     return {
       score: 1.0,
       assertions,
     };
   }
 
-  assertions.push({ text: `Mismatch: AI=${candidateRisk}, Expected=${expectedRisk}`, passed: false });
+  assertions.push({
+    text: `Mismatch: AI=${candidateRisk}, Expected=${expectedRisk}`,
+    passed: false,
+  });
   return {
     score: 0.0,
     assertions,

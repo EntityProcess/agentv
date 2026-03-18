@@ -68,10 +68,12 @@ export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutpu
 
   const assertions: Array<{ text: string; passed: boolean }> = [];
 
-  if (rouge1.f1 >= 0.5) assertions.push({ text: `ROUGE-1 F1 ${rouge1.f1.toFixed(3)} >= 0.5`, passed: true });
+  if (rouge1.f1 >= 0.5)
+    assertions.push({ text: `ROUGE-1 F1 ${rouge1.f1.toFixed(3)} >= 0.5`, passed: true });
   else assertions.push({ text: `ROUGE-1 F1 ${rouge1.f1.toFixed(3)} < 0.5`, passed: false });
 
-  if (rouge2.f1 >= 0.3) assertions.push({ text: `ROUGE-2 F1 ${rouge2.f1.toFixed(3)} >= 0.3`, passed: true });
+  if (rouge2.f1 >= 0.3)
+    assertions.push({ text: `ROUGE-2 F1 ${rouge2.f1.toFixed(3)} >= 0.3`, passed: true });
   else assertions.push({ text: `ROUGE-2 F1 ${rouge2.f1.toFixed(3)} < 0.3`, passed: false });
 
   return {

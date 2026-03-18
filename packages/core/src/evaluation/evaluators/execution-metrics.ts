@@ -98,9 +98,15 @@ export class ExecutionMetricsEvaluator implements Evaluator {
         actualMetrics.tokens = totalTokens;
 
         if (totalTokens <= max_tokens) {
-          assertions.push({ text: `Total tokens ${totalTokens} <= ${max_tokens} max`, passed: true });
+          assertions.push({
+            text: `Total tokens ${totalTokens} <= ${max_tokens} max`,
+            passed: true,
+          });
         } else {
-          assertions.push({ text: `Total tokens ${totalTokens} > ${max_tokens} max`, passed: false });
+          assertions.push({
+            text: `Total tokens ${totalTokens} > ${max_tokens} max`,
+            passed: false,
+          });
         }
       }
     }
@@ -114,9 +120,15 @@ export class ExecutionMetricsEvaluator implements Evaluator {
 
         const formatCost = (n: number) => `$${n.toFixed(4)}`;
         if (costUsd <= max_cost_usd) {
-          assertions.push({ text: `Cost ${formatCost(costUsd)} <= ${formatCost(max_cost_usd)} max`, passed: true });
+          assertions.push({
+            text: `Cost ${formatCost(costUsd)} <= ${formatCost(max_cost_usd)} max`,
+            passed: true,
+          });
         } else {
-          assertions.push({ text: `Cost ${formatCost(costUsd)} > ${formatCost(max_cost_usd)} max`, passed: false });
+          assertions.push({
+            text: `Cost ${formatCost(costUsd)} > ${formatCost(max_cost_usd)} max`,
+            passed: false,
+          });
         }
       }
     }
@@ -129,9 +141,15 @@ export class ExecutionMetricsEvaluator implements Evaluator {
         actualMetrics.duration_ms = durationMs;
 
         if (durationMs <= max_duration_ms) {
-          assertions.push({ text: `Duration ${durationMs}ms <= ${max_duration_ms}ms max`, passed: true });
+          assertions.push({
+            text: `Duration ${durationMs}ms <= ${max_duration_ms}ms max`,
+            passed: true,
+          });
         } else {
-          assertions.push({ text: `Duration ${durationMs}ms > ${max_duration_ms}ms max`, passed: false });
+          assertions.push({
+            text: `Duration ${durationMs}ms > ${max_duration_ms}ms max`,
+            passed: false,
+          });
         }
       }
     }

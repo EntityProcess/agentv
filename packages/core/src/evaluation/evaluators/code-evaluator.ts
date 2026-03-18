@@ -132,9 +132,13 @@ export class CodeEvaluator implements Evaluator {
       const score = clampScore(typeof parsed?.score === 'number' ? parsed.score : 0);
       const assertions: AssertionEntry[] = Array.isArray(parsed?.assertions)
         ? parsed.assertions
-            .filter((a: unknown): a is { text: string; passed: boolean; evidence?: string } =>
-              typeof a === 'object' && a !== null && typeof (a as any).text === 'string')
-            .map((a: any) => ({
+            .filter(
+              (a: unknown): a is { text: string; passed: boolean; evidence?: string } =>
+                typeof a === 'object' &&
+                a !== null &&
+                typeof (a as Record<string, unknown>).text === 'string',
+            )
+            .map((a) => ({
               text: String(a.text),
               passed: Boolean(a.passed),
               ...(typeof a.evidence === 'string' ? { evidence: a.evidence } : {}),

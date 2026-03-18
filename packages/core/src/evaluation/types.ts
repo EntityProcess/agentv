@@ -992,4 +992,3 @@ export interface EvaluatorResult {
   /** ISO 8601 UTC timestamp when this grader finished executing. */
   readonly endedAt?: string;
 }
-

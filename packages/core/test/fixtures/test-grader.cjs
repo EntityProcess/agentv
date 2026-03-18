@@ -21,6 +21,6 @@ console.log(
       { text: 'expected_output present', passed: hasExpected },
       { text: 'answer present', passed: hasCandidate },
       { text: 'answer parses', passed: candidateDecisionOk },
-    ].filter(a => a.passed !== undefined),
+    ].filter((a) => a.passed !== undefined),
   }),
 );

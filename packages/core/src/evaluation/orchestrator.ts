@@ -2308,7 +2308,9 @@ async function runEvaluatorList(options: {
       const fallbackScore: EvaluationScore = {
         score: 0,
         verdict: 'fail',
-        assertions: [{ text: `Evaluator '${evaluatorConfig.name}' failed: ${message}`, passed: false }],
+        assertions: [
+          { text: `Evaluator '${evaluatorConfig.name}' failed: ${message}`, passed: false },
+        ],
         expectedAspectCount: 1,
       };
       const weight = evaluatorConfig.weight ?? 1.0;
@@ -2325,7 +2327,12 @@ async function runEvaluatorList(options: {
         score: 0,
         weight,
         verdict: 'fail',
-        assertions: [{ text: `Evaluator '${evaluatorConfig.name ?? 'unknown'}' failed: ${message}`, passed: false }],
+        assertions: [
+          {
+            text: `Evaluator '${evaluatorConfig.name ?? 'unknown'}' failed: ${message}`,
+            passed: false,
+          },
+        ],
         durationMs: endedAt.getTime() - startedAt.getTime(),
         startedAt: startedAt.toISOString(),
         endedAt: endedAt.toISOString(),

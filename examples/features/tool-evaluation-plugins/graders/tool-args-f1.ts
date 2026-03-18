@@ -67,7 +67,12 @@ export default defineCodeGrader(({ output, config, ...rest }) => {
   if (!rawExpected || !Array.isArray(rawExpected) || rawExpected.length === 0) {
     return {
       score: 0,
-      assertions: [{ text: 'No expected_tools configured — provide an array of {tool, args?} objects', passed: false }],
+      assertions: [
+        {
+          text: 'No expected_tools configured — provide an array of {tool, args?} objects',
+          passed: false,
+        },
+      ],
     };
   }
 

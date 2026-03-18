@@ -41,7 +41,12 @@ export default defineCodeGrader(({ output, config, ...rest }) => {
   if (expectedTools.length === 0) {
     return {
       score: 0,
-      assertions: [{ text: 'No expected_tools configured — set expected_tools in evaluator config', passed: false }],
+      assertions: [
+        {
+          text: 'No expected_tools configured — set expected_tools in evaluator config',
+          passed: false,
+        },
+      ],
     };
   }
 

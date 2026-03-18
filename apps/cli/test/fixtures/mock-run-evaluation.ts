@@ -24,7 +24,11 @@ interface RunEvaluationOptionsLike {
 interface EvaluationResultLike {
   readonly testId: string;
   readonly score: number;
-  readonly assertions: readonly { readonly text: string; readonly passed: boolean; readonly evidence?: string }[];
+  readonly assertions: readonly {
+    readonly text: string;
+    readonly passed: boolean;
+    readonly evidence?: string;
+  }[];
   readonly answer: string;
   readonly expectedAspectCount: number;
   readonly target: string;

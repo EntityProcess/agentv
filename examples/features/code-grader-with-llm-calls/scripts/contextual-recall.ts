@@ -38,7 +38,13 @@ export default defineCodeGrader(async (input) => {
   if (!criteria) {
     return {
       score: 0,
-      assertions: [{ text: 'No criteria provided', passed: false, evidence: 'Contextual Recall requires criteria to extract statements from.' }],
+      assertions: [
+        {
+          text: 'No criteria provided',
+          passed: false,
+          evidence: 'Contextual Recall requires criteria to extract statements from.',
+        },
+      ],
     };
   }
 
@@ -48,7 +54,14 @@ export default defineCodeGrader(async (input) => {
   if (retrievalContext.length === 0) {
     return {
       score: 0,
-      assertions: [{ text: 'No retrieval context found in expected_output.tool_calls', passed: false, evidence: 'Contextual Recall requires retrieval context in expected_output[].tool_calls[].output.results' }],
+      assertions: [
+        {
+          text: 'No retrieval context found in expected_output.tool_calls',
+          passed: false,
+          evidence:
+            'Contextual Recall requires retrieval context in expected_output[].tool_calls[].output.results',
+        },
+      ],
     };
   }
 
@@ -57,7 +70,12 @@ export default defineCodeGrader(async (input) => {
   if (!target) {
     return {
       score: 0,
-      assertions: [{ text: 'Target not available - ensure `target` block is configured in evaluator YAML', passed: false }],
+      assertions: [
+        {
+          text: 'Target not available - ensure `target` block is configured in evaluator YAML',
+          passed: false,
+        },
+      ],
     };
   }
 
@@ -90,7 +108,13 @@ Extract the statements and respond with JSON only:
   } catch {
     return {
       score: 0,
-      assertions: [{ text: 'Failed to extract statements from criteria', passed: false, evidence: 'Statement extraction failed - unable to parse LLM response.' }],
+      assertions: [
+        {
+          text: 'Failed to extract statements from criteria',
+          passed: false,
+          evidence: 'Statement extraction failed - unable to parse LLM response.',
+        },
+      ],
     };
   }
 
@@ -169,9 +193,17 @@ Respond with JSON only:
   for (const result of attributionResults) {
     const nodeInfo = result.supportingNode ? ` (Node ${result.supportingNode})` : '';
     if (result.attributable) {
-      assertions.push({ text: `"${result.statement}" attributable${nodeInfo}`, passed: true, evidence: result.reasoning });
+      assertions.push({
+        text: `"${result.statement}" attributable${nodeInfo}`,
+        passed: true,
+        evidence: result.reasoning,
+      });
     } else {
-      assertions.push({ text: `"${result.statement}" not attributable`, passed: false, evidence: result.reasoning });
+      assertions.push({
+        text: `"${result.statement}" not attributable`,
+        passed: false,
+        evidence: result.reasoning,
+      });
     }
   }
 

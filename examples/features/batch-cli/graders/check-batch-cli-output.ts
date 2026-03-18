@@ -67,13 +67,19 @@ export default defineCodeGrader(({ expectedOutput, input, outputText }) => {
   const assertions: Array<{ text: string; passed: boolean; evidence?: string }> = [];
 
   if (!expectedDecision) {
-    assertions.push({ text: 'Missing expected decision (expected_output[].content.decision)', passed: false });
+    assertions.push({
+      text: 'Missing expected decision (expected_output[].content.decision)',
+      passed: false,
+    });
   } else {
     assertions.push({ text: `expected.decision present: ${expectedDecision}`, passed: true });
   }
 
   if (!candidateDecision) {
-    assertions.push({ text: 'Candidate output is not valid JSON with a decision field', passed: false });
+    assertions.push({
+      text: 'Candidate output is not valid JSON with a decision field',
+      passed: false,
+    });
   } else {
     assertions.push({ text: `candidate.decision present: ${candidateDecision}`, passed: true });
   }

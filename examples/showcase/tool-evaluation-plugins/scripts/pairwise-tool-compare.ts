@@ -110,7 +110,11 @@ export default defineCodeGrader((input) => {
       score: 0.5,
       assertions: [
         { text: 'Candidate response provided', passed: true },
-        { text: 'No reference for comparison', passed: false, evidence: 'Pairwise comparison requires expectedOutputText field' },
+        {
+          text: 'No reference for comparison',
+          passed: false,
+          evidence: 'Pairwise comparison requires expectedOutputText field',
+        },
       ],
     };
   }
@@ -157,7 +161,11 @@ export default defineCodeGrader((input) => {
   if (assertions.length > 0) {
     assertions[0].evidence = consistencyEvidence;
   } else {
-    assertions.push({ text: `Final result: ${finalWinner}`, passed: finalWinner === 'A', evidence: consistencyEvidence });
+    assertions.push({
+      text: `Final result: ${finalWinner}`,
+      passed: finalWinner === 'A',
+      evidence: consistencyEvidence,
+    });
   }
 
   return {

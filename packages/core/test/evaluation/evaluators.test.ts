@@ -110,8 +110,12 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
 
     expect(result.score).toBeCloseTo(0.8);
     expect(result.verdict).toBe('pass');
-    expect(result.assertions.filter(a => a.passed).map(a => a.text)).toContain('Captured logging requirement');
-    expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain('Did not mention tests');
+    expect(result.assertions.filter((a) => a.passed).map((a) => a.text)).toContain(
+      'Captured logging requirement',
+    );
+    expect(result.assertions.filter((a) => !a.passed).map((a) => a.text)).toContain(
+      'Did not mention tests',
+    );
     expect(result.evaluatorRawRequest).toBeDefined();
   });
 
@@ -148,8 +152,8 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
 
     expect(result.score).toBeCloseTo(0.75);
     expect(result.verdict).toBe('borderline');
-    expect(result.assertions.filter(a => a.passed)).toHaveLength(2);
-    expect(result.assertions.filter(a => !a.passed)).toHaveLength(1);
+    expect(result.assertions.filter((a) => a.passed)).toHaveLength(2);
+    expect(result.assertions.filter((a) => !a.passed)).toHaveLength(1);
   });
 
   it('validates score is in range [0.0, 1.0]', async () => {
@@ -159,9 +163,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
           role: 'assistant',
           content: JSON.stringify({
             score: 1.5, // Invalid: out of range
-            assertions: [
-              { text: 'Good', passed: true },
-            ],
+            assertions: [{ text: 'Good', passed: true }],
           }),
         },
       ],
@@ -184,8 +186,8 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
     // Should skip when grader parse fails (not silent zero)
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('skip');
-    expect(result.assertions.filter(a => a.passed)).toHaveLength(0);
-    expect(result.assertions.filter(a => !a.passed)).toHaveLength(1);
+    expect(result.assertions.filter((a) => a.passed)).toHaveLength(0);
+    expect(result.assertions.filter((a) => !a.passed)).toHaveLength(1);
   });
 
   it('enforces max 8 assertion entries', async () => {
@@ -255,9 +257,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
           role: 'assistant',
           content: JSON.stringify({
             score: 0.7,
-            assertions: [
-              { text: 'Used custom prompt', passed: true },
-            ],
+            assertions: [{ text: 'Used custom prompt', passed: true }],
           }),
         },
       ],
@@ -297,12 +297,16 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
 
   it('uses evaluator target overrides when configured', async () => {
     const defaultGraderProvider = new CapturingProvider(
-      textResponse(JSON.stringify({ score: 0.2, assertions: [{ text: 'used default', passed: false }] })),
+      textResponse(
+        JSON.stringify({ score: 0.2, assertions: [{ text: 'used default', passed: false }] }),
+      ),
       'default-grader',
     );
 
     const overrideGraderProvider = new CapturingProvider(
-      textResponse(JSON.stringify({ score: 0.9, assertions: [{ text: 'used override', passed: true }] })),
+      textResponse(
+        JSON.stringify({ score: 0.9, assertions: [{ text: 'used override', passed: true }] }),
+      ),
       'grader-low-cost-b',
     );
 
@@ -370,8 +374,8 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
     // Should skip when grader parse fails (not silent zero)
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('skip');
-    expect(result.assertions.filter(a => a.passed)).toHaveLength(0);
-    expect(result.assertions.filter(a => !a.passed)).toHaveLength(1);
+    expect(result.assertions.filter((a) => a.passed)).toHaveLength(0);
+    expect(result.assertions.filter((a) => !a.passed)).toHaveLength(1);
   });
 
   it('tolerates non-JSON output by falling back to skip', async () => {
@@ -392,8 +396,8 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
 
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('skip');
-    expect(result.assertions.filter(a => a.passed)).toHaveLength(0);
-    expect(result.assertions.filter(a => !a.passed)).toHaveLength(1);
+    expect(result.assertions.filter((a) => a.passed)).toHaveLength(0);
+    expect(result.assertions.filter((a) => !a.passed)).toHaveLength(1);
   });
 
   it('supports rubric mode when rubrics are provided in config', async () => {
@@ -436,15 +440,23 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
 
     expect(result.score).toBeCloseTo(0.5);
     expect(result.verdict).toBe('fail');
-    expect(result.assertions.filter(a => a.passed).map(a => a.text).join('\n')).toContain('[r1]');
-    expect(result.assertions.filter(a => !a.passed).map(a => a.text).join('\n')).toContain('[r2]');
+    expect(
+      result.assertions
+        .filter((a) => a.passed)
+        .map((a) => a.text)
+        .join('\n'),
+    ).toContain('[r1]');
+    expect(
+      result.assertions
+        .filter((a) => !a.passed)
+        .map((a) => a.text)
+        .join('\n'),
+    ).toContain('[r2]');
   });
 
   it('passes multi-turn role markers through to evaluator prompts', async () => {
     const graderProvider = new CapturingProvider({
-      output: [
-        { role: 'assistant', content: JSON.stringify({ score: 0.65, assertions: [] }) },
-      ],
+      output: [{ role: 'assistant', content: JSON.stringify({ score: 0.65, assertions: [] }) }],
     });
     const evaluator = new LlmGraderEvaluator({
       resolveGraderProvider: async () => graderProvider,
@@ -470,9 +482,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
 
   it('keeps single-turn prompts flat when no markers are needed', async () => {
     const graderProvider = new CapturingProvider({
-      output: [
-        { role: 'assistant', content: JSON.stringify({ score: 0.8, assertions: [] }) },
-      ],
+      output: [{ role: 'assistant', content: JSON.stringify({ score: 0.8, assertions: [] }) }],
     });
     const evaluator = new LlmGraderEvaluator({
       resolveGraderProvider: async () => graderProvider,
@@ -520,7 +530,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
 
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('skip');
-    const failed = result.assertions.filter(a => !a.passed);
+    const failed = result.assertions.filter((a) => !a.passed);
     expect(failed.length).toBeGreaterThan(0);
     expect(failed[0].text).toContain('Grader parse failure');
   });
@@ -560,7 +570,7 @@ describe('LlmGraderEvaluator (llm-grader)', () => {
 
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('skip');
-    const failed2 = result.assertions.filter(a => !a.passed);
+    const failed2 = result.assertions.filter((a) => !a.passed);
     expect(failed2.length).toBeGreaterThan(0);
     expect(failed2[0].text).toContain('Grader parse failure');
   });
@@ -650,7 +660,7 @@ describe('CodeEvaluator', () => {
 
     expect(result.score).toBe(1);
     expect(result.verdict).toBe('pass');
-    const passedTexts = result.assertions.filter(a => a.passed).map(a => a.text);
+    const passedTexts = result.assertions.filter((a) => a.passed).map((a) => a.text);
     expect(passedTexts).toContain('expected_output present');
     expect(passedTexts).toContain('answer present');
     expect(passedTexts).toContain('answer parses');
@@ -675,7 +685,7 @@ describe('CodeEvaluator', () => {
     });
 
     expect(result.verdict).toBe('fail');
-    const failedAssertions = result.assertions.filter(a => !a.passed);
+    const failedAssertions = result.assertions.filter((a) => !a.passed);
     expect(failedAssertions[0].text).toContain('exited with code');
     expect(failedAssertions[0].text).toContain('test-error');
   });
@@ -700,7 +710,7 @@ describe('CodeEvaluator', () => {
 
     expect(result.score).toBe(1);
     expect(result.verdict).toBe('pass');
-    expect(result.assertions.filter(a => a.passed).length).toBeGreaterThan(0);
+    expect(result.assertions.filter((a) => a.passed).length).toBeGreaterThan(0);
   });
 
   it('captures optional details from code grader output', async () => {
@@ -754,7 +764,7 @@ describe('CodeEvaluator', () => {
 
     expect(result.score).toBe(1);
     expect(result.verdict).toBe('pass');
-    const passedTexts2 = result.assertions.filter(a => a.passed).map(a => a.text);
+    const passedTexts2 = result.assertions.filter((a) => a.passed).map((a) => a.text);
     expect(passedTexts2).toContain('workspace_path present in payload');
     expect(passedTexts2).toContain('AGENTV_WORKSPACE_PATH env var set');
     expect(passedTexts2).toContain('payload and env var match');
@@ -828,8 +838,8 @@ describe('FieldAccuracyEvaluator', () => {
 
     expect(result.score).toBe(1.0);
     expect(result.verdict).toBe('pass');
-    expect(result.assertions.filter(a => a.passed)).toHaveLength(2);
-    expect(result.assertions.filter(a => !a.passed)).toHaveLength(0);
+    expect(result.assertions.filter((a) => a.passed)).toHaveLength(2);
+    expect(result.assertions.filter((a) => !a.passed)).toHaveLength(0);
   });
 
   it('handles missing required fields', () => {
@@ -856,10 +866,10 @@ describe('FieldAccuracyEvaluator', () => {
 
     expect(result.score).toBe(0.5);
     expect(result.verdict).toBe('fail');
-    expect(result.assertions.filter(a => a.passed)).toHaveLength(1);
-    expect(result.assertions.filter(a => !a.passed)).toHaveLength(1);
-    expect(result.assertions.filter(a => !a.passed)[0].text).toContain('amount');
-    expect(result.assertions.filter(a => !a.passed)[0].text).toContain('required');
+    expect(result.assertions.filter((a) => a.passed)).toHaveLength(1);
+    expect(result.assertions.filter((a) => !a.passed)).toHaveLength(1);
+    expect(result.assertions.filter((a) => !a.passed)[0].text).toContain('amount');
+    expect(result.assertions.filter((a) => !a.passed)[0].text).toContain('required');
   });
 
   it('applies numeric tolerance matching', () => {
@@ -926,7 +936,7 @@ describe('FieldAccuracyEvaluator', () => {
 
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('fail');
-    expect(result.assertions.filter(a => !a.passed)[0].text).toContain('outside tolerance');
+    expect(result.assertions.filter((a) => !a.passed)[0].text).toContain('outside tolerance');
   });
 
   it('applies date matching with format normalization', () => {
@@ -1111,7 +1121,7 @@ describe('FieldAccuracyEvaluator', () => {
 
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('fail');
-    expect(result.assertions.filter(a => !a.passed)[0].text).toContain('parse');
+    expect(result.assertions.filter((a) => !a.passed)[0].text).toContain('parse');
   });
 });
 
@@ -1138,7 +1148,7 @@ describe('LatencyEvaluator', () => {
 
     expect(result.score).toBe(1);
     expect(result.verdict).toBe('pass');
-    expect(result.assertions.filter(a => a.passed)[0].text).toContain('1500ms');
+    expect(result.assertions.filter((a) => a.passed)[0].text).toContain('1500ms');
   });
 
   it('fails when duration exceeds threshold', () => {
@@ -1163,7 +1173,7 @@ describe('LatencyEvaluator', () => {
 
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('fail');
-    expect(result.assertions.filter(a => !a.passed)[0].text).toContain('2500ms');
+    expect(result.assertions.filter((a) => !a.passed)[0].text).toContain('2500ms');
   });
 
   it('fails when no duration data available', () => {
@@ -1188,7 +1198,7 @@ describe('LatencyEvaluator', () => {
 
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('fail');
-    expect(result.assertions.filter(a => !a.passed)[0].text).toContain('No duration data');
+    expect(result.assertions.filter((a) => !a.passed)[0].text).toContain('No duration data');
   });
 
   it('passes when duration equals threshold exactly', () => {
@@ -1239,7 +1249,7 @@ describe('CostEvaluator', () => {
 
     expect(result.score).toBe(1);
     expect(result.verdict).toBe('pass');
-    expect(result.assertions.filter(a => a.passed)[0].text).toContain('$0.0500');
+    expect(result.assertions.filter((a) => a.passed)[0].text).toContain('$0.0500');
   });
 
   it('fails when cost exceeds budget', () => {
@@ -1264,7 +1274,7 @@ describe('CostEvaluator', () => {
 
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('fail');
-    expect(result.assertions.filter(a => !a.passed)[0].text).toContain('$0.1500');
+    expect(result.assertions.filter((a) => !a.passed)[0].text).toContain('$0.1500');
   });
 
   it('fails when no cost data available', () => {
@@ -1289,7 +1299,7 @@ describe('CostEvaluator', () => {
 
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('fail');
-    expect(result.assertions.filter(a => !a.passed)[0].text).toContain('No cost data');
+    expect(result.assertions.filter((a) => !a.passed)[0].text).toContain('No cost data');
   });
 
   it('passes when cost equals budget exactly', () => {
@@ -1336,7 +1346,12 @@ describe('TokenUsageEvaluator', () => {
 
     expect(result.score).toBe(1);
     expect(result.verdict).toBe('pass');
-    expect(result.assertions.filter(a => a.passed).map(a => a.text).join(' ')).toContain('Total tokens');
+    expect(
+      result.assertions
+        .filter((a) => a.passed)
+        .map((a) => a.text)
+        .join(' '),
+    ).toContain('Total tokens');
   });
 
   it('fails when output tokens exceed max_output', () => {
@@ -1357,7 +1372,12 @@ describe('TokenUsageEvaluator', () => {
 
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('fail');
-    expect(result.assertions.filter(a => !a.passed).map(a => a.text).join(' ')).toContain('Output tokens');
+    expect(
+      result.assertions
+        .filter((a) => !a.passed)
+        .map((a) => a.text)
+        .join(' '),
+    ).toContain('Output tokens');
   });
 
   it('fails when no token usage data available', () => {
@@ -1377,6 +1397,6 @@ describe('TokenUsageEvaluator', () => {
 
     expect(result.score).toBe(0);
     expect(result.verdict).toBe('fail');
-    expect(result.assertions.filter(a => !a.passed)[0].text).toContain('token usage');
+    expect(result.assertions.filter((a) => !a.passed)[0].text).toContain('token usage');
   });
 });

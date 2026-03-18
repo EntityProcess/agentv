@@ -115,7 +115,13 @@ export default defineCodeGrader(async (input) => {
   if (!parsed.success) {
     return {
       score: 0,
-      assertions: [{ text: 'Invalid config: trialOutputs (string[]) is required', passed: false, evidence: `Config validation failed: ${parsed.error.message}` }],
+      assertions: [
+        {
+          text: 'Invalid config: trialOutputs (string[]) is required',
+          passed: false,
+          evidence: `Config validation failed: ${parsed.error.message}`,
+        },
+      ],
     };
   }
 

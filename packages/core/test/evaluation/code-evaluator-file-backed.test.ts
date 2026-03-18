@@ -91,7 +91,7 @@ describe('CodeEvaluator file-backed output', () => {
     });
 
     expect(result.score).toBe(1.0);
-    expect(result.assertions.filter(a => a.passed).map(a => a.text)).toEqual(['ok']);
+    expect(result.assertions.filter((a) => a.passed).map((a) => a.text)).toEqual(['ok']);
 
     // Temp files should be cleaned up
     const agentVTmpDirs = readdirSync(tmpdir()).filter((d) => d.startsWith('agentv-judge-'));

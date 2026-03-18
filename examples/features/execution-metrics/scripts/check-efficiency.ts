@@ -27,9 +27,15 @@ export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => 
 
   // Check tool call count
   if (trace.eventCount <= THRESHOLDS.maxToolCalls) {
-    assertions.push({ text: `Tool calls (${trace.eventCount}) within limit (${THRESHOLDS.maxToolCalls})`, passed: true });
+    assertions.push({
+      text: `Tool calls (${trace.eventCount}) within limit (${THRESHOLDS.maxToolCalls})`,
+      passed: true,
+    });
   } else {
-    assertions.push({ text: `Too many tool calls: ${trace.eventCount} (max: ${THRESHOLDS.maxToolCalls})`, passed: false });
+    assertions.push({
+      text: `Too many tool calls: ${trace.eventCount} (max: ${THRESHOLDS.maxToolCalls})`,
+      passed: false,
+    });
   }
 
   // Check token usage if available
@@ -38,7 +44,10 @@ export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => 
     if (totalTokens <= THRESHOLDS.maxTokens) {
       assertions.push({ text: `Token usage (${totalTokens}) within limit`, passed: true });
     } else {
-      assertions.push({ text: `High token usage: ${totalTokens} (max: ${THRESHOLDS.maxTokens})`, passed: false });
+      assertions.push({
+        text: `High token usage: ${totalTokens} (max: ${THRESHOLDS.maxTokens})`,
+        passed: false,
+      });
     }
   }
 
@@ -47,7 +56,10 @@ export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => 
     if (costUsd <= THRESHOLDS.maxCostUsd) {
       assertions.push({ text: `Cost ($${costUsd.toFixed(4)}) within budget`, passed: true });
     } else {
-      assertions.push({ text: `High cost: $${costUsd.toFixed(4)} (max: $${THRESHOLDS.maxCostUsd})`, passed: false });
+      assertions.push({
+        text: `High cost: $${costUsd.toFixed(4)} (max: $${THRESHOLDS.maxCostUsd})`,
+        passed: false,
+      });
     }
   }
 
@@ -56,7 +68,10 @@ export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => 
     if (durationMs <= THRESHOLDS.maxDurationMs) {
       assertions.push({ text: `Duration (${durationMs}ms) within limit`, passed: true });
     } else {
-      assertions.push({ text: `Slow execution: ${durationMs}ms (max: ${THRESHOLDS.maxDurationMs}ms)`, passed: false });
+      assertions.push({
+        text: `Slow execution: ${durationMs}ms (max: ${THRESHOLDS.maxDurationMs}ms)`,
+        passed: false,
+      });
     }
   }
 

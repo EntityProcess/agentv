@@ -77,10 +77,12 @@ export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutpu
 
   const assertions: Array<{ text: string; passed: boolean }> = [];
 
-  if (cosine >= 0.7) assertions.push({ text: `Cosine similarity ${cosine.toFixed(3)} >= 0.7`, passed: true });
+  if (cosine >= 0.7)
+    assertions.push({ text: `Cosine similarity ${cosine.toFixed(3)} >= 0.7`, passed: true });
   else assertions.push({ text: `Cosine similarity ${cosine.toFixed(3)} < 0.7`, passed: false });
 
-  if (jaccard >= 0.5) assertions.push({ text: `Jaccard similarity ${jaccard.toFixed(3)} >= 0.5`, passed: true });
+  if (jaccard >= 0.5)
+    assertions.push({ text: `Jaccard similarity ${jaccard.toFixed(3)} >= 0.5`, passed: true });
   else assertions.push({ text: `Jaccard similarity ${jaccard.toFixed(3)} < 0.5`, passed: false });
 
   return {

@@ -28,17 +28,29 @@ export default defineCodeGrader(({ trace, config }) => {
   // Check LLM call count
   if (trace.llmCallCount !== undefined) {
     if (trace.llmCallCount <= maxLlmCalls) {
-      assertions.push({ text: `LLM calls (${trace.llmCallCount}) within limit (${maxLlmCalls})`, passed: true });
+      assertions.push({
+        text: `LLM calls (${trace.llmCallCount}) within limit (${maxLlmCalls})`,
+        passed: true,
+      });
     } else {
-      assertions.push({ text: `Too many LLM calls: ${trace.llmCallCount} (max: ${maxLlmCalls})`, passed: false });
+      assertions.push({
+        text: `Too many LLM calls: ${trace.llmCallCount} (max: ${maxLlmCalls})`,
+        passed: false,
+      });
     }
   }
 
   // Check tool execution count
   if (trace.eventCount <= maxToolCalls) {
-    assertions.push({ text: `Tool calls (${trace.eventCount}) within limit (${maxToolCalls})`, passed: true });
+    assertions.push({
+      text: `Tool calls (${trace.eventCount}) within limit (${maxToolCalls})`,
+      passed: true,
+    });
   } else {
-    assertions.push({ text: `Too many tool calls: ${trace.eventCount} (max: ${maxToolCalls})`, passed: false });
+    assertions.push({
+      text: `Too many tool calls: ${trace.eventCount} (max: ${maxToolCalls})`,
+      passed: false,
+    });
   }
 
   const passed = assertions.filter((a) => a.passed).length;

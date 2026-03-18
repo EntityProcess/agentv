@@ -79,12 +79,10 @@ export function negateScore(score: EvaluationScore): EvaluationScore {
     ...score,
     score: negatedScore,
     verdict: negatedVerdict,
-    assertions: score.assertions.map(a => ({
+    assertions: score.assertions.map((a) => ({
       ...a,
       passed: !a.passed,
-      evidence: a.evidence
-        ? `[Negated] ${a.evidence}`
-        : undefined,
+      evidence: a.evidence ? `[Negated] ${a.evidence}` : undefined,
     })),
   };
 }

@@ -99,11 +99,16 @@ export interface LlmGraderEvaluatorOptions {
 
 const freeformEvaluationSchema = z.object({
   score: z.number().min(0).max(1).describe('Score between 0.0 and 1.0'),
-  assertions: z.array(z.object({
-    text: z.string().describe('Brief description of what was checked'),
-    passed: z.boolean().describe('Whether this aspect was satisfied'),
-    evidence: z.string().describe('Concise evidence (1-2 sentences)').optional(),
-  })).describe('Per-aspect evaluation results — one entry per aspect checked').optional(),
+  assertions: z
+    .array(
+      z.object({
+        text: z.string().describe('Brief description of what was checked'),
+        passed: z.boolean().describe('Whether this aspect was satisfied'),
+        evidence: z.string().describe('Concise evidence (1-2 sentences)').optional(),
+      }),
+    )
+    .describe('Per-aspect evaluation results — one entry per aspect checked')
+    .optional(),
 });
 
 const rubricCheckResultSchema = z.object({
@@ -520,7 +525,9 @@ export class LlmGraderEvaluator implements Evaluator {
         return {
           score: 0,
           verdict: 'fail',
-          assertions: [{ text: `llm-grader ${modeLabel} returned no assistant response`, passed: false }],
+          assertions: [
+            { text: `llm-grader ${modeLabel} returned no assistant response`, passed: false },
+          ],
           expectedAspectCount: 1,
           evaluatorRawRequest,
           details: { mode: modeLabel, grader_target: provider.targetName },
@@ -542,7 +549,9 @@ export class LlmGraderEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        assertions: [{ text: `llm-grader ${modeLabel} evaluation failed: ${message}`, passed: false }],
+        assertions: [
+          { text: `llm-grader ${modeLabel} evaluation failed: ${message}`, passed: false },
+        ],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         details: {
@@ -765,7 +774,12 @@ export class LlmGraderEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        assertions: [{ text: 'Failed to parse llm-grader agent response as valid evaluation JSON', passed: false }],
+        assertions: [
+          {
+            text: 'Failed to parse llm-grader agent response as valid evaluation JSON',
+            passed: false,
+          },
+        ],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         details,
@@ -1101,7 +1115,8 @@ function calculateScoreRangeResult(
     const criterionLabel = rubric.outcome ?? rubric.id;
 
     // Check gating
-    const passed = !(requiredMinScore !== undefined && rawScore < requiredMinScore) && rawScore >= 7;
+    const passed =
+      !(requiredMinScore !== undefined && rawScore < requiredMinScore) && rawScore >= 7;
     if (requiredMinScore !== undefined && rawScore < requiredMinScore) {
       failedRequired = true;
     }
