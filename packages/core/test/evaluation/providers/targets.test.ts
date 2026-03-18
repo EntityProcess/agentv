@@ -19,7 +19,9 @@ const generateTextMock = mock(async () => ({
   providerMetadata: undefined,
 }));
 
-const createAzureMock = mock((options: unknown) => () => ({ provider: 'azure', options }));
+const createAzureMock = mock((options: unknown) => ({
+  chat: () => ({ provider: 'azure', options }),
+}));
 const createOpenAIMock = mock((options: unknown) => () => ({ provider: 'openai', options }));
 const createOpenRouterMock = mock((options: unknown) => () => ({
   provider: 'openrouter',
