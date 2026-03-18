@@ -193,7 +193,24 @@ export function formatEvaluationSummary(summary: EvaluationSummary): string {
     lines.push('');
   }
 
+  // Overall verdict line
+  const overallPassed =
+    summary.passedCount === summary.total - summary.executionErrorCount ||
+    (summary.qualityFailureCount === 0 && summary.executionErrorCount === 0);
+  const overallVerdict = overallPassed ? 'PASS' : 'FAIL';
+  const useColor = !(process.env.NO_COLOR !== undefined) && (process.stdout.isTTY ?? false);
+  const verdictColor = overallPassed ? '\x1b[32m' : '\x1b[31m';
+  const verdictText = `RESULT: ${overallVerdict}  (${summary.passedCount}/${summary.total} passed, mean score: ${formatScore(summary.mean)})`;
+
   lines.push('\n==================================================');
+  if (useColor) {
+    lines.push(`\x1b[1m${verdictColor}${verdictText}\x1b[0m`);
+  } else {
+    lines.push(verdictText);
+  }
+  lines.push('==================================================');
+
+  lines.push('');
   lines.push('EVALUATION SUMMARY');
   lines.push('==================================================');
   lines.push(`Total tests: ${summary.total}`);

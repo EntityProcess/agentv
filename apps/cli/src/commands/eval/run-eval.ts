@@ -37,7 +37,7 @@ import {
   createOutputWriter,
   getDefaultExtension,
 } from './output-writer.js';
-import { ProgressDisplay, type WorkerProgress } from './progress-display.js';
+import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
 import { loadErrorTestIds, loadNonErrorResults } from './retry-errors.js';
 import { findRepoRoot } from './shared.js';
 import {
@@ -430,15 +430,10 @@ async function prepareFileMetadata(params: {
       targetNames,
     });
 
-    selections = multiSelections.map((sel) => {
-      const providerLabel = options.dryRun
-        ? `${sel.resolvedTarget.kind} (dry-run)`
-        : sel.resolvedTarget.kind;
-      return {
-        selection: sel,
-        inlineTargetLabel: `${sel.targetName} ${buildTargetLabelSuffix(providerLabel, sel.resolvedTarget)}`,
-      };
-    });
+    selections = multiSelections.map((sel) => ({
+      selection: sel,
+      inlineTargetLabel: sel.targetName,
+    }));
   } else {
     // Single target mode (legacy path)
     const selection = await selectTarget({
@@ -454,13 +449,10 @@ async function prepareFileMetadata(params: {
       env: process.env,
     });
 
-    const providerLabel = options.dryRun
-      ? `${selection.resolvedTarget.kind} (dry-run)`
-      : selection.resolvedTarget.kind;
     selections = [
       {
         selection,
-        inlineTargetLabel: `${selection.targetName} ${buildTargetLabelSuffix(providerLabel, selection.resolvedTarget)}`,
+        inlineTargetLabel: selection.targetName,
       },
     ];
   }
@@ -662,6 +654,12 @@ async function runSingleEvalFile(params: {
         streamingObserver.startEvalCase(event.testId, targetName, testFilePath);
       }
 
+      // Map executionStatus to verdict for display
+      let verdict: Verdict | undefined;
+      if (event.executionStatus === 'ok') verdict = 'PASS';
+      else if (event.executionStatus === 'quality_failure') verdict = 'FAIL';
+      else if (event.executionStatus === 'execution_error') verdict = 'ERROR';
+
       progressReporter.update(displayId, {
         workerId: displayId,
         testId: matrixMode ? `${event.testId}@${targetName}` : event.testId,
@@ -670,6 +668,8 @@ async function runSingleEvalFile(params: {
         completedAt: event.completedAt,
         error: event.error,
         targetLabel: inlineTargetLabel,
+        score: event.score,
+        verdict,
       });
     },
   });
