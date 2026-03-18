@@ -133,10 +133,10 @@ function toTraceSummary(raw: RawResult): TraceSummary | undefined {
 
 /**
  * Extract candidate answer from a result record.
- * Uses `answer` field, or stringifies output for deterministic assertions.
+ * Uses `output_text` field, or stringifies output for deterministic assertions.
  */
 function extractCandidate(raw: RawResult): string {
-  if (raw.answer !== undefined) return raw.answer;
+  if (raw.output_text !== undefined) return raw.output_text;
   if (raw.output !== undefined)
     return typeof raw.output === 'string' ? raw.output : JSON.stringify(raw.output);
   return '';

@@ -46,7 +46,7 @@ export interface RawResult {
   conversation_id?: string;
   score: number;
   assertions?: { text: string; passed: boolean; evidence?: string }[];
-  answer?: string;
+  output_text?: string;
   target?: string;
   error?: string;
   scores?: RawEvaluatorScore[];

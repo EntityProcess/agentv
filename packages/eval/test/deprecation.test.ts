@@ -12,7 +12,7 @@ function buildInput(overrides?: Record<string, unknown>) {
     criteria: 'The answer should be 4',
     expectedOutput: [{ role: 'assistant', content: '4' }],
     referenceAnswer: 'The answer is 4',
-    answer: 'The answer is 4',
+    outputText: 'The answer is 4',
     guidelineFiles: [],
     inputFiles: [],
     input: [{ role: 'user', content: 'What is 2+2?' }],
@@ -31,8 +31,8 @@ describe('enrichInput — text accessors', () => {
     expect(input.inputText).toBe('Hello world');
   });
 
-  it('populates outputText from answer', () => {
-    const input = buildInput({ answer: 'The result is 42' });
+  it('populates outputText from outputText', () => {
+    const input = buildInput({ outputText: 'The result is 42' });
     enrichInput(input);
     expect(input.outputText).toBe('The result is 42');
   });
@@ -139,7 +139,7 @@ describe('enrichInput — deprecation warnings', () => {
   it('deprecated fields still return correct values', () => {
     const input = buildInput({
       question: 'Test question',
-      answer: 'Test answer',
+      outputText: 'Test answer',
       referenceAnswer: 'Test reference',
     });
     enrichInput(input);
@@ -167,7 +167,7 @@ describe('enrichInput — new accessors match deprecated values', () => {
   });
 
   it('outputText matches answer value', () => {
-    const input = buildInput({ answer: 'My answer' });
+    const input = buildInput({ outputText: 'My answer' });
     enrichInput(input);
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     expect(input.outputText).toBe(input.answer);
@@ -202,18 +202,18 @@ describe('CodeGraderInputSchema — new fields', () => {
     expect(input.expectedOutputText).toBe('The answer is 4');
   });
 
-  it('new text fields are optional in schema', () => {
+  it('inputText and expectedOutputText are optional in schema', () => {
     const input = CodeGraderInputSchema.parse({
       question: 'What is 2+2?',
       criteria: 'The answer should be 4',
       expectedOutput: [{ role: 'assistant', content: '4' }],
-      answer: 'The answer is 4',
+      outputText: 'The answer is 4',
       guidelineFiles: [],
       inputFiles: [],
       input: [{ role: 'user', content: 'What is 2+2?' }],
     });
     expect(input.inputText).toBeUndefined();
-    expect(input.outputText).toBeUndefined();
+    expect(input.outputText).toBe('The answer is 4');
     expect(input.expectedOutputText).toBeUndefined();
   });
 });

@@ -65,8 +65,8 @@ export const CodeGraderInputSchema = z.object({
   expectedOutput: z.array(MessageSchema),
   /** @deprecated Use `expectedOutputText` instead. Expected output content as string. */
   referenceAnswer: z.string().optional(),
-  /** @deprecated Use `outputText` instead. Last assistant message content as string. */
-  answer: z.string(),
+  /** Last assistant message content as string. Renamed from `answer`. */
+  outputText: z.string(),
   output: z.array(MessageSchema).nullable().optional(),
   /** Path to a temp file containing the output JSON (used for large payloads). */
   outputPath: z.string().optional(),
@@ -84,8 +84,8 @@ export const CodeGraderInputSchema = z.object({
   config: z.record(z.unknown()).nullable().optional(),
   /** First user message content as string. Replaces `question`. */
   inputText: z.string().optional(),
-  /** Last assistant message content as string. Replaces `answer`. */
-  outputText: z.string().optional(),
+  /** @deprecated Use `outputText` instead. Kept for backward compatibility. */
+  answer: z.string().optional(),
   /** Expected output content as string. Replaces `referenceAnswer`. */
   expectedOutputText: z.string().optional(),
 });

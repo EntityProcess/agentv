@@ -103,7 +103,7 @@ function buildCodeGraderInput(fixture: Fixture): string {
   return JSON.stringify({
     question: fixture.question,
     criteria: fixture.criteria,
-    answer: fixture.answer,
+    output_text: fixture.answer,
     reference_answer: fixture.expected_output,
     expected_output: [],
     input: [{ role: 'user', content: fixture.question }],

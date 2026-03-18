@@ -9,7 +9,7 @@ function makeResult(testId: string, target: string, score: number): EvaluationRe
     testId,
     score,
     assertions: [],
-    answer: '',
+    outputText: '',
     target,
   };
 }

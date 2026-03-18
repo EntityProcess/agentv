@@ -18,13 +18,8 @@ Code graders communicate via stdin/stdout JSON:
   "criteria": "Correctly calculates 15 + 27 = 42",
   "output_text": "The answer is 42.",
   "expected_output_text": "42",
-  "question": "What is 15 + 27?",
-  "answer": "The answer is 42.",
   "reference_answer": "42"
 }
-```
-
-> **Note:** `input_text`, `output_text`, and `expected_output_text` are the preferred field names. The legacy `question`, `answer`, and `reference_answer` fields are still present for backward compatibility but are deprecated.
 
 **Output (stdout):**
 ```json
@@ -311,5 +306,5 @@ This is the same interface that agent-orchestrated evals use — the EVAL.yaml t
 Pipe JSON directly to the grader script for full control:
 
 ```bash
-echo '{"input_text":"What is 2+2?","criteria":"4","output_text":"4","expected_output_text":"4","question":"What is 2+2?","answer":"4","reference_answer":"4"}' | python validators/check_answer.py
+echo '{"input_text":"What is 2+2?","criteria":"4","output_text":"4","expected_output_text":"4","reference_answer":"4"}' | python validators/check_answer.py
 ```

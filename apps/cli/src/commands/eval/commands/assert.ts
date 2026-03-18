@@ -66,7 +66,6 @@ export const evalAssertCommand = command({
     // Include all fields that defineCodeGrader validates as required.
     const payload = JSON.stringify(
       {
-        answer: resolvedOutput,
         output: [{ role: 'assistant', content: resolvedOutput }],
         input: [{ role: 'user', content: resolvedInput }],
         question: resolvedInput,

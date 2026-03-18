@@ -6,7 +6,7 @@ describe('toSnakeCaseDeep', () => {
   test('converts simple camelCase keys to snake_case', () => {
     const input = {
       testId: 'test-001',
-      answer: 'hello world',
+      outputText: 'hello world',
       conversationId: 'conv-123',
     };
 
@@ -14,7 +14,7 @@ describe('toSnakeCaseDeep', () => {
 
     expect(result).toEqual({
       test_id: 'test-001',
-      answer: 'hello world',
+      output_text: 'hello world',
       conversation_id: 'conv-123',
     });
   });
@@ -84,7 +84,7 @@ describe('toSnakeCaseDeep', () => {
         {
           evaluatorName: 'code-grader',
           rawRequest: {
-            answer: 'code',
+            outputText: 'code',
             expectedOutcome: 'correct',
           },
         },
@@ -111,7 +111,7 @@ describe('toSnakeCaseDeep', () => {
         {
           evaluator_name: 'code-grader',
           raw_request: {
-            answer: 'code',
+            output_text: 'code',
             expected_outcome: 'correct',
           },
         },

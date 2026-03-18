@@ -19,7 +19,7 @@ type EvalResult = {
   dataset?: string;
   target?: string;
   input?: string;
-  answer?: string;
+  output_text?: string;
   score?: number;
   scores?: ScoreRecord[];
 };
@@ -224,7 +224,7 @@ for (const line of rawResults) {
     dataset: result.dataset,
     target: labelOverride ?? result.target ?? labelFromPath(resultsPath),
     input: result.input,
-    answer: result.answer,
+    output_text: result.output_text,
     score: matched ? 1 : 0,
     human_label: truth.label,
     human_rationale: truth.rationale,

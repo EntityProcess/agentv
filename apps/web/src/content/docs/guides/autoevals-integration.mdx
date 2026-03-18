@@ -77,8 +77,8 @@ import { Factuality } from "autoevals";
 const input = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
 
 const result = await Factuality({
-  input: input.question,
-  output: input.answer,
+  input: input.input_text,
+  output: input.output_text,
   expected: input.reference_answer,
 });
 
@@ -127,8 +127,8 @@ data = json.load(sys.stdin)
 
 evaluator = Faithfulness()
 result = evaluator(
-    input=data.get("question", ""),
-    output=data.get("answer", ""),
+    input=data.get("input_text", ""),
+    output=data.get("output_text", ""),
     expected=data.get("reference_answer", ""),
 )
 
@@ -218,8 +218,8 @@ import {
 const input = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
 
 const scorerArgs = {
-  input: input.question,
-  output: input.answer,
+  input: input.input_text,
+  output: input.output_text,
   expected: input.reference_answer,
 };
 

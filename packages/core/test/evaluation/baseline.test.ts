@@ -13,7 +13,7 @@ function makeFullResult(overrides: Partial<EvaluationResult> = {}): EvaluationRe
       { text: 'hit-1', passed: true },
       { text: 'miss-1', passed: false },
     ],
-    answer: 'A very long candidate answer that bloats the file...',
+    outputText: 'A very long candidate answer that bloats the file...',
     target: 'test-target',
     requests: {
       lm: { chat_prompt: [{ role: 'user', content: 'hello' }] },
@@ -64,7 +64,7 @@ describe('trimBaselineResult', () => {
     expect(trimmed.assertions).toEqual(full.assertions);
     expect(trimmed.target).toBe(full.target);
 
-    expect(trimmed.answer).toBeUndefined();
+    expect(trimmed.outputText).toBeUndefined();
     expect(trimmed.requests).toBeUndefined();
     expect(trimmed.trace).toBeUndefined();
     expect(trimmed.workspacePath).toBeUndefined();
