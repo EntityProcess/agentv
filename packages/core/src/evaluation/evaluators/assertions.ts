@@ -2,13 +2,12 @@
  * Deterministic assertion evaluators.
  *
  * Pure functions that check agent output against simple conditions
- * and return a binary score (0 or 1) with descriptive hits/misses.
+ * and return a binary score (0 or 1) with descriptive assertions.
  */
 
 export type AssertionResult = {
   score: number;
-  hits: string[];
-  misses: string[];
+  assertions: { text: string; passed: boolean }[];
 };
 
 /** Checks if `output` contains the given `value` substring. */
@@ -16,8 +15,10 @@ export function runContainsAssertion(output: string, value: string): AssertionRe
   const passed = output.includes(value);
   return {
     score: passed ? 1 : 0,
-    hits: passed ? [`Output contains "${value}"`] : [],
-    misses: passed ? [] : [`Output does not contain "${value}"`],
+    assertions: [{
+      text: passed ? `Output contains "${value}"` : `Output does not contain "${value}"`,
+      passed,
+    }],
   };
 }
 
@@ -30,10 +31,12 @@ export function runContainsAnyAssertion(
   const passed = matched.length > 0;
   return {
     score: passed ? 1 : 0,
-    hits: passed ? [`Output contains "${matched[0]}"`] : [],
-    misses: passed
-      ? []
-      : [`Output does not contain any of: ${values.map((v) => `"${v}"`).join(', ')}`],
+    assertions: [{
+      text: passed
+        ? `Output contains "${matched[0]}"`
+        : `Output does not contain any of: ${values.map((v) => `"${v}"`).join(', ')}`,
+      passed,
+    }],
   };
 }
 
@@ -46,8 +49,12 @@ export function runContainsAllAssertion(
   const passed = missing.length === 0;
   return {
     score: passed ? 1 : 0,
-    hits: passed ? [`Output contains all ${values.length} expected strings`] : [],
-    misses: passed ? [] : [`Output missing: ${missing.map((v) => `"${v}"`).join(', ')}`],
+    assertions: [{
+      text: passed
+        ? `Output contains all ${values.length} expected strings`
+        : `Output missing: ${missing.map((v) => `"${v}"`).join(', ')}`,
+      passed,
+    }],
   };
 }
 
@@ -56,8 +63,12 @@ export function runIcontainsAssertion(output: string, value: string): AssertionR
   const passed = output.toLowerCase().includes(value.toLowerCase());
   return {
     score: passed ? 1 : 0,
-    hits: passed ? [`Output contains "${value}" (case-insensitive)`] : [],
-    misses: passed ? [] : [`Output does not contain "${value}" (case-insensitive)`],
+    assertions: [{
+      text: passed
+        ? `Output contains "${value}" (case-insensitive)`
+        : `Output does not contain "${value}" (case-insensitive)`,
+      passed,
+    }],
   };
 }
 
@@ -71,12 +82,12 @@ export function runIcontainsAnyAssertion(
   const passed = matched.length > 0;
   return {
     score: passed ? 1 : 0,
-    hits: passed ? [`Output contains "${matched[0]}" (case-insensitive)`] : [],
-    misses: passed
-      ? []
-      : [
-          `Output does not contain any of: ${values.map((v) => `"${v}"`).join(', ')} (case-insensitive)`,
-        ],
+    assertions: [{
+      text: passed
+        ? `Output contains "${matched[0]}" (case-insensitive)`
+        : `Output does not contain any of: ${values.map((v) => `"${v}"`).join(', ')} (case-insensitive)`,
+      passed,
+    }],
   };
 }
 
@@ -90,12 +101,12 @@ export function runIcontainsAllAssertion(
   const passed = missing.length === 0;
   return {
     score: passed ? 1 : 0,
-    hits: passed
-      ? [`Output contains all ${values.length} expected strings (case-insensitive)`]
-      : [],
-    misses: passed
-      ? []
-      : [`Output missing (case-insensitive): ${missing.map((v) => `"${v}"`).join(', ')}`],
+    assertions: [{
+      text: passed
+        ? `Output contains all ${values.length} expected strings (case-insensitive)`
+        : `Output missing (case-insensitive): ${missing.map((v) => `"${v}"`).join(', ')}`,
+      passed,
+    }],
   };
 }
 
@@ -104,8 +115,10 @@ export function runStartsWithAssertion(output: string, value: string): Assertion
   const passed = output.trim().startsWith(value.trim());
   return {
     score: passed ? 1 : 0,
-    hits: passed ? [`Output starts with "${value}"`] : [],
-    misses: passed ? [] : [`Output does not start with "${value}"`],
+    assertions: [{
+      text: passed ? `Output starts with "${value}"` : `Output does not start with "${value}"`,
+      passed,
+    }],
   };
 }
 
@@ -114,8 +127,10 @@ export function runEndsWithAssertion(output: string, value: string): AssertionRe
   const passed = output.trim().endsWith(value.trim());
   return {
     score: passed ? 1 : 0,
-    hits: passed ? [`Output ends with "${value}"`] : [],
-    misses: passed ? [] : [`Output does not end with "${value}"`],
+    assertions: [{
+      text: passed ? `Output ends with "${value}"` : `Output does not end with "${value}"`,
+      passed,
+    }],
   };
 }
 
@@ -130,8 +145,12 @@ export function runRegexAssertion(
   const flagsLabel = flags ? ` (flags: ${flags})` : '';
   return {
     score: passed ? 1 : 0,
-    hits: passed ? [`Output matches pattern /${pattern}/${flags ?? ''}${flagsLabel}`] : [],
-    misses: passed ? [] : [`Output does not match pattern /${pattern}/${flags ?? ''}${flagsLabel}`],
+    assertions: [{
+      text: passed
+        ? `Output matches pattern /${pattern}/${flags ?? ''}${flagsLabel}`
+        : `Output does not match pattern /${pattern}/${flags ?? ''}${flagsLabel}`,
+      passed,
+    }],
   };
 }
 
@@ -146,8 +165,10 @@ export function runIsJsonAssertion(output: string): AssertionResult {
   }
   return {
     score: passed ? 1 : 0,
-    hits: passed ? ['Output is valid JSON'] : [],
-    misses: passed ? [] : ['Output is not valid JSON'],
+    assertions: [{
+      text: passed ? 'Output is valid JSON' : 'Output is not valid JSON',
+      passed,
+    }],
   };
 }
 
@@ -156,7 +177,9 @@ export function runEqualsAssertion(output: string, value: string): AssertionResu
   const passed = output.trim() === value.trim();
   return {
     score: passed ? 1 : 0,
-    hits: passed ? [`Output equals "${value}"`] : [],
-    misses: passed ? [] : [`Output does not equal "${value}"`],
+    assertions: [{
+      text: passed ? `Output equals "${value}"` : `Output does not equal "${value}"`,
+      passed,
+    }],
   };
 }
