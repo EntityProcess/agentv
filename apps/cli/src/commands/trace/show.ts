@@ -16,9 +16,8 @@ function renderFlatTrace(result: RawResult): string {
   const trace = result.trace;
   const parts: string[] = [];
 
-  if (trace?.tool_names && trace.tool_names.length > 0) {
-    const toolParts = trace.tool_names.map((name) => {
-      const count = trace.tool_calls_by_name?.[name] ?? 0;
+  if (trace?.tool_calls && Object.keys(trace.tool_calls).length > 0) {
+    const toolParts = Object.entries(trace.tool_calls).map(([name, count]) => {
       return count > 1 ? `${name} ×${count}` : name;
     });
     parts.push(`Tools: ${toolParts.join(', ')}`);

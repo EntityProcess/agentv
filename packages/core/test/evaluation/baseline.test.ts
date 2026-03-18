@@ -22,8 +22,7 @@ function makeFullResult(overrides: Partial<EvaluationResult> = {}): EvaluationRe
     },
     trace: {
       event_count: 5,
-      tool_names: ['Read'],
-      tool_calls_by_name: { Read: 5 },
+      tool_calls: { Read: 5 },
       error_count: 0,
     },
     workspacePath: '/tmp/workspace-123',

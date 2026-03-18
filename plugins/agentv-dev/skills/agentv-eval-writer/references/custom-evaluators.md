@@ -17,8 +17,7 @@
   "output": [{"role": "assistant", "content": "..."}],
   "trace": {
     "event_count": 5,
-    "tool_names": ["fetch"],
-    "tool_calls_by_name": {"fetch": 1},
+    "tool_calls": {"fetch": 1},
     "error_count": 0,
     "llm_call_count": 2
   },

@@ -72,8 +72,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 5,
-          toolNames: ['Read', 'Edit'],
-          toolCallsByName: { Read: 3, Edit: 2 },
+          toolCalls: { Read: 3, Edit: 2 },
           errorCount: 0,
         }),
       );
@@ -97,8 +96,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 10,
-          toolNames: ['Read', 'Edit'],
-          toolCallsByName: { Read: 6, Edit: 4 },
+          toolCalls: { Read: 6, Edit: 4 },
           errorCount: 0,
         }),
       );
@@ -124,8 +122,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 3,
-          toolNames: ['Read'],
-          toolCallsByName: { Read: 3 },
+          toolCalls: { Read: 3 },
           errorCount: 0,
           llmCallCount: 3,
         }),
@@ -149,8 +146,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 3,
-          toolNames: ['Read'],
-          toolCallsByName: { Read: 3 },
+          toolCalls: { Read: 3 },
           errorCount: 0,
           llmCallCount: 5,
         }),
@@ -176,8 +172,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 3,
-          toolNames: ['Read'],
-          toolCallsByName: { Read: 3 },
+          toolCalls: { Read: 3 },
           errorCount: 0,
           tokenUsage: { input: 800, output: 400 },
         }),
@@ -201,8 +196,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 3,
-          toolNames: ['Read'],
-          toolCallsByName: { Read: 3 },
+          toolCalls: { Read: 3 },
           errorCount: 0,
           tokenUsage: { input: 800, output: 400 },
         }),
@@ -228,8 +222,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 3,
-          toolNames: ['Read'],
-          toolCallsByName: { Read: 3 },
+          toolCalls: { Read: 3 },
           errorCount: 0,
           costUsd: 0.05,
         }),
@@ -253,8 +246,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 3,
-          toolNames: ['Read'],
-          toolCallsByName: { Read: 3 },
+          toolCalls: { Read: 3 },
           errorCount: 0,
           costUsd: 0.1,
         }),
@@ -280,8 +272,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 3,
-          toolNames: ['Read'],
-          toolCallsByName: { Read: 3 },
+          toolCalls: { Read: 3 },
           errorCount: 0,
           durationMs: 3000,
         }),
@@ -305,8 +296,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 3,
-          toolNames: ['Read'],
-          toolCallsByName: { Read: 3 },
+          toolCalls: { Read: 3 },
           errorCount: 0,
           durationMs: 5000,
         }),
@@ -333,8 +323,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 10,
-          toolNames: ['Read', 'Edit'],
-          toolCallsByName: { Read: 7, Edit: 3 }, // 70% exploration
+          toolCalls: { Read: 7, Edit: 3 }, // 70% exploration
           errorCount: 0,
         }),
       );
@@ -358,8 +347,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 10,
-          toolNames: ['Read', 'Edit'],
-          toolCallsByName: { Read: 5, Edit: 5 }, // 50% exploration
+          toolCalls: { Read: 5, Edit: 5 }, // 50% exploration
           errorCount: 0,
         }),
       );
@@ -383,8 +371,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 10,
-          toolNames: ['Read', 'Edit'],
-          toolCallsByName: { Read: 6, Edit: 4 }, // 60% exploration - within 0.2 of target 0.5
+          toolCalls: { Read: 6, Edit: 4 }, // 60% exploration - within 0.2 of target 0.5
           errorCount: 0,
         }),
       );
@@ -410,8 +397,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 5,
-          toolNames: ['Read', 'Edit'],
-          toolCallsByName: { Read: 3, Edit: 2 },
+          toolCalls: { Read: 3, Edit: 2 },
           errorCount: 0,
           llmCallCount: 3,
           tokenUsage: { input: 500, output: 300 },
@@ -441,8 +427,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 5,
-          toolNames: ['Read', 'Edit'],
-          toolCallsByName: { Read: 3, Edit: 2 },
+          toolCalls: { Read: 3, Edit: 2 },
           errorCount: 0,
           llmCallCount: 5, // Exceeds max_llm_calls
           tokenUsage: { input: 500, output: 300 },
@@ -472,8 +457,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 5,
-          toolNames: ['Read', 'Edit'],
-          toolCallsByName: { Read: 3, Edit: 2 },
+          toolCalls: { Read: 3, Edit: 2 },
           errorCount: 0,
           // Even though llmCallCount is high, it's not being checked
           llmCallCount: 100,
@@ -521,8 +505,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 5,
-          toolNames: ['Read'],
-          toolCallsByName: { Read: 5 },
+          toolCalls: { Read: 5 },
           errorCount: 0,
           // costUsd is not provided
         }),
@@ -546,8 +529,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 5,
-          toolNames: ['Read'],
-          toolCallsByName: { Read: 5 },
+          toolCalls: { Read: 5 },
           errorCount: 0,
           // tokenUsage is not provided
         }),
@@ -571,8 +553,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 5,
-          toolNames: ['Read'],
-          toolCallsByName: { Read: 5 },
+          toolCalls: { Read: 5 },
           errorCount: 0,
           // durationMs is not provided
         }),
@@ -596,8 +577,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 5,
-          toolNames: ['Read'],
-          toolCallsByName: { Read: 5 },
+          toolCalls: { Read: 5 },
           errorCount: 0,
           // llmCallCount is not provided
         }),
@@ -625,8 +605,7 @@ describe('ExecutionMetricsEvaluator', () => {
       const result = evaluator.evaluate(
         createContext({
           eventCount: 5,
-          toolNames: ['Read'],
-          toolCallsByName: { Read: 5 },
+          toolCalls: { Read: 5 },
           errorCount: 0,
           tokenUsage: { input: 500, output: 300 },
         }),

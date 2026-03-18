@@ -18,8 +18,7 @@ export const TokenUsageSchema = z.object({
  */
 export const TraceSummarySchema = z.object({
   eventCount: z.number(),
-  toolNames: z.array(z.string()),
-  toolCallsByName: z.record(z.string(), z.number()),
+  toolCalls: z.record(z.string(), z.number()),
   errorCount: z.number(),
   toolDurations: z.record(z.string(), z.array(z.number())).optional(),
   llmCallCount: z.number().optional(),

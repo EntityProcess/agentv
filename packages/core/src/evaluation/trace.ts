@@ -24,10 +24,8 @@ export interface TokenUsage {
 export interface TraceSummary {
   /** Total number of events in trace */
   readonly eventCount: number;
-  /** Unique tool names, sorted alphabetically */
-  readonly toolNames: readonly string[];
   /** Map of tool name to call count */
-  readonly toolCallsByName: Readonly<Record<string, number>>;
+  readonly toolCalls: Readonly<Record<string, number>>;
   /** Number of error events */
   readonly errorCount: number;
   /** Per-tool duration arrays in milliseconds (optional) */
@@ -185,13 +183,10 @@ export function computeTraceSummary(messages: readonly MessageLike[]): TraceComp
     }
   }
 
-  const toolNames = Object.keys(toolCallCounts).sort();
-
   return {
     trace: {
       eventCount: totalToolCalls,
-      toolNames,
-      toolCallsByName: toolCallCounts,
+      toolCalls: toolCallCounts,
       errorCount: 0,
       llmCallCount,
       ...(hasAnyDuration ? { toolDurations } : {}),
@@ -233,7 +228,7 @@ export function explorationRatio(
   if (summary.eventCount === 0) return undefined;
 
   const explorationCalls = explorationTools.reduce(
-    (sum, tool) => sum + (summary.toolCallsByName[tool] ?? 0),
+    (sum, tool) => sum + (summary.toolCalls[tool] ?? 0),
     0,
   );
 

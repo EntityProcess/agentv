@@ -624,8 +624,7 @@ describe('runEvalCase trace integration', () => {
 
     expect(result.trace).toBeDefined();
     expect(result.trace?.eventCount).toBe(1);
-    expect(result.trace?.toolNames).toEqual(['getWeather']);
-    expect(result.trace?.toolCallsByName).toEqual({ getWeather: 1 });
+    expect(result.trace?.toolCalls).toEqual({ getWeather: 1 });
     expect(result.trace?.errorCount).toBe(0);
   });
 
@@ -841,8 +840,7 @@ describe('runEvalCase trace integration', () => {
 
     expect(result.trace).toBeDefined();
     expect(result.trace?.eventCount).toBe(4);
-    expect(result.trace?.toolNames).toEqual(['toolA', 'toolB', 'toolC']);
-    expect(result.trace?.toolCallsByName).toEqual({ toolA: 2, toolB: 1, toolC: 1 });
+    expect(result.trace?.toolCalls).toEqual({ toolA: 2, toolB: 1, toolC: 1 });
     expect(result.trace?.errorCount).toBe(0);
   });
 

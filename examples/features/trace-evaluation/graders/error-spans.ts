@@ -34,7 +34,7 @@ export default defineCodeGrader(({ trace, config }) => {
   // Check for tools that might indicate errors (if configured)
   const forbiddenTools = (config?.forbiddenTools as string[]) ?? [];
   for (const tool of forbiddenTools) {
-    const count = trace.toolCallsByName[tool];
+    const count = trace.toolCalls[tool];
     if (count !== undefined && count > 0) {
       assertions.push({
         text: `Forbidden tool "${tool}" was called ${count} time(s)`,

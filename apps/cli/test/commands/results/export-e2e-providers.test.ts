@@ -45,8 +45,7 @@ const CLAUDE_CLI_RESULT = {
   execution_status: 'ok',
   trace: {
     event_count: 5,
-    tool_names: ['Read', 'Write'],
-    tool_calls_by_name: { Read: 2, Write: 1 },
+    tool_calls: { Read: 2, Write: 1 },
     error_count: 0,
     llm_call_count: 3,
     steps: [
@@ -83,8 +82,7 @@ const CODEX_RESULT = {
   execution_status: 'ok',
   trace: {
     event_count: 3,
-    tool_names: ['shell'],
-    tool_calls_by_name: { shell: 2 },
+    tool_calls: { shell: 2 },
     error_count: 0,
     llm_call_count: 2,
     steps: [

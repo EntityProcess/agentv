@@ -31,14 +31,13 @@ describe('CodeGraderInputSchema', () => {
       ...validInput,
       trace: {
         eventCount: 3,
-        toolNames: ['read', 'write'],
-        toolCallsByName: { read: 2, write: 1 },
+        toolCalls: { read: 2, write: 1 },
         errorCount: 0,
       },
     };
     const result = CodeGraderInputSchema.parse(inputWithTrace);
     expect(result.trace?.eventCount).toBe(3);
-    expect(result.trace?.toolNames).toEqual(['read', 'write']);
+    expect(result.trace?.toolCalls).toEqual({ read: 2, write: 1 });
   });
 
   it('accepts null trace', () => {

@@ -74,8 +74,7 @@ export interface RawEvaluatorScore {
 
 export interface RawTraceSummary {
   event_count?: number;
-  tool_names?: string[];
-  tool_calls_by_name?: Record<string, number>;
+  tool_calls?: Record<string, number>;
   error_count?: number;
   tool_durations?: Record<string, number[]>;
   llm_call_count?: number;

@@ -46,14 +46,13 @@ describe('PromptTemplateInputSchema', () => {
       ...validInput,
       trace: {
         eventCount: 3,
-        toolNames: ['read', 'write'],
-        toolCallsByName: { read: 2, write: 1 },
+        toolCalls: { read: 2, write: 1 },
         errorCount: 0,
       },
     };
     const result = PromptTemplateInputSchema.parse(inputWithTrace);
     expect(result.trace?.eventCount).toBe(3);
-    expect(result.trace?.toolNames).toEqual(['read', 'write']);
+    expect(result.trace?.toolCalls).toEqual({ read: 2, write: 1 });
   });
 
   it('accepts null trace', () => {
@@ -138,8 +137,7 @@ describe('PromptTemplateInputSchema', () => {
       input: [{ role: 'user', content: 'What is 2+2?' }],
       trace: {
         eventCount: 1,
-        toolNames: [],
-        toolCallsByName: {},
+        toolCalls: {},
         errorCount: 0,
       },
       config: { rubric: 'Check correctness' },
