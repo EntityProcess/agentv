@@ -369,6 +369,9 @@ async function invokeModel(options: {
   const chatPrompt = buildChatPrompt(request);
   const { temperature, maxOutputTokens } = resolveModelSettings(request, defaults);
 
+  const startTime = new Date().toISOString();
+  const startMs = Date.now();
+
   const result = await withRetry(
     () =>
       generateText({
@@ -384,10 +387,16 @@ async function invokeModel(options: {
     request.signal,
   );
 
-  return mapResponse(result);
+  const endTime = new Date().toISOString();
+  const durationMs = Date.now() - startMs;
+
+  return mapResponse(result, { durationMs, startTime, endTime });
 }
 
-function mapResponse(result: TextResult): ProviderResponse {
+function mapResponse(
+  result: TextResult,
+  timing?: { durationMs: number; startTime: string; endTime: string },
+): ProviderResponse {
   const content = result.text ?? '';
   const rawUsage = result.totalUsage ?? result.usage;
   const reasoning = rawUsage?.outputTokenDetails?.reasoningTokens ?? undefined;
@@ -407,6 +416,9 @@ function mapResponse(result: TextResult): ProviderResponse {
     usage: toJsonObject(rawUsage),
     output: [{ role: 'assistant' as const, content }],
     tokenUsage,
+    durationMs: timing?.durationMs,
+    startTime: timing?.startTime,
+    endTime: timing?.endTime,
   };
 }
 
