@@ -26,11 +26,15 @@ interface EvalInput {
   question: string;
 }
 
+interface AssertionEntry {
+  text: string;
+  passed: boolean;
+  evidence?: string;
+}
+
 interface EvalOutput {
   score: number;
-  hits: string[];
-  misses: string[];
-  reasoning: string;
+  assertions: AssertionEntry[];
 }
 
 // Configuration - adjust these for your use case
@@ -67,17 +71,15 @@ async function main(): Promise<void> {
 
   const output: EvalOutput = {
     score: similarity,
-    hits: passed
-      ? [
-          `Similarity: ${(similarity * 100).toFixed(1)}% (threshold: ${SIMILARITY_THRESHOLD * 100}%)`,
-        ]
-      : [],
-    misses: passed
-      ? []
-      : [
-          `Similarity: ${(similarity * 100).toFixed(1)}% < ${SIMILARITY_THRESHOLD * 100}% threshold`,
-        ],
-    reasoning: `${ALGORITHM} similarity between "${input.answer}" and "${input.reference_answer}": ${(similarity * 100).toFixed(1)}%`,
+    assertions: [
+      {
+        text: passed
+          ? `Similarity: ${(similarity * 100).toFixed(1)}% (threshold: ${SIMILARITY_THRESHOLD * 100}%)`
+          : `Similarity: ${(similarity * 100).toFixed(1)}% < ${SIMILARITY_THRESHOLD * 100}% threshold`,
+        passed,
+        evidence: `${ALGORITHM} similarity between "${input.answer}" and "${input.reference_answer}": ${(similarity * 100).toFixed(1)}%`,
+      },
+    ],
   };
 
   console.log(JSON.stringify(output));
@@ -87,9 +89,7 @@ main().catch((error) => {
   console.error(
     JSON.stringify({
       score: 0,
-      hits: [],
-      misses: [`Error: ${error.message}`],
-      reasoning: `Evaluation failed: ${error.message}`,
+      assertions: [{ text: `Error: ${error.message}`, passed: false }],
     }),
   );
   process.exit(1);

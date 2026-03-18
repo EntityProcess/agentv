@@ -38,8 +38,17 @@ function logError(message: string): void {
   console.error(message);
 }
 
+interface AssertionEntry {
+  text: string;
+  passed: boolean;
+  evidence?: string;
+}
+
 interface EvaluationResultJsonlRecord {
+  assertions?: AssertionEntry[];
+  /** @deprecated use assertions */
   hits?: string[];
+  /** @deprecated use assertions */
   misses?: string[];
 }
 
@@ -158,10 +167,22 @@ function roundTo4(value: number): number {
 function parseClassificationFromResult(
   record: EvaluationResultJsonlRecord,
 ): { predicted: string; actual: string } | null {
+  const comparisonPattern = /AI=([^\s,]+),?\s*Expected=([^\s,]+)/;
+
+  // Prefer assertions[] (new format)
+  if (Array.isArray(record.assertions)) {
+    for (const a of record.assertions) {
+      const match = comparisonPattern.exec(a.text);
+      if (match) {
+        return { predicted: match[1], actual: match[2] };
+      }
+    }
+    return null;
+  }
+
+  // Fallback: legacy hits/misses format
   const hits = Array.isArray(record.hits) ? record.hits : [];
   const misses = Array.isArray(record.misses) ? record.misses : [];
-
-  const comparisonPattern = /AI=([^\s,]+),?\s*Expected=([^\s,]+)/;
 
   for (const miss of misses) {
     const match = comparisonPattern.exec(miss);

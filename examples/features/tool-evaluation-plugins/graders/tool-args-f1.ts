@@ -67,8 +67,7 @@ export default defineCodeGrader(({ output, config, ...rest }) => {
   if (!rawExpected || !Array.isArray(rawExpected) || rawExpected.length === 0) {
     return {
       score: 0,
-      misses: ['No expected_tools configured — provide an array of {tool, args?} objects'],
-      reasoning: 'Cannot compute F1 without expected_tools.',
+      assertions: [{ text: 'No expected_tools configured — provide an array of {tool, args?} objects', passed: false }],
     };
   }
 
@@ -81,8 +80,8 @@ export default defineCodeGrader(({ output, config, ...rest }) => {
 
   // Greedy matching: for each expected tool, find first unmatched actual call
   const usedActual = new Set<number>();
-  const hits: string[] = [];
-  const fn: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean; evidence?: string }> = [];
+  let fnCount = 0;
 
   for (const expected of expectedTools) {
     let matched = false;
@@ -96,28 +95,28 @@ export default defineCodeGrader(({ output, config, ...rest }) => {
       const detail = expected.args
         ? `'${expected.tool}' called with matching args`
         : `'${expected.tool}' called`;
-      hits.push(detail);
+      assertions.push({ text: detail, passed: true });
       break;
     }
     if (!matched) {
       const detail = expected.args
         ? `'${expected.tool}' not called with args ${JSON.stringify(expected.args)}`
         : `'${expected.tool}' not called`;
-      fn.push(detail);
+      assertions.push({ text: detail, passed: false });
+      fnCount++;
     }
   }
 
   // Unmatched actual calls are false positives
-  const fpTools: string[] = [];
+  let fpCount = 0;
   for (let i = 0; i < actualCalls.length; i++) {
     if (!usedActual.has(i)) {
-      fpTools.push(`Unexpected call to '${actualCalls[i].tool}'`);
+      assertions.push({ text: `Unexpected call to '${actualCalls[i].tool}'`, passed: false });
+      fpCount++;
     }
   }
 
-  const tp = hits.length;
-  const fpCount = fpTools.length;
-  const fnCount = fn.length;
+  const tp = assertions.filter((a) => a.passed).length;
 
   const precision = tp + fpCount > 0 ? tp / (tp + fpCount) : 0;
   const recall = tp + fnCount > 0 ? tp / (tp + fnCount) : 0;
@@ -125,9 +124,7 @@ export default defineCodeGrader(({ output, config, ...rest }) => {
 
   return {
     score: Math.round(f1 * 1000) / 1000,
-    hits,
-    misses: [...fn, ...fpTools],
-    reasoning: `precision=${precision.toFixed(3)} recall=${recall.toFixed(3)} F1=${f1.toFixed(3)} | TP=${tp} FP=${fpCount} FN=${fnCount}`,
+    assertions,
     details: { precision, recall, f1, tp, fp: fpCount, fn: fnCount },
   };
 });

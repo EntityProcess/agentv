@@ -49,11 +49,15 @@ interface FieldMetrics {
   f1?: number;
 }
 
+interface AssertionEntry {
+  text: string;
+  passed: boolean;
+  evidence?: string;
+}
+
 interface EvalOutput {
   score: number;
-  hits: string[];
-  misses: string[];
-  reasoning: string;
+  assertions: AssertionEntry[];
   details: {
     metrics: Record<string, FieldMetrics>;
     summary: {
@@ -129,9 +133,7 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify({
         score: 0,
-        hits: [],
-        misses: ['No fields configured'],
-        reasoning: 'config.fields is empty or not provided',
+        assertions: [{ text: 'No fields configured', passed: false }],
         details: {
           metrics: {},
           summary: { total_tp: 0, total_tn: 0, total_fp: 0, total_fn: 0 },
@@ -149,9 +151,7 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify({
         score: 0,
-        hits: [],
-        misses: ['Failed to parse answer as JSON'],
-        reasoning: 'Could not parse answer',
+        assertions: [{ text: 'Failed to parse answer as JSON', passed: false }],
         details: {
           metrics: {},
           summary: { total_tp: 0, total_tn: 0, total_fp: 0, total_fn: 0 },
@@ -175,9 +175,7 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify({
         score: 0,
-        hits: [],
-        misses: ['No expected data found in expected_output'],
-        reasoning: 'Could not find assistant message with expected content',
+        assertions: [{ text: 'No expected data found in expected_output', passed: false }],
         details: {
           metrics: {},
           summary: { total_tp: 0, total_tn: 0, total_fp: 0, total_fn: 0 },
@@ -187,8 +185,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: AssertionEntry[] = [];
   const fieldMetrics: Record<string, FieldMetrics> = {};
   let totalTp = 0;
   let totalTn = 0;
@@ -212,24 +209,24 @@ async function main(): Promise<void> {
     if (valuesEqual && !expectedEmpty) {
       // TP: expected == parsed AND expected is non-empty
       tp = 1;
-      hits.push(`${field.path}: TP (correct non-empty)`);
+      assertions.push({ text: `${field.path}: TP (correct non-empty)`, passed: true });
     } else if (valuesEqual && expectedEmpty) {
       // TN: expected == parsed AND expected is empty
       tn = 1;
-      hits.push(`${field.path}: TN (correct empty)`);
+      assertions.push({ text: `${field.path}: TN (correct empty)`, passed: true });
     } else if (!valuesEqual && !expectedEmpty && !parsedEmpty) {
       // FP+FN: expected != parsed AND both are non-empty
       fp = 1;
       fn = 1;
-      misses.push(`${field.path}: FP+FN (wrong value)`);
+      assertions.push({ text: `${field.path}: FP+FN (wrong value)`, passed: false });
     } else if (expectedEmpty && !parsedEmpty) {
       // FP: expected is empty AND parsed is non-empty
       fp = 1;
-      misses.push(`${field.path}: FP (hallucinated)`);
+      assertions.push({ text: `${field.path}: FP (hallucinated)`, passed: false });
     } else if (!expectedEmpty && parsedEmpty) {
       // FN: expected is non-empty AND parsed is empty
       fn = 1;
-      misses.push(`${field.path}: FN (missing)`);
+      assertions.push({ text: `${field.path}: FN (missing)`, passed: false });
     }
 
     totalTp += tp;
@@ -264,9 +261,7 @@ async function main(): Promise<void> {
 
   const output: EvalOutput = {
     score: macroF1,
-    hits: hits.slice(0, 10),
-    misses: misses.slice(0, 10),
-    reasoning: `TP=${totalTp} TN=${totalTn} FP=${totalFp} FN=${totalFn}, macro-F1=${macroF1.toFixed(3)}`,
+    assertions: assertions.slice(0, 20),
     details: {
       metrics: fieldMetrics,
       summary: {
@@ -288,9 +283,7 @@ main().catch((error) => {
   console.error(
     JSON.stringify({
       score: 0,
-      hits: [],
-      misses: [`Error: ${error.message}`],
-      reasoning: `Evaluation failed: ${error.message}`,
+      assertions: [{ text: `Error: ${error.message}`, passed: false }],
       details: {
         metrics: {},
         summary: { total_tp: 0, total_tn: 0, total_fp: 0, total_fn: 0 },

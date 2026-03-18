@@ -39,11 +39,15 @@ interface EvalInput {
   config: EvalConfig | null;
 }
 
+interface AssertionEntry {
+  text: string;
+  passed: boolean;
+  evidence?: string;
+}
+
 interface EvalOutput {
   score: number;
-  hits: string[];
-  misses: string[];
-  reasoning: string;
+  assertions: AssertionEntry[];
 }
 
 function getFieldValue(obj: unknown, path: string): unknown {
@@ -72,9 +76,7 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify({
         score: 0,
-        hits: [],
-        misses: ['No fields configured'],
-        reasoning: 'config.fields is empty or not provided',
+        assertions: [{ text: 'No fields configured', passed: false }],
       }),
     );
     return;
@@ -90,17 +92,13 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify({
         score: 0,
-        hits: [],
-        misses: ['Failed to parse JSON'],
-        reasoning: 'Could not parse candidate or reference as JSON',
+        assertions: [{ text: 'Failed to parse JSON', passed: false }],
       }),
     );
     return;
   }
 
-  const hits: string[] = [];
-  const misses: string[] = [];
-  const details: string[] = [];
+  const assertions: AssertionEntry[] = [];
   let totalScore = 0;
 
   for (const field of fields) {
@@ -109,8 +107,7 @@ async function main(): Promise<void> {
     const referenceValue = getFieldValue(referenceObj, field.path);
 
     if (typeof candidateValue !== 'string' || typeof referenceValue !== 'string') {
-      misses.push(`${field.path}: field not found or not a string`);
-      details.push(`${field.path}: missing or non-string`);
+      assertions.push({ text: `${field.path}: field not found or not a string`, passed: false });
       continue;
     }
 
@@ -127,21 +124,18 @@ async function main(): Promise<void> {
 
     const thresholdPct = (threshold * 100).toFixed(0);
     if (passed) {
-      hits.push(`${field.path}: ${pct}% >= ${thresholdPct}% threshold`);
+      assertions.push({ text: `${field.path}: ${pct}% >= ${thresholdPct}% threshold`, passed: true, evidence: `"${candidateValue}" vs "${referenceValue}" = ${pct}%` });
       totalScore += 1;
     } else {
-      misses.push(`${field.path}: ${pct}% < ${thresholdPct}% threshold`);
+      assertions.push({ text: `${field.path}: ${pct}% < ${thresholdPct}% threshold`, passed: false, evidence: `"${candidateValue}" vs "${referenceValue}" = ${pct}%` });
     }
-    details.push(`${field.path}: "${candidateValue}" vs "${referenceValue}" = ${pct}%`);
   }
 
   const score = fields.length > 0 ? totalScore / fields.length : 0;
 
   const output: EvalOutput = {
     score,
-    hits,
-    misses,
-    reasoning: details.join('; '),
+    assertions,
   };
 
   console.log(JSON.stringify(output));
@@ -151,9 +145,7 @@ main().catch((error) => {
   console.error(
     JSON.stringify({
       score: 0,
-      hits: [],
-      misses: [`Error: ${error.message}`],
-      reasoning: `Evaluation failed: ${error.message}`,
+      assertions: [{ text: `Error: ${error.message}`, passed: false }],
     }),
   );
   process.exit(1);

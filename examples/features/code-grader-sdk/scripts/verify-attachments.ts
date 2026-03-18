@@ -13,8 +13,7 @@ function fileName(path: string): string {
 }
 
 export default defineCodeGrader(({ expectedOutput, outputText, guidelineFiles, inputFiles }) => {
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean }> = [];
 
   // Check if candidate matches expected message
   const expectedMessage = expectedOutput[0];
@@ -24,27 +23,26 @@ export default defineCodeGrader(({ expectedOutput, outputText, guidelineFiles, i
       : undefined;
 
   if (expectedContent && outputText.trim() === expectedContent.trim()) {
-    hits.push('Candidate output matches expected message');
+    assertions.push({ text: 'Candidate output matches expected message', passed: true });
   } else {
-    misses.push('Candidate output does not match expected message');
+    assertions.push({ text: 'Candidate output does not match expected message', passed: false });
   }
 
   // Check if attachments are mentioned
   const attachmentNames = [...guidelineFiles, ...inputFiles].map(fileName);
   for (const name of attachmentNames) {
     if (outputText.includes(name)) {
-      hits.push(`Mentions attachment: ${name}`);
+      assertions.push({ text: `Mentions attachment: ${name}`, passed: true });
     } else {
-      misses.push(`Missing attachment: ${name}`);
+      assertions.push({ text: `Missing attachment: ${name}`, passed: false });
     }
   }
 
-  const score = hits.length + misses.length === 0 ? 0 : hits.length / (hits.length + misses.length);
+  const passed = assertions.filter((a) => a.passed).length;
+  const score = assertions.length === 0 ? 0 : passed / assertions.length;
 
   return {
     score,
-    hits,
-    misses,
-    reasoning: `Checked ${hits.length + misses.length} conditions using defineCodeGrader`,
+    assertions,
   };
 });

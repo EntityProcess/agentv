@@ -75,25 +75,26 @@ export default defineCodeGrader(({ outputText, expectedOutputText, expectedOutpu
   if (!reference) {
     return {
       score: 0,
-      hits: [],
-      misses: ['No reference text provided'],
-      reasoning: 'Missing reference.',
+      assertions: [{ text: 'No reference text provided', passed: false }],
     };
   }
 
   const score = bleuScore(outputText, reference);
 
-  const hits: string[] = [];
-  const misses: string[] = [];
-
-  if (score >= 0.3) hits.push(`BLEU ${score.toFixed(3)} >= 0.3`);
-  else misses.push(`BLEU ${score.toFixed(3)} < 0.3`);
+  const passed = score >= 0.3;
+  const assertions = [
+    {
+      text: passed
+        ? `BLEU ${score.toFixed(3)} >= 0.3`
+        : `BLEU ${score.toFixed(3)} < 0.3`,
+      passed,
+      evidence: `BLEU score: ${score.toFixed(3)}`,
+    },
+  ];
 
   return {
     score,
-    hits,
-    misses,
-    reasoning: `BLEU score: ${score.toFixed(3)}`,
+    assertions,
     details: { bleu: score },
   };
 });

@@ -3,7 +3,7 @@
  * Evaluator Conformance Harness
  *
  * Runs an evaluator N times per fixture and validates:
- *   - Compatibility: output matches CodeGraderResult schema (score, hits, misses)
+ *   - Compatibility: output matches CodeGraderResult schema (score, assertions)
  *   - Consistency: flip-rate, agreement, and variance meet thresholds
  *
  * Usage:
@@ -39,10 +39,20 @@ interface FixtureFile {
   fixtures: Fixture[];
 }
 
+interface AssertionEntry {
+  text: string;
+  passed: boolean;
+  evidence?: string;
+}
+
 interface EvaluatorResult {
   score: number;
+  assertions?: AssertionEntry[];
+  /** @deprecated use assertions */
   hits?: string[];
+  /** @deprecated use assertions */
   misses?: string[];
+  /** @deprecated use evidence on assertion entries */
   reasoning?: string;
 }
 
@@ -156,6 +166,24 @@ function validateResult(result: unknown): string[] {
     errors.push(`Score ${r.score} out of range [0, 1]`);
   }
 
+  // Validate assertions[] (preferred) or legacy hits/misses
+  if (r.assertions !== undefined) {
+    if (!Array.isArray(r.assertions)) {
+      errors.push('"assertions" must be an array');
+    } else {
+      for (let i = 0; i < (r.assertions as unknown[]).length; i++) {
+        const entry = (r.assertions as unknown[])[i];
+        if (typeof entry !== 'object' || entry === null) {
+          errors.push(`assertions[${i}] must be an object`);
+        } else {
+          const e = entry as Record<string, unknown>;
+          if (typeof e.text !== 'string') errors.push(`assertions[${i}].text must be a string`);
+          if (typeof e.passed !== 'boolean') errors.push(`assertions[${i}].passed must be a boolean`);
+        }
+      }
+    }
+  }
+  // Legacy format: still accept hits/misses
   if (r.hits !== undefined && !Array.isArray(r.hits)) {
     errors.push('"hits" must be an array');
   }

@@ -16,40 +16,37 @@ export default defineCodeGrader(({ trace, config }) => {
   if (!trace) {
     return {
       score: 0,
-      misses: ['No trace available'],
-      reasoning: 'Cannot evaluate span counts without trace data',
+      assertions: [{ text: 'No trace available', passed: false }],
     };
   }
 
   const maxLlmCalls = (config?.maxLlmCalls as number) ?? DEFAULTS.maxLlmCalls;
   const maxToolCalls = (config?.maxToolCalls as number) ?? DEFAULTS.maxToolCalls;
 
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean }> = [];
 
   // Check LLM call count
   if (trace.llmCallCount !== undefined) {
     if (trace.llmCallCount <= maxLlmCalls) {
-      hits.push(`LLM calls (${trace.llmCallCount}) within limit (${maxLlmCalls})`);
+      assertions.push({ text: `LLM calls (${trace.llmCallCount}) within limit (${maxLlmCalls})`, passed: true });
     } else {
-      misses.push(`Too many LLM calls: ${trace.llmCallCount} (max: ${maxLlmCalls})`);
+      assertions.push({ text: `Too many LLM calls: ${trace.llmCallCount} (max: ${maxLlmCalls})`, passed: false });
     }
   }
 
   // Check tool execution count
   if (trace.eventCount <= maxToolCalls) {
-    hits.push(`Tool calls (${trace.eventCount}) within limit (${maxToolCalls})`);
+    assertions.push({ text: `Tool calls (${trace.eventCount}) within limit (${maxToolCalls})`, passed: true });
   } else {
-    misses.push(`Too many tool calls: ${trace.eventCount} (max: ${maxToolCalls})`);
+    assertions.push({ text: `Too many tool calls: ${trace.eventCount} (max: ${maxToolCalls})`, passed: false });
   }
 
-  const total = hits.length + misses.length;
-  const score = total > 0 ? hits.length / total : 0.5;
+  const passed = assertions.filter((a) => a.passed).length;
+  const total = assertions.length;
+  const score = total > 0 ? passed / total : 0.5;
 
   return {
     score: Math.round(score * 100) / 100,
-    hits,
-    misses,
-    reasoning: `Checked span counts: ${hits.length} passed, ${misses.length} failed`,
+    assertions,
   };
 });

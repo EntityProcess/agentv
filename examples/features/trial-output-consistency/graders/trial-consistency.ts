@@ -115,9 +115,7 @@ export default defineCodeGrader(async (input) => {
   if (!parsed.success) {
     return {
       score: 0,
-      hits: [],
-      misses: ['Invalid config: trialOutputs (string[]) is required'],
-      reasoning: `Config validation failed: ${parsed.error.message}`,
+      assertions: [{ text: 'Invalid config: trialOutputs (string[]) is required', passed: false, evidence: `Config validation failed: ${parsed.error.message}` }],
     };
   }
 
@@ -127,9 +125,7 @@ export default defineCodeGrader(async (input) => {
   if (trialOutputs.length === 0) {
     return {
       score: 0,
-      hits: [],
-      misses: ['No trial outputs provided (0 trials)'],
-      reasoning: 'Cannot compute consistency with 0 trials.',
+      assertions: [{ text: 'No trial outputs provided (0 trials)', passed: false }],
     };
   }
 
@@ -137,9 +133,7 @@ export default defineCodeGrader(async (input) => {
   if (trialOutputs.length === 1) {
     return {
       score: 1,
-      hits: ['Single trial — perfect consistency by definition'],
-      misses: [],
-      reasoning: 'Only one trial output; consistency is trivially 1.0.',
+      assertions: [{ text: 'Single trial — perfect consistency by definition', passed: true }],
       details: { trialCount: 1, method: 'trivial' },
     };
   }
@@ -159,22 +153,19 @@ export default defineCodeGrader(async (input) => {
   }
 
   const score = averagePairwiseSimilarity(vectors);
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean; evidence?: string }> = [];
 
   if (score >= 0.8) {
-    hits.push(`High consistency: ${score.toFixed(3)}`);
+    assertions.push({ text: `High consistency: ${score.toFixed(3)}`, passed: true });
   } else if (score >= 0.5) {
-    hits.push(`Moderate consistency: ${score.toFixed(3)}`);
+    assertions.push({ text: `Moderate consistency: ${score.toFixed(3)}`, passed: true });
   } else {
-    misses.push(`Low consistency: ${score.toFixed(3)}`);
+    assertions.push({ text: `Low consistency: ${score.toFixed(3)}`, passed: false });
   }
 
   return {
     score: Math.max(0, Math.min(1, score)),
-    hits,
-    misses,
-    reasoning: `Computed ${method} pairwise cosine similarity across ${trialOutputs.length} trial outputs.`,
+    assertions,
     details: {
       trialCount: trialOutputs.length,
       method,

@@ -13,22 +13,20 @@ export default defineCodeGrader(({ trace, config, durationMs }) => {
   if (!trace) {
     return {
       score: 0,
-      misses: ['No trace available'],
-      reasoning: 'Cannot evaluate durations without trace data',
+      assertions: [{ text: 'No trace available', passed: false }],
     };
   }
 
   const maxSpanMs = (config?.maxSpanMs as number) ?? DEFAULT_MAX_SPAN_MS;
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: Array<{ text: string; passed: boolean }> = [];
 
   // Check overall duration
   if (durationMs !== undefined) {
     const maxTotalMs = (config?.maxTotalMs as number) ?? maxSpanMs * 5;
     if (durationMs <= maxTotalMs) {
-      hits.push(`Total duration (${durationMs}ms) within limit (${maxTotalMs}ms)`);
+      assertions.push({ text: `Total duration (${durationMs}ms) within limit (${maxTotalMs}ms)`, passed: true });
     } else {
-      misses.push(`Total duration too long: ${durationMs}ms (max: ${maxTotalMs}ms)`);
+      assertions.push({ text: `Total duration too long: ${durationMs}ms (max: ${maxTotalMs}ms)`, passed: false });
     }
   }
 
@@ -37,21 +35,20 @@ export default defineCodeGrader(({ trace, config, durationMs }) => {
     for (const [tool, durations] of Object.entries(trace.toolDurations)) {
       for (const duration of durations) {
         if (duration <= maxSpanMs) {
-          hits.push(`${tool} (${duration}ms) within limit`);
+          assertions.push({ text: `${tool} (${duration}ms) within limit`, passed: true });
         } else {
-          misses.push(`${tool} too slow: ${duration}ms (max: ${maxSpanMs}ms)`);
+          assertions.push({ text: `${tool} too slow: ${duration}ms (max: ${maxSpanMs}ms)`, passed: false });
         }
       }
     }
   }
 
-  const total = hits.length + misses.length;
-  const score = total > 0 ? hits.length / total : 0.5;
+  const passed = assertions.filter((a) => a.passed).length;
+  const total = assertions.length;
+  const score = total > 0 ? passed / total : 0.5;
 
   return {
     score: Math.round(score * 100) / 100,
-    hits: hits.slice(0, 5),
-    misses: misses.slice(0, 5),
-    reasoning: `Checked durations against ${maxSpanMs}ms threshold: ${hits.length} passed, ${misses.length} failed`,
+    assertions: assertions.slice(0, 10),
   };
 });
