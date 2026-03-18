@@ -99,9 +99,11 @@ export interface LlmGraderEvaluatorOptions {
 
 const freeformEvaluationSchema = z.object({
   score: z.number().min(0).max(1).describe('Score between 0.0 and 1.0'),
-  hits: z.array(z.string()).describe('Brief specific achievements').optional(),
-  misses: z.array(z.string()).describe('Brief failures or omissions').optional(),
-  reasoning: z.string().describe('Concise explanation (1-2 sentences)').optional(),
+  assertions: z.array(z.object({
+    text: z.string().describe('Brief description of what was checked'),
+    passed: z.boolean().describe('Whether this aspect was satisfied'),
+    evidence: z.string().describe('Concise evidence (1-2 sentences)').optional(),
+  })).describe('Per-aspect evaluation results — one entry per aspect checked').optional(),
 });
 
 const rubricCheckResultSchema = z.object({
