@@ -1,201 +1,96 @@
 /**
- * `agentv results export` — converts JSONL eval results into a per-test
- * directory structure compatible with agentv-bench's workspace layout.
+ * `agentv results export` — converts JSONL eval results into a directory
+ * structure matching the artifact-writer output format.
  *
  * Output structure:
  *   <output-dir>/
- *     benchmark.json       — aggregate scores, pass/fail counts, timing
- *     <test-id>/
- *       grading.json       — per-assertion results (hits, misses, evaluator details)
- *       timing.json        — tokens, duration, cost, tool names
- *       outputs/           — raw agent output text
+ *     benchmark.json           — aggregate scores, pass/fail counts, timing
+ *     timing.json              — aggregate token usage and duration
+ *     grading/
+ *       <test-id>.json         — per-test grading artifact (assertions, evaluators)
+ *     outputs/
+ *       <test-id>.txt          — raw agent response text per test
+ *
+ * This module delegates artifact building to the shared artifact-writer so
+ * that `agentv results export` and `agentv eval` produce identical schemas.
  *
  * How to extend:
- *   - To add a new aggregate field to benchmark.json, update `buildBenchmark()`.
- *   - To include additional per-test data, add a new file writer in `exportTestCase()`.
+ *   - To change artifact schemas, update artifact-writer.ts (single source of truth).
+ *   - To add new per-test output files, add a writer in `exportOutputs()`.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { command, option, optional, positional, string } from 'cmd-ts';
 
+import type { EvaluationResult } from '@agentv/core';
 import {
-  type RawResult,
-  extractTimestampFromFilename,
-  listResultFiles,
-  loadResultFile,
-} from '../trace/utils.js';
-
-// ── Types ───────────────────────────────────────────────────────────────
-
-interface BenchmarkJson {
-  metadata: {
-    eval_file: string;
-    timestamp: string;
-    tests_run: number;
-  };
-  run_summary: Record<string, TargetSummary>;
-}
-
-interface TargetSummary {
-  pass_rate: { mean: number };
-  time_seconds: { mean: number };
-  tokens: { mean: number };
-  cost_usd: { mean: number };
-}
-
-interface GradingJson {
-  id: string;
-  verdict: 'pass' | 'fail';
-  score: number;
-  evaluators: readonly GradingEvaluator[];
-  hits: readonly string[];
-  misses: readonly string[];
-}
-
-interface GradingEvaluator {
-  name: string;
-  type: string;
-  score: number;
-  reasoning?: string;
-  hits?: readonly string[];
-  misses?: readonly string[];
-}
-
-interface TimingJson {
-  eventCount: number;
-  toolNames: readonly string[];
-  tokenUsage: { input: number; output: number; cached: number };
-  costUsd: number;
-  durationMs: number;
-  llmCallCount: number;
-}
-
-// ── Builders ────────────────────────────────────────────────────────────
-
-function buildBenchmark(results: RawResult[], sourceFile: string): BenchmarkJson {
-  const timestamp =
-    results[0]?.timestamp ?? extractTimestampFromFilename(path.basename(sourceFile)) ?? 'unknown';
-
-  // Group results by target
-  const byTarget = new Map<string, RawResult[]>();
-  for (const r of results) {
-    const target = r.target ?? 'default';
-    if (!byTarget.has(target)) byTarget.set(target, []);
-    byTarget.get(target)?.push(r);
-  }
-
-  const runSummary: Record<string, TargetSummary> = {};
-
-  for (const [target, group] of byTarget) {
-    const n = group.length;
-    const passCount = group.filter((r) => r.score >= 1.0).length;
-    const totalDurationMs = group.reduce(
-      (sum, r) => sum + (r.trace?.duration_ms ?? r.duration_ms ?? 0),
-      0,
-    );
-    const totalTokens = group.reduce((sum, r) => {
-      const tu = r.trace?.token_usage ?? r.token_usage;
-      return sum + (tu ? tu.input + tu.output : 0);
-    }, 0);
-    const totalCost = group.reduce((sum, r) => sum + (r.trace?.cost_usd ?? r.cost_usd ?? 0), 0);
-
-    runSummary[target] = {
-      pass_rate: { mean: round(passCount / n) },
-      time_seconds: { mean: round(totalDurationMs / n / 1000) },
-      tokens: { mean: round(totalTokens / n) },
-      cost_usd: { mean: round(totalCost / n) },
-    };
-  }
-
-  return {
-    metadata: {
-      eval_file: sourceFile,
-      timestamp,
-      tests_run: results.length,
-    },
-    run_summary: runSummary,
-  };
-}
-
-function buildGrading(result: RawResult): GradingJson {
-  const evaluators: GradingEvaluator[] = (result.scores ?? []).map((s) => ({
-    name: s.name,
-    type: s.type,
-    score: s.score,
-    reasoning: s.reasoning,
-    hits: s.hits,
-    misses: s.misses,
-  }));
-
-  return {
-    id: result.test_id ?? result.eval_id ?? 'unknown',
-    verdict: result.score >= 1.0 ? 'pass' : 'fail',
-    score: result.score,
-    evaluators,
-    hits: result.hits ?? [],
-    misses: result.misses ?? [],
-  };
-}
-
-function buildTiming(result: RawResult): TimingJson {
-  const trace = result.trace;
-  const tu = trace?.token_usage ?? result.token_usage;
-
-  return {
-    eventCount: trace?.event_count ?? 0,
-    toolNames: trace?.tool_names ?? [],
-    tokenUsage: {
-      input: tu?.input ?? 0,
-      output: tu?.output ?? 0,
-      cached: tu?.cached ?? 0,
-    },
-    costUsd: trace?.cost_usd ?? result.cost_usd ?? 0,
-    durationMs: trace?.duration_ms ?? result.duration_ms ?? 0,
-    llmCallCount: trace?.llm_call_count ?? 0,
-  };
-}
+  buildBenchmarkArtifact,
+  buildGradingArtifact,
+  buildTimingArtifact,
+  parseJsonlResults,
+} from '../eval/artifact-writer.js';
+import { listResultFiles } from '../trace/utils.js';
 
 // ── Export logic ─────────────────────────────────────────────────────────
 
-function exportTestCase(result: RawResult, outputDir: string): void {
-  const testId = result.test_id ?? result.eval_id ?? 'unknown';
-  const testDir = path.join(outputDir, testId);
-  const outputsDir = path.join(testDir, 'outputs');
+export function exportResults(sourceFile: string, content: string, outputDir: string): void {
+  const results = parseJsonlResults(content);
 
-  mkdirSync(outputsDir, { recursive: true });
-
-  // grading.json
-  writeFileSync(path.join(testDir, 'grading.json'), JSON.stringify(buildGrading(result), null, 2));
-
-  // timing.json
-  writeFileSync(path.join(testDir, 'timing.json'), JSON.stringify(buildTiming(result), null, 2));
-
-  // outputs/answer.txt — raw agent response text
-  const answer = result.answer;
-  if (answer) {
-    writeFileSync(path.join(outputsDir, 'answer.txt'), answer);
+  if (results.length === 0) {
+    throw new Error(`No results found in ${sourceFile}`);
   }
-}
 
-export function exportResults(sourceFile: string, results: RawResult[], outputDir: string): void {
+  // Patch testId for older JSONL files that used eval_id instead of test_id
+  const patched = results.map((r) => {
+    if (!r.testId && (r as unknown as Record<string, unknown>).evalId) {
+      return { ...r, testId: String((r as unknown as Record<string, unknown>).evalId) };
+    }
+    return r;
+  });
+
   mkdirSync(outputDir, { recursive: true });
 
-  // benchmark.json
-  const benchmark = buildBenchmark(results, sourceFile);
-  writeFileSync(path.join(outputDir, 'benchmark.json'), JSON.stringify(benchmark, null, 2));
+  // benchmark.json — aggregate across all results
+  const benchmark = buildBenchmarkArtifact(patched, sourceFile);
+  writeFileSync(path.join(outputDir, 'benchmark.json'), `${JSON.stringify(benchmark, null, 2)}\n`);
 
-  // Per-test directories
-  for (const result of results) {
-    exportTestCase(result, outputDir);
+  // timing.json — aggregate token usage and duration
+  const timing = buildTimingArtifact(patched);
+  writeFileSync(path.join(outputDir, 'timing.json'), `${JSON.stringify(timing, null, 2)}\n`);
+
+  // grading/<test-id>.json — per-test grading artifacts
+  const gradingDir = path.join(outputDir, 'grading');
+  mkdirSync(gradingDir, { recursive: true });
+
+  for (const result of patched) {
+    const id = safeTestId(result);
+    const grading = buildGradingArtifact(result);
+    writeFileSync(path.join(gradingDir, `${id}.json`), `${JSON.stringify(grading, null, 2)}\n`);
+  }
+
+  // outputs/<test-id>.txt — raw agent response text
+  const outputsDir = path.join(outputDir, 'outputs');
+  mkdirSync(outputsDir, { recursive: true });
+
+  for (const result of patched) {
+    const answer = result.answer;
+    if (answer) {
+      const id = safeTestId(result);
+      writeFileSync(path.join(outputsDir, `${id}.txt`), answer);
+    }
   }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-function round(n: number, decimals = 4): number {
-  const factor = 10 ** decimals;
-  return Math.round(n * factor) / factor;
+/**
+ * Extract a safe filename from a test ID, handling older JSONL formats
+ * that used `eval_id` instead of `test_id`.
+ */
+function safeTestId(result: EvaluationResult): string {
+  const raw = result.testId ?? (result as unknown as Record<string, unknown>).evalId ?? 'unknown';
+  return String(raw).replace(/[/\\:*?"<>|]/g, '_');
 }
 
 /**
@@ -253,12 +148,7 @@ export const resultsExportCommand = command({
         sourceFile = metas[0].path;
       }
 
-      const results = loadResultFile(sourceFile);
-
-      if (results.length === 0) {
-        console.error(`Error: No results found in ${sourceFile}`);
-        process.exit(1);
-      }
+      const content = readFileSync(sourceFile, 'utf8');
 
       const outputDir = out
         ? path.isAbsolute(out)
@@ -266,12 +156,15 @@ export const resultsExportCommand = command({
           : path.resolve(cwd, out)
         : deriveOutputDir(cwd, sourceFile);
 
-      exportResults(sourceFile, results, outputDir);
+      exportResults(sourceFile, content, outputDir);
 
-      const testIds = results.map((r) => r.test_id ?? r.eval_id ?? 'unknown');
+      // Report exported test IDs
+      const results = parseJsonlResults(content);
       console.log(`Exported ${results.length} test(s) to ${outputDir}`);
-      for (const id of testIds) {
-        console.log(`  ${id}/`);
+      for (const result of results) {
+        const id =
+          result.testId ?? (result as unknown as Record<string, unknown>).evalId ?? 'unknown';
+        console.log(`  ${id}`);
       }
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
