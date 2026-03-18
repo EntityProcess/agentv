@@ -59,13 +59,9 @@ export const MessageSchema = z.object({
  * strings. Structured fields (`input`, `output`, `expectedOutput`) are always `Message[]`.
  */
 export const CodeGraderInputSchema = z.object({
-  /** @deprecated Use `inputText` instead. First user message content as string. */
-  question: z.string(),
   criteria: z.string(),
   expectedOutput: z.array(MessageSchema),
-  /** @deprecated Use `expectedOutputText` instead. Expected output content as string. */
-  referenceAnswer: z.string().optional(),
-  /** Last assistant message content as string. Renamed from `answer`. */
+  /** Last assistant message content as string. */
   outputText: z.string(),
   output: z.array(MessageSchema).nullable().optional(),
   /** Path to a temp file containing the output JSON (used for large payloads). */
@@ -82,11 +78,9 @@ export const CodeGraderInputSchema = z.object({
   fileChanges: z.string().nullable().optional(),
   workspacePath: z.string().nullable().optional(),
   config: z.record(z.unknown()).nullable().optional(),
-  /** First user message content as string. Replaces `question`. */
-  inputText: z.string().optional(),
-  /** @deprecated Use `outputText` instead. Kept for backward compatibility. */
-  answer: z.string().optional(),
-  /** Expected output content as string. Replaces `referenceAnswer`. */
+  /** First user message content as string. */
+  inputText: z.string(),
+  /** Expected output content as string. */
   expectedOutputText: z.string().optional(),
 });
 
@@ -118,22 +112,15 @@ export type CodeGraderResult = z.infer<typeof CodeGraderResultSchema>;
 /**
  * CodeGraderInput after `enrichInput()` has run.
  *
- * The text convenience accessors (`inputText`, `outputText`, `expectedOutputText`)
+ * The text accessors (`inputText`, `outputText`, `expectedOutputText`)
  * are always populated by the runtime before the handler is called, so they are
  * guaranteed to be `string` (never `undefined`).
  *
  * Handler function signatures (`CodeGraderHandler`, `AssertionHandler`) use this
  * type so that user code can destructure `{ outputText }` without null-checks.
  */
-export type EnrichedCodeGraderInput = Omit<
-  CodeGraderInput,
-  'inputText' | 'outputText' | 'expectedOutputText'
-> & {
-  /** First user message content as string. Replaces `question`. */
-  readonly inputText: string;
-  /** Last assistant message content as string. Replaces `answer`. */
-  readonly outputText: string;
-  /** Expected output content as string. Replaces `referenceAnswer`. */
+export type EnrichedCodeGraderInput = Omit<CodeGraderInput, 'expectedOutputText'> & {
+  /** Expected output content as string. */
   readonly expectedOutputText: string;
 };
 export type TraceSummary = z.infer<typeof TraceSummarySchema>;

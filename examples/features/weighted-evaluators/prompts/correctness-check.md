@@ -10,9 +10,9 @@ Assess the correctness of the candidate response, checking for:
 - Technical correctness
 
 ## Input
-- Question: {{ question }}
-- Reference Answer: {{ reference_answer }}
-- Answer: {{ answer }}
+- Question: {{ input_text }}
+- Reference Answer: {{ expected_output_text }}
+- Answer: {{ output_text }}
 
 ## Output Format
 Return a JSON object with:

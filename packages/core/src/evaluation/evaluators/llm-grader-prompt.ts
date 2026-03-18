@@ -71,12 +71,8 @@ function assembleFreeform(
     [TEMPLATE_VARIABLES.INPUT]: JSON.stringify(evalCase.input_segments, null, 2),
     [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: JSON.stringify(evalCase.expected_output, null, 2),
     [TEMPLATE_VARIABLES.OUTPUT]: JSON.stringify([], null, 2),
-    [TEMPLATE_VARIABLES.ANSWER]: candidate.trim(),
-    [TEMPLATE_VARIABLES.REFERENCE_ANSWER]: (evalCase.reference_answer ?? '').trim(),
     [TEMPLATE_VARIABLES.CRITERIA]: evalCase.criteria.trim(),
-    [TEMPLATE_VARIABLES.QUESTION]: formattedQuestion.trim(),
     [TEMPLATE_VARIABLES.FILE_CHANGES]: fileChanges ?? '',
-    // Text convenience accessors (new names, always strings)
     [TEMPLATE_VARIABLES.INPUT_TEXT]: formattedQuestion.trim(),
     [TEMPLATE_VARIABLES.OUTPUT_TEXT]: candidate.trim(),
     [TEMPLATE_VARIABLES.EXPECTED_OUTPUT_TEXT]: (evalCase.reference_answer ?? '').trim(),

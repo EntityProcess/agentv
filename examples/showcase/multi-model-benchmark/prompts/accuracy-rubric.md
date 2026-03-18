@@ -8,9 +8,9 @@ Assess whether the candidate response is factually correct and aligns with the r
 
 ## Input
 
-- Question: {{ question }}
-- Reference Answer: {{ reference_answer }}
-- Answer: {{ answer }}
+- Question: {{ input_text }}
+- Reference Answer: {{ expected_output_text }}
+- Answer: {{ output_text }}
 
 ## Scoring
 

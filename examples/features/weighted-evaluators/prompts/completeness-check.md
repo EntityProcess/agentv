@@ -10,9 +10,9 @@ Assess the completeness of the candidate response:
 - Provides sufficient context
 
 ## Input
-- Question: {{ question }}
-- Reference Answer: {{ reference_answer }}
-- Answer: {{ answer }}
+- Question: {{ input_text }}
+- Reference Answer: {{ expected_output_text }}
+- Answer: {{ output_text }}
 
 ## Output Format
 Return a JSON object with:

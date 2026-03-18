@@ -47,10 +47,10 @@ describe('LlmGraderEvaluator Variable Substitution', () => {
   it('substitutes template variables in custom prompt', async () => {
     const formattedQuestion = '@[User]: What is the status?\n\n@[Assistant]: Requesting more info.';
     const customPrompt = `
-Question: {{question}}
+Question: {{input_text}}
 Outcome: {{criteria}}
-Reference: {{reference_answer}}
-Candidate: {{answer}}
+Reference: {{expected_output_text}}
+Candidate: {{output_text}}
 Input Messages: {{input}}
 Expected Messages: {{expected_output}}
 File Changes: {{file_changes}}
@@ -145,10 +145,10 @@ File Changes: {{file_changes}}
   it('substitutes template variables with whitespace inside braces', async () => {
     const formattedQuestion = 'What is the status?';
     const customPrompt = `
-Question: {{ question }}
+Question: {{ input_text }}
 Outcome: {{ criteria }}
-Reference: {{ reference_answer }}
-Candidate: {{ answer }}
+Reference: {{ expected_output_text }}
+Candidate: {{ output_text }}
 Input Messages: {{ input }}
 Expected Messages: {{ expected_output }}
 `;

@@ -980,9 +980,9 @@ describe('runEvalCase trace integration', () => {
         `import { readFileSync } from 'fs';
 const stdin = readFileSync(0, 'utf8');
 const input = JSON.parse(stdin);
-console.log(\`Question: \${input.question}
+console.log(\`Question: \${input.input_text}
 Answer: \${input.output_text}
-Reference: \${input.reference_answer ?? 'none'}\`);
+Reference: \${input.expected_output_text ?? 'none'}\`);
 `,
       );
 
@@ -1045,7 +1045,7 @@ Reference: \${input.reference_answer ?? 'none'}\`);
         `const fs = require('fs');
 const stdin = fs.readFileSync(0, 'utf8');
 const input = JSON.parse(stdin);
-console.log('Question: ' + input.question + '\\nAnswer: ' + input.output_text);
+console.log('Question: ' + input.input_text + '\\nAnswer: ' + input.output_text);
 `,
       );
 

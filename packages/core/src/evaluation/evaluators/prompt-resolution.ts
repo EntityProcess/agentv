@@ -73,10 +73,8 @@ async function executePromptTemplate(
   timeoutMs?: number,
 ): Promise<string> {
   const payload = {
-    question: context.evalCase.question,
     criteria: context.evalCase.criteria,
     expectedOutput: context.evalCase.expected_output,
-    referenceAnswer: context.evalCase.reference_answer,
     outputText: context.candidate,
     output: context.output ?? null,
     guidelineFiles: context.evalCase.guideline_paths,
@@ -88,7 +86,6 @@ async function executePromptTemplate(
     fileChanges: context.fileChanges ?? null,
     workspacePath: context.workspacePath ?? null,
     config: config ?? context.config ?? null,
-    // Text convenience accessors (new names, always strings)
     inputText: context.evalCase.question,
     expectedOutputText: context.evalCase.reference_answer ?? '',
   };

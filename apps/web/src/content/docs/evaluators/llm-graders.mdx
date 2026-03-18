@@ -65,17 +65,14 @@ Score the response from 0.0 to 1.0 based on:
 
 | Variable | Source |
 |----------|--------|
-| `input_text` | First user message content (replaces `question`) |
-| `output_text` | Last candidate response content (replaces `answer`) |
-| `expected_output_text` | Last expected message content (replaces `reference_answer`) |
+| `input_text` | First user message content |
+| `output_text` | Last candidate response content |
+| `expected_output_text` | Last expected message content |
 | `criteria` | Test `criteria` field |
 | `input` | Full resolved input array, JSON-serialized |
 | `expected_output` | Full resolved expected array, JSON-serialized |
 | `output` | Full provider output array, JSON-serialized |
 | `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
-| `question` | **Deprecated.** Use `input_text` instead. |
-| `answer` | **Deprecated.** Use `output_text` instead. |
-| `reference_answer` | **Deprecated.** Use `expected_output_text` instead. |
 
 ## Per-Evaluator Grader Target
 
@@ -160,9 +157,6 @@ TypeScript templates receive a context object with these fields:
 | `output` | `Message[]` | Full provider output messages |
 | `trace` | `TraceSummary` | Execution metrics summary |
 | `config` | `object` | Custom config from YAML |
-| `question` | `string` | **Deprecated.** Use `inputText` instead. |
-| `answer` | `string` | **Deprecated.** Use `outputText` instead. |
-| `referenceAnswer` | `string` | **Deprecated.** Use `expectedOutputText` instead. |
 
 ## Template Variable Derivation
 
@@ -198,9 +192,6 @@ Derived strings injected into evaluator prompts:
 | `expected_output` | Full resolved expected array, JSON-serialized |
 | `output` | Full provider output array, JSON-serialized |
 | `file_changes` | Unified diff of workspace file changes (when `workspace_template` is configured) |
-| `question` | **Deprecated.** Same as `input_text`. |
-| `answer` | **Deprecated.** Same as `output_text`. |
-| `reference_answer` | **Deprecated.** Same as `expected_output_text`. |
 
 **Example flow:**
 
