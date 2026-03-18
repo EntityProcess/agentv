@@ -104,9 +104,7 @@ export async function runCodeGrader(handler: CodeGraderHandler): Promise<void> {
     const errorMessage = formatError(error);
     const errorResult: CodeGraderResult = {
       score: 0,
-      hits: [],
-      misses: [errorMessage],
-      reasoning: `Evaluation failed: ${errorMessage}`,
+      assertions: [{ text: `Evaluation failed: ${errorMessage}`, passed: false }],
     };
     console.log(JSON.stringify(errorResult, null, 2));
     process.exit(1);

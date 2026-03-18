@@ -111,7 +111,7 @@ export class TargetInvocationError extends Error {
  *
  *   if (!target) {
  *     // Target not available - no target config on this evaluator
- *     return { score: 0.5, reasoning: 'Target not available' };
+ *     return { score: 0.5, assertions: [{ text: 'Target not available', passed: false }] };
  *   }
  *
  *   const response = await target.invoke({

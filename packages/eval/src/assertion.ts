@@ -209,9 +209,7 @@ export async function runAssertion(handler: AssertionHandler): Promise<void> {
     const errorMessage = formatError(error);
     const errorResult: CodeGraderResult = {
       score: 0,
-      hits: [],
-      misses: [errorMessage],
-      reasoning: `Assertion failed: ${errorMessage}`,
+      assertions: [{ text: `Assertion failed: ${errorMessage}`, passed: false }],
     };
     console.log(JSON.stringify(errorResult, null, 2));
     process.exit(1);
