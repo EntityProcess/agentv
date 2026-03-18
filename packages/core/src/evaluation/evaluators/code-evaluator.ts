@@ -9,7 +9,7 @@ import {
   createTargetProxy,
 } from '../../runtime/target-proxy.js';
 import { toSnakeCaseDeep } from '../case-conversion.js';
-import type { JsonObject, TargetAccessConfig } from '../types.js';
+import type { AssertionEntry, JsonObject, TargetAccessConfig } from '../types.js';
 import { clampScore, isNonEmptyString, parseJsonSafe, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
@@ -130,9 +130,16 @@ export class CodeEvaluator implements Evaluator {
       );
       const parsed = parseJsonSafe(stdout);
       const score = clampScore(typeof parsed?.score === 'number' ? parsed.score : 0);
-      const hits = Array.isArray(parsed?.hits) ? parsed.hits.filter(isNonEmptyString) : [];
-      const misses = Array.isArray(parsed?.misses) ? parsed.misses.filter(isNonEmptyString) : [];
-      const reasoning = typeof parsed?.reasoning === 'string' ? parsed.reasoning : undefined;
+      const assertions: AssertionEntry[] = Array.isArray(parsed?.assertions)
+        ? parsed.assertions
+            .filter((a: unknown): a is { text: string; passed: boolean; evidence?: string } =>
+              typeof a === 'object' && a !== null && typeof (a as any).text === 'string')
+            .map((a: any) => ({
+              text: String(a.text),
+              passed: Boolean(a.passed),
+              ...(typeof a.evidence === 'string' ? { evidence: a.evidence } : {}),
+            }))
+        : [];
       // Capture optional structured details from code judge output
       const details =
         parsed?.details && typeof parsed.details === 'object' && !Array.isArray(parsed.details)
@@ -157,10 +164,8 @@ export class CodeEvaluator implements Evaluator {
       return {
         score,
         verdict: scoreToVerdict(score),
-        hits,
-        misses,
-        expectedAspectCount: hits.length + misses.length || 1,
-        reasoning,
+        assertions,
+        expectedAspectCount: assertions.length || 1,
         evaluatorRawRequest,
         ...(details ? { details } : {}),
         tokenUsage: proxyUsage?.tokenUsage,
@@ -171,10 +176,8 @@ export class CodeEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: [`Code evaluator failed: ${message}`],
+        assertions: [{ text: `Code evaluator failed: ${message}`, passed: false }],
         expectedAspectCount: 1,
-        reasoning: message,
         evaluatorRawRequest: {
           command: this.command,
           ...(this.cwd ? { cwd: this.cwd } : {}),
