@@ -677,7 +677,16 @@ async function runSingleEvalFile(params: {
   return { results: [...results] };
 }
 
-export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> {
+export interface RunEvalResult {
+  readonly executionErrorCount: number;
+  readonly outputPath: string;
+  readonly testFiles: readonly string[];
+  readonly target?: string;
+}
+
+export async function runEvalCommand(
+  input: RunEvalCommandInput,
+): Promise<RunEvalResult | undefined> {
   const cwd = process.cwd();
 
   // Load agentv.config.ts (if present) for default values
@@ -1122,6 +1131,24 @@ export async function runEvalCommand(input: RunEvalCommandInput): Promise<void> 
         }
       }
     }
+
+    // Suggest retry-errors command when execution errors are detected
+    if (summary.executionErrorCount > 0 && !options.retryErrors) {
+      const evalFileArgs = resolvedTestFiles.map((f) => path.relative(cwd, f)).join(' ');
+      const targetFlag = options.target ? ` --target ${options.target}` : '';
+      const relativeOutputPath = path.relative(cwd, outputPath);
+      console.log(
+        `\nTip: ${summary.executionErrorCount} execution error(s) detected. Re-run failed tests with:\n` +
+          `  agentv eval run ${evalFileArgs}${targetFlag} --retry-errors ${relativeOutputPath} -o ${relativeOutputPath}`,
+      );
+    }
+
+    return {
+      executionErrorCount: summary.executionErrorCount,
+      outputPath,
+      testFiles: resolvedTestFiles,
+      target: options.target,
+    };
   } finally {
     unsubscribeCodexLogs();
     unsubscribePiLogs();

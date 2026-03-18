@@ -333,8 +333,55 @@ async function executeConfig(config: InteractiveConfig): Promise<void> {
     trace: false,
   };
 
-  await runEvalCommand({
+  const result = await runEvalCommand({
     testFiles: [...config.evalPaths],
     rawOptions,
   });
+
+  // Prompt to retry errors when execution errors were detected in a TTY
+  if (result && result.executionErrorCount > 0 && process.stdin.isTTY) {
+    await promptRetryErrors(config, result.outputPath);
+  }
+}
+
+async function promptRetryErrors(config: InteractiveConfig, outputPath: string): Promise<void> {
+  const shouldRetry = await confirm({
+    message: `Retry ${ANSI_BOLD}execution errors${ANSI_RESET} from this run?`,
+    default: true,
+  });
+
+  if (!shouldRetry) {
+    return;
+  }
+
+  console.log(`\n${ANSI_DIM}Retrying execution errors...${ANSI_RESET}\n`);
+
+  const rawOptions: Record<string, unknown> = {
+    target: config.target,
+    workers: config.workers,
+    dryRun: config.dryRun,
+    cache: config.cache,
+    outputFormat: 'jsonl',
+    retryErrors: outputPath,
+    out: outputPath,
+    dryRunDelay: 0,
+    dryRunDelayMin: 0,
+    dryRunDelayMax: 0,
+    agentTimeout: 120,
+    maxRetries: 2,
+    verbose: false,
+    keepWorkspaces: false,
+    cleanupWorkspaces: false,
+    trace: false,
+  };
+
+  const retryResult = await runEvalCommand({
+    testFiles: [...config.evalPaths],
+    rawOptions,
+  });
+
+  // Allow chained retries if there are still errors
+  if (retryResult && retryResult.executionErrorCount > 0 && process.stdin.isTTY) {
+    await promptRetryErrors(config, retryResult.outputPath);
+  }
 }
