@@ -193,11 +193,11 @@ function formatResultDetail(result: RawResult, index: number, tree: boolean): st
     lines.push(`  ${c.red}Error: ${result.error}${c.reset}`);
   }
 
-  if (result.hits && result.hits.length > 0) {
-    lines.push(`  ${c.green}✓ Hits:${c.reset} ${result.hits.join(', ')}`);
-  }
-  if (result.misses && result.misses.length > 0) {
-    lines.push(`  ${c.red}✗ Misses:${c.reset} ${result.misses.join(', ')}`);
+  if (result.assertions && result.assertions.length > 0) {
+    const passed = result.assertions.filter((a: { passed: boolean }) => a.passed);
+    const failed = result.assertions.filter((a: { passed: boolean }) => !a.passed);
+    if (passed.length > 0) lines.push(`  ${c.green}✓ Passed:${c.reset} ${passed.map((a: { text: string }) => a.text).join(', ')}`);
+    if (failed.length > 0) lines.push(`  ${c.red}✗ Failed:${c.reset} ${failed.map((a: { text: string }) => a.text).join(', ')}`);
   }
 
   if (result.scores && result.scores.length > 0) {
@@ -208,13 +208,14 @@ function formatResultDetail(result: RawResult, index: number, tree: boolean): st
     lines.push(`  ${c.dim}Trace:${c.reset} ${renderFlatTrace(result)}`);
   }
 
-  if (result.reasoning) {
-    const maxLen = 200;
-    const truncated =
-      result.reasoning.length > maxLen
-        ? `${result.reasoning.slice(0, maxLen)}...`
-        : result.reasoning;
-    lines.push(`  ${c.dim}Reasoning: ${truncated}${c.reset}`);
+  if (result.assertions && result.assertions.length > 0) {
+    const withEvidence = result.assertions.filter((a: { evidence?: string }) => a.evidence);
+    if (withEvidence.length > 0) {
+      const maxLen = 200;
+      const evidence = (withEvidence[0] as { evidence: string }).evidence;
+      const truncated = evidence.length > maxLen ? `${evidence.slice(0, maxLen)}...` : evidence;
+      lines.push(`  ${c.dim}Evidence: ${truncated}${c.reset}`);
+    }
   }
 
   return lines.join('\n');

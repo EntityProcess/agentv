@@ -49,7 +49,7 @@ function trimEvaluatorResult(result: EvaluatorResult): EvaluatorResult {
 /**
  * Trims an EvaluationResult for baseline storage.
  * Strips large debug/audit fields (denylist approach) while preserving
- * all fields needed for regression comparison (scores, hits, misses, etc.).
+ * all fields needed for regression comparison (scores, assertions, etc.).
  *
  * Returns a new object — the input is not mutated.
  */
