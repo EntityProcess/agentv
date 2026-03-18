@@ -1,3 +1,4 @@
+import { extractPiTextContent, toFiniteNumber } from './pi-utils.js';
 import type { PiAgentSdkResolvedConfig } from './targets.js';
 import type {
   Message,
@@ -123,21 +124,36 @@ export class PiAgentSdkProvider implements Provider {
     const unsubscribe = agent.subscribe((event) => {
       switch (event.type) {
         case 'message_end': {
-          // Extract token usage and cost from AssistantMessage
+          // Extract token usage and cost from AssistantMessage.usage
           const msg = event.message;
-          if (msg && typeof msg === 'object' && 'usage' in msg) {
+          if (
+            msg &&
+            typeof msg === 'object' &&
+            'role' in msg &&
+            msg.role === 'assistant' &&
+            'usage' in msg
+          ) {
             const usage = (msg as unknown as Record<string, unknown>).usage;
             if (usage && typeof usage === 'object') {
               const u = usage as Record<string, unknown>;
-              const input = toNumber(u.input);
-              const output = toNumber(u.output);
+              const input = toFiniteNumber(u.input);
+              const output = toFiniteNumber(u.output);
+              const cached = toFiniteNumber(u.cacheRead);
+
+              // Build per-call delta for streamCallbacks (OTel expects per-call, not cumulative)
+              let callDelta: ProviderTokenUsage | undefined;
               if (input !== undefined || output !== undefined) {
-                // Accumulate across multiple LLM calls (multi-turn)
+                callDelta = {
+                  input: input ?? 0,
+                  output: output ?? 0,
+                  ...(cached !== undefined ? { cached } : {}),
+                };
+                // Accumulate into running total
                 tokenUsage = {
-                  input: (tokenUsage?.input ?? 0) + (input ?? 0),
-                  output: (tokenUsage?.output ?? 0) + (output ?? 0),
-                  ...(toNumber(u.cacheRead) !== undefined
-                    ? { cached: (tokenUsage?.cached ?? 0) + (toNumber(u.cacheRead) ?? 0) }
+                  input: (tokenUsage?.input ?? 0) + callDelta.input,
+                  output: (tokenUsage?.output ?? 0) + callDelta.output,
+                  ...(cached !== undefined
+                    ? { cached: (tokenUsage?.cached ?? 0) + cached }
                     : tokenUsage?.cached !== undefined
                       ? { cached: tokenUsage.cached }
                       : {}),
@@ -147,19 +163,14 @@ export class PiAgentSdkProvider implements Provider {
               // Extract cost from usage.cost object
               const cost = (u as Record<string, unknown>).cost;
               if (cost && typeof cost === 'object') {
-                const total = toNumber((cost as Record<string, unknown>).total);
+                const total = toFiniteNumber((cost as Record<string, unknown>).total);
                 if (total !== undefined) {
                   costUsd = (costUsd ?? 0) + total;
                 }
               }
-            }
-          }
 
-          // Emit streamCallbacks for OTel
-          if (request.streamCallbacks && msg && typeof msg === 'object' && 'role' in msg) {
-            const role = (msg as unknown as Record<string, unknown>).role;
-            if (role === 'assistant') {
-              request.streamCallbacks.onLlmCallEnd?.(modelId, tokenUsage);
+              // Emit per-call delta (not cumulative total) for OTel spans
+              request.streamCallbacks?.onLlmCallEnd?.(modelId, callDelta);
             }
           }
           break;
@@ -246,38 +257,12 @@ export class PiAgentSdkProvider implements Provider {
 }
 
 /**
- * Extract text content from pi-agent message content format.
- */
-function extractTextContent(content: unknown): string | undefined {
-  if (typeof content === 'string') {
-    return content;
-  }
-
-  if (!Array.isArray(content)) {
-    return undefined;
-  }
-
-  const textParts: string[] = [];
-  for (const part of content) {
-    if (!part || typeof part !== 'object') {
-      continue;
-    }
-    const p = part as Record<string, unknown>;
-    if (p.type === 'text' && typeof p.text === 'string') {
-      textParts.push(p.text);
-    }
-  }
-
-  return textParts.length > 0 ? textParts.join('\n') : undefined;
-}
-
-/**
  * Convert pi-agent message to AgentV Message format.
  * Enriches with token usage, metadata, and tool call timing from event trackers.
  */
 function convertAgentMessage(
   message: unknown,
-  _toolTrackers: Map<string, ToolExecTracker>,
+  toolTrackers: Map<string, ToolExecTracker>,
   completedToolResults: Map<string, { output: unknown; durationMs: number }>,
 ): Message {
   if (!message || typeof message !== 'object') {
@@ -286,8 +271,8 @@ function convertAgentMessage(
 
   const msg = message as Record<string, unknown>;
   const role = typeof msg.role === 'string' ? msg.role : 'unknown';
-  const content = extractTextContent(msg.content);
-  const toolCalls = extractToolCalls(msg.content, completedToolResults);
+  const content = extractPiTextContent(msg.content);
+  const toolCalls = extractToolCalls(msg.content, toolTrackers, completedToolResults);
   const startTime =
     typeof msg.timestamp === 'number'
       ? new Date(msg.timestamp).toISOString()
@@ -299,13 +284,15 @@ function convertAgentMessage(
   let msgTokenUsage: ProviderTokenUsage | undefined;
   if (msg.usage && typeof msg.usage === 'object') {
     const u = msg.usage as Record<string, unknown>;
-    const input = toNumber(u.input);
-    const output = toNumber(u.output);
+    const input = toFiniteNumber(u.input);
+    const output = toFiniteNumber(u.output);
     if (input !== undefined || output !== undefined) {
       msgTokenUsage = {
         input: input ?? 0,
         output: output ?? 0,
-        ...(toNumber(u.cacheRead) !== undefined ? { cached: toNumber(u.cacheRead) } : {}),
+        ...(toFiniteNumber(u.cacheRead) !== undefined
+          ? { cached: toFiniteNumber(u.cacheRead) }
+          : {}),
       };
     }
   }
@@ -333,6 +320,7 @@ function convertAgentMessage(
  */
 function extractToolCalls(
   content: unknown,
+  toolTrackers: Map<string, ToolExecTracker>,
   completedToolResults: Map<string, { output: unknown; durationMs: number }>,
 ): readonly ToolCall[] {
   if (!Array.isArray(content)) {
@@ -347,6 +335,7 @@ function extractToolCalls(
     const p = part as Record<string, unknown>;
     if (p.type === 'toolCall' && typeof p.name === 'string') {
       const id = typeof p.id === 'string' ? p.id : undefined;
+      const tracker = id ? toolTrackers.get(id) : undefined;
       const completed = id ? completedToolResults.get(id) : undefined;
       toolCalls.push({
         tool: p.name,
@@ -354,14 +343,14 @@ function extractToolCalls(
         id,
         output: completed?.output,
         durationMs: completed?.durationMs,
+        startTime: tracker?.startTime,
+        endTime:
+          tracker?.startTime && completed?.durationMs !== undefined
+            ? new Date(new Date(tracker.startTime).getTime() + completed.durationMs).toISOString()
+            : undefined,
       });
     }
   }
 
   return toolCalls;
-}
-
-function toNumber(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  return undefined;
 }
