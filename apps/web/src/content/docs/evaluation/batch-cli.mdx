@@ -147,7 +147,7 @@ Each test has its own evaluator that validates the batch runner output. The eval
 **Input (stdin):**
 ```json
 {
-  "answer": "{\"id\":\"case-001\",\"decision\":\"CLEAR\",...}",
+  "output_text": "{\"id\":\"case-001\",\"decision\":\"CLEAR\",...}",
   "expected_output": [{"role": "assistant", "content": {"decision": "CLEAR"}}],
   "input": [...]
 }
@@ -170,7 +170,7 @@ Each test has its own evaluator that validates the batch runner output. The eval
 import fs from 'node:fs';
 
 type EvalInput = {
-  answer?: string;
+  output_text?: string;
   expected_output?: Array<{ role: string; content: unknown }>;
 };
 
@@ -182,7 +182,7 @@ function main() {
 
   let candidateDecision: string | undefined;
   try {
-    const parsed = JSON.parse(input.answer ?? '');
+    const parsed = JSON.parse(input.output_text ?? '');
     candidateDecision = parsed.decision;
   } catch {
     candidateDecision = undefined;
