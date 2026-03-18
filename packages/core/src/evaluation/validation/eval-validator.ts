@@ -279,7 +279,12 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       validateAssertArray(assertField, location, absolutePath, errors);
     }
 
-    await validateWorkspaceConfig(evalCase.workspace, absolutePath, errors, `${location}.workspace`);
+    await validateWorkspaceConfig(
+      evalCase.workspace,
+      absolutePath,
+      errors,
+      `${location}.workspace`,
+    );
   }
 
   await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');

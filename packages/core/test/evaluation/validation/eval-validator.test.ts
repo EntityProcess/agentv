@@ -686,7 +686,9 @@ tests:
 
       const warnings = result.errors.filter((e) => e.severity === 'warning');
       expect(
-        warnings.some((e) => e.message.includes('checkout.resolve') && e.message.includes('local source')),
+        warnings.some(
+          (e) => e.message.includes('checkout.resolve') && e.message.includes('local source'),
+        ),
       ).toBe(true);
     });
 
@@ -714,7 +716,9 @@ tests:
 
       const warnings = result.errors.filter((e) => e.severity === 'warning');
       expect(
-        warnings.some((e) => e.message.includes('checkout.resolve') && e.message.includes('local source')),
+        warnings.some(
+          (e) => e.message.includes('checkout.resolve') && e.message.includes('local source'),
+        ),
       ).toBe(true);
     });
 
@@ -723,7 +727,10 @@ tests:
       process.env.REPO_SOURCE_TYPE = 'local';
 
       try {
-        const filePath = path.join(tempDir, 'workspace-local-resolve-inline-interpolated-warning.yaml');
+        const filePath = path.join(
+          tempDir,
+          'workspace-local-resolve-inline-interpolated-warning.yaml',
+        );
         await writeFile(
           filePath,
           `workspace:
@@ -746,7 +753,9 @@ tests:
 
         const warnings = result.errors.filter((e) => e.severity === 'warning');
         expect(
-          warnings.some((e) => e.message.includes('checkout.resolve') && e.message.includes('local source')),
+          warnings.some(
+            (e) => e.message.includes('checkout.resolve') && e.message.includes('local source'),
+          ),
         ).toBe(true);
       } finally {
         if (originalSourceType === undefined) {
@@ -815,7 +824,10 @@ tests:
 `,
         );
 
-        const filePath = path.join(tempDir, 'workspace-local-resolve-external-interpolated-warning.yaml');
+        const filePath = path.join(
+          tempDir,
+          'workspace-local-resolve-external-interpolated-warning.yaml',
+        );
         await writeFile(
           filePath,
           `workspace: ./external-workspace-interpolated.yaml
@@ -863,7 +875,8 @@ tests:
       expect(result.valid).toBe(false);
       expect(
         result.errors.some(
-          (e) => e.severity === 'error' && e.message.includes('Failed to load external workspace file'),
+          (e) =>
+            e.severity === 'error' && e.message.includes('Failed to load external workspace file'),
         ),
       ).toBe(true);
     });
@@ -898,7 +911,9 @@ tests: ./cases.yaml
 
       const warnings = result.errors.filter((e) => e.severity === 'warning');
       expect(
-        warnings.some((e) => e.message.includes('checkout.resolve') && e.message.includes('local source')),
+        warnings.some(
+          (e) => e.message.includes('checkout.resolve') && e.message.includes('local source'),
+        ),
       ).toBe(true);
     });
 
@@ -921,7 +936,10 @@ tests: ./cases.yaml
 `,
       );
 
-      const filePath = path.join(tempDir, 'workspace-local-resolve-external-tests-per-test-warning.yaml');
+      const filePath = path.join(
+        tempDir,
+        'workspace-local-resolve-external-tests-per-test-warning.yaml',
+      );
       await writeFile(
         filePath,
         `tests: ./cases-with-workspace.yaml
@@ -932,7 +950,9 @@ tests: ./cases.yaml
 
       const warnings = result.errors.filter((e) => e.severity === 'warning');
       expect(
-        warnings.some((e) => e.message.includes('checkout.resolve') && e.message.includes('local source')),
+        warnings.some(
+          (e) => e.message.includes('checkout.resolve') && e.message.includes('local source'),
+        ),
       ).toBe(true);
     });
   });
