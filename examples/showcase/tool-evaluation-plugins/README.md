@@ -105,8 +105,10 @@ Code graders must output JSON with:
 ```json
 {
   "score": 0.85,
-  "hits": ["Used appropriate search tool", "Validated input before fetch"],
-  "misses": ["Redundant search call"],
-  "reasoning": "Agent demonstrated good tool selection with minor inefficiency"
+  "assertions": [
+    { "text": "Used appropriate search tool", "passed": true },
+    { "text": "Validated input before fetch", "passed": true },
+    { "text": "Redundant search call", "passed": false }
+  ]
 }
 ```

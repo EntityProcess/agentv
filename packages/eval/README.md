@@ -32,7 +32,7 @@ import { defineCodeGrader } from '@agentv/eval';
 
 export default defineCodeGrader(({ answer, trace }) => ({
   score: answer.length > 0 ? 1.0 : 0.0,
-  hits: ['Output received'],
+  assertions: [{ text: 'Output received', passed: answer.length > 0 }],
 }));
 ```
 

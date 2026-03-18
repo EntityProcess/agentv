@@ -18,19 +18,18 @@ def main() -> int:
     config = payload.get("config", {}) or {}
     file_changes = payload.get("file_changes") or ""
 
-    hits = []
-    misses = []
+    assertions = []
 
     if not file_changes:
-        misses.append("file_changes is empty or missing")
-        print(json.dumps({"score": 0, "hits": hits, "misses": misses, "reasoning": "No file changes captured"}))
+        assertions.append({"text": "file_changes is empty or missing", "passed": False})
+        print(json.dumps({"score": 0, "assertions": assertions}))
         return 0
 
     # Check unified diff format
     if "diff --git" in file_changes:
-        hits.append("file_changes contains unified diff format")
+        assertions.append({"text": "file_changes contains unified diff format", "passed": True})
     else:
-        misses.append("file_changes does not contain unified diff markers")
+        assertions.append({"text": "file_changes does not contain unified diff markers", "passed": False})
 
     # Split into individual diff blocks
     diff_blocks = re.split(r"(?=^diff --git )", file_changes, flags=re.MULTILINE)
@@ -43,9 +42,9 @@ def main() -> int:
             for block in diff_blocks
         )
         if found:
-            hits.append(f"edit detected: {path}")
+            assertions.append({"text": f"edit detected: {path}", "passed": True})
         else:
-            misses.append(f"edit NOT detected: {path}")
+            assertions.append({"text": f"edit NOT detected: {path}", "passed": False})
 
     for path in config.get("expect_created", []):
         found = any(
@@ -53,9 +52,9 @@ def main() -> int:
             for block in diff_blocks
         )
         if found:
-            hits.append(f"create detected: {path}")
+            assertions.append({"text": f"create detected: {path}", "passed": True})
         else:
-            misses.append(f"create NOT detected: {path}")
+            assertions.append({"text": f"create NOT detected: {path}", "passed": False})
 
     for path in config.get("expect_deleted", []):
         found = any(
@@ -63,18 +62,17 @@ def main() -> int:
             for block in diff_blocks
         )
         if found:
-            hits.append(f"delete detected: {path}")
+            assertions.append({"text": f"delete detected: {path}", "passed": True})
         else:
-            misses.append(f"delete NOT detected: {path}")
+            assertions.append({"text": f"delete NOT detected: {path}", "passed": False})
 
-    total = len(hits) + len(misses)
-    score = len(hits) / total if total > 0 else 0
+    passed = sum(1 for a in assertions if a["passed"])
+    total = len(assertions)
+    score = passed / total if total > 0 else 0
 
     result = {
         "score": score,
-        "hits": hits,
-        "misses": misses,
-        "reasoning": f"{len(hits)}/{total} checks passed",
+        "assertions": assertions,
     }
     print(json.dumps(result))
     return 0

@@ -49,9 +49,10 @@ Each grader returns:
 ```json
 {
   "score": 0.667,
-  "hits": ["Expected tool 'search' was called"],
-  "misses": ["Expected tool 'fetch' was NOT called"],
-  "reasoning": "precision=1.000 recall=0.500 F1=0.667 | expected=2 actual=1 TP=1 FP=0 FN=1",
+  "assertions": [
+    { "text": "Expected tool 'search' was called", "passed": true },
+    { "text": "Expected tool 'fetch' was NOT called", "passed": false }
+  ],
   "details": { "precision": 1, "recall": 0.5, "f1": 0.667, "tp": 1, "fp": 0, "fn": 1 }
 }
 ```

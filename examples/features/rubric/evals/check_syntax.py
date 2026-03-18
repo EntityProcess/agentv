@@ -24,9 +24,7 @@ def main():
         if not candidate_answer.strip():
              result = {
                 "score": 0.0,
-                "hits": [],
-                "misses": ["No code found to evaluate"],
-                "reasoning": "Candidate answer did not contain any code blocks"
+                "assertions": [{"text": "No code found to evaluate", "passed": False}],
             }
              print(json.dumps(result))
              return
@@ -43,25 +41,19 @@ def main():
             # Success
             result = {
                 "score": 1.0,
-                "hits": ["Python syntax is valid"],
-                "misses": [],
-                "reasoning": "Code compiled successfully"
+                "assertions": [{"text": "Python syntax is valid", "passed": True}],
             }
         except py_compile.PyCompileError as e:
             # Syntax error
             # The string representation of PyCompileError usually contains the details
             result = {
                 "score": 0.0,
-                "hits": [],
-                "misses": [str(e).replace(tmp_path, "script.py")],
-                "reasoning": "Syntax error found"
+                "assertions": [{"text": str(e).replace(tmp_path, "script.py"), "passed": False}],
             }
         except Exception as e:
              result = {
                 "score": 0.0,
-                "hits": [],
-                "misses": [f"Compilation error: {str(e)}"],
-                "reasoning": "Compilation failed"
+                "assertions": [{"text": f"Compilation error: {str(e)}", "passed": False}],
             }
         finally:
             # Cleanup
@@ -75,9 +67,7 @@ def main():
         # System error
         result = {
             "score": 0.0,
-            "hits": [],
-            "misses": [f"Evaluator error: {str(e)}"],
-            "reasoning": "Internal error"
+            "assertions": [{"text": f"Evaluator error: {str(e)}", "passed": False}],
         }
         print(json.dumps(result))
 

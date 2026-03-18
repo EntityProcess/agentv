@@ -62,7 +62,6 @@ import { defineCodeGrader } from '@agentv/eval';
 
 export default defineCodeGrader(({ answer, criteria }) => ({
   score: answer.includes(criteria) ? 1.0 : 0.0,
-  hits: ['Check passed'],
-  misses: [],
+  assertions: [{ text: 'Check passed', passed: answer.includes(criteria) }],
 }));
 ```
