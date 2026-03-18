@@ -86,8 +86,7 @@ All code graders receive a JSON object on stdin with:
   ],
   "trace": {
     "event_count": 5,
-    "tool_names": ["fetch", "search"],
-    "tool_calls_by_name": { "search": 2, "fetch": 1 },
+    "tool_calls": { "search": 2, "fetch": 1 },
     "error_count": 0,
     "token_usage": { "input": 1000, "output": 500 },
     "cost_usd": 0.0015,

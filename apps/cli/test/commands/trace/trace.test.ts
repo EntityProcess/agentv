@@ -22,8 +22,7 @@ const RESULT_WITH_TRACE = JSON.stringify({
   target: 'default',
   trace: {
     event_count: 5,
-    tool_names: ['read', 'write'],
-    tool_calls_by_name: { read: 3, write: 2 },
+    tool_calls: { read: 3, write: 2 },
     error_count: 0,
     llm_call_count: 2,
   },

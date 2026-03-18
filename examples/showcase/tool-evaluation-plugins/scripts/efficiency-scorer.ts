@@ -63,7 +63,7 @@ function estimateTaskComplexity(criteria: string): 'simple' | 'complex' {
 }
 
 function calculateExplorationRatio(trace: TraceSummary): number {
-  const toolCalls = trace.toolCallsByName;
+  const toolCalls = trace.toolCalls;
   const total = Object.values(toolCalls).reduce((sum, count) => sum + count, 0);
   if (total === 0) return 0;
 

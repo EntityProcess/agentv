@@ -17,8 +17,7 @@ Code graders receive `trace` with these fields:
 ```typescript
 interface TraceSummary {
   eventCount: number;                        // Total tool call events
-  toolNames: string[];                       // Unique tool names used
-  toolCallsByName: Record<string, number>;   // Call count per tool
+  toolCalls: Record<string, number>;         // Call count per tool (keys are tool names)
   errorCount: number;                        // Number of errors
   tokenUsage?: { input: number; output: number; cached?: number };
   costUsd?: number;                          // Total cost in USD
