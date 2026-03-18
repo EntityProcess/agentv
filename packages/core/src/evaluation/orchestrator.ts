@@ -10,7 +10,6 @@ import {
   type EvaluationScore,
   type Evaluator,
   LlmGraderEvaluator,
-  isNonEmptyString,
   negateScore,
   scoreToVerdict,
 } from './evaluators.js';
@@ -37,6 +36,7 @@ import {
 } from './trace.js';
 import { aggregateTrials } from './trials.js';
 import type {
+  AssertionEntry,
   EvalTest,
   EvaluationResult,
   EvaluationVerdict,
@@ -797,8 +797,7 @@ export async function runEvaluation(
             testId: evalCase.id,
             dataset: evalCase.dataset,
             score: 0,
-            hits: [],
-            misses: [],
+            assertions: [],
             answer: '',
             target: target.name,
             error: `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${totalBudgetUsd.toFixed(4)})`,
@@ -837,8 +836,7 @@ export async function runEvaluation(
             testId: evalCase.id,
             dataset: evalCase.dataset,
             score: 0,
-            hits: [],
-            misses: [],
+            assertions: [],
             answer: '',
             target: target.name,
             error: errorMsg,
@@ -1890,7 +1888,7 @@ async function runEvalCaseWithTrials(
   // Aggregate trial results
   const { score, aggregation } = aggregateTrials(trialResults, trialsConfig);
 
-  // Use the best-scoring trial's EvaluationResult for metadata (hits, misses, reasoning,
+  // Use the best-scoring trial's EvaluationResult for metadata (assertions,
   // answer) so that the result's metadata corresponds to the aggregated score.
   const bestTrialIndex = trialResults.reduce(
     (bestIdx, t, idx) => (t.score > trialResults[bestIdx].score ? idx : bestIdx),
@@ -2047,11 +2045,9 @@ async function evaluateCandidate(options: {
     dataset: evalCase.dataset,
     conversationId: evalCase.conversation_id,
     score: score.score,
-    hits: score.hits,
-    misses: score.misses,
+    assertions: score.assertions,
     answer: candidate,
     target: target.name,
-    reasoning: score.reasoning,
     tokenUsage,
     costUsd,
     durationMs,
@@ -2297,9 +2293,7 @@ async function runEvaluatorList(options: {
         score: score.score,
         weight,
         verdict: score.verdict,
-        hits: score.hits,
-        misses: score.misses,
-        reasoning: score.reasoning,
+        assertions: score.assertions,
         evaluatorProviderRequest: score.evaluatorRawRequest,
         details: score.details,
         scores: mapChildResults(score.scores),
@@ -2314,10 +2308,8 @@ async function runEvaluatorList(options: {
       const fallbackScore: EvaluationScore = {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: [`Evaluator '${evaluatorConfig.name}' failed: ${message}`],
+        assertions: [{ text: `Evaluator '${evaluatorConfig.name}' failed: ${message}`, passed: false }],
         expectedAspectCount: 1,
-        reasoning: message,
       };
       const weight = evaluatorConfig.weight ?? 1.0;
       scored.push({
@@ -2333,9 +2325,7 @@ async function runEvaluatorList(options: {
         score: 0,
         weight,
         verdict: 'fail',
-        hits: [],
-        misses: [`Evaluator '${evaluatorConfig.name ?? 'unknown'}' failed: ${message}`],
-        reasoning: message,
+        assertions: [{ text: `Evaluator '${evaluatorConfig.name ?? 'unknown'}' failed: ${message}`, passed: false }],
         durationMs: endedAt.getTime() - startedAt.getTime(),
         startedAt: startedAt.toISOString(),
         endedAt: endedAt.toISOString(),
@@ -2353,9 +2343,7 @@ async function runEvaluatorList(options: {
           ...scores[lastScoresIdx],
           score: negated.score,
           verdict: negated.verdict,
-          hits: [...negated.hits],
-          misses: [...negated.misses],
-          reasoning: negated.reasoning,
+          assertions: [...negated.assertions],
         };
       }
     }
@@ -2378,24 +2366,14 @@ async function runEvaluatorList(options: {
           scorable.map((entry) => ({ score: entry.score.score, weight: entry.weight })),
         )
       : 0;
-  const hits = scored.flatMap((entry) => entry.score.hits);
-  const misses = scored.flatMap((entry) => entry.score.misses);
-  const expectedAspectCount = scored.reduce(
-    (total, entry) => total + (entry.score.expectedAspectCount ?? 0),
-    0,
-  );
-  const reasoningParts = scored
-    .map((entry) => (entry.score.reasoning ? `${entry.name}: ${entry.score.reasoning}` : undefined))
-    .filter(isNonEmptyString);
-  const reasoning = reasoningParts.length > 0 ? reasoningParts.join(' | ') : undefined;
+  const assertions: AssertionEntry[] = scored.flatMap((entry) => entry.score.assertions);
+  const expectedAspectCount = assertions.length || 1;
 
   const score: EvaluationScore = {
     score: aggregateScore,
     verdict: scoreToVerdict(aggregateScore),
-    hits,
-    misses,
+    assertions,
     expectedAspectCount,
-    reasoning,
   };
 
   return { score, scores };
@@ -2550,8 +2528,7 @@ function buildErrorResult(
     dataset: evalCase.dataset,
     conversationId: evalCase.conversation_id,
     score: 0,
-    hits: [],
-    misses: [`Error: ${message}`],
+    assertions: [{ text: `Error: ${message}`, passed: false }],
     answer: `Error occurred: ${message}`,
     target: targetName,
     requests,
@@ -2689,9 +2666,7 @@ function mapChildResults(
     score: child.score,
     weight: child.weight,
     verdict: child.verdict,
-    hits: child.hits,
-    misses: child.misses,
-    reasoning: child.reasoning,
+    assertions: child.assertions,
     evaluatorProviderRequest: child.evaluatorRawRequest,
     scores: mapChildResults(child.scores),
     details: child.details,
