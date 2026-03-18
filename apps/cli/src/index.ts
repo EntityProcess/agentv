@@ -8,6 +8,7 @@ import { evalPromptCommand } from './commands/eval/commands/prompt/index.js';
 import { evalCommand } from './commands/eval/index.js';
 import { generateCommand } from './commands/generate/index.js';
 import { initCmdTsCommand } from './commands/init/index.js';
+import { resultsCommand } from './commands/results/index.js';
 import { selfCommand } from './commands/self/index.js';
 import { traceCommand } from './commands/trace/index.js';
 import { transpileCommand } from './commands/transpile/index.js';
@@ -28,6 +29,7 @@ export const app = subcommands({
     create: createCommand,
     generate: generateCommand,
     init: initCmdTsCommand,
+    results: resultsCommand,
     self: selfCommand,
     trace: traceCommand,
     transpile: transpileCommand,
@@ -54,6 +56,7 @@ const TOP_LEVEL_COMMANDS = new Set([
   'create',
   'generate',
   'init',
+  'results',
   'self',
   'trace',
   'transpile',
