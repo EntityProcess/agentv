@@ -54,12 +54,12 @@ Read the percentile table. Key signals:
 ### 3. Investigate failures
 
 ```bash
-agentv trace show <result-file> --format json | jq '[.[] | select(.score < 0.8) | {test_id, score, assertions: [.assertions[] | select(.passed | not)], trace: {tools: .trace.tool_names}, duration_ms, cost_usd}]'
+agentv trace show <result-file> --format json | jq '[.[] | select(.score < 0.8) | {test_id, score, assertions: [.assertions[] | select(.passed | not)], trace: {tools: (.trace.tool_calls | keys)}, duration_ms, cost_usd}]'
 ```
 
 For each failing test, examine:
 - **assertions (failed)**: What criteria were not met? (filter for `passed: false`)
-- **trace.tool_names**: Did the agent use expected tools?
+- **trace.tool_calls**: Did the agent use expected tools?
 - **duration_ms**: Did it time out or run too long?
 - **reasoning**: Why did the evaluator score it low?
 
@@ -120,7 +120,7 @@ agentv trace show results.jsonl --format json \
 
 # Tool usage frequency across all tests
 agentv trace show results.jsonl --format json \
-  | jq '[.[].trace.tool_calls_by_name // {} | to_entries[]] | group_by(.key) | .[] | {tool: .[0].key, total_calls: ([.[].value] | add)}'
+  | jq '[.[].trace.tool_calls // {} | to_entries[]] | group_by(.key) | .[] | {tool: .[0].key, total_calls: ([.[].value] | add)}'
 
 # Find regressions > 0.1 between two runs
 agentv compare baseline.jsonl candidate.jsonl --format json \

@@ -239,8 +239,7 @@ describe('computeTraceSummary', () => {
       const result = computeTraceSummary(messages);
 
       expect(result.trace.eventCount).toBe(3);
-      expect(result.trace.toolNames).toEqual(['analyze', 'search']);
-      expect(result.trace.toolCallsByName).toEqual({ search: 2, analyze: 1 });
+      expect(result.trace.toolCalls).toEqual({ search: 2, analyze: 1 });
       expect(result.trace.errorCount).toBe(0);
       expect(result.startTime).toBe('2024-01-01T10:00:00.000Z');
       expect(result.endTime).toBe('2024-01-01T10:00:10.000Z');
@@ -261,8 +260,7 @@ describe('computeTraceSummary', () => {
       const result = computeTraceSummary(messages);
 
       expect(result.trace.eventCount).toBe(1);
-      expect(result.trace.toolNames).toEqual(['search']);
-      expect(result.trace.toolCallsByName).toEqual({ search: 1 });
+      expect(result.trace.toolCalls).toEqual({ search: 1 });
       expect(result.trace.errorCount).toBe(0);
       expect(result.startTime).toBeUndefined();
       expect(result.endTime).toBeUndefined();

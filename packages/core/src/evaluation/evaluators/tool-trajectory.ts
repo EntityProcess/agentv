@@ -246,11 +246,9 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     for (const call of toolCalls) {
       toolCallsByName[call.name] = (toolCallsByName[call.name] ?? 0) + 1;
     }
-    const toolNames = Object.keys(toolCallsByName).sort();
     return {
       eventCount: toolCalls.length,
-      toolNames,
-      toolCallsByName,
+      toolCalls: toolCallsByName,
       errorCount: 0,
     };
   }
@@ -272,7 +270,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
 
     for (const toolName of toolNames) {
       const required = minimums[toolName];
-      const actual = summary.toolCallsByName[toolName] ?? 0;
+      const actual = summary.toolCalls[toolName] ?? 0;
       if (actual >= required) {
         assertions.push({
           text: `${toolName}: called ${actual} times (required >=${required})`,

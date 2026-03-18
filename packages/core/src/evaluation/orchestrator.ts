@@ -1172,7 +1172,7 @@ async function runBatchEvaluation(options: {
     const computed = output
       ? computeTraceSummary(output)
       : hasExecutionMetrics
-        ? { trace: { eventCount: 0, toolNames: [], toolCallsByName: {}, errorCount: 0 } }
+        ? { trace: { eventCount: 0, toolCalls: {}, errorCount: 0 } }
         : undefined;
     const merged = computed
       ? mergeExecutionMetrics(computed, {
@@ -1625,7 +1625,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   const computed = output
     ? computeTraceSummary(output)
     : hasExecutionMetrics
-      ? { trace: { eventCount: 0, toolNames: [], toolCallsByName: {}, errorCount: 0 } }
+      ? { trace: { eventCount: 0, toolCalls: {}, errorCount: 0 } }
       : undefined;
   const merged = computed
     ? mergeExecutionMetrics(computed, {
