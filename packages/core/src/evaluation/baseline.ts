@@ -5,7 +5,6 @@ import type { EvaluationResult, EvaluatorResult } from './types.js';
  * Uses a denylist approach: new fields are auto-preserved.
  */
 const STRIPPED_TOP_LEVEL_FIELDS = new Set([
-  'outputText',
   'requests',
   'trace',
   'workspacePath',

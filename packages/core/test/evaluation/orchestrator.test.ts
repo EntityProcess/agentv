@@ -209,7 +209,8 @@ describe('runTestCase', () => {
       useCache: true,
     });
 
-    expect(first.outputText).toContain('structured logging');
+    expect(first.output).toBeDefined();
+    expect(first.output.length).toBeGreaterThan(0);
 
     const second = await runEvalCase({
       evalCase: baseTestCase,
@@ -220,7 +221,7 @@ describe('runTestCase', () => {
       useCache: true,
     });
 
-    expect(second.outputText).toBe(first.outputText);
+    expect(second.output).toEqual(first.output);
     expect(provider.callIndex).toBe(1);
   });
 

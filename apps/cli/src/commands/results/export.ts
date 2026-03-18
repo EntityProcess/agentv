@@ -74,10 +74,17 @@ export function exportResults(sourceFile: string, content: string, outputDir: st
   mkdirSync(outputsDir, { recursive: true });
 
   for (const result of patched) {
-    const outputText = result.outputText;
-    if (outputText) {
+    // Extract output text: prefer `output` (Message[]), fall back to legacy `outputText` (string)
+    const r = result as unknown as Record<string, unknown>;
+    let outputContent: string | undefined;
+    if (result.output && result.output.length > 0) {
+      outputContent = JSON.stringify(result.output, null, 2);
+    } else if (typeof r.outputText === 'string' && r.outputText) {
+      outputContent = r.outputText;
+    }
+    if (outputContent) {
       const id = safeTestId(result);
-      writeFileSync(path.join(outputsDir, `${id}.txt`), outputText);
+      writeFileSync(path.join(outputsDir, `${id}.txt`), outputContent);
     }
   }
 }

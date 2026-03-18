@@ -115,7 +115,9 @@ When making changes to functionality:
 
 2. **Skill files** (`plugins/agentv-dev/skills/agentv-eval-builder/`): Update the AI-focused reference card if the change affects YAML schema, evaluator types, or CLI commands. Keep concise — link to docs site for details.
 
-3. **README.md**: Keep minimal. Links point to agentv.dev.
+3. **Examples** (`examples/`): Update any example code, scripts, or eval YAML files that exercise the changed functionality. Examples are both documentation and integration tests.
+
+4. **README.md**: Keep minimal. Links point to agentv.dev.
 
 ## Functional Testing
 

@@ -135,7 +135,7 @@ describe('OTel OtelTraceExporter', () => {
           testId: 'test-1',
           target: 'my-agent',
           score: 0.95,
-          outputText: 'hello',
+          output: [{ role: 'assistant' as const, content: 'hello' }],
           timestamp: new Date().toISOString(),
         } as unknown as Parameters<OtelTraceExporter['exportResult']>[0]),
       ).resolves.toBeUndefined();
@@ -225,7 +225,7 @@ describe('W3C traceparent propagation', () => {
       testId: 'test-tp',
       target: 'my-agent',
       score: 1,
-      outputText: 'ok',
+      output: [{ role: 'assistant' as const, content: 'ok' }],
       timestamp: new Date().toISOString(),
     }) as unknown as Parameters<OtelTraceExporter['exportResult']>[0];
 
@@ -352,7 +352,6 @@ describe('Per-span token usage metrics', () => {
       testId: 'test-tokens',
       target: 'my-agent',
       score: 1,
-      outputText: 'ok',
       timestamp: new Date().toISOString(),
       output: [
         {
@@ -385,7 +384,6 @@ describe('Per-span token usage metrics', () => {
       testId: 'test-no-tokens',
       target: 'my-agent',
       score: 1,
-      outputText: 'ok',
       timestamp: new Date().toISOString(),
       output: [
         {
@@ -417,7 +415,6 @@ describe('Per-span token usage metrics', () => {
       testId: 'test-partial-tokens',
       target: 'my-agent',
       score: 1,
-      outputText: 'ok',
       timestamp: new Date().toISOString(),
       output: [
         {
