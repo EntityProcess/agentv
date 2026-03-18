@@ -119,7 +119,7 @@ When making changes to functionality:
 
 ## Functional Testing
 
-When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` directly as it may run the globally installed npm version. Instead:
+When functionally testing changes to the AgentV CLI, **NEVER** use `agentv` directly as it may run the globally installed version (bun or npm). Instead:
 
 - **From TypeScript source (preferred):** `bun apps/cli/src/cli.ts <args>` — always runs current code, no build step needed
 - **From built dist:** `bun apps/cli/dist/cli.js <args>` — requires `bun run build` first, can be stale
@@ -329,7 +329,7 @@ Both steps are required before running builds, tests, or evals in the worktree.
 - Core package (`packages/core/`) - Core evaluation engine and grading logic (published as `@agentv/core`)
 - CLI package (`apps/cli/`) is published as `agentv` on npm
 - Uses tsup with `noExternal: ["@agentv/core"]` to bundle workspace dependencies
-- Install command: `npm install -g agentv`
+- Install command: `bun install -g agentv` (preferred) or `npm install -g agentv`
 
 ## Python Scripts
 When running Python scripts, always use: `uv run <script.py>`
