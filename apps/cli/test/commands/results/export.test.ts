@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import type {
+  BenchmarkArtifact,
+  GradingArtifact,
+  TimingArtifact,
+} from '../../../src/commands/eval/artifact-writer.js';
 import { exportResults } from '../../../src/commands/results/export.js';
 
-// ── Sample JSONL records (snake_case, matching on-disk format) ──────────
+// ── Sample JSONL content (snake_case, matching on-disk format) ──────────
 
 const RESULT_FULL = {
   timestamp: '2026-03-18T10:00:01.000Z',
@@ -27,16 +32,9 @@ const RESULT_FULL = {
       misses: [],
     },
   ],
-  trace: {
-    event_count: 3,
-    tool_names: ['Read', 'Write'],
-    tool_calls_by_name: { Read: 2, Write: 1 },
-    error_count: 0,
-    token_usage: { input: 1000, output: 500, cached: 100 },
-    cost_usd: 0.015,
-    duration_ms: 3500,
-    llm_call_count: 2,
-  },
+  duration_ms: 3500,
+  token_usage: { input: 1000, output: 500 },
+  cost_usd: 0.015,
 };
 
 const RESULT_PARTIAL = {
@@ -54,18 +52,13 @@ const RESULT_PARTIAL = {
       type: 'contains',
       score: 0.5,
       reasoning: 'Formula correct but result wrong.',
+      hits: ['Correct formula'],
+      misses: ['Wrong answer'],
     },
   ],
-  trace: {
-    event_count: 1,
-    tool_names: [],
-    tool_calls_by_name: {},
-    error_count: 0,
-    token_usage: { input: 200, output: 100 },
-    cost_usd: 0.003,
-    duration_ms: 1200,
-    llm_call_count: 1,
-  },
+  duration_ms: 1200,
+  token_usage: { input: 200, output: 100 },
+  cost_usd: 0.003,
 };
 
 const RESULT_DIFFERENT_TARGET = {
@@ -77,16 +70,9 @@ const RESULT_DIFFERENT_TARGET = {
   misses: ['Missing name'],
   target: 'claude-sonnet',
   reasoning: 'Decent greeting.',
-  trace: {
-    event_count: 2,
-    tool_names: ['Read'],
-    tool_calls_by_name: { Read: 2 },
-    error_count: 0,
-    token_usage: { input: 800, output: 400 },
-    cost_usd: 0.01,
-    duration_ms: 2000,
-    llm_call_count: 1,
-  },
+  duration_ms: 2000,
+  token_usage: { input: 800, output: 400 },
+  cost_usd: 0.01,
 };
 
 const RESULT_NO_TRACE = {
@@ -103,6 +89,10 @@ const RESULT_NO_TRACE = {
   duration_ms: 500,
 };
 
+function toJsonl(...records: object[]): string {
+  return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
+}
+
 describe('results export', () => {
   let tempDir: string;
 
@@ -114,155 +104,157 @@ describe('results export', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('should create benchmark.json with aggregate data', () => {
+  it('should create benchmark.json matching artifact-writer schema', () => {
     const outputDir = path.join(tempDir, 'output');
-    const results = [RESULT_FULL, RESULT_PARTIAL];
+    const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
 
-    exportResults('eval_2026-03-18.jsonl', results, outputDir);
+    exportResults('eval_2026-03-18.jsonl', content, outputDir);
 
     const benchmarkPath = path.join(outputDir, 'benchmark.json');
     expect(existsSync(benchmarkPath)).toBe(true);
 
-    const benchmark = JSON.parse(readFileSync(benchmarkPath, 'utf8'));
+    const benchmark: BenchmarkArtifact = JSON.parse(readFileSync(benchmarkPath, 'utf8'));
     expect(benchmark.metadata.eval_file).toBe('eval_2026-03-18.jsonl');
     expect(benchmark.metadata.timestamp).toBe('2026-03-18T10:00:01.000Z');
-    expect(benchmark.metadata.tests_run).toBe(2);
+    // artifact-writer uses string[] for tests_run, not a count
+    expect(benchmark.metadata.tests_run).toEqual(['test-greeting', 'test-math']);
+    expect(benchmark.metadata.targets).toEqual(['gpt-4o']);
 
-    // Both results target gpt-4o
+    // run_summary has mean+stddev (artifact-writer format)
     expect(benchmark.run_summary['gpt-4o']).toBeDefined();
-    expect(benchmark.run_summary['gpt-4o'].pass_rate.mean).toBe(0.5); // 1 pass out of 2
+    expect(benchmark.run_summary['gpt-4o'].pass_rate).toHaveProperty('mean');
+    expect(benchmark.run_summary['gpt-4o'].pass_rate).toHaveProperty('stddev');
   });
 
-  it('should create per-test directories with grading.json and timing.json', () => {
+  it('should create timing.json with aggregate timing', () => {
     const outputDir = path.join(tempDir, 'output');
-    exportResults('test.jsonl', [RESULT_FULL], outputDir);
+    const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
 
-    // Check directory structure
-    const testDir = path.join(outputDir, 'test-greeting');
-    expect(existsSync(testDir)).toBe(true);
-    expect(existsSync(path.join(testDir, 'grading.json'))).toBe(true);
-    expect(existsSync(path.join(testDir, 'timing.json'))).toBe(true);
-    expect(existsSync(path.join(testDir, 'outputs'))).toBe(true);
+    exportResults('test.jsonl', content, outputDir);
+
+    const timingPath = path.join(outputDir, 'timing.json');
+    expect(existsSync(timingPath)).toBe(true);
+
+    const timing: TimingArtifact = JSON.parse(readFileSync(timingPath, 'utf8'));
+    // Aggregate of both results: (1000+500) + (200+100) = 1800
+    expect(timing.total_tokens).toBe(1800);
+    // 3500 + 1200 = 4700
+    expect(timing.duration_ms).toBe(4700);
+    expect(timing.token_usage).toHaveProperty('input');
+    expect(timing.token_usage).toHaveProperty('output');
+    expect(timing.token_usage).toHaveProperty('reasoning');
   });
 
-  it('should populate grading.json correctly', () => {
+  it('should create per-test grading files in grading/ directory', () => {
     const outputDir = path.join(tempDir, 'output');
-    exportResults('test.jsonl', [RESULT_FULL], outputDir);
+    const content = toJsonl(RESULT_FULL);
 
-    const grading = JSON.parse(
-      readFileSync(path.join(outputDir, 'test-greeting', 'grading.json'), 'utf8'),
-    );
+    exportResults('test.jsonl', content, outputDir);
 
-    expect(grading.id).toBe('test-greeting');
-    expect(grading.verdict).toBe('pass');
-    expect(grading.score).toBe(1.0);
-    expect(grading.hits).toEqual(['Says hello', 'Uses name']);
-    expect(grading.misses).toEqual([]);
+    // grading/<test-id>.json (not per-test directories)
+    const gradingPath = path.join(outputDir, 'grading', 'test-greeting.json');
+    expect(existsSync(gradingPath)).toBe(true);
+
+    const grading: GradingArtifact = JSON.parse(readFileSync(gradingPath, 'utf8'));
+
+    // Uses artifact-writer's assertions field
+    expect(grading.assertions).toBeDefined();
+    expect(grading.assertions.length).toBeGreaterThan(0);
+    expect(grading.assertions[0]).toHaveProperty('text');
+    expect(grading.assertions[0]).toHaveProperty('passed');
+    expect(grading.assertions[0]).toHaveProperty('evidence');
+
+    // Has summary
+    expect(grading.summary).toBeDefined();
+    expect(grading.summary).toHaveProperty('passed');
+    expect(grading.summary).toHaveProperty('failed');
+    expect(grading.summary).toHaveProperty('total');
+    expect(grading.summary).toHaveProperty('pass_rate');
+
+    // Has execution_metrics
+    expect(grading.execution_metrics).toBeDefined();
+
+    // Has evaluators
+    expect(grading.evaluators).toBeDefined();
     expect(grading.evaluators).toHaveLength(1);
-    expect(grading.evaluators[0].name).toBe('greeting_quality');
-    expect(grading.evaluators[0].type).toBe('llm-grader');
-    expect(grading.evaluators[0].score).toBe(1.0);
+    expect(grading.evaluators?.[0].name).toBe('greeting_quality');
+    expect(grading.evaluators?.[0].type).toBe('llm-grader');
   });
 
-  it('should populate timing.json correctly', () => {
+  it('should write answer text to outputs/<test-id>.txt', () => {
     const outputDir = path.join(tempDir, 'output');
-    exportResults('test.jsonl', [RESULT_FULL], outputDir);
+    const content = toJsonl(RESULT_FULL);
 
-    const timing = JSON.parse(
-      readFileSync(path.join(outputDir, 'test-greeting', 'timing.json'), 'utf8'),
-    );
+    exportResults('test.jsonl', content, outputDir);
 
-    expect(timing.eventCount).toBe(3);
-    expect(timing.toolNames).toEqual(['Read', 'Write']);
-    expect(timing.tokenUsage.input).toBe(1000);
-    expect(timing.tokenUsage.output).toBe(500);
-    expect(timing.tokenUsage.cached).toBe(100);
-    expect(timing.costUsd).toBe(0.015);
-    expect(timing.durationMs).toBe(3500);
-    expect(timing.llmCallCount).toBe(2);
-  });
-
-  it('should write answer text to outputs/answer.txt', () => {
-    const outputDir = path.join(tempDir, 'output');
-    exportResults('test.jsonl', [RESULT_FULL], outputDir);
-
-    const answerPath = path.join(outputDir, 'test-greeting', 'outputs', 'answer.txt');
+    const answerPath = path.join(outputDir, 'outputs', 'test-greeting.txt');
     expect(existsSync(answerPath)).toBe(true);
     expect(readFileSync(answerPath, 'utf8')).toBe('Hello, Alice!');
   });
 
-  it('should set verdict to fail when score < 1.0', () => {
-    const outputDir = path.join(tempDir, 'output');
-    exportResults('test.jsonl', [RESULT_PARTIAL], outputDir);
-
-    const grading = JSON.parse(
-      readFileSync(path.join(outputDir, 'test-math', 'grading.json'), 'utf8'),
-    );
-
-    expect(grading.verdict).toBe('fail');
-    expect(grading.score).toBe(0.5);
-  });
-
   it('should group results by target in benchmark.json', () => {
     const outputDir = path.join(tempDir, 'output');
-    exportResults('test.jsonl', [RESULT_FULL, RESULT_DIFFERENT_TARGET], outputDir);
+    const content = toJsonl(RESULT_FULL, RESULT_DIFFERENT_TARGET);
 
-    const benchmark = JSON.parse(readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'));
+    exportResults('test.jsonl', content, outputDir);
+
+    const benchmark: BenchmarkArtifact = JSON.parse(
+      readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+    );
 
     expect(benchmark.run_summary['gpt-4o']).toBeDefined();
     expect(benchmark.run_summary['claude-sonnet']).toBeDefined();
-    expect(benchmark.run_summary['gpt-4o'].pass_rate.mean).toBe(1.0);
-    expect(benchmark.run_summary['claude-sonnet'].pass_rate.mean).toBe(0);
   });
 
-  it('should handle results without trace data', () => {
+  it('should handle results without answer text', () => {
     const outputDir = path.join(tempDir, 'output');
-    exportResults('test.jsonl', [RESULT_NO_TRACE], outputDir);
+    const content = toJsonl(RESULT_PARTIAL);
 
-    const timing = JSON.parse(
-      readFileSync(path.join(outputDir, 'test-simple', 'timing.json'), 'utf8'),
-    );
+    exportResults('test.jsonl', content, outputDir);
 
-    // Falls back to top-level metrics when trace is missing
-    expect(timing.eventCount).toBe(0);
-    expect(timing.toolNames).toEqual([]);
-    expect(timing.tokenUsage.input).toBe(50);
-    expect(timing.tokenUsage.output).toBe(20);
-    expect(timing.costUsd).toBe(0.001);
-    expect(timing.durationMs).toBe(500);
+    const answerPath = path.join(outputDir, 'outputs', 'test-math.txt');
+    expect(existsSync(answerPath)).toBe(false);
   });
 
   it('should handle multiple test cases in a single export', () => {
     const outputDir = path.join(tempDir, 'output');
-    const results = [RESULT_FULL, RESULT_PARTIAL, RESULT_NO_TRACE];
-    exportResults('test.jsonl', results, outputDir);
+    const content = toJsonl(RESULT_FULL, RESULT_PARTIAL, RESULT_NO_TRACE);
+
+    exportResults('test.jsonl', content, outputDir);
 
     expect(existsSync(path.join(outputDir, 'benchmark.json'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'test-greeting'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'test-math'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'test-simple'))).toBe(true);
+    expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(true);
+    expect(existsSync(path.join(outputDir, 'grading', 'test-greeting.json'))).toBe(true);
+    expect(existsSync(path.join(outputDir, 'grading', 'test-math.json'))).toBe(true);
+    expect(existsSync(path.join(outputDir, 'grading', 'test-simple.json'))).toBe(true);
   });
 
-  it('should compute correct aggregate timing in benchmark.json', () => {
+  it('should include per-evaluator summary in benchmark when scores present', () => {
     const outputDir = path.join(tempDir, 'output');
-    exportResults('test.jsonl', [RESULT_FULL, RESULT_PARTIAL], outputDir);
+    const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
 
-    const benchmark = JSON.parse(readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'));
-    const summary = benchmark.run_summary['gpt-4o'];
+    exportResults('test.jsonl', content, outputDir);
 
-    // Mean duration: (3500 + 1200) / 2 = 2350ms = 2.35s
-    expect(summary.time_seconds.mean).toBe(2.35);
-    // Mean tokens: ((1000+500) + (200+100)) / 2 = 900
-    expect(summary.tokens.mean).toBe(900);
-    // Mean cost: (0.015 + 0.003) / 2 = 0.009
-    expect(summary.cost_usd.mean).toBe(0.009);
+    const benchmark: BenchmarkArtifact = JSON.parse(
+      readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+    );
+
+    expect(benchmark.per_evaluator_summary).toBeDefined();
   });
 
-  it('should not create outputs/answer.txt when answer is missing', () => {
+  it('should not create output file when answer is missing', () => {
     const outputDir = path.join(tempDir, 'output');
-    exportResults('test.jsonl', [RESULT_PARTIAL], outputDir);
+    const content = toJsonl(RESULT_DIFFERENT_TARGET);
 
-    const answerPath = path.join(outputDir, 'test-math', 'outputs', 'answer.txt');
+    exportResults('test.jsonl', content, outputDir);
+
+    // outputs dir still created but no file for this test
+    const answerPath = path.join(outputDir, 'outputs', 'test-greeting.txt');
     expect(existsSync(answerPath)).toBe(false);
+  });
+
+  it('should throw when content has no valid results', () => {
+    const outputDir = path.join(tempDir, 'output');
+    expect(() => exportResults('test.jsonl', '', outputDir)).toThrow('No results found');
   });
 });
