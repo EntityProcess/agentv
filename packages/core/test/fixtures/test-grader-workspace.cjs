@@ -3,31 +3,31 @@ const fs = require('node:fs');
 
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
-const hits = [];
-const misses = [];
+const assertions = [];
 
 // Check workspace_path in JSON payload
 if (typeof input.workspace_path === 'string' && input.workspace_path.length > 0) {
-  hits.push('workspace_path present in payload');
+  assertions.push({ text: 'workspace_path present in payload', passed: true });
 } else {
-  misses.push('workspace_path missing from payload');
+  assertions.push({ text: 'workspace_path missing from payload', passed: false });
 }
 
 // Check AGENTV_WORKSPACE_PATH env var
 const envPath = process.env.AGENTV_WORKSPACE_PATH;
 if (typeof envPath === 'string' && envPath.length > 0) {
-  hits.push('AGENTV_WORKSPACE_PATH env var set');
+  assertions.push({ text: 'AGENTV_WORKSPACE_PATH env var set', passed: true });
 } else {
-  misses.push('AGENTV_WORKSPACE_PATH env var missing');
+  assertions.push({ text: 'AGENTV_WORKSPACE_PATH env var missing', passed: false });
 }
 
 // Check that both match when present
 if (input.workspace_path && envPath && input.workspace_path === envPath) {
-  hits.push('payload and env var match');
+  assertions.push({ text: 'payload and env var match', passed: true });
 } else if (input.workspace_path && envPath) {
-  misses.push('payload and env var do not match');
+  assertions.push({ text: 'payload and env var do not match', passed: false });
 }
 
-const score = misses.length === 0 ? 1.0 : hits.length / (hits.length + misses.length);
+const passed = assertions.filter(a => a.passed).length;
+const score = assertions.every(a => a.passed) ? 1.0 : passed / assertions.length;
 
-console.log(JSON.stringify({ score, hits, misses }));
+console.log(JSON.stringify({ score, assertions }));

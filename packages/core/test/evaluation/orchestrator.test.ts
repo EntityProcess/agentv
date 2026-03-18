@@ -137,8 +137,7 @@ const evaluatorRegistry = {
       return {
         score: 0.8,
         verdict: 'pass' as const,
-        hits: ['hit'],
-        misses: [],
+        assertions: [{ text: 'hit', passed: true }],
         expectedAspectCount: 1,
       };
     },
@@ -173,8 +172,8 @@ describe('runTestCase', () => {
     });
 
     expect(result.score).toBeGreaterThan(0);
-    expect(result.hits).toHaveLength(1);
-    expect(result.misses).toHaveLength(0);
+    expect(result.assertions.filter(a => a.passed)).toHaveLength(1);
+    expect(result.assertions.filter(a => !a.passed)).toHaveLength(0);
     expect(result.timestamp).toBe('2024-01-01T00:00:00.000Z');
     expect(result.input).toBe('Explain logging improvements');
     expect(result.executionStatus).toBe('ok');
@@ -259,7 +258,7 @@ describe('runTestCase', () => {
     });
 
     expect(result.score).toBe(0);
-    expect(result.misses[0]).toContain('Provider failure');
+    expect(result.assertions.filter(a => !a.passed)[0].text).toContain('Provider failure');
     expect(result.input).toBe('Explain logging improvements');
     expect(result.executionStatus).toBe('execution_error');
     expect(result.failureStage).toBe('agent');
@@ -371,8 +370,7 @@ describe('runTestCase', () => {
           role: 'assistant',
           content: JSON.stringify({
             score: 0.9,
-            hits: ['used prompt'],
-            misses: [],
+            assertions: [{ text: 'used prompt', passed: true }],
           }),
         },
       ],
@@ -773,7 +771,7 @@ describe('runEvalCase trace integration', () => {
 
     expect(result.score).toBe(0);
     expect(result.scores?.[0]?.verdict).toBe('fail');
-    expect(result.scores?.[0]?.misses).toContain('No trace available for evaluation');
+    expect(result.scores?.[0]?.assertions.filter(a => !a.passed).map(a => a.text)).toContain('No trace available for evaluation');
   });
 
   it('runs latency/cost evaluators inside composite using trace', async () => {
@@ -996,8 +994,7 @@ Reference: \${input.reference_answer ?? 'none'}\`);
           return {
             score: 1.0,
             verdict: 'pass' as const,
-            hits: ['Test passed'],
-            misses: [],
+            assertions: [{ text: 'Test passed', passed: true }],
             expectedAspectCount: 1,
           };
         },
@@ -1058,8 +1055,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
           return {
             score: 1.0,
             verdict: 'pass' as const,
-            hits: [],
-            misses: [],
+            assertions: [],
             expectedAspectCount: 1,
           };
         },
@@ -1111,8 +1107,7 @@ console.log('Question: ' + input.question + '\\nAnswer: ' + input.answer);
           return {
             score: 1.0,
             verdict: 'pass' as const,
-            hits: [],
-            misses: [],
+            assertions: [],
             expectedAspectCount: 1,
           };
         },
@@ -1177,8 +1172,9 @@ describe('runEvaluation with trials', () => {
           return {
             score,
             verdict: (score >= 0.8 ? 'pass' : score >= 0.6 ? 'borderline' : 'fail') as const,
-            hits: score >= 0.8 ? ['passed'] : [],
-            misses: score < 0.8 ? ['failed'] : [],
+            assertions: score >= 0.8
+              ? [{ text: 'passed', passed: true }]
+              : [{ text: 'failed', passed: false }],
             expectedAspectCount: 1,
           };
         },
@@ -1701,13 +1697,13 @@ describe('deterministic assertion evaluators in orchestrator', () => {
       expect(result.scores?.[0].verdict).toBe(expectedVerdict);
 
       if (expectedHit !== undefined) {
-        expect(result.hits).toContain(expectedHit);
+        expect(result.assertions.filter(a => a.passed).map(a => a.text)).toContain(expectedHit);
       }
       if (expectedMiss !== undefined) {
-        expect(result.misses).toContain(expectedMiss);
+        expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain(expectedMiss);
       }
       if (expectedMissCount !== undefined) {
-        expect(result.misses).toHaveLength(expectedMissCount);
+        expect(result.assertions.filter(a => !a.passed)).toHaveLength(expectedMissCount);
       }
     },
   );
@@ -2005,8 +2001,10 @@ describe('required gates', () => {
           return {
             score: 0.7,
             verdict: 'borderline' as const,
-            hits: ['partial'],
-            misses: ['incomplete'],
+            assertions: [
+              { text: 'partial', passed: true },
+              { text: 'incomplete', passed: false },
+            ],
             expectedAspectCount: 1,
           };
         },
@@ -2709,8 +2707,7 @@ describe('--workspace flag', () => {
           return {
             score: 0.9,
             verdict: 'pass' as const,
-            hits: ['good'],
-            misses: [],
+            assertions: [{ text: 'good', passed: true }],
             expectedAspectCount: 1,
           };
         },

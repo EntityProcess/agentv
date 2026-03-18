@@ -21,8 +21,7 @@ function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult
     timestamp: '2026-03-13T00:00:00.000Z',
     testId: 'test-1',
     score: 0.9,
-    hits: ['criterion-1'],
-    misses: [],
+    assertions: [{ text: 'criterion-1', passed: true }],
     answer: 'test answer',
     target: 'test-target',
     executionStatus: 'ok',
@@ -35,9 +34,10 @@ function makeEvaluatorResult(overrides: Partial<EvaluatorResult> = {}): Evaluato
     name: 'grader-1',
     type: 'llm-grader',
     score: 0.85,
-    hits: ['criterion-a'],
-    misses: ['criterion-b'],
-    reasoning: 'Good output overall',
+    assertions: [
+      { text: 'criterion-a', passed: true },
+      { text: 'criterion-b', passed: false },
+    ],
     ...overrides,
   } as EvaluatorResult;
 }
@@ -47,14 +47,12 @@ function makeEvaluatorResult(overrides: Partial<EvaluatorResult> = {}): Evaluato
 // ---------------------------------------------------------------------------
 
 describe('buildGradingArtifact', () => {
-  it('maps evaluator hits/misses to assertions', () => {
+  it('maps evaluator assertions to grading assertions', () => {
     const result = makeResult({
-      scores: [
-        makeEvaluatorResult({
-          hits: ['correct format', 'has code'],
-          misses: ['missing tests'],
-          reasoning: 'Output was formatted well',
-        }),
+      assertions: [
+        { text: 'correct format', passed: true },
+        { text: 'has code', passed: true },
+        { text: 'missing tests', passed: false },
       ],
     });
 
@@ -64,27 +62,26 @@ describe('buildGradingArtifact', () => {
     expect(grading.assertions[0]).toEqual({
       text: 'correct format',
       passed: true,
-      evidence: 'Output was formatted well',
+      evidence: '',
     });
     expect(grading.assertions[1]).toEqual({
       text: 'has code',
       passed: true,
-      evidence: 'Output was formatted well',
+      evidence: '',
     });
     expect(grading.assertions[2]).toEqual({
       text: 'missing tests',
       passed: false,
-      evidence: 'Output was formatted well',
+      evidence: '',
     });
   });
 
   it('computes correct summary', () => {
     const result = makeResult({
-      scores: [
-        makeEvaluatorResult({
-          hits: ['a', 'b'],
-          misses: ['c'],
-        }),
+      assertions: [
+        { text: 'a', passed: true },
+        { text: 'b', passed: true },
+        { text: 'c', passed: false },
       ],
     });
 
@@ -98,18 +95,20 @@ describe('buildGradingArtifact', () => {
     });
   });
 
-  it('falls back to top-level hits/misses when no evaluator scores', () => {
+  it('uses top-level assertions when no evaluator scores', () => {
     const result = makeResult({
-      hits: ['ok-1', 'ok-2'],
-      misses: ['miss-1'],
-      reasoning: 'top-level reasoning',
+      assertions: [
+        { text: 'ok-1', passed: true },
+        { text: 'ok-2', passed: true },
+        { text: 'miss-1', passed: false },
+      ],
     });
 
     const grading = buildGradingArtifact(result);
 
     expect(grading.assertions).toHaveLength(3);
     expect(grading.assertions[0].text).toBe('ok-1');
-    expect(grading.assertions[0].evidence).toBe('top-level reasoning');
+    expect(grading.assertions[0].passed).toBe(true);
     expect(grading.assertions[2].text).toBe('miss-1');
     expect(grading.assertions[2].passed).toBe(false);
   });
@@ -136,8 +135,8 @@ describe('buildGradingArtifact', () => {
     expect(grading.execution_metrics.errors_encountered).toBe(1);
   });
 
-  it('handles result with no hits, misses, or scores', () => {
-    const result = makeResult({ hits: [], misses: [], scores: undefined });
+  it('handles result with no assertions or scores', () => {
+    const result = makeResult({ assertions: [], scores: undefined });
     const grading = buildGradingArtifact(result);
 
     expect(grading.assertions).toHaveLength(0);
@@ -346,7 +345,10 @@ describe('parseJsonlResults', () => {
 describe('schema compatibility', () => {
   it('grading assertions have text/passed/evidence fields', () => {
     const result = makeResult({
-      scores: [makeEvaluatorResult({ hits: ['x'], misses: ['y'], reasoning: 'r' })],
+      assertions: [
+        { text: 'x', passed: true },
+        { text: 'y', passed: false },
+      ],
     });
     const grading = buildGradingArtifact(result);
 
@@ -362,7 +364,7 @@ describe('schema compatibility', () => {
 
   it('grading summary has passed/failed/total/pass_rate', () => {
     const result = makeResult({
-      scores: [makeEvaluatorResult({ hits: ['a'], misses: [] })],
+      assertions: [{ text: 'a', passed: true }],
     });
     const grading = buildGradingArtifact(result);
 
@@ -477,8 +479,7 @@ describe('writeArtifacts (from JSONL file)', () => {
         timestamp: '2026-01-01T00:00:00Z',
         test_id: 'from-file',
         score: 0.85,
-        hits: ['pass-1'],
-        misses: [],
+        assertions: [{ text: 'pass-1', passed: true }],
         answer: 'file answer',
         target: 'default',
         execution_status: 'ok',

@@ -79,27 +79,29 @@ describe('CodeGraderResultSchema', () => {
   it('parses valid result with all fields', () => {
     const result: CodeGraderResult = {
       score: 0.8,
-      hits: ['Correct answer'],
-      misses: ['Missing explanation'],
-      reasoning: 'Good but could be better',
+      assertions: [
+        { text: 'Correct answer', passed: true },
+        { text: 'Missing explanation', passed: false },
+      ],
     };
     const parsed = CodeGraderResultSchema.parse(result);
     expect(parsed.score).toBe(0.8);
-    expect(parsed.hits).toEqual(['Correct answer']);
-    expect(parsed.misses).toEqual(['Missing explanation']);
+    expect(parsed.assertions).toEqual([
+      { text: 'Correct answer', passed: true },
+      { text: 'Missing explanation', passed: false },
+    ]);
   });
 
-  it('defaults hits and misses to empty arrays', () => {
+  it('defaults assertions to empty array', () => {
     const result = { score: 0.5 };
     const parsed = CodeGraderResultSchema.parse(result);
-    expect(parsed.hits).toEqual([]);
-    expect(parsed.misses).toEqual([]);
+    expect(parsed.assertions).toEqual([]);
   });
 
-  it('allows optional reasoning', () => {
+  it('defaults assertions to empty array when omitted', () => {
     const result = { score: 1.0 };
     const parsed = CodeGraderResultSchema.parse(result);
-    expect(parsed.reasoning).toBeUndefined();
+    expect(parsed.assertions).toEqual([]);
   });
 
   it('rejects score below 0', () => {
@@ -188,7 +190,7 @@ describe('CodeJudgeInputSchema (backward-compat alias)', () => {
 
 describe('CodeJudgeResultSchema (backward-compat alias)', () => {
   it('parses valid result via deprecated alias', () => {
-    const result = { score: 0.8, hits: ['ok'], misses: [] };
+    const result = { score: 0.8, assertions: [{ text: 'ok', passed: true }] };
     const parsed = CodeJudgeResultSchema.parse(result);
     expect(parsed.score).toBe(0.8);
   });

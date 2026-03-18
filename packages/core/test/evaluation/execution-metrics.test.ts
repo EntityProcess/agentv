@@ -304,9 +304,9 @@ describe('Code Grader Metrics Integration', () => {
 
     expect(result.score).toBe(1);
     expect(result.verdict).toBe('pass');
-    expect(result.hits).toContain('eventCount present');
-    expect(result.hits).toContain('tokenUsage present');
-    expect(result.hits).toContain('costUsd present');
+    expect(result.assertions.filter(a => a.passed).map(a => a.text)).toContain('eventCount present');
+    expect(result.assertions.filter(a => a.passed).map(a => a.text)).toContain('tokenUsage present');
+    expect(result.assertions.filter(a => a.passed).map(a => a.text)).toContain('costUsd present');
   });
 
   it('handles missing trace gracefully', async () => {
@@ -327,6 +327,6 @@ describe('Code Grader Metrics Integration', () => {
     });
 
     expect(result.score).toBe(1);
-    expect(result.hits).toContain('Correctly handled missing summary');
+    expect(result.assertions.filter(a => a.passed).map(a => a.text)).toContain('Correctly handled missing summary');
   });
 });

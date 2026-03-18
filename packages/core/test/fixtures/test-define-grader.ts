@@ -5,8 +5,7 @@
 import { defineCodeGrader } from '../../../eval/src/index.js';
 
 export default defineCodeGrader(({ answer, criteria }) => {
-  const hits: string[] = [];
-  const misses: string[] = [];
+  const assertions: { text: string; passed: boolean }[] = [];
 
   // Simple check: does candidate mention the criteria keywords?
   const outcomeWords = criteria.toLowerCase().split(/\s+/);
@@ -14,20 +13,18 @@ export default defineCodeGrader(({ answer, criteria }) => {
 
   for (const word of outcomeWords) {
     if (word.length > 3 && candidateWords.includes(word)) {
-      hits.push(`Contains keyword: ${word}`);
+      assertions.push({ text: `Contains keyword: ${word}`, passed: true });
     }
   }
 
-  if (hits.length === 0) {
-    misses.push('No matching keywords found');
+  if (assertions.length === 0) {
+    assertions.push({ text: 'No matching keywords found', passed: false });
   }
 
-  const score = hits.length > 0 ? 1.0 : 0.0;
+  const score = assertions.some(a => a.passed) ? 1.0 : 0.0;
 
   return {
     score,
-    hits,
-    misses,
-    reasoning: `Found ${hits.length} matching keywords`,
+    assertions,
   };
 });

@@ -12,13 +12,13 @@ describe('deterministic assertions', () => {
     it('scores 1 when output contains value', () => {
       const result = runContainsAssertion('Hello world', 'world');
       expect(result.score).toBe(1);
-      expect(result.hits).toEqual(['Output contains "world"']);
+      expect(result.assertions).toEqual([{ text: 'Output contains "world"', passed: true }]);
     });
 
     it('scores 0 when output does not contain value', () => {
       const result = runContainsAssertion('Hello world', 'foo');
       expect(result.score).toBe(0);
-      expect(result.misses).toEqual(['Output does not contain "foo"']);
+      expect(result.assertions).toEqual([{ text: 'Output does not contain "foo"', passed: false }]);
     });
   });
 
@@ -26,13 +26,13 @@ describe('deterministic assertions', () => {
     it('scores 1 when output matches pattern', () => {
       const result = runRegexAssertion('risk: High', 'risk: (High|Critical)');
       expect(result.score).toBe(1);
-      expect(result.hits).toEqual(['Output matches pattern /risk: (High|Critical)/']);
+      expect(result.assertions).toEqual([{ text: 'Output matches pattern /risk: (High|Critical)/', passed: true }]);
     });
 
     it('scores 0 when output does not match pattern', () => {
       const result = runRegexAssertion('risk: Low', 'risk: (High|Critical)');
       expect(result.score).toBe(0);
-      expect(result.misses).toEqual(['Output does not match pattern /risk: (High|Critical)/']);
+      expect(result.assertions).toEqual([{ text: 'Output does not match pattern /risk: (High|Critical)/', passed: false }]);
     });
   });
 
@@ -40,13 +40,13 @@ describe('deterministic assertions', () => {
     it('scores 1 for valid JSON', () => {
       const result = runIsJsonAssertion('{"key": "value"}');
       expect(result.score).toBe(1);
-      expect(result.hits).toEqual(['Output is valid JSON']);
+      expect(result.assertions).toEqual([{ text: 'Output is valid JSON', passed: true }]);
     });
 
     it('scores 0 for invalid JSON', () => {
       const result = runIsJsonAssertion('not json');
       expect(result.score).toBe(0);
-      expect(result.misses).toEqual(['Output is not valid JSON']);
+      expect(result.assertions).toEqual([{ text: 'Output is not valid JSON', passed: false }]);
     });
   });
 
@@ -54,19 +54,19 @@ describe('deterministic assertions', () => {
     it('scores 1 for exact match', () => {
       const result = runEqualsAssertion('DENIED', 'DENIED');
       expect(result.score).toBe(1);
-      expect(result.hits).toEqual(['Output equals "DENIED"']);
+      expect(result.assertions).toEqual([{ text: 'Output equals "DENIED"', passed: true }]);
     });
 
     it('scores 0 for non-match', () => {
       const result = runEqualsAssertion('DENIED', 'APPROVED');
       expect(result.score).toBe(0);
-      expect(result.misses).toEqual(['Output does not equal "APPROVED"']);
+      expect(result.assertions).toEqual([{ text: 'Output does not equal "APPROVED"', passed: false }]);
     });
 
     it('trims whitespace before comparing', () => {
       const result = runEqualsAssertion('  DENIED  ', 'DENIED');
       expect(result.score).toBe(1);
-      expect(result.hits).toEqual(['Output equals "DENIED"']);
+      expect(result.assertions).toEqual([{ text: 'Output equals "DENIED"', passed: true }]);
     });
   });
 });

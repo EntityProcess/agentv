@@ -89,7 +89,7 @@ describe('toSnakeCaseDeep', () => {
           },
         },
       ],
-      hits: ['check1', 'check2'],
+      assertions: [{ text: 'check1', passed: true }, { text: 'check2', passed: true }],
       score: 0.85,
     };
 
@@ -113,7 +113,7 @@ describe('toSnakeCaseDeep', () => {
           },
         },
       ],
-      hits: ['check1', 'check2'],
+      assertions: [{ text: 'check1', passed: true }, { text: 'check2', passed: true }],
       score: 0.85,
     });
   });

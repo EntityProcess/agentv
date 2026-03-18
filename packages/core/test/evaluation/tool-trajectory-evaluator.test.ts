@@ -67,7 +67,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
       expect(result.score).toBe(0);
       expect(result.verdict).toBe('fail');
-      expect(result.misses).toContain('No trace available for evaluation');
+      expect(result.assertions.filter(a => !a.passed).map(a => a.text)).toContain('No trace available for evaluation');
     });
   });
 
@@ -102,8 +102,8 @@ describe('ToolTrajectoryEvaluator', () => {
 
       expect(result.score).toBe(1);
       expect(result.verdict).toBe('pass');
-      expect(result.hits.length).toBe(2);
-      expect(result.misses.length).toBe(0);
+      expect(result.assertions.filter(a => a.passed).length).toBe(2);
+      expect(result.assertions.filter(a => !a.passed).length).toBe(0);
     });
 
     it('fails when minimums are not met', () => {
@@ -131,9 +131,9 @@ describe('ToolTrajectoryEvaluator', () => {
 
       expect(result.score).toBe(0.5); // 1 out of 2 checks passed
       expect(result.verdict).toBe('fail');
-      expect(result.hits.length).toBe(1); // analyze passed
-      expect(result.misses.length).toBe(1); // search failed
-      expect(result.misses[0]).toContain('search: called 1 times (required >=3)');
+      expect(result.assertions.filter(a => a.passed).length).toBe(1); // analyze passed
+      expect(result.assertions.filter(a => !a.passed).length).toBe(1); // search failed
+      expect(result.assertions.filter(a => !a.passed)[0].text).toContain('search: called 1 times (required >=3)');
     });
   });
 
@@ -267,7 +267,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         expect(result.score).toBe(1);
         expect(result.verdict).toBe('pass');
-        expect(result.hits.length).toBe(passHitCount);
+        expect(result.assertions.filter(a => a.passed).length).toBe(passHitCount);
       });
 
       it('fails when expected tools are not satisfied', () => {
@@ -283,7 +283,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         expect(result.score).toBe(failScore);
         expect(result.verdict).toBe('fail');
-        expect(result.misses.some((m) => m.includes(failMissPattern))).toBe(true);
+        expect(result.assertions.filter(a => !a.passed).some((a) => a.text.includes(failMissPattern))).toBe(true);
       });
     },
   );
@@ -319,8 +319,8 @@ describe('ToolTrajectoryEvaluator', () => {
       // Then looks for 'report' from index 2, which doesn't exist, so report also not found
       expect(result.score).toBeCloseTo(1 / 3); // Only search found
       expect(result.verdict).toBe('fail');
-      expect(result.hits.length).toBe(1);
-      expect(result.misses.length).toBe(2);
+      expect(result.assertions.filter(a => a.passed).length).toBe(1);
+      expect(result.assertions.filter(a => !a.passed).length).toBe(2);
     });
 
     it('fails when tools appear in wrong order', () => {
@@ -382,7 +382,7 @@ describe('ToolTrajectoryEvaluator', () => {
       );
 
       expect(result.score).toBe(1); // All expected found at correct positions
-      expect(result.misses.some((m) => m.includes('Expected 2 tool calls, got 3'))).toBe(true);
+      expect(result.assertions.filter(a => !a.passed).some((a) => a.text.includes('Expected 2 tool calls, got 3'))).toBe(true);
     });
   });
 
@@ -437,7 +437,7 @@ describe('ToolTrajectoryEvaluator', () => {
         // With exact args matching (new default), extra keys cause failure
         expect(result.score).toBe(0);
         expect(result.verdict).toBe('fail');
-        expect(result.misses.some((m) => m.includes('args mismatch'))).toBe(true);
+        expect(result.assertions.filter(a => !a.passed).some((a) => a.text.includes('args mismatch'))).toBe(true);
       });
 
       it('fails when args do not match', () => {
@@ -460,7 +460,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         expect(result.score).toBe(0);
         expect(result.verdict).toBe('fail');
-        expect(result.misses.some((m) => m.includes('args mismatch'))).toBe(true);
+        expect(result.assertions.filter(a => !a.passed).some((a) => a.text.includes('args mismatch'))).toBe(true);
       });
 
       it('skips arg validation with args: any', () => {
@@ -886,7 +886,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         expect(result.score).toBe(0.5);
         expect(result.verdict).toBe('fail');
-        expect(result.misses.some((m) => m.includes('args mismatch'))).toBe(true);
+        expect(result.assertions.filter(a => !a.passed).some((a) => a.text.includes('args mismatch'))).toBe(true);
       });
     });
 
@@ -1039,7 +1039,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         expect(result.score).toBe(1);
         expect(result.verdict).toBe('pass');
-        expect(result.hits.some((h) => h.includes('45ms (max: 100ms)'))).toBe(true);
+        expect(result.assertions.filter(a => a.passed).some((a) => a.text.includes('45ms (max: 100ms)'))).toBe(true);
       });
 
       it('fails when latency exceeds limit', () => {
@@ -1060,9 +1060,9 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const result = evaluator.evaluate(createContext({ output }));
 
-        expect(result.score).toBe(0.5); // 1 sequence hit, 0 latency hits out of 2 total assertions
+        expect(result.score).toBe(0.5); // 1 sequence passed, 0 latency passed out of 2 total assertions
         expect(result.verdict).toBe('fail');
-        expect(result.misses.some((m) => m.includes('120ms (max: 50ms)'))).toBe(true);
+        expect(result.assertions.filter(a => !a.passed).some((a) => a.text.includes('120ms (max: 50ms)'))).toBe(true);
       });
 
       it('skips latency check when no duration data available', () => {
@@ -1086,10 +1086,10 @@ describe('ToolTrajectoryEvaluator', () => {
         // Sequence hit counts, latency skipped - neutral (doesn't count against score)
         // 1 sequence assertion, latency assertion skipped = 1 total effective assertion
         expect(result.score).toBe(1); // 1 hit out of 1 effective assertion (skipped latency is neutral)
-        expect(result.hits.some((h) => h.includes('Found Read'))).toBe(true);
-        // Latency result should not appear in hits or misses
-        expect(result.hits.some((h) => h.includes('ms (max:'))).toBe(false);
-        expect(result.misses.some((m) => m.includes('ms (max:'))).toBe(false);
+        expect(result.assertions.filter(a => a.passed).some((a) => a.text.includes('Found Read'))).toBe(true);
+        // Latency result should not appear in assertions
+        expect(result.assertions.filter(a => a.passed).some((a) => a.text.includes('ms (max:'))).toBe(false);
+        expect(result.assertions.filter(a => !a.passed).some((a) => a.text.includes('ms (max:'))).toBe(false);
       });
 
       it('handles mixed latency assertions', () => {
@@ -1119,11 +1119,11 @@ describe('ToolTrajectoryEvaluator', () => {
         const result = evaluator.evaluate(createContext({ output }));
 
         // 3 sequence assertions + 2 latency assertions = 5 total
-        // 3 sequence hits + 1 latency hit (Read) = 4 hits
-        // 1 latency miss (Write)
+        // 3 sequence passed + 1 latency passed (Read) = 4 passed
+        // 1 latency failed (Write)
         expect(result.expectedAspectCount).toBe(5);
-        expect(result.hits.some((h) => h.includes('Read completed in 45ms'))).toBe(true);
-        expect(result.misses.some((m) => m.includes('Write took 600ms'))).toBe(true);
+        expect(result.assertions.filter(a => a.passed).some((a) => a.text.includes('Read completed in 45ms'))).toBe(true);
+        expect(result.assertions.filter(a => !a.passed).some((a) => a.text.includes('Write took 600ms'))).toBe(true);
       });
     });
 
@@ -1154,7 +1154,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         expect(result.score).toBe(1);
         expect(result.verdict).toBe('pass');
-        expect(result.hits.filter((h) => h.includes('ms (max:')).length).toBe(2);
+        expect(result.assertions.filter(a => a.passed).filter((a) => a.text.includes('ms (max:')).length).toBe(2);
       });
 
       it('fails when latency exceeds limit in exact mode', () => {
@@ -1175,9 +1175,9 @@ describe('ToolTrajectoryEvaluator', () => {
 
         const result = evaluator.evaluate(createContext({ output }));
 
-        expect(result.score).toBe(0.5); // 1 sequence hit out of 2 total assertions
+        expect(result.score).toBe(0.5); // 1 sequence passed out of 2 total assertions
         expect(result.verdict).toBe('fail');
-        expect(result.misses.some((m) => m.includes('150ms (max: 100ms)'))).toBe(true);
+        expect(result.assertions.filter(a => !a.passed).some((a) => a.text.includes('150ms (max: 100ms)'))).toBe(true);
       });
 
       it('does not check latency when sequence does not match', () => {
@@ -1201,10 +1201,10 @@ describe('ToolTrajectoryEvaluator', () => {
         // Sequence mismatch - latency is not checked
         expect(result.score).toBe(0);
         expect(result.verdict).toBe('fail');
-        expect(result.misses.some((m) => m.includes('expected Read, got Write'))).toBe(true);
-        // No latency result in hits or misses
-        expect(result.hits.some((h) => h.includes('ms (max:'))).toBe(false);
-        expect(result.misses.some((m) => m.includes('ms (max:'))).toBe(false);
+        expect(result.assertions.filter(a => !a.passed).some((a) => a.text.includes('expected Read, got Write'))).toBe(true);
+        // No latency result in assertions
+        expect(result.assertions.filter(a => a.passed).some((a) => a.text.includes('ms (max:'))).toBe(false);
+        expect(result.assertions.filter(a => !a.passed).some((a) => a.text.includes('ms (max:'))).toBe(false);
       });
 
       it('handles exact boundary condition', () => {
@@ -1228,7 +1228,7 @@ describe('ToolTrajectoryEvaluator', () => {
         // Exactly at limit should pass (<=)
         expect(result.score).toBe(1);
         expect(result.verdict).toBe('pass');
-        expect(result.hits.some((h) => h.includes('100ms (max: 100ms)'))).toBe(true);
+        expect(result.assertions.filter(a => a.passed).some((a) => a.text.includes('100ms (max: 100ms)'))).toBe(true);
       });
     });
 
@@ -1253,7 +1253,7 @@ describe('ToolTrajectoryEvaluator', () => {
 
         expect(result.score).toBe(1);
         expect(result.verdict).toBe('pass');
-        expect(result.hits.some((h) => h.includes('45ms (max: 100ms)'))).toBe(true);
+        expect(result.assertions.filter(a => a.passed).some((a) => a.text.includes('45ms (max: 100ms)'))).toBe(true);
       });
     });
   });

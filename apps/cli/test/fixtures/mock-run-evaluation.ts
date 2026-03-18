@@ -24,13 +24,11 @@ interface RunEvaluationOptionsLike {
 interface EvaluationResultLike {
   readonly testId: string;
   readonly score: number;
-  readonly hits: readonly string[];
-  readonly misses: readonly string[];
+  readonly assertions: readonly { readonly text: string; readonly passed: boolean; readonly evidence?: string }[];
   readonly answer: string;
   readonly expectedAspectCount: number;
   readonly target: string;
   readonly timestamp: string;
-  readonly reasoning?: string;
 }
 
 function buildResults(targetName: string): EvaluationResultLike[] {
@@ -39,24 +37,24 @@ function buildResults(targetName: string): EvaluationResultLike[] {
     {
       testId: 'case-alpha',
       score: 0.6,
-      hits: ['alpha'],
-      misses: [],
+      assertions: [{ text: 'alpha', passed: true }],
       answer: 'Alpha answer',
       expectedAspectCount: 1,
       target: targetName,
       timestamp: baseTime.toISOString(),
-      reasoning: 'Alpha reasoning',
     },
     {
       testId: 'case-beta',
       score: 0.9,
-      hits: ['beta', 'gamma'],
-      misses: ['delta'],
+      assertions: [
+        { text: 'beta', passed: true },
+        { text: 'gamma', passed: true },
+        { text: 'delta', passed: false },
+      ],
       answer: 'Beta answer',
       expectedAspectCount: 3,
       target: targetName,
       timestamp: new Date(baseTime.getTime() + 60_000).toISOString(),
-      reasoning: 'Beta reasoning',
     },
   ];
 }

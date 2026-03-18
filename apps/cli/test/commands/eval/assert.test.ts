@@ -19,7 +19,7 @@ async function createGraderFixture(): Promise<{ baseDir: string }> {
     path.join(gradersDir, 'always-pass.ts'),
     `const input = await Bun.stdin.text();
 const payload = JSON.parse(input);
-console.log(JSON.stringify({ score: 1.0, reasoning: "always passes" }));`,
+console.log(JSON.stringify({ score: 1.0, assertions: [{ text: "always passes", passed: true }] }));`,
     'utf8',
   );
 
@@ -29,7 +29,7 @@ console.log(JSON.stringify({ score: 1.0, reasoning: "always passes" }));`,
 const payload = JSON.parse(input);
 const output = payload.answer ?? payload.output ?? '';
 const score = typeof output === 'string' && output.includes('hello') ? 1.0 : 0.0;
-console.log(JSON.stringify({ score, reasoning: score ? "contains hello" : "missing hello" }));`,
+console.log(JSON.stringify({ score, assertions: [{ text: score ? "contains hello" : "missing hello", passed: !!score }] }));`,
     'utf8',
   );
 

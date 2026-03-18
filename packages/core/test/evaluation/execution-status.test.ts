@@ -66,8 +66,7 @@ const highScoreEvaluators = {
       return {
         score: 0.9,
         verdict: 'pass' as const,
-        hits: ['good answer'],
-        misses: [],
+        assertions: [{ text: 'good answer', passed: true }],
         expectedAspectCount: 1,
       };
     },
@@ -82,8 +81,7 @@ const lowScoreEvaluators = {
       return {
         score: 0.3,
         verdict: 'fail' as const,
-        hits: [],
-        misses: ['missed the point'],
+        assertions: [{ text: 'missed the point', passed: false }],
         expectedAspectCount: 1,
       };
     },
@@ -176,8 +174,7 @@ describe('execution status classification', () => {
           return {
             score: 0.8,
             verdict: 'pass' as const,
-            hits: ['acceptable'],
-            misses: [],
+            assertions: [{ text: 'acceptable', passed: true }],
             expectedAspectCount: 1,
           };
         },
@@ -205,8 +202,7 @@ describe('execution status classification', () => {
           return {
             score: 0.79,
             verdict: 'fail' as const,
-            hits: [],
-            misses: ['barely missed'],
+            assertions: [{ text: 'barely missed', passed: false }],
             expectedAspectCount: 1,
           };
         },

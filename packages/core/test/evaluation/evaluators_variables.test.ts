@@ -59,9 +59,7 @@ File Changes: {{file_changes}}
     const graderProvider = new CapturingProvider({
       text: JSON.stringify({
         score: 0.8,
-        hits: ['Good'],
-        misses: [],
-        reasoning: 'Reasoning',
+        assertions: [{ text: 'Good', passed: true }],
       }),
     });
 
@@ -116,7 +114,7 @@ File Changes: {{file_changes}}
     const promptQuestion = 'Summarize the latest logs without markers.';
 
     const graderProvider = new CapturingProvider({
-      text: JSON.stringify({ score: 0.5, hits: [], misses: [] }),
+      text: JSON.stringify({ score: 0.5, assertions: [] }),
     });
 
     const evaluator = new LlmGraderEvaluator({
@@ -158,9 +156,7 @@ Expected Messages: {{ expected_output }}
     const graderProvider = new CapturingProvider({
       text: JSON.stringify({
         score: 0.8,
-        hits: ['Good'],
-        misses: [],
-        reasoning: 'Reasoning',
+        assertions: [{ text: 'Good', passed: true }],
       }),
     });
 

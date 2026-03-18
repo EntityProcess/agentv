@@ -8,8 +8,7 @@ function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult
     timestamp: '2026-03-13T00:00:00.000Z',
     testId: 'test-1',
     score: 0.9,
-    hits: [],
-    misses: [],
+    assertions: [],
     answer: 'test answer',
     target: 'test-target',
     verdict: 'pass',
@@ -23,9 +22,9 @@ describe('buildBenchmarkJson', () => {
     const results = [
       makeResult({
         scores: [
-          { name: 'a1', type: 'llm-grader', score: 0.9, hits: [], misses: [] },
-          { name: 'a2', type: 'llm-grader', score: 0.7, hits: [], misses: [] },
-          { name: 'a3', type: 'llm-grader', score: 0.85, hits: [], misses: [] },
+          { name: 'a1', type: 'llm-grader', score: 0.9, assertions: [] },
+          { name: 'a2', type: 'llm-grader', score: 0.7, assertions: [] },
+          { name: 'a3', type: 'llm-grader', score: 0.85, assertions: [] },
         ],
       }),
     ];
