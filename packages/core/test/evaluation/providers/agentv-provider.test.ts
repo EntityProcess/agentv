@@ -19,10 +19,12 @@ vi.mock('@ai-sdk/anthropic', () => ({
 }));
 
 vi.mock('@ai-sdk/azure', () => ({
-  createAzure: () => (modelId: string) => ({
-    modelId,
-    specificationVersion: 'v3',
-    provider: 'azure',
+  createAzure: () => ({
+    chat: (modelId: string) => ({
+      modelId,
+      specificationVersion: 'v3',
+      provider: 'azure',
+    }),
   }),
 }));
 

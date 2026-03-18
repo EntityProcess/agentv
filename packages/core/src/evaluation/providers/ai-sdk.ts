@@ -92,7 +92,7 @@ export class AzureProvider implements Provider {
     this.retryConfig = config.retry;
 
     const azure = createAzure(buildAzureOptions(config));
-    this.model = azure(config.deploymentName);
+    this.model = azure.chat(config.deploymentName);
   }
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {

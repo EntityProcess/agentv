@@ -35,7 +35,7 @@ function createLanguageModel(modelString: string): LanguageModel {
     case 'anthropic':
       return createAnthropic()(modelName);
     case 'azure':
-      return createAzure()(modelName);
+      return createAzure().chat(modelName);
     case 'google':
       return createGoogleGenerativeAI()(modelName);
     default:
