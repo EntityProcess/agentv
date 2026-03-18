@@ -66,6 +66,22 @@ describe('retry-errors', () => {
     expect(results[1].testId).toBe('case-3');
   });
 
+  it('supports snake_case result files written by the CLI', async () => {
+    const filePath = createJsonlFile([
+      { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
+      { test_id: 'case-2', execution_status: 'execution_error', score: 0 },
+      { test_id: 'case-3', execution_status: 'quality_failure', score: 0.5 },
+    ]);
+
+    const ids = await loadErrorTestIds(filePath);
+    expect(ids).toEqual(['case-2']);
+
+    const results = await loadNonErrorResults(filePath);
+    expect(results).toHaveLength(2);
+    expect(results[0].testId).toBe('case-1');
+    expect(results[1].testId).toBe('case-3');
+  });
+
   it('skips malformed JSON lines', async () => {
     tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-test-'));
     const filePath = path.join(tmpDir, 'results.jsonl');
