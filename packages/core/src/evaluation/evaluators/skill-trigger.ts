@@ -117,32 +117,32 @@ export class SkillTriggerEvaluator implements Evaluator {
       return {
         score: 1,
         verdict: 'pass',
-        hits: [
-          shouldTrigger
-            ? evidence || `Skill "${skillName}" triggered as expected`
-            : `Skill "${skillName}" correctly did not trigger`,
+        assertions: [
+          {
+            text: shouldTrigger
+              ? evidence || `Skill "${skillName}" triggered as expected`
+              : `Skill "${skillName}" correctly did not trigger`,
+            passed: true,
+          },
         ],
-        misses: [],
         expectedAspectCount: 1,
-        reasoning: shouldTrigger ? 'Skill triggered correctly' : 'No false trigger',
       };
     }
 
     return {
       score: 0,
       verdict: 'fail',
-      hits: [],
-      misses: [
-        shouldTrigger
-          ? firstTool
-            ? `First tool was "${firstTool.tool}" — not a skill/read tool for "${skillName}"`
-            : 'No tool calls recorded'
-          : evidence || `Skill "${skillName}" triggered unexpectedly`,
+      assertions: [
+        {
+          text: shouldTrigger
+            ? firstTool
+              ? `First tool was "${firstTool.tool}" — not a skill/read tool for "${skillName}"`
+              : 'No tool calls recorded'
+            : evidence || `Skill "${skillName}" triggered unexpectedly`,
+          passed: false,
+        },
       ],
       expectedAspectCount: 1,
-      reasoning: shouldTrigger
-        ? `Skill "${skillName}" was not triggered`
-        : 'False trigger: skill fired when it should not have',
     };
   }
 }

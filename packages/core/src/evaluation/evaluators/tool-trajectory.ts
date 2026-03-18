@@ -5,6 +5,7 @@ import type {
   ToolTrajectoryExpectedItem,
   TraceSummary,
 } from '../trace.js';
+import type { AssertionEntry } from '../types.js';
 import { deepEqual, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Evaluator } from './types.js';
 
@@ -174,8 +175,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: ['No trace available for evaluation'],
+        assertions: [{ text: 'No trace available for evaluation', passed: false }],
         expectedAspectCount: 1,
       };
     }
@@ -189,8 +189,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
           return {
             score: 0,
             verdict: 'fail',
-            hits: [],
-            misses: ['No trace available for evaluation'],
+            assertions: [{ text: 'No trace available for evaluation', passed: false }],
             expectedAspectCount: 1,
           };
         }
@@ -208,8 +207,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
         return {
           score: 0,
           verdict: 'fail',
-          hits: [],
-          misses: [`Unknown mode: ${this.config.mode}`],
+          assertions: [{ text: `Unknown mode: ${this.config.mode}`, passed: false }],
           expectedAspectCount: 1,
         };
     }
@@ -265,32 +263,30 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       return {
         score: 1,
         verdict: 'pass',
-        hits: ['No tool requirements specified'],
-        misses: [],
+        assertions: [{ text: 'No tool requirements specified', passed: true }],
         expectedAspectCount: 0,
       };
     }
 
-    const hits: string[] = [];
-    const misses: string[] = [];
+    const assertions: AssertionEntry[] = [];
 
     for (const toolName of toolNames) {
       const required = minimums[toolName];
       const actual = summary.toolCallsByName[toolName] ?? 0;
       if (actual >= required) {
-        hits.push(`${toolName}: called ${actual} times (required >=${required})`);
+        assertions.push({ text: `${toolName}: called ${actual} times (required >=${required})`, passed: true });
       } else {
-        misses.push(`${toolName}: called ${actual} times (required >=${required})`);
+        assertions.push({ text: `${toolName}: called ${actual} times (required >=${required})`, passed: false });
       }
     }
 
-    const score = hits.length / toolNames.length;
+    const passedCount = assertions.filter((a) => a.passed).length;
+    const score = passedCount / toolNames.length;
 
     return {
       score,
       verdict: scoreToVerdict(score),
-      hits,
-      misses,
+      assertions,
       expectedAspectCount: toolNames.length,
     };
   }
@@ -302,14 +298,12 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       return {
         score: 1,
         verdict: 'pass',
-        hits: ['No tool sequence specified'],
-        misses: [],
+        assertions: [{ text: 'No tool sequence specified', passed: true }],
         expectedAspectCount: 0,
       };
     }
 
-    const hits: string[] = [];
-    const misses: string[] = [];
+    const assertions: AssertionEntry[] = [];
     const warnings: string[] = [];
     let actualIndex = 0;
 
@@ -336,7 +330,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
         if (actualCall.name === expectedTool) {
           // Tool name matches, check args if specified
           if (argsMatch(expectedItem.args, actualCall.args, mode)) {
-            hits.push(`Found ${expectedTool} at position ${actualIndex}`);
+            assertions.push({ text: `Found ${expectedTool} at position ${actualIndex}`, passed: true });
             sequenceHits++;
             matchedCall = actualCall;
             actualIndex++;
@@ -344,9 +338,10 @@ export class ToolTrajectoryEvaluator implements Evaluator {
             break;
           }
           // Tool name matches but args don't - this is a miss for this expected item
-          misses.push(
-            `Expected ${expectedTool} at position ${i}: tool found at ${actualIndex} but args mismatch`,
-          );
+          assertions.push({
+            text: `Expected ${expectedTool} at position ${i}: tool found at ${actualIndex} but args mismatch`,
+            passed: false,
+          });
           actualIndex++;
           argsMismatch = true;
           break;
@@ -355,7 +350,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       }
 
       if (!found && !argsMismatch) {
-        misses.push(`Expected ${expectedTool} at position ${i}, not found in remaining trace`);
+        assertions.push({ text: `Expected ${expectedTool} at position ${i}, not found in remaining trace`, passed: false });
       }
 
       // Check latency assertion if tool was found and latency assertion is specified
@@ -366,10 +361,10 @@ export class ToolTrajectoryEvaluator implements Evaluator {
           matchedCall.durationMs,
         );
         if (latencyResult.status === 'pass') {
-          hits.push(latencyResult.message);
+          assertions.push({ text: latencyResult.message, passed: true });
           latencyHits++;
         } else if (latencyResult.status === 'fail') {
-          misses.push(latencyResult.message);
+          assertions.push({ text: latencyResult.message, passed: false });
         } else if (latencyResult.message) {
           // Skip with warning message (missing duration data) - neutral, don't count
           warnings.push(latencyResult.message);
@@ -391,8 +386,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     return {
       score,
       verdict: scoreToVerdict(score),
-      hits,
-      misses,
+      assertions,
       expectedAspectCount: totalAssertions,
     };
   }
@@ -404,14 +398,12 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       return {
         score: 1,
         verdict: 'pass',
-        hits: ['No tool sequence specified'],
-        misses: [],
+        assertions: [{ text: 'No tool sequence specified', passed: true }],
         expectedAspectCount: 0,
       };
     }
 
-    const hits: string[] = [];
-    const misses: string[] = [];
+    const assertions: AssertionEntry[] = [];
     const warnings: string[] = [];
 
     // Track latency assertion results separately for accurate scoring
@@ -425,7 +417,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     ).length;
 
     if (toolCalls.length !== expected.length) {
-      misses.push(`Expected ${expected.length} tool calls, got ${toolCalls.length}`);
+      assertions.push({ text: `Expected ${expected.length} tool calls, got ${toolCalls.length}`, passed: false });
     }
 
     const checkLength = Math.min(expected.length, toolCalls.length);
@@ -440,14 +432,14 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       if (actualTool === expectedTool) {
         // Tool name matches, check args if specified
         if (argsMatch(expectedItem.args, actualCall.args, mode)) {
-          hits.push(`Position ${i}: ${expectedTool}`);
+          assertions.push({ text: `Position ${i}: ${expectedTool}`, passed: true });
           sequenceHits++;
           sequenceMatched = true;
         } else {
-          misses.push(`Position ${i}: ${expectedTool} args mismatch`);
+          assertions.push({ text: `Position ${i}: ${expectedTool} args mismatch`, passed: false });
         }
       } else {
-        misses.push(`Position ${i}: expected ${expectedTool}, got ${actualTool}`);
+        assertions.push({ text: `Position ${i}: expected ${expectedTool}, got ${actualTool}`, passed: false });
       }
 
       // Check latency assertion if sequence matched and latency assertion is specified
@@ -458,10 +450,10 @@ export class ToolTrajectoryEvaluator implements Evaluator {
           actualCall.durationMs,
         );
         if (latencyResult.status === 'pass') {
-          hits.push(latencyResult.message);
+          assertions.push({ text: latencyResult.message, passed: true });
           latencyHits++;
         } else if (latencyResult.status === 'fail') {
-          misses.push(latencyResult.message);
+          assertions.push({ text: latencyResult.message, passed: false });
         } else if (latencyResult.message) {
           // Skip with warning message (missing duration data) - neutral, don't count
           warnings.push(latencyResult.message);
@@ -471,7 +463,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     }
 
     for (let i = checkLength; i < expected.length; i++) {
-      misses.push(`Position ${i}: expected ${expected[i].tool}, got nothing`);
+      assertions.push({ text: `Position ${i}: expected ${expected[i].tool}, got nothing`, passed: false });
     }
 
     // Log warnings for missing duration data
@@ -487,8 +479,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
     return {
       score,
       verdict: scoreToVerdict(score),
-      hits,
-      misses,
+      assertions,
       expectedAspectCount: totalAssertions,
     };
   }
@@ -505,14 +496,12 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       return {
         score: 1,
         verdict: 'pass',
-        hits: ['No expected tools specified'],
-        misses: [],
+        assertions: [{ text: 'No expected tools specified', passed: true }],
         expectedAspectCount: 0,
       };
     }
 
-    const hits: string[] = [];
-    const misses: string[] = [];
+    const assertions: AssertionEntry[] = [];
 
     // Track which actual calls have been consumed
     const consumed = new Set<number>();
@@ -531,7 +520,7 @@ export class ToolTrajectoryEvaluator implements Evaluator {
           actualCall.name === expectedTool &&
           argsMatch(expectedItem.args, actualCall.args, mode)
         ) {
-          hits.push(`Found ${expectedTool} at position ${j}`);
+          assertions.push({ text: `Found ${expectedTool} at position ${j}`, passed: true });
           consumed.add(j);
           found = true;
           break;
@@ -539,17 +528,17 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       }
 
       if (!found) {
-        misses.push(`Expected ${expectedTool} not found in actual trajectory`);
+        assertions.push({ text: `Expected ${expectedTool} not found in actual trajectory`, passed: false });
       }
     }
 
-    const score = expected.length > 0 ? hits.length / expected.length : 1;
+    const passedCount = assertions.filter((a) => a.passed).length;
+    const score = expected.length > 0 ? passedCount / expected.length : 1;
 
     return {
       score,
       verdict: scoreToVerdict(score),
-      hits,
-      misses,
+      assertions,
       expectedAspectCount: expected.length,
     };
   }
@@ -568,16 +557,14 @@ export class ToolTrajectoryEvaluator implements Evaluator {
         return {
           score: 1,
           verdict: 'pass',
-          hits: ['No tool calls and no expected tools'],
-          misses: [],
+          assertions: [{ text: 'No tool calls and no expected tools', passed: true }],
           expectedAspectCount: 0,
         };
       }
       return {
         score: 0,
         verdict: 'fail',
-        hits: [],
-        misses: [`${toolCalls.length} unexpected tool call(s) with empty allowed list`],
+        assertions: [{ text: `${toolCalls.length} unexpected tool call(s) with empty allowed list`, passed: false }],
         expectedAspectCount: toolCalls.length,
       };
     }
@@ -586,14 +573,12 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       return {
         score: 1,
         verdict: 'pass',
-        hits: ['No actual tool calls (trivially a subset)'],
-        misses: [],
+        assertions: [{ text: 'No actual tool calls (trivially a subset)', passed: true }],
         expectedAspectCount: 0,
       };
     }
 
-    const hits: string[] = [];
-    const misses: string[] = [];
+    const assertions: AssertionEntry[] = [];
 
     for (let i = 0; i < toolCalls.length; i++) {
       const actualCall = toolCalls[i];
@@ -612,19 +597,19 @@ export class ToolTrajectoryEvaluator implements Evaluator {
       }
 
       if (allowed) {
-        hits.push(`Position ${i}: ${actualCall.name} is in allowed set`);
+        assertions.push({ text: `Position ${i}: ${actualCall.name} is in allowed set`, passed: true });
       } else {
-        misses.push(`Position ${i}: ${actualCall.name} is not in allowed set`);
+        assertions.push({ text: `Position ${i}: ${actualCall.name} is not in allowed set`, passed: false });
       }
     }
 
-    const score = toolCalls.length > 0 ? hits.length / toolCalls.length : 1;
+    const passedCount = assertions.filter((a) => a.passed).length;
+    const score = toolCalls.length > 0 ? passedCount / toolCalls.length : 1;
 
     return {
       score,
       verdict: scoreToVerdict(score),
-      hits,
-      misses,
+      assertions,
       expectedAspectCount: toolCalls.length,
     };
   }
