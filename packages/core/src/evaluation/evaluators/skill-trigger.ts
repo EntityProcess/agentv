@@ -32,6 +32,12 @@ interface ToolMatcher {
   readonly readTools: readonly string[];
   /** Input field that contains the skill name for read tools. */
   readonly readInputField: string;
+  /** Tool-name prefixes that encode the skill directly in the tool name. */
+  readonly skillToolPrefixes?: readonly string[];
+  /** Tool-name prefixes that encode the file path directly in the tool name. */
+  readonly readToolPrefixes?: readonly string[];
+  /** Alternate input field names that may contain the file path. */
+  readonly readInputFields?: readonly string[];
 }
 
 const CLAUDE_MATCHER: ToolMatcher = {
@@ -47,6 +53,9 @@ const COPILOT_MATCHER: ToolMatcher = {
   skillInputField: 'skill',
   readTools: ['Read File', 'readFile', 'Read', 'readTextFile'],
   readInputField: 'file_path',
+  skillToolPrefixes: ['Using skill: '],
+  readToolPrefixes: ['Viewing '],
+  readInputFields: ['file_path', 'path'],
 };
 
 /**
@@ -102,12 +111,26 @@ export class SkillTriggerEvaluator implements Evaluator {
           triggered = true;
           evidence = `Skill tool invoked with ${matcher.skillInputField}="${skillArg}"`;
         }
+      } else if (
+        matcher.skillToolPrefixes?.some(
+          (prefix) => firstTool.tool.startsWith(prefix) && firstTool.tool.includes(skillName),
+        )
+      ) {
+        triggered = true;
+        evidence = `Skill tool invoked via tool name "${firstTool.tool}"`;
       } else if (matcher.readTools.includes(firstTool.tool)) {
-        const filePath = String(input[matcher.readInputField] ?? '');
+        const filePath = this.readPathFromInput(input, matcher);
         if (filePath.includes(skillName)) {
           triggered = true;
           evidence = `Read tool loaded skill file: ${filePath}`;
         }
+      } else if (
+        matcher.readToolPrefixes?.some(
+          (prefix) => firstTool.tool.startsWith(prefix) && firstTool.tool.includes(skillName),
+        )
+      ) {
+        triggered = true;
+        evidence = `Read tool loaded skill file via tool name "${firstTool.tool}"`;
       }
     }
 
@@ -144,5 +167,16 @@ export class SkillTriggerEvaluator implements Evaluator {
       ],
       expectedAspectCount: 1,
     };
+  }
+
+  private readPathFromInput(input: Record<string, unknown>, matcher: ToolMatcher): string {
+    const fields = matcher.readInputFields ?? [matcher.readInputField];
+    for (const field of fields) {
+      const value = input[field];
+      if (value !== undefined && value !== null) {
+        return String(value);
+      }
+    }
+    return '';
   }
 }
