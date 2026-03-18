@@ -185,6 +185,10 @@ export interface ProgressEvent {
   readonly startedAt?: number;
   readonly completedAt?: number;
   readonly error?: string;
+  /** Final score for completed/failed tests */
+  readonly score?: number;
+  /** Execution status classification for completed/failed tests */
+  readonly executionStatus?: ExecutionStatus;
 }
 
 export interface RunEvaluationOptions {
@@ -815,6 +819,8 @@ export async function runEvaluation(
               status: 'failed',
               completedAt: Date.now(),
               error: budgetResult.error,
+              score: budgetResult.score,
+              executionStatus: budgetResult.executionStatus,
             });
           }
           if (onResult) {
@@ -849,6 +855,8 @@ export async function runEvaluation(
               status: 'failed',
               completedAt: Date.now(),
               error: haltResult.error,
+              score: haltResult.score,
+              executionStatus: haltResult.executionStatus,
             });
           }
           if (onResult) {
@@ -945,6 +953,8 @@ export async function runEvaluation(
               startedAt: 0, // Not used for completed status
               completedAt: Date.now(),
               error: result.error,
+              score: result.score,
+              executionStatus: result.executionStatus,
             });
           }
 
@@ -1242,6 +1252,8 @@ async function runBatchEvaluation(options: {
           status: 'failed',
           completedAt: Date.now(),
           error: error instanceof Error ? error.message : String(error),
+          score: errorResult.score,
+          executionStatus: errorResult.executionStatus,
         });
       }
       continue;
@@ -1260,6 +1272,8 @@ async function runBatchEvaluation(options: {
         startedAt: 0,
         completedAt: Date.now(),
         error: result.error,
+        score: result.score,
+        executionStatus: result.executionStatus,
       });
     }
   }

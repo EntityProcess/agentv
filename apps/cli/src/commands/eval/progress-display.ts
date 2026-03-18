@@ -1,3 +1,5 @@
+export type Verdict = 'PASS' | 'FAIL' | 'ERROR';
+
 export interface WorkerProgress {
   workerId: number;
   testId: string;
@@ -6,6 +8,33 @@ export interface WorkerProgress {
   completedAt?: number;
   error?: string;
   targetLabel?: string;
+  score?: number;
+  verdict?: Verdict;
+}
+
+const ANSI_BOLD = '\x1b[1m';
+const ANSI_GREEN = '\x1b[32m';
+const ANSI_RED = '\x1b[31m';
+const ANSI_YELLOW = '\x1b[33m';
+const ANSI_RESET = '\x1b[0m';
+
+function useColors(): boolean {
+  if (process.env.NO_COLOR !== undefined) return false;
+  return process.stdout.isTTY ?? false;
+}
+
+function formatVerdict(score: number | undefined, verdict: Verdict | undefined): string {
+  if (verdict === undefined) return '';
+
+  const colors = useColors();
+  const scoreStr = score !== undefined ? score.toFixed(3) : '';
+  const verdictLabel = verdict === 'ERROR' ? 'ERROR' : `${scoreStr} ${verdict}`;
+
+  if (!colors) return ` | ${verdictLabel}`;
+
+  const color = verdict === 'PASS' ? ANSI_GREEN : verdict === 'FAIL' ? ANSI_RED : ANSI_YELLOW;
+
+  return ` | ${color}${ANSI_BOLD}${verdictLabel}${ANSI_RESET}`;
 }
 
 /**
@@ -68,11 +97,13 @@ export class ProgressDisplay {
         }
         break;
       case 'completed':
-        console.log(`${countPrefix}   ✅ ${progress.testId}${targetSuffix}`);
+        console.log(
+          `${countPrefix}   ✅ ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}`,
+        );
         break;
       case 'failed':
         console.log(
-          `${countPrefix}   ❌ ${progress.testId}${targetSuffix}${progress.error ? `: ${progress.error}` : ''}`,
+          `${countPrefix}   ❌ ${progress.testId}${targetSuffix}${formatVerdict(progress.score, progress.verdict)}${progress.error ? `: ${progress.error}` : ''}`,
         );
         break;
     }
