@@ -1171,6 +1171,8 @@ async function runBatchEvaluation(options: {
           tokenUsage: providerResponse.tokenUsage,
           costUsd: providerResponse.costUsd,
           durationMs: providerResponse.durationMs,
+          startTime: providerResponse.startTime,
+          endTime: providerResponse.endTime,
         })
       : undefined;
     const trace = merged?.trace;
@@ -1618,6 +1620,8 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         tokenUsage: providerResponse.tokenUsage,
         costUsd: providerResponse.costUsd,
         durationMs: providerResponse.durationMs,
+        startTime: providerResponse.startTime,
+        endTime: providerResponse.endTime,
       })
     : undefined;
   const trace = merged?.trace;
