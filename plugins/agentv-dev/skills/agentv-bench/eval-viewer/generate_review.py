@@ -276,8 +276,7 @@ def find_agentv_runs(artifacts_dir: Path) -> list[dict]:
 
         test_id = result.get('test_id', '')
         answer = result.get('answer', '')
-        hits = result.get('hits', [])
-        misses = result.get('misses', [])
+        assertions = result.get('assertions', [])
         input_text = result.get('input', '')
 
         grade = grades.get(test_id, {})
@@ -285,14 +284,17 @@ def find_agentv_runs(artifacts_dir: Path) -> list[dict]:
         rationale = grade.get('rationale', '')
         error = grade.get('error') or result.get('error')
 
+        passed_lines = [a.get('text', '') for a in assertions if a.get('passed')]
+        failed_lines = [a.get('text', '') for a in assertions if not a.get('passed')]
+
         runs.append({
             'id': test_id,
             'prompt': input_text,
             'eval_id': test_id,
             'outputs': [
                 {'name': 'answer.txt', 'type': 'text', 'content': answer},
-                {'name': 'hits.txt', 'type': 'text', 'content': '\n'.join(hits)},
-                {'name': 'misses.txt', 'type': 'text', 'content': '\n'.join(misses)},
+                {'name': 'passed.txt', 'type': 'text', 'content': '\n'.join(passed_lines)},
+                {'name': 'failed.txt', 'type': 'text', 'content': '\n'.join(failed_lines)},
             ],
             'grading': {'score': score, 'rationale': rationale, 'error': error},
         })

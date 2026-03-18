@@ -46,7 +46,7 @@ LLM-judge evaluators doing work that a deterministic assertion could handle — 
 | "Response is valid JSON" — format validation | `type: is-json` |
 | "Output starts with 'Error:'" — prefix check | `type: regex`, `value: "^Error:"` |
 | "Matches pattern /regex/" — regex match | `type: regex`, `value: "/pattern/"` |
-| All hits are substring presence checks | Multiple `type: contains` assertions (one per value) |
+| All passed assertions are substring presence checks | Multiple `type: contains` assertions (one per value) |
 
 ### 2. Weak Assertion Detection
 

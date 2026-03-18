@@ -33,12 +33,12 @@ agentv prompt eval judge <eval-path> --test-id <test-id> --answer-file <answer-f
 
 Parse the JSON output. It contains an `evaluators` array. Each evaluator has a `status`:
 
-- **`"completed"`** — Deterministic score is final. Read `result.score` (0.0-1.0), `result.hits`, and `result.misses`.
+- **`"completed"`** — Deterministic score is final. Read `result.score` (0.0-1.0) and `result.assertions` (array of `{ text, passed, evidence? }` entries).
 
 - **`"prompt_ready"`** — LLM grading required. You must act as the LLM judge:
   - Read `prompt.system_prompt` and `prompt.user_prompt`
   - Evaluate the candidate response against the criteria and reference answer provided in the prompts
-  - Produce a JSON verdict: `{"score": <0.0-1.0>, "hits": [...], "misses": [...], "reasoning": "..."}`
+  - Produce a JSON verdict: `{"score": <0.0-1.0>, "assertions": [{"text": "...", "passed": true/false, "evidence": "..."}], "reasoning": "..."}`
   - Be rigorous and fair. Score based on substance, not exact wording.
 
 - **Other status** — The evaluator type is not supported in agent mode (e.g., tool-trajectory, latency, cost).
@@ -59,18 +59,14 @@ Example `scores[]` entry with evidence:
   "name": "contains_name",
   "type": "contains",
   "score": 1.0,
-  "hits": ["John Smith"],
-  "misses": [],
-  "reasoning": "PASS. Found 'John Smith' in candidate response paragraph 2: 'Primary contact: John Smith, (555) 123-4567'",
-  "details": {
-    "assertions": [
-      {
-        "text": "The output includes the name 'John Smith'",
-        "passed": true,
-        "evidence": "Found in candidate response paragraph 2: 'Primary contact: John Smith, (555) 123-4567'"
-      }
-    ]
-  }
+  "assertions": [
+    {
+      "text": "The output includes the name 'John Smith'",
+      "passed": true,
+      "evidence": "Found in candidate response paragraph 2: 'Primary contact: John Smith, (555) 123-4567'"
+    }
+  ],
+  "reasoning": "PASS. Found 'John Smith' in candidate response paragraph 2: 'Primary contact: John Smith, (555) 123-4567'"
 }
 ```
 
@@ -135,7 +131,7 @@ Read the candidate's answer from `answer-file` to include in the results.
 
 ### Step 8: Append Results to JSONL
 
-Write one line per test to `results-file`. The **core output shape** matches the `EvaluationResult` schema exactly — `score`, `hits`, `misses`, `reasoning`, `answer`, `mode`, and `scores[]` are unchanged. Enhanced data lives in existing fields and the `extensions` object:
+Write one line per test to `results-file`. The **core output shape** matches the `EvaluationResult` schema exactly — `score`, `assertions`, `reasoning`, `answer`, `mode`, and `scores[]` are unchanged. Enhanced data lives in existing fields and the `extensions` object:
 
 ```json
 {
@@ -143,8 +139,9 @@ Write one line per test to `results-file`. The **core output shape** matches the
   "test_id": "<test-id>",
   "dataset": "<eval-filename>",
   "score": "<weighted-avg>",
-  "hits": ["..."],
-  "misses": ["..."],
+  "assertions": [
+    { "text": "...", "passed": true, "evidence": "..." }
+  ],
   "reasoning": "## Summary\n<overall-reasoning>\n\n## Verified Claims\n- [VERIFIED] ...\n- [REFUTED] ...\n\n## User Notes\n- <executor-flagged-concern> (omit section if no notes found)",
   "answer": "<candidate-response>",
   "mode": "agent",
@@ -153,18 +150,14 @@ Write one line per test to `results-file`. The **core output shape** matches the
       "name": "<name>",
       "type": "<type>",
       "score": "<score>",
-      "hits": ["..."],
-      "misses": ["..."],
-      "reasoning": "<verdict-with-evidence-citations>",
-      "details": {
-        "assertions": [
-          {
-            "text": "<assertion-text>",
-            "passed": true,
-            "evidence": "<cited-quote-or-description>"
-          }
-        ]
-      }
+      "assertions": [
+        {
+          "text": "<assertion-text>",
+          "passed": true,
+          "evidence": "<cited-quote-or-description>"
+        }
+      ],
+      "reasoning": "<verdict-with-evidence-citations>"
     }
   ],
   "extensions": {
@@ -196,11 +189,12 @@ Write one line per test to `results-file`. The **core output shape** matches the
 
 Field notes:
 - `score` is the weighted average across all evaluators
+- `assertions` contains per-aspect results as `{ text, passed, evidence? }` entries
 - `answer` is the full candidate response text
 - `mode` is always `"agent"` to distinguish from cli-mode results
 - `reasoning` contains the overall assessment plus structured `## Verified Claims` and `## User Notes` sections
+- `scores[].assertions` contains per-evaluator assertion entries with evidence
 - `scores[].reasoning` contains per-evaluator verdicts with evidence citations
-- `scores[].details` contains machine-readable per-assertion evidence (existing `JsonObject` field)
 - `extensions` contains forward-compatible structured data (eval feedback, claims, user notes) — the JSONL writer serializes all fields via `toSnakeCaseDeep()`, and downstream tools can opt-in to reading extensions
 - `extensions.user_notes_summary` is only present when executor notes were found
 - If the file already exists, append — do not overwrite.
@@ -229,7 +223,7 @@ Apply these standards to every assertion and claim. The key question is always: 
 - A response that meets all criteria but uses different structure than the reference is still a pass.
 - Be strict about factual correctness and completeness.
 - Score 1.0 only when all criteria are fully met. Use partial scores (0.0-1.0) for partial matches.
-- Do NOT give inflated scores. If something is missing, reflect it in the score and misses.
+- Do NOT give inflated scores. If something is missing, reflect it in the score and in a failed assertion entry.
 - Base verdicts on evidence, not assumptions. Quote the exact text that supports your verdict.
 - Apply the same standard consistently to each assertion.
 - Explain failures clearly — make it clear why evidence was insufficient.

@@ -75,15 +75,16 @@ assertions:
 
 ## Code Graders
 
-Use `defineCodeGrader` from `@agentv/eval` for full control over scoring with explicit hits/misses:
+Use `defineCodeGrader` from `@agentv/eval` for full control over scoring with an explicit assertions array:
 
 ```typescript
 import { defineCodeGrader } from '@agentv/eval';
 
 export default defineCodeGrader(({ trace, outputText }) => ({
   score: trace?.eventCount <= 5 ? 1.0 : 0.5,
-  hits: ['Efficient tool usage'],
-  misses: [],
+  assertions: [
+    { text: 'Efficient tool usage', passed: (trace?.eventCount ?? 0) <= 5 },
+  ],
 }));
 ```
 

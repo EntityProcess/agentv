@@ -41,7 +41,7 @@ The scripts layer wraps AgentV rather than replacing it. Use it when you want a 
 - `scripts/run_loop.py` → plans and executes repeated eval iterations, calling `run_eval.py` each round
 - `scripts/aggregate_benchmark.py` → reads `benchmark.json`, `timing.json`, and `results.jsonl`
 - `scripts/generate_report.py` → builds a review model and writes a JSON report from AgentV artifacts
-- `scripts/improve_description.py` → proposes description experiments from observed misses/false triggers
+- `scripts/improve_description.py` → proposes description experiments from observed failures/false triggers
 - `scripts/package_skill.py` → packages the skill directory for distribution
 - `eval-viewer/generate_review.py` → reads AgentV artifacts (`--artifacts`) and renders `viewer.html`
 
@@ -58,7 +58,7 @@ All scripts require Python 3.11+ and no external dependencies beyond the Python 
 ### Eval workflow
 - `scripts/run_eval.py` — run trigger evaluation (tests skill description quality)
 - `scripts/run_loop.py` — run eval+improve loop until all assertions pass
-- `scripts/improve_description.py` — improve skill description using eval results
+- `scripts/improve_description.py` — improve skill description using eval failures
 - `scripts/aggregate_benchmark.py` — aggregate run results into benchmark statistics
 - `scripts/generate_report.py` — generate HTML report from run_loop output
 

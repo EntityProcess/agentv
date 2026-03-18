@@ -27,8 +27,8 @@ assertions:
 ### Behavior
 
 - **Only specified thresholds are checked** — omit fields you don't care about
-- **Score is proportional**: `hits / (hits + misses)`
-- **Missing data counts as a miss** — if you check `max_tokens` but no token data is available, it fails
+- **Score is proportional**: `passed / total` assertions
+- **Missing data counts as a failed assertion** — if you check `max_tokens` but no token data is available, it fails
 - **All thresholds are "max" constraints** — values must be ≤ the specified threshold
 
 ### Threshold Options

@@ -23,8 +23,9 @@ Each `scores[]` entry includes per-grader timing:
       "type": "llm-grader",
       "score": 0.9,
       "verdict": "pass",
-      "hits": ["clear structure"],
-      "misses": [],
+      "assertions": [
+        { "text": "clear structure", "passed": true }
+      ],
       "duration_ms": 9103,
       "started_at": "2026-03-09T00:05:10.123Z",
       "ended_at": "2026-03-09T00:05:19.226Z",

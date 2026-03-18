@@ -74,8 +74,8 @@ The command receives the evaluator results on stdin and must print a result to s
 ```json
 {
   "results": {
-    "safety": { "score": 0.9, "hits": ["..."], "misses": ["..."] },
-    "quality": { "score": 0.85, "hits": ["..."], "misses": ["..."] }
+    "safety": { "score": 0.9, "assertions": [{ "text": "...", "passed": true }] },
+    "quality": { "score": 0.85, "assertions": [{ "text": "...", "passed": true }] }
   }
 }
 ```
@@ -85,8 +85,7 @@ The command receives the evaluator results on stdin and must print a result to s
 {
   "score": 0.87,
   "verdict": "pass",
-  "hits": ["Combined check passed"],
-  "misses": [],
+  "assertions": [{ "text": "Combined check passed", "passed": true }],
   "reasoning": "Safety gate passed, quality acceptable"
 }
 ```
@@ -198,8 +197,11 @@ Composite evaluators return nested `scores`, giving full visibility into each su
 {
   "score": 0.85,
   "verdict": "pass",
-  "hits": ["[safety] No harmful content", "[quality] Clear explanation"],
-  "misses": ["[quality] Could use more examples"],
+  "assertions": [
+    { "text": "[safety] No harmful content", "passed": true },
+    { "text": "[quality] Clear explanation", "passed": true },
+    { "text": "[quality] Could use more examples", "passed": false }
+  ],
   "reasoning": "safety: Passed all checks; quality: Good but could improve",
   "scores": [
     {
@@ -207,22 +209,25 @@ Composite evaluators return nested `scores`, giving full visibility into each su
       "type": "llm_grader",
       "score": 0.95,
       "verdict": "pass",
-      "hits": ["No harmful content"],
-      "misses": []
+      "assertions": [
+        { "text": "No harmful content", "passed": true }
+      ]
     },
     {
       "name": "quality",
       "type": "llm_grader",
       "score": 0.8,
       "verdict": "pass",
-      "hits": ["Clear explanation"],
-      "misses": ["Could use more examples"]
+      "assertions": [
+        { "text": "Clear explanation", "passed": true },
+        { "text": "Could use more examples", "passed": false }
+      ]
     }
   ]
 }
 ```
 
-Hits and misses from sub-evaluators are prefixed with the evaluator name (e.g., `[safety]`) in the top-level arrays.
+Assertions from sub-evaluators are prefixed with the evaluator name (e.g., `[safety]`) in the top-level `assertions` array.
 
 ## Best Practices
 

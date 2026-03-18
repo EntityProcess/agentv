@@ -21,14 +21,14 @@ You are an eval-quality analyst for AgentV. Your job is to read JSONL evaluation
 ### Step 1: Load Results
 
 Read every line of the JSONL results file. Each line is a JSON object with:
-- `test_id`, `dataset`, `score`, `hits`, `misses`, `reasoning`, `target`
-- `scores` (optional): Array of per-evaluator breakdowns with `name`, `type`, `score`, `weight`, `verdict`, `hits`, `misses`, `reasoning`
+- `test_id`, `dataset`, `score`, `assertions`, `reasoning`, `target`
+- `scores` (optional): Array of per-evaluator breakdowns with `name`, `type`, `score`, `weight`, `verdict`, `assertions`, `reasoning`
 
 If `eval-path` is provided, also read the EVAL.yaml to understand evaluator configurations.
 
 ### Step 2: Deterministic-Upgrade Analysis
 
-For each evaluator entry in `scores` where `type` is `"llm-judge"` or `"rubrics"`, inspect the `reasoning`, `hits`, and `misses` fields for patterns that indicate a deterministic assertion would suffice:
+For each evaluator entry in `scores` where `type` is `"llm-judge"` or `"rubrics"`, inspect the `reasoning` and `assertions` fields for patterns that indicate a deterministic assertion would suffice:
 
 | Signal | Detection | Suggested Upgrade |
 |--------|-----------|-------------------|
@@ -39,11 +39,11 @@ For each evaluator entry in `scores` where `type` is `"llm-judge"` or `"rubrics"
 | Reasoning references ending pattern | "ends with", "output ends with" | `type: regex` with `value: "<extracted suffix>$"` |
 | Reasoning matches regex-like pattern | "matches pattern", "follows the format", explicit regex mention | `type: regex` with `value: "<extracted pattern>"` |
 | Reasoning checks field presence/value | "field X is Y", "contains key", "has property" in JSON output | `type: field-accuracy` with expected fields |
-| All hits are substring checks | Every hit entry quotes a specific string found in output | Multiple `type: contains` assertions (one per value from hits) |
+| All passed assertions are substring checks | Every passed assertion entry quotes a specific string found in output | Multiple `type: contains` assertions (one per value from passed assertions) |
 
 **Extraction rules:**
 - When a quoted string appears in reasoning (e.g., `"contains 'error code 404'"`), extract the inner string as the assertion value.
-- When multiple hits all follow the same pattern (substring presence), aggregate them into multiple `contains` assertions.
+- When multiple passed assertions all follow the same pattern (substring presence), aggregate them into multiple `contains` assertions.
 - Be conservative: only suggest an upgrade when the evidence is clear across the results. One ambiguous mention is not enough.
 
 ### Step 3: Weak Assertion Detection
@@ -65,7 +65,7 @@ Flag evaluators that are expensive relative to their value:
 | Signal | Detection | Suggestion |
 |--------|-----------|------------|
 | Expensive binary check | LLM-judge evaluator where score is always 0.0 or 1.0 | Replace with deterministic assertion (zero LLM cost) |
-| High-confidence deterministic candidate | LLM-judge reasoning always cites the same substring/pattern | Replace with `contains`/`regex` (zero LLM cost) |
+| High-confidence deterministic candidate | LLM-judge reasoning or assertions always cite the same substring/pattern | Replace with `contains`/`regex` (zero LLM cost) |
 | Redundant evaluators | Two evaluators on the same test with identical scores and similar reasoning | Merge or remove the redundant one |
 | Always-pass evaluator | Evaluator scores 1.0 on every test case | Review if the assertion is too lenient or the test cases too easy |
 | Always-fail evaluator | Evaluator scores 0.0 on every test case | Review if the assertion is misconfigured or the criteria unrealistic |
