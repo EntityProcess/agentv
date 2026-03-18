@@ -83,6 +83,10 @@ export interface RawTraceSummary {
   error_count?: number;
   tool_durations?: Record<string, number[]>;
   llm_call_count?: number;
+  // Execution metrics (present when trace includes provider metrics)
+  token_usage?: { input: number; output: number; cached?: number };
+  cost_usd?: number;
+  duration_ms?: number;
 }
 
 /**
