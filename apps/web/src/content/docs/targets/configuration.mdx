@@ -192,12 +192,16 @@ workspace:
   path: /tmp/my-ws            # workspace path for mode=static
 ```
 
+Similar to GitHub Actions checkout conventions, `source` answers "where does this repo come from?" and `checkout` answers "which revision should be materialized?".
+
+`source.type: local` means AgentV clones from an existing local filesystem path. `checkout.resolve` is only meaningful for `source.type: git`; it controls whether refs are resolved via the remote (`ls-remote`) or from the cloned repo. For local sources, `checkout.ref` and `checkout.ancestor` still apply, but `checkout.resolve` has no effect.
+
 | Field | Description |
 |-------|-------------|
 | `repos[].path` | Directory within the workspace to clone into |
 | `repos[].source.type` | `git` (remote URL) or `local` (absolute path) |
 | `repos[].checkout.ref` | Branch, tag, or SHA to check out (default: `HEAD`) |
-| `repos[].checkout.resolve` | `remote` (ls-remote, default for git) or `local` |
+| `repos[].checkout.resolve` | `remote` (ls-remote, default for git) or `local`; only meaningful when `repos[].source.type` is `git` |
 | `repos[].checkout.ancestor` | Walk N commits back from ref (e.g., `1` for parent) |
 | `repos[].clone.depth` | Shallow clone depth |
 | `repos[].clone.filter` | Partial clone filter (e.g., `blob:none`) |
@@ -241,6 +245,16 @@ workspace:
   hooks:
     after_each:
       reset: fast
+
+# Local source pinned to a specific revision
+workspace:
+  repos:
+    - path: ./repo
+      source:
+        type: local
+        path: /home/user/projects/repo
+      checkout:
+        ref: abc123def
 ```
 
 ### Cleanup Behavior

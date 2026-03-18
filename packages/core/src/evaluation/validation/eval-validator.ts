@@ -2,6 +2,8 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 
+import { interpolateEnv } from '../interpolation.js';
+import { loadCasesFromFile } from '../loaders/case-file-loader.js';
 import { isEvaluatorKind } from '../types.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
@@ -46,7 +48,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   let parsed: unknown;
   try {
     const content = await readFile(absolutePath, 'utf8');
-    parsed = parse(content);
+    parsed = interpolateEnv(parse(content), process.env);
   } catch (error) {
     errors.push({
       severity: 'error',
@@ -119,6 +121,33 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   // tests can be a string path (external file reference) or an array
   if (typeof cases === 'string') {
     validateTestsStringPath(cases, absolutePath, errors);
+    await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
+
+    const ext = path.extname(cases).toLowerCase();
+    if (VALID_TEST_FILE_EXTENSIONS.has(ext)) {
+      const externalCasesPath = path.resolve(path.dirname(absolutePath), cases);
+      try {
+        const externalCases = await loadCasesFromFile(externalCasesPath);
+        for (let i = 0; i < externalCases.length; i++) {
+          const externalCase = externalCases[i];
+          await validateWorkspaceConfig(
+            externalCase.workspace,
+            absolutePath,
+            errors,
+            `tests[${i}].workspace`,
+          );
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push({
+          severity: 'error',
+          filePath: absolutePath,
+          location: 'tests',
+          message,
+        });
+      }
+    }
+
     return {
       valid: errors.filter((e) => e.severity === 'error').length === 0,
       filePath: absolutePath,
@@ -249,12 +278,11 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     if (assertField !== undefined) {
       validateAssertArray(assertField, location, absolutePath, errors);
     }
+
+    await validateWorkspaceConfig(evalCase.workspace, absolutePath, errors, `${location}.workspace`);
   }
 
-  // Validate workspace repo lifecycle config
-  if (isObject(parsed.workspace)) {
-    validateWorkspaceRepoConfig(parsed.workspace, absolutePath, errors);
-  }
+  await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
 
   return {
     valid: errors.filter((e) => e.severity === 'error').length === 0,
@@ -262,6 +290,52 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     fileType: 'eval',
     errors,
   };
+}
+
+async function validateWorkspaceConfig(
+  workspace: JsonValue | undefined,
+  evalFilePath: string,
+  errors: ValidationError[],
+  location: string,
+): Promise<void> {
+  if (workspace === undefined) {
+    return;
+  }
+
+  if (isObject(workspace)) {
+    validateWorkspaceRepoConfig(workspace, evalFilePath, errors);
+    return;
+  }
+
+  if (typeof workspace !== 'string') {
+    return;
+  }
+
+  const workspacePath = path.resolve(path.dirname(evalFilePath), workspace);
+
+  try {
+    const workspaceContent = await readFile(workspacePath, 'utf8');
+    const parsedWorkspace = interpolateEnv(parse(workspaceContent), process.env);
+    if (!isObject(parsedWorkspace)) {
+      errors.push({
+        severity: 'error',
+        filePath: evalFilePath,
+        location,
+        message: `External workspace file must contain a YAML object: ${workspace}`,
+      });
+      return;
+    }
+
+    validateWorkspaceRepoConfig(parsedWorkspace, workspacePath, errors);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    errors.push({
+      severity: 'error',
+      filePath: evalFilePath,
+      location,
+      message: `Failed to load external workspace file '${workspace}': ${message}`,
+    });
+  }
 }
 
 function validateWorkspaceRepoConfig(
@@ -278,8 +352,25 @@ function validateWorkspaceRepoConfig(
   if (Array.isArray(repos)) {
     for (const repo of repos) {
       if (!isObject(repo)) continue;
+      const source = repo.source;
       const checkout = repo.checkout;
       const clone = repo.clone;
+
+      if (isObject(source) && isObject(checkout)) {
+        const sourceType = source.type;
+        const resolve = checkout.resolve;
+        if (sourceType === 'local' && typeof resolve === 'string') {
+          errors.push({
+            severity: 'warning',
+            filePath,
+            location: `workspace.repos[path=${repo.path}]`,
+            message:
+              'checkout.resolve has no effect for a local source. ' +
+              'Use source.type to choose where the repo comes from; keep checkout.ref or checkout.ancestor only when pinning a local source.',
+          });
+        }
+      }
+
       if (isObject(checkout) && isObject(clone)) {
         const ancestor = checkout.ancestor;
         const depth = clone.depth;
