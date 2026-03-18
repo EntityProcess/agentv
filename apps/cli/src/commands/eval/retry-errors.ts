@@ -3,6 +3,31 @@ import { createInterface } from 'node:readline';
 
 import type { EvaluationResult } from '@agentv/core';
 
+type RetryResultRecord = Partial<EvaluationResult> & {
+  readonly test_id?: string;
+  readonly execution_status?: string;
+};
+
+function getTestId(result: RetryResultRecord): string | undefined {
+  return result.testId ?? result.test_id;
+}
+
+function getExecutionStatus(result: RetryResultRecord): string | undefined {
+  return result.executionStatus ?? result.execution_status;
+}
+
+function toEvaluationResult(result: RetryResultRecord): EvaluationResult {
+  if (result.testId !== undefined && result.executionStatus !== undefined) {
+    return result as EvaluationResult;
+  }
+
+  return {
+    ...result,
+    testId: getTestId(result) ?? '',
+    executionStatus: getExecutionStatus(result),
+  } as EvaluationResult;
+}
+
 /**
  * Load test IDs from a JSONL results file that have executionStatus === 'execution_error'.
  */
@@ -17,9 +42,11 @@ export async function loadErrorTestIds(jsonlPath: string): Promise<readonly stri
     const trimmed = line.trim();
     if (!trimmed) continue;
     try {
-      const parsed = JSON.parse(trimmed) as Partial<EvaluationResult>;
-      if (parsed.executionStatus === 'execution_error' && parsed.testId) {
-        ids.push(parsed.testId);
+      const parsed = JSON.parse(trimmed) as RetryResultRecord;
+      const executionStatus = getExecutionStatus(parsed);
+      const testId = getTestId(parsed);
+      if (executionStatus === 'execution_error' && testId) {
+        ids.push(testId);
       }
     } catch {
       // Skip malformed lines
@@ -44,10 +71,12 @@ export async function loadNonErrorResults(jsonlPath: string): Promise<readonly E
     const trimmed = line.trim();
     if (!trimmed) continue;
     try {
-      const parsed = JSON.parse(trimmed) as Partial<EvaluationResult>;
-      if (!parsed.testId || parsed.score === undefined) continue;
-      if (parsed.executionStatus !== 'execution_error') {
-        results.push(parsed as EvaluationResult);
+      const parsed = JSON.parse(trimmed) as RetryResultRecord;
+      const testId = getTestId(parsed);
+      const executionStatus = getExecutionStatus(parsed);
+      if (!testId || parsed.score === undefined) continue;
+      if (executionStatus !== 'execution_error') {
+        results.push(toEvaluationResult(parsed));
       }
     } catch {
       // Skip malformed lines
