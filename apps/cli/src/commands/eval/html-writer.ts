@@ -503,10 +503,12 @@ const SCRIPT = `
     /* evaluator results */
     if(r.scores&&r.scores.length>0){
       h+="<h4>Evaluator Results</h4>";
-      h+='<table class="eval-table"><thead><tr><th>Evaluator</th><th>Score</th><th>Status</th><th>Reasoning</th></tr></thead><tbody>';
+      h+='<table class="eval-table"><thead><tr><th>Evaluator</th><th>Score</th><th>Status</th><th>Assertions</th></tr></thead><tbody>';
       for(var i=0;i<r.scores.length;i++){
         var ev=r.scores[i],evS=ev.score>=0.5?"pass":"fail";
-        h+="<tr><td class=\\"fw-medium\\">"+esc(ev.name)+'</td><td class="'+sCls(ev.score)+'">'+fmtPct(ev.score)+"</td><td>"+sIcon(evS)+'</td><td class="reasoning-cell">'+esc(ev.reasoning||"")+"</td></tr>";
+        var evAssertions=ev.assertions||[];
+        var evSummary=evAssertions.map(function(a){return (a.passed?"✓ ":"✗ ")+a.text;}).join("; ");
+        h+="<tr><td class=\\"fw-medium\\">"+esc(ev.name)+'</td><td class="'+sCls(ev.score)+'">'+fmtPct(ev.score)+"</td><td>"+sIcon(evS)+'</td><td class="reasoning-cell">'+esc(evSummary)+"</td></tr>";
       }
       h+="</tbody></table>";
     }

@@ -32,8 +32,7 @@ Code graders communicate via stdin/stdout JSON:
   "score": 1.0,
   "assertions": [
     { "text": "Answer contains correct value (42)", "passed": true }
-  ],
-  "reasoning": "Passed 1 check(s)"
+  ]
 }
 ```
 
@@ -41,7 +40,6 @@ Code graders communicate via stdin/stdout JSON:
 |-------------|------|-------------|
 | `score` | `number` | 0.0 to 1.0 |
 | `assertions` | `Array<{ text, passed, evidence? }>` | Per-aspect results with verdict and optional evidence |
-| `reasoning` | `string` | Explanation of the score |
 
 ## Python Example
 
@@ -64,7 +62,6 @@ score = passed / len(assertions) if assertions else 0.0
 print(json.dumps({
     "score": score,
     "assertions": assertions,
-    "reasoning": f"Passed {passed} check(s)"
 }))
 ```
 
@@ -124,7 +121,6 @@ export default defineCodeGrader(({ outputText, criteria }) => {
   return {
     score: assertions.length === 0 ? 0 : passed / assertions.length,
     assertions,
-    reasoning: `Passed ${passed}/${assertions.length} checks`,
   };
 });
 ```

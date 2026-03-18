@@ -401,7 +401,7 @@ export class CompositeEvaluator implements Evaluator {
       return {
         score: 0,
         verdict: 'fail',
-        assertions: [],
+        assertions: [{ text: 'LLM aggregator failed', passed: false }],
         expectedAspectCount: 1,
         evaluatorRawRequest,
         scores,
