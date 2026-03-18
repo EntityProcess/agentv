@@ -31,6 +31,11 @@ If you are not using Claude plugins, use the CLI directly.
 
 **1. Install:**
 ```bash
+bun install -g agentv
+```
+
+Or with npm:
+```bash
 npm install -g agentv
 ```
 
@@ -77,7 +82,7 @@ Learn more in the [examples/](examples/README.md) directory. For a detailed comp
 
 | Feature | AgentV | [LangWatch](https://github.com/langwatch/langwatch) | [LangSmith](https://github.com/langchain-ai/langsmith-sdk) | [LangFuse](https://github.com/langfuse/langfuse) |
 |---------|--------|-----------|-----------|----------|
-| **Setup** | `npm install agentv` | Cloud account + API key | Cloud account + API key | Cloud account + API key |
+| **Setup** | `bun install -g agentv` | Cloud account + API key | Cloud account + API key | Cloud account + API key |
 | **Server** | None (local) | Managed cloud | Managed cloud | Managed cloud |
 | **Privacy** | All local | Cloud-hosted | Cloud-hosted | Cloud-hosted |
 | **CLI-first** | ✓ | ✗ | Limited | Limited |
@@ -562,10 +567,16 @@ Automatically retries on rate limits, transient 5xx errors, and network failures
 
 ## Troubleshooting
 
-### `EACCES` permission error on global install
+### `EACCES` permission error on global install (npm)
 
-If you see `EACCES: permission denied` when running `npm install -g agentv`, npm is trying to write to a system directory. Fix this by configuring npm to use a user-owned directory:
+If you see `EACCES: permission denied` when running `npm install -g agentv`, switch to bun (recommended) or configure npm to use a user-owned directory:
 
+**Option 1 (recommended): Use bun instead**
+```bash
+bun install -g agentv
+```
+
+**Option 2: Fix npm permissions**
 ```bash
 mkdir -p ~/.npm-global
 npm config set prefix ~/.npm-global --location=user
