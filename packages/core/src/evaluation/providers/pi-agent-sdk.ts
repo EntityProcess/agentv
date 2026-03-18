@@ -1,5 +1,12 @@
 import type { PiAgentSdkResolvedConfig } from './targets.js';
-import type { Message, Provider, ProviderRequest, ProviderResponse, ToolCall } from './types.js';
+import type {
+  Message,
+  Provider,
+  ProviderRequest,
+  ProviderResponse,
+  ProviderTokenUsage,
+  ToolCall,
+} from './types.js';
 
 type PiProvider =
   | 'anthropic'
@@ -39,9 +46,22 @@ async function loadPiModules(): Promise<{
   };
 }
 
+/** Tracks in-flight tool executions for timing. */
+interface ToolExecTracker {
+  readonly toolCallId: string;
+  readonly toolName: string;
+  // biome-ignore lint/suspicious/noExplicitAny: agent SDK args are untyped
+  readonly args: any;
+  readonly startMs: number;
+  readonly startTime: string;
+}
+
 /**
  * Pi Agent SDK provider using the @mariozechner/pi-agent-core library directly.
  * This avoids CLI argument-passing issues (especially on Windows) by using the SDK.
+ *
+ * Captures token usage, cost, tool call timing, and message-level metadata
+ * for OTel trace parity with codex and copilot-sdk providers.
  *
  * Note: Dependencies are loaded lazily on first use to avoid bundling issues.
  * Users must install @mariozechner/pi-agent-core and @mariozechner/pi-ai separately.
@@ -68,7 +88,8 @@ export class PiAgentSdkProvider implements Provider {
     // Lazy load the pi-agent modules
     const { Agent, getModel, getEnvApiKey } = await loadPiModules();
 
-    const startTime = Date.now();
+    const startTimeIso = new Date().toISOString();
+    const startMs = Date.now();
     const providerName = this.config.provider ?? 'anthropic';
     const modelId = this.config.model ?? 'claude-sonnet-4-20250514';
     // Use type assertion since getModel has strict generic constraints for compile-time known values
@@ -92,19 +113,86 @@ export class PiAgentSdkProvider implements Provider {
       },
     });
 
-    // Collect events for output messages
-    const output: Message[] = [];
-    let finalAssistantContent = '';
+    // Track token usage, cost, and tool timing from events
+    let tokenUsage: ProviderTokenUsage | undefined;
+    let costUsd: number | undefined;
+    const toolTrackers = new Map<string, ToolExecTracker>();
+    const completedToolResults = new Map<string, { output: unknown; durationMs: number }>();
 
-    // Subscribe to events
+    // Subscribe to events for rich tracing
     const unsubscribe = agent.subscribe((event) => {
-      if (event.type === 'message_end') {
-        const msg = event.message;
-        if (msg.role === 'assistant') {
-          const content = extractTextContent(msg.content);
-          if (content) {
-            finalAssistantContent = content;
+      switch (event.type) {
+        case 'message_end': {
+          // Extract token usage and cost from AssistantMessage
+          const msg = event.message;
+          if (msg && typeof msg === 'object' && 'usage' in msg) {
+            const usage = (msg as Record<string, unknown>).usage;
+            if (usage && typeof usage === 'object') {
+              const u = usage as Record<string, unknown>;
+              const input = toNumber(u.input);
+              const output = toNumber(u.output);
+              if (input !== undefined || output !== undefined) {
+                // Accumulate across multiple LLM calls (multi-turn)
+                tokenUsage = {
+                  input: (tokenUsage?.input ?? 0) + (input ?? 0),
+                  output: (tokenUsage?.output ?? 0) + (output ?? 0),
+                  ...(toNumber(u.cacheRead) !== undefined
+                    ? { cached: (tokenUsage?.cached ?? 0) + (toNumber(u.cacheRead) ?? 0) }
+                    : tokenUsage?.cached !== undefined
+                      ? { cached: tokenUsage.cached }
+                      : {}),
+                };
+              }
+
+              // Extract cost from usage.cost object
+              const cost = (u as Record<string, unknown>).cost;
+              if (cost && typeof cost === 'object') {
+                const total = toNumber((cost as Record<string, unknown>).total);
+                if (total !== undefined) {
+                  costUsd = (costUsd ?? 0) + total;
+                }
+              }
+            }
           }
+
+          // Emit streamCallbacks for OTel
+          if (request.streamCallbacks && msg && typeof msg === 'object' && 'role' in msg) {
+            const role = (msg as Record<string, unknown>).role;
+            if (role === 'assistant') {
+              request.streamCallbacks.onLlmCallEnd?.(modelId, tokenUsage);
+            }
+          }
+          break;
+        }
+
+        case 'tool_execution_start': {
+          toolTrackers.set(event.toolCallId, {
+            toolCallId: event.toolCallId,
+            toolName: event.toolName,
+            args: event.args,
+            startMs: Date.now(),
+            startTime: new Date().toISOString(),
+          });
+          request.streamCallbacks?.onToolCallStart?.(event.toolName, event.toolCallId);
+          break;
+        }
+
+        case 'tool_execution_end': {
+          const tracker = toolTrackers.get(event.toolCallId);
+          const durationMs = tracker ? Date.now() - tracker.startMs : 0;
+          completedToolResults.set(event.toolCallId, {
+            output: event.result,
+            durationMs,
+          });
+          request.streamCallbacks?.onToolCallEnd?.(
+            event.toolName,
+            tracker?.args,
+            event.result,
+            durationMs,
+            event.toolCallId,
+          );
+          toolTrackers.delete(event.toolCallId);
+          break;
         }
       }
     });
@@ -127,13 +215,15 @@ export class PiAgentSdkProvider implements Provider {
       // Wait for agent to finish
       await agent.waitForIdle();
 
-      // Extract messages from agent state
+      // Extract messages from agent state with enriched data
       const agentMessages = agent.state.messages;
+      const output: Message[] = [];
       for (const msg of agentMessages) {
-        output.push(convertAgentMessage(msg));
+        output.push(convertAgentMessage(msg, toolTrackers, completedToolResults));
       }
 
-      const durationMs = Date.now() - startTime;
+      const endTimeIso = new Date().toISOString();
+      const durationMs = Date.now() - startMs;
 
       return {
         raw: {
@@ -143,7 +233,11 @@ export class PiAgentSdkProvider implements Provider {
           provider: this.config.provider,
         },
         output,
+        tokenUsage,
+        costUsd,
         durationMs,
+        startTime: startTimeIso,
+        endTime: endTimeIso,
       };
     } finally {
       unsubscribe();
@@ -179,8 +273,13 @@ function extractTextContent(content: unknown): string | undefined {
 
 /**
  * Convert pi-agent message to AgentV Message format.
+ * Enriches with token usage, metadata, and tool call timing from event trackers.
  */
-function convertAgentMessage(message: unknown): Message {
+function convertAgentMessage(
+  message: unknown,
+  _toolTrackers: Map<string, ToolExecTracker>,
+  completedToolResults: Map<string, { output: unknown; durationMs: number }>,
+): Message {
   if (!message || typeof message !== 'object') {
     return { role: 'unknown', content: String(message) };
   }
@@ -188,7 +287,7 @@ function convertAgentMessage(message: unknown): Message {
   const msg = message as Record<string, unknown>;
   const role = typeof msg.role === 'string' ? msg.role : 'unknown';
   const content = extractTextContent(msg.content);
-  const toolCalls = extractToolCalls(msg.content);
+  const toolCalls = extractToolCalls(msg.content, completedToolResults);
   const startTime =
     typeof msg.timestamp === 'number'
       ? new Date(msg.timestamp).toISOString()
@@ -196,18 +295,46 @@ function convertAgentMessage(message: unknown): Message {
         ? msg.timestamp
         : undefined;
 
+  // Extract per-message token usage from AssistantMessage.usage
+  let msgTokenUsage: ProviderTokenUsage | undefined;
+  if (msg.usage && typeof msg.usage === 'object') {
+    const u = msg.usage as Record<string, unknown>;
+    const input = toNumber(u.input);
+    const output = toNumber(u.output);
+    if (input !== undefined || output !== undefined) {
+      msgTokenUsage = {
+        input: input ?? 0,
+        output: output ?? 0,
+        ...(toNumber(u.cacheRead) !== undefined ? { cached: toNumber(u.cacheRead) } : {}),
+      };
+    }
+  }
+
+  // Build metadata from model/provider info
+  const metadata: Record<string, unknown> = {};
+  if (msg.api) metadata.api = msg.api;
+  if (msg.provider) metadata.provider = msg.provider;
+  if (msg.model) metadata.model = msg.model;
+  if (msg.stopReason) metadata.stopReason = msg.stopReason;
+
   return {
     role,
     content,
     toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     startTime,
+    metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+    tokenUsage: msgTokenUsage,
   };
 }
 
 /**
  * Extract tool calls from pi-agent content array format.
+ * Enriches with output and timing from completed tool result trackers.
  */
-function extractToolCalls(content: unknown): readonly ToolCall[] {
+function extractToolCalls(
+  content: unknown,
+  completedToolResults: Map<string, { output: unknown; durationMs: number }>,
+): readonly ToolCall[] {
   if (!Array.isArray(content)) {
     return [];
   }
@@ -219,13 +346,22 @@ function extractToolCalls(content: unknown): readonly ToolCall[] {
     }
     const p = part as Record<string, unknown>;
     if (p.type === 'toolCall' && typeof p.name === 'string') {
+      const id = typeof p.id === 'string' ? p.id : undefined;
+      const completed = id ? completedToolResults.get(id) : undefined;
       toolCalls.push({
         tool: p.name,
         input: p.arguments,
-        id: typeof p.id === 'string' ? p.id : undefined,
+        id,
+        output: completed?.output,
+        durationMs: completed?.durationMs,
       });
     }
   }
 
   return toolCalls;
+}
+
+function toNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  return undefined;
 }
