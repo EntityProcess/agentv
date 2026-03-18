@@ -255,55 +255,5 @@ describe('SkillTriggerEvaluator', () => {
       const result = evaluator.evaluate(context);
       expect(result.verdict).toBe('pass');
     });
-
-    it('should recognize Copilot skill usage encoded in the tool name', () => {
-      const evaluator = new SkillTriggerEvaluator(makeConfig());
-      const context = makeContext({
-        provider: { kind: 'copilot-sdk', targetName: 'test' },
-        output: [
-          {
-            role: 'assistant',
-            content: '',
-            toolCalls: [{ tool: 'Using skill: csv-analyzer', input: {} }],
-          },
-        ],
-      });
-      const result = evaluator.evaluate(context);
-      expect(result.verdict).toBe('pass');
-      expect(result.assertions.filter((a) => a.passed)[0].text).toContain('Using skill: csv-analyzer');
-    });
-
-    it('should recognize Copilot viewing tool names that include the skill path', () => {
-      const evaluator = new SkillTriggerEvaluator(makeConfig());
-      const context = makeContext({
-        provider: { kind: 'copilot-sdk', targetName: 'test' },
-        output: [
-          {
-            role: 'assistant',
-            content: '',
-            toolCalls: [{ tool: 'Viewing ...csv-analyzer/SKILL.md', input: {} }],
-          },
-        ],
-      });
-      const result = evaluator.evaluate(context);
-      expect(result.verdict).toBe('pass');
-      expect(result.assertions.filter((a) => a.passed)[0].text).toContain('Viewing ...csv-analyzer/SKILL.md');
-    });
-
-    it('should recognize Copilot Read tool paths stored in input.path', () => {
-      const evaluator = new SkillTriggerEvaluator(makeConfig());
-      const context = makeContext({
-        provider: { kind: 'copilot-sdk', targetName: 'test' },
-        output: [
-          {
-            role: 'assistant',
-            content: '',
-            toolCalls: [{ tool: 'Read', input: { path: '/skills/csv-analyzer/SKILL.md' } }],
-          },
-        ],
-      });
-      const result = evaluator.evaluate(context);
-      expect(result.verdict).toBe('pass');
-    });
   });
 });

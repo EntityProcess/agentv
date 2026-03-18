@@ -81,3 +81,16 @@ agentv eval csv-analyzer.EVAL.yaml
 # Run against a real target
 agentv eval csv-analyzer.EVAL.yaml --target default
 ```
+
+## Copilot note
+
+When running `skill-trigger` evals against Copilot targets, real traces may show provider-specific tool names such as:
+
+```text
+Using skill: <skill-name>
+Viewing ...<skill-path>
+```
+
+They may also emit `Read` tool calls with the path in `input.path` rather than `input.file_path`.
+
+These shapes come from real provider traces and should be treated as valid skill-trigger evidence for Copilot targets.
