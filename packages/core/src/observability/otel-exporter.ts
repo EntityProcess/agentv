@@ -203,7 +203,10 @@ export class OtelTraceExporter {
         if (result.trace) {
           const t = result.trace;
           rootSpan.setAttribute('agentv.trace.event_count', t.eventCount);
-          rootSpan.setAttribute('agentv.trace.tool_names', Object.keys(t.toolCalls).sort().join(','));
+          rootSpan.setAttribute(
+            'agentv.trace.tool_names',
+            Object.keys(t.toolCalls).sort().join(','),
+          );
           if (t.llmCallCount != null)
             rootSpan.setAttribute('agentv.trace.llm_call_count', t.llmCallCount);
         }
